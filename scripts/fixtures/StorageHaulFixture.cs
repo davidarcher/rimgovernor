@@ -435,6 +435,10 @@ namespace HomeBridge.BridgeTools
                     var marker = ThingMaker.MakeThing(ThingDefOf.Table2x2c, ThingDefOf.WoodLog);
                     marker.SetFaction(Faction.OfPlayer);
                     GenSpawn.Spawn(marker, baseCell, map);
+                    // No operator floor any more (#875): with the colony's steel
+                    // gone, the default Steel floor (200) is the salvage demand.
+                    foreach (var steel in map.listerThings.ThingsOfDef(ThingDefOf.Steel).ToList())
+                        steel.Destroy(DestroyMode.Vanish);
                     salvageHomeCount = map.areaManager.Home.ActiveCells.Count();
                     salvageStoredBefore = Stored();
                 }

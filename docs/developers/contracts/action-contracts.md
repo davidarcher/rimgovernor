@@ -122,7 +122,7 @@ protected exports. Unknown or truncated inventory prevents selection. A policy
 with no eligible affordable lines cancels its own session without an exchange;
 the retained policy evidence explains each target. Neither cancellation nor
 acceptance takes a trader quest. Trade is routine-only (the `trade` family,
-`--routine-silver-reserve`, `--routine-component-target`,
+`--routine-silver-reserve`,
 `--routine-item-wealth-share`); there is no player trade command. Sales come
 from stock above a MaintainResource target and, once the item share of colony
 wealth passes `--routine-item-wealth-share`, from raw-material hoards (steel,

@@ -63,8 +63,7 @@ the controller.
 | `--profile` | Absolute shared game profile; required for autonomous play. |
 | `--assets`, `--listen`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); native call timeout. |
 | `--clock-speed` | Native speed while a supervised window is held: `Normal` (default), `Fast`, `Superfast`. |
-| `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: resource production targets/reserves/stops and herd ceilings. |
-| `--routine-component-target` | Trade tuning (requires the `trade` family): the `ComponentIndustrial` stock it buys toward and, with the `resource` family, `MaintainResource` mines toward. |
+| `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: resource reserves/stops (MaintainResource keeps the default floors: Steel 200, ComponentIndustrial 10, stone blocks 150; trade buys components toward the same floor) and herd ceilings. |
 | `--resource-rule` | Resource reservation rules for building admission. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
 | `--chat-model`, `--chat-base-url` | Local model chat; `--chat-base-url` requires `--chat-model`. |
@@ -717,8 +716,8 @@ observation bracket, honoring saved player work preferences; furniture with no
 native construction skill requirement (a crafting spot) needs only one
 available pawn with Construction enabled. The `workshop`
 family (issue #4 M2) applies the same ladder to production: when a
-`--routine-resource-target` (or `--routine-stone-block-target`, a floor for
-the blocks of the stone whose chunks the map counts most) deficit has no reachable bench hosting an available
+resource floor (the defaults, or the stone-block floor for the blocks of
+the stone whose chunks the map counts most) deficit has no reachable bench hosting an available
 recipe, it reads the native recipe catalog for the product, previews the first
 research-available, unpowered, unskilled bench definition (`CraftingSpot` on the
 tribal baseline; `TableStonecutter` once stonecutting is researched) inside a

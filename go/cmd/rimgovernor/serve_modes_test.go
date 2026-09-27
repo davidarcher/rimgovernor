@@ -120,22 +120,21 @@ func TestServeRoutineFamiliesSelection(t *testing.T) {
 	}
 	// Family-scoped tuning flags need their family composed.
 	withRoutineFamilies(t, "sleeping", true)
-	for _, extra := range [][]string{{"--routine-resource-target", "Steel:100"}, {"--routine-stone-block-target", "60"}, {"--routine-resource-reserve", "Steel:100"}, {"--routine-allow-slaughter"}} {
+	for _, extra := range [][]string{{"--routine-resource-reserve", "Steel:100"}, {"--routine-allow-slaughter"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--profile", dir), extra...), io.Discard); err == nil {
 			t.Fatalf("accepted %v without its family", extra)
 		}
 	}
 	withRoutineFamilies(t, "", true)
-	c, err = parseServe(append(serveBase(dir), "--profile", dir, "--routine-resource-target", "Steel:100"), io.Discard)
-	if err != nil || len(c.routineResourceTargets) != 1 {
+	// The resource family keeps the default floors; no flag sets them (#875).
+	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
+	if err != nil || !c.resourceTargetsConfigured() || c.resourceTargets()["Steel"] != 200 || c.resourceTargets()["ComponentIndustrial"] != 10 {
 		t.Fatal(c, err)
 	}
-	c, err = parseServe(append(serveBase(dir), "--profile", dir, "--routine-stone-block-target", "60"), io.Discard)
-	if err != nil || c.routineStoneBlockTarget != 60 || !c.resourceTargetsConfigured() {
-		t.Fatal(c, err)
-	}
-	if _, err := parseServe(append(serveBase(dir), "--profile", dir, "--routine-stone-block-target", "10001"), io.Discard); err == nil {
-		t.Fatal("stone block target past the bill bound accepted")
+	for _, gone := range []string{"--routine-resource-target", "--routine-component-target", "--routine-stone-block-target"} {
+		if _, err := parseServe(append(serveBase(dir), "--profile", dir, gone, "1"), io.Discard); err == nil {
+			t.Fatal("deleted flag accepted:", gone)
+		}
 	}
 }
 
@@ -177,13 +176,6 @@ func TestServeDefaultResourceFloors(t *testing.T) {
 	thresholds, capabilities := routineCapabilities(c)
 	if !maps.Equal(thresholds.ResourceTargets, policy.DefaultResourceTargets()) || thresholds.StoneBlockTarget != policy.DefaultStoneBlockTarget || !slices.Contains(capabilities.Methods, policy.MaintainResource) {
 		t.Fatalf("default launch floors %v stone %d methods %v", thresholds.ResourceTargets, thresholds.StoneBlockTarget, capabilities.Methods)
-	}
-	c, err = parseServe(append(serveBase(dir), "--profile", dir, "--routine-resource-target", "Steel:50"), io.Discard)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if thresholds, _ = routineCapabilities(c); !maps.Equal(thresholds.ResourceTargets, map[policy.Resource]int64{"Steel": 50}) {
-		t.Fatalf("operator target did not replace the defaults: %v", thresholds.ResourceTargets)
 	}
 	withRoutineFamilies(t, "sleeping", true)
 	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)

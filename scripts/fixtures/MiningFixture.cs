@@ -18,6 +18,7 @@ namespace HomeBridge.BridgeTools
         private static List<Thing> remoteOre;
         private static Thing foreignOre;
         private static Zone_Stockpile remoteStore;
+        private const int InitialSteel = 180;
 
         [Tool("test/mining_remote_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable flat-map steel shortage with three surface rocks near the far edge, a forbidden foreign Mine designation, accepting base storage and six armed hauling colonists.")]
         public async Task<object> RemotePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
@@ -85,9 +86,18 @@ namespace HomeBridge.BridgeTools
                 // and would count as a colony facility next to the ore.
                 foreach (var cell in GenAdj.CellsAdjacent8Way(foreignOre))
                     GenSpawn.Spawn(ThingMaker.MakeThing(ThingDefOf.Wall, DefDatabase<ThingDef>.GetNamed("BlocksGranite")), cell, map);
+                // The default Steel floor (200, #875) is the demand: stock the
+                // base store 20 short so one lump closes it.
+                var stocked = 0;
+                foreach (var cell in remoteStore.Cells.Take(3)) {
+                    var steel = ThingMaker.MakeThing(ThingDefOf.Steel);
+                    steel.stackCount = Math.Min(75, InitialSteel - stocked);
+                    GenSpawn.Spawn(steel, cell, map);
+                    stocked += steel.stackCount;
+                }
                 remoteMap = map;
                 return new { success = true, distance = cells[0].DistanceTo(anchor), edge = Edge(cells[0]),
-                    initialSteel = 0, rocks = remoteOre.Count, yield = def.building.mineableYield };
+                    initialSteel = stocked, rocks = remoteOre.Count, yield = def.building.mineableYield };
             }, cancellationToken);
         }
 

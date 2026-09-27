@@ -21,9 +21,8 @@ func init() {
 		Start:       cases.Fixture{Op: "test/mining_remote_prepare", On: cases.FlatDebugStart()},
 		RequiredOps: []string{"test/mining_remote_observe"},
 		Quiet:       na.QuietRequired, QuietWorld: true, Budget: 4 * time.Minute,
-		Serve: &cases.ServeSpec{Families: []string{"resource"}, NativeTimeout: 30 * time.Second,
-			Extra: []string{"--routine-resource-target", "Steel:20"}},
-		Run: runRemoteOre,
+		Serve: &cases.ServeSpec{Families: []string{"resource"}, NativeTimeout: 30 * time.Second},
+		Run:   runRemoteOre,
 	})
 }
 
@@ -73,7 +72,7 @@ func runRemoteOre(ctx context.Context, s cases.Session) error {
 		if !preserved || na.AsNumber(row["removed"]) != 1 || na.AsNumber(row["ownedRecords"]) != 1 || na.AsNumber(row["designated"]) != 0 {
 			return fmt.Errorf("mining exceeded demand or changed foreign work: %v", row)
 		}
-		if delivered && na.AsNumber(row["storedSteel"]) < 20 {
+		if delivered && na.AsNumber(row["storedSteel"]) < 200 {
 			return fmt.Errorf("steel not delivered: %v", row)
 		}
 		return nil

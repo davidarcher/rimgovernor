@@ -92,13 +92,15 @@ The `production/ladder` case (`acceptance run production/ladder`, `go/internal/n
 Core tribal baseline; `test/production_ladder_prepare` stages a roofed
 starter hut with a sleeping spot per colonist (the room the workshop rung
 furnishes, `scripts/fixtures/FixtureHut.cs`), a simple research bench inside
-it, steel and wood beside its door and Smithing at 97%, and the case requires
-live native evidence for every rung: Smithing finished, a smithy in a
-Workshop-hosting room carrying the gladius bill, an allow-list stockpile for
-steel in that room, and the gladius count above the pre-service baseline.
+it with a fueled generator, steel, wood and the bench's 12 components loose
+beside its door and Fabrication at 97%; the default component floor (10)
+drives the ladder, and the case requires live native evidence for every rung:
+Fabrication finished, a fabrication bench in a Workshop-hosting room carrying
+the component bill, an allow-list stockpile for steel in that room, and the
+stored component count above the pre-service baseline.
 
 The `production/stone` case (`acceptance run production/stone`) runs the
-same baseline with only `--routine-stone-block-target 40`: the fixture
+same baseline under the default stone-block floor (150): the fixture
 stages the same hut and research bench, the table's steel and Stonecutting at
 97% through `test/production_stone_prepare`, and the audit requires Stonecutting
 finished, a stonecutter's table in a Workshop-hosting room carrying the

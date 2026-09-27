@@ -94,10 +94,7 @@ type serveConfig struct {
 	routineNamingPlans              bool
 	routineDialogPlans              bool
 	routineTradePlans               bool
-	routineComponentTarget          int64
 	routineResourcePlans            bool
-	routineResourceTargets          resourceTargetFlags
-	routineStoneBlockTarget         int64
 	routineAnimalFeedPlans          bool
 	routineProductionPolicyPlans    bool
 	routineResourceReserves         resourceReserveFlags
@@ -154,9 +151,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.debug, "debug", false, "log debug records too: the clock trace (which step branch ran, what each planner decided, what a routine refused and why) and refused pawn orders; stderr only, never flight rows")
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
-	flags.Int64Var(&c.routineComponentTarget, "routine-component-target", 0, "ComponentIndustrial stock TradeWithCaravan buys toward and, with the resource family, MaintainResource mines toward; 0 tracks no component target")
-	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward; any use replaces the default floors (policy.DefaultResourceTargets)")
-	flags.Int64Var(&c.routineStoneBlockTarget, "routine-stone-block-target", policy.DefaultStoneBlockTarget, "native stock floor MaintainResource keeps for stone blocks of the stone whose chunks the map counts most, staging a stonecutter's table and a do-until bill fed from those chunks; 0 disables")
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
 	flags.BoolVar(&c.routineAllowSlaughter, "routine-allow-slaughter", false, "let MaintainHerd propose a slaughter write for a surplus animal once --routine-herd-population-max is declared; slaughter is irreversible and stays off unless explicitly set")
@@ -178,7 +172,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "chat-model", "chat-base-url", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "chat-model", "chat-base-url", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -205,25 +199,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.clockBlindTicks > maxClockBlindTicks {
 		return c, fmt.Errorf("--clock-blind-ticks must be 0 through %d", maxClockBlindTicks)
-	}
-	if c.routineComponentTarget != 0 && !c.routineTradePlans {
-		return c, errors.New("--routine-component-target requires the trade routine family")
-	}
-	if c.routineComponentTarget < 0 {
-		return c, errors.New("--routine-component-target must be non-negative")
-	}
-	if c.routineComponentTarget > 0 && c.routineResourcePlans {
-		if _, set := c.routineResourceTargets[policy.ComponentResource]; !set {
-			if err := c.routineResourceTargets.Set(fmt.Sprintf("%s:%d", policy.ComponentResource, c.routineComponentTarget)); err != nil {
-				return c, err
-			}
-		}
-	}
-	if c.routineStoneBlockTarget < 0 || c.routineStoneBlockTarget > 10000 {
-		return c, errors.New("--routine-stone-block-target must be within 0..10000")
-	}
-	if (len(c.routineResourceTargets) > 0 || explicit["routine-stone-block-target"]) && !c.routineResourcePlans {
-		return c, errors.New("--routine-resource-target and --routine-stone-block-target require the resource routine family")
 	}
 	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
 		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require the production-policy routine family")
@@ -385,12 +360,9 @@ func (c serveConfig) resourceTargetsConfigured() bool {
 	return c.routineResourcePlans
 }
 
-// resourceTargets is the operator floor map when any
-// --routine-resource-target is given, otherwise the default floors.
+// resourceTargets is the MaintainResource floor map: the defaults
+// (#875). Goal-derived needs raise it through EffectiveResourceTargets.
 func (c serveConfig) resourceTargets() map[policy.Resource]int64 {
-	if len(c.routineResourceTargets) > 0 {
-		return c.routineResourceTargets.Map()
-	}
 	return policy.DefaultResourceTargets()
 }
 

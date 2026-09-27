@@ -140,9 +140,9 @@ rising item count carry the deficit to recovery. The full ladder and the
 per-role matrix are in [facilities](facilities.md).
 
 Stone blocks ride the same ladder without the operator naming the stone:
-`--routine-stone-block-target N` is a floor for the block definition of
+the default floor `policy.DefaultStoneBlockTarget` (150) is kept for the block definition of
 whichever Core stone the reachable chunk census counts most
-(`policy.StoneBlockTarget`), merged into the operator's resource targets each
+(`policy.StoneBlockTarget`), merged into the default resource targets each
 review and planner step (`RoutinePolicy.EffectiveResourceTargets`). The
 ladder then researches Stonecutting, stages a stonecutter's table in the
 Workshop room and keeps a do-until bill on it fed from the map's chunks —

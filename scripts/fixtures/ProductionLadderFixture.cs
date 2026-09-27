@@ -16,21 +16,21 @@ namespace HomeBridge.BridgeTools
     // furnishes (FixtureHut: a roofed wood hut with a sleeping spot per
     // colonist, so the initial shelter is met and the ladder has clean floor
     // for the bench and its ingredient stockpile), a simple research bench
-    // inside it, ingredients beside its door, and Smithing research a few
+    // inside it, ingredients beside its door, and Fabrication research a few
     // points short of done so the derived EnsureResearch target finishes
     // within a minute-scale watch (#344). Audit reads the same native state
     // back.
     public sealed class ProductionLadderFixture
     {
-        const string Project = "Smithing";
+        const string Project = "Fabrication";
 
         // HutSize is the ring the production fixtures stage: 9x9 inside, so
-        // eight sleeping spots, the research bench, a smithy or stonecutter's
+        // eight sleeping spots, the research bench, a fabrication bench or stonecutter's
         // table and an ingredient stockpile all fit without the workshop
         // ladder siting a second shell (#218).
         const int HutSize = 11;
 
-        [Tool("test/production_ladder_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: build one roofed wood hut with a sleeping spot per colonist and a simple research bench inside, move every colonist in, drop steel and wood beside its door, and advance Smithing research to 97% of its base cost (IsFinished compares real progress to baseCost; a tribal colony still owes the tech-level factor on the rest).")]
+        [Tool("test/production_ladder_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: build one roofed wood hut with a sleeping spot per colonist with a simple research bench and a fueled wood-fired generator inside, move every colonist in, drop steel, wood and the fabrication bench's 12 components beside its door, finish Fabrication's prerequisites and advance Fabrication research to 97% of its base cost (IsFinished compares real progress to baseCost; a tribal colony still owes the tech-level factor on the rest).")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, [ToolParameter(Description = "South-west corner x of the hut the controller's starter search chose (required).")] int siteX = -1, [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1, [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1, [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -38,10 +38,23 @@ namespace HomeBridge.BridgeTools
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
                 var hut = FixtureHut.Build(map, HutSize, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                 var bench = FixtureHut.SpawnInside(map, hut, ThingDef.Named("SimpleResearchBench"));
-                // The smithy and the gladius cost steel; the bench ladder may
-                // pay wood. The tribal baseline holds neither.
-                var steel = FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, 150);
+                // The fabrication bench costs steel and 12 components, a
+                // component bill steel; the bench ladder may pay wood. The
+                // tribal baseline holds none of them. The components lie loose
+                // outside storage, so the native stock (ResourceCounter) reads
+                // 0 against the default floor of 10 (#875).
+                var steel = FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, 300);
                 var wood = FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 150);
+                FixtureHut.DropOutside(map, hut, ThingDef.Named("ComponentIndustrial"), 12);
+                // The fabrication bench draws power; the generator is its source.
+                var generator = FixtureHut.SpawnInside(map, hut, ThingDef.Named("WoodFiredGenerator"));
+                generator.TryGetComp<CompRefuelable>().Refuel(1000f);
+                void Finish(ResearchProjectDef p) {
+                    if (p.IsFinished) return;
+                    if (p.prerequisites != null) foreach (var prerequisite in p.prerequisites) Finish(prerequisite);
+                    Find.ResearchManager.FinishProject(p, false);
+                }
+                foreach (var prerequisite in DefDatabase<ResearchProjectDef>.GetNamed(Project).prerequisites ?? new List<ResearchProjectDef>()) Finish(prerequisite);
                 var project = Advance(Project);
                 return new { success = true, researchBench = bench.GetUniqueLoadID(), steel, wood, project = Project,
                     progress = project.ProgressPercent, finished = project.IsFinished, hut = hut.Summary(), tick = Find.TickManager.TicksGame };
@@ -211,7 +224,7 @@ namespace HomeBridge.BridgeTools
             .GroupBy(t => t.def.defName).OrderBy(g => g.Key, StringComparer.Ordinal)
             .Select(g => (object)new { defName = g.Key, count = g.Sum(t => t.stackCount) }).ToArray();
 
-        [Tool("test/production_ladder_audit", Description = "Private read-only fixture: Smithing state, smithies with their room role and bills, stockpile zones with their room role and steel allowance, and the live gladius count.")]
+        [Tool("test/production_ladder_audit", Description = "Private read-only fixture: Fabrication state, fabrication benches with their room role and bills, stockpile zones with their room role and steel allowance, and the stored component count.")]
         public async Task<object> Audit(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -219,8 +232,8 @@ namespace HomeBridge.BridgeTools
                 if (map == null) throw new InvalidOperationException("No current map.");
                 var project = DefDatabase<ResearchProjectDef>.GetNamed(Project);
                 string RoleAt(IntVec3 cell) => cell.GetRoom(map)?.Role?.defName;
-                var smithies = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>()
-                    .Where(b => b.def.defName == "FueledSmithy" || b.def.defName == "ElectricSmithy")
+                var benches = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>()
+                    .Where(b => b.def.defName == "FabricationBench")
                     .Select(b => new { thingId = b.GetUniqueLoadID(), defName = b.def.defName, x = b.Position.x, z = b.Position.z, roomRole = RoleAt(b.Position),
                         powered = b.TryGetComp<CompPowerTrader>()?.PowerOn, fuel = b.TryGetComp<CompRefuelable>()?.Fuel,
                         bills = b.BillStack.Bills.Select(bill => bill.recipe.defName).ToArray() }).ToArray();
@@ -228,14 +241,12 @@ namespace HomeBridge.BridgeTools
                     roomRole = z.Cells.Count > 0 ? RoleAt(z.Cells[0]) : null, priority = z.settings.Priority.ToString(),
                     allowsSteel = z.settings.filter.Allows(ThingDefOf.Steel), allowedCount = z.settings.filter.AllowedDefCount,
                     steelStored = z.AllContainedThings.Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount) }).ToArray();
-                var gladius = ThingDef.Named("MeleeWeapon_Gladius");
-                var ground = map.listerThings.ThingsOfDef(gladius).Count(t => t.Spawned);
-                var carried = map.mapPawns.FreeColonistsSpawned.Count(p => p.equipment?.Primary?.def == gladius);
+                var components = map.resourceCounter.GetCount(ThingDef.Named("ComponentIndustrial"));
                 var researchers = map.mapPawns.FreeColonistsSpawned.Where(p => p.workSettings != null && p.workSettings.WorkIsActive(WorkTypeDefOf.Research)).Select(p => p.LabelShort).ToArray();
                 return new { success = true, project = Project, finished = project.IsFinished, progress = project.ProgressPercent,
                     current = Find.ResearchManager.GetProject()?.defName, researchers,
                     researchBenches = map.listerBuildings.allBuildingsColonist.OfType<Building_ResearchBench>().Count(),
-                    smithies, stockpiles, gladiusGround = ground, gladiusCarried = carried, tick = Find.TickManager.TicksGame };
+                    benches, stockpiles, components, tick = Find.TickManager.TicksGame };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

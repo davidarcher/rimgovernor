@@ -22,7 +22,7 @@ func init() {
 			Scope:       "Recover a material runway deficit through ordinary pawn production; native stock must rise, with deep steel depletion or a Make_ComponentIndustrial bill proving its source.",
 			Start:       cases.Fixture{Op: "test/production_materials_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{"scenario": scenario}, On: cases.Save{Name: baselineSave}},
 			RequiredOps: []string{"test/production_materials_audit"},
-			Serve:       &cases.ServeSpec{Families: []string{"work,resource,production-policy,power"}, NativeTimeout: 15 * time.Second, Prefix: scenario, Extra: []string{"--routine-resource-target", "Steel:250", "--routine-resource-target", "ComponentIndustrial:10"}},
+			Serve:       &cases.ServeSpec{Families: []string{"work,resource,production-policy,power"}, NativeTimeout: 15 * time.Second, Prefix: scenario},
 			QuietWorld:  true,
 			// The six-minute production window starts fresh so its native
 			// stock baseline and staged history always describe the same run.
@@ -100,7 +100,7 @@ func materialPrecondition(row map[string]any, scenario string) error {
 		return fmt.Errorf("material research not staged: %v", row)
 	}
 	if scenario == "deepdrill" {
-		if na.AsNumber(row["steel"]) < 100 || na.AsNumber(row["steel"]) >= 250 || na.AsNumber(row["components"]) < 3 || na.AsNumber(row["deepSteel"]) <= 0 || na.AsNumber(row["scanners"]) != 1 {
+		if na.AsNumber(row["steel"]) < 100 || na.AsNumber(row["steel"]) >= float64(policy.DefaultResourceTargets()["Steel"]) || na.AsNumber(row["components"]) < 3 || na.AsNumber(row["deepSteel"]) <= 0 || na.AsNumber(row["scanners"]) != 1 {
 			return fmt.Errorf("deep drill fixture lacks funded construction, scanner, lump or deficit: %v", row)
 		}
 	} else if na.AsNumber(row["steel"]) < 370 || na.AsNumber(row["components"]) >= 10 || na.AsNumber(row["benches"]) != 1 {

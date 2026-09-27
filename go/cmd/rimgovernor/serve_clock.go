@@ -147,7 +147,7 @@ func parseClockSpeed(speed string) k.Speed {
 // controller only through a review now have journal rows: the native
 // digests cover research, faction relations, game conditions and zone
 // edits (#626), a growing zone turning harvestable and a stock crossing a
-// --routine-resource-target level (#670). Raising the default is #669.
+// MaintainResource floor (#670). Raising the default is #669.
 //
 // A raid runs in combat windows that stop natively on the tick an armed
 // combat event happens (#849); combatBackstopTicks bounds a window in which
@@ -964,7 +964,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.resourceTargetsConfigured() {
 		thresholds.ResourceTargets = sc.resourceTargets()
-		thresholds.StoneBlockTarget = sc.routineStoneBlockTarget
+		thresholds.StoneBlockTarget = policy.DefaultStoneBlockTarget
 		// Acquisition already declares it (the wood floor, #728).
 		if !slices.Contains(capabilities.Methods, policy.MaintainResource) {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
@@ -981,7 +981,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves, policy.MaintainMedicalCare)
 	}
 	if sc.routineTradePlans {
-		thresholds.Trade = policy.RoutineTradePolicy{ComponentTarget: sc.routineComponentTarget}
+		thresholds.Trade = policy.RoutineTradePolicy{ComponentTarget: policy.DefaultResourceTargets()[policy.ComponentResource]}
 		capabilities.Methods = append(capabilities.Methods, policy.TradeWithCaravan)
 	}
 	// The equip planner is EnsureBasicDefense's method: without this

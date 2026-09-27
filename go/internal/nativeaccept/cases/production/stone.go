@@ -15,7 +15,8 @@ import (
 )
 
 // production/stone (#231) is the ladder run for stone blocks: the operator
-// names only a stone-block floor (--routine-stone-block-target), the review
+// keeps only the default stone-block floor (policy.DefaultStoneBlockTarget,
+// #875; the tribal save holds no blocks, so it is short), the review
 // derives the block definition from the chunks the map counts most, and the
 // ladder walks Stonecutting -> stonecutter's table -> do-until bill. The
 // fixture stages the hut, the research bench, Stonecutting at 97% and the
@@ -26,7 +27,7 @@ import (
 const (
 	stoneProject = "Stonecutting"
 	stoneBench   = "TableStonecutter"
-	stoneTarget  = 40
+	stoneTarget  = policy.DefaultStoneBlockTarget
 )
 
 const stoneFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,production-policy,resource,workshop,research,gear,dialog,naming"
@@ -34,9 +35,9 @@ const stoneFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medic
 func init() {
 	cases.Register(cases.Case{
 		Name:   "production/stone",
-		Scope:  fmt.Sprintf("--routine-stone-block-target %d walks research (%s) -> %s -> Make_StoneBlocks bill fed from map chunks; the live block count must rise above the pre-service baseline (#231).", stoneTarget, stoneProject, stoneBench),
+		Scope:  fmt.Sprintf("The default stone-block floor %d walks research (%s) -> %s -> Make_StoneBlocks bill fed from map chunks; the live block count must rise above the pre-service baseline (#231).", stoneTarget, stoneProject, stoneBench),
 		Start:  cases.Fixture{Op: "test/production_stone_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
-		Serve:  &cases.ServeSpec{Families: []string{stoneFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production", Extra: []string{"--routine-stone-block-target", fmt.Sprintf("%d", stoneTarget)}},
+		Serve:  &cases.ServeSpec{Families: []string{stoneFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production"},
 		Stages: []string{benchStage},
 		Budget: benchWindow + window + 5*time.Minute,
 		Reason: "the research rung and the table build are a cached stage (#329); the first bill iteration over map chunks after it runs on a miss and a hit alike",
@@ -63,7 +64,7 @@ func init() {
 						// The bill path reads the baseline back from the
 						// bundle (cases.RestoredState) on a hit.
 						na.SetCheckpointState(baselineKey, baseline)
-						if baseline >= stoneTarget {
+						if baseline >= float64(stoneTarget) {
 							return fmt.Errorf("save already holds %v stone blocks; the floor %d leaves no deficit to recover", baseline, stoneTarget)
 						}
 						if len(na.AsSlice(before["tables"])) != 0 {

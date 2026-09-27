@@ -34,11 +34,10 @@ import (
 // (counted under the launch's keepalive entry, not asserted) so the
 // ranking plays through the map's threats.
 const (
-	minReviews     = 2
-	resourceTarget = "WoodLog:400"
-	watch          = 6 * time.Minute
-	afterRestart   = 3 * time.Minute
-	poll           = 5 * time.Second
+	minReviews   = 2
+	watch        = 6 * time.Minute
+	afterRestart = 3 * time.Minute
+	poll         = 5 * time.Second
 )
 
 func init() {
@@ -49,7 +48,6 @@ func init() {
 		// Every family composes; the ranking under test is the whole ladder.
 		Serve: &cases.ServeSpec{
 			Resume: true, Prefix: "development", NativeTimeout: 15 * time.Second,
-			Extra: []string{"--routine-resource-target", resourceTarget},
 		},
 		Budget: 15 * time.Minute,
 		Run:    development,

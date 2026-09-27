@@ -1,18 +1,20 @@
 // Package production holds issue #4 M4's multi-stage production case
-// (production/ladder): on the Core tribal baseline, run the service with a
-// MaintainResource stock floor for an item only a research-gated bench
-// produces (a gladius on a smithy), and watch the ladder walk research ->
-// bench -> ingredient storage -> bill. The fixture stages what the ladder
-// does not build: a roofed starter hut whose native room role hosts the
-// Workshop facility (with a sleeping spot per colonist, so the initial
-// shelter is met), a simple research bench inside it, steel and wood beside
-// its door, and Smithing research a few points short of done (#344: the
-// workshop checkpoint save the cases once opened was never committed).
+// (production/ladder): on the Core tribal baseline, the service's default
+// component floor (policy.DefaultResourceTargets, #875) asks for an item
+// only a research-gated bench produces (components on a fabrication bench),
+// and the ladder walks research -> bench -> ingredient storage -> bill. The
+// fixture stages what the ladder does not build: a roofed starter hut whose
+// native room role hosts the Workshop facility (with a sleeping spot per
+// colonist, so the initial shelter is met), a simple research bench and a
+// fueled generator inside it, steel, wood and the bench's components loose
+// beside its door (outside storage, so the stock reads 0), and Fabrication
+// research a few points short of done (#344).
 //
-// Passing needs live native evidence, never the journal alone: Smithing
-// finished natively, a smithy standing in a Workshop-hosting room carrying
-// the gladius bill, an allow-list stockpile for its ingredients inside that
-// room, and the live gladius count above the pre-service baseline.
+// Passing needs live native evidence, never the journal alone: Fabrication
+// finished natively, a fabrication bench standing in a Workshop-hosting room
+// carrying the component bill, an allow-list stockpile for its ingredients
+// inside that room, and the stored component count above the pre-service
+// baseline.
 package production
 
 import (
@@ -37,10 +39,11 @@ import (
 const baselineSave = sustained.BaselineSave
 
 const (
-	resource = "MeleeWeapon_Gladius"
-	recipe   = "Make_MeleeWeapon_Gladius"
-	project  = "Smithing"
-	target   = 1
+	resource = policy.ComponentResource
+	recipe   = "Make_ComponentIndustrial"
+	project  = "Fabrication"
+	// target is policy.DefaultResourceTargets()'s component floor (#875).
+	target = 10
 )
 
 // ladderFamilies is facility/workshop's composition plus the research and
@@ -56,7 +59,7 @@ const (
 // bench (#218, a 16 minute run whose ingredient stockpile then had no clean
 // floor, #223). An unserved priority-2 shelter goal gates only comfort,
 // never MaintainResource.
-const ladderFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,production-policy,resource,workshop,research,ingredient-storage,gear,dialog,naming"
+const ladderFamilies = "temperature,comfort,work,power,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,production-policy,resource,workshop,research,ingredient-storage,gear,dialog,naming"
 
 // benchWindow is how long the ladder gets to finish the research rung and
 // raise its bench (the "bench-built" stage, cached across runs, #329);
@@ -84,9 +87,9 @@ var ladderFailFast = sustainedfood.FailFast{MethodUnavailableWaits: true}
 func init() {
 	cases.Register(cases.Case{
 		Name:   "production/ladder",
-		Scope:  fmt.Sprintf("MaintainResource %s:%d walks research (%s) -> smithy -> ingredient stockpile -> bill; the live item count must rise above the pre-service baseline (issue #4, M4).", resource, target, project),
+		Scope:  fmt.Sprintf("MaintainResource %s:%d walks research (%s) -> fabrication bench -> ingredient stockpile -> bill; the live item count must rise above the pre-service baseline (issue #4, M4).", resource, target, project),
 		Start:  cases.Fixture{Op: "test/production_ladder_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
-		Serve:  &cases.ServeSpec{Families: []string{ladderFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production", Extra: []string{"--routine-resource-target", fmt.Sprintf("%s:%d", resource, target)}},
+		Serve:  &cases.ServeSpec{Families: []string{ladderFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production"},
 		Stages: []string{benchStage},
 		Budget: benchWindow + window + 5*time.Minute,
 		Reason: "the research rung and the bench build are a cached stage (#329); the stockpile and the first bill iteration after it run on a miss and a hit alike",
@@ -104,7 +107,7 @@ func init() {
 						if err != nil {
 							return err
 						}
-						baseline := gladiusCount(before)
+						baseline := productCount(before)
 						report["baseline_count"] = baseline
 						// The bill path and the postmortem read the baseline
 						// back from the bundle (cases.RestoredState) on a hit
@@ -113,8 +116,8 @@ func init() {
 						if baseline >= target {
 							return fmt.Errorf("save already holds %v %s; the stock floor %d leaves no deficit to recover", baseline, resource, target)
 						}
-						if len(smithies(before)) != 0 {
-							return fmt.Errorf("save already holds a smithy; the bench rung has nothing to prove")
+						if len(benches(before)) != 0 {
+							return fmt.Errorf("save already holds a fabrication bench; the bench rung has nothing to prove")
 						}
 						return nil
 					},
@@ -127,8 +130,8 @@ func init() {
 						if finished, _ := na.AsBool(live["finished"]); !finished {
 							return fmt.Errorf("%s did not finish natively within the bench window: progress=%v current=%v", project, live["progress"], live["current"])
 						}
-						if len(smithies(live)) == 0 {
-							return fmt.Errorf("no smithy stands within the bench window (%v)", live)
+						if len(benches(live)) == 0 {
+							return fmt.Errorf("no fabrication bench stands within the bench window (%v)", live)
 						}
 						return nil
 					},
@@ -167,7 +170,7 @@ func init() {
 }
 
 // baselineKey is the checkpoint state key the prepare phase records the
-// pre-service gladius count under, for the postmortem of a later run.
+// pre-service component count under, for the postmortem of a later run.
 const baselineKey = "baseline_count"
 
 // billProduced reports a sample whose MaintainResource goal holds or held a
@@ -195,13 +198,10 @@ func planCompleted(sample map[string]any, prefix string) bool {
 	return false
 }
 
-func gladiusCount(audit map[string]any) float64 {
-	return na.AsNumber(audit["gladiusGround"]) + na.AsNumber(audit["gladiusCarried"])
-}
-
-func smithies(audit map[string]any) []map[string]any {
+func productCount(audit map[string]any) float64 { return na.AsNumber(audit["components"]) }
+func benches(audit map[string]any) []map[string]any {
 	var rows []map[string]any
-	for _, raw := range na.AsSlice(audit["smithies"]) {
+	for _, raw := range na.AsSlice(audit["benches"]) {
 		row, _ := na.AsMap(raw)
 		rows = append(rows, row)
 	}
@@ -249,7 +249,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 		return err
 	}
 	var hosted []map[string]any
-	for _, row := range smithies(live) {
+	for _, row := range benches(live) {
 		if !workshop.Hosts(policy.RoomRole(na.AsString(row["roomRole"]))) {
 			continue
 		}
@@ -259,9 +259,9 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 			}
 		}
 	}
-	report["hosted_smithies"] = hosted
+	report["hosted_benches"] = hosted
 	if len(hosted) == 0 {
-		return fmt.Errorf("no smithy inside a room hosting the Workshop facility carries a %s bill: %v", recipe, live["smithies"])
+		return fmt.Errorf("no fabrication bench inside a room hosting the Workshop facility carries a %s bill: %v", recipe, live["benches"])
 	}
 	var stockpiles []map[string]any
 	for _, raw := range na.AsSlice(live["stockpiles"]) {
@@ -275,7 +275,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	if len(stockpiles) == 0 {
 		return fmt.Errorf("no allow-list stockpile for steel stands inside a room hosting the Workshop facility: %v", live["stockpiles"])
 	}
-	count := gladiusCount(live)
+	count := productCount(live)
 	report["final_count"] = count
 	if count <= baseline {
 		return fmt.Errorf("%s count did not rise: baseline=%v final=%v", resource, baseline, count)

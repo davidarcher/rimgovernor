@@ -19,11 +19,8 @@ func TestBillExecutorRequiredByResourceTargets(t *testing.T) {
 	}
 	var targets serveConfig
 	targets.routineResourcePlans = true
-	if err := targets.routineResourceTargets.Set("MeleeWeapon_Club:3"); err != nil {
-		t.Fatal(err)
-	}
 	if !billExecutorRequired(targets) {
-		t.Fatal("resource target does not require the bill executor")
+		t.Fatal("resource family (default floors) does not require the bill executor")
 	}
 	var gear serveConfig
 	gear.routineGearPlans = true
@@ -34,11 +31,6 @@ func TestBillExecutorRequiredByResourceTargets(t *testing.T) {
 	refrigeration.routineRefrigerationPlans = true
 	if !billExecutorRequired(refrigeration) {
 		t.Fatal("refrigeration family does not require the bill executor for its cook-ahead bill")
-	}
-	var stone serveConfig
-	stone.routineResourcePlans, stone.routineStoneBlockTarget = true, 60
-	if !billExecutorRequired(stone) {
-		t.Fatal("stone block target does not require the bill executor")
 	}
 }
 

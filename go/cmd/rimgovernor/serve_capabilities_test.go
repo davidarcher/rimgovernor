@@ -61,7 +61,6 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 func TestRoutineCapabilitiesDeclareEachGoalOnce(t *testing.T) {
 	t.Parallel()
 	var c serveConfig
-	c.routineStoneBlockTarget = 10
 	for _, f := range routineFamilies(&c) {
 		*f.Enabled = true
 	}
