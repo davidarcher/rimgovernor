@@ -95,9 +95,8 @@ func TestWorkerPlanHoldsDraftPerDefender(t *testing.T) {
 	if !workerPlanHoldsDraft(state, inflight.View()) {
 		t.Fatal("an in-flight draft is not held")
 	}
-	// A move's applied receipt is terminal: once a recovered goal cancelled
-	// defender A's move the plan is settled, and B's draft is released
-	// even though B's order was given.
+	// A completed intent-mode move is a standing order (#856): B's draft
+	// stays held until the planner cancels the move, which releases it.
 	if pmB, err = pmB.Prepare(s, 12); err != nil {
 		t.Fatal(err)
 	}
@@ -111,8 +110,15 @@ func TestWorkerPlanHoldsDraftPerDefender(t *testing.T) {
 	if pmB.View().Stage != domain.Completed {
 		t.Fatal(pmB.View().Stage)
 	}
+	if !workerPlanHoldsDraft(state, pdB.View()) {
+		t.Fatal("a completed intent-mode move does not hold its draft")
+	}
+	if pmB, err = pmB.Cancel(); err != nil {
+		t.Fatal(err)
+	}
+	state.Progress = []domain.Progress{pdA, pmA, pdB, pmB}
 	if workerPlanHoldsDraft(state, pdB.View()) {
-		t.Fatal("a settled plan still holds a draft")
+		t.Fatal("a cancelled standing move still holds its draft")
 	}
 	if workerPlanHoldsDraft(state, pdA.View()) {
 		t.Fatal("a cancelled move still holds its draft")
