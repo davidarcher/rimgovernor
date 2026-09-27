@@ -69,46 +69,68 @@ func ZoneConfiguration(zone domain.ZoneCreate) *op.CreateZone {
 	return command
 }
 func stockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
-	var priority op.StoragePriority
-	switch zone.Priority() {
+	return StockpileSettings(zone.Filter(), zone.Priority())
+}
+
+// StockpileSettings is the native StockpileSettings for a filter and
+// priority: the filter's base is the preset, and a FilterPatch is sent only
+// when the filter has selectors or ranges.
+func StockpileSettings(filter domain.StockpileFilter, priority domain.StockpilePriority) *op.StockpileSettings {
+	var p op.StoragePriority
+	switch priority {
 	case domain.CriticalPriority:
-		priority = op.StoragePriority_STORAGE_PRIORITY_CRITICAL
+		p = op.StoragePriority_STORAGE_PRIORITY_CRITICAL
 	case domain.ImportantPriority:
-		priority = op.StoragePriority_STORAGE_PRIORITY_IMPORTANT
+		p = op.StoragePriority_STORAGE_PRIORITY_IMPORTANT
 	case domain.PreferredPriority:
-		priority = op.StoragePriority_STORAGE_PRIORITY_PREFERRED
+		p = op.StoragePriority_STORAGE_PRIORITY_PREFERRED
 	case domain.NormalPriority:
-		priority = op.StoragePriority_STORAGE_PRIORITY_NORMAL
+		p = op.StoragePriority_STORAGE_PRIORITY_NORMAL
 	case domain.LowPriority:
-		priority = op.StoragePriority_STORAGE_PRIORITY_LOW
+		p = op.StoragePriority_STORAGE_PRIORITY_LOW
 	}
 	var preset op.FilterPreset
-	switch zone.Preset() {
-	case domain.FoodPreset:
-		preset = op.FilterPreset_FILTER_PRESET_FOOD
-	case domain.NothingPreset, domain.CorpseLarderPreset:
+	switch filter.Base() {
+	case domain.BaseEverything:
+		preset = op.FilterPreset_FILTER_PRESET_EVERYTHING
+	case domain.BaseNothing:
 		preset = op.FilterPreset_FILTER_PRESET_NOTHING
-	case domain.GeneralPreset:
+	case domain.BaseFood:
+		preset = op.FilterPreset_FILTER_PRESET_FOOD
+	case domain.BasePerishables:
+		preset = op.FilterPreset_FILTER_PRESET_PERISHABLES
+	case domain.BaseNonperishables:
 		preset = op.FilterPreset_FILTER_PRESET_NONPERISHABLES
+	case domain.BaseOutdoorSafe:
+		preset = op.FilterPreset_FILTER_PRESET_OUTDOOR_SAFE
 	}
-	settings := &op.StockpileSettings{Priority: priority.Enum(), Preset: preset.Enum()}
-	if zone.Preset() == domain.CorpseLarderPreset {
-		settings.Filter = &op.FilterPatch{
-			Allow:    []*op.FilterSelector{{Definition: &op.FilterSelector_CategoryDef{CategoryDef: "CorpsesAnimal"}}, {Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowFresh"}}},
-			Disallow: []*op.FilterSelector{{Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowRotten"}}},
-		}
+	settings := &op.StockpileSettings{Priority: p.Enum(), Preset: preset.Enum()}
+	patch := &op.FilterPatch{Allow: filterSelectors(filter.Allow()), Disallow: filterSelectors(filter.Disallow())}
+	if lo, hi, ok := filter.HitPoints(); ok {
+		patch.HitPointsMin, patch.HitPointsMax = proto.Float64(lo), proto.Float64(hi)
 	}
-	if zone.Preset() == domain.GeneralPreset {
-		settings.Filter = &op.FilterPatch{Disallow: []*op.FilterSelector{{Definition: &op.FilterSelector_CategoryDef{CategoryDef: "Chunks"}}}}
+	if lo, hi, ok := filter.Quality(); ok {
+		patch.QualityMin, patch.QualityMax = proto.String(string(lo)), proto.String(string(hi))
 	}
-	if zone.Preset() == domain.NothingPreset {
-		var allow []*op.FilterSelector
-		for _, name := range zone.Allow() {
-			allow = append(allow, &op.FilterSelector{Definition: &op.FilterSelector_ThingDef{ThingDef: name}})
-		}
-		settings.Filter = &op.FilterPatch{Allow: allow}
+	if len(patch.Allow) != 0 || len(patch.Disallow) != 0 || patch.HitPointsMin != nil || patch.QualityMin != nil {
+		settings.Filter = patch
 	}
 	return settings
+}
+
+func filterSelectors(rows []domain.FilterSelector) []*op.FilterSelector {
+	var out []*op.FilterSelector
+	for _, s := range rows {
+		switch s.Kind {
+		case domain.ThingDefSelector:
+			out = append(out, &op.FilterSelector{Definition: &op.FilterSelector_ThingDef{ThingDef: s.Name}})
+		case domain.CategoryDefSelector:
+			out = append(out, &op.FilterSelector{Definition: &op.FilterSelector_CategoryDef{CategoryDef: s.Name}})
+		case domain.SpecialFilterSelector:
+			out = append(out, &op.FilterSelector{Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: s.Name}})
+		}
+	}
+	return out
 }
 func ZoneConfigurationToken(zone domain.ZoneCreate) string {
 	data, _ := (proto.MarshalOptions{Deterministic: true}).Marshal(ZoneConfiguration(zone))

@@ -54,13 +54,21 @@ const (
 // ZoneCreate owns one bounded connected footprint. Settings are closed variants:
 // an explicitly sown crop, or a typed stockpile filter preset/priority, the
 // latter optionally paired with a canonical allow-list of definitions.
+//
+// A stockpile carries its StockpileFilter: the named presets derive it
+// (Preset() names which), NewFilteredStockpileZone takes any filter
+// (Preset() empty). Role is the stable key a stockpile planner claims the
+// zone by (e.g. "general", "ingredients:<benchID>", "dump:worn"); it
+// travels with the zone_create receipt into store.OwnedZone. Empty is a
+// legacy role-less claim.
 type ZoneCreate struct {
 	kind     ZoneKind
 	crop     string
 	preset   StockpilePreset
 	priority StockpilePriority
 	cells    string
-	allow    string
+	filter   StockpileFilter
+	role     string
 	extendID string
 }
 
@@ -170,7 +178,36 @@ func NewStockpileZone(preset StockpilePreset, priority StockpilePriority, cells 
 	if err != nil {
 		return ZoneCreate{}, err
 	}
-	return ZoneCreate{kind: StockpileZone, preset: preset, priority: priority, cells: data}, nil
+	filter := FoodFilter()
+	switch preset {
+	case CorpseLarderPreset:
+		filter = CorpseLarderFilter()
+	case GeneralPreset:
+		filter = GeneralFilter()
+	}
+	return ZoneCreate{kind: StockpileZone, preset: preset, priority: priority, cells: data, filter: filter}, nil
+}
+
+// NewFilteredStockpileZone is a stockpile with any canonical filter.
+func NewFilteredStockpileZone(filter StockpileFilter, priority StockpilePriority, cells []Cell) (ZoneCreate, error) {
+	canonical, err := ReconstructStockpileFilter(filter)
+	if err != nil || canonical != filter || !validStockpilePriority(priority) {
+		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
+	}
+	data, err := canonicalConnectedCells(cells)
+	if err != nil {
+		return ZoneCreate{}, err
+	}
+	return ZoneCreate{kind: StockpileZone, priority: priority, cells: data, filter: filter}, nil
+}
+
+// WithRole tags a stockpile with the role key its planner claims it by.
+func (z ZoneCreate) WithRole(role string) (ZoneCreate, error) {
+	if z.kind != StockpileZone || !validID(role) || len(role) > 128 {
+		return ZoneCreate{}, errors.New("invalid stockpile role")
+	}
+	z.role = role
+	return z, nil
 }
 
 // NewAllowListStockpileZone builds the NothingPreset covered-storage/supply
@@ -182,7 +219,10 @@ func NewAllowListStockpileZone(priority StockpilePriority, allow []string, cells
 	if !validStockpilePriority(priority) {
 		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
 	}
-	allowData, err := canonicalAllowList(allow)
+	if _, err := canonicalAllowList(allow); err != nil {
+		return ZoneCreate{}, err
+	}
+	filter, err := AllowOnlyFilter(allow)
 	if err != nil {
 		return ZoneCreate{}, err
 	}
@@ -190,7 +230,7 @@ func NewAllowListStockpileZone(priority StockpilePriority, allow []string, cells
 	if err != nil {
 		return ZoneCreate{}, err
 	}
-	return ZoneCreate{kind: StockpileZone, preset: NothingPreset, priority: priority, cells: cellData, allow: allowData}, nil
+	return ZoneCreate{kind: StockpileZone, preset: NothingPreset, priority: priority, cells: cellData, filter: filter}, nil
 }
 
 // ReconstructZone rebuilds a canonical ZoneCreate from a value of unknown
@@ -207,14 +247,22 @@ func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
 	case GrowingZone:
 		return NewZoneCreate(z.kind, z.crop, z.Cells())
 	case StockpileZone:
+		var out ZoneCreate
+		var err error
 		switch z.preset {
 		case FoodPreset, CorpseLarderPreset, GeneralPreset:
-			return NewStockpileZone(z.preset, z.priority, z.Cells())
+			out, err = NewStockpileZone(z.preset, z.priority, z.Cells())
 		case NothingPreset:
-			return NewAllowListStockpileZone(z.priority, z.Allow(), z.Cells())
+			out, err = NewAllowListStockpileZone(z.priority, z.Allow(), z.Cells())
+		case "":
+			out, err = NewFilteredStockpileZone(z.filter, z.priority, z.Cells())
 		default:
 			return ZoneCreate{}, errors.New("unsupported stockpile preset")
 		}
+		if err == nil && z.role != "" {
+			out, err = out.WithRole(z.role)
+		}
+		return out, err
 	default:
 		return ZoneCreate{}, errors.New("unsupported zone kind")
 	}
@@ -229,11 +277,24 @@ func (z ZoneCreate) Cells() []Cell {
 	_ = json.Unmarshal([]byte(z.cells), &cells)
 	return cells
 }
+
+// Allow is an allow-list stockpile's (NothingPreset) thing definitions.
 func (z ZoneCreate) Allow() []string {
+	if z.preset != NothingPreset {
+		return nil
+	}
 	var names []string
-	_ = json.Unmarshal([]byte(z.allow), &names)
+	for _, s := range z.filter.Allow() {
+		names = append(names, s.Name)
+	}
 	return names
 }
+
+// Filter is a stockpile's storage filter; zero for other zone kinds.
+func (z ZoneCreate) Filter() StockpileFilter { return z.filter }
+
+// Role is a stockpile's planner role key; empty when untagged.
+func (z ZoneCreate) Role() string { return z.role }
 func (z ZoneCreate) Label() string {
 	switch {
 	case z.kind == FishingZone:
@@ -246,6 +307,8 @@ func (z ZoneCreate) Label() string {
 		return "RimGovernor dumping"
 	case z.kind == StockpileZone && z.preset == NothingPreset:
 		return "RimGovernor supplies storage"
+	case z.kind == StockpileZone && z.preset == "":
+		return "RimGovernor stockpile"
 	case z.kind == StockpileZone:
 		return "RimGovernor food storage"
 	default:

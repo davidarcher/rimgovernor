@@ -96,8 +96,12 @@ namespace HomeBridge.BridgeTools
             // plant grower's crop (NativeGrowerCrop) and a claimable
             // building's faction (NativeClaimBuilding, #459). forbidden/
             // power/owner remain the "settings" unsupported issue below.
+            // A player storage building (shelf) reports its storage token
+            // (NativeStockpilePatch, PatchStockpile on a building) first.
             var tempControl = thing.TryGetComp<CompTempControl>();
-            if (tempControl != null)
+            if (NativeStockpilePatch.StorageEligible(thing))
+                row.Settings = NativeStockpilePatch.Settings((Building_Storage)thing, context);
+            else if (tempControl != null)
                 row.Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature };
             else if (NativeBedUse.Eligible(thing))
                 row.Settings = NativeBedUse.Settings((Building_Bed)thing, context);
@@ -213,7 +217,7 @@ namespace HomeBridge.BridgeTools
             // the caller below (see NativeBuildingTemperature, NativeBedUse,
             // NativeGrowerCrop) -- forbidden/power/owner/forPrisoners remain
             // unimplemented either way.
-            var fields = thing.TryGetComp<CompTempControl>() != null || NativeBedUse.Eligible(thing) || NativeGrowerCrop.Eligible(thing) || NativeClaimBuilding.Eligible(thing)
+            var fields = NativeStockpilePatch.StorageEligible(thing) || thing.TryGetComp<CompTempControl>() != null || NativeBedUse.Eligible(thing) || NativeGrowerCrop.Eligible(thing) || NativeClaimBuilding.Eligible(thing)
                 ? new[] { "service", "thermal_sides", "bills" }
                 : new[] { "settings", "service", "thermal_sides", "bills" };
             foreach (var field in fields)

@@ -87,7 +87,7 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 		domain.ProductionBillAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.HaulAction, domain.EquipAction,
 		domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction, domain.MovementAction, domain.HusbandryAction,
 		domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.OpenCasketAction,
-		domain.BuildingTemperatureAction, domain.BedUseAction, domain.GrowerCropAction, domain.ClaimBuildingAction, domain.ZoneDeleteAction, domain.BedAssignAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.ResearchSelectAction, domain.TradeAction, domain.DeconstructionAction, domain.CutPlantAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.HomeCoverageAction, domain.QuestAcceptAction, domain.WallRemovalAction, domain.CaravanDepartureAction:
+		domain.BuildingTemperatureAction, domain.BedUseAction, domain.GrowerCropAction, domain.ClaimBuildingAction, domain.ZoneDeleteAction, domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.BedAssignAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.ResearchSelectAction, domain.TradeAction, domain.DeconstructionAction, domain.CutPlantAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.HomeCoverageAction, domain.QuestAcceptAction, domain.WallRemovalAction, domain.CaravanDepartureAction:
 		return true
 	default:
 		return false
@@ -780,7 +780,7 @@ func workerBackoffCap(config WorkerConfig, v domain.ProgressView) time.Duration 
 func liveDispatchKind(kind domain.ActionKind) bool {
 	switch kind {
 	case domain.BuildingAction, domain.HaulAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.ZoneCreateAction,
-		domain.ProductionBillAction, domain.GrowerCropAction, domain.ClaimBuildingAction, domain.ZoneDeleteAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction,
+		domain.ProductionBillAction, domain.GrowerCropAction, domain.ClaimBuildingAction, domain.ZoneDeleteAction, domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction,
 		domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ResearchSelectAction, domain.HomeCoverageAction, domain.DeconstructionAction, domain.CutPlantAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction:
 		return true
 	}

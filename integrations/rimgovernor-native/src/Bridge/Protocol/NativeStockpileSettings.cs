@@ -157,10 +157,10 @@ namespace HomeBridge.BridgeTools
         /// <summary>The filter the live one would become: a scratch copy of the
         /// live allowances with the body applied on top. Absent parts of the
         /// body preserve whatever the live filter has.</summary>
-        internal static ThingFilter Projected(Zone_Stockpile stockpile, Resolved resolved)
+        internal static ThingFilter Projected(IStoreSettingsParent stockpile, Resolved resolved)
         {
             var scratch = new ThingFilter();
-            scratch.CopyAllowancesFrom(stockpile.settings.filter);
+            scratch.CopyAllowancesFrom(stockpile.GetStoreSettings().filter);
             Apply(scratch, resolved, StockpileFilter.ParentFilter(stockpile), StockpileFilter.StorableDefs(stockpile));
             return scratch;
         }
@@ -177,10 +177,11 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>True when the live stockpile equals the projection of the
         /// desired body over its current state.</summary>
-        internal static bool Matches(Zone_Stockpile stockpile, Resolved resolved)
+        internal static bool Matches(IStoreSettingsParent stockpile, Resolved resolved)
         {
-            if (resolved.Priority.HasValue && stockpile.settings.Priority != resolved.Priority.Value) return false;
-            return SameFilter(stockpile.settings.filter, Projected(stockpile, resolved));
+            var settings = stockpile.GetStoreSettings();
+            if (resolved.Priority.HasValue && settings.Priority != resolved.Priority.Value) return false;
+            return SameFilter(settings.filter, Projected(stockpile, resolved));
         }
 
         /// <summary>Per-zone CAS token contribution: everything SameFilter

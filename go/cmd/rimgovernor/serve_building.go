@@ -32,6 +32,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movebuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/stockpilewrite"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
@@ -154,6 +155,7 @@ type buildingServiceBridge struct {
 	growerCrop          *growercrop.Capabilities
 	claimBuilding       *claimbuilding.Capabilities
 	zoneDelete          *zonedelete.Capabilities
+	stockpileWrite      *stockpilewrite.Capabilities
 	openCasket          *buildingruntime.OpenCasketCapabilities
 	bedAssign           *bedassign.Capabilities
 	homeCoverage        *buildingruntime.HomeCoverageCapabilities
@@ -328,6 +330,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	stockpileWriteControl, err := bridge.NewStockpileWriteControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	bedAssignWriter, err := bridge.NewBedAssignWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -394,6 +400,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		claimBuilding:       &claimbuilding.Capabilities{Native: client, Writer: claimBuildingControl},
 		zoneDelete:          &zonedelete.Capabilities{Native: client, Writer: zoneDeleteControl},
+		stockpileWrite:      &stockpilewrite.Capabilities{Native: client, Writer: stockpileWriteControl},
 		openCasket:          &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
 		bedAssign:           &bedassign.Capabilities{Native: client, Writer: bedAssignWriter},
 		homeCoverage:        &buildingruntime.HomeCoverageCapabilities{Native: client, Writer: homeCoverageWriter},
@@ -909,6 +916,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		GrowerCrop:          growerCropCapabilities,
 		ClaimBuilding:       claimBuildingCapabilities,
 		ZoneDelete:          zoneDeleteCapabilities,
+		StockpileWrite:      client.stockpileWrite,
 		OpenCasket:          openCasketCapabilities,
 		BedAssign:           bedAssignCapabilities,
 		HomeCoverage:        homeCoverageCapabilities,

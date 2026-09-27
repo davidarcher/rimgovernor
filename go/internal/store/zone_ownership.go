@@ -8,12 +8,15 @@ import (
 )
 
 // OwnedZone is one zone this colony created, by native zone identity:
-// the completed zone_create's kind, crop and cells.
+// the completed zone_create's kind, crop, cells and stockpile role key.
+// Role is empty for a legacy role-less claim. Cells are the created
+// footprint; a later zone_cell_edit keeps the id, so the claim survives it.
 type OwnedZone struct {
 	ID    string
 	Kind  domain.ZoneKind
 	Crop  string
 	Cells []domain.Cell
+	Role  string
 }
 
 // zoneClaims lists every completed autopilot zone_create of the current
@@ -76,7 +79,7 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 			if !isZone || !ek || !known || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
-			result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells()})
+			result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role()})
 			if len(result) > 256 {
 				return unknown, nil
 			}

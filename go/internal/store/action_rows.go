@@ -30,7 +30,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,bill_payload) VALUES(?,?,?,'production_bill',?)", a.ID(), plan, ordinal, data)
 		return conflict(err)
 	} else if z, ok := a.ZoneCreate(); ok {
-		data, encodeErr := json.Marshal(zonePayload{z.Kind(), z.Crop(), z.Preset(), z.Priority(), z.Cells(), z.Allow(), z.ExtendZoneID()})
+		payload := zonePayload{Kind: z.Kind(), Crop: z.Crop(), Preset: z.Preset(), Priority: z.Priority(), Cells: z.Cells(), Allow: z.Allow(), ExtendZoneID: z.ExtendZoneID(), Role: z.Role()}
+		if z.Kind() == domain.StockpileZone && z.Preset() == "" {
+			f := z.Filter()
+			payload.Filter = &f
+		}
+		data, encodeErr := json.Marshal(payload)
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -134,6 +139,18 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if claim, ok := a.ClaimBuilding(); ok {
 		// stuff carries the CAS token; there is nothing else to say.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff) VALUES(?,?,?,'claim_building',?,?)", a.ID(), plan, ordinal, claim.Thing(), claim.BeforeToken())
+	} else if edit, ok := a.ZoneCellEdit(); ok {
+		data, encodeErr := json.Marshal(zoneCellEditPayload{edit.Mode(), edit.Cells()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff,zone_payload) VALUES(?,?,?,'zone_cell_edit',?,?,?)", a.ID(), plan, ordinal, edit.Zone(), edit.BeforeToken(), data)
+	} else if patch, ok := a.StockpilePatch(); ok {
+		data, encodeErr := json.Marshal(stockpilePatchPayload{patch.TargetKind(), patch.Filter(), patch.Priority(), patch.Role()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff,zone_payload) VALUES(?,?,?,'stockpile_patch',?,?,?)", a.ID(), plan, ordinal, patch.Target(), patch.BeforeToken(), data)
 	} else if del, ok := a.ZoneDelete(); ok {
 		// stuff carries the zone's CAS token; there is nothing else to say.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff) VALUES(?,?,?,'zone_delete',?,?)", a.ID(), plan, ordinal, del.Zone(), del.BeforeToken())
@@ -255,11 +272,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 				value, valueErr = domain.NewFishingZoneExtension(payload.ExtendZoneID, payload.Cells)
 			}
 		case domain.StockpileZone:
-			switch payload.Preset {
-			case domain.NothingPreset:
+			switch {
+			case payload.Preset == "" && payload.Filter != nil:
+				value, valueErr = domain.NewFilteredStockpileZone(*payload.Filter, payload.Priority, payload.Cells)
+			case payload.Filter != nil:
+				valueErr = errors.New("mixed stockpile filter payload")
+			case payload.Preset == domain.NothingPreset:
 				value, valueErr = domain.NewAllowListStockpileZone(payload.Priority, payload.Allow, payload.Cells)
 			default:
 				value, valueErr = domain.NewStockpileZone(payload.Preset, payload.Priority, payload.Cells)
+			}
+			if valueErr == nil && payload.Role != "" {
+				value, valueErr = value.WithRole(payload.Role)
 			}
 		default:
 			valueErr = errors.New("unsupported zone kind")
@@ -269,6 +293,30 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		action, err := domain.NewZoneCreateAction(id, value)
 		return action, ordinal, err
+	}
+	if (kind == "zone_cell_edit" || kind == "stockpile_patch") && target.Valid && stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && len(zone) <= 32768 {
+		if kind == "zone_cell_edit" {
+			var payload zoneCellEditPayload
+			if json.Unmarshal(zone, &payload) != nil {
+				return domain.Action{}, 0, errors.New("invalid zone cell edit payload")
+			}
+			edit, err := domain.NewZoneCellEdit(target.String, stuff.String, payload.Mode, payload.Cells)
+			if err != nil {
+				return domain.Action{}, 0, err
+			}
+			a, err := domain.NewZoneCellEditAction(id, edit)
+			return a, ordinal, err
+		}
+		var payload stockpilePatchPayload
+		if json.Unmarshal(zone, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid stockpile patch payload")
+		}
+		patch, err := domain.NewStockpilePatch(payload.Target, target.String, stuff.String, payload.Filter, payload.Priority, payload.Role)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewStockpilePatchAction(id, patch)
+		return a, ordinal, err
 	}
 	if zone != nil {
 		return domain.Action{}, 0, errors.New("mixed zone payload")
@@ -811,6 +859,22 @@ type zonePayload struct {
 	Cells        []domain.Cell
 	Allow        []string `json:",omitempty"`
 	ExtendZoneID string   `json:",omitempty"`
+	// Filter is a NewFilteredStockpileZone's (empty preset) filter; Role
+	// a stockpile's planner role key. Both are absent on older rows.
+	Filter *domain.StockpileFilter `json:",omitempty"`
+	Role   string                  `json:",omitempty"`
+}
+
+type zoneCellEditPayload struct {
+	Mode  domain.CellEditMode
+	Cells []domain.Cell
+}
+
+type stockpilePatchPayload struct {
+	Target   domain.StorageTargetKind
+	Filter   domain.StockpileFilter
+	Priority domain.StockpilePriority
+	Role     string `json:",omitempty"`
 }
 
 type billPayload struct {

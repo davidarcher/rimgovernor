@@ -236,7 +236,7 @@ func developmentExemptMethod(plan domain.PlanSpec) bool {
 	for _, action := range actions {
 		letter, isDialog := action.DialogAnswer()
 		husbandry, isHusbandry := action.Husbandry()
-		if action.Kind() != domain.QuestAcceptAction && action.Kind() != domain.EquipAction && action.Kind() != domain.ZoneDeleteAction && action.Kind() != domain.ApparelPolicyAction && !(isDialog && letter.LetterToken() != "") && !(isHusbandry && husbandrySettingsWrite(husbandry.Method())) {
+		if action.Kind() != domain.QuestAcceptAction && action.Kind() != domain.EquipAction && action.Kind() != domain.ZoneDeleteAction && action.Kind() != domain.ZoneCellEditAction && action.Kind() != domain.StockpilePatchAction && action.Kind() != domain.ApparelPolicyAction && !(isDialog && letter.LetterToken() != "") && !(isHusbandry && husbandrySettingsWrite(husbandry.Method())) {
 			return false
 		}
 	}

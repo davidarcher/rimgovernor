@@ -157,6 +157,8 @@ type Executor struct {
 	claimBuildingJournal       ClaimBuildingJournal
 	zoneDelete                 ZoneDeleteBoundary
 	zoneDeleteJournal          ZoneDeleteJournal
+	stockpileWrite             StockpileWriteBoundary
+	stockpileWriteJournal      ZoneDeleteJournal
 	bedAssign                  BedAssignBoundary
 	bedAssignJournal           BedAssignJournal
 	researchSelect             ResearchSelectBoundary
@@ -445,6 +447,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.ZoneDeleteAction && e.zoneDelete != nil {
 		return e.runZoneDelete(ctx, action, progress, authority, generation)
+	}
+	if (action.Kind() == domain.ZoneCellEditAction || action.Kind() == domain.StockpilePatchAction) && e.stockpileWrite != nil {
+		return e.runStockpileWrite(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.BedAssignAction && e.bedAssign != nil {
 		return e.runBedAssign(ctx, action, progress, authority, generation)

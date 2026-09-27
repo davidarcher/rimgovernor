@@ -26,6 +26,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movebuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/stockpilewrite"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
@@ -83,6 +84,9 @@ type SessionConfig struct {
 	// ZoneDelete backs the layout tidy's dissolution of a re-sited zone
 	// (#611), the same one-shot CAS write shape as ClaimBuilding.
 	ZoneDelete *zonedelete.Capabilities
+	// StockpileWrite backs zone cell edits and stockpile patches (zone or
+	// storage building), the same one-shot CAS write shape as ZoneDelete.
+	StockpileWrite *stockpilewrite.Capabilities
 	// OpenCasket backs the shrine family casket opening (#460), a Repair-shaped
 	// pawn order whose opener the melee lock drafts first.
 	OpenCasket *OpenCasketCapabilities
@@ -394,6 +398,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.ZoneDelete != nil && (config.ZoneDelete.Native == nil || config.ZoneDelete.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.StockpileWrite != nil && (config.StockpileWrite.Native == nil || config.StockpileWrite.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -519,6 +526,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.ZoneDelete != nil {
 		if err := worker.EnableZoneDelete(zonedelete.NewBoundary(place, *config.ZoneDelete)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.StockpileWrite != nil {
+		if err := worker.EnableStockpileWrite(stockpilewrite.NewBoundary(place, *config.StockpileWrite)); err != nil {
 			return cleanup(err)
 		}
 	}

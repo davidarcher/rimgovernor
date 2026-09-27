@@ -2190,7 +2190,7 @@ namespace HomeBridge.BridgeTools
         /// Zone_Stockpile.GetParentStoreSettings() returns the shared
         /// EverStorableFixedSettings singleton; null when the read throws.
         /// </summary>
-        internal static ThingFilter? ParentFilter(Zone_Stockpile? stockpile)
+        internal static ThingFilter? ParentFilter(IStoreSettingsParent? stockpile)
         {
             try
             {
@@ -2207,7 +2207,7 @@ namespace HomeBridge.BridgeTools
         /// stable between calls. Falls back to the DefDatabase sweep the parent
         /// filter itself performs if the parent cannot be read.
         /// </summary>
-        internal static List<ThingDef> StorableDefs(Zone_Stockpile? stockpile)
+        internal static List<ThingDef> StorableDefs(IStoreSettingsParent? stockpile)
         {
             var universe = new List<ThingDef>();
             var parent = ParentFilter(stockpile);
