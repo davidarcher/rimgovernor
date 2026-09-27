@@ -69,8 +69,8 @@ message Operation {
   reserved 15, 16, 18;
   reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
   // Designations and construction-adjacent orders moved to Actions/Apply (#940).
-  reserved 20;
-  reserved "extend_home";
+  reserved 20, 60;
+  reserved "extend_home", "clear_cover";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -102,7 +102,6 @@ message Operation {
     Deconstruct deconstruct = 55;
     ReleaseDeconstructions release_deconstructions = 56;
     Arrest arrest = 57;
-    ClearCover clear_cover = 60;
     Uninstall uninstall = 61;
     CombatOrders combat_orders = 62;
   }
@@ -201,7 +200,6 @@ message DesignateThing { EntityPrecondition target = 1; optional ThingDesignatio
 // census (DefenseCell.cover_*): Mine on a mineable, CutPlant on a plant,
 // Haul on a chunk, Deconstruct on a factionless or player building. The
 // designation is the whole write; ordinary work removes the thing.
-message ClearCover { EntityPrecondition target = 1; optional string designation_def = 2; rimgovernor.common.v1.Cell cell = 3; }
 enum PowerSetting { POWER_SETTING_UNSPECIFIED = 0; POWER_SETTING_ON = 1; POWER_SETTING_OFF = 2; }
 message PatchBuilding {
   EntityPrecondition building = 1;
@@ -413,6 +411,7 @@ message Action {
     StockpileIntent stockpile = 29;
     RemoveFoundationIntent remove_foundation = 30;
     HomeIntent home = 31;
+    CoverIntent cover = 32;
   }
 }
 // Extend Home over the missing cells of one facility's bounded batch (a
@@ -420,6 +419,11 @@ message Action {
 // stockpile's cells), recomputed live when native applies it. A batch
 // already all Home applies again. Home is never removed.
 message HomeIntent { optional string target_id = 1; }
+// Place the one designation (Mine, CutPlant, Haul or Deconstruct) that
+// removes the raider cover thing_id standing at cell. Native checks the
+// thing, its kind, the kind's safety rule, the game designator and a
+// reachable worker live; the designation already standing applies again.
+message CoverIntent { optional string thing_id = 1; optional string designation_def = 2; rimgovernor.common.v1.Cell cell = 3; }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree): window_id plus the exact observed option index
 // and label stand in for an entity precondition, and native refuses on any drift.

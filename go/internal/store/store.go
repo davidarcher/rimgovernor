@@ -36,7 +36,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 133
+const schemaVersion = 134
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -76,7 +76,6 @@ type PlanState struct {
 	MineAcquisitionAdmissions     []ActionMineAcquisitionAdmission
 	CutPlantAdmissions            []ActionCutPlantAdmission
 	MoveBuildingAdmissions        []ActionMoveBuildingAdmission
-	CoverClearanceAdmissions      []ActionCoverClearanceAdmission
 	DeconstructionAdmissions      []ActionDeconstructionAdmission
 	ExcavationAdmissions          []ActionExcavationAdmission
 	WallRemovalAdmissions         []ActionWallRemovalAdmission
@@ -259,7 +258,6 @@ CREATE TABLE building_temperature_admissions(action_id TEXT PRIMARY KEY REFERENC
 CREATE TABLE mine_acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE cut_plant_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE move_building_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE cover_clearance_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE deconstruction_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE excavation_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE wall_removal_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -330,7 +328,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM cut_plant_admissions LIMIT 0", "SELECT action_id,payload FROM move_building_admissions LIMIT 0", "SELECT action_id,payload FROM cover_clearance_admissions LIMIT 0", "SELECT action_id,payload FROM deconstruction_admissions LIMIT 0", "SELECT action_id,payload FROM excavation_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM cut_plant_admissions LIMIT 0", "SELECT action_id,payload FROM move_building_admissions LIMIT 0", "SELECT action_id,payload FROM deconstruction_admissions LIMIT 0", "SELECT action_id,payload FROM excavation_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -610,16 +608,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		}
 		if moveBuildingPresent {
 			state.MoveBuildingAdmissions = append(state.MoveBuildingAdmissions, ActionMoveBuildingAdmission{Action: a.ID(), Admission: moveBuildingAdmission})
-		}
-		coverClearanceAdmission, coverClearancePresent, e := loadCoverClearanceAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.CoverClearanceAction && !coverClearancePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("cover clearance progress lacks admission")
-		}
-		if coverClearancePresent {
-			state.CoverClearanceAdmissions = append(state.CoverClearanceAdmissions, ActionCoverClearanceAdmission{Action: a.ID(), Admission: coverClearanceAdmission})
 		}
 		excavationAdmission, excavationPresent, e := loadExcavationAdmission(ctx, tx, a, p)
 		if e != nil {
@@ -962,14 +950,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		}
 		if event.Kind == "dispatch" && !moveBuildingGuardDispatch(state.MoveBuildingAdmissions, action, event.Snapshot, event.Tick) {
 			return domain.Progress{}, errors.New("move building dispatch lacks current admission")
-		}
-	}
-	if current.Action().Kind() == domain.CoverClearanceAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("cover clearance requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !coverClearanceGuardDispatch(state.CoverClearanceAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("cover clearance dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.ExcavationAction {

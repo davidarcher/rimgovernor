@@ -61,7 +61,7 @@ func TestDefenseSiteReadsCompleteCensus(t *testing.T) {
 func TestDefenseSiteCoverIdentity(t *testing.T) {
 	fixture := defenseSiteFixture()
 	fixture.Cells[1].CoverThingId, fixture.Cells[1].CoverDefName = proto.String("Thing_Sandbags_9"), proto.String("Sandbags")
-	fixture.Cells[1].CoverKind, fixture.Cells[1].CoverToken, fixture.Cells[1].CoverDesignated = o.CoverKind_COVER_KIND_BUILDING.Enum(), proto.String("cover-abc"), proto.Bool(false)
+	fixture.Cells[1].CoverKind, fixture.Cells[1].CoverDesignated = o.CoverKind_COVER_KIND_BUILDING.Enum(), proto.Bool(false)
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(&o.DefenseSiteReply{Outcome: &o.DefenseSiteReply_Observed{Observed: fixture}}), nil
 	}}, time.Second)
@@ -69,7 +69,7 @@ func TestDefenseSiteCoverIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := site.Cells[1].Cover; got == nil || got.ThingID != "Thing_Sandbags_9" || got.Kind != o.CoverKind_COVER_KIND_BUILDING || got.Token != "cover-abc" || got.Designated {
+	if got := site.Cells[1].Cover; got == nil || got.ThingID != "Thing_Sandbags_9" || got.Kind != o.CoverKind_COVER_KIND_BUILDING || got.Designated {
 		t.Fatalf("%+v", got)
 	}
 }
@@ -108,7 +108,7 @@ func TestDefenseSiteRejectsMalformed(t *testing.T) {
 		"threshold one":      func(s *o.DefenseSiteSnapshot) { s.CoverThreshold = proto.Float64(1) },
 		"cover half named":   func(s *o.DefenseSiteSnapshot) { s.Cells[1].CoverThingId = proto.String("Thing_1") },
 		"cover on open cell": func(s *o.DefenseSiteSnapshot) {
-			s.Cells[0].CoverThingId, s.Cells[0].CoverDefName, s.Cells[0].CoverKind, s.Cells[0].CoverToken, s.Cells[0].CoverDesignated = proto.String("Thing_1"), proto.String("Plant_TreeOak"), o.CoverKind_COVER_KIND_PLANT.Enum(), proto.String("cover-1"), proto.Bool(false)
+			s.Cells[0].CoverThingId, s.Cells[0].CoverDefName, s.Cells[0].CoverKind, s.Cells[0].CoverDesignated = proto.String("Thing_1"), proto.String("Plant_TreeOak"), o.CoverKind_COVER_KIND_PLANT.Enum(), proto.Bool(false)
 		},
 		"raid dup lord":      func(s *o.DefenseSiteSnapshot) { s.Raids = append(s.Raids, s.Raids[0]) },
 		"raid trail outside": func(s *o.DefenseSiteSnapshot) { s.Raids[0].Trail[1].X = proto.Int32(250) },

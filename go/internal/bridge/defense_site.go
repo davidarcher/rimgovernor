@@ -49,8 +49,7 @@ type DefenseCell struct {
 }
 
 // DefenseCover is the clearance identity of one cover thing: what it is,
-// which designation removes it, whether one already stands, and the snapshot
-// token ClearCover compares at apply.
+// which designation removes it and whether one already stands.
 // Designation is the native designation def the cover's kind takes, the
 // one a CoverClearance action carries; empty for an unknown kind.
 func (c DefenseCover) Designation() string {
@@ -70,7 +69,6 @@ func (c DefenseCover) Designation() string {
 type DefenseCover struct {
 	ThingID, DefName string
 	Kind             o.CoverKind
-	Token            string
 	Designated       bool
 }
 
@@ -277,11 +275,11 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 		out.CoverFill = row.GetCoverFill()
 		out.PlayerOwned, out.NaturalRock, out.Door = row.GetPlayerOwned(), row.GetNaturalRock(), row.GetDoor()
 		out.EdgeReachable, out.HomeArea, out.Unbridging = row.GetEdgeReachable(), row.GetHomeArea(), row.GetFoundationRemovalDesignated()
-		if row.CoverThingId != nil || row.CoverDefName != nil || row.CoverKind != nil || row.CoverToken != nil || row.CoverDesignated != nil {
-			if validID(row.GetCoverThingId()) != nil || validID(row.GetCoverDefName()) != nil || validID(row.GetCoverToken()) != nil || row.CoverDesignated == nil || row.GetCoverKind() == o.CoverKind_COVER_KIND_UNSPECIFIED || row.GetCoverFill() <= 0 {
+		if row.CoverThingId != nil || row.CoverDefName != nil || row.CoverKind != nil || row.CoverDesignated != nil {
+			if validID(row.GetCoverThingId()) != nil || validID(row.GetCoverDefName()) != nil || row.CoverDesignated == nil || row.GetCoverKind() == o.CoverKind_COVER_KIND_UNSPECIFIED || row.GetCoverFill() <= 0 {
 				return DefenseSite{}, contract("defense cell cover identity incomplete")
 			}
-			out.Cover = &DefenseCover{ThingID: row.GetCoverThingId(), DefName: row.GetCoverDefName(), Kind: row.GetCoverKind(), Token: row.GetCoverToken(), Designated: row.GetCoverDesignated()}
+			out.Cover = &DefenseCover{ThingID: row.GetCoverThingId(), DefName: row.GetCoverDefName(), Kind: row.GetCoverKind(), Designated: row.GetCoverDesignated()}
 		}
 		site.Cells = append(site.Cells, out)
 	}

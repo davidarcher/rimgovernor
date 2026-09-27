@@ -40,14 +40,14 @@ func TestDefenseCoverSelectionMapsKindsAndHolds(t *testing.T) {
 		{Cell: cell(5), Fill: 0.3}, {Cell: cell(6), Fill: 0.25}, {Cell: cell(7), Fill: 0.55}, {Cell: cell(8), Fill: 0.55},
 	}}
 	byCell := map[domain.Cell]bridge.DefenseCell{
-		cell(1): {Cell: cell(1), Cover: &bridge.DefenseCover{ThingID: "Plant_TreeOak1", DefName: "Plant_TreeOak", Kind: o.CoverKind_COVER_KIND_PLANT, Token: "a"}},
-		cell(2): {Cell: cell(2), Cover: &bridge.DefenseCover{ThingID: "ChunkSlateSolid2", DefName: "ChunkSlateSolid", Kind: o.CoverKind_COVER_KIND_CHUNK, Token: "b"}},
-		cell(3): {Cell: cell(3), NaturalRock: true, Cover: &bridge.DefenseCover{ThingID: "Slate3", DefName: "Slate", Kind: o.CoverKind_COVER_KIND_MINEABLE, Token: "c"}},
-		cell(4): {Cell: cell(4), NaturalRock: true, Cover: &bridge.DefenseCover{ThingID: "Slate4", DefName: "Slate", Kind: o.CoverKind_COVER_KIND_MINEABLE, Token: "d"}},
+		cell(1): {Cell: cell(1), Cover: &bridge.DefenseCover{ThingID: "Plant_TreeOak1", DefName: "Plant_TreeOak", Kind: o.CoverKind_COVER_KIND_PLANT}},
+		cell(2): {Cell: cell(2), Cover: &bridge.DefenseCover{ThingID: "ChunkSlateSolid2", DefName: "ChunkSlateSolid", Kind: o.CoverKind_COVER_KIND_CHUNK}},
+		cell(3): {Cell: cell(3), NaturalRock: true, Cover: &bridge.DefenseCover{ThingID: "Slate3", DefName: "Slate", Kind: o.CoverKind_COVER_KIND_MINEABLE}},
+		cell(4): {Cell: cell(4), NaturalRock: true, Cover: &bridge.DefenseCover{ThingID: "Slate4", DefName: "Slate", Kind: o.CoverKind_COVER_KIND_MINEABLE}},
 		cell(5): {Cell: cell(5)},
-		cell(6): {Cell: cell(6), Cover: &bridge.DefenseCover{ThingID: "Plant_TreeOak6", DefName: "Plant_TreeOak", Kind: o.CoverKind_COVER_KIND_PLANT, Token: "f", Designated: true}},
-		cell(7): {Cell: cell(7), PlayerOwned: true, Cover: &bridge.DefenseCover{ThingID: "Sandbags7", DefName: "Sandbags", Kind: o.CoverKind_COVER_KIND_BUILDING, Token: "g"}},
-		cell(8): {Cell: cell(8), Cover: &bridge.DefenseCover{ThingID: "AncientWall8", DefName: "Wall", Kind: o.CoverKind_COVER_KIND_BUILDING, Token: "h"}},
+		cell(6): {Cell: cell(6), Cover: &bridge.DefenseCover{ThingID: "Plant_TreeOak6", DefName: "Plant_TreeOak", Kind: o.CoverKind_COVER_KIND_PLANT, Designated: true}},
+		cell(7): {Cell: cell(7), PlayerOwned: true, Cover: &bridge.DefenseCover{ThingID: "Sandbags7", DefName: "Sandbags", Kind: o.CoverKind_COVER_KIND_BUILDING}},
+		cell(8): {Cell: cell(8), Cover: &bridge.DefenseCover{ThingID: "AncientWall8", DefName: "Wall", Kind: o.CoverKind_COVER_KIND_BUILDING}},
 	}
 	clearances, held, err := defenseCoverSelection(approaches, byCell)
 	if err != nil {

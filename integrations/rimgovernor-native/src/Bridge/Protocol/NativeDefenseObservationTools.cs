@@ -125,7 +125,6 @@ namespace HomeBridge.BridgeTools
                 if (giver != null && NativeClearCover.KindOf(giver) != Obs.CoverKind.Unspecified) {
                     row.CoverThingId = giver.GetUniqueLoadID(); row.CoverDefName = Identifier(giver.def.defName);
                     row.CoverKind = NativeClearCover.KindOf(giver); row.CoverDesignated = NativeClearCover.Designated(giver);
-                    row.CoverToken = NativeClearCover.Token(context.Identity, giver);
                 }
                 if (edifice != null) {
                     row.EdificeDefName = Identifier(edifice.def.defName);

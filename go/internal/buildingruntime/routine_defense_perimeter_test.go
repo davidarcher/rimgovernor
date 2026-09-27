@@ -297,8 +297,8 @@ func TestDefenseRemovalTierOrders(t *testing.T) {
 		{Definition: policy.PerimeterBridge, Cell: bridged}, {Definition: "Wall", Cell: lost, Stuff: "WoodLog"}}}
 	census := &defenseCensus{edifice: map[domain.Cell]string{wall: "Wall", door: "Door", lost: "Wall"}, terrain: map[domain.Cell]string{bridged: policy.PerimeterBridge},
 		cover: map[domain.Cell]*bridge.DefenseCover{
-			wall: {ThingID: "Wall1", DefName: "Wall", Kind: o.CoverKind_COVER_KIND_BUILDING, Token: "t1"},
-			door: {ThingID: "Door1", DefName: "Door", Kind: o.CoverKind_COVER_KIND_BUILDING, Token: "t2", Designated: true}},
+			wall: {ThingID: "Wall1", DefName: "Wall", Kind: o.CoverKind_COVER_KIND_BUILDING},
+			door: {ThingID: "Door1", DefName: "Door", Kind: o.CoverKind_COVER_KIND_BUILDING, Designated: true}},
 		unbridging: map[domain.Cell]bool{}}
 	actions, pending, missing, err := defenseRemovalActions("plan", tier, census)
 	if err != nil || !pending || len(missing) != 1 || !missing[lost] || len(actions) != 2 {

@@ -51,6 +51,7 @@ func init() {
 	registerIntentKind(domain.StockpilePatchAction, stockpileAction)
 	registerIntentKind(domain.FoundationRemovalAction, foundationRemovalAction)
 	registerIntentKind(domain.HomeCoverageAction, homeAction)
+	registerIntentKind(domain.CoverClearanceAction, coverAction)
 }
 
 // movementAction is the Actions/Apply move arm of one domain movement.

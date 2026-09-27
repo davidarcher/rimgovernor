@@ -589,17 +589,18 @@ trail cell inside its census region as the crossing, and the policy snaps it
 to the nearest sector edge cell within eight cells. Drop pods and tunnellers
 are not ground arrivals.
 
-Clearance is the `cover_clearance` action (`ClearCover` operation): one exact
-thing by identity and token with the designation its kind takes (`CutPlant`,
+Clearance is the `cover_clearance` action (`CoverIntent` on Actions/Apply):
+one exact thing by identity and cell with the designation its kind takes (`CutPlant`,
 `Haul`, `Mine`, and `Deconstruct` on an unowned building such as a ruin wall;
 player-owned cover is held as `structure`).
 The native side re-checks presence, cell, fog, fill, forbiddance, an existing
 designation, roof and mining safety, a store for a chunk, the designator's
 own acceptance (its refusal text is surfaced), a reachable free colonist with
-the work type and the token before designating. `CutPlant` on a harvestable
+the work type when it applies; the same designation already standing applies
+again. `CutPlant` on a harvestable
 tree designates `HarvestPlant` (chop wood), since the cut-plants designator
-refuses harvestable trees; other plants take a forced `CutPlant`. The thing
-gone, or a chunk hauled off its cell, is completed; still designated is pending
-ordinary work, undesignated by the player is unsuccessful. The defense layout
+refuses harvestable trees; other plants take a forced `CutPlant`. Applied is
+terminal; ordinary work removes the thing, and the census skips a designated
+cover. The defense layout
 planner orders up to eight clearances per method once every tier stands, at
 most four methods per game day.

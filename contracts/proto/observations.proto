@@ -593,10 +593,11 @@ message DefenseCell {
   optional bool natural_rock = 9; optional bool edge_reachable = 10; optional bool home_area = 11; optional string terrain = 12;
   optional bool door = 13; repeated ReadIssue issues = 14;
   // The thing whose fillPercent cover_fill reports (GetCover, else the
-  // edifice), with the clearance designation ordinary work would need and a
-  // snapshot token ClearCover compares at apply. Absent when the cell is open.
+  // edifice), with the clearance designation ordinary work would need.
+  // Absent when the cell is open.
   optional string cover_thing_id = 15; optional string cover_def_name = 16; optional CoverKind cover_kind = 17;
-  optional string cover_token = 18; optional bool cover_designated = 19;
+  reserved 18; reserved "cover_token";
+  optional bool cover_designated = 19;
   // The cell's foundation (a Bridge) is designated for removal (#954).
   optional bool foundation_removal_designated = 20;
 }
