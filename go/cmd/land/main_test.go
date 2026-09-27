@@ -56,7 +56,7 @@ func TestLandSquashesOntoMainAndKeepsCoAuthors(t *testing.T) {
 	mustGit(t, root, "commit", "-qm", "peer: add c")
 
 	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil, false); err != nil {
+	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := mustGit(t, root, "log", "--format=%s", "main"); got != "fix: b again\npeer: add c\ninit" {
@@ -94,14 +94,14 @@ func TestLandRefusesDirtyMainAndConflicts(t *testing.T) {
 	t.Chdir(wt)
 
 	write(t, filepath.Join(root, "a.txt"), "dirty\n")
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil, false); err == nil || !strings.Contains(err.Error(), "main checkout") {
+	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err == nil || !strings.Contains(err.Error(), "main checkout") {
 		t.Errorf("dirty main: got %v", err)
 	}
 	mustGit(t, root, "checkout", "--", "a.txt")
 
 	write(t, filepath.Join(root, "a.txt"), "main\n")
 	mustGit(t, root, "commit", "-qam", "main edit")
-	err := run("", "", "", time.Second, false, acceptanceGate{}, nil, false)
+	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "resolve the conflict") {
 		t.Errorf("conflict: got %v", err)
 	}
@@ -120,7 +120,7 @@ func TestLandWaitsForLock(t *testing.T) {
 	mustGit(t, wt, "commit", "-qm", "b")
 	write(t, filepath.Join(root, ".git", lockName), "pid=0 branch=other\n")
 	t.Chdir(wt)
-	err := run("", "", "", 0, false, acceptanceGate{}, nil, false)
+	err := run("", "", "", 0, false, acceptanceGate{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "landing lock") {
 		t.Errorf("held lock: got %v", err)
 	}
@@ -167,100 +167,11 @@ func TestLandRefusesABranchThatRevertsMainWork(t *testing.T) {
 	before := mustGit(t, root, "rev-parse", "HEAD")
 
 	t.Chdir(wt)
-	err := run("", "", "", time.Second, false, acceptanceGate{}, nil, false)
+	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "a.txt") || !strings.Contains(err.Error(), "new.txt") {
 		t.Fatalf("err = %v, want a refusal naming a.txt and new.txt", err)
 	}
 	if after := mustGit(t, root, "rev-parse", "HEAD"); after != before {
 		t.Fatalf("main moved to %s", after)
-	}
-}
-
-func TestIsAgentWorktree(t *testing.T) {
-	for _, c := range []struct {
-		path, branch string
-		want         bool
-	}{
-		{`C:\r\.claude\worktrees\agent-a7b6`, "worktree-agent-a7b6", true},
-		{"/r/.claude/worktrees/agent-x", "worktree-agent-x", true},
-		{`C:\r\.claude\worktrees\agent-a05f`, "claude/issue-869-land", false},
-		{`C:\r\.claude\worktrees\github-issue-858-441715`, "claude/epic-858", false},
-		{`C:\r\.claude\worktrees\session-x`, "worktree-agent-x", false},
-		{`C:\r`, "worktree-agent-x", false},
-		{`C:\r\agent-x`, "worktree-agent-x", false},
-	} {
-		if got := isAgentWorktree(c.path, c.branch); got != c.want {
-			t.Errorf("isAgentWorktree(%q, %q) = %v", c.path, c.branch, got)
-		}
-	}
-}
-
-// newAgentRepo is newRepo with a committed branch in an agent worktree.
-func newAgentRepo(t *testing.T) (root, wt, branch string) {
-	t.Helper()
-	root = filepath.Join(t.TempDir(), "repo")
-	mustGit(t, "", "init", "-q", "-b", "main", root)
-	mustGit(t, root, "config", "user.email", "t@example.com")
-	mustGit(t, root, "config", "user.name", "t")
-	write(t, filepath.Join(root, ".gitignore"), ".claude/\n")
-	mustGit(t, root, "add", ".")
-	mustGit(t, root, "commit", "-qm", "init")
-	branch = "worktree-agent-abc"
-	wt = filepath.Join(root, ".claude", "worktrees", "agent-abc")
-	mustGit(t, root, "worktree", "add", "-q", "-b", branch, wt, "main")
-	write(t, filepath.Join(wt, "b.txt"), "b\n")
-	mustGit(t, wt, "add", ".")
-	mustGit(t, wt, "commit", "-qm", "b")
-	return root, wt, branch
-}
-
-func TestLandRemovesAgentWorktree(t *testing.T) {
-	root, wt, branch := newAgentRepo(t)
-	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil, false); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(wt, ".git")); !os.IsNotExist(err) {
-		t.Errorf("worktree still present: %v", err)
-	}
-	if got := mustGit(t, root, "branch", "--list", branch); got != "" {
-		t.Errorf("branch not deleted: %s", got)
-	}
-}
-
-func TestLandKeepsAgentWorktreeOnFlag(t *testing.T) {
-	root, wt, branch := newAgentRepo(t)
-	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil, true); err != nil {
-		t.Fatal(err)
-	}
-	if got := mustGit(t, wt, "rev-parse", "HEAD"); got != mustGit(t, root, "rev-parse", "main") {
-		t.Errorf("kept branch not reset to main")
-	}
-	if mustGit(t, root, "branch", "--list", branch) == "" {
-		t.Error("branch deleted despite -keep-worktree")
-	}
-}
-
-func TestRemovableReason(t *testing.T) {
-	root, wt, branch := newAgentRepo(t)
-	mustGit(t, wt, "reset", "-q", "--hard", "main")
-	if r := removableReason(wt, branch); r != "" {
-		t.Errorf("clean worktree at main: %s", r)
-	}
-	write(t, filepath.Join(wt, "stray.txt"), "x\n")
-	if r := removableReason(wt, branch); !strings.Contains(r, "untracked") {
-		t.Errorf("untracked file: %q", r)
-	}
-	os.Remove(filepath.Join(wt, "stray.txt"))
-	write(t, filepath.Join(wt, "c.txt"), "c\n")
-	mustGit(t, wt, "add", ".")
-	mustGit(t, wt, "commit", "-qm", "c")
-	if r := removableReason(wt, branch); !strings.Contains(r, "outside main") {
-		t.Errorf("unlanded commit: %q", r)
-	}
-	removeAgentWorktree(root, wt, branch)
-	if _, err := os.Stat(filepath.Join(wt, ".git")); err != nil {
-		t.Errorf("unsafe worktree removed: %v", err)
 	}
 }

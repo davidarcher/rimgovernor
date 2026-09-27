@@ -31,10 +31,6 @@
 //     branch's;
 //  5. resets the branch to the new main when its tree is identical, so
 //     the next task starts from main rather than re-landing the same diff;
-//     a Claude agent worktree (.claude/worktrees/agent-*, branch
-//     worktree-agent-*) that is clean with no commits outside main is
-//     removed with its branch instead, unless -keep-worktree (for agents
-//     landing several milestones from one worktree);
 //  6. closes the GitHub issue the branch is for (the number in a branch
 //     name like claude/github-issue-128-abc, or -issue N) with a comment
 //     naming the landing commit; -no-close skips it, and a missing gh or
@@ -69,20 +65,19 @@ func main() {
 	noClose := flag.Bool("no-close", false, "do not close a GitHub issue")
 	results := flag.String("results", "", "acceptance suite output directory (its result.json) the landing presents as its pass")
 	unverified := flag.Bool("unverified", false, "land a native or buildingruntime change without -results; name what is unverified in the commit body")
-	keepWorktree := flag.Bool("keep-worktree", false, "keep a Claude agent worktree and its branch after landing (reset to main instead of removed)")
 	flag.Parse()
 	if flag.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-results dir | -unverified] [-issue N | -no-close] [-keep-worktree] [<branch>]")
+		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-results dir | -unverified] [-issue N | -no-close] [<branch>]")
 		os.Exit(2)
 	}
 	gate := acceptanceGate{Results: *results, Unverified: *unverified}
-	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests, gate, closeIssue(*issue, *noClose), *keepWorktree); err != nil {
+	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests, gate, closeIssue(*issue, *noClose)); err != nil {
 		fmt.Fprintln(os.Stderr, "land:", err)
 		os.Exit(1)
 	}
 }
 
-func run(branch, message, messageFile string, lockTimeout time.Duration, runTests bool, gate acceptanceGate, close issueCloser, keepWorktree bool) error {
+func run(branch, message, messageFile string, lockTimeout time.Duration, runTests bool, gate acceptanceGate, close issueCloser) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -203,74 +198,14 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 		if _, err := git(worktree, "reset", "--hard", "main"); err != nil {
 			return err
 		}
-		fmt.Printf("%s reset to main (%s)\n", branch, landed)
+		fmt.Printf("%s reset to main (%s); start the next task from here\n", branch, landed)
 	} else {
 		fmt.Printf("%s left as is: its tree differs from the landed main\n", branch)
 	}
 	if close != nil {
 		close(mainCheckout, branch, landed)
 	}
-	if !keepWorktree && isAgentWorktree(worktree, branch) {
-		removeAgentWorktree(mainCheckout, worktree, branch)
-	} else {
-		fmt.Printf("start the next task from %s\n", worktree)
-	}
 	return nil
-}
-
-// agentWorktreeDir and agentBranch name the worktrees Claude Code creates
-// for isolated agents; only those are removed after a landing.
-var (
-	agentWorktreeDir = regexp.MustCompile(`(?i)/\.claude/worktrees/agent-[^/]+$`)
-	agentBranch      = regexp.MustCompile(`^worktree-agent-[^/]+$`)
-)
-
-// isAgentWorktree reports whether path and branch are both an agent
-// worktree's: a claude/issue-* branch in an agent-* directory, or a
-// session worktree, is not one.
-func isAgentWorktree(path, branch string) bool {
-	return agentBranch.MatchString(branch) && agentWorktreeDir.MatchString(filepath.ToSlash(filepath.Clean(path)))
-}
-
-// removableReason returns why the landed agent worktree must stay, or ""
-// when it is clean (untracked files included) with no commits outside main.
-func removableReason(worktree, branch string) string {
-	if out, err := git(worktree, "status", "--porcelain", "--untracked-files=all"); err != nil || out != "" {
-		return fmt.Sprintf("it has uncommitted or untracked files:\n%s", out)
-	}
-	if out, err := git(worktree, "rev-list", "main.."+branch); err != nil || out != "" {
-		return "its branch has commits outside main"
-	}
-	return ""
-}
-
-// removeAgentWorktree removes the landed agent worktree and deletes its
-// branch, working from the main checkout because the landing process (and
-// its shell) runs inside the worktree, which Windows will not delete while
-// it is a process's cwd. It never fails the landing.
-func removeAgentWorktree(mainCheckout, worktree, branch string) {
-	if reason := removableReason(worktree, branch); reason != "" {
-		fmt.Printf("kept agent worktree %s: %s\n", worktree, reason)
-		return
-	}
-	_ = os.Chdir(mainCheckout)
-	if _, err := git(mainCheckout, "worktree", "remove", worktree); err != nil {
-		// A locked directory may be half removed: once its .git file is
-		// gone, prune drops the registration so the branch can go.
-		if _, statErr := os.Stat(filepath.Join(worktree, ".git")); statErr == nil {
-			fmt.Printf("agent worktree %s not removed (%v); run `git worktree remove %s` from %s once no process is inside it, then `git branch -D %s`\n", worktree, err, worktree, mainCheckout, branch)
-			return
-		}
-		_, _ = git(mainCheckout, "worktree", "prune")
-		fmt.Printf("agent worktree %s unregistered; its directory is locked by a running process, delete it when that exits\n", worktree)
-	} else {
-		fmt.Printf("removed agent worktree %s\n", worktree)
-	}
-	if _, err := git(mainCheckout, "branch", "-d", branch); err != nil {
-		fmt.Printf("branch %s not deleted: %v\n", branch, err)
-		return
-	}
-	fmt.Printf("deleted branch %s\n", branch)
 }
 
 // issueCloser closes the GitHub issue a landed branch was for, or does

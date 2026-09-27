@@ -239,11 +239,6 @@ What it produces:
 branch worktree. The lane merges `main`, squash-lands on the `main`
 checkout, resets the branch and closes the issue named in the branch
 (`claude/github-issue-128-…`; `-issue N` to name it, `-no-close` to skip).
-A clean, fully landed Claude agent worktree (`.claude/worktrees/agent-*`
-on a `worktree-agent-*` branch) is then removed with its branch, from the
-main checkout; if a process still holds the directory it says what to
-remove by hand. `-keep-worktree` keeps it for agents landing several
-commits. Other worktrees are never removed.
 Call it once. A conflict comes back as an error: `git merge main`, resolve,
 commit, call it again. A conflict only on a generated protobuf file:
 merge, regenerate (`generatego`/`generatecsharp`, absolute `--output`),
