@@ -108,10 +108,20 @@ namespace HomeBridge.BridgeTools
             bool Accessible(IntVec3 c) => !c.Fogged(map) && c.Standable(map) && haulers.Any(p => !c.IsForbidden(p)
                 && p.CanReach(c, PathEndMode.OnCell, Danger.None));
             bool Protected(IntVec3 c) => def.GetStatValueAbstract(StatDefOf.DeteriorationRate) <= 0 || c.Roofed(map);
-            // Count only empty floor slots, conservatively excluding shelves and partial stacks.
-            var capacity = map.haulDestinationManager.AllGroups.Where(g => g.Settings.filter.Allows(def))
-                .SelectMany(g => g.CellsList).Distinct().Count(c => Accessible(c) && Protected(c)
-                    && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)) * def.stackLimit;
+            // Count empty stack slots, conservatively excluding partial stacks: one per
+            // empty floor cell, and a storage building's (shelf's) free slots of its
+            // maxItemsInCell per cell (#721), reached by touch since it is not standable.
+            int Slots(IntVec3 c)
+            {
+                var items = c.GetThingList(map).Count(t => t.def.category == ThingCategory.Item);
+                var edifice = c.GetEdifice(map);
+                if (edifice == null) return Accessible(c) && items == 0 ? 1 : 0;
+                if (!(edifice is Building_Storage) || c.Fogged(map)) return 0;
+                var reached = haulers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None));
+                return reached ? Math.Max(0, edifice.def.building.maxItemsInCell - items) : 0;
+            }
+            var capacity = (long)map.haulDestinationManager.AllGroups.Where(g => g.Settings.filter.Allows(def))
+                .SelectMany(g => g.CellsList).Distinct().Where(Protected).Sum(Slots) * def.stackLimit;
             var stored = map.haulDestinationManager.AllGroups.SelectMany(g => g.HeldThings
                 .Where(t => t.def == def && g.Settings.AllowedToAccept(t))).Distinct().Sum(t => t.stackCount);
             var border = typeof(AutoHomeAreaMaker).GetField("BorderWidth", BindingFlags.Static | BindingFlags.NonPublic)?.GetRawConstantValue();

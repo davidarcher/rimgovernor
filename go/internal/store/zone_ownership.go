@@ -17,6 +17,11 @@ type OwnedZone struct {
 	Crop  string
 	Cells []domain.Cell
 	Role  string
+	// Goal is the goal whose method created the zone; Filter and Priority
+	// are the stockpile settings it was created with.
+	Goal     domain.GoalID
+	Filter   domain.StockpileFilter
+	Priority domain.StockpilePriority
 }
 
 // zoneClaims lists every completed autopilot zone_create of the current
@@ -79,7 +84,7 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 			if !isZone || !ek || !known || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
-			result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role()})
+			result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role(), Goal: link.goal, Filter: zone.Filter(), Priority: zone.Priority()})
 			if len(result) > 256 {
 				return unknown, nil
 			}

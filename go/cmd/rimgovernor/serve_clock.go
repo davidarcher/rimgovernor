@@ -416,6 +416,15 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		// Shelves (#721) serve the stockpiles SecureSupplies and
+		// MaintainResource create, so either planner brings them.
+		if secureSupplies || ingredientStorage {
+			if shelvesNative, ok := reads.(buildingruntime.RoutineStorageShelvesSource); ok {
+				if config.StorageShelves, err = buildingruntime.NewRoutineStorageShelvesPlanner(reviewer, shelvesNative); err != nil {
+					return nil, err
+				}
+			}
+		}
 		if fireSafety {
 			fireNative, ok := reads.(buildingruntime.RoutineFireSafetySource)
 			if !ok {

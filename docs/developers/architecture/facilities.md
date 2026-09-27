@@ -33,7 +33,12 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    deficit, `RoutineIngredientStoragePlanner` places one allow-list stockpile
    for the recipe's ingredients on the nearest free roofed 2x2 patch inside the
    room the census scores as the Workshop, as a second method under
-   `MaintainResource`. Hauling then brings the inputs to the bench.
+   `MaintainResource`. Hauling then brings the inputs to the bench. Once
+   ComplexFurniture is researched, `RoutineStorageShelvesPlanner` places a
+   Shelf inside that stockpile (and the SecureSupplies general store), up to
+   a third of its footprint, and patches each built shelf with the zone's
+   filter and priority (role `shelf:<buildingID>`). Native storage capacity
+   counts a shelf cell's free slots (three stacks per cell).
 6. **Bill**: `RoutineResourcePlanner` dispatches the bill and native readback
    of the rising item count carries the deficit to recovery. The native
    preview admits a bill on an unfueled bench (`UsableForBillsAfterFueling`):
