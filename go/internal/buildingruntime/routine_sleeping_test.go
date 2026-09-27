@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -201,6 +202,62 @@ func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T)
 	next, err := r.Step(context.Background())
 	if err != nil || next.Reason != BuildingMethodAdmitted || next.Decision.Goal.Goal.Epoch != g.Goal.Epoch+1 || next.Decision.Goal.Methods[0].Plan == p.Spec.ID() {
 		t.Fatal(next, err)
+	}
+}
+
+// A building intent admitted on another plan but not yet applied holds its
+// anchor from siting (#943): nothing on the map shows it yet.
+func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
+	t.Parallel()
+	r, db, session, _, _ := sleepingFixture(t)
+	ctx := context.Background()
+	snapshot := session.State().Snapshot
+	g, err := domain.NewGoal("player-room", domain.PlayerGoal, 3, snapshot, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.CreateGoal(ctx, g); err != nil {
+		t.Fatal(err)
+	}
+	goal, err := db.ReviewGoal(ctx, g.ID, 0, snapshot, 7, domain.NeedDeficit, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	protected := domain.Cell{X: 2, Z: 2}
+	b, err := domain.NewBuilding("SleepingSpot", protected, domain.North, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewBuildingAction("player-room-a", b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("player-room-plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot.Plan = p.ID()
+	snapshot.Revision = 1
+	admitted, err := db.AdmitBuildingMethod(ctx, store.BuildingMethodRequest{Goal: g.ID, Revision: goal.Revision, Method: "player-sleep", Plan: p, Current: snapshot, Tick: 7, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Stock: policy.StockObservation{Snapshot: snapshot, Tick: 7}, Purpose: policy.Routine})
+	if err != nil || !admitted.Admitted {
+		t.Fatal(admitted, err)
+	}
+	anchors, err := db.PendingBuildingAnchors(ctx, snapshot, nil)
+	if err != nil || !slices.Contains(anchors, protected) {
+		t.Fatal("pending intent holds no anchor", anchors, err)
+	}
+	result, err := r.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	compiled, err := db.LoadPlan(ctx, result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range compiled.Spec.Actions() {
+		if b, ok := action.Building(); ok && b.Cell() == protected {
+			t.Fatal("claimed the pending intent's anchor", b.Cell())
+		}
 	}
 }
 

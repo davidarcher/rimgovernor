@@ -714,6 +714,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		protected = append(protected, h.Footprint...)
 	}
+	// Building intents admitted on other goals' plans but not yet applied
+	// show nothing on the map; keep off their anchors (#943).
+	var own []domain.PlanID
+	for _, m := range goal.Methods {
+		own = append(own, m.Plan)
+	}
+	pendingAnchors, err := p.journal.PendingBuildingAnchors(call, snapshot, own)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	protected = append(protected, pendingAnchors...)
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
 			return err
