@@ -21,7 +21,7 @@ import (
 // RoutineReviewer itself uses to raise the ConfirmColonyNames goal
 // (observation.colony.go's own r.Facts.ColonyNaming derivation).
 type RoutineNamingSource interface {
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 }
 type RoutineNamingPlanner struct {
 	reviewer *RoutineReviewer

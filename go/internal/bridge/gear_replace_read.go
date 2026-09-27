@@ -33,7 +33,7 @@ var ErrGearCandidateAbsent = errors.New("gear candidate absent")
 // replacement candidate's item token. It returns ErrUnavailable when the
 // pawn or candidate is not present in the current census.
 func (client *Client) ReadGearReplacement(ctx context.Context, identity *c.Identity, pawn, thing string) (GearReplaceRead, Result, error) {
-	reply, raw, err := client.ReadColonyFacts(ctx, identity, true, nil)
+	reply, raw, err := client.ReadColonyFacts(ctx, identity, true)
 	if err != nil {
 		return GearReplaceRead{}, raw, err
 	}

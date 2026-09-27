@@ -33,7 +33,7 @@ func (f *clockServiceFake) PreviewBuilding(context.Context, domain.Action, domai
 	return bridge.BuildingPreview{}, bridge.Result{}, errors.New("preview unavailable")
 }
 
-func (f *clockServiceFake) ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (f *clockServiceFake) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	f.colonyReads.Add(1)
 	return nil, bridge.Result{}, errors.New("colony read unavailable")
 }

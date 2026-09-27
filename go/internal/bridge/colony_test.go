@@ -29,7 +29,6 @@ func colonyFixture(t *testing.T) *o.ColonyFactsReply {
 func TestColonyFixedReadOwnsSelectionAndPreservesOptionalFacts(t *testing.T) {
 	r := colonyFixture(t)
 	id := proto.Clone(r.GetObserved().Context.Identity).(*c.Identity)
-	names := []string{"Wall"}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_read_colony_facts" {
 			t.Fatal(arg.Tool)
@@ -44,14 +43,13 @@ func TestColonyFixedReadOwnsSelectionAndPreservesOptionalFacts(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 			t.Fatal(err)
 		}
-		if !q.GetPlanning() || len(q.RequestedDefinitionNames) != 1 || q.RequestedDefinitionNames[0] != "Wall" {
+		if !q.GetPlanning() || len(q.RequestedDefinitionNames) != 0 {
 			t.Fatal(q)
 		}
 		id.LoadToken = proto.String("changed")
-		names[0] = "changed"
 		return pbResult(r), nil
 	}}, time.Second)
-	reply, _, err := client.ReadColonyFacts(context.Background(), id, true, names)
+	reply, _, err := client.ReadColonyFacts(context.Background(), id, true)
 	if err != nil || reply.GetObserved().FoodNutrition != nil {
 		t.Fatal(reply, err)
 	}

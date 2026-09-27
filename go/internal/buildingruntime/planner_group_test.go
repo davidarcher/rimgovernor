@@ -24,7 +24,7 @@ type failingBuildingSource struct{ err error }
 func (f failingBuildingSource) Identity(context.Context) (*l.IdentityReply, bridge.Result, error) {
 	return nil, bridge.Result{}, f.err
 }
-func (f failingBuildingSource) ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (f failingBuildingSource) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	return nil, bridge.Result{}, f.err
 }
 func (f failingBuildingSource) PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {

@@ -16,7 +16,7 @@ import (
 // only the facts and validates them by their ObservationContext.
 type ColonySource interface {
 	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 }
 
 // ColonyReading is an observation read under the caller's expected world,
@@ -41,7 +41,7 @@ func sameColonyContext(actual, expected Identity) bool {
 // facts under it. Every reply carries an ObservationContext, so the facts
 // themselves prove they were read at the expected load, map and generation; no
 // identity read brackets them. Missing generations cannot confirm the boundary.
-func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expected Identity, maxAge time.Duration, planning bool, definitions []string) (ColonyReading, error) {
+func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expected Identity, maxAge time.Duration, planning bool) (ColonyReading, error) {
 	var result ColonyReading
 	if source == nil || clock == nil || maxAge <= 0 || expected.Validate() != nil {
 		return result, ErrContract
@@ -57,7 +57,7 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 		return result, err
 	}
 	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
-	reply, receipt, err := source.ReadColonyFacts(ctx, id, planning, append([]string(nil), definitions...))
+	reply, receipt, err := source.ReadColonyFacts(ctx, id, planning)
 	result.Receipt = receipt
 	if err != nil {
 		return result, err

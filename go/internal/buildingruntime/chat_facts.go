@@ -18,7 +18,7 @@ import (
 // gatherer needs: the colony census, the named colonist roster and the
 // custody census every observed humanlike appears in.
 type ChatFactsNative interface {
-	ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadHomeColonists(ctx context.Context, identity *c.Identity) (*o.ListPawnsReply, bridge.Result, error)
 	ReadRoutinePopulation(ctx context.Context, identity *c.Identity) (bridge.PrisonerCensus, bridge.Result, error)
 }
@@ -51,7 +51,7 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 		return none, domain.GenerationSnapshot{}, err
 	}
 	identity := &c.Identity{ColonyId: proto.String(string(world.Colony)), LoadToken: proto.String(string(world.Load)), MapId: proto.Int32(int32(world.Map))}
-	colony, _, err := native.ReadColonyFacts(ctx, identity, false, nil)
+	colony, _, err := native.ReadColonyFacts(ctx, identity, false)
 	if err != nil {
 		return none, domain.GenerationSnapshot{}, err
 	}

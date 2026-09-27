@@ -22,7 +22,7 @@ import (
 type DeconstructionNative interface {
 	ReadClearanceTargets(context.Context, *c.Identity) (*n.ClearanceTargetsReply, bridge.Result, error)
 	ReadAncientShrines(context.Context, *c.Identity) (*n.AncientShrinesReply, bridge.Result, error)
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*n.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool) (*n.ColonyFactsReply, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	LookupDeconstruction(context.Context, bridge.DeconstructionAttempt) (*r.LookupReply, bridge.Result, error)
 	ObserveDeconstructionProgress(context.Context, bridge.DeconstructionAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
@@ -200,7 +200,7 @@ func (b *DeconstructionBoundary) inspectBreach(ctx context.Context, target execu
 // present and depleted at dispatch: a seam that still reads a deposit or an
 // unknown census never dispatches. A drill gone from the census is absent.
 func (b *DeconstructionBoundary) inspectDrill(ctx context.Context, target executor.Target, value domain.Deconstruction, out executor.DeconstructionInspection) (executor.DeconstructionInspection, error) {
-	reply, _, err := b.native.ReadColonyFacts(ctx, boundary.Identity(target.Snapshot), false, nil)
+	reply, _, err := b.native.ReadColonyFacts(ctx, boundary.Identity(target.Snapshot), false)
 	if err != nil {
 		return out, err
 	}

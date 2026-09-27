@@ -27,7 +27,7 @@ type chatNative struct{}
 func chatContext() *c.ObservationContext {
 	return &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}, Tick: proto.Int64(500), NativeGeneration: proto.Uint64(9)}
 }
-func (chatNative) ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (chatNative) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	snapshot := &o.ColonyFactsSnapshot{Context: chatContext(), ColonistCount: proto.Uint32(1), FoodRunwayDays: proto.Float64(4), Resources: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(120)}}}
 	return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: snapshot}}, bridge.Result{}, nil
 }

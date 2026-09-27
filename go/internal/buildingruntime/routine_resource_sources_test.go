@@ -29,7 +29,7 @@ type fakeResourceSourceNative struct {
 func (f *fakeResourceSourceNative) Identity(context.Context) (*l.IdentityReply, bridge.Result, error) {
 	panic("unused")
 }
-func (f *fakeResourceSourceNative) ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (f *fakeResourceSourceNative) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	panic("unused")
 }
 func (f *fakeResourceSourceNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {

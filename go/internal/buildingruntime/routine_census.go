@@ -259,12 +259,21 @@ func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.R
 
 // observeColony is the planning ObserveColony served from the census (its
 // ColonyReading is the same census read with the routine sections beside it),
-// otherwise a fresh read through source.
+// otherwise a fresh read through source. Project definitions ride the
+// snapshot frame's subscription, so a read naming any takes the frame.
 func (r *RoutineReviewer) observeColony(ctx context.Context, source observation.ColonySource, expected observation.Identity, definitions []string) (observation.ColonyReading, error) {
-	if reading, ok := r.census.lookup(source, r.native, expected, false, domain.Unknown[[]policy.ConstructionClaim](), definitions); ok {
+	if len(definitions) > 0 {
+		routine, ok := source.(observation.RoutineSource)
+		if !ok {
+			return observation.ColonyReading{}, observation.ErrContract
+		}
+		reading, err := r.observeOwned(ctx, routine, expected, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
+		return reading.ColonyReading, err
+	}
+	if reading, ok := r.census.lookup(source, r.native, expected, false, domain.Unknown[[]policy.ConstructionClaim](), nil); ok {
 		return reading.ColonyReading, nil
 	}
-	reading, err := observation.ObserveColony(ctx, source, r.clock, expected, r.maxAge, true, definitions)
+	reading, err := observation.ObserveColony(ctx, source, r.clock, expected, r.maxAge, true)
 	if err == nil {
 		r.census.serveGrid(&reading.Projection)
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)

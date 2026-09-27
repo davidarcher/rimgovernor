@@ -31,7 +31,7 @@ func (f *colonyStatusNativeFake) Identity(ctx context.Context) (*l.IdentityReply
 	}
 	return f.clockCoreFake.Identity(ctx)
 }
-func (f *colonyStatusNativeFake) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (f *colonyStatusNativeFake) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	if f.colonyErr != nil {
 		return nil, bridge.Result{}, f.colonyErr
 	}

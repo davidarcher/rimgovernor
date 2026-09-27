@@ -21,7 +21,7 @@ import (
 // here dispatches a native write.
 type ColonyStatusNative interface {
 	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadHomeColonists(context.Context, *c.Identity) (*o.ListPawnsReply, bridge.Result, error)
 }
 
@@ -116,7 +116,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		return ColonyStatusReport{}, err
 	}
 	identity := &c.Identity{ColonyId: proto.String(string(decoded.Colony)), LoadToken: proto.String(string(decoded.Load)), MapId: proto.Int32(int32(decoded.Map))}
-	colony, _, err := s.native.ReadColonyFacts(call, identity, false, nil)
+	colony, _, err := s.native.ReadColonyFacts(call, identity, false)
 	if err != nil {
 		return ColonyStatusReport{}, err
 	}

@@ -44,7 +44,7 @@ func (f *worldEvaluationNativeFake) ReadWorldProgression(ctx context.Context, id
 	}
 	return f.world, bridge.Result{}, ctx.Err()
 }
-func (f *worldEvaluationNativeFake) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (f *worldEvaluationNativeFake) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	if f.colonyErr != nil {
 		return nil, bridge.Result{}, f.colonyErr
 	}

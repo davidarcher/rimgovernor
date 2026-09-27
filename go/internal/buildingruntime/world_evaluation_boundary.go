@@ -24,7 +24,7 @@ import (
 type WorldEvaluationNative interface {
 	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
 	ReadWorldProgression(context.Context, *c.Identity, bool) (bridge.WorldProgressionRead, bridge.Result, error)
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 }
 
 // WorldEvaluation composes a same-tick read of native's world-progression
@@ -71,7 +71,7 @@ func (w *WorldEvaluation) Read(ctx context.Context) (policy.WorldEvaluationRepor
 	if err != nil {
 		return policy.WorldEvaluationReport{}, err
 	}
-	colony, _, err := w.native.ReadColonyFacts(call, identity, false, nil)
+	colony, _, err := w.native.ReadColonyFacts(call, identity, false)
 	if err != nil {
 		return policy.WorldEvaluationReport{}, err
 	}

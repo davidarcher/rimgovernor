@@ -158,7 +158,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
-	reply, _, err := r.native.ReadColonyFacts(call, identity, false, nil)
+	reply, _, err := r.native.ReadColonyFacts(call, identity, false)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

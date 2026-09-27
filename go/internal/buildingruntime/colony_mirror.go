@@ -12,7 +12,7 @@ import (
 )
 
 type colonyFactsReader interface {
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 }
 
 // publishColony publishes every colony facts sub-section
@@ -52,7 +52,7 @@ func colonyTables(m *mirror.Mirror, scope mirror.Scope, versions map[string]uint
 // planning section the native answers it with.
 func (r *RoutineReviewer) colonyFacts(ctx context.Context, native colonyFactsReader, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	if r == nil || !sameNativeSource(native, r.native) {
-		return native.ReadColonyFacts(ctx, identity, planning, nil)
+		return native.ReadColonyFacts(ctx, identity, planning)
 	}
 	return r.servedColonyFacts(ctx, native, identity, planning)
 }
@@ -64,7 +64,7 @@ func (r *RoutineReviewer) servedColonyFacts(ctx context.Context, native colonyFa
 		}
 		return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}, bridge.Result{}, nil
 	}
-	return native.ReadColonyFacts(ctx, identity, planning, nil)
+	return native.ReadColonyFacts(ctx, identity, planning)
 }
 
 func (r *RoutineReviewer) mirroredColony(ctx context.Context, identity *c.Identity) (*o.ColonyFactsSnapshot, bool) {
@@ -113,15 +113,15 @@ func (f *ColonyFacts) bind(r *RoutineReviewer) {
 	f.mu.Unlock()
 }
 
-func (f *ColonyFacts) read(ctx context.Context, native colonyFactsReader, identity *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (f *ColonyFacts) read(ctx context.Context, native colonyFactsReader, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	var r *RoutineReviewer
 	if f != nil {
 		f.mu.Lock()
 		r = f.reviewer
 		f.mu.Unlock()
 	}
-	if r == nil || len(definitions) > 0 {
-		return native.ReadColonyFacts(ctx, identity, planning, definitions)
+	if r == nil {
+		return native.ReadColonyFacts(ctx, identity, planning)
 	}
 	return r.servedColonyFacts(ctx, native, identity, planning)
 }
@@ -139,8 +139,8 @@ type chatColonyFacts struct {
 	facts *ColonyFacts
 }
 
-func (n chatColonyFacts) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
-	return n.facts.read(ctx, n.ChatFactsNative, identity, planning, definitions)
+func (n chatColonyFacts) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
+	return n.facts.read(ctx, n.ChatFactsNative, identity, planning)
 }
 
 type deconstructionColonyFacts struct {
@@ -148,6 +148,6 @@ type deconstructionColonyFacts struct {
 	facts *ColonyFacts
 }
 
-func (n deconstructionColonyFacts) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
-	return n.facts.read(ctx, n.DeconstructionNative, identity, planning, definitions)
+func (n deconstructionColonyFacts) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
+	return n.facts.read(ctx, n.DeconstructionNative, identity, planning)
 }

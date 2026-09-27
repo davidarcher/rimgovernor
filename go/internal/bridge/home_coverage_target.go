@@ -31,7 +31,7 @@ func (client *Client) ReadHomeCoverageTarget(ctx context.Context, identity *c.Id
 	if validID(target) != nil {
 		return HomeCoverageTarget{}, Result{}, contract("invalid home coverage target identity")
 	}
-	reply, raw, err := client.ReadColonyFacts(ctx, identity, false, nil)
+	reply, raw, err := client.ReadColonyFacts(ctx, identity, false)
 	if err != nil {
 		return HomeCoverageTarget{}, raw, err
 	}

@@ -105,7 +105,7 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 		return nil, "", ErrControl
 	}
 	identity := boundary.Identity(state.Snapshot)
-	reply, _, err := source.ReadColonyFacts(call, identity, r.goal == policy.MaintainEquipment, nil)
+	reply, _, err := source.ReadColonyFacts(call, identity, r.goal == policy.MaintainEquipment)
 	if err != nil {
 		return nil, "", err
 	}

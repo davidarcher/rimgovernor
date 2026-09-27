@@ -40,7 +40,7 @@ func NewAcquisitionControl(client *Client) (*AcquisitionControl, error) {
 // the hint native echoes in the evidence.
 func (client *Client) ReadAcquisition(ctx context.Context, identity *c.Identity, acquisition domain.Acquisition) (AcquisitionRead, Result, error) {
 	cell := acquisition.Cell()
-	reply, raw, err := client.ReadColonyFacts(ctx, identity, false, nil)
+	reply, raw, err := client.ReadColonyFacts(ctx, identity, false)
 	if err != nil {
 		return AcquisitionRead{}, raw, err
 	}

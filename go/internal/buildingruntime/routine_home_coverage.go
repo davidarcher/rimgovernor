@@ -19,7 +19,7 @@ import (
 // facts are unconditional, unlike Planning, so planning is left false here.
 type RoutineHomeCoverageSource interface {
 	ReadConstructionBuildings(context.Context, *c.Identity, []string) (*o.ListBuildingsReply, bridge.Result, error)
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 }
 type RoutineHomeCoveragePlanner struct {
 	reviewer *RoutineReviewer

@@ -31,7 +31,7 @@ func (s *colonySource) Identity(ctx context.Context) (*l.IdentityReply, bridge.R
 	return nil, bridge.Result{}, errors.New("identity read inside ObserveColony")
 }
 
-func (s *colonySource) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (s *colonySource) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	s.reads++
 	if s.onRead != nil {
 		s.onRead()
@@ -101,7 +101,7 @@ func TestObserveColonyValidatesFactsByTheirContext(t *testing.T) {
 			if scenario.change != nil {
 				scenario.change(s, &expected, clock, cancel)
 			}
-			got, err := ObserveColony(ctx, s, clock, expected, time.Second, true, nil)
+			got, err := ObserveColony(ctx, s, clock, expected, time.Second, true)
 			if !errors.Is(err, scenario.want) {
 				t.Fatalf("got %v, want %v", err, scenario.want)
 			}

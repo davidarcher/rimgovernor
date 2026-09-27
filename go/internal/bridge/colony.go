@@ -11,21 +11,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, Result, error) {
+func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool) (*o.ColonyFactsReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
-	if len(definitions) > 256 || !planning && len(definitions) != 0 {
-		return nil, Result{}, contract("invalid colony definition selection")
-	}
-	seen := map[string]bool{}
-	for _, name := range definitions {
-		if validID(name) != nil || seen[name] {
-			return nil, Result{}, contract("invalid or duplicate colony definition")
-		}
-		seen[name] = true
-	}
-	request := colonyFactsRequest(identity, planning, definitions)
+	request := colonyFactsRequest(identity, planning)
 	reply := &o.ColonyFactsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_colony_facts", request, reply)
 	if err != nil {
@@ -41,21 +31,8 @@ func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity,
 		err = unavailable(v.Unavailable, raw)
 	case *o.ColonyFactsReply_Observed:
 		err = ValidateColonyFacts(v.Observed, request.Scope.ExpectedIdentity)
-		if err == nil && v.Observed.GetPlanning().GetObserved() != nil {
-			if !planning {
-				err = contract("unrequested planning facts")
-			}
-			if len(seen) > 0 {
-				rows := v.Observed.GetPlanning().GetObserved().Definitions
-				if len(rows) != len(seen) {
-					err = contract("missing requested definition")
-				}
-				for _, row := range rows {
-					if !seen[row.GetDefinition().GetDefName()] {
-						err = contract("unrequested definition")
-					}
-				}
-			}
+		if err == nil && v.Observed.GetPlanning().GetObserved() != nil && !planning {
+			err = contract("unrequested planning facts")
 		}
 	default:
 		err = contract("missing colony outcome")
@@ -64,10 +41,11 @@ func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity,
 }
 
 // colonyFactsRequest is the exact request ReadColonyFacts issues; the
-// bundle seeds its colony_facts section under the planning form of it
-// (planning, no definitions).
-func colonyFactsRequest(identity *c.Identity, planning bool, definitions []string) *o.ColonyFactsRequest {
-	return &o.ColonyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Planning: proto.Bool(planning), RequestedDefinitionNames: append([]string(nil), definitions...)}
+// bundle seeds its colony_facts section under the planning form of it.
+// Project definitions beyond the default catalog ride the snapshot frame's
+// subscription (ReadRoutineFrame), not this read.
+func colonyFactsRequest(identity *c.Identity, planning bool) *o.ColonyFactsRequest {
+	return &o.ColonyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Planning: proto.Bool(planning)}
 }
 
 func colonyQuantities(rows []*o.Quantity) error {

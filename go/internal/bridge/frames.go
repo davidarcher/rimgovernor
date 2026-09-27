@@ -276,7 +276,7 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 		seed("rimgovernor/observations_read_status", emergencyRequest(identity), &o.StatusReply{Outcome: &o.StatusReply_Observed{Observed: v.Emergency}})
 	}
 	if v.ColonyFacts != nil {
-		seed("rimgovernor/observations_read_colony_facts", colonyFactsRequest(identity, true, nil), &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v.ColonyFacts}})
+		seed("rimgovernor/observations_read_colony_facts", colonyFactsRequest(identity, true), &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v.ColonyFacts}})
 	}
 	if v.Population != nil {
 		seed("rimgovernor/observations_read_population", populationRequest(identity), &o.PopulationReply{Outcome: &o.PopulationReply_Observed{Observed: v.Population}})

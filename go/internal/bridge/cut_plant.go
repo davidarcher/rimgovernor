@@ -45,7 +45,7 @@ func (client *Client) ReadBlightedPlants(ctx context.Context, identity *c.Identi
 	if ValidateIdentity(identity) != nil {
 		return CutPlantRead{}, Result{}, contract("invalid cut plant scope")
 	}
-	reply, raw, err := client.ReadColonyFacts(ctx, identity, false, nil)
+	reply, raw, err := client.ReadColonyFacts(ctx, identity, false)
 	if err != nil {
 		return CutPlantRead{}, raw, err
 	}

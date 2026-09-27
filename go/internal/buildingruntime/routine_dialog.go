@@ -21,7 +21,7 @@ import (
 // RoutineReviewer itself uses to raise the AnswerDialog goal
 // (observation.colony.go's own r.Facts.ChoiceDialog derivation).
 type RoutineDialogSource interface {
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 }
 type RoutineDialogPlanner struct {
 	reviewer *RoutineReviewer

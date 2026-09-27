@@ -32,7 +32,7 @@ func (n *colonyCountingNative) Identity(context.Context) (*l.IdentityReply, brid
 	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: n.context(id)}}}, bridge.Result{}, nil
 }
 
-func (n *colonyCountingNative) ReadColonyFacts(_ context.Context, id *c.Identity, planning bool, _ []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (n *colonyCountingNative) ReadColonyFacts(_ context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	n.reads++
 	v := proto.Clone(n.facts).(*o.ColonyFactsSnapshot)
 	v.Context = n.context(id)

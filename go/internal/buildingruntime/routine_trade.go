@@ -26,7 +26,7 @@ import (
 // refusal fails its method.
 type RoutineTradeSource interface {
 	ReadConstructionDeficits(context.Context, *c.Identity) (bridge.ConstructionDeficitRead, bridge.Result, error)
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 	ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
 	ReadTradeSession(context.Context, *c.Identity) (bridge.TradeSessionRead, bridge.Result, error)
 	ReadTradeSheet(context.Context, *c.Identity) (bridge.TradeSheetRead, bridge.Result, error)
@@ -438,7 +438,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 // with the live sheet, into SelectTrade's inputs.
 func (r *RoutineTradePlanner) selection(call context.Context, state ControlState, review store.RoutineReview, sheet bridge.TradeSheetRead) (domain.TradeEconomicPolicy, policy.TradeSelectionFacts, error) {
 	identity := boundary.Identity(state.Snapshot)
-	reply, _, err := r.native.ReadColonyFacts(call, identity, false, nil)
+	reply, _, err := r.native.ReadColonyFacts(call, identity, false)
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
 	}

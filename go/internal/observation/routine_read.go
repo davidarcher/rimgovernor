@@ -50,7 +50,7 @@ type frameColony struct {
 	frame bridge.RoutineFrame
 }
 
-func (f frameColony) ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (f frameColony) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: f.frame.Colony}}, bridge.Result{}, nil
 }
 
@@ -77,7 +77,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if frame.Colony == nil || frame.Emergency.Context == nil {
 		return RoutineReading{}, ErrContract
 	}
-	reading, err := ObserveColony(ctx, frameColony{source, frame}, clock, expected, maxAge, true, nil)
+	reading, err := ObserveColony(ctx, frameColony{source, frame}, clock, expected, maxAge, true)
 	if err != nil {
 		return RoutineReading{}, err
 	}

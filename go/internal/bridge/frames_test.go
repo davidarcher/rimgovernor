@@ -151,7 +151,7 @@ func (s *bundleFamilyServer) handle(ctx context.Context, arg nativeArgument) (*c
 func (s *bundleFamilyServer) familyReads(t *testing.T, ctx context.Context, client *Client) int64 {
 	t.Helper()
 	before := s.familyCalls()
-	if _, _, err := client.ReadColonyFacts(ctx, pbIdentity(), true, nil); err != nil {
+	if _, _, err := client.ReadColonyFacts(ctx, pbIdentity(), true); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := client.ReadRoutinePopulation(ctx, pbIdentity()); err != nil {

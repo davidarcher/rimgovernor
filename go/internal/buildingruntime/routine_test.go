@@ -62,7 +62,7 @@ func (n *routineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, de
 // and whichever section reads the fake (source, the outermost type, so its
 // overrides count) offers.
 func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	colony, _, err := source.ReadColonyFacts(ctx, id, true, nil)
+	colony, _, err := source.ReadColonyFacts(ctx, id, true)
 	if err != nil {
 		return bridge.RoutineFrame{}, err
 	}
@@ -83,11 +83,14 @@ func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Ident
 		if err := ctx.Err(); err != nil {
 			return bridge.RoutineFrame{}, err
 		}
-		named, _, err := source.ReadColonyFacts(ctx, id, true, definitions)
-		if err != nil {
-			return bridge.RoutineFrame{}, err
+		// A fake that serves no subscribed rows of its own offers its
+		// colony reply's catalog.
+		frame.Definitions = colony.GetObserved().GetPlanning().GetObserved().GetDefinitions()
+		if s, ok := source.(interface {
+			subscribedDefinitions([]string) []*o.PlanningDefinition
+		}); ok {
+			frame.Definitions = s.subscribedDefinitions(definitions)
 		}
-		frame.Definitions = named.GetObserved().GetPlanning().GetObserved().GetDefinitions()
 	}
 	if s, ok := source.(interface {
 		ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error)
@@ -201,28 +204,29 @@ func (n *routineNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.
 	}
 	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: observed, Paused: proto.Bool(true)}}}, bridge.Result{}, ctx.Err()
 }
-func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	n.reads++
 	n.planning = planning
 	if n.onRead != nil {
 		n.onRead(ctx)
 	}
-	if len(definitions) > 0 {
-		reply := proto.Clone(n.reply).(*o.ColonyFactsReply)
-		p := reply.GetObserved().Planning.GetObserved()
-		p.Definitions = nil
-		for _, name := range definitions {
-			row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}}
-			for _, existing := range n.reply.GetObserved().Planning.GetObserved().Definitions {
-				if existing.Definition.GetDefName() == name {
-					row = proto.Clone(existing).(*o.PlanningDefinition)
-				}
-			}
-			p.Definitions = append(p.Definitions, row)
-		}
-		return reply, bridge.Result{}, nil
-	}
 	return n.reply, bridge.Result{}, nil // A late transport may ignore cancellation.
+}
+
+// subscribedDefinitions is the frame's row for each subscribed name: the
+// colony reply's row when it has one, otherwise a bare definition.
+func (n *routineNative) subscribedDefinitions(names []string) []*o.PlanningDefinition {
+	var rows []*o.PlanningDefinition
+	for _, name := range names {
+		row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}}
+		for _, existing := range n.reply.GetObserved().Planning.GetObserved().Definitions {
+			if existing.Definition.GetDefName() == name {
+				row = proto.Clone(existing).(*o.PlanningDefinition)
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }
 
 func TestRoutineReviewerUsesConfiguredFieldReserve(t *testing.T) {
