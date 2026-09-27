@@ -57,6 +57,9 @@ namespace HomeBridge.BridgeTools
                     var salvageSafety = parsed.IncludeSalvage ? new EventLootFacts.HaulingSafety(map) : null;
                     var salvageYields = new Dictionary<ThingDef, (Thing item, long headroom)>();
                     var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
+                    long salvageHits = 0, salvageRecomputes = 0;
+                    var salvageSeen = new HashSet<int>();
+                    if (salvageSafety != null) PrepareSalvageCache(map, salvageSafety);
                     var undelivered = new List<Thing>();
                     foreach (var chunk in chunks.Values.OrderBy(t => t.thingIDNumber)) {
                         if (!chunk.Position.InBounds(map) || chunk.Position.Fogged(map)) continue;
@@ -97,13 +100,26 @@ namespace HomeBridge.BridgeTools
                         if (blocker != null) row.RoofBlocker = blocker;
                         if (!row.InHome && salvageSafety != null) {
                             phase = Now();
-                            row.Salvage = Salvage(map, building, salvageSafety, salvageYields);
+                            var local = LocalSignature(building);
+                            if (salvageCache.TryGetValue(building.thingIDNumber, out var cached) && cached.local == local) salvageHits++;
+                            else {
+                                salvageCache[building.thingIDNumber] = cached = (local, Salvage(map, building, salvageSafety, salvageYields));
+                                salvageRecomputes++;
+                            }
+                            salvageSeen.Add(building.thingIDNumber);
+                            row.Salvage = cached.evidence.Clone();
                             salvageTicks += Now() - phase;
                             salvageRows++;
                         }
                         snapshot.Targets.Add(row);
                     }
                     salvageSafety?.Dispose();
+                    if (salvageSafety != null) {
+                        // Evict buildings that left the census (removed,
+                        // deconstructed, now in Home or fogged).
+                        foreach (var gone in salvageCache.Keys.Where(k => !salvageSeen.Contains(k)).ToList()) salvageCache.Remove(gone);
+                        ObservationWork.Captured("clearanceSalvageRecompute", 0, salvageRecomputes, salvageHits + salvageRecomputes);
+                    }
                     // #984: per-phase main-thread cost of the target rows; the
                     // row remainder is fog/footprint checks, designations and
                     // proto construction.
@@ -157,6 +173,58 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
+        // Cross-read salvage cache (#984): a live map census paid ~1 ms per
+        // out-of-Home ruin (colonist path searches, return routes, storage
+        // headroom) on every routine read. Evidence is kept per building
+        // thingIDNumber for one map of one game and dropped wholesale when the
+        // colony-wide signature changes: the game hour, the free colonists
+        // (identity, drafted, hauling, area restriction), the visible
+        // hazard count and the storage cell count/group layout. A per-building
+        // signature (forbidden, burning, hit points, position) recomputes that
+        // row alone. Staleness is bounded to one game hour of stockpile
+        // occupancy and colonist positions (path lengths drift); the
+        // deconstruct job itself re-paths natively when it runs. Main thread
+        // only, like every census read.
+        private const int salvageTickBucket = 2500;
+        private static readonly Dictionary<int, (long local, Obs.SalvageEvidence evidence)> salvageCache = new Dictionary<int, (long, Obs.SalvageEvidence)>();
+        private static Game? salvageGame;
+        private static int salvageMap = -1;
+        private static long salvageSignature;
+
+        private static void PrepareSalvageCache(Map map, EventLootFacts.HaulingSafety safety)
+        {
+            unchecked {
+                long sig = 17;
+                void Mix(long v) { sig = sig * 1_000_003 + v; }
+                Mix(Find.TickManager.TicksGame / salvageTickBucket);
+                Mix(safety.HazardCount);
+                foreach (var p in safety.People) {
+                    Mix(p.thingIDNumber);
+                    Mix(p.Drafted ? 1 : 0);
+                    Mix(p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) ? 1 : 0);
+                    Mix(p.playerSettings?.AreaRestrictionInPawnCurrentMap?.ID ?? -1);
+                }
+                var groups = map.haulDestinationManager.AllGroupsListInPriorityOrder;
+                Mix(groups.Count);
+                foreach (var g in groups) { Mix(g.CellsList.Count); Mix((int)(g.Settings?.Priority ?? 0)); }
+                if (salvageGame != Current.Game || salvageMap != map.uniqueID || salvageSignature != sig) salvageCache.Clear();
+                salvageGame = Current.Game;
+                salvageMap = map.uniqueID;
+                salvageSignature = sig;
+            }
+        }
+
+        private static long LocalSignature(Building b)
+        {
+            unchecked {
+                long sig = b.IsForbidden(Faction.OfPlayer) ? 1 : 0;
+                sig = sig * 31 + (b.IsBurning() ? 1 : 0);
+                sig = sig * 1_000_003 + b.HitPoints;
+                sig = sig * 1_000_003 + b.Position.x * 1024 + b.Position.z;
+                return sig;
+            }
+        }
+
         private const int dumpSiteCells = 16;
         private const int dumpSiteFloodBound = 512;
         private static List<IntVec3> DumpSites(Map map, Area home, List<Thing> chunks, List<Pawn> haulers)

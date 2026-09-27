@@ -344,7 +344,15 @@ namespace HomeBridge.BridgeTools
                 {
                     var journal = EnsureJournal();
                     if (request.AfterCursor > journal.Newest) return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
+                    // #984: the journal window (rows = file decodes, candidates
+                    // = rows served including cache hits) and the per-row
+                    // canonical parse, as sections of the hop.
+                    var began = System.Diagnostics.Stopwatch.GetTimestamp();
+                    long hits = journal.CacheHits, disk = journal.DiskReads;
                     var window = journal.ReadWindow(request.AfterCursor, (int)request.Limit);
+                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began,
+                        journal.DiskReads - disk, journal.CacheHits - hits + journal.DiskReads - disk);
+                    began = System.Diagnostics.Stopwatch.GetTimestamp();
                     var page = new Clock.EventsPage { Context = context.Clone(), NewestCursor = journal.Newest,
                         NextCursor = window.Next, Gap = window.Lost != 0, LostCount = window.Lost };
                     long previous = request.AfterCursor;
@@ -377,6 +385,7 @@ namespace HomeBridge.BridgeTools
                         if (observed.HasObservedAtUnixMs) observed.AgeAtReplyMs = (ulong)Math.Max(0, NowMs() - observed.ObservedAtUnixMs);
                         page.Events.Add(observed); previous = observed.Cursor;
                     }
+                    ObservationWork.Captured("clockEventsParse", System.Diagnostics.Stopwatch.GetTimestamp() - began, page.Events.Count, window.Rows.Count);
                     // Only a read beginning at zero establishes the earliest retained row.
                     if (request.AfterCursor == 0 && page.Events.Count != 0) page.OldestCursor = page.Events[0].Cursor;
                     else if (journal.Newest == 0) page.OldestCursor = 0;

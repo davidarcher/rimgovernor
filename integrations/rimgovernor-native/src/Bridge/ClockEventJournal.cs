@@ -24,6 +24,24 @@ namespace HomeBridge.BridgeTools
         private readonly SortedDictionary<long, string> corrupt = new SortedDictionary<long, string>();
         internal KeyValuePair<long, string>[] Corrupt { get { return corrupt.ToArray(); } }
 
+        // Decoded rows this process appended or read, by cursor (#984). A
+        // 128-row page cost ~0.5 s on the main thread as one XML file open
+        // and parse per row; retained rows are immutable, so a row once
+        // decoded is served from memory, bounded to about the newest
+        // RowCacheCapacity cursors. A wiped directory clears it (its rows
+        // then read as lost, #119) and a fixture resolving a row's file to
+        // damage it evicts that row, so both loss paths still read the disk.
+        private const int RowCacheCapacity = 1024;
+        private readonly Dictionary<long, Dictionary<string, object?>> rowCache = new Dictionary<long, Dictionary<string, object?>>();
+        internal long CacheHits, DiskReads;
+        private void CacheRow(long cursor, Dictionary<string, object?> row)
+        {
+            rowCache[cursor] = row;
+            if (rowCache.Count <= RowCacheCapacity * 2) return;
+            var floor = Newest - RowCacheCapacity;
+            foreach (var old in rowCache.Keys.Where(k => k <= floor).ToList()) rowCache.Remove(old);
+        }
+
         internal ClockEventJournal()
         {
             directory = Path.Combine(GenFilePaths.SaveDataFolderPath, "RimGovernorClockEvents");
@@ -58,6 +76,7 @@ namespace HomeBridge.BridgeTools
         internal string RetainedPath(long cursor)
         {
             if (cursor < 1 || cursor > Newest) throw new ArgumentOutOfRangeException(nameof(cursor));
+            rowCache.Remove(cursor);
             return EventPath(cursor);
         }
 
@@ -76,13 +95,17 @@ namespace HomeBridge.BridgeTools
             // lost, and the journal keeps appending rather than failing every
             // event for the rest of the process (#119).
             Directory.CreateDirectory(directory);
+            var document = Encode(row);
             using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                Encode(row).Save(stream);
+                document.Save(stream);
                 stream.Flush(true);
             }
             File.Move(temporary, EventPath(cursor));
             Newest = cursor;
+            // The cached copy is the decode of what was written, exactly what
+            // a disk read returns and immune to later edits of `row`.
+            if (Decode(document) is Dictionary<string, object?> written) CacheRow(cursor, written);
         }
 
         internal List<Dictionary<string, object?>> Read(long after, int limit)
@@ -118,14 +141,18 @@ namespace HomeBridge.BridgeTools
             if (after < 0 || after > Newest || limit < 1 || limit > 128)
                 throw new ArgumentOutOfRangeException(nameof(after));
             var result = new Window { Next = after };
+            if (rowCache.Count != 0 && !Directory.Exists(directory)) rowCache.Clear();
             for (int scanned = 0; result.Next < Newest && scanned < limit; scanned++)
             {
                 var cursor = checked(result.Next + 1);
+                if (rowCache.TryGetValue(cursor, out var hit)) { result.Rows.Add(hit); result.Next = cursor; CacheHits++; continue; }
+                DiskReads++;
                 try
                 {
                     var row = Decode(XElement.Load(EventPath(cursor))) as Dictionary<string, object?> ?? throw new IOException("Native event row is not a record.");
                     if (Convert.ToInt64(row["cursor"]) != cursor) throw new IOException("Native event identity changed.");
                     result.Rows.Add(row);
+                    CacheRow(cursor, row);
                 }
                 catch (FileNotFoundException) { result.Lost++; }
                 catch (DirectoryNotFoundException) { result.Lost++; }

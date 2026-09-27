@@ -109,6 +109,10 @@ namespace HomeBridge.BridgeTools
             // cells, -1 when that verdict came without a measured path.
             internal double PathLength = -1;
             internal readonly long FreeHaulers;
+            // What the verdicts depend on beyond the building itself, for the
+            // cross-read salvage cache's validity signature (#984).
+            internal int HazardCount => hazards.Count;
+            internal IReadOnlyList<Pawn> People => people;
             internal HaulingSafety(Map map)
             {
                 this.map = map;
