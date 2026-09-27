@@ -75,6 +75,36 @@ func TestRefrigerationReviewLatchesOnWarmRoofedStock(t *testing.T) {
 	}
 }
 
+// The chill thresholds stand in for the spoilage recovery the deleted
+// refrigeration/setpoint and season cases measured live (#765): the patch
+// target freezes (RimWorld's rot rate is zero at or below 0 C), the review
+// enters only above ChilledMaxC and, once latched, holds above ChilledExitC
+// and releases exactly at it. refrigeration/build keeps the live check.
+func TestRefrigerationChillThresholdsHaltRot(t *testing.T) {
+	p := DefaultFoodStoragePolicy()
+	if p.FreezerTargetC > 0 || !(p.FreezerTargetC <= p.ChilledExitC && p.ChilledExitC < p.ChilledMaxC) {
+		t.Fatalf("thresholds %+v do not freeze below a hysteresis band", p)
+	}
+	const eps = 0.01
+	for _, tc := range []struct {
+		name        string
+		temperature float64
+		active      bool
+		want        bool
+	}{
+		{"at max never enters", p.ChilledMaxC, false, false},
+		{"above max enters", p.ChilledMaxC + eps, false, true},
+		{"above exit holds", p.ChilledExitC + eps, true, true},
+		{"at exit releases", p.ChilledExitC, true, false},
+		{"frozen releases", p.FreezerTargetC, true, false},
+	} {
+		r, err := ReviewRefrigeration(FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 40, tc.temperature)})}, tc.active, p)
+		if err != nil || r.Active != tc.want {
+			t.Fatal(tc.name, r, err)
+		}
+	}
+}
+
 // coldRoom is a 3x3 enclosed room at (10..12, 10..12) with walls around it
 // at 9 and 13; outside cells at 8 and 14 are outdoors and walkable.
 func coldRoom(id string, temperature float64) (Room, []SiteCell) {

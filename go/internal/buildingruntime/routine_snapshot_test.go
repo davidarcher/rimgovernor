@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
@@ -242,24 +244,32 @@ func TestSnapshotRefrigerationPowerRoutesConduit(t *testing.T) {
 
 // refrigeration/season: heat waves warmed the settled cold storeroom and
 // its stock through the native season turn. The review latches the room on
-// the warmed stock (the setpoint patch that follows is the setpoint
-// replay's question).
+// the warmed stock and the planner patches the cooler it already has.
 func TestSnapshotRefrigerationSeasonLatchesWarmedStock(t *testing.T) {
 	t.Parallel()
 	r := loadRecorded(t, "refrigeration-season-warmed-stock")
 	if !r.Review.Latches.Refrigeration {
 		t.Fatal("review did not latch the season-warmed storeroom")
 	}
+	assertSetpointPatch(t, replayRecordedCooler(t, r, false))
 }
 
-// refrigeration/setpoint: the storeroom's powered, outward cooler idles at
-// a warm setpoint. The review latches the room (tick 17); once the
-// patched cooler has chilled it (tick 16761) the review releases it.
+// refrigeration/setpoint: the storeroom's outward cooler idles at a warm
+// setpoint. The review latches the room (tick 17); the census then reads
+// the cooler unpowered (its generator not yet fueled), so the planner waits
+// on power rather than building a second cooler, and once it runs (powered
+// in the tick-16761 recording) patches its target. Chilled, the review
+// releases the room.
 func TestSnapshotRefrigerationSetpointLatchesThenReleases(t *testing.T) {
 	t.Parallel()
-	if warm := loadRecorded(t, "refrigeration-setpoint-warm-cooler"); !warm.Review.Latches.Refrigeration {
+	warm := loadRecorded(t, "refrigeration-setpoint-warm-cooler")
+	if !warm.Review.Latches.Refrigeration {
 		t.Fatal("review did not latch the warm storeroom")
 	}
+	if got := replayRecordedCooler(t, warm, false); got.Method != policy.RefrigerationPowerNeeded {
+		t.Fatalf("refrigeration: %+v, want %s", got, policy.RefrigerationPowerNeeded)
+	}
+	assertSetpointPatch(t, replayRecordedCooler(t, warm, true))
 	if cooled := loadRecorded(t, "refrigeration-setpoint-cooled"); cooled.Review.Latches.Refrigeration {
 		t.Fatal("review still latched the chilled storeroom")
 	}
@@ -392,5 +402,65 @@ func TestSnapshotPowerBatteryBankedHasNoDeficit(t *testing.T) {
 	r := loadRecorded(t, "power-battery-banked")
 	if resolved, reason, err := recordedPlanner(r, policy.EnsureBasicPower).selectPower(*r.Projection, nil); err != nil || resolved != nil || reason != BuildingMethodNoDeficit {
 		t.Fatalf("power: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, BuildingMethodNoDeficit)
+	}
+}
+
+// replayRecordedCooler replays the refrigeration method over r with the
+// recording's one PowerPlanning cooler read back as native would: turned so
+// its cold cell is inside the latched storeroom, venting outdoors, at the
+// vanilla 21 C default target (the recording holds no building read), and
+// powered when power says so.
+func replayRecordedCooler(t *testing.T, r snapshot.Routine, power bool) policy.RefrigerationProposal {
+	t.Helper()
+	p := r.Policy.FoodStorage
+	review, err := policy.ReviewRefrigeration(r.Facts.FoodStorageUpkeep, r.Review.Latches.Refrigeration, p)
+	if err != nil || !review.Active || len(review.Rooms) == 0 {
+		t.Fatalf("refrigeration review %+v, %v: want an active room", review, err)
+	}
+	rooms, _ := r.Projection.Rooms.Value()
+	inside := map[domain.Cell]bool{}
+	for _, room := range rooms.Rooms {
+		if room.ID == review.Rooms[0] {
+			for _, c := range room.Cells {
+				inside[c] = true
+			}
+		}
+	}
+	topology, _ := r.Projection.PowerPlanning.Value()
+	var coolers []policy.RefrigerationCooler
+	for _, b := range topology.Buildings {
+		if b.Definition != "Cooler" {
+			continue
+		}
+		cooler := policy.RefrigerationCooler{ID: b.ID, Position: b.Cell, Connected: b.Connected, PowerOn: b.Powered, Token: "recorded", Target: domain.Known(21.0), HotIndoors: domain.Known(false)}
+		for _, rot := range []domain.Rotation{domain.North, domain.East, domain.South, domain.West} {
+			if cooler.Rotation = rot; inside[cooler.Cold()] {
+				break
+			}
+		}
+		if !inside[cooler.Cold()] {
+			t.Fatalf("cooler %s at %v borders no storeroom cell", b.ID, b.Cell)
+		}
+		if power {
+			cooler.PowerOn = domain.Known(true)
+		}
+		coolers = append(coolers, cooler)
+	}
+	if len(coolers) != 1 {
+		t.Fatalf("recorded %d coolers, want the storeroom's one", len(coolers))
+	}
+	proposal, err := policy.SelectRefrigerationMethod(review, observation.RefrigerationFacts(*r.Projection, domain.Known(coolers)), p, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return proposal
+}
+
+// assertSetpointPatch checks the planner patches the existing cooler's
+// target (to the freezer setpoint) rather than building a second one.
+func assertSetpointPatch(t *testing.T, got policy.RefrigerationProposal) {
+	t.Helper()
+	if got.Method != policy.RefrigerationSetTarget || got.Cooler == "" || got.Token != "recorded" {
+		t.Fatalf("refrigeration: %+v, want %s on the recorded cooler", got, policy.RefrigerationSetTarget)
 	}
 }
