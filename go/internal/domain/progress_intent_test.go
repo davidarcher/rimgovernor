@@ -81,3 +81,17 @@ func TestCancelledIntentReceiptStaysCancelled(t *testing.T) {
 		t.Fatal(got.View(), err)
 	}
 }
+
+func TestCompletedIntentCancelsKeepingItsEffect(t *testing.T) {
+	p, _ := dispatchedIntent(t)
+	p, err := p.RecordReceipt(p.View().Attempt, ReceiptAccepted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p, err = p.Cancel(); err != nil {
+		t.Fatal(err)
+	}
+	if effect, _ := p.View().Effect.Value(); p.View().Stage != Cancelled || effect != EffectCompleted {
+		t.Fatal(p.View())
+	}
+}

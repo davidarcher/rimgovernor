@@ -460,7 +460,9 @@ func cancelGoalMethods(ctx context.Context, tx *sql.Tx, state GoalState) error {
 		}
 		for _, progress := range p.Progress {
 			v := progress.View()
-			if v.Stage == domain.Completed || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled {
+			// A completed intent-mode order stands until cancelled; cancelling
+			// it releases the draft it holds (workerPlanHoldsDraft).
+			if v.Stage == domain.Completed && !progress.Action().Kind().IntentMode() || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled {
 				continue
 			}
 			if _, err = advanceInTransaction(ctx, tx, m.Plan, v.Action, transition{Kind: "cancel"}); err != nil {

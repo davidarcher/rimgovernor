@@ -469,8 +469,12 @@ func (p Progress) Withdraw(current GenerationSnapshot, tick Tick) (Progress, err
 	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
 	return p, nil
 }
+
+// A completed intent-mode order is a standing order: its owned draft stays
+// held until the planner cancels it (the settled effect is kept, so the plan
+// still retires).
 func (p Progress) Cancel() (Progress, error) {
-	if p.view.Stage == "" || p.view.Stage == Completed || p.view.Stage == Unsuccessful {
+	if p.view.Stage == "" || p.view.Stage == Completed && !p.action.kind.IntentMode() || p.view.Stage == Unsuccessful {
 		return p, errors.New("cannot cancel this action")
 	}
 	p.view.Stage = Cancelled
