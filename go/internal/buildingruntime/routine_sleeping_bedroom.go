@@ -73,8 +73,12 @@ func bedroomRing(room policy.LayoutRoom, doors map[domain.Cell]bool, order []dom
 	standing := map[domain.Cell]bool{}
 	if census, known := facts.Facts.CurrentConstruction.Value(); known {
 		for _, b := range census.Buildings {
-			if d := b.Building.Definition(); d == "Wall" || shellDoor(d) {
-				for _, c := range b.Cells {
+			d := b.Building.Definition()
+			for _, c := range b.Cells {
+				// A planned door in a neighbour's standing wall replaces
+				// the wall: the meal closet's door in the dining room's
+				// back wall (#936).
+				if shellDoor(d) || d == "Wall" && !doors[c] {
 					standing[c] = true
 				}
 			}

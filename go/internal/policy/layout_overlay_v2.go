@@ -19,20 +19,21 @@ var zoneOverlay = map[ZoneKind]overlayStyle{
 }
 
 var roomOverlay = map[ModuleRole]overlayStyle{
-	ModuleBedroom:  {planBlue, "bedroom"},
-	ModuleBarracks: {planLightBlue, "barracks"},
-	ModuleDining:   {planAmber, "dining"},
-	ModuleRec:      {planPink, "rec room"},
-	ModuleLab:      {planViolet, "research"},
-	ModuleBattery:  {planCyan, "battery room"},
-	ModuleHospital: {planWhite, "hospital"},
-	ModulePrison:   {planDarkPurple, "jail"},
-	ModuleKitchen:  {planYellow, "kitchen"},
-	ModuleFreezer:  {planCyan, "freezer"},
-	ModuleStorage:  {planTan, "storage"},
-	ModuleWorkshop: {planBrown, "workshop"},
-	ModuleReserve:  {planGray, "reserve"},
-	ModuleTomb:     {planGray, "tomb"},
+	ModuleBedroom:    {planBlue, "bedroom"},
+	ModuleBarracks:   {planLightBlue, "barracks"},
+	ModuleDining:     {planAmber, "dining"},
+	ModuleRec:        {planPink, "rec room"},
+	ModuleLab:        {planViolet, "research"},
+	ModuleBattery:    {planCyan, "battery room"},
+	ModuleHospital:   {planWhite, "hospital"},
+	ModulePrison:     {planDarkPurple, "jail"},
+	ModuleKitchen:    {planYellow, "kitchen"},
+	ModuleFreezer:    {planCyan, "freezer"},
+	ModuleMealCloset: {planCyan, "meal closet"},
+	ModuleStorage:    {planTan, "storage"},
+	ModuleWorkshop:   {planBrown, "workshop"},
+	ModuleReserve:    {planGray, "reserve"},
+	ModuleTomb:       {planGray, "tomb"},
 }
 
 var reservationOverlay = map[ReservationKind]overlayStyle{

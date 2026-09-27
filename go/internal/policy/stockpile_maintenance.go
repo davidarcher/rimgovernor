@@ -228,6 +228,9 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 		}
 		return false
 	}
+	for _, e := range stockpileSiteMoves(r) {
+		take(e, true)
+	}
 	for _, z := range zones {
 		take(stockpileSettingsEdit(r.Roles, z))
 	}
@@ -236,6 +239,9 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	}
 	candidates = append(candidates, stockpileCreateEdits(r, open)...)
 	candidates = append(candidates, stockpileSiteEdits(r, open)...)
+	for _, e := range stockpileSiteShrinks(r) {
+		take(e, true)
+	}
 	for _, z := range zones {
 		if state, ok := stockpileRoleState(r.Roles, z.Role); ok && state.Fixed {
 			touched[z.ID] = true

@@ -215,6 +215,29 @@ func TestRoutineRepairAndCleanDeficitsStayMethodAvailable(t *testing.T) {
 	}
 }
 
+// An owed meal closet (#936) opens MaintainRefrigeration with no warm food,
+// at half deficit or more.
+func TestRoutineMealClosetOwedOpensRefrigeration(t *testing.T) {
+	f := stableRoutine()
+	f.FoodStorageUpkeep = FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{})}
+	open := func(r RoutineNeeds) (bool, float64) {
+		for _, g := range r.Goals {
+			if g.ID == MaintainRefrigeration {
+				d, _ := g.Deficit.Value()
+				return true, d
+			}
+		}
+		return false, 0
+	}
+	if ok, _ := open(needs(t, f, RoutineLatches{})); ok {
+		t.Fatal("refrigeration open with nothing owed")
+	}
+	f.MealClosetOwed = domain.Known(true)
+	if ok, d := open(needs(t, f, RoutineLatches{})); !ok || d < 0.5 {
+		t.Fatal("owed closet left refrigeration shut", ok, d)
+	}
+}
+
 func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 	f := stableRoutine()
 	f.PowerRequired, f.PowerHeadroom = domain.Known(true), domain.Known(-100.0)

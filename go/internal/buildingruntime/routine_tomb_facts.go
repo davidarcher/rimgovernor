@@ -87,6 +87,29 @@ func corpsesOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	return domain.Unknown[bool]()
 }
 
+// plannedMealCloset is the planned meal closet MaintainRefrigeration owes a
+// shell (#936), once the colony can build coolers; known false without
+// coolers, unknown while the plan or room census is.
+func plannedMealCloset(facts observation.ColonyProjection) (policy.LayoutRoom, domain.Fact[bool]) {
+	available, ak := facts.DefinitionAvailable("Cooler").Value()
+	if ak && !available {
+		return policy.LayoutRoom{}, domain.Known(false)
+	}
+	plan, pk := facts.LayoutPlan.Value()
+	rooms, rk := facts.Rooms.Value()
+	if !ak || !pk || !rk {
+		return policy.LayoutRoom{}, domain.Unknown[bool]()
+	}
+	room, owed := plan.MealClosetOwed(rooms)
+	return room, domain.Known(owed)
+}
+
+// mealClosetOwed is the review's MealClosetOwed fact.
+func mealClosetOwed(facts observation.ColonyProjection) domain.Fact[bool] {
+	_, owed := plannedMealCloset(facts)
+	return owed
+}
+
 // warmTombs is the review's TombsWarm fact (#840): warm tombs holding a
 // colonist, once the colony can build coolers.
 func warmTombs(facts observation.ColonyProjection) domain.Fact[[]string] {

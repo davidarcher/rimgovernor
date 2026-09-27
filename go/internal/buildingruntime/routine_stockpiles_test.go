@@ -166,6 +166,7 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{ID: "Room_2", Role: domain.Known(policy.RoomRoleKitchen)},
 		{ID: "Room_3", Role: domain.Unknown[policy.RoomRole]()},
 	}})
+	projection.Facts.Comfort = domain.Known(policy.ComfortObservation{})
 	roles := stockpileRoles(StockpileRoleInput{Projection: projection, Benches: domain.Known(map[string]bool{"Bench_1": true})})
 	medicine, _ := medicineFilter()
 	for _, tc := range []struct {
@@ -189,7 +190,8 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{domain.RottenDumpRole, true, false, domain.RottenDumpFilter(), domain.LowPriority},
 		{domain.CorpseDumpRole, true, false, domain.CorpseDumpFilter(), domain.LowPriority},
 		{"dump:other", false, false, domain.StockpileFilter{}, ""},
-		{"meals:Room_1", true, false, mealShelfFilter(), domain.CriticalPriority},
+		// No dining table and no cold spot: the meal stockpile retires (#936).
+		{"meals:Room_1", true, true, domain.StockpileFilter{}, ""},
 		{"rawfood:Room_1", true, false, domain.RawFoodFilter(), domain.CriticalPriority},
 	} {
 		state, ok := roles(tc.role)

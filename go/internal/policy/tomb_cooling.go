@@ -19,7 +19,8 @@ import (
 const TombMaxC = 0.0
 
 // WarmTombs lists the native room IDs of the standing planned tombs that
-// hold a buried colonist and measure warmer than TombMaxC, sorted. Known
+// hold a buried colonist, and of the standing meal closet (#936), that
+// measure warmer than TombMaxC, sorted. Known
 // empty while coolers are unavailable; unknown while a fact it reads is.
 func WarmTombs(coolers domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction]) domain.Fact[[]string] {
 	available, ak := coolers.Value()
@@ -41,18 +42,20 @@ func WarmTombs(coolers domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms do
 	}
 	var out []string
 	for _, planned := range p.Rooms {
-		if planned.Role != ModuleTomb {
+		if planned.Role != ModuleTomb && planned.Role != ModuleMealCloset {
 			continue
 		}
 		room, ok := PlannedRoomStanding(planned, r)
 		if !ok {
 			continue
 		}
+		// The standing meal closet (#936) is cooled like a filled tomb,
+		// empty or not: the meal stockpile moves in once it stands.
+		occupied := planned.Role == ModuleMealCloset
 		inside := map[domain.Cell]bool{}
 		for _, c := range room.Cells {
 			inside[c] = true
 		}
-		occupied := false
 		for _, s := range b.Buildings {
 			if s.Building.Definition() != SarcophagusDefinition || !filled[s.ID] || len(s.Cells) == 0 {
 				continue

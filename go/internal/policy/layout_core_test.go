@@ -133,3 +133,69 @@ func TestFreezerLinksToTheKitchen(t *testing.T) {
 	}
 	t.Fatalf("link %v is not in the wall between kitchen %+v and freezer %+v", l, k, f)
 }
+
+// The dining room takes the freezer's free side wall with a door into it
+// (#936), so the meal stockpile can sit in the cold one door from the
+// table; no meal closet is planned then.
+func TestDiningOpensIntoTheFreezer(t *testing.T) {
+	p := PlanCore(coreTestZones(), 3)
+	var dining LayoutRoom
+	for _, r := range p.Rooms {
+		if r.Role == ModuleDining {
+			dining = r
+		}
+		if r.Role == ModuleMealCloset {
+			t.Fatal("closet planned beside a freezer door", r)
+		}
+	}
+	if dining.Link == nil || !p.FreezerOpensInto(dining) {
+		t.Fatalf("dining %+v has no door into the freezer", dining)
+	}
+	if _, err := CheckRoutes(p); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A dining room with no freezer door (a plan from before #936) gets a 2x2
+// meal closet behind its back wall, its door in that wall and its cooler
+// site in the closet's own back wall, venting away from the dining room.
+func TestMealClosetBehindTheDiningRoom(t *testing.T) {
+	p := PlanCore(coreTestZones(), 3)
+	for i := range p.Rooms {
+		if p.Rooms[i].Role == ModuleDining {
+			p.Rooms[i].Link = nil
+		}
+	}
+	grown := Grow(p, 3, 1)
+	var dining, closet LayoutRoom
+	for _, r := range grown.Rooms {
+		switch r.Role {
+		case ModuleDining:
+			dining = r
+		case ModuleMealCloset:
+			closet = r
+		}
+	}
+	if closet.Role == "" || closet.Interior.Width != 2 || closet.Interior.Height != 2 {
+		t.Fatalf("closet %+v", closet)
+	}
+	d := dining.Interior
+	if !inWall(d, closet.Door) || !inWall(closet.Interior, closet.Door) || closet.DoorRot != dining.DoorRot {
+		t.Fatalf("closet door %v not in the wall shared with dining %+v", closet.Door, d)
+	}
+	back := d.Z + d.Height
+	if dining.DoorRot == domain.North {
+		back = d.Z - 1
+	}
+	if closet.Door.Z != back {
+		t.Fatalf("closet %+v is not behind the dining room's back wall %d", closet, back)
+	}
+	if again := Grow(grown, 3, 1); len(again.Rooms) != len(grown.Rooms) {
+		t.Fatal("second closet planned")
+	}
+	withExhaust := PlanUtilities(grown, UtilityWants{})
+	site, _, ok := withExhaust.CoolerExhaust(closet)
+	if !ok || !inWall(closet.Interior, site.Cell) || inWall(d, site.Cell) {
+		t.Fatalf("closet cooler site %+v %v", site, ok)
+	}
+}

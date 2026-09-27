@@ -381,6 +381,15 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			if err != nil {
 				return RoutineBuildingResult{}, err
 			}
+			// The dining room's meal closet stands before its cooler
+			// (#936); a shell already tried this epoch, or refused, leaves
+			// the cooling to go on.
+			if closet, owed := plannedMealCloset(facts); positiveFact(owed) {
+				result, err := r.shellRoom(call, epoch, state, review, goal, reading, closet, plannedRoomMethod(closet), "routine-planned-meal-closet", "cold meal shelf")
+				if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
+					return result, err
+				}
+			}
 			resolved, reason, err = r.selectRefrigeration(call, facts, review.Latches, exhausted)
 		} else if r.goal == policy.EnsureBasicPower {
 			resolved, reason, err = r.selectPower(facts, pendingConsumers)

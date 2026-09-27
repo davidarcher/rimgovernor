@@ -328,17 +328,35 @@ census no longer lists the bench), `medicine:<roomID>` (retired once the
 room census no longer shows the room as a hospital), and MaintainStockpiles'
 own `apparel`, `weapons`, `dump:worn`, `dump:rotten` and `dump:corpses`,
 `meals:<roomID>` and `rawfood:<roomID>`. A role that publishes `Fixed` keeps
-the size it was sited at: never grown, shrunk or merged.
+the size it was sited at: never grown or merged, and shrunk only to its
+site's size.
 
 The room-bound roles (#917) are created whenever their room stands without
-one, whatever other goal is in deficit: `meals:<roomID>` (#872), a 2x2
-Critical allow-list of cooked meals on the free roofed patch nearest the
-dining table in the census Dining room, off the table's adjacent cells, and
-`rawfood:<roomID>` (#722), a 2x2 Critical stockpile of raw meat and raw
+one, whatever other goal is in deficit. `meals:<roomID>` (#872, #936) is a
+Critical meal stockpile where meals keep near the table, best first: the
+standing meal closet, zoned whole for every meal; a 2x2 of every meal in the
+standing planned freezer at its door into the standing planned dining room;
+else, while the colonists eat at least 3 meals a day (their nutrition need
+over 0.9), one cell of the one meal the colony cooks (`ObservedMealTier`) on
+the free roofed cell nearest the census dining table, off its adjacent
+cells. With none of these the role retires and its zone is deleted.
+`rawfood:<roomID>` (#722) is a 2x2 Critical stockpile of raw meat and raw
 plant food (never rotten) in the standing planned freezer, nearest its door
 into the kitchen. RimWorld renumbers rooms, so a room counts as served when
-any zone of the role's prefix, or a role-less legacy claim with the same
-settings, has a cell in it. Both are fixed-size.
+any zone of the role's prefix has a cell in it; a zone of the prefix with no
+cell in the site's room is deleted (the site moved), and one larger than the
+site shrinks to it, keeping its stocked cells. The role-less Critical meal
+shelves and raw-food stocks made before #917 are adopted as
+`meals:legacy` / `rawfood:legacy`.
+
+The v2 plan (#936) puts the dining room against the freezer's free side
+wall with a door between them; a dining room with no freezer door gets a
+2x2 (else 2x1) meal closet behind its back wall, its only door in that
+wall and a cooling exhaust reservation like the freezer's and the tomb's.
+MaintainRefrigeration shells the closet once the dining room stands and
+coolers are available, then cools it to freezing like a filled tomb; its
+cooler vents from the planned exhaust site, or `ventedWall`, never into the
+dining room.
 
 Built shelves (#721) inside an owned zone are MaintainStockpiles' too: a
 shelf whose last applied patch differs from its zone's desired settings

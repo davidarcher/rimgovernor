@@ -36,6 +36,32 @@ func TestWarmTombsOnlyWhileAColonistLiesThere(t *testing.T) {
 	}
 }
 
+// The meal closet (#936) is owed a shell while its dining room stands, and
+// once it stands it is cooled like a filled tomb, empty or not.
+func TestMealClosetOwedThenCooled(t *testing.T) {
+	dining := LayoutRoom{Role: ModuleDining, Interior: Rectangle{X: 10, Z: 20, Width: 9, Height: 7}, Door: domain.Cell{X: 14, Z: 19}, DoorRot: domain.North}
+	closet := LayoutRoom{Role: ModuleMealCloset, Interior: Rectangle{X: 13, Z: 28, Width: 2, Height: 2}, Door: domain.Cell{X: 14, Z: 27}, DoorRot: domain.North}
+	plan := LayoutPlan{Rooms: []LayoutRoom{dining, closet}}
+	if _, owed := plan.MealClosetOwed(RoomObservation{}); owed {
+		t.Fatal("closet owed before its dining room stands")
+	}
+	rooms := tombStanding(dining)
+	if got, owed := plan.MealClosetOwed(rooms); !owed || got != closet {
+		t.Fatalf("closet not owed beside a standing dining room: %+v %v", got, owed)
+	}
+	standing := tombStanding(closet)
+	standing.Rooms[0].ID, standing.Rooms[0].Temperature = "r2", domain.Known(12.0)
+	rooms.Rooms = append(rooms.Rooms, standing.Rooms[0])
+	if _, owed := plan.MealClosetOwed(rooms); owed {
+		t.Fatal("standing closet still owed")
+	}
+	built := domain.Known(CurrentConstruction{Colony: true})
+	none := domain.Known([]WasteItem{})
+	if got, known := WarmTombs(domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); !known || !reflect.DeepEqual(got, []string{"r2"}) {
+		t.Fatalf("warm closet not cooled: %v %v", got, known)
+	}
+}
+
 func TestRefrigerationReviewTakesWarmTombs(t *testing.T) {
 	r := RefrigerationReview{Active: true, Rooms: []string{"r9"}, WarmNutrition: domain.Known(6.0)}
 	got := r.WithTombs(domain.Known([]string{"r1"}))

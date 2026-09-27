@@ -258,7 +258,10 @@ type RoutineFacts struct {
 	CorpsesOwed domain.Fact[bool]
 	// TombsWarm: the warm tombs holding a colonist (#840, WarmTombs); they
 	// join MaintainRefrigeration's rooms.
-	TombsWarm         domain.Fact[[]string]
+	TombsWarm domain.Fact[[]string]
+	// MealClosetOwed: the planned meal closet waits to be shelled while its
+	// dining room stands (#936); it keeps MaintainRefrigeration open.
+	MealClosetOwed    domain.Fact[bool]
 	AnimalUpkeep      AnimalUpkeepObservation
 	FoodStorageUpkeep FoodStorageObservation
 	MedicalReserve    MedicalReserveObservation
@@ -1034,6 +1037,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if _, known := refrigeration.WarmNutrition.Value(); known {
 		refrigerationRecovered = domain.Known(!refrigeration.Active)
 	}
+	closetOwed, _ := f.MealClosetOwed.Value()
+	if closetOwed {
+		refrigerationRecovered = domain.Known(false)
+	}
 	addAssessment(MaintainRefrigeration, refrigerationPriority, refrigerationRecovered)
 	if !positive(refrigerationRecovered) {
 		addGoal(MaintainRefrigeration, refrigerationPriority)
@@ -1045,6 +1052,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		}
 		if len(refrigeration.Tombs) > 0 {
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+		}
+		if d, _ := r.Goals[len(r.Goals)-1].Deficit.Value(); closetOwed && d < 0.5 {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(0.5)
 		}
 	}
 	// Lighting is a ranked development project: a dark bench costs work

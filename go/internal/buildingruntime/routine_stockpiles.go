@@ -115,6 +115,17 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 				zone.Role = patch.Role
 			}
 		}
+		// The role-less meal shelves and raw-food stocks the planners
+		// before #917 made are adopted into their roles, so the room-bound
+		// site moves, shrinks or retires them like its own (#936).
+		if zone.Role == "" && zone.Priority == domain.CriticalPriority {
+			switch zone.Filter {
+			case mealShelfFilter():
+				zone.Role = domain.MealsRolePrefix + "legacy"
+			case domain.RawFoodFilter():
+				zone.Role = domain.RawFoodRolePrefix + "legacy"
+			}
+		}
 		request.Zones = append(request.Zones, zone)
 	}
 	return request

@@ -53,18 +53,19 @@ var districtRooms = map[District]ModuleRole{
 
 // roomDistricts is the district each planned room role belongs to.
 var roomDistricts = map[ModuleRole]District{
-	ModuleBedroom:  DistrictHousing,
-	ModuleBarracks: DistrictHousing,
-	ModuleHospital: DistrictHousing,
-	ModulePrison:   DistrictHousing,
-	ModuleWorkshop: DistrictProduction,
-	ModuleLab:      DistrictProduction,
-	ModuleKitchen:  DistrictProduction,
-	ModuleFreezer:  DistrictProduction,
-	ModuleStorage:  DistrictStorage,
-	ModuleDining:   DistrictPlaza,
-	ModuleRec:      DistrictPlaza,
-	ModuleTomb:     DistrictHousing,
+	ModuleBedroom:    DistrictHousing,
+	ModuleBarracks:   DistrictHousing,
+	ModuleHospital:   DistrictHousing,
+	ModulePrison:     DistrictHousing,
+	ModuleWorkshop:   DistrictProduction,
+	ModuleLab:        DistrictProduction,
+	ModuleKitchen:    DistrictProduction,
+	ModuleFreezer:    DistrictProduction,
+	ModuleStorage:    DistrictStorage,
+	ModuleDining:     DistrictPlaza,
+	ModuleRec:        DistrictPlaza,
+	ModuleMealCloset: DistrictPlaza,
+	ModuleTomb:       DistrictHousing,
 }
 
 // DistrictAnchor is where a district's site search starts: the interior

@@ -41,8 +41,9 @@ const (
 )
 
 // coolingRoles are the rooms that need a cooler, most important first;
-// the tomb keeps colonist corpses frozen (#840).
-var coolingRoles = []ModuleRole{ModuleFreezer, ModuleTomb}
+// the tomb keeps colonist corpses frozen (#840), the meal closet the
+// dining room's meals (#936).
+var coolingRoles = []ModuleRole{ModuleFreezer, ModuleTomb, ModuleMealCloset}
 
 // UtilityWants is what PlanUtilities reserves: turbine pairs, solar plots
 // and the steam geysers (each the geyser's 2x2 footprint).

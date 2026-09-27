@@ -58,7 +58,8 @@ func PlanCore(zones []LayoutZone, pawns int) LayoutPlan {
 
 // Grow adds whatever rooms plan lacks for pawns colonists (the base set,
 // then one bedroom each, then tomb rooms up to tombs, #857) by extending the
-// spine; existing rooms never move.
+// spine, and a meal closet behind the dining room when no freezer opens
+// into it (#936); existing rooms never move.
 // A plan with no spine gets one near the core candidates' centre. Rooms
 // that no longer fit are left out.
 func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
@@ -93,7 +94,7 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 	seg := plan.Spine[0]
 	for _, role := range want {
 		next := seg
-		room, ok := g.besideKitchen(&next, rooms, role)
+		room, ok := g.beside(&next, rooms, role)
 		if !ok {
 			room, ok = g.place(&next, rooms, role)
 		}
@@ -107,6 +108,12 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 			continue
 		}
 		seg, rooms = next, trial
+	}
+	if closet, ok := g.mealCloset(rooms); ok {
+		trial := append(append([]LayoutRoom(nil), rooms...), closet)
+		if _, err := CheckRoutes(LayoutPlan{Spine: []SpineSegment{seg}, Rooms: trial}); err == nil {
+			rooms = trial
+		}
 	}
 	spine := append([]SpineSegment{seg}, plan.Spine[1:]...)
 	plan.Spine, plan.Rooms = spine, rooms
