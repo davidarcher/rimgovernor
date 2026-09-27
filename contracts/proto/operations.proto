@@ -62,6 +62,9 @@ message Operation {
   // Arms nothing sent and native never handled (#856 cleanup).
   reserved 2, 9, 10, 11, 17, 19;
   reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
+  // Settings moved to Actions/Apply intents (#941).
+  reserved 58;
+  reserved "set_apparel_policy";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -107,7 +110,6 @@ message Operation {
     Deconstruct deconstruct = 55;
     ReleaseDeconstructions release_deconstructions = 56;
     Arrest arrest = 57;
-    SetApparelPolicy set_apparel_policy = 58;
     SetDrugPolicy set_drug_policy = 59;
     ClearCover clear_cover = 60;
     Uninstall uninstall = 61;
@@ -420,9 +422,6 @@ service Operations {
   rpc ReleaseOwnedDraft(ReleaseOwnedDraftRequest) returns (ReleaseOwnedDraftReply);
 }
 
-// Autonomous per-role policy assignment; tainted apparel is always excluded.
-message SetApparelPolicy { EntityPrecondition pawn = 1; optional string name = 2; repeated string allowed_defs = 3; optional float min_hit_points = 4; optional float max_hit_points = 5; optional int32 min_quality = 6; optional int32 max_quality = 7; }
-
 // Actions/Apply carries idempotent intents (#856). Actions apply on the game
 // thread in order and independently: native validates each against live
 // state and applies it or refuses it with a reason. A resent key returns its
@@ -444,8 +443,13 @@ message Action {
     MoveIntent move = 12;
     HaulIntent haul = 13;
     MeleeIntent melee = 14;
+    ApparelPolicyIntent apparel_policy = 15;
   }
 }
+// Create or update the named role apparel policy and assign it to one free
+// colonist; tainted apparel is always excluded and forced or locked apparel
+// is released. A pawn already on a matching policy is applied again.
+message ApparelPolicyIntent { optional string pawn_id = 1; optional string name = 2; repeated string allowed_defs = 3; optional float min_hit_points = 4; optional float max_hit_points = 5; optional int32 min_quality = 6; optional int32 max_quality = 7; }
 // Put a drafted pawn on a melee attack on a hostile target (a pawn or a
 // census-listed hostile building), or with subdue on a blunt containment
 // attack on an aggressive colonist. Native validates both pawns live and

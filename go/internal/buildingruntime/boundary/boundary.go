@@ -57,16 +57,16 @@ func NewBoundary(native Native, writer BuildingWriter, leases LeaseSource, clock
 	return &Boundary{native, writer, leases, clock, controllerSessionID}, nil
 }
 
-// InspectBuilding anchors a building intent to the current world and tick
-// with one map bounds read. It previews nothing: native validates the
-// placement when it applies the intent.
-func (b *Boundary) InspectBuilding(ctx context.Context, target executor.Target) (executor.BuildingInspection, error) {
-	out := executor.BuildingInspection{StartedAt: b.Clock.Now()}
-	value, ok := target.Action.Building()
-	if !ok {
-		return out, executor.ErrEvidence
+// InspectIntent anchors an intent to the current world and tick with one
+// map bounds read (at a building's cell, else the map origin). It previews
+// nothing: native validates the intent when it applies it.
+func (b *Boundary) InspectIntent(ctx context.Context, target executor.Target) (executor.IntentInspection, error) {
+	out := executor.IntentInspection{StartedAt: b.Clock.Now()}
+	var anchor domain.Cell
+	if value, ok := target.Action.Building(); ok {
+		anchor = value.Cell()
 	}
-	bounds, _, err := b.Native.ReadMapBounds(ctx, Identity(target.Snapshot), value.Cell())
+	bounds, _, err := b.Native.ReadMapBounds(ctx, Identity(target.Snapshot), anchor)
 	if err != nil {
 		return out, err
 	}
@@ -78,8 +78,8 @@ func (b *Boundary) InspectBuilding(ctx context.Context, target executor.Target) 
 	return out, ctx.Err()
 }
 
-// WriteBuilding sends the building intent through Actions/Apply.
-func (b *Boundary) WriteBuilding(ctx context.Context, placement executor.Placement) (executor.Receipt, error) {
+// WriteIntent sends the intent through Actions/Apply.
+func (b *Boundary) WriteIntent(ctx context.Context, placement executor.Placement) (executor.Receipt, error) {
 	return b.DispatchIntent(ctx, placement, b.Writer)
 }
 

@@ -120,12 +120,12 @@ func TestControlStateAndDisableAfterClose(t *testing.T) {
 
 type stateBlockedInspection struct{ entered chan struct{} }
 
-func (b stateBlockedInspection) InspectBuilding(ctx context.Context, _ executor.Target) (executor.BuildingInspection, error) {
+func (b stateBlockedInspection) InspectIntent(ctx context.Context, _ executor.Target) (executor.IntentInspection, error) {
 	close(b.entered)
 	<-ctx.Done()
-	return executor.BuildingInspection{}, ctx.Err()
+	return executor.IntentInspection{}, ctx.Err()
 }
-func (stateBlockedInspection) WriteBuilding(context.Context, executor.Placement) (executor.Receipt, error) {
+func (stateBlockedInspection) WriteIntent(context.Context, executor.Placement) (executor.Receipt, error) {
 	panic("disabled inspection must never dispatch")
 }
 

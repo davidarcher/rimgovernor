@@ -34,6 +34,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Move] = new MoveActionHandler(),
             [Operations.Action.IntentOneofCase.Haul] = new HaulActionHandler(),
             [Operations.Action.IntentOneofCase.Melee] = new MeleeActionHandler(),
+            [Operations.Action.IntentOneofCase.ApparelPolicy] = new ApparelPolicyActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

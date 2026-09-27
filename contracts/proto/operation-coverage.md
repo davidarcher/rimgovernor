@@ -100,7 +100,7 @@ Trade line counts are absolute: positive buys and negative sells in normal trade
 
 Hard native work remains: token producers/resolution/CAS are not implemented for every family; existing native outputs sometimes expose sampled/incomplete filters and reflection-dependent reads. Upstream SDK architect/UI implementations need verified discovery before adding additional variants. Exact cardinal rotation conversion and native whole-body surgery mapping must be tested. Native admitted-attempt ledger and progress attribution are not implemented by these DTOs. Required preview preparation tokens and readback facts must be produced truthfully or explicitly unavailable. These are adapter/gameplay acceptance gaps, not permission for arbitrary payload fallback. Contract compilation validates syntax and official generated C# compatibility only.
 
-| NativeApparelPolicyOperations.cs | SetApparelPolicy | Named role filter and pawn assignment; exact CAS, hit points/quality bounds, tainted excluded, forced/locked overrides cleared under autonomous control. |
+| NativeApparelPolicyOperations.cs | Actions.Apply ApparelPolicyIntent | Named role filter and pawn assignment validated live, a matching policy applies again; hit points/quality bounds, tainted excluded, forced/locked overrides cleared under autonomous control. |
 
 ## Social drug settings
 

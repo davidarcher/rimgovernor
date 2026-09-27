@@ -63,10 +63,10 @@ type Receipt struct {
 }
 
 type Boundary interface {
-	// InspectBuilding anchors a building intent's dispatch to the current
-	// native tick; WriteBuilding sends the intent through Actions/Apply.
-	InspectBuilding(context.Context, Target) (BuildingInspection, error)
-	WriteBuilding(context.Context, Placement) (Receipt, error)
+	// InspectIntent anchors a building intent's dispatch to the current
+	// native tick; WriteIntent sends the intent through Actions/Apply.
+	InspectIntent(context.Context, Target) (IntentInspection, error)
+	WriteIntent(context.Context, Placement) (Receipt, error)
 }
 type Result struct {
 	Progress     domain.Progress
@@ -140,8 +140,6 @@ type Executor struct {
 	tradeJournal               TradeJournal
 	caravanDeparture           CaravanDepartureBoundary
 	caravanDepartureJournal    CaravanDepartureJournal
-	apparelPolicy              ApparelPolicyBoundary
-	apparelPolicyJournal       ApparelPolicyJournal
 	dialog                     DialogAnswerBoundary
 	dialogJournal              DialogAnswerJournal
 	husbandry                  HusbandryBoundary
@@ -332,6 +330,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind().IntentMode() && progress.View().Unresolved {
 		return e.settleIntent(progress)
 	}
+	if plainIntents[action.Kind()] {
+		return e.runIntent(ctx, action, progress, authority, generation)
+	}
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)
 	}
@@ -434,9 +435,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.CaravanDepartureAction && e.caravanDeparture != nil {
 		return e.runCaravanDeparture(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.ApparelPolicyAction && e.apparelPolicy != nil {
-		return e.runApparelPolicy(ctx, action, progress, authority, generation)
-	}
 	if action.Kind() == domain.DialogAnswerAction && e.dialog != nil {
 		return e.runDialogAnswer(ctx, action, progress, authority, generation)
 	}
@@ -464,10 +462,7 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.ExcavationAction && e.excavation != nil {
 		return e.runExcavation(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() != domain.BuildingAction {
-		return Result{}, errors.New("missing or unsupported building action")
-	}
-	return e.runBuilding(ctx, action, progress, authority, generation)
+	return Result{}, errors.New("missing or unsupported action")
 }
 
 // holdEmergency durably records an emergency-gated, not-yet-dispatched

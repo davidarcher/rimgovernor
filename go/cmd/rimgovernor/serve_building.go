@@ -147,7 +147,6 @@ type buildingServiceBridge struct {
 	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
 	research            *buildingruntime.ResearchSelectCapabilities
 	naming              *buildingruntime.ConfirmColonyNamesCapabilities
-	apparelPolicy       *buildingruntime.ApparelPolicyCapabilities
 	dialog              *buildingruntime.DialogAnswerCapabilities
 	trade               *buildingruntime.TradeCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
@@ -235,10 +234,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	pawnOrder, err := bridge.NewPawnOrderControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	apparelPolicyControl, err := bridge.NewApparelPolicyControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -388,7 +383,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDepartureWriter},
 		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
-		apparelPolicy:       &buildingruntime.ApparelPolicyCapabilities{Native: client, Writer: apparelPolicyControl},
 		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
@@ -905,7 +899,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		CaravanDeparture:    caravanDepartureCapabilities,
 		ResearchSelect:      researchSelectCapabilities,
 		ConfirmColonyNames:  namingCapabilities,
-		ApparelPolicy:       client.apparelPolicy,
 		DialogAnswer:        dialogCapabilities,
 		Trade:               tradeCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,

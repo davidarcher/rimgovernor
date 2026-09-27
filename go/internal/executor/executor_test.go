@@ -20,23 +20,23 @@ type environment struct {
 	stock                   int64
 	tick                    domain.Tick
 	inspections, placements int
-	onInspect               func(int, BuildingInspection) BuildingInspection
+	onInspect               func(int, IntentInspection) IntentInspection
 	onPlace                 func(context.Context, Placement) (Receipt, error)
 }
 
-func (f *environment) InspectBuilding(_ context.Context, target Target) (BuildingInspection, error) {
+func (f *environment) InspectIntent(_ context.Context, target Target) (IntentInspection, error) {
 	f.mu.Lock()
 	f.inspections++
 	count, tick := f.inspections, f.tick
 	f.mu.Unlock()
 	now := f.clock.Now()
-	result := BuildingInspection{Current: target.Snapshot, Tick: tick, StartedAt: now, ObservedAt: now}
+	result := IntentInspection{Current: target.Snapshot, Tick: tick, StartedAt: now, ObservedAt: now}
 	if f.onInspect != nil {
 		return f.onInspect(count, result), nil
 	}
 	return result, nil
 }
-func (f *environment) WriteBuilding(ctx context.Context, placement Placement) (Receipt, error) {
+func (f *environment) WriteIntent(ctx context.Context, placement Placement) (Receipt, error) {
 	f.mu.Lock()
 	f.placements++
 	f.mu.Unlock()
@@ -192,7 +192,7 @@ func TestLostReplyResendsUnderAFreshAttempt(t *testing.T) {
 func TestInvalidationAndFreshnessPreventNativeWrites(t *testing.T) {
 	for _, change := range []func(*Authority){func(a *Authority) { a.Enabled = false }, func(a *Authority) { a.Snapshot.Load = "new-load" }, func(a *Authority) { a.Snapshot.Map++ }, func(a *Authority) { a.Snapshot.Native++ }, func(a *Authority) { a.Snapshot.Revision++ }} {
 		f := newFixture(t)
-		f.env.onInspect = func(_ int, in BuildingInspection) BuildingInspection {
+		f.env.onInspect = func(_ int, in IntentInspection) IntentInspection {
 			next := f.authority
 			change(&next)
 			if err := f.executor.UpdateAuthority(next); err != nil {
@@ -207,9 +207,9 @@ func TestInvalidationAndFreshnessPreventNativeWrites(t *testing.T) {
 			t.Fatal("native write under stale authority")
 		}
 	}
-	for _, change := range []func(*BuildingInspection){func(i *BuildingInspection) { i.StartedAt = i.StartedAt.Add(-2 * time.Second) }, func(i *BuildingInspection) { i.ObservedAt = i.ObservedAt.Add(time.Second) }, func(i *BuildingInspection) { i.Current.Load = "other" }} {
+	for _, change := range []func(*IntentInspection){func(i *IntentInspection) { i.StartedAt = i.StartedAt.Add(-2 * time.Second) }, func(i *IntentInspection) { i.ObservedAt = i.ObservedAt.Add(time.Second) }, func(i *IntentInspection) { i.Current.Load = "other" }} {
 		f := newFixture(t)
-		f.env.onInspect = func(_ int, in BuildingInspection) BuildingInspection { change(&in); return in }
+		f.env.onInspect = func(_ int, in IntentInspection) IntentInspection { change(&in); return in }
 		if result, err := f.run(); err == nil || result.NativeCalled {
 			t.Fatal("stale facts dispatched")
 		}
@@ -289,7 +289,7 @@ func TestAuthorityChangeAfterDurableDispatchKeepsUncertainty(t *testing.T) {
 
 func TestManualRoundTripStillInvalidatesActiveGeneration(t *testing.T) {
 	f := newFixture(t)
-	f.env.onInspect = func(_ int, in BuildingInspection) BuildingInspection {
+	f.env.onInspect = func(_ int, in IntentInspection) IntentInspection {
 		manual := f.authority
 		manual.Enabled = false
 		_ = f.executor.UpdateAuthority(manual)

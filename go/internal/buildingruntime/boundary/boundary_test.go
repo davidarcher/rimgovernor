@@ -17,26 +17,26 @@ import (
 // A building intent is sent under an action-keyed intent key; applied is
 // accepted, a native refusal is refused, and an attempt conflict or a lost
 // lease stays unknown.
-func TestWriteBuildingReceiptKinds(t *testing.T) {
+func TestWriteIntentReceiptKinds(t *testing.T) {
 	t.Parallel()
 	b, f := NewFixture(t)
-	out, err := b.WriteBuilding(context.Background(), f.Placement)
+	out, err := b.WriteIntent(context.Background(), f.Placement)
 	if err != nil || out.Kind != domain.ReceiptAccepted || f.Places != 1 || len(f.LastKeys) != 1 || !strings.HasPrefix(f.LastKeys[0], string(f.Placement.Action.ID())+"/") {
 		t.Fatal("applied intent not accepted", err, out, f.LastKeys)
 	}
 	b, f = NewFixture(t)
 	f.Refuse = "cell blocked"
-	if out, err = b.WriteBuilding(context.Background(), f.Placement); err != nil || out.Kind != domain.ReceiptRefused {
+	if out, err = b.WriteIntent(context.Background(), f.Placement); err != nil || out.Kind != domain.ReceiptRefused {
 		t.Fatal("native refusal not refused", err, out)
 	}
 	b, f = NewFixture(t)
 	f.LeaseErr = executor.ErrAuthority
-	if out, err = b.WriteBuilding(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown || f.Places != 0 {
+	if out, err = b.WriteIntent(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown || f.Places != 0 {
 		t.Fatal("lease error dispatched")
 	}
 	b, f = NewFixture(t)
 	f.PlaceErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT.Enum()}}
-	if out, err = b.WriteBuilding(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown {
+	if out, err = b.WriteIntent(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown {
 		t.Fatal("call failure released uncertainty", err, out)
 	}
 }

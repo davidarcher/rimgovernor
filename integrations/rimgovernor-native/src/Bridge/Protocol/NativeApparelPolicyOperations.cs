@@ -42,24 +42,28 @@ namespace HomeBridge.BridgeTools
             if (p.skills != null) foreach (var s in p.skills.skills) row.Skills.Add(new Obs.Skill { Definition = new Obs.DefinitionRef { DefName = s.def.defName }, Level = s.Level, Passion = s.passion.ToString(), Disabled = s.TotallyDisabled });
             return row;
         }
-        private static bool Prepare(Operations.SetApparelPolicy c, Common.ObservationContext context, out Pawn p)
+
+        // Resolves the intent's pawn and checks the filter; null when it applies.
+        internal static Common.Failure? Resolve(Operations.ApparelPolicyIntent? c, Common.ObservationContext context, out Pawn p)
         {
             p = null!;
-            if (c?.Pawn == null || !c.HasName || !c.Name.StartsWith("RimGovernor ", StringComparison.Ordinal) || c.Name.Length > 80
+            if (c == null || !c.HasPawnId || !ProtoBoundary.IsIdentifier(c.PawnId) || !c.HasName || !c.Name.StartsWith("RimGovernor ", StringComparison.Ordinal) || c.Name.Length > 80
                 || !c.HasMinHitPoints || !c.HasMaxHitPoints || float.IsNaN(c.MinHitPoints) || float.IsNaN(c.MaxHitPoints)
                 || c.MinHitPoints < 0 || c.MaxHitPoints > 1 || c.MinHitPoints > c.MaxHitPoints
                 || !c.HasMinQuality || !c.HasMaxQuality || c.MinQuality < 0 || c.MaxQuality > 6 || c.MinQuality > c.MaxQuality
                 || c.AllowedDefs.Count == 0 || c.AllowedDefs.Count > 512 || c.AllowedDefs.Distinct().Count() != c.AllowedDefs.Count
-                || c.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d)?.IsApparel != true)) return false;
-            p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.FirstOrDefault(v => v.GetUniqueLoadID() == c.Pawn.EntityId)!;
-            if (p == null || GearUpkeepTools.Available(p) != null || c.Pawn.ExpectedSnapshotToken != Token(p)) return false;
-            var sameName = Current.Game.outfitDatabase.AllOutfits.Where(v => v.label == c.Name).ToList();
-            return sameName.Count <= 1;
+                || c.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d)?.IsApparel != true))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a RimGovernor name, apparel definitions and valid bounds.");
+            p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.FirstOrDefault(v => v.GetUniqueLoadID() == c.PawnId)!;
+            if (p == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The pawn is not a free colonist spawned on this map.");
+            var unavailable = GearUpkeepTools.Available(p);
+            if (unavailable != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot take an apparel policy: " + unavailable);
+            if (Current.Game.outfitDatabase.AllOutfits.Count(v => v.label == c.Name) > 1)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "More than one apparel policy has this name.");
+            return null;
         }
-        internal static Operations.PreviewReply Preview(Operations.SetApparelPolicy c, Common.ObservationContext context) =>
-            new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                Context = context.Clone(), Accepted = Prepare(c, context, out _), Reason = "Apparel policy definition and CAS checks." } };
-        private static bool Matches(Pawn p, Operations.SetApparelPolicy c)
+
+        private static bool Matches(Pawn p, Operations.ApparelPolicyIntent c)
         {
             var v = p.outfits?.CurrentApparelPolicy;
             return v != null && p.outfits != null && p.outfits.forcedHandler.ForcedApparel.Count == 0 && !p.apparel.AnyApparelLocked && v.label == c.Name && v.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).SequenceEqual(c.AllowedDefs.OrderBy(d => d))
@@ -67,52 +71,37 @@ namespace HomeBridge.BridgeTools
                 && (int)v.filter.AllowedQualityLevels.min == c.MinQuality && (int)v.filter.AllowedQualityLevels.max == c.MaxQuality
                 && !v.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) && v.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel);
         }
-        private static Receipts.EffectEvidence Evidence(Pawn p, Operations.SetApparelPolicy c) => new Receipts.EffectEvidence {
-            Settings = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence { EntityId = p.GetUniqueLoadID(), BeforeToken = c.Pawn.ExpectedSnapshotToken, AfterToken = Token(p) } } };
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
+
+        // Writes the named filter and assignment unless they already match,
+        // then reads them back.
+        internal static Receipts.EffectEvidence Apply(Operations.ApparelPolicyIntent c, Common.ObservationContext context)
         {
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
-            var c = request.Operation.SetApparelPolicy; var pre = request.Precondition;
-            try {
-                if (!Prepare(c, context, out var p)) return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Apparel policy is stale or invalid.") };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration); context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle; state.ApparelPolicies.Add(pre.Attempt.Clone(), c.Clone());
-                using (authority.Owned()) {
-                    if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(c, context, out p)) throw new InvalidOperationException("Apparel policy admission changed.");
-                    {
-                        var outfit = Current.Game.outfitDatabase.AllOutfits.FirstOrDefault(v => v.label == c.Name) ?? Current.Game.outfitDatabase.MakeNewOutfit();
-                        outfit.label = c.Name; outfit.filter.SetDisallowAll();
-                        foreach (var d in c.AllowedDefs) outfit.filter.SetAllow(DefDatabase<ThingDef>.GetNamed(d), true);
-                        outfit.filter.AllowedHitPointsPercents = new FloatRange(c.MinHitPoints, c.MaxHitPoints);
-                        outfit.filter.AllowedQualityLevels = new QualityRange((QualityCategory)c.MinQuality, (QualityCategory)c.MaxQuality);
-                        outfit.filter.SetAllow(SpecialThingFilterDefOf.AllowNonDeadmansApparel, true);
-                        outfit.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, false);
-                        p.outfits.CurrentApparelPolicy = outfit;
-                        p.outfits.forcedHandler.Reset(); p.apparel.UnlockAll();
-                        foreach (var pawn in PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Where(v => v.outfits?.CurrentApparelPolicy == outfit)) pawn.mindState?.Notify_OutfitChanged();
-                    }
-                    evidence = Evidence(p, c); if (!Matches(p, c)) throw new InvalidOperationException("Apparel filter readback differs.");
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            } catch (Exception e) {
-                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Apparel admission failed: " + e.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Observe apparel policy: " + e.GetType().Name) };
+            var failure = Resolve(c, context, out var p);
+            if (failure != null) throw new InvalidOperationException("Apparel policy prerequisites changed before apply: " + failure.Detail);
+            var before = Token(p);
+            if (!Matches(p, c))
+            {
+                var outfit = Current.Game.outfitDatabase.AllOutfits.FirstOrDefault(v => v.label == c.Name) ?? Current.Game.outfitDatabase.MakeNewOutfit();
+                outfit.label = c.Name; outfit.filter.SetDisallowAll();
+                foreach (var d in c.AllowedDefs) outfit.filter.SetAllow(DefDatabase<ThingDef>.GetNamed(d), true);
+                outfit.filter.AllowedHitPointsPercents = new FloatRange(c.MinHitPoints, c.MaxHitPoints);
+                outfit.filter.AllowedQualityLevels = new QualityRange((QualityCategory)c.MinQuality, (QualityCategory)c.MaxQuality);
+                outfit.filter.SetAllow(SpecialThingFilterDefOf.AllowNonDeadmansApparel, true);
+                outfit.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, false);
+                p.outfits.CurrentApparelPolicy = outfit;
+                p.outfits.forcedHandler.Reset(); p.apparel.UnlockAll();
+                foreach (var pawn in PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Where(v => v.outfits?.CurrentApparelPolicy == outfit)) pawn.mindState?.Notify_OutfitChanged();
+                if (!Matches(p, c)) throw new InvalidOperationException("Apparel filter readback differs.");
             }
+            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence { EntityId = p.GetUniqueLoadID(), BeforeToken = before, AfterToken = Token(p) } } };
         }
-        internal static Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context, Operations.SetApparelPolicy c)
-        {
-            var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false, Unknown = new Receipts.UnknownEffect { Reason = "Pawn apparel policy unavailable." } };
-            var p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.FirstOrDefault(v => v.GetUniqueLoadID() == c.Pawn.EntityId);
-            if (p == null) return result;
-            result.CompleteInspection = true; var evidence = Evidence(p,c);
-            if (Matches(p,c)) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
-            else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Evidence = evidence, Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved, Detail = "Apparel assignment or filter changed." };
-            return result;
-        }
+    }
+
+    internal sealed class ApparelPolicyActionHandler : IActionHandler
+    {
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>
+            NativeApparelPolicyOperations.Resolve(action.ApparelPolicy, context, out _);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
+            NativeApparelPolicyOperations.Apply(action.ApparelPolicy, context);
     }
 }

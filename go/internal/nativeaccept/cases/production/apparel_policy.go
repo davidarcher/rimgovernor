@@ -3,13 +3,14 @@ package production
 import (
 	"context"
 	"fmt"
+	"time"
+
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"time"
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "production/apparel-policy", Scope: "SetApparelPolicy creates, assigns and updates a role policy, rejects stale CAS, and overrides manual policies and forced/locked apparel under autonomous control.", Start: cases.LabStart(), Budget: 2 * time.Minute, Run: runApparelPolicy})
+	cases.Register(cases.Case{Name: "production/apparel-policy", Scope: "The ApparelPolicyIntent creates, assigns and updates a role policy, reapplies as applied, and overrides manual policies and forced/locked apparel under autonomous control. A Go test cannot see the native filter write.", Start: cases.LabStart(), Budget: 2 * time.Minute, Run: runApparelPolicy})
 }
 func runApparelPolicy(ctx context.Context, s cases.Session) error {
 	h := s.Harness()
@@ -24,46 +25,24 @@ func runApparelPolicy(ctx context.Context, s cases.Session) error {
 	if _, err = na.GrantAuto(ctx, h.WireFunc(), "apparel-auto", identity); err != nil {
 		return err
 	}
-	readGeneration := func() (any, error) {
-		reply, err := h.Wire(ctx, "apparel-authority", "authority_read_status", map[string]any{"identity": identity})
+	apply := func(label string, row map[string]any, hp float64, defs []string) error {
+		intent := map[string]any{"pawnId": row["pawn"], "name": "RimGovernor worker", "allowedDefs": defs, "minHitPoints": hp, "maxHitPoints": 1, "minQuality": 1, "maxQuality": 6}
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": label, "apparelPolicy": intent}}})
 		if err != nil {
-			return nil, err
+			return err
 		}
-		_, status, err := na.Outcome(reply, "status")
-		c, _ := na.AsMap(status["context"])
-		return c["nativeGeneration"], err
-	}
-	operation := func(row map[string]any, hp float64, defs []string) map[string]any {
-		return map[string]any{"setApparelPolicy": map[string]any{"pawn": map[string]any{"entityId": row["pawn"], "expectedSnapshotToken": row["token"]}, "name": "RimGovernor worker", "allowedDefs": defs, "minHitPoints": hp, "maxHitPoints": 1, "minQuality": 1, "maxQuality": 6}}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return fmt.Errorf("%s: expected one result: %v", label, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		if _, ok := na.AsMap(result["applied"]); !ok {
+			return fmt.Errorf("%s: apparel not applied: %v", label, reply)
+		}
+		return nil
 	}
 	defs := []string{"Apparel_BasicShirt", "Apparel_Pants"}
-	op := operation(before, .51, defs)
-	preview, err := h.Wire(ctx, "apparel-preview", "operations_preview", map[string]any{"identity": identity, "operation": op})
-	if err != nil {
-		return err
-	}
-	_, evaluation, err := na.Outcome(preview, "evaluated")
-	if err != nil {
-		return err
-	}
-	if ok, _ := na.AsBool(evaluation["accepted"]); !ok {
-		return fmt.Errorf("apparel preview refused: %v", preview)
-	}
-	unchanged, err := fixture("policy_read")
-	if err != nil {
-		return err
-	}
-	if unchanged["policy"] != before["policy"] || unchanged["count"] != before["count"] || unchanged["forced"] != before["forced"] {
-		return fmt.Errorf("preview mutated policy: %v", unchanged)
-	}
-	execute := func(label string, op map[string]any) (map[string]any, error) {
-		g, err := readGeneration()
-		if err != nil {
-			return nil, err
-		}
-		return h.Wire(ctx, label, "operations_execute", map[string]any{"precondition": map[string]any{"identity": identity, "expectedGeneration": g, "attempt": map[string]any{"controllerSessionId": "apparel-policy-smoke", "actionId": label, "attemptId": "1"}}, "operation": op})
-	}
-	for i, hp := range []float64{.51, .65} {
+	for i, hp := range []float64{.51, .65, .65} {
 		row := before
 		if i > 0 {
 			row, err = fixture("policy_read")
@@ -73,16 +52,8 @@ func runApparelPolicy(ctx context.Context, s cases.Session) error {
 			defs = []string{"Apparel_Pants"}
 		}
 		label := fmt.Sprintf("apparel-write-%d", i)
-		reply, err := execute(label, operation(row, hp, defs))
-		if err != nil {
+		if err := apply(label, row, hp, defs); err != nil {
 			return err
-		}
-		_, receipt, err := na.Outcome(reply, "receipt")
-		if err != nil {
-			return err
-		}
-		if _, ok := na.AsMap(receipt["applied"]); !ok {
-			return fmt.Errorf("apparel not applied: %v", reply)
 		}
 		after, err := fixture("policy_read")
 		if err != nil {
@@ -105,35 +76,13 @@ func runApparelPolicy(ctx context.Context, s cases.Session) error {
 		if i > 0 && after["policy"] != row["policy"] {
 			return fmt.Errorf("update created another policy")
 		}
-		progress, err := h.Wire(ctx, label+"-progress", "receipts_observe_progress", map[string]any{"identity": identity, "attempt": receipt["attempt"]})
-		if err != nil {
-			return err
-		}
-		_, p, err := na.Outcome(progress, "progress")
-		if err != nil {
-			return err
-		}
-		if _, ok := na.AsMap(p["completed"]); !ok {
-			return fmt.Errorf("policy readback did not complete: %v", progress)
-		}
 		s.Report()[label] = after
-	}
-	stale, err := execute("apparel-stale", op)
-	if err != nil {
-		return err
-	}
-	if _, _, err = na.Outcome(stale, "failure"); err != nil {
-		return fmt.Errorf("stale CAS accepted: %v", stale)
 	}
 	edited, err := fixture("policy_edit")
 	if err != nil {
 		return err
 	}
-	repaired, err := execute("apparel-repair-player-edit", operation(edited, .51, []string{"Apparel_Pants"}))
-	if err != nil {
-		return err
-	}
-	if _, _, err = na.Outcome(repaired, "receipt"); err != nil {
+	if err := apply("apparel-repair-player-edit", edited, .51, []string{"Apparel_Pants"}); err != nil {
 		return err
 	}
 	final, err := fixture("policy_read")

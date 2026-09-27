@@ -8,22 +8,30 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// BuildingInspection anchors a building intent's dispatch to a native read
-// of the current world and tick. It admits nothing: native validates the
-// placement when it applies the intent (#856).
-type BuildingInspection struct {
+// IntentInspection anchors an intent's dispatch to a native read of the
+// current world and tick. It admits nothing: native validates the intent
+// when it applies it (#856).
+type IntentInspection struct {
 	StartedAt, ObservedAt time.Time
 	Current               domain.GenerationSnapshot
 	Tick                  domain.Tick
 }
 
-// runBuilding dispatches one building intent. The receipt is terminal:
-// applied (the blueprint is placed, or a matching one already stood) is
-// done, refused is over and the owning routine replans, and a lost reply
-// is sent again under a new attempt.
-func (e *Executor) runBuilding(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
+// plainIntents are the intent-mode kinds runIntent dispatches: no
+// prerequisite action and no journal admission. Native validates each
+// against live state and treats a setting that already holds as applied.
+var plainIntents = map[domain.ActionKind]bool{
+	domain.BuildingAction:      true,
+	domain.ApparelPolicyAction: true,
+}
+
+// runIntent dispatches one plain intent. The receipt is terminal: applied
+// (the blueprint is placed, or the setting holds) is done, refused is over
+// and the owning routine replans, and a lost reply is sent again under a
+// new attempt.
+func (e *Executor) runIntent(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: p}
-	if _, ok := action.Building(); !ok || p.Action() != action {
+	if !plainIntents[action.Kind()] || !action.Kind().IntentMode() || p.Action() != action {
 		return result, ErrEvidence
 	}
 	v := p.View()
@@ -44,7 +52,7 @@ func (e *Executor) runBuilding(ctx context.Context, action domain.Action, p doma
 	if err := e.guard(ctx, expected, generation); err != nil {
 		return result, err
 	}
-	inspection, err := e.boundary.InspectBuilding(ctx, Target{action, expected})
+	inspection, err := e.boundary.InspectIntent(ctx, Target{action, expected})
 	if err != nil {
 		return result, err
 	}
@@ -70,7 +78,7 @@ func (e *Executor) runBuilding(ctx context.Context, action domain.Action, p doma
 		return e.record(result, v.Plan, attempt, domain.ReceiptUnknown, err)
 	}
 	result.NativeCalled = true
-	receipt, err := e.boundary.WriteBuilding(ctx, attempt)
+	receipt, err := e.boundary.WriteIntent(ctx, attempt)
 	kind := receipt.Kind
 	if err != nil {
 		kind = receiptAfterCallError(err)
