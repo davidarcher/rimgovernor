@@ -12,28 +12,6 @@ namespace HomeBridge.BridgeTools
     // Disposable prerequisites only. All asserted outcomes happen afterward through normal ticks.
     public sealed class HusbandryFixture
     {
-        [Tool("test/herd_removal", Description = "UNSAFE FOR MODEL EXECUTION. Set or read standing Manual removal flags on the husbandry fixture; disable handler labor while testing cancellation.")]
-        public async Task<object> HerdRemoval(IRimBridgeContext ctx, CancellationToken cancellationToken, bool apply = false)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                var animals = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.RaceProps.Animal).ToList();
-                var dog = animals.Single(p => p.def.defName == "Husky" && p.gender == Gender.Female);
-                var cow = animals.Single(p => p.def.defName == "Cow");
-                if (apply)
-                {
-                    foreach (var handler in map.mapPawns.FreeColonistsSpawned)
-                        handler.workSettings.SetPriority(WorkTypeDefOf.Handling, 0);
-                    map.designationManager.AddDesignation(new Designation(dog, DesignationDefOf.Slaughter));
-                    map.designationManager.AddDesignation(new Designation(cow, DesignationDefOf.ReleaseAnimalToWild));
-                }
-                return new { success = true, dog = dog.GetUniqueLoadID(), cow = cow.GetUniqueLoadID(),
-                    slaughter = map.designationManager.DesignationOn(dog, DesignationDefOf.Slaughter) != null,
-                    release = map.designationManager.DesignationOn(cow, DesignationDefOf.ReleaseAnimalToWild) != null,
-                    training = dog.training.GetWanted(TrainableDefOf.Obedience) };
-            }, cancellationToken);
-        }
-
         // Per map, not per process: a kept game hosts one debug start after
         // another, and each new map may seed the fixture once.
         private static readonly System.WeakReference<Map> createdOn = new System.WeakReference<Map>(null);
@@ -49,7 +27,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var other in removed) { other.jobs.StopAll(); other.DeSpawn(); }
                 // The herd is the fixture's alone: a debug start's own pet or
                 // livestock sorts ahead of it by ID, takes the training request
-                // and doubles the herd_removal lookups.
+                // and doubles the herd lookups.
                 foreach (var own in map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == Faction.OfPlayer).ToList()) own.Destroy(DestroyMode.Vanish);
                 // The debug-start map is random and a natural 11x11
                 // heavy-affordance clearing is not guaranteed (#185). Take
