@@ -274,7 +274,10 @@ func TestCombatReplayHarness(t *testing.T) {
 		noAimInterrupt(),
 		combatAssertion{name: "a stop sends orders", at: withOrders, check: func(combatReplayStop) error { return nil }},
 	)
-	if len(stops) != 3 {
+	// The admission stop (its formation; the drafts and first orders
+	// ride its batch, #910) and the squad re-formation: the steady stop
+	// between them records nothing.
+	if len(stops) != 2 {
 		t.Fatalf("%d stops", len(stops))
 	}
 	for _, s := range stops {

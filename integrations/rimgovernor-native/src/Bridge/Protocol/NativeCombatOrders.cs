@@ -14,9 +14,11 @@ namespace HomeBridge.BridgeTools
     // CombatOrders (#850): one batch of combat micro orders applied in request
     // order inside one call, so on one game tick. Validation reuses the attack
     // (NativeCombatOperations.Legal), movement (NativeMovementOperations.Legal)
-    // and owned-draft (NativeMovementOperations.Owns) rules. Per-order
-    // refusals are results, not call failures. The receipt certifies the
-    // orders were taken; observing the fight is the caller's next read.
+    // and owned-draft (NativeMovementOperations.Owns) rules. A draft
+    // order (#910) makes the claim the pawn's later orders in the batch need,
+    // by the SetDrafted claim or adoption rules. Per-order refusals are
+    // results, not call failures. The receipt certifies the orders were
+    // taken; observing the fight is the caller's next read.
     internal static class NativeCombatOrders
     {
         internal const int MaximumOrders = 64;
@@ -45,7 +47,8 @@ namespace HomeBridge.BridgeTools
                             || order.Rescue.Dest != null && !ValidCell(order.Rescue.Dest)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.Repair: if (!ValidCell(order.Repair.Cell)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.HoldPosition:
-                    case Operations.CombatOrder.OrderOneofCase.Stop: break;
+                    case Operations.CombatOrder.OrderOneofCase.Stop:
+                    case Operations.CombatOrder.OrderOneofCase.Draft: break;
                     default: return false;
                 }
             }
@@ -85,8 +88,19 @@ namespace HomeBridge.BridgeTools
                     {
                         var order = command.Orders[i];
                         var result = new Receipts.CombatOrderResult { Index = (uint)i };
-                        string refusal; string? job = null;
+                        string refusal; string? job = null; string? claim = null;
                         if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Door) refusal = Door(map, order.Door);
+                        else if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Draft)
+                        {
+                            result.PawnId = order.Pawn.EntityId;
+                            var admitted = pawns[order.Pawn.EntityId];
+                            refusal = admitted.refusal;
+                            if (refusal.Length == 0)
+                            {
+                                try { refusal = Draft(identity, admitted.pawn!, out claim); }
+                                catch (Exception error) { refusal = "cannot_draft"; Log.Warning("[RimGovernor] combat order " + i + " draft failed: " + error.GetType().Name); }
+                            }
+                        }
                         else
                         {
                             result.PawnId = order.Pawn.EntityId;
@@ -102,6 +116,7 @@ namespace HomeBridge.BridgeTools
                         result.Applied = refusal.Length == 0;
                         if (refusal.Length > 0) result.Refusal = refusal;
                         if (job != null) result.JobDef = job;
+                        if (claim != null && refusal.Length == 0) result.DraftClaimId = claim;
                         effect.Results.Add(result);
                     }
                 }
@@ -130,6 +145,33 @@ namespace HomeBridge.BridgeTools
         private static string Owned(NativeControlIdentity identity, Pawn pawn) =>
             NativePawnControlState.Observe(identity, pawn, out var snapshot) == NativePawnControlResult.Ready && snapshot != null
                 && NativeMovementOperations.Owns(snapshot) && pawn.drafter != null ? "" : "draft_ownership";
+
+        // Draft (#910) claims a pawn nobody claims, under the owned scope the
+        // batch runs in: an undrafted eligible pawn by the SetDrafted claim
+        // (setter between prepare and complete), a drafted unclaimed one by
+        // adoption (no setter). A pawn another claim holds is refused.
+        private static string Draft(NativeControlIdentity identity, Pawn pawn, out string? claim)
+        {
+            claim = null;
+            if (NativePawnControlState.Observe(identity, pawn, out var before) != NativePawnControlResult.Ready || before == null) return "cannot_draft";
+            if (before.Claim != null) return "draft_ownership";
+            if (!before.Eligible) return "cannot_draft";
+            NativePawnSnapshot? after;
+            if (before.Drafted)
+            {
+                if (NativePawnControlState.PrepareAdopt(identity, pawn, before.Token, out var adopt, out _) != NativePawnControlResult.Ready) return "cannot_draft";
+                if (NativePawnControlState.CompleteAdopt(adopt!, out after) != NativePawnControlResult.Ready) return "cannot_draft";
+            }
+            else
+            {
+                if (NativePawnControlState.PrepareClaim(identity, pawn, before.Token, out var ticket, out _) != NativePawnControlResult.Ready) return "cannot_draft";
+                pawn.drafter.Drafted = true;
+                if (NativePawnControlState.CompleteClaim(ticket!, out after) != NativePawnControlResult.Ready) return "cannot_draft";
+            }
+            if (after == null || !after.Drafted || after.Claim == null) return "cannot_draft";
+            claim = after.Claim.ClaimId;
+            return "";
+        }
 
         private static string Apply(NativeControlIdentity identity, Common.Identity colony, Map map, Pawn pawn, Operations.CombatOrder order, out string? job)
         {

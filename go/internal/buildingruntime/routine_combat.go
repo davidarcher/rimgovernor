@@ -27,16 +27,32 @@ import (
 )
 
 // combatMethodPrefix names the ActiveCombat method that owns a fight
-// (#852): one plan of owned drafts for the formation's defenders. Its
-// orders are DecideCombat's, sent through combat.orders at each stop and
-// recorded as the plan's evidence (store.RecordCombatStop).
+// (#852): one plan with no actions, its fight row holding the defenders'
+// draft claims (#910). Its orders are DecideCombat's, sent through
+// combat.orders at each stop and recorded as the plan's evidence
+// (store.RecordCombatStop).
 const combatMethodPrefix = "combat-"
 
-// admitFight commits the fight's plan: an owned draft for every defender
-// the formation gave a role, and the formation as the fight's memory.
-// Orders follow at the stops once the drafts are held.
-func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal store.GoalState, state ControlState, started time.Time, arbiter *stepArbiter, memory policy.CombatMemory) (RoutineDefenseResult, error) {
+// fightAdmission is what the admitting stop decided from: its frame, the
+// held layout, the geometry reply and stop it formed with, and the memory
+// the formation left.
+type fightAdmission struct {
+	combat bridge.Combat
+	in     combatInputs
+	held   domain.Fact[policy.CombatLayout]
+	reply  policy.GeometryReply
+	stop   policy.StopEvent
+	memory policy.CombatMemory
+}
+
+// admitFight commits the fight (#910): its empty plan and open fight row
+// holding a claim for every defender the formation gave a role, then one
+// combat.orders batch on this stop that drafts them all and gives the
+// formation's orders. The batch's draft results are the fight's claims;
+// the controller releases them once the fight closes (draftSweep).
+func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal store.GoalState, state ControlState, started time.Time, arbiter *stepArbiter, a fightAdmission) (RoutineDefenseResult, error) {
 	p := r.reviewer.player
+	memory := a.memory
 	if len(memory.Roles) == 0 {
 		return RoutineDefenseResult{Reason: BuildingMethodNoSquad}, nil
 	}
@@ -51,19 +67,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal sto
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
 	method, id := defenseMethodIDs(strings.TrimSuffix(combatMethodPrefix, "-"), goal, hash)
-	actions := make([]domain.Action, 0, len(pawns))
-	for _, pawn := range pawns {
-		draft, err := domain.NewOwnedDraft(pawn)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		action, err := domain.NewOwnedDraftAction(domain.ActionID(fmt.Sprintf("%s-draft-%s", id, pawn)), draft)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		actions = append(actions, action)
-	}
-	plan, err := domain.NewPlan(id, 1, actions)
+	plan, err := domain.NewPlan(id, 1, nil)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
@@ -74,27 +78,99 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal sto
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineDefenseResult{}, ErrControl
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
+	if _, err = p.journal.CommitCombatFight(call, goal.Goal.ID, goal.Revision, method, plan, memory, world, pawns); err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	if err = p.journal.OpenCombatFight(call, id, memory); err != nil {
+	admitted := RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}
+	// The formation's orders as the defenders will be once drafted: the
+	// same decision with them orderable. An ask (a rescue path) waits for
+	// the next stop; the batch then only drafts.
+	view := combatView(a.combat, a.in, pawns, a.held)
+	orders, ask, next := policy.DecideCombat(view, a.reply, policy.StopEvent{}, memory)
+	if ask != nil {
+		orders, next = nil, memory
+	}
+	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-admit", id), pawns, orders)
+	if err != nil {
+		// Nothing is known of the batch: the claims stay unknown and the
+		// next stop's rows settle them.
+		slog.Default().WarnContext(call, "fight admission batch failed", telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "fight_admission", "plan", string(id), "error", err)
+		return admitted, nil
+	}
+	set := map[domain.PawnID]string{}
+	var drop []domain.PawnID
+	if results != nil {
+		for i, pawn := range pawns {
+			if results[i].Applied {
+				set[pawn] = results[i].Claim
+			} else {
+				drop = append(drop, pawn)
+				next = next.Forget(pawn)
+			}
+		}
+		results = results[len(pawns):]
+	}
+	if err = p.journal.RecordCombatClaims(call, id, set, drop); err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	record, next := combatStopRecord(view.Tick, orders, results, next)
+	if len(record.Orders) == 0 {
+		return admitted, p.journal.SaveCombatMemory(call, id, next)
+	}
+	record.Stop = a.stop
+	return admitted, p.journal.RecordCombatStop(call, id, record, next)
 }
 
 // issueCombatOrders sends one stop's orders as one combat.orders batch and
 // returns the stop's evidence and the memory without the refused orders,
 // which the next stop gives again.
 func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state ControlState, plan domain.PlanID, tick domain.Tick, orders []policy.CombatOrder, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory, error) {
-	session, err := r.reviewer.player.journal.Identity(call)
+	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-stop-%d", plan, tick), nil, orders)
 	if err != nil {
 		return store.CombatStopRecord{}, memory, err
 	}
-	if len(orders) > bridge.MaxCombatOrders {
-		orders = orders[:bridge.MaxCombatOrders]
+	record, memory := combatStopRecord(tick, orders, results, memory)
+	return record, memory, nil
+}
+
+// combatStopRecord is a stop's evidence from its orders' results and the
+// memory without the refused ones. An uncertain receipt carries no
+// results: the orders stay issued and the next mirror read shows what took.
+func combatStopRecord(tick domain.Tick, orders []policy.CombatOrder, results []bridge.CombatOrderResult, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory) {
+	record := store.CombatStopRecord{Tick: tick}
+	for i, order := range orders {
+		row := store.CombatOrderRecord{CombatOrder: order, Applied: results == nil}
+		if results != nil {
+			row.Applied, row.Refusal = results[i].Applied, results[i].Refusal
+		}
+		if !row.Applied && results != nil && order.Pawn != "" {
+			memory = memory.Forget(order.Pawn)
+		}
+		record.Orders = append(record.Orders, row)
+	}
+	return record, memory
+}
+
+// sendCombatBatch sends one combat.orders batch under action: a draft
+// order for each of drafts (#910), then orders, cut to the batch bound.
+// It returns every order's result in that order (nil for an uncertain
+// receipt) and the orders sent.
+func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state ControlState, action string, drafts []domain.PawnID, orders []policy.CombatOrder) ([]bridge.CombatOrderResult, []policy.CombatOrder, error) {
+	session, err := r.reviewer.player.journal.Identity(call)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(drafts) > bridge.MaxCombatOrders {
+		return nil, nil, ErrControl
+	}
+	if room := bridge.MaxCombatOrders - len(drafts); len(orders) > room {
+		orders = orders[:room]
 	}
 	command := &op.CombatOrders{}
+	for _, pawn := range drafts {
+		command.Orders = append(command.Orders, &op.CombatOrder{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(pawn))}, Order: &op.CombatOrder_Draft{Draft: &op.Clear{}}})
+	}
 	for _, order := range orders {
 		wire := &op.CombatOrder{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(order.Pawn))}}
 		switch order.Kind {
@@ -127,32 +203,19 @@ func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state Co
 			}
 			wire.Order = &op.CombatOrder_FireMode{FireMode: mode}
 		default:
-			return store.CombatStopRecord{}, memory, ErrControl
+			return nil, nil, ErrControl
 		}
 		command.Orders = append(command.Orders, wire)
 	}
 	pre := &a.WritePrecondition{
 		Identity: boundary.Identity(state.Snapshot), ExpectedGeneration: proto.Uint64(uint64(state.Snapshot.Native)),
-		Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(session)), ActionId: proto.String(fmt.Sprintf("%s-stop-%d", plan, tick)), AttemptId: proto.Uint64(1)},
+		Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(session)), ActionId: proto.String(action), AttemptId: proto.Uint64(1)},
 	}
 	results, _, _, err := r.native.CombatOrders(call, pre, command)
 	if err != nil {
-		return store.CombatStopRecord{}, memory, err
+		return nil, nil, err
 	}
-	record := store.CombatStopRecord{Tick: tick}
-	for i, order := range orders {
-		// An uncertain receipt carries no results: the orders stay issued
-		// and the next mirror read shows what took.
-		row := store.CombatOrderRecord{CombatOrder: order, Applied: results == nil}
-		if results != nil {
-			row.Applied, row.Refusal = results[i].Applied, results[i].Refusal
-		}
-		if !row.Applied && results != nil && order.Pawn != "" {
-			memory = memory.Forget(order.Pawn)
-		}
-		record.Orders = append(record.Orders, row)
-	}
-	return record, memory, nil
+	return results, orders, nil
 }
 
 // answerGeometry answers DecideCombat's geometry ask with one

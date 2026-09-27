@@ -29,6 +29,7 @@ func combatTestOrders() *o.CombatOrders {
 		{Pawn: combatPawn("p3"), Order: &o.CombatOrder_FireMode{FireMode: o.CombatFireMode_COMBAT_FIRE_MODE_HOLD}},
 		{Pawn: combatPawn("p3"), Order: &o.CombatOrder_HoldPosition{HoldPosition: &o.Clear{}}},
 		{Pawn: combatPawn("p4"), Order: &o.CombatOrder_Stop{Stop: &o.Clear{}}},
+		{Pawn: combatPawn("p5"), Order: &o.CombatOrder_Draft{Draft: &o.Clear{}}},
 		{Order: &o.CombatOrder_Door{Door: &o.CombatDoor{Cell: combatCell(1, 1), Mode: o.CombatDoorMode_COMBAT_DOOR_MODE_HOLD_OPEN.Enum()}}},
 	}}
 }
@@ -49,9 +50,11 @@ func TestValidateCombatOrders(t *testing.T) {
 		"missing cell":    func(v *o.CombatOrders) { v.Orders[0].Order = &o.CombatOrder_AttackGround{} },
 		"self attack":     func(v *o.CombatOrders) { v.Orders[2].Order = &o.CombatOrder_Attack{Attack: combatPawn("p2")} },
 		"fire mode unset": func(v *o.CombatOrders) { v.Orders[3].Order = &o.CombatOrder_FireMode{} },
-		"door with pawn":  func(v *o.CombatOrders) { v.Orders[6].Pawn = combatPawn("p0") },
-		"door no mode":    func(v *o.CombatOrders) { v.Orders[6].GetDoor().Mode = nil },
-		"door no cell":    func(v *o.CombatOrders) { v.Orders[6].GetDoor().Cell = nil },
+		"door with pawn":  func(v *o.CombatOrders) { v.Orders[7].Pawn = combatPawn("p0") },
+		"door no mode":    func(v *o.CombatOrders) { v.Orders[7].GetDoor().Mode = nil },
+		"door no cell":    func(v *o.CombatOrders) { v.Orders[7].GetDoor().Cell = nil },
+		"draft nil":       func(v *o.CombatOrders) { v.Orders[6].Order = &o.CombatOrder_Draft{} },
+		"draft no pawn":   func(v *o.CombatOrders) { v.Orders[6].Pawn = nil },
 		"stop nil":        func(v *o.CombatOrders) { v.Orders[5].Order = &o.CombatOrder_Stop{} },
 	} {
 		v := combatTestOrders()
@@ -81,6 +84,12 @@ func combatResult(i int, pawn string, applied bool, refusal, job string) *r.Comb
 	return v
 }
 
+func combatDraftResult(i int, pawn, claim string) *r.CombatOrderResult {
+	v := combatResult(i, pawn, true, "", "")
+	v.DraftClaimId = proto.String(claim)
+	return v
+}
+
 func combatTestResults() []*r.CombatOrderResult {
 	return []*r.CombatOrderResult{
 		combatResult(0, "p0", true, "", "AttackStatic"),
@@ -89,7 +98,8 @@ func combatTestResults() []*r.CombatOrderResult {
 		combatResult(3, "p3", true, "", ""),
 		combatResult(4, "p3", true, "", "Wait_Combat"),
 		combatResult(5, "p4", true, "", ""),
-		combatResult(6, "", false, CombatRefusalNotADoor, ""),
+		combatDraftResult(6, "p5", "claim-5"),
+		combatResult(7, "", false, CombatRefusalNotADoor, ""),
 	}
 }
 
@@ -110,8 +120,9 @@ func TestCombatOrderResultsDecode(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []CombatOrderResult{
-		{0, "p0", true, "", "AttackStatic"}, {1, "p1", true, "", "Goto"}, {2, "p2", false, "draft_ownership", ""},
-		{3, "p3", true, "", ""}, {4, "p3", true, "", "Wait_Combat"}, {5, "p4", true, "", ""}, {6, "", false, "not_a_door", ""},
+		{0, "p0", true, "", "AttackStatic", ""}, {1, "p1", true, "", "Goto", ""}, {2, "p2", false, "draft_ownership", "", ""},
+		{3, "p3", true, "", "", ""}, {4, "p3", true, "", "Wait_Combat", ""}, {5, "p4", true, "", "", ""},
+		{6, "p5", true, "", "", "claim-5"}, {7, "", false, "not_a_door", "", ""},
 	}
 	for i := range want {
 		if got[i] != want[i] {
@@ -134,10 +145,17 @@ func TestCombatOrderResultsDecode(t *testing.T) {
 		applied bool
 		want    string
 	}{
-		{"short", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { return v[:6] }, true, "6 results for 7 orders"},
+		{"short", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { return v[:7] }, true, "7 results for 8 orders"},
+		{"draft no claim", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[6].DraftClaimId = nil; return v }, true, "without a valid claim"},
+		{"claim on move", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[1].DraftClaimId = proto.String("c"); return v }, true, "did not draft"},
+		{"refused draft claim", func(v []*r.CombatOrderResult) []*r.CombatOrderResult {
+			v[6] = combatResult(6, "p5", false, CombatRefusalCannotDraft, "")
+			v[6].DraftClaimId = proto.String("c")
+			return v
+		}, true, "did not draft"},
 		{"index", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[1].Index = proto.Uint32(3); return v }, true, "index"},
 		{"pawn", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[1].PawnId = proto.String("p9"); return v }, true, "names pawn"},
-		{"door pawn", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[6].PawnId = proto.String("p0"); return v }, true, "names pawn"},
+		{"door pawn", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[7].PawnId = proto.String("p0"); return v }, true, "names pawn"},
 		{"no reason", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[2].Refusal = nil; return v }, true, "known reason"},
 		{"unknown reason", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[2].Refusal = proto.String("nope"); return v }, true, "known reason"},
 		{"applied refusal", func(v []*r.CombatOrderResult) []*r.CombatOrderResult {
@@ -167,7 +185,7 @@ func TestCombatOrdersIssue(t *testing.T) {
 		t.Fatal(err)
 	}
 	results, _, _, err := control.Issue(context.Background(), buildingPre(), combatTestOrders())
-	if err != nil || len(results) != 7 || results[2].Refusal != CombatRefusalDraftOwnership {
+	if err != nil || len(results) != 8 || results[2].Refusal != CombatRefusalDraftOwnership {
 		t.Fatalf("issue: %v %+v", err, results)
 	}
 	var logged bytes.Buffer
@@ -185,7 +203,7 @@ func TestCombatOrdersIssue(t *testing.T) {
 			outcomes = append(outcomes, g[1])
 		}
 	}
-	if strings.Join(outcomes, ",") != "applied,applied,refused,applied,applied,applied,refused" {
+	if strings.Join(outcomes, ",") != "applied,applied,refused,applied,applied,applied,applied,refused" {
 		t.Errorf("combat_order lines: %v", outcomes)
 	}
 	if _, _, _, err := control.Issue(context.Background(), buildingPre(), &o.CombatOrders{}); err == nil {

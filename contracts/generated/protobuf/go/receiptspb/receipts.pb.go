@@ -2768,6 +2768,7 @@ func (x *ReleaseDeconstructionsEffect) GetReleasedCount() int32 {
 // AttackMelee, Wait_Combat); a refusal carries a short snake_case reason:
 // draft_ownership, stale_snapshot, not_found, unreachable, cannot_hit,
 // no_ground_verb, not_a_door, native_refused.
+// draft_claim_id: the claim an applied draft order holds (#910); absent on every other order.
 type CombatOrderResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Index         *uint32                `protobuf:"varint,1,opt,name=index,proto3,oneof" json:"index,omitempty"`
@@ -2775,6 +2776,7 @@ type CombatOrderResult struct {
 	Applied       *bool                  `protobuf:"varint,3,opt,name=applied,proto3,oneof" json:"applied,omitempty"`
 	Refusal       *string                `protobuf:"bytes,4,opt,name=refusal,proto3,oneof" json:"refusal,omitempty"`
 	JobDef        *string                `protobuf:"bytes,5,opt,name=job_def,json=jobDef,proto3,oneof" json:"job_def,omitempty"`
+	DraftClaimId  *string                `protobuf:"bytes,6,opt,name=draft_claim_id,json=draftClaimId,proto3,oneof" json:"draft_claim_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2840,6 +2842,13 @@ func (x *CombatOrderResult) GetRefusal() string {
 func (x *CombatOrderResult) GetJobDef() string {
 	if x != nil && x.JobDef != nil {
 		return *x.JobDef
+	}
+	return ""
+}
+
+func (x *CombatOrderResult) GetDraftClaimId() string {
+	if x != nil && x.DraftClaimId != nil {
+		return *x.DraftClaimId
 	}
 	return ""
 }
@@ -5111,13 +5120,14 @@ const file_receipts_proto_rawDesc = "" +
 	"\x14_demolition_observed\"]\n" +
 	"\x1cReleaseDeconstructionsEffect\x12*\n" +
 	"\x0ereleased_count\x18\x01 \x01(\x05H\x00R\rreleasedCount\x88\x01\x01B\x11\n" +
-	"\x0f_released_count\"\xe2\x01\n" +
+	"\x0f_released_count\"\xa0\x02\n" +
 	"\x11CombatOrderResult\x12\x19\n" +
 	"\x05index\x18\x01 \x01(\rH\x00R\x05index\x88\x01\x01\x12\x1c\n" +
 	"\apawn_id\x18\x02 \x01(\tH\x01R\x06pawnId\x88\x01\x01\x12\x1d\n" +
 	"\aapplied\x18\x03 \x01(\bH\x02R\aapplied\x88\x01\x01\x12\x1d\n" +
 	"\arefusal\x18\x04 \x01(\tH\x03R\arefusal\x88\x01\x01\x12\x1c\n" +
-	"\ajob_def\x18\x05 \x01(\tH\x04R\x06jobDef\x88\x01\x01B\b\n" +
+	"\ajob_def\x18\x05 \x01(\tH\x04R\x06jobDef\x88\x01\x01\x12)\n" +
+	"\x0edraft_claim_id\x18\x06 \x01(\tH\x05R\fdraftClaimId\x88\x01\x01B\b\n" +
 	"\x06_indexB\n" +
 	"\n" +
 	"\b_pawn_idB\n" +
@@ -5126,7 +5136,8 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_refusalB\n" +
 	"\n" +
-	"\b_job_def\"Z\n" +
+	"\b_job_defB\x11\n" +
+	"\x0f_draft_claim_id\"Z\n" +
 	"\x12CombatOrdersEffect\x12D\n" +
 	"\aresults\x18\x01 \x03(\v2*.rimgovernor.receipts.v1.CombatOrderResultR\aresults\"\xda\x02\n" +
 	"\n" +

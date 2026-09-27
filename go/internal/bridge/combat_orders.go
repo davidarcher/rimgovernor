@@ -33,6 +33,9 @@ const (
 	// Repair refusal (#900): no damaged player building on the cell, or
 	// the pawn cannot construct.
 	CombatRefusalCannotRepair = "cannot_repair"
+	// Draft refusal (#910): the pawn is not eligible, or the claim could not
+	// be certified. A pawn another claim holds refuses draft_ownership.
+	CombatRefusalCannotDraft = "cannot_draft"
 )
 
 var combatRefusals = map[string]bool{
@@ -40,6 +43,7 @@ var combatRefusals = map[string]bool{
 	CombatRefusalUnreachable: true, CombatRefusalCannotHit: true, CombatRefusalNoGroundVerb: true,
 	CombatRefusalNotADoor: true, CombatRefusalNativeRefused: true,
 	CombatRefusalCannotRescue: true, CombatRefusalNoBed: true, CombatRefusalCannotRepair: true,
+	CombatRefusalCannotDraft: true,
 }
 
 // CombatOrderResult is one order's outcome, in request order.
@@ -49,6 +53,7 @@ type CombatOrderResult struct {
 	Applied bool
 	Refusal string // one of the CombatRefusal* reasons when not applied
 	JobDef  string // the ordered job, when the order took one
+	Claim   string // the native claim an applied draft order holds (#910)
 }
 
 // CombatOrdersControl issues batched combat micro orders under an owned draft.
@@ -161,6 +166,10 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 			if v.Stop == nil {
 				return contract("combat order %d stop missing", i)
 			}
+		case *o.CombatOrder_Draft:
+			if v.Draft == nil {
+				return contract("combat order %d draft missing", i)
+			}
 		default:
 			return contract("combat order %d has no order", i)
 		}
@@ -206,7 +215,14 @@ func CombatOrderResults(receipt *r.Receipt, command *o.CombatOrders) ([]CombatOr
 		if v.GetPawnId() != command.Orders[i].GetPawn().GetEntityId() {
 			return nil, contract("combat order result %d names pawn %q, want %q", i, v.GetPawnId(), command.Orders[i].GetPawn().GetEntityId())
 		}
-		res := CombatOrderResult{Index: i, PawnID: v.GetPawnId(), Applied: v.GetApplied(), Refusal: v.GetRefusal(), JobDef: v.GetJobDef()}
+		res := CombatOrderResult{Index: i, PawnID: v.GetPawnId(), Applied: v.GetApplied(), Refusal: v.GetRefusal(), JobDef: v.GetJobDef(), Claim: v.GetDraftClaimId()}
+		_, draft := command.Orders[i].GetOrder().(*o.CombatOrder_Draft)
+		if v.DraftClaimId != nil && !(draft && res.Applied) {
+			return nil, contract("combat order result %d carries a claim it did not draft", i)
+		}
+		if draft && res.Applied && validID(res.Claim) != nil {
+			return nil, contract("combat order result %d drafted without a valid claim", i)
+		}
 		if res.Applied {
 			if v.Refusal != nil {
 				return nil, contract("combat order result %d applied with a refusal", i)

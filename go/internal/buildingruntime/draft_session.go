@@ -24,9 +24,16 @@ func (s *sessionSink) Lease(snapshot domain.GenerationSnapshot) (string, error) 
 type draftSweep struct {
 	journal  *store.Store
 	executor *executor.Executor
+	fights   fightReleaser
 	gate     chan struct{}
 	timeout  time.Duration
 	next     int
+}
+
+// fightReleaser releases one combat fight's draft claim
+// (draft.DraftBoundary.ReleaseFightClaim).
+type fightReleaser interface {
+	ReleaseFightClaim(context.Context, store.World, domain.PawnID, string) (bool, error)
 }
 
 func draftOutstanding(p domain.Progress) bool {
@@ -42,7 +49,9 @@ func draftOutstanding(p domain.Progress) bool {
 // With retainHeld the drafts a plan still holds (workerPlanHoldsDraft) are
 // left alone: a resume in the same world keeps the suspended plan's owned
 // drafts, so a combat hold plan survives the pause that interrupted it
-// (#228, #318); the worker releases them once the plan settles.
+// (#228, #318); the worker releases them once the plan settles. An open
+// combat fight's claims are held the same way: releasing them on a resume
+// dropped the fight out of its goal mid-raid (#906, #916).
 func (s *draftSweep) run(ctx context.Context, retainHeld bool) error {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
@@ -56,29 +65,19 @@ func (s *draftSweep) run(ctx context.Context, retainHeld bool) error {
 	if err != nil {
 		return err
 	}
-	// An open fight (#852) holds its completed drafts outside plan work,
-	// as the worker keeps them (workerCleanupEligible): releasing them on
-	// a resume dropped the fight out of its goal mid-raid (#906).
-	fights := map[domain.PlanID]bool{}
-	if retainHeld {
-		if fights, err = s.journal.OpenCombatFights(ctx); err != nil {
-			return err
-		}
-	}
 	var pending []domain.Progress
 	for _, plan := range plans {
 		for _, p := range plan.Progress {
-			held := workerPlanHoldsDraft(plan, p.View()) || fights[plan.Spec.ID()] && p.View().Stage == domain.Completed
-			if draftOutstanding(p) && !(retainHeld && held) {
+			if draftOutstanding(p) && !(retainHeld && workerPlanHoldsDraft(plan, p.View())) {
 				pending = append(pending, p)
 			}
 		}
 	}
+	failures := []error{s.releaseFights(ctx, retainHeld)}
 	if len(pending) == 0 {
-		return nil
+		return errors.Join(failures...)
 	}
 	start := s.next % len(pending)
-	var failures []error
 	for offset := range len(pending) {
 		index := (start + offset) % len(pending)
 		s.next = (index + 1) % len(pending)
@@ -102,6 +101,54 @@ func (s *draftSweep) run(ctx context.Context, retainHeld bool) error {
 		if ctx.Err() != nil {
 			failures = append(failures, ctx.Err())
 			break
+		}
+	}
+	return errors.Join(failures...)
+}
+
+// releaseClosedFights releases the claims of every closed combat fight
+// (#910): the worker's per-step release once a fight ends.
+func (s *draftSweep) releaseClosedFights(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+	select {
+	case s.gate <- struct{}{}:
+		defer func() { <-s.gate }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return s.releaseFights(ctx, true)
+}
+
+// releaseFights releases the claims combat fights hold (#910), keeping an
+// open fight's with retainOpen. A claim released, or no longer the
+// fight's, is dropped from the fight; an uncertain release stays.
+func (s *draftSweep) releaseFights(ctx context.Context, retainOpen bool) error {
+	if s.fights == nil {
+		return nil
+	}
+	fights, err := s.journal.HeldCombatFights(ctx)
+	if err != nil {
+		return err
+	}
+	var failures []error
+	for plan, fight := range fights {
+		if retainOpen && fight.Open {
+			continue
+		}
+		var drop []domain.PawnID
+		for pawn, claim := range fight.Claims {
+			gone, err := s.fights.ReleaseFightClaim(ctx, fight.World, pawn, claim)
+			if err != nil {
+				failures = append(failures, fmt.Errorf("fight %s release %s: %w", plan, pawn, err))
+				continue
+			}
+			if gone {
+				drop = append(drop, pawn)
+			}
+		}
+		if len(drop) > 0 {
+			failures = append(failures, s.journal.RecordCombatClaims(ctx, plan, nil, drop))
 		}
 	}
 	return errors.Join(failures...)

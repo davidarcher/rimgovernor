@@ -33,6 +33,9 @@ func (f *combatOrdersFake) CombatOrders(ctx context.Context, _ *a.WritePrecondit
 		out[i] = bridge.CombatOrderResult{Index: i, PawnID: pawn, Applied: true}
 		if reason := f.refuse[pawn]; reason != "" {
 			out[i].Applied, out[i].Refusal = false, reason
+		} else if order.GetDraft() != nil {
+			// A draft order's claim (#910) names its pawn.
+			out[i].Claim = "claim-" + pawn
 		}
 	}
 	return out, nil, bridge.Result{}, ctx.Err()

@@ -7,6 +7,7 @@ import (
 	"hash"
 	"log/slog"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -107,21 +108,33 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	// One ActiveCombat plan owns the fight (#852): its open combat method
-	// is the fight the stop decides for. Any other open work waits.
-	var fight *store.PlanState
+	// One ActiveCombat plan owns the fight (#852): its combat method whose
+	// fight is open or still holds claims (#910) is the fight the stop
+	// decides for. Any other open work waits.
+	var fight *store.CombatFight
+	var fightPlan domain.PlanID
 	for _, method := range goal.Methods {
+		if strings.HasPrefix(string(method.Method), combatMethodPrefix) {
+			record, ok, err := p.journal.LoadCombatFight(call, method.Plan)
+			if err != nil {
+				return RoutineDefenseResult{}, err
+			}
+			if !ok || !record.Holds() {
+				continue
+			}
+			if fight != nil {
+				return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
+			}
+			fight, fightPlan = &record, method.Plan
+			continue
+		}
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineDefenseResult{}, err
 		}
-		if !domain.GoalWorkOpen(plan.Progress) {
-			continue
-		}
-		if !strings.HasPrefix(string(method.Method), combatMethodPrefix) || fight != nil {
+		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
 		}
-		fight = &plan
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -146,23 +159,13 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	var orderable []domain.PawnID
 	var memory policy.CombatMemory
 	if fight != nil {
-		record, ok, err := p.journal.LoadCombatFight(call, fight.Spec.ID())
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		if !ok {
-			// The fight's row is written after its plan commits; a crash
-			// between them leaves the plan to reopen it.
-			if err = p.journal.OpenCombatFight(call, fight.Spec.ID(), memory); err != nil {
-				return RoutineDefenseResult{}, err
-			}
-			record.Open = true
-		}
-		if !record.Open {
+		if !fight.Open {
 			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
 		}
-		memory = record.Memory
-		orderable = policy.CombatOrderable(fight.Progress)
+		memory = fight.Memory
+		if orderable, err = learnFightClaims(call, p.journal, fightPlan, *fight, rows); err != nil {
+			return RoutineDefenseResult{}, err
+		}
 	}
 	// A complete record from an earlier load of this colony still holds:
 	// its geometry is on the map and its completion was census-verified
@@ -201,14 +204,14 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		slog.Default().InfoContext(call, "hold refused: "+next.Refusal, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "hold_refused", "goal", string(goal.Goal.ID))
 	}
 	if fight == nil {
-		result, err := r.admitFight(call, epoch, goal, state, started, arbiter, next)
+		result, err := r.admitFight(call, epoch, goal, state, started, arbiter, fightAdmission{combat: combat, in: in, held: held, reply: recorded.Reply, stop: stop, memory: next})
 		if err == nil && result.Reason == BuildingMethodAdmitted {
 			recorded.Plan = result.Plan
 			recordCombatStop(call, combat, recorded)
 		}
 		return result, err
 	}
-	id := fight.Spec.ID()
+	id := fightPlan
 	recorded.Plan = id
 	if len(orders) == 0 {
 		// A stop that changes nothing writes nothing; a re-formation that
@@ -240,6 +243,35 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	recorded.Evidence = true
 	recordCombatStop(call, combat, recorded)
 	return RoutineDefenseResult{Reason: BuildingMethodCombatOrders, Plan: id}, nil
+}
+
+// learnFightClaims is the fight's orderable defenders: the pawns whose
+// draft claim it knows (#910). A claim the admission batch left unknown
+// (an uncertain receipt) is settled from the pawn's frame row: a claim
+// owning the draft is the fight's, an unowned pawn was never drafted.
+func learnFightClaims(ctx context.Context, journal *store.Store, plan domain.PlanID, fight store.CombatFight, rows map[string]*n.PawnState) ([]domain.PawnID, error) {
+	set := map[domain.PawnID]string{}
+	var drop, orderable []domain.PawnID
+	for pawn, claim := range fight.Claims {
+		if claim == "" {
+			switch state := rows[string(pawn)].GetDraftClaim().GetState().(type) {
+			case *n.DraftClaimObservation_Owned:
+				if claim = state.Owned.GetClaimId(); claim != "" {
+					set[pawn] = claim
+				}
+			case *n.DraftClaimObservation_Unowned:
+				drop = append(drop, pawn)
+			}
+		}
+		if claim != "" {
+			orderable = append(orderable, pawn)
+		}
+	}
+	slices.Sort(orderable)
+	if len(set)+len(drop) == 0 {
+		return orderable, nil
+	}
+	return orderable, journal.RecordCombatClaims(ctx, plan, set, drop)
 }
 
 // combatInputs is what the fight reads from one frame beside the view:

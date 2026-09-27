@@ -101,8 +101,9 @@ func TestDefenseReplayBreachFallsBackToSquadDefense(t *testing.T) {
 	if results[0].Reason != BuildingMethodAdmitted {
 		t.Fatal(results)
 	}
-	// hold_fallback is a hold re-formed as squad defense.
-	if results[1].Reason != BuildingMethodExistingWork || results[2].Reason != BuildingMethodHoldFallback || results[3].Reason != BuildingMethodExistingWork {
+	// The defenders drafted at admission (#910), the hold re-formed as
+	// squad defense orders them at once.
+	if results[1].Reason != BuildingMethodExistingWork || results[2].Reason != BuildingMethodCombatOrders || results[3].Reason != BuildingMethodExistingWork {
 		t.Fatal(results)
 	}
 	for _, r := range results[1:] {

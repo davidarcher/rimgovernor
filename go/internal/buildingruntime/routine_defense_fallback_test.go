@@ -49,44 +49,6 @@ func (n *raidTestNative) ReadCombatPawns(ctx context.Context, id *c.Identity, id
 	return reply, r, err
 }
 
-// acquireFightDrafts takes every owned draft of the fight's plan through
-// dispatch, a claimed receipt and a completed observation: the defenders
-// are drafted and the plan holds them.
-func acquireFightDrafts(t *testing.T, db *store.Store, plan domain.PlanID, current domain.GenerationSnapshot) {
-	t.Helper()
-	ctx := context.Background()
-	state, err := db.LoadPlan(ctx, plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	snapshot := current
-	snapshot.Plan, snapshot.Revision = plan, state.Spec.Revision()
-	controller, err := db.Identity(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, action := range state.Spec.Actions() {
-		draft, ok := action.OwnedDraft()
-		if !ok {
-			continue
-		}
-		if _, err = db.PrepareDraft(ctx, plan, action.ID(), store.DraftAdmission{Snapshot: snapshot, Tick: 7, Pawn: draft.Pawn(), PawnSnapshotToken: "cas"}); err != nil {
-			t.Fatal(err)
-		}
-		if _, err = db.Dispatch(ctx, plan, action.ID(), snapshot, 7); err != nil {
-			t.Fatal(err)
-		}
-		claim := domain.DraftClaim{Action: action.ID(), Attempt: 1, Pawn: draft.Pawn(), Claim: domain.DraftClaimID("claim-" + string(draft.Pawn())), Session: domain.ControllerSessionID(controller), Origin: snapshot}
-		if _, err = db.RecordDraftReceipt(ctx, plan, action.ID(), 1, domain.ReceiptAccepted, domain.Known(claim)); err != nil {
-			t.Fatal(err)
-		}
-		observed := domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 8, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}
-		if _, err = db.ObserveDraft(ctx, plan, observed, snapshot, domain.Known(claim)); err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
 // batchOrders is one combat.orders batch as pawn -> "move x,z" or
 // "attack target".
 func batchOrders(batch *op.CombatOrders) map[string]string {
@@ -149,25 +111,24 @@ func crossedHoldFight(t *testing.T) {
 	if err != nil || !ok || !fight.Open || fight.Memory.Tactic != policy.TacticHold || len(fight.Memory.Roles) != 2 {
 		t.Fatalf("%+v %v %v", fight, ok, err)
 	}
-	state, err := db.LoadPlan(ctx, plan)
-	if err != nil {
-		t.Fatal(err)
+	// The fight's plan has no actions (#910): the admission stop's one
+	// batch drafts both defenders and moves them to the firing cells, and
+	// the fight holds the claims the drafts made.
+	if state, err := db.LoadPlan(ctx, plan); err != nil || len(state.Spec.Actions()) != 0 {
+		t.Fatal("the fight's plan carries actions", err)
 	}
-	for _, action := range state.Spec.Actions() {
-		if _, ok := action.OwnedDraft(); !ok {
-			t.Fatalf("the fight's plan carries a %s action", action.Kind())
-		}
+	if len(native.orders.batches) != 1 {
+		t.Fatal(native.orders.batches)
 	}
-	// No draft is held yet: nothing can be ordered.
-	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodExistingWork || len(native.orders.batches) != 0 {
-		t.Fatal(got, err, native.orders.batches)
-	}
-	acquireFightDrafts(t, db, plan, snapshot)
-	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodCombatOrders || len(native.orders.batches) != 1 {
-		t.Fatal(got, err)
+	admission := native.orders.batches[0].Orders
+	if len(admission) != 4 || admission[0].GetDraft() == nil || admission[1].GetDraft() == nil {
+		t.Fatal("the admission batch does not draft first", admission)
 	}
 	if orders := batchOrders(native.orders.batches[0]); orders["a"] != "move 9,23" || orders["b"] != "move 8,23" {
 		t.Fatal(orders)
+	}
+	if fight, _, _ = db.LoadCombatFight(ctx, plan); fight.Claims["a"] != "claim-a" || fight.Claims["b"] != "claim-b" {
+		t.Fatal("the fight holds no claims", fight.Claims)
 	}
 	// Nothing changed: no orders, no evidence.
 	native.raider = domain.Cell{X: 9, Z: 21}
@@ -201,8 +162,8 @@ func crossedHoldFight(t *testing.T) {
 	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodNoDeficit {
 		t.Fatal(got, err)
 	}
-	if fight, _, _ = db.LoadCombatFight(ctx, plan); fight.Open {
-		t.Fatal("the fight stayed open after recovery")
+	if fight, _, _ = db.LoadCombatFight(ctx, plan); fight.Open || len(fight.Claims) != 2 {
+		t.Fatal("the fight stayed open after recovery, or dropped its claims unreleased", fight)
 	}
 }
 

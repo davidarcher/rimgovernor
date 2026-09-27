@@ -15,26 +15,6 @@ type DraftRequest struct {
 	Emergency EmergencySnapshot
 }
 
-// CombatOrderable is the per-plan owned-draft check combat orders pass
-// (#852): the pawns whose current draft this plan's own OwnedDraft action
-// holds, completed and resolved with its claim acquired and not released.
-// Native combat.orders checks only that some claim owns the draft.
-func CombatOrderable(progress []domain.Progress) []domain.PawnID {
-	var out []domain.PawnID
-	for _, p := range progress {
-		draft, ok := p.Action().OwnedDraft()
-		v := p.View()
-		if !ok || v.Stage != domain.Completed || v.Unresolved {
-			continue
-		}
-		cleanup, known := v.DraftCleanup.Value()
-		if _, claimed := cleanup.Claim.Value(); known && claimed && cleanup.Stage == domain.DraftCleanupRequired {
-			out = append(out, draft.Pawn())
-		}
-	}
-	return out
-}
-
 type DraftDecision struct {
 	Admitted  bool
 	Refused   []Refusal

@@ -358,7 +358,8 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 	// An open fight (#852) keeps its settled plan: retired, it would drop
 	// out of its goal and the clock would stop admitting ticks mid-fight
 	// (#869).
-	if err = s.OpenCombatFight(ctx, "bill-plan", policy.CombatMemory{}); err != nil {
+	world := World{Colony: r.Current.Colony, Load: r.Current.Load, Map: r.Current.Map}
+	if err = s.OpenCombatFight(ctx, "bill-plan", policy.CombatMemory{}, world, []domain.PawnID{"a"}); err != nil {
 		t.Fatal(err)
 	}
 	reviewRoutine(t, s, &r)
@@ -366,6 +367,14 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 		t.Fatal("open fight's plan retired", p.Retired, err)
 	}
 	if err = s.CloseCombatFight(ctx, "bill-plan"); err != nil {
+		t.Fatal(err)
+	}
+	// A closed fight still holding a draft claim (#910) keeps it too.
+	reviewRoutine(t, s, &r)
+	if p, err = s.LoadPlan(ctx, "bill-plan"); err != nil || p.Retired {
+		t.Fatal("closed fight holding a claim retired", p.Retired, err)
+	}
+	if err = s.RecordCombatClaims(ctx, "bill-plan", nil, []domain.PawnID{"a"}); err != nil {
 		t.Fatal(err)
 	}
 	// The next review retires the settled plan.

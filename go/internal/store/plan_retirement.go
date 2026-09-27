@@ -72,14 +72,15 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if domain.GoalWorkOpen(p.Progress) {
 			continue
 		}
-		// An open fight (#852) owns its plan past the completed drafts:
-		// retiring it would hide the fight from its goal, and the clock
-		// scheduler would stop admitting ticks mid-fight (#869).
-		var fightOpen bool
-		if err = tx.QueryRowContext(ctx, "SELECT open FROM combat_fights WHERE plan_id=?", v.plan).Scan(&fightOpen); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		// A fight (#852) owns its empty plan while open or holding a
+		// draft claim (#910): retiring it would hide the fight from its
+		// goal, and the clock scheduler would stop admitting ticks
+		// mid-fight (#869).
+		held, err := combatFightHolds(ctx, tx, v.plan)
+		if err != nil {
 			return err
 		}
-		if fightOpen {
+		if held {
 			continue
 		}
 		settled := true

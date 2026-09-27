@@ -39,7 +39,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 117
+const schemaVersion = 118
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).

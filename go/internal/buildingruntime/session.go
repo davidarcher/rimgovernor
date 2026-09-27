@@ -768,7 +768,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	var drafts *draftSweep
 	if draftBoundary != nil {
-		drafts = &draftSweep{journal: journal, executor: worker, gate: make(chan struct{}, 1), timeout: config.Control.CallTimeout}
+		drafts = &draftSweep{journal: journal, executor: worker, fights: draftBoundary, gate: make(chan struct{}, 1), timeout: config.Control.CallTimeout}
 	}
 	var coordinator *ClockCoordinator
 	if config.Clock != nil {
@@ -837,6 +837,15 @@ func (s *Session) Manual(ctx context.Context) error {
 }
 func (s *Session) ManualForResume(ctx context.Context) error {
 	return s.control.ManualForResume(ctx)
+}
+
+// ReleaseClosedFights releases the draft claims of every combat fight that
+// has closed (#910); the worker runs it each step.
+func (s *Session) ReleaseClosedFights(ctx context.Context) error {
+	if s.drafts == nil {
+		return nil
+	}
+	return s.drafts.releaseClosedFights(ctx)
 }
 func (s *Session) Run(ctx context.Context, plan domain.PlanID, action domain.ActionID) (executor.Result, error) {
 	if s.journal != nil {

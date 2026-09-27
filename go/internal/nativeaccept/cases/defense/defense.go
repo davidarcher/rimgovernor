@@ -886,10 +886,9 @@ func trapIDDelta(before, after map[string]any) (sprung, rebuilt []string) {
 	return sprung, rebuilt
 }
 
-// waitDefendersReleased waits until every draft the hold plans acquired is
-// released or superseded: the recovered ActiveCombat goal no longer
-// authorizes the plan, so the worker's draft cleanup returns each defender
-// to colony work. Drafts never dispatched have nothing to release.
+// waitDefendersReleased waits until every draft claim the fights hold is
+// released (#910): the recovered ActiveCombat goal closes the fight, so
+// the worker's fight release returns each defender to colony work.
 func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.PlanID, prefix string, w na.Wait) (map[string]any, error) {
 	out := map[string]any{}
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
@@ -915,28 +914,16 @@ func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.Pla
 		drafts := map[string]string{}
 		pending := 0
 		for id := range plans {
-			state, err := s.LoadPlan(ctx, id)
+			fight, _, err := s.LoadCombatFight(ctx, id)
 			if err != nil {
 				return "", false, err
 			}
-			for _, p := range state.Progress {
-				draft, ok := p.Action().OwnedDraft()
-				if !ok {
-					continue
+			for pawn, claim := range fight.Claims {
+				if claim == "" {
+					claim = "unknown"
 				}
-				v := p.View()
-				stage := "not-dispatched"
-				if v.Attempt > 0 {
-					cleanup, known := v.DraftCleanup.Value()
-					stage = "unknown"
-					if known {
-						stage = string(cleanup.Stage)
-					}
-					if !known || cleanup.Stage != domain.DraftReleased && cleanup.Stage != domain.DraftSuperseded {
-						pending++
-					}
-				}
-				drafts[string(id)+"/"+string(draft.Pawn())] = stage
+				drafts[string(id)+"/"+string(pawn)] = claim
+				pending++
 			}
 		}
 		out["drafts"] = drafts

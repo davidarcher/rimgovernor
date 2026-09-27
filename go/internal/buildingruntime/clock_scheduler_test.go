@@ -363,7 +363,7 @@ func TestClockSchedulerCombatStopResumesOnlyUnderAFight(t *testing.T) {
 	ctx := context.Background()
 	f.emergency.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
 	plan := combatGoalPlan(t, s)
-	if err := s.player.journal.OpenCombatFight(ctx, plan, policy.CombatMemory{Tactic: policy.TacticSquad}); err != nil {
+	if err := s.player.journal.OpenCombatFight(ctx, plan, policy.CombatMemory{Tactic: policy.TacticSquad}, playerWorld(s.session.State().Snapshot), []domain.PawnID{"pawn"}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.Step(ctx)
@@ -417,7 +417,7 @@ func TestClockSchedulerOpenFightIsWork(t *testing.T) {
 	ctx := context.Background()
 	f.emergency.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
 	plan := combatGoalPlan(t, s)
-	if err := s.player.journal.OpenCombatFight(ctx, plan, policy.CombatMemory{Tactic: policy.TacticSquad}); err != nil {
+	if err := s.player.journal.OpenCombatFight(ctx, plan, policy.CombatMemory{Tactic: policy.TacticSquad}, playerWorld(s.session.State().Snapshot), []domain.PawnID{"pawn"}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.Step(ctx)
@@ -468,7 +468,7 @@ func TestClockSchedulerCombatStopReleasesDefenseWait(t *testing.T) {
 	ctx := context.Background()
 	f.emergency.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
 	plan := combatGoalPlan(t, s)
-	if err := s.player.journal.OpenCombatFight(ctx, plan, policy.CombatMemory{Tactic: policy.TacticSquad}); err != nil {
+	if err := s.player.journal.OpenCombatFight(ctx, plan, policy.CombatMemory{Tactic: policy.TacticSquad}, playerWorld(s.session.State().Snapshot), []domain.PawnID{"pawn"}); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := s.Step(ctx); err != nil || !got.Combat {

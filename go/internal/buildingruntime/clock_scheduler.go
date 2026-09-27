@@ -1982,7 +1982,7 @@ func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current
 	if !review.Enabled || review.Snapshot != current {
 		return false, false, nil
 	}
-	fights, err := journal.OpenCombatFights(ctx)
+	fights, err := journal.HeldCombatFights(ctx)
 	if err != nil {
 		return false, false, err
 	}
@@ -2001,10 +2001,11 @@ func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current
 			return false, false, nil
 		}
 		for _, method := range goal.Methods {
-			// An open fight (#852) owns the combat after its drafts
-			// complete: its orders go out at each stop, not as plan work.
-			if fights[method.Plan] {
-				return true, true, nil
+			// A fight (#852) owns the combat: its orders go out at each
+			// stop, not as plan work. Closed, it holds the goal until its
+			// claims are released (#910), with no stops armed.
+			if fight, ok := fights[method.Plan]; ok {
+				return true, fight.Open, nil
 			}
 			plan, err := journal.LoadPlan(ctx, method.Plan)
 			if err != nil {

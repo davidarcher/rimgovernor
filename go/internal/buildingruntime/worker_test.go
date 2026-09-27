@@ -619,6 +619,8 @@ func TestWorkerIdentityLossImmediatelyDisablesDispatch(t *testing.T) {
 	}
 }
 
+func (f *workerFake) ReleaseClosedFights(context.Context) error { return nil }
+
 func (f *workerFake) CleanupDraft(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
 	f.cleanups.Add(1)
 	if f.cleanup != nil {

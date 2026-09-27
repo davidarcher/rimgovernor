@@ -66,7 +66,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !workerEligible(state, state.Progress[1].View(), s.State(), playerWorld(snapshot)) || workerCleanupEligible(state, state.Progress[0].View(), s.State(), playerWorld(snapshot), false) {
+	if !workerEligible(state, state.Progress[1].View(), s.State(), playerWorld(snapshot)) || workerCleanupEligible(state, state.Progress[0].View(), s.State(), playerWorld(snapshot)) {
 		t.Fatal("pending melee did not retain draft")
 	}
 	r, err := s.Run(ctx, plan.ID(), dispatch.Action.ID())
@@ -80,7 +80,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 		t.Fatal(err)
 	}
 	world := playerWorld(snapshot)
-	if !workerPlanHoldsDraft(state, state.Progress[0].View()) || workerCleanupEligible(state, state.Progress[0].View(), s.State(), world, false) {
+	if !workerPlanHoldsDraft(state, state.Progress[0].View()) || workerCleanupEligible(state, state.Progress[0].View(), s.State(), world) {
 		t.Fatal("completed subdue released its draft")
 	}
 	if err = s.drafts.run(ctx, true); err != nil || f.Releases != 0 {
@@ -177,7 +177,7 @@ func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
 	if err = s.Disable(); err != nil {
 		t.Fatal(err)
 	}
-	if held := s.State(); held.Enabled || workerCleanupEligible(state, state.Progress[0].View(), held, world, false) {
+	if held := s.State(); held.Enabled || workerCleanupEligible(state, state.Progress[0].View(), held, world) {
 		t.Fatal("hold released the held draft", held)
 	}
 	// The resume's drain keeps it too, and the pending order is eligible
@@ -191,14 +191,14 @@ func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
 	}
 	scope := s.State()
 	scope.Snapshot = resumed
-	if workerCleanupEligible(state, state.Progress[0].View(), scope, world, false) || !workerEligible(state, state.Progress[1].View(), scope, world) {
+	if workerCleanupEligible(state, state.Progress[0].View(), scope, world) || !workerEligible(state, state.Progress[1].View(), scope, world) {
 		t.Fatal("resumed scope does not carry the held draft", scope)
 	}
 	// Only a plan that still holds it: a cancelled sibling makes it cleanup.
 	if _, err = journal.Cancel(ctx, plan.ID(), dispatch.Action.ID()); err != nil {
 		t.Fatal(err)
 	}
-	if cancelled, err := journal.LoadPlan(ctx, plan.ID()); err != nil || !workerCleanupEligible(cancelled, cancelled.Progress[0].View(), scope, world, false) {
+	if cancelled, err := journal.LoadPlan(ctx, plan.ID()); err != nil || !workerCleanupEligible(cancelled, cancelled.Progress[0].View(), scope, world) {
 		t.Fatal("cancelled plan retained draft", err)
 	}
 	if err = s.Manual(ctx); err != nil {
@@ -223,13 +223,7 @@ func TestOpenFightDraftsSurviveTheResumeDrain(t *testing.T) {
 	}
 	defer journal.Close()
 	_, f, dispatch := melee.NewFixture(t)
-	id, err := journal.Identity(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pawnDraft, _ := domain.NewOwnedDraft("pawn")
-	d, _ := domain.NewOwnedDraftAction("action", pawnDraft)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{d})
+	plan, err := domain.NewPlan("plan", 1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,17 +241,12 @@ func TestOpenFightDraftsSurviveTheResumeDrain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = journal.PrepareDraft(ctx, plan.ID(), d.ID(), store.DraftAdmission{Snapshot: snapshot, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}); err != nil {
+	// The fight's admission batch drafted the pawn under "claim" (#910).
+	world := store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
+	if err = journal.OpenCombatFight(ctx, plan.ID(), policy.CombatMemory{}, world, []domain.PawnID{"pawn"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = journal.Dispatch(ctx, plan.ID(), d.ID(), snapshot, 10); err != nil {
-		t.Fatal(err)
-	}
-	claim := domain.DraftClaim{Action: d.ID(), Attempt: 1, Pawn: "pawn", Claim: "claim", Session: domain.ControllerSessionID(id), Origin: snapshot}
-	if _, err = journal.ObserveDraft(ctx, plan.ID(), domain.Observation{Action: d.ID(), Attempt: 1, Snapshot: snapshot, Tick: 10, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, snapshot, domain.Known(claim)); err != nil {
-		t.Fatal(err)
-	}
-	if err = journal.OpenCombatFight(ctx, plan.ID(), policy.CombatMemory{}); err != nil {
+	if err = journal.RecordCombatClaims(ctx, plan.ID(), map[domain.PawnID]string{"pawn": "claim"}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.Disable(); err != nil {
@@ -269,12 +258,19 @@ func TestOpenFightDraftsSurviveTheResumeDrain(t *testing.T) {
 	if f.Releases != 0 {
 		t.Fatal("resume released the open fight's draft", f.Releases)
 	}
-	state, err := journal.LoadPlan(ctx, plan.ID())
-	if err != nil || !domain.GoalWorkOpen(state.Progress) || len(policy.CombatOrderable(state.Progress)) != 1 {
-		t.Fatal("the fight lost its draft", err)
+	if fight, _, err := journal.LoadCombatFight(ctx, plan.ID()); err != nil || fight.Claims["pawn"] != "claim" {
+		t.Fatal("the fight lost its draft", fight, err)
+	}
+	// The worker's per-step release keeps an open fight's claims and
+	// releases a closed one's (#910).
+	if err = s.ReleaseClosedFights(ctx); err != nil || f.Releases != 0 {
+		t.Fatal("the worker released an open fight's draft", f.Releases, err)
 	}
 	if err = journal.CloseCombatFight(ctx, plan.ID()); err != nil {
 		t.Fatal(err)
+	}
+	if err = s.ReleaseClosedFights(ctx); err != nil || f.Releases != 1 {
+		t.Fatal("the worker kept a closed fight's draft", f.Releases, err)
 	}
 	if err = s.Disable(); err != nil {
 		t.Fatal(err)
@@ -282,8 +278,8 @@ func TestOpenFightDraftsSurviveTheResumeDrain(t *testing.T) {
 	if _, err = s.Acquire(ctx, dispatch.Snapshot); err != nil {
 		t.Fatal(err)
 	}
-	if f.Releases != 1 {
-		t.Fatal("resume kept a closed fight's draft", f.Releases)
+	if fight, _, err := journal.LoadCombatFight(ctx, plan.ID()); err != nil || f.Releases != 1 || f.LastRelease.GetExpectedClaimId() != "claim" || fight.Holds() {
+		t.Fatal("resume kept a closed fight's draft", f.Releases, fight, err)
 	}
 }
 
@@ -299,13 +295,7 @@ func TestResumeManualKeepsAnOpenFightsDrafts(t *testing.T) {
 	}
 	defer journal.Close()
 	_, f, dispatch := melee.NewFixture(t)
-	id, err := journal.Identity(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pawnDraft, _ := domain.NewOwnedDraft("pawn")
-	d, _ := domain.NewOwnedDraftAction("action", pawnDraft)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{d})
+	plan, err := domain.NewPlan("plan", 1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,17 +313,12 @@ func TestResumeManualKeepsAnOpenFightsDrafts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = journal.PrepareDraft(ctx, plan.ID(), d.ID(), store.DraftAdmission{Snapshot: snapshot, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}); err != nil {
+	// The fight's admission batch drafted the pawn under "claim" (#910).
+	world := store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
+	if err = journal.OpenCombatFight(ctx, plan.ID(), policy.CombatMemory{}, world, []domain.PawnID{"pawn"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = journal.Dispatch(ctx, plan.ID(), d.ID(), snapshot, 10); err != nil {
-		t.Fatal(err)
-	}
-	claim := domain.DraftClaim{Action: d.ID(), Attempt: 1, Pawn: "pawn", Claim: "claim", Session: domain.ControllerSessionID(id), Origin: snapshot}
-	if _, err = journal.ObserveDraft(ctx, plan.ID(), domain.Observation{Action: d.ID(), Attempt: 1, Snapshot: snapshot, Tick: 10, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, snapshot, domain.Known(claim)); err != nil {
-		t.Fatal(err)
-	}
-	if err = journal.OpenCombatFight(ctx, plan.ID(), policy.CombatMemory{}); err != nil {
+	if err = journal.RecordCombatClaims(ctx, plan.ID(), map[domain.PawnID]string{"pawn": "claim"}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.ManualForResume(ctx); err != nil {
@@ -345,9 +330,8 @@ func TestResumeManualKeepsAnOpenFightsDrafts(t *testing.T) {
 	if _, err = s.Acquire(ctx, dispatch.Snapshot); err != nil {
 		t.Fatal(err)
 	}
-	state, err := journal.LoadPlan(ctx, plan.ID())
-	if err != nil || f.Releases != 0 || len(policy.CombatOrderable(state.Progress)) != 1 {
-		t.Fatal("the fight lost its draft across the resume", f.Releases, err)
+	if fight, _, err := journal.LoadCombatFight(ctx, plan.ID()); err != nil || f.Releases != 0 || fight.Claims["pawn"] != "claim" {
+		t.Fatal("the fight lost its draft across the resume", f.Releases, fight, err)
 	}
 	if err = journal.CloseCombatFight(ctx, plan.ID()); err != nil {
 		t.Fatal(err)
@@ -355,8 +339,8 @@ func TestResumeManualKeepsAnOpenFightsDrafts(t *testing.T) {
 	if err = s.ManualForResume(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if f.Releases != 1 {
-		t.Fatal("the resume kept a closed fight's draft", f.Releases)
+	if fight, _, err := journal.LoadCombatFight(ctx, plan.ID()); err != nil || f.Releases != 1 || fight.Holds() {
+		t.Fatal("the resume kept a closed fight's draft", f.Releases, fight, err)
 	}
 }
 

@@ -146,7 +146,8 @@ message Uninstall { EntityPrecondition target = 1; }
 // one native call, so on one game tick. Each pawn's snapshot token is checked
 // once, before any order runs; a pawn may carry several orders (fire mode
 // then move). A pawn needs an eligible drafted state under an existing
-// native draft claim. A door order names no pawn. Per-order refusals come
+// native draft claim, which a draft order earlier in the batch may create.
+// A door order names no pawn. Per-order refusals come
 // back in CombatOrdersEffect; only a malformed batch or missing authority
 // fails the whole call.
 enum CombatFireMode { COMBAT_FIRE_MODE_UNSPECIFIED = 0; COMBAT_FIRE_MODE_AT_WILL = 1; COMBAT_FIRE_MODE_HOLD = 2; }
@@ -179,6 +180,13 @@ message CombatOrder {
     Clear stop = 8;
     CombatRescue rescue = 9;
     CombatRepair repair = 10;
+    // Draft (#910): claim a pawn nobody claims, as SetDrafted does: an
+    // eligible undrafted pawn is drafted under a fresh native claim, a
+    // drafted unclaimed one adopted. The result carries the claim id, which
+    // the controller releases with ReleaseOwnedDraft. Refusals:
+    // cannot_draft (not eligible, or the claim could not be certified),
+    // draft_ownership (another claim holds it).
+    Clear draft = 11;
   }
 }
 message CombatOrders { repeated CombatOrder orders = 1; }

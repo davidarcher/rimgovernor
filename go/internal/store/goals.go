@@ -200,6 +200,12 @@ func goalOpenWork(ctx context.Context, tx *sql.Tx, state GoalState) (bool, error
 			return false, err
 		}
 		open = open || domain.GoalWorkOpen(p.Progress)
+		if !open {
+			// A fight's drafts are its open work (#910).
+			if open, err = combatFightHolds(ctx, tx, m.Plan); err != nil {
+				return false, err
+			}
+		}
 	}
 	return open, nil
 }
