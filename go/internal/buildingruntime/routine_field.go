@@ -111,6 +111,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	projection := read.Projection
+	recordStepRead("field", policy.EnsureFoodSupply, state.Snapshot, projection)
 	if result, handled, err := r.fishing(call, epoch, state, goal, read); err != nil || handled {
 		return result, err
 	}

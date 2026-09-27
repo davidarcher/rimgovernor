@@ -307,6 +307,17 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	// admitted in this batch) whose facing edge, one pitch away along either
 	// axis or across a half module's divider row, is fully zoned: a full
 	// co-linear shared edge (#608). Touching is not enough on the grid.
+	partnerAt := func(c domain.Cell) string {
+		if taken[c] {
+			return "plan"
+		}
+		if s, ok := census[c]; ok {
+			if zone, known := s.ZoneID.Value(); known && compatible[zone] {
+				return zone
+			}
+		}
+		return ""
+	}
 	rowPartner := func(patch Rectangle) string {
 		shifts := []domain.Cell{{X: grid.Pitch}, {X: -grid.Pitch}, {Z: grid.Pitch}, {Z: -grid.Pitch}}
 		if patch.Height == ColonyGridSubCell {
@@ -330,19 +341,23 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 			}
 			partner := ""
 			for _, c := range rectCells(edge) {
-				id := ""
-				if taken[c] {
-					id = "plan"
-				} else if s, ok := census[c]; ok {
-					if zone, known := s.ZoneID.Value(); known && compatible[zone] {
-						id = zone
-					}
-				}
+				id := partnerAt(c)
 				if id == "" || partner != "" && partner != id {
 					partner = ""
 					break
 				}
 				partner = id
+			}
+			// A full co-linear edge ends where the patch's does: a partner
+			// running past either end is a larger field, not a row mate.
+			ends := []domain.Cell{{X: edge.X - 1, Z: edge.Z}, {X: edge.X + edge.Width, Z: edge.Z}}
+			if shift.X != 0 {
+				ends = []domain.Cell{{X: edge.X, Z: edge.Z - 1}, {X: edge.X, Z: edge.Z + edge.Height}}
+			}
+			for _, c := range ends {
+				if partner != "" && partnerAt(c) == partner {
+					partner = ""
+				}
 			}
 			if partner != "" && (best == "" || partner < best) {
 				best = partner
@@ -499,7 +514,21 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		return order(out)
 	}
 	plan := FarmSitePlan{Target: target}
-	pick := func(pool []FarmSiteCandidate) {
+	// paired reports a same-size clear candidate one pitch away in pool.
+	paired := func(pool []FarmSiteCandidate, p Rectangle) bool {
+		for _, q := range pool {
+			dx, dz := q.Patch.X-p.X, q.Patch.Z-p.Z
+			if q.Patch.Width != p.Width || q.Patch.Height != p.Height || !(dz == 0 && (dx == grid.Pitch || dx == -grid.Pitch) || dx == 0 && (dz == grid.Pitch || dz == -grid.Pitch)) {
+				continue
+			}
+			if _, _, clear := contiguityTerms(q.Patch); clear {
+				return true
+			}
+		}
+		return false
+	}
+	pick := func(pool []FarmSiteCandidate, ladder bool) {
+		ladder = ladder && aligned
 		for len(pool) > 0 {
 			if plan.Cells >= target || len(plan.Patches) >= farmSitePatchLimit {
 				return
@@ -524,6 +553,18 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 					candidate.Score += term.Value
 				}
 				candidate.Density = candidate.Score / float64(candidate.Patch.Width*candidate.Patch.Height)
+				// On the grid ladder a row partner always beats a new row,
+				// and a new row starts only where its partner can follow
+				// (#982).
+				if ladder && adjacent == "" && !paired(pool, candidate.Patch) {
+					continue
+				}
+				if ladder && best >= 0 && (adjacent != "") != (pool[best].Adjacent != "") {
+					if adjacent != "" {
+						best = i
+					}
+					continue
+				}
 				if best < 0 || pool[i].Density > pool[best].Density {
 					best = i
 				}
@@ -548,22 +589,22 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		if target < FieldModuleCellCount {
 			plan.Module.Height = ColonyGridSubCell
 		} else {
-			pick(moduleCandidates(false))
+			pick(moduleCandidates(false), false)
 		}
 		if plan.Cells < target {
-			pick(moduleCandidates(true))
+			pick(moduleCandidates(true), false)
 		}
 	}
 	// Fallback is the size ladder on the grid, or lone cells off it.
 	before := len(plan.Patches)
 	if plan.Cells < target {
-		pick(candidates([]int32{4, 3, 2}))
+		pick(candidates([]int32{4, 3, 2}), true)
 	}
 	if !aligned {
 		before = len(plan.Patches)
 	}
 	if plan.Cells < target {
-		pick(candidates([]int32{1}))
+		pick(candidates([]int32{1}), false)
 	}
 	plan.Fallback = len(plan.Patches) > before
 	plan.Unplanted = max(0, target-plan.Cells)

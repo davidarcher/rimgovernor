@@ -348,3 +348,37 @@ func TestFarmSiteNeverPlantsAnAisle(t *testing.T) {
 		}
 	}
 }
+
+// TestFarmSiteLadderSecondFieldIsARowPartner is #982's layout/grid failure:
+// the ladder engaged and the second field was a smaller patch in the same
+// module, sharing no full co-linear edge with the first. A new row starts
+// only where a same-size partner one pitch away can follow.
+func TestFarmSiteLadderSecondFieldIsARowPartner(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		poor func(domain.Cell) bool
+	}{
+		{"poor cell in every half", func(c domain.Cell) bool { return (c.X == 8 || c.X == 24 || c.X == 40) && (c.Z == 5 || c.Z == 11) }},
+		// The west corner patch's pitch neighbour holds a poor cell.
+		{"west corner unpaired", func(c domain.Cell) bool {
+			return (c.X == 8 || c.X == 24 || c.X == 40) && (c.Z == 5 || c.Z == 11) || c.X == 20 && c.Z == 4
+		}},
+	} {
+		r := moduleFarmFixture(50, 20, 20)
+		grid, _ := r.Grid.Value()
+		for i := range r.Cells {
+			if tc.poor(r.Cells[i].Cell) {
+				r.Cells[i].Fertility = domain.Known(0.5)
+			}
+		}
+		plan := PlanFarmSites(r)
+		if !plan.Fallback || len(plan.Patches) < 2 {
+			t.Fatal(tc.name, plan.Explain())
+		}
+		a, b := plan.Patches[0], plan.Patches[1]
+		dx, dz := b.X-a.X, b.Z-a.Z
+		if a.Width != b.Width || a.Height != b.Height || !(dz == 0 && (dx == grid.Pitch || dx == -grid.Pitch) || dx == 0 && (dz == grid.Pitch || dz == -grid.Pitch)) {
+			t.Fatal(tc.name, ": second field", b, "is not a row partner of", a, plan.Explain())
+		}
+	}
+}
