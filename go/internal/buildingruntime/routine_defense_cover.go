@@ -52,13 +52,18 @@ func defenseCoverAttempts(history []domain.GoalMethod, tick domain.Tick) int {
 
 // defenseRecordLayout rebuilds the accepted geometry the approaches keep
 // protected: lanes, firing cells and every tier's placements and reserved
-// cells. A firing position's cover and retreat cells are tier placements
-// or reserved cells, so the firing cell alone stands for the position.
+// cells. A firing position's cover cell is a tier placement, so the firing
+// cell stands for it; its retreat cell is the recorded inner line (#860),
+// the firing cell on a record that predates it.
 func defenseRecordLayout(record store.DefenseLayoutRecord) (policy.DefenseLayout, error) {
 	l := policy.DefenseLayout{Chokepoint: record.Chokepoint, Toward: record.Toward, Width: record.Width, Entry: record.Entry,
 		TrapLane: append([]domain.Cell{}, record.TrapLane...), SafeLane: append([]domain.Cell{}, record.SafeLane...)}
-	for _, cell := range record.Firing {
-		l.Firing = append(l.Firing, policy.FiringPosition{Cell: cell, Cover: cell, Retreat: cell})
+	for i, cell := range record.Firing {
+		retreat := cell
+		if len(record.Retreat) == len(record.Firing) {
+			retreat = record.Retreat[i]
+		}
+		l.Firing = append(l.Firing, policy.FiringPosition{Cell: cell, Cover: cell, Retreat: retreat})
 	}
 	for _, tier := range record.Tiers {
 		t := policy.DefenseTier{Name: tier.Name, Reserved: append([]domain.Cell{}, tier.Reserved...)}

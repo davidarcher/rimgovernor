@@ -267,7 +267,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	tick := domain.Tick(emergency.Context.GetTick())
 	view := policy.CombatView{Tick: tick, Pawns: combatPawnStates(combat, rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable}
 	if ok && layout.Complete {
-		view.Layout = domain.Known(policy.CombatLayout{Firing: layout.Firing, Toward: layout.Toward})
+		view.Layout = domain.Known(policy.CombatLayout{Firing: layout.Firing, Retreat: layout.Retreat, Toward: layout.Toward})
 	}
 	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)

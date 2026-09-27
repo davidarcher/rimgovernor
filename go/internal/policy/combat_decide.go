@@ -29,7 +29,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// A downed or dead defender keeps no role; its rescue is the rescue
 	// planner's (#867), not an order here.
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
-	if reform(view, stop, next) {
+	if !fallBack(view, stop, &next) && reform(view, stop, next) {
 		if !geometry.Answered {
 			// Formation asks the game for its candidate cells by role in the
 			// stop's one geometry round trip.
@@ -90,7 +90,10 @@ type CombatPawnState struct {
 // CombatLayout is the stored, complete defense layout's line.
 type CombatLayout struct {
 	Firing []domain.Cell
-	Toward domain.Rotation
+	// Retreat is the inner line (#860): Retreat[i] is Firing[i]'s fall-back
+	// cell, one step further toward Home. Empty on a record that predates it.
+	Retreat []domain.Cell
+	Toward  domain.Rotation
 }
 
 // CombatView is the fight at one stop. Defenders, Threats and Positional
@@ -170,6 +173,8 @@ type CombatRole struct {
 	Target  domain.PawnID
 	Ranged  bool
 	Blocker bool `json:",omitempty"`
+	// Retreat marks a role pulled back to its inner-line cell (#860).
+	Retreat bool `json:",omitempty"`
 }
 
 // CombatOrderKind is the combat.orders order an order becomes.
@@ -264,7 +269,11 @@ func (m CombatMemory) doing(want CombatOrder, s CombatPawnState) bool {
 func (r CombatRole) want(s CombatPawnState) (CombatOrder, bool) {
 	if r.Cell != nil {
 		if at, known := s.Cell.Value(); !known || at != *r.Cell {
-			return CombatOrder{Pawn: r.Pawn, Kind: OrderMove, Cell: *r.Cell, Reason: ReasonFormation}, true
+			reason := ReasonFormation
+			if r.Retreat {
+				reason = ReasonRetreat
+			}
+			return CombatOrder{Pawn: r.Pawn, Kind: OrderMove, Cell: *r.Cell, Reason: reason}, true
 		}
 	}
 	if r.Target == "" {
@@ -291,7 +300,7 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 	switch m.Tactic {
 	case TacticHold:
 		layout, ok := view.Layout.Value()
-		return !ok || HoldCompromised(layout.Firing, layout.Toward, view.Positional)
+		return !ok || HoldCompromised(holdLine(layout, m), layout.Toward, view.Positional)
 	case TacticSquad:
 		down := map[domain.PawnID]bool{}
 		for _, t := range view.Threats {
