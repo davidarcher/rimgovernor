@@ -85,12 +85,24 @@ namespace HomeBridge.BridgeTools
             var workers = people.Where(p => !p.Downed && !p.InMentalState && !p.Drafted).ToList();
             var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
             var things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
-            Func<Thing, bool> reachable = t => workers.Any(p =>
-                (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])
-                && p.CanReach(t, PathEndMode.Touch, Danger.None));
-            Func<ThingDef, bool> humanFood = d => d != null && d.IsNutritionGivingIngestible && !d.IsDrug
-                && d.ingestible != null && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
-                && people.All(p => p.WillEat(d));
+            // One read asks the same thing or def many times (items, beds,
+            // benches, forbidden supplies, loot); each answer is fixed for
+            // the read, so it is computed once (#878).
+            var reach = new Dictionary<Thing, bool>();
+            Func<Thing, bool> reachable = t => {
+                if (reach.TryGetValue(t, out var known)) return known;
+                return reach[t] = workers.Any(p =>
+                    (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])
+                    && p.CanReach(t, PathEndMode.Touch, Danger.None));
+            };
+            var edible = new Dictionary<ThingDef, bool>();
+            Func<ThingDef, bool> humanFood = d => {
+                if (d == null) return false;
+                if (edible.TryGetValue(d, out var known)) return known;
+                return edible[d] = d.IsNutritionGivingIngestible && !d.IsDrug
+                    && d.ingestible != null && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
+                    && people.All(p => p.WillEat(d));
+            };
             var items = things.Where(t => t.def.category == ThingCategory.Item && (t.Faction == null || t.Faction.IsPlayer)
                 && !t.IsForbidden(player) && reachable(t)).ToList();
             var stock = items.GroupBy(t => t.def).OrderBy(g => g.Key.defName, StringComparer.Ordinal).ToList();
