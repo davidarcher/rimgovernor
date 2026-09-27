@@ -72,25 +72,25 @@ func TestFilteredStockpileZoneRoleRoundTrips(t *testing.T) {
 }
 
 func TestZoneCellEditAndStockpilePatchActions(t *testing.T) {
-	e, err := NewZoneCellEdit("Zone_1", "tok", RemoveZoneCells, []Cell{{X: 3, Z: 1}, {X: 1, Z: 1}})
+	e, err := NewZoneCellEdit("Zone_1", RemoveZoneCells, []Cell{{X: 3, Z: 1}, {X: 1, Z: 1}})
 	if err != nil || e.Cells()[0] != (Cell{X: 1, Z: 1}) {
 		t.Fatal(e, err)
 	}
-	if _, err := NewZoneCellEdit("Zone_1", "tok", "grow", []Cell{{X: 1}}); err == nil {
+	if _, err := NewZoneCellEdit("Zone_1", "grow", []Cell{{X: 1}}); err == nil {
 		t.Fatal("accepted unknown mode")
 	}
-	if _, err := NewZoneCellEdit("Zone_1", "tok", AddZoneCells, []Cell{{X: 1}, {X: 1}}); err == nil {
+	if _, err := NewZoneCellEdit("Zone_1", AddZoneCells, []Cell{{X: 1}, {X: 1}}); err == nil {
 		t.Fatal("accepted duplicate cell")
 	}
 	ea, err := NewZoneCellEditAction("e", e)
 	if got, ok := ea.ZoneCellEdit(); err != nil || !ok || got != e || ea.Kind() != ZoneCellEditAction {
 		t.Fatal(ea, err)
 	}
-	p, err := NewStockpilePatch(StorageBuildingTarget, "Shelf1", "tok", GeneralFilter(), CriticalPriority, "shelf:Shelf1")
+	p, err := NewStockpilePatch(StorageBuildingTarget, "Shelf1", GeneralFilter(), CriticalPriority, "shelf:Shelf1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := NewStockpilePatch("thing", "Shelf1", "tok", GeneralFilter(), CriticalPriority, ""); err == nil {
+	if _, err := NewStockpilePatch("thing", "Shelf1", GeneralFilter(), CriticalPriority, ""); err == nil {
 		t.Fatal("accepted unknown target kind")
 	}
 	pa, err := NewStockpilePatchAction("p", p)

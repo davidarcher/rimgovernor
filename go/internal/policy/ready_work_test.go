@@ -26,7 +26,7 @@ func readyBuilding(t *testing.T, id domain.ActionID, def string, x int32) domain
 
 func readyBill(t *testing.T, id domain.ActionID) domain.Action {
 	t.Helper()
-	b, err := domain.NewProductionBill("bench1", "Make_Kibble", "token", domain.FoodTarget, 20)
+	b, err := domain.NewProductionBill("bench1", "Make_Kibble", domain.FoodTarget, 20)
 	if err != nil {
 		t.Fatal(err)
 	}

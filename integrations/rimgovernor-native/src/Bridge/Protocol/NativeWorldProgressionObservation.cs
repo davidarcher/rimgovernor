@@ -158,8 +158,8 @@ namespace HomeBridge.BridgeTools
         // typically remains on the quest (removing it is the responsibility
         // of whatever quest-script listener chain reacts to the settlement's
         // fulfillment signal, which a minimal quest need not carry), so
-        // reporting on the part's mere presence would keep HasTradeRequest
-        // (world_progression.go) true forever after a real fulfillment.
+        // reporting on the part's mere presence would keep the objective
+        // live forever after a real fulfillment.
         private static List<Obs.QuestTradeRequest> TradeRequests(Quest quest)
         {
             var rows = new List<Obs.QuestTradeRequest>();

@@ -78,7 +78,7 @@ func TestStockpileSettingsCarriesRanges(t *testing.T) {
 // The zone and stockpile intents put the same ProtoJSON on the wire the
 // zone/delete acceptance case sends by hand; no CAS token is sent.
 func TestZoneIntentActions(t *testing.T) {
-	edit, _ := domain.NewZoneCellEdit("Zone_7", "tok", domain.RemoveZoneCells, []domain.Cell{{X: 2, Z: 3}})
+	edit, _ := domain.NewZoneCellEdit("Zone_7", domain.RemoveZoneCells, []domain.Cell{{X: 2, Z: 3}})
 	ea, _ := domain.NewZoneCellEditAction("e", edit)
 	got, err := IntentAction("k", ea)
 	if err != nil {
@@ -88,7 +88,7 @@ func TestZoneIntentActions(t *testing.T) {
 	if s := compactJSON(t, got); s != want {
 		t.Fatal(s)
 	}
-	patch, _ := domain.NewStockpilePatch(domain.StorageBuildingTarget, "Shelf_1", "tok", domain.GeneralFilter(), domain.CriticalPriority, "shelf:Shelf_1")
+	patch, _ := domain.NewStockpilePatch(domain.StorageBuildingTarget, "Shelf_1", domain.GeneralFilter(), domain.CriticalPriority, "shelf:Shelf_1")
 	pa, _ := domain.NewStockpilePatchAction("p", patch)
 	if got, err = IntentAction("k", pa); err != nil {
 		t.Fatal(err)
@@ -97,7 +97,7 @@ func TestZoneIntentActions(t *testing.T) {
 	if s := compactJSON(t, got); s != want {
 		t.Fatal(s)
 	}
-	del, _ := domain.NewZoneDelete("Zone_7", "tok")
+	del, _ := domain.NewZoneDelete("Zone_7")
 	da, _ := domain.NewZoneDeleteAction("d", del)
 	if got, err = IntentAction("k", da); err != nil || compactJSON(t, got) != `{"key":"k","deleteZone":{"zoneId":"Zone_7"}}` {
 		t.Fatal(got, err)

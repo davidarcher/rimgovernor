@@ -84,7 +84,7 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	// The equipment goal ranks for a development slot like any other
 	// optional need (#233): with the slot it admits the gear family's
 	// replacement bill on a standing bench.
-	bill, err := domain.NewProductionBill("bench", "Make_Apparel_BasicShirt", "bench-cas", domain.StockTarget, 1)
+	bill, err := domain.NewProductionBill("bench", "Make_Apparel_BasicShirt", domain.StockTarget, 1)
 	if err != nil {
 		t.Fatal(err)
 	}

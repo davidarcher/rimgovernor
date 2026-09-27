@@ -8,22 +8,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ZoneDeleteTarget refreshes one exact zone's presence and per-zone CAS
-// token (#611), the scoped-refresh shape ClaimBuildingTarget uses, through
-// the zone listing filtered to the one id. Present is false once the zone
+// ZoneDeleteTarget refreshes one exact zone's presence (#611) through the zone
+// listing filtered to the one id. Present is false once the zone
 // is gone from the census, which is what a completed deletion looks like.
 type ZoneDeleteTarget struct {
 	Context *c.ObservationContext
 	Zone    string
 	Present bool
-	Token   string
 	Type    string
 	// Planted counts a growing zone's crop plants (the census farm facts).
 	Planted uint32
 }
 
-// ReadZoneDeleteTarget observes one exact zone's presence and CAS token
-// via the zone listing; an absent zone reads back as not present rather
+// ReadZoneDeleteTarget observes one exact zone's presence via the zone
+// listing; an absent zone reads back as not present rather
 // than as an error, so a deletion's observer can tell success from a
 // stale read.
 func (client *Client) ReadZoneDeleteTarget(ctx context.Context, identity *c.Identity, zone string) (ZoneDeleteTarget, Result, error) {
@@ -66,7 +64,7 @@ func (client *Client) ReadZoneDeleteTarget(ctx context.Context, identity *c.Iden
 	if row.GetId() != zone {
 		return ZoneDeleteTarget{}, raw, contract("zone delete target identity mismatch")
 	}
-	out.Present, out.Token, out.Type = true, row.Snapshot.GetToken(), row.GetType()
+	out.Present, out.Type = true, row.GetType()
 	if row.Farm != nil {
 		out.Planted = row.Farm.GetPlantedCells()
 	}

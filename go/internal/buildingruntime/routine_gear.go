@@ -379,7 +379,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 			return RoutineGearResult{}, err
 		}
 	case policy.GearProduce:
-		token, ok := tokens[choice.Bench]
+		_, ok := tokens[choice.Bench]
 		if !ok {
 			return RoutineGearResult{}, fmt.Errorf("%w: stepOne: !ok", ErrControl)
 		}
@@ -388,7 +388,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		for i, resource := range choice.Filter {
 			ingredients[i] = string(resource)
 		}
-		bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.GearBatch, choice.Count, ingredients...)
+		bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, domain.GearBatch, choice.Count, ingredients...)
 		if err != nil {
 			return RoutineGearResult{}, err
 		}

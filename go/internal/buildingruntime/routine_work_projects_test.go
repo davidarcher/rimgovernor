@@ -103,7 +103,7 @@ func TestRoutineProjectSkillRequirementsUseMaximumAndPreserveUnknown(t *testing.
 func TestRoutineBillWorkResolvesBenchWorkTypeAndMergesWithConstruction(t *testing.T) {
 	t.Parallel()
 	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "selected", Revision: 1, Native: 1}
-	bill, err := domain.NewProductionBill("spot", "Make_MeleeWeapon_Club", "token", domain.StockTarget, 3)
+	bill, err := domain.NewProductionBill("spot", "Make_MeleeWeapon_Club", domain.StockTarget, 3)
 	if err != nil {
 		t.Fatal(err)
 	}

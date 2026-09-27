@@ -244,7 +244,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if choice.Kind != policy.MedicineProduce {
 		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
 	}
-	token, ok := tokens[choice.Bench]
+	_, ok := tokens[choice.Bench]
 	if !ok {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 	}
@@ -256,7 +256,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if int64(target) != choice.Target {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: int64(target) != choice.Target", ErrControl)
 	}
-	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, target)
+	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, domain.StockTarget, target)
 	if err != nil {
 		return RoutineMedicalResult{}, err
 	}

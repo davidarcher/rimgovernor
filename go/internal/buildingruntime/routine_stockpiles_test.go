@@ -108,7 +108,7 @@ func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
 		{policy.StockpileEdit{Kind: policy.StockpileDelete, Zone: "Zone_1"}, domain.ZoneDeleteAction},
 		{policy.StockpileEdit{Kind: policy.StockpileMerge, Zone: "Zone_1", Into: "Zone_2"}, domain.ZoneDeleteAction},
 	} {
-		a, err := stockpileEditAction("a-0", tc.edit, "tok")
+		a, err := stockpileEditAction("a-0", tc.edit)
 		if err != nil || a.Kind() != tc.kind {
 			t.Fatalf("%s: %v %v", tc.edit.Kind, a.Kind(), err)
 		}
@@ -117,7 +117,7 @@ func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
 			if tc.edit.Kind == policy.StockpileShrink {
 				want = domain.RemoveZoneCells
 			}
-			if e.Mode() != want || e.BeforeToken() != "tok" {
+			if e.Mode() != want {
 				t.Fatalf("edit %+v", e)
 			}
 		}
@@ -125,7 +125,7 @@ func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
 		if tc.edit.Kind == policy.StockpileShelfPatch {
 			want = domain.StorageBuildingTarget
 		}
-		if p, ok := a.StockpilePatch(); ok && (p.Role() != "kitchen" || p.TargetKind() != want || p.Target() != tc.edit.Zone || p.BeforeToken() != "tok") {
+		if p, ok := a.StockpilePatch(); ok && (p.Role() != "kitchen" || p.TargetKind() != want || p.Target() != tc.edit.Zone) {
 			t.Fatalf("patch %+v", p)
 		}
 	}

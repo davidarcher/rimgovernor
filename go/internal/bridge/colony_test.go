@@ -43,7 +43,7 @@ func TestColonyFixedReadOwnsSelectionAndPreservesOptionalFacts(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 			t.Fatal(err)
 		}
-		if !q.GetPlanning() || len(q.RequestedDefinitionNames) != 0 {
+		if !q.GetPlanning() {
 			t.Fatal(q)
 		}
 		id.LoadToken = proto.String("changed")

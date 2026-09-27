@@ -73,7 +73,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	var action domain.Action
 	switch step.Kind {
 	case policy.SculptureBill:
-		bill, err := domain.NewProductionBill(step.Bench, policy.SculptureRecipe, tokens[step.Bench], domain.GearBatch, 1)
+		bill, err := domain.NewProductionBill(step.Bench, policy.SculptureRecipe, domain.GearBatch, 1)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}

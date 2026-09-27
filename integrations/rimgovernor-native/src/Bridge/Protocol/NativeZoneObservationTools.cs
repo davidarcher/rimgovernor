@@ -72,33 +72,6 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        // Per-zone snapshot token over one zone's own cell list and
-        // configuration, mirroring NativeBuildingObservationTools.Token's
-        // per-entity shape. The zone intents send none: native validates them
-        // against the live zone at apply (#941).
-        internal static Obs.SnapshotRef Token(Zone zone, Common.ObservationContext context) =>
-            NativeObservationSnapshot.Snapshot("zone", context, Id(zone.GetUniqueLoadID()), w => {
-                var cells = zone.Cells.OrderBy(c => c.x).ThenBy(c => c.z).ToArray();
-                w.Write(cells.Length);
-                foreach (var cell in cells) { w.Write(cell.x); w.Write(cell.z); }
-                w.Write(zone.label ?? "");
-                if (zone is Zone_Fishing fishing)
-                {
-                    w.Write(fishing.Allowed); w.Write((int)fishing.repeatMode); w.Write(fishing.targetPopulationPct);
-                    w.Write(fishing.targetCount); w.Write(fishing.repeatCount); w.Write(fishing.pauseWhenSatisfied); w.Write(fishing.unpauseAtCount);
-                }
-                if (zone is Zone_Growing growing)
-                {
-                    var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;
-                    w.Write(crop?.defName ?? ""); w.Write(growing.allowSow); w.Write(growing.allowCut);
-                }
-                else if (zone is Zone_Stockpile stockpile)
-                {
-                    w.Write((int)stockpile.settings.Priority);
-                    NativeStockpileSettings.WriteSignature(w, stockpile.settings.filter);
-                }
-            });
-
         private static Obs.ZoneState Project(Zone zone, Map map, Common.ObservationContext context, Obs.ListZonesRequest request)
         {
             var cells = zone.Cells;
@@ -106,8 +79,7 @@ namespace HomeBridge.BridgeTools
             var minZ = cells.Min(c => c.z); var maxZ = cells.Max(c => c.z);
             var row = new Obs.ZoneState { Id = Id(zone.GetUniqueLoadID()), Label = PlacementPreviewOperation.Diagnostic(zone.label ?? ""),
                 Type = zone is Zone_Growing ? "growing" : zone is Zone_Stockpile ? "stockpile" : "unknown",
-                Bounds = new Obs.Rectangle { Minimum = new Common.Cell { X = minX, Z = minZ }, Maximum = new Common.Cell { X = maxX, Z = maxZ } },
-                Snapshot = Token(zone, context) };
+                Bounds = new Obs.Rectangle { Minimum = new Common.Cell { X = minX, Z = minZ }, Maximum = new Common.Cell { X = maxX, Z = maxZ } } };
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             Func<ThingDef, bool> humanFood = d => d != null && d.IsNutritionGivingIngestible && !d.IsDrug
                 && d.ingestible != null && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0

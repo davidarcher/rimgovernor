@@ -96,7 +96,6 @@ type QuestOffer struct {
 	RequiresAccepter bool
 	CanAccept        bool
 	ChoiceCount      int32
-	HasTradeRequest  bool
 	// TradeRequests is the quest's full native settlement trade objective
 	// list (QuestTradeRequest rows) the world-evaluation advisory reads.
 	TradeRequests   []QuestTradeRequestFact
@@ -313,7 +312,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		}
 		quest := QuestOffer{
 			ID: row.GetId(), ScriptDef: row.GetScriptDef(), State: row.GetState(), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
-			ChoiceCount: int32(len(choices)), HasTradeRequest: len(row.TradeRequests) > 0, EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
+			ChoiceCount: int32(len(choices)), EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
 		}
 		requests := make([]QuestTradeRequestFact, len(row.TradeRequests))
 		for k, request := range row.TradeRequests {

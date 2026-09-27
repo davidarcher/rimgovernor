@@ -83,7 +83,7 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 	if token == "" {
 		return RoutineWasteResult{Reason: BuildingMethodUnknown}, true, nil
 	}
-	bill, err := domain.NewCorpseBill(step.Bench, domain.CremateRecipe, token, domain.CorpseStranger)
+	bill, err := domain.NewCorpseBill(step.Bench, domain.CremateRecipe, domain.CorpseStranger)
 	if err != nil {
 		return RoutineWasteResult{}, true, err
 	}

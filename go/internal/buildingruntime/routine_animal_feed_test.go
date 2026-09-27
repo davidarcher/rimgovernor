@@ -11,7 +11,7 @@ import (
 // an open or cancelled bill, or a non-bill plan, earns no clock window.
 func TestCompletedBillPlan(t *testing.T) {
 	t.Parallel()
-	bill, err := domain.NewProductionBill("Thing_ButcherSpot1", "Make_Kibble", "bill-token", domain.StockTarget, 65)
+	bill, err := domain.NewProductionBill("Thing_ButcherSpot1", "Make_Kibble", domain.StockTarget, 65)
 	if err != nil {
 		t.Fatal(err)
 	}

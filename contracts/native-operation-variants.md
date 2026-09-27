@@ -78,7 +78,6 @@ does not make boolean branches or runtime object variants interchangeable.
 
 | Tool | Owner, implementation and variants | Concrete migration acceptance still uncovered |
 | --- | --- | --- |
-| `home/accept_quest` | N01.04; [QuestTool.cs](../integrations/rimgovernor-native/src/Bridge/QuestTool.cs), Accept. Exact quest/pawn/session; rewardChoice is observed index, -1 only without choices; dryRun=true default. | No-choice/multiple-choice refusal and native acceptance without falsely claiming quest completion. |
 | `home/acquire_resource` | N01.04; [ResourceAcquisitionTool.cs](../integrations/rimgovernor-native/src/Bridge/ResourceAcquisitionTool.cs), Acquire/Product/Eligible. Exact resource/source/position/session; native mineable versus wild plant/tree selects designator; dryRun=true default. | Unknown resources, changed source, safe native designation and actual harvested/mined stock. |
 | `home/cancel_construction` | N01.04; [CancelConstructionTool.cs](../integrations/rimgovernor-native/src/Bridge/CancelConstructionTool.cs), Cancel. Exact blueprint/frame plus expected definition/stuff/position/session; dryRun=true default. | Blueprint/frame refusal and native refund, unsupported installation/finished building, stale identity. |
 | `home/confirm_colony_names` | N01.04; [ColonyNamingTool.cs](../integrations/rimgovernor-native/src/Bridge/ColonyNamingTool.cs), Confirm. Exact known bootstrap naming window and suggestions; dryRun=true default. | Stale/other windows, invalid names, unchanged preview and native named objects/dialog closure. |

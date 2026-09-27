@@ -49,7 +49,7 @@ func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 	if g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	bill, err := domain.NewProductionBill("bench", "recipe", "bench-cas", domain.FoodTarget, 10)
+	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

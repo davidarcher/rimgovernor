@@ -10,7 +10,7 @@ import (
 
 func TestCorpseBillSurvivesJournalReload(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "corpse.db"))
-	bill, err := domain.NewCorpseBill("crematorium", domain.CremateRecipe, "tok", domain.CorpseStranger)
+	bill, err := domain.NewCorpseBill("crematorium", domain.CremateRecipe, domain.CorpseStranger)
 	if err != nil {
 		t.Fatal(err)
 	}

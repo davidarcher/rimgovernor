@@ -19,19 +19,18 @@ const (
 	RemoveZoneCells CellEditMode = "remove"
 )
 
-// ZoneCellEdit grows or shrinks one exact zone (native EditZoneCells) under
-// the zone's observed CAS token. The zone keeps its native id, so a
-// zone_create claim on it survives the edit. Cells are canonical (sorted,
-// deduplicated, 1..256); the result must stay contiguous (native refuses a
-// split).
+// ZoneCellEdit grows or shrinks one exact zone (native EditZoneCells).
+// The zone keeps its native id, so a zone_create claim on it survives the edit.
+// Cells are canonical (sorted, deduplicated, 1..256); the result must stay
+// contiguous (native refuses a split).
 type ZoneCellEdit struct {
-	zone, before string
-	mode         CellEditMode
-	cells        string
+	zone  string
+	mode  CellEditMode
+	cells string
 }
 
-func NewZoneCellEdit(zone, before string, mode CellEditMode, cells []Cell) (ZoneCellEdit, error) {
-	if !validID(zone) || !validID(before) || mode != AddZoneCells && mode != RemoveZoneCells || len(cells) == 0 || len(cells) > 256 {
+func NewZoneCellEdit(zone string, mode CellEditMode, cells []Cell) (ZoneCellEdit, error) {
+	if !validID(zone) || mode != AddZoneCells && mode != RemoveZoneCells || len(cells) == 0 || len(cells) > 256 {
 		return ZoneCellEdit{}, errors.New("invalid zone cell edit")
 	}
 	rows := append([]Cell(nil), cells...)
@@ -42,11 +41,10 @@ func NewZoneCellEdit(zone, before string, mode CellEditMode, cells []Cell) (Zone
 		}
 	}
 	data, _ := json.Marshal(rows)
-	return ZoneCellEdit{zone, before, mode, string(data)}, nil
+	return ZoneCellEdit{zone, mode, string(data)}, nil
 }
-func (e ZoneCellEdit) Zone() string        { return e.zone }
-func (e ZoneCellEdit) BeforeToken() string { return e.before }
-func (e ZoneCellEdit) Mode() CellEditMode  { return e.mode }
+func (e ZoneCellEdit) Zone() string       { return e.zone }
+func (e ZoneCellEdit) Mode() CellEditMode { return e.mode }
 func (e ZoneCellEdit) Cells() []Cell {
 	var cells []Cell
 	_ = json.Unmarshal([]byte(e.cells), &cells)
@@ -57,7 +55,7 @@ func NewZoneCellEditAction(id ActionID, e ZoneCellEdit) (Action, error) {
 	if !validID(string(id)) {
 		return Action{}, errors.New("invalid action identity")
 	}
-	canonical, err := NewZoneCellEdit(e.zone, e.before, e.mode, e.Cells())
+	canonical, err := NewZoneCellEdit(e.zone, e.mode, e.Cells())
 	if err != nil || canonical != e {
 		return Action{}, errors.New("invalid zone cell edit")
 	}
@@ -76,30 +74,27 @@ const (
 )
 
 // StockpilePatch replaces one storage target's priority and filter (native
-// PatchStockpile) under its observed CAS token: a stockpile zone (the
-// per-zone token) or a player storage building such as a shelf (the storage
-// token its building listing row carries). The filter's base preset resets
+// PatchStockpile): a stockpile zone or a player storage building such as a
+// shelf. The filter's base preset resets
 // the target's filter, so the patch is a full replacement. Role is the
 // planner role key the patch claims the target for; empty is untagged.
 type StockpilePatch struct {
 	target   string
 	kind     StorageTargetKind
-	before   string
 	filter   StockpileFilter
 	priority StockpilePriority
 	role     string
 }
 
-func NewStockpilePatch(kind StorageTargetKind, target, before string, filter StockpileFilter, priority StockpilePriority, role string) (StockpilePatch, error) {
+func NewStockpilePatch(kind StorageTargetKind, target string, filter StockpileFilter, priority StockpilePriority, role string) (StockpilePatch, error) {
 	canonical, err := ReconstructStockpileFilter(filter)
-	if kind != StorageZoneTarget && kind != StorageBuildingTarget || !validID(target) || !validID(before) || err != nil || canonical != filter || !validStockpilePriority(priority) || role != "" && (!validID(role) || len(role) > 128) {
+	if kind != StorageZoneTarget && kind != StorageBuildingTarget || !validID(target) || err != nil || canonical != filter || !validStockpilePriority(priority) || role != "" && (!validID(role) || len(role) > 128) {
 		return StockpilePatch{}, errors.New("invalid stockpile patch")
 	}
-	return StockpilePatch{target, kind, before, filter, priority, role}, nil
+	return StockpilePatch{target, kind, filter, priority, role}, nil
 }
 func (p StockpilePatch) Target() string                { return p.target }
 func (p StockpilePatch) TargetKind() StorageTargetKind { return p.kind }
-func (p StockpilePatch) BeforeToken() string           { return p.before }
 func (p StockpilePatch) Filter() StockpileFilter       { return p.filter }
 func (p StockpilePatch) Priority() StockpilePriority   { return p.priority }
 func (p StockpilePatch) Role() string                  { return p.role }
@@ -108,7 +103,7 @@ func NewStockpilePatchAction(id ActionID, p StockpilePatch) (Action, error) {
 	if !validID(string(id)) {
 		return Action{}, errors.New("invalid action identity")
 	}
-	canonical, err := NewStockpilePatch(p.kind, p.target, p.before, p.filter, p.priority, p.role)
+	canonical, err := NewStockpilePatch(p.kind, p.target, p.filter, p.priority, p.role)
 	if err != nil || canonical != p {
 		return Action{}, errors.New("invalid stockpile patch")
 	}

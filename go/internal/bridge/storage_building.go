@@ -8,17 +8,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// StorageBuildingTarget is one player storage building's (shelf's) storage
-// CAS token, the settings snapshot its building listing row carries.
+// StorageBuildingTarget is one player storage building's (shelf's) presence
+// with settings.
 type StorageBuildingTarget struct {
 	Context *c.ObservationContext
 	Thing   string
 	Present bool
-	Token   string
 }
 
-// ReadStorageBuildingTarget observes one exact storage building's storage
-// token via the building listing; an absent building reads back as not
+// ReadStorageBuildingTarget observes one exact storage building's presence
+// via the building listing; an absent building reads back as not
 // present rather than as an error.
 func (client *Client) ReadStorageBuildingTarget(ctx context.Context, identity *c.Identity, thing string) (StorageBuildingTarget, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
@@ -55,9 +54,9 @@ func (client *Client) ReadStorageBuildingTarget(ctx context.Context, identity *c
 	}
 	row := v.Buildings[0]
 	settings := row.GetSettings()
-	if len(v.Buildings) != 1 || row.GetBuilding().GetId() != thing || settings == nil || settings.Snapshot == nil || settings.Snapshot.GetEntityId() != thing || validID(settings.Snapshot.GetToken()) != nil {
+	if len(v.Buildings) != 1 || row.GetBuilding().GetId() != thing || settings == nil {
 		return StorageBuildingTarget{}, raw, contract("storage building target missing settings")
 	}
-	out.Present, out.Token = true, settings.Snapshot.GetToken()
+	out.Present = true
 	return out, raw, nil
 }

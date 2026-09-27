@@ -7,7 +7,7 @@ import (
 )
 
 func TestGearBatchWireCountAndFilter(t *testing.T) {
-	bill, err := domain.NewProductionBill("tailor", "Make_Shirt", "token", domain.GearBatch, 11, "Cloth")
+	bill, err := domain.NewProductionBill("tailor", "Make_Shirt", domain.GearBatch, 11, "Cloth")
 	if err != nil {
 		t.Fatal(err)
 	}

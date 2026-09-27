@@ -69,12 +69,8 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Obs.ColonyFactsRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and unique native definition names required; definitions require planning.");
-            return request?.Scope?.ExpectedIdentity != null
-                && request.RequestedDefinitionNames.Count <= 256
-                && (request.Planning || request.RequestedDefinitionNames.Count == 0)
-                && request.RequestedDefinitionNames.All(ProtoBoundary.IsIdentifier)
-                && request.RequestedDefinitionNames.Distinct(StringComparer.Ordinal).Count() == request.RequestedDefinitionNames.Count;
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity required.");
+            return request?.Scope?.ExpectedIdentity != null;
         }
 
         private static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context)
@@ -367,7 +363,7 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
-            var names = request.RequestedDefinitionNames.Count == 0 ? StarterDefinitions : request.RequestedDefinitionNames.ToArray();
+            var names = StarterDefinitions;
             var result = new Obs.PlanningFacts { };
             try { result.Gear = NativeGearFacts.Read(map, context); }
             catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }

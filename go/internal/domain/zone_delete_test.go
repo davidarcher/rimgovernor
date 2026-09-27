@@ -3,14 +3,11 @@ package domain
 import "testing"
 
 func TestZoneDeleteIdentity(t *testing.T) {
-	if _, err := NewZoneDelete("", "token"); err == nil {
+	if _, err := NewZoneDelete(""); err == nil {
 		t.Fatal("expected empty zone to be rejected")
 	}
-	if _, err := NewZoneDelete("Zone_7", ""); err == nil {
-		t.Fatal("expected empty before token to be rejected")
-	}
-	c, err := NewZoneDelete("Zone_7", "token")
-	if err != nil || c.Zone() != "Zone_7" || c.BeforeToken() != "token" {
+	c, err := NewZoneDelete("Zone_7")
+	if err != nil || c.Zone() != "Zone_7" {
 		t.Fatal(c, err)
 	}
 	action, err := NewZoneDeleteAction("a", c)
@@ -20,8 +17,8 @@ func TestZoneDeleteIdentity(t *testing.T) {
 	if got, ok := action.ZoneDelete(); !ok || got != c || action.Kind() != ZoneDeleteAction {
 		t.Fatal("zone delete action does not carry its value")
 	}
-	if _, err := NewZoneDeleteAction("a", ZoneDelete{zone: "Zone_7"}); err == nil {
-		t.Fatal("expected a non-canonical value to be rejected")
+	if _, err := NewZoneDeleteAction("a", ZoneDelete{}); err == nil {
+		t.Fatal("expected an empty zone to be rejected")
 	}
 	plan, err := NewPlan("p", 1, []Action{action})
 	if err != nil || plan.Actions()[0] != action {

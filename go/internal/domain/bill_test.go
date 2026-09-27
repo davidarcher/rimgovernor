@@ -6,10 +6,10 @@ import (
 )
 
 func TestHumanButcherRequiresPinnedWorker(t *testing.T) {
-	if _, err := NewHumanButcherBill("bench", "token", ""); err == nil {
+	if _, err := NewHumanButcherBill("bench", ""); err == nil {
 		t.Fatal("unassigned human bill accepted")
 	}
-	b, err := NewHumanButcherBill("bench", "token", "cook")
+	b, err := NewHumanButcherBill("bench", "cook")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestHumanButcherRequiresPinnedWorker(t *testing.T) {
 
 func TestProductionBillIngredientsAreCanonicalAndImmutable(t *testing.T) {
 	input := []string{"Steel", "Cloth"}
-	bill, err := NewProductionBill("bench", "recipe", "token", StockTarget, 1, input...)
+	bill, err := NewProductionBill("bench", "recipe", StockTarget, 1, input...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestProductionBillIngredientsAreCanonicalAndImmutable(t *testing.T) {
 		t.Fatal(got)
 	}
 	got[0] = "WoodLog"
-	want, _ := NewProductionBill("bench", "recipe", "token", StockTarget, 1, "Cloth", "Steel")
+	want, _ := NewProductionBill("bench", "recipe", StockTarget, 1, "Cloth", "Steel")
 	if bill != want {
 		t.Fatal("filter is mutable or noncanonical", bill)
 	}
@@ -45,11 +45,11 @@ func TestProductionBillIngredientsAreCanonicalAndImmutable(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, invalid := range [][]string{{""}, {"Cloth", "Cloth"}, make([]string, 257)} {
-		if _, err := NewProductionBill("bench", "recipe", "token", StockTarget, 1, invalid...); err == nil {
+		if _, err := NewProductionBill("bench", "recipe", StockTarget, 1, invalid...); err == nil {
 			t.Fatal("accepted invalid ingredients", invalid)
 		}
 	}
-	if _, err := NewProductionBill("bench", "ButcherCorpseFlesh", "token", ButcherForever, 0, "Cloth"); err == nil {
+	if _, err := NewProductionBill("bench", "ButcherCorpseFlesh", ButcherForever, 0, "Cloth"); err == nil {
 		t.Fatal("accepted ingredient override for the special butcher bill")
 	}
 }

@@ -9,7 +9,7 @@ import (
 
 func TestMealReplacementSurvivesJournalReload(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "replacement.db"))
-	bill, _ := domain.NewProductionBill("stove", "CookMealSimple", "current-stack", domain.FoodTarget, 12)
+	bill, _ := domain.NewProductionBill("stove", "CookMealSimple", domain.FoodTarget, 12)
 	bill, err := bill.ReplaceOwnedBill("old-fine")
 	if err != nil {
 		t.Fatal(err)

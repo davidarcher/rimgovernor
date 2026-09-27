@@ -73,7 +73,7 @@ func TestReserveAccessCommitsSupplyActions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		bill, _ := domain.NewProductionBill("stove", "MakePemmican", "token", domain.FoodTarget, 100)
+		bill, _ := domain.NewProductionBill("stove", "MakePemmican", domain.FoodTarget, 100)
 		billAction, _ := domain.NewProductionBillAction("refill", bill)
 		billPlan, _ := domain.NewPlan("refill-plan", 1, []domain.Action{billAction})
 		goal, err = db.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "refill", billPlan)

@@ -25,19 +25,19 @@ const (
 )
 
 // ProductionBill adds a native bill, optionally replacing the same recipe on
-// its bench or an ordinary meal tier. The current stack guards replacement.
+// its bench or an ordinary meal tier.
 type ProductionBill struct {
-	bench, recipe, token string
-	mode                 BillMode
-	target               int32
-	ingredients          string
-	worker               string
-	replace              string
-	corpses              CorpseOf
+	bench, recipe string
+	mode          BillMode
+	target        int32
+	ingredients   string
+	worker        string
+	replace       string
+	corpses       CorpseOf
 }
 
-func NewProductionBill(bench, recipe, token string, mode BillMode, target int32, ingredients ...string) (ProductionBill, error) {
-	if !validID(bench) || !validID(recipe) || !validID(token) || (mode != FoodTarget && mode != ButcherForever && mode != StockTarget && mode != BeerReserve && mode != GearBatch) || mode == FoodTarget && (target < 1 || target > 10000 || recipe == "ButcherCorpseFlesh") || mode == ButcherForever && (recipe != "ButcherCorpseFlesh" || target != 0) || (mode == StockTarget || mode == BeerReserve || mode == GearBatch) && (target < 1 || target > 10000) {
+func NewProductionBill(bench, recipe string, mode BillMode, target int32, ingredients ...string) (ProductionBill, error) {
+	if !validID(bench) || !validID(recipe) || (mode != FoodTarget && mode != ButcherForever && mode != StockTarget && mode != BeerReserve && mode != GearBatch) || mode == FoodTarget && (target < 1 || target > 10000 || recipe == "ButcherCorpseFlesh") || mode == ButcherForever && (recipe != "ButcherCorpseFlesh" || target != 0) || (mode == StockTarget || mode == BeerReserve || mode == GearBatch) && (target < 1 || target > 10000) {
 		return ProductionBill{}, errors.New("invalid production bill")
 	}
 	if len(ingredients) > 256 || mode == ButcherForever && len(ingredients) > 0 {
@@ -55,7 +55,7 @@ func NewProductionBill(bench, recipe, token string, mode BillMode, target int32,
 		data, _ := json.Marshal(rows)
 		filter = string(data)
 	}
-	b := ProductionBill{bench: bench, recipe: recipe, token: token, mode: mode, target: target, ingredients: filter}
+	b := ProductionBill{bench: bench, recipe: recipe, mode: mode, target: target, ingredients: filter}
 	if mode == ButcherForever {
 		b.corpses = CorpseAnimal
 	}
@@ -63,8 +63,8 @@ func NewProductionBill(bench, recipe, token string, mode BillMode, target int32,
 }
 
 // A humanlike butcher bill is always pinned and never accepts animal corpses.
-func NewHumanButcherBill(bench, token, worker string) (ProductionBill, error) {
-	b, err := NewProductionBill(bench, "ButcherCorpseFlesh", token, ButcherForever, 0)
+func NewHumanButcherBill(bench, worker string) (ProductionBill, error) {
+	b, err := NewProductionBill(bench, "ButcherCorpseFlesh", ButcherForever, 0)
 	if err != nil || !validID(worker) {
 		return ProductionBill{}, errors.New("invalid human butcher bill")
 	}
@@ -83,14 +83,14 @@ const (
 // plain ButcherForever bill; humanlike butchering (strangers, pinned
 // worker) stays NewHumanButcherBill. Cremation takes any class; which
 // class to cremate is policy's choice.
-func NewCorpseBill(bench, recipe, token string, corpses CorpseOf) (ProductionBill, error) {
+func NewCorpseBill(bench, recipe string, corpses CorpseOf) (ProductionBill, error) {
 	if recipe == ButcherRecipe && corpses == CorpseAnimal {
-		return NewProductionBill(bench, recipe, token, ButcherForever, 0)
+		return NewProductionBill(bench, recipe, ButcherForever, 0)
 	}
-	if recipe != CremateRecipe || !corpses.Valid() || !validID(bench) || !validID(token) {
+	if recipe != CremateRecipe || !corpses.Valid() || !validID(bench) {
 		return ProductionBill{}, errors.New("invalid corpse bill")
 	}
-	return ProductionBill{bench: bench, recipe: recipe, token: token, mode: ButcherForever, corpses: corpses}, nil
+	return ProductionBill{bench: bench, recipe: recipe, mode: ButcherForever, corpses: corpses}, nil
 }
 
 // Corpses is a corpse bill's ingredient filter; empty for other bills.
@@ -128,17 +128,16 @@ func (b ProductionBill) Ingredients() []string {
 	}
 	return rows
 }
-func (b ProductionBill) Bench() string       { return b.bench }
-func (b ProductionBill) Recipe() string      { return b.recipe }
-func (b ProductionBill) BeforeToken() string { return b.token }
-func (b ProductionBill) Mode() BillMode      { return b.mode }
-func (b ProductionBill) Target() int32       { return b.target }
+func (b ProductionBill) Bench() string  { return b.bench }
+func (b ProductionBill) Recipe() string { return b.recipe }
+func (b ProductionBill) Mode() BillMode { return b.mode }
+func (b ProductionBill) Target() int32  { return b.target }
 func NewProductionBillAction(id ActionID, b ProductionBill) (Action, error) {
-	canonical, err := NewProductionBill(b.bench, b.recipe, b.token, b.mode, b.target, b.Ingredients()...)
+	canonical, err := NewProductionBill(b.bench, b.recipe, b.mode, b.target, b.Ingredients()...)
 	if b.mode == HumanButcherForever {
-		canonical, err = NewHumanButcherBill(b.bench, b.token, b.worker)
+		canonical, err = NewHumanButcherBill(b.bench, b.worker)
 	} else if b.recipe == CremateRecipe {
-		canonical, err = NewCorpseBill(b.bench, b.recipe, b.token, b.corpses)
+		canonical, err = NewCorpseBill(b.bench, b.recipe, b.corpses)
 	}
 	if err == nil && b.replace != "" {
 		canonical, err = canonical.ReplaceOwnedBill(b.replace)

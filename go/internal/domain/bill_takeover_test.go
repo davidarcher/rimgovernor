@@ -8,7 +8,7 @@ func TestBillReplacementUsesExistingActionForAllProductionModes(t *testing.T) {
 		if mode == ButcherForever {
 			recipe, target = "ButcherCorpseFlesh", 0
 		}
-		bill, err := NewProductionBill("bench", recipe, "token", mode, target)
+		bill, err := NewProductionBill("bench", recipe, mode, target)
 		if err != nil {
 			t.Fatal(err)
 		}

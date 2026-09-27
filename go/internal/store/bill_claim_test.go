@@ -24,7 +24,7 @@ func billStoreFixture(t *testing.T, modes ...domain.BillMode) (*Store, string, b
 	if len(modes) > 0 {
 		mode = modes[0]
 	}
-	bill, _ := domain.NewProductionBill("bench", "recipe", "bench-cas", mode, 10)
+	bill, _ := domain.NewProductionBill("bench", "recipe", mode, 10)
 	a, _ := domain.NewProductionBillAction("bill", bill)
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
 	if err != nil {
@@ -160,7 +160,7 @@ func TestBillMethodAcceptsResourceTargetGoal(t *testing.T) {
 	if g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	bill, err := domain.NewProductionBill("spot", "Make_MeleeWeapon_Club", "bench-cas", domain.StockTarget, 3)
+	bill, err := domain.NewProductionBill("spot", "Make_MeleeWeapon_Club", domain.StockTarget, 3)
 	if err != nil {
 		t.Fatal(err)
 	}

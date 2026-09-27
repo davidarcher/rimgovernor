@@ -27,18 +27,6 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Designated(Pawn animal, DesignationDef def) => animal.Map.designationManager.DesignationOn(animal, def) != null;
 
-        // Census token: same-species player animal identity,
-        // gender and fertility, so a population change reads as a new token.
-        // A wild tame target hashes the player herd of its own race.
-        internal static string Census(Pawn animal)
-        {
-            var others = animal.Map.mapPawns.AllPawnsSpawned
-                .Where(a => a.def == animal.def && a.Faction == Faction.OfPlayer && !a.Dead)
-                .Select(a => a.GetUniqueLoadID() + ":" + a.gender + ":" + a.ageTracker.CurLifeStage.reproductive + ":" + a.Sterile())
-                .OrderBy(id => id, StringComparer.Ordinal);
-            return "census-" + Hash(string.Join(",", others));
-        }
-
         // Settings token: exact designation/training state; the before and
         // after evidence of an applied husbandry order.
         internal static string Settings(Pawn animal)

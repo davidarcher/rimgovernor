@@ -83,9 +83,6 @@ func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity) error {
 		if row == nil || validID(row.GetId()) != nil || row.FoodStorage == nil {
 			return contract("invalid zone row")
 		}
-		if row.Snapshot == nil || !proto.Equal(row.Snapshot.Context, v.Context) || row.Snapshot.GetEntityId() != row.GetId() || validID(row.Snapshot.GetToken()) != nil {
-			return contract("invalid zone snapshot reference")
-		}
 		if farm := row.Farm; farm != nil {
 			if farm.GetZoneId() != row.GetId() || validID(farm.GetCrop()) != nil || farm.UsableCells == nil || farm.PlantedCells == nil || farm.GrowingCells == nil || farm.EdibleCrop == nil || farm.GetGrowingCells() > farm.GetPlantedCells() || !combatNumber(farm.HarvestLowerBoundDays, true) || !combatNumber(farm.NutritionPerHarvestCell, true) {
 				return contract("invalid zone farm facts")

@@ -343,7 +343,7 @@ func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlSt
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineTidyResult{}, err
 	}
-	del, err := domain.NewZoneDelete(t.Item, old.Token)
+	del, err := domain.NewZoneDelete(t.Item)
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}

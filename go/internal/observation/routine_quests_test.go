@@ -53,7 +53,7 @@ func TestRoutineQuestCensusReadsTheFrame(t *testing.T) {
 
 	read := bridge.WorldProgressionRead{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Quests: []bridge.QuestOffer{
 		{ID: "Quest_4", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: true, ChoiceCount: 1},
-		{ID: "Quest_2", ScriptDef: "TradeRequest", State: "Ongoing", HasTradeRequest: true},
+		{ID: "Quest_2", ScriptDef: "TradeRequest", State: "Ongoing"},
 	}}
 	out, err = observeRoutineUnowned(ctx, questSource(base, read), clock, expected, time.Second)
 	if err != nil {

@@ -266,9 +266,9 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	id := domain.MintPlanID("routine-bill")
-	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Token, selected.Mode, selected.Target, selected.Ingredients...)
+	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Mode, selected.Target, selected.Ingredients...)
 	if selected.Mode == domain.HumanButcherForever {
-		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Token, selected.Worker)
+		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Worker)
 	}
 	if err != nil {
 		return RoutineBillResult{}, err

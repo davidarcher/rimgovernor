@@ -361,7 +361,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			}
 		}
 	}
-	token, ok := tokens[choice.Bench]
+	_, ok := tokens[choice.Bench]
 	if !ok {
 		return RoutineResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: !ok", ErrControl)
 	}
@@ -374,7 +374,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if beer {
 		mode = domain.BeerReserve
 	}
-	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, mode, targetCount, ingredients...)
+	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, mode, targetCount, ingredients...)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

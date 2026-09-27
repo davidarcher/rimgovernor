@@ -419,14 +419,14 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 			creates = append(creates, e)
 			continue
 		}
-		token, err := r.editToken(call, identity, e)
+		present, err := r.editTargetPresent(call, identity, e)
 		if err != nil {
 			return RoutineStockpileResult{}, err
 		}
-		if token == "" {
+		if !present {
 			continue
 		}
-		action, err := stockpileEditAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), e, token)
+		action, err := stockpileEditAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), e)
 		if err != nil {
 			clockSchedulerLog("Stockpiles: %s %s dropped: %v", e.Kind, e.Zone, err)
 			continue
@@ -543,55 +543,49 @@ type shelfTargetSource interface {
 	ReadStorageBuildingTarget(context.Context, *c.Identity, string) (bridge.StorageBuildingTarget, bridge.Result, error)
 }
 
-// editToken is the fresh CAS token of the edit's target: the stockpile
-// zone's, or the shelf's for a shelf patch. Empty when the target is gone
-// or the source cannot read it.
-func (r *RoutineStockpilePlanner) editToken(ctx context.Context, identity *c.Identity, e policy.StockpileEdit) (string, error) {
+// editTargetPresent reports whether the edit's target (the stockpile zone,
+// or the shelf for a shelf patch) is still there; false when the source
+// cannot read it.
+func (r *RoutineStockpilePlanner) editTargetPresent(ctx context.Context, identity *c.Identity, e policy.StockpileEdit) (bool, error) {
 	if e.Kind == policy.StockpileShelfPatch {
 		source, ok := r.native.(shelfTargetSource)
 		if !ok {
-			return "", nil
+			return false, nil
 		}
 		target, _, err := source.ReadStorageBuildingTarget(ctx, identity, e.Zone)
-		if err != nil || !target.Present {
-			return "", err
-		}
-		return target.Token, nil
+		return err == nil && target.Present, err
 	}
 	target, _, err := r.native.ReadZoneDeleteTarget(ctx, identity, e.Zone)
-	if err != nil || !target.Present || target.Type != "stockpile" {
-		return "", err
-	}
-	return target.Token, nil
+	return err == nil && target.Present && target.Type == "stockpile", err
 }
 
-// stockpileEditAction is one edit's action under the target's token.
-func stockpileEditAction(id domain.ActionID, e policy.StockpileEdit, token string) (domain.Action, error) {
+// stockpileEditAction is one edit's action.
+func stockpileEditAction(id domain.ActionID, e policy.StockpileEdit) (domain.Action, error) {
 	switch e.Kind {
 	case policy.StockpileGrow, policy.StockpileShrink:
 		mode := domain.AddZoneCells
 		if e.Kind == policy.StockpileShrink {
 			mode = domain.RemoveZoneCells
 		}
-		edit, err := domain.NewZoneCellEdit(e.Zone, token, mode, e.Cells)
+		edit, err := domain.NewZoneCellEdit(e.Zone, mode, e.Cells)
 		if err != nil {
 			return domain.Action{}, err
 		}
 		return domain.NewZoneCellEditAction(id, edit)
 	case policy.StockpileRetarget:
-		patch, err := domain.NewStockpilePatch(domain.StorageZoneTarget, e.Zone, token, e.Filter, e.Priority, e.Role)
+		patch, err := domain.NewStockpilePatch(domain.StorageZoneTarget, e.Zone, e.Filter, e.Priority, e.Role)
 		if err != nil {
 			return domain.Action{}, err
 		}
 		return domain.NewStockpilePatchAction(id, patch)
 	case policy.StockpileShelfPatch:
-		patch, err := domain.NewStockpilePatch(domain.StorageBuildingTarget, e.Zone, token, e.Filter, e.Priority, e.Role)
+		patch, err := domain.NewStockpilePatch(domain.StorageBuildingTarget, e.Zone, e.Filter, e.Priority, e.Role)
 		if err != nil {
 			return domain.Action{}, err
 		}
 		return domain.NewStockpilePatchAction(id, patch)
 	case policy.StockpileDelete, policy.StockpileMerge:
-		del, err := domain.NewZoneDelete(e.Zone, token)
+		del, err := domain.NewZoneDelete(e.Zone)
 		if err != nil {
 			return domain.Action{}, err
 		}

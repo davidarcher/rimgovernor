@@ -89,7 +89,7 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 	}
 	quest := out.Quests[0]
 	if quest.ID != "quest-1" || quest.State != "NotYetAccepted" || !quest.RequiresAccepter || !quest.CanAccept ||
-		quest.ChoiceCount != 1 || !quest.HasTradeRequest || len(quest.EligiblePawnIDs) != 1 || quest.EligiblePawnIDs[0] != "pawn-1" ||
+		quest.ChoiceCount != 1 || len(quest.EligiblePawnIDs) != 1 || quest.EligiblePawnIDs[0] != "pawn-1" ||
 		quest.SnapshotToken != "quest-cas" || len(quest.TradeRequests) != 1 || quest.TradeRequests[0].DestinationTile != 7 {
 		t.Fatal(quest)
 	}

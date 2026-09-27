@@ -276,7 +276,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if medChoice.Kind != policy.MedicineProduce {
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
 	}
-	token, ok := tokens[medChoice.Bench]
+	_, ok := tokens[medChoice.Bench]
 	if !ok {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 	}
@@ -288,7 +288,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if int64(target) != medChoice.Target {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: int64(target) != medChoice.Target", ErrControl)
 	}
-	bill, err := domain.NewProductionBill(medChoice.Bench, medChoice.Recipe, token, domain.StockTarget, target)
+	bill, err := domain.NewProductionBill(medChoice.Bench, medChoice.Recipe, domain.StockTarget, target)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}

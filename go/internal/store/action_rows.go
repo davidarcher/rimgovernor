@@ -23,7 +23,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	}
 	var err error
 	if b, ok := a.ProductionBill(); ok {
-		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target(), b.Ingredients(), b.Worker(), b.Replaces(), storedCorpses(b)})
+		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.Mode(), b.Target(), b.Ingredients(), b.Worker(), b.Replaces(), storedCorpses(b)})
 		if err != nil {
 			return err
 		}
@@ -146,16 +146,15 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		if encodeErr != nil {
 			return encodeErr
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff,zone_payload) VALUES(?,?,?,'zone_cell_edit',?,?,?)", a.ID(), plan, ordinal, edit.Zone(), edit.BeforeToken(), data)
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,zone_payload) VALUES(?,?,?,'zone_cell_edit',?,?)", a.ID(), plan, ordinal, edit.Zone(), data)
 	} else if patch, ok := a.StockpilePatch(); ok {
 		data, encodeErr := json.Marshal(stockpilePatchPayload{patch.TargetKind(), patch.Filter(), patch.Priority(), patch.Role()})
 		if encodeErr != nil {
 			return encodeErr
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff,zone_payload) VALUES(?,?,?,'stockpile_patch',?,?,?)", a.ID(), plan, ordinal, patch.Target(), patch.BeforeToken(), data)
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,zone_payload) VALUES(?,?,?,'stockpile_patch',?,?)", a.ID(), plan, ordinal, patch.Target(), data)
 	} else if del, ok := a.ZoneDelete(); ok {
-		// stuff carries the zone's CAS token; there is nothing else to say.
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff) VALUES(?,?,?,'zone_delete',?,?)", a.ID(), plan, ordinal, del.Zone(), del.BeforeToken())
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target) VALUES(?,?,?,'zone_delete',?)", a.ID(), plan, ordinal, del.Zone())
 	} else if crop, ok := a.GrowerCrop(); ok {
 		// definition carries the wanted crop, stuff the CAS token.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'grower_crop',?,?,?)", a.ID(), plan, ordinal, crop.Thing(), crop.Crop(), crop.BeforeToken())
@@ -223,15 +222,15 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if !bytes.Equal(canonical, bill) {
 			return domain.Action{}, 0, errors.New("noncanonical bill payload")
 		}
-		value, err := domain.NewProductionBill(payload.Bench, payload.Recipe, payload.Token, payload.Mode, payload.Target, payload.Ingredients...)
+		value, err := domain.NewProductionBill(payload.Bench, payload.Recipe, payload.Mode, payload.Target, payload.Ingredients...)
 		if payload.Mode == domain.HumanButcherForever && payload.Recipe == "ButcherCorpseFlesh" && payload.Target == 0 && len(payload.Ingredients) == 0 {
-			value, err = domain.NewHumanButcherBill(payload.Bench, payload.Token, payload.Worker)
+			value, err = domain.NewHumanButcherBill(payload.Bench, payload.Worker)
 		}
 		if payload.Corpses != "" {
 			if payload.Mode != domain.ButcherForever || payload.Target != 0 || len(payload.Ingredients) > 0 {
 				return domain.Action{}, 0, errors.New("invalid corpse bill payload")
 			}
-			value, err = domain.NewCorpseBill(payload.Bench, payload.Recipe, payload.Token, payload.Corpses)
+			value, err = domain.NewCorpseBill(payload.Bench, payload.Recipe, payload.Corpses)
 		}
 		if payload.Mode != domain.HumanButcherForever && payload.Worker != "" {
 			return domain.Action{}, 0, errors.New("worker on ordinary bill")
@@ -291,13 +290,13 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		action, err := domain.NewZoneCreateAction(id, value)
 		return action, ordinal, err
 	}
-	if (kind == "zone_cell_edit" || kind == "stockpile_patch") && target.Valid && stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && len(zone) <= 32768 {
+	if (kind == "zone_cell_edit" || kind == "stockpile_patch") && target.Valid && !stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && len(zone) <= 32768 {
 		if kind == "zone_cell_edit" {
 			var payload zoneCellEditPayload
 			if json.Unmarshal(zone, &payload) != nil {
 				return domain.Action{}, 0, errors.New("invalid zone cell edit payload")
 			}
-			edit, err := domain.NewZoneCellEdit(target.String, stuff.String, payload.Mode, payload.Cells)
+			edit, err := domain.NewZoneCellEdit(target.String, payload.Mode, payload.Cells)
 			if err != nil {
 				return domain.Action{}, 0, err
 			}
@@ -308,7 +307,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if json.Unmarshal(zone, &payload) != nil {
 			return domain.Action{}, 0, errors.New("invalid stockpile patch payload")
 		}
-		patch, err := domain.NewStockpilePatch(payload.Target, target.String, stuff.String, payload.Filter, payload.Priority, payload.Role)
+		patch, err := domain.NewStockpilePatch(payload.Target, target.String, payload.Filter, payload.Priority, payload.Role)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -752,8 +751,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewClaimBuildingAction(id, claim)
 		return a, ordinal, err
 	}
-	if kind == "zone_delete" && target.Valid && stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
-		del, err := domain.NewZoneDelete(target.String, stuff.String)
+	if kind == "zone_delete" && target.Valid && !stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		del, err := domain.NewZoneDelete(target.String)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -886,13 +885,13 @@ type stockpilePatchPayload struct {
 }
 
 type billPayload struct {
-	Bench, Recipe, Token string
-	Mode                 domain.BillMode
-	Target               int32
-	Ingredients          []string        `json:",omitempty"`
-	Worker               string          `json:",omitempty"`
-	Replace              string          `json:",omitempty"`
-	Corpses              domain.CorpseOf `json:",omitempty"`
+	Bench, Recipe string
+	Mode          domain.BillMode
+	Target        int32
+	Ingredients   []string        `json:",omitempty"`
+	Worker        string          `json:",omitempty"`
+	Replace       string          `json:",omitempty"`
+	Corpses       domain.CorpseOf `json:",omitempty"`
 }
 
 // storedCorpses is the bill row's corpse filter: only a cremation bill

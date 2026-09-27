@@ -497,7 +497,7 @@ message ListRoomsRequest { ReadScope scope = 1; Rectangle region = 2; optional b
 message ListRoomsReply { oneof outcome { RoomsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ZoneAnomaly { optional string kind = 1; rimgovernor.common.v1.Cell cell = 2; optional string grid_owner_id = 3; optional string detail = 4; }
 message ZoneState {
-  SnapshotRef snapshot = 1; optional string id = 2; optional string label = 3; optional string type = 4; Rectangle bounds = 5;
+  reserved 1; reserved "snapshot"; optional string id = 2; optional string label = 3; optional string type = 4; Rectangle bounds = 5;
   optional string priority = 6; optional string crop_def_name = 7; optional bool explicitly_set_crop = 8;
   optional bool allow_sow = 9; optional bool allow_cut = 10; StockpileFilter filter = 11;
   repeated rimgovernor.common.v1.Cell listed_cells = 12; repeated rimgovernor.common.v1.Cell grid_cells = 13;
@@ -679,7 +679,7 @@ message ResourceSourcesSnapshot { rimgovernor.common.v1.ObservationContext conte
 message ResourceSourcesRequest { ReadScope scope = 1; optional string resource = 2; optional bool include_development = 3; reserved 4; }
 message ResourceSourcesReply { oneof outcome { ResourceSourcesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message HandlerState { EntityRef pawn = 1; optional int32 skill = 2; optional int32 priority = 3; optional bool eligible = 4; optional string reason = 5; }
-message HusbandryAnimal { PawnState pawn = 1; SnapshotRef settings_snapshot = 2; AnimalState animal = 3; repeated HandlerState handlers = 4; SnapshotRef census_snapshot = 5; }
+message HusbandryAnimal { PawnState pawn = 1; AnimalState animal = 3; repeated HandlerState handlers = 4; reserved 2, 5; reserved "settings_snapshot", "census_snapshot"; }
 message HusbandrySnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef census = 2; repeated HusbandryAnimal animals = 3; reserved 4; }
 message HusbandryRequest { ReadScope scope = 1; optional bool include_wild = 3; reserved 2; }
 message HusbandryReply { oneof outcome { HusbandrySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -1106,7 +1106,7 @@ message ColonyFactsSnapshot {
 }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }
-message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; reserved 4, 5; }
+message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; reserved 3, 4, 5; reserved "requested_definition_names"; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.

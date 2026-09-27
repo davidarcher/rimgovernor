@@ -70,7 +70,7 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 	if g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	bill, err := domain.NewProductionBill("bench", "recipe", "bench-cas", domain.FoodTarget, 10)
+	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureCooking)
-	bill, err := domain.NewProductionBill("bench", "recipe", "bench-cas", domain.FoodTarget, 10)
+	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,11 +167,11 @@ func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureCooking)
-	bill1, err := domain.NewProductionBill("bench1", "recipe1", "bench1-cas", domain.FoodTarget, 10)
+	bill1, err := domain.NewProductionBill("bench1", "recipe1", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bill2, err := domain.NewProductionBill("bench2", "recipe2", "bench2-cas", domain.FoodTarget, 10)
+	bill2, err := domain.NewProductionBill("bench2", "recipe2", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +310,7 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 	r.Facts.Cooking = domain.Known(false)
 	tick := r.Tick
 	g := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
-	bill, err := domain.NewProductionBill("bench", "recipe", "bench-cas", domain.FoodTarget, 10)
+	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

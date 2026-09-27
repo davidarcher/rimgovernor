@@ -9,7 +9,7 @@ import (
 
 func billFoodTarget(t *testing.T) domain.ProductionBill {
 	t.Helper()
-	b, err := domain.NewProductionBill("stove", "CookMealSimple", "before-token", domain.FoodTarget, 10)
+	b, err := domain.NewProductionBill("stove", "CookMealSimple", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestProductionBillAction(t *testing.T) {
 }
 
 func TestBillIntentSettingsByMode(t *testing.T) {
-	human, err := domain.NewHumanButcherBill("bench", "token", "cook")
+	human, err := domain.NewHumanButcherBill("bench", "cook")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestBillIntentSettingsByMode(t *testing.T) {
 	if add.Settings.GetSuspended() || add.Settings.GetStore().GetMode() != op.StoreMode_STORE_MODE_DROP_ON_FLOOR {
 		t.Fatal("unexpected shared settings", add.Settings)
 	}
-	forever, err := domain.NewProductionBill("butcher-table", "ButcherCorpseFlesh", "before-token", domain.ButcherForever, 0)
+	forever, err := domain.NewProductionBill("butcher-table", "ButcherCorpseFlesh", domain.ButcherForever, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestBillIntentSettingsByMode(t *testing.T) {
 	// StockTarget (GearProduce, MaintainResource-* and MaintainMedicalReserves'
 	// shared "keep at least Target in stock" mode) reuses FoodTarget's
 	// pause-when-satisfied settings shape.
-	stock, err := domain.NewProductionBill("tailor", "MakeParka", "before-token", domain.StockTarget, 1)
+	stock, err := domain.NewProductionBill("tailor", "MakeParka", domain.StockTarget, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,13 +76,13 @@ func TestBillIntentSettingsByMode(t *testing.T) {
 	if sAdd.Settings.GetRepeatMode() != op.RepeatMode_REPEAT_MODE_TARGET || sAdd.Settings.GetTargetCount() != 1 || sAdd.Settings.GetUnpauseThreshold() != 1 || !sAdd.Settings.GetPauseWhenSatisfied() {
 		t.Fatal("unexpected stock-target settings", sAdd.Settings)
 	}
-	if _, err := domain.NewProductionBill("tailor", "MakeParka", "before-token", domain.StockTarget, 0); err == nil {
+	if _, err := domain.NewProductionBill("tailor", "MakeParka", domain.StockTarget, 0); err == nil {
 		t.Fatal("expected zero stock target to be rejected")
 	}
 }
 
 func TestBillIntentReplacesIngredientMembership(t *testing.T) {
-	bill, err := domain.NewProductionBill("tailor", "MakeParka", "token", domain.StockTarget, 1, "Leather_Plain")
+	bill, err := domain.NewProductionBill("tailor", "MakeParka", domain.StockTarget, 1, "Leather_Plain")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestBillIntentReplacesIngredientMembership(t *testing.T) {
 }
 
 func TestBeerReserveBillIntent(t *testing.T) {
-	bill, err := domain.NewProductionBill("brewery", "Make_Wort", "before", domain.BeerReserve, 12)
+	bill, err := domain.NewProductionBill("brewery", "Make_Wort", domain.BeerReserve, 12)
 	if err != nil || !billIntent(bill).GetSettings().GetBeerReserve() {
 		t.Fatal(bill, err)
 	}
