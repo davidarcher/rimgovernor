@@ -10,8 +10,8 @@ using Presentation = RimGovernor.Protocol.Presentation;
 
 namespace HomeBridge.BridgeTools
 {
-    // The controller's in-game status strip (#823), drawn by
-    // GovernorStatusStrip. Output only; nothing reads it back.
+    // The controller's in-game status rows (#823), drawn by the #951
+    // GovernorStatusPanel. Output only; nothing reads it back.
     public sealed class ProtoStatusStripTools
     {
         private const string ToolName = "rimgovernor/presentation_status_strip";
@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
                 return new Presentation.StatusStripReply { Failure = invalid };
             if (!request.Enabled)
             {
-                GovernorStatusStrip.Clear();
+                GovernorStatusPanel.Clear();
                 return Applied(context);
             }
             if (request.Rows.Count > MaxRows) return Invalid($"More than {MaxRows} status rows.");
@@ -63,12 +63,12 @@ namespace HomeBridge.BridgeTools
                 };
                 rows.Add(new StatusStripRow(key, text, severity, target, row.Detail));
             }
-            GovernorStatusStrip.Replace(map, rows);
+            GovernorStatusPanel.Replace(map, rows);
             return Applied(context);
         }
 
         private static Presentation.StatusStripReply Applied(Common.ObservationContext context) =>
-            new Presentation.StatusStripReply { Applied = new Presentation.StatusStripApplied { Context = context, Rows = (uint)GovernorStatusStrip.Count } };
+            new Presentation.StatusStripReply { Applied = new Presentation.StatusStripApplied { Context = context, Rows = (uint)GovernorStatusPanel.Count } };
 
         private static Presentation.StatusStripReply Invalid(string detail) =>
             new Presentation.StatusStripReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail) };
