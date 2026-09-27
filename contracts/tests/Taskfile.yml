@@ -8,6 +8,7 @@ version: '3'
 vars:
   REPO: '{{.TASKFILE_DIR}}/../..'
   EVIDENCE: '{{.REPO}}/.rimgovernor/task/probes'
+  RIMBRIDGE_SDK_DIR: '{{.RIMBRIDGE_SDK_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies"}}'
 
 tasks:
   build:
@@ -26,3 +27,12 @@ tasks:
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-reply-encoder'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-threat-classifier'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-acquisition-token'
+      # Binds against the installed RimBridgeServer.dll; like native:build,
+      # reports unavailable when the SDK is not installed.
+      - |
+        server="{{.RIMBRIDGE_SDK_DIR}}/RimBridgeServer.dll"
+        if [ ! -f "$server" ]; then
+          echo "native-proto-boundary: unavailable (missing $server)"
+          exit 0
+        fi
+        {{if ne OS "windows"}}mono {{end}}"{{.EVIDENCE}}/bin/NativeContractProbes.exe" native-proto-boundary "$server"

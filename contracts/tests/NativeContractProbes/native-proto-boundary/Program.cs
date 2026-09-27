@@ -80,7 +80,8 @@ internal static class NativeProtoBoundaryProbe {
         Check(!ProtoBoundary.BinaryOf(null),"other encoding stays ProtoJSON");
         BridgeCommon.Arguments=null;
         var overflowRefused=false;
-        try { ProtoBoundary.Encode(new Common.Identity { ColonyId=new string('a',ProtoBoundary.MaximumEnvelopeBytes) }); }
+        // ProtoJSON: the binary form Parse above left on gzips the repeated bytes under the cap.
+        try { ProtoBoundary.WithBinary(false, () => ProtoBoundary.Encode(new Common.Identity { ColonyId=new string('a',ProtoBoundary.MaximumEnvelopeBytes) })); }
         catch(InvalidOperationException) { overflowRefused=true; }
         Check(overflowRefused,"oversize outgoing payload fails before return");
         Common.ObservationContext context; Common.Unavailable unavailable;
@@ -104,7 +105,8 @@ internal static class NativeProtoBoundaryProbe {
     static void PackedPlanningCells() {
         var snapshot = new RimGovernor.Protocol.Observations.CellsSnapshot {
             Region = new RimGovernor.Protocol.Observations.Rectangle {
-                Minimum = new Common.Cell { X = 7, Z = 8 }, Maximum = new Common.Cell { X = 9, Z = 8 } }
+                Minimum = new Common.Cell { X = 7, Z = 8 }, Maximum = new Common.Cell { X = 9, Z = 8 } },
+            AppliedFields = new RimGovernor.Protocol.Observations.CellFields()
         };
         snapshot.Cells.Add(new RimGovernor.Protocol.Observations.CellState {
             Cell = new Common.Cell { X = 7, Z = 8 }, Walkable = true, Passable = true,
@@ -118,7 +120,8 @@ internal static class NativeProtoBoundaryProbe {
         Check(snapshot.Compact.Fertility[0] == 1.23456789 && snapshot.Compact.Glow[0] == .123456789 && snapshot.Compact.Strings[2] == "9", "packed metadata lossless");
         snapshot = new RimGovernor.Protocol.Observations.CellsSnapshot {
             Region = new RimGovernor.Protocol.Observations.Rectangle {
-                Minimum = new Common.Cell { X = 0, Z = 0 }, Maximum = new Common.Cell { X = 249, Z = 249 } }
+                Minimum = new Common.Cell { X = 0, Z = 0 }, Maximum = new Common.Cell { X = 249, Z = 249 } },
+            AppliedFields = new RimGovernor.Protocol.Observations.CellFields()
         };
         for (int z = 0; z < 250; z++) for (int x = 0; x < 250; x++)
             snapshot.Cells.Add(new RimGovernor.Protocol.Observations.CellState {
