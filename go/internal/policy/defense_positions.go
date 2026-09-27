@@ -20,6 +20,9 @@ type DefensiveThreatFacts struct {
 	// corridor direction it says whether the raid is still in front of the
 	// line or already past it.
 	Position domain.Fact[domain.Cell]
+	// Mech is a Mech_ kind (#922): a mechanoid assault lord holds like a
+	// humanlike raid.
+	Mech bool `json:",omitempty"`
 }
 
 // DefensivePosition sends one ranged defender to one firing cell and names
@@ -85,7 +88,7 @@ func explainDefensivePositions(firing []domain.Cell, toward domain.Rotation, hel
 		distance, nk := t.NearestColonistDistance.Value()
 		position, pk := t.Position.Value()
 		switch {
-		case !hk || !humanlike:
+		case !t.Mech && (!hk || !humanlike):
 			return nil, fmt.Sprintf("hostile %s: not known humanlike", t.ID)
 		case !jk || !tk:
 			return nil, fmt.Sprintf("hostile %s: lord unknown (job %q known=%t, toil %q known=%t)", t.ID, job, jk, toil, tk)

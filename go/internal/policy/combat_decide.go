@@ -86,6 +86,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	next.Roles = dropMissingTargets(view, next.Roles)
 	siegeHold(&next)
+	mechLure(view, &next)
 	siegeSnipe(view, &next)
 	manhunterKite(view, &next)
 	sapperIntercept(view, &next)
@@ -389,6 +390,9 @@ type CombatMemory struct {
 	SapperBreach *domain.Cell `json:",omitempty"`
 	// Intercept is a sapper fight whose gunners went out to the diggers (#914).
 	Intercept bool `json:",omitempty"`
+	// MechLure is a hold whose gunners wait on the inner line for
+	// outranging mechs to close (#922).
+	MechLure bool `json:",omitempty"`
 	// Rushing is a sapper fight whose posted brawlers rush the breach (#915).
 	Rushing bool `json:",omitempty"`
 	// SiegeCamp is the tick a siege camp was first seen; SiegeMode the
@@ -693,7 +697,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 		var positions []DefensivePosition
 		cells = spaceCells(RankByCover(cells, geometry.Scored))
 		defenders, tanks := splitTanks(view)
-		positions, refusal = explainDefensivePositions(cells, layout.Toward, chokeHeld(view, layout), view.Positional, defenders)
+		positions, refusal = explainDefensivePositions(cells, layout.Toward, chokeHeld(view, layout), markMechs(view), defenders)
 		if refusal == "" {
 			roles := make([]CombatRole, 0, len(positions))
 			for _, p := range positions {
