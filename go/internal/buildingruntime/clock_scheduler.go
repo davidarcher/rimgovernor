@@ -715,7 +715,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if reason.Cause == StepWake {
 		s.queue.wake(reason, s.facts.kindOf)
 	}
-	call = observation.WithDefinitionPool(call, s.facts.definitions)
 	// The round trips that still cross the bridge (frame misses and
 	// writes) are tallied by tool so the cost of the composition is
 	// visible per step: as a debug record and as a clock_step row in the

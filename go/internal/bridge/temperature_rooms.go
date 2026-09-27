@@ -1,41 +1,12 @@
 package bridge
 
 import (
-	"context"
 	"math"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
-
-// ReadTemperatureRooms reads complete indoor room geometry and contents. It
-// grants no room ownership; eligible player beds are joined by the projection.
-func (client *Client) ReadTemperatureRooms(ctx context.Context, identity *c.Identity) (*o.ListRoomsReply, Result, error) {
-	if err := ValidateIdentity(identity); err != nil {
-		return nil, Result{}, err
-	}
-	request := &o.ListRoomsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeOutdoors: proto.Bool(false), IncludeBoundary: proto.Bool(false), IncludeCells: proto.Bool(true)}
-	reply := &o.ListRoomsReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_rooms", request, reply)
-	if err != nil {
-		return nil, raw, err
-	}
-	if err = buildingUnknown(reply); err != nil {
-		return reply, raw, err
-	}
-	switch v := reply.Outcome.(type) {
-	case *o.ListRoomsReply_Failure:
-		err = failure(v.Failure, raw)
-	case *o.ListRoomsReply_Unavailable:
-		err = unavailable(v.Unavailable, raw)
-	case *o.ListRoomsReply_Observed:
-		err = ValidateTemperatureRooms(v.Observed, request.Scope.ExpectedIdentity)
-	default:
-		err = contract("room read outcome missing")
-	}
-	return reply, raw, err
-}
 
 // ValidateTemperatureRooms checks every fact consumed by temperature planning.
 // Other typed room details (beauty, wealth, labels) convey no thermal authority.

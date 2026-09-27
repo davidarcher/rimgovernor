@@ -71,9 +71,7 @@ func NewRoutineResearchPlanner(reviewer *RoutineReviewer, native RoutineResearch
 	}
 	planner := &RoutineResearchPlanner{reviewer: reviewer, native: native}
 	if source, ok := native.(RoutineBuildingSource); ok {
-		_, rooms := native.(observation.RoutineSource)
-		_, temperature := native.(observation.TemperatureSource)
-		if rooms && temperature {
+		if _, rooms := native.(observation.RoutineSource); rooms {
 			planner.building = &RoutineBuildingPlanner{reviewer: reviewer, native: source, goal: policy.EnsureResearch, definition: "Wall", shelter: true}
 		}
 	}

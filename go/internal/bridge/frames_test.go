@@ -16,6 +16,7 @@ import (
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -232,7 +233,17 @@ type frameServer struct {
 
 func (s *frameServer) handle(ctx context.Context, arg nativeArgument) (*callResult, error) {
 	if arg.Tool == methodOpenSnapshotStream {
-		s.opens <- nil
+		var wrapper struct {
+			Request string `json:"request"`
+		}
+		request := &o.SnapshotStreamRequest{}
+		if err := json.Unmarshal(arg.Arguments, &wrapper); err != nil {
+			return nil, err
+		}
+		if err := protojson.Unmarshal([]byte(wrapper.Request), request); err != nil {
+			return nil, err
+		}
+		s.opens <- request
 		return pbResult(&o.SnapshotStreamReply{Outcome: &o.SnapshotStreamReply_Opened{Opened: &o.SnapshotStreamOpened{Name: "ring", Slots: 3, SlotBytes: 1 << 20}}}), nil
 	}
 	return s.bundleFamilyServer.handle(ctx, arg)
@@ -369,5 +380,35 @@ func TestFramesServeCombat(t *testing.T) {
 	client.frames = nil
 	if _, err := client.ReadCombat(context.Background(), pbIdentity()); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("no stream: %v", err)
+	}
+}
+
+// TestFramesServeSubscribedDefinitions (#944): a routine read naming a
+// planning definition subscribes the stream to it and waits for a frame
+// carrying its row; the frame's rows reach the routine frame.
+func TestFramesServeSubscribedDefinitions(t *testing.T) {
+	client, server, ring := frameClient(t)
+	ring.publish(t, server.snapshot, 0)
+	if _, err := client.ReadRoutineFrame(context.Background(), pbIdentity(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if first := <-server.opens; len(first.GetDefinitions()) != 0 {
+		t.Fatalf("first subscription %v", first.GetDefinitions())
+	}
+	carrying := proto.Clone(server.snapshot).(*o.BundleSnapshot)
+	carrying.ProjectDefinitions = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("Hopper")}, Available: proto.Bool(true)}}
+	go func() {
+		request := <-server.opens
+		if len(request.GetDefinitions()) != 1 || request.GetDefinitions()[0] != "Hopper" {
+			t.Errorf("resubscription %v", request.GetDefinitions())
+		}
+		ring.publish(t, carrying, 0)
+	}()
+	frame, err := client.ReadRoutineFrame(context.Background(), pbIdentity(), []string{"Hopper"})
+	if err != nil || len(frame.Definitions) != 1 || frame.Definitions[0].GetDefinition().GetDefName() != "Hopper" {
+		t.Fatalf("%v %v", frame.Definitions, err)
+	}
+	if n := server.familyCalls(); n != 0 {
+		t.Fatalf("%d native family reads, want 0", n)
 	}
 }

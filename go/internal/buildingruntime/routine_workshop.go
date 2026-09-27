@@ -80,9 +80,6 @@ func NewRoutineWorkshopPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, ErrControl
 	}
-	if _, ok := native.(observation.TemperatureSource); !ok {
-		return nil, ErrControl
-	}
 	if _, ok := native.(RoutineWorkshopSource); !ok {
 		return nil, ErrControl
 	}

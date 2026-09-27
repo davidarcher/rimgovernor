@@ -8,8 +8,8 @@ using Obs = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// One snapshot stream frame (#858): every state family the
-    /// subscription names, each read exactly as its dedicated tool answers
+    /// One snapshot stream frame (#858): every state family, plus the
+    /// subscription's parameterized ones, each read exactly as its dedicated tool answers
     /// the request shape the controller issues, all in one game-thread hop
     /// so they describe one tick. A family that fails to read is omitted
     /// and the controller waits for a frame that carries it. Each section's
@@ -21,9 +21,9 @@ namespace HomeBridge.BridgeTools
         private static long Now() { return System.Diagnostics.Stopwatch.GetTimestamp(); }
 
         // On the main thread: one snapshot stream frame (#858), every state
-        // family the request names, or
-        // null when the map has no readable context.
-        internal static Obs.BundleSnapshot? Capture(Map map, Obs.BundleRequest request)
+        // family plus the subscription's, or null when the map has no
+        // readable context.
+        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request)
         {
             if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
             var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
@@ -34,8 +34,9 @@ namespace HomeBridge.BridgeTools
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
             if (!statusRead) return null;
             observed.Emergency = emergency;
-            ReadFamilies(map, request, context, observed);
-            ReadStepFamilies(map, request, context, observed);
+            ReadFamilies(map, context, observed);
+            ReadStepFamilies(map, context, observed);
+            ReadSubscribed(map, request, context, observed);
             var combatBegan = Now();
             Supervisor.EnsureHazardHooks(); Supervisor.EnsureCombatHooks();
             CombatMirror.Capture(map, observed);
@@ -141,33 +142,30 @@ namespace HomeBridge.BridgeTools
             catch (System.Exception) { }
         }
 
-        // On the main thread. Adds the requested census families to observed,
-        // each keyed as its dedicated read, omitting any that fails.
-        private static void ReadFamilies(Map map, Obs.BundleRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        // On the main thread. Adds the census families to observed, each
+        // keyed as its dedicated read, omitting any that fails.
+        private static void ReadFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
-            if (request.HasColonyFacts && request.ColonyFacts)
             {
                 var began = Now();
                 var read = NativeColonyObservationTools.TryRead(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context, out var colony);
                 ObservationWork.Captured("colonyFacts", Now() - began, read ? colony!.Resources.Count : 0);
                 if (read) { observed.ColonyFacts = colony; }
             }
-            if (request.HasPopulation && request.Population)
             {
                 var began = Now();
                 var read = NativePopulationObservation.TryRead(map, new Obs.PopulationRequest { Scope = Scope() }, context, out var population);
                 ObservationWork.Captured("population", Now() - began, read ? population!.Persons.Count : 0);
                 if (read) { observed.Population = population; }
             }
-            if (request.HasResearch && request.Research)
             {
                 var began = Now();
                 var read = NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), IncludeLocked = true, IncludeFinished = true }, context, out var research);
                 ObservationWork.Captured("research", Now() - began, read ? research!.Projects.Count : 0);
                 if (read) { observed.Research = research; }
             }
-            if (request.HasColonistPawns && request.ColonistPawns && observed.Emergency?.Colonists != null
+            if (observed.Emergency?.Colonists != null
                 && observed.Emergency.Colonists.Pawns.Count > 0)
             {
                 var pawns = new Obs.ListPawnsRequest {
@@ -185,20 +183,18 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // On the main thread. Adds the requested step families (#593), each
-        // the exact read its dedicated tool answers for the request shape the
+        // On the main thread. Adds the step families (#593), each the exact
+        // read its dedicated tool answers for the request shape the
         // controller issues, omitting any that fails or is not observed.
-        private static void ReadStepFamilies(Map map, Obs.BundleRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        private static void ReadStepFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
-            if (request.HasBuildings && request.Buildings)
             {
                 var began = Now();
                 var buildings = NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial" }, context).Observed;
                 ObservationWork.Captured("buildings", Now() - began, buildings != null ? buildings.Buildings.Count : 0);
                 if (buildings != null) { observed.Buildings = buildings; }
             }
-            if (request.HasBuiltBuildings && request.BuiltBuildings)
             {
                 var built = new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial" };
                 built.Statuses.Add("built");
@@ -207,32 +203,43 @@ namespace HomeBridge.BridgeTools
                 ObservationWork.Captured("builtBuildings", Now() - began, buildings != null ? buildings.Buildings.Count : 0);
                 if (buildings != null) { observed.BuiltBuildings = buildings; }
             }
-            if (request.HasBills && request.Bills)
             {
                 var began = Now();
                 var bills = NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope() }, context).Observed;
                 ObservationWork.Captured("bills", Now() - began, bills != null ? bills.Benches.Count : 0);
                 if (bills != null) { observed.Bills = bills; }
             }
-            if (request.HasZones && request.Zones)
             {
                 var began = Now();
                 var zones = NativeZoneObservationTools.Read(map, new Obs.ListZonesRequest { Scope = Scope() }, context).Observed;
                 ObservationWork.Captured("zones", Now() - began, zones != null ? zones.Zones.Count : 0);
                 if (zones != null) { observed.Zones = zones; }
             }
-            if (request.HasTraders && request.Traders)
             {
                 var began = Now();
                 try { observed.Traders = NativeTradeObservation.Traders(map, context); } catch (System.Exception) { }
                 ObservationWork.Captured("traders", Now() - began, observed.Traders != null ? observed.Traders.Traders.Count : 0);
             }
-            if (request.HasWorldProgression && request.WorldProgression)
             {
                 var began = Now();
                 try { observed.WorldProgression = NativeWorldProgressionObservation.Build(context, false); } catch (System.Exception) { }
                 ObservationWork.Captured("worldProgression", Now() - began);
             }
+            {
+                var rooms = new Obs.ListRoomsRequest { Scope = Scope(), IncludeOutdoors = false, IncludeBoundary = false, IncludeCells = true };
+                var began = Now();
+                var census = NativeRoomObservationTools.Read(map, rooms, context).Observed;
+                ObservationWork.Captured("rooms", Now() - began, census != null ? census.Rooms.Count : 0);
+                if (census != null) { observed.Rooms = census; }
+            }
+        }
+
+        // On the main thread. Adds the subscription's parameterized
+        // families: each named resource's sources, the planning window
+        // band and the named planning definitions.
+        private static void ReadSubscribed(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        {
+            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
             foreach (var resource in request.ResourceSources)
             {
                 if (!ProtoBoundary.IsIdentifier(resource)) continue;
@@ -242,13 +249,13 @@ namespace HomeBridge.BridgeTools
                 if (sources != null) { observed.ResourceSources.Add(sources); }
             }
             var window = request.PlanningWindow;
-            if (window?.Region?.Minimum != null && window.Region.Maximum != null)
+            if (window?.Minimum != null && window.Maximum != null)
             {
-                var width = (long)window.Region.Maximum.X - window.Region.Minimum.X + 1;
-                var height = (long)window.Region.Maximum.Z - window.Region.Minimum.Z + 1;
+                var width = (long)window.Maximum.X - window.Minimum.X + 1;
+                var height = (long)window.Maximum.Z - window.Minimum.Z + 1;
                 if (width >= 1 && height >= 1)
                 {
-                    var cells = new Obs.GetCellsRequest { Scope = Scope(), Rectangle = window.Region.Clone(), Compact = true,
+                    var cells = new Obs.GetCellsRequest { Scope = Scope(), Rectangle = window.Clone(), Compact = true,
                         Fields = new Obs.CellFields { Terrain = false, Roof = true, Visibility = true, Traversal = true, Zone = true, Areas = false, Things = false, Designations = false, Room = true, Growth = true } };
                     if (NativeObservationTools.ValidateCells(cells, out _))
                     {
@@ -261,6 +268,13 @@ namespace HomeBridge.BridgeTools
                         if (snapshot != null) { observed.PlanningWindow = snapshot; }
                     }
                 }
+            }
+            if (request.Definitions.Count > 0)
+            {
+                var began = Now();
+                try { observed.ProjectDefinitions.Add(NativeColonyObservationTools.Definitions(map, request.Definitions)); }
+                catch (System.Exception) { observed.ProjectDefinitions.Clear(); }
+                ObservationWork.Captured("projectDefinitions", Now() - began, observed.ProjectDefinitions.Count);
             }
         }
     }

@@ -1,48 +1,10 @@
 package observation
 
 import (
-	"context"
-	"errors"
-
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
-
-type TemperatureSource interface {
-	ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error)
-}
-
-// readTemperature reads the typed room census (frames do not carry it) and
-// returns the validated snapshot. A nil snapshot with a nil error is a
-// census the source reports unavailable: the fact stays unknown.
-func readTemperature(ctx context.Context, source TemperatureSource, id *c.Identity, expected Identity) (*o.RoomsSnapshot, error) {
-	reply, _, err := source.ReadTemperatureRooms(ctx, id)
-	if errors.Is(err, bridge.ErrUnavailable) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	if reply == nil || reply.GetObserved() == nil {
-		return nil, ErrContract
-	}
-	rooms := reply.GetObserved()
-	if err := bridge.ValidateTemperatureRooms(rooms, id); err != nil {
-		return nil, err
-	}
-	observed, err := contextIdentity(rooms.Context)
-	if err != nil {
-		return nil, err
-	}
-	observed.Paused = expected.Paused
-	if !sameColonyContext(observed, expected) {
-		return nil, ErrChanged
-	}
-	return rooms, nil
-}
 
 func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.SleepingObservation]) domain.Fact[policy.RoomObservation] {
 	result := policy.RoomObservation{}

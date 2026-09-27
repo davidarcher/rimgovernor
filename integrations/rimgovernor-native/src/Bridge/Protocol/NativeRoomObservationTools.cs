@@ -28,52 +28,57 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = error });
-                try
-                {
-                    if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
-                        return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map.") });
-                    if (map.regionGrid?.AllRooms == null || map.regionAndRoomUpdater == null || map.zoneManager == null || map.mapPawns == null)
-                        return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.NativeComponentMissing, "Room, zone or pawn census is unavailable.") });
-                    // AllRooms is the raw cache; resolve pending region changes
-                    // before taking a complete physical-room census.
-                    map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
-                    if (map.regionAndRoomUpdater.AnythingToRebuild) throw new InvalidOperationException("Native room graph remains dirty.");
-                    var source = map.regionGrid.AllRooms.ToList();
-                    if (source.Any(r => r == null) || source.Select(r => r.ID).Distinct().Count() != source.Count)
-                        throw new InvalidOperationException("Null or duplicate native room census entry.");
-                    var physical = source.Where(HasPhysicalRegions).ToList();
-                    if (physical.Any(r => r.Map != map)) throw new InvalidOperationException("Foreign native room census entry.");
-                    var pawns = map.mapPawns.AllPawnsSpawned.ToList();
-                    var pawnRooms = new Dictionary<Room, List<Pawn>>();
-                    foreach (var pawn in pawns)
-                    {
-                        if (pawn == null || !pawn.Spawned || pawn.Map != map) throw new InvalidOperationException();
-                        var room = pawn.Position.GetRoom(map);
-                        if (room == null) continue; // Impassable/unregioned cells have no room.
-                        if (!pawnRooms.TryGetValue(room, out var list)) pawnRooms.Add(room, list = new List<Pawn>());
-                        list.Add(pawn);
-                    }
-                    var snapshot = new Obs.RoomsSnapshot { Context = context };
-                    var filtered = source.Count - physical.Count;
-                    foreach (var room in physical.OrderBy(r => r.ID))
-                    {
-                        if (!Selected(parsed, Id(room.ID), room.PsychologicallyOutdoors, room.IsDoorway)) { filtered++; continue; }
-                        var cells = new List<IntVec3>();
-                        foreach (var cell in room.Cells)
-                        {
-                            if (!cell.InBounds(map)) throw new InvalidOperationException();
-                            cells.Add(cell);
-                        }
-                        if (cells.Count == 0 || cells.Count != room.CellCount || cells.Distinct().Count() != cells.Count) throw new InvalidOperationException("Incomplete room footprint.");
-                        if (parsed.Region != null && !cells.Any(c => Inside(parsed.Region, c))) { filtered++; continue; }
-                        snapshot.Rooms.Add(Project(room, map, cells, pawnRooms.TryGetValue(room, out var members) ? members : new List<Pawn>(), parsed, context));
-                    }
-                    snapshot.Completeness = Complete(snapshot.Rooms.Count, filtered);
-                    return ProtoBoundary.Encode(new Obs.ListRoomsReply { Observed = snapshot });
-                }
-                catch (Exception readError) { return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed,
-                    PlacementPreviewOperation.Diagnostic("Room census, geometry or contents could not be read completely: " + readError)) }); }
+                return ProtoBoundary.Encode(Read(map, parsed, context));
             }, cancellationToken).ConfigureAwait(false);
+        }
+        // On the main thread: the room census for a validated request.
+        internal static Obs.ListRoomsReply Read(Map map, Obs.ListRoomsRequest parsed, Common.ObservationContext context)
+        {
+            try
+            {
+                if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
+                    return new Obs.ListRoomsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map.") };
+                if (map.regionGrid?.AllRooms == null || map.regionAndRoomUpdater == null || map.zoneManager == null || map.mapPawns == null)
+                    return new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.NativeComponentMissing, "Room, zone or pawn census is unavailable.") };
+                // AllRooms is the raw cache; resolve pending region changes
+                // before taking a complete physical-room census.
+                map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
+                if (map.regionAndRoomUpdater.AnythingToRebuild) throw new InvalidOperationException("Native room graph remains dirty.");
+                var source = map.regionGrid.AllRooms.ToList();
+                if (source.Any(r => r == null) || source.Select(r => r.ID).Distinct().Count() != source.Count)
+                    throw new InvalidOperationException("Null or duplicate native room census entry.");
+                var physical = source.Where(HasPhysicalRegions).ToList();
+                if (physical.Any(r => r.Map != map)) throw new InvalidOperationException("Foreign native room census entry.");
+                var pawns = map.mapPawns.AllPawnsSpawned.ToList();
+                var pawnRooms = new Dictionary<Room, List<Pawn>>();
+                foreach (var pawn in pawns)
+                {
+                    if (pawn == null || !pawn.Spawned || pawn.Map != map) throw new InvalidOperationException();
+                    var room = pawn.Position.GetRoom(map);
+                    if (room == null) continue; // Impassable/unregioned cells have no room.
+                    if (!pawnRooms.TryGetValue(room, out var list)) pawnRooms.Add(room, list = new List<Pawn>());
+                    list.Add(pawn);
+                }
+                var snapshot = new Obs.RoomsSnapshot { Context = context };
+                var filtered = source.Count - physical.Count;
+                foreach (var room in physical.OrderBy(r => r.ID))
+                {
+                    if (!Selected(parsed, Id(room.ID), room.PsychologicallyOutdoors, room.IsDoorway)) { filtered++; continue; }
+                    var cells = new List<IntVec3>();
+                    foreach (var cell in room.Cells)
+                    {
+                        if (!cell.InBounds(map)) throw new InvalidOperationException();
+                        cells.Add(cell);
+                    }
+                    if (cells.Count == 0 || cells.Count != room.CellCount || cells.Distinct().Count() != cells.Count) throw new InvalidOperationException("Incomplete room footprint.");
+                    if (parsed.Region != null && !cells.Any(c => Inside(parsed.Region, c))) { filtered++; continue; }
+                    snapshot.Rooms.Add(Project(room, map, cells, pawnRooms.TryGetValue(room, out var members) ? members : new List<Pawn>(), parsed, context));
+                }
+                snapshot.Completeness = Complete(snapshot.Rooms.Count, filtered);
+                return new Obs.ListRoomsReply { Observed = snapshot };
+            }
+            catch (Exception readError) { return new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed,
+                PlacementPreviewOperation.Diagnostic("Room census, geometry or contents could not be read completely: " + readError)) }; }
         }
         internal static bool Validate(Obs.ListRoomsRequest request, out Common.Failure failure)
         {

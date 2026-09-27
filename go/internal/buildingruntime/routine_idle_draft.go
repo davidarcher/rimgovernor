@@ -141,7 +141,7 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 		}
 	}
 	started := r.clock.Now()
-	frame, err := r.native.ReadRoutineFrame(ctx, boundary.Identity(state.Snapshot))
+	frame, err := r.native.ReadRoutineFrame(ctx, boundary.Identity(state.Snapshot), nil)
 	if err != nil {
 		return err
 	}

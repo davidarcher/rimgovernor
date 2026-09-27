@@ -27,8 +27,8 @@ import (
 // does not answer (a page cursor, an id list, a filter) crosses GABP.
 //
 // The subscription grows itself: a read of a resource's sources or of a
-// planning band is added to it, and the stream is resubscribed so later
-// frames carry it.
+// planning band, or a routine read's planning definitions, is added to it,
+// and the stream is resubscribed so later frames carry it.
 
 const methodOpenSnapshotStream = "rimgovernor/observations_open_snapshot_stream"
 
@@ -61,12 +61,15 @@ type frameStream struct {
 	attempted time.Time
 	resources []string
 	window    *o.Rectangle
-	stale     bool   // the subscription grew since the stream was opened
-	needs     int64  // a frame must be captured at or past this write count
-	epoch     uint64 // bumped by close: an open begun before it is discarded
-	number    uint64
-	identity  *c.Identity
-	table     map[readCacheKey][]byte
+	// definitions are the planning definitions frames carry in
+	// project_definitions (#944).
+	definitions []string
+	stale       bool   // the subscription grew since the stream was opened
+	needs       int64  // a frame must be captured at or past this write count
+	epoch       uint64 // bumped by close: an open begun before it is discarded
+	number      uint64
+	identity    *c.Identity
+	table       map[readCacheKey][]byte
 }
 
 // readCacheKey names one reply a frame answers: the read's method and its
@@ -308,9 +311,21 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 	if band, ok := frameBand(window); ok && v.PlanningWindow != nil {
 		seed("rimgovernor/observations_get_cells", planningBandRequest(identity, band), &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: v.PlanningWindow}})
 	}
+	for _, row := range v.ProjectDefinitions {
+		seed(frameDefinitionMethod, frameDefinitionRequest(row.GetDefinition().GetDefName()), row)
+	}
 	seed(combatFrameMethod, nil, combatFrame(v))
 	seed(routineFrameMethod, nil, &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
-		ColonistPawns: v.ColonistPawns, BuiltBuildings: v.BuiltBuildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression})
+		ColonistPawns: v.ColonistPawns, BuiltBuildings: v.BuiltBuildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
+		ProjectDefinitions: v.ProjectDefinitions, Rooms: v.Rooms})
+}
+
+// frameDefinitionMethod keys one project definition row in a frame's
+// table, by its name; frames-only like routineFrameMethod.
+const frameDefinitionMethod = "rimgovernor/snapshot_frame_definition"
+
+func frameDefinitionRequest(name string) *o.DefinitionRef {
+	return &o.DefinitionRef{DefName: proto.String(name)}
 }
 
 // routineFrameMethod keys a frame's routine census sections in its table,
@@ -331,16 +346,39 @@ type RoutineFrame struct {
 	Quests       *WorldProgressionRead
 	Construction *o.BuildingsSnapshot
 	Zones        *ZonesRead
+	// Definitions are the rows of the planning definitions the read
+	// asked for (#944), sorted by name.
+	Definitions []*o.PlanningDefinition
+	// Rooms is the indoor room census with cells (#944).
+	Rooms *o.RoomsSnapshot
 }
 
 // ReadRoutineFrame decodes the routine census of the newest frame past
-// this client's last write; without a stream it is ErrUnavailable.
-func (caller *Client) ReadRoutineFrame(ctx context.Context, identity *c.Identity) (RoutineFrame, error) {
+// this client's last write that carries every one of definitions; without
+// a stream it is ErrUnavailable. Definitions join the subscription, so the
+// first read naming one waits for the resubscribed frame.
+func (caller *Client) ReadRoutineFrame(ctx context.Context, identity *c.Identity, definitions []string) (RoutineFrame, error) {
 	if caller.frames == nil {
 		return RoutineFrame{}, fmt.Errorf("%w: the routine census is served only by the snapshot stream", ErrUnavailable)
 	}
 	if err := ValidateIdentity(identity); err != nil {
 		return RoutineFrame{}, err
+	}
+	for _, name := range definitions {
+		if err := validID(name); err != nil {
+			return RoutineFrame{}, err
+		}
+	}
+	caller.frameSubscribeDefinitions(definitions)
+	for _, name := range definitions {
+		encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(frameDefinitionRequest(name))
+		if err != nil {
+			return RoutineFrame{}, contract("request encoding: %v", err)
+		}
+		key := readCacheKey{method: frameDefinitionMethod, request: string(encoded)}
+		if _, err := caller.frameReadKey(ctx, frameDefinitionMethod, key, identity, false, &o.PlanningDefinition{}); err != nil {
+			return RoutineFrame{}, err
+		}
 	}
 	reply := &o.BundleSnapshot{}
 	if _, err := caller.frameReadKey(ctx, routineFrameMethod, readCacheKey{method: routineFrameMethod}, identity, true, reply); err != nil {
@@ -355,7 +393,7 @@ func DecodeRoutineFrame(v *o.BundleSnapshot) (RoutineFrame, error) {
 		return RoutineFrame{}, contract("routine frame without a context")
 	}
 	identity := v.Context.Identity
-	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: v.BuiltBuildings}
+	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: v.BuiltBuildings, Definitions: v.ProjectDefinitions, Rooms: v.Rooms}
 	var err error
 	if v.Emergency != nil {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, identity); err != nil {
@@ -431,7 +469,7 @@ func (caller *Client) frameReader(ctx context.Context) frameReader {
 	defer s.mu.Unlock()
 	if (s.reader == nil || s.stale) && !s.opening && (s.stale || time.Since(s.attempted) >= frameRetry) {
 		s.opening, s.attempted, s.stale = true, time.Now(), false
-		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), PlanningWindow: s.window}
+		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), PlanningWindow: s.window, Definitions: slices.Clone(s.definitions)}
 		go caller.openFrames(context.WithoutCancel(ctx), request, s.reader == nil, s.epoch)
 	}
 	return s.reader
@@ -525,6 +563,20 @@ func (caller *Client) frameSubscribe(name string, request proto.Message) {
 		band, ok := frameBand(r.GetRectangle())
 		if ok && proto.Equal(r, planningBandRequest(r.GetScope().GetExpectedIdentity(), band)) && !proto.Equal(r.GetRectangle(), s.window) {
 			s.window = proto.Clone(r.GetRectangle()).(*o.Rectangle)
+			s.stale = true
+		}
+	}
+}
+
+// frameSubscribeDefinitions grows the subscription with the planning
+// definitions a routine read names.
+func (caller *Client) frameSubscribeDefinitions(names []string) {
+	s := caller.frames
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, name := range names {
+		if !slices.Contains(s.definitions, name) {
+			s.definitions = append(s.definitions, name)
 			s.stale = true
 		}
 	}

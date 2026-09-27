@@ -20,48 +20,34 @@ import (
 
 type projectSource struct {
 	*colonySource
-	extra     *o.ColonyFactsReply
+	// extra is the catalog the frame serves subscribed definitions from.
+	extra     []*o.PlanningDefinition
 	requested []string
-	onExtra   func()
-	// filter serves only the requested names from extra.
-	filter bool
-	frame  bridge.RoutineFrame
-}
-
-func (s *projectSource) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool, defs []string) (*o.ColonyFactsReply, bridge.Result, error) {
-	if len(defs) == 0 {
-		return s.colonySource.ReadColonyFacts(ctx, id, planning, defs)
-	}
-	s.requested = append([]string(nil), defs...)
-	if s.onExtra != nil {
-		s.onExtra()
-	}
-	if !s.filter {
-		return s.extra, bridge.Result{}, nil
-	}
-	// Serve only the requested names, as native does.
-	reply := proto.Clone(s.extra).(*o.ColonyFactsReply)
-	section := reply.GetObserved().Planning.GetObserved()
-	var kept []*o.PlanningDefinition
-	for _, d := range section.Definitions {
-		for _, name := range defs {
-			if d.Definition.GetDefName() == name {
-				kept = append(kept, d)
-			}
-		}
-	}
-	section.Definitions = kept
-	return reply, bridge.Result{}, nil
+	onFrame   func()
+	frame     bridge.RoutineFrame
 }
 
 // ReadRoutineFrame is the frame over the colony reply, with the sections
-// the test set in frame; the emergency census is empty by default.
-func (s *projectSource) ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error) {
+// the test set in frame and the subscribed definitions found in extra;
+// the emergency census is empty by default.
+func (s *projectSource) ReadRoutineFrame(_ context.Context, _ *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
+	s.requested = append([]string(nil), definitions...)
+	if s.onFrame != nil {
+		s.onFrame()
+	}
 	frame := s.frame
 	observed := s.reply.GetObserved()
 	frame.Context, frame.Colony = observed.Context, observed
 	if frame.Emergency.Context == nil {
 		frame.Emergency = bridge.EmergencyObservation{Context: observed.Context}
+	}
+	frame.Definitions = nil
+	for _, row := range s.extra {
+		for _, name := range definitions {
+			if row.Definition.GetDefName() == name {
+				frame.Definitions = append(frame.Definitions, row)
+			}
+		}
 	}
 	return frame, nil
 }
@@ -80,9 +66,10 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			identity := func() *l.IdentityReply {
 				return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}
 			}
-			s := &projectSource{colonySource: &colonySource{reply: base}, extra: proto.Clone(base).(*o.ColonyFactsReply)}
-			s.extra.GetObserved().Planning.GetObserved().Definitions[0].Definition.DefName = proto.String("HospitalBed")
-			s.extra.GetObserved().Planning.GetObserved().Definitions[0].ConstructionSkill = proto.Int32(8)
+			row := proto.Clone(base.GetObserved().Planning.GetObserved().Definitions[0]).(*o.PlanningDefinition)
+			row.Definition.DefName = proto.String("HospitalBed")
+			row.ConstructionSkill = proto.Int32(8)
+			s := &projectSource{colonySource: &colonySource{reply: base}, extra: []*o.PlanningDefinition{row}}
 			expected, err := DecodeIdentity(identity())
 			if err != nil {
 				t.Fatal(err)
@@ -95,11 +82,11 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			case "default-only":
 				names = []string{"Wall"}
 			case "expired":
-				s.onExtra = func() { clock.Advance(2 * time.Second) }
+				s.onFrame = func() { clock.Advance(2 * time.Second) }
 			case "cancelled":
-				s.onExtra = cancel
+				s.onFrame = cancel
 			case "unrequested":
-				s.extra.GetObserved().Planning.GetObserved().Definitions[0].Definition.DefName = proto.String("Door")
+				row.Definition.DefName = proto.String("Door")
 			}
 			out, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, names...)
 			if phase != "supplement" && phase != "default-only" {
@@ -114,64 +101,10 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			if len(out.Projection.Definitions) != len(names) || out.Projection.Definitions[0].Name != "Wall" {
 				t.Fatal(out.Projection.Definitions)
 			}
-			if phase == "supplement" && !reflect.DeepEqual(s.requested, []string{"HospitalBed"}) {
-				t.Fatal(s.requested)
-			}
-			if phase == "default-only" && len(s.requested) != 0 {
+			if !reflect.DeepEqual(s.requested, names) {
 				t.Fatal(s.requested)
 			}
 		})
-	}
-}
-
-// Planners sharing a DefinitionPool request the union of their project
-// definitions, so the step read cache serves them one native read (#599);
-// each keeps only its own names, and a name the census already carries is
-// never requested.
-func TestRoutineProjectDefinitionsPoolAcrossPlanners(t *testing.T) {
-	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	base := &o.ColonyFactsReply{}
-	if err := protojson.Unmarshal(data, base); err != nil {
-		t.Fatal(err)
-	}
-	expected, err := DecodeIdentity(&l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := &projectSource{colonySource: &colonySource{reply: base}, extra: proto.Clone(base).(*o.ColonyFactsReply), filter: true}
-	definitions := s.extra.GetObserved().Planning.GetObserved().Definitions
-	definitions[0].Definition.DefName = proto.String("HospitalBed")
-	definitions = append(definitions, proto.Clone(definitions[0]).(*o.PlanningDefinition))
-	definitions[1].Definition.DefName = proto.String("Hopper")
-	s.extra.GetObserved().Planning.GetObserved().Definitions = definitions
-	ctx := WithDefinitionPool(context.Background(), NewDefinitionPool())
-	clock := testkit.NewManualClock(time.Now())
-	first, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, "Wall", "HospitalBed")
-	if err != nil || !reflect.DeepEqual(s.requested, []string{"HospitalBed"}) {
-		t.Fatal(err, s.requested)
-	}
-	second, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, "Hopper")
-	if err != nil || !reflect.DeepEqual(s.requested, []string{"Hopper", "HospitalBed"}) {
-		t.Fatal(err, s.requested)
-	}
-	names := func(out RoutineReading) []string {
-		var got []string
-		for _, d := range out.Projection.Definitions {
-			if d.Name != "Wall" {
-				got = append(got, d.Name)
-			}
-		}
-		return got
-	}
-	if !reflect.DeepEqual(names(first), []string{"HospitalBed"}) || !reflect.DeepEqual(names(second), []string{"Hopper"}) {
-		t.Fatal(names(first), names(second))
-	}
-	// A later planner wanting the first name again reads the pooled union.
-	if _, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, "HospitalBed"); err != nil || !reflect.DeepEqual(s.requested, []string{"Hopper", "HospitalBed"}) {
-		t.Fatal(err, s.requested)
 	}
 }
 

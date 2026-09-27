@@ -342,8 +342,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	var reading observation.ColonyReading
 	_, routineSource := r.native.(observation.RoutineSource)
-	_, roomSource := r.native.(observation.TemperatureSource)
-	separation := (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking) && routineSource && roomSource
+	separation := (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking) && routineSource
 	if r.goal == policy.EnsureTemperatureSafety || r.facilityLadder() || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || separation {
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's

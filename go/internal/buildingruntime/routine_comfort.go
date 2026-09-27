@@ -45,9 +45,6 @@ func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, ErrControl
 	}
-	if _, ok := native.(observation.TemperatureSource); !ok {
-		return nil, ErrControl
-	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort, definition: "Wall", shelter: true}, nil
 }
 

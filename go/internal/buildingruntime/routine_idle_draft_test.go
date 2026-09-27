@@ -24,8 +24,8 @@ func (n *idleDraftNative) ReadEmergency(ctx context.Context, id *c.Identity) (br
 	return reading, result, err
 }
 
-func (n *idleDraftNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id)
+func (n *idleDraftNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id, definitions)
 }
 
 func TestIdleDraftObservationGuards(t *testing.T) {

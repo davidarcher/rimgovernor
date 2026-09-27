@@ -23,9 +23,9 @@ type temperatureNative struct {
 	onRooms   func()
 }
 
-func TestTemperatureReadIsOptInAndBracketRejectsLateResults(t *testing.T) {
+func TestTemperatureBracketRejectsLateResults(t *testing.T) {
 	t.Parallel()
-	for _, mode := range []string{"disabled", "expired", "cancelled", "generation"} {
+	for _, mode := range []string{"disabled", "expired", "cancelled"} {
 		t.Run(mode, func(t *testing.T) {
 			p, db, n, _ := temperatureFixture(t, false)
 			before, err := db.LoadRoutineReview(context.Background())
@@ -34,7 +34,6 @@ func TestTemperatureReadIsOptInAndBracketRejectsLateResults(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			reads := n.roomReads
 			switch mode {
 			case "disabled":
 				p.reviewer.methods = domain.Known([]policy.GoalID{})
@@ -42,13 +41,13 @@ func TestTemperatureReadIsOptInAndBracketRejectsLateResults(t *testing.T) {
 				n.onRooms = func() { p.reviewer.clock.(*testkit.ManualClock).Advance(time.Minute) }
 			case "cancelled":
 				n.onRooms = cancel
-			case "generation":
-				n.rooms.GetObserved().Context.NativeGeneration = proto.Uint64(n.rooms.GetObserved().Context.GetNativeGeneration() + 1)
 			}
 			_, err = p.reviewer.Step(ctx)
 			if mode == "disabled" {
-				if err != nil || n.roomReads != reads {
-					t.Fatal(n.roomReads, err)
+				// The frame carries the room census either way; a disabled
+				// family just leaves it unread.
+				if err != nil {
+					t.Fatal(err)
 				}
 				return
 			}
@@ -114,6 +113,10 @@ func TestTemperatureNativeWorkBudgetCountsFromTheApplyReceipt(t *testing.T) {
 			t.Fatal("reloaded world inherited heat-exchange budget")
 		}
 	}
+}
+
+func (n *temperatureNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id, definitions)
 }
 
 func (n *temperatureNative) ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error) {

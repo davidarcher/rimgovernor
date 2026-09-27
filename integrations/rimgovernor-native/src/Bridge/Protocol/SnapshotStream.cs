@@ -64,6 +64,8 @@ namespace HomeBridge.BridgeTools
             foreach (var resource in parsed.ResourceSources)
                 if (!ProtoBoundary.IsIdentifier(resource))
                     return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Resource sources must be identifiers.") });
+            if (!parsed.Definitions.All(ProtoBoundary.IsIdentifier) || parsed.Definitions.Distinct().Count() != parsed.Definitions.Count)
+                return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Definitions must be distinct identifiers.") });
             return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(SnapshotStream.Open(parsed)), cancellationToken).ConfigureAwait(false);
         }
     }
@@ -143,7 +145,7 @@ namespace HomeBridge.BridgeTools
             lock (Gate) shape = subscription;
             var captureStarted = Stopwatch.GetTimestamp();
             var account = ObservationWork.BeginCapture();
-            try { frame = SnapshotFrames.Capture(map, Request(shape)); }
+            try { frame = SnapshotFrames.Capture(map, shape); }
             catch (Exception e)
             {
                 Interlocked.Exchange(ref pending, 0);
@@ -191,20 +193,6 @@ namespace HomeBridge.BridgeTools
         {
             var micros = (Stopwatch.GetTimestamp() - started) * 1_000_000 / Stopwatch.Frequency;
             return (uint)Math.Min(Math.Max(micros, 0), uint.MaxValue);
-        }
-
-        // Every state family the bundle can read, whole, plus the
-        // subscription's parameterized families; no clock status or events.
-        private static Obs.BundleRequest Request(Obs.SnapshotStreamRequest shape)
-        {
-            var request = new Obs.BundleRequest
-            {
-                Emergency = true, ColonyFacts = true, Population = true, Research = true, ColonistPawns = true,
-                Buildings = true, BuiltBuildings = true, Bills = true, Zones = true, Traders = true, WorldProgression = true,
-            };
-            request.ResourceSources.Add(shape.ResourceSources);
-            if (shape.PlanningWindow != null) request.PlanningWindow = new Obs.BundlePlanningWindowRequest { Region = shape.PlanningWindow.Clone() };
-            return request;
         }
 
         private sealed class Ring

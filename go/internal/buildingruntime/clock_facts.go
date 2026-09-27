@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/mirror"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -23,9 +22,6 @@ type clockFacts struct {
 	// mirror holds the mirrored sections' rows (#795): planning cells,
 	// zones, buildings and bills, filed into store.
 	mirror *mirror.Mirror
-	// definitions pools the project definition names the planners read
-	// beyond the census, so a step reads them once (#599).
-	definitions *observation.DefinitionPool
 }
 
 const clockFactsWatchedMax = 256
@@ -34,7 +30,7 @@ func newClockFacts(store *facts.Store) *clockFacts {
 	if store == nil {
 		store = facts.NewStore()
 	}
-	return &clockFacts{store: store, watched: map[domain.ActionID]domain.ActionKind{}, mirror: recordedMirror(), definitions: observation.NewDefinitionPool()}
+	return &clockFacts{store: store, watched: map[domain.ActionID]domain.ActionKind{}, mirror: recordedMirror()}
 }
 
 // remember keeps the kind of every attempt a window arms; the map is

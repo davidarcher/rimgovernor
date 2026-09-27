@@ -413,6 +413,6 @@ func TestControllerRefusalIsTerminal(t *testing.T) {
 	}
 }
 
-func (n *scriptedBuildingNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id)
+func (n *scriptedBuildingNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id, definitions)
 }

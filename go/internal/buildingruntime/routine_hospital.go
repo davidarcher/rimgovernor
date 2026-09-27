@@ -56,9 +56,6 @@ func NewRoutineHospitalPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, ErrControl
 	}
-	if _, ok := native.(observation.TemperatureSource); !ok {
-		return nil, ErrControl
-	}
 	building := &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainMedicalCare, definition: "Wall", shelter: true}
 	return &RoutineHospitalPlanner{reviewer: reviewer, native: source, building: building}, nil
 }

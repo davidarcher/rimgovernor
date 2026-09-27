@@ -42,16 +42,9 @@ func (f *clockServiceFake) ReadEmergency(context.Context, *c.Identity) (bridge.E
 	return bridge.EmergencyObservation{}, bridge.Result{}, errors.New("emergency read unavailable")
 }
 
-func (f *clockServiceFake) ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error) {
+func (f *clockServiceFake) ReadRoutineFrame(context.Context, *c.Identity, []string) (bridge.RoutineFrame, error) {
 	f.colonyReads.Add(1)
 	return bridge.RoutineFrame{}, errors.New("routine frame unavailable")
-}
-
-// ReadTemperatureRooms satisfies the sleeping upkeep planner's
-// TemperatureSource check; the census read above fails first, so it never
-// runs.
-func (f *clockServiceFake) ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error) {
-	return nil, bridge.Result{}, errors.New("temperature read unavailable")
 }
 
 func (f *clockServiceFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {

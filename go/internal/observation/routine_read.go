@@ -14,11 +14,11 @@ import (
 )
 
 // RoutineSource is the routine census: one decoded frame per reading
-// (bridge.Client.ReadRoutineFrame), plus the colony facts read for
-// definitions the frame's default catalog lacks.
+// (bridge.Client.ReadRoutineFrame), carrying the named planning
+// definitions beside its default catalog.
 type RoutineSource interface {
 	ColonySource
-	ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error)
+	ReadRoutineFrame(context.Context, *c.Identity, []string) (bridge.RoutineFrame, error)
 }
 
 type RoutineReading struct {
@@ -35,7 +35,7 @@ func ObserveRoutineOwned(ctx context.Context, source RoutineSource, clock Clock,
 	return observeRoutine(ctx, source, clock, expected, maxAge, claims, false, definitions...)
 }
 
-// ObserveRoutineRooms additionally reads the typed room census. Temperature
+// ObserveRoutineRooms additionally takes the frame's room census. Temperature
 // planning takes room heat from it and comfort takes each facility's
 // hosting room role: without the census no comfort facility can be
 // certified as hosted, so comfort becomes unknown.
@@ -70,7 +70,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	}
 	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
 	started := clock.Now()
-	frame, err := source.ReadRoutineFrame(ctx, id)
+	frame, err := source.ReadRoutineFrame(ctx, id, definitions)
 	if err != nil {
 		return RoutineReading{}, err
 	}
@@ -83,7 +83,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	}
 	p := &reading.Projection
 	colony, emergency := frame.Colony, frame.Emergency.Facts
-	extra, err := readProjectDefinitions(ctx, source, id, expected, p.Definitions, definitions)
+	extra, err := frameDefinitions(frame, p.Definitions, definitions)
 	if err != nil {
 		return RoutineReading{}, err
 	}
@@ -122,12 +122,10 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	}
 	var roomCensus *o.RoomsSnapshot
 	if rooms {
-		source, ok := source.(TemperatureSource)
-		if !ok {
-			return RoutineReading{}, ErrContract
-		}
-		if roomCensus, err = readTemperature(ctx, source, id, expected); err != nil {
-			return RoutineReading{}, err
+		if roomCensus = frame.Rooms; roomCensus != nil {
+			if err := bridge.ValidateTemperatureRooms(roomCensus, id); err != nil {
+				return RoutineReading{}, err
+			}
 		}
 		temperature := domain.Unknown[policy.RoomObservation]()
 		if roomCensus != nil {
@@ -137,8 +135,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		p.Facts.SleepingMin, p.Facts.SleepingMax = policy.TemperatureRange(temperature)
 		p.Facts.Comfort = hostedComfort(p.Facts.Comfort, temperature)
 	}
-	// The reading spans the frame read and the definitions and room reads
-	// beside it: it is observed once they land, under the same age bound.
+	// The reading is observed once the frame lands, under the age bound.
 	reading.StartedAt, reading.ObservedAt = started, clock.Now()
 	if reading.ObservedAt.Sub(started) > maxAge {
 		return RoutineReading{}, ErrStale
@@ -168,58 +165,29 @@ func routinePawns(frame bridge.RoutineFrame, id *c.Identity) (*o.PawnSnapshot, e
 	return frame.Pawns, nil
 }
 
-// readProjectDefinitions reads the project definitions absent from the
-// frame's default planning catalog (census) and returns this planner's own.
-func readProjectDefinitions(ctx context.Context, source ColonySource, id *c.Identity, expected Identity, census []PlanningDefinition, definitions []string) ([]PlanningDefinition, error) {
-	if len(definitions) == 0 {
-		return nil, nil
-	}
-	if len(definitions) > 256 {
-		return nil, ErrContract
-	}
+// frameDefinitions are the frame's rows for the definitions absent from
+// its default planning catalog (census), each once. Native serves a row
+// for every subscribed name, so a missing one breaks the contract.
+func frameDefinitions(frame bridge.RoutineFrame, census []PlanningDefinition, definitions []string) ([]PlanningDefinition, error) {
 	held := map[string]bool{}
 	for _, d := range census {
 		held[d.Name] = true
 	}
-	seen := map[string]bool{}
-	missing := []string{}
-	for _, name := range definitions {
-		if !held[name] && !seen[name] {
-			missing = append(missing, name)
-			seen[name] = true
-		}
-	}
-	if len(missing) == 0 {
-		return nil, nil
-	}
-	// The request carries every name the scheduler's planners pool, so the
-	// planners of one step share one read (#599); only this planner's own
-	// names join its projection.
-	request := DefinitionPoolFrom(ctx).Request(missing, held)
-	reply, _, err := source.ReadColonyFacts(ctx, id, true, request)
-	if err != nil {
-		return nil, err
-	}
-	extra, err := DecodeColony(reply, expected)
-	if err != nil {
-		return nil, err
-	}
-	extra.Identity.Paused = expected.Paused
-	if !sameColonyContext(extra.Identity, expected) {
-		return nil, ErrChanged
-	}
-	requested := map[string]bool{}
-	for _, name := range request {
-		requested[name] = true
+	rows := map[string]*o.PlanningDefinition{}
+	for _, row := range frame.Definitions {
+		rows[row.GetDefinition().GetDefName()] = row
 	}
 	var out []PlanningDefinition
-	for _, d := range extra.Definitions {
-		if !requested[d.Name] {
+	for _, name := range definitions {
+		if held[name] {
+			continue
+		}
+		row, ok := rows[name]
+		if !ok {
 			return nil, ErrContract
 		}
-		if seen[d.Name] {
-			out = append(out, d)
-		}
+		held[name] = true
+		out = append(out, planningDefinition(row))
 	}
 	return out, nil
 }

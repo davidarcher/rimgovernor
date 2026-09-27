@@ -187,11 +187,6 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 		}
 	}
 	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, longitude: longitude, layoutOverlay: reviewerOverlay}
-	if reviewer.roomsEnabled() {
-		if _, ok := native.(observation.TemperatureSource); !ok {
-			return nil, ErrControl
-		}
-	}
 	return reviewer, nil
 }
 

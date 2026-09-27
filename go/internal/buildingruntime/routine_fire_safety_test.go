@@ -91,6 +91,6 @@ func TestRoutineFireSafetyTicksBoundedOnUnsafeFire(t *testing.T) {
 	}
 }
 
-func (n *routineFireNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id)
+func (n *routineFireNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id, definitions)
 }

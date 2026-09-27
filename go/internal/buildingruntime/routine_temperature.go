@@ -16,9 +16,6 @@ func NewRoutineTemperaturePlanner(reviewer *RoutineReviewer, native RoutineBuild
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, ErrControl
 	}
-	if _, ok := native.(observation.TemperatureSource); !ok {
-		return nil, ErrControl
-	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureTemperatureSafety}, nil
 }
 

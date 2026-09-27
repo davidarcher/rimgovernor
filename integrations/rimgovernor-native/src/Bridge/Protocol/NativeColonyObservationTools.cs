@@ -371,13 +371,31 @@ namespace HomeBridge.BridgeTools
             var result = new Obs.PlanningFacts { };
             try { result.Gear = NativeGearFacts.Read(map, context); }
             catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
+            result.Definitions.Add(Definitions(map, names));
+            // The planning window itself (the site cells around the centre)
+            // is no longer carried here: the controller reads it on demand
+            // through observations_get_cells (issue #356), so a routine
+            // colony facts read costs the definitions, gear and environment
+            // census only. The window's rect still bounds the environment
+            // census below.
+            var min = new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22));
+            var max = new IntVec3(Math.Min(map.Size.x - 1, center.x + 22), 0, Math.Min(map.Size.z - 1, center.z + 22));
+            try { result.Environment = Environment(map, min, max); }
+            catch (Exception) { result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
+            return result;
+        }
+        // On the main thread: one planning row per name, sorted by name;
+        // a name no ThingDef or TerrainDef carries is an unavailable row.
+        internal static List<Obs.PlanningDefinition> Definitions(Map map, IEnumerable<string> names)
+        {
+            var result = new List<Obs.PlanningDefinition>();
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             var demand = people.Sum(p => p.needs?.food == null ? 0f : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                 && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
             foreach (var name in names.OrderBy(n => n, StringComparer.Ordinal)) {
                 var row = new Obs.PlanningDefinition { Definition = new Obs.DefinitionRef { DefName = name } };
-                result.Definitions.Add(row);
+                result.Add(row);
                 var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
                 if (def == null && Terrain(row, DefDatabase<TerrainDef>.GetNamedSilentFail(name))) continue;
                 if (def == null) {
@@ -434,16 +452,6 @@ namespace HomeBridge.BridgeTools
                     }
                 }
             }
-            // The planning window itself (the site cells around the centre)
-            // is no longer carried here: the controller reads it on demand
-            // through observations_get_cells (issue #356), so a routine
-            // colony facts read costs the definitions, gear and environment
-            // census only. The window's rect still bounds the environment
-            // census below.
-            var min = new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22));
-            var max = new IntVec3(Math.Min(map.Size.x - 1, center.x + 22), 0, Math.Min(map.Size.z - 1, center.z + 22));
-            try { result.Environment = Environment(map, min, max); }
-            catch (Exception) { result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
             return result;
         }
         // A floor definition: research availability, its cost list and the

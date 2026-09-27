@@ -54,19 +54,52 @@ func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity) (bri
 	return out, bridge.Result{}, ctx.Err()
 }
 
-func (n *routineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id)
+func (n *routineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id, definitions)
 }
 
 // fakeFrame is the frame a test fake serves: the colony reply's context
 // and whichever section reads the fake (source, the outermost type, so its
 // overrides count) offers.
-func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Identity) (bridge.RoutineFrame, error) {
+func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
 	colony, _, err := source.ReadColonyFacts(ctx, id, true, nil)
 	if err != nil {
 		return bridge.RoutineFrame{}, err
 	}
 	frame := bridge.RoutineFrame{Context: colony.GetObserved().GetContext(), Colony: colony.GetObserved()}
+	// Names the default catalog carries need no read of their own.
+	held := map[string]bool{}
+	for _, row := range colony.GetObserved().GetPlanning().GetObserved().GetDefinitions() {
+		held[row.GetDefinition().GetDefName()] = true
+	}
+	var missing []string
+	for _, name := range definitions {
+		if !held[name] {
+			missing = append(missing, name)
+		}
+	}
+	if definitions = missing; len(definitions) > 0 {
+		// The frame's definition wait honours cancellation.
+		if err := ctx.Err(); err != nil {
+			return bridge.RoutineFrame{}, err
+		}
+		named, _, err := source.ReadColonyFacts(ctx, id, true, definitions)
+		if err != nil {
+			return bridge.RoutineFrame{}, err
+		}
+		frame.Definitions = named.GetObserved().GetPlanning().GetObserved().GetDefinitions()
+	}
+	if s, ok := source.(interface {
+		ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error)
+	}); ok {
+		rooms, _, err := s.ReadTemperatureRooms(ctx, id)
+		if err != nil && !errors.Is(err, bridge.ErrUnavailable) {
+			return bridge.RoutineFrame{}, err
+		}
+		if err == nil {
+			frame.Rooms = rooms.GetObserved()
+		}
+	}
 	if s, ok := source.(interface {
 		ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	}); ok {
@@ -438,6 +471,6 @@ func TestRoutineFoodAttrsCarryRunwayThresholdsAndCalendar(t *testing.T) {
 	}
 }
 
-func (n *routineMedicalNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id)
+func (n *routineMedicalNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id, definitions)
 }

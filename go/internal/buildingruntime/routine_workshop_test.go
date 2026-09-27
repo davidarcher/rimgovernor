@@ -22,6 +22,10 @@ type workshopNative struct {
 	hosts   []policy.RecipeHost
 }
 
+func (n *workshopNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id, definitions)
+}
+
 func (n *workshopNative) ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error) {
 	return &o.ListRoomsReply{}, bridge.Result{}, nil
 }

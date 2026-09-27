@@ -410,25 +410,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil {
 		for _, row := range planning.Definitions {
-			d := PlanningDefinition{HarvestWork: optional(row.HarvestWork), RawPreferred: optional(row.RawPreferred), DietAllowed: optional(row.DietAllowed), RequiresPollution: optional(row.RequiresPollution), RequiresCleanSoil: optional(row.RequiresCleanSoil), Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), SowTag: optional(row.SowTag), Terrain: optional(row.Terrain), Cleanliness: optional(row.Cleanliness), Beauty: optional(row.Beauty), Flammability: optional(row.Flammability), PathCost: optional(row.PathCost), WorkToBuild: optional(row.WorkToBuild), Research: append([]string{}, row.ResearchPrerequisites...)}
-			if row.GrowDays != nil {
-				d.SowTags = domain.Known(append([]string{}, row.SowTags...))
-			}
-			if row.Size != nil {
-				d.Size = domain.Known(policy.Bounds{Width: int32(row.Size.GetWidth()), Height: int32(row.Size.GetHeight())})
-			}
-			known := !hasIssue(row.Issues, "costs")
-			var costs []policy.Amount
-			for _, q := range row.Costs {
-				if q.Units == nil {
-					known = false
-				}
-				costs = append(costs, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
-			}
-			if known {
-				d.Costs = domain.Known(costs)
-			}
-			r.Definitions = append(r.Definitions, d)
+			r.Definitions = append(r.Definitions, planningDefinition(row))
 		}
 		// An older native lists the planning window here; a current one
 		// serves it through observations_get_cells and the routine bracket
@@ -443,6 +425,29 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	r.Facts.Gear = colonyGear(v)
 	return r, nil
+}
+
+// planningDefinition decodes one planning definition row.
+func planningDefinition(row *o.PlanningDefinition) PlanningDefinition {
+	d := PlanningDefinition{HarvestWork: optional(row.HarvestWork), RawPreferred: optional(row.RawPreferred), DietAllowed: optional(row.DietAllowed), RequiresPollution: optional(row.RequiresPollution), RequiresCleanSoil: optional(row.RequiresCleanSoil), Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), SowTag: optional(row.SowTag), Terrain: optional(row.Terrain), Cleanliness: optional(row.Cleanliness), Beauty: optional(row.Beauty), Flammability: optional(row.Flammability), PathCost: optional(row.PathCost), WorkToBuild: optional(row.WorkToBuild), Research: append([]string{}, row.ResearchPrerequisites...)}
+	if row.GrowDays != nil {
+		d.SowTags = domain.Known(append([]string{}, row.SowTags...))
+	}
+	if row.Size != nil {
+		d.Size = domain.Known(policy.Bounds{Width: int32(row.Size.GetWidth()), Height: int32(row.Size.GetHeight())})
+	}
+	known := !hasIssue(row.Issues, "costs")
+	var costs []policy.Amount
+	for _, q := range row.Costs {
+		if q.Units == nil {
+			known = false
+		}
+		costs = append(costs, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
+	}
+	if known {
+		d.Costs = domain.Known(costs)
+	}
+	return d
 }
 
 func cellsOf(rows []*c.Cell) []domain.Cell {
