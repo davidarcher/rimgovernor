@@ -20,10 +20,14 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	if sum := plan.Summary(); !strings.Contains(sum, "bedroom:3") || !strings.Contains(sum, "routes=ok") || !strings.Contains(sum, "perimeter_wall:") {
 		t.Fatal(sum)
 	}
-	if _, changed := ReplanLayout(plan, s, 3); changed {
+	if _, changed := ReplanLayout(plan, s, 3, 1); changed {
 		t.Fatal("a sound plan replanned")
 	}
-	grown, changed := ReplanLayout(plan, s, 5)
+	tombs, changed := ReplanLayout(plan, s, 3, 2)
+	if !changed || tombs.TombRooms() != 2 || plan.TombRooms() != 1 {
+		t.Fatal("a full tomb grew no second one", changed, tombs.TombRooms())
+	}
+	grown, changed := ReplanLayout(plan, s, 5, 1)
 	if !changed || grown.LayoutOutgrown(5) {
 		t.Fatal(changed)
 	}

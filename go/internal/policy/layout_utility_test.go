@@ -226,7 +226,7 @@ func TestPlanUtilities(t *testing.T) {
 		}
 	}
 	// Grow never builds over a reservation.
-	grown := Grow(p, 20)
+	grown := Grow(p, 20, 1)
 	for _, r := range grown.Rooms {
 		for _, res := range p.Reservations {
 			w := roomWalls(r)

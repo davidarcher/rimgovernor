@@ -73,7 +73,7 @@ func TestPlanCore(t *testing.T) {
 
 func TestGrowKeepsRooms(t *testing.T) {
 	p := PlanCore(coreTestZones(), 3)
-	g := Grow(p, 12)
+	g := Grow(p, 12, 1)
 	checkCore(t, g, 12)
 	for i, r := range p.Rooms {
 		if g.Rooms[i] != r {

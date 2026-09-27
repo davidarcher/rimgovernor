@@ -27,10 +27,10 @@ func DeriveLayoutPlan(s MapSurvey, pawns int) domain.Fact[LayoutPlan] {
 	return domain.Known(withoutCore(plan))
 }
 
-// ReplanLayout grows plan for pawns colonists over a fresh survey: rooms
-// now on no-go ground are dropped, the rest never move. It reports whether
-// the plan changed.
-func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns int) (LayoutPlan, bool) {
+// ReplanLayout grows plan for pawns colonists and tombs tomb rooms over a
+// fresh survey: rooms now on no-go ground are dropped, the rest never move.
+// It reports whether the plan changed.
+func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int) (LayoutPlan, bool) {
 	zones := Zone(s)
 	noGo := map[domain.Cell]bool{}
 	for _, z := range zones {
@@ -53,7 +53,7 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns int) (LayoutPlan, bool) {
 	before := len(kept)
 	next := plan
 	next.Rooms, next.Zones = kept, zones
-	next = Grow(next, pawns)
+	next = Grow(next, pawns, tombs)
 	if !dropped && len(next.Rooms) == before {
 		return plan, false
 	}

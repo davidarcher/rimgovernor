@@ -8,24 +8,52 @@ import (
 
 // wasteDefinitions are the definitions the waste steps read availability
 // and stuff for.
-var wasteDefinitions = []string{"Wall", "Door", policy.SarcophagusDefinition, policy.CrematoriumDefinition}
+var wasteDefinitions = []string{"Wall", "Door", policy.SarcophagusDefinition, policy.GraveDefinition, policy.CrematoriumDefinition}
 
-// tombStep is the projection's next tomb step (#832); none while the
-// sarcophagus is unavailable or a fact is unknown.
+// tombStep is the projection's next tomb step (#832, #857); none while a
+// fact is unknown.
 func tombStep(facts observation.ColonyProjection) policy.TombStep {
 	if owed, known := tombOwed(facts).Value(); !known || !owed {
 		return policy.TombStep{}
 	}
+	available, _ := sarcophagusAvailable(facts).Value()
 	plan, _ := facts.LayoutPlan.Value()
 	rooms, _ := facts.Rooms.Value()
 	waste, _ := facts.Facts.Waste.Value()
 	built, _ := facts.Facts.CurrentConstruction.Value()
-	return policy.NextTombStep(plan, rooms, waste, built.Buildings)
+	return policy.NextTombStep(plan, rooms, waste, built.Buildings, available)
 }
 
 // tombOwed is the review's TombOwed fact for the projection.
 func tombOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	return policy.TombOwed(facts.DefinitionAvailable(policy.SarcophagusDefinition), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
+	return policy.TombOwed(sarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
+}
+
+// sarcophagusAvailable is the sarcophagus's availability, false when
+// native reports no stuff to make one from (#857).
+func sarcophagusAvailable(facts observation.ColonyProjection) domain.Fact[bool] {
+	for _, d := range facts.Definitions {
+		if d.Name != policy.SarcophagusDefinition {
+			continue
+		}
+		if stuff, known := d.Stuff.Value(); known && stuff == "" {
+			return domain.Known(false)
+		}
+		return d.Available
+	}
+	return domain.Unknown[bool]()
+}
+
+// tombsFull reports every planned tomb's sarcophagus slots taken while a
+// dead colonist waits (#857): the layout owes another tomb room.
+func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool {
+	available, ak := sarcophagusAvailable(facts).Value()
+	waste, wk := facts.Facts.Waste.Value()
+	built, bk := facts.Facts.CurrentConstruction.Value()
+	if !ak || !available || !wk || !bk || !built.Colony {
+		return false
+	}
+	return policy.NextTombStep(plan, policy.RoomObservation{}, waste, built.Buildings, true).Kind == policy.TombFull
 }
 
 // cremationStep is the projection's next cremation step (#833); none

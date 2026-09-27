@@ -50,7 +50,14 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 	outgrown := known && haveLayout && layout.Plan.LayoutOutgrown(int(pawns)) && tick-layout.Tick >= layoutReplanEvery
 	missing := !haveLayout && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
 	quadrum := haveLayout && tick-checked >= layoutTerrainCheckEvery
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || quadrum) {
+	// Every tomb full (#857): grow one more, at most once a day.
+	tombs := 1
+	tomb := haveLayout && tombsFull(layout.Plan, *projection)
+	if tomb {
+		tombs = layout.Plan.TombRooms() + 1
+	}
+	tomb = tomb && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || quadrum || tomb) {
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)
 		} else {
@@ -58,7 +65,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 			if !haveLayout {
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns))
 			} else {
-				err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), outgrown)
+				err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, outgrown)
 			}
 			if err != nil {
 				return err
@@ -149,8 +156,15 @@ func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns int, outgrown bool) error {
-	next, changed := policy.ReplanLayout(plan, survey, pawns)
+// A tomb room it could not add leaves tombsRefused at the tomb count it
+// asked for, which lets the waste goal dig a plain grave instead (#857).
+func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, outgrown bool) error {
+	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs)
+	r.tombsRefused = 0
+	if next.TombRooms() < tombs {
+		r.tombsRefused = tombs
+		clockSchedulerLog("layout plan holds no room for tomb %d", tombs)
+	}
 	if !changed {
 		return nil
 	}

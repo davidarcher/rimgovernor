@@ -25,6 +25,12 @@ const penEnclosureSize int32 = 6
 // placement/access previews still decide legality, and only an admitted method
 // reserves geometry. Missing or unknown cells are never treated as free.
 func PenEnclosureSites(r PenEnclosureRequest) ([]Rectangle, error) {
+	return FreeSites(r, penEnclosureSize, penEnclosureSize)
+}
+
+// FreeSites is PenEnclosureSites for any width x height footprint: a plain
+// grave's 1x2 (#857) takes the same free-cell census.
+func FreeSites(r PenEnclosureRequest, width, height int32) ([]Rectangle, error) {
 	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || len(r.Cells) > 65536 || len(r.Protected) > 65536 {
 		return nil, errors.New("invalid pen enclosure site bounds")
 	}
@@ -66,11 +72,11 @@ func PenEnclosureSites(r PenEnclosureRequest) ([]Rectangle, error) {
 	}
 	var sites []site
 	for _, c := range ordered {
-		if c.X+penEnclosureSize > r.Bounds.Width || c.Z+penEnclosureSize > r.Bounds.Height {
+		if c.X+width > r.Bounds.Width || c.Z+height > r.Bounds.Height {
 			continue
 		}
 		legal := true
-		for _, p := range rectCells(Rectangle{c.X, c.Z, penEnclosureSize, penEnclosureSize}) {
+		for _, p := range rectCells(Rectangle{c.X, c.Z, width, height}) {
 			if !free(p) {
 				legal = false
 				break
@@ -79,8 +85,7 @@ func PenEnclosureSites(r PenEnclosureRequest) ([]Rectangle, error) {
 		if !legal {
 			continue
 		}
-		half := penEnclosureSize / 2
-		score := squaredDistance(domain.Cell{X: c.X + half, Z: c.Z + half}, r.Anchor)
+		score := squaredDistance(domain.Cell{X: c.X + width/2, Z: c.Z + height/2}, r.Anchor)
 		sites = append(sites, site{score, c})
 	}
 	sort.Slice(sites, func(i, j int) bool {
@@ -94,7 +99,7 @@ func PenEnclosureSites(r PenEnclosureRequest) ([]Rectangle, error) {
 	}
 	result := make([]Rectangle, len(sites))
 	for i, s := range sites {
-		result[i] = Rectangle{s.cell.X, s.cell.Z, penEnclosureSize, penEnclosureSize}
+		result[i] = Rectangle{s.cell.X, s.cell.Z, width, height}
 	}
 	return result, nil
 }

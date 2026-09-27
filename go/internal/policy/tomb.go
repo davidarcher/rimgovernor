@@ -5,35 +5,48 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // Staging the tomb (#832). A dead colonist in a sarcophagus gives every
 // colonist KnowBuriedInSarcophagus (+4 mood, 8 days, stacking), so once
 // ComplexFurniture makes the sarcophagus available, a colonist corpse
-// with no empty sarcophagus waiting raises the planned tomb's shell and
-// then places the next free template sarcophagus. Vanilla haulers inter
-// colonist corpses in any empty grave on their own; nothing here hauls.
+// with no empty grave waiting raises a planned tomb's shell and then
+// places its next free template sarcophagus. The memory comes only from a
+// sarcophagus's first burial, so a filled one is never reused: when every
+// planned tomb is full the plan grows another (#857). Where no sarcophagus
+// can be had (research, stuff, or no room for another tomb) a plain Grave
+// takes the body instead. Vanilla haulers inter colonist corpses in any
+// empty grave on their own; nothing here hauls.
+
+// GraveDefinition is Core's plain grave: 1x2, no stuff, no research.
+const GraveDefinition = "Grave"
 
 // TombStepKind is the next tomb step.
 type TombStepKind string
 
 const (
-	// TombNone: no unburied colonist corpse, enough empty sarcophagi, no
+	// TombNone: no unburied colonist corpse, enough empty graves, no
 	// planned tomb, or a fact is unknown.
 	TombNone TombStepKind = ""
 	// TombShell: raise the walls and door of Room, the planned tomb.
 	TombShell TombStepKind = "shell"
 	// TombPlace: place Piece, the next free sarcophagus in Room.
 	TombPlace TombStepKind = "place"
+	// TombFull: every planned tomb's slots are taken; the plan owes
+	// another tomb room, or a grave when none fits.
+	TombFull TombStepKind = "full"
+	// TombGrave: no sarcophagus can be had; place a plain grave.
+	TombGrave TombStepKind = "grave"
 )
 
-// TombStep is one bounded step towards a sarcophagus for every dead colonist.
+// TombStep is one bounded step towards a grave for every dead colonist.
 type TombStep struct {
 	Kind  TombStepKind
 	Room  LayoutRoom
 	Piece InteriorPiece
-	// Dead is the unburied colonist corpses; Empty the empty sarcophagi.
-	Dead, Empty int
+	// Dead is the unburied colonist corpses; Empty the empty graves and
+	// sarcophagi; Graves the plain graves standing.
+	Dead, Empty, Graves int
 }
 
-// NextTombStep picks the next tomb step from the plan, the room census,
-// the waste census and the colony's built buildings.
-func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, built []CurrentBuilding) TombStep {
+// tombCensus counts the dead, the empty graves and the plain graves, and
+// returns the cells graves stand on.
+func tombCensus(waste []WasteItem, built []CurrentBuilding) (TombStep, map[domain.Cell]bool) {
 	step := TombStep{}
 	filled := map[string]bool{}
 	for _, item := range waste {
@@ -46,13 +59,14 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 			step.Dead++
 		}
 	}
-	if step.Dead == 0 {
-		return TombStep{}
-	}
 	taken := map[domain.Cell]bool{}
 	for _, b := range built {
-		if b.Building.Definition() != SarcophagusDefinition {
+		def := b.Building.Definition()
+		if def != SarcophagusDefinition && def != GraveDefinition {
 			continue
+		}
+		if def == GraveDefinition {
+			step.Graves++
 		}
 		if !filled[b.ID] {
 			step.Empty++
@@ -61,11 +75,49 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 			taken[c] = true
 		}
 	}
-	if step.Empty >= step.Dead {
+	return step, taken
+}
+
+// tombSlot is the room's first template sarcophagus slot no grave stands on.
+func tombSlot(r LayoutRoom, taken map[domain.Cell]bool) (InteriorPiece, bool) {
+	in, ok := InteriorRoomFromLayout(r)
+	if !ok {
+		return InteriorPiece{}, false
+	}
+	interior, ok := PlanInterior(in, InteriorPieceDefFor(SarcophagusDefinition))
+	if !ok {
+		return InteriorPiece{}, false
+	}
+pieces:
+	for _, p := range interior.Pieces {
+		for _, c := range rectCells(p.Rect) {
+			if taken[c] {
+				continue pieces
+			}
+		}
+		return p, true
+	}
+	return InteriorPiece{}, false
+}
+
+// NextTombStep picks the next tomb step from the plan, the room census,
+// the waste census and the colony's built buildings. sarcophagus is false
+// when none can be had (unresearched, no stuff), which leaves a grave.
+func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, built []CurrentBuilding, sarcophagus bool) TombStep {
+	step, taken := tombCensus(waste, built)
+	if step.Dead == 0 || step.Empty >= step.Dead {
 		return TombStep{}
+	}
+	if !sarcophagus {
+		step.Kind = TombGrave
+		return step
 	}
 	for _, r := range plan.Rooms {
 		if r.Role != ModuleTomb || r.Dug {
+			continue
+		}
+		piece, ok := tombSlot(r, taken)
+		if !ok {
 			continue
 		}
 		step.Room = r
@@ -73,43 +125,40 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 			step.Kind = TombShell
 			return step
 		}
-		in, ok := InteriorRoomFromLayout(r)
-		if !ok {
-			return TombStep{}
-		}
-		interior, ok := PlanInterior(in, InteriorPieceDefFor(SarcophagusDefinition))
-		if !ok {
-			return TombStep{}
-		}
-	pieces:
-		for _, p := range interior.Pieces {
-			for _, c := range rectCells(p.Rect) {
-				if taken[c] {
-					continue pieces
-				}
-			}
-			step.Kind, step.Piece = TombPlace, p
-			return step
-		}
-		return TombStep{}
+		step.Kind, step.Piece = TombPlace, piece
+		return step
 	}
-	return TombStep{}
+	step.Kind = TombFull
+	return step
+}
+
+// TombRooms is the plan's tomb rooms that a sarcophagus can stand in.
+func (p LayoutPlan) TombRooms() int {
+	n := 0
+	for _, r := range p.Rooms {
+		if r.Role == ModuleTomb && !r.Dug {
+			n++
+		}
+	}
+	return n
 }
 
 // TombOwed is the review's tomb deficit: known true while a tomb step is
-// due, false while the sarcophagus is unavailable, unknown while a fact
-// the step reads is.
+// due, unknown while a fact the step reads is.
 func TombOwed(available domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction]) domain.Fact[bool] {
 	a, ak := available.Value()
-	if ak && !a {
-		return domain.Known(false)
-	}
 	p, pk := plan.Value()
 	r, rk := rooms.Value()
 	w, wk := waste.Value()
 	b, bk := built.Value()
-	if !ak || !pk || !rk || !wk || !bk || !b.Colony {
+	if !wk || !bk || !b.Colony {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(NextTombStep(p, r, w, b.Buildings).Kind != TombNone)
+	if ak && !a {
+		return domain.Known(NextTombStep(LayoutPlan{}, RoomObservation{}, w, b.Buildings, false).Kind != TombNone)
+	}
+	if !ak || !pk || !rk {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(NextTombStep(p, r, w, b.Buildings, true).Kind != TombNone)
 }

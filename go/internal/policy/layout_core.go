@@ -53,14 +53,15 @@ const coreMaxDepth int32 = 7
 // PlanCore lays a fresh spine through the core candidates in zones and
 // rooms for pawns colonists.
 func PlanCore(zones []LayoutZone, pawns int) LayoutPlan {
-	return Grow(LayoutPlan{Zones: zones}, pawns)
+	return Grow(LayoutPlan{Zones: zones}, pawns, 1)
 }
 
 // Grow adds whatever rooms plan lacks for pawns colonists (the base set,
-// then one bedroom each) by extending the spine; existing rooms never move.
+// then one bedroom each, then tomb rooms up to tombs, #857) by extending the
+// spine; existing rooms never move.
 // A plan with no spine gets one near the core candidates' centre. Rooms
 // that no longer fit are left out.
-func Grow(plan LayoutPlan, pawns int) LayoutPlan {
+func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
 	if len(g.core) == 0 {
 		return plan
@@ -84,6 +85,9 @@ func Grow(plan LayoutPlan, pawns int) LayoutPlan {
 	}
 	for i := have[ModuleBedroom]; i < pawns; i++ {
 		want = append(want, ModuleBedroom)
+	}
+	for i := max(have[ModuleTomb], 1); i < tombs; i++ {
+		want = append(want, ModuleTomb)
 	}
 	rooms := append([]LayoutRoom(nil), plan.Rooms...)
 	seg := plan.Spine[0]

@@ -13,7 +13,9 @@ import (
 
 // Staging the tomb (#832): MaintainWaste raises the planned tomb and
 // places one sarcophagus at a time while a dead colonist has none waiting
-// (policy.NextTombStep). Vanilla haulers inter the body.
+// (policy.NextTombStep). With every tomb full the layout review grows
+// another; a plain grave stands in when no sarcophagus can be had (#857).
+// Vanilla haulers inter the body.
 
 // tombMethod names a tomb step's method: the shell once per room, each
 // sarcophagus slot once, per goal epoch.
@@ -40,12 +42,48 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	}
 	clockSchedulerLog("%s: tomb %s (dead %d, empty %d)", goal.Goal.ID, step.Kind, step.Dead, step.Empty)
 	var result RoutineBuildingResult
-	if step.Kind == policy.TombShell {
+	switch step.Kind {
+	case policy.TombShell:
 		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading, step.Room, tombMethod(step), "routine-waste-tomb", "")
-	} else {
+	case policy.TombPlace:
 		result, err = r.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step), "routine-waste-tomb")
+	case policy.TombFull:
+		// The layout review grows another tomb; a grave only once it
+		// found no room for one; cremation goes on meanwhile.
+		plan, _ := reading.Projection.LayoutPlan.Value()
+		if refused := r.reviewer.tombsRefused; refused == 0 || refused != plan.TombRooms()+1 {
+			return r.stageCremation(call, epoch, state, review, goal, reading)
+		}
+		result, err = r.placeGrave(call, epoch, state, review, goal, reading, step)
+	case policy.TombGrave:
+		result, err = r.placeGrave(call, epoch, state, review, goal, reading, step)
 	}
 	return RoutineWasteResult{Reason: result.Reason}, true, err
+}
+
+// graveSiteTries bounds the free sites a grave previews.
+const graveSiteTries = 4
+
+// placeGrave places a plain grave (#857) on the free 1x2 site nearest the
+// fields anchor, trying the next site while native refuses one.
+func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.TombStep) (RoutineBuildingResult, error) {
+	facts := reading.Projection
+	sites, err := policy.FreeSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, policy.DistrictFields), Cells: facts.Cells, Protected: layoutProtected(facts, nil)}, 1, 2)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	method := domain.MethodID(fmt.Sprintf("tomb-grave-%d", step.Graves))
+	result := RoutineBuildingResult{Reason: BuildingMethodNoSpace}
+	for i, site := range sites {
+		if i == graveSiteTries {
+			break
+		}
+		piece := policy.NewInteriorPiece("grave", policy.GraveDefinition, domain.Cell{X: 1, Z: 2}, domain.North, domain.Cell{X: site.X, Z: site.Z})
+		if result, err = r.placePiece(call, epoch, state, review, goal, reading, piece, method, "routine-waste-grave"); err != nil || result.Reason != BuildingMethodNoSpace {
+			return result, err
+		}
+	}
+	return result, nil
 }
 
 // placePiece previews and admits one interior piece: a sarcophagus (#832)
