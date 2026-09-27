@@ -436,6 +436,9 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	if !known {
 		return PlanResult{}, nil
 	}
+	if general, err := r.generalStore(call, epoch, state, goal, projection, token, started); err != nil || general.Kind != "" {
+		return general, err
+	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
 		return PlanResult{}, err
@@ -481,6 +484,107 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
 	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+}
+
+// generalStoreMethod zones a completed storeroom shell's interior as the
+// colony's Normal-priority general store (#720). It shares the zone prefix,
+// so it spends one of the episode's zone methods.
+const generalStoreMethod = domain.MethodID(secureSuppliesZonePrefix + "general")
+
+// generalStore proposes the general store once this episode's storeroom
+// shell has completed: vanilla then hauls the vulnerable item (and every
+// other non-perishable) indoors, and the Important working stockpiles at the
+// benches and kitchen pull from it. A zero result means it does not apply
+// (no completed shell, already proposed, or native refused the interior)
+// and the 2x2 covered-storage search runs instead.
+func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, token string, started time.Time) (PlanResult, error) {
+	p := r.reviewer.player
+	var cells []domain.Cell
+	for _, method := range goal.Methods {
+		if method.Method == generalStoreMethod {
+			return PlanResult{}, nil
+		}
+		plan, err := p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return PlanResult{}, err
+		}
+		if !secureSuppliesRoomShellPlan(plan.Spec) || len(plan.Progress) == 0 {
+			continue
+		}
+		done := true
+		for _, progress := range plan.Progress {
+			done = done && progress.View().Stage == domain.Completed
+		}
+		if done {
+			cells = shellInterior(plan.Spec)
+		}
+	}
+	if len(cells) == 0 {
+		return PlanResult{}, nil
+	}
+	value, err := domain.NewStockpileZone(domain.GeneralPreset, domain.NormalPriority, cells)
+	if err != nil {
+		return PlanResult{}, nil
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, generalStoreMethod)))
+	id := domain.PlanID(fmt.Sprintf("routine-general-store-%x", digest[:16]))
+	snapshot := state.Snapshot
+	snapshot.Plan = id
+	snapshot.Revision = 1
+	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+	var refused *bridge.NativeFailure
+	if errors.As(err, &refused) {
+		clockSchedulerLog("%s: general store refused code=%v detail=%q", goal.Goal.ID, refused.Value.GetCode(), refused.Value.GetDetail())
+		return PlanResult{}, nil
+	}
+	if err != nil {
+		return PlanResult{}, err
+	}
+	v := reply.GetEvaluated()
+	if v == nil || !v.GetAccepted() {
+		return PlanResult{}, nil
+	}
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
+		return PlanResult{}, ErrControl
+	}
+	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	if err != nil {
+		return PlanResult{}, err
+	}
+	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return PlanResult{}, err
+	}
+	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
+	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: generalStoreMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+}
+
+// shellInterior is the cells strictly inside a room shell's Wall/Door
+// perimeter: the bounding box of its building cells less its border.
+func shellInterior(spec domain.PlanSpec) []domain.Cell {
+	first := true
+	var lo, hi domain.Cell
+	for _, action := range spec.Actions() {
+		b, ok := action.Building()
+		if !ok || b.Definition() != "Wall" && b.Definition() != "Door" {
+			continue
+		}
+		c := b.Cell()
+		if first {
+			lo, hi, first = c, c, false
+		}
+		lo.X, lo.Z = min(lo.X, c.X), min(lo.Z, c.Z)
+		hi.X, hi.Z = max(hi.X, c.X), max(hi.Z, c.Z)
+	}
+	var cells []domain.Cell
+	for x := lo.X + 1; x < hi.X; x++ {
+		for z := lo.Z + 1; z < hi.Z; z++ {
+			cells = append(cells, domain.Cell{X: x, Z: z})
+		}
+	}
+	return cells
 }
 
 // zonePreviewer is the one native read previewCoveredStorageSites needs.

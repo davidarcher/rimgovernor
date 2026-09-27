@@ -41,7 +41,7 @@ func TestStockpileZoneCanonicalAndClosedToFoodImportant(t *testing.T) {
 	for _, bad := range []struct {
 		preset   StockpilePreset
 		priority StockpilePriority
-	}{{"nothing", ImportantPriority}, {FoodPreset, "normal"}, {"", ""}} {
+	}{{"nothing", ImportantPriority}, {FoodPreset, "urgent"}, {"", ""}} {
 		if _, err := NewStockpileZone(bad.preset, bad.priority, cells); err == nil {
 			t.Fatal(bad)
 		}
@@ -62,7 +62,11 @@ func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, z := range []ZoneCreate{growing, stockpile, allowList} {
+	general, err := NewStockpileZone(GeneralPreset, NormalPriority, cells)
+	if err != nil || general.Label() != "RimGovernor general store" {
+		t.Fatal(general, err)
+	}
+	for _, z := range []ZoneCreate{growing, stockpile, allowList, general} {
 		got, err := ReconstructZone(z)
 		if err != nil || got != z {
 			t.Fatal("reconstruct mismatch", z, got, err)
@@ -101,7 +105,7 @@ func TestAllowListStockpileZoneCanonicalAndBounded(t *testing.T) {
 		priority StockpilePriority
 		allow    []string
 	}{
-		{"normal", names},
+		{"urgent", names},
 		{ImportantPriority, nil},
 		{ImportantPriority, []string{"a", "a"}},
 		{ImportantPriority, []string{""}},
@@ -127,5 +131,19 @@ func TestNewZoneCreateActionRejectsNonCanonicalZone(t *testing.T) {
 	}
 	if _, err := NewZoneCreateAction("", value); err == nil {
 		t.Fatal("expected rejection of invalid action id")
+	}
+}
+
+// TestStockpilePrioritiesSpanVanilla pins #720: every vanilla storage
+// priority reaches native, not just Important and Low.
+func TestStockpilePrioritiesSpanVanilla(t *testing.T) {
+	cells := []Cell{{X: 1, Z: 1}}
+	for _, p := range []StockpilePriority{CriticalPriority, ImportantPriority, PreferredPriority, NormalPriority, LowPriority} {
+		if z, err := NewStockpileZone(FoodPreset, p, cells); err != nil || z.Priority() != p {
+			t.Fatal(p, err)
+		}
+		if _, err := NewAllowListStockpileZone(p, []string{"Steel"}, cells); err != nil {
+			t.Fatal(p, err)
+		}
 	}
 }

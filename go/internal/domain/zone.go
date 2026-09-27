@@ -16,10 +16,10 @@ const (
 	FishingZone   ZoneKind = "fishing"
 )
 
-// StockpilePreset and StockpilePriority are closed to the food-storage and
-// allow-listed covered-supplies configurations this slice dispatches; broader
-// presets/priorities remain a future extension once a recurring contract
-// needs them.
+// StockpilePreset is closed to the configurations the planners dispatch.
+// StockpilePriority spans vanilla's five storage priorities (#720): a
+// Normal general store holds the colony's stock, Important/Critical working
+// stockpiles at benches and the kitchen pull from it, and Low is the dump.
 type StockpilePreset string
 
 const (
@@ -30,12 +30,21 @@ const (
 	// destination exists: everything is disallowed except the explicit
 	// definitions named in Allow() (preset='nothing', allow=definitions).
 	NothingPreset StockpilePreset = "nothing"
+	// GeneralPreset is the catch-all storeroom: every non-perishable
+	// storable except chunks (native preset='nonperishables' less the Chunks
+	// category). Perishables keep to the food store.
+	GeneralPreset StockpilePreset = "general"
 )
 
 type StockpilePriority string
 
 const (
+	CriticalPriority  StockpilePriority = "critical"
 	ImportantPriority StockpilePriority = "important"
+	PreferredPriority StockpilePriority = "preferred"
+	// NormalPriority is the general store's: any working stockpile above it
+	// pulls its allowed things out of the store.
+	NormalPriority StockpilePriority = "normal"
 	// LowPriority is vanilla's dumping-stockpile priority: the chunk dump a
 	// clearance method places so any other store the player or a later
 	// method admits for the same things wins the haul.
@@ -145,8 +154,16 @@ func NewFishingZoneExtension(zoneID string, cells []Cell) (ZoneCreate, error) {
 
 func (z ZoneCreate) ExtendZoneID() string { return z.extendID }
 
+func validStockpilePriority(p StockpilePriority) bool {
+	switch p {
+	case CriticalPriority, ImportantPriority, PreferredPriority, NormalPriority, LowPriority:
+		return true
+	}
+	return false
+}
+
 func NewStockpileZone(preset StockpilePreset, priority StockpilePriority, cells []Cell) (ZoneCreate, error) {
-	if (preset != FoodPreset && preset != CorpseLarderPreset) || priority != ImportantPriority {
+	if (preset != FoodPreset && preset != CorpseLarderPreset && preset != GeneralPreset) || !validStockpilePriority(priority) {
 		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
 	}
 	data, err := canonicalConnectedCells(cells)
@@ -162,7 +179,7 @@ func NewStockpileZone(preset StockpilePreset, priority StockpilePriority, cells 
 // supply_storeroom fallbacks request from the native zone-cells/CreateZone operation.
 // LowPriority marks a dumping stockpile.
 func NewAllowListStockpileZone(priority StockpilePriority, allow []string, cells []Cell) (ZoneCreate, error) {
-	if priority != ImportantPriority && priority != LowPriority {
+	if !validStockpilePriority(priority) {
 		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
 	}
 	allowData, err := canonicalAllowList(allow)
@@ -191,7 +208,7 @@ func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
 		return NewZoneCreate(z.kind, z.crop, z.Cells())
 	case StockpileZone:
 		switch z.preset {
-		case FoodPreset, CorpseLarderPreset:
+		case FoodPreset, CorpseLarderPreset, GeneralPreset:
 			return NewStockpileZone(z.preset, z.priority, z.Cells())
 		case NothingPreset:
 			return NewAllowListStockpileZone(z.priority, z.Allow(), z.Cells())
@@ -223,6 +240,8 @@ func (z ZoneCreate) Label() string {
 		return "RimGovernor fishing"
 	case z.kind == StockpileZone && z.preset == CorpseLarderPreset:
 		return "RimGovernor corpse larder"
+	case z.kind == StockpileZone && z.preset == GeneralPreset:
+		return "RimGovernor general store"
 	case z.kind == StockpileZone && z.preset == NothingPreset && z.priority == LowPriority:
 		return "RimGovernor dumping"
 	case z.kind == StockpileZone && z.preset == NothingPreset:

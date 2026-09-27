@@ -71,8 +71,14 @@ func ZoneConfiguration(zone domain.ZoneCreate) *op.CreateZone {
 func stockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
 	var priority op.StoragePriority
 	switch zone.Priority() {
+	case domain.CriticalPriority:
+		priority = op.StoragePriority_STORAGE_PRIORITY_CRITICAL
 	case domain.ImportantPriority:
 		priority = op.StoragePriority_STORAGE_PRIORITY_IMPORTANT
+	case domain.PreferredPriority:
+		priority = op.StoragePriority_STORAGE_PRIORITY_PREFERRED
+	case domain.NormalPriority:
+		priority = op.StoragePriority_STORAGE_PRIORITY_NORMAL
 	case domain.LowPriority:
 		priority = op.StoragePriority_STORAGE_PRIORITY_LOW
 	}
@@ -82,6 +88,8 @@ func stockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
 		preset = op.FilterPreset_FILTER_PRESET_FOOD
 	case domain.NothingPreset, domain.CorpseLarderPreset:
 		preset = op.FilterPreset_FILTER_PRESET_NOTHING
+	case domain.GeneralPreset:
+		preset = op.FilterPreset_FILTER_PRESET_NONPERISHABLES
 	}
 	settings := &op.StockpileSettings{Priority: priority.Enum(), Preset: preset.Enum()}
 	if zone.Preset() == domain.CorpseLarderPreset {
@@ -89,6 +97,9 @@ func stockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
 			Allow:    []*op.FilterSelector{{Definition: &op.FilterSelector_CategoryDef{CategoryDef: "CorpsesAnimal"}}, {Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowFresh"}}},
 			Disallow: []*op.FilterSelector{{Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowRotten"}}},
 		}
+	}
+	if zone.Preset() == domain.GeneralPreset {
+		settings.Filter = &op.FilterPatch{Disallow: []*op.FilterSelector{{Definition: &op.FilterSelector_CategoryDef{CategoryDef: "Chunks"}}}}
 	}
 	if zone.Preset() == domain.NothingPreset {
 		var allow []*op.FilterSelector
