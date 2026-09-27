@@ -169,16 +169,6 @@ func TestTidyLayoutReplacedEmptyShellIsDeconstructedWithoutATarget(t *testing.T)
 	}
 }
 
-// A stockpile is never a tidy candidate: MaintainStockpiles owns it (#725).
-func TestTidyLayoutLeavesStockpilesAlone(t *testing.T) {
-	r := tidyFixture()
-	r.Items = []TidyItem{{Kind: TidyStockpile, ID: "Zone_5", Footprint: Rectangle{3, 30, 3, 3}, Cells: 9}}
-	r = tidyZoned(r, Rectangle{3, 30, 3, 3}, "Zone_5")
-	if review := PlanTidyLayout(r); review.Active || review.Candidates != 0 {
-		t.Fatalf("stockpile review %+v", review)
-	}
-}
-
 // The review is persisted as JSON by the journal and reloaded by the tidy
 // planner: the proposal must survive that round trip (the first layout/tidy
 // run lost it behind an unexported Fact and never planned).

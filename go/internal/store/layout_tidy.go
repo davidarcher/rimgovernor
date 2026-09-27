@@ -60,7 +60,7 @@ func checkLayoutTidySchema(ctx context.Context, tx *sql.Tx) error {
 
 func layoutTidyValid(t LayoutTidy) bool {
 	switch t.Kind {
-	case policy.TidyField, policy.TidyStockpile, policy.TidyShell, policy.TidyFurniture:
+	case policy.TidyField, policy.TidyShell, policy.TidyFurniture:
 	default:
 		return false
 	}
@@ -90,7 +90,8 @@ func layoutTidies(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, 
 	// The current load's rows are read first and win; each older segment
 	// only fills items no younger segment recorded.
 	for _, segment := range lineage {
-		rows, err := tx.QueryContext(ctx, "SELECT tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation FROM layout_tidies WHERE colony=? AND map_id=? AND load_token=? AND tick<=? ORDER BY id DESC", s.Colony, s.Map, segment.load, segment.limit)
+		// Stockpile rows predate #725 and are ignored (#933).
+		rows, err := tx.QueryContext(ctx, "SELECT tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation FROM layout_tidies WHERE colony=? AND map_id=? AND load_token=? AND tick<=? AND kind<>'stockpile' ORDER BY id DESC", s.Colony, s.Map, segment.load, segment.limit)
 		if err != nil {
 			return nil, err
 		}

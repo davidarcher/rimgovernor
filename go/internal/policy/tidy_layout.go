@@ -34,10 +34,7 @@ type TidyKind string
 
 const (
 	TidyField TidyKind = "field"
-	// TidyStockpile names journal rows of stockpile re-sites; the tidy no
-	// longer proposes them (MaintainStockpiles owns stockpiles, #725).
-	TidyStockpile TidyKind = "stockpile"
-	TidyShell     TidyKind = "shell"
+	TidyShell TidyKind = "shell"
 	// TidyFurniture re-sites a room's off-plan furniture onto its derived
 	// interior plan (#809); the item is the room, the tidied ids its pieces.
 	TidyFurniture TidyKind = "furniture"

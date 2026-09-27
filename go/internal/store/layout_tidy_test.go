@@ -65,3 +65,27 @@ func TestLayoutTidiesFollowTheSavedTimelineAndKeepTheLatestState(t *testing.T) {
 		t.Fatal("rewound load kept its tidy", got, err)
 	}
 }
+
+// A journal still holding a stockpile tidy row from before #725 loads and
+// ignores it (#933).
+func TestLayoutTidiesIgnoreRetiredStockpileRows(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := caravanTrackingFixture(t)
+	world := extentWorld("colony", "load-1", 1)
+	if _, err := db.EstablishColonyExtent(ctx, world, 100, []policy.ExtentRegion{extentRegion("a", domain.Cell{X: 0, Z: 0})}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.RecordLayoutTidy(ctx, world, 200, LayoutTidy{Item: "Zone_7", Kind: policy.TidyField, Status: LayoutTidyDone}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.db.ExecContext(ctx, "INSERT INTO layout_tidies(colony,map_id,load_token,tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation) VALUES(?,?,?,210,'Zone_5','stockpile','done',0,0,3,3,0,0,3,3,'','','','')", world.Colony, world.Map, world.Load); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := db.LayoutTidies(ctx, world, 300); err != nil || len(got) != 1 || got[0].Item != "Zone_7" {
+		t.Fatal(got, err)
+	}
+	if err := db.RecordLayoutTidy(ctx, world, 300, LayoutTidy{Item: "Zone_5", Kind: "stockpile", Status: LayoutTidyDone}); err == nil {
+		t.Fatal("a stockpile tidy was recorded")
+	}
+}
