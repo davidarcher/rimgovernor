@@ -85,8 +85,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Valid(Operations.PawnTargetOrder? command) => command != null
             && command.HasKind && (command.Kind == Operations.PawnOrderKind.OpenCasket)
             && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target)
-            && command.Pawn.EntityId != command.Target.EntityId
-            && command.HasRequireSafeStorage && !command.RequireSafeStorage;
+            && command.Pawn.EntityId != command.Target.EntityId;
 
         internal static void Undesignate(Building_Casket casket)
         {
@@ -130,7 +129,7 @@ namespace HomeBridge.BridgeTools
         {
             var command = request.Operation.PawnTargetOrder; var pre = request.Precondition;
             if (!Valid(command))
-                return Refuse(Common.FailureCode.InvalidRequest, "OpenCasket requires an exact pawn, exact casket target and require_safe_storage:false.");
+                return Refuse(Common.FailureCode.InvalidRequest, "OpenCasket requires an exact pawn and exact casket target.");
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
@@ -183,7 +182,7 @@ namespace HomeBridge.BridgeTools
         internal static Operations.PreviewReply Preview(Operations.PawnTargetOrder command, Common.ObservationContext context)
         {
             if (!Valid(command))
-                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "OpenCasket requires an exact pawn, exact casket target and require_safe_storage:false.") };
+                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "OpenCasket requires an exact pawn and exact casket target.") };
             try
             {
                 if (!Prepare(command, context, out _, out var pawn, out var casket, out var snapshot, out var failure))

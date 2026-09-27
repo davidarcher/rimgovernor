@@ -65,13 +65,13 @@ func TestDiagnoseDistinguishesBlockers(t *testing.T) {
 		},
 		{
 			name:    "worker blocker",
-			subject: Subject{Slot: &Slot{Selected: true}, Progress: held(t, domain.HeldHaulerUnavailable)},
-			want:    ClassWorkerBlocker, blocker: domain.HeldHaulerUnavailable,
+			subject: Subject{Slot: &Slot{Selected: true}, Progress: held(t, domain.HeldRepairerUnavailable)},
+			want:    ClassWorkerBlocker, blocker: domain.HeldRepairerUnavailable,
 		},
 		{
 			name: "material outranks worker when both are held",
 			subject: Subject{Slot: &Slot{Selected: true},
-				Progress: held(t, domain.HeldHaulerUnavailable, domain.HeldMaterialRequired)},
+				Progress: held(t, domain.HeldRepairerUnavailable, domain.HeldMaterialRequired)},
 			want: ClassMaterialBlocker, blocker: domain.HeldMaterialRequired,
 		},
 		{

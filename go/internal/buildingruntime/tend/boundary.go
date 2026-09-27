@@ -47,7 +47,7 @@ func NewTendBoundary(native TendNative, writer TendWriter, leases boundary.Lease
 }
 
 func tendCommand(doctor, patient, doctorToken, patientToken string) *o.PawnTargetOrder {
-	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(doctor), ExpectedSnapshotToken: proto.String(doctorToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(patient), ExpectedSnapshotToken: proto.String(patientToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_TEND.Enum(), RequireSafeStorage: proto.Bool(false)}
+	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(doctor), ExpectedSnapshotToken: proto.String(doctorToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(patient), ExpectedSnapshotToken: proto.String(patientToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_TEND.Enum()}
 }
 
 func medicineSkillLevel(skills []*n.Skill) (level domain.Fact[int32], disabled domain.Fact[bool]) {
@@ -231,7 +231,7 @@ func (b *TendBoundary) attempt(dispatch executor.TendDispatch) (bridge.PawnOrder
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Doctor != tend.Doctor() || admission.Patient != tend.Patient() || admission.Tick > p.Tick || !boundary.ValidID(admission.DoctorSnapshotToken) || !boundary.ValidID(admission.PatientSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(tend.Doctor()), TargetID: string(tend.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_TEND, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(tend.Doctor()), TargetID: string(tend.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_TEND}, nil
 }
 
 func tendJob(job *r.JobEffect, dispatch executor.TendDispatch) error {

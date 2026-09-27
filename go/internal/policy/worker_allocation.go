@@ -100,10 +100,6 @@ const (
 	MaxAllocOps       = MaxAllocPositions * MaxAllocWorkers * MaxAllocWorkers
 )
 
-func DefaultAllocBounds() AllocBounds {
-	return AllocBounds{Workers: MaxAllocWorkers, Positions: MaxAllocPositions, MaxOps: MaxAllocOps}
-}
-
 // Reasons for a position or worker that is left unused.
 const (
 	AllocReasonIncumbent        = "incumbent"

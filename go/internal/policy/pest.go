@@ -36,23 +36,6 @@ func PestCensus(wild domain.Fact[[]UpkeepAnimal]) domain.Fact[int] {
 	return domain.Known(count)
 }
 
-// PestAcquisitionSources are the hunt rows the acquisition census offers
-// for recognised pests: a hunt of one unit of nothing edible (food false,
-// no nutrition), which the food and wood selections pass over.
-func PestAcquisitionSources(sources domain.Fact[[]AcquisitionSource]) []AcquisitionSource {
-	rows, known := sources.Value()
-	if !known {
-		return nil
-	}
-	var pests []AcquisitionSource
-	for _, row := range rows {
-		if row.Hunt && PestDefinition(Resource(row.Definition)) {
-			pests = append(pests, row)
-		}
-	}
-	return pests
-}
-
 // SelectPestAcquisition picks the pest hunts to admit: every undesignated,
 // unheld pest row in native order (nearest the colony first), one hunt per
 // pest, up to the hunting budget (native admits at most two outstanding

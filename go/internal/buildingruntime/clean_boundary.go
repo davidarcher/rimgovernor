@@ -51,7 +51,7 @@ func NewCleanBoundary(native CleanNative, writer CleanWriter, leases boundary.Le
 }
 
 func cleanCommand(pawn, filth, pawnToken, filthToken string) *o.PawnTargetOrder {
-	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(filth), ExpectedSnapshotToken: proto.String(filthToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CLEAN.Enum(), RequireSafeStorage: proto.Bool(false)}
+	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(filth), ExpectedSnapshotToken: proto.String(filthToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CLEAN.Enum()}
 }
 
 func cleanPawnFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.CleanPawnFacts {
@@ -136,7 +136,7 @@ func (b *CleanBoundary) attempt(dispatch executor.CleanDispatch) (bridge.PawnOrd
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != clean.Pawn() || admission.Filth != clean.Filth() || admission.Cell != clean.Cell() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.FilthSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(clean.Pawn()), TargetID: clean.Filth(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CLEAN, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(clean.Pawn()), TargetID: clean.Filth(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CLEAN}, nil
 }
 
 func cleanJob(job *r.JobEffect, dispatch executor.CleanDispatch) error {

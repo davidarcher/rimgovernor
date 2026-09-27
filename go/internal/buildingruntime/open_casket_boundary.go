@@ -53,7 +53,7 @@ func NewOpenCasketBoundary(native OpenCasketNative, writer OpenCasketWriter, lea
 
 func openCasketCommand(pawn, casket, pawnToken, casketToken string) *o.PawnTargetOrder {
 	kind := o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET
-	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(casket), ExpectedSnapshotToken: proto.String(casketToken)}, Kind: kind.Enum(), RequireSafeStorage: proto.Bool(false)}
+	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(casket), ExpectedSnapshotToken: proto.String(casketToken)}, Kind: kind.Enum()}
 }
 
 func (b *OpenCasketBoundary) InspectOpenCasket(ctx context.Context, target executor.Target) (executor.OpenCasketInspection, error) {
@@ -152,7 +152,7 @@ func (b *OpenCasketBoundary) attempt(dispatch executor.OpenCasketDispatch) (brid
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
 	kind := o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(open.Pawn()), TargetID: open.Casket(), Kind: kind, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(open.Pawn()), TargetID: open.Casket(), Kind: kind}, nil
 }
 
 // openCasketJob accepts a drafted opener (the melee lock drafts first) but

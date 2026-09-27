@@ -50,7 +50,7 @@ func NewRepairBoundary(native RepairNative, writer RepairWriter, leases boundary
 }
 
 func repairCommand(pawn, structure, pawnToken, structureToken string) *o.PawnTargetOrder {
-	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(structure), ExpectedSnapshotToken: proto.String(structureToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_REPAIR.Enum(), RequireSafeStorage: proto.Bool(false)}
+	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(structure), ExpectedSnapshotToken: proto.String(structureToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_REPAIR.Enum()}
 }
 
 func repairPawnFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.RepairPawnFacts {
@@ -139,7 +139,7 @@ func (b *RepairBoundary) attempt(dispatch executor.RepairDispatch) (bridge.PawnO
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != repair.Pawn() || admission.Structure != repair.Structure() || admission.Cell != repair.Cell() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.StructureSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(repair.Pawn()), TargetID: repair.Structure(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_REPAIR, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(repair.Pawn()), TargetID: repair.Structure(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_REPAIR}, nil
 }
 
 func repairJob(job *r.JobEffect, dispatch executor.RepairDispatch) error {

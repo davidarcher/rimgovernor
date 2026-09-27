@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
             var targetRef = new Operations.EntityPrecondition { EntityId = melee.TargetId, ExpectedSnapshotToken = targetToken };
             if (melee.Subdue)
             {
-                var order = new Operations.PawnTargetOrder { Pawn = pawnRef, Target = targetRef, Kind = Operations.PawnOrderKind.Subdue, RequireSafeStorage = false };
+                var order = new Operations.PawnTargetOrder { Pawn = pawnRef, Target = targetRef, Kind = Operations.PawnOrderKind.Subdue };
                 if (!NativeSubdueOperations.Prepare(order, context, out identity, out var subduer, out var victim, out var snapshot, out var refused)) return refused;
                 resolved = new Resolved { Identity = identity, Pawn = subduer!, Target = victim!, Before = snapshot! };
                 return null;
@@ -94,15 +94,11 @@ namespace HomeBridge.BridgeTools
             if (!accepted) throw new InvalidOperationException("Native melee job was not taken.");
             return Evidence(r.Pawn, r.Target, true);
         }
-
-        internal static Receipts.EffectEvidence Preview(Operations.MeleeIntent melee, Common.ObservationContext context) =>
-            Resolve(melee, context, out var r) != null || r == null ? new Receipts.EffectEvidence() : Evidence(r.Pawn, r.Target, false);
     }
 
     internal sealed class MeleeActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeMeleeIntent.Validate(action.Melee, context);
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeMeleeIntent.Apply(action.Melee, context);
-        public Receipts.EffectEvidence Preview(Operations.Action action, Common.ObservationContext context) => NativeMeleeIntent.Preview(action.Melee, context);
     }
 }

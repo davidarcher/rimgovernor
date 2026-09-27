@@ -232,8 +232,3 @@ func Artifacts(output string, report Report) (map[string]string, error) {
 	})
 	return hashes, err
 }
-
-// ArtifactHashes is Artifacts for a report that names no files.
-func ArtifactHashes(output string) (map[string]string, error) {
-	return Artifacts(output, nil)
-}

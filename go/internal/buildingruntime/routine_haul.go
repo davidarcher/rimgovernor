@@ -24,7 +24,7 @@ import (
 // No new native call is introduced for this slice. This is exactly
 // RoutineSecureSuppliesSource minus PreviewZone: MaintainStorage only
 // delivers into storage SecureSupplies/EnsureFoodStorage already made legal
-// (native's own RequireSafeStorage picks the destination cell); it never
+// (native haul picks the destination cell); it never
 // proposes a new zone.
 type RoutineHaulSource interface {
 	observation.ColonySource

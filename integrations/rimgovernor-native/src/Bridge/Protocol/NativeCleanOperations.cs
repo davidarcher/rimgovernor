@@ -82,8 +82,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Valid(Operations.PawnTargetOrder? command) => command != null
             && command.HasKind && command.Kind == Operations.PawnOrderKind.Clean
             && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target)
-            && command.Pawn.EntityId != command.Target.EntityId
-            && command.HasRequireSafeStorage && !command.RequireSafeStorage;
+            && command.Pawn.EntityId != command.Target.EntityId;
 
         private static WorkGiver_CleanFilth? Giver() => DefDatabase<WorkGiverDef>.AllDefsListForReading
             .Where(d => d.giverClass != null && typeof(WorkGiver_CleanFilth).IsAssignableFrom(d.giverClass))
@@ -139,7 +138,7 @@ namespace HomeBridge.BridgeTools
         {
             var command = request.Operation.PawnTargetOrder; var pre = request.Precondition;
             if (!Valid(command))
-                return Refuse(Common.FailureCode.InvalidRequest, "Clean requires an exact pawn, exact filth target and require_safe_storage:false.");
+                return Refuse(Common.FailureCode.InvalidRequest, "Clean requires an exact pawn and exact filth target.");
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
@@ -185,7 +184,7 @@ namespace HomeBridge.BridgeTools
         internal static Operations.PreviewReply Preview(Operations.PawnTargetOrder command, Common.ObservationContext context)
         {
             if (!Valid(command))
-                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Clean requires an exact pawn, exact filth target and require_safe_storage:false.") };
+                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Clean requires an exact pawn and exact filth target.") };
             try
             {
                 if (!Prepare(command, context, out _, out var pawn, out var filth, out var snapshot, out var failure))

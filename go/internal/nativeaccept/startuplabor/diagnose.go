@@ -125,7 +125,6 @@ var materialHolds = map[domain.HeldReason]bool{
 	domain.HeldSpendingBlocked:   true,
 	domain.HeldAlreadyReserved:   true,
 	domain.HeldInvalidHeld:       true,
-	domain.HeldThingAbsent:       true,
 	domain.HeldStorageMissing:    true,
 }
 
@@ -136,7 +135,6 @@ var workerHolds = map[domain.HeldReason]bool{
 	domain.HeldDraftOwnership:                 true,
 	domain.HeldEquipPawnUnavailable:           true,
 	domain.HeldGearReplacePawnUnavailable:     true,
-	domain.HeldHaulerUnavailable:              true,
 	domain.HeldOpenerUnavailable:              true,
 	domain.HeldRecoveryServicePawnUnavailable: true,
 	domain.HeldRepairerUnavailable:            true,

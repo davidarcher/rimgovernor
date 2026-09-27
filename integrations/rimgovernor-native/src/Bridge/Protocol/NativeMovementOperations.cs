@@ -65,11 +65,5 @@ namespace HomeBridge.BridgeTools
             NativeMovementOperations.Resolve(action.Move,context,out _,out _);
         public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context)=>
             NativeMovementOperations.Apply(action.Move,context);
-        public Receipts.EffectEvidence Preview(Operations.Action action,Common.ObservationContext context)
-        {
-            var failure=NativeMovementOperations.Resolve(action.Move,context,out var pawn,out var destination);
-            if(failure!=null || pawn==null)return new Receipts.EffectEvidence();
-            return NativeMovementOperations.Evidence(pawn,destination,false);
-        }
     }
 }

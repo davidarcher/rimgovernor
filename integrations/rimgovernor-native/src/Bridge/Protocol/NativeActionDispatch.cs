@@ -20,8 +20,6 @@ namespace HomeBridge.BridgeTools
         // Null when the action applies to live state now, else the refusal.
         Common.Failure? Validate(Operations.Action action, Common.ObservationContext context);
         Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context);
-        // What the action would do, without doing it.
-        Receipts.EffectEvidence Preview(Operations.Action action, Common.ObservationContext context);
     }
 
     // Actions/Apply: every Action arm maps to exactly one handler. Actions in
@@ -106,11 +104,9 @@ namespace HomeBridge.BridgeTools
     internal sealed class TradeActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>
-            NativeTradeOperations.Validate(NativeTradeOperations.Normalized(action.Trade), context.Identity);
+            NativeTradeOperations.Validate(action.Trade, context.Identity);
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
-            NativeTradeOperations.Apply(NativeTradeOperations.Normalized(action.Trade), context);
-        public Receipts.EffectEvidence Preview(Operations.Action action, Common.ObservationContext context) =>
-            NativeTradeOperations.Preview(NativeTradeOperations.Normalized(action.Trade), context.Identity);
+            NativeTradeOperations.Apply(action.Trade, context);
     }
 
     // BuildingIntent: place one ordinary blueprint (or an instant building)
@@ -149,16 +145,6 @@ namespace HomeBridge.BridgeTools
             observed.Stage = Stage(placed);
             observed.Present = true; observed.Started = true; observed.Failed = false;
             return new Receipts.EffectEvidence { Construction = observed };
-        }
-
-        public Receipts.EffectEvidence Preview(Operations.Action action, Common.ObservationContext context)
-        {
-            var map = ProtoBoundary.LoadedMap(context);
-            var existing = Existing(map, action.Building.Placement);
-            if (existing != null) return new Receipts.EffectEvidence { Construction = Effect(existing.Value.Thing, action.Building.Placement) };
-            if (!NativeConstructionPlan.Prepare(map, action.Building.Placement, context, out var plan, out _, out var failure))
-                throw new InvalidOperationException(failure.Detail);
-            return new Receipts.EffectEvidence { Construction = plan.Proposed() };
         }
 
         // Existing is the player's blueprint, frame or building of the

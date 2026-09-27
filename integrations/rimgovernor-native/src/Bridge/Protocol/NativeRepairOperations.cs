@@ -82,8 +82,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Valid(Operations.PawnTargetOrder? command) => command != null
             && command.HasKind && command.Kind == Operations.PawnOrderKind.Repair
             && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target)
-            && command.Pawn.EntityId != command.Target.EntityId
-            && command.HasRequireSafeStorage && !command.RequireSafeStorage;
+            && command.Pawn.EntityId != command.Target.EntityId;
 
         private static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
             out Pawn? pawn, out Building? building, out NativePawnSnapshot? snapshot, out WorkGiverJobResult? job, out Common.Failure failure)
@@ -123,7 +122,7 @@ namespace HomeBridge.BridgeTools
         {
             var command = request.Operation.PawnTargetOrder; var pre = request.Precondition;
             if (!Valid(command))
-                return Refuse(Common.FailureCode.InvalidRequest, "Repair requires an exact pawn, exact building target and require_safe_storage:false.");
+                return Refuse(Common.FailureCode.InvalidRequest, "Repair requires an exact pawn and exact building target.");
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
@@ -169,7 +168,7 @@ namespace HomeBridge.BridgeTools
         internal static Operations.PreviewReply Preview(Operations.PawnTargetOrder command, Common.ObservationContext context)
         {
             if (!Valid(command))
-                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Repair requires an exact pawn, exact building target and require_safe_storage:false.") };
+                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Repair requires an exact pawn and exact building target.") };
             try
             {
                 if (!Prepare(command, context, out _, out var pawn, out var building, out var snapshot, out _, out var failure))

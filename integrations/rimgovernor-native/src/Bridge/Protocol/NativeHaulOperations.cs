@@ -92,19 +92,11 @@ namespace HomeBridge.BridgeTools
                 throw new System.InvalidOperationException("The pawn did not take the hauling job.");
             return Evidence(pawn, thing, result.Job, true, true);
         }
-
-        internal static Receipts.EffectEvidence Preview(Operations.HaulIntent? intent, Common.ObservationContext context)
-        {
-            var failure = Resolve(intent, context, out var pawn, out var thing);
-            if (failure != null) throw new System.InvalidOperationException(failure.Detail);
-            return Evidence(pawn!, thing!, Hauling(pawn!, thing!) ? pawn!.CurJob : null, false, true);
-        }
     }
 
     internal sealed class HaulActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeHaulOperations.Validate(action.Haul, context);
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeHaulOperations.Apply(action.Haul, context);
-        public Receipts.EffectEvidence Preview(Operations.Action action, Common.ObservationContext context) => NativeHaulOperations.Preview(action.Haul, context);
     }
 }

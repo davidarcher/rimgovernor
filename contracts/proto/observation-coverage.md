@@ -287,17 +287,16 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 
 | Operations precondition | Read path |
 |---|---|
-| CancelConstruction.target | ListBuildings.building.snapshot or GetCells.thing.snapshot |
 | InstallBuilding.packed_or_inner | none: the exact inner building or packed item (ColonyFacts ids) is re-resolved and every rule re-evaluated at apply |
 | AcquireResource.source | ListResourceSources.source.snapshot |
 | ExcavateCell.expected_snapshot_token | ReadExcavationSite.cells[].snapshot (cell + rock def + hit points + designation; never a Mineable ThingID) |
 | DesignateThing.target | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
 | PatchBuilding.building | ReadBuildingSettings.snapshot (same building ID) |
 | PatchPawn.pawn | ReadPawnSettings.snapshot (same pawn ID) |
-| AddBill.bench; Patch/Delete/MoveBill.bill | ReadBills.bench.snapshot and BillState.id; whole ordered stack token |
+| AddBill.bench | ReadBills.bench.snapshot; whole ordered stack token |
 | SelectResearch.expected_snapshot_token | ReadResearch.snapshot |
 | CreateZone.expected_map_snapshot_token | GetCells.map_snapshot, bound to exact inspected map/geometry query |
-| DeleteZone/EditZoneCells/RepairZone/PatchStockpile/PatchGrowing.zone | ListZones.zone.snapshot |
+| DeleteZone/EditZoneCells/PatchStockpile.zone | ListZones.zone.snapshot |
 | ExtendHome.target/shape/revision | ReadColonyFacts.upkeep.home_coverage.target.snapshot/shape_token and revision |
 | AssignBed.pawn/bed/expected_previous_bed | ListPawns.pawn.snapshot; ListBuildings.building.snapshot; pawn settings/owned bed readback |
 | RemoveWall.wall/expected_site_snapshot_token | ListWallUpgradeSites.target.snapshot and site.snapshot, exact geometry below |

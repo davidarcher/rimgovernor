@@ -73,8 +73,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Valid(Operations.PawnTargetOrder? command) => command != null
             && command.HasKind && command.Kind == Operations.PawnOrderKind.Equip
             && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target)
-            && command.Pawn.EntityId != command.Target.EntityId
-            && command.HasRequireSafeStorage && !command.RequireSafeStorage;
+            && command.Pawn.EntityId != command.Target.EntityId;
 
         internal static bool Eligible(Thing? weapon) => weapon != null && NativeSupplyAllow.Eligible(weapon)
             && weapon.def.IsWeapon && (weapon as ThingWithComps)?.GetComp<CompEquippable>() != null;
@@ -115,7 +114,7 @@ namespace HomeBridge.BridgeTools
         {
             var command = request.Operation.PawnTargetOrder; var pre = request.Precondition;
             if (!Valid(command))
-                return Refuse(Common.FailureCode.InvalidRequest, "Equip requires an exact pawn, exact equippable target and require_safe_storage:false.");
+                return Refuse(Common.FailureCode.InvalidRequest, "Equip requires an exact pawn and exact equippable target.");
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
@@ -164,7 +163,7 @@ namespace HomeBridge.BridgeTools
         internal static Operations.PreviewReply Preview(Operations.PawnTargetOrder command, Common.ObservationContext context)
         {
             if (!Valid(command))
-                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an exact pawn, exact equippable target and require_safe_storage:false.") };
+                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an exact pawn and exact equippable target.") };
             try
             {
                 if (!Prepare(command, context, out _, out var pawn, out var weapon, out var snapshot, out var failure))

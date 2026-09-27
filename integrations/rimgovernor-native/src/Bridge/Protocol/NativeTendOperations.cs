@@ -80,8 +80,7 @@ namespace HomeBridge.BridgeTools
     {
         internal static bool Valid(Operations.PawnTargetOrder? command) => command != null
             && command.HasKind && command.Kind == Operations.PawnOrderKind.Tend
-            && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target)
-            && command.HasRequireSafeStorage && !command.RequireSafeStorage;
+            && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target);
 
         private static WorkGiver_Tend? Giver() => DefDatabase<WorkGiverDef>.AllDefsListForReading
             .Where(d => d.giverClass != null && typeof(WorkGiver_Tend).IsAssignableFrom(d.giverClass))
@@ -148,7 +147,7 @@ namespace HomeBridge.BridgeTools
         {
             var command = request.Operation.PawnTargetOrder; var pre = request.Precondition;
             if (!Valid(command))
-                return Refuse(Common.FailureCode.InvalidRequest, "Tend requires an exact doctor, exact patient pawn and require_safe_storage:false.");
+                return Refuse(Common.FailureCode.InvalidRequest, "Tend requires an exact doctor and exact patient pawn.");
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
@@ -193,7 +192,7 @@ namespace HomeBridge.BridgeTools
         internal static Operations.PreviewReply Preview(Operations.PawnTargetOrder command, Common.ObservationContext context)
         {
             if (!Valid(command))
-                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Tend requires an exact doctor, exact patient pawn and require_safe_storage:false.") };
+                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Tend requires an exact doctor and exact patient pawn.") };
             try
             {
                 if (!Prepare(command, context, out _, out var pawn, out var patient, out var job, out var snapshot, out var failure))

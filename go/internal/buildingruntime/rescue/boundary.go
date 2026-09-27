@@ -47,7 +47,7 @@ func NewRescueBoundary(native RescueNative, writer RescueWriter, leases boundary
 }
 
 func rescueCommand(rescuer, patient, rescuerToken, patientToken string) *o.PawnTargetOrder {
-	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(rescuer), ExpectedSnapshotToken: proto.String(rescuerToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(patient), ExpectedSnapshotToken: proto.String(patientToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE.Enum(), RequireSafeStorage: proto.Bool(false)}
+	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(rescuer), ExpectedSnapshotToken: proto.String(rescuerToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(patient), ExpectedSnapshotToken: proto.String(patientToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE.Enum()}
 }
 
 func NewRescuerFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.RescuerFacts {
@@ -163,7 +163,7 @@ func (b *RescueBoundary) attempt(dispatch executor.RescueDispatch) (bridge.PawnO
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Rescuer != rescue.Rescuer() || admission.Patient != rescue.Patient() || admission.Tick > p.Tick || !boundary.ValidID(admission.RescuerSnapshotToken) || !boundary.ValidID(admission.PatientSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(rescue.Rescuer()), TargetID: string(rescue.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(rescue.Rescuer()), TargetID: string(rescue.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE}, nil
 }
 
 func rescueJob(job *r.JobEffect, dispatch executor.RescueDispatch) error {

@@ -26,7 +26,7 @@ func pawnOrderCommand(command *o.PawnTargetOrder) error {
 	if err := draftEntity(command.Target); err != nil {
 		return err
 	}
-	if command.Pawn.GetEntityId() == command.Target.GetEntityId() || command.Kind == nil || len(pawnOrderJobDefs(command.GetKind())) == 0 || command.RequireSafeStorage == nil || command.GetRequireSafeStorage() {
+	if command.Pawn.GetEntityId() == command.Target.GetEntityId() || command.Kind == nil || len(pawnOrderJobDefs(command.GetKind())) == 0 {
 		return contract("supported undrafted pawn order kind required")
 	}
 	return nil
@@ -49,7 +49,7 @@ func pawnOrderAttempt(v PawnOrderAttempt) (PawnOrderAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	if validID(v.TargetID) != nil || v.TargetID == v.PawnID || len(pawnOrderJobDefs(v.Kind)) == 0 || v.RequireSafeStorage {
+	if validID(v.TargetID) != nil || v.TargetID == v.PawnID || len(pawnOrderJobDefs(v.Kind)) == 0 {
 		return PawnOrderAttempt{}, contract("invalid pawn order attempt target or kind")
 	}
 	return v, nil
@@ -112,7 +112,7 @@ func (control *PawnOrderControl) OrderPawn(ctx context.Context, pre *a.WritePrec
 	if err := pawnOrderCommand(command); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := pawnOrderAttempt(PawnOrderAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), command.Pawn.GetEntityId(), command.Target.GetEntityId(), command.GetKind(), command.GetRequireSafeStorage(), ""})
+	expected, err := pawnOrderAttempt(PawnOrderAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), command.Pawn.GetEntityId(), command.Target.GetEntityId(), command.GetKind(), ""})
 	if err != nil {
 		return nil, Result{}, err
 	}

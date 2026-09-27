@@ -56,13 +56,13 @@ namespace HomeBridge.BridgeTools
     {
         internal static bool Valid(Operations.PawnTargetOrder? command) => command != null && command.HasKind && command.Kind == Operations.PawnOrderKind.Subdue
             && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target)
-            && command.Pawn.EntityId != command.Target.EntityId && command.HasRequireSafeStorage && !command.RequireSafeStorage;
+            && command.Pawn.EntityId != command.Target.EntityId;
         internal static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
             out Pawn? pawn, out Pawn? target, out NativePawnSnapshot? snapshot, out Common.Failure failure)
         {
             identity = new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
             pawn = null; target = null; snapshot = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Subdue requires exact pawn snapshots and require_safe_storage:false.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Subdue requires exact pawn snapshots.");
             if (!Valid(command)) return false;
             if (!NativePawnControlState.IsReady) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Pawn control hooks unavailable."); return false; }
             pawn = identity.Map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);

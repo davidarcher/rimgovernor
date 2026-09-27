@@ -50,7 +50,7 @@ func NewEquipBoundary(native EquipNative, writer EquipWriter, leases boundary.Le
 }
 
 func equipCommand(pawn, thing, pawnToken, thingToken string) *o.PawnTargetOrder {
-	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(thing), ExpectedSnapshotToken: proto.String(thingToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP.Enum(), RequireSafeStorage: proto.Bool(false)}
+	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(thing), ExpectedSnapshotToken: proto.String(thingToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP.Enum()}
 }
 
 func equipJobDefAllowed(jobDef string) bool {
@@ -148,7 +148,7 @@ func (b *EquipBoundary) attempt(dispatch executor.EquipDispatch) (bridge.PawnOrd
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != equip.Pawn() || admission.Thing != equip.Thing() || admission.Definition != equip.Definition() || admission.Cell != equip.Cell() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.ThingSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(equip.Pawn()), TargetID: equip.Thing(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(equip.Pawn()), TargetID: equip.Thing(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP}, nil
 }
 
 func equipJob(job *r.JobEffect, dispatch executor.EquipDispatch) error {

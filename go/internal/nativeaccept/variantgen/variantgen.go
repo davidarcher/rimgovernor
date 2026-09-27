@@ -101,12 +101,6 @@ func SavePath(root, save string) string {
 	return filepath.Join(root, "profile", "Saves", save+".rws")
 }
 
-// Exists reports whether a variant's save has already been generated.
-func Exists(root, save string) bool {
-	info, err := os.Stat(SavePath(root, save))
-	return err == nil && !info.IsDir()
-}
-
 func sanitize(name string) string {
 	var b []byte
 	for _, r := range name {

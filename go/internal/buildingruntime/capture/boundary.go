@@ -47,7 +47,7 @@ func NewCaptureBoundary(native CaptureNative, writer CaptureWriter, leases bound
 }
 
 func captureCommand(capturer, patient, capturerToken, patientToken string) *o.PawnTargetOrder {
-	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(capturer), ExpectedSnapshotToken: proto.String(capturerToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(patient), ExpectedSnapshotToken: proto.String(patientToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE.Enum(), RequireSafeStorage: proto.Bool(false)}
+	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(capturer), ExpectedSnapshotToken: proto.String(capturerToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(patient), ExpectedSnapshotToken: proto.String(patientToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE.Enum()}
 }
 
 // NewCapturerFacts reuses Rescue's RescuerFacts shape: capturer eligibility
@@ -165,7 +165,7 @@ func (b *CaptureBoundary) attempt(dispatch executor.CaptureDispatch) (bridge.Paw
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Capturer != capture.Capturer() || admission.Patient != capture.Patient() || admission.Tick > p.Tick || !boundary.ValidID(admission.CapturerSnapshotToken) || !boundary.ValidID(admission.PatientSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(capture.Capturer()), TargetID: string(capture.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE, RequireSafeStorage: false, ArrestBed: capture.Bed()}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(capture.Capturer()), TargetID: string(capture.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE, ArrestBed: capture.Bed()}, nil
 }
 
 func captureJob(job *r.JobEffect, dispatch executor.CaptureDispatch) error {

@@ -555,16 +555,6 @@ func readyID(s domain.GenerationSnapshot, c ReadyWork) ReadyWorkID {
 // this slice migrates. They read planner outputs already computed from
 // cached observations and add no map reads.
 
-// ShelterBunkProposals: each bed of a bunk layout is independent
-// construction; beds build in parallel.
-func ShelterBunkProposals(goal GoalID, method domain.MethodID, bed string, bunks ShelterBunks, eligible domain.Fact[bool]) []ReadyProposal {
-	var out []ReadyProposal
-	for _, c := range bunks.Beds {
-		out = append(out, ReadyProposal{Goal: goal, Method: method, Stage: "building:" + bed, Work: WorkConstruction, Claims: []ReadyClaim{CellClaim(c)}, Eligible: eligible, Parallelism: 1})
-	}
-	return out
-}
-
 // WoodProposals: each designatable tree is one cut.
 func WoodProposals(goal GoalID, method domain.MethodID, definition string, trees []string, eligible domain.Fact[bool]) []ReadyProposal {
 	var out []ReadyProposal

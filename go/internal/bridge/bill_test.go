@@ -123,7 +123,7 @@ func TestPreviewBillAcceptedAndRejections(t *testing.T) {
 		{"not accepted", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = proto.Bool(false) }, false},
 		{"missing accepted", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = nil }, false},
 		{"unexpected preparation", func(v *op.PreviewReply) {
-			v.GetEvaluated().Preparation = &op.PreviewEvaluation_Trade{Trade: &op.TradePreparation{}}
+			v.GetEvaluated().Preparation = &op.PreviewEvaluation_Surgery{Surgery: &op.SurgeryPreparation{}}
 		}, false},
 		{"unexpected projection", func(v *op.PreviewReply) { v.GetEvaluated().Projected = billEffectEvidence() }, false},
 		{"foreign world", func(v *op.PreviewReply) { v.GetEvaluated().Context.Identity.LoadToken = proto.String("other") }, false},

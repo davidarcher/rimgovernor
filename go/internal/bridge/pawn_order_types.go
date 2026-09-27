@@ -8,12 +8,11 @@ import (
 // PawnOrderAttempt retains the original guarded target and admission for one
 // pawn-target order, including SUBDUE. Other combat uses AttackAttempt.
 type PawnOrderAttempt struct {
-	Identity           *c.Identity
-	Attempt            *c.AttemptKey
-	NativeGeneration   uint64
-	PawnID, TargetID   string
-	Kind               o.PawnOrderKind
-	RequireSafeStorage bool
+	Identity         *c.Identity
+	Attempt          *c.AttemptKey
+	NativeGeneration uint64
+	PawnID, TargetID string
+	Kind             o.PawnOrderKind
 	// ArrestBed selects the existing Arrest operation for custody of a standing ancient.
 	ArrestBed string
 }

@@ -34,10 +34,12 @@ message PreviewEvaluation {
   optional string reason = 3;
   // Proposed facts only; no native attempt/effect identifiers are fabricated.
   rimgovernor.receipts.v1.EffectEvidence projected = 4;
+  // Trade previews moved to Actions/Apply (TradeIntent), which has none.
+  reserved 7;
+  reserved "trade";
   oneof preparation {
     CaravanPreparation caravan = 5;
     SurgeryPreparation surgery = 6;
-    TradePreparation trade = 7;
     rimgovernor.placement.v1.PlacementEvaluated placement = 8;
   }
 }
@@ -45,7 +47,6 @@ message StockAvailability { optional string def_name = 1; optional int32 availab
 message RoutePreparation { optional bool reachable = 1; optional int64 estimated_ticks = 2; optional float food_days = 3; optional float food_rot_days = 4; optional int32 destination_tile = 5; optional float temperature = 6; optional bool hostile = 7; optional int32 goodwill = 8; optional string faction_id = 9; }
 message CaravanPreparation { optional float mass_usage = 1; optional float mass_capacity = 2; repeated DefCount selected_cargo = 3; repeated DefCount carried_cargo = 4; repeated StockAvailability materials = 5; repeated string home_pawn_ids = 6; optional int32 home_doctors = 7; RoutePreparation route = 8; optional string return_storage_snapshot_token = 9; }
 message SurgeryPreparation { optional string recipe_def = 1; optional int32 part_index = 2; repeated string practitioner_ids = 3; repeated DefCount missing_ingredients = 4; optional bool requires_medicine = 5; optional bool has_permitted_medicine = 6; optional string medical_catalog_snapshot_token = 7; }
-message TradePreparation { optional string session_id = 1; optional string deal_signature = 2; optional string sheet_snapshot_token = 3; optional int32 available_silver = 4; optional int32 goodwill = 5; optional int32 expected_goodwill_gain = 6; optional string resource_def = 7; optional int32 required_count = 8; optional int32 available_count = 9; optional string settlement_id = 10; }
 message Operation {
   reserved 13;
   // Trade moved to Actions/Apply (TradeIntent).
@@ -57,24 +58,21 @@ message Operation {
   // Building placement moved to Actions/Apply (BuildingIntent, #856).
   reserved 1;
   reserved "place_building";
+  // Arms nothing sent and native never handled (#856 cleanup).
+  reserved 2, 9, 10, 11, 17, 19;
+  reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
   oneof command {
-    CancelConstruction cancel_construction = 2;
     InstallBuilding install_building = 3;
     AcquireResource acquire_resource = 4;
     DesignateThing designate_thing = 5;
     PatchBuilding patch_building = 6;
     PatchPawn patch_pawn = 7;
     AddBill add_bill = 8;
-    PatchBill patch_bill = 9;
-    DeleteBill delete_bill = 10;
-    MoveBill move_bill = 11;
     SelectResearch select_research = 12;
     CreateZone create_zone = 14;
     DeleteZone delete_zone = 15;
     EditZoneCells edit_zone_cells = 16;
-    RepairZone repair_zone = 17;
     PatchStockpile patch_stockpile = 18;
-    PatchGrowing patch_growing = 19;
     ExtendHome extend_home = 20;
     AssignBed assign_bed = 21;
     RemoveWall remove_wall = 22;
@@ -134,7 +132,6 @@ message Cells { oneof selection { CellList explicit_cells = 1; Rectangle rectang
 // Excavation designates one rock cell for ordinary pawn mining as part of a
 // staged room/corridor. An existing Mine designation at the cell is adopted.
 message ExcavateCell { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; optional string expected_snapshot_token = 3; }
-message CancelConstruction { EntityPrecondition target = 1; optional string expected_def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional string expected_stuff = 4; }
 message InstallBuilding { EntityPrecondition packed_or_inner = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; }
 // Designates one exact installed, minifiable, player-owned building for
 // vanilla Uninstall (#843). No snapshot token: native re-evaluates every rule
@@ -294,10 +291,6 @@ message BillSettings {
   optional rimgovernor.common.v1.CorpseClass corpse_class = 14;
 }
 message AddBill { EntityPrecondition bench = 1; optional string recipe_def = 2; BillSettings settings = 3; optional string replace_owned_bill_id = 4; }
-message BillPrecondition { EntityPrecondition bench = 1; optional string bill_id = 2; }
-message PatchBill { BillPrecondition bill = 1; BillSettings settings = 2; }
-message DeleteBill { BillPrecondition bill = 1; }
-message MoveBill { BillPrecondition bill = 1; optional int32 destination_index = 2; }
 message SelectResearch { optional string project_def = 1; optional string expected_snapshot_token = 2; }
 message DefinitionList { repeated string defs = 1; }
 enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; ZONE_TYPE_FISHING = 4; }
@@ -310,9 +303,7 @@ message CreateZone { optional string expected_map_snapshot_token = 1; optional Z
 message DeleteZone { EntityPrecondition zone = 1; }
 enum CellEdit { CELL_EDIT_UNSPECIFIED = 0; CELL_EDIT_ADD = 1; CELL_EDIT_REMOVE = 2; }
 message EditZoneCells { EntityPrecondition zone = 1; optional CellEdit edit = 2; Cells cells = 3; optional bool allow_split = 4; optional bool require_covered_empty = 5; }
-message RepairZone { EntityPrecondition zone = 1; }
 message PatchStockpile { EntityPrecondition zone = 1; StockpileSettings settings = 2; }
-message PatchGrowing { EntityPrecondition zone = 1; GrowingSettings settings = 2; }
 message ExtendHome { EntityPrecondition target = 1; optional string shape_token = 2; optional int64 revision = 3; }
 message AssignBed { EntityPrecondition pawn = 1; EntityPrecondition bed = 2; Assignment expected_previous_bed = 3; }
 // Exact non-colony occupant; no snapshot token. Native repeats eligibility and roof safety at apply.
@@ -363,19 +354,19 @@ message SetDrafted { EntityPrecondition pawn = 1; optional bool drafted = 2; opt
 enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE_MELEE = 2; ATTACK_MODE_RANGED = 3; }
 message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
 enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_WORK = 6; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_SUBDUE = 10; reserved 5, 11; reserved "PAWN_ORDER_KIND_HAUL"; }
-message PawnTargetOrder { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional PawnOrderKind kind = 3; optional bool require_safe_storage = 4; }
+message PawnTargetOrder { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional PawnOrderKind kind = 3; reserved 4; reserved "require_safe_storage"; }
 // Trade steps, sent as TradeIntent through Actions/Apply, act on RimWorld's
 // one live trade session. Native validates each against live state when it
 // applies and refuses with a reason when the session is gone or held by a
 // different trader or negotiator; repeating one is harmless. OpenTrade
 // reuses a matching open session or walk.
-message OpenTrade { reserved 1, 2; optional bool gift_mode = 3; optional string trader_id = 4; optional string negotiator_id = 5; }
+message OpenTrade { reserved 1, 2, 4, 5; reserved "trader_id", "negotiator_id"; optional bool gift_mode = 3; }
 message TradeLine { optional string line_id = 1; optional int32 absolute_count = 2; }
-message SetTradeLines { reserved 1; repeated TradeLine lines = 2; optional bool allow_pawns = 3; optional string trader_id = 4; optional string negotiator_id = 5; }
-message AcceptTrade { reserved 1; optional string expected_deal_signature = 2; repeated DefCount economic_floors = 3; optional bool allow_empty = 4; optional bool receive_quest = 5; optional string trader_id = 6; optional string negotiator_id = 7; }
+message SetTradeLines { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; repeated TradeLine lines = 2; optional bool allow_pawns = 3; }
+message AcceptTrade { reserved 1, 6, 7; reserved "trader_id", "negotiator_id"; optional string expected_deal_signature = 2; repeated DefCount economic_floors = 3; optional bool allow_empty = 4; optional bool receive_quest = 5; }
 enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; END_TRADE_KIND_CLOSE_DIALOG = 2; }
 // A cancel with no live session is a no-op, not a refusal.
-message EndTrade { reserved 1; optional EndTradeKind kind = 2; optional bool receive_quest = 3; optional string trader_id = 4; optional string negotiator_id = 5; }
+message EndTrade { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
 message CargoSelection { optional string group_id = 1; optional int32 count = 2; }
 message FormCaravan { optional string expected_catalog_token = 1; repeated string pawn_ids = 2; repeated CargoSelection cargo = 3; optional int32 destination_tile = 4; }
 enum TravelKind { TRAVEL_KIND_UNSPECIFIED = 0; TRAVEL_KIND_MOVE = 1; TRAVEL_KIND_VISIT = 2; TRAVEL_KIND_RETURN_HOME = 3; TRAVEL_KIND_STOP = 4; }
@@ -490,7 +481,7 @@ message BuildingIntent {
   rimgovernor.placement.v1.PlacementCandidate placement = 1;
 }
 // One step against RimWorld's single live trade session, named by its
-// trader and negotiator (the step's own ids are ignored).
+// trader and negotiator.
 message TradeIntent {
   optional string trader_id = 1;
   optional string negotiator_id = 2;

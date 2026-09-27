@@ -15,7 +15,7 @@ func TestPawnOrderCommandAcceptsEveryImplementedKind(t *testing.T) {
 		o.PawnOrderKind_PAWN_ORDER_KIND_TEND: "TendPatient", o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE: "Rescue", o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE: "Capture",
 		o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP: "Equip", o.PawnOrderKind_PAWN_ORDER_KIND_CLEAN: "Clean", o.PawnOrderKind_PAWN_ORDER_KIND_REPAIR: "Repair", o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET: "Open",
 	} {
-		command := &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String("pawn"), ExpectedSnapshotToken: proto.String("p")}, Target: &o.EntityPrecondition{EntityId: proto.String("thing"), ExpectedSnapshotToken: proto.String("t")}, Kind: kind.Enum(), RequireSafeStorage: proto.Bool(false)}
+		command := &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String("pawn"), ExpectedSnapshotToken: proto.String("p")}, Target: &o.EntityPrecondition{EntityId: proto.String("thing"), ExpectedSnapshotToken: proto.String("t")}, Kind: kind.Enum()}
 		if err := pawnOrderCommand(command); err != nil {
 			t.Fatalf("%s: %v", kind, err)
 		}
@@ -23,7 +23,7 @@ func TestPawnOrderCommandAcceptsEveryImplementedKind(t *testing.T) {
 			t.Fatalf("%s: %s not allowed", kind, jobDef)
 		}
 	}
-	unspecified := &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String("pawn"), ExpectedSnapshotToken: proto.String("p")}, Target: &o.EntityPrecondition{EntityId: proto.String("thing"), ExpectedSnapshotToken: proto.String("t")}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_UNSPECIFIED.Enum(), RequireSafeStorage: proto.Bool(false)}
+	unspecified := &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String("pawn"), ExpectedSnapshotToken: proto.String("p")}, Target: &o.EntityPrecondition{EntityId: proto.String("thing"), ExpectedSnapshotToken: proto.String("t")}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_UNSPECIFIED.Enum()}
 	if err := pawnOrderCommand(unspecified); err == nil {
 		t.Fatal("unspecified kind accepted")
 	}
