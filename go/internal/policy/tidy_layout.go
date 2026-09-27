@@ -10,14 +10,14 @@ import (
 // TidyLayout re-sites a settled colony's early off-grid sprawl one item at
 // a time (#611): a field patch smaller than the module or off the
 // grid is re-zoned onto the nearest free module in Fields keeping its crop,
-// a stockpile off the grid is re-sited, and a Camp shell whose
+// and a Camp shell whose
 // same-role replacement module stands complete and empty is deconstructed.
 // It ranks below every production, upkeep and defense goal (maintenance
 // priority, no deficit) and is active only at tier >= Masonry, with a known
 // grid, when the colony has no unfilled construction or hauling work. It
 // never dissolves a room in use and treats every zone and shell as its own
 // (#719, player-made ones included); it holds one re-site in flight and never re-sites an item
-// already tidied.
+// already tidied. Stockpiles are MaintainStockpiles' (#725), never re-sited here.
 const TidyLayout GoalID = "TidyLayout"
 
 // tidyPriority ranks TidyLayout last: the lowest goal rank, with no deficit
@@ -33,7 +33,9 @@ const tidyDeficit = 0.05
 type TidyKind string
 
 const (
-	TidyField     TidyKind = "field"
+	TidyField TidyKind = "field"
+	// TidyStockpile names journal rows of stockpile re-sites; the tidy no
+	// longer proposes them (MaintainStockpiles owns stockpiles, #725).
 	TidyStockpile TidyKind = "stockpile"
 	TidyShell     TidyKind = "shell"
 	// TidyFurniture re-sites a room's off-plan furniture onto its derived
@@ -72,8 +74,8 @@ type TidyRequest struct {
 	Cells    []SiteCell
 	// Protected cells are never zoned: accepted footprints, aisles, routes.
 	Protected []domain.Cell
-	// Plan is the layout plan a re-sited zone prefers: a stockpile its
-	// storerooms, a field its field zones. Unknown takes the nearest.
+	// Plan is the layout plan a re-sited field prefers: its field zones.
+	// Unknown takes the nearest.
 	Plan domain.Fact[LayoutPlan]
 	// Rooms are the rooms whose furniture is measured against their derived
 	// interior plans; a piece whose thing id is in Tidied is never moved.
@@ -140,28 +142,16 @@ func tidyCandidate(grid ColonyGrid, item TidyItem, tidied map[string]bool) bool 
 	switch item.Kind {
 	case TidyField:
 		return offGrid || item.Cells > 0 && item.Cells < FieldHalfModuleCellCount
-	case TidyStockpile:
-		return offGrid
 	case TidyShell:
 		return offGrid && !item.InUse && item.Replaced
 	}
 	return false
 }
 
-// tidyModuleSize is the sub-cell a re-sited zone takes: the C5 field rule
-// (a half module under FieldHalfModuleBelow cells, else the whole interior)
-// for a field; the smallest sub-cell holding the stockpile's cells.
+// tidyModuleSize is the sub-cell a re-sited field takes: the C5 field rule
+// (a half module under FieldHalfModuleBelow cells, else the whole interior).
 func tidyModuleSize(item TidyItem) (width, height int32) {
-	if item.Kind == TidyField {
-		if item.Cells < FieldHalfModuleBelow {
-			return ColonyGridInterior, ColonyGridSubCell
-		}
-		return ColonyGridInterior, ColonyGridInterior
-	}
-	switch {
-	case item.Cells <= int(ColonyGridSubCell*ColonyGridSubCell):
-		return ColonyGridSubCell, ColonyGridSubCell
-	case item.Cells <= FieldHalfModuleCellCount:
+	if item.Cells < FieldHalfModuleBelow {
 		return ColonyGridInterior, ColonyGridSubCell
 	}
 	return ColonyGridInterior, ColonyGridInterior
@@ -301,9 +291,6 @@ func tidyProposal(grid ColonyGrid, plan LayoutPlan, sites tidySites, item TidyIt
 	}
 	width, height := tidyModuleSize(item)
 	district := DistrictFields
-	if item.Kind == TidyStockpile {
-		district = DistrictStorage
-	}
 	centre := domain.Cell{X: item.Footprint.X + item.Footprint.Width/2, Z: item.Footprint.Z + item.Footprint.Height/2}
 	type option struct {
 		rect     Rectangle

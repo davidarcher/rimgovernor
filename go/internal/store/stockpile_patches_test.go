@@ -1,0 +1,58 @@
+package store
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+)
+
+// A completed stockpile_patch on a zone is the zone's applied settings from
+// its completion tick on; a storage building target is no zone.
+func TestStockpilePatchesListTheLatestCompletedZonePatch(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "patches.db"))
+	defer s.Close()
+	r := foodStorageDeficitRoutineRequest()
+	g := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureFoodStorage)
+	zonePatch, _ := domain.NewStockpilePatch(domain.StorageZoneTarget, "Zone_7", "cas", domain.FoodFilter(), domain.ImportantPriority, "kitchen")
+	shelfPatch, _ := domain.NewStockpilePatch(domain.StorageBuildingTarget, "Shelf_1", "cas", domain.FoodFilter(), domain.ImportantPriority, "")
+	za, _ := domain.NewStockpilePatchAction("patch-zone", zonePatch)
+	sa, _ := domain.NewStockpilePatchAction("patch-shelf", shelfPatch)
+	plan, err := domain.NewPlan("patch-plan", 1, []domain.Action{za, sa})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "stockpiles-1", plan); err != nil {
+		t.Fatal(err)
+	}
+	current := r.Current
+	current.Plan, current.Revision = plan.ID(), plan.Revision()
+	for _, a := range []struct {
+		id    domain.ActionID
+		thing string
+	}{{"patch-zone", "Zone_7"}, {"patch-shelf", "Shelf_1"}} {
+		if _, err = s.PrepareBuildingTemperature(ctx, plan.ID(), a.id, BuildingTemperatureAdmission{Snapshot: current, Tick: 10, Thing: a.thing, SnapshotToken: "cas"}); err != nil {
+			t.Fatal(a.id, err)
+		}
+		if _, err = s.Dispatch(ctx, plan.ID(), a.id, current, 10); err != nil {
+			t.Fatal(a.id, err)
+		}
+		if _, err = s.Observe(ctx, plan.ID(), domain.Observation{Action: a.id, Attempt: 1, Snapshot: current, Tick: 11, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, current); err != nil {
+			t.Fatal(a.id, err)
+		}
+	}
+	got, err := s.StockpilePatches(ctx, r.Current, 12)
+	if err != nil || len(got) != 1 {
+		t.Fatal(got, err)
+	}
+	if p := got["Zone_7"]; p.Filter != domain.FoodFilter() || p.Priority != domain.ImportantPriority || p.Role != "kitchen" || p.Tick != 11 {
+		t.Fatalf("applied %+v", p)
+	}
+	if got, err = s.StockpilePatches(ctx, r.Current, 10); err != nil || len(got) != 0 {
+		t.Fatal("a future completion applied", got, err)
+	}
+}

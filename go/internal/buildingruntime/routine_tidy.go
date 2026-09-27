@@ -28,8 +28,7 @@ type RoutineTidySource interface {
 // RoutineTidyPlanner executes the TidyLayout review's proposal (#611) one
 // re-site at a time. A zone re-site runs in two methods under the goal:
 // the new zone is admitted first (tidy-<item>-create) and the tidy journaled
-// as moving; once the new field reports planted cells (a stockpile as soon
-// as it stands, its contents move by ordinary hauling) the old zone is
+// as moving; once the new field reports planted cells the old zone is
 // deleted through a one-shot zone_delete (tidy-<item>-delete) and the
 // tidy journaled done. A replaced shell is one deconstruction method over
 // its claimed ring. A refused or retired method journals the tidy
@@ -202,10 +201,7 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
-	kind := domain.StockpileZone
-	if item.Kind == policy.TidyField {
-		kind = domain.GrowingZone
-	}
+	kind := domain.GrowingZone
 	var cells []domain.Cell
 	for x := proposal.Target.X; x < proposal.Target.X+proposal.Target.Width; x++ {
 		for z := proposal.Target.Z; z < proposal.Target.Z+proposal.Target.Height; z++ {

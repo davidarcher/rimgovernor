@@ -820,11 +820,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		claimBuildingCapabilities = client.claimBuilding
 	}
-	// The tidy family dissolves re-sited zones through the shared executor (#611).
+	// The tidy family dissolves re-sited zones, and the stockpiles family
+	// retired stockpiles (#725), through the shared executor (#611).
 	var zoneDeleteCapabilities *zonedelete.Capabilities
-	if config.routineTidyPlans {
+	if config.routineTidyPlans || config.routineStockpilePlans {
 		if client.zoneDelete == nil {
-			return errors.New("tidy plans require typed capabilities")
+			return errors.New("tidy and stockpile plans require typed zone delete capabilities")
 		}
 		zoneDeleteCapabilities = client.zoneDelete
 	}

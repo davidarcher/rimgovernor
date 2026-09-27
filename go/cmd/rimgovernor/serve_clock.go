@@ -251,6 +251,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	clearance := sc.routineClearancePlans
 	shrine := sc.routineShrinePlans
 	tidy := sc.routineTidyPlans
+	stockpiles := sc.routineStockpilePlans
 	config := serviceClockConfig(profile, sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
 	config.PaceHorizonTicks = domain.Tick(sc.clockBlindTicks)
 	if sc.resourceTargetsConfigured() {
@@ -286,7 +287,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -619,6 +620,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		if stockpiles {
+			stockpileNative, ok := reads.(buildingruntime.RoutineStockpileSource)
+			if !ok {
+				return nil, errors.New("stockpile plans require typed zone target observations")
+			}
+			config.Stockpiles, err = buildingruntime.NewRoutineStockpilePlanner(reviewer, stockpileNative)
+			if err != nil {
+				return nil, err
+			}
+		}
 		if defensiveLayout {
 			defenseNative, ok := reads.(buildingruntime.RoutineDefenseLayoutSource)
 			if !ok {
@@ -932,6 +943,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineTidyPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.TidyLayout)
+	}
+	if sc.routineStockpilePlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainStockpiles)
 	}
 	if sc.routineDefensiveLayoutPlans {
 		thresholds.DefensiveLayout = true

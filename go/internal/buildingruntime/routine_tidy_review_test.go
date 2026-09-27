@@ -19,8 +19,8 @@ func tidyZoneRow(id, kind string, x, z, w, h int32, farm *o.FarmFacts) *o.ZoneSt
 }
 
 // TestTidyZoneItemsMeasureEveryListedZone: a claimed growing zone becomes a
-// field item with the census footprint and farm crop, a claimed stockpile a
-// stockpile item, an unclaimed (player) zone a field item too (#719), and a
+// field item with the census footprint and farm crop, a claimed stockpile
+// nothing (#725), an unclaimed (player) zone a field item too (#719), and a
 // claim the census no longer lists nothing.
 func TestTidyZoneItemsMeasureEveryListedZone(t *testing.T) {
 	projection := &observation.ColonyProjection{Zones: facts.Held[bridge.ZonesRead]{Complete: true, Value: bridge.ZonesRead{Rows: []*o.ZoneState{
@@ -34,17 +34,14 @@ func TestTidyZoneItemsMeasureEveryListedZone(t *testing.T) {
 		{ID: "Zone_3", Kind: domain.GrowingZone, Cells: make([]domain.Cell, 4)},
 	}
 	items := tidyZoneItems(owned, projection)
-	if len(items) != 3 {
+	if len(items) != 2 {
 		t.Fatalf("items %+v", items)
 	}
 	if items[0] != (policy.TidyItem{Kind: policy.TidyField, ID: "Zone_7", Footprint: policy.Rectangle{X: 20, Z: 5, Width: 2, Height: 2}, Cells: 4, Crop: "Plant_Rice"}) {
 		t.Fatalf("field %+v", items[0])
 	}
-	if items[1] != (policy.TidyItem{Kind: policy.TidyStockpile, ID: "Zone_8", Footprint: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}, Cells: 9}) {
-		t.Fatalf("stockpile %+v", items[1])
-	}
-	if items[2] != (policy.TidyItem{Kind: policy.TidyField, ID: "Zone_9", Footprint: policy.Rectangle{X: 40, Z: 40, Width: 5, Height: 5}, Cells: 25}) {
-		t.Fatalf("player field %+v", items[2])
+	if items[1] != (policy.TidyItem{Kind: policy.TidyField, ID: "Zone_9", Footprint: policy.Rectangle{X: 40, Z: 40, Width: 5, Height: 5}, Cells: 25}) {
+		t.Fatalf("player field %+v", items[1])
 	}
 	projection.Zones.Complete = false
 	if items := tidyZoneItems(owned, projection); items != nil {

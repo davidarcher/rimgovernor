@@ -62,9 +62,12 @@ func GoalLabor(id GoalID) LaborProfile {
 	case MaintainFireSafety:
 		return LaborProfile{WorkFirefighter}
 	case TidyLayout:
-		// A re-sited field is sown by growers, a re-sited stockpile filled
-		// by haulers and a Camp shell taken down by builders (#611).
-		return LaborProfile{WorkGrowing, WorkHauling, WorkConstruction}
+		// A re-sited field is sown by growers and a Camp shell taken down
+		// by builders (#611).
+		return LaborProfile{WorkGrowing, WorkConstruction}
+	case MaintainStockpiles:
+		// A resized or retargeted stockpile is refilled by haulers (#725).
+		return LaborProfile{WorkHauling}
 	case MaintainMedicalReserves:
 		// A medicine bill at a crafting bench, or a wild healroot harvest
 		// (#445: the herbal bill held a slot for days unworked).

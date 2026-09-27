@@ -302,6 +302,9 @@ type RoutineFacts struct {
 	// from the zone census, the construction claims and the colony grid;
 	// unknown without a tier or grid.
 	LayoutTidy domain.Fact[TidyReview]
+	// Stockpiles is the MaintainStockpiles review (#725): this cycle's
+	// stockpile edits within the haul budget, or why none stands.
+	Stockpiles domain.Fact[StockpileReview]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods domain.Fact[[]GoalID]
 	Upkeep           UpkeepObservation
@@ -1216,6 +1219,16 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(TidyLayout, tidyPriority, tidyRecovered)
 	if !positive(tidyRecovered) {
 		addGoal(TidyLayout, tidyPriority)
+	}
+	// MaintainStockpiles (#725): a standing stockpile edit is the deficit;
+	// availability is gated below through AvailableMethods.
+	stockpilesRecovered := domain.Unknown[bool]()
+	if review, known := f.Stockpiles.Value(); known && review.Known {
+		stockpilesRecovered = domain.Known(!review.Active)
+	}
+	addAssessment(MaintainStockpiles, stockpilePriority, stockpilesRecovered)
+	if !positive(stockpilesRecovered) {
+		addGoal(MaintainStockpiles, stockpilePriority)
 	}
 	if err := f.Mood.Validate(); err != nil {
 		return RoutineNeeds{}, err

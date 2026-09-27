@@ -64,8 +64,8 @@ func (r *RoutineReviewer) reviewTidy(ctx context.Context, snapshot domain.Genera
 	return nil
 }
 
-// tidyZoneItems measures every zone the census lists (#719: player-made
-// zones included): the footprint is the census bounding box, the cell count
+// tidyZoneItems measures every growing zone the census lists (#719:
+// player-made zones included; stockpiles are MaintainStockpiles', #725): the footprint is the census bounding box, the cell count
 // the claim's cells when this colony created the zone, else the box area
 // (a growing zone's usable cells when the census serves them).
 func tidyZoneItems(owned []store.OwnedZone, projection *observation.ColonyProjection) []policy.TidyItem {
@@ -99,8 +99,6 @@ func tidyZoneItems(owned []store.OwnedZone, projection *observation.ColonyProjec
 					item.Cells = int(farm.GetUsableCells())
 				}
 			}
-		case row.GetType() == "stockpile" && (!claimed || claim.Kind == domain.StockpileZone):
-			item.Kind = policy.TidyStockpile
 		default:
 			continue
 		}

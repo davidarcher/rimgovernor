@@ -102,6 +102,15 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 			return domain.Known(0.0)
 		}
 		return domain.Known(1.0)
+	case MaintainStockpiles:
+		review, known := f.Stockpiles.Value()
+		if !known || !review.Known {
+			return domain.Unknown[float64]()
+		}
+		if !review.Active {
+			return domain.Known(0.0)
+		}
+		return domain.Known(stockpileDeficit)
 	case TidyLayout:
 		// A standing tidy proposal is a fixed small deficit (#611): ranked
 		// under any partial deficit of a production, upkeep or defense goal,

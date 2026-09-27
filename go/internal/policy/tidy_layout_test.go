@@ -169,20 +169,13 @@ func TestTidyLayoutReplacedEmptyShellIsDeconstructedWithoutATarget(t *testing.T)
 	}
 }
 
-func TestTidyLayoutStockpileMovesToStorageAndNoFreeModuleIsReported(t *testing.T) {
+// A stockpile is never a tidy candidate: MaintainStockpiles owns it (#725).
+func TestTidyLayoutLeavesStockpilesAlone(t *testing.T) {
 	r := tidyFixture()
 	r.Items = []TidyItem{{Kind: TidyStockpile, ID: "Zone_5", Footprint: Rectangle{3, 30, 3, 3}, Cells: 9}}
 	r = tidyZoned(r, Rectangle{3, 30, 3, 3}, "Zone_5")
-	review := PlanTidyLayout(r)
-	proposal := review.Proposal
-	if !review.Active || proposal.Target.Width != ColonyGridSubCell || proposal.Target.Height != ColonyGridSubCell || tidyPlan().District(domain.Cell{X: proposal.Target.X + 2, Z: proposal.Target.Z + 2}) != DistrictStorage {
+	if review := PlanTidyLayout(r); review.Active || review.Candidates != 0 {
 		t.Fatalf("stockpile review %+v", review)
-	}
-	for i := range r.Cells {
-		r.Cells[i].Occupied = domain.Known(true)
-	}
-	if review := PlanTidyLayout(r); review.Active || review.Reason != "no free module" {
-		t.Fatalf("occupied review %+v", review)
 	}
 }
 

@@ -278,14 +278,13 @@ colony itself created (a completed `zone_create` under an autopilot goal,
 every ring cell stands on a construction claim. A managed field is a
 candidate when its corner is off the module sub-cell corners
 (`tidyAlignment`, offsets 1 and 7 from a grid line) or it holds fewer than
-a half module's cells; a managed stockpile when it is off those corners; a
-shell when it is off the grid lines, not in use (no beds, no contents) and
+a half module's cells; a shell when it is off the grid lines, not in use (no beds, no contents) and
 another empty enclosed room of the same role stands on the grid.
 `policy.PlanTidyLayout` proposes the candidate with the largest alignment
 gain (ties to the nearest free sub-cell, then the lowest id): a field moves
 to the nearest free fertile sub-cell of the C5 size in the Fields district
-(then any), a stockpile to the smallest sub-cell holding its cells in
-Storage, a shell is deconstructed. Player zones and buildings are never
+(then any), a shell is deconstructed. Stockpiles are never re-sited here:
+MaintainStockpiles owns them (below). Player zones and buildings are never
 touched, one re-site is in flight at a time and a tidied item (moving, done
 or abandoned) is never proposed again; the set is journaled per world and
 timeline (`store.RecordLayoutTidy`, persistence contracts).
@@ -293,8 +292,7 @@ timeline (`store.RecordLayoutTidy`, persistence contracts).
 The planner (`RoutineTidyPlanner`, family `tidy`) runs a zone re-site as two
 methods under the goal: `tidy-create-*` admits the new zone through the
 building admission family (a zone preview, no cost) and journals the tidy
-moving; once the new field reports planted cells (a stockpile as soon as it
-stands, its contents move by ordinary hauling) `tidy-delete-*` commits a
+moving; once the new field reports planted cells `tidy-delete-*` commits a
 one-shot `zone_delete` of the old zone by its per-zone CAS token, and the
 tidy is journaled done when the census no longer lists it. A refused
 preview or admission, a create method that closed without a zone, or a new
@@ -304,6 +302,29 @@ review record carries the outcome (`RoutineReview.Layout`), the routines
 API reports it as `layoutTidy` (the pending proposal with its explanation,
 or why none stands), the dashboard's development panel shows it, and every
 proposal, start, deletion and completion is a `layout`/`tidy` clock event.
+
+### Stockpile maintenance
+
+`MaintainStockpiles` (#725, family `stockpiles`) re-evaluates the colony's
+own stockpiles (`store.ZoneClaims`, role-keyed) every review cycle, at any
+tier. Fill is the share of a zone's planning cells whose storage-empty flag
+is false. `policy.PlanStockpileMaintenance` proposes at most one edit per
+zone: delete a zone whose role retired, patch one whose role's desired
+filter or priority differs from the last applied (`store.StockpilePatches`
+over the zone_create's settings), grow a zone at 85% fill onto the open
+cells beside it (a quarter of its size, at least 4; twice that when full),
+delete a same-role fragment into a sibling with room, and shed the empty
+edge cells of a zone that sat at or under 25% for a game day (never under
+twice its used cells or 4). Edits are admitted in that order while the haul
+jobs each triggers (grow: cells added; delete, merge, retarget: used cells;
+shrink: none) fit a budget of 8 per colonist; the first always fits. A
+role-less legacy claim is resized and merged, never retargeted or deleted.
+The desired state per role comes from the role's owning planner through
+`buildingruntime.RegisterStockpileRole(prefix, source)`; a role no source
+claims keeps its settings. `RoutineStockpilePlanner` commits the edits as
+one plan per cycle, each action under the zone's fresh CAS token:
+`zone_cell_edit`, `stockpile_patch` or `zone_delete`. Each is a
+`layout`/`stockpiles` clock event.
 
 Site selection compares up to the configured method-attempt limit using native
 terrain/fertility, placement, danger, current stock and projected travel to each

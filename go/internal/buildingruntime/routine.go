@@ -42,6 +42,9 @@ type RoutineReviewer struct {
 	// buildTier is the last build tier logged (#604): the service log
 	// records a change once, not every review.
 	buildTier domain.Fact[policy.BuildTier]
+	// stockpiles remembers since when each owned stockpile sat mostly
+	// empty (#725); see stockpileMemory.
+	stockpiles stockpileMemory
 	// stage is the colony stage of the review the last step loaded (#630):
 	// the stage the store holds that step's review to, so the planners'
 	// targets (staged) agree with the review's. Foothold before any
@@ -333,6 +336,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.TombsWarm = warmTombs(reading.Projection)
 	if err = r.reviewTidy(ctx, state.Snapshot, &reading.Projection, tidyBusy(definitions, plans, state.Snapshot, playerPlans)); err != nil {
 		clockSchedulerLog("routine.step: tidy err=%v", err)
+		return store.RoutineReviewResult{}, err
+	}
+	if err = r.reviewStockpiles(ctx, state.Snapshot, &reading.Projection); err != nil {
+		clockSchedulerLog("routine.step: stockpiles err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot)

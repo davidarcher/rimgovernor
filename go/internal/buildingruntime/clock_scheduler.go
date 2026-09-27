@@ -132,6 +132,7 @@ type ClockSchedulerConfig struct {
 	HomeCoverage        *RoutineHomeCoveragePlanner
 	StoneShell          *RoutineStoneShellPlanner
 	Tidy                *RoutineTidyPlanner
+	Stockpiles          *RoutineStockpilePlanner
 	DefenseLayout       *RoutineDefenseLayoutPlanner
 	Waste               *RoutineWastePlanner
 	MoodRelief          *RoutineMoodReliefPlanner
@@ -202,6 +203,7 @@ type ClockSchedulerResult struct {
 	HomeCoverage                 *RoutineHomeCoverageResult
 	StoneShell                   *RoutineStoneShellResult
 	Tidy                         *RoutineTidyResult
+	Stockpiles                   *RoutineStockpileResult
 	DefenseLayout                *RoutineDefenseLayoutResult
 	Waste                        *RoutineWasteResult
 	MoodRelief                   *RoutineMoodReliefResult
@@ -557,6 +559,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Tidy != nil && (config.Routine == nil || config.Tidy.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Stockpiles != nil && (config.Routine == nil || config.Stockpiles.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.DefenseLayout != nil && (config.Routine == nil || config.DefenseLayout.reviewer != config.Routine) {
