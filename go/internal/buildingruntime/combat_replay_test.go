@@ -328,3 +328,20 @@ func gunzipLines(data []byte) ([][]byte, error) {
 	}
 	return bytes.Split(bytes.TrimSpace(raw), []byte("\n")), nil
 }
+
+// lab-open (#854): three riflemen against three melee raiders on an open
+// field, served by the routine defense planner. With no defense layout the
+// formation is squad defense on every raider, and its orders are changes
+// only, to owned drafts, never throwing a shot away.
+func TestCombatReplayLabOpen(t *testing.T) {
+	t.Parallel()
+	checkCombat(t, "testdata/combat/lab-open.json.gz",
+		formsTactic(firstStop, policy.TacticSquad),
+		rolesOnLiveHostiles(firstStop),
+		ordersOwnedDrafts(),
+		changesOnly(),
+		noAimInterrupt(),
+	)
+	// The served run (#869) decides once: it admits the squad plan at the
+	// first stop and later stops change nothing, so no stop sends orders.
+}
