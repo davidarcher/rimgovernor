@@ -1,12 +1,13 @@
-// The wall/removal case proves the typed RemoveWall operation (#83) on a
-// loaded save: NativeWallRemovalOperations
-// resolves the guarded demolition site from the wall identity alone, refuses
-// a wall without completed stone backups, admits the original's demolition
-// once same-stuff stone backups stand in its backup cells, and a real
-// supervised native deconstruct job clears the wall (observed Completed with
-// the wall gone from the building census, not just a receipt). A standing
-// stone permanent wall then makes the backups cleanup sites: one backup is
-// demolished the same way. Replay and lookup return the original receipt.
+// The wall/removal case proves the RemoveWallIntent Actions/Apply arm (#989)
+// on a loaded save: NativeWallRemovalOperations resolves the guarded
+// demolition site from the wall at the named cell, refuses a wall without
+// completed stone backups, applies the original's demolition once same-stuff
+// stone backups stand in its backup cells, and a real supervised native
+// deconstruct job clears the wall (the wall gone from the building census,
+// which is what Go's dependency gate reads). A standing stone permanent wall
+// then makes the backups cleanup sites: one backup is demolished the same
+// way. A resent key returns its first result, and a cleared cell applies
+// again.
 //
 // A LightingFixture + UpkeepFixture build supplies test/lighting_prepare (an
 // enclosed roofed room of colonist walls) and test/stone_walls_spawn (finished
@@ -87,8 +88,8 @@ func colonistWalls(ctx context.Context, h *na.Harness, scope map[string]any, lab
 func init() {
 	cases.Register(cases.Case{
 		Name: "wall/removal",
-		Scope: "Native RemoveWall dispatch: site resolution from the wall identity, refusal without " +
-			"backups, guarded demolition of the original and of a backup by real supervised native deconstruct jobs, replay and lookup idempotency.",
+		Scope: "Native RemoveWallIntent: site resolution from the wall at a cell, refusal without " +
+			"backups, guarded demolition of the original and of a backup by real supervised native deconstruct jobs, resend idempotency.",
 		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.LabStart()},
 		Budget: 5 * time.Minute,
 		Run:    runRemoval,
@@ -101,7 +102,7 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h := s.Harness()
 	identity := s.Identity()
-	for _, name := range []string{"rimgovernor/operations_execute", "rimgovernor/operations_preview", "rimgovernor/observations_list_wall_upgrade_sites", "test/stone_walls_spawn"} {
+	for _, name := range []string{"rimgovernor/operations_apply", "rimgovernor/observations_list_wall_upgrade_sites", "test/stone_walls_spawn"} {
 		if !na.Contains(s.Names(), name) {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture LightingFixture,UpkeepFixture", name)
 		}
@@ -184,102 +185,72 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 		_, err := clock.Acquire(ctx, label)
 		return err
 	}
-	currentGeneration := func(label string) (any, error) {
-		reply, err := h.Wire(ctx, label, "authority_read_status", map[string]any{"identity": identity})
+	// apply sends one RemoveWallIntent for the wall at cell under key and
+	// returns its ActionResult.
+	apply := func(label, key string, cell map[string]any, expected string) (map[string]any, error) {
+		intent := map[string]any{"cell": cell}
+		if expected != "" {
+			intent["expectedWallId"] = expected
+		}
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": key, "removeWall": intent}}})
 		if err != nil {
 			return nil, err
 		}
-		_, status, err := na.Outcome(reply, "status")
-		if err != nil {
-			return nil, err
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return nil, fmt.Errorf("%s: expected one result: %#v", label, reply)
 		}
-		statusContext, _ := na.AsMap(status["context"])
-		return statusContext["nativeGeneration"], nil
+		result, _ := na.AsMap(results[0])
+		return result, nil
 	}
-	removeOperation := func(wall string) map[string]any {
-		return map[string]any{"removeWall": map[string]any{"wall": map[string]any{"entityId": wall}}}
-	}
-	buildRequest := func(actionID string, generation any, operation map[string]any) map[string]any {
-		return map[string]any{
-			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": generation,
-				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": "1"},
-			},
-			"operation": operation,
-		}
-	}
-	expectFailure := func(label string, request map[string]any, codes ...string) error {
-		reply, err := h.Wire(ctx, label, "operations_execute", request)
+	expectRefused := func(label, key string, cell map[string]any, expected string, codes ...string) error {
+		result, err := apply(label, key, cell, expected)
 		if err != nil {
 			return err
 		}
-		_, failure, err := na.Outcome(reply, "failure")
-		if err != nil {
-			return fmt.Errorf("%s: %w", label, err)
+		refusal, ok := na.AsMap(result["refused"])
+		if !ok {
+			return fmt.Errorf("%s: expected a refusal, got %#v", label, result)
 		}
-		code := na.AsString(failure["code"])
+		code := na.AsString(refusal["code"])
 		for _, want := range codes {
 			if code == want {
 				return nil
 			}
 		}
-		return fmt.Errorf("%s: expected %v, got %q (%s)", label, codes, code, na.AsString(failure["detail"]))
+		return fmt.Errorf("%s: expected %v, got %q (%s)", label, codes, code, na.AsString(refusal["reason"]))
 	}
-	// execute dispatches one guarded removal and checks its applied evidence.
-	execute := func(label, actionID, wall string) (map[string]any, map[string]any, error) {
+	// execute applies one guarded removal and checks its applied evidence.
+	execute := func(label, key, wall string, cell map[string]any) (map[string]any, error) {
 		if err := acquire(label + "-acquire"); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		generation, err := currentGeneration(label + "-generation")
-		if err != nil {
-			return nil, nil, err
-		}
-		request := buildRequest(actionID, generation, removeOperation(wall))
-		reply, err := h.Wire(ctx, label, "operations_execute", request)
-		if err != nil {
-			return nil, nil, err
-		}
-		_, receipt, err := na.Outcome(reply, "receipt")
-		if err != nil {
-			return nil, nil, fmt.Errorf("%s: %w", label, err)
-		}
-		applied, ok := na.AsMap(receipt["applied"])
-		if !ok {
-			return nil, nil, fmt.Errorf("%s: expected an applied outcome, got %#v", label, receipt)
-		}
-		observed, _ := na.AsMap(applied["observed"])
-		effect, _ := na.AsMap(observed["wall"])
-		siteEvidence, _ := na.AsMap(effect["site"])
-		if na.AsString(effect["targetId"]) != wall || na.AsString(effect["removalId"]) == "" || len(na.AsSlice(effect["workerIds"])) == 0 || na.AsString(siteEvidence["entityId"]) != wall || na.AsString(siteEvidence["beforeToken"]) == "" || na.AsString(siteEvidence["afterToken"]) == "" {
-			return nil, nil, fmt.Errorf("%s: unexpected wall effect: %#v", label, effect)
-		}
-		if observedDemolition, _ := na.AsBool(effect["demolitionObserved"]); observedDemolition {
-			return nil, nil, fmt.Errorf("%s: demolition cannot be observed at admission", label)
-		}
-		return request, receipt, nil
-	}
-	attemptOf := func(request map[string]any) map[string]any {
-		precondition, _ := na.AsMap(request["precondition"])
-		return map[string]any{"identity": identity, "attempt": precondition["attempt"]}
-	}
-	progress := func(label string, attempt map[string]any) (map[string]any, error) {
-		reply, err := h.Wire(ctx, label, "receipts_observe_progress", attempt)
+		result, err := apply(label, key, cell, wall)
 		if err != nil {
 			return nil, err
 		}
-		_, observed, err := na.Outcome(reply, "progress")
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", label, err)
+		applied, ok := na.AsMap(result["applied"])
+		if !ok {
+			return nil, fmt.Errorf("%s: expected an applied outcome, got %#v", label, result)
 		}
-		return observed, nil
+		inner, _ := na.AsMap(applied["applied"])
+		observed, _ := na.AsMap(inner["observed"])
+		effect, _ := na.AsMap(observed["wall"])
+		siteEvidence, _ := na.AsMap(effect["site"])
+		if na.AsString(effect["targetId"]) != wall || na.AsString(effect["removalId"]) == "" || len(na.AsSlice(effect["workerIds"])) == 0 || na.AsString(siteEvidence["entityId"]) != wall || na.AsString(siteEvidence["beforeToken"]) == "" || na.AsString(siteEvidence["afterToken"]) == "" {
+			return nil, fmt.Errorf("%s: unexpected wall effect: %#v", label, effect)
+		}
+		if observedDemolition, _ := na.AsBool(effect["demolitionObserved"]); observedDemolition {
+			return nil, fmt.Errorf("%s: demolition cannot be observed at admission", label)
+		}
+		return result, nil
 	}
-	// runUntilCompleted drives the supervised native clock, heartbeating it
-	// and restarting bounded windows, until the attempt is observed Completed
-	// within ticks of game time. The signature carries the game tick (the
-	// clock's windows are what must keep moving; the attempt itself has no
-	// intermediate progress to observe), so a game that stops ticking stalls
-	// and one that keeps ticking without completing spends the tick budget.
-	runUntilCompleted := func(label string, attempt map[string]any, ticks uint64) error {
+	// runUntilGone drives the supervised native clock, heartbeating it and
+	// restarting bounded windows, until the building census no longer lists
+	// wall within ticks of game time. The signature carries the game tick, so
+	// a game that stops ticking stalls and one that keeps ticking without
+	// the demolition spends the tick budget.
+	runUntilGone := func(label, wall string, ticks uint64) error {
 		maxTicks := uint64(6000)
 		if _, err := clock.Change(ctx, "Fast", maxTicks); err != nil {
 			return err
@@ -298,14 +269,11 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 			if state, err = clock.Call(ctx, "status", nil); err != nil {
 				return "", false, err
 			}
-			observed, err := progress(fmt.Sprintf("%s-progress-%d", label, polls), attempt)
+			walls, err := colonistWalls(ctx, h, scope, fmt.Sprintf("%s-walls-%d", label, polls))
 			if err != nil {
 				return "", false, err
 			}
-			if unsuccessful, ok := na.AsMap(observed["unsuccessful"]); ok {
-				return "", false, fmt.Errorf("%s: attempt became unsuccessful before completion: %#v", label, unsuccessful)
-			}
-			if _, ok := na.AsMap(observed["completed"]); ok {
+			if !contains(walls, wall) {
 				return "", true, nil
 			}
 			if active, _ := na.AsBool(state["active"]); !active {
@@ -340,25 +308,15 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	}
 
 	// Refusals before any backup stands: the site is not demolition ready.
+	wallCell := map[string]any{"x": int(chosen.x), "z": int(chosen.z)}
 	if err := acquire("acquire"); err != nil {
 		return err
 	}
-	generation, err := currentGeneration("generation-early")
-	if err != nil {
+	if err := expectRefused("apply-without-backups", "wall-early", wallCell, chosen.wall, "FAILURE_CODE_INVALID_REQUEST"); err != nil {
 		return err
 	}
-	if err := expectFailure("execute-without-backups", buildRequest("wall-early", generation, removeOperation(chosen.wall)), "FAILURE_CODE_INVALID_REQUEST"); err != nil {
+	if err := expectRefused("apply-other-wall", "wall-other", wallCell, "Thing_NoSuchWall0", "FAILURE_CODE_STALE_IDENTITY"); err != nil {
 		return err
-	}
-	if err := expectFailure("execute-unknown-wall", buildRequest("wall-unknown", generation, removeOperation("Thing_NoSuchWall0")), "FAILURE_CODE_NOT_FOUND"); err != nil {
-		return err
-	}
-	previewReply, err := h.Wire(ctx, "preview-without-backups", "operations_preview", map[string]any{"identity": identity, "operation": removeOperation(chosen.wall)})
-	if err != nil {
-		return err
-	}
-	if _, _, err := na.Outcome(previewReply, "failure"); err != nil {
-		return fmt.Errorf("preview-without-backups: expected a refusal: %w", err)
 	}
 
 	// Completed backups: the target row now lists them and admits demolition.
@@ -393,28 +351,6 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	if designated, _ := na.AsBool(readyRow["designated"]); designated {
 		return fmt.Errorf("ready-census: wall already designated before dispatch")
 	}
-	previewReply, err = h.Wire(ctx, "preview-ready", "operations_preview", map[string]any{"identity": identity, "operation": removeOperation(chosen.wall)})
-	if err != nil {
-		return err
-	}
-	_, evaluated, err := na.Outcome(previewReply, "evaluated")
-	if err != nil {
-		return fmt.Errorf("preview-ready: %w", err)
-	}
-	if accepted, _ := na.AsBool(evaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview-ready: expected acceptance, got %#v", evaluated)
-	}
-	afterPreview, err := census("after-preview-census", chosen.wall)
-	if err != nil {
-		return err
-	}
-	afterPreviewRow, err := rowForNormal(afterPreview, chosen.nx, chosen.nz)
-	if err != nil {
-		return err
-	}
-	if designated, _ := na.AsBool(afterPreviewRow["designated"]); designated {
-		return fmt.Errorf("after-preview-census: preview must not designate")
-	}
 
 	if _, err := h.Call(ctx, "standing-demolition", "test/deconstruct_target", map[string]any{"target": chosen.wall, "action": "replace"}); err != nil {
 		return err
@@ -440,12 +376,13 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	} else if result, _ := na.AsMap(results[0]); result["refused"] == nil {
 		return fmt.Errorf("generic demolition bypassed enclosure guards: %#v", result)
 	}
-	demolishRequest, demolishReceipt, err := execute("execute-adopt-demolition", "wall-demolish", chosen.wall)
+	demolishResult, err := execute("apply-adopt-demolition", "wall-demolish", chosen.wall, wallCell)
 	if err != nil {
 		return err
 	}
-	demolishApplied, _ := na.AsMap(demolishReceipt["applied"])
-	demolishObserved, _ := na.AsMap(demolishApplied["observed"])
+	demolishApplied, _ := na.AsMap(demolishResult["applied"])
+	demolishInner, _ := na.AsMap(demolishApplied["applied"])
+	demolishObserved, _ := na.AsMap(demolishInner["observed"])
 	demolishEffect, _ := na.AsMap(demolishObserved["wall"])
 	removalID := na.AsString(demolishEffect["removalId"])
 	designatedRows, err := census("designated-census", chosen.wall)
@@ -459,55 +396,33 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	if designated, _ := na.AsBool(designatedRow["designated"]); !designated || na.AsString(designatedRow["removalId"]) != removalID {
 		return fmt.Errorf("designated-census: expected the ledger's designation %s, got %#v", removalID, designatedRow)
 	}
-	replayReply, err := h.Wire(ctx, "replay-demolish", "operations_execute", demolishRequest)
+	replay, err := apply("replay-demolish", "wall-demolish", wallCell, chosen.wall)
 	if err != nil {
 		return err
 	}
-	_, replay, err := na.Outcome(replayReply, "receipt")
+	if !na.DeepEqual(replay, demolishResult) {
+		return fmt.Errorf("replay-demolish: a resent key returned a different result")
+	}
+	again, err := apply("reapply-demolish", "wall-demolish-again", wallCell, chosen.wall)
 	if err != nil {
 		return err
 	}
-	if !na.DeepEqual(replay, demolishReceipt) {
-		return fmt.Errorf("replay-demolish: replay of the same attempt returned a different receipt")
+	againApplied, _ := na.AsMap(again["applied"])
+	againInner, _ := na.AsMap(againApplied["applied"])
+	againObserved, _ := na.AsMap(againInner["observed"])
+	againEffect, _ := na.AsMap(againObserved["wall"])
+	if na.AsString(againEffect["removalId"]) != removalID {
+		return fmt.Errorf("reapply-demolish: a new key must apply again on the pending removal, got %#v", again)
 	}
-	demolishAttempt := attemptOf(demolishRequest)
-	lookupReply, err := h.Wire(ctx, "lookup-demolish", "receipts_lookup", demolishAttempt)
+	if err := runUntilGone("demolish", chosen.wall, 2*na.TicksPerDay); err != nil {
+		return err
+	}
+	cleared, err := apply("reapply-cleared", "wall-demolish-cleared", wallCell, chosen.wall)
 	if err != nil {
 		return err
 	}
-	_, lookup, err := na.Outcome(lookupReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(lookup, demolishReceipt) {
-		return fmt.Errorf("lookup-demolish: expected the execute receipt, got %#v", lookup)
-	}
-	pending, err := progress("progress-demolish-pending", demolishAttempt)
-	if err != nil {
-		return err
-	}
-	if _, ok := na.AsMap(pending["pending"]); !ok {
-		return fmt.Errorf("progress-demolish-pending: expected a pending effect, got %#v", pending)
-	}
-	if err := runUntilCompleted("demolish", demolishAttempt, 2*na.TicksPerDay); err != nil {
-		return err
-	}
-	completed, err := progress("progress-demolish-completed", demolishAttempt)
-	if err != nil {
-		return err
-	}
-	completedEffect, _ := na.AsMap(completed["completed"])
-	completedEvidence, _ := na.AsMap(completedEffect["evidence"])
-	completedWall, _ := na.AsMap(completedEvidence["wall"])
-	if observedDemolition, _ := na.AsBool(completedWall["demolitionObserved"]); !observedDemolition || na.AsString(completedWall["removalId"]) != removalID {
-		return fmt.Errorf("progress-demolish-completed: expected observed guarded demolition, got %#v", completedWall)
-	}
-	remaining, err := colonistWalls(ctx, h, scope, "walls-after-demolish")
-	if err != nil {
-		return err
-	}
-	if contains(remaining, chosen.wall) {
-		return fmt.Errorf("walls-after-demolish: the original wall still stands")
+	if _, ok := na.AsMap(cleared["applied"]); !ok {
+		return fmt.Errorf("reapply-cleared: a cleared cell must apply again, got %#v", cleared)
 	}
 	report["original_demolished"] = true
 
@@ -531,11 +446,12 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	if !contains(backups, firstBackup) || na.AsString(replacementBuilding["id"]) != permanent[0] || len(na.AsSlice(cleanupRow["completedBackups"])) != 3 {
 		return fmt.Errorf("cleanup-census: expected a backup target and the permanent replacement, got %#v", cleanupRow)
 	}
-	cleanupRequest, _, err := execute("execute-cleanup", "wall-cleanup", firstBackup)
-	if err != nil {
+	backupPosition, _ := na.AsMap(cleanupTarget["position"])
+	backupCell := map[string]any{"x": int(na.AsNumber(backupPosition["x"])), "z": int(na.AsNumber(backupPosition["z"]))}
+	if _, err := execute("apply-cleanup", "wall-cleanup", firstBackup, backupCell); err != nil {
 		return err
 	}
-	if err := runUntilCompleted("cleanup", attemptOf(cleanupRequest), 2*na.TicksPerDay); err != nil {
+	if err := runUntilGone("cleanup", firstBackup, 2*na.TicksPerDay); err != nil {
 		return err
 	}
 	afterCleanup, err := census("after-cleanup-census", "")

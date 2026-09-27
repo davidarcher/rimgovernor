@@ -82,3 +82,83 @@ func TestBuildingDependencyWaitsForCensusBuilt(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// reviewWalls files a disabled routine review whose complete construction
+// census holds a colony Wall on each given cell.
+func reviewWalls(t *testing.T, s *Store, tick domain.Tick, walls ...domain.Cell) {
+	t.Helper()
+	ctx := context.Background()
+	previous, err := s.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{}}
+	for i, c := range walls {
+		b, err := domain.NewBuilding("Wall", c, domain.North, "BlocksGranite")
+		if err != nil {
+			t.Fatal(err)
+		}
+		census.Buildings = append(census.Buildings, policy.CurrentBuilding{ID: fmt.Sprintf("Wall%d", i), Building: b, Cells: []domain.Cell{c}})
+	}
+	r := RoutineReviewRequest{Revision: previous.Revision, Current: scope(), Tick: tick, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}
+	if _, err = s.ReviewRoutine(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// An applied wall removal is only designated; the replacement wall on the
+// same cell waits until the census shows no wall left there (#989).
+func TestWallReplacementWaitsForCensusRemoval(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	cell := domain.Cell{X: 3, Z: 4}
+	removal, err := domain.NewWallRemoval("Wall_original", "", cell)
+	if err != nil {
+		t.Fatal(err)
+	}
+	demolish, err := domain.NewWallRemovalAction("demolish", removal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wall, err := domain.NewBuilding("Wall", cell, domain.North, "BlocksGranite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	replace, err := domain.NewBuildingAction("replace", wall)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("p", domain.PlanRevision(^uint64(0)), []domain.Action{demolish, replace}, domain.ActionDependency{Action: "replace", Requires: "demolish"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CreatePlan(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	prepare(t, s, "demolish")
+	if _, err = s.Dispatch(ctx, "p", "demolish", scope(), 10); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.RecordReceipt(ctx, "p", "demolish", 1, domain.ReceiptAccepted); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Prepare(ctx, "p", "replace", scope(), 11); !errors.Is(err, domain.ErrDependency) {
+		t.Fatal("replacement admitted before any census", err)
+	}
+	reviewWalls(t, s, 11, cell, domain.Cell{X: 9, Z: 9})
+	if _, err = s.Prepare(ctx, "p", "replace", scope(), 11); !errors.Is(err, domain.ErrDependency) {
+		t.Fatal("replacement admitted onto the standing wall", err)
+	}
+	reviewWalls(t, s, 12, domain.Cell{X: 9, Z: 9})
+	review, err := s.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(review.WallCells) != 1 || review.WallCells[0] != (WallCell{Cell: cell}) {
+		t.Fatalf("census records only the named cell: %#v", review.WallCells)
+	}
+	if _, err = s.Prepare(ctx, "p", "replace", scope(), 12); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -3,28 +3,25 @@ package domain
 import "testing"
 
 func TestWallRemovalRequiresOriginalXorBackupPrerequisite(t *testing.T) {
-	if _, e := NewWallRemoval("", "", 1, 1, 1, 0, false, false, ""); e == nil {
+	if _, e := NewWallRemoval("", "", Cell{1, 1}); e == nil {
 		t.Fatal("accepted removal with neither original nor backup prerequisite")
 	}
-	if _, e := NewWallRemoval("original-wall", "backup", 1, 1, 1, 0, false, false, ""); e == nil {
+	if _, e := NewWallRemoval("original-wall", "backup", Cell{1, 1}); e == nil {
 		t.Fatal("accepted removal with both original and backup prerequisite")
 	}
-	if _, e := NewWallRemoval("original-wall", "", -1, 1, 1, 0, false, false, ""); e == nil {
+	if _, e := NewWallRemoval("original-wall", "", Cell{-1, 1}); e == nil {
 		t.Fatal("accepted negative removal site")
 	}
-	if _, e := NewWallRemoval("original-wall", "", 1, 1, 1, 0, false, false, "not a valid material\x00"); e == nil {
-		t.Fatal("accepted invalid material text")
-	}
-	if _, e := NewWallRemoval("original-wall", "", 1, 1, 1, 0, false, false, "BlocksGranite"); e != nil {
+	if _, e := NewWallRemoval("original-wall", "", Cell{1, 1}); e != nil {
 		t.Fatal(e)
 	}
-	if _, e := NewWallRemoval("", "backup", 1, 1, 1, 0, false, false, ""); e != nil {
+	if _, e := NewWallRemoval("", "backup", Cell{1, 1}); e != nil {
 		t.Fatal(e)
 	}
 }
 
 func TestWallRemovalActionRejectsSelfPrerequisite(t *testing.T) {
-	removal, e := NewWallRemoval("", "removal", 1, 1, 1, 0, false, false, "")
+	removal, e := NewWallRemoval("", "removal", Cell{1, 1})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -43,7 +40,7 @@ func backupWallBundle(t *testing.T, deps ...ActionDependency) (PlanSpec, []Actio
 	if e != nil {
 		t.Fatal(e)
 	}
-	demolition, e := NewWallRemoval("original-wall", "", 0, 1, 1, 0, false, false, "")
+	demolition, e := NewWallRemoval("original-wall", "", Cell{0, 1})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -59,7 +56,7 @@ func backupWallBundle(t *testing.T, deps ...ActionDependency) (PlanSpec, []Actio
 	if e != nil {
 		t.Fatal(e)
 	}
-	backupRemoval, e := NewWallRemoval("", "backup", 2, 1, 1, 0, false, false, "")
+	backupRemoval, e := NewWallRemoval("", "backup", Cell{2, 1})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -84,7 +81,7 @@ func TestWallRemovalBundleAdmitsFullStagedTopology(t *testing.T) {
 }
 
 func TestBackupWallRemovalRequiresPrecedingBackupWall(t *testing.T) {
-	demolition, e := NewWallRemoval("", "missing-backup", 2, 1, 1, 0, false, false, "")
+	demolition, e := NewWallRemoval("", "missing-backup", Cell{2, 1})
 	if e != nil {
 		t.Fatal(e)
 	}

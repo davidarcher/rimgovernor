@@ -25,8 +25,8 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "apply/refusal",
 		Scope: "Apply-time precondition refusals (#242, #252): for zone cell edit, stockpile patch, zone creation, " +
-			"Allow, haul, work settings, bills, build, hunt, tame, grower crop, plant and mine acquisition and wall " +
-			"removal, a write whose token was valid when read is executed after the fixture moved the world and is refused " +
+			"Allow, haul, work settings, bills, build, hunt, tame, grower crop, plant and mine acquisition, " +
+			"a write whose token was valid when read is executed after the fixture moved the world and is refused " +
 			"with the documented reason naming the moved fact; the acquisition writes are refused the same way without a " +
 			"token, as live dispatch sends them (#243).",
 		// clutter plants every bare cell around the colonist before the
@@ -372,14 +372,5 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// Wall removal: the interior wall is gone.
-	if err := move("destroy-wall", map[string]any{"action": "destroy_thing", "id": tokens["wallId"]}); err != nil {
-		return err
-	}
-	if err := refused("remove-wall", map[string]any{"removeWall": map[string]any{
-		"wall": map[string]any{"entityId": tokens["wallId"], "expectedSnapshotToken": tokens["wallToken"]},
-	}}, "FAILURE_CODE_NOT_FOUND", "No spawned colonist wall with that id is on the current map."); err != nil {
-		return err
-	}
 	return nil
 }

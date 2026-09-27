@@ -121,7 +121,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,pawn) VALUES(?,?,?,'quest_accept',?,?,?)", a.ID(), plan, ordinal, accept.Quest(), strconv.FormatInt(int64(accept.RewardChoice()), 10), accepter)
 	} else if removal, ok := a.WallRemoval(); ok {
-		data, encodeErr := json.Marshal(wallRemovalPayload{removal.Original(), removal.BackupOf(), removal.X(), removal.Z(), removal.NX(), removal.NZ(), removal.Left(), removal.Right(), removal.Material()})
+		data, encodeErr := json.Marshal(wallRemovalPayload{removal.Original(), removal.BackupOf(), removal.Cell().X, removal.Cell().Z})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -363,7 +363,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if !bytes.Equal(canonical, wallRemoval) {
 			return domain.Action{}, 0, errors.New("noncanonical wall removal payload")
 		}
-		value, err := domain.NewWallRemoval(payload.Original, payload.BackupOf, payload.X, payload.Z, payload.NX, payload.NZ, payload.Left, payload.Right, payload.Material)
+		value, err := domain.NewWallRemoval(payload.Original, payload.BackupOf, domain.Cell{X: payload.X, Z: payload.Z})
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -891,11 +891,9 @@ func storedCorpses(b domain.ProductionBill) domain.CorpseOf {
 }
 
 type wallRemovalPayload struct {
-	Original     string
-	BackupOf     domain.ActionID
-	X, Z, NX, NZ int32
-	Left, Right  bool
-	Material     string
+	Original string
+	BackupOf domain.ActionID
+	X, Z     int32
 }
 
 type buildingTemperaturePayload struct {

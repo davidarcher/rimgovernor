@@ -387,7 +387,7 @@ func TestRoutineExecutionAuthorizesWallRemovalBundle(t *testing.T) {
 	r := routineRequest()
 	r.Current.Native = 2
 	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
-	removal, err := domain.NewWallRemoval("original-wall", "", 0, 1, 1, 0, false, false, "")
+	removal, err := domain.NewWallRemoval("original-wall", "", domain.Cell{X: 0, Z: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

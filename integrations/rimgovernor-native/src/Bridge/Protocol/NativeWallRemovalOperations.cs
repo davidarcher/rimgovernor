@@ -11,57 +11,19 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Typed successor of home/upkeep_wall: RemoveWall admits one guarded
-    // native deconstruct designation through the legacy WallUpgradeSafety
-    // ledger, whose Harmony guards keep re-checking enclosure, supports and
-    // roof support until the pawn finishes. The wire carries only the wall's
-    // identity, so the site is resolved here from the same census the Go
-    // boundary just re-validated (NativeWallUpgradeObservationTools):
+    // RemoveWallIntent (#989) admits one guarded native deconstruct
+    // designation through the WallUpgradeSafety ledger, whose Harmony guards
+    // keep re-checking enclosure, supports and roof support until the pawn
+    // finishes. The intent names the wall's cell, so the site is resolved here
+    // from the ListWallUpgradeSites census:
     //  1. a straight replacement site whose backup cells all hold same-stuff
     //     stone walls (demolish the original);
     //  2. a cleanup site where this wall is a completed backup of a standing
     //     stone permanent wall (clear the backup);
     //  3. a corner site with open salvage access, rebuilt from whichever
     //     stone material current stock and policy still cover.
-    // Several admissible sites of one class refuse rather than guess.
-    internal sealed class NativeWallRemovalRecord
-    {
-        private readonly Map map;
-        private readonly WallRemovalRecord ledger;
-        private readonly string target;
-        private readonly string before;
-        private readonly List<string> workers;
-        private readonly Func<Obs.WallUpgradeSite?> reread;
-        internal NativeWallRemovalRecord(Map map, WallRemovalRecord ledger, string target, string before, List<string> workers, Func<Obs.WallUpgradeSite?> reread)
-        { this.map = map; this.ledger = ledger; this.target = target; this.before = before; this.workers = workers; this.reread = reread; }
-
-        internal Receipts.WallEffect Evidence()
-        {
-            var effect = new Receipts.WallEffect { TargetId = target, RemovalId = ledger.Id, DemolitionObserved = ledger.Complete,
-                Site = new Receipts.SnapshotEvidence { EntityId = target, BeforeToken = before } };
-            effect.WorkerIds.AddRange(workers);
-            var site = WallUpgradeSafety.Wall(map, target) == null ? null : reread();
-            if (site?.Snapshot != null) effect.Site.AfterToken = site.Snapshot.Token;
-            return effect;
-        }
-
-        internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
-        {
-            var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
-            if (map != ProtoBoundary.ResolveMap(context)) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Wall removal map is not the identity's map." }; return result; }
-            var evidence = new Receipts.EffectEvidence { Wall = Evidence() };
-            if (ledger.Complete) { result.Completed = new Receipts.CompletedEffect { Evidence = evidence }; return result; }
-            var wall = WallUpgradeSafety.Wall(map, target);
-            string? detail = ledger.Blocker;
-            if (detail == null && wall == null) detail = "Wall is gone without a verified guarded demolition.";
-            if (detail == null && map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null) detail = "Demolition designation was removed.";
-            if (detail == null) detail = WallUpgradeSafety.Check(ledger);
-            if (detail == null) result.Pending = new Receipts.PendingEffect { Evidence = evidence };
-            else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved, Evidence = evidence, Detail = detail };
-            return result;
-        }
-    }
-
+    // Several admissible sites of one class refuse rather than guess. Applied
+    // means designated; Go reads the building census for the wall's removal.
     internal static class NativeWallRemovalOperations
     {
         private sealed class Candidate
@@ -71,10 +33,6 @@ namespace HomeBridge.BridgeTools
             internal Func<Obs.WallUpgradeSite?> Reread = null!;
             internal List<Pawn> Workers = new List<Pawn>();
         }
-
-        internal static bool Valid(Operations.RemoveWall? command) => command?.Wall != null && command.Wall.HasEntityId && ProtoBoundary.IsIdentifier(command.Wall.EntityId)
-            && (!command.Wall.HasExpectedSnapshotToken || command.Wall.ExpectedSnapshotToken.Length > 0)
-            && (!command.HasExpectedSiteSnapshotToken || command.ExpectedSiteSnapshotToken.Length > 0);
 
         [ThreadStatic] private static string? lastBlocker;
 
@@ -139,73 +97,68 @@ namespace HomeBridge.BridgeTools
             return new List<List<Candidate>> { straight, cleanup, corner };
         }
 
-        private static bool Prepare(Operations.RemoveWall command, Common.ObservationContext context, out Candidate? candidate, out Common.Failure failure)
+        // The apply-time precondition list for RemoveWallIntent. wall is null
+        // when no colonist wall stands at the cell (already removed: applies
+        // again); pending is the ledger's open removal of the wall, which
+        // applies again with its evidence; otherwise candidate is the one
+        // admissible site.
+        private static string? Refusal(Operations.RemoveWallIntent? intent, Common.ObservationContext context,
+            out Building? wall, out WallRemovalRecord? pending, out Candidate? candidate, out Common.FailureCode code)
         {
-            candidate = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "RemoveWall requires one exact colonist wall identity.");
-            if (!Valid(command)) return false;
+            wall = null; pending = null; candidate = null; code = Common.FailureCode.InvalidRequest;
+            if (intent?.Cell == null || !intent.Cell.HasX || !intent.Cell.HasZ || intent.HasExpectedWallId && !ProtoBoundary.IsIdentifier(intent.ExpectedWallId))
+                return "RemoveWall requires one wall cell.";
             var map = ProtoBoundary.ResolveMap(context);
-            if (map == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Loaded map required."); return false; }
-            var wall = NativeWallUpgradeObservationTools.ColonistWallById(map, command.Wall.EntityId);
-            if (wall == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map."); return false; }
-            if (command.Wall.HasExpectedSnapshotToken && NativeBuildingObservationTools.Token(wall, context).Token != command.Wall.ExpectedSnapshotToken)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Wall snapshot changed; observe before new admission."); return false; }
-            if (WallUpgradeSafety.Pending(wall) != null)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Existing demolition designation is preserved; observe its original receipt."); return false; }
+            if (map == null) return "Loaded map required.";
+            var cell = new IntVec3(intent.Cell.X, 0, intent.Cell.Z);
+            if (!cell.InBounds(map)) return "Wall cell is outside the map.";
+            wall = NativeWallUpgradeObservationTools.ColonistWall(map, cell);
+            if (wall == null) return null;
+            if (intent.HasExpectedWallId && wall.GetUniqueLoadID() != intent.ExpectedWallId)
+            { code = Common.FailureCode.StaleIdentity; return "A different wall stands at the cell."; }
+            pending = WallUpgradeSafety.Pending(wall);
+            if (pending != null) return null;
             lastBlocker = null;
             var classes = Resolve(map, wall, context).FirstOrDefault(c => c.Count > 0);
             if (classes == null)
-            {
-                var why = lastBlocker ?? "No wall-upgrade site: completed same-stuff stone backups, a standing stone permanent wall or open corner access is required.";
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, why); return false;
-            }
-            if (classes.Count > 1) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Several admissible wall-upgrade sites share this wall; the request cannot name one."); return false; }
+                return lastBlocker ?? "No wall-upgrade site: completed same-stuff stone backups, a standing stone permanent wall or open corner access is required.";
+            if (classes.Count > 1) return "Several admissible wall-upgrade sites share this wall; the request cannot name one.";
             candidate = classes[0];
-            if (command.HasExpectedSiteSnapshotToken && candidate.Site.Snapshot?.Token != command.ExpectedSiteSnapshotToken)
-            { candidate = null; failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Wall site snapshot changed; observe before new admission."); return false; }
-            return true;
+            return null;
         }
 
-        internal static Operations.PreviewReply Preview(Operations.RemoveWall command, Common.ObservationContext context)
+        internal static Common.Failure? Validate(Operations.RemoveWallIntent? intent, Common.ObservationContext context)
         {
-            if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
-            return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
+            var refusal = Refusal(intent, context, out _, out _, out _, out var code);
+            return refusal == null ? null : ProtoBoundary.Fail(code, refusal);
         }
 
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.RemoveWallIntent intent, Common.ObservationContext context)
         {
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
-            var pre = request.Precondition; var command = request.Operation.RemoveWall;
-            try
-            {
-                if (!Prepare(command, context, out var candidate, out var failure)) return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                var map = ProtoBoundary.LoadedMap(context); var chosen = candidate!;
-                var record = new NativeWallRemovalRecord(map, chosen.Record, chosen.Record.Target, chosen.Site.Snapshot?.Token ?? "",
-                    chosen.Workers.Select(p => p.GetUniqueLoadID()).ToList(), chosen.Reread);
-                state.WallRemovals.Add(pre.Attempt.Clone(), record);
-                using (authority.Owned())
-                {
-                    if (!authority.Check(pre.ExpectedGeneration).Success || WallUpgradeSafety.Prepare(chosen.Record, out _) != null)
-                        throw new InvalidOperationException("Wall removal site changed before designation.");
-                    var blocker = WallUpgradeSafety.Commit(chosen.Record);
-                    if (blocker != null) throw new InvalidOperationException(blocker);
-                    evidence = new Receipts.EffectEvidence { Wall = record.Evidence() };
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Wall removal write interrupted: " + error.GetType().Name) };
-                return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Wall removal failed: " + error.GetType().Name) };
-            }
+            var refusal = Refusal(intent, context, out var wall, out var pending, out var candidate, out _);
+            if (refusal != null) throw new InvalidOperationException("Wall removal prerequisites changed before apply: " + refusal);
+            if (wall == null)
+                return new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { TargetId = intent.HasExpectedWallId ? intent.ExpectedWallId : "", DemolitionObserved = false } };
+            var id = wall.GetUniqueLoadID();
+            if (pending != null)
+                return new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id, DemolitionObserved = pending.Complete } };
+            var chosen = candidate!;
+            var before = chosen.Site.Snapshot?.Token ?? "";
+            if (WallUpgradeSafety.Prepare(chosen.Record, out _) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
+            var blocker = WallUpgradeSafety.Commit(chosen.Record);
+            if (blocker != null) throw new InvalidOperationException(blocker);
+            var effect = new Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id, DemolitionObserved = false,
+                Site = new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before } };
+            effect.WorkerIds.AddRange(chosen.Workers.Select(p => p.GetUniqueLoadID()));
+            var after = chosen.Reread();
+            if (after?.Snapshot != null) effect.Site.AfterToken = after.Snapshot.Token;
+            return new Receipts.EffectEvidence { Wall = effect };
         }
+    }
 
+    internal sealed class RemoveWallActionHandler : IActionHandler
+    {
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeWallRemovalOperations.Validate(action.RemoveWall, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeWallRemovalOperations.Apply(action.RemoveWall, context);
     }
 }

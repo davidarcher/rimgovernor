@@ -110,8 +110,6 @@ type Executor struct {
 	moodReliefJournal      MoodReliefJournal
 	trade                  TradeBoundary
 	tradeJournal           TradeJournal
-	wallRemoval            WallRemovalBoundary
-	wallRemovalJournal     WallRemovalJournal
 	mineAcquisition        AcquisitionBoundary
 	mineAcquisitionJournal MineAcquisitionJournal
 	ranged                 RangedBoundary
@@ -335,9 +333,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.WallRemovalAction && e.wallRemoval != nil {
-		return e.runWallRemoval(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)

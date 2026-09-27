@@ -20,17 +20,12 @@ type Amount struct {
 	Units    int64
 }
 
-// WallUpgradeSite is the exact evidence InspectWallRemoval needs to
-// re-validate one guarded demolition or backup removal immediately before
-// dispatch: the current native occupant at this exact geometry (the thing
-// this step is about to clear) and whether native still lists the site as a
-// legal, unblocked wall-upgrade candidate. Native excludes geometrically
-// invalid sites from the listing entirely (unsupported roof, no interior,
-// bounds); a returned row that still carries a blocker
-// is present for status but is not eligible for dispatch. BackupCells,
-// LeftSupport/RightSupport and ReplacementMaterials are only consumed by
-// RoutineStoneShellPlanner when proposing a fresh bundle, not by
-// InspectWallRemoval's own re-check.
+// WallUpgradeSite is one wall-upgrade candidate RoutineStoneShellPlanner
+// proposes a bundle from: the current native occupant at this exact geometry
+// and whether native lists the site as a legal, unblocked candidate. Native
+// excludes geometrically invalid sites from the listing entirely
+// (unsupported roof, no interior, bounds); a returned row that still carries
+// a blocker is present for status but is not eligible.
 type WallUpgradeSite struct {
 	TargetID             string
 	TargetPresent        bool
@@ -46,18 +41,15 @@ func (s WallUpgradeSite) Eligible() bool {
 	return s.TargetID != "" && s.TargetPresent && s.Blocker == ""
 }
 
-// WallUpgradeSites is one fresh census of candidate sites plus the
-// observation context InspectWallRemoval validates against the acting
-// generation, mirroring bridge.HomeCoverageTarget's shape.
+// WallUpgradeSites is one fresh census of candidate sites plus its
+// observation context.
 type WallUpgradeSites struct {
 	Context *c.ObservationContext
 	Sites   []WallUpgradeSite
 }
 
 // ReadWallUpgradeSites lists current wall-upgrade candidate sites, optionally
-// scoped to one original wall's identity. A backup removal step retains no
-// original identity (domain.WallRemoval clears it once a same-plan backup
-// takes over), so the boundary matches those by exact geometry instead.
+// scoped to one original wall's identity.
 func (client *Client) ReadWallUpgradeSites(ctx context.Context, identity *c.Identity, targetID string) (WallUpgradeSites, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return WallUpgradeSites{}, Result{}, err

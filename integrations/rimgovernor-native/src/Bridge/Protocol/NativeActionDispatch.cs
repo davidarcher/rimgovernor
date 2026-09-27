@@ -59,6 +59,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Recover] = new RecoverActionHandler(),
             [Operations.Action.IntentOneofCase.Relocate] = new RelocateActionHandler(),
             [Operations.Action.IntentOneofCase.BuildingPatch] = new BuildingPatchActionHandler(),
+            [Operations.Action.IntentOneofCase.RemoveWall] = new RemoveWallActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

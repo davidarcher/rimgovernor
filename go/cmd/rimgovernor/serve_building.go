@@ -116,7 +116,6 @@ type buildingServiceBridge struct {
 	gearReplace       *buildingruntime.GearReplaceCapabilities
 	trade             *buildingruntime.TradeCapabilities
 	openCasket        *buildingruntime.OpenCasketCapabilities
-	wallRemoval       *buildingruntime.WallRemovalCapabilities
 	presentationMedia *bridge.PresentationMedia
 	lifecycle         lifecycleCapability
 }
@@ -187,10 +186,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	wallRemovalWriter, err := bridge.NewWallRemovalWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	presentationMedia, err := bridge.NewPresentationMedia(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -222,7 +217,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		gearReplace:       &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		openCasket:        &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
-		wallRemoval:       &buildingruntime.WallRemovalCapabilities{Native: client, Writer: wallRemovalWriter},
 		presentationMedia: presentationMedia,
 		lifecycle:         lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
@@ -454,16 +448,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		openCasketCapabilities = client.openCasket
 	}
-	// The stone-shell family demolishes the flammable wall each bundle
-	// replaces through the shared executor (typed RemoveWall, #293); without
-	// the capability the bundle's demolition step never leaves pending.
-	var wallRemovalCapabilities *buildingruntime.WallRemovalCapabilities
-	if config.routineStoneShellPlans {
-		if client.wallRemoval == nil {
-			return errors.New("stone shell plans require typed capabilities")
-		}
-		wallRemovalCapabilities = client.wallRemoval
-	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Control:         buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor:        executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
@@ -485,7 +469,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		GearReplace:     gearReplaceCapabilities,
 		Trade:           tradeCapabilities,
 		OpenCasket:      openCasketCapabilities,
-		WallRemoval:     wallRemovalCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err

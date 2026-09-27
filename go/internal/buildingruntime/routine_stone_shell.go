@@ -194,12 +194,6 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	for i, c := range material.Costs {
 		costs[i] = policy.Amount{Resource: policy.Resource(c.Resource), Count: c.Units}
 	}
-	// The guard only records the replacement material once no
-	// backup wall's own construction already carries it.
-	removalMaterial := ""
-	if backupCount == 0 {
-		removalMaterial = material.Stuff
-	}
 	key := stoneShellMethodID(wall)
 	id := domain.MintPlanID("routine-stone-shell")
 	snapshot := state.Snapshot
@@ -234,7 +228,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 		first = false
 		backupIDs = append(backupIDs, actionID)
 	}
-	removal, err := domain.NewWallRemoval(site.TargetID, "", site.X, site.Z, site.NX, site.NZ, site.LeftSupport, site.RightSupport, removalMaterial)
+	removal, err := domain.NewWallRemoval(site.TargetID, "", domain.Cell{X: site.X, Z: site.Z})
 	if err != nil {
 		return RoutineStoneShellResult{}, false, err
 	}
@@ -267,7 +261,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	}
 	dependencies := []domain.ActionDependency{{Action: permanentID, Requires: demolishID}}
 	for i, backupID := range backupIDs {
-		backupRemoval, err := domain.NewWallRemoval("", backupID, site.X, site.Z, site.NX, site.NZ, site.LeftSupport, site.RightSupport, removalMaterial)
+		backupRemoval, err := domain.NewWallRemoval("", backupID, site.BackupCells[i])
 		if err != nil {
 			return RoutineStoneShellResult{}, false, err
 		}

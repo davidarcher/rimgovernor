@@ -34,7 +34,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 143
+const schemaVersion = 144
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -68,7 +68,6 @@ type PlanState struct {
 	CleanAdmissions           []ActionCleanAdmission
 	MoodReliefAdmissions      []ActionMoodReliefAdmission
 	MineAcquisitionAdmissions []ActionMineAcquisitionAdmission
-	WallRemovalAdmissions     []ActionWallRemovalAdmission
 }
 
 // Open accepts a filesystem path, never a caller-supplied SQLite connection URI.
@@ -277,7 +276,6 @@ CREATE TABLE repair_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id)
 CREATE TABLE clean_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mood_relief_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mine_acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE wall_removal_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
 CREATE TABLE clock_epochs(start_request_id TEXT PRIMARY KEY REFERENCES clock_attempts(request_id), stage TEXT NOT NULL CHECK(stage IN ('required','pausing','uncertain','paused','retired','superseded')), sequence TEXT NOT NULL, context BLOB, status BLOB) STRICT;
 CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','research_select')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
@@ -345,7 +343,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("%w: %d/%d", ErrIncompatible, app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -704,16 +702,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if moodReliefPresent {
 			state.MoodReliefAdmissions = append(state.MoodReliefAdmissions, ActionMoodReliefAdmission{Action: a.ID(), Admission: moodReliefAdmission})
 		}
-		wallRemovalAdmission, wallRemovalPresent, e := loadWallRemovalAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.WallRemovalAction && !wallRemovalPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("wall removal progress lacks admission")
-		}
-		if wallRemovalPresent {
-			state.WallRemovalAdmissions = append(state.WallRemovalAdmissions, ActionWallRemovalAdmission{Action: a.ID(), Admission: wallRemovalAdmission})
-		}
 	}
 	for _, record := range state.RangedAdmissions {
 		if err := validateRangedPrerequisite(ctx, tx, state, record.Action, record.Admission, false); err != nil {
@@ -942,22 +930,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			}
 			if !matched {
 				return domain.Progress{}, errors.New("clean dispatch lacks current admission")
-			}
-		}
-	}
-	if current.Action().Kind() == domain.WallRemovalAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("wall removal requires typed preparation")
-		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.WallRemovalAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("wall removal dispatch lacks current admission")
 			}
 		}
 	}

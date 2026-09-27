@@ -318,8 +318,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 		if a.kind == WallRemovalAction && a.wallRemoval.backupOf != "" {
 			prerequisite, exists := seen[a.wallRemoval.backupOf]
 			building, isBuilding := prerequisite.Building()
-			if !exists || !isBuilding || building.Definition() != "Wall" {
-				return PlanSpec{}, errors.New("backup wall removal requires its preceding backup wall in the same bundle")
+			if !exists || !isBuilding || building.Definition() != "Wall" || building.Cell() != a.wallRemoval.cell {
+				return PlanSpec{}, errors.New("backup wall removal requires its preceding backup wall at the same cell in the same bundle")
 			}
 		}
 		seen[a.id] = a

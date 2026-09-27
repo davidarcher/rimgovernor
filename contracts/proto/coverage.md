@@ -21,7 +21,7 @@ discovered/mapped, not as live source links.
 | `games_status` | Go controller gamehost process adapter | External host | `controller/rimgovernor/bridge.py:54` |
 | `rimworld/load_game_ready` | Lifecycle.Load / ReadLoad | Typed | `controller/rimgovernor/bridge.py:153` |
 | `home/upkeep_home` | Actions.Apply HomeIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/upkeep_wall` | Operations.Preview / Execute: RemoveWall | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/upkeep_wall` | Actions.Apply: RemoveWallIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/upkeep_bed` | Actions.Apply BedAssignIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/recover_service` | Actions.Apply: RecoverIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/husbandry_config` | Actions.Apply HusbandryIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |

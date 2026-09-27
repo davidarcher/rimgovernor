@@ -43,8 +43,6 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.StructureIneligible:        domain.HeldStructureIneligible,
 	policy.UnsuitableEquipment:        domain.HeldUnsuitableEquipment,
 	policy.UnsupportedThreat:          domain.HeldUnsupportedThreat,
-	policy.WallRemovalGeometryChanged: domain.HeldWallRemovalGeometryChanged,
-	policy.WallRemovalTargetChanged:   domain.HeldWallRemovalTargetChanged,
 	policy.ExcavationUnsupported:      domain.HeldExcavationUnsupported,
 	policy.ExcavationGeometryChanged:  domain.HeldExcavationGeometryChanged,
 	policy.OpenerUnavailable:          domain.HeldOpenerUnavailable,

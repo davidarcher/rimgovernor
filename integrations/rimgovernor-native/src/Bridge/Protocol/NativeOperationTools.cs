@@ -31,7 +31,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeTendRecord> Tends = new Dictionary<Common.AttemptKey, NativeTendRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRepairRecord> Repairs = new Dictionary<Common.AttemptKey, NativeRepairRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeOpenCasketRecord> OpenCaskets = new Dictionary<Common.AttemptKey, NativeOpenCasketRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeSubdueRecord> Subdues = new Dictionary<Common.AttemptKey, NativeSubdueRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeArrestRecord> Arrests = new Dictionary<Common.AttemptKey, NativeArrestRecord>();
         private NativeOperationState(Common.Identity identity)
@@ -120,8 +119,6 @@ namespace HomeBridge.BridgeTools
                 return NativeGearOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                 return NativeMoodReliefOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
-                return NativeWallRemovalOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
                 return NativeArrestOperations.Execute(state, request, context);
             return Refuse(Common.FailureCode.Unsupported, "This native adapter does not implement the " + request.Operation.CommandCase + " operation; buildings are placed through Actions/Apply.");
@@ -164,8 +161,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeGearOperations.Preview(parsed.Operation.ImproveGear, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                     return ProtoBoundary.Encode(NativeMoodReliefOperations.Preview(parsed.Operation.RelieveNeed, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
-                    return ProtoBoundary.Encode(NativeWallRemovalOperations.Preview(parsed.Operation.RemoveWall, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
                     return ProtoBoundary.Encode(NativeArrestOperations.Preview(parsed.Operation.Arrest, context));
                 return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview does not implement this operation; building placement previews through rimgovernor/placement_preview.") });
@@ -239,13 +234,10 @@ namespace HomeBridge.BridgeTools
                     NativeTendRecord tend;
                     if (state.Tends.TryGetValue(parsed.Attempt, out tend))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = tend.Observe(parsed.Attempt, context) });
-                    NativeWallRemovalRecord wallRemoval;
                     if (state.Subdues.TryGetValue(parsed.Attempt, out var subdue))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = subdue.Observe(parsed.Attempt, context) });
                     if (state.Arrests.TryGetValue(parsed.Attempt, out var arrest))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = arrest.Observe(parsed.Attempt, context) });
-                    if (state.WallRemovals.TryGetValue(parsed.Attempt, out wallRemoval))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = wallRemoval.Observe(parsed.Attempt, context) });
                 }
                 var progress = new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
                     Unknown = new Receipts.UnknownEffect { Reason = "No tracked effect is available for this attempt." } };

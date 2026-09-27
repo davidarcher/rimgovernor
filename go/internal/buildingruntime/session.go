@@ -46,7 +46,6 @@ type SessionConfig struct {
 	// pawn order whose opener the melee lock drafts first.
 	OpenCasket      *OpenCasketCapabilities
 	Trade           *TradeCapabilities
-	WallRemoval     *WallRemovalCapabilities
 	MineAcquisition *mineacquisition.MineAcquisitionCapabilities
 }
 
@@ -293,9 +292,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		return cleanup(fmt.Errorf("%w: NewSession: config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil)", ErrControl))
 	}
 
-	if config.WallRemoval != nil && (config.WallRemoval.Native == nil || config.WallRemoval.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.WallRemoval != nil && (config.WallRemoval.Native == nil || config.WallRemoval.Writer == nil)", ErrControl))
-	}
 	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer ==", ErrControl))
 	}
@@ -435,19 +431,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableMoodRelief(moodReliefBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.WallRemoval != nil {
-		// The stone-shell family's demolitions (#293): the planner bundles
-		// each wall's backups, demolition and replacement in one plan, and
-		// the Worker dispatches the WallRemovalAction steps through the
-		// typed RemoveWall boundary.
-		wallRemovalBoundary, err := NewWallRemovalBoundary(config.WallRemoval.Native, config.WallRemoval.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableWallRemoval(wallRemovalBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

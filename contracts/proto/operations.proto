@@ -69,8 +69,8 @@ message Operation {
   reserved 15, 16, 18;
   reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
   // Designations and construction-adjacent orders moved to Actions/Apply (#940).
-  reserved 3, 5, 6, 20, 25, 26, 47, 55, 56, 60, 61;
-  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell", "manage_waste", "recover_service", "install_building", "uninstall", "patch_building";
+  reserved 3, 5, 6, 20, 22, 25, 26, 47, 55, 56, 60, 61;
+  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell", "manage_waste", "recover_service", "install_building", "uninstall", "patch_building", "remove_wall";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -86,7 +86,6 @@ message Operation {
     // Preview only: the siting read planners run per candidate; zones are
     // created through the create_zone Action arm.
     CreateZone create_zone = 14;
-    RemoveWall remove_wall = 22;
     RelieveNeed relieve_need = 27;
     ImproveGear improve_gear = 28;
     SetDrafted set_drafted = 33;
@@ -253,7 +252,6 @@ message ZoneCellsIntent { optional string zone_id = 1; optional CellEdit edit = 
 // storable definitions when it applies; settings that already hold apply
 // again.
 message StockpileIntent { optional string target_id = 1; StockpileSettings settings = 2; }
-message RemoveWall { EntityPrecondition wall = 1; optional string expected_site_snapshot_token = 2; }
 // Vanilla custody: an armed, violence-capable, owned drafted arrester and a
 // target still in a legal arrestable mental state. Destination is a prisoner
 // bed; hostile aggressive states (including Berserk) are refused by native rules.
@@ -381,6 +379,7 @@ message Action {
     RecoverIntent recover = 37;
     RelocateIntent relocate = 38;
     BuildingPatchIntent building_patch = 39;
+    RemoveWallIntent remove_wall = 40;
   }
 }
 // Extend Home over the missing cells of one facility's bounded batch (a
@@ -435,6 +434,15 @@ message BuildingPatchIntent {
 }
 message RecoverIntent { optional string pawn_id = 1; optional string thing_id = 2; optional ServiceMethod method = 3; }
 message WasteIntent { optional string pawn_id = 1; optional string thing_id = 2; optional bool unwanted = 3; }
+// Designate the guarded stone-shell removal of the colonist wall standing at
+// cell (the original a replacement rebuilds, or a backup that held the shell
+// open). Native resolves the wall-upgrade site from the wall live (several
+// admissible sites refuse) and its guards hold the demolition to enclosure,
+// support and roof safety until a pawn finishes. expected_wall_id, when set,
+// must name the wall at cell. A removal this controller already designated,
+// or a cell whose wall is already gone, applies again. Go waits for the
+// census to show the cell clear before releasing work that needs it (#989).
+message RemoveWallIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_wall_id = 2; }
 message ExcavateIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree): window_id plus the exact observed option index

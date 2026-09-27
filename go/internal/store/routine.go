@@ -91,6 +91,13 @@ type RoutineReview struct {
 	// complete census keeps the last one. Admission reads it for building
 	// prerequisites (checkDependencies, #937).
 	Built []domain.ActionID `json:",omitempty"`
+	// WallCells is, for every cell a live plan's wall removal names, whether
+	// the last complete construction census still had a colony Wall on it,
+	// sorted by cell; a review without a complete census keeps the last one.
+	// Admission reads it for wall-removal prerequisites (checkDependencies,
+	// #989): an applied removal is only designated, so a dependent (the
+	// replacement wall on the same cell) waits for the wall to be gone.
+	WallCells []WallCell `json:",omitempty"`
 	// Dependencies are the live shortfall edges (#651) planners recorded
 	// (RecordDependency); each review drops the settled or stale ones.
 	Dependencies []DependencyRecord `json:",omitempty"`
@@ -164,6 +171,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if len(r.Dependencies) > maxDependencyRecords {
 		return RoutineReview{}, errors.New("invalid routine dependencies")
+	}
+	if len(r.WallCells) > maxWallCells {
+		return RoutineReview{}, errors.New("invalid routine wall cells")
 	}
 	for _, d := range r.Dependencies {
 		if err := d.validate(); err != nil {
@@ -576,6 +586,14 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.EventLoot = loot
 	if !reset {
 		r.Built = previous.Built
+	}
+	if !reset {
+		r.WallCells = previous.WallCells
+	}
+	if census, known := request.Facts.CurrentConstruction.Value(); known && census.Colony {
+		if r.WallCells, err = wallCells(ctx, tx, census); err != nil {
+			return RoutineReviewResult{}, err
+		}
 	}
 	if built, known := policy.BuiltActions(request.Facts.CurrentConstruction); known {
 		r.Built = make([]domain.ActionID, 0, len(built))

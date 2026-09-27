@@ -3,31 +3,45 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // checkDependencies is every admission's prerequisite gate (#937):
-// domain.CheckDependencies, and each building prerequisite standing built in
-// the last routine review's census (RoutineReview.Built). An accepted
-// building intent completes once its blueprint is placed, so a dependent
-// (a bed on a floor) waits for the building, not the receipt.
+// domain.CheckDependencies, then the last routine review's census for each
+// prerequisite whose receipt does not mean the work is done. An accepted
+// building intent completes once its blueprint is placed, so a dependent (a
+// bed on a floor) waits for the building to stand built (RoutineReview.Built).
+// An accepted wall removal completes once its demolition is designated, so a
+// dependent (the replacement wall on the same cell) waits for the census to
+// show no wall left in that cell (RoutineReview.WallCells, #989).
 func checkDependencies(ctx context.Context, tx *sql.Tx, state PlanState, action domain.ActionID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	if err := state.Spec.CheckDependencies(action, state.Progress, current, tick); err != nil {
 		return err
 	}
-	buildings := map[domain.ActionID]bool{}
+	actions := map[domain.ActionID]domain.Action{}
 	for _, a := range state.Spec.Actions() {
-		buildings[a.ID()] = a.Kind() == domain.BuildingAction
+		actions[a.ID()] = a
 	}
-	var required []domain.ActionID
+	var built []domain.ActionID
+	var cleared []domain.Cell
 	for _, d := range state.Spec.Dependencies() {
-		if d.Action == action && buildings[d.Requires] {
-			required = append(required, d.Requires)
+		if d.Action != action {
+			continue
+		}
+		required := actions[d.Requires]
+		if required.Kind() == domain.BuildingAction {
+			built = append(built, d.Requires)
+		}
+		if removal, ok := required.WallRemoval(); ok {
+			cleared = append(cleared, removal.Cell())
 		}
 	}
-	if len(required) == 0 {
+	if len(built) == 0 && len(cleared) == 0 {
 		return nil
 	}
 	review, err := loadRoutine(ctx, tx)
@@ -38,10 +52,76 @@ func checkDependencies(ctx context.Context, tx *sql.Tx, state PlanState, action 
 	if s.Colony != current.Colony || s.Load != current.Load || s.Map != current.Map {
 		return domain.ErrDependency
 	}
-	for _, r := range required {
+	for _, r := range built {
 		if !slices.Contains(review.Built, r) {
 			return domain.ErrDependency
 		}
 	}
+	for _, c := range cleared {
+		// A cell the review never censused (the plan is newer than it)
+		// is not known clear.
+		if !slices.Contains(review.WallCells, WallCell{Cell: c}) {
+			return domain.ErrDependency
+		}
+	}
 	return nil
+}
+
+// WallCell is one cell a live plan's wall removal names and whether a
+// colony Wall still stood on it in the construction census.
+type WallCell struct {
+	Cell     domain.Cell
+	Standing bool `json:",omitempty"`
+}
+
+// maxWallCells bounds RoutineReview.WallCells: one stone-shell bundle names
+// at most four removal cells, and few bundles are ever live at once.
+const maxWallCells = 256
+
+// wallCells answers, from a complete colony construction census, whether a
+// colony Wall stands on each cell a wall removal of a live plan names.
+func wallCells(ctx context.Context, tx *sql.Tx, census policy.CurrentConstruction) ([]WallCell, error) {
+	rows, err := tx.QueryContext(ctx, "SELECT a.wall_removal_payload FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.kind='wall_removal' AND p.retired=0")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	named := map[domain.Cell]bool{}
+	for rows.Next() {
+		var data []byte
+		var payload wallRemovalPayload
+		if err = rows.Scan(&data); err != nil {
+			return nil, err
+		}
+		if json.Unmarshal(data, &payload) != nil {
+			return nil, errors.New("invalid wall removal payload")
+		}
+		named[domain.Cell{X: payload.X, Z: payload.Z}] = true
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(named) > maxWallCells {
+		return nil, ErrCapacity
+	}
+	standing := map[domain.Cell]bool{}
+	for _, b := range census.Buildings {
+		if b.Building.Definition() != "Wall" {
+			continue
+		}
+		for _, c := range b.Cells {
+			standing[c] = true
+		}
+	}
+	out := make([]WallCell, 0, len(named))
+	for c := range named {
+		out = append(out, WallCell{Cell: c, Standing: standing[c]})
+	}
+	slices.SortFunc(out, func(a, b WallCell) int {
+		if a.Cell.X != b.Cell.X {
+			return int(a.Cell.X - b.Cell.X)
+		}
+		return int(a.Cell.Z - b.Cell.Z)
+	})
+	return out, nil
 }
