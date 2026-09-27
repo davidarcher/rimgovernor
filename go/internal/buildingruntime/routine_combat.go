@@ -168,11 +168,12 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 	var out []policy.CombatPawnState
 	if len(combat.Pawns) > 0 {
 		for _, row := range combat.Pawns {
-			s := policy.CombatPawnState{ID: domain.PawnID(row.GetId()), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance())}
+			s := policy.CombatPawnState{ID: domain.PawnID(row.GetId()), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance()),
+				Weapon: row.GetWeapon(), WeaponRange: row.GetWeaponRange()}
 			if cell := row.GetCell(); cell != nil && cell.X != nil && cell.Z != nil {
 				s.Cell = domain.Known(domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 			}
-			out = append(out, s)
+			out = append(out, threatFacts(s, rows[row.GetId()]))
 		}
 		return out
 	}
@@ -181,9 +182,21 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 		if position := row.GetPawn().GetPosition(); position != nil && position.X != nil && position.Z != nil {
 			s.Cell = domain.Known(domain.Cell{X: position.GetX(), Z: position.GetZ()})
 		}
-		out = append(out, s)
+		out = append(out, threatFacts(s, row))
 	}
 	return out
+}
+
+// threatFacts adds the census row's threat facts (#863): the pawn kind,
+// and a sapper or breacher by its lord toil or a mining job.
+func threatFacts(s policy.CombatPawnState, row *n.PawnState) policy.CombatPawnState {
+	if row == nil {
+		return s
+	}
+	s.Kind = row.GetKindDefName()
+	toil := row.GetLordToilClass()
+	s.Sapper = strings.Contains(toil, "Sapper") || strings.Contains(toil, "Breach") || row.GetJob().GetDefName() == "Mine"
+	return s
 }
 
 func combatStance(s mp.CombatStance) policy.CombatStance {

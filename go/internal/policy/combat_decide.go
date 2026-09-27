@@ -38,6 +38,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		next.Tactic, next.Roles, next.Refusal = formation(view, geometry)
 		next.Formed = view.Tick
 	}
+	next.Roles = focusFire(view, next.Roles, memory.Roles)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
 		orderable[id] = true
@@ -85,6 +86,12 @@ type CombatPawnState struct {
 	Downed, Dead bool
 	Target       domain.PawnID
 	Stance       CombatStance
+	// Threat facts (#863): the equipped weapon def and its range (0
+	// unknown), the pawn kind def, and a sapper or breacher at work.
+	Weapon      string
+	WeaponRange float64
+	Kind        string
+	Sapper      bool
 }
 
 // CombatLayout is the stored, complete defense layout's line.
@@ -332,9 +339,10 @@ func formationAsk(view CombatView) *GeometryRequest {
 		return nil
 	}
 	ask := &GeometryRequest{Propose: RoleCoverBehindLine, Line: slices.Clone(layout.Firing)}
-	for _, t := range view.Threats {
-		if !t.Building && !positive(t.Dead) && !positive(t.Downed) && len(ask.Hostiles) < maxGeometryHostiles {
-			ask.Hostiles = append(ask.Hostiles, domain.PawnID(t.ID))
+	// The top-scored hostiles first (#863), so the cap drops the least urgent.
+	for _, h := range rankThreats(view) {
+		if len(ask.Hostiles) < maxGeometryHostiles {
+			ask.Hostiles = append(ask.Hostiles, h.ID)
 		}
 	}
 	return ask
