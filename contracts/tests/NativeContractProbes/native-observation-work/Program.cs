@@ -55,7 +55,6 @@ internal static class NativeObservationWorkProbe
         ObservationWork.SizeChecked(Ticks(0.5));
         ObservationWork.Payload(1000);
         ObservationWork.Payload(2048);
-        ObservationWork.DroppedSections(2);
         ObservationWork.Outcome("ok");
         Check(ReferenceEquals(hop, ObservationWork.End()), "hop scope closes");
         Check(ObservationWork.Current == null, "scope cleared");
@@ -65,7 +64,6 @@ internal static class NativeObservationWorkProbe
         Check(Near(report["formatMs"], 4.5), "format includes the size check");
         Check((int)report["formatPasses"] == 2, "size check is not a formatting pass");
         Check((long)report["payloadBytes"] == 2048, "the returned envelope's bytes win");
-        Check((int)report["droppedSections"] == 2, "dropped sections reported");
         Check((string)report["outcome"] == "ok", "outcome reported");
         var window = Section(report, "planningWindow");
         Check(Near(window["ms"], 15) && (long)window["rows"] == 400 && (long)window["candidates"] == 5096, "repeated section accumulates");

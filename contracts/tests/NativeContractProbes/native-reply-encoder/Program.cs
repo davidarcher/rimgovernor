@@ -94,8 +94,6 @@ internal static class NativeReplyEncoderProbe
     internal static void Invoke()
     {
         EncodesOffTheGameThreadWhileControlRuns();
-        FormatsOnceAtTheExactLimit();
-        OverflowFormatsOnlyAfterRemoval();
         SaturationRefusesBoundedly();
         CancellationAndFailureReleaseCapacity();
         ShutdownFailsTheCapture();
@@ -132,7 +130,7 @@ internal static class NativeReplyEncoderProbe
                 encoderThread = Thread.CurrentThread.ManagedThreadId;
                 entered.Set();
                 if (!release.Wait(Guard)) throw new TimeoutException("release gate");
-                return ProtoBoundary.EncodeBounded(value, new List<Func<int>>(), () => value, out _);
+                return ProtoBoundary.Encode(value, compact: true);
             }, CancellationToken.None);
             Check(entered.Wait(Guard), "the encoder started");
             Check(encoderThread != gameThread, "the encoder is not the game thread");
@@ -163,57 +161,6 @@ internal static class NativeReplyEncoderProbe
     }
 
     private static Common.Failure Failure(string payload) => Common.Failure.Parser.ParseJson(payload);
-
-    // A failure whose compact payload is exactly bytes UTF-8 bytes long,
-    // built from two-byte characters so the byte and char counts differ.
-    private static Common.Failure Sized(int bytes)
-    {
-        var failure = new Common.Failure { Code = Common.FailureCode.CapacityExhausted, Detail = "" };
-        var overhead = Utf8.GetByteCount(ProtoBoundary.Format(failure, compact: true));
-        var fill = bytes - overhead;
-        failure.Detail = new string('é', fill / 2) + new string('x', fill % 2);
-        return failure;
-    }
-
-    private static void FormatsOnceAtTheExactLimit()
-    {
-        var exact = Sized(ProtoBoundary.MaximumEnvelopeBytes);
-        var hop = ObservationWork.Begin();
-        var envelope = ProtoBoundary.EncodeBounded(exact, new List<Func<int>>(), () => new Common.Failure { Detail = "oversized" }, out var fits);
-        ObservationWork.End();
-        var payload = (string)envelope["payload"];
-        Check(fits && Utf8.GetByteCount(payload) == ProtoBoundary.MaximumEnvelopeBytes, "exactly one MiB fits");
-        Check(payload.Length < ProtoBoundary.MaximumEnvelopeBytes, "the bound is bytes, not characters");
-        Check(hop.FormatPasses == 1 && hop.PayloadBytes == ProtoBoundary.MaximumEnvelopeBytes, "formatted once and measured from that string");
-        Check(Failure(payload).Detail == exact.Detail, "the fitting payload is the reply");
-
-        var over = Sized(ProtoBoundary.MaximumEnvelopeBytes + 1);
-        hop = ObservationWork.Begin();
-        envelope = ProtoBoundary.EncodeBounded(over, new List<Func<int>>(), () => new Common.Failure { Detail = "oversized" }, out fits);
-        ObservationWork.End();
-        Check(!fits && Failure((string)envelope["payload"]).Detail == "oversized", "one byte over is the typed capacity reply");
-        Check(hop.FormatPasses == 2, "the oversized reply and its failure each format once");
-    }
-
-    // Drops run in order until the reply fits; one that removed nothing is
-    // not a reason to format again, and later drops are not taken.
-    private static void OverflowFormatsOnlyAfterRemoval()
-    {
-        var reply = Sized(ProtoBoundary.MaximumEnvelopeBytes + 10);
-        var calls = new List<string>();
-        var drops = new List<Func<int>>
-        {
-            () => { calls.Add("empty"); return 0; },
-            () => { calls.Add("optional"); reply.Detail = "trimmed"; return 3; },
-            () => { calls.Add("census"); return 4; },
-        };
-        var hop = ObservationWork.Begin();
-        var envelope = ProtoBoundary.EncodeBounded(reply, drops, () => new Common.Failure { Detail = "oversized" }, out var fits);
-        ObservationWork.End();
-        Check(fits && Failure((string)envelope["payload"]).Detail == "trimmed", "the trimmed reply is returned");
-        Check(string.Join(",", calls) == "empty,optional", "drops stop once the reply fits");
-        Check(hop.FormatPasses == 2 && hop.DroppedSections == 3, "one extra pass, after the one actual removal");
-    }
 
     private static void SaturationRefusesBoundedly()
     {

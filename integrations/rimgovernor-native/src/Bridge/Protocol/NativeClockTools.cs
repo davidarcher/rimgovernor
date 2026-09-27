@@ -53,9 +53,7 @@ namespace HomeBridge.BridgeTools
             wake = null;
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return ProtoBoundary.Encode(new Clock.EventsReply { Failure = failure });
             var reply = Supervisor.TypedEvents(parsed, context, waitMs, out wake);
-            if (Fits(reply)) return ProtoBoundary.Encode(reply);
-            wake = null;
-            return ProtoBoundary.Encode(new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Clock read exceeds the bounded reply envelope; no rows were omitted.") });
+            return ProtoBoundary.Encode(reply);
         }
 
         [Tool("rimgovernor/clock_start", Title = "Start guarded owned clock", Description = "Admit one ordinary supervised epoch under current authority, a bounded tick budget and monotonic lease. Exact attempts replay; never reacquires authority.")]
@@ -114,8 +112,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, tool, request, parser, out var parsed, out var failure)) return ProtoBoundary.Encode(refused(failure));
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var reply = apply(parsed);
-                return ProtoBoundary.Encode(Fits(reply) ? reply : refused(ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Clock read exceeds the bounded reply envelope; no rows were omitted.")));
+                return ProtoBoundary.Encode(apply(parsed));
             }, token).ConfigureAwait(false);
         }
         private static Clock.ControlReply Control(string method, IMessage request, Authority.WritePrecondition? pre, Clock.OwnedRequest? owned,
@@ -152,10 +149,6 @@ namespace HomeBridge.BridgeTools
             {
                 Clock.Status status;
                 using (authority.Owned()) status = apply(context);
-                var candidate = new Clock.ControlReply { Receipt = new Clock.ControlReceipt { Attempt = pre.Attempt.Clone(), AdmittedContext = context.Clone(),
-                    Applied = new Clock.AppliedControl { Status = status } } };
-                if (!Fits(candidate)) return new Clock.ControlReply { Receipt = state.Ledger.FinishClockUncertain(admission.AdmittedHandle, null,
-                    "Clock control was admitted; complete status exceeds the bounded receipt envelope. Inspect current clock status.") };
                 return new Clock.ControlReply { Receipt = state.Ledger.FinishClockApplied(admission.AdmittedHandle, status) };
             }
             catch (Exception error)
@@ -164,28 +157,15 @@ namespace HomeBridge.BridgeTools
                     "Admitted clock control requires inspection: " + error.GetType().Name) };
             }
         }
-        internal static Clock.Status Read(Common.ObservationContext context) => Bounded(Capture(context), context);
-
-        // The game-thread half of Read: the status as captured, unbounded.
-        // The bundle (#644) bounds it with Bounded on its encoder instead.
-        internal static Clock.Status Capture(Common.ObservationContext context)
+        internal static Clock.Status Read(Common.ObservationContext context)
         {
             try { return Supervisor.TypedStatus(context); }
-            catch (Exception) { return Unreadable(context); }
-        }
-
-        // The status, or ReadFailed when its own reply would exceed the
-        // envelope. Formats, so it belongs off the game thread where it can.
-        internal static Clock.Status Bounded(Clock.Status status, Common.ObservationContext context)
-        {
-            try { return Fits(new Clock.StatusReply { Status = status }) ? status : Unreadable(context); }
             catch (Exception) { return Unreadable(context); }
         }
 
         private static Clock.Status Unreadable(Common.ObservationContext context) => new Clock.Status { Context = context.Clone(), Unavailable = new Common.Unavailable
             { Reason = Common.UnavailableReason.ReadFailed, Detail = "Clock status could not be read completely." } };
         private static Common.Failure Invalid(string detail) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail);
-        private static bool Fits(IMessage message) => new UTF8Encoding(false, true).GetByteCount(JsonFormatter.Default.Format(message)) <= ProtoBoundary.MaximumEnvelopeBytes;
         private static bool ValidAttempt([NotNullWhen(true)] Common.AttemptKey? attempt) => attempt != null && attempt.HasControllerSessionId
             && ProtoBoundary.IsIdentifier(attempt.ControllerSessionId) && attempt.HasActionId && ProtoBoundary.IsIdentifier(attempt.ActionId)
             && attempt.HasAttemptId && attempt.AttemptId > 0;

@@ -85,7 +85,7 @@ a depleted drill through Hands.
   A larger exact entity/geometry returns LIMIT_EXCEEDED, or is exposed through a
   dedicated stable page before it can be considered complete. No sampled geometry,
   stock count, candidate, or diagnostic target can claim completeness.
-- A whole serialized reply is at most 1 MiB. Overflow returns explicit unavailable,
+- A whole serialized reply has no size cap; a bounded collection that overflows returns explicit unavailable,
   never success containing silently removed fields. Text follows common bounds.
   Stock/count quantities are nonnegative; trade transfer/minimum/maximum counts
   are signed (negative sells). Ratios and all measurements are finite. Units are named

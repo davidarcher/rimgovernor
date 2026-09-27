@@ -90,7 +90,6 @@ namespace HomeBridge.BridgeTools
                     var count = (ulong)snapshot.Targets.Count;
                     snapshot.Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = count, Returned = count, Filtered = 0, Unreadable = 0 };
                     var reply = new Obs.ClearanceTargetsReply { Observed = snapshot };
-                    Require(Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) <= 1024 * 1024, "Clearance reply exceeds 1 MiB.");
                     return ProtoBoundary.Encode(reply);
                 }
                 catch (ReadLimit limit) { return Missing(Common.UnavailableReason.LimitExceeded, limit.Message); }

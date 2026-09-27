@@ -245,9 +245,6 @@ namespace HomeBridge.BridgeTools
                 {
                     var snapshot = NativeWorldProgressionObservation.Build(context, parsed.IncludeStorage);
                     var reply = new Obs.WorldProgressionReply { Observed = snapshot };
-                    if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > ProtoBoundary.MaximumEnvelopeBytes)
-                        return ProtoBoundary.Encode(new Obs.WorldProgressionReply { Unavailable =
-                            new Common.Unavailable { Reason = Common.UnavailableReason.LimitExceeded, Detail = "World progression census exceeds 1MiB." } });
                     return ProtoBoundary.Encode(reply);
                 }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.WorldProgressionReply { Unavailable =

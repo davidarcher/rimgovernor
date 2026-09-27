@@ -81,14 +81,9 @@ func run(ctx context.Context, s cases.Session) error {
 	// the map, per its documented default ("All detail families default
 	// requested" in the rimgovernor/observations_list_pawns tool description,
 	// integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnObservationTools.cs:20).
-	// Whether that reply exceeds the 1 MiB bounded-read envelope
-	// (ProtoBoundary.MaximumEnvelopeBytes,
-	// integrations/rimgovernor-native/src/Bridge/Protocol/ProtoBoundary.cs:16,
-	// enforced by NativePawnObservationTools.Encode at line 165) depends on this
-	// run's randomly generated population, so both an observed reply and a
-	// LIMIT_EXCEEDED refusal are valid outcomes here; only reject an unavailable
-	// reply for any other reason, which would not be the documented
-	// refusal-over-silent-truncation behavior (contracts/native-operation-variants.md).
+	// The reply carries no envelope size cap any more; a LIMIT_EXCEEDED
+	// refusal from a per-collection bound is still tolerated here, and any
+	// other unavailable reply is rejected (contracts/native-operation-variants.md).
 	defaultReply, err := h.Wire(ctx, "default-pawns", "observations_list_pawns", scope)
 	if err != nil {
 		return err
@@ -170,9 +165,8 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	// As with default-pawns above, omitting details requests every detail family
 	// for every matched pawn; a fresh map's animal population can carry enough
-	// hediff/needs/social data to exceed the 1 MiB envelope on its own. Only
-	// pawn.snapshot and draftClaim are checked below, neither of which depends on
-	// Details, so keep this bounded the same way.
+	// hediff/needs/social data. Only pawn.snapshot and draftClaim are checked
+	// below, neither of which depends on Details, so keep this small the same way.
 	animals, _, err := read("animals", map[string]any{
 		"filter": map[string]any{"colonist": false, "animal": true},
 		"details": map[string]any{
@@ -217,8 +211,8 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 	}
 	// drafted:false,downed:false can match nearly the whole population; only the
-	// drafted/downed booleans are checked below, so keep this bounded like
-	// default-pawns above rather than risk the same 1 MiB overflow.
+	// drafted/downed booleans are checked below, so keep this small like
+	// default-pawns above.
 	knownFalse, _, err := read("known-false", map[string]any{
 		"filter": map[string]any{"drafted": false, "downed": false},
 		"details": map[string]any{
@@ -242,8 +236,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// and hands back a cursor (completeness.page.complete=false, populated
 	// nextCursor) the same way observations_read_research does; its Require(page.Count,256)
 	// call can never fire for a valid request (Validate already bounds page.limit to
-	// 1..256, so page.Count never exceeds it), and Encode()'s 1 MiB check does not
-	// apply to a single-row reply either. Assert the real truncation behavior
+	// 1..256, so page.Count never exceeds it). Assert the real truncation behavior
 	// instead of an untested unavailable-refusal assumption.
 	overflow, err := h.Wire(ctx, "whole-query-limit", "observations_list_pawns", nativeaccept.Merge(scope, map[string]any{"page": map[string]any{"limit": 1}}))
 	if err != nil {
@@ -320,9 +313,9 @@ func run(ctx context.Context, s cases.Session) error {
 	if finalContext, _ := finalLoaded["context"].(map[string]any); !nativeaccept.DeepEqual(finalContext, loadedContext) {
 		return fmt.Errorf("identity/tick changed during a read-only pass")
 	}
-	// Repeat the exact same bounded request that produced baseline (nil would both
-	// risk the 1 MiB overflow again and compare an all-details reply against
-	// baseline's all-details-disabled shape, which can never match).
+	// Repeat the exact same request that produced baseline (nil would compare an
+	// all-details reply against baseline's all-details-disabled shape, which can
+	// never match).
 	repeat, _, err := read("repeat-default", map[string]any{
 		"details": map[string]any{
 			"needs": false, "health": false, "equipment": false, "biography": false,

@@ -37,8 +37,7 @@ definition relevant to that candidate without truncation (at most256 rows).
 Within a known definition row, absent available means its count is unknown and
 present zero means known empty. An unavailable enumeration never masquerades as
 known empty stock. An unavailable materials scan cannot authorize a write based
-on assumed resources. Reply size is at most1MiB; reject oversized read results
-explicitly. Placement operations use the normal game's resource rules regardless
+on assumed resources. Placement operations use the normal game's resource rules regardless
 of a preceding preview.
 
 Available material is net stock: eligible spawned stacks minus forbidden stock

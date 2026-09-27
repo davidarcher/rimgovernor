@@ -45,9 +45,6 @@ internal static class NativeProtoBoundaryProbe {
         Case("escaped lone low surrogate", "{\"colonyId\":\"\\udc00\"}", false);
         Case("escaped reversed pair", "{\"colonyId\":\"\\udc00\\ud800\"}", false);
         Case("valid pair", "{\"colonyId\":\"\\ud83d\\ude00\"}", true);
-        Case("byte cap inclusive", "{}"+new string(' ',ProtoBoundary.MaximumEnvelopeBytes-2), true);
-        Case("UTF8 byte cap differs from chars", "{\"colonyId\":\""+new string('\u00e9',ProtoBoundary.MaximumEnvelopeBytes/2)+"\"}", false);
-        Case("byte cap refusal", "{}"+new string(' ',ProtoBoundary.MaximumEnvelopeBytes-1), false);
         Common.Identity parsed; Common.Failure refusal;
         BridgeCommon.Arguments=null;
         Check(!Parse("{}",out parsed,out refusal) && refusal.Code==Common.FailureCode.Unavailable,"missing journal");
@@ -79,11 +76,6 @@ internal static class NativeProtoBoundaryProbe {
         BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]="json"};
         Check(!ProtoBoundary.BinaryOf(null),"other encoding stays ProtoJSON");
         BridgeCommon.Arguments=null;
-        var overflowRefused=false;
-        // ProtoJSON: the binary form Parse above left on gzips the repeated bytes under the cap.
-        try { ProtoBoundary.WithBinary(false, () => ProtoBoundary.Encode(new Common.Identity { ColonyId=new string('a',ProtoBoundary.MaximumEnvelopeBytes) })); }
-        catch(InvalidOperationException) { overflowRefused=true; }
-        Check(overflowRefused,"oversize outgoing payload fails before return");
         Common.ObservationContext context; Common.Unavailable unavailable;
         Check(!ProtoBoundary.TryReadContext(null,out context,out unavailable) && unavailable.Reason==Common.UnavailableReason.NotLoaded,"unloaded read does not create authority");
         var game = new Verse.Game { Identity = new ColonyIdentity { ColonyId="colony",LoadToken="load" } };
@@ -151,10 +143,6 @@ internal static class NativeProtoBoundaryProbe {
             "compact complete grid preserves strings, false presence, floating values and all cells");
         Check(Encoding.UTF8.GetByteCount(compact) < Encoding.UTF8.GetByteCount(ProtoBoundary.Format(cells)),
             "compact grid reduces envelope bytes");
-        bool refused = false;
-        try { ProtoBoundary.Encode(new Common.Identity { ColonyId = new string('x', ProtoBoundary.MaximumEnvelopeBytes) }, compact: true); }
-        catch (InvalidOperationException) { refused = true; }
-        Check(refused, "compact reply retains byte limit");
         var capture = Environment.GetEnvironmentVariable("RIMGOVERNOR_NATIVE_COLONY_CAPTURE");
         if (!string.IsNullOrEmpty(capture)) {
             var original = RimGovernor.Protocol.Observations.ColonyFactsReply.Parser.ParseJson(System.IO.File.ReadAllText(capture));

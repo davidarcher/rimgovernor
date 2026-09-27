@@ -225,9 +225,6 @@ namespace HomeBridge.BridgeTools
                     if (!NativeTradeObservation.Sheet(context, parsed.HasSessionId ? parsed.SessionId : null, out var sheet, out failure))
                         return ProtoBoundary.Encode(new Obs.TradeSheetReply { Failure = failure });
                     var reply = new Obs.TradeSheetReply { Observed = sheet };
-                    if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > ProtoBoundary.MaximumEnvelopeBytes)
-                        return ProtoBoundary.Encode(new Obs.TradeSheetReply { Unavailable =
-                            new Common.Unavailable { Reason = Common.UnavailableReason.LimitExceeded, Detail = "Trade sheet exceeds 1MiB." } });
                     return ProtoBoundary.Encode(reply);
                 }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.TradeSheetReply { Unavailable =

@@ -211,7 +211,6 @@ namespace HomeBridge.BridgeTools
         private static Obs.Completeness Complete(int count) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
         private static object Encode(IMessage reply)
         {
-            Require(Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) <= 1024 * 1024, "Complete reply exceeds 1 MiB.");
             return ProtoBoundary.Encode(reply);
         }
         private static void Require(bool condition, string message) { if (!condition) throw new ReadLimit(message); }

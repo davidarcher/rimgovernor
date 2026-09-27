@@ -161,8 +161,7 @@ scroll, camera, age and duration value must be finite.
   that section, while a requested failed read has an unavailable arm. A transient
   message can expire in real time while game ticks remain paused.
 - Facade ceilings: 256 windows/surfaces/tabs, 4096 elements/targets/gizmos/
-  selected IDs per capture and 1 MiB per control/observation reply, measured on the
-  encoded wire message. A capped read reports incomplete counts; it cannot authorize input. If full exact selection
+  selected IDs per capture. A capped read reports incomplete counts; it cannot authorize input. If full exact selection
   identity cannot fit, refuse a control capture rather than sample executable
   ownership. Snapshot reads do not promise stable pagination absent native support.
 

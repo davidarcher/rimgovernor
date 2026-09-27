@@ -47,13 +47,12 @@ func TestObservationAccountAggregated(t *testing.T) {
 		}
 		if i == 10 {
 			account["outcome"] = "failure"
-			account["droppedSections"] = 2.0
 		}
 		rows = append(rows, response("rimgovernor/observations_read_bundle", observed(nativeTimed(float64(i)/10, float64(i)+1), account)))
 	}
 	summary := SummarizePhases(rows)
 	obs := summary.Observation
-	if obs.Hops != 10 || obs.FormatPasses != 30 || obs.PayloadBytes != 10240 || obs.Dropped != 2 {
+	if obs.Hops != 10 || obs.FormatPasses != 30 || obs.PayloadBytes != 10240 {
 		t.Fatalf("totals: %+v", obs)
 	}
 	if obs.CaptureMs != 55 || obs.FormatMs != 5 {

@@ -206,7 +206,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// truncates and hands back a cursor (completeness.page.complete=false,
 	// populated nextCursor) the same way it does for observations_list_pawns/rooms
 	// truncation elsewhere; only a single row's own child collections (Bound(),
-	// line 236) or the whole-reply size (1 MiB, line 232) trigger LIMIT_EXCEEDED.
+	// line 236) trigger LIMIT_EXCEEDED.
 	// An earlier version expected an unavailable refusal that this case
 	// has never actually produced for a small page limit; fixed forward to assert
 	// the real truncation behavior instead of preserving the untested assumption.

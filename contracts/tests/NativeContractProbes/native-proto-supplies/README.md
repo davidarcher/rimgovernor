@@ -34,6 +34,6 @@ only the explicitly requested spawned scope. No entity CAS snapshots are issued.
 
 Definitions/page, items/holders/corpses per definition are bounded to256. Traversal
 is bounded to65536 thing/holder visits and depth16; overflow/refused reads return
-unavailable rather than partial totals. Whole replies are limited to1MiB. No frozen
+unavailable rather than partial totals. No frozen
 cursor support is claimed. Native acceptance must verify loose/forbidden/fogged,
 player/trader-held, corpse and nested-container facts with unchanged ticks.

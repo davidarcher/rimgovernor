@@ -138,7 +138,7 @@ func (h *Harness) Wire(ctx context.Context, label, method string, request any) (
 }
 
 // WireBytes is Wire returning the reply payload's ProtoJSON byte count
-// beside the decoded message (the size the native 1 MiB envelope bounds).
+// beside the decoded message.
 func (h *Harness) WireBytes(ctx context.Context, label, method string, request any) (map[string]any, int, error) {
 	encoded, err := json.Marshal(request)
 	if err != nil {

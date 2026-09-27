@@ -890,9 +890,6 @@ func writeObservationReport(w io.Writer, summary PhaseSummary) {
 		}
 		if obs.Hops > 0 {
 			fmt.Fprintf(w, "  %d formatting passes, %.1f MiB returned", obs.FormatPasses, float64(obs.PayloadBytes)/(1024*1024))
-			if obs.Dropped > 0 {
-				fmt.Fprintf(w, ", %d sections dropped for the envelope bound", obs.Dropped)
-			}
 			if len(obs.Outcomes) > 0 {
 				outcomes := make([]string, 0, len(obs.Outcomes))
 				for outcome := range obs.Outcomes {

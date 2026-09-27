@@ -630,10 +630,7 @@ Lost Tribe, eight colonists, `-seed rimgovernor-tribal-eight-e -biome TemperateF
 -planet-coverage 0.3 -world-temperature LittleBitColder -difficulty
 Medium`, quiet); `Prepare`/`PrepareRendered` stage it into
 `<root>/profile/Saves` and replace an older copy there, so no root needs a
-peer's save. A committed save's planning colony facts must read under 768 KiB
-(`na.CheckCommittedSaveHeadroom`): the routine review fails every step once
-that read crosses the 1 MiB envelope, and a case that starts from the save
-adds buildings and loot to it (#320).
+peer's save.
 
 Fixture games are also quiet by default: `test/configure_start` applies
 `test/quiet_storyteller` once the colony exists (pass `quiet=false` to keep

@@ -26,7 +26,7 @@ and visible-gizmo count are absent; this read never creates a capture/CAS token.
 Colonists preserve the SDK `SelectionCapabilityModule.ListColonists` default
 currentMapOnly=false and use FreeColonistsSpawned across loaded maps. World caravan
 and unspawned pawns are outside that roster. The bounded roster refuses above256.
-Whole replies refuse above1MiB rather than sampling.
+
 
 Compilation and protocol tests do not establish gameplay outcomes.
 

@@ -258,8 +258,6 @@ namespace HomeBridge.BridgeTools
         }
         internal static object Encode(Obs.ResearchReply reply)
         {
-            if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > 1024 * 1024)
-                return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, "Research reply exceeds 1 MiB.") });
             return ProtoBoundary.Encode(reply);
         }
         private static void Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid research quantity."); }

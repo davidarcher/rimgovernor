@@ -10,7 +10,6 @@ namespace HomeBridge.BridgeTools
 {
     internal static class PlacementProtocol
     {
-        internal const int MaximumReplyBytes = 1024 * 1024;
 
         internal static bool Validate(Wire.PlacementRequest request, out Failure failure)
         {
@@ -108,15 +107,6 @@ namespace HomeBridge.BridgeTools
                 known.Rows.Add(stock);
             }
             return new Wire.PlacementMaterials { Known = known };
-        }
-
-        internal static Wire.PlacementReply Bounded(Wire.PlacementReply reply)
-        {
-            if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) <= MaximumReplyBytes) return reply;
-            return new Wire.PlacementReply { Failure = new Failure {
-                Code = FailureCode.CapacityExhausted, Detail = "Placement reply exceeds 1 MiB.",
-                ObservedContext = reply.Batch?.Context
-            } };
         }
 
         private static Wire.CandidateReply Fail(FailureCode code, string detail, ObservationContext context) =>

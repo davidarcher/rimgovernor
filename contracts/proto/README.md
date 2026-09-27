@@ -130,6 +130,6 @@ player-override and uncertain-write checks, and observed outcomes for each famil
 
 Shared [boundary validation](validation.md) and each family coverage document
 define required presence and semantic constraints beyond official parsing.
-Control/observation replies are bounded to1MiB. Dedicated media replies permit
+Control/observation replies carry no envelope size cap. Dedicated media replies permit
 up to32MiB of image bytes within a48MiB ProtoJSON envelope, as specified by the
 presentation contract; this exception never applies to arbitrary data payloads.

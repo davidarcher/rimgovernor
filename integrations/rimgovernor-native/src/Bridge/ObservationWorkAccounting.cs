@@ -42,7 +42,6 @@ namespace HomeBridge.BridgeTools
             internal long CaptureTicks, FormatTicks;
             internal int FormatPasses;
             internal long PayloadBytes = -1;
-            internal int DroppedSections;
             internal string? Outcome;
             internal readonly List<Section> Sections = new List<Section>();
             internal ulong Frame;
@@ -158,13 +157,6 @@ namespace HomeBridge.BridgeTools
             if (hop != null) hop.PayloadBytes = Math.Max(0, bytes);
         }
 
-        /// Sections the reply envelope bound forced the hop to drop.
-        internal static void DroppedSections(int sections)
-        {
-            var hop = _current;
-            if (hop != null) hop.DroppedSections += Math.Max(0, sections);
-        }
-
         /// How the hop ended: "ok", "failure", "unavailable" or "error".
         internal static void Outcome(string outcome)
         {
@@ -186,7 +178,6 @@ namespace HomeBridge.BridgeTools
                 ["frame"] = hop.Frame,
             };
             if (hop.PayloadBytes >= 0) report["payloadBytes"] = hop.PayloadBytes;
-            if (hop.DroppedSections > 0) report["droppedSections"] = hop.DroppedSections;
             if (hop.Outcome != null) report["outcome"] = hop.Outcome;
             if (hop.Detached)
                 report["encode"] = new Dictionary<string, object?>(StringComparer.Ordinal)

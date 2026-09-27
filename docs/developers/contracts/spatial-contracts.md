@@ -447,8 +447,8 @@ probe runs under `task probes:test` with a hand-built multi-cell rectangle.
 
 The scan walks the Home cells rather than the map's building list, so the
 natural rock of a hilly map never counts against it; only non-player buildings
-standing in Home are bounded (8192). The complete census is bounded to 256 rows
-and 1 MiB; overflow or an unreadable scan is unavailable, never sampled. The Go observation treats an explicit
+standing in Home are bounded (8192). The complete census is bounded to 256 rows;
+overflow or an unreadable scan is unavailable, never sampled. The Go observation treats an explicit
 unavailable native stub as an unknown fact, distinct from a complete empty
 census. Required safety booleans cannot be omitted. The observation context
 must match the expected load, map, generation and fresh tick. The read admits
@@ -475,7 +475,7 @@ block. This structural check reveals no occupants and never unfogs the room.
 The occupant of a filled casket is unknown until it opens; a casket under
 20% hit points explodes, so hit points are a safety reading. The census is
 bounded to 64 shrines, 32 caskets, 256 guards and 64 breach walls per
-shrine and 1 MiB; overflow or an unreadable scan is unavailable, never
+shrine; overflow or an unreadable scan is unavailable, never
 sampled, and the Go observation treats the unavailable stub as unknown.
 Nothing in this read admits a breach, a casket order or a claim: readiness
 (#457), the breach goal (#458) and casket handling (#459) decide.

@@ -177,7 +177,6 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure ReadFailure(Exception error) => error is ReadLimit || error is NativePawnObservationTools.ReadLimit ? ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, error.Message) : Unavailable("Native presentation facts could not be read completely.");
         internal static object Encode(IMessage reply)
         {
-            Require(Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) <= 1024 * 1024, "Presentation reply exceeds 1 MiB.");
             return ProtoBoundary.Encode(reply);
         }
         private static void Require(bool value, string detail) { if (!value) throw new ReadLimit(detail); }

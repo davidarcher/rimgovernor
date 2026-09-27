@@ -109,9 +109,6 @@ namespace HomeBridge.BridgeTools
                     }
                     snapshot.Completeness = NativeWorldObservation.Complete(snapshot.Settlements.Count);
                     var reply = new Obs.WorldReply { Observed = snapshot };
-                    if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > ProtoBoundary.MaximumEnvelopeBytes)
-                        return ProtoBoundary.Encode(new Obs.WorldReply { Unavailable =
-                            new Common.Unavailable { Reason = Common.UnavailableReason.LimitExceeded, Detail = "World settlement census exceeds 1MiB." } });
                     return ProtoBoundary.Encode(reply);
                 }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.WorldReply { Unavailable =

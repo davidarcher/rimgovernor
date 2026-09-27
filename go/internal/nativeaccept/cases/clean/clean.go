@@ -99,7 +99,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return err
 	}
 	// The service's own routine read is the typed colony facts with planning
-	// definitions; record its section sizes so a native 1MiB refusal on an
+	// definitions; record its section sizes so an oversized read on an
 	// unlucky map is diagnosable from the report.
 	if reply, err := h.Wire(ctx, "colony-facts-typed", "observations_read_colony_facts", map[string]any{
 		"scope": map[string]any{"expectedIdentity": identity}, "planning": true, "page": map[string]any{"limit": 256},

@@ -8,12 +8,12 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Check the complete wire reply before committing an immutable ledger outcome.
+    // Check the complete wire reply encodes before committing an immutable ledger outcome.
     internal static class NativeOperationEnvelope
     {
         internal static bool Fits(IMessage reply)
         {
-            try { return new UTF8Encoding(false, true).GetByteCount(JsonFormatter.Default.Format(reply)) <= ProtoBoundary.MaximumEnvelopeBytes; }
+            try { return new UTF8Encoding(false, true).GetByteCount(JsonFormatter.Default.Format(reply)) >= 0; }
             catch (ArgumentException) { return false; }
             catch (InvalidOperationException) { return false; }
         }
@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
             var candidate = Header(attempt, context);
             candidate.Applied = new Receipts.Applied { Observed = evidence };
             if (Fits(new Operations.ExecuteReply { Receipt = candidate })) return ledger.FinishApplied(handle, evidence);
-            return ledger.FinishUncertain(handle, null, "Observed construction evidence exceeds the reply envelope or cannot be encoded; inspect progress before any retry.");
+            return ledger.FinishUncertain(handle, null, "Observed construction evidence cannot be encoded; inspect progress before any retry.");
         }
 
         internal static Receipts.Receipt Uncertain(NativeAttemptLedger ledger, NativeAttemptLedger.Admission handle,
@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
             candidate.Uncertain = new Receipts.Uncertain { LastObserved = evidence, Detail = detail };
             return Fits(new Operations.ExecuteReply { Receipt = candidate })
                 ? ledger.FinishUncertain(handle, evidence, detail)
-                : ledger.FinishUncertain(handle, null, "Admitted construction evidence cannot fit the reply envelope; inspect progress before any retry.");
+                : ledger.FinishUncertain(handle, null, "Admitted construction evidence cannot be encoded; inspect progress before any retry.");
         }
 
         internal static Operations.PreviewReply Preview(Operations.PreviewReply reply) => Fits(reply) ? reply
@@ -47,6 +47,6 @@ namespace HomeBridge.BridgeTools
             new Receipts.Receipt { Attempt = attempt, AdmittedContext = context };
 
         private static Common.Failure Capacity(Common.ObservationContext? context) => new Common.Failure
-            { Code = Common.FailureCode.CapacityExhausted, Detail = "Complete native reply cannot fit the one MiB envelope.", ObservedContext = context };
+            { Code = Common.FailureCode.CapacityExhausted, Detail = "Complete native reply cannot be encoded.", ObservedContext = context };
     }
 }

@@ -21,7 +21,7 @@ func mapSurveyFields() *o.CellFields {
 
 // mapSurveyBand is the most cells one survey band asks for: ProtoJSON
 // carries rows as base64 and fertility as decimal text, so a full
-// planningWindowPage band of fertile ground nears the 1 MiB envelope.
+// planningWindowPage band of fertile ground is large.
 const mapSurveyBand = 16384
 
 // thickRoof is the native overhead-mountain roof.

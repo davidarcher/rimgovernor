@@ -9,8 +9,7 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -p:HarmonyAssem
 ```
 
 The executable compiles the production envelope, attempt ledger and construction
-hook verifier with official generated protobuf messages. It checks exact transport
-limits, UTF-8 and JSON escaping, encodable immutable uncertain receipts and replay,
-bounded progress, and live removal/replacement of actual Harmony patches. Only
-the boundary limit constant is substituted; game and SDK assemblies are not needed.
+hook verifier with official generated protobuf messages. It checks applied and
+uncertain receipts, progress pass-through, and live removal/replacement of actual
+Harmony patches. Game and SDK assemblies are not needed.
 These are protocol and patch metadata checks, not gameplay acceptance.

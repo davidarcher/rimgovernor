@@ -108,8 +108,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // Keep the optional matrix small independently of the whole-colony
-        // 1 MiB envelope. No truncated matrix may masquerade as complete.
+        // Keep the optional matrix small. No truncated matrix may masquerade as complete.
         // Captured unbounded; BoundJoy applies the size bound on the encoder.
         private static Obs.RecreationCensus? ReadJoy(System.Collections.Generic.List<Pawn> people,
             System.Collections.Generic.List<Building> play)

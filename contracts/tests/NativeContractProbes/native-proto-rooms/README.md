@@ -24,7 +24,7 @@ roof areas. Stats cover native Cleanliness, Wealth, Space, Beauty and Impressive
 Missing temperature/stat facts stay explicitly unavailable. Geometry,
 counts, room membership and contents failures refuse the census. Exact cell lists
 are optional and limited to4096 cells per room. Room/pawn/thing scans are bounded,
-results and child collections to256, replies to1MiB. No frozen cursor is issued.
+results and child collections to256. No frozen cursor is issued.
 
 The census refreshes native dirty regions first. Native room entries with no regions
 are filtered only when both their cell count and cell enumeration prove they are

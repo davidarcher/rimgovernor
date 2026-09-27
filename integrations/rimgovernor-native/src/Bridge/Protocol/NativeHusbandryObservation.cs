@@ -120,7 +120,6 @@ namespace HomeBridge.BridgeTools
         private static Obs.Completeness Complete(int count) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
         private static object Encode(Obs.HusbandryReply reply)
         {
-            if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > ProtoBoundary.MaximumEnvelopeBytes) throw new ReadLimit("Husbandry reply exceeds one MiB.");
             return ProtoBoundary.Encode(reply);
         }
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }

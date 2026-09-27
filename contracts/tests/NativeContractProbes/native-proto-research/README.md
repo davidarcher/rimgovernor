@@ -23,7 +23,7 @@ an uninitialized active category list means no selected projects, without saving
 new list. The ordinary slot omits category; an empty slot has no current project.
 
 Complete results require at most256 matching projects and256 entries in each child
-collection, with a1MiB reply bound. Oversized reads refuse; no frozen cursor or CAS
+collection. Oversized reads refuse; no frozen cursor or CAS
 snapshot is issued. Native acceptance must compare saved progress/knowledge/slots,
 current project, tick and pause state before/after repeated reads, then compare
 prerequisite, bench, facility and researcher facts against actual game state.

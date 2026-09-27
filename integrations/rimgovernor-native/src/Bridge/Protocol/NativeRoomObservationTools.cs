@@ -220,8 +220,6 @@ namespace HomeBridge.BridgeTools
         internal static double Finite(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native room fact.") : value;
         internal static object Encode(Obs.ListRoomsReply reply)
         {
-            if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > 1024 * 1024)
-                return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, "Room reply exceeds1MiB.") });
             return ProtoBoundary.Encode(reply);
         }
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ && cell.X >= 0 && cell.Z >= 0;

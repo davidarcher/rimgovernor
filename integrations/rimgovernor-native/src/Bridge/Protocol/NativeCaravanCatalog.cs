@@ -256,9 +256,6 @@ namespace HomeBridge.BridgeTools
                     catalog.Routes.Add(route);
                     if (settlement != null) catalog.Settlements.Add(NativeCaravanCatalog.SettlementRow(settlement));
                     var reply = new Obs.CaravanCatalogReply { Observed = catalog };
-                    if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > ProtoBoundary.MaximumEnvelopeBytes)
-                        return ProtoBoundary.Encode(new Obs.CaravanCatalogReply { Unavailable =
-                            new Common.Unavailable { Reason = Common.UnavailableReason.LimitExceeded, Detail = "Caravan catalog exceeds 1MiB." } });
                     return ProtoBoundary.Encode(reply);
                 }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.CaravanCatalogReply { Unavailable =

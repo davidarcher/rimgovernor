@@ -214,7 +214,6 @@ namespace HomeBridge.BridgeTools
         private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
         internal static object Encode(Obs.ListZonesReply reply)
         {
-            Require(Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) <= 1024 * 1024, "Complete zone reply exceeds 1 MiB.");
             return ProtoBoundary.Encode(reply);
         }
         private static void Require(bool value, string detail) { if (!value) throw new ReadLimit(detail); }

@@ -409,8 +409,6 @@ namespace HomeBridge.BridgeTools
                 number => throw new InvalidOperationException("Ownerless clock events carry no pawn evidence"));
             if (!ValidStoredEvent(result)) throw new InvalidOperationException("Ownerless clock event is incomplete");
             var encoded = JsonFormatter.Default.Format(result);
-            if (new System.Text.UTF8Encoding(false, true).GetByteCount(encoded) > ProtoBoundary.MaximumEnvelopeBytes)
-                throw new InvalidOperationException("Canonical clock event exceeds the bounded envelope");
             row["canonicalClockEvent"] = encoded;
             return true;
         }
@@ -462,8 +460,6 @@ namespace HomeBridge.BridgeTools
                 }
             }
             var encoded = JsonFormatter.Default.Format(result);
-            if (new System.Text.UTF8Encoding(false, true).GetByteCount(encoded) > ProtoBoundary.MaximumEnvelopeBytes)
-                throw new InvalidOperationException("Canonical clock event exceeds the bounded envelope");
             row["canonicalClockEvent"] = encoded;
         }
         private static bool ValidStoredEvent(Clock.Event value)

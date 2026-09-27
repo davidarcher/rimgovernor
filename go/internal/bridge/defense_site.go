@@ -11,7 +11,7 @@ import (
 )
 
 // Native bounds of the two defense-layout reads: one site census answers at
-// most this many cells (the 1 MiB reply ceiling), and one lines-of-fire read
+// most this many cells, and one lines-of-fire read
 // takes at most this many cells on each side.
 const (
 	maxDefenseSiteCells  = 2048

@@ -3302,7 +3302,7 @@ namespace RimGovernor.Protocol.Observations {
   /// <summary>
   /// All requests are read-only; previews/admission and UI/media have other owners.
   /// Validators require context, selected outcome, finite numbers and exact IDs.
-  /// Default/max page size 256; cell geometry max 4096; whole reply max 1 MiB.
+  /// Default/max page size 256; cell geometry max 4096; no whole-reply size cap.
   /// Never silently sample: paginate a stable snapshot or return unavailable.
   /// Native definition/enum names remain open strings, resolved by the game.
   /// Reconciliation survives tick advancement and authority revocation.
@@ -64332,8 +64332,8 @@ namespace RimGovernor.Protocol.Observations {
   /// layout planning. cover_fill is the native edifice/cover fillPercent the
   /// shooting model uses (0 when open); edge_reachable is native ground
   /// reachability from the cell to any map edge without opening doors, the
-  /// ordinary walk-in raid approach. At most 2048 cells per read (the 1 MiB
-  /// reply bound); callers tile larger regions. No paging.
+  /// ordinary walk-in raid approach. At most 2048 cells per read;
+  /// callers tile larger regions. No paging.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class DefenseCell : pb::IMessage<DefenseCell>

@@ -166,7 +166,6 @@ namespace HomeBridge.BridgeTools
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static object Encode(Obs.ResourceSourcesReply reply)
         {
-            Require(Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) <= 1024 * 1024, "Complete resource sources reply exceeds 1 MiB.");
             return ProtoBoundary.Encode(reply);
         }
         private static void Require(bool value, string detail) { if (!value) throw new ReadLimit(detail); }

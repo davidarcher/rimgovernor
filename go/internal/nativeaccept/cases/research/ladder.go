@@ -8,7 +8,7 @@
 // colonist, as the basic comfort case does) because the bench rung waits
 // behind the initial shelter and raising the shell from the baseline takes
 // the whole window; the facility startup checkpoint would serve the same
-// but its colony facts sit at the 1 MiB read limit (#320). The fixture
+// but its colony facts are large (#320). The fixture
 // seeds only Stonecutting a few points short of done so Electricity is
 // reached within a minute-scale watch.
 //

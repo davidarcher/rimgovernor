@@ -110,7 +110,6 @@ type ObservationSample struct {
 	Hops         uint64  `json:"hops"`
 	FormatPasses uint64  `json:"format_passes"`
 	PayloadBytes uint64  `json:"payload_bytes"`
-	Dropped      uint64  `json:"dropped_sections"`
 	CaptureMs    float64 `json:"capture_ms"`
 	FormatMs     float64 `json:"format_ms"`
 	// Capture, Format, Queue and Execute are the per-hop distributions over
@@ -226,7 +225,6 @@ type observationRecord struct {
 	hasCapture          bool
 	formatPasses        uint64
 	payloadBytes        uint64
-	dropped             uint64
 	outcome             string
 	sections            []SectionPhases
 	// The encode block, when the reply was detached.
@@ -253,7 +251,6 @@ func readObservation(timing map[string]any) (observationRecord, bool) {
 	out.captureMs, out.hasCapture, out.formatMs = capture, hasCapture, format
 	out.formatPasses = countOf(raw["formatPasses"])
 	out.payloadBytes = countOf(raw["payloadBytes"])
-	out.dropped = countOf(raw["droppedSections"])
 	out.outcome, _ = raw["outcome"].(string)
 	if encode, ok := raw["encode"].(map[string]any); ok {
 		queue, hasQueue := number(encode["queueMs"])
@@ -394,7 +391,6 @@ func (a *observationAccumulator) hop(record observationRecord) {
 	a.sample.FormatMs += record.formatMs
 	a.sample.FormatPasses += record.formatPasses
 	a.sample.PayloadBytes += record.payloadBytes
-	a.sample.Dropped += record.dropped
 	if record.hasCapture {
 		a.capture = append(a.capture, record.captureMs)
 	}

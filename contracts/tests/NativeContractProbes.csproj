@@ -150,9 +150,8 @@
        assembly / RimBridgeServer SDK supplied by the caller). Gating their Compile/Reference
        items keeps the default (no external inputs) build green for the other 20 probes. ==== -->
 
-  <!-- native-authority-hooks + native-operation-envelope: real Harmony reference; their own fake
-       Verse/RimWorld stubs (authority-hooks) or inline ProtoBoundary override (operation-envelope)
-       would otherwise conflict with the unified stub / real ProtoBoundary above - moot while gated. -->
+  <!-- native-authority-hooks + native-operation-envelope: real Harmony reference; authority-hooks'
+       own fake Verse/RimWorld stubs would otherwise conflict with the unified stub - moot while gated. -->
   <ItemGroup Condition="'$(HarmonyAssembly)' != ''">
     <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
     <Compile Include="$(NativeSourceRoot)/Runtime/Control/NativeAuthorityHooks.cs" Link="Production/NativeAuthorityHooks.cs" />

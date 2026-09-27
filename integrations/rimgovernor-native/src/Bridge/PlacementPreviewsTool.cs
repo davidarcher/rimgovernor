@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
                         candidate.HasIgnoreNaturalRock && candidate.IgnoreNaturalRock);
                     batch.Results.Add(PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context));
                 }
-                return PlacementProtocol.Bounded(new PlacementReply { Batch = batch });
+                return new PlacementReply { Batch = batch };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

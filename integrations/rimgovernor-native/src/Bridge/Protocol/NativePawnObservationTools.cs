@@ -49,8 +49,6 @@ namespace HomeBridge.BridgeTools
         private static Dictionary<string, object?> EncodePawns(Obs.ListPawnsReply reply, Obs.ListPawnsRequest parsed)
         {
             if (reply.Observed == null) return ProtoBoundary.Encode(reply);
-            if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > ProtoBoundary.MaximumEnvelopeBytes)
-                return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Pawn reply exceeds one MiB.") });
             return ProtoBoundary.Encode(reply);
         }
 
@@ -209,7 +207,6 @@ namespace HomeBridge.BridgeTools
         internal static Obs.Completeness Complete(int count,int filtered=0)=>new Obs.Completeness {Page=new Common.PageInfo {Complete=true},Matched=(ulong)count,Returned=(ulong)count,Filtered=(ulong)filtered,Unreadable=0};
         internal static void Require(int count,int limit=256) { if(count>limit) throw new ReadLimit("Complete native pawn collection exceeds the requested bound; frozen paging is unavailable."); }
         internal static object Encode(Obs.ListPawnsReply reply) {
-            if(Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply))>ProtoBoundary.MaximumEnvelopeBytes) throw new ReadLimit("Pawn reply exceeds one MiB.");
             return ProtoBoundary.Encode(reply);
         }
         internal sealed class ReadLimit:Exception { internal ReadLimit(string message):base(message) {} }

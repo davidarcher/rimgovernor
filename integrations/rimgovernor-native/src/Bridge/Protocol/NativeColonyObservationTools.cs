@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         };
 
         [Tool(ToolName, Title = "Read typed routine colony facts", Description = "Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional bounded starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.")]
-        [ToolResponse("payload", "string", "Official ColonyFactsReply ProtoJSON, bounded to1MiB.", Always = true)]
+        [ToolResponse("payload", "string", "Official ColonyFactsReply ProtoJSON.", Always = true)]
         public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw ColonyFactsRequest ProtoJSON string.")] object? request = null)
         {
@@ -59,7 +59,6 @@ namespace HomeBridge.BridgeTools
             try
             {
                 Bound(reply.Observed);
-                if (Encoding.UTF8.GetByteCount(ProtoBoundary.Format(reply, compact: true)) > ProtoBoundary.MaximumEnvelopeBytes) throw new ReadLimit("Colony facts exceed1MiB; largest sections (wire bytes): " + LargestSections(reply.Observed) + ".");
                 return ProtoBoundary.Encode(reply, compact: true);
             }
             catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, e.Message) }); }
@@ -67,7 +66,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Encoder-side bounds of a captured snapshot (#683): the comfort joy
-        // matrix keeps its own 64 KiB bound apart from the 1 MiB envelope.
+        // matrix keeps its own 64 KiB bound.
         internal static void Bound(Obs.ColonyFactsSnapshot? snapshot) => ComfortFacts.BoundJoy(snapshot?.Upkeep?.Observed?.Comfort?.Observed);
 
         // The colony facts as a bundle section (issue #180): the same facts the
@@ -631,28 +630,6 @@ namespace HomeBridge.BridgeTools
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Common.Unavailable Unsupported(string detail) => Unavailable(Common.UnavailableReason.Unsupported, detail);
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
-        // Names the sections that dominate an oversized reply so a limit
-        // failure says what to bound instead of only that the bound broke.
-        internal static string LargestSections(IMessage message, string prefix = "", int depth = 0)
-        {
-            var sizes = new List<KeyValuePair<string, int>>();
-            foreach (var field in message.Descriptor.Fields.InDeclarationOrder()) {
-                var value = field.Accessor.GetValue(message);
-                var size = 0;
-                if (value is IMessage nested) size = nested.CalculateSize();
-                else if (value is System.Collections.IEnumerable items && !(value is string)) foreach (var item in items) size += item is IMessage m ? m.CalculateSize() : 8;
-                else continue;
-                if (size > 0) sizes.Add(new KeyValuePair<string, int>(prefix + field.Name, size));
-            }
-            var parts = new List<string>();
-            foreach (var pair in sizes.OrderByDescending(pair => pair.Value).Take(4)) {
-                parts.Add(pair.Key + "=" + pair.Value);
-                if (depth < 2 && message.Descriptor.FindFieldByName(pair.Key.Substring(prefix.Length))?.Accessor.GetValue(message) is IMessage nested && pair.Value > 65536)
-                    parts.Add(LargestSections(nested, pair.Key + ".", depth + 1));
-            }
-            return string.Join(" ", parts);
-        }
-
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }

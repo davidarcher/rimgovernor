@@ -19,7 +19,6 @@ namespace HomeBridge.BridgeTools
 {
     internal static class ProtoBoundary
     {
-        internal const int MaximumEnvelopeBytes = 1024 * 1024;
         private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
 
         internal static bool TryParse<T>(IRimBridgeContext ctx, string toolName, object? request,
@@ -50,11 +49,7 @@ namespace HomeBridge.BridgeTools
             }
             try
             {
-                if (Utf8.GetByteCount(json) > MaximumEnvelopeBytes)
-                {
-                    failure = Fail(Common.FailureCode.InvalidRequest, "request exceeds the one MiB control envelope limit.");
-                    return false;
-                }
+                Utf8.GetByteCount(json); // strict: invalid Unicode throws below
                 value = parser.ParseJson(json);
                 failure = null;
                 return true;
@@ -175,42 +170,14 @@ namespace HomeBridge.BridgeTools
         internal static Dictionary<string, object?> Encode(IMessage reply, bool compact = false)
         {
             var payload = Body(reply, compact, out var field);
-            if (Measure(payload) > MaximumEnvelopeBytes)
-                throw new InvalidOperationException("Reply exceeds the one MiB control envelope limit.");
+            Measure(payload);
             return Envelope(field, payload);
         }
 
         private static Dictionary<string, object?> Envelope(string field, string payload)
             => new Dictionary<string, object?>(StringComparer.Ordinal) { [field] = payload };
 
-        /// <summary>
-        /// A compact reply that may carry optional groups (#644): formatted
-        /// once, and that exact string's strict UTF-8 length is the envelope
-        /// check and the returned payload. While it is oversized, each drop in
-        /// order removes one group and returns how many sections it removed;
-        /// the reply is formatted again only after an actual removal. A reply
-        /// still oversized with nothing left to drop encodes oversized()
-        /// instead, the caller's typed capacity failure, and fits is false.
-        /// </summary>
-        internal static Dictionary<string, object?> EncodeBounded(IMessage reply, IReadOnlyList<Func<int>> drops, Func<IMessage> oversized, out bool fits)
-        {
-            var payload = Body(reply, true, out var field);
-            var bytes = Measure(payload);
-            foreach (var drop in drops)
-            {
-                if (bytes <= MaximumEnvelopeBytes) break;
-                var removed = drop();
-                if (removed <= 0) continue;
-                ObservationWork.DroppedSections(removed);
-                payload = Body(reply, true, out field);
-                bytes = Measure(payload);
-            }
-            fits = bytes <= MaximumEnvelopeBytes;
-            return fits ? Envelope(field, payload) : Encode(oversized());
-        }
-
-        // The payload's UTF-8 length, charged to the open hop as the size
-        // check it is and recorded as the bytes the hop returns (#642).
+        // The payload's UTF-8 length, recorded as the bytes the hop returns (#642).
         private static int Measure(string payload)
         {
             var began = Stopwatch.GetTimestamp();
@@ -220,10 +187,8 @@ namespace HomeBridge.BridgeTools
             return bytes;
         }
 
-        // MediaFrame replies (base64 PNG bytes) do not fit the one MiB control
-        // envelope; presentation.proto documents a dedicated 48 MiB media
-        // ProtoJSON envelope for these messages. Non-media replies must keep
-        // using Encode() above so their bound stays at one MiB.
+        // MediaFrame replies (base64 PNG bytes) keep a 48 MiB media envelope,
+        // under the controller's 50 MiB GABP frame cap.
         internal const int MaximumMediaEnvelopeBytes = 48 * 1024 * 1024;
 
         internal static Dictionary<string, object?> EncodeMedia(IMessage reply, bool compact = false)
