@@ -309,6 +309,95 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 		seed("rimgovernor/observations_get_cells", planningBandRequest(identity, band), &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: v.PlanningWindow}})
 	}
 	seed(combatFrameMethod, nil, combatFrame(v))
+	seed(routineFrameMethod, nil, &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
+		ColonistPawns: v.ColonistPawns, BuiltBuildings: v.BuiltBuildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression})
+}
+
+// routineFrameMethod keys a frame's routine census sections in its table,
+// frames-only like combatFrameMethod.
+const routineFrameMethod = "rimgovernor/snapshot_frame_routine"
+
+// RoutineFrame is the routine census of one frame (#884), each section
+// decoded: every row has the frame's tick, so no section is checked
+// against another. A nil section is one the frame does not carry.
+type RoutineFrame struct {
+	Context      *c.ObservationContext
+	Colony       *o.ColonyFactsSnapshot
+	Emergency    EmergencyObservation
+	Pawns        *o.PawnSnapshot
+	Population   *PrisonerCensus
+	Research     *ResearchRead
+	Traders      *TradersRead
+	Quests       *WorldProgressionRead
+	Construction *o.BuildingsSnapshot
+	Zones        *ZonesRead
+}
+
+// ReadRoutineFrame decodes the routine census of the newest frame past
+// this client's last write; without a stream it is ErrUnavailable.
+func (caller *Client) ReadRoutineFrame(ctx context.Context, identity *c.Identity) (RoutineFrame, error) {
+	if caller.frames == nil {
+		return RoutineFrame{}, fmt.Errorf("%w: the routine census is served only by the snapshot stream", ErrUnavailable)
+	}
+	if err := ValidateIdentity(identity); err != nil {
+		return RoutineFrame{}, err
+	}
+	reply := &o.BundleSnapshot{}
+	if _, err := caller.frameReadKey(ctx, routineFrameMethod, readCacheKey{method: routineFrameMethod}, identity, true, reply); err != nil {
+		return RoutineFrame{}, err
+	}
+	return DecodeRoutineFrame(reply)
+}
+
+// DecodeRoutineFrame validates and decodes a frame's routine sections.
+func DecodeRoutineFrame(v *o.BundleSnapshot) (RoutineFrame, error) {
+	if v == nil || ValidateContext(v.Context) != nil {
+		return RoutineFrame{}, contract("routine frame without a context")
+	}
+	identity := v.Context.Identity
+	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: v.BuiltBuildings}
+	var err error
+	if v.Emergency != nil {
+		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, identity); err != nil {
+			return RoutineFrame{}, err
+		}
+	}
+	if v.Population != nil {
+		population, err := decodePopulation(v.Population)
+		if err != nil {
+			return RoutineFrame{}, err
+		}
+		out.Population = &population
+	}
+	if v.Research != nil {
+		research, err := readResearchSnapshot(v.Research, identity)
+		if err != nil {
+			return RoutineFrame{}, err
+		}
+		out.Research = &research
+	}
+	if v.Traders != nil {
+		traders, err := decodeTraders(v.Traders, identity)
+		if err != nil {
+			return RoutineFrame{}, err
+		}
+		out.Traders = &traders
+	}
+	if v.WorldProgression != nil {
+		quests, err := worldProgressionSelected(v.WorldProgression, identity)
+		if err != nil {
+			return RoutineFrame{}, err
+		}
+		out.Quests = &quests
+	}
+	if v.Zones != nil {
+		zones, err := decodeZones(v.Zones, identity)
+		if err != nil {
+			return RoutineFrame{}, err
+		}
+		out.Zones = &zones
+	}
+	return out, nil
 }
 
 // BundleEmergency decodes a step snapshot's emergency section into the

@@ -24,6 +24,10 @@ func (n *idleDraftNative) ReadEmergency(ctx context.Context, id *c.Identity) (br
 	return reading, result, err
 }
 
+func (n *idleDraftNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}
+
 func TestIdleDraftObservationGuards(t *testing.T) {
 	t.Parallel()
 	for _, scenario := range []string{"idle", "owned", "unknown-claim", "undrafted", "downed", "mental", "forced", "queued", "unknown-job", "hostile", "unknown-threats", "held", "stale-generation", "stale-world", "bad-token"} {
@@ -84,7 +88,7 @@ func TestIdleDraftObservationGuards(t *testing.T) {
 			case "bad-token":
 				row.Pawn.Snapshot.Token = nil
 			}
-			got, err := r.idleDrafts(ctx, state, tick, emergency, plans)
+			got, err := r.idleDrafts(ctx, state, tick, emergency, native.pawnReply.GetObserved(), plans)
 			if (err != nil) != wantErr {
 				t.Fatalf("candidates=%v err=%v", got, err)
 			}

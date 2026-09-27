@@ -58,13 +58,6 @@ func FillZones(ctx context.Context, native ZonesNative, id *c.Identity, expected
 	return nil
 }
 
-func (s *routineBracket) ReadZoneSection(ctx context.Context, id *c.Identity) (bridge.ZonesRead, bridge.Result, error) {
-	if native, ok := s.RoutineSource.(ZonesNative); ok {
-		return native.ReadZoneSection(ctx, id)
-	}
-	return bridge.ZonesRead{}, bridge.Result{}, bridge.ErrUnavailable
-}
-
 func applyZones(p *ColonyProjection, read bridge.ZonesRead) {
 	farms := make([]*o.FarmFacts, 0)
 	storage := false

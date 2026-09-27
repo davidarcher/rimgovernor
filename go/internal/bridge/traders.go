@@ -79,53 +79,65 @@ func (client *Client) ListTraders(ctx context.Context, identity *c.Identity) (Tr
 	default:
 		return TradersRead{}, raw, contract("traders outcome missing")
 	}
-	if err = ValidateContext(snapshot.Context); err != nil {
-		return TradersRead{}, raw, err
+	out, err := decodeTraders(snapshot, identity)
+	if err == nil {
+		err = ctx.Err()
+	}
+	return out, raw, err
+}
+
+// decodeTraders validates and decodes a complete trader census.
+func decodeTraders(snapshot *o.TradersSnapshot, identity *c.Identity) (TradersRead, error) {
+	if snapshot == nil {
+		return TradersRead{}, contract("traders snapshot missing")
+	}
+	if err := ValidateContext(snapshot.Context); err != nil {
+		return TradersRead{}, err
 	}
 	if !sameIdentity(snapshot.Context.Identity, identity) {
-		return TradersRead{}, raw, contract("traders world mismatch")
+		return TradersRead{}, contract("traders world mismatch")
 	}
 	counts := snapshot.Completeness
 	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Returned == nil || counts.GetReturned() != uint64(len(snapshot.Traders)+len(snapshot.Negotiators)) {
-		return TradersRead{}, raw, contract("traders completeness missing")
+		return TradersRead{}, contract("traders completeness missing")
 	}
 	if counts.Filtered == nil || counts.GetFiltered() != 0 || counts.Unreadable == nil || counts.GetUnreadable() != 0 {
-		return TradersRead{}, raw, contract("traders census omitted rows")
+		return TradersRead{}, contract("traders census omitted rows")
 	}
 	if len(snapshot.Traders)+len(snapshot.Negotiators) > tradersMaximumRows {
-		return TradersRead{}, raw, contract("traders census exceeds bound")
+		return TradersRead{}, contract("traders census exceeds bound")
 	}
 	out := TradersRead{Context: snapshot.Context}
 	seen := map[string]bool{}
 	for _, row := range snapshot.Traders {
 		if row == nil || row.Trader == nil || validID(row.Trader.GetId()) != nil {
-			return TradersRead{}, raw, contract("invalid trader row")
+			return TradersRead{}, contract("invalid trader row")
 		}
 		if !diagnostic(row.Kind) || !diagnostic(row.FactionId) || !diagnostic(row.Reason) || row.CanTrade == nil || row.Travelling == nil {
-			return TradersRead{}, raw, contract("invalid trader row text")
+			return TradersRead{}, contract("invalid trader row text")
 		}
 		if row.GetOrbital() {
-			return TradersRead{}, raw, contract("orbital trader listed")
+			return TradersRead{}, contract("orbital trader listed")
 		}
 		cell := row.Trader.Position
 		if cell == nil || cell.X == nil || cell.Z == nil || cell.GetX() < 0 || cell.GetZ() < 0 {
-			return TradersRead{}, raw, contract("trader position missing")
+			return TradersRead{}, contract("trader position missing")
 		}
 		if seen[row.Trader.GetId()] {
-			return TradersRead{}, raw, contract("duplicate trader")
+			return TradersRead{}, contract("duplicate trader")
 		}
 		seen[row.Trader.GetId()] = true
 		out.Traders = append(out.Traders, TraderRead{ID: row.Trader.GetId(), Token: row.Trader.Snapshot.GetToken(), Kind: row.GetKind(), Faction: row.GetFactionId(), CanTrade: row.GetCanTrade(), Travelling: row.GetTravelling(), Reason: row.GetReason(), GoodsStacks: row.GetGoodsStacks(), X: cell.GetX(), Z: cell.GetZ()})
 	}
 	for _, row := range snapshot.Negotiators {
 		if row == nil || validID(row.GetId()) != nil {
-			return TradersRead{}, raw, contract("invalid negotiator row")
+			return TradersRead{}, contract("invalid negotiator row")
 		}
 		if seen[row.GetId()] {
-			return TradersRead{}, raw, contract("duplicate negotiator")
+			return TradersRead{}, contract("duplicate negotiator")
 		}
 		seen[row.GetId()] = true
 		out.Negotiators = append(out.Negotiators, NegotiatorRead{ID: row.GetId(), Token: row.Snapshot.GetToken()})
 	}
-	return out, raw, ctx.Err()
+	return out, nil
 }

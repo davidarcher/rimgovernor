@@ -215,3 +215,7 @@ func TestExhaustedDrillsRequireKnownDepletion(t *testing.T) {
 		t.Fatal(out)
 	}
 }
+
+func (n *drillNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

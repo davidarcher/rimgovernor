@@ -1,51 +1,13 @@
 package observation
 
 import (
-	"context"
 	"strings"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
-
-type ConstructionSource interface {
-	ReadConstructionBuildings(context.Context, *c.Identity, []string) (*o.ListBuildingsReply, bridge.Result, error)
-}
-
-func (s *routineBracket) readConstruction(ctx context.Context, id *c.Identity) error {
-	source, available := s.RoutineSource.(ConstructionSource)
-	if !available {
-		return nil
-	}
-	var ids []string
-	reply, _, err := source.ReadConstructionBuildings(ctx, id, ids)
-	if reply != nil && reply.GetUnavailable() != nil {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if reply == nil || reply.GetObserved() == nil {
-		return ErrContract
-	}
-	snapshot := reply.GetObserved()
-	if err := bridge.ValidateConstructionBuildings(snapshot, id, ids); err != nil {
-		return err
-	}
-	observed, err := contextIdentity(snapshot.Context)
-	if err != nil {
-		return err
-	}
-	observed.Paused = s.expected.Paused
-	if !sameColonyContext(observed, s.expected) {
-		return ErrChanged
-	}
-	s.construction, err = ConstructionBuildings(snapshot, ids)
-	return err
-}
 
 // ConstructionBuildings projects a validated player-only building read. Empty IDs
 // identifies a complete colony census, independent of controller action history.

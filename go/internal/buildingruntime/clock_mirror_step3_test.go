@@ -14,45 +14,30 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type pawnListNative struct {
-	tick  int64
-	pawns []*o.PawnState
-}
-
-func (n *pawnListNative) ReadRoutinePawns(_ context.Context, id *c.Identity, _ []string) (*o.ListPawnsReply, bridge.Result, error) {
-	at := &c.ObservationContext{Identity: id, Tick: proto.Int64(n.tick)}
-	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: at, Pawns: n.pawns}}}, bridge.Result{}, nil
-}
-
 func pawnRow(id, kind string) *o.PawnState {
 	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, KindDefName: proto.String(kind)}
 }
 
-// TestPawnSectionPublishesAndServesTable: the review's pawn detail read is
-// a mirror section keyed by pawn id; the reply is the published table in
-// the native's order, and a later read drops rows the roster dropped.
-func TestPawnSectionPublishesAndServesTable(t *testing.T) {
+// TestPawnSectionPublishesTable: the review frame's pawn detail is a
+// mirror section keyed by pawn id, and a later frame drops rows the roster
+// dropped.
+func TestPawnSectionPublishesTable(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	m := mirror.New()
 	scope := mirror.Scope{Load: "l", Map: 1, Generation: 2}
-	id := &c.Identity{ColonyId: proto.String("c"), LoadToken: proto.String("l"), MapId: proto.Int32(1)}
-	native := &pawnListNative{tick: 100, pawns: []*o.PawnState{pawnRow("Pawn_2", "a"), pawnRow("Pawn_1", "b")}}
-	reply, _, err := readPawns(ctx, m, scope, native, id, []string{"Pawn_1", "Pawn_2"})
-	if err != nil {
-		t.Fatal(err)
+	frame := func(tick int64, pawns ...*o.PawnState) *o.PawnSnapshot {
+		return &o.PawnSnapshot{Context: &c.ObservationContext{Tick: proto.Int64(tick)}, Pawns: pawns}
 	}
-	got := reply.GetObserved().GetPawns()
-	if len(got) != 2 || got[0].GetPawn().GetId() != "Pawn_2" || got[1].GetPawn().GetId() != "Pawn_1" || reply.GetObserved().GetContext().GetTick() != 100 {
-		t.Fatalf("reply = %v", reply)
+	if err := publishPawns(ctx, m, scope, frame(100, pawnRow("Pawn_2", "a"), pawnRow("Pawn_1", "b"))); err != nil {
+		t.Fatal(err)
 	}
 	table, ok := mirror.Get[string, *o.PawnState](m, scope, pawnSectionName)
 	if !ok || len(table.Rows) != 2 || table.AsOf != mirror.At(100) {
 		t.Fatalf("table = %+v ok=%v", table, ok)
 	}
-	native.tick, native.pawns = 130, []*o.PawnState{pawnRow("Pawn_1", "c")}
-	if reply, _, err = readPawns(ctx, m, scope, native, id, []string{"Pawn_1"}); err != nil || len(reply.GetObserved().GetPawns()) != 1 {
-		t.Fatalf("second read = %v %v", reply, err)
+	if err := publishPawns(ctx, m, scope, frame(130, pawnRow("Pawn_1", "c"))); err != nil {
+		t.Fatal(err)
 	}
 	table, _ = mirror.Get[string, *o.PawnState](m, scope, pawnSectionName)
 	if len(table.Rows) != 1 || table.Rows["Pawn_1"].GetKindDefName() != "c" || table.AsOf != mirror.At(130) {

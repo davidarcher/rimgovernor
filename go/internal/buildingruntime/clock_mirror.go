@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"reflect"
 	"sort"
 
@@ -39,67 +38,24 @@ const (
 	benchSectionName = "benches"
 )
 
-type pawnReader interface {
-	ReadRoutinePawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
-}
+// pawnSection is the review frame's colonist pawn detail as a mirror
+// section keyed by pawn id; the recording keeps only the rows that changed.
+type pawnSection struct{ observed *o.PawnSnapshot }
 
-// pawnSection is the colonists' routine pawn detail (ReadRoutinePawns for
-// the emergency census's roster) as a mirror section keyed by pawn id. The
-// bridge completes every #773 delta reply before returning it, so each
-// read is a keyframe of the roster asked; the recording keeps only the
-// rows that changed.
-type pawnSection struct {
-	native  pawnReader
-	id      *c.Identity
-	ids     []string
-	last    *o.PawnSnapshot
-	reply   *o.ListPawnsReply
-	receipt bridge.Result
-}
-
-func (p *pawnSection) Name() string                 { return pawnSectionName }
-func (p *pawnSection) Equal(a, b *o.PawnState) bool { return proto.Equal(a, b) }
-func (p *pawnSection) Read(ctx context.Context, _ mirror.Watermark) (mirror.Read[string, *o.PawnState], error) {
-	reply, receipt, err := p.native.ReadRoutinePawns(ctx, p.id, p.ids)
-	p.reply, p.receipt = reply, receipt
-	if err != nil {
-		return mirror.Read[string, *o.PawnState]{}, err
-	}
-	observed := reply.GetObserved()
-	if observed == nil {
-		return mirror.Read[string, *o.PawnState]{}, errUnobserved
-	}
-	p.last = observed
-	rows := make(map[string]*o.PawnState, len(observed.GetPawns()))
-	for _, row := range observed.GetPawns() {
+func (p pawnSection) Name() string                 { return pawnSectionName }
+func (p pawnSection) Equal(a, b *o.PawnState) bool { return proto.Equal(a, b) }
+func (p pawnSection) Read(context.Context, mirror.Watermark) (mirror.Read[string, *o.PawnState], error) {
+	rows := make(map[string]*o.PawnState, len(p.observed.GetPawns()))
+	for _, row := range p.observed.GetPawns() {
 		rows[row.GetPawn().GetId()] = row
 	}
-	return mirror.Read[string, *o.PawnState]{AsOf: mirror.At(observed.GetContext().GetTick()), Rows: rows}, nil
+	return mirror.Read[string, *o.PawnState]{AsOf: mirror.At(p.observed.GetContext().GetTick()), Rows: rows}, nil
 }
 
-// errUnobserved is a pawn reply without an observed snapshot (unavailable,
-// a failure): nothing is published and the census judges the reply itself.
-var errUnobserved = errors.New("pawn read not observed")
-
-// readPawns is the review's pawn detail read through the mirror: the
-// section is refreshed and the reply rebuilt from the published table, in
-// the order the native listed the rows.
-func readPawns(ctx context.Context, m *mirror.Mirror, scope mirror.Scope, native pawnReader, id *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
-	section := &pawnSection{native: native, id: id, ids: ids}
-	table, _, err := mirror.Refresh(ctx, m, scope, 0, section)
-	if errors.Is(err, errUnobserved) {
-		return section.reply, section.receipt, nil
-	}
-	if err != nil {
-		return nil, section.receipt, err
-	}
-	observed := &o.PawnSnapshot{Context: section.last.GetContext(), Completeness: section.last.GetCompleteness()}
-	for _, row := range section.last.GetPawns() {
-		if held, ok := table.Rows[row.GetPawn().GetId()]; ok {
-			observed.Pawns = append(observed.Pawns, held)
-		}
-	}
-	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: observed}}, section.receipt, nil
+// publishPawns refreshes the pawn section from the review frame's rows.
+func publishPawns(ctx context.Context, m *mirror.Mirror, scope mirror.Scope, observed *o.PawnSnapshot) error {
+	_, _, err := mirror.Refresh(ctx, m, scope, 0, pawnSection{observed})
+	return err
 }
 
 // benchSection is the gear bench census (each bench's bill stack and

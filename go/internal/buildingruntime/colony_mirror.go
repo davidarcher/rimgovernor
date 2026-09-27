@@ -31,33 +31,21 @@ type colonyFactsReader interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 }
 
-// readColony is the review's colony facts census (planning, no extra
-// definitions) read through the mirror: every colony section is refreshed
-// from the native reply and the reply rebuilt from the published tables.
-// versions are the tables' mirror versions, nil when nothing was published
-// (a reply without an observed snapshot is returned as read).
-func readColony(ctx context.Context, m *mirror.Mirror, scope mirror.Scope, native colonyFactsReader, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, map[string]uint64, error) {
-	reply, receipt, err := native.ReadColonyFacts(ctx, id, planning, nil)
-	observed := reply.GetObserved()
-	if err != nil || observed == nil || !planning {
-		return reply, receipt, nil, err
-	}
+// publishColony refreshes every colony section from the review frame's
+// colony facts (planning, no extra definitions) and returns the tables'
+// mirror versions.
+func publishColony(ctx context.Context, m *mirror.Mirror, scope mirror.Scope, observed *o.ColonyFactsSnapshot) (map[string]uint64, error) {
 	split := bridge.SplitColonyFacts(observed)
 	tick := observed.GetContext().GetTick()
-	tables := make(map[string]map[string]bridge.ColonyRow, len(split))
 	versions := make(map[string]uint64, len(split))
 	for _, name := range bridge.ColonySections() {
 		table, _, err := mirror.Refresh(ctx, m, scope, tick, colonySection{name: name, rows: split[name], tick: tick})
 		if err != nil {
-			return nil, receipt, nil, err
+			return nil, err
 		}
-		tables[name], versions[name] = table.Rows, table.Version
+		versions[name] = table.Version
 	}
-	joined, err := bridge.JoinColonyFacts(tables)
-	if err != nil {
-		return nil, receipt, nil, err
-	}
-	return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: joined}}, receipt, versions, nil
+	return versions, nil
 }
 
 // colonyTables rebuilds the colony facts the mirror holds at versions,

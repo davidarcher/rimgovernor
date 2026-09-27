@@ -235,3 +235,7 @@ func TestRoutineHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
 		t.Fatal(plan, err)
 	}
 }
+
+func (n *stoneShellNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

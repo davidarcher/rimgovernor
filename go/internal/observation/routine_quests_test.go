@@ -18,17 +18,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type questSource struct {
-	*projectSource
-	read bridge.WorldProgressionRead
-	err  error
+func questSource(base *o.ColonyFactsReply, read bridge.WorldProgressionRead) *projectSource {
+	return &projectSource{colonySource: &colonySource{reply: base}, frame: bridge.RoutineFrame{Quests: &read}}
 }
 
-func (s *questSource) ReadWorldProgression(context.Context, *c.Identity, bool) (bridge.WorldProgressionRead, bridge.Result, error) {
-	return s.read, bridge.Result{}, s.err
-}
-
-func TestRoutineQuestCensusStaysInsideBracket(t *testing.T) {
+func TestRoutineQuestCensusReadsTheFrame(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +55,7 @@ func TestRoutineQuestCensusStaysInsideBracket(t *testing.T) {
 		{ID: "Quest_4", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: true, ChoiceCount: 1},
 		{ID: "Quest_2", ScriptDef: "TradeRequest", State: "Ongoing", HasTradeRequest: true},
 	}}
-	out, err = observeRoutineUnowned(ctx, &questSource{projectSource: newSource(), read: read}, clock, expected, time.Second)
+	out, err = observeRoutineUnowned(ctx, questSource(base, read), clock, expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,21 +67,11 @@ func TestRoutineQuestCensusStaysInsideBracket(t *testing.T) {
 		t.Fatal(facts)
 	}
 	empty := bridge.WorldProgressionRead{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext)}
-	out, err = observeRoutineUnowned(ctx, &questSource{projectSource: newSource(), read: empty}, clock, expected, time.Second)
+	out, err = observeRoutineUnowned(ctx, questSource(base, empty), clock, expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if offers, known := out.Projection.Facts.QuestOffers.Value(); !known || len(offers) != 0 {
 		t.Fatal("an empty census is a known empty census")
-	}
-
-	// A census from a different colony boundary invalidates the reading.
-	changed := bridge.WorldProgressionRead{Context: proto.Clone(read.Context).(*c.ObservationContext), Quests: read.Quests}
-	changed.Context.Identity.ColonyId = proto.String("other")
-	if _, err = observeRoutineUnowned(ctx, &questSource{projectSource: newSource(), read: changed}, clock, expected, time.Second); err == nil {
-		t.Fatal("changed colony accepted")
-	}
-	if _, err = observeRoutineUnowned(ctx, &questSource{projectSource: newSource(), err: context.DeadlineExceeded}, clock, expected, time.Second); err == nil {
-		t.Fatal("failed quest read accepted")
 	}
 }

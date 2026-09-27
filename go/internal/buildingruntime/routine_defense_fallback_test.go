@@ -204,3 +204,7 @@ func TestRoutineDefenseHoldFallbackNeedsProof(t *testing.T) {
 		t.Fatal(got, err)
 	}
 }
+
+func (n *raidTestNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

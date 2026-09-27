@@ -225,3 +225,7 @@ func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 		t.Fatal(missing, method, reason)
 	}
 }
+
+func (n *researchNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

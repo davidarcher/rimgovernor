@@ -69,3 +69,7 @@ func TestRoutineTendLendsClockTicksWithoutAnEligiblePair(t *testing.T) {
 		t.Fatal(result.NativeWorkTicks)
 	}
 }
+
+func (n *routineTendNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

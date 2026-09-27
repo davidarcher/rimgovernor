@@ -15,8 +15,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // RoutineReviewer observes and journals needs under Player's existing gate.
@@ -131,27 +129,26 @@ func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePoli
 	return r.staged().Seasonal(facts.Calendar, facts.DisasterConditions)
 }
 
-// routineMirror is the review's colony mirror reads (#795); zero without
-// a mirror.
-func (r *RoutineReviewer) routineMirror(expected observation.Identity) observation.RoutineMirror {
-	var out observation.RoutineMirror
+// publishFrame puts the review frame's colony facts and colonist pawn rows
+// into the colony mirror (#795), which recordings and planners serve.
+func (r *RoutineReviewer) publishFrame(ctx context.Context, expected observation.Identity, frame bridge.RoutineFrame) error {
+	r.census.rememberColony(nil)
 	if r.mirror == nil {
-		return out
+		return nil
 	}
 	generation, _ := expected.NativeGeneration.Value()
 	scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
-	out.Pawns = func(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
-		return readPawns(ctx, r.mirror, scope, r.native, id, ids)
-	}
-	r.census.rememberColony(nil)
-	out.Colony = func(ctx context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
-		reply, receipt, versions, err := readColony(ctx, r.mirror, scope, r.native, id, planning)
-		if versions != nil {
-			r.census.rememberColony(versions)
+	if frame.Pawns != nil {
+		if err := publishPawns(ctx, r.mirror, scope, frame.Pawns); err != nil {
+			return err
 		}
-		return reply, receipt, err
 	}
-	return out
+	versions, err := publishColony(ctx, r.mirror, scope, frame.Colony)
+	if err != nil {
+		return err
+	}
+	r.census.rememberColony(versions)
+	return nil
 }
 
 // RoutineCapabilities is the runtime's complete configured method set. Omitting
@@ -291,7 +288,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.roomsEnabled() {
 		observe = observation.ObserveRoutineRooms
 	}
-	reading, err := observe(observation.WithRoutineMirror(ctx, r.routineMirror(expected)), r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
+	reading, err := observe(ctx, r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
+	if err == nil {
+		err = r.publishFrame(ctx, expected, reading.Frame)
+	}
 	if err != nil {
 		clockSchedulerLog("routine.step: observe err=%v", err)
 		return store.RoutineReviewResult{}, err
@@ -356,7 +356,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			cleanup = cleanup || draftOutstanding(progress) && !workerPlanHoldsDraft(plan, progress.View())
 		}
 	}
-	idleDrafts, err := r.idleDrafts(ctx, state, expected.Tick, reading.Emergency, plans)
+	idleDrafts, err := r.idleDrafts(ctx, state, expected.Tick, reading.Emergency, reading.Frame.Pawns, plans)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
 	}

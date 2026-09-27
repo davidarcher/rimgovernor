@@ -10,37 +10,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
+// RoutineSource is the routine census: one decoded frame per reading
+// (bridge.Client.ReadRoutineFrame), plus the colony facts read for
+// definitions the frame's default catalog lacks.
 type RoutineSource interface {
 	ColonySource
-	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
-	ReadRoutinePawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
-	ReadRoutinePopulation(context.Context, *c.Identity) (bridge.PrisonerCensus, bridge.Result, error)
-}
-
-// RoutineResearchSource is the optional research read a RoutineSource may
-// offer. When present it is read inside the same paused identity bracket as
-// the colony census so EnsureResearch's need is measured, not assumed from
-// configuration; without it the research fact stays unknown.
-type RoutineResearchSource interface {
-	ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error)
-}
-
-// RoutineQuestSource is the optional visible-quest read a RoutineSource may
-// offer, read inside the same bracket for MaintainPopulation's joiner
-// census (policy.RoutineFacts.QuestOffers); without it the census stays
-// unknown and no offer is answered.
-type RoutineQuestSource interface {
-	ReadWorldProgression(context.Context, *c.Identity, bool) (bridge.WorldProgressionRead, bridge.Result, error)
-}
-
-// RoutineTraderSource is the optional trader census a RoutineSource may
-// offer (bridge.ListTraders). Read inside the same paused bracket, it is
-// what TradeWithCaravan measures its caravan from; without it the fact
-// stays unknown and the goal off.
-type RoutineTraderSource interface {
-	ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
+	ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error)
 }
 
 type RoutineReading struct {
@@ -49,322 +27,222 @@ type RoutineReading struct {
 	// Sections is the reading's decoded census, per section with the tick
 	// each reply described, for the step's facts.Store.
 	Sections RoutineSections
-}
-
-type routineBracket struct {
-	roomsEnabled bool
-	temperature  domain.Fact[policy.RoomObservation]
-	construction domain.Fact[policy.CurrentConstruction]
-	RoutineSource
-	expected         Identity
-	emergency        bridge.EmergencyObservation
-	population       bridge.PrisonerCensus
-	research         domain.Fact[policy.ResearchFacts]
-	quests           domain.Fact[[]policy.JoinerOffer]
-	traders          domain.Fact[[]policy.TraderFacts]
-	armed            domain.Fact[int64]
-	work             domain.Fact[[]policy.WorkPawn]
-	medical          domain.Fact[[]policy.CarePawn]
-	mood             domain.Fact[[]policy.MoodPawn]
-	definitions      []string
-	extraDefinitions []PlanningDefinition
-	// The tick each section's reply described, set on its own wave lane;
-	// zero where the source offered no read.
-	emergencyTick, pawnsTick, populationTick, researchTick, roomsTick int64
-	// mirror carries the reviewer's mirror-backed reads (RoutineMirrorFrom).
-	mirror RoutineMirror
-}
-
-// ReadColonyFacts fans the routine census out inside ObserveColony's
-// identity bracket. Every read here is independent of the others (each
-// reply carries its own ObservationContext and is validated against the
-// expected boundary), so they are issued at once and the bracket costs
-// max(read) rather than sum(read) (#227). Two reads chain behind their
-// input: the supplementary project definitions need the colony reply's
-// default catalog, and the pawn census needs the emergency census's
-// colonist ids. Post-processing that combines replies (room temperature
-// with colony beds, the work/medical/mood pawns with the colony and
-// emergency census) runs after the wave. The first failure wins and cancels
-// the rest; the wave's reads are all pure, so nothing needs undoing.
-func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool, defs []string) (*o.ColonyFactsReply, bridge.Result, error) {
-	var (
-		colony  *o.ColonyFactsReply
-		receipt bridge.Result
-		pawns   *o.ListPawnsReply
-		rooms   *o.RoomsSnapshot
-	)
-	wave := newReadWave(ctx)
-	wave.Go(func(ctx context.Context) error {
-		var err error
-		if s.mirror.Colony != nil && len(defs) == 0 {
-			colony, receipt, err = s.mirror.Colony(ctx, id, planning)
-		} else {
-			colony, receipt, err = s.RoutineSource.ReadColonyFacts(ctx, id, planning, defs)
-		}
-		if err != nil {
-			return err
-		}
-		return s.readProjectDefinitions(ctx, id, colony)
-	})
-	wave.Go(func(ctx context.Context) error { return s.readConstruction(ctx, id) })
-	wave.Go(func(ctx context.Context) error {
-		var err error
-		pawns, err = s.readEmergency(ctx, id)
-		return err
-	})
-	wave.Go(func(ctx context.Context) error { return s.readPopulation(ctx, id) })
-	wave.Go(func(ctx context.Context) error { return s.readResearch(ctx, id) })
-	wave.Go(func(ctx context.Context) error { return s.readQuests(ctx, id) })
-	wave.Go(func(ctx context.Context) error { return s.readTraders(ctx, id) })
-	wave.Go(func(ctx context.Context) error {
-		var err error
-		rooms, err = s.readTemperature(ctx, id)
-		return err
-	})
-	if err := wave.Wait(); err != nil {
-		return nil, receipt, err
-	}
-	if rooms != nil {
-		s.roomsTick = rooms.GetContext().GetTick()
-		s.temperature = temperatureRooms(rooms, colonySleeping(colony.GetObserved()))
-	}
-	if pawns != nil {
-		s.pawnsTick = pawns.GetObserved().GetContext().GetTick()
-		s.armed = routineArmed(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
-		s.work = routineWork(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
-		s.medical = routineMedical(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
-		s.mood = routineMood(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
-	} else if complete, known := s.emergency.Facts.ColonistsComplete.Value(); known && complete && len(s.emergency.Facts.Colonists) == 0 && colony.GetObserved().ColonistCount != nil && colony.GetObserved().GetColonistCount() == 0 {
-		s.mood = domain.Known([]policy.MoodPawn{})
-	}
-	return colony, receipt, nil
-}
-
-// readEmergency reads the emergency census and, when it names a complete
-// colonist roster, the routine pawn census behind it. The pawn reply is
-// returned rather than projected: the projections also need the colony
-// reply, which is in flight on another lane of the wave.
-func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.ListPawnsReply, error) {
-	var err error
-	s.emergency, _, err = s.ReadEmergency(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	identity, err := contextIdentity(s.emergency.Context)
-	if err != nil {
-		return nil, err
-	}
-	identity.Paused = s.expected.Paused
-	if !sameColonyContext(identity, s.expected) {
-		return nil, ErrChanged
-	}
-	s.emergencyTick = s.emergency.Context.GetTick()
-	complete, known := s.emergency.Facts.ColonistsComplete.Value()
-	if !known || !complete {
-		return nil, nil
-	}
-	ids := make([]string, 0, len(s.emergency.Facts.Colonists))
-	for _, pawn := range s.emergency.Facts.Colonists {
-		ids = append(ids, string(pawn.ID))
-	}
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	read := s.ReadRoutinePawns
-	if s.mirror.Pawns != nil {
-		read = s.mirror.Pawns
-	}
-	pawns, _, err := read(ctx, id, ids)
-	if err != nil {
-		return nil, err
-	}
-	if pawns == nil || pawns.GetObserved() == nil {
-		return nil, ErrContract
-	}
-	if err = bridge.ValidateRoutinePawnSnapshot(pawns.GetObserved(), id, ids); err != nil {
-		return nil, err
-	}
-	observed, err := contextIdentity(pawns.GetObserved().Context)
-	if err != nil {
-		return nil, err
-	}
-	observed.Paused = s.expected.Paused
-	if !sameColonyContext(observed, s.expected) {
-		return nil, ErrChanged
-	}
-	return pawns, nil
-}
-
-func (s *routineBracket) readPopulation(ctx context.Context, id *c.Identity) error {
-	var err error
-	s.population, _, err = s.ReadRoutinePopulation(ctx, id)
-	if err != nil {
-		return err
-	}
-	identity, err := contextIdentity(s.population.Context)
-	if err != nil {
-		return err
-	}
-	identity.Paused = s.expected.Paused
-	if !sameColonyContext(identity, s.expected) {
-		return ErrChanged
-	}
-	s.populationTick = s.population.Context.GetTick()
-	return nil
+	// Frame is the frame the reading decoded.
+	Frame bridge.RoutineFrame
 }
 
 func ObserveRoutineOwned(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (RoutineReading, error) {
 	return observeRoutine(ctx, source, clock, expected, maxAge, claims, false, definitions...)
 }
 
-// ObserveRoutineRooms additionally reads the typed room census inside the
-// same paused bracket. Temperature planning takes room heat from it and
-// comfort takes each facility's hosting room role: without the census no
-// comfort facility can be certified as hosted, so comfort becomes unknown.
+// ObserveRoutineRooms additionally reads the typed room census. Temperature
+// planning takes room heat from it and comfort takes each facility's
+// hosting room role: without the census no comfort facility can be
+// certified as hosted, so comfort becomes unknown.
 func ObserveRoutineRooms(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (RoutineReading, error) {
 	return observeRoutine(ctx, source, clock, expected, maxAge, claims, true, definitions...)
 }
 
+// frameColony answers ObserveColony's colony facts and zone reads from the
+// frame.
+type frameColony struct {
+	RoutineSource
+	frame bridge.RoutineFrame
+}
+
+func (f frameColony) ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error) {
+	return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: f.frame.Colony}}, bridge.Result{}, nil
+}
+
+func (f frameColony) ReadZoneSection(context.Context, *c.Identity) (bridge.ZonesRead, bridge.Result, error) {
+	if f.frame.Zones == nil {
+		return bridge.ZonesRead{}, bridge.Result{}, bridge.ErrUnavailable
+	}
+	return *f.frame.Zones, bridge.Result{}, nil
+}
+
+// observeRoutine decodes one frame. ObserveColony checks the frame's colony
+// context against expected; every other section of the frame shares that
+// context and tick, so none is checked against another (#306, #884).
 func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], rooms bool, definitions ...string) (RoutineReading, error) {
 	if source == nil {
 		return RoutineReading{}, ErrContract
 	}
-	bracket := &routineBracket{roomsEnabled: rooms, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...), mirror: RoutineMirrorFrom(ctx)}
-	reading, err := ObserveColony(ctx, bracket, clock, expected, maxAge, true, nil)
+	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
+	started := clock.Now()
+	frame, err := source.ReadRoutineFrame(ctx, id)
 	if err != nil {
 		return RoutineReading{}, err
 	}
-	reading.Projection.Facts.CurrentConstruction = bracket.construction
-	reading.Projection.Facts.Armed = bracket.armed
-	reading.Projection.WorkPawns = bracket.work
-	reading.Projection.Facts.MedicalPawns = bracket.medical
-	reading.Projection.Facts.MoodPawns = bracket.mood
-	reading.Projection.Facts.RecoveryWorkers = recoveryWorkers(bracket.mood)
-	reading.Projection.Facts.Gear = routineGear(reading.Projection.Facts.Gear, bracket.emergency.Facts)
-	reading.Projection.Facts.Research = bracket.research
-	reading.Projection.BuildTier = policy.SelectBuildTier(FinishedResearch(bracket.research), reading.Projection.PlayerTechLevel)
-	reading.Projection.Facts.Traders = bracket.traders
-	reading.Projection.Facts.Prisoners = bracket.population.Prisoners
-	reading.Projection.Facts.Custody = bracket.population.Custody
-	reading.Projection.Facts.QuestOffers = bracket.quests
-	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
-	if rooms {
-		reading.Projection.Rooms = bracket.temperature
-		reading.Projection.Facts.SleepingMin, reading.Projection.Facts.SleepingMax = policy.TemperatureRange(bracket.temperature)
-		reading.Projection.Facts.Comfort = hostedComfort(reading.Projection.Facts.Comfort, bracket.temperature)
+	if frame.Colony == nil || frame.Emergency.Context == nil {
+		return RoutineReading{}, ErrContract
 	}
-	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, Sections: bracket.sections(reading.Projection)}, nil
+	reading, err := ObserveColony(ctx, frameColony{source, frame}, clock, expected, maxAge, true, nil)
+	if err != nil {
+		return RoutineReading{}, err
+	}
+	p := &reading.Projection
+	colony, emergency := frame.Colony, frame.Emergency.Facts
+	extra, err := readProjectDefinitions(ctx, source, id, expected, p.Definitions, definitions)
+	if err != nil {
+		return RoutineReading{}, err
+	}
+	p.Definitions = append(p.Definitions, extra...)
+	p.Facts.CurrentConstruction = domain.Unknown[policy.CurrentConstruction]()
+	if frame.Construction != nil {
+		if err := bridge.ValidateConstructionBuildings(frame.Construction, id, nil); err != nil {
+			return RoutineReading{}, err
+		}
+		if p.Facts.CurrentConstruction, err = ConstructionBuildings(frame.Construction, nil); err != nil {
+			return RoutineReading{}, err
+		}
+	}
+	pawns, err := routinePawns(frame, id)
+	if err != nil {
+		return RoutineReading{}, err
+	}
+	p.Facts.Armed, p.WorkPawns, p.Facts.MedicalPawns, p.Facts.MoodPawns = domain.Fact[int64]{}, domain.Fact[[]policy.WorkPawn]{}, domain.Fact[[]policy.CarePawn]{}, domain.Fact[[]policy.MoodPawn]{}
+	if pawns != nil {
+		p.Facts.Armed = routineArmed(colony, emergency, pawns)
+		p.WorkPawns = routineWork(colony, emergency, pawns)
+		p.Facts.MedicalPawns = routineMedical(colony, emergency, pawns)
+		p.Facts.MoodPawns = routineMood(colony, emergency, pawns)
+	} else if complete, known := emergency.ColonistsComplete.Value(); known && complete && len(emergency.Colonists) == 0 && colony.ColonistCount != nil && colony.GetColonistCount() == 0 {
+		p.Facts.MoodPawns = domain.Known([]policy.MoodPawn{})
+	}
+	p.Facts.RecoveryWorkers = recoveryWorkers(p.Facts.MoodPawns)
+	p.Facts.Gear = routineGear(p.Facts.Gear, emergency)
+	p.Facts.Research = frameResearch(frame.Research)
+	p.BuildTier = policy.SelectBuildTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel)
+	p.Facts.Traders = frameTraders(frame.Traders)
+	p.Facts.QuestOffers = frameQuests(frame.Quests)
+	p.Facts.Prisoners, p.Facts.Custody = domain.Fact[[]policy.PrisonerFacts]{}, domain.Fact[[]policy.CustodyFacts]{}
+	if frame.Population != nil {
+		p.Facts.Prisoners, p.Facts.Custody = frame.Population.Prisoners, frame.Population.Custody
+	}
+	var roomCensus *o.RoomsSnapshot
+	if rooms {
+		source, ok := source.(TemperatureSource)
+		if !ok {
+			return RoutineReading{}, ErrContract
+		}
+		if roomCensus, err = readTemperature(ctx, source, id, expected); err != nil {
+			return RoutineReading{}, err
+		}
+		temperature := domain.Unknown[policy.RoomObservation]()
+		if roomCensus != nil {
+			temperature = temperatureRooms(roomCensus, colonySleeping(colony))
+		}
+		p.Rooms = temperature
+		p.Facts.SleepingMin, p.Facts.SleepingMax = policy.TemperatureRange(temperature)
+		p.Facts.Comfort = hostedComfort(p.Facts.Comfort, temperature)
+	}
+	// The reading spans the frame read and the definitions and room reads
+	// beside it: it is observed once they land, under the same age bound.
+	reading.StartedAt, reading.ObservedAt = started, clock.Now()
+	if reading.ObservedAt.Sub(started) > maxAge {
+		return RoutineReading{}, ErrStale
+	}
+	if err := ctx.Err(); err != nil {
+		return RoutineReading{}, err
+	}
+	return RoutineReading{ColonyReading: reading, Emergency: emergency, Sections: routineSections(frame, *p, roomCensus), Frame: frame}, nil
 }
 
-// Request only project definitions absent from the default planning census. Both
-// reads stay inside the same paused identity and freshness bracket; crop inputs
-// from the default census are retained.
-func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Identity, colony *o.ColonyFactsReply) error {
-	if len(s.definitions) == 0 {
-		return nil
+// routinePawns is the frame's colonist pawn detail, validated against the
+// frame's complete emergency roster; nil when the roster is incomplete or
+// empty, or the frame carries no detail.
+func routinePawns(frame bridge.RoutineFrame, id *c.Identity) (*o.PawnSnapshot, error) {
+	facts := frame.Emergency.Facts
+	complete, known := facts.ColonistsComplete.Value()
+	if !known || !complete || len(facts.Colonists) == 0 || frame.Pawns == nil {
+		return nil, nil
 	}
-	if len(s.definitions) > 256 {
-		return ErrContract
+	ids := make([]string, 0, len(facts.Colonists))
+	for _, pawn := range facts.Colonists {
+		ids = append(ids, string(pawn.ID))
 	}
-	base, err := DecodeColony(colony, s.expected)
-	if err != nil {
-		return err
+	if err := bridge.ValidateRoutinePawnSnapshot(frame.Pawns, id, ids); err != nil {
+		return nil, err
 	}
-	census := map[string]bool{}
-	for _, d := range base.Definitions {
-		census[d.Name] = true
+	return frame.Pawns, nil
+}
+
+// readProjectDefinitions reads the project definitions absent from the
+// frame's default planning catalog (census) and returns this planner's own.
+func readProjectDefinitions(ctx context.Context, source ColonySource, id *c.Identity, expected Identity, census []PlanningDefinition, definitions []string) ([]PlanningDefinition, error) {
+	if len(definitions) == 0 {
+		return nil, nil
+	}
+	if len(definitions) > 256 {
+		return nil, ErrContract
+	}
+	held := map[string]bool{}
+	for _, d := range census {
+		held[d.Name] = true
 	}
 	seen := map[string]bool{}
 	missing := []string{}
-	for _, name := range s.definitions {
-		if !census[name] && !seen[name] {
+	for _, name := range definitions {
+		if !held[name] && !seen[name] {
 			missing = append(missing, name)
 			seen[name] = true
 		}
 	}
 	if len(missing) == 0 {
-		return nil
+		return nil, nil
 	}
 	// The request carries every name the scheduler's planners pool, so the
 	// planners of one step share one read (#599); only this planner's own
 	// names join its projection.
-	request := DefinitionPoolFrom(ctx).Request(missing, census)
-	reply, _, err := s.RoutineSource.ReadColonyFacts(ctx, id, true, request)
+	request := DefinitionPoolFrom(ctx).Request(missing, held)
+	reply, _, err := source.ReadColonyFacts(ctx, id, true, request)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	extra, err := DecodeColony(reply, s.expected)
+	extra, err := DecodeColony(reply, expected)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	extra.Identity.Paused = s.expected.Paused
-	if !sameColonyContext(extra.Identity, s.expected) {
-		return ErrChanged
+	extra.Identity.Paused = expected.Paused
+	if !sameColonyContext(extra.Identity, expected) {
+		return nil, ErrChanged
 	}
 	requested := map[string]bool{}
 	for _, name := range request {
 		requested[name] = true
 	}
+	var out []PlanningDefinition
 	for _, d := range extra.Definitions {
 		if !requested[d.Name] {
-			return ErrContract
+			return nil, ErrContract
 		}
 		if seen[d.Name] {
-			s.extraDefinitions = append(s.extraDefinitions, d)
+			out = append(out, d)
 		}
 	}
-	return nil
+	return out, nil
 }
 
-// readQuests mirrors readResearch for the visible quest census: a source
-// without the read leaves the census unknown, and a snapshot from a
-// different colony boundary invalidates the whole reading.
-func (s *routineBracket) readQuests(ctx context.Context, id *c.Identity) error {
-	source, ok := s.RoutineSource.(RoutineQuestSource)
-	if !ok {
-		return nil
-	}
-	read, _, err := source.ReadWorldProgression(ctx, id, false)
-	if err != nil {
-		return err
-	}
-	identity, err := contextIdentity(read.Context)
-	if err != nil {
-		return err
-	}
-	identity.Paused = s.expected.Paused
-	if !sameColonyContext(identity, s.expected) {
-		return ErrChanged
+// frameQuests is the visible quest census; unknown when the frame carries
+// none.
+func frameQuests(read *bridge.WorldProgressionRead) domain.Fact[[]policy.JoinerOffer] {
+	if read == nil {
+		return domain.Unknown[[]policy.JoinerOffer]()
 	}
 	offers := make([]policy.JoinerOffer, 0, len(read.Quests))
 	for _, quest := range read.Quests {
 		offers = append(offers, policy.JoinerOffer{Quest: domain.QuestID(quest.ID), ScriptDef: quest.ScriptDef, State: quest.State, CanAccept: quest.CanAccept, RequiresAccepter: quest.RequiresAccepter, ChoiceCount: quest.ChoiceCount})
 	}
-	s.quests = domain.Known(offers)
-	return nil
+	return domain.Known(offers)
 }
 
-// readResearch stays inside the colony identity bracket: a source without a
-// research read leaves the fact unknown, and a research snapshot from a
-// different colony boundary invalidates the whole reading.
-func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error {
-	source, ok := s.RoutineSource.(RoutineResearchSource)
-	if !ok {
-		return nil
+// frameResearch is the research census; unknown when the frame carries
+// none.
+func frameResearch(read *bridge.ResearchRead) domain.Fact[policy.ResearchFacts] {
+	if read == nil {
+		return domain.Unknown[policy.ResearchFacts]()
 	}
-	read, _, err := source.ReadResearch(ctx, id)
-	if err != nil {
-		return err
-	}
-	identity, err := contextIdentity(read.Context)
-	if err != nil {
-		return err
-	}
-	identity.Paused = s.expected.Paused
-	if !sameColonyContext(identity, s.expected) {
-		return ErrChanged
-	}
-	s.researchTick = read.Context.GetTick()
 	facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject)}
 	if read.CurrentProject != "" {
 		facts.CurrentBenchMissing = policy.ResearchBenchNeeded(read.Projects[read.CurrentProject])
@@ -376,36 +254,19 @@ func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error
 	for _, name := range read.Finished {
 		facts.Finished = append(facts.Finished, policy.ResearchProjectID(name))
 	}
-	s.research = domain.Known(facts)
-	return nil
+	return domain.Known(facts)
 }
 
-// readTraders mirrors readResearch: a source without the census leaves the
-// fact unknown, and a census from another colony boundary invalidates the
-// reading.
-func (s *routineBracket) readTraders(ctx context.Context, id *c.Identity) error {
-	source, ok := s.RoutineSource.(RoutineTraderSource)
-	if !ok {
-		return nil
-	}
-	read, _, err := source.ListTraders(ctx, id)
-	if err != nil {
-		return err
-	}
-	identity, err := contextIdentity(read.Context)
-	if err != nil {
-		return err
-	}
-	identity.Paused = s.expected.Paused
-	if !sameColonyContext(identity, s.expected) {
-		return ErrChanged
+// frameTraders is the trader census; unknown when the frame carries none.
+func frameTraders(read *bridge.TradersRead) domain.Fact[[]policy.TraderFacts] {
+	if read == nil {
+		return domain.Unknown[[]policy.TraderFacts]()
 	}
 	rows := make([]policy.TraderFacts, 0, len(read.Traders))
 	for _, row := range read.Traders {
 		rows = append(rows, policy.TraderFacts{ID: row.ID, Kind: row.Kind, Faction: row.Faction, CanTrade: row.CanTrade, Travelling: row.Travelling, GoodsStacks: int64(row.GoodsStacks)})
 	}
-	s.traders = domain.Known(rows)
-	return nil
+	return domain.Known(rows)
 }
 
 func hostedComfort(comfort domain.Fact[policy.ComfortObservation], rooms domain.Fact[policy.RoomObservation]) domain.Fact[policy.ComfortObservation] {

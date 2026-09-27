@@ -194,3 +194,7 @@ func TestHaulPairAdmissionIsCompletionOrderIndependent(t *testing.T) {
 		t.Fatalf("admitted plans depend on completion order: secure first %v, haul first %v", secureFirst, haulFirst)
 	}
 }
+
+func (n *haulPairNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

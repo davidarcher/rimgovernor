@@ -60,3 +60,7 @@ func TestRoutineMoodMentalBreakDoesNotHoldTheClock(t *testing.T) {
 		}
 	}
 }
+
+func (n *moodRoutineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

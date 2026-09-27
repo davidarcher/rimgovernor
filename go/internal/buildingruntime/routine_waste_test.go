@@ -119,3 +119,7 @@ func TestRoutineWastePlannerRefusesWithoutPendingCensus(t *testing.T) {
 		t.Fatal(result, err)
 	}
 }
+
+func (n *routineWasteNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

@@ -42,12 +42,9 @@ func (f *clockServiceFake) ReadEmergency(context.Context, *c.Identity) (bridge.E
 	return bridge.EmergencyObservation{}, bridge.Result{}, errors.New("emergency read unavailable")
 }
 
-func (f *clockServiceFake) ReadRoutinePawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error) {
-	return nil, bridge.Result{}, errors.New("pawn read unavailable")
-}
-
-func (f *clockServiceFake) ReadRoutinePopulation(context.Context, *c.Identity) (bridge.PrisonerCensus, bridge.Result, error) {
-	return bridge.PrisonerCensus{}, bridge.Result{}, errors.New("population read unavailable")
+func (f *clockServiceFake) ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error) {
+	f.colonyReads.Add(1)
+	return bridge.RoutineFrame{}, errors.New("routine frame unavailable")
 }
 
 // ReadTemperatureRooms satisfies the sleeping upkeep planner's

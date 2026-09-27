@@ -126,3 +126,7 @@ func TestRoutineBlightPlannerRefusesWithoutCensus(t *testing.T) {
 		t.Fatal(result, err)
 	}
 }
+
+func (n *routineBlightNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

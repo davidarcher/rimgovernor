@@ -128,3 +128,7 @@ func TestRoutineTendRequiresTheNativeDoctorGates(t *testing.T) {
 		})
 	}
 }
+
+func (n *tendGateNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

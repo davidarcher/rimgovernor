@@ -18,15 +18,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type traderSource struct {
-	*projectSource
-	read bridge.TradersRead
-}
-
-func (s *traderSource) ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error) {
-	return s.read, bridge.Result{}, nil
-}
-
 // The routine trader facts carry native's arrival verdict: a caravan still
 // walking in is neither tradeable nor absent (#234).
 func TestRoutineTraderFactsCarryTravelling(t *testing.T) {
@@ -46,7 +37,7 @@ func TestRoutineTraderFactsCarryTravelling(t *testing.T) {
 		{ID: "Thing_Human1", Kind: "Caravan_Outlander_BulkGoods", Faction: "Faction_0", Travelling: true, GoodsStacks: 36},
 		{ID: "Thing_Human2", Kind: "Caravan_Neolithic", Faction: "Faction_1", CanTrade: true, GoodsStacks: 4},
 	}}
-	source := &traderSource{projectSource: &projectSource{colonySource: &colonySource{reply: base}}, read: read}
+	source := &projectSource{colonySource: &colonySource{reply: base}, frame: bridge.RoutineFrame{Traders: &read}}
 	out, err := observeRoutineUnowned(context.Background(), source, testkit.NewManualClock(time.Now()), expected, time.Second)
 	if err != nil {
 		t.Fatal(err)

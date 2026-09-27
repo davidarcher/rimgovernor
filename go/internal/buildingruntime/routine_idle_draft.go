@@ -23,7 +23,7 @@ func idleDraftWorkOpen(plan store.PlanState) bool {
 
 // idleDrafts observes only candidates for adoption. Hands still previews and
 // dispatches SetDrafted with its ordinary generation, pawn CAS and claim checks.
-func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, tick domain.Tick, emergency policy.EmergencyFacts, plans []store.PlanState) ([]domain.PawnID, error) {
+func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, tick domain.Tick, emergency policy.EmergencyFacts, observed *n.PawnSnapshot, plans []store.PlanState) ([]domain.PawnID, error) {
 	if emergency.ColonistsComplete != domain.Known(true) || emergency.ThreatsComplete != domain.Known(true) || len(emergency.Colonists) == 0 {
 		return nil, nil
 	}
@@ -57,15 +57,10 @@ func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, ti
 		wanted[id] = true
 		ids = append(ids, id)
 	}
-	reply, _, err := r.native.ReadRoutinePawns(ctx, boundary.Identity(state.Snapshot), ids)
-	if err != nil {
-		return nil, err
-	}
-	observed := reply.GetObserved()
 	if observed == nil {
-		return nil, ErrControl
+		return nil, nil
 	}
-	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
+	if _, err := boundary.Context(observed.Context, state.Snapshot); err != nil {
 		return nil, ErrControl
 	}
 	counts := observed.Completeness
@@ -82,7 +77,7 @@ func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, ti
 		if held[id] || !idleUnclaimedDraft(row) {
 			continue
 		}
-		if _, err = boundary.PawnToken(row, observed.Context); err != nil {
+		if _, err := boundary.PawnToken(row, observed.Context); err != nil {
 			continue
 		}
 		candidates = append(candidates, id)
@@ -147,14 +142,14 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 		}
 	}
 	started := r.clock.Now()
-	emergency, _, err := r.native.ReadEmergency(ctx, boundary.Identity(state.Snapshot))
+	frame, err := r.native.ReadRoutineFrame(ctx, boundary.Identity(state.Snapshot))
 	if err != nil {
 		return err
 	}
-	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil {
+	if _, err = boundary.Context(frame.Context, state.Snapshot); err != nil {
 		return ErrControl
 	}
-	pawns, err := r.idleDrafts(ctx, state, domain.Tick(emergency.Context.GetTick()), emergency.Facts, plans)
+	pawns, err := r.idleDrafts(ctx, state, domain.Tick(frame.Context.GetTick()), frame.Emergency.Facts, frame.Pawns, plans)
 	if err != nil || len(pawns) == 0 {
 		return err
 	}

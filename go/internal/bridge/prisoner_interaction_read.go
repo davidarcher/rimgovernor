@@ -154,24 +154,29 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 	if err = buildingUnknown(reply); err != nil {
 		return PrisonerCensus{}, raw, err
 	}
-	observed := reply.GetObserved()
+	out, err := decodePopulation(reply.GetObserved())
+	return out, raw, err
+}
+
+// decodePopulation is a population snapshot's prisoner and custody census.
+func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 	if observed == nil {
-		return PrisonerCensus{}, raw, ErrUnavailable
+		return PrisonerCensus{}, ErrUnavailable
 	}
 	counts := observed.Completeness
 	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return PrisonerCensus{}, raw, ErrUnavailable
+		return PrisonerCensus{}, ErrUnavailable
 	}
 	seen := map[string]bool{}
 	rows := make([]policy.PrisonerFacts, 0, len(observed.Persons))
 	custody := make([]policy.CustodyFacts, 0, len(observed.Persons))
 	for _, person := range observed.Persons {
 		if person == nil || person.GetPawn().GetPawn() == nil {
-			return PrisonerCensus{}, raw, contract("population person missing pawn identity")
+			return PrisonerCensus{}, contract("population person missing pawn identity")
 		}
 		id := person.GetPawn().GetPawn().GetId()
 		if validID(id) != nil || seen[id] {
-			return PrisonerCensus{}, raw, contract("invalid or duplicate population person")
+			return PrisonerCensus{}, contract("invalid or duplicate population person")
 		}
 		seen[id] = true
 		pawn := person.GetPawn()
@@ -200,7 +205,7 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 		}
 		snapshotToken := pawn.GetSnapshot().GetToken()
 		if validID(snapshotToken) != nil {
-			return PrisonerCensus{}, raw, contract("population person CAS token unavailable")
+			return PrisonerCensus{}, contract("population person CAS token unavailable")
 		}
 		f := policy.PrisonerFacts{Pawn: domain.PawnID(id), SnapshotToken: snapshotToken, Prisoner: domain.Known(true)}
 		if pawn.Dead != nil {
@@ -222,5 +227,5 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 		}
 		rows = append(rows, f)
 	}
-	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody)}, raw, nil
+	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody)}, nil
 }

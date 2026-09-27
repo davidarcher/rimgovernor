@@ -246,3 +246,7 @@ func (n *healthyWorkNative) ReadEmergency(ctx context.Context, id *c.Identity) (
 	v.Facts.Colonists[0].NeedsTend = domain.Known(false)
 	return v, r, e
 }
+
+func (n *healthyWorkNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

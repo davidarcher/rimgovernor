@@ -15,19 +15,10 @@ type TemperatureSource interface {
 	ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error)
 }
 
-// readTemperature reads the typed room census when rooms are enabled and
-// returns the validated snapshot; the caller projects it once the colony
-// reply (whose beds decide eligibility) has arrived on its own lane. A nil
-// snapshot with a nil error is a source without the census or one that
-// reports it unavailable: the fact stays unknown.
-func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity) (*o.RoomsSnapshot, error) {
-	if !s.roomsEnabled {
-		return nil, nil
-	}
-	source, ok := s.RoutineSource.(TemperatureSource)
-	if !ok {
-		return nil, ErrContract
-	}
+// readTemperature reads the typed room census (frames do not carry it) and
+// returns the validated snapshot. A nil snapshot with a nil error is a
+// census the source reports unavailable: the fact stays unknown.
+func readTemperature(ctx context.Context, source TemperatureSource, id *c.Identity, expected Identity) (*o.RoomsSnapshot, error) {
 	reply, _, err := source.ReadTemperatureRooms(ctx, id)
 	if errors.Is(err, bridge.ErrUnavailable) {
 		return nil, nil
@@ -46,8 +37,8 @@ func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity) (*
 	if err != nil {
 		return nil, err
 	}
-	observed.Paused = s.expected.Paused
-	if !sameColonyContext(observed, s.expected) {
+	observed.Paused = expected.Paused
+	if !sameColonyContext(observed, expected) {
 		return nil, ErrChanged
 	}
 	return rooms, nil

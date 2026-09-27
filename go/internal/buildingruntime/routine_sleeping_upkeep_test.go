@@ -358,3 +358,7 @@ func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
 		t.Fatal(result, err, native.previews)
 	}
 }
+
+func (n *sleepingUpkeepNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

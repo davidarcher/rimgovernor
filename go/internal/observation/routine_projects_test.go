@@ -25,6 +25,7 @@ type projectSource struct {
 	onExtra   func()
 	// filter serves only the requested names from extra.
 	filter bool
+	frame  bridge.RoutineFrame
 }
 
 func (s *projectSource) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool, defs []string) (*o.ColonyFactsReply, bridge.Result, error) {
@@ -54,14 +55,17 @@ func (s *projectSource) ReadColonyFacts(ctx context.Context, id *c.Identity, pla
 	section.Completeness.Returned = proto.Uint64(uint64(len(kept)))
 	return reply, bridge.Result{}, nil
 }
-func (s *projectSource) ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
-	return bridge.EmergencyObservation{Context: s.reply.GetObserved().Context, Facts: policy.EmergencyFacts{}}, bridge.Result{}, nil
-}
-func (s *projectSource) ReadRoutinePopulation(context.Context, *c.Identity) (bridge.PrisonerCensus, bridge.Result, error) {
-	return bridge.PrisonerCensus{Context: s.reply.GetObserved().Context, Prisoners: domain.Known([]policy.PrisonerFacts{})}, bridge.Result{}, nil
-}
-func (s *projectSource) ReadRoutinePawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error) {
-	panic("unknown census must skip pawns")
+
+// ReadRoutineFrame is the frame over the colony reply, with the sections
+// the test set in frame; the emergency census is empty by default.
+func (s *projectSource) ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error) {
+	frame := s.frame
+	observed := s.reply.GetObserved()
+	frame.Context, frame.Colony = observed.Context, observed
+	if frame.Emergency.Context == nil {
+		frame.Emergency = bridge.EmergencyObservation{Context: observed.Context}
+	}
+	return frame, nil
 }
 
 func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {

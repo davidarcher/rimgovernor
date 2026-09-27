@@ -313,3 +313,7 @@ func TestResourceStepFallsThroughAnUndispatchableTargetToTheNextDeficit(t *testi
 		t.Fatal(plan.Spec.Actions()[0])
 	}
 }
+
+func (n *resourceNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

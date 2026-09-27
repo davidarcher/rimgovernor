@@ -185,3 +185,7 @@ func TestBreakResponseDispatchRadiusAndSquadExemption(t *testing.T) {
 		t.Fatal(held, err)
 	}
 }
+
+func (n *breakNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

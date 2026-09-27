@@ -44,21 +44,26 @@ func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity)
 	if u := reply.GetUnavailable(); u != nil {
 		return ZonesRead{}, raw, unavailable(u, raw)
 	}
-	v := reply.GetObserved()
+	out, err := decodeZones(reply.GetObserved(), identity)
+	return out, raw, err
+}
+
+// decodeZones validates and decodes a complete zone census.
+func decodeZones(v *o.ZonesSnapshot, identity *c.Identity) (ZonesRead, error) {
 	if err := validateZonePage(v, identity); err != nil {
-		return ZonesRead{}, raw, err
+		return ZonesRead{}, err
 	}
 	out := ZonesRead{Context: v.Context, AsOf: v.Context.GetTick(), MapSnapshot: v.MapSnapshot}
 	seen := map[string]bool{}
 	for _, row := range v.Zones {
 		if seen[row.GetId()] {
-			return ZonesRead{}, raw, contract("duplicate zone")
+			return ZonesRead{}, contract("duplicate zone")
 		}
 		seen[row.GetId()] = true
 		out.Rows = append(out.Rows, row)
 	}
 	sort.Slice(out.Rows, func(i, j int) bool { return out.Rows[i].GetId() < out.Rows[j].GetId() })
-	return out, raw, nil
+	return out, nil
 }
 
 func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity) error {

@@ -64,14 +64,11 @@ func TestColonySectionsServePlannersOfTheCensus(t *testing.T) {
 	scope := mirror.Scope{Load: "l", Map: 1, Generation: 3}
 	id := &c.Identity{ColonyId: proto.String("c"), LoadToken: proto.String("l"), MapId: proto.Int32(1)}
 
-	reply, _, versions, err := readColony(ctx, r.mirror, scope, native, id, true)
+	published := proto.Clone(facts).(*o.ColonyFactsSnapshot)
+	published.Context = native.context(id)
+	versions, err := publishColony(ctx, r.mirror, scope, published)
 	if err != nil || versions == nil {
-		t.Fatalf("review read: %v", err)
-	}
-	want := proto.Clone(facts).(*o.ColonyFactsSnapshot)
-	want.Context = native.context(id)
-	if !proto.Equal(reply.GetObserved(), want) {
-		t.Fatalf("review reply = %v", reply.GetObserved())
+		t.Fatalf("review publish: %v", err)
 	}
 	if table, ok := mirror.Get[string, bridge.ColonyRow](r.mirror, scope, "colony.resources"); !ok || len(table.Rows) != 3 {
 		t.Fatalf("resources section = %+v", table)
@@ -83,14 +80,14 @@ func TestColonySectionsServePlannersOfTheCensus(t *testing.T) {
 
 	native.tick = 140
 	served, _, err := r.colonyFacts(ctx, native, id, false)
-	if err != nil || native.reads != 1 {
+	if err != nil || native.reads != 0 {
 		t.Fatalf("planner read: %v reads=%d", err, native.reads)
 	}
 	if served.GetObserved().GetContext().GetTick() != 100 || served.GetObserved().GetPlanning().GetUnavailable() == nil || len(served.GetObserved().GetResources()) != 2 {
 		t.Fatalf("planner served %v", served.GetObserved())
 	}
 	r.census.invalidate()
-	if _, _, err := r.colonyFacts(ctx, native, id, false); err != nil || native.reads != 2 {
+	if _, _, err := r.colonyFacts(ctx, native, id, false); err != nil || native.reads != 1 {
 		t.Fatalf("invalidated census served colony facts: reads=%d err=%v", native.reads, err)
 	}
 }

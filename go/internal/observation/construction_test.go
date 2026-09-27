@@ -17,23 +17,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type constructionSource struct {
-	*projectSource
-	buildings   *o.ListBuildingsReply
-	onBuildings func()
-	requested   []string
-}
-
-func (s *constructionSource) ReadConstructionBuildings(_ context.Context, _ *c.Identity, ids []string) (*o.ListBuildingsReply, bridge.Result, error) {
-	s.requested = append([]string{}, ids...)
-	if s.onBuildings != nil {
-		s.onBuildings()
-	}
-	return s.buildings, bridge.Result{}, nil
-}
-
-func TestConstructionReadsStayInsidePausedRoutineBracket(t *testing.T) {
-	for _, phase := range []string{"stable", "no-stuff", "unknown-stuff", "unknown-claims", "empty-claims", "changed-generation", "expired", "cancelled"} {
+func TestConstructionReadsTheFramesBuiltBuildings(t *testing.T) {
+	for _, phase := range []string{"stable", "no-stuff", "unknown-stuff", "unknown-claims", "empty-claims", "absent"} {
 		t.Run(phase, func(t *testing.T) {
 			data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 			if err != nil {
@@ -52,13 +37,13 @@ func TestConstructionReadsStayInsidePausedRoutineBracket(t *testing.T) {
 			}
 			row := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(base.GetObserved().Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, OccupiedCells: []*c.Cell{{X: proto.Int32(3), Z: proto.Int32(7)}}, Rotation: proto.String("North"), Status: proto.String("built"), Stuff: proto.String("WoodLog")}
 			snapshot := &o.BuildingsSnapshot{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Buildings: []*o.BuildingState{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
-			s := &constructionSource{projectSource: &projectSource{colonySource: &colonySource{reply: base}}, buildings: &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: snapshot}}}
+			s := &projectSource{colonySource: &colonySource{reply: base}, frame: bridge.RoutineFrame{Construction: snapshot}}
 			b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
 			claims := domain.Known([]policy.ConstructionClaim{{Plan: "method", Action: "placed", Goal: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint", Current: "wall"}, Building: b}})
 			clock := testkit.NewManualClock(time.Now())
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
 			switch phase {
+			case "absent":
+				s.frame.Construction = nil
 			case "no-stuff":
 				row.Stuff = nil
 				row.Issues = []*o.ReadIssue{{Field: proto.String("stuff"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}
@@ -68,30 +53,14 @@ func TestConstructionReadsStayInsidePausedRoutineBracket(t *testing.T) {
 				claims = domain.Unknown[[]policy.ConstructionClaim]()
 			case "empty-claims":
 				claims = domain.Known([]policy.ConstructionClaim{})
-			case "changed-generation":
-				snapshot.Context.NativeGeneration = proto.Uint64(snapshot.Context.GetNativeGeneration() + 1)
-			case "expired":
-				s.onBuildings = func() { clock.Advance(2 * time.Second) }
-			case "cancelled":
-				s.onBuildings = cancel
 			}
-			got, err := ObserveRoutineOwned(ctx, s, clock, expected, time.Second, claims)
-			bad := phase == "changed-generation" || phase == "expired" || phase == "cancelled"
-			if (err != nil) != bad {
+			got, err := ObserveRoutineOwned(context.Background(), s, clock, expected, time.Second, claims)
+			if err != nil {
 				t.Fatal(phase, err)
 			}
-			if bad {
-				if got.Projection.Identity.Colony != "" {
-					t.Fatal("failed bracket published facts")
-				}
-				return
-			}
 			current, known := got.Projection.Facts.CurrentConstruction.Value()
-			if known != (phase != "unknown-stuff") {
+			if known != (phase != "unknown-stuff" && phase != "absent") {
 				t.Fatal(phase, known)
-			}
-			if len(s.requested) != 0 {
-				t.Fatal("expected full player-building census", s.requested)
 			}
 			if known && (!current.Colony || len(current.Requested) != 0 || len(current.Buildings) != 1 || current.Buildings[0].ID != "wall" || current.Buildings[0].Building.Rotation() != domain.North) {
 				t.Fatal(current)

@@ -318,3 +318,7 @@ func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
 		t.Fatal("expected the unclaimed pawn b to equip", equip)
 	}
 }
+
+func (n *equipTestNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

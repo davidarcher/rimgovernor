@@ -4,6 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // RoutineSections is a routine reading's decoded census as facts.Store
@@ -63,10 +64,10 @@ func file[T any](store *facts.Store, scope facts.Scope, section facts.Section, h
 	facts.Put(store, scope, section, held)
 }
 
-// sections assembles the reading's sections once every wave lane has
-// landed and the projection is built.
-func (s *routineBracket) sections(projection ColonyProjection) RoutineSections {
-	tick := int64(projection.Identity.Tick)
+// routineSections files the reading's sections: every one has the frame's
+// tick, except the room census read beside it.
+func routineSections(frame bridge.RoutineFrame, projection ColonyProjection, rooms *o.RoomsSnapshot) RoutineSections {
+	tick := frame.Context.GetTick()
 	out := RoutineSections{
 		Colony:        facts.Held[ColonyProjection]{Value: projection, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_colony_facts"},
 		PlanningCells: projection.Window,
@@ -75,26 +76,25 @@ func (s *routineBracket) sections(projection ColonyProjection) RoutineSections {
 	if out.PlanningCells.Source == "" && projection.Cells != nil {
 		out.PlanningCells = facts.Held[PlanningCells]{Value: PlanningCells{Region: projection.Region, Cells: projection.Cells}, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_colony_facts"}
 	}
-	if s.emergency.Context != nil {
-		complete, known := s.emergency.Facts.ColonistsComplete.Value()
-		out.Emergency = facts.Held[policy.EmergencyFacts]{Value: s.emergency.Facts, AsOf: s.emergencyTick, Complete: known && complete, Source: "rimgovernor/observations_read_status"}
+	emergency := frame.Emergency.Facts
+	complete, known := emergency.ColonistsComplete.Value()
+	out.Emergency = facts.Held[policy.EmergencyFacts]{Value: emergency, AsOf: tick, Complete: known && complete, Source: "rimgovernor/observations_read_status"}
+	if work, known := projection.WorkPawns.Value(); known {
+		medical, _ := projection.Facts.MedicalPawns.Value()
+		mood, _ := projection.Facts.MoodPawns.Value()
+		armed, _ := projection.Facts.Armed.Value()
+		out.Pawns = facts.Held[RoutinePawns]{Value: RoutinePawns{Work: work, Medical: medical, Mood: mood, Armed: armed}, AsOf: tick, Complete: true, Source: "rimgovernor/observations_list_pawns"}
 	}
-	if work, known := s.work.Value(); known {
-		medical, _ := s.medical.Value()
-		mood, _ := s.mood.Value()
-		armed, _ := s.armed.Value()
-		out.Pawns = facts.Held[RoutinePawns]{Value: RoutinePawns{Work: work, Medical: medical, Mood: mood, Armed: armed}, AsOf: s.pawnsTick, Complete: true, Source: "rimgovernor/observations_list_pawns"}
+	if population := frame.Population; population != nil {
+		_, prisoners := population.Prisoners.Value()
+		_, custody := population.Custody.Value()
+		out.Population = facts.Held[bridge.PrisonerCensus]{Value: *population, AsOf: tick, Complete: prisoners && custody, Source: "rimgovernor/observations_read_population"}
 	}
-	if s.population.Context != nil {
-		_, prisoners := s.population.Prisoners.Value()
-		_, custody := s.population.Custody.Value()
-		out.Population = facts.Held[bridge.PrisonerCensus]{Value: s.population, AsOf: s.populationTick, Complete: prisoners && custody, Source: "rimgovernor/observations_read_population"}
+	if research, known := projection.Facts.Research.Value(); known {
+		out.Research = facts.Held[policy.ResearchFacts]{Value: research, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_research"}
 	}
-	if research, known := s.research.Value(); known {
-		out.Research = facts.Held[policy.ResearchFacts]{Value: research, AsOf: s.researchTick, Complete: true, Source: "rimgovernor/observations_read_research"}
-	}
-	if rooms, known := s.temperature.Value(); known {
-		out.Rooms = facts.Held[policy.RoomObservation]{Value: rooms, AsOf: s.roomsTick, Complete: true, Source: "rimgovernor/observations_list_rooms"}
+	if census, known := projection.Rooms.Value(); known && rooms != nil {
+		out.Rooms = facts.Held[policy.RoomObservation]{Value: census, AsOf: rooms.GetContext().GetTick(), Complete: true, Source: "rimgovernor/observations_list_rooms"}
 	}
 	return out
 }

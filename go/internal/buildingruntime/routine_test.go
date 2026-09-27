@@ -2,12 +2,14 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
@@ -50,6 +52,96 @@ func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity) (bri
 		out.Rows = append(out.Rows, &o.ZoneState{Id: proto.String("storage"), FoodStorage: proto.Bool(true)})
 	}
 	return out, bridge.Result{}, ctx.Err()
+}
+
+func (n *routineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
+}
+
+// fakeFrame is the frame a test fake serves: the colony reply's context
+// and whichever section reads the fake (source, the outermost type, so its
+// overrides count) offers.
+func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Identity) (bridge.RoutineFrame, error) {
+	colony, _, err := source.ReadColonyFacts(ctx, id, true, nil)
+	if err != nil {
+		return bridge.RoutineFrame{}, err
+	}
+	frame := bridge.RoutineFrame{Context: colony.GetObserved().GetContext(), Colony: colony.GetObserved()}
+	if s, ok := source.(interface {
+		ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
+	}); ok {
+		if frame.Emergency, _, err = s.ReadEmergency(ctx, id); err != nil {
+			return bridge.RoutineFrame{}, err
+		}
+	}
+	var ids []string
+	if complete, known := frame.Emergency.Facts.ColonistsComplete.Value(); known && complete {
+		for _, pawn := range frame.Emergency.Facts.Colonists {
+			ids = append(ids, string(pawn.ID))
+		}
+	}
+	if s, ok := source.(interface {
+		ReadRoutinePawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
+	}); ok && len(ids) > 0 {
+		reply, _, err := s.ReadRoutinePawns(ctx, id, ids)
+		if err != nil {
+			return bridge.RoutineFrame{}, err
+		}
+		frame.Pawns = reply.GetObserved()
+	}
+	if s, ok := source.(interface {
+		ReadRoutinePopulation(context.Context, *c.Identity) (bridge.PrisonerCensus, bridge.Result, error)
+	}); ok {
+		population, _, err := s.ReadRoutinePopulation(ctx, id)
+		if err != nil {
+			return bridge.RoutineFrame{}, err
+		}
+		frame.Population = &population
+	}
+	if s, ok := source.(RoutineResearchSource); ok {
+		research, _, err := s.ReadResearch(ctx, id)
+		if err != nil {
+			return bridge.RoutineFrame{}, err
+		}
+		frame.Research = &research
+	}
+	if s, ok := source.(interface {
+		ReadWorldProgression(context.Context, *c.Identity, bool) (bridge.WorldProgressionRead, bridge.Result, error)
+	}); ok {
+		quests, _, err := s.ReadWorldProgression(ctx, id, false)
+		if err != nil {
+			return bridge.RoutineFrame{}, err
+		}
+		frame.Quests = &quests
+	}
+	if s, ok := source.(interface {
+		ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
+	}); ok {
+		traders, _, err := s.ListTraders(ctx, id)
+		if err != nil {
+			return bridge.RoutineFrame{}, err
+		}
+		frame.Traders = &traders
+	}
+	if s, ok := source.(interface {
+		ReadConstructionBuildings(context.Context, *c.Identity, []string) (*o.ListBuildingsReply, bridge.Result, error)
+	}); ok {
+		reply, _, err := s.ReadConstructionBuildings(ctx, id, nil)
+		if err != nil && reply.GetUnavailable() == nil {
+			return bridge.RoutineFrame{}, err
+		}
+		frame.Construction = reply.GetObserved()
+	}
+	if s, ok := source.(observation.ZonesNative); ok {
+		zones, _, err := s.ReadZoneSection(ctx, id)
+		if err != nil && !errors.Is(err, bridge.ErrUnavailable) {
+			return bridge.RoutineFrame{}, err
+		}
+		if err == nil {
+			frame.Zones = &zones
+		}
+	}
+	return frame, nil
 }
 
 func (n *routineNative) ReadRoutinePawns(ctx context.Context, _ *c.Identity, _ []string) (*o.ListPawnsReply, bridge.Result, error) {
@@ -346,4 +438,8 @@ func TestRoutineFoodAttrsCarryRunwayThresholdsAndCalendar(t *testing.T) {
 			t.Fatalf("unknown facts produced %s", key)
 		}
 	}
+}
+
+func (n *routineMedicalNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
 }

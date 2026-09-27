@@ -18,17 +18,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type researchSource struct {
-	*projectSource
-	read bridge.ResearchRead
-	err  error
+func researchSource(base *o.ColonyFactsReply, read bridge.ResearchRead) *projectSource {
+	return &projectSource{colonySource: &colonySource{reply: base}, frame: bridge.RoutineFrame{Research: &read}}
 }
 
-func (s *researchSource) ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error) {
-	return s.read, bridge.Result{}, s.err
-}
-
-func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
+func TestRoutineResearchAndResourceFactsReadTheFrame(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +62,7 @@ func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
 	}
 
 	read := bridge.ResearchRead{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), CurrentProject: "Electricity", Finished: []string{"Stonecutting"}, Projects: map[string]policy.ResearchProjectFacts{"Stonecutting": {}, "Electricity": {}, "Batteries": {}}}
-	out, err = observeRoutineUnowned(ctx, &researchSource{projectSource: newSource(), read: read}, clock, expected, time.Second)
+	out, err = observeRoutineUnowned(ctx, researchSource(base, read), clock, expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,15 +74,5 @@ func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
 	// the fixture's Neolithic faction is Masonry, filed with the section.
 	if tier := out.Projection.BuildTier; tier != domain.Known(policy.BuildTierMasonry) || out.Sections.Colony.Value.BuildTier != tier {
 		t.Fatal(tier, out.Sections.Colony.Value.BuildTier)
-	}
-
-	// A research snapshot from a different colony boundary invalidates the reading.
-	changed := bridge.ResearchRead{Context: proto.Clone(read.Context).(*c.ObservationContext), Projects: read.Projects}
-	changed.Context.Identity.ColonyId = proto.String("other")
-	if _, err = observeRoutineUnowned(ctx, &researchSource{projectSource: newSource(), read: changed}, clock, expected, time.Second); err == nil {
-		t.Fatal("changed colony accepted")
-	}
-	if _, err = observeRoutineUnowned(ctx, &researchSource{projectSource: newSource(), err: context.DeadlineExceeded}, clock, expected, time.Second); err == nil {
-		t.Fatal("failed research read accepted")
 	}
 }
