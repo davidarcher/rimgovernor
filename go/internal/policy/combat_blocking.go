@@ -51,6 +51,38 @@ func blockingChoke(view CombatView) (domain.Cell, domain.Cell, bool) {
 	return choke, side, true
 }
 
+// chokeHeld reports the hostile cells the hold's blockers stop at the
+// choke (#905): with a live colonist standing in the blockers' row (a
+// neighbour of the choke one step toward the colony), a hostile at the
+// choke or in front of it within two cells is held there, however hurt
+// the blockers are. Nil without a known choke.
+func chokeHeld(view CombatView, layout CombatLayout) func(domain.Cell) bool {
+	choke, ok := layout.Choke.Value()
+	v, vok := towardVector(layout.Toward)
+	if !ok || !vok {
+		return nil
+	}
+	project := func(c domain.Cell) int32 { return (c.X-choke.X)*v.X + (c.Z-choke.Z)*v.Z }
+	near := func(c domain.Cell, r int32) bool {
+		return c.X-choke.X >= -r && c.X-choke.X <= r && c.Z-choke.Z >= -r && c.Z-choke.Z <= r
+	}
+	colonist := map[domain.PawnID]bool{}
+	for _, d := range view.Defenders {
+		colonist[d.ID] = true
+	}
+	blocked := false
+	for _, p := range view.Pawns {
+		at, known := p.Cell.Value()
+		if colonist[p.ID] && !p.Dead && !p.Downed && known && near(at, 1) && project(at) == 1 {
+			blocked = true
+		}
+	}
+	if !blocked {
+		return nil
+	}
+	return func(c domain.Cell) bool { return near(c, 2) && project(c) <= 0 }
+}
+
 // brawlers are the eligible melee-only defenders, best armored first
 // (unknown armor last), then by id.
 func brawlers(defenders []SquadDefenderFacts) []SquadDefenderFacts {

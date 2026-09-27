@@ -366,8 +366,8 @@ func TestCombatReplayLabOpen(t *testing.T) {
 // of a walled room, two riflemen behind, six club raiders, served with
 // the fixture's defense layout. The hold forms at once with its blocker
 // and reserve duties, later stops send orders (fire mode, a retreat on a
-// serious injury), and the squad takes over once the raid crosses the
-// line.
+// serious injury), and the raid_phase re-formation with raiders in melee
+// at the choke keeps the hold (#905).
 func TestCombatReplayLabChoke(t *testing.T) {
 	t.Parallel()
 	retreat := func(s combatReplayStop) bool {
@@ -375,6 +375,7 @@ func TestCombatReplayLabChoke(t *testing.T) {
 	}
 	checkCombat(t, "testdata/combat/lab-choke.json.gz",
 		formsTactic(firstStop, policy.TacticHold),
+		formsTactic(func(s combatReplayStop) bool { return s.Stop.Kind == policy.StopRaidPhase }, policy.TacticHold),
 		combatAssertion{name: "blockers and a reserve", at: firstStop, check: func(s combatReplayStop) error {
 			duties := map[string]int{}
 			for _, r := range s.Memory.Roles {

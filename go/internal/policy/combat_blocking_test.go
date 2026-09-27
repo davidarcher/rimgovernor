@@ -141,3 +141,48 @@ func TestDecideCombatNoBrawlerNoBlocking(t *testing.T) {
 		t.Fatalf("%+v", ask)
 	}
 }
+
+// #905: a raid_phase stop re-forms with raiders in melee with the blockers
+// at the choke; the hold is doing its job and stays. A raider loose past
+// the blockers' row is still engaged and drops the hold for squad.
+func TestHoldSurvivesBlockerMeleeAtChoke(t *testing.T) {
+	view := chokeView()
+	_, memory := decideChoke(t, view, StopEvent{}, CombatMemory{})
+	view.Tick = 1347
+	// The blockers e and f hold the row past the choke.
+	view.Pawns[4].Cell, view.Pawns[5].Cell = domain.Known(domain.Cell{X: 9, Z: 18}), domain.Known(domain.Cell{X: 8, Z: 18})
+	for i, cell := range []domain.Cell{{X: 9, Z: 17}, {X: 8, Z: 16}} {
+		view.Positional[i].Position = domain.Known(cell)
+		view.Positional[i].NearestColonistDistance = domain.Known(1.0)
+	}
+	restage := func() CombatMemory {
+		t.Helper()
+		stop := StopEvent{Kind: StopRaidPhase}
+		_, ask, next := DecideCombat(view, GeometryReply{}, stop, memory)
+		if ask != nil {
+			reply := GeometryReply{Answered: true, Standable: ask.Cells}
+			if ask.Propose == RoleAdjacentToChoke {
+				reply.Proposals = chokeCells
+			}
+			_, _, next = DecideCombat(view, reply, stop, memory)
+		}
+		return next
+	}
+	if next := restage(); next.Tactic != TacticHold {
+		t.Fatalf("blocker melee at the choke dropped the hold: %+v", next)
+	}
+	// Blockers scratched in the melee (needing tending) are no longer
+	// eligible brawlers, yet they still hold the choke.
+	for i := range view.Defenders {
+		if positive(view.Defenders[i].MeleeEquipped) && !positive(view.Defenders[i].RangedEquipped) {
+			view.Defenders[i].NeedsTend = domain.Known(true)
+		}
+	}
+	if next := restage(); next.Tactic != TacticHold {
+		t.Fatalf("hurt blockers at the choke dropped the hold: %+v", next)
+	}
+	view.Positional[0].Position = domain.Known(domain.Cell{X: 9, Z: 20})
+	if next := restage(); next.Tactic == TacticHold {
+		t.Fatalf("a raider loose past the blockers kept the hold: %+v", next)
+	}
+}
