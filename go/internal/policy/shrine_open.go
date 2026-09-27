@@ -3,8 +3,6 @@ package policy
 import (
 	"math"
 	"sort"
-	"strings"
-	"unicode/utf8"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -137,100 +135,6 @@ func ShrineMeleeLock(caskets []ShrineCasket, squad []ShrineDefenderFacts) Shrine
 	}
 	out.Opener, out.Casket = pool[0].ID, sorted[0].EntityID
 	return out
-}
-
-// OpenerUnavailable mirrors RepairerUnavailable: the opener is dead, downed,
-// in a mental state or already running the Open job.
-const OpenerUnavailable Reason = "opener_unavailable"
-
-// OpenCasketPawnFacts describes the already-selected opener. Drafted is
-// read but not refused: the melee lock drafts the opener first.
-type OpenCasketPawnFacts struct {
-	Pawn                  domain.PawnID
-	SnapshotToken         string
-	Dead, Downed, Drafted domain.Fact[bool]
-	MentalState           domain.Fact[bool]
-	ExistingJobDef        domain.Fact[string]
-}
-
-// OpenCasketFacts is the inspection EvaluateOpenCasket judges: the casket
-// must still exist and hold something (an opened casket is done, not
-// reopened).
-type OpenCasketFacts struct {
-	Snapshot              domain.GenerationSnapshot
-	PawnTick, PreviewTick domain.Tick
-	Pawn                  OpenCasketPawnFacts
-	Casket                string
-	CasketSnapshotToken   string
-	Exists, HasContents   domain.Fact[bool]
-	NativeCanTry          domain.Fact[bool]
-}
-
-type OpenCasketRequest struct {
-	Action      domain.Action
-	Progress    domain.Progress
-	Current     domain.GenerationSnapshot
-	MinimumTick domain.Tick
-	Facts       OpenCasketFacts
-}
-
-// EvaluateOpenCasket re-validates one opener/casket pair immediately before
-// dispatch, the way EvaluateRepair does; admission proves eligibility now,
-// not that the Open job completes.
-func EvaluateOpenCasket(r OpenCasketRequest) DraftDecision {
-	refuse := func(reason Reason) DraftDecision {
-		return DraftDecision{Refused: []Refusal{{Action: r.Action.ID(), Reason: reason}}}
-	}
-	open, ok := r.Action.OpenCasket()
-	canonical, err := domain.NewOpenCasketAction(r.Action.ID(), open)
-	if !ok || err != nil || canonical != r.Action {
-		return refuse(NotReady)
-	}
-	v := r.Progress.View()
-	f := r.Facts
-	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PreviewTick < r.MinimumTick {
-		return refuse(StaleFacts)
-	}
-	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
-		return refuse(NotReady)
-	}
-	if f.PreviewTick < v.Tick || (v.Stage == domain.Prepared && !sameWorld(v.Snapshot, r.Current)) || (v.Attempt > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map || v.Snapshot.Load != r.Current.Load)) {
-		return refuse(StaleFacts)
-	}
-	validToken := func(s string) bool {
-		return len(s) <= 256 && utf8.ValidString(s) && strings.TrimSpace(s) != "" && !strings.ContainsRune(s, 0)
-	}
-	if f.Pawn.Pawn != open.Pawn() || f.Casket != open.Casket() || !validToken(f.Pawn.SnapshotToken) || !validToken(f.CasketSnapshotToken) {
-		return refuse(UnknownFacts)
-	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState, f.Exists, f.HasContents, f.NativeCanTry} {
-		if _, known := fact.Value(); !known {
-			return refuse(UnknownFacts)
-		}
-	}
-	existingJob, known := f.Pawn.ExistingJobDef.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	dead, _ := f.Pawn.Dead.Value()
-	downed, _ := f.Pawn.Downed.Value()
-	mental, _ := f.Pawn.MentalState.Value()
-	if dead || downed || existingJob == open.JobDef() {
-		return refuse(OpenerUnavailable)
-	}
-	if mental {
-		return refuse(PlayerOrder)
-	}
-	if exists, _ := f.Exists.Value(); !exists {
-		return refuse(StructureIneligible)
-	}
-	if filled, _ := f.HasContents.Value(); !filled {
-		return refuse(StructureIneligible)
-	}
-	if eligible, _ := f.NativeCanTry.Value(); !eligible {
-		return refuse(NativeIneligible)
-	}
-	return DraftDecision{Admitted: true}
 }
 
 // Opening readiness holds (#875): each names the first unmet condition of

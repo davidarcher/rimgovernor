@@ -236,11 +236,11 @@ func TestReadyWorkStableBoundedAndWorldScoped(t *testing.T) {
 }
 
 func TestReadyWorkUnmigratedFamilyIsConservative(t *testing.T) {
-	rep, err := domain.NewRepair("pawn1", "wall1", domain.Cell{X: 1, Z: 1})
+	acq, err := domain.NewAcquisition("thing1", "Steel", domain.Cell{X: 1, Z: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	action, err := domain.NewRepairAction("r", rep)
+	action, err := domain.NewAcquisitionAction("r", acq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func TestReadyWorkUnmigratedFamilyIsConservative(t *testing.T) {
 	}
 	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap("rep"), Plans: []ReadyPlan{{Goal: MaintainEssentialRepairs, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "r", "dispatched")}}}})
 	c := r.Candidates[0]
-	if !reflect.DeepEqual(r.Conservative, []domain.ActionKind{domain.RepairAction}) || c.Adapter != ReadyConservative || c.State != ReadyRunnable || c.Parallelism != 1 || !reflect.DeepEqual(c.Work, GoalLabor(MaintainEssentialRepairs)) {
+	if !reflect.DeepEqual(r.Conservative, []domain.ActionKind{domain.AcquisitionAction}) || c.Adapter != ReadyConservative || c.State != ReadyRunnable || c.Parallelism != 1 || !reflect.DeepEqual(c.Work, GoalLabor(MaintainEssentialRepairs)) {
 		t.Fatalf("%+v", r)
 	}
 }

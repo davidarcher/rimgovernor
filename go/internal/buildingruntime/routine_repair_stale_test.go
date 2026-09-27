@@ -42,50 +42,6 @@ func staleRepairGoal(t *testing.T, journal *store.Store) store.GoalState {
 	return state
 }
 
-// A pending repair whose structure the colonists already mended (held as
-// structure_ineligible) is cancelled so the recovered goal releases its
-// development commitment; a repair held for any other reason stays open
-// while the goal still reports a deficit.
-func TestCancelSettledRepairMethodsSettlesRepairsMadeByColonists(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	journal, err := store.Open(ctx, filepath.Join(t.TempDir(), "repairs.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer journal.Close()
-	goal := staleRepairGoal(t, journal)
-
-	if err = cancelSettledRepairMethods(ctx, journal, goal); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = journal.Hold(ctx, "repair-plan", "repair-plan-0", []domain.HeldReason{domain.HeldRepairerUnavailable}, 100); err != nil {
-		t.Fatal(err)
-	}
-	if err = cancelSettledRepairMethods(ctx, journal, goal); err != nil {
-		t.Fatal(err)
-	}
-	plan, err := journal.LoadPlan(ctx, "repair-plan")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !store.PlanOpen(plan) {
-		t.Fatal("a repair waiting for a repairer must stay open")
-	}
-	if _, err = journal.Hold(ctx, "repair-plan", "repair-plan-0", []domain.HeldReason{domain.HeldStructureIneligible}, 200); err != nil {
-		t.Fatal(err)
-	}
-	if err = cancelSettledRepairMethods(ctx, journal, goal); err != nil {
-		t.Fatal(err)
-	}
-	if plan, err = journal.LoadPlan(ctx, "repair-plan"); err != nil {
-		t.Fatal(err)
-	}
-	if v := plan.Progress[0].View(); v.Stage != domain.Cancelled || store.PlanOpen(plan) {
-		t.Fatalf("stage = %s, want cancelled with no open work", v.Stage)
-	}
-}
-
 // Once the goal itself recovers, every pending repair is moot whatever its
 // hold says: nothing was issued and no deficit remains.
 func TestCancelSettledRepairMethodsCancelsPendingWorkOfARecoveredGoal(t *testing.T) {
@@ -97,7 +53,7 @@ func TestCancelSettledRepairMethodsCancelsPendingWorkOfARecoveredGoal(t *testing
 	}
 	defer journal.Close()
 	goal := staleRepairGoal(t, journal)
-	if _, err = journal.Hold(ctx, "repair-plan", "repair-plan-0", []domain.HeldReason{domain.HeldRepairerUnavailable}, 100); err != nil {
+	if _, err = journal.Hold(ctx, "repair-plan", "repair-plan-0", []domain.HeldReason{domain.HeldStaleFacts}, 100); err != nil {
 		t.Fatal(err)
 	}
 	snapshot := goal.Goal.Snapshot

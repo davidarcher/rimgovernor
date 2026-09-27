@@ -16,8 +16,7 @@ import (
 )
 
 // RoutineCleanSource reuses the generic colony read for the filth census
-// (cell included, unlike the exact-ID CAS lookup this census lacks — see
-// bridge.ReadFilthTarget's doc comment) and the existing tend pawn read
+// and the existing tend pawn read
 // (already requests combat+work+care details) for cleaner eligibility: dead/
 // downed/drafted/mental state, health, existing job and whether Cleaning is
 // disabled outright. No new native call is introduced for this slice.

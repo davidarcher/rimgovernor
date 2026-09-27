@@ -66,6 +66,9 @@ func init() {
 	registerIntentKind(domain.BedUseAction, bedUseAction)
 	registerIntentKind(domain.GrowerCropAction, growerCropAction)
 	registerIntentKind(domain.ClaimBuildingAction, claimBuildingAction)
+	registerIntentKind(domain.RepairAction, repairAction)
+	registerIntentKind(domain.CleanAction, cleanAction)
+	registerIntentKind(domain.OpenCasketAction, openCasketAction)
 }
 
 // movementAction is the Actions/Apply move arm of one domain movement.

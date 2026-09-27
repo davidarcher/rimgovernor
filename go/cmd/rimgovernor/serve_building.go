@@ -109,13 +109,10 @@ type buildingServiceBridge struct {
 	capture           *capture.CaptureCapabilities
 	equip             *equip.EquipCapabilities
 	haul              *haul.HaulCapabilities
-	repair            *buildingruntime.RepairCapabilities
-	clean             *buildingruntime.CleanCapabilities
 	moodRelief        *buildingruntime.MoodReliefCapabilities
 	moodReliefWorld   moodReliefWorldSource
 	gearReplace       *buildingruntime.GearReplaceCapabilities
 	trade             *buildingruntime.TradeCapabilities
-	openCasket        *buildingruntime.OpenCasketCapabilities
 	presentationMedia *bridge.PresentationMedia
 	lifecycle         lifecycleCapability
 }
@@ -211,12 +208,9 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		capture:           &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
 		equip:             &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
-		repair:            &buildingruntime.RepairCapabilities{Native: client, Writer: pawnOrder},
-		clean:             &buildingruntime.CleanCapabilities{Native: client, Writer: pawnOrder},
 		moodRelief:        &buildingruntime.MoodReliefCapabilities{Native: client, Writer: moodReliefWriter},
 		gearReplace:       &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
-		openCasket:        &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
 		presentationMedia: presentationMedia,
 		lifecycle:         lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
@@ -404,20 +398,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		haulCapabilities = client.haul
 	}
-	var repairCapabilities *buildingruntime.RepairCapabilities
-	if config.routineRepairPlans {
-		if client.repair == nil {
-			return errors.New("repair plans require typed repair capabilities")
-		}
-		repairCapabilities = client.repair
-	}
-	var cleanCapabilities *buildingruntime.CleanCapabilities
-	if config.routineCleanPlans {
-		if client.clean == nil {
-			return errors.New("clean plans require typed clean capabilities")
-		}
-		cleanCapabilities = client.clean
-	}
 	var moodReliefCapabilities *buildingruntime.MoodReliefCapabilities
 	if config.routineMoodPlans {
 		if client.moodRelief == nil {
@@ -440,14 +420,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		tradeCapabilities = client.trade
 	}
-	// The shrine family opens filled caskets through the shared executor (#460).
-	var openCasketCapabilities *buildingruntime.OpenCasketCapabilities
-	if config.routineShrinePlans {
-		if client.openCasket == nil {
-			return errors.New("shrine plans require typed open casket capabilities")
-		}
-		openCasketCapabilities = client.openCasket
-	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Control:         buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor:        executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
@@ -463,12 +435,9 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Capture:         captureCapabilities,
 		Equip:           equipCapabilities,
 		Haul:            haulCapabilities,
-		Repair:          repairCapabilities,
-		Clean:           cleanCapabilities,
 		MoodRelief:      moodReliefCapabilities,
 		GearReplace:     gearReplaceCapabilities,
 		Trade:           tradeCapabilities,
-		OpenCasket:      openCasketCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err

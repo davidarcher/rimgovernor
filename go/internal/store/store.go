@@ -28,13 +28,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/store/gearreplace"
 	"github.com/davidarcher/RimGovernor/go/internal/store/ranged"
-	"github.com/davidarcher/RimGovernor/go/internal/store/repair"
 	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/store/tend"
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 144
+const schemaVersion = 145
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -64,8 +63,6 @@ type PlanState struct {
 	RangedAdmissions          []ActionRangedAdmission
 	EquipAdmissions           []ActionEquipAdmission
 	GearReplaceAdmissions     []ActionGearReplaceAdmission
-	RepairAdmissions          []ActionRepairAdmission
-	CleanAdmissions           []ActionCleanAdmission
 	MoodReliefAdmissions      []ActionMoodReliefAdmission
 	MineAcquisitionAdmissions []ActionMineAcquisitionAdmission
 }
@@ -272,8 +269,6 @@ CREATE TABLE capture_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id
 CREATE TABLE ranged_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE equip_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE gear_replace_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE repair_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE clean_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mood_relief_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mine_acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
@@ -672,26 +667,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if gearReplacePresent {
 			state.GearReplaceAdmissions = append(state.GearReplaceAdmissions, ActionGearReplaceAdmission{Action: a.ID(), Admission: gearReplaceAdmission})
 		}
-		repairAdmission, repairPresent, e := repair.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if (a.Kind() == domain.RepairAction || a.Kind() == domain.OpenCasketAction) && !repairPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("repair progress lacks admission")
-		}
-		if repairPresent {
-			state.RepairAdmissions = append(state.RepairAdmissions, ActionRepairAdmission{Action: a.ID(), Admission: repairAdmission})
-		}
-		cleanAdmission, cleanPresent, e := loadCleanAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.CleanAction && !cleanPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("clean progress lacks admission")
-		}
-		if cleanPresent {
-			state.CleanAdmissions = append(state.CleanAdmissions, ActionCleanAdmission{Action: a.ID(), Admission: cleanAdmission})
-		}
 		moodReliefAdmission, moodReliefPresent, e := loadMoodReliefAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
@@ -907,30 +882,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		}
 		if event.Kind == "dispatch" && !gearreplace.GuardDispatch(state.GearReplaceAdmissions, action, event.Snapshot, event.Tick) {
 			return domain.Progress{}, errors.New("gear replace dispatch lacks current admission")
-		}
-	}
-	if current.Action().Kind() == domain.RepairAction || current.Action().Kind() == domain.OpenCasketAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("repair requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !repair.GuardDispatch(state.RepairAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("repair dispatch lacks current admission")
-		}
-	}
-	if current.Action().Kind() == domain.CleanAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("clean requires typed preparation")
-		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.CleanAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("clean dispatch lacks current admission")
-			}
 		}
 	}
 	for _, record := range state.Admissions {

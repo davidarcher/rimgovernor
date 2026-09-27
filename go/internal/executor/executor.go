@@ -101,11 +101,6 @@ type Executor struct {
 	equipJournal           EquipJournal
 	gearReplace            GearReplaceBoundary
 	gearReplaceJournal     GearReplaceJournal
-	repair                 RepairBoundary
-	repairJournal          RepairJournal
-	openCasket             OpenCasketBoundary
-	clean                  CleanBoundary
-	cleanJournal           CleanJournal
 	moodRelief             MoodReliefBoundary
 	moodReliefJournal      MoodReliefJournal
 	trade                  TradeBoundary
@@ -318,15 +313,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.GearReplaceAction && e.gearReplace != nil {
 		return e.runGearReplace(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.RepairAction && e.repair != nil {
-		return e.runRepair(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.OpenCasketAction && e.openCasket != nil {
-		return e.runOpenCasket(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.CleanAction && e.clean != nil {
-		return e.runClean(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MoodReliefAction && e.moodRelief != nil {
 		return e.runMoodRelief(ctx, action, progress, authority, generation)

@@ -24,27 +24,22 @@ import (
 )
 
 type SessionConfig struct {
-	Acquisition    *acquisition.AcquisitionCapabilities
-	RoutineMethods bool
-	Control        ControlConfig
-	Executor       executor.Limits
-	Draft          *draft.DraftCapabilities
-	Clock          *ClockCapabilities
-	Melee          *melee.MeleeCapabilities
-	Haul           *haul.HaulCapabilities
-	Ranged         *ranged.RangedCapabilities
-	Movement       *MovementCapabilities
-	Tend           *tend.TendCapabilities
-	Rescue         *rescue.RescueCapabilities
-	Capture        *capture.CaptureCapabilities
-	Equip          *equip.EquipCapabilities
-	GearReplace    *GearReplaceCapabilities
-	Repair         *RepairCapabilities
-	Clean          *CleanCapabilities
-	MoodRelief     *MoodReliefCapabilities
-	// OpenCasket backs the shrine family casket opening (#460), a Repair-shaped
-	// pawn order whose opener the melee lock drafts first.
-	OpenCasket      *OpenCasketCapabilities
+	Acquisition     *acquisition.AcquisitionCapabilities
+	RoutineMethods  bool
+	Control         ControlConfig
+	Executor        executor.Limits
+	Draft           *draft.DraftCapabilities
+	Clock           *ClockCapabilities
+	Melee           *melee.MeleeCapabilities
+	Haul            *haul.HaulCapabilities
+	Ranged          *ranged.RangedCapabilities
+	Movement        *MovementCapabilities
+	Tend            *tend.TendCapabilities
+	Rescue          *rescue.RescueCapabilities
+	Capture         *capture.CaptureCapabilities
+	Equip           *equip.EquipCapabilities
+	GearReplace     *GearReplaceCapabilities
+	MoodRelief      *MoodReliefCapabilities
 	Trade           *TradeCapabilities
 	MineAcquisition *mineacquisition.MineAcquisitionCapabilities
 }
@@ -276,17 +271,8 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil)", ErrControl))
 	}
-	if config.Repair != nil && (config.Repair.Native == nil || config.Repair.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.Repair != nil && (config.Repair.Native == nil || config.Repair.Writer == nil)", ErrControl))
-	}
-	if config.Clean != nil && (config.Clean.Native == nil || config.Clean.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.Clean != nil && (config.Clean.Native == nil || config.Clean.Writer == nil)", ErrControl))
-	}
 	if config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil)", ErrControl))
-	}
-	if config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil)", ErrControl))
 	}
 	if config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil)", ErrControl))
@@ -390,33 +376,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableGearReplace(gearReplaceBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Repair != nil {
-		repairBoundary, err := NewRepairBoundary(config.Repair.Native, config.Repair.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableRepair(repairBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.OpenCasket != nil {
-		openCasketBoundary, err := NewOpenCasketBoundary(config.OpenCasket.Native, config.OpenCasket.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableOpenCasket(openCasketBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Clean != nil {
-		cleanBoundary, err := NewCleanBoundary(config.Clean.Native, config.Clean.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableClean(cleanBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

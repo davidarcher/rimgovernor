@@ -18,15 +18,12 @@ func allKnownReasons() []policy.Reason {
 		policy.DependencyBlocked, policy.GeometryBlocked,
 		policy.InvalidHeld,
 
-		policy.CleanerUnavailable,
-		policy.DoctorUnavailable, policy.DraftOwnership, policy.EquipPawnUnavailable, policy.FilthIneligible,
-		policy.GearReplacePawnUnavailable,
+		policy.DoctorUnavailable, policy.DraftOwnership, policy.EquipPawnUnavailable, policy.GearReplacePawnUnavailable,
 		policy.NativeIneligible, policy.PatientIneligible, policy.PlayerOrder,
-		policy.RepairerUnavailable, policy.RescuerUnavailable,
-		policy.StructureIneligible, policy.UnsuitableEquipment,
+		policy.RescuerUnavailable,
+		policy.UnsuitableEquipment,
 		policy.UnsupportedThreat,
 		policy.ExcavationUnsupported, policy.ExcavationGeometryChanged,
-		policy.OpenerUnavailable,
 		policy.UnsafeRoute, policy.RoofSupportRisk, policy.StorageMissing, policy.UrgentCompetingWork,
 	}
 }

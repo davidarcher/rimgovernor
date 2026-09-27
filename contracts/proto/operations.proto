@@ -380,8 +380,15 @@ message Action {
     RelocateIntent relocate = 38;
     BuildingPatchIntent building_patch = 39;
     RemoveWallIntent remove_wall = 40;
+    PawnOrderIntent pawn_order = 41;
   }
 }
+// Order one pawn onto one target with the job the game's own work giver or
+// float menu builds for that kind (repair, clean, open a casket). Native
+// checks the pawn and the target live; a pawn already running that job on
+// the target applies again. Applied means ordered, not finished; the next
+// census reads the outcome.
+message PawnOrderIntent { optional string pawn_id = 1; optional string target_id = 2; optional PawnOrderKind kind = 3; }
 // Extend Home over the missing cells of one facility's bounded batch (a
 // colonist building plus its connected enclosed roofed rooms, or a
 // stockpile's cells), recomputed live when native applies it. A batch

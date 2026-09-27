@@ -914,7 +914,7 @@ Selection never dispatches. A pending remote `Deconstruction` is revalidated
 on every dispatch against the fresh clearance census and the emergency read,
 and a target that turned unsafe holds with the reasons on record
 (`unsafe_threat`, `unsafe_route`, `roof_support_risk`, `missing_storage`,
-`critical_medical`, `structure_ineligible`); a mine acquisition holds on its
+`critical_medical`); a mine acquisition holds on its
 native preview and the same emergency read. A threat that appears after the
 review selected a target therefore never becomes a stale designation, and
 foreign designations are never touched. Holds clear on the next admitted
