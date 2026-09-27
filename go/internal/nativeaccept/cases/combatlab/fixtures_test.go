@@ -34,6 +34,10 @@ func TestFixturesFitTheLabWithoutOverlap(t *testing.T) {
 		}
 		seen := map[int]bool{}
 		for _, p := range f.Pawns {
+			if p.Side == Hostile && f.Arrival != "" {
+				// An arrival drops every hostile around the one cell.
+				continue
+			}
 			claim(p.Side+" "+p.Weapon, p.X, p.Z)
 			if p.Side == Colonist {
 				if p.Index < 0 || p.Index >= f.Colonists || seen[p.Index] {

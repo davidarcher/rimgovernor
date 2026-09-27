@@ -65,7 +65,6 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 			layout = domain.Known(*s.Layout)
 		}
 		view := combatView(combat, in, s.Orderable, layout)
-		view.Rooms = s.Rooms
 		if stop := combatStop(combat, s.MemoryIn.Tick); !reflect.DeepEqual(stop, s.Stop) {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: the frame's events answer %+v, the recording %+v", i, s.Tick, stop, s.Stop)
 		}
@@ -173,7 +172,7 @@ func changesOnly() combatAssertion {
 func ordersOwnedDrafts() combatAssertion {
 	return combatAssertion{name: "orders name owned drafts", check: func(s combatReplayStop) error {
 		for _, o := range s.Orders {
-			if !containsPawn(s.View.Orderable, o.Pawn) {
+			if o.Pawn != "" && !containsPawn(s.View.Orderable, o.Pawn) { // a door order names none
 				return fmt.Errorf("%s is not orderable", o.Pawn)
 			}
 		}
@@ -403,4 +402,53 @@ func TestCombatReplayLabChoke(t *testing.T) {
 		combatAssertion{name: "a stop sends orders", at: withOrders, check: func(combatReplayStop) error { return nil }},
 		combatAssertion{name: "a serious injury retreats", at: retreat, check: func(combatReplayStop) error { return nil }},
 	)
+}
+
+// lab-pods (#870, #897): four riflemen between a walled landing room and a
+// safe room, an unarmed colonist inside the landing room, four rifle
+// raiders dropped into it. The pods tactic forms at the first stop with
+// the landing room from the frame's standing rooms: the civilian's
+// evacuee cell is outside the landing room (never reached, #911), two
+// riflemen take the doorway flanks (standable per the
+// geometry read) and the landing door is held open. Not asserted:
+// drafting before the open tick (the served clock only starts at the
+// open, #908) and a strike (no raider fled, looted or went down in the
+// recording, and four against four never waits).
+func TestCombatReplayLabPods(t *testing.T) {
+	t.Parallel()
+	inside := func(c domain.Cell) bool { return c.X >= 45 && c.X <= 55 && c.Z >= 55 && c.Z <= 65 }
+	var evacuee domain.PawnID
+	stops := checkCombat(t, "testdata/combat/lab-pods.json.gz",
+		formsTactic(firstStop, policy.TacticPods),
+		combatAssertion{name: "doorway pair and an evacuee", at: firstStop, check: func(s combatReplayStop) error {
+			duties := map[string]int{}
+			for _, r := range s.Memory.Roles {
+				duties[string(r.Duty)]++
+				if r.Duty == "evacuee" {
+					evacuee = r.Pawn
+				}
+			}
+			if duties["doorway"] != 2 || duties["evacuee"] != 1 {
+				return fmt.Errorf("duties %v", duties)
+			}
+			return nil
+		}},
+		combatAssertion{name: "the landing door is held open", at: firstStop, check: func(s combatReplayStop) error {
+			for _, o := range s.Orders {
+				if o.Door == "hold_open" && o.Cell == (domain.Cell{X: 50, Z: 54}) {
+					return nil
+				}
+			}
+			return fmt.Errorf("orders %+v", s.Orders)
+		}},
+		ordersOwnedDrafts(),
+		changesOnly(),
+	)
+	// The evacuee's cell is the safe room's; the move itself is never sent,
+	// since the fight does not draft the civilian (#911).
+	for _, r := range stops[0].Memory.Roles {
+		if r.Pawn == evacuee && (r.Cell == nil || inside(*r.Cell)) {
+			t.Fatalf("evacuee %s sent to %v, inside the landing room", evacuee, r.Cell)
+		}
+	}
 }

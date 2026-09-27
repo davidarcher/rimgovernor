@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "fixture": "lab-pods",
+  "ticks": 4362,
+  "colonistDamage": 91.3,
+  "colonistDowns": 0,
+  "colonistDeaths": 0,
+  "enemyDowns": 0,
+  "enemyDeaths": 0,
+  "enemyFled": 0,
+  "firstContactTick": 307,
+  "resolvedTick": -1,
+  "contactToResolutionTicks": -1,
+  "winner": "",
+  "friendlyFireHits": 0,
+  "ordersIssued": 6,
+  "ordersRefused": 114,
+  "stepLatencyP95Ms": 898
+}

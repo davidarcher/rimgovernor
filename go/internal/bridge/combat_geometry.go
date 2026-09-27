@@ -52,7 +52,8 @@ func (client *Client) CombatGeometry(ctx context.Context, request *mp.CombatGeom
 
 // ValidateCombatGeometryRequest checks the caps and shape: an identity,
 // 1..CombatGeometryMaxCells distinct cells (0..cap-1 with propose),
-// 1..CombatGeometryMaxHostiles distinct hostile ids, a valid pawn id when
+// 1..CombatGeometryMaxHostiles distinct hostile ids (0 for named cells with
+// no propose and no pawn), a valid pawn id when
 // one is named, and a propose block's role and anchor.
 func ValidateCombatGeometryRequest(request *mp.CombatGeometryRequest) error {
 	if request == nil {
@@ -71,8 +72,13 @@ func ValidateCombatGeometryRequest(request *mp.CombatGeometryRequest) error {
 	if err := geometryCells(request.Cells, min); err != nil {
 		return err
 	}
-	if n := len(request.HostileIds); n < 1 || n > CombatGeometryMaxHostiles {
-		return contract("combat geometry hostiles outside 1..%d", CombatGeometryMaxHostiles)
+	// Named cells alone need no hostile: their standability (#897).
+	hostiles := 1
+	if request.Propose == nil && request.PawnId == nil {
+		hostiles = 0
+	}
+	if n := len(request.HostileIds); n < hostiles || n > CombatGeometryMaxHostiles {
+		return contract("combat geometry hostiles outside %d..%d", hostiles, CombatGeometryMaxHostiles)
 	}
 	if err := combatIDs(request.HostileIds); err != nil {
 		return err

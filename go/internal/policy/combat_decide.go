@@ -37,9 +37,14 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	if next.Pods != nil && (next.Tactic != TacticPods || reform(view, stop, next)) {
 		// A pods arrival picks its own tactic (#891), not the squad fallback.
+		if ask := podsAsk(view, *next.Pods); ask != nil && !geometry.Answered {
+			// The doorway flank cells are used only where the game finds
+			// them standable (#897), asked in the stop's one round trip.
+			return nil, ask, memory
+		}
 		var doors []PodDoor
 		next.Tactic, next.Refusal = TacticPods, ""
-		next.Roles, doors = podFormation(view, *next.Pods)
+		next.Roles, doors = podFormation(view, *next.Pods, geometry)
 		if podWait(view, stop, &next) {
 			next.Roles, doors = holdBehindDoors(next.Roles, doors)
 		}
@@ -182,8 +187,8 @@ type CombatView struct {
 	Positional []DefensiveThreatFacts
 	Layout     domain.Fact[CombatLayout]
 	Orderable  []domain.PawnID
-	// Pods is the frame's drop-pod arrival (#870, #891); Rooms the layout
-	// plan's rooms, read for a pods fight.
+	// Pods is the frame's drop-pod arrival (#870, #891); Rooms the map's
+	// standing rectangular rooms from the frame (#897).
 	Pods  domain.Fact[PodArrival]
 	Rooms []CombatRoom
 }

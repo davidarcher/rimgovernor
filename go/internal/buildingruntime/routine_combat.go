@@ -163,7 +163,9 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 	if ask != nil && ask.Propose == policy.RoleRescuePath {
 		return r.answerRescuePath(ctx, identity, ask)
 	}
-	if ask == nil || len(ask.Hostiles) == 0 {
+	// Named cells alone are asked with no hostile: their standability
+	// (#897, before drop pods open).
+	if ask == nil || len(ask.Hostiles) == 0 && (ask.Propose != "" || len(ask.Cells) == 0) {
 		return reply
 	}
 	wire := func(cell domain.Cell) *c.Cell { return &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)} }

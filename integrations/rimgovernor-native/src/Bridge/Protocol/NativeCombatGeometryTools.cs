@@ -67,7 +67,9 @@ namespace HomeBridge.BridgeTools
                 if (request.Cells.Count >= MaxCells || !ValidatePropose(request.Propose)
                     || request.Propose.RoleCase == Mirror.CombatGeometryPropose.RoleOneofCase.RescuePath && !request.HasPawnId) return false;
             }
-            if (request.Cells.Count < (request.Propose == null ? 1 : 0) || request.Cells.Count > MaxCells || request.HostileIds.Count < 1 || request.HostileIds.Count > MaxHostiles) return false;
+            // Named cells alone need no hostile: their standability (#897).
+            var hostilesMin = request.Propose == null && !request.HasPawnId ? 0 : 1;
+            if (request.Cells.Count < (request.Propose == null ? 1 : 0) || request.Cells.Count > MaxCells || request.HostileIds.Count < hostilesMin || request.HostileIds.Count > MaxHostiles) return false;
             if (request.Cells.Any(c => c == null || !c.HasX || !c.HasZ) || request.Cells.Select(c => (c.X, c.Z)).Distinct().Count() != request.Cells.Count) return false;
             if (request.HostileIds.Any(id => !ProtoBoundary.IsIdentifier(id)) || request.HostileIds.Distinct(StringComparer.Ordinal).Count() != request.HostileIds.Count) return false;
             if (request.HasPawnId && !ProtoBoundary.IsIdentifier(request.PawnId)) return false;

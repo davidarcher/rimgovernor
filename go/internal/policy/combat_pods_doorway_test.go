@@ -67,3 +67,24 @@ func TestDecideCombatPodDoorwayPrefersCloseRange(t *testing.T) {
 		t.Fatalf("a rifle took a slot over the shotgun: %+v", memory.Roles)
 	}
 }
+
+// The flank cells are asked for their standability with no hostile out
+// yet (#897), and a flank cell the game did not find standable takes no
+// responder: only (9,10) is manned.
+func TestDecideCombatPodDoorwayChecksStandable(t *testing.T) {
+	view := doorwayView()
+	_, ask, _ := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
+	if ask == nil || !reflect.DeepEqual(ask.Cells, []domain.Cell{{X: 9, Z: 10}, {X: 11, Z: 10}}) || len(ask.Hostiles) != 0 {
+		t.Fatalf("%+v", ask)
+	}
+	orders, _, memory := DecideCombat(view, GeometryReply{Answered: true, Standable: []domain.Cell{{X: 9, Z: 10}}}, StopEvent{}, CombatMemory{})
+	var doorway []CombatRole
+	for _, r := range memory.Roles {
+		if r.Duty == DutyDoorway {
+			doorway = append(doorway, r)
+		}
+	}
+	if len(doorway) != 1 || *doorway[0].Cell != (domain.Cell{X: 9, Z: 10}) || orders[0].Door != DoorHoldOpen {
+		t.Fatalf("%+v %+v", memory.Roles, orders)
+	}
+}

@@ -21,8 +21,8 @@ type PodArrival struct {
 	Open    domain.Tick
 }
 
-// CombatRoom is one planned room of the colony's layout plan: its floor
-// and the doors in its walls.
+// CombatRoom is one standing room on the map (#897): its floor and the
+// doors in its walls.
 type CombatRoom struct {
 	Interior Rectangle
 	Doors    []domain.Cell `json:",omitempty"`
@@ -50,7 +50,7 @@ const (
 // on its far side, the door held open (#892), close-range fighters first.
 // Non-combatants in a landing room or near a landing cell move to the
 // landing-free room cell farthest from the pods.
-func podFormation(view CombatView, pods PodArrival) ([]CombatRole, []PodDoor) {
+func podFormation(view CombatView, pods PodArrival, geometry GeometryReply) ([]CombatRole, []PodDoor) {
 	at := map[domain.PawnID]domain.Cell{}
 	reach := map[domain.PawnID]float64{}
 	for _, p := range view.Pawns {
@@ -82,6 +82,9 @@ func podFormation(view CombatView, pods PodArrival) ([]CombatRole, []PodDoor) {
 	for _, door := range landingDoors(view, pods) {
 		held := false
 		for _, cell := range door.slots {
+			if !geometry.stands(cell) {
+				continue
+			}
 			if len(pool) == 0 {
 				break
 			}
@@ -213,6 +216,40 @@ func landingDoors(view CombatView, pods PodArrival) []podDoorway {
 		}
 	}
 	return out
+}
+
+// podsAsk is a pods formation's geometry ask (#897): every doorway flank
+// cell named for its standability, then the shooters' cells for their
+// lines of fire, against the live hostiles (none before the pods open).
+// Without a landing-room door there is nothing to ask.
+func podsAsk(view CombatView, pods PodArrival) *GeometryRequest {
+	ask := &GeometryRequest{}
+	for _, door := range landingDoors(view, pods) {
+		for _, c := range door.slots {
+			if !slices.Contains(ask.Cells, c) {
+				ask.Cells = append(ask.Cells, c)
+			}
+		}
+	}
+	if len(ask.Cells) == 0 {
+		return nil
+	}
+	for _, h := range rankThreats(view) {
+		if len(ask.Hostiles) < maxGeometryHostiles {
+			ask.Hostiles = append(ask.Hostiles, h.ID)
+		}
+	}
+	if len(ask.Hostiles) > 0 {
+		for _, c := range shooterCells(view) {
+			if !slices.Contains(ask.Cells, c) {
+				ask.Cells = append(ask.Cells, c)
+			}
+		}
+	}
+	if len(ask.Cells) > maxGeometryCells {
+		ask.Cells = ask.Cells[:maxGeometryCells]
+	}
+	return ask
 }
 
 // outward is the unit step from a room's interior through its wall at

@@ -79,10 +79,10 @@ const (
 )
 
 // Names are the fixtures in landing order; #854 lands the first three and
-// reserves lab-breach, lab-pods, lab-mech, lab-manhunter and lab-siege for
-// the first #845 child that needs each. lab-pods (#870) is built but not
-// listed until a tactic case fights it (the metrics baselines run Names).
-var Names = []string{"lab-open", "lab-choke", "lab-ranged"}
+// reserves lab-breach, lab-mech, lab-manhunter and lab-siege for the first
+// #845 child that needs each. lab-pods (#870) joins with its rooms (#897).
+// The metrics baselines run Names.
+var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
 func Build(name string, cx, cz int) (Fixture, error) {
@@ -151,18 +151,51 @@ func choke(cx, cz int) Fixture {
 	return f
 }
 
-// pods: three riflemen on an open field and four rifle raiders dropped by
-// center drop pods around a cell 10 cells north (#870). For drop-pod tactics and the
-// pods strategy in combat_events.
+// Pod rooms (#897): the landing room is a 13x13 granite ring around the
+// drop centre, 10 cells north, with a door in the middle of its south
+// wall; the safe room a 7x7 ring 13 cells south with a door in its north
+// wall.
+const (
+	podsDrop     = 10
+	podsHalf     = 6
+	podsSafe     = -13
+	podsSafeHalf = 3
+)
+
+// pods: four riflemen on an open field between two walled rooms, an
+// unarmed colonist inside the landing room, and four rifle raiders dropped
+// by center drop pods around the landing room's centre (#870, #897). For
+// the drop-pod tactics (draft before the open tick, evacuate, doorway
+// pairs, wait and strike) and the pods strategy in combat_events.
 func pods(cx, cz int) Fixture {
-	f := Fixture{Name: "lab-pods", Colonists: 3, Arrival: "CenterDrop"}
-	for i, dx := range []int{-2, 0, 2} {
-		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz - 5, Weapon: rifle})
+	f := Fixture{Name: "lab-pods", Colonists: 5, Arrival: "CenterDrop"}
+	f.Things = append(f.Things, walledRoom(cx, cz+podsDrop, podsHalf, Cell{cx, cz + podsDrop - podsHalf})...)
+	f.Things = append(f.Things, walledRoom(cx, cz+podsSafe, podsSafeHalf, Cell{cx, cz + podsSafe + podsSafeHalf})...)
+	for i, dx := range []int{-3, -1, 1, 3} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz - 3, Weapon: rifle})
 	}
+	f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: 4, X: cx + 4, Z: cz + podsDrop - 4})
 	for i := 0; i < 4; i++ {
-		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: gunner, X: cx, Z: cz + 10, Weapon: rifle})
+		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: gunner, X: cx, Z: cz + podsDrop, Weapon: rifle})
 	}
 	return f
+}
+
+// walledRoom is a granite wall ring of half edge half around (x, z) with
+// a wooden door at door.
+func walledRoom(x, z, half int, door Cell) []Thing {
+	var out []Thing
+	for wx := x - half; wx <= x+half; wx++ {
+		for wz := z - half; wz <= z+half; wz++ {
+			switch {
+			case wx == door.X && wz == door.Z:
+				out = append(out, Thing{Def: "Door", Stuff: "WoodLog", X: wx, Z: wz})
+			case wx == x-half || wx == x+half || wz == z-half || wz == z+half:
+				out = append(out, Thing{Def: "Wall", Stuff: "BlocksGranite", X: wx, Z: wz})
+			}
+		}
+	}
+	return out
 }
 
 // ranged: four riflemen, one empty cell apart, behind a seven-cell sandbag

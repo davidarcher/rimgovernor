@@ -514,7 +514,9 @@ type Combat struct {
 	// Detail is keyed by pawn id; nil when the frame carries none.
 	Detail map[string]*o.PawnState
 	Lines  []LineOfFire
-	Frame  *o.BundleSnapshot
+	// Rooms are the map's standing rectangular rooms (#897).
+	Rooms []policy.CombatRoom
+	Frame *o.BundleSnapshot
 }
 
 // ReadCombat reads the combat state from the newest frame past this
@@ -536,7 +538,7 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 
 // combatFrame is the part of frame v a combat read answers.
 func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
-	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire}
+	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms}
 }
 
 // DecodeCombat validates and decodes a frame's combat part (ReadCombat,
@@ -591,7 +593,34 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 		}
 		out.Lines = lines
 	}
+	for _, row := range v.CombatRooms {
+		if room, ok := combatRoom(row); ok {
+			out.Rooms = append(out.Rooms, room)
+		}
+	}
 	return out, nil
+}
+
+// combatRoom is a frame room row (#897) as the pods tactic's room: a room
+// whose cells fill its bounds, and the doors on the ring around them. A
+// room of any other shape is left out.
+func combatRoom(row *mp.CombatRoom) (policy.CombatRoom, bool) {
+	lo, okLo := protoCell(row.GetMin())
+	hi, okHi := protoCell(row.GetMax())
+	if !okLo || !okHi || hi.X < lo.X || hi.Z < lo.Z {
+		return policy.CombatRoom{}, false
+	}
+	w, h := hi.X-lo.X+1, hi.Z-lo.Z+1
+	if int64(w)*int64(h) != int64(row.GetCellCount()) {
+		return policy.CombatRoom{}, false
+	}
+	room := policy.CombatRoom{Interior: policy.Rectangle{X: lo.X, Z: lo.Z, Width: w, Height: h}}
+	for _, d := range row.GetDoors() {
+		if c, ok := protoCell(d); ok {
+			room.Doors = append(room.Doors, c)
+		}
+	}
+	return room, true
 }
 
 // validateCombat checks a frame's combat rows (#851).

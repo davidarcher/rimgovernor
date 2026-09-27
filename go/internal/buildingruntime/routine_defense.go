@@ -185,18 +185,9 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	}
 	view := combatView(combat, in, orderable, held)
 	tick := view.Tick
-	if _, pods := view.Pods.Value(); pods || memory.Pods != nil || policy.ManhunterPack(view) {
-		plan, ok, err := r.reviewer.layoutPlan(call, state.Snapshot, tick)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		if ok && !plan.Invalid {
-			view.Rooms = combatRooms(plan.Plan)
-		}
-	}
 	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
-	recorded := snap.CombatStop{Tick: tick, Stop: stop, Orderable: orderable, Ask: ask, MemoryIn: memory, Rooms: view.Rooms}
+	recorded := snap.CombatStop{Tick: tick, Stop: stop, Orderable: orderable, Ask: ask, MemoryIn: memory}
 	if l, known := held.Value(); known {
 		recorded.Layout = &l
 	}
@@ -346,7 +337,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, building := range in.buildings {
 		threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true, LinesOfFire: lines[building.ID]})
 	}
-	return policy.CombatView{Tick: domain.Tick(combat.Context.GetTick()), Pawns: combatPawnStates(combat, in.rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat)}
+	return policy.CombatView{Tick: domain.Tick(combat.Context.GetTick()), Pawns: combatPawnStates(combat, in.rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms}
 }
 
 // podArrival is the frame's newest drop-pod arrival row (#870), for the
@@ -366,16 +357,6 @@ func podArrival(combat bridge.Combat) domain.Fact[policy.PodArrival] {
 		pods.Landing = append(pods.Landing, domain.Cell{X: c.GetX(), Z: c.GetZ()})
 	}
 	return domain.Known(pods)
-}
-
-// combatRooms is the layout plan's rooms and their doors, the pods (#891)
-// and manhunter (#899) tactics' rooms; none without a plan.
-func combatRooms(plan policy.LayoutPlan) []policy.CombatRoom {
-	var out []policy.CombatRoom
-	for _, r := range plan.Rooms {
-		out = append(out, policy.CombatRoom{Interior: r.Interior, Doors: plan.ShellDoors(r)})
-	}
-	return out
 }
 
 // buildingLinesOfFire is, for every standing hostile building, which

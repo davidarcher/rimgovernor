@@ -39,11 +39,48 @@ namespace HomeBridge.BridgeTools
             var combatBegan = Now();
             Supervisor.EnsureHazardHooks(); Supervisor.EnsureCombatHooks();
             CombatMirror.Capture(map, observed);
+            if (observed.CombatPawns.Count > 0) CombatRooms(map, observed);
             ObservationWork.Captured("combat", Now() - combatBegan, observed.CombatPawns.Count + observed.CombatEvents.Count);
             var inputsBegan = Now();
             CombatInputs(map, context, observed);
             ObservationWork.Captured("combatInputs", Now() - inputsBegan, observed.CombatDetail != null ? observed.CombatDetail.Pawns.Count : 0);
             return observed;
+        }
+
+        private const int MaxCombatRooms = 64, MaxCombatRoomCells = 1024;
+
+        // On the main thread. The map's standing proper rooms (#897), for
+        // the pods tactic: each room's bounds, cell count and the player
+        // doors on the ring around its bounds. Rooms past the caps are left
+        // out; a dirty room graph leaves the section empty.
+        private static void CombatRooms(Map map, Obs.BundleSnapshot observed)
+        {
+            if (map.regionGrid?.AllRooms == null || map.regionAndRoomUpdater == null) return;
+            map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
+            if (map.regionAndRoomUpdater.AnythingToRebuild) return;
+            var player = RimWorld.Faction.OfPlayerSilentFail;
+            foreach (var room in map.regionGrid.AllRooms)
+            {
+                if (observed.CombatRooms.Count >= MaxCombatRooms) break;
+                if (room == null || !room.ProperRoom || room.IsDoorway || room.CellCount == 0 || room.CellCount > MaxCombatRoomCells) continue;
+                int minX = int.MaxValue, minZ = int.MaxValue, maxX = int.MinValue, maxZ = int.MinValue;
+                foreach (var c in room.Cells)
+                {
+                    minX = System.Math.Min(minX, c.x); minZ = System.Math.Min(minZ, c.z);
+                    maxX = System.Math.Max(maxX, c.x); maxZ = System.Math.Max(maxZ, c.z);
+                }
+                var row = new RimGovernor.Protocol.Mirror.CombatRoom { RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    Min = new Common.Cell { X = minX, Z = minZ }, Max = new Common.Cell { X = maxX, Z = maxZ }, CellCount = (uint)room.CellCount };
+                for (int x = minX - 1; x <= maxX + 1; x++)
+                    for (int z = minZ - 1; z <= maxZ + 1; z++)
+                    {
+                        if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) continue;
+                        var cell = new IntVec3(x, 0, z);
+                        if (cell.InBounds(map) && cell.GetEdifice(map) is RimWorld.Building_Door door && player != null && door.Faction == player)
+                            row.Doors.Add(new Common.Cell { X = x, Z = z });
+                    }
+                observed.CombatRooms.Add(row);
+            }
         }
 
         // On the main thread. The defense planner's combat inputs (#853):

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -87,7 +88,13 @@ func init() {
 // log and the metrics to the bundle.
 func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	dir := s.Config().Output
-	staged, err := Stage(ctx, s.Harness(), name)
+	var staged Staged
+	var err error
+	if probe, _ := Build(name, 0, 0); probe.Arrival != "" {
+		staged, err = stageToPodsOpen(ctx, s, name)
+	} else {
+		staged, err = Stage(ctx, s.Harness(), name)
+	}
 	if err != nil {
 		return err
 	}
@@ -163,6 +170,48 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 		return fmt.Errorf("%s ran %d ticks from %d, over the %d-tick budget", name, m.Ticks, start, metricsTicks)
 	}
 	return nil
+}
+
+// stageToPodsOpen stages a drop-pod fixture and runs the game to the
+// arrival's open tick. The native records combat events once a frame
+// capture has hooked them (a served game's stream is open long before a
+// raid), so one frame is captured before staging. The served clock admits
+// no window while the raiders are still in their pods (no hostile in the
+// census, #908), so the run starts at the open.
+func stageToPodsOpen(ctx context.Context, s cases.Session, name string) (Staged, error) {
+	identity, err := typedIdentity(s.Identity())
+	if err != nil {
+		return Staged{}, err
+	}
+	frames, err := openCombatFrames(ctx, s.Harness(), identity)
+	if err != nil {
+		return Staged{}, err
+	}
+	defer frames.reader.Close()
+	if _, err = frames.next(ctx, 0); err != nil {
+		return Staged{}, err
+	}
+	staged, err := Stage(ctx, s.Harness(), name)
+	if err != nil {
+		return staged, err
+	}
+	_, tick, err := Tick(ctx, s.Harness(), 1)
+	if err != nil {
+		return staged, err
+	}
+	state, err := frames.next(ctx, int64(tick))
+	if err != nil {
+		return staged, err
+	}
+	for _, row := range state.Events {
+		if bridge.DropPodArrival(row) {
+			if wait := int(row.GetOpenTick()) - tick; wait > 0 {
+				_, _, err = Tick(ctx, s.Harness(), wait)
+			}
+			return staged, err
+		}
+	}
+	return staged, fmt.Errorf("%s: no drop-pod arrival row in %d frame events", name, len(state.Events))
 }
 
 // serveUntil polls the service's state until the game tick reaches until,

@@ -105,6 +105,17 @@ message CombatEventRow {
   repeated rimgovernor.common.v1.Cell landing_cells = 11;
 }
 
+// A standing room (#897, BundleSnapshot.combat_rooms): a proper room's
+// floor as its bounding cells and cell count (a rectangle when the count
+// fills the bounds), and the player doors on the ring around the bounds.
+message CombatRoom {
+  optional string room_id = 1;
+  rimgovernor.common.v1.Cell min = 2;
+  rimgovernor.common.v1.Cell max = 3;
+  optional uint32 cell_count = 4;
+  repeated rimgovernor.common.v1.Cell doors = 5;
+}
+
 // rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that
 // answers DecideCombat's geometry questions at a stop by the game's own
 // rules. Caps: at most MaxGeometryCells cells and MaxGeometryHostiles
@@ -115,7 +126,9 @@ message CombatGeometryRequest {
   // 1..cap, distinct, in bounds; 0..cap with propose. Named plus proposed
   // cells together score at most the cells cap.
   repeated rimgovernor.common.v1.Cell cells = 2;
-  repeated string hostile_ids = 3; // 1..cap, distinct pawn load ids
+  // 1..cap, distinct pawn load ids; 0..cap for named cells alone (their
+  // standability, #897), with no propose and no pawn.
+  repeated string hostile_ids = 3;
   optional string pawn_id = 4; // optional: path ticks for this pawn to each cell
   // Optional (#871): the native proposes candidate cells for one role and
   // scores them like named cells, in the same read.

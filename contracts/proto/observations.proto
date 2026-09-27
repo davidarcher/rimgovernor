@@ -1187,6 +1187,9 @@ message BundleSnapshot {
   // most 64 cells a side, unset when either side is empty.
   PawnSnapshot combat_detail = 22;
   LinesOfFireSnapshot combat_lines_of_fire = 23;
+  // The map's standing proper rooms (#897), while combat pawns are
+  // captured: at most 64 rooms of at most 1024 cells each.
+  repeated rimgovernor.mirror.v1.CombatRoom combat_rooms = 24;
 }
 message ObservationBatchSnapshot {
   rimgovernor.common.v1.ObservationContext start_context = 1; rimgovernor.common.v1.ObservationContext end_context = 2;
