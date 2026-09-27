@@ -185,7 +185,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	}
 	view := combatView(combat, in, orderable, held)
 	tick := view.Tick
-	if _, pods := view.Pods.Value(); pods || memory.Pods != nil {
+	if _, pods := view.Pods.Value(); pods || memory.Pods != nil || policy.ManhunterPack(view) {
 		plan, ok, err := r.reviewer.layoutPlan(call, state.Snapshot, tick)
 		if err != nil {
 			return RoutineDefenseResult{}, err
@@ -368,8 +368,8 @@ func podArrival(combat bridge.Combat) domain.Fact[policy.PodArrival] {
 	return domain.Known(pods)
 }
 
-// combatRooms is the layout plan's rooms and their doors, the pods
-// tactic's rooms (#891); none without a plan.
+// combatRooms is the layout plan's rooms and their doors, the pods (#891)
+// and manhunter (#899) tactics' rooms; none without a plan.
 func combatRooms(plan policy.LayoutPlan) []policy.CombatRoom {
 	var out []policy.CombatRoom
 	for _, r := range plan.Rooms {

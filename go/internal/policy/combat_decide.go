@@ -50,7 +50,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			// layout) it forms at once.
 			return nil, ask, memory
 		}
-		if manhunterPack(view) {
+		if ManhunterPack(view) {
 			// A manhunter pack picks its own tactic (#898).
 			next.Tactic, next.Roles, next.Refusal = TacticManhunter, manhunterFormation(view, geometry, next.Relieved), ""
 		} else {

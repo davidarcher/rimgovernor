@@ -41,9 +41,9 @@ func classifyAnimal(s CombatPawnState) AnimalClass {
 	}
 }
 
-// manhunterPack reports a fight whose live hostile pawns (at least one) are
+// ManhunterPack reports a fight whose live hostile pawns (at least one) are
 // all known manhunter animals.
-func manhunterPack(view CombatView) bool {
+func ManhunterPack(view CombatView) bool {
 	down := downPawns(view)
 	n := 0
 	for _, t := range view.Threats {
@@ -161,7 +161,13 @@ func manhunterFormation(view CombatView, geometry GeometryReply, relieved []doma
 		}
 		roles = append(roles, role)
 	}
-	duties := brawlerRoles(view, rest, blocking, geometry, relieved)
+	var duties []CombatRole
+	if chokes := waveChokes(view); len(chokes) > 0 {
+		// A psychic wave blocks every door it approaches (#899).
+		duties = waveBlockers(chokes, rotated(brawlers(rest), relieved))
+	} else {
+		duties = brawlerRoles(view, rest, blocking, geometry, relieved)
+	}
 	roles = append(roles, duties...)
 	for _, b := range brawlers(rest) {
 		if !slices.ContainsFunc(duties, func(r CombatRole) bool { return r.Pawn == b.ID }) {
