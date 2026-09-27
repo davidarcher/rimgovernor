@@ -56,7 +56,7 @@ func (s *Store) PrepareConfirmColonyNames(ctx context.Context, plan domain.PlanI
 	if err != nil {
 		return domain.Progress{}, err
 	}
-	if err = state.Spec.CheckDependencies(action, state.Progress, admission.Snapshot, admission.Tick); err != nil {
+	if err = checkDependencies(ctx, tx, state, action, admission.Snapshot, admission.Tick); err != nil {
 		return domain.Progress{}, err
 	}
 	var a domain.Action

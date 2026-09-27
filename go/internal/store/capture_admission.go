@@ -27,7 +27,7 @@ func (s *Store) PrepareCapture(ctx context.Context, plan domain.PlanID, action d
 	if err != nil {
 		return domain.Progress{}, err
 	}
-	if err = state.Spec.CheckDependencies(action, state.Progress, admission.Snapshot, admission.Tick); err != nil {
+	if err = checkDependencies(ctx, tx, state, action, admission.Snapshot, admission.Tick); err != nil {
 		return domain.Progress{}, err
 	}
 	var a domain.Action

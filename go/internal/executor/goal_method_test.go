@@ -62,10 +62,18 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	if err != nil || !result.NativeCalled {
 		t.Fatal("upfront reservation could not enter Hands", result, err)
 	}
-	// The applied receipt is terminal (#856): the placed blueprint completes
-	// the dependency and releases its successor.
+	// The applied receipt is terminal (#856), but the successor waits for
+	// the census to report the building built, not its blueprint (#937).
 	if result.Progress.View().Stage != domain.Completed {
 		t.Fatal("applied intent did not complete", result)
+	}
+	f.env.tick = 101
+	if result, err = f.executor.Run(ctx, plan.ID(), "finish"); err == nil || result.NativeCalled {
+		t.Fatal("blueprint released its successor", result, err)
+	}
+	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "Wall1", IntentKey: "foundation/1"}}}
+	if _, err = f.store.ReviewRoutine(ctx, store.RoutineReviewRequest{Current: scope, Tick: 101, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}); err != nil {
+		t.Fatal(err)
 	}
 	f.env.tick = 102
 	result, err = f.executor.Run(ctx, plan.ID(), "finish")

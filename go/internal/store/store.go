@@ -1064,7 +1064,7 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		return domain.Progress{}, errors.New("retired plan is read-only")
 	}
 	if event.Kind == "prepare" || event.Kind == "dispatch" {
-		if err = state.Spec.CheckDependencies(action, state.Progress, event.Snapshot, event.Tick); err != nil {
+		if err = checkDependencies(ctx, tx, state, action, event.Snapshot, event.Tick); err != nil {
 			return domain.Progress{}, err
 		}
 	}

@@ -86,6 +86,11 @@ type RoutineReview struct {
 	// enabled review's plans and unserved goals, bounded by
 	// policy.DefaultReadyBounds. Diagnostics only: no admission reads it.
 	ReadyWork *policy.ReadyWorkReport `json:",omitempty"`
+	// Built is every building action the last complete construction census
+	// reported built (policy.BuiltActions), sorted; a review without a
+	// complete census keeps the last one. Admission reads it for building
+	// prerequisites (checkDependencies, #937).
+	Built []domain.ActionID `json:",omitempty"`
 	// Dependencies are the live shortfall edges (#651) planners recorded
 	// (RecordDependency); each review drops the settled or stale ones.
 	Dependencies []DependencyRecord `json:",omitempty"`
@@ -559,6 +564,16 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.WoodFloor = needs.WoodFloor
 	r.StartingSupplies = supplies
 	r.EventLoot = loot
+	if !reset {
+		r.Built = previous.Built
+	}
+	if built, known := policy.BuiltActions(request.Facts.CurrentConstruction); known {
+		r.Built = make([]domain.ActionID, 0, len(built))
+		for action := range built {
+			r.Built = append(r.Built, action)
+		}
+		slices.Sort(r.Built)
+	}
 	if request.Enabled {
 		if reserve, known := request.Facts.FoodReserve.Value(); known {
 			wanted := map[string]bool{}

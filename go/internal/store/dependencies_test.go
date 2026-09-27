@@ -47,6 +47,10 @@ func TestDependencyPersistenceAndGuardedExecution(t *testing.T) {
 		t.Fatal(e)
 	}
 	admission.Tick = 11
+	if _, e = s.Prepare(ctx, "p", "b", admission.Snapshot, admission.Tick); !errors.Is(e, domain.ErrDependency) {
+		t.Fatal("blueprint released its dependent", e)
+	}
+	reviewCensus(t, s, scope(), 11, []domain.ActionID{"a"})
 	if _, e = s.Prepare(ctx, "p", "b", admission.Snapshot, admission.Tick); e != nil {
 		t.Fatal(e)
 	}
