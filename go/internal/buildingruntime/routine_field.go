@@ -365,8 +365,8 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 				return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
 			}
 			v := reply.GetEvaluated()
-			if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-				return RoutineFieldResult{}, false, fmt.Errorf("%w: enact: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
+			if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
+				return RoutineFieldResult{}, false, fmt.Errorf("%w: enact: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
 			}
 			actions = append(actions, action)
 			previews = append(previews, policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})})

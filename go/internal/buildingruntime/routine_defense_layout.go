@@ -1120,7 +1120,7 @@ func defenseControlErr(line int) error {
 
 func (r *RoutineDefenseLayoutPlanner) sameTick(observed *c.ObservationContext, state ControlState, tick domain.Tick) error {
 	current, err := boundary.Context(observed, state.Snapshot)
-	if err != nil || current.Native != state.Snapshot.Native || domain.Tick(observed.GetTick()) != tick {
+	if err != nil || current.Native != state.Snapshot.Native || domain.Tick(observed.GetTick()) < tick {
 		return defenseControlErr(388)
 	}
 	return nil

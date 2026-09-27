@@ -22,6 +22,9 @@ import (
 type fullSteelStorageNative struct {
 	*resourceNative
 	previews []bridge.ZoneTarget
+	// advance moves the preview read past the projection tick, as a clock
+	// left running during planning does.
+	advance int64
 }
 
 func (n *fullSteelStorageNative) ReadResourceSources(_ context.Context, _ *c.Identity, resource string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error) {
@@ -30,7 +33,9 @@ func (n *fullSteelStorageNative) ReadResourceSources(_ context.Context, _ *c.Ide
 
 func (n *fullSteelStorageNative) PreviewZone(_ context.Context, _ *c.Identity, target bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error) {
 	n.previews = append(n.previews, target)
-	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
+	read := proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext)
+	read.Tick = proto.Int64(read.GetTick() + n.advance)
+	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: read, Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
 }
 
 // A steel deficit with full storage admits one stack of stockpile before
@@ -39,12 +44,23 @@ func (n *fullSteelStorageNative) PreviewZone(_ context.Context, _ *c.Identity, t
 // every remote salvage target held missing_storage.
 func TestResourceStorageFloorPrecedesRivalBids(t *testing.T) {
 	t.Parallel()
+	resourceStorageFloor(t, 0)
+}
+
+// A preview read one tick newer than the projection still admits: the clock
+// keeps running during planning, so only a read older than the anchor is stale.
+func TestResourceStorageFloorAdmitsNewerPreviewRead(t *testing.T) {
+	t.Parallel()
+	resourceStorageFloor(t, 1)
+}
+
+func resourceStorageFloor(t *testing.T, advance int64) {
 	base, _, _, _, sleeping := sleepingFixture(t)
 	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"Steel": 200}
 	sleeping.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(0)}}
 	native := &fullSteelStorageNative{resourceNative: &resourceNative{
 		workshopNative: &workshopNative{sleepingNative: sleeping, benches: []bridge.GearBenchRead{{Token: "bench-cas", Bench: policy.GearBench{ID: "Thing_CraftingSpot1", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{})}}}},
-	}}
+	}, advance: advance}
 	v := sleeping.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)

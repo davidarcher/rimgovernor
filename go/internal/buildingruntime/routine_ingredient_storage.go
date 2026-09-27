@@ -249,8 +249,8 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		if !v.GetAccepted() {
 			continue
 		}
-		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-			return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
+		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
+			return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
 		}
 		cells = candidate
 		evaluated = policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}

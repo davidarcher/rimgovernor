@@ -172,8 +172,8 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 		return RoutineStoneShellResult{}, false, err
 	}
 	current, err := boundary.Context(sites.Context, state.Snapshot)
-	if err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) != projection.Identity.Tick {
-		return RoutineStoneShellResult{}, false, fmt.Errorf("%w: propose: err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) != projection", ErrControl)
+	if err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) < projection.Identity.Tick {
+		return RoutineStoneShellResult{}, false, fmt.Errorf("%w: propose: err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) < projection", ErrControl)
 	}
 	if len(sites.Sites) == 0 {
 		return RoutineStoneShellResult{}, false, nil

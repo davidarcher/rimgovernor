@@ -140,8 +140,8 @@ func (r *RoutineBuildingPlanner) readExcavationSite(call context.Context, snapsh
 		return bridge.ExcavationSite{}, err
 	}
 	current, err := boundary.Context(site.Context, snapshot)
-	if err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) != tick {
-		return bridge.ExcavationSite{}, fmt.Errorf("%w: readExcavationSite: err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) != tick", ErrControl)
+	if err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) < tick {
+		return bridge.ExcavationSite{}, fmt.Errorf("%w: readExcavationSite: err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) < tick", ErrControl)
 	}
 	snap.NoteSite(call, purpose, target, cells, site)
 	return site, nil

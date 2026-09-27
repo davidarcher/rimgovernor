@@ -508,8 +508,8 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	if v == nil || !v.GetAccepted() {
 		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
 	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != tick {
-		return RoutineStockpileResult{}, fmt.Errorf("%w: create: err != nil || domain.Tick(v.Context.GetTick()) != tick", ErrControl)
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < tick {
+		return RoutineStockpileResult{}, fmt.Errorf("%w: create: err != nil || domain.Tick(v.Context.GetTick()) < tick", ErrControl)
 	}
 	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {

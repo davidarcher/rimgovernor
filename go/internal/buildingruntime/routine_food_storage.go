@@ -167,8 +167,8 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		if !v.GetAccepted() {
 			continue
 		}
-		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-			return RoutineFoodStorageResult{}, fmt.Errorf("%w: step: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
+		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
+			return RoutineFoodStorageResult{}, fmt.Errorf("%w: step: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
 		}
 		cells = candidate
 		preview = policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}

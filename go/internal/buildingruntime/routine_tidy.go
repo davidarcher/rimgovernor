@@ -212,8 +212,8 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 		return RoutineTidyResult{Reason: BuildingMethodRefused}, nil
 	}
 	v := reply.GetEvaluated()
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != tick {
-		return RoutineTidyResult{}, fmt.Errorf("%w: create: err != nil || domain.Tick(v.Context.GetTick()) != tick", ErrControl)
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < tick {
+		return RoutineTidyResult{}, fmt.Errorf("%w: create: err != nil || domain.Tick(v.Context.GetTick()) < tick", ErrControl)
 	}
 	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})

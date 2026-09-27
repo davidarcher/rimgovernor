@@ -709,8 +709,8 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 	if v == nil || !v.GetAccepted() {
 		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
 	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return RoutineResourceResult{}, fmt.Errorf("%w: admitZoneMethod: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
+		return RoutineResourceResult{}, fmt.Errorf("%w: admitZoneMethod: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
 	}
 	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})

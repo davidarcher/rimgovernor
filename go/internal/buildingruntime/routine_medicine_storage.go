@@ -221,8 +221,8 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 		if v == nil || !v.GetAccepted() {
 			continue
 		}
-		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != facts.Identity.Tick {
-			return "", fmt.Errorf("%w: medicineStorage: err != nil || domain.Tick(v.Context.GetTick()) != facts.Identity.Tick", ErrControl)
+		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < facts.Identity.Tick {
+			return "", fmt.Errorf("%w: medicineStorage: err != nil || domain.Tick(v.Context.GetTick()) < facts.Identity.Tick", ErrControl)
 		}
 		action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 		if err != nil {

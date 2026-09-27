@@ -458,8 +458,8 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	if v == nil {
 		return PlanResult{}, nil
 	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return PlanResult{}, fmt.Errorf("%w: coveredStorageFallback: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
+		return PlanResult{}, fmt.Errorf("%w: coveredStorageFallback: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
 	}
 	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {
@@ -538,8 +538,8 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 	if v == nil || !v.GetAccepted() {
 		return PlanResult{}, nil
 	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return PlanResult{}, fmt.Errorf("%w: generalStore: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
+		return PlanResult{}, fmt.Errorf("%w: generalStore: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
 	}
 	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {
