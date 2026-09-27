@@ -182,7 +182,7 @@ func BatterySlots(r LayoutRoom) []Rectangle {
 	var out []Rectangle
 	for _, i := range AisleRows(in.Height, 2) {
 		z := in.Z + i
-		if r.DoorRot == domain.North { // door on the south wall
+		if r.DoorRot == domain.North { // door on the north wall
 			z = in.Z + in.Height - 1 - i
 		}
 		out = append(out,
