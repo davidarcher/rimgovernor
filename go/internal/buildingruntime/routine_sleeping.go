@@ -713,6 +713,16 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			}
 		}()
 	}
+	if r.shelter && r.goal != policy.EnsureInitialShelter {
+		if result, handled, err := r.digPlannedShells(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, check); err != nil || handled {
+			return result, err
+		}
+	}
+	if r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationBuild {
+		if result, handled, err := r.digExhaust(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, check); err != nil || handled {
+			return result, err
+		}
+	}
 	if r.shelter && r.goal == policy.EnsureInitialShelter {
 		// The starter shell is raised around its bunks (#612): the sleeping
 		// spots and then the beds are placed on the site first, each a rung

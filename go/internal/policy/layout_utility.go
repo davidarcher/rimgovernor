@@ -275,20 +275,28 @@ func PlannedCoolerSites(plan LayoutPlan) []PlannedCoolerSite {
 			if r.Role != role {
 				continue
 			}
-			in := r.Interior
-			x, wall, first, rot := in.X+in.Width/2, in.Z+in.Height, in.Z+in.Height+1, domain.North
-			if r.DoorRot == domain.North {
-				wall, first, rot = in.Z-1, in.Z-2, domain.South
-			}
-			for _, e := range plan.Reservations {
-				if e.Kind == ReserveExhaust && e.Area.X == x && (e.Area.Z == first || e.Area.Z+e.Area.Height-1 == first) {
-					out = append(out, PlannedCoolerSite{Cell: domain.Cell{X: x, Z: wall}, Rotation: rot})
-					break
-				}
+			if site, _, ok := plan.CoolerExhaust(r); ok {
+				out = append(out, site)
 			}
 		}
 	}
 	return out
+}
+
+// CoolerExhaust is the cooler site in room's back wall and the exhaust the
+// plan reserved behind it; false when the plan reserved none.
+func (p LayoutPlan) CoolerExhaust(room LayoutRoom) (PlannedCoolerSite, Rectangle, bool) {
+	in := room.Interior
+	x, wall, first, rot := in.X+in.Width/2, in.Z+in.Height, in.Z+in.Height+1, domain.North
+	if room.DoorRot == domain.North {
+		wall, first, rot = in.Z-1, in.Z-2, domain.South
+	}
+	for _, e := range p.Reservations {
+		if e.Kind == ReserveExhaust && e.Area.X == x && (e.Area.Z == first || e.Area.Z+e.Area.Height-1 == first) {
+			return PlannedCoolerSite{Cell: domain.Cell{X: x, Z: wall}, Rotation: rot}, e.Area, true
+		}
+	}
+	return PlannedCoolerSite{}, Rectangle{}, false
 }
 
 // SolarDefinition is the solar generator, planned on its 4x4 plots.

@@ -39,3 +39,55 @@ func TestMiningFollowsTheLayoutPlanTiers(t *testing.T) {
 		t.Fatalf("without ore: %+v", got)
 	}
 }
+
+// TestPlannedDig (#836): a dug cooled room mines its interior, door, cooler
+// cell and shaft ahead of the ring; a standing room digs only its shaft,
+// and nothing while its back wall is still rock.
+func TestPlannedDig(t *testing.T) {
+	p := PlanUtilities(PlanCore(coreTestZones(), 3), UtilityWants{})
+	var freezer LayoutRoom
+	for _, r := range p.Rooms {
+		if r.Role == ModuleFreezer {
+			freezer = r
+		}
+	}
+	site, shaft, ok := p.CoolerExhaust(freezer)
+	if !ok {
+		t.Fatal("no exhaust")
+	}
+	if got := p.MineTier(domain.Cell{X: shaft.X, Z: shaft.Z}); got != MineTierCore {
+		t.Fatalf("shaft tier %d", got)
+	}
+	in := freezer.Interior
+	var cells []SiteCell
+	for x := in.X - 2; x <= in.X+in.Width+1; x++ {
+		for z := in.Z - 2 - shaft.Height; z <= in.Z+in.Height+1+shaft.Height; z++ {
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, NaturalRock: domain.Known(true)})
+		}
+	}
+	dig := map[domain.Cell]bool{}
+	for _, c := range p.RoomDig(freezer, cells) {
+		dig[c] = true
+	}
+	want := RectangleCells(in)
+	want = append(append(want, freezer.Door, site.Cell), RectangleCells(shaft)...)
+	if len(dig) != len(want) {
+		t.Fatalf("dig %d cells, want %d", len(dig), len(want))
+	}
+	for _, c := range want {
+		if !dig[c] {
+			t.Fatalf("%v not dug", c)
+		}
+	}
+	if got := p.ExhaustDig(freezer, cells); got != nil {
+		t.Fatalf("rock back wall dug %v", got)
+	}
+	for i := range cells {
+		if cells[i].Cell == site.Cell {
+			cells[i].NaturalRock = domain.Known(false)
+		}
+	}
+	if got := p.ExhaustDig(freezer, cells); len(got) != len(RectangleCells(shaft)) {
+		t.Fatalf("shaft dig %v, want %v", got, shaft)
+	}
+}

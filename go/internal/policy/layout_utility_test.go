@@ -105,6 +105,18 @@ func TestRefrigerationPrefersPlannedCooler(t *testing.T) {
 	if err != nil || got.Method != RefrigerationBuild || got.Cell == (domain.Cell{X: 2, Z: 4}) {
 		t.Fatal(got, err)
 	}
+	for i := range obs.Cells {
+		switch obs.Cells[i].Cell {
+		case domain.Cell{X: 2, Z: 5}:
+			obs.Cells[i].Walkable = domain.Known(true) // shaft dug
+		case domain.Cell{X: 2, Z: 4}:
+			obs.Cells[i].NaturalRock = domain.Known(true) // back wall still rock (#836)
+		}
+	}
+	got, err = SelectRefrigerationMethod(review, domain.Known(obs), FoodStoragePolicy{}, false)
+	if err != nil || got.Method != RefrigerationBuild || got.Cell == (domain.Cell{X: 2, Z: 4}) {
+		t.Fatal(got, err)
+	}
 }
 
 func inRect(r Rectangle, c domain.Cell) bool {

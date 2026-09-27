@@ -67,7 +67,8 @@ func bedroomMethod(kind policy.BedroomStepKind, room policy.LayoutRoom) domain.M
 }
 
 // bedroomRing is the planned room's wall ring, door first, without the
-// cells a wall or door already stands on (a neighbour's shared wall).
+// cells a wall or door already stands on (a neighbour's shared wall) or
+// natural rock walls.
 func bedroomRing(room policy.LayoutRoom, facts observation.ColonyProjection) []domain.Cell {
 	standing := map[domain.Cell]bool{}
 	if census, known := facts.Facts.CurrentConstruction.Value(); known {
@@ -77,6 +78,12 @@ func bedroomRing(room policy.LayoutRoom, facts observation.ColonyProjection) []d
 					standing[c] = true
 				}
 			}
+		}
+	}
+	// Natural rock on the ring walls a dug room as it stands (#836).
+	for _, c := range facts.Cells {
+		if rock, known := c.NaturalRock.Value(); known && rock && c.Cell != room.Door {
+			standing[c.Cell] = true
 		}
 	}
 	in := room.Interior
@@ -146,6 +153,11 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 			return ErrControl
 		}
 		return nil
+	}
+	// A room planned into rock is mined out before its ring (#836).
+	plan, _ := facts.LayoutPlan.Value()
+	if result, handled, err := b.digPlannedRoom(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading}, plan, room, check); err != nil || handled {
+		return result, err
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	var selected []policy.Preview

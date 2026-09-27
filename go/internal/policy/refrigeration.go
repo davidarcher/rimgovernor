@@ -442,6 +442,9 @@ func plannedWall(room Room, planned []PlannedCoolerSite, cells map[domain.Cell]S
 			continue
 		} else if walkable, known := w.Walkable.Value(); !known || walkable {
 			continue
+		} else if rock, _ := w.NaturalRock.Value(); rock {
+			// No cooler stands on rock (#836).
+			continue
 		}
 		if o, ok := cells[cooler.Hot()]; !ok {
 			continue

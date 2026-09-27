@@ -44,8 +44,8 @@ type BedroomStep struct {
 // NextBedroomStep picks the next bedroom step from the plan, the room census
 // and the sleeping census. Move comes first (it costs nothing), then a bed in
 // a standing empty bedroom, then a new shell, and a shell only while the
-// standing bedrooms cannot take every colonist still outside one. Rooms dug
-// into rock wait on mining and are skipped. It reports BedroomNone whenever a
+// standing bedrooms cannot take every colonist still outside one; a room dug
+// into rock is a shell too, whose builder mines it first (#836). It reports BedroomNone whenever a
 // fact it needs is unknown.
 // A colonist whose current room RoomTargets marks NeverUpgrade (an ascetic,
 // #826) counts as housed: the move never takes them from the plainest room.
@@ -117,9 +117,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		}
 		room, ok := standing(r)
 		if !ok {
-			if !r.Dug {
-				unbuilt = append(unbuilt, r)
-			}
+			unbuilt = append(unbuilt, r)
 			continue
 		}
 		if len(room.Beds) == 0 {

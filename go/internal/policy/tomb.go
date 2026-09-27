@@ -113,7 +113,7 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 		return step
 	}
 	for _, r := range plan.Rooms {
-		if r.Role != ModuleTomb || r.Dug {
+		if r.Role != ModuleTomb {
 			continue
 		}
 		piece, ok := tombSlot(r, taken)
@@ -136,7 +136,7 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 func (p LayoutPlan) TombRooms() int {
 	n := 0
 	for _, r := range p.Rooms {
-		if r.Role == ModuleTomb && !r.Dug {
+		if r.Role == ModuleTomb {
 			n++
 		}
 	}

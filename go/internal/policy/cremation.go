@@ -60,7 +60,7 @@ func NextCremationStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem
 		return step
 	}
 	for _, r := range plan.Rooms {
-		if r.Role != ModuleWorkshop || r.Dug {
+		if r.Role != ModuleWorkshop {
 			continue
 		}
 		if _, ok := PlannedRoomStanding(r, rooms); !ok {
