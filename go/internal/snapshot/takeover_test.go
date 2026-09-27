@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -29,51 +30,75 @@ func deficit(t *testing.T, r Routine, id policy.GoalID) {
 	}
 }
 
-// takeover/schedule, tick 15: a hand-edited timetable (and a NightOwl on the
-// native default) makes the work review a deficit the same review corrects.
+// takeover/schedule, tick 15, recorded at 476208aa7 (#769): the player gave
+// one colonist (Thing_Human728) a Joy hour at noon under Manual. The
+// review's pawn read carries every timetable; the schedule planner replans
+// that colonist's noon to Anything, so the work review is a deficit, and a
+// colony wearing the planned timetables has nothing left to replan.
 func TestTakeoverScheduleEditOpensWorkAssignments(t *testing.T) {
-	r := load(t, "testdata/takeover-schedule-edited-timetable.json")
+	r := load(t, "testdata/takeover-schedule-edited.json.gz")
 	deficit(t, r, policy.EnsureWorkAssignments)
-	profiles, _ := r.Facts.WorkProfiles.Value()
-	owl := false
-	for _, p := range profiles {
-		owl = owl || p.Effects.NightShift
+	pawns, known := r.Projection.WorkPawns.Value()
+	if !known {
+		t.Fatal("recording carries no pawn read")
 	}
-	if !owl {
-		t.Fatal("recording lost the NightOwl profile the timetable is planned from")
+	const edited = policy.PawnID("Thing_Human728")
+	planned := map[policy.PawnID][]string{}
+	for _, row := range policy.PlanSchedules(pawns).Schedules {
+		planned[row.Pawn] = row.Slots
+		if row.Pawn == edited && (row.Matches || row.Slots[12] != policy.ScheduleAnything) {
+			t.Fatalf("edited timetable not replanned: %+v", row)
+		}
+	}
+	pawns = slices.Clone(pawns)
+	for i := range pawns {
+		slots, _ := pawns[i].Schedule.Value()
+		if pawns[i].ID == edited && (len(slots) != 24 || slots[12] != policy.ScheduleJoy) {
+			t.Fatalf("recording lost the player's Joy hour: %v", slots)
+		}
+		if want, ok := planned[pawns[i].ID]; ok {
+			pawns[i].Schedule = domain.Known(want)
+		}
+	}
+	for _, row := range policy.PlanSchedules(pawns).Schedules {
+		if !row.Matches {
+			t.Fatalf("%s still replanned after wearing its template", row.Pawn)
+		}
 	}
 }
 
-// takeover/allowed-areas, tick 15: the player restricted the husky to an area
-// without food; with no roof hazard Auto clears it (empty Area).
+// takeover/allowed-areas, tick 15, recorded at 476208aa7 (#769): the player
+// restricted a colonist (Thing_Human724) and the husky to an area without
+// food. With no roof hazard Auto clears both (empty Area), and once the
+// census reads them unrestricted nothing is replanned.
 func TestTakeoverAllowedAreaRestrictionIsCleared(t *testing.T) {
-	r := load(t, "testdata/takeover-allowed-areas-restricted-pet.json")
+	r := load(t, "testdata/takeover-allowed-areas-restricted.json.gz")
 	changes := policy.PlanAllowedAreas(r.Facts)
-	if len(changes) != 1 || !changes[0].Animal || changes[0].Area != "" || changes[0].Pawn == "" {
+	colonist, animal := false, false
+	for _, c := range changes {
+		if c.Area != "" {
+			t.Fatal("restricted instead of cleared", c)
+		}
+		colonist = colonist || !c.Animal && c.Pawn == "Thing_Human724"
+		animal = animal || c.Animal && c.Pawn == "Thing_Husky44693"
+	}
+	if len(changes) != 2 || !colonist || !animal {
 		t.Fatal(changes)
 	}
-	// History-free: the same census replans the same correction.
-	if again := policy.PlanAllowedAreas(r.Facts); len(again) != 1 || again[0] != changes[0] {
-		t.Fatal(again)
+	safety, _ := r.Facts.RecoverySafety.Value()
+	safety.Restrictions = slices.Clone(safety.Restrictions)
+	for i := range safety.Restrictions {
+		safety.Restrictions[i].Area = domain.Known("")
 	}
-	// The correction is the recorded restriction: the changed animal is the
-	// one the census reads restricted, and once its area reads unrestricted
-	// nothing is replanned.
+	r.Facts.RecoverySafety = domain.Known(safety)
 	animals, _ := r.Facts.AnimalUpkeep.Animals.Value()
 	animals = slices.Clone(animals)
-	restricted := false
 	for i := range animals {
-		if area, _ := animals[i].AllowedArea.Value(); animals[i].ID == changes[0].Pawn && area != "" {
-			restricted = true
-			animals[i].AllowedArea = domain.Known("")
-		}
-	}
-	if !restricted {
-		t.Fatalf("%s is not a restricted animal in the recording", changes[0].Pawn)
+		animals[i].AllowedArea = domain.Known("")
 	}
 	r.Facts.AnimalUpkeep.Animals = domain.Known(animals)
 	if after := policy.PlanAllowedAreas(r.Facts); len(after) != 0 {
-		t.Fatal("replanned after the restriction cleared", after)
+		t.Fatal("replanned after the restrictions cleared", after)
 	}
 }
 
@@ -101,28 +126,39 @@ func TestTakeoverHerdRemovalFlagsAreCancelled(t *testing.T) {
 	}
 }
 
-// takeover/home-removal and takeover/built-facility, tick 15: player-built
-// beds with no autonomous build history. The recorded census is covered; a
-// player-removed Home cell under a bed opens MaintainHomeCoverage from the
-// building census alone.
+// takeover/home-removal and takeover/built-facility, tick 15: the first
+// review after the player's Manual edit, recorded at 476208aa7 (#769).
+// home-removal removed one Home cell under a player-built bed (every
+// target over that room reads one cell missing); built-facility built the
+// bed room with no Home at all (the room's 49 cells missing). Neither has
+// autonomous build history: MaintainHomeCoverage opens from the building
+// census alone, and once the recorded gap reads covered it does not.
 func TestTakeoverRemovedHomeOpensHomeCoverage(t *testing.T) {
-	r := load(t, "testdata/takeover-home-player-beds.json")
-	if a, err := r.Assessment(policy.MaintainHomeCoverage); err != nil || a.Need == domain.NeedDeficit {
-		t.Fatal("covered colony", a, err)
-	}
-	home, _ := r.Facts.HomeCoverage.Value()
-	home.Targets = append([]policy.HomeCoverageTarget(nil), home.Targets...)
-	found := false
-	for i, target := range home.Targets {
-		if len(target.ID) > 9 && target.ID[:9] == "Thing_Bed" {
-			home.Targets[i].Missing = domain.Known(int64(1))
-			found = true
-			break
+	for path, missing := range map[string]int64{
+		"testdata/takeover-home-removed-cell.json.gz":   1,
+		"testdata/takeover-home-built-facility.json.gz": 49,
+	} {
+		r := load(t, path)
+		deficit(t, r, policy.MaintainHomeCoverage)
+		home, _ := r.Facts.HomeCoverage.Value()
+		home.Targets = slices.Clone(home.Targets)
+		beds := 0
+		for i, target := range home.Targets {
+			n, _ := target.Missing.Value()
+			if strings.HasPrefix(target.ID, "Thing_Bed") {
+				beds++
+				if n != missing {
+					t.Fatalf("%s: %s misses %d Home cells, want the edit's %d", path, target.ID, n, missing)
+				}
+			}
+			home.Targets[i].Missing = domain.Known(int64(0))
+		}
+		if beds == 0 {
+			t.Fatal(path, "no player bed in the Home census")
+		}
+		r.Facts.HomeCoverage = domain.Known(home)
+		if a, err := r.Assessment(policy.MaintainHomeCoverage); err != nil || a.Need == domain.NeedDeficit {
+			t.Fatal(path, "covered colony still a deficit", a, err)
 		}
 	}
-	if !found {
-		t.Fatal("no player bed in the Home census")
-	}
-	r.Facts.HomeCoverage = domain.Known(home)
-	deficit(t, r, policy.MaintainHomeCoverage)
 }
