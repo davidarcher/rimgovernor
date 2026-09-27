@@ -153,6 +153,64 @@ func TestFoodPlanClosesLeastEfficientStrictSurplus(t *testing.T) {
 	}
 }
 
+// The live game (Foothold, 0.7 days of food): one moose hunt "covered" the
+// gap and every other channel sat "target covered" while hunts kept failing.
+// Under the starvation line an undelivered hunt covers nothing and every
+// kind opens in parallel.
+func TestFoodPlanEmergencyOpensChannelsInParallel(t *testing.T) {
+	hunt := func(id string, n float64) FoodChannel {
+		c := foodPlanChannel(id, n, 3900, 0, false)
+		c.Kind = FoodHunt
+		return c
+	}
+	fish := foodPlanChannel("fish", 3, 5000, 0, false)
+	fish.Kind = FoodFishing
+	rows := []FoodChannel{hunt("moose", 40), hunt("turkey", 4), foodPlanChannel("berries", 2, 2500, 0, false), fish}
+	r := foodPlanRequest(rows...)
+	p, err := PlanFood(r)
+	if err != nil || p.Portfolio[0].Channel.ID != "moose" || p.Portfolio[0].Decision != FoodPlanOpen || p.GapPerDay > 0 {
+		t.Fatalf("baseline: the moose alone covers: %s %v", p.Explain(), err)
+	}
+	for _, e := range p.Portfolio[1:] {
+		if e.Decision != FoodPlanHold {
+			t.Fatalf("baseline: %s", p.Explain())
+		}
+	}
+	r.EmergencyDays = 3
+	p, err = PlanFood(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := map[FoodChannelKind]bool{}
+	for _, e := range p.Portfolio {
+		if e.Decision != FoodPlanOpen {
+			t.Fatalf("emergency: every channel opens: %s", p.Explain())
+		}
+		kinds[e.Channel.Kind] = true
+	}
+	if len(kinds) != 3 || p.DeliveredPerDay != 3 || p.GapPerDay <= 0 {
+		t.Fatalf("emergency: only fishing is credited: %s", p.Explain())
+	}
+	// The labor budget still binds, breadth first: one row per kind.
+	r.Labor = domain.Known(3900 + 2500 + 5000.0)
+	p, err = PlanFood(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	open := map[string]bool{}
+	for _, e := range p.Portfolio {
+		open[e.Channel.ID] = e.Decision == FoodPlanOpen
+	}
+	if !open["moose"] || !open["berries"] || !open["fish"] || open["turkey"] {
+		t.Fatalf("emergency budget: %s", p.Explain())
+	}
+	// Above the line the old accounting holds.
+	r.Demand.RunwayDays = domain.Known(3.0)
+	if p, err = PlanFood(r); err != nil || p.Portfolio[0].Channel.ID != "moose" || p.GapPerDay > 0 {
+		t.Fatalf("above the line: %s %v", p.Explain(), err)
+	}
+}
+
 func TestFoodPlanReserveAndLeadHorizon(t *testing.T) {
 	for _, tc := range []struct {
 		runway, reserve, lead, wantGap float64

@@ -61,8 +61,14 @@ type FoodChannel struct {
 type FoodPlanRequest struct {
 	Demand                           FoodForecast
 	ReserveDays, MinDays, TargetDays float64
-	Channels                         domain.Fact[[]FoodChannel]
-	Labor                            domain.Fact[float64]
+	// EmergencyDays is the stage's starvation line (FootholdFoodDays).
+	// Under it a new hunt or forage is not credited toward the target --
+	// only delivered food counts -- and the lead-0 channels open one per
+	// kind first, so hunting, fishing, foraging and harvest run in parallel
+	// up to the labor budget. Zero disables the emergency.
+	EmergencyDays float64
+	Channels      domain.Fact[[]FoodChannel]
+	Labor         domain.Fact[float64]
 }
 
 type FoodPlanDecision string
@@ -122,6 +128,7 @@ func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
 	if !foodNumber(p.DemandPerDay) || p.DemandPerDay == 0 || !foodNumber(r.Demand.UsableNutrition) || !foodNumber(r.Demand.AtRiskNutrition) || !foodNumber(r.Demand.InventoryNutrition) {
 		return fail()
 	}
+	emergency := r.EmergencyDays > 0 && runway < r.EmergencyDays
 	runway = math.Max(0, runway-r.ReserveDays)
 	cover := 1 + math.Max(0, r.TargetDays-runway)/r.TargetDays
 	target := p.DemandPerDay * cover
@@ -228,6 +235,25 @@ func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
 		}
 		return lessID(a.entry.Channel, b.entry.Channel)
 	})
+	if emergency {
+		// Breadth first: the best row of every kind, then the second, ...
+		rank := make([]int, len(candidates))
+		seenKind := map[FoodChannelKind]int{}
+		for i, c := range candidates {
+			rank[i] = seenKind[c.entry.Channel.Kind]
+			seenKind[c.entry.Channel.Kind]++
+		}
+		order := make([]int, len(candidates))
+		for i := range order {
+			order[i] = i
+		}
+		sort.SliceStable(order, func(i, j int) bool { return rank[order[i]] < rank[order[j]] })
+		ranked := make([]candidate, len(candidates))
+		for i, k := range order {
+			ranked[i] = candidates[k]
+		}
+		candidates = ranked
+	}
 	sort.Slice(p.Unknown, func(i, j int) bool { return lessID(p.Unknown[i].Channel, p.Unknown[j].Channel) })
 	used := 0.0
 	var openOrder []int
@@ -274,8 +300,15 @@ func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
 			default:
 				c.entry.Decision, c.entry.Reason = FoodPlanOpen, "close nutrition gap"
 				c.entry.DeliveredPerDay = c.nutrition
-				p.DeliveredPerDay += c.nutrition
 				used += c.work
+				if emergency && (c.entry.Channel.Kind == FoodHunt || c.entry.Channel.Kind == FoodForage) {
+					// A one-shot hunt or forage is not food until it is
+					// delivered; below the starvation line it never covers.
+					c.entry.DeliveredPerDay = 0
+					c.entry.Terms = append(c.entry.Terms, FoodPlanTerm{"uncredited_until_delivered", c.nutrition})
+				} else {
+					p.DeliveredPerDay += c.nutrition
+				}
 			}
 		}
 		p.Portfolio = append(p.Portfolio, c.entry)

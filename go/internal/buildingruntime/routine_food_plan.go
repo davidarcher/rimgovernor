@@ -100,7 +100,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 	// hours per available worker leaves the rest of the day for sleep and needs.
 	seasonal := thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions)
 	plan, err := policy.PlanFood(policy.FoodPlanRequest{Demand: forecast,
-		MinDays: seasonal.FoodMinDays, TargetDays: seasonal.FoodTargetDays,
+		MinDays: seasonal.FoodMinDays, TargetDays: seasonal.FoodTargetDays, EmergencyDays: seasonal.FootholdFoodDays,
 		Channels: domain.Known(channels), Labor: domain.Known(float64(workers) * 20000)})
 	if err != nil {
 		return domain.Unknown[policy.FoodPlan]()
@@ -112,7 +112,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 		offers := policy.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, herd)
 		if len(offers) > 0 {
 			channels = append(channels, offers...)
-			plan, err = policy.PlanFood(policy.FoodPlanRequest{Demand: forecast, MinDays: seasonal.FoodMinDays, TargetDays: seasonal.FoodTargetDays, Channels: domain.Known(channels), Labor: domain.Known(float64(workers) * 20000)})
+			plan, err = policy.PlanFood(policy.FoodPlanRequest{Demand: forecast, MinDays: seasonal.FoodMinDays, TargetDays: seasonal.FoodTargetDays, EmergencyDays: seasonal.FootholdFoodDays, Channels: domain.Known(channels), Labor: domain.Known(float64(workers) * 20000)})
 			if err != nil {
 				return domain.Unknown[policy.FoodPlan]()
 			}

@@ -79,7 +79,10 @@ type RoutinePolicy struct {
 	// clock while a hunter's route stays unsafe (issue #1); that guard stays
 	// fully authoritative, but without this grace the stuck action reads as
 	// open work forever and blocks the planner from ever trying a different
-	// prey or a non-hunt source.
+	// prey or a non-hunt source. It counts from the last observation, and a
+	// live hunt (travel, chase, the hunter's sleep and meals, a clock window
+	// between observations) outlasts 6000 ticks: that bound withdrew working
+	// hunts as "cancelled" and cooled their prey, so it is half a day.
 	HuntStallTicks int64
 	// AcquisitionStallTicks bounds how long a dispatched plant-harvest
 	// acquisition may stay designated with its effect pending (no colonist
@@ -152,7 +155,7 @@ type RoutinePolicy struct {
 // bound planner cost only and distinct observed workers decide admission.
 func DefaultRoutinePolicy() RoutinePolicy {
 	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 30000, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
 }
 
 func (p RoutinePolicy) Validate() error {
