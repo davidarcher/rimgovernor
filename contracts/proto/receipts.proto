@@ -57,6 +57,7 @@ message EffectEvidence {
     DialogEffect dialog = 23;
     DeconstructEffect deconstruct = 24;
     ReleaseDeconstructionsEffect release_deconstructions = 25;
+    CombatOrdersEffect combat_orders = 26;
   }
 }
 message SnapshotEvidence {
@@ -164,6 +165,13 @@ message HomeEffect { SnapshotEvidence snapshot = 1; optional string shape_token 
 message BedEffect { optional string pawn_id = 1; optional string bed_id = 2; optional string previous_bed_id = 3; optional bool assigned = 4; optional bool sleeping = 5; }
 message DeconstructEffect { optional string target_id = 1; optional string designation_id = 2; repeated string worker_ids = 3; optional bool demolition_observed = 4; SnapshotEvidence site = 5; }
 message ReleaseDeconstructionsEffect { optional int32 released_count = 1; }
+// One result per CombatOrders order, in request order. An applied result
+// names the ordered job where one was taken (Goto, AttackStatic,
+// AttackMelee, Wait_Combat); a refusal carries a short snake_case reason:
+// draft_ownership, stale_snapshot, not_found, unreachable, cannot_hit,
+// no_ground_verb, not_a_door, native_refused.
+message CombatOrderResult { optional uint32 index = 1; optional string pawn_id = 2; optional bool applied = 3; optional string refusal = 4; optional string job_def = 5; }
+message CombatOrdersEffect { repeated CombatOrderResult results = 1; }
 message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; optional int32 released_count = 4; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message AreaEffect { optional string pawn_id = 1; optional string area_id = 2; optional string previous_area_id = 3; optional int64 expires_tick = 4; SnapshotEvidence snapshot = 5; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }

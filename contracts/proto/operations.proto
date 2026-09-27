@@ -109,6 +109,7 @@ message Operation {
     SetDrugPolicy set_drug_policy = 59;
     ClearCover clear_cover = 60;
     Uninstall uninstall = 61;
+    CombatOrders combat_orders = 62;
   }
   // Why the controller issues this operation, one short ASCII line such as
   // "Hunting: food runway 3d" (#822). Native keeps it with the jobs the
@@ -140,6 +141,31 @@ message InstallBuilding { EntityPrecondition packed_or_inner = 1; rimgovernor.co
 // while the designation stands, PACKED once the building is minified.
 // Native does not haul; vanilla hauling moves the packed item to storage.
 message Uninstall { EntityPrecondition target = 1; }
+// Batched combat micro (#850): every order applies in request order within
+// one native call, so on one game tick. Each pawn's snapshot token is checked
+// once, before any order runs; a pawn may carry several orders (fire mode
+// then move). A pawn needs an eligible drafted state under an existing
+// native draft claim. A door order names no pawn. Per-order refusals come
+// back in CombatOrdersEffect; only a malformed batch or missing authority
+// fails the whole call.
+enum CombatFireMode { COMBAT_FIRE_MODE_UNSPECIFIED = 0; COMBAT_FIRE_MODE_AT_WILL = 1; COMBAT_FIRE_MODE_HOLD = 2; }
+enum CombatDoorMode { COMBAT_DOOR_MODE_UNSPECIFIED = 0; COMBAT_DOOR_MODE_HOLD_OPEN = 1; COMBAT_DOOR_MODE_CLOSE = 2; }
+message CombatDoor { rimgovernor.common.v1.Cell cell = 1; optional CombatDoorMode mode = 2; }
+message CombatOrder {
+  EntityPrecondition pawn = 1;
+  oneof order {
+    rimgovernor.common.v1.Cell move = 2;
+    // A spawned pawn or census-listed hostile building; mode Auto.
+    EntityPrecondition attack = 3;
+    // Force-fire a ground-targetable verb (grenades, launchers) at a cell.
+    rimgovernor.common.v1.Cell attack_ground = 4;
+    CombatFireMode fire_mode = 5;
+    Clear hold_position = 6;
+    CombatDoor door = 7;
+    Clear stop = 8;
+  }
+}
+message CombatOrders { repeated CombatOrder orders = 1; }
 message AcquireResource { EntityPrecondition source = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; }
 // Withdraws one exact plant-harvest designation this controller placed and
 // nobody took (#291): the source, resource and cell of the AcquireResource

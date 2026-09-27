@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
     {
         public NativeOperationTools() { NativeProductionTracking.Install(); NativeDrugPolicy.Install(); NativeAcquisitionTracking.Install(); NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
 
-        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, exact supply Allow, work-only PatchPawn, temporary SetDrafted, MovePawn or melee, direct-bullet or supported injury-only explosive AttackTarget under current native authority. Movement and combat require an existing owned draft. Exact retries return their original receipt.")]
+        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, exact supply Allow, work-only PatchPawn, temporary SetDrafted, MovePawn or melee, direct-bullet or supported injury-only explosive AttackTarget, or a batched CombatOrders, under current native authority. Movement and combat require an existing owned draft. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
         public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ExecuteRequest ProtoJSON string.")] object? request = null)
@@ -165,6 +165,8 @@ namespace HomeBridge.BridgeTools
                 return NativeMovementOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                 return NativeCombatOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CombatOrders)
+                return NativeCombatOrders.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PawnTargetOrder)
             {
                 switch (request.Operation.PawnTargetOrder.Kind)

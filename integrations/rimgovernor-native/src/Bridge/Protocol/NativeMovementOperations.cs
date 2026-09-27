@@ -119,7 +119,7 @@ namespace HomeBridge.BridgeTools
             if(!Legal(pawn,destination)) {failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Exact destination is not a standable, unfogged, normally reachable cell for this pawn.");return false;}
             return true;
         }
-        private static bool Legal(Pawn pawn,IntVec3 cell)=>cell.InBounds(pawn.Map) && cell.Standable(pawn.Map) && !cell.Fogged(pawn.Map)
+        internal static bool Legal(Pawn pawn,IntVec3 cell)=>cell.InBounds(pawn.Map) && cell.Standable(pawn.Map) && !cell.Fogged(pawn.Map)
             && pawn.CanReach(cell,PathEndMode.OnCell,Danger.Deadly);
         internal static Operations.ExecuteReply Execute(NativeOperationState state,Operations.ExecuteRequest request,Common.ObservationContext context)
         {

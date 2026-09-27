@@ -36,11 +36,16 @@ func (s Staged) ids(side string) []string {
 
 // Stage wipes the lab to the fixture's colonists, builds it around the
 // wipe's centre and stages it, checking every pawn read back where the
-// spec put it, armed as specified, hostile under an assault lord.
-func Stage(ctx context.Context, h *na.Harness, name string) (Staged, error) {
+// spec put it, armed as specified, hostile under an assault lord. An edit
+// adapts the named fixture for one case (an extra door or weapon) before
+// staging, around the lab centre; it may change Colonists.
+func Stage(ctx context.Context, h *na.Harness, name string, edits ...func(f *Fixture, cx, cz int)) (Staged, error) {
 	probe, err := Build(name, 0, 0)
 	if err != nil {
 		return Staged{}, err
+	}
+	for _, edit := range edits {
+		edit(&probe, 0, 0)
 	}
 	wipe, err := h.Call(ctx, "combatlab-wipe-"+name, na.LabStartTool, map[string]any{"colonists": probe.Colonists})
 	if err != nil {
@@ -50,7 +55,11 @@ func Stage(ctx context.Context, h *na.Harness, name string) (Staged, error) {
 		return Staged{}, fmt.Errorf("%s wipe for %s refused: %#v", na.LabStartTool, name, wipe)
 	}
 	center, _ := na.AsMap(wipe["center"])
-	f, _ := Build(name, int(na.AsNumber(center["x"])), int(na.AsNumber(center["z"])))
+	cx, cz := int(na.AsNumber(center["x"])), int(na.AsNumber(center["z"]))
+	f, _ := Build(name, cx, cz)
+	for _, edit := range edits {
+		edit(&f, cx, cz)
+	}
 	spec, err := json.Marshal(f)
 	if err != nil {
 		return Staged{}, err

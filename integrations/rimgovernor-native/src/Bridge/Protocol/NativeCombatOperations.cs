@@ -142,7 +142,7 @@ namespace HomeBridge.BridgeTools
         }
         private static bool Ranged(Operations.AttackTarget command,Pawn pawn)=>command.Mode==Operations.AttackMode.Ranged
             || command.Mode==Operations.AttackMode.Auto && FloatMenuUtility.UseRangedAttack(pawn);
-        private static bool Legal(Operations.AttackTarget command,Pawn pawn,Thing target,out JobDef? definition,out Verb? verb)
+        internal static bool Legal(Operations.AttackTarget command,Pawn pawn,Thing target,out JobDef? definition,out Verb? verb)
         {
             definition=null;verb=null;
             if(pawn.WorkTagIsDisabled(WorkTags.Violent) || !pawn.Spawned || !target.Spawned || pawn.Map!=target.Map || NativeCombatDamageRecord.Dead(target) || target.Destroyed
