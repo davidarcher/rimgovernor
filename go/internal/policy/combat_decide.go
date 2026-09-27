@@ -38,6 +38,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		next.Tactic, next.Roles, next.Refusal = formation(view, geometry)
 		next.Formed = view.Tick
 	}
+	peel(view, stop, &next)
 	next.Roles = focusFire(view, next.Roles, memory.Roles)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
@@ -390,9 +391,7 @@ func formation(view CombatView, geometry GeometryReply) (CombatTactic, []CombatR
 				cell := p.Cell
 				roles = append(roles, CombatRole{Pawn: p.Defender, Cell: &cell, Target: domain.PawnID(p.Target), Ranged: true})
 			}
-			if blocking {
-				roles = append(roles, blockingRoles(view.Defenders, geometry.Proposals)...)
-			}
+			roles = append(roles, brawlerRoles(view, blocking, geometry.Proposals)...)
 			return TacticHold, sortRoles(roles), ""
 		}
 	}

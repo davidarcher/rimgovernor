@@ -15,6 +15,8 @@ const (
 	DutyBlocker CombatDuty = "blocker"
 	// DutyReserve waits to relieve a hurt blocker (#864).
 	DutyReserve CombatDuty = "reserve"
+	// DutyPeeler intercepts melee attackers on the gunners (#865).
+	DutyPeeler CombatDuty = "peeler"
 )
 
 // maxChokeBlockers is how many brawlers block the choke (#845: up to 3).
@@ -69,16 +71,21 @@ func brawlers(defenders []SquadDefenderFacts) []SquadDefenderFacts {
 	return out
 }
 
-// blockingRoles puts the best-armored brawlers on the game's proposed
-// cells just outside the choke, at most three, and keeps the next brawler
-// as the reserve (on the next proposed cell when there is one). With two
-// or more brawlers one is always held back, so a hurt blocker can be
-// relieved.
-func blockingRoles(defenders []SquadDefenderFacts, proposals []domain.Cell) []CombatRole {
-	pool := brawlers(defenders)
-	n := min(maxChokeBlockers, len(proposals), len(pool))
-	if n == len(pool) && n >= 2 {
-		n--
+// brawlerRoles gives a hold's brawlers their duties. In a blocking
+// formation the best-armored take the game's proposed cells just outside
+// the choke, at most three, and the next is the reserve (on the next
+// proposed cell when there is one); with two or more brawlers one is
+// always held back, so a hurt blocker can be relieved. The next brawler
+// after those is the peeler (#865), waiting at its home behind the
+// gunners.
+func brawlerRoles(view CombatView, blocking bool, proposals []domain.Cell) []CombatRole {
+	pool := brawlers(view.Defenders)
+	n := 0
+	if blocking {
+		n = min(maxChokeBlockers, len(proposals), len(pool))
+		if n == len(pool) && n >= 2 {
+			n--
+		}
 	}
 	var roles []CombatRole
 	for i := range n {
@@ -92,6 +99,10 @@ func blockingRoles(defenders []SquadDefenderFacts, proposals []domain.Cell) []Co
 			role.Cell = &cell
 		}
 		roles = append(roles, role)
+		n++
+	}
+	if n < len(pool) {
+		roles = append(roles, CombatRole{Pawn: pool[n].ID, Cell: peelerHome(view), Duty: DutyPeeler})
 	}
 	return roles
 }
