@@ -30,10 +30,11 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// planner's (#867), not an order here.
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
 	if !relieveBlocker(view, stop, &next) && !fallBack(view, stop, &next) && reform(view, stop, next) {
-		if !geometry.Answered {
+		if ask := formationAsk(view); ask != nil && !geometry.Answered {
 			// Formation asks the game for its candidate cells by role in the
-			// stop's one geometry round trip.
-			return nil, formationAsk(view), memory
+			// stop's one geometry round trip; with nothing to ask (no
+			// layout) it forms at once.
+			return nil, ask, memory
 		}
 		next.Tactic, next.Roles, next.Refusal = formation(view, geometry)
 		next.Formed = view.Tick

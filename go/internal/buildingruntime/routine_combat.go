@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
@@ -213,7 +216,7 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 }
 
 // combatPawnStates is the fight's live state: the frame's combat pawns
-// (#851, #858) when a frame carries them, else the combat read's rows
+// (#851, #858) when the frame carries them, else the detail rows
 // (position, downed, dead; no stance or target).
 func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []policy.CombatPawnState {
 	var out []policy.CombatPawnState
@@ -231,7 +234,13 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 		}
 		return out
 	}
-	for id, row := range rows {
+	ids := make([]string, 0, len(rows))
+	for id := range rows {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		row := rows[id]
 		s := policy.CombatPawnState{ID: domain.PawnID(id), Downed: row.GetDowned(), Dead: row.GetDead()}
 		if position := row.GetPawn().GetPosition(); position != nil && position.X != nil && position.Z != nil {
 			s.Cell = domain.Known(domain.Cell{X: position.GetX(), Z: position.GetZ()})
@@ -239,6 +248,19 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 		out = append(out, threatFacts(s, row))
 	}
 	return out
+}
+
+// recordCombatStop appends a stop that wrote to the fight's journal, and
+// the frame it decided from, to the serve's snapshot stream (#853) when
+// recording is on. A failed write is logged.
+func recordCombatStop(ctx context.Context, combat bridge.Combat, s snap.CombatStop) {
+	dir := os.Getenv(snap.DirEnv)
+	if dir == "" {
+		return
+	}
+	if err := snap.RecordCombatStop(dir, combat.Frame, s); err != nil {
+		clockEvent(ctx, "defense", "snapshot", "combat stop not recorded: "+err.Error())
+	}
 }
 
 // threatFacts adds the census row's threat facts (#863): the pawn kind,

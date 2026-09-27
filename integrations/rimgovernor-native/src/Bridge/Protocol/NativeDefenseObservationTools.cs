@@ -150,7 +150,7 @@ namespace HomeBridge.BridgeTools
             return snapshot;
         }
 
-        private static Obs.LinesOfFireSnapshot Lines(Map map, List<IntVec3> firing, List<IntVec3> approach, Common.ObservationContext context)
+        internal static Obs.LinesOfFireSnapshot Lines(Map map, List<IntVec3> firing, List<IntVec3> approach, Common.ObservationContext context)
         {
             var snapshot = new Obs.LinesOfFireSnapshot { Context = context };
             foreach (var from in firing) foreach (var to in approach) {

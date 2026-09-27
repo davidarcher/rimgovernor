@@ -24,28 +24,21 @@ type defenseRecorder struct {
 	lines     *bridge.LinesOfFire
 }
 
-func (d *defenseRecorder) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
-	v, r, err := d.RoutineDefenseSource.ReadEmergency(ctx, id)
-	if err == nil {
-		d.emergency = &v
+// ReadCombat keeps the frame's census, combat detail rows and building
+// lines of fire, in the shapes of the reads they replace (#853).
+func (d *defenseRecorder) ReadCombat(ctx context.Context, id *c.Identity) (bridge.Combat, error) {
+	v, err := d.RoutineDefenseSource.ReadCombat(ctx, id)
+	if err != nil || v.Emergency.Context == nil {
+		return v, err
 	}
-	return v, r, err
-}
-
-func (d *defenseRecorder) ReadCombatPawns(ctx context.Context, id *c.Identity, ids []string) (*n.ListPawnsReply, bridge.Result, error) {
-	v, r, err := d.RoutineDefenseSource.ReadCombatPawns(ctx, id, ids)
-	if err == nil {
-		d.pawns = v
+	d.emergency = &v.Emergency
+	if detail := v.Frame.GetCombatDetail(); detail != nil {
+		d.pawns = &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: detail}}
 	}
-	return v, r, err
-}
-
-func (d *defenseRecorder) ReadLinesOfFire(ctx context.Context, id *c.Identity, from, to []domain.Cell) (bridge.LinesOfFire, bridge.Result, error) {
-	v, r, err := d.RoutineDefenseSource.ReadLinesOfFire(ctx, id, from, to)
-	if err == nil {
-		d.lines = &v
+	if lines := v.Frame.GetCombatLinesOfFire(); lines != nil {
+		d.lines = &bridge.LinesOfFire{Context: lines.Context, Lines: v.Lines}
 	}
-	return v, r, err
+	return v, nil
 }
 
 // step runs the defense decision and, when snapshot.DirEnv names a

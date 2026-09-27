@@ -54,7 +54,15 @@ type streamLine struct {
 	Mirror  map[string]uint64 `json:",omitempty"`
 	Section *sectionFrame     `json:",omitempty"`
 	Step    *stepFrame        `json:",omitempty"`
+	// Combat is a fight stop and CombatFrame the snapshot frame it
+	// decided from (combat.go).
+	Combat      json.RawMessage `json:",omitempty"`
+	CombatFrame json.RawMessage `json:",omitempty"`
 }
+
+// combat reports whether the line is a combat recording's (combat.go),
+// which leaves the review and the sections as they are.
+func (l streamLine) combat() bool { return l.Combat != nil || l.CombatFrame != nil }
 
 // streamWriter is one serve's open stream in a directory.
 type streamWriter struct {
@@ -70,6 +78,8 @@ type streamWriter struct {
 	// keyed is set once a review keyframe is written: the later ones are
 	// sync points.
 	keyed bool
+	// combat is the combat frame as last recorded (combat.go).
+	combat combatWriter
 }
 
 var (
@@ -406,7 +416,7 @@ func Replay(path string, want func(Review) bool, fn func(Review, Routine) (bool,
 
 func replayFrom(path string, from int64, want func(Review) bool, fn func(Review, Routine) (bool, error)) error {
 	return walkFrom(path, from, func(line streamLine, st *replayState) (bool, error) {
-		if line.Section != nil || line.Step != nil {
+		if line.Section != nil || line.Step != nil || line.combat() {
 			return true, nil
 		}
 		at := Review{line.Tick, line.Seq}
@@ -474,7 +484,7 @@ func walkFrom(path string, from int64, visit func(streamLine, *replayState) (boo
 			if s, err = st.sections[line.Section.Name].apply(*line.Section); err == nil {
 				st.sections[line.Section.Name] = s
 			}
-		case line.Step != nil:
+		case line.Step != nil, line.combat():
 			// A step read leaves the review and the sections as they are.
 		case line.Key != nil:
 			st.tree, err = parseTree(line.Key)

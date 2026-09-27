@@ -165,6 +165,17 @@ func TestDecideCombatWarmupGuard(t *testing.T) {
 	}
 }
 
+// With no defense layout there is no geometry to ask: Formation forms squad
+// defense in the first call (#853: lab-open never formed).
+func TestDecideCombatFormsSquadWithoutALayout(t *testing.T) {
+	view := holdView()
+	view.Layout = domain.Fact[CombatLayout]{}
+	orders, ask, next := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
+	if ask != nil || next.Tactic != TacticSquad || len(orders) == 0 {
+		t.Fatalf("%+v %+v %+v", orders, ask, next)
+	}
+}
+
 // A raider past the line re-forms the hold as squad defense on it.
 func TestDecideCombatCompromisedHoldReformsAsSquad(t *testing.T) {
 	view := holdView()

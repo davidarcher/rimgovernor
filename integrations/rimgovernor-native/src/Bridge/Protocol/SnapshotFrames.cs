@@ -1,4 +1,6 @@
 #nullable enable
+using System.Collections.Generic;
+using System.Linq;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
@@ -38,7 +40,61 @@ namespace HomeBridge.BridgeTools
             Supervisor.EnsureHazardHooks(); Supervisor.EnsureCombatHooks();
             CombatMirror.Capture(map, observed);
             ObservationWork.Captured("combat", Now() - combatBegan, observed.CombatPawns.Count + observed.CombatEvents.Count);
+            var inputsBegan = Now();
+            CombatInputs(map, context, observed);
+            ObservationWork.Captured("combatInputs", Now() - inputsBegan, observed.CombatDetail != null ? observed.CombatDetail.Pawns.Count : 0);
             return observed;
+        }
+
+        // On the main thread. The defense planner's combat inputs (#853):
+        // the combat pawn detail for the census colonists, hostiles and
+        // hunting predators, and the lines of fire from ranged colonists to
+        // hostile buildings, while the census lists a threat or a colonist
+        // in a mental state. Each is omitted when it fails to read.
+        private static void CombatInputs(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        {
+            var census = observed.Emergency;
+            var threats = census?.Threats;
+            if (census?.Colonists == null || threats == null) return;
+            var colonists = census.Colonists.Pawns;
+            if (threats.Hostiles.Count + threats.HuntingPredators.Count + threats.HostileBuildings.Count == 0
+                && !colonists.Any(p => p.HasMentalState)) return;
+            var ids = new List<string>();
+            foreach (var row in colonists.Concat(threats.Hostiles.Select(t => t.Pawn)).Concat(threats.HuntingPredators.Select(t => t.Pawn)))
+            {
+                var id = row?.Pawn?.Id;
+                if (id != null && !ids.Contains(id)) ids.Add(id);
+            }
+            if (ids.Count == 0 || ids.Count > 256) return;
+            var pawns = new Obs.ListPawnsRequest {
+                Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
+                Filter = new Obs.PawnFilter { IncludeDead = true },
+                Details = new Obs.PawnDetails { Needs = false, Health = true, Equipment = true, Biography = true, Settings = false, Social = false, Animals = true },
+                Page = new Common.PageRequest { Limit = (uint)ids.Count },
+            };
+            pawns.Filter.Ids.AddRange(ids);
+            if (!NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) return;
+            observed.CombatDetail = detail;
+            var colonistIds = new HashSet<string>(colonists.Select(p => p.Pawn?.Id ?? ""));
+            var firing = new List<IntVec3>();
+            foreach (var row in detail.Pawns)
+            {
+                if (row.Pawn?.Position == null || !colonistIds.Contains(row.Pawn.Id) || row.Equipment == null || !row.Equipment.HasPrimaryId) continue;
+                var primary = row.Equipment.Equipped.FirstOrDefault(g => g.Thing?.Id == row.Equipment.PrimaryId);
+                if (primary == null || !primary.Ranged || !primary.HasRange || primary.Range <= 0) continue;
+                var cell = new IntVec3(row.Pawn.Position.X, 0, row.Pawn.Position.Z);
+                if (!firing.Contains(cell) && firing.Count < NativeDefenseObservationTools.MaximumLineCells) firing.Add(cell);
+            }
+            var approach = new List<IntVec3>();
+            foreach (var building in threats.HostileBuildings)
+                foreach (var c in building.OccupiedCells)
+                {
+                    var cell = new IntVec3(c.X, 0, c.Z);
+                    if (!approach.Contains(cell) && approach.Count < NativeDefenseObservationTools.MaximumLineCells) approach.Add(cell);
+                }
+            if (firing.Count == 0 || approach.Count == 0 || firing.Concat(approach).Any(c => !c.InBounds(map))) return;
+            try { observed.CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context); }
+            catch (System.Exception) { }
         }
 
         // On the main thread. Adds the requested census families to observed,
