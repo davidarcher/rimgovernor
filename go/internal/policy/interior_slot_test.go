@@ -127,12 +127,52 @@ func TestInteriorEntrancePrefersTheHallwayDoor(t *testing.T) {
 	if len(got) != 1 || len(got[0].InnerDoors) != 1 || got[0].InnerDoors[0] != inner || len(got[0].Standing) != 1 || got[0].Standing[0] != "FueledStove" {
 		t.Fatalf("rooms %+v", got)
 	}
-	// A pass-through room (dining, rec, storeroom) is hallway-like: its
-	// door is an entrance, not an inner door.
-	for _, role := range []RoomRole{RoomRoleDiningRoom, RoomRoleRecRoom, RoomRoleStoreroom} {
+	// A pass-through room (dining, rec) is hallway-like: its door is an
+	// entrance, not an inner door.
+	for _, role := range []RoomRole{RoomRoleDiningRoom, RoomRoleRecRoom} {
 		rooms.Rooms[1].Role = domain.Known(role)
 		if got := InteriorRoomsFor(FacilityRequirement{Role: RoomRoleKitchen}, rooms, cells); len(got) != 1 || len(got[0].InnerDoors) != 0 {
 			t.Errorf("%s: inner doors %+v", role, got)
+		}
+	}
+	// A storeroom stays pass-through for every other role.
+	rooms.Rooms[1].Role = domain.Known(RoomRoleStoreroom)
+	rooms.Rooms[0].Role = domain.Known(RoomRoleWorkshop)
+	if got := InteriorRoomsFor(FacilityRequirement{Role: RoomRoleWorkshop}, rooms, cells); len(got) != 1 || len(got[0].InnerDoors) != 0 {
+		t.Errorf("workshop beside storeroom: inner doors %+v", got)
+	}
+}
+
+// RimWorld reads a freezer as a Storeroom: a kitchen with a hallway door
+// and a storeroom door faces the hallway and lines its stoves on the
+// storeroom wall.
+func TestKitchenStoreroomDoorIsTheFreezerDoor(t *testing.T) {
+	interior := Rectangle{X: 0, Z: 0, Width: 6, Height: 5}
+	freezerDoor, hall := domain.Cell{X: 6, Z: 1}, domain.Cell{X: 2, Z: -1}
+	var freezer, hallway []domain.Cell
+	for z := int32(0); z < 5; z++ {
+		freezer = append(freezer, domain.Cell{X: 7, Z: z})
+	}
+	for x := int32(0); x < 6; x++ {
+		hallway = append(hallway, domain.Cell{X: x, Z: -2})
+	}
+	rooms := RoomObservation{Rooms: []Room{
+		{ID: "k", Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cells: rectCells(interior)},
+		{ID: "f", Role: domain.Known(RoomRoleStoreroom), Enclosed: domain.Known(true), Cells: freezer},
+		{ID: "h", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: hallway},
+	}}
+	cells := []SiteCell{{Cell: hall, Doorway: domain.Known(true)}, {Cell: freezerDoor, Doorway: domain.Known(true)}}
+	got := InteriorRoomsFor(FacilityRequirement{Role: RoomRoleKitchen}, rooms, cells)
+	if len(got) != 1 || len(got[0].InnerDoors) != 1 || got[0].InnerDoors[0] != freezerDoor {
+		t.Fatalf("rooms %+v", got)
+	}
+	plan, ok := PlanInterior(got[0], InteriorPieceDef{})
+	if !ok || len(plan.Pieces) == 0 {
+		t.Fatal("no plan")
+	}
+	for _, p := range plan.Pieces {
+		if p.Def != KitchenStoveDefinition || p.Rot != domain.East || p.Rect.X+p.Rect.Width != 6 {
+			t.Errorf("%s %+v %s not on the storeroom wall", p.Slot, p.Rect, p.Rot)
 		}
 	}
 }

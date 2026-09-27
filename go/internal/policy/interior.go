@@ -458,12 +458,14 @@ func InteriorRoomsFor(f FacilityRequirement, rooms RoomObservation, cells []Site
 	// A door leads into another room when the cell past it lies in an
 	// enclosed private or work room; a hallway or an unfurnished room reads
 	// None or Room, a pass-through room (dining, rec, storeroom, a hall)
-	// is hallway-like, and outdoors is in no enclosed room.
+	// is hallway-like, and outdoors is in no enclosed room. A kitchen is
+	// the exception: RimWorld reads its freezer as a Storeroom, so a door
+	// into one is the kitchen's inner (freezer) door, never its entrance.
 	purposed := map[domain.Cell]string{}
 	for _, room := range rooms.Rooms {
 		role, known := room.Role.Value()
 		enclosed, _ := room.Enclosed.Value()
-		if known && enclosed && !passThroughRoles[role] {
+		if known && enclosed && (!passThroughRoles[role] || f.Role == RoomRoleKitchen && role == RoomRoleStoreroom) {
 			for _, c := range room.Cells {
 				purposed[c] = room.ID
 			}
