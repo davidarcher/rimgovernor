@@ -33,6 +33,10 @@ type WasteItem struct {
 	State    WasteState
 	Eligible bool
 	Cell     domain.Cell
+	// CorpseOf is a corpse's inner pawn class; empty for anything else.
+	CorpseOf domain.CorpseOf
+	// Grave is the holding grave's ID for a buried corpse.
+	Grave string
 }
 
 // pendingWaste filters the census: an exposed,

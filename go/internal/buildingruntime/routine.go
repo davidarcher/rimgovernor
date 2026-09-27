@@ -273,6 +273,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.roomsEnabled() {
 		readDefinitions = append(append([]string(nil), readDefinitions...), policy.RoomUpgradeDefinitions...)
 	}
+	if r.methodEnabled(policy.MaintainWaste) {
+		readDefinitions = append(append([]string(nil), readDefinitions...), wasteDefinitions...)
+	}
 	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
 	if errors.Is(err, store.ErrNotFound) {
 		// Directly created plans have no player submission or saved overrides.
@@ -314,6 +317,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Sections.Colony.Value.LayoutPlan = reading.Projection.LayoutPlan
 	r.census.rememberGrid(reading.Projection.Identity, reading.Projection.ColonyGrid, reading.Projection.LayoutPlan)
 	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection)
+	reading.Projection.Facts.TombOwed = tombOwed(reading.Projection)
 	if err = r.reviewTidy(ctx, state.Snapshot, &reading.Projection, tidyBusy(definitions, plans, state.Snapshot, playerPlans)); err != nil {
 		clockSchedulerLog("routine.step: tidy err=%v", err)
 		return store.RoutineReviewResult{}, err

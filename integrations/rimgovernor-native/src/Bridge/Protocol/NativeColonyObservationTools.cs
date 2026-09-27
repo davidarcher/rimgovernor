@@ -169,7 +169,8 @@ namespace HomeBridge.BridgeTools
             Bound(conditions.Count, limit);
             foreach (var condition in conditions) result.Environment.Add(EnvironmentCondition(condition));
             result.Recovery = NativeRecoveryFacts.Read(map, context, limit);
-            foreach (var field in new[] { "policy_resources", "food_corpses", "waste" })
+            result.Waste = HomeWasteTools.Project(map, context);
+            foreach (var field in new[] { "policy_resources", "food_corpses" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             try {
                 var (season, dayOfYear) = ColonyFactsTools.Calendar(map);

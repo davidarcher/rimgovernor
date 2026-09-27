@@ -30,6 +30,9 @@ type RoutineWasteSource interface {
 type RoutineWastePlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineWasteSource
+	// building stages the tomb (#832); nil for a source that cannot
+	// preview buildings.
+	building *RoutineBuildingPlanner
 }
 type RoutineWasteResult struct {
 	Reason RoutineBuildingReason
@@ -40,7 +43,11 @@ func NewRoutineWastePlanner(reviewer *RoutineReviewer, native RoutineWasteSource
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
 	}
-	return &RoutineWastePlanner{reviewer, native}, nil
+	r := &RoutineWastePlanner{reviewer: reviewer, native: native}
+	if source, ok := native.(RoutineBuildingSource); ok {
+		r.building = &RoutineBuildingPlanner{reviewer: reviewer, native: source, goal: policy.MaintainWaste, definition: policy.SarcophagusDefinition}
+	}
+	return r, nil
 }
 func (r *RoutineWastePlanner) Step(ctx context.Context) (RoutineWasteResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
@@ -110,6 +117,9 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineWasteResult{}, ErrControl
+	}
+	if result, handled, err := r.stageTomb(call, epoch, state, review, goal, expected); err != nil || handled {
+		return result, err
 	}
 	started := r.reviewer.clock.Now()
 	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)

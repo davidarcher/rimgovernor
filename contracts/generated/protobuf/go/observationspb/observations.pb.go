@@ -16084,8 +16084,10 @@ type WasteItem struct {
 	Kind            *string                `protobuf:"bytes,7,opt,name=kind,proto3,oneof" json:"kind,omitempty"`
 	Eligible        *bool                  `protobuf:"varint,8,opt,name=eligible,proto3,oneof" json:"eligible,omitempty"`
 	ProtectedReason *string                `protobuf:"bytes,9,opt,name=protected_reason,json=protectedReason,proto3,oneof" json:"protected_reason,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// A corpse's inner pawn: "colonist" (the player faction's humanlike), "stranger" (any other humanlike) or "animal"; unset for non-corpses.
+	CorpseOf      *string `protobuf:"bytes,10,opt,name=corpse_of,json=corpseOf,proto3,oneof" json:"corpse_of,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WasteItem) Reset() {
@@ -16177,6 +16179,13 @@ func (x *WasteItem) GetEligible() bool {
 func (x *WasteItem) GetProtectedReason() string {
 	if x != nil && x.ProtectedReason != nil {
 		return *x.ProtectedReason
+	}
+	return ""
+}
+
+func (x *WasteItem) GetCorpseOf() string {
+	if x != nil && x.CorpseOf != nil {
+		return *x.CorpseOf
 	}
 	return ""
 }
@@ -38502,7 +38511,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2..rimgovernor.observations.v1.HusbandrySnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xdb\x03\n" +
+	"\aoutcome\"\x8b\x04\n" +
 	"\tWasteItem\x12<\n" +
 	"\x05thing\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05thing\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x03H\x00R\x05count\x88\x01\x01\x12E\n" +
@@ -38512,7 +38521,9 @@ const file_observations_proto_rawDesc = "" +
 	"\trot_stage\x18\x06 \x01(\tH\x04R\brotStage\x88\x01\x01\x12\x17\n" +
 	"\x04kind\x18\a \x01(\tH\x05R\x04kind\x88\x01\x01\x12\x1f\n" +
 	"\beligible\x18\b \x01(\bH\x06R\beligible\x88\x01\x01\x12.\n" +
-	"\x10protected_reason\x18\t \x01(\tH\aR\x0fprotectedReason\x88\x01\x01B\b\n" +
+	"\x10protected_reason\x18\t \x01(\tH\aR\x0fprotectedReason\x88\x01\x01\x12 \n" +
+	"\tcorpse_of\x18\n" +
+	" \x01(\tH\bR\bcorpseOf\x88\x01\x01B\b\n" +
 	"\x06_countB\b\n" +
 	"\x06_stateB\n" +
 	"\n" +
@@ -38522,7 +38533,9 @@ const file_observations_proto_rawDesc = "" +
 	"_rot_stageB\a\n" +
 	"\x05_kindB\v\n" +
 	"\t_eligibleB\x13\n" +
-	"\x11_protected_reason\"\xe1\x01\n" +
+	"\x11_protected_reasonB\f\n" +
+	"\n" +
+	"_corpse_of\"\xe1\x01\n" +
 	"\rWasteSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05items\x18\x02 \x03(\v2&.rimgovernor.observations.v1.WasteItemR\x05items\x12M\n" +

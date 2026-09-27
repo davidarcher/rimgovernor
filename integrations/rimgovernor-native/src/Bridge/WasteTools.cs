@@ -9,6 +9,8 @@ using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Common = RimGovernor.Protocol.Common;
+using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -93,6 +95,59 @@ namespace HomeBridge.BridgeTools
                         protectedReason = "grave", eligible = false, state = "buried", graveId = Id(grave) });
             return new { success = true, mapId = map.uniqueID, tick = Find.TickManager.TicksGame, items = rows,
                 meaning = "Exposed and relocated are live item states; buried is native containment. Absence does not prove destruction." };
+        }
+
+        // CorpseOf is a corpse's inner pawn class (#832): "colonist" for the
+        // player faction's humanlike, "stranger" for any other humanlike,
+        // "animal" otherwise; null for anything that is not a corpse.
+        internal static string? CorpseOf(Thing thing)
+        {
+            var inner = (thing as Corpse)?.InnerPawn;
+            if (inner == null) return null;
+            if (!inner.RaceProps.Humanlike) return "animal";
+            return inner.Faction == Faction.OfPlayer ? "colonist" : "stranger";
+        }
+
+        // Project is the same census as Census("", "") on the typed wire
+        // (ColonyFactsSnapshot.waste): every visible waste candidate and
+        // corpse, then every buried corpse at its grave's cell. More rows
+        // than the 256 the Go contract admits leave the section unavailable.
+        internal static Obs.WasteReply Project(Map map, Common.ObservationContext context)
+        {
+            var empty = new HashSet<string>();
+            var items = new List<Obs.WasteItem>();
+            Obs.EntityRef Ref(Thing t, IntVec3 at) => new Obs.EntityRef { Id = Id(t), DefName = t.def.defName, MapId = map.uniqueID, Position = new Common.Cell { X = at.x, Z = at.z } };
+            foreach (var thing in map.listerThings.AllThings.OrderBy(Id))
+            {
+                if (thing.Position.Fogged(map)) continue;
+                var kind = Kind(thing, empty);
+                if (kind == null && !(thing is Corpse)) continue;
+                var protection = Protection(thing);
+                var row = new Obs.WasteItem { Thing = Ref(thing, thing.Position), Count = thing.stackCount, Eligible = protection == null && kind != null,
+                    State = protection == null && Stored(thing) ? Obs.WasteLocation.Relocated : Obs.WasteLocation.Exposed };
+                if (kind != null) row.Kind = kind;
+                if (protection != null) row.ProtectedReason = protection;
+                var rot = thing.TryGetComp<CompRottable>();
+                if (rot != null) row.RotStage = rot.Stage.ToString();
+                var of = CorpseOf(thing);
+                if (of != null) row.CorpseOf = of;
+                items.Add(row);
+            }
+            foreach (var grave in map.listerThings.AllThings.OfType<Building_Grave>().Where(g => !g.Position.Fogged(map)))
+                foreach (var body in grave.GetDirectlyHeldThings().OfType<Corpse>())
+                {
+                    var row = new Obs.WasteItem { Thing = Ref(body, grave.Position), Count = 1, Kind = "corpse", ProtectedReason = "grave",
+                        Eligible = false, State = Obs.WasteLocation.Buried, GraveId = Id(grave) };
+                    var of = CorpseOf(body);
+                    if (of != null) row.CorpseOf = of;
+                    items.Add(row);
+                }
+            if (items.Count > 256)
+                return new Obs.WasteReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.LimitExceeded, Detail = "Waste census exceeds 256 rows." } };
+            var snapshot = new Obs.WasteSnapshot { Context = context.Clone(), Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true },
+                Matched = (ulong)items.Count, Returned = (ulong)items.Count, Filtered = 0, Unreadable = 0 } };
+            snapshot.Items.AddRange(items);
+            return new Obs.WasteReply { Observed = snapshot };
         }
 
         private static object Haul(string thingId, string pawnId, string unwanted, string bury, bool dryRun)

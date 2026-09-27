@@ -534,7 +534,7 @@ var plannerCatalog = []plannerEntry{
 			out.Blight = &method
 			return method.Reason, nil
 		}},
-	{name: "waste", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction}, sections: sectionsColony,
+	{name: "waste", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction, domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Waste != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Waste.step(ctx, epoch, arbiter)

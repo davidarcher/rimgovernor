@@ -64,6 +64,7 @@ var roomDistricts = map[ModuleRole]District{
 	ModuleStorage:  DistrictStorage,
 	ModuleDining:   DistrictPlaza,
 	ModuleRec:      DistrictPlaza,
+	ModuleTomb:     DistrictHousing,
 }
 
 // DistrictAnchor is where a district's site search starts: the interior

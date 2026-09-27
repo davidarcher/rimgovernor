@@ -367,7 +367,10 @@ type RoutineFacts struct {
 	SleepingRecovered    domain.Fact[bool]
 	// BedroomsOwed: a planned individual bedroom step is due (#786); it
 	// keeps MaintainSleeping open once everyone owns a barracks bed.
-	BedroomsOwed      domain.Fact[bool]
+	BedroomsOwed domain.Fact[bool]
+	// TombOwed: a tomb step is due (#832); it keeps MaintainWaste open
+	// while a dead colonist waits on a sarcophagus.
+	TombOwed          domain.Fact[bool]
 	AnimalUpkeep      AnimalUpkeepObservation
 	FoodStorageUpkeep FoodStorageObservation
 	MedicalReserve    MedicalReserveObservation
@@ -1294,6 +1297,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	wasteRecovered := domain.Unknown[bool]()
 	if items, known := f.Waste.Value(); known {
 		wasteRecovered = domain.Known(len(pendingWaste(items)) == 0)
+	}
+	if owed, known := f.TombOwed.Value(); known && owed {
+		wasteRecovered = domain.Known(false)
 	}
 	addAssessment(MaintainWaste, 3, wasteRecovered)
 	if !positive(wasteRecovered) {

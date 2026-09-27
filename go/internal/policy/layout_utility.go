@@ -179,7 +179,7 @@ func TurbineWindCells(center domain.Cell, rot domain.Rotation) []domain.Cell {
 func BatterySlots(r LayoutRoom) []Rectangle {
 	in := r.Interior
 	var out []Rectangle
-	for i := int32(0); i < in.Height; i += 2 {
+	for _, i := range AisleRows(in.Height, 2) {
 		z := in.Z + i
 		if r.DoorRot == domain.North { // door on the south wall
 			z = in.Z + in.Height - 1 - i

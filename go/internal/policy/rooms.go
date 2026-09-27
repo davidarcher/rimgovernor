@@ -151,7 +151,9 @@ func FacilityCatalog() []FacilityRequirement {
 		{Role: RoomRoleWorkshop, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), Furniture: []string{"CraftingSpot", "TableStonecutter"}},
 		{Role: RoomRoleStoreroom, Status: FacilityPending},
 		{Role: RoomRoleKitchen, Status: FacilityPending},
-		{Role: RoomRoleTomb, Status: FacilityPending},
+		// A tomb is its own planned room (#832): MaintainWaste shells it and
+		// places a sarcophagus while a dead colonist has none waiting.
+		{Role: RoomRoleTomb, Status: FacilityImplemented, Furniture: []string{SarcophagusDefinition}},
 		{Role: RoomRoleBarn, Status: FacilityPending},
 		{Role: RoomRoleThroneRoom, Status: FacilityPending, Content: "Royalty"},
 		{Role: RoomRoleWorshipRoom, Status: FacilityPending, Content: "Ideology"},

@@ -1,6 +1,9 @@
 package bridge
 
-import o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+import (
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+)
 
 // validateColonyWaste validates the generic per-tick waste census embedded in
 // ColonyFactsSnapshot, mirroring validateDirectUpkeep's entity shape: each
@@ -38,7 +41,8 @@ func validateColonyWaste(v *o.WasteReply, size *o.MapSize, mapID int32) error {
 			if row == nil || !entity(row.Thing, seen) || row.Count != nil && row.GetCount() < 0 ||
 				row.ZoneId != nil && validID(row.GetZoneId()) != nil || row.GraveId != nil && validID(row.GetGraveId()) != nil ||
 				row.RotStage != nil && validID(row.GetRotStage()) != nil || row.Kind != nil && validID(row.GetKind()) != nil ||
-				row.ProtectedReason != nil && validID(row.GetProtectedReason()) != nil {
+				row.ProtectedReason != nil && validID(row.GetProtectedReason()) != nil ||
+				row.CorpseOf != nil && !domain.CorpseOf(row.GetCorpseOf()).Valid() {
 				return contract("invalid waste item")
 			}
 		}

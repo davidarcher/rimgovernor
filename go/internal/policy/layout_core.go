@@ -17,6 +17,9 @@ const (
 	ModuleDining   ModuleRole = "dining"
 	ModuleRec      ModuleRole = "rec"
 	ModuleLab      ModuleRole = "lab"
+	// ModuleTomb is the sarcophagus room (#832), shelled only once a
+	// colonist lies dead.
+	ModuleTomb ModuleRole = "tomb"
 )
 
 // coreRoomSize is a role's interior: width along the spine, depth away
@@ -33,6 +36,7 @@ var coreRoomSize = map[ModuleRole][2]int32{
 	ModuleWorkshop: {7, 5},
 	ModuleStorage:  {9, 7},
 	ModuleLab:      {6, 5},
+	ModuleTomb:     {5, 5},
 }
 
 // coreBaseRooms is every colony's fixed set, in placement order: pairs
@@ -40,6 +44,7 @@ var coreRoomSize = map[ModuleRole][2]int32{
 var coreBaseRooms = []ModuleRole{
 	ModuleBarracks, ModuleKitchen, ModuleFreezer, ModuleDining, ModuleRec,
 	ModuleWorkshop, ModuleStorage, ModuleHospital, ModulePrison, ModuleLab,
+	ModuleTomb,
 }
 
 // coreMaxDepth is the deepest interior, which bounds the core's cross-section.

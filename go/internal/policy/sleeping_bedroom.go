@@ -107,23 +107,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			}
 		}
 	}
-	standing := func(r LayoutRoom) (Room, bool) {
-		centre := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
-		for _, room := range rooms.Rooms {
-			if len(room.Cells) > int(r.Interior.Width*r.Interior.Height) {
-				continue
-			}
-			if enclosed, known := room.Enclosed.Value(); !known || !enclosed {
-				continue
-			}
-			for _, c := range room.Cells {
-				if c == centre {
-					return room, true
-				}
-			}
-		}
-		return Room{}, false
-	}
+	standing := func(r LayoutRoom) (Room, bool) { return PlannedRoomStanding(r, rooms) }
 	var empty []LayoutRoom
 	var emptyCells [][]domain.Cell
 	var unbuilt []LayoutRoom

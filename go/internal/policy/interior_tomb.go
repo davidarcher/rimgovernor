@@ -6,34 +6,38 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The tomb template (#831): sarcophagi side by side in one row, heads
-// against the back wall, feet toward the entrance, with the open floor in
-// front as the aisle the burial haul walks. A Sarcophagus is a 1x2
-// Building_Grave (Buildings_Misc.xml) with no interaction cell; haulers
-// inter a corpse by touching it, so the row needs no gaps, only the aisle.
-// MaintainWaste's burial haul already fills any empty Building_Grave.
+// The tomb template (#831, #832): double-sided like the battery room
+// (BatterySlots), a 1-cell aisle straight in from the door with
+// sarcophagi packed along both sides, heads against the side walls and
+// feet on the aisle. A Sarcophagus is a 1x2 Building_Grave
+// (Buildings_Misc.xml) with no interaction cell and no chain reaction, so
+// the rows need no spacers; haulers inter a corpse from the aisle.
+// Vanilla haulers fill any empty grave with a colonist corpse, and the
+// Tomb role carries no mood effect, so there is no furnishing tier: the
+// payoff is KnowBuriedInSarcophagus on every colonist.
 
 func init() {
 	RegisterInteriorTemplate(RoomRoleTomb, InteriorTemplate{Name: "tomb", Plan: planTomb})
 }
 
-// SarcophagusDefinition is Core's sarcophagus.
+// SarcophagusDefinition is Core's sarcophagus (ComplexFurniture).
 const SarcophagusDefinition = "Sarcophagus"
 
 func planTomb(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
-	// Two cells of sarcophagus and at least the aisle in front.
-	if f.Depth < 3 {
-		return nil, false
+	aisle := f.Entrance
+	size := domain.Cell{X: 1, Z: 2}
+	var out []InteriorPiece
+	for _, v := range AisleRows(f.Depth, 1) {
+		if aisle >= 2 {
+			p := NewInteriorPiece(fmt.Sprintf("sarcophagus.w%d", v+1), SarcophagusDefinition, size, domain.West, domain.Cell{X: aisle - 2, Z: v})
+			p.Row = "sarcophagi.west"
+			out = append(out, p)
+		}
+		if aisle+3 <= f.Width {
+			p := NewInteriorPiece(fmt.Sprintf("sarcophagus.e%d", v+1), SarcophagusDefinition, size, domain.East, domain.Cell{X: aisle + 1, Z: v})
+			p.Row = "sarcophagi.east"
+			out = append(out, p)
+		}
 	}
-	starts, ok := RowStarts(f.Width, 1, 0, f.Width, RowCentred)
-	if !ok {
-		return nil, false
-	}
-	out := make([]InteriorPiece, 0, len(starts))
-	for i, u := range starts {
-		p := NewInteriorPiece(fmt.Sprintf("sarcophagus.%d", i+1), SarcophagusDefinition, domain.Cell{X: 1, Z: 2}, domain.South, domain.Cell{X: u, Z: f.Depth - 2})
-		p.Row = "sarcophagi"
-		out = append(out, p)
-	}
-	return out, true
+	return out, len(out) > 0
 }

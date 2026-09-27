@@ -40,3 +40,21 @@ func NewWasteAction(id ActionID, waste Waste) (Action, error) {
 }
 
 func (a Action) Waste() (Waste, bool) { return a.waste, a.kind == WasteAction }
+
+// CorpseOf is a corpse's inner pawn class, as the waste census reports it
+// (#832) and a corpse bill's ingredient filter names it (#833).
+type CorpseOf string
+
+const (
+	// CorpseColonist is a player-faction humanlike.
+	CorpseColonist CorpseOf = "colonist"
+	// CorpseStranger is any other humanlike: raiders, visitors, prisoners.
+	CorpseStranger CorpseOf = "stranger"
+	// CorpseAnimal is any non-humanlike.
+	CorpseAnimal CorpseOf = "animal"
+)
+
+// Valid reports one of the three classes.
+func (c CorpseOf) Valid() bool {
+	return c == CorpseColonist || c == CorpseStranger || c == CorpseAnimal
+}

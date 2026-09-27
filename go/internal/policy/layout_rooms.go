@@ -29,8 +29,30 @@ func LayoutModule(role RoomRole) (ModuleRole, bool) {
 		return ModuleStorage, true
 	case RoomRoleLaboratory:
 		return ModuleLab, true
+	case RoomRoleTomb:
+		return ModuleTomb, true
 	}
 	return "", false
+}
+
+// PlannedRoomStanding is the census room standing enclosed on the planned
+// room's centre cell and no larger than its interior.
+func PlannedRoomStanding(r LayoutRoom, rooms RoomObservation) (Room, bool) {
+	centre := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
+	for _, room := range rooms.Rooms {
+		if len(room.Cells) > int(r.Interior.Width*r.Interior.Height) {
+			continue
+		}
+		if enclosed, known := room.Enclosed.Value(); !known || !enclosed {
+			continue
+		}
+		for _, c := range room.Cells {
+			if c == centre {
+				return room, true
+			}
+		}
+	}
+	return Room{}, false
 }
 
 // Footprint is the room's shell: its interior walled round, the door where

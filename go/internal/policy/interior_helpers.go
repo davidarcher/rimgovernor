@@ -166,3 +166,14 @@ func (f InteriorFrame) MirrorPiece(p InteriorPiece, slot string) InteriorPiece {
 	}
 	return p
 }
+
+// AisleRows are the rows of a double-sided room (the battery room, the
+// tomb): a piece on each side of a 1-cell aisle straight in from the door,
+// one every pitch cells of depth, nearest the door first.
+func AisleRows(depth, pitch int32) []int32 {
+	var out []int32
+	for v := int32(0); pitch > 0 && v < depth; v += pitch {
+		out = append(out, v)
+	}
+	return out
+}

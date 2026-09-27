@@ -105,6 +105,8 @@ var routineFamilyFiles = map[string][]string{
 	"routine_tier_style.go":           {"shelter", "expansion", "flooring", "lighting"},
 	"routine_trade.go":                {"trade"},
 	"routine_waste.go":                {"waste"},
+	"routine_waste_tomb.go":           {"waste"},
+	"routine_tomb_facts.go":           {"waste"},
 	"routine_workshop.go":             {"workshop"},
 }
 

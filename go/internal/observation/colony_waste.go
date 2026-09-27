@@ -50,7 +50,7 @@ func colonyWaste(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.WasteItem] {
 			continue
 		}
 		cell := domain.Cell{X: position.GetX(), Z: position.GetZ()}
-		items = append(items, policy.WasteItem{ID: id, Kind: row.GetKind(), State: wasteLocation(row.GetState()), Eligible: row.GetEligible(), Cell: cell})
+		items = append(items, policy.WasteItem{ID: id, Kind: row.GetKind(), State: wasteLocation(row.GetState()), Eligible: row.GetEligible(), Cell: cell, CorpseOf: domain.CorpseOf(row.GetCorpseOf()), Grave: row.GetGraveId()})
 	}
 	return domain.Known(items)
 }
