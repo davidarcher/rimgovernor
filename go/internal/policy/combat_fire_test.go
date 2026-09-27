@@ -63,7 +63,7 @@ func TestDecideCombatSpacesFiringCells(t *testing.T) {
 		}
 	}
 	// With no room to space, the rest pack rather than stand idle.
-	if got := spaceCells([]domain.Cell{{X: 1}, {X: 2}, {X: 3}}); !reflect.DeepEqual(got, []domain.Cell{{X: 1}, {X: 3}, {X: 2}}) {
+	if got := spaceCells([]domain.Cell{{X: 1}, {X: 2}, {X: 3}}, 1); !reflect.DeepEqual(got, []domain.Cell{{X: 1}, {X: 3}, {X: 2}}) {
 		t.Fatalf("%v", got)
 	}
 }

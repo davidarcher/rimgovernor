@@ -150,7 +150,7 @@ func manhunterFormation(view CombatView, geometry GeometryReply, relieved []doma
 				cells = append(cells, c)
 			}
 		}
-		cells = spaceCells(RankByCover(cells, geometry.Scored))
+		cells = spaceCells(RankByCover(cells, geometry.Scored), 1)
 	}
 	var roles []CombatRole
 	for i, g := range gunners {

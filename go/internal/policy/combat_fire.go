@@ -11,26 +11,35 @@ import (
 // melee with one of our blockers.
 
 // spaceCells orders candidate firing cells so the first ones keep at least
-// one empty tile (8-way) between each other: a greedy spaced pick in the
-// given order, then the rest in order. Formation assigns cells front to
-// back, so defenders stand spaced while the candidates allow it and pack
-// only past that, rather than stand idle.
-func spaceCells(cells []domain.Cell) []domain.Cell {
-	var spaced, rest []domain.Cell
-	for _, c := range cells {
-		if slices.ContainsFunc(spaced, func(s domain.Cell) bool { return adjacent8(s, c) }) {
-			rest = append(rest, c)
-		} else {
-			spaced = append(spaced, c)
+// gap empty tiles (8-way) between each other: a greedy spaced pick in the
+// given order, then, one tile tighter at a time down to one, greedy picks
+// from what is left, then the rest in order. Formation assigns cells front
+// to back, so defenders stand spaced while the candidates allow it and
+// pack only past that, rather than stand idle.
+func spaceCells(cells []domain.Cell, gap int32) []domain.Cell {
+	var spaced []domain.Cell
+	rest := cells
+	for g := gap; g >= 1; g-- {
+		var left []domain.Cell
+		for _, c := range rest {
+			if slices.ContainsFunc(spaced, func(s domain.Cell) bool { return within(s, c, g) }) {
+				left = append(left, c)
+			} else {
+				spaced = append(spaced, c)
+			}
 		}
+		rest = left
 	}
 	return append(spaced, rest...)
 }
 
-func adjacent8(a, b domain.Cell) bool {
+// within reports b at most d tiles from a (8-way).
+func within(a, b domain.Cell, d int32) bool {
 	dx, dz := a.X-b.X, a.Z-b.Z
-	return dx >= -1 && dx <= 1 && dz >= -1 && dz <= 1
+	return dx >= -d && dx <= d && dz >= -d && dz <= d
 }
+
+func adjacent8(a, b domain.Cell) bool { return within(a, b, 1) }
 
 // SightLine is combat.geometry's answer for one (cell, hostile) pair (#851).
 type SightLine struct {

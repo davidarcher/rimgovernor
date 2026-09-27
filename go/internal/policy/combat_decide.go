@@ -695,7 +695,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 			}
 		}
 		var positions []DefensivePosition
-		cells = spaceCells(RankByCover(cells, geometry.Scored))
+		cells = spaceCells(RankByCover(cells, geometry.Scored), firingGap(view))
 		defenders, tanks := splitTanks(view)
 		positions, refusal = explainDefensivePositions(cells, layout.Toward, chokeHeld(view, layout), markMechs(view), defenders)
 		if refusal == "" {
