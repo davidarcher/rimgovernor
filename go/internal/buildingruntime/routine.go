@@ -290,8 +290,8 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		readDefinitions = append(append([]string(nil), readDefinitions...), wasteDefinitions...)
 	}
 	if r.methodEnabled(policy.EnsureCooking) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainPopulation) {
-		// The planned kitchen, freezer and jail shells (#835).
-		readDefinitions = append(append([]string(nil), readDefinitions...), "Wall", "Door")
+		// The planned kitchen, freezer and jail shells (#835) and jail beds (#880).
+		readDefinitions = append(append([]string(nil), readDefinitions...), "Wall", "Door", policy.JailBedDefinition)
 	}
 	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
 	if errors.Is(err, store.ErrNotFound) {

@@ -151,8 +151,9 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		// definition carries the wanted crop, stuff the CAS token.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'grower_crop',?,?,?)", a.ID(), plan, ordinal, crop.Thing(), crop.Crop(), crop.BeforeToken())
 	} else if medical, ok := a.BedMedical(); ok {
-		// definition carries the wanted flag, stuff the CAS token.
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'bed_medical',?,?,?)", a.ID(), plan, ordinal, medical.Thing(), strconv.FormatBool(medical.Medical()), medical.BeforeToken())
+		// definition carries the wanted flag, or "prisoners" (#880), stuff
+		// the CAS token.
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'bed_medical',?,?,?)", a.ID(), plan, ordinal, medical.Thing(), bedMedicalUse(medical), medical.BeforeToken())
 	} else if assign, ok := a.BedAssign(); ok {
 		// definition carries the expected previous bed; empty means none.
 		def := ""
@@ -747,8 +748,11 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewGrowerCropAction(id, crop)
 		return a, ordinal, err
 	}
-	if kind == "bed_medical" && target.Valid && def.Valid && stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && (def.String == "true" || def.String == "false") {
+	if kind == "bed_medical" && target.Valid && def.Valid && stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && (def.String == "true" || def.String == "false" || def.String == bedPrisonersUse) {
 		medical, err := domain.NewBedMedical(target.String, def.String == "true", stuff.String)
+		if def.String == bedPrisonersUse {
+			medical, err = domain.NewBedPrisoners(target.String, stuff.String)
+		}
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -907,4 +911,15 @@ type moodReliefPayload struct {
 
 func subdueMarker(m domain.MeleeAttack) sql.NullString {
 	return sql.NullString{String: "subdue", Valid: m.Subdue()}
+}
+
+// bedPrisonersUse is a bed_medical row's definition for a bed set for
+// prisoners (#880); the medical rows keep "true" and "false".
+const bedPrisonersUse = "prisoners"
+
+func bedMedicalUse(b domain.BedMedical) string {
+	if b.Prisoners() {
+		return bedPrisonersUse
+	}
+	return strconv.FormatBool(b.Medical())
 }

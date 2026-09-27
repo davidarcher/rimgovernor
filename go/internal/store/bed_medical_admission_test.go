@@ -50,3 +50,29 @@ func TestBedMedicalActionRoundTripAndAdmission(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A prisoners patch (#880) keeps its use through the action row.
+func TestBedPrisonersActionRoundTrip(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "bed_prisoners.db"))
+	bp, err := domain.NewBedPrisoners("bed", "before-cas")
+	if err != nil || !bp.Prisoners() || bp.Medical() {
+		t.Fatal(bp, err)
+	}
+	a, _ := domain.NewBedMedicalAction("prisoners", bp)
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CreatePlan(ctx, plan); err != nil {
+		t.Fatal(err)
+	}
+	state, err := s.LoadPlan(ctx, "plan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := state.Spec.Actions()[0].BedMedical(); !ok || got != bp {
+		t.Fatal("bed prisoners action did not round trip", state.Spec.Actions()[0])
+	}
+}

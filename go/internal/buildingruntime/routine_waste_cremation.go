@@ -46,7 +46,7 @@ func (r *RoutineWastePlanner) stageCremation(call, epoch context.Context, state 
 	switch step.Kind {
 	case policy.CremationPlace:
 		clockSchedulerLog("%s: crematorium place (strangers %d)", goal.Goal.ID, step.Strangers)
-		result, err := r.placePiece(call, epoch, state, review, goal, reading, step.Piece, cremationMethod(step), "routine-waste-cremate")
+		result, err := r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, cremationMethod(step), "routine-waste-cremate")
 		return RoutineWasteResult{Reason: result.Reason}, true, err
 	case policy.CremationBill:
 		return r.cremationBill(call, epoch, state, goal, bills, step)

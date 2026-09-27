@@ -170,6 +170,9 @@ func (b *Boundary) ObserveBedMedical(ctx context.Context, p executor.Placement, 
 		return out, executor.ErrEvidence
 	}
 	matches := target.Medical == wanted.Medical.Medical()
+	if wanted.Medical.Prisoners() {
+		matches = target.Prisoners
+	}
 	var evidence *r.EffectEvidence
 	if completed := v.GetCompleted(); completed != nil && matches {
 		out.Observation.Effect = domain.EffectCompleted

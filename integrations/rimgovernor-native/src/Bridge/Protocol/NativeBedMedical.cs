@@ -25,9 +25,18 @@ namespace HomeBridge.BridgeTools
     internal static class NativeBedMedical
     {
         internal static bool Valid(Operations.PatchBuilding? command) => command != null
-            && NativeDraftProtocol.ValidEntity(command.Building) && command.HasMedical
+            && NativeDraftProtocol.ValidEntity(command.Building) && command.HasMedical != command.HasForPrisoners
+            && (!command.HasForPrisoners || command.ForPrisoners)
             && !command.HasTargetTemperature && !command.HasPlantDef && !command.HasClaim && !command.HasForbidden && !command.HasPower
-            && command.Owner == null && !command.HasForPrisoners;
+            && command.Owner == null;
+
+        // Prisoners reports a for_prisoners write (#880): only true, and
+        // through ForOwnerType, never ForPrisoners, whose false arm is a
+        // Log.Error (see BuildingConfigTool.cs). It drops every owner.
+        internal static bool Prisoners(Operations.PatchBuilding command) => command.HasForPrisoners;
+
+        private static bool Matches(Building_Bed bed, Operations.PatchBuilding command) =>
+            Prisoners(command) ? bed.ForPrisoners : bed.Medical == command.Medical;
 
         internal static bool Eligible(Thing thing) => thing is Building_Bed bed && !bed.Destroyed && bed.Spawned
             && ProtoBoundary.IsLoaded(bed.Map) && bed.def?.building != null && bed.def.building.bed_humanlike;
@@ -70,7 +79,7 @@ namespace HomeBridge.BridgeTools
         {
             bed = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
-                "Bed patch requires an exact current bed snapshot and only medical. forbidden/power/owner/forPrisoners are not implemented by this adapter.");
+                "Bed patch requires an exact current bed snapshot and only medical or forPrisoners=true. forbidden/power/owner are not implemented by this adapter.");
             if (!Valid(command)) return false;
             var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
             if (thing == null || !Eligible(thing))
@@ -78,6 +87,8 @@ namespace HomeBridge.BridgeTools
             bed = (Building_Bed)thing;
             if (command.Medical && !bed.def.building.bed_canBeMedical)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed definition cannot be medical; the game's setter would ignore the write."); return false; }
+            if (Prisoners(command) && (bed.ForHumanBabies || !(bed.GetRoom() is Room room) || !Building_Bed.RoomCanBePrisonCell(room)))
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed cannot hold a prisoner: a crib, or its room cannot be a prison cell."); return false; }
             if (Snapshot(bed, context)?.Token != command.Building.ExpectedSnapshotToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Bed snapshot changed; observe before new admission."); return false; }
             return true;
@@ -87,7 +98,7 @@ namespace HomeBridge.BridgeTools
             new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = command.Building.EntityId,
                     BeforeToken = command.Building.ExpectedSnapshotToken, AfterToken = after },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.MedicalBed,
+                Fields = { new Receipts.FieldResult { Field = Prisoners(command) ? Receipts.SettingsField.PrisonerBed : Receipts.SettingsField.MedicalBed,
                     Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused } } } };
 
         internal static Operations.PreviewReply Preview(Operations.PatchBuilding command, Common.ObservationContext context)
@@ -123,9 +134,10 @@ namespace HomeBridge.BridgeTools
                     if (!authority.Check(pre.ExpectedGeneration).Success
                         || !Prepare(command, context, out var checkedBed, out failure) || !ReferenceEquals(bed, checkedBed))
                         throw new InvalidOperationException("Bed medical admission changed before effect.");
-                    bed!.Medical = command.Medical;
+                    if (Prisoners(command)) bed!.ForOwnerType = BedOwnerType.Prisoner;
+                    else bed!.Medical = command.Medical;
                     var snapshot = Snapshot(bed, context);
-                    if (snapshot == null || bed.Medical != command.Medical) throw new InvalidOperationException("Native bed medical requires readback.");
+                    if (snapshot == null || !Matches(bed, command)) throw new InvalidOperationException("Native bed medical requires readback.");
                     evidence = Evidence(command, snapshot.Token, true);
                 }
                 return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
@@ -146,7 +158,7 @@ namespace HomeBridge.BridgeTools
                 var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
                 var snapshot = thing == null ? null : Snapshot(thing, context);
                 if (snapshot == null) return result;
-                var matches = ((Building_Bed)thing!).Medical == command.Medical; var evidence = Evidence(command, snapshot.Token, matches);
+                var matches = Matches((Building_Bed)thing!, command); var evidence = Evidence(command, snapshot.Token, matches);
                 result.CompleteInspection = true;
                 if (matches) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
                 else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,

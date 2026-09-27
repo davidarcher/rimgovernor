@@ -132,7 +132,9 @@ func FacilityCatalog() []FacilityRequirement {
 		// assigns it; the game scores the room Bedroom or Barracks by count.
 		{Role: RoomRoleBedroom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), Furniture: SleepingBedDefinitions},
 		{Role: RoomRoleBarracks, Status: FacilityPending},
-		{Role: RoomRolePrisonCell, Status: FacilityPending},
+		// A jail is its own planned room (#880): MaintainPopulation shells it
+		// while a prisoner is held and keeps a prisoner bed per prisoner.
+		{Role: RoomRolePrisonCell, Status: FacilityImplemented, Furniture: []string{JailBedDefinition}},
 		{Role: RoomRolePrisonBarracks, Status: FacilityPending},
 		// A hospital is a hosted medical bed, not a dedicated room: the game
 		// scores a room holding any ordinary bed a Bedroom or Barracks, and a

@@ -29,14 +29,23 @@ func NewBedMedicalControl(client *Client) (*BedMedicalControl, error) {
 	return &BedMedicalControl{client}, nil
 }
 func validateBedMedical(t domain.BedMedical) error {
-	_, err := domain.NewBedMedical(t.Thing(), t.Medical(), t.BeforeToken())
+	canonical, err := domain.NewBedMedical(t.Thing(), t.Medical(), t.BeforeToken())
+	if t.Prisoners() {
+		canonical, err = domain.NewBedPrisoners(t.Thing(), t.BeforeToken())
+	}
+	if err == nil && canonical != t {
+		return contract("invalid bed medical")
+	}
 	return err
 }
 func bedMedicalOperation(t domain.BedMedical) *op.Operation {
-	return &op.Operation{Command: &op.Operation_PatchBuilding{PatchBuilding: &op.PatchBuilding{
-		Building: &op.EntityPrecondition{EntityId: proto.String(t.Thing()), ExpectedSnapshotToken: proto.String(t.BeforeToken())},
-		Medical:  proto.Bool(t.Medical()),
-	}}}
+	patch := &op.PatchBuilding{Building: &op.EntityPrecondition{EntityId: proto.String(t.Thing()), ExpectedSnapshotToken: proto.String(t.BeforeToken())}}
+	if t.Prisoners() {
+		patch.ForPrisoners = proto.Bool(true)
+	} else {
+		patch.Medical = proto.Bool(t.Medical())
+	}
+	return &op.Operation{Command: &op.Operation_PatchBuilding{PatchBuilding: patch}}
 }
 func (client *Client) PreviewBedMedical(ctx context.Context, identity *c.Identity, target domain.BedMedical) (*op.PreviewReply, Result, error) {
 	if ValidateIdentity(identity) != nil || validateBedMedical(target) != nil {
@@ -96,8 +105,12 @@ func bedMedicalEffect(v *r.EffectEvidence, target domain.BedMedical, matches boo
 	if !matches {
 		want = r.FieldOutcome_FIELD_OUTCOME_REFUSED
 	}
+	kind := r.SettingsField_SETTINGS_FIELD_MEDICAL_BED
+	if target.Prisoners() {
+		kind = r.SettingsField_SETTINGS_FIELD_PRISONER_BED
+	}
 	field := effect.Fields[0]
-	if field == nil || field.GetField() != r.SettingsField_SETTINGS_FIELD_MEDICAL_BED || field.GetOutcome() != want {
+	if field == nil || field.GetField() != kind || field.GetOutcome() != want {
 		return contract("bed medical field mismatch")
 	}
 	return nil

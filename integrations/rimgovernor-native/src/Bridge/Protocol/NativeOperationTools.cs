@@ -141,7 +141,7 @@ namespace HomeBridge.BridgeTools
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchPawn)
                 return NativeWorkSettings.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
-                return request.Operation.PatchBuilding.HasMedical
+                return request.Operation.PatchBuilding.HasMedical || request.Operation.PatchBuilding.HasForPrisoners
                     ? NativeBedMedical.Execute(state, request, context)
                     : request.Operation.PatchBuilding.HasPlantDef
                         ? NativeGrowerCrop.Execute(state, request, context)
@@ -312,7 +312,7 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchPawn)
                     return ProtoBoundary.Encode(NativeWorkSettings.Preview(parsed.Operation.PatchPawn, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
-                    return ProtoBoundary.Encode(parsed.Operation.PatchBuilding.HasMedical
+                    return ProtoBoundary.Encode(parsed.Operation.PatchBuilding.HasMedical || parsed.Operation.PatchBuilding.HasForPrisoners
                         ? NativeBedMedical.Preview(parsed.Operation.PatchBuilding, context)
                         : parsed.Operation.PatchBuilding.HasPlantDef
                             ? NativeGrowerCrop.Preview(parsed.Operation.PatchBuilding, context)
@@ -486,7 +486,7 @@ namespace HomeBridge.BridgeTools
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeClearCover.Observe(parsed.Attempt, context, cover) }));
                     Operations.PatchBuilding buildingPatch;
                     if (state.BuildingPatches.TryGetValue(parsed.Attempt, out buildingPatch))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = buildingPatch.HasMedical
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = buildingPatch.HasMedical || buildingPatch.HasForPrisoners
                             ? NativeBedMedical.Observe(parsed.Attempt, context, buildingPatch)
                             : buildingPatch.HasPlantDef
                                 ? NativeGrowerCrop.Observe(parsed.Attempt, context, buildingPatch)

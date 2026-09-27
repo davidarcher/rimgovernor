@@ -46,7 +46,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	case policy.TombShell:
 		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, tombMethod(step), "routine-waste-tomb", "")
 	case policy.TombPlace:
-		result, err = r.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step), "routine-waste-tomb")
+		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step), "routine-waste-tomb")
 	case policy.TombFull:
 		// The layout review grows another tomb; a grave only once a
 		// replan found no room for one; cremation goes on meanwhile.
@@ -78,7 +78,7 @@ func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state Cont
 			break
 		}
 		piece := policy.NewInteriorPiece("grave", policy.GraveDefinition, domain.Cell{X: 1, Z: 2}, domain.North, domain.Cell{X: site.X, Z: site.Z})
-		if result, err = r.placePiece(call, epoch, state, review, goal, reading, piece, method, "routine-waste-grave"); err != nil || result.Reason != BuildingMethodNoSpace {
+		if result, err = r.building.placePiece(call, epoch, state, review, goal, reading, piece, method, "routine-waste-grave"); err != nil || result.Reason != BuildingMethodNoSpace {
 			return result, err
 		}
 	}
@@ -87,8 +87,8 @@ func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state Cont
 
 // placePiece previews and admits one interior piece: a sarcophagus (#832)
 // or the crematorium (#833).
-func (r *RoutineWastePlanner) placePiece(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID, prefix string) (RoutineBuildingResult, error) {
-	p := r.reviewer.player
+func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID, prefix string) (RoutineBuildingResult, error) {
+	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
@@ -123,7 +123,7 @@ func (r *RoutineWastePlanner) placePiece(call, epoch context.Context, state Cont
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	preview, _, err := r.building.native.PreviewBuilding(call, action, snapshot)
+	preview, _, err := b.native.PreviewBuilding(call, action, snapshot)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -141,5 +141,5 @@ func (r *RoutineWastePlanner) placePiece(call, epoch context.Context, state Cont
 	if err := mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return r.building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Shelter, check: check})
+	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Shelter, check: check})
 }

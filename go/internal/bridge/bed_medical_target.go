@@ -16,7 +16,9 @@ type BedMedicalTarget struct {
 	Thing   string
 	Token   string
 	Medical bool
-	Owners  []string
+	// Prisoners is the bed set for prisoners (#880).
+	Prisoners bool
+	Owners    []string
 }
 
 // ReadBedMedicalTarget observes one exact bed's medical flag, owners and
@@ -42,5 +44,5 @@ func (client *Client) ReadBedMedicalTarget(ctx context.Context, identity *c.Iden
 	if settings == nil || settings.Snapshot == nil || settings.Snapshot.GetEntityId() != thing || settings.Medical == nil || settings.TargetTemperatureC != nil {
 		return BedMedicalTarget{}, raw, contract("building is not a humanlike bed")
 	}
-	return BedMedicalTarget{Context: v.Context, Thing: thing, Token: settings.Snapshot.GetToken(), Medical: settings.GetMedical(), Owners: append([]string{}, settings.AssignedPawnIds...)}, raw, nil
+	return BedMedicalTarget{Context: v.Context, Thing: thing, Token: settings.Snapshot.GetToken(), Medical: settings.GetMedical(), Prisoners: settings.GetForPrisoners(), Owners: append([]string{}, settings.AssignedPawnIds...)}, raw, nil
 }
