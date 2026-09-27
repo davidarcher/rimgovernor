@@ -175,9 +175,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.Float64Var(&c.routineItemWealthShare, "routine-item-wealth-share", 0, "share (0..1) of colony wealth held as items past which TradeWithCaravan sells raw-material hoards (steel, plasteel, gold, uranium, jade) down to their economic floors; 0 disables")
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
 	flags.StringVar(&c.routineResearchLadder, "routine-research-ladder", strings.Join(policy.DefaultResearchLadder(), ","), "comma-separated ResearchProjectDef names EnsureResearch walks in order when no --routine-research-target is set and no workshop ladder records a need; empty disables the roadmap")
-	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward")
+	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward; any use replaces the default floors (policy.DefaultResourceTargets)")
 	flags.Float64Var(&c.routineFoodReserveDays, "routine-food-reserve-days", policy.DefaultFoodReserveDays, "days of forbidden durable food kept outside ordinary runway; 0 disables reserve management")
-	flags.Int64Var(&c.routineStoneBlockTarget, "routine-stone-block-target", 0, "native stock floor MaintainResource keeps for stone blocks of the stone whose chunks the map counts most, staging a stonecutter's table and a do-until bill fed from those chunks; 0 disables")
+	flags.Int64Var(&c.routineStoneBlockTarget, "routine-stone-block-target", policy.DefaultStoneBlockTarget, "native stock floor MaintainResource keeps for stone blocks of the stone whose chunks the map counts most, staging a stonecutter's table and a do-until bill fed from those chunks; 0 disables")
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
 	flags.BoolVar(&c.routineAllowSlaughter, "routine-allow-slaughter", false, "let MaintainHerd propose a slaughter write for a surplus animal once --routine-herd-population-max is declared; slaughter is irreversible and stays off unless explicitly set")
@@ -278,7 +278,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.routineStoneBlockTarget < 0 || c.routineStoneBlockTarget > 10000 {
 		return c, errors.New("--routine-stone-block-target must be within 0..10000")
 	}
-	if c.resourceTargetsConfigured() && !c.routineResourcePlans {
+	if (len(c.routineResourceTargets) > 0 || explicit["routine-stone-block-target"]) && !c.routineResourcePlans {
 		return c, errors.New("--routine-resource-target and --routine-stone-block-target require the resource routine family")
 	}
 	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
@@ -449,10 +449,19 @@ func (c serveConfig) workshopPlans() bool {
 	return c.routineWorkshopPlans && (c.resourceTargetsConfigured() || c.routineGearPlans)
 }
 
-// resourceTargetsConfigured reports whether MaintainResource has a floor to
-// keep: an operator resource target or the derived stone-block target.
+// resourceTargetsConfigured reports whether MaintainResource runs: always
+// with the resource family, which keeps the default floors (#875).
 func (c serveConfig) resourceTargetsConfigured() bool {
-	return len(c.routineResourceTargets) > 0 || c.routineStoneBlockTarget > 0
+	return c.routineResourcePlans
+}
+
+// resourceTargets is the operator floor map when any
+// --routine-resource-target is given, otherwise the default floors.
+func (c serveConfig) resourceTargets() map[policy.Resource]int64 {
+	if len(c.routineResourceTargets) > 0 {
+		return c.routineResourceTargets.Map()
+	}
+	return policy.DefaultResourceTargets()
 }
 
 // researchLadder is --routine-research-ladder split, blanks dropped.
