@@ -260,6 +260,11 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 		return RoutineStoneShellResult{}, false, err
 	}
 	dependencies := []domain.ActionDependency{{Action: permanentID, Requires: demolishID}}
+	// Native lists a straight site as demolition-ready only once every
+	// backup stands; in between it is no site at all.
+	for _, backupID := range backupIDs {
+		dependencies = append(dependencies, domain.ActionDependency{Action: demolishID, Requires: backupID})
+	}
 	for i, backupID := range backupIDs {
 		backupRemoval, err := domain.NewWallRemoval("", backupID, site.BackupCells[i])
 		if err != nil {

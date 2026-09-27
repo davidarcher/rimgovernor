@@ -25,6 +25,9 @@ namespace HomeBridge.BridgeTools
         internal const int MaximumBlockedCells = 16384;
         internal const int MaximumTargetCells = 128;
         internal const int MaximumPawns = 32;
+        // The row lists a sample of at most this many lost cells; LostCellCount
+        // carries the full count (the controller refuses a longer list).
+        internal const int MaximumLostCells = 16;
         internal const long MaximumMapCells = 262144;
 
         [Tool("rimgovernor/observations_read_spatial_access", Title = "Read projected colony access",
@@ -128,7 +131,7 @@ namespace HomeBridge.BridgeTools
                     CurrentCells = (uint)before.Count, ProjectedCells = (uint)after.Count, LostCellCount = (uint)lost.Count, EgressSteps = (uint)egressSteps,
                 };
                 if (origin.IsValid) row.ProjectedOrigin = Cell(origin);
-                foreach (var c in lost) row.LostCells.Add(Cell(c));
+                foreach (var c in lost.Take(MaximumLostCells)) row.LostCells.Add(Cell(c));
                 foreach (var c in targets)
                 {
                     var projected = after.Contains(c);
