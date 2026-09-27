@@ -44,7 +44,7 @@ Protobuf parsing/formatting. Generated compile inputs come from
 `contracts/generated/protobuf/csharp`.
 
 `Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`
-and temporary `SetDrafted` plus exact `MovePawn` and guarded `AttackTarget` under an existing owned draft;
+and temporary `SetDrafted` plus guarded `AttackTarget` under an existing owned draft;
 `DesignateThing` supports only Allow on exact eligible loose supply snapshots;
 other command variants return unsupported. Their presence does not advertise
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
@@ -136,12 +136,9 @@ readback. Already-owned drafting preserves its claim without another setter.
 revocation and keeps its latest cleanup replay outside the ordinary attempt ledger.
 Persistent drafting remains unsupported.
 
-`MovePawn` requires an exact reachable destination, current pawn snapshot and
-matching live owner/claim. Its receipt identifies the actual issued job; queued
-work remains pending until the pawn starts that job and reaches the destination.
-Player orders, changed claims and authority generations interrupt attribution.
-Causal synchronous scope tracking preserves cleanup ownership if an admitted order
-outlives its lease; it never grants another write or revives the expired lease.
+A move is the `MoveIntent` arm of `Actions/Apply`: native requires an alive,
+spawned pawn drafted under an owned claim and a standable, reachable cell, and
+applies an order that already matches as a no-op. Arrival is not reported.
 
 `AttackTarget` requires exact attacker and target snapshots, the attacker's current
 owned draft, and ordinary native violence, reach and melee-verb eligibility.

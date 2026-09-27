@@ -21,7 +21,6 @@ func TestPortedLoudLifecycleVideoCases(t *testing.T) {
 		"combat/melee":            {quiet: na.Loud},
 		"combat/ranged":           {quiet: na.Loud},
 		"combat/explosive":        {quiet: na.Loud},
-		"movement/arrival":        {quiet: na.Loud},
 		"authority/disconnect":    {quiet: na.Loud},
 		"lifecycle/shutdown":      {noKeep: true},
 		"lifecycle/runtime-fault": {noKeep: true},

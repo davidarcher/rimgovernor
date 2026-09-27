@@ -31,6 +31,7 @@ namespace HomeBridge.BridgeTools
         private static readonly Dictionary<Operations.Action.IntentOneofCase, IActionHandler> Handlers = new Dictionary<Operations.Action.IntentOneofCase, IActionHandler>
         {
             [Operations.Action.IntentOneofCase.Trade] = new TradeActionHandler(),
+            [Operations.Action.IntentOneofCase.Move] = new MoveActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

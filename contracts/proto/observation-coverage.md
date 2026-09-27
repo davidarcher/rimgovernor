@@ -320,7 +320,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | QueueSurgery.patient/health/care | ListPawns.pawn.snapshot, PawnHealth.snapshot, PawnSettings.medical_care; ReadMedicalCatalog snapshot for preparation |
 | SetAnimalTraining/SlaughterAnimal.animal/census | ReadHusbandry.pawn.snapshot, animal.census_snapshot; settings snapshot separate |
 | SetPrisonerInteraction.pawn | ReadPopulation.pawn.snapshot and current interaction |
-| SetDrafted/MovePawn/AttackTarget/PawnTargetOrder | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |
+| SetDrafted/AttackTarget/PawnTargetOrder | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |
 | OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |
 | SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.snapshot; trader and negotiator from ReadTradeSession |
 | SetTradeLines.line_id | ReadTradeSheet.lines.line_id, scoped to frozen sheet; not an inferred DefName/index |

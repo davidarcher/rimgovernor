@@ -23,7 +23,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, Operations.SetApparelPolicy> ApparelPolicies = new Dictionary<Common.AttemptKey, Operations.SetApparelPolicy>();
         internal readonly Dictionary<Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<Common.AttemptKey, NativeConstructionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeMovementRecord> Movements = new Dictionary<Common.AttemptKey, NativeMovementRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeProductionRecord> Bills = new Dictionary<Common.AttemptKey, NativeProductionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeZoneRecord> Zones = new Dictionary<Common.AttemptKey, NativeZoneRecord>();
@@ -93,7 +92,7 @@ namespace HomeBridge.BridgeTools
     {
         public NativeOperationTools() { NativeProductionTracking.Install(); NativeDrugPolicy.Install(); NativeAcquisitionTracking.Install(); NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
 
-        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, exact supply Allow, work-only PatchPawn, temporary SetDrafted, MovePawn or melee, direct-bullet or supported injury-only explosive AttackTarget, or a batched CombatOrders, under current native authority. Movement and combat require an existing owned draft. Exact retries return their original receipt.")]
+        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, exact supply Allow, work-only PatchPawn, temporary SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget, or a batched CombatOrders, under current native authority. Combat requires an existing owned draft. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
         public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ExecuteRequest ProtoJSON string.")] object? request = null)
@@ -159,8 +158,6 @@ namespace HomeBridge.BridgeTools
                 return NativeMoveBuilding.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
                 return NativeDraftOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
-                return NativeMovementOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                 return NativeCombatOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CombatOrders)
@@ -236,7 +233,7 @@ namespace HomeBridge.BridgeTools
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExtendHome)
                 return NativeHomeCoverageOperations.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
-                return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.");
+                return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget.");
             if (!NativeConstructionTracking.Ready)
                 return Refuse(Common.FailureCode.Unavailable, "Construction transition tracking is unavailable.");
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
@@ -320,8 +317,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeUninstallBuilding.Preview(parsed.Operation.Uninstall, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.InstallBuilding)
                     return ProtoBoundary.Encode(NativeMoveBuilding.Preview(parsed.Operation.InstallBuilding, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
-                    return ProtoBoundary.Encode(NativeMovementOperations.Preview(parsed.Operation.MovePawn, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                     return ProtoBoundary.Encode(NativeCombatOperations.Preview(parsed.Operation.AttackTarget, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PawnTargetOrder)
@@ -397,7 +392,7 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExtendHome)
                     return ProtoBoundary.Encode(NativeHomeCoverageOperations.Preview(parsed.Operation.ExtendHome, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
-                    return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.") });
+                    return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 var accepted = NativeConstructionPlan.Prepare(ProtoBoundary.LoadedMap(context), parsed.Operation.PlaceBuilding.Placement, context, out _, out var preview, out var rejected);
                 if (preview == null) return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = rejected });
                 return ProtoBoundary.Encode(NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
@@ -479,9 +474,6 @@ namespace HomeBridge.BridgeTools
                     NativeCombatRecord combat;
                     if (state.Combat.TryGetValue(parsed.Attempt, out combat))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = combat.Observe(parsed.Attempt, context) }));
-                    NativeMovementRecord movement;
-                    if (state.Movements.TryGetValue(parsed.Attempt, out movement))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = movement.Observe(parsed.Attempt, context) }));
                     NativeDraftRecord draft;
                     if (state.Drafts.TryGetValue(parsed.Attempt, out draft))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = draft.Observe(parsed.Attempt, context) }));

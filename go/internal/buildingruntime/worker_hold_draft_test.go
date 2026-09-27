@@ -95,9 +95,9 @@ func TestWorkerPlanHoldsDraftPerDefender(t *testing.T) {
 	if !workerPlanHoldsDraft(state, inflight.View()) {
 		t.Fatal("an in-flight draft is not held")
 	}
-	// A recovered goal cancels the plan's unissued orders (here defender
-	// A's move) while defender B's move is still executing natively
-	// (turrets7): B stays drafted until that move closes.
+	// A move's applied receipt is terminal: once a recovered goal cancelled
+	// defender A's move the plan is settled, and B's draft is released
+	// even though B's order was given.
 	if pmB, err = pmB.Prepare(s, 12); err != nil {
 		t.Fatal(err)
 	}
@@ -108,8 +108,11 @@ func TestWorkerPlanHoldsDraftPerDefender(t *testing.T) {
 		t.Fatal(err)
 	}
 	state.Progress = []domain.Progress{pdA, pmA, pdB, pmB}
-	if !workerPlanHoldsDraft(state, pdB.View()) {
-		t.Fatal("a cancelled sibling released a draft whose move is executing")
+	if pmB.View().Stage != domain.Completed {
+		t.Fatal(pmB.View().Stage)
+	}
+	if workerPlanHoldsDraft(state, pdB.View()) {
+		t.Fatal("a settled plan still holds a draft")
 	}
 	if workerPlanHoldsDraft(state, pdA.View()) {
 		t.Fatal("a cancelled move still holds its draft")

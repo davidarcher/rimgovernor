@@ -51,6 +51,9 @@ message Operation {
   // Trade moved to Actions/Apply (TradeIntent).
   reserved 37 to 40;
   reserved "open_trade", "set_trade_lines", "accept_trade", "end_trade";
+  // Movement moved to Actions/Apply (MoveIntent).
+  reserved 34;
+  reserved "move_pawn";
   oneof command {
     PlaceBuilding place_building = 1;
     CancelConstruction cancel_construction = 2;
@@ -84,7 +87,6 @@ message Operation {
     SlaughterAnimal slaughter_animal = 31;
     SetPrisonerInteraction set_prisoner_interaction = 32;
     SetDrafted set_drafted = 33;
-    MovePawn move_pawn = 34;
     AttackTarget attack_target = 35;
     PawnTargetOrder pawn_target_order = 36;
     FormCaravan form_caravan = 41;
@@ -343,7 +345,6 @@ enum PrisonerInteraction {
 }
 message SetPrisonerInteraction { EntityPrecondition pawn = 1; optional PrisonerInteraction interaction = 2; }
 message SetDrafted { EntityPrecondition pawn = 1; optional bool drafted = 2; optional string expected_draft_owner = 3; optional bool allow_persistent_draft = 4; }
-message MovePawn { EntityPrecondition pawn = 1; rimgovernor.common.v1.Cell destination = 2; }
 enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE_MELEE = 2; ATTACK_MODE_RANGED = 3; }
 message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
 enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_HAUL = 5; PAWN_ORDER_KIND_WORK = 6; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_SUBDUE = 10; reserved 11; }
@@ -430,12 +431,20 @@ message ApplyRequest {
   rimgovernor.common.v1.Identity identity = 1;
   repeated Action actions = 2;
 }
-// One intent kind per arm; 11 and 12 are held for shelter_bunks and movement.
+// One intent kind per arm; 11 is held for shelter_bunks.
 message Action {
   optional string key = 1;
   oneof intent {
     TradeIntent trade = 10;
+    MoveIntent move = 12;
   }
+}
+// Order one alive, spawned, drafted pawn to walk to one standable,
+// reachable cell. Applied means the order was given, or already matched (the
+// pawn stands on the cell or is walking there); arrival is not reported.
+message MoveIntent {
+  optional string pawn_id = 1;
+  rimgovernor.common.v1.Cell destination = 2;
 }
 // One step against RimWorld's single live trade session, named by its
 // trader and negotiator (the step's own ids are ignored).

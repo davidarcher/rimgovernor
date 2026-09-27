@@ -30,7 +30,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movebuilding"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movement"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
@@ -128,7 +127,7 @@ type buildingServiceBridge struct {
 	clockReads          serviceClockReads
 	melee               *melee.MeleeCapabilities
 	ranged              *ranged.RangedCapabilities
-	movement            *movement.MovementCapabilities
+	movement            *buildingruntime.MovementCapabilities
 	tend                *tend.TendCapabilities
 	rescue              *rescue.RescueCapabilities
 	capture             *capture.CaptureCapabilities
@@ -234,10 +233,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	attack, err := bridge.NewAttackControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	movementControl, err := bridge.NewMovementControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -373,7 +368,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
 		melee:               &melee.MeleeCapabilities{Native: client, Writer: attack},
 		ranged:              &ranged.RangedCapabilities{Native: client, Writer: attack},
-		movement:            &movement.MovementCapabilities{Native: client, Writer: movementControl},
+		movement:            &buildingruntime.MovementCapabilities{Writer: actionsWriter},
 		tend:                &tend.TendCapabilities{Native: client, Writer: pawnOrder},
 		rescue:              &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
 		capture:             &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
@@ -611,7 +606,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	var meleeCapabilities *melee.MeleeCapabilities
 	var rangedCapabilities *ranged.RangedCapabilities
-	var movementCapabilities *movement.MovementCapabilities
+	var movementCapabilities *buildingruntime.MovementCapabilities
 	if config.routineDefensePlans {
 		if client.melee == nil || client.ranged == nil || client.movement == nil {
 			return errors.New("defense plans require typed melee, ranged and movement capabilities")
@@ -955,8 +950,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		player.SetReplan(clockWorker.Nudge)
 	}
 	breakSource, _ := client.reads.(buildingruntime.BreakResponseSource)
+	pawns, _ := client.reads.(buildingruntime.ArrivalPawns)
+	arrival := buildingruntime.WorkerConfig{Pawns: pawns}
+	if client.movement != nil {
+		arrival.Moves = client.movement.Writer
+	}
 	previews, _ := client.native.(buildingruntime.BuildingPreviewSource)
-	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, Previews: previews, RoutineMethods: config.routineMethods,
+	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, Pawns: arrival.Pawns, Moves: arrival.Moves, Previews: previews, RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
 		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity,
 	}, player, session)

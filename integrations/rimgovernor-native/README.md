@@ -41,15 +41,14 @@ game loading and round trips require the fresh native acceptance run.
 
 The implemented [fixed Protobuf methods](../../contracts/native-protobuf-cutover.md)
 cover identity, authority, clock control, bounded observations, placement previews
-and guarded construction/draft/movement/melee operations with receipt lookup and
+and guarded construction/draft/melee operations with receipt lookup and
 progress. The method map states each implemented subset. Each accepts one `request`
 ProtoJSON string and returns one `payload` ProtoJSON string inside the SDK envelope.
 Reads do not initialize game components or authority. Native lifecycle hooks
 initialize inactive authority; only the trusted host's explicit control path can
 acquire it. Model interpretation receives no control or execution capability.
 
-Operations implement `PlaceBuilding`, temporary `SetDrafted`, exact owned
-`MovePawn`, guarded `AttackTarget` and `DesignateThing` restricted to Allow on an
+Operations implement `PlaceBuilding`, temporary `SetDrafted`, guarded `AttackTarget` and `DesignateThing` restricted to Allow on an
 exact visible loose supply item. Other command variants remain unsupported.
 Admission checks current identity, generation, lease and
 ordinary native placement rules on the game thread. One unsaved per-load ledger

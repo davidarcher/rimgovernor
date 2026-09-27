@@ -2,37 +2,22 @@ package executor
 
 import (
 	"context"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
+// MovementJournal is DraftJournal plus the untyped Prepare: a move is an
+// idempotent intent native validates at apply time (alive, spawned,
+// drafted, reachable), so there is no movement admission row to persist.
 type MovementJournal interface {
 	DraftJournal
-	PrepareMovement(context.Context, domain.PlanID, domain.ActionID, store.MovementAdmission) (domain.Progress, error)
+	Prepare(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 }
 
-type MovementInspection struct {
-	StartedAt, ObservedAt time.Time
-	Facts                 policy.MovementFacts
-}
-
-type MovementDispatch struct {
-	Attempt   Placement
-	Admission store.MovementAdmission
-}
-
-type MovementEvidence struct {
-	Observation           domain.Observation
-	StartedAt, ObservedAt time.Time
-	Complete              bool
-	Pawn                  domain.PawnID
-}
-
+// MovementBoundary sends one move intent. Its receipt is terminal: the
+// order was given (or already matched) or native refused it. Arrival is
+// not an effect of the action; the worker gates the plan's final action
+// on it.
 type MovementBoundary interface {
-	InspectMovement(context.Context, Target, domain.DraftClaim) (MovementInspection, error)
-	MoveTo(context.Context, MovementDispatch) (Receipt, error)
-	ObserveMovement(context.Context, MovementDispatch, domain.GenerationSnapshot) (MovementEvidence, error)
+	WriteMovement(context.Context, Placement) (Receipt, error)
 }

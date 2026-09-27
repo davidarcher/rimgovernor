@@ -12,9 +12,7 @@ directories (game managed assemblies, RimBridgeServer SDK, Harmony, and private
 runtime if separate). The tests load actual compiled adapters and generated
 Protobuf types.
 
-Checks cover explicit coordinates and snapshot presence, exact draft ownership,
-native pawn eligibility, queued orders, verified arrival, vanished jobs and
-revocation. Run the draft operations, pawn control state, authority hooks and
+Checks cover exact draft ownership and native pawn eligibility (`Owns`). Run the draft operations, pawn control state, authority hooks and
 operation envelope neighbors (now other probe names within the same
 `NativeContractProbes.csproj`). Gameplay acceptance requires the private native
 runner; these checks do not establish pawn movement.

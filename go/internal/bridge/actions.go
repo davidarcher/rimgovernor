@@ -30,6 +30,30 @@ func registerIntentKind(kind domain.ActionKind, build func(domain.Action) (*o.Ac
 
 func init() {
 	registerIntentKind(domain.TradeAction, tradeAction)
+	registerIntentKind(domain.MovementAction, movementAction)
+}
+
+// movementAction is the Actions/Apply move arm of one domain movement.
+func movementAction(action domain.Action) (*o.Action, error) {
+	m, ok := action.Movement()
+	if !ok {
+		return nil, contract("not a movement action")
+	}
+	if err := validID(string(m.Pawn())); err != nil {
+		return nil, err
+	}
+	cell := &c.Cell{X: proto.Int32(m.Destination().X), Z: proto.Int32(m.Destination().Z)}
+	if err := movementCell(cell); err != nil {
+		return nil, err
+	}
+	return &o.Action{Intent: &o.Action_Move{Move: &o.MoveIntent{PawnId: proto.String(string(m.Pawn())), Destination: cell}}}, nil
+}
+
+func movementCell(cell *c.Cell) error {
+	if cell == nil || cell.X == nil || cell.Z == nil || cell.GetX() < 0 || cell.GetZ() < 0 {
+		return contract("movement destination missing or invalid")
+	}
+	return buildingUnknown(cell)
 }
 
 // IntentAction is the wire action for an intent-mode domain action, sent

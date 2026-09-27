@@ -20,7 +20,13 @@ import (
 )
 
 type WorkerConfig struct {
-	BreakSource                           BreakResponseSource
+	BreakSource BreakResponseSource
+	// Pawns and Moves drive the arrival hold (arrivalHolds): an action
+	// that depends on a completed move waits until its pawn stands on the
+	// destination, and an idle drafted mover's order is sent again. Nil
+	// Pawns disables the hold; nil Moves never resends.
+	Pawns                                 ArrivalPawns
+	Moves                                 boundary.ActionsWriter
 	RoutineMethods                        bool
 	StepInterval, MaxBackoff, StepTimeout time.Duration
 	RenewInterval, RenewTimeout           time.Duration
@@ -391,6 +397,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		breakHeld, err = w.breakDispatchHolds(call, scope.Snapshot, plans)
 		if err != nil {
 			return err
+		}
+		if w.config.Pawns != nil {
+			for id := range w.arrivalHolds(call, scope.Snapshot, plans) {
+				breakHeld[id] = true
+			}
 		}
 	}
 	live := make(map[domain.ActionID]bool)

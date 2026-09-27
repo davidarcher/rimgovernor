@@ -14,16 +14,11 @@ internal static class NativeMovementOperationsProbe
     private static object New(string type,params object?[] args)=>Activator.CreateInstance(Native(type),Flags,null,args,null)!;
     private static void Field(object obj,string name,object value)=>obj.GetType().GetField(name,Flags)!.SetValue(obj,value);
     private static void Check(bool value,string why){if(!value)throw new Exception(why);checks++;}
-    private static object Wire(string type,string json){var parser=bridge.GetType("RimGovernor.Protocol."+type,true)!.GetProperty("Parser")!.GetValue(null)!;return parser.GetType().GetMethod("ParseJson")!.Invoke(parser,new object[]{json})!;}
     internal static void Invoke(string[] args)
     {
         var dirs=args.Skip(1).Concat(new[]{Path.GetDirectoryName(Path.GetFullPath(args[0]))!}).ToArray();
         AppDomain.CurrentDomain.AssemblyResolve+=(_,e)=>{var path=dirs.Select(d=>Path.Combine(d,new AssemblyName(e.Name).Name+".dll")).FirstOrDefault(File.Exists);return path==null?null:Assembly.LoadFrom(path);};
         bridge=Assembly.LoadFrom(Path.GetFullPath(args[0]));foreach(var reference in bridge.GetReferencedAssemblies())Assembly.Load(reference);
-        const string pawn="\"pawn\":{\"entityId\":\"Human1\",\"expectedSnapshotToken\":\"token\"}";
-        foreach(var invalid in new[]{"{}","{"+pawn+"}","{"+pawn+",\"destination\":{\"x\":0}}","{\"pawn\":{\"entityId\":\"Human1\"},\"destination\":{\"x\":0,\"z\":0}}"})
-            Check(!(bool)Call("NativeMovementOperations","Valid",Wire("Operations.MovePawn",invalid)),"Missing explicit coordinates/CAS refused");
-        Check((bool)Call("NativeMovementOperations","Valid",Wire("Operations.MovePawn","{"+pawn+",\"destination\":{\"x\":0,\"z\":0}}")),"Explicit origin accepted as shape");
         // Authority.Owner was removed by #52: a claim is held by the single bot process or not at all,
         // so Owns() is claim presence plus eligibility, with no owner comparison.
         var facts=New("NativePawnFacts");Field(facts,"Spawned",true);Field(facts,"PlayerControlled",true);Field(facts,"Drafted",true);
@@ -34,22 +29,6 @@ internal static class NativeMovementOperationsProbe
         Check(!(bool)Call("NativeMovementOperations","Owns",New("NativePawnSnapshot","token",facts,null)),"Unclaimed player draft refused");
         foreach(var field in new[]{"Dead","Downed","Mental"}){Field(facts,field,true);Check(!(bool)Call("NativeMovementOperations","Owns",snapshot),field+" cannot move");Field(facts,field,false);}
         Field(facts,"Drafted",false);Check(!(bool)Call("NativeMovementOperations","Owns",snapshot),"Move cannot auto-draft");
-        var cases=new[] {
-            ("uncorrelated arrival",false,true,false,false,false,true,"Unknown"),
-            ("revoked after arrival",true,false,false,false,true,true,"Interrupted"),
-            ("player replaced running job",true,false,true,false,true,false,"Interrupted"),
-            ("queued while pawn already at target",true,true,false,true,false,true,"Pending"),
-            ("queued after prior observation",true,true,false,true,true,true,"Pending"),
-            ("running en route",true,true,true,false,true,false,"Pending"),
-            ("started job reached exact cell",true,true,true,false,true,true,"Completed"),
-            ("automatic transition at exact cell",true,true,false,false,true,true,"Completed"),
-            ("vanished away from destination",true,true,false,false,true,false,"Unknown"),
-            ("vanished before ever starting",true,true,false,false,false,false,"Unknown"),
-            ("another job arrived before queued job began",true,true,false,false,false,true,"Unknown")};
-        foreach(var test in cases) {
-            var actual=Call("NativeMovementRecord","Classify",test.Item2,test.Item3,test.Item4,test.Item5,test.Item6,test.Item7).ToString();
-            Check(actual==test.Rest.Item1,test.Item1);
-        }
-        Console.WriteLine($"{checks} compiled movement contract/ownership/progress assertions passed; no gameplay.");
+        Console.WriteLine($"{checks} compiled movement ownership assertions passed; no gameplay.");
     }
 }
