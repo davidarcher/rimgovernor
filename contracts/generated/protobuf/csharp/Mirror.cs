@@ -30,87 +30,99 @@ namespace RimGovernor.Protocol.Mirror {
             "BwoFX3RpY2tCBgoEX3NlcSKSAQoFRXBvY2gSFAoHcHJvY2VzcxgBIAEoCUgA",
             "iAEBEjEKCGlkZW50aXR5GAIgASgLMh8ucmltZ292ZXJub3IuY29tbW9uLnYx",
             "LklkZW50aXR5Eh4KEW5hdGl2ZV9nZW5lcmF0aW9uGAMgASgESAGIAQFCCgoI",
-            "X3Byb2Nlc3NCFAoSX25hdGl2ZV9nZW5lcmF0aW9uIrABCgpTZWN0aW9uQXNr",
+            "X3Byb2Nlc3NCFAoSX25hdGl2ZV9nZW5lcmF0aW9uItUCCgpTZWN0aW9uQXNr",
             "EjQKB3NlY3Rpb24YASABKA4yHi5yaW1nb3Zlcm5vci5taXJyb3IudjEuU2Vj",
             "dGlvbkgAiAEBEi8KBXNpbmNlGAIgASgLMiAucmltZ292ZXJub3IubWlycm9y",
             "LnYxLldhdGVybWFyaxIvCgZ3aW5kb3cYAyABKAsyHy5yaW1nb3Zlcm5vci5t",
-            "aXJyb3IudjEuQ2VsbFJlY3RCCgoIX3NlY3Rpb24idAoIQ2VsbFJlY3QSDgoB",
-            "eBgBIAEoBUgAiAEBEg4KAXoYAiABKAVIAYgBARISCgV3aWR0aBgDIAEoBUgC",
-            "iAEBEhMKBmhlaWdodBgEIAEoBUgDiAEBQgQKAl94QgQKAl96QggKBl93aWR0",
-            "aEIJCgdfaGVpZ2h0IssBCgpGaWVsZEFycmF5Eg8KBWNvZGVzGAEgASgMSAAS",
-            "NgoHaW5kZXhlcxgCIAEoCzIjLnJpbWdvdmVybm9yLm1pcnJvci52MS5QYWNr",
-            "ZWRVaW50MzJIABI2CgdudW1iZXJzGAMgASgLMiMucmltZ292ZXJub3IubWly",
-            "cm9yLnYxLlBhY2tlZERvdWJsZUgAEjQKBnNwYXJzZRgEIAEoCzIiLnJpbWdv",
-            "dmVybm9yLm1pcnJvci52MS5TcGFyc2VBcnJheUgAQgYKBGZvcm0iHgoMUGFj",
-            "a2VkVWludDMyEg4KBnZhbHVlcxgBIAMoDSIeCgxQYWNrZWREb3VibGUSDgoG",
-            "dmFsdWVzGAEgAygBIjoKC1NwYXJzZUFycmF5Eg0KBWluZGV4GAEgAygNEgwK",
-            "BGNvZGUYAiADKA0SDgoGbnVtYmVyGAMgAygBIr0ICghDZWxsR3JpZBItCgRy",
-            "ZWN0GAEgASgLMh8ucmltZ292ZXJub3IubWlycm9yLnYxLkNlbGxSZWN0Eg8K",
-            "B3N0cmluZ3MYAiADKAkSLwoEY2VsbBgDIAEoCzIhLnJpbWdvdmVybm9yLm1p",
-            "cnJvci52MS5GaWVsZEFycmF5EjMKCHdhbGthYmxlGAQgASgLMiEucmltZ292",
-            "ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMwoIb2NjdXBpZWQYBSABKAsy",
-            "IS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIvCgR6b25lGAYg",
-            "ASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMQoGcm9v",
-            "ZmVkGAcgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkS",
-            "MgoHaW5kb29ycxgIIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVs",
-            "ZEFycmF5EjkKDnN1cHBvcnRzX2xpZ2h0GAkgASgLMiEucmltZ292ZXJub3Iu",
-            "bWlycm9yLnYxLkZpZWxkQXJyYXkSOAoNc3RvcmFnZV9lbXB0eRgKIAEoCzIh",
-            "LnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjIKB2Rvb3J3YXkY",
-            "CyABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRI0Cglm",
-            "ZXJ0aWxpdHkYDCABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRB",
-            "cnJheRIzCghwb2xsdXRlZBgNIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52",
-            "MS5GaWVsZEFycmF5Ei8KBGdsb3cYDiABKAsyIS5yaW1nb3Zlcm5vci5taXJy",
-            "b3IudjEuRmllbGRBcnJheRIvCgRyb29mGA8gASgLMiEucmltZ292ZXJub3Iu",
-            "bWlycm9yLnYxLkZpZWxkQXJyYXkSMgoHem9uZV9pZBgQIAEoCzIhLnJpbWdv",
-            "dmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjcKDG5hdHVyYWxfcm9jaxgR",
-            "IAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8KBHJ1",
-            "aW4YEiABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRI5",
-            "Cg5wbGF5ZXJfZWRpZmljZRgTIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52",
-            "MS5GaWVsZEFycmF5EjkKDmNsYWltYWJsZV9ydWluGBQgASgLMiEucmltZ292",
-            "ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSNAoJcnVpbl9ob2xkGBUgASgL",
-            "MiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkirAIKEU1pcnJv",
-            "clBvbGxSZXF1ZXN0EjEKCGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJub3Iu",
-            "Y29tbW9uLnYxLklkZW50aXR5EisKBWVwb2NoGAIgASgLMhwucmltZ292ZXJu",
-            "b3IubWlycm9yLnYxLkVwb2NoEi8KBGFza3MYAyADKAsyIS5yaW1nb3Zlcm5v",
-            "ci5taXJyb3IudjEuU2VjdGlvbkFzaxIYCgtieXRlX2J1ZGdldBgEIAEoDUgA",
-            "iAEBEhQKB3dhaXRfbXMYBSABKA1IAYgBARIhChRqb3VybmFsX2FmdGVyX2N1",
-            "cnNvchgGIAEoA0gCiAEBQg4KDF9ieXRlX2J1ZGdldEIKCghfd2FpdF9tc0IX",
-            "ChVfam91cm5hbF9hZnRlcl9jdXJzb3Ii3gEKCEtleWZyYW1lEiwKAmF0GAEg",
-            "ASgLMiAucmltZ292ZXJub3IubWlycm9yLnYxLldhdGVybWFyaxI9CglidWls",
-            "ZGluZ3MYAiADKAsyKi5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuQnVp",
-            "bGRpbmdTdGF0ZRI1CgViaWxscxgDIAMoCzImLnJpbWdvdmVybm9yLm9ic2Vy",
-            "dmF0aW9ucy52MS5CaWxsU3RhY2sSLgoFY2VsbHMYBCABKAsyHy5yaW1nb3Zl",
-            "cm5vci5taXJyb3IudjEuQ2VsbEdyaWQinwIKBURlbHRhEi4KBGZyb20YASAB",
-            "KAsyIC5yaW1nb3Zlcm5vci5taXJyb3IudjEuV2F0ZXJtYXJrEiwKAnRvGAIg",
-            "ASgLMiAucmltZ292ZXJub3IubWlycm9yLnYxLldhdGVybWFyaxI9CglidWls",
-            "ZGluZ3MYAyADKAsyKi5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuQnVp",
-            "bGRpbmdTdGF0ZRI1CgViaWxscxgEIAMoCzImLnJpbWdvdmVybm9yLm9ic2Vy",
-            "dmF0aW9ucy52MS5CaWxsU3RhY2sSEgoKdG9tYnN0b25lcxgFIAMoCRIuCgVj",
-            "ZWxscxgGIAEoCzIfLnJpbWdvdmVybm9yLm1pcnJvci52MS5DZWxsR3JpZCLX",
-            "AQoLU2VjdGlvblBhZ2USNAoHc2VjdGlvbhgBIAEoDjIeLnJpbWdvdmVybm9y",
-            "Lm1pcnJvci52MS5TZWN0aW9uSAGIAQESMwoIa2V5ZnJhbWUYAiABKAsyHy5y",
-            "aW1nb3Zlcm5vci5taXJyb3IudjEuS2V5ZnJhbWVIABItCgVkZWx0YRgDIAEo",
-            "CzIcLnJpbWdvdmVybm9yLm1pcnJvci52MS5EZWx0YUgAEhEKBG1vcmUYBCAB",
-            "KAhIAogBAUIGCgRib2R5QgoKCF9zZWN0aW9uQgcKBV9tb3JlIuABCgpNaXJy",
-            "b3JQYWdlEisKBWVwb2NoGAEgASgLMhwucmltZ292ZXJub3IubWlycm9yLnYx",
-            "LkVwb2NoEiIKFWNvbXBsZXRlX3Rocm91Z2hfdGljaxgCIAEoA0gAiAEBEjQK",
-            "CHNlY3Rpb25zGAMgAygLMiIucmltZ292ZXJub3IubWlycm9yLnYxLlNlY3Rp",
-            "b25QYWdlEjEKB2pvdXJuYWwYBCABKAsyIC5yaW1nb3Zlcm5vci5jbG9jay52",
-            "MS5FdmVudHNQYWdlQhgKFl9jb21wbGV0ZV90aHJvdWdoX3RpY2siggEKD01p",
-            "cnJvclBvbGxSZXBseRIxCgRwYWdlGAEgASgLMiEucmltZ292ZXJub3IubWly",
-            "cm9yLnYxLk1pcnJvclBhZ2VIABIxCgdmYWlsdXJlGAIgASgLMh4ucmltZ292",
-            "ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRjb21lKmgKB1NlY3Rp",
-            "b24SFwoTU0VDVElPTl9VTlNQRUNJRklFRBAAEhUKEVNFQ1RJT05fQlVJTERJ",
-            "TkdTEAESEQoNU0VDVElPTl9CSUxMUxACEhoKFlNFQ1RJT05fUExBTk5JTkdf",
-            "Q0VMTFMQA0JlWkVnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVybm9y",
-            "L2dvL2ludGVybmFsL3dpcmUvbWlycm9ycGI7bWlycm9ycGKqAhtSaW1Hb3Zl",
-            "cm5vci5Qcm90b2NvbC5NaXJyb3JiBnByb3RvMw=="));
+            "aXJyb3IudjEuQ2VsbFJlY3QSPAoFcGF3bnMYBCABKAsyLS5yaW1nb3Zlcm5v",
+            "ci5vYnNlcnZhdGlvbnMudjEuTGlzdFBhd25zUmVxdWVzdBJFCgxjb2xvbnlf",
+            "ZmFjdHMYBSABKAsyLy5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuQ29s",
+            "b255RmFjdHNSZXF1ZXN0EhMKBnJlc3luYxgGIAEoCEgBiAEBQgoKCF9zZWN0",
+            "aW9uQgkKB19yZXN5bmMidAoIQ2VsbFJlY3QSDgoBeBgBIAEoBUgAiAEBEg4K",
+            "AXoYAiABKAVIAYgBARISCgV3aWR0aBgDIAEoBUgCiAEBEhMKBmhlaWdodBgE",
+            "IAEoBUgDiAEBQgQKAl94QgQKAl96QggKBl93aWR0aEIJCgdfaGVpZ2h0IssB",
+            "CgpGaWVsZEFycmF5Eg8KBWNvZGVzGAEgASgMSAASNgoHaW5kZXhlcxgCIAEo",
+            "CzIjLnJpbWdvdmVybm9yLm1pcnJvci52MS5QYWNrZWRVaW50MzJIABI2Cgdu",
+            "dW1iZXJzGAMgASgLMiMucmltZ292ZXJub3IubWlycm9yLnYxLlBhY2tlZERv",
+            "dWJsZUgAEjQKBnNwYXJzZRgEIAEoCzIiLnJpbWdvdmVybm9yLm1pcnJvci52",
+            "MS5TcGFyc2VBcnJheUgAQgYKBGZvcm0iHgoMUGFja2VkVWludDMyEg4KBnZh",
+            "bHVlcxgBIAMoDSIeCgxQYWNrZWREb3VibGUSDgoGdmFsdWVzGAEgAygBIjoK",
+            "C1NwYXJzZUFycmF5Eg0KBWluZGV4GAEgAygNEgwKBGNvZGUYAiADKA0SDgoG",
+            "bnVtYmVyGAMgAygBIr0ICghDZWxsR3JpZBItCgRyZWN0GAEgASgLMh8ucmlt",
+            "Z292ZXJub3IubWlycm9yLnYxLkNlbGxSZWN0Eg8KB3N0cmluZ3MYAiADKAkS",
+            "LwoEY2VsbBgDIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFy",
+            "cmF5EjMKCHdhbGthYmxlGAQgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYx",
+            "LkZpZWxkQXJyYXkSMwoIb2NjdXBpZWQYBSABKAsyIS5yaW1nb3Zlcm5vci5t",
+            "aXJyb3IudjEuRmllbGRBcnJheRIvCgR6b25lGAYgASgLMiEucmltZ292ZXJu",
+            "b3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMQoGcm9vZmVkGAcgASgLMiEucmlt",
+            "Z292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMgoHaW5kb29ycxgIIAEo",
+            "CzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjkKDnN1cHBv",
+            "cnRzX2xpZ2h0GAkgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxk",
+            "QXJyYXkSOAoNc3RvcmFnZV9lbXB0eRgKIAEoCzIhLnJpbWdvdmVybm9yLm1p",
+            "cnJvci52MS5GaWVsZEFycmF5EjIKB2Rvb3J3YXkYCyABKAsyIS5yaW1nb3Zl",
+            "cm5vci5taXJyb3IudjEuRmllbGRBcnJheRI0CglmZXJ0aWxpdHkYDCABKAsy",
+            "IS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIzCghwb2xsdXRl",
+            "ZBgNIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8K",
+            "BGdsb3cYDiABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJh",
+            "eRIvCgRyb29mGA8gASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxk",
+            "QXJyYXkSMgoHem9uZV9pZBgQIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52",
+            "MS5GaWVsZEFycmF5EjcKDG5hdHVyYWxfcm9jaxgRIAEoCzIhLnJpbWdvdmVy",
+            "bm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8KBHJ1aW4YEiABKAsyIS5yaW1n",
+            "b3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRI5Cg5wbGF5ZXJfZWRpZmlj",
+            "ZRgTIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjkK",
+            "DmNsYWltYWJsZV9ydWluGBQgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYx",
+            "LkZpZWxkQXJyYXkSNAoJcnVpbl9ob2xkGBUgASgLMiEucmltZ292ZXJub3Iu",
+            "bWlycm9yLnYxLkZpZWxkQXJyYXkirAIKEU1pcnJvclBvbGxSZXF1ZXN0EjEK",
+            "CGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJub3IuY29tbW9uLnYxLklkZW50",
+            "aXR5EisKBWVwb2NoGAIgASgLMhwucmltZ292ZXJub3IubWlycm9yLnYxLkVw",
+            "b2NoEi8KBGFza3MYAyADKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuU2Vj",
+            "dGlvbkFzaxIYCgtieXRlX2J1ZGdldBgEIAEoDUgAiAEBEhQKB3dhaXRfbXMY",
+            "BSABKA1IAYgBARIhChRqb3VybmFsX2FmdGVyX2N1cnNvchgGIAEoA0gCiAEB",
+            "Qg4KDF9ieXRlX2J1ZGdldEIKCghfd2FpdF9tc0IXChVfam91cm5hbF9hZnRl",
+            "cl9jdXJzb3IimwMKCEtleWZyYW1lEiwKAmF0GAEgASgLMiAucmltZ292ZXJu",
+            "b3IubWlycm9yLnYxLldhdGVybWFyaxI9CglidWlsZGluZ3MYAiADKAsyKi5y",
+            "aW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuQnVpbGRpbmdTdGF0ZRI1CgVi",
+            "aWxscxgDIAMoCzImLnJpbWdvdmVybm9yLm9ic2VydmF0aW9ucy52MS5CaWxs",
+            "U3RhY2sSLgoFY2VsbHMYBCABKAsyHy5yaW1nb3Zlcm5vci5taXJyb3IudjEu",
+            "Q2VsbEdyaWQSOQoFem9uZXMYBSABKAsyKi5yaW1nb3Zlcm5vci5vYnNlcnZh",
+            "dGlvbnMudjEuWm9uZXNTbmFwc2hvdBI4CgVwYXducxgGIAEoCzIpLnJpbWdv",
+            "dmVybm9yLm9ic2VydmF0aW9ucy52MS5QYXduU25hcHNob3QSRgoMY29sb255",
+            "X2ZhY3RzGAcgASgLMjAucmltZ292ZXJub3Iub2JzZXJ2YXRpb25zLnYxLkNv",
+            "bG9ueUZhY3RzU25hcHNob3Qi2gIKBURlbHRhEi4KBGZyb20YASABKAsyIC5y",
+            "aW1nb3Zlcm5vci5taXJyb3IudjEuV2F0ZXJtYXJrEiwKAnRvGAIgASgLMiAu",
+            "cmltZ292ZXJub3IubWlycm9yLnYxLldhdGVybWFyaxI9CglidWlsZGluZ3MY",
+            "AyADKAsyKi5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuQnVpbGRpbmdT",
+            "dGF0ZRI1CgViaWxscxgEIAMoCzImLnJpbWdvdmVybm9yLm9ic2VydmF0aW9u",
+            "cy52MS5CaWxsU3RhY2sSEgoKdG9tYnN0b25lcxgFIAMoCRIuCgVjZWxscxgG",
+            "IAEoCzIfLnJpbWdvdmVybm9yLm1pcnJvci52MS5DZWxsR3JpZBI5CgV6b25l",
+            "cxgHIAEoCzIqLnJpbWdvdmVybm9yLm9ic2VydmF0aW9ucy52MS5ab25lc1Nu",
+            "YXBzaG90IogCCgtTZWN0aW9uUGFnZRI0CgdzZWN0aW9uGAEgASgOMh4ucmlt",
+            "Z292ZXJub3IubWlycm9yLnYxLlNlY3Rpb25IAYgBARIzCghrZXlmcmFtZRgC",
+            "IAEoCzIfLnJpbWdvdmVybm9yLm1pcnJvci52MS5LZXlmcmFtZUgAEi0KBWRl",
+            "bHRhGAMgASgLMhwucmltZ292ZXJub3IubWlycm9yLnYxLkRlbHRhSAASEQoE",
+            "bW9yZRgEIAEoCEgCiAEBEi8KBnJlc3luYxgFIAEoCzIfLnJpbWdvdmVybm9y",
+            "Lm1pcnJvci52MS5LZXlmcmFtZUIGCgRib2R5QgoKCF9zZWN0aW9uQgcKBV9t",
+            "b3JlIuABCgpNaXJyb3JQYWdlEisKBWVwb2NoGAEgASgLMhwucmltZ292ZXJu",
+            "b3IubWlycm9yLnYxLkVwb2NoEiIKFWNvbXBsZXRlX3Rocm91Z2hfdGljaxgC",
+            "IAEoA0gAiAEBEjQKCHNlY3Rpb25zGAMgAygLMiIucmltZ292ZXJub3IubWly",
+            "cm9yLnYxLlNlY3Rpb25QYWdlEjEKB2pvdXJuYWwYBCABKAsyIC5yaW1nb3Zl",
+            "cm5vci5jbG9jay52MS5FdmVudHNQYWdlQhgKFl9jb21wbGV0ZV90aHJvdWdo",
+            "X3RpY2siggEKD01pcnJvclBvbGxSZXBseRIxCgRwYWdlGAEgASgLMiEucmlt",
+            "Z292ZXJub3IubWlycm9yLnYxLk1pcnJvclBhZ2VIABIxCgdmYWlsdXJlGAIg",
+            "ASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRj",
+            "b21lKqgBCgdTZWN0aW9uEhcKE1NFQ1RJT05fVU5TUEVDSUZJRUQQABIVChFT",
+            "RUNUSU9OX0JVSUxESU5HUxABEhEKDVNFQ1RJT05fQklMTFMQAhIaChZTRUNU",
+            "SU9OX1BMQU5OSU5HX0NFTExTEAMSEQoNU0VDVElPTl9aT05FUxAEEhEKDVNF",
+            "Q1RJT05fUEFXTlMQBRIYChRTRUNUSU9OX0NPTE9OWV9GQUNUUxAGQmVaRWdp",
+            "dGh1Yi5jb20vZGF2aWRhcmNoZXIvUmltR292ZXJub3IvZ28vaW50ZXJuYWwv",
+            "d2lyZS9taXJyb3JwYjttaXJyb3JwYqoCG1JpbUdvdmVybm9yLlByb3RvY29s",
+            "Lk1pcnJvcmIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Clock.ClockReflection.Descriptor, global::RimGovernor.Protocol.Observations.ObservationsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Mirror.Section), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Watermark), global::RimGovernor.Protocol.Mirror.Watermark.Parser, new[]{ "Tick", "Seq" }, new[]{ "Tick", "Seq" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Epoch), global::RimGovernor.Protocol.Mirror.Epoch.Parser, new[]{ "Process", "Identity", "NativeGeneration" }, new[]{ "Process", "NativeGeneration" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.SectionAsk), global::RimGovernor.Protocol.Mirror.SectionAsk.Parser, new[]{ "Section", "Since", "Window" }, new[]{ "Section" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.SectionAsk), global::RimGovernor.Protocol.Mirror.SectionAsk.Parser, new[]{ "Section", "Since", "Window", "Pawns", "ColonyFacts", "Resync" }, new[]{ "Section", "Resync" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CellRect), global::RimGovernor.Protocol.Mirror.CellRect.Parser, new[]{ "X", "Z", "Width", "Height" }, new[]{ "X", "Z", "Width", "Height" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.FieldArray), global::RimGovernor.Protocol.Mirror.FieldArray.Parser, new[]{ "Codes", "Indexes", "Numbers", "Sparse" }, new[]{ "Form" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.PackedUint32), global::RimGovernor.Protocol.Mirror.PackedUint32.Parser, new[]{ "Values" }, null, null, null, null),
@@ -118,9 +130,9 @@ namespace RimGovernor.Protocol.Mirror {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.SparseArray), global::RimGovernor.Protocol.Mirror.SparseArray.Parser, new[]{ "Index", "Code", "Number" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CellGrid), global::RimGovernor.Protocol.Mirror.CellGrid.Parser, new[]{ "Rect", "Strings", "Cell", "Walkable", "Occupied", "Zone", "Roofed", "Indoors", "SupportsLight", "StorageEmpty", "Doorway", "Fertility", "Polluted", "Glow", "Roof", "ZoneId", "NaturalRock", "Ruin", "PlayerEdifice", "ClaimableRuin", "RuinHold" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.MirrorPollRequest), global::RimGovernor.Protocol.Mirror.MirrorPollRequest.Parser, new[]{ "Identity", "Epoch", "Asks", "ByteBudget", "WaitMs", "JournalAfterCursor" }, new[]{ "ByteBudget", "WaitMs", "JournalAfterCursor" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Keyframe), global::RimGovernor.Protocol.Mirror.Keyframe.Parser, new[]{ "At", "Buildings", "Bills", "Cells" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Delta), global::RimGovernor.Protocol.Mirror.Delta.Parser, new[]{ "From", "To", "Buildings", "Bills", "Tombstones", "Cells" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.SectionPage), global::RimGovernor.Protocol.Mirror.SectionPage.Parser, new[]{ "Section", "Keyframe", "Delta", "More" }, new[]{ "Body", "Section", "More" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Keyframe), global::RimGovernor.Protocol.Mirror.Keyframe.Parser, new[]{ "At", "Buildings", "Bills", "Cells", "Zones", "Pawns", "ColonyFacts" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Delta), global::RimGovernor.Protocol.Mirror.Delta.Parser, new[]{ "From", "To", "Buildings", "Bills", "Tombstones", "Cells", "Zones" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.SectionPage), global::RimGovernor.Protocol.Mirror.SectionPage.Parser, new[]{ "Section", "Keyframe", "Delta", "More", "Resync" }, new[]{ "Body", "Section", "More" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.MirrorPage), global::RimGovernor.Protocol.Mirror.MirrorPage.Parser, new[]{ "Epoch", "CompleteThroughTick", "Sections", "Journal" }, new[]{ "CompleteThroughTick" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.MirrorPollReply), global::RimGovernor.Protocol.Mirror.MirrorPollReply.Parser, new[]{ "Page", "Failure" }, new[]{ "Outcome" }, null, null, null)
           }));
@@ -148,6 +160,17 @@ namespace RimGovernor.Protocol.Mirror {
     /// planning fields of observations_get_cells, one array per SiteCell field.
     /// </summary>
     [pbr::OriginalName("SECTION_PLANNING_CELLS")] PlanningCells = 3,
+    /// <summary>
+    /// observations_list_zones, the whole census, rows keyed by zone id (#358)
+    /// </summary>
+    [pbr::OriginalName("SECTION_ZONES")] Zones = 4,
+    /// <summary>
+    /// The pawn list and colony facts reads the ask names, each answered as its
+    /// #773 changed-since read answers it: rows keyed by pawn id, and by the
+    /// colony facts row paths the controller splits the snapshot into.
+    /// </summary>
+    [pbr::OriginalName("SECTION_PAWNS")] Pawns = 5,
+    [pbr::OriginalName("SECTION_COLONY_FACTS")] ColonyFacts = 6,
   }
 
   #endregion
@@ -789,6 +812,9 @@ namespace RimGovernor.Protocol.Mirror {
       section_ = other.section_;
       since_ = other.since_ != null ? other.since_.Clone() : null;
       window_ = other.window_ != null ? other.window_.Clone() : null;
+      pawns_ = other.pawns_ != null ? other.pawns_.Clone() : null;
+      colonyFacts_ = other.colonyFacts_ != null ? other.colonyFacts_.Clone() : null;
+      resync_ = other.resync_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -857,6 +883,70 @@ namespace RimGovernor.Protocol.Mirror {
       }
     }
 
+    /// <summary>Field number for the "pawns" field.</summary>
+    public const int PawnsFieldNumber = 4;
+    private global::RimGovernor.Protocol.Observations.ListPawnsRequest pawns_;
+    /// <summary>
+    /// SECTION_PAWNS and SECTION_COLONY_FACTS only, and required there (the
+    /// one matching the section): the read the section answers, identity
+    /// scoped to the poll's. Its changed_since is the #773 ask; the section's
+    /// since is unused. An ask the tracker cannot answer is answered whole
+    /// (stale rule C).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Observations.ListPawnsRequest Pawns {
+      get { return pawns_; }
+      set {
+        pawns_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "colony_facts" field.</summary>
+    public const int ColonyFactsFieldNumber = 5;
+    private global::RimGovernor.Protocol.Observations.ColonyFactsRequest colonyFacts_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Observations.ColonyFactsRequest ColonyFacts {
+      get { return colonyFacts_; }
+      set {
+        colonyFacts_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "resync" field.</summary>
+    public const int ResyncFieldNumber = 6;
+    private readonly static bool ResyncDefaultValue = false;
+
+    private bool resync_;
+    /// <summary>
+    /// The drift backstop (#795): beside a delta, the section's keyframe at
+    /// the same watermark (SectionPage.resync) for the client to compare
+    /// with what the delta leaves it holding. Entity and planning cell
+    /// sections; ignored where the page is a keyframe anyway.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Resync {
+      get { if ((_hasBits0 & 2) != 0) { return resync_; } else { return ResyncDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        resync_ = value;
+      }
+    }
+    /// <summary>Gets whether the "resync" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasResync {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "resync" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearResync() {
+      _hasBits0 &= ~2;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -875,6 +965,9 @@ namespace RimGovernor.Protocol.Mirror {
       if (Section != other.Section) return false;
       if (!object.Equals(Since, other.Since)) return false;
       if (!object.Equals(Window, other.Window)) return false;
+      if (!object.Equals(Pawns, other.Pawns)) return false;
+      if (!object.Equals(ColonyFacts, other.ColonyFacts)) return false;
+      if (Resync != other.Resync) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -885,6 +978,9 @@ namespace RimGovernor.Protocol.Mirror {
       if (HasSection) hash ^= Section.GetHashCode();
       if (since_ != null) hash ^= Since.GetHashCode();
       if (window_ != null) hash ^= Window.GetHashCode();
+      if (pawns_ != null) hash ^= Pawns.GetHashCode();
+      if (colonyFacts_ != null) hash ^= ColonyFacts.GetHashCode();
+      if (HasResync) hash ^= Resync.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -915,6 +1011,18 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(26);
         output.WriteMessage(Window);
       }
+      if (pawns_ != null) {
+        output.WriteRawTag(34);
+        output.WriteMessage(Pawns);
+      }
+      if (colonyFacts_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(ColonyFacts);
+      }
+      if (HasResync) {
+        output.WriteRawTag(48);
+        output.WriteBool(Resync);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -937,6 +1045,18 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(26);
         output.WriteMessage(Window);
       }
+      if (pawns_ != null) {
+        output.WriteRawTag(34);
+        output.WriteMessage(Pawns);
+      }
+      if (colonyFacts_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(ColonyFacts);
+      }
+      if (HasResync) {
+        output.WriteRawTag(48);
+        output.WriteBool(Resync);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -955,6 +1075,15 @@ namespace RimGovernor.Protocol.Mirror {
       }
       if (window_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Window);
+      }
+      if (pawns_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Pawns);
+      }
+      if (colonyFacts_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(ColonyFacts);
+      }
+      if (HasResync) {
+        size += 1 + 1;
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -982,6 +1111,21 @@ namespace RimGovernor.Protocol.Mirror {
           Window = new global::RimGovernor.Protocol.Mirror.CellRect();
         }
         Window.MergeFrom(other.Window);
+      }
+      if (other.pawns_ != null) {
+        if (pawns_ == null) {
+          Pawns = new global::RimGovernor.Protocol.Observations.ListPawnsRequest();
+        }
+        Pawns.MergeFrom(other.Pawns);
+      }
+      if (other.colonyFacts_ != null) {
+        if (colonyFacts_ == null) {
+          ColonyFacts = new global::RimGovernor.Protocol.Observations.ColonyFactsRequest();
+        }
+        ColonyFacts.MergeFrom(other.ColonyFacts);
+      }
+      if (other.HasResync) {
+        Resync = other.Resync;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -1020,6 +1164,24 @@ namespace RimGovernor.Protocol.Mirror {
             input.ReadMessage(Window);
             break;
           }
+          case 34: {
+            if (pawns_ == null) {
+              Pawns = new global::RimGovernor.Protocol.Observations.ListPawnsRequest();
+            }
+            input.ReadMessage(Pawns);
+            break;
+          }
+          case 42: {
+            if (colonyFacts_ == null) {
+              ColonyFacts = new global::RimGovernor.Protocol.Observations.ColonyFactsRequest();
+            }
+            input.ReadMessage(ColonyFacts);
+            break;
+          }
+          case 48: {
+            Resync = input.ReadBool();
+            break;
+          }
         }
       }
     #endif
@@ -1055,6 +1217,24 @@ namespace RimGovernor.Protocol.Mirror {
               Window = new global::RimGovernor.Protocol.Mirror.CellRect();
             }
             input.ReadMessage(Window);
+            break;
+          }
+          case 34: {
+            if (pawns_ == null) {
+              Pawns = new global::RimGovernor.Protocol.Observations.ListPawnsRequest();
+            }
+            input.ReadMessage(Pawns);
+            break;
+          }
+          case 42: {
+            if (colonyFacts_ == null) {
+              ColonyFacts = new global::RimGovernor.Protocol.Observations.ColonyFactsRequest();
+            }
+            input.ReadMessage(ColonyFacts);
+            break;
+          }
+          case 48: {
+            Resync = input.ReadBool();
             break;
           }
         }
@@ -3654,7 +3834,8 @@ namespace RimGovernor.Protocol.Mirror {
     public const int IdentityFieldNumber = 1;
     private global::RimGovernor.Protocol.Common.Identity identity_;
     /// <summary>
-    /// Absent: the current map. Present and stale: the StaleIdentity failure.
+    /// Required. Stale: the StaleIdentity failure, carrying the current
+    /// context to re-anchor on.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4092,6 +4273,9 @@ namespace RimGovernor.Protocol.Mirror {
       buildings_ = other.buildings_.Clone();
       bills_ = other.bills_.Clone();
       cells_ = other.cells_ != null ? other.cells_.Clone() : null;
+      zones_ = other.zones_ != null ? other.zones_.Clone() : null;
+      pawns_ = other.pawns_ != null ? other.pawns_.Clone() : null;
+      colonyFacts_ = other.colonyFacts_ != null ? other.colonyFacts_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4150,6 +4334,49 @@ namespace RimGovernor.Protocol.Mirror {
       }
     }
 
+    /// <summary>Field number for the "zones" field.</summary>
+    public const int ZonesFieldNumber = 5;
+    private global::RimGovernor.Protocol.Observations.ZonesSnapshot zones_;
+    /// <summary>
+    /// SECTION_ZONES: the census (context, map snapshot token, every zone).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Observations.ZonesSnapshot Zones {
+      get { return zones_; }
+      set {
+        zones_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "pawns" field.</summary>
+    public const int PawnsFieldNumber = 6;
+    private global::RimGovernor.Protocol.Observations.PawnSnapshot pawns_;
+    /// <summary>
+    /// SECTION_PAWNS, SECTION_COLONY_FACTS: the snapshot the ask's read
+    /// answers, a #773 delta of it when its delta names since.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Observations.PawnSnapshot Pawns {
+      get { return pawns_; }
+      set {
+        pawns_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "colony_facts" field.</summary>
+    public const int ColonyFactsFieldNumber = 7;
+    private global::RimGovernor.Protocol.Observations.ColonyFactsSnapshot colonyFacts_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Observations.ColonyFactsSnapshot ColonyFacts {
+      get { return colonyFacts_; }
+      set {
+        colonyFacts_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4169,6 +4396,9 @@ namespace RimGovernor.Protocol.Mirror {
       if(!buildings_.Equals(other.buildings_)) return false;
       if(!bills_.Equals(other.bills_)) return false;
       if (!object.Equals(Cells, other.Cells)) return false;
+      if (!object.Equals(Zones, other.Zones)) return false;
+      if (!object.Equals(Pawns, other.Pawns)) return false;
+      if (!object.Equals(ColonyFacts, other.ColonyFacts)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4180,6 +4410,9 @@ namespace RimGovernor.Protocol.Mirror {
       hash ^= buildings_.GetHashCode();
       hash ^= bills_.GetHashCode();
       if (cells_ != null) hash ^= Cells.GetHashCode();
+      if (zones_ != null) hash ^= Zones.GetHashCode();
+      if (pawns_ != null) hash ^= Pawns.GetHashCode();
+      if (colonyFacts_ != null) hash ^= ColonyFacts.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4208,6 +4441,18 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(34);
         output.WriteMessage(Cells);
       }
+      if (zones_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(Zones);
+      }
+      if (pawns_ != null) {
+        output.WriteRawTag(50);
+        output.WriteMessage(Pawns);
+      }
+      if (colonyFacts_ != null) {
+        output.WriteRawTag(58);
+        output.WriteMessage(ColonyFacts);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4228,6 +4473,18 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(34);
         output.WriteMessage(Cells);
       }
+      if (zones_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(Zones);
+      }
+      if (pawns_ != null) {
+        output.WriteRawTag(50);
+        output.WriteMessage(Pawns);
+      }
+      if (colonyFacts_ != null) {
+        output.WriteRawTag(58);
+        output.WriteMessage(ColonyFacts);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -4245,6 +4502,15 @@ namespace RimGovernor.Protocol.Mirror {
       size += bills_.CalculateSize(_repeated_bills_codec);
       if (cells_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Cells);
+      }
+      if (zones_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Zones);
+      }
+      if (pawns_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Pawns);
+      }
+      if (colonyFacts_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(ColonyFacts);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -4271,6 +4537,24 @@ namespace RimGovernor.Protocol.Mirror {
           Cells = new global::RimGovernor.Protocol.Mirror.CellGrid();
         }
         Cells.MergeFrom(other.Cells);
+      }
+      if (other.zones_ != null) {
+        if (zones_ == null) {
+          Zones = new global::RimGovernor.Protocol.Observations.ZonesSnapshot();
+        }
+        Zones.MergeFrom(other.Zones);
+      }
+      if (other.pawns_ != null) {
+        if (pawns_ == null) {
+          Pawns = new global::RimGovernor.Protocol.Observations.PawnSnapshot();
+        }
+        Pawns.MergeFrom(other.Pawns);
+      }
+      if (other.colonyFacts_ != null) {
+        if (colonyFacts_ == null) {
+          ColonyFacts = new global::RimGovernor.Protocol.Observations.ColonyFactsSnapshot();
+        }
+        ColonyFacts.MergeFrom(other.ColonyFacts);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -4313,6 +4597,27 @@ namespace RimGovernor.Protocol.Mirror {
             input.ReadMessage(Cells);
             break;
           }
+          case 42: {
+            if (zones_ == null) {
+              Zones = new global::RimGovernor.Protocol.Observations.ZonesSnapshot();
+            }
+            input.ReadMessage(Zones);
+            break;
+          }
+          case 50: {
+            if (pawns_ == null) {
+              Pawns = new global::RimGovernor.Protocol.Observations.PawnSnapshot();
+            }
+            input.ReadMessage(Pawns);
+            break;
+          }
+          case 58: {
+            if (colonyFacts_ == null) {
+              ColonyFacts = new global::RimGovernor.Protocol.Observations.ColonyFactsSnapshot();
+            }
+            input.ReadMessage(ColonyFacts);
+            break;
+          }
         }
       }
     #endif
@@ -4352,6 +4657,27 @@ namespace RimGovernor.Protocol.Mirror {
               Cells = new global::RimGovernor.Protocol.Mirror.CellGrid();
             }
             input.ReadMessage(Cells);
+            break;
+          }
+          case 42: {
+            if (zones_ == null) {
+              Zones = new global::RimGovernor.Protocol.Observations.ZonesSnapshot();
+            }
+            input.ReadMessage(Zones);
+            break;
+          }
+          case 50: {
+            if (pawns_ == null) {
+              Pawns = new global::RimGovernor.Protocol.Observations.PawnSnapshot();
+            }
+            input.ReadMessage(Pawns);
+            break;
+          }
+          case 58: {
+            if (colonyFacts_ == null) {
+              ColonyFacts = new global::RimGovernor.Protocol.Observations.ColonyFactsSnapshot();
+            }
+            input.ReadMessage(ColonyFacts);
             break;
           }
         }
@@ -4405,6 +4731,7 @@ namespace RimGovernor.Protocol.Mirror {
       bills_ = other.bills_.Clone();
       tombstones_ = other.tombstones_.Clone();
       cells_ = other.cells_ != null ? other.cells_.Clone() : null;
+      zones_ = other.zones_ != null ? other.zones_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4486,6 +4813,22 @@ namespace RimGovernor.Protocol.Mirror {
       }
     }
 
+    /// <summary>Field number for the "zones" field.</summary>
+    public const int ZonesFieldNumber = 7;
+    private global::RimGovernor.Protocol.Observations.ZonesSnapshot zones_;
+    /// <summary>
+    /// SECTION_ZONES: the census header and the changed zones; removed zone
+    /// ids are tombstones.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Observations.ZonesSnapshot Zones {
+      get { return zones_; }
+      set {
+        zones_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4507,6 +4850,7 @@ namespace RimGovernor.Protocol.Mirror {
       if(!bills_.Equals(other.bills_)) return false;
       if(!tombstones_.Equals(other.tombstones_)) return false;
       if (!object.Equals(Cells, other.Cells)) return false;
+      if (!object.Equals(Zones, other.Zones)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4520,6 +4864,7 @@ namespace RimGovernor.Protocol.Mirror {
       hash ^= bills_.GetHashCode();
       hash ^= tombstones_.GetHashCode();
       if (cells_ != null) hash ^= Cells.GetHashCode();
+      if (zones_ != null) hash ^= Zones.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4553,6 +4898,10 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(50);
         output.WriteMessage(Cells);
       }
+      if (zones_ != null) {
+        output.WriteRawTag(58);
+        output.WriteMessage(Zones);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4578,6 +4927,10 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(50);
         output.WriteMessage(Cells);
       }
+      if (zones_ != null) {
+        output.WriteRawTag(58);
+        output.WriteMessage(Zones);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -4599,6 +4952,9 @@ namespace RimGovernor.Protocol.Mirror {
       size += tombstones_.CalculateSize(_repeated_tombstones_codec);
       if (cells_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Cells);
+      }
+      if (zones_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Zones);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -4632,6 +4988,12 @@ namespace RimGovernor.Protocol.Mirror {
           Cells = new global::RimGovernor.Protocol.Mirror.CellGrid();
         }
         Cells.MergeFrom(other.Cells);
+      }
+      if (other.zones_ != null) {
+        if (zones_ == null) {
+          Zones = new global::RimGovernor.Protocol.Observations.ZonesSnapshot();
+        }
+        Zones.MergeFrom(other.Zones);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -4683,6 +5045,13 @@ namespace RimGovernor.Protocol.Mirror {
               Cells = new global::RimGovernor.Protocol.Mirror.CellGrid();
             }
             input.ReadMessage(Cells);
+            break;
+          }
+          case 58: {
+            if (zones_ == null) {
+              Zones = new global::RimGovernor.Protocol.Observations.ZonesSnapshot();
+            }
+            input.ReadMessage(Zones);
             break;
           }
         }
@@ -4737,6 +5106,13 @@ namespace RimGovernor.Protocol.Mirror {
             input.ReadMessage(Cells);
             break;
           }
+          case 58: {
+            if (zones_ == null) {
+              Zones = new global::RimGovernor.Protocol.Observations.ZonesSnapshot();
+            }
+            input.ReadMessage(Zones);
+            break;
+          }
         }
       }
     }
@@ -4783,6 +5159,7 @@ namespace RimGovernor.Protocol.Mirror {
       _hasBits0 = other._hasBits0;
       section_ = other.section_;
       more_ = other.more_;
+      resync_ = other.resync_ != null ? other.resync_.Clone() : null;
       switch (other.BodyCase) {
         case BodyOneofCase.Keyframe:
           Keyframe = other.Keyframe.Clone();
@@ -4883,6 +5260,21 @@ namespace RimGovernor.Protocol.Mirror {
       _hasBits0 &= ~2;
     }
 
+    /// <summary>Field number for the "resync" field.</summary>
+    public const int ResyncFieldNumber = 5;
+    private global::RimGovernor.Protocol.Mirror.Keyframe resync_;
+    /// <summary>
+    /// The keyframe an ask's resync asked for, beside its delta.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Mirror.Keyframe Resync {
+      get { return resync_; }
+      set {
+        resync_ = value;
+      }
+    }
+
     private object body_;
     /// <summary>Enum of possible cases for the "body" oneof.</summary>
     public enum BodyOneofCase {
@@ -4923,6 +5315,7 @@ namespace RimGovernor.Protocol.Mirror {
       if (!object.Equals(Keyframe, other.Keyframe)) return false;
       if (!object.Equals(Delta, other.Delta)) return false;
       if (More != other.More) return false;
+      if (!object.Equals(Resync, other.Resync)) return false;
       if (BodyCase != other.BodyCase) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -4935,6 +5328,7 @@ namespace RimGovernor.Protocol.Mirror {
       if (bodyCase_ == BodyOneofCase.Keyframe) hash ^= Keyframe.GetHashCode();
       if (bodyCase_ == BodyOneofCase.Delta) hash ^= Delta.GetHashCode();
       if (HasMore) hash ^= More.GetHashCode();
+      if (resync_ != null) hash ^= Resync.GetHashCode();
       hash ^= (int) bodyCase_;
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -4970,6 +5364,10 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(32);
         output.WriteBool(More);
       }
+      if (resync_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(Resync);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4996,6 +5394,10 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(32);
         output.WriteBool(More);
       }
+      if (resync_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(Resync);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -5018,6 +5420,9 @@ namespace RimGovernor.Protocol.Mirror {
       if (HasMore) {
         size += 1 + 1;
       }
+      if (resync_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Resync);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -5035,6 +5440,12 @@ namespace RimGovernor.Protocol.Mirror {
       }
       if (other.HasMore) {
         More = other.More;
+      }
+      if (other.resync_ != null) {
+        if (resync_ == null) {
+          Resync = new global::RimGovernor.Protocol.Mirror.Keyframe();
+        }
+        Resync.MergeFrom(other.Resync);
       }
       switch (other.BodyCase) {
         case BodyOneofCase.Keyframe:
@@ -5096,6 +5507,13 @@ namespace RimGovernor.Protocol.Mirror {
             More = input.ReadBool();
             break;
           }
+          case 42: {
+            if (resync_ == null) {
+              Resync = new global::RimGovernor.Protocol.Mirror.Keyframe();
+            }
+            input.ReadMessage(Resync);
+            break;
+          }
         }
       }
     #endif
@@ -5139,6 +5557,13 @@ namespace RimGovernor.Protocol.Mirror {
           }
           case 32: {
             More = input.ReadBool();
+            break;
+          }
+          case 42: {
+            if (resync_ == null) {
+              Resync = new global::RimGovernor.Protocol.Mirror.Keyframe();
+            }
+            input.ReadMessage(Resync);
             break;
           }
         }

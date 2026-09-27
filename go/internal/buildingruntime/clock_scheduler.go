@@ -293,6 +293,10 @@ type ClockScheduler struct {
 	config              ClockSchedulerConfig
 	clock               executor.Clock
 	pollGate, renewGate chan struct{}
+	// reviewPawns is whether the step's review poll carries the routine
+	// pawn detail (#795): the pawns family bundleRequest would have
+	// ridden on the bundle. Step goroutine only.
+	reviewPawns bool
 	// pace is player acceleration's backoff (clock_pace_backoff.go), nil
 	// under fixed pacing.
 	pace *paceBackoff
@@ -747,6 +751,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	reviews := s.stepReviews(reason)
 	if native, ok := s.native.(observation.ZonesNative); ok {
 		zones = &zoneRefresher{native: native, store: s.facts.store, mirror: s.facts.mirror}
+		s.facts.mu.Lock()
+		s.facts.pollZones = true
+		s.facts.mu.Unlock()
 		call = observation.WithZones(call, zones)
 	}
 	if native, ok := s.native.(PlanningWindowNative); ok {
@@ -934,8 +941,29 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// too, so its watermark stays inside the tombstone window whether or
 	// not a planner asks for it this step.
 	if reviews {
+		carried := entitySectionsCarried{zones: loaded.Zones != nil, buildings: loaded.Buildings != nil, bills: loaded.Bills != nil}
+		// A native with mirror_poll brings the entity sections, the
+		// colony facts and the routine pawn detail current in one
+		// immediate poll (#795); what it did not serve is read directly.
+		if poller, ok := s.native.(MirrorPollNative); ok {
+			scope, tick := factsScope(loaded.Context), loaded.Context.GetTick()
+			want := map[facts.Section]bool{}
+			for section, isCarried := range map[facts.Section]bool{facts.Buildings: carried.buildings, facts.Bills: carried.bills, facts.Zones: carried.zones || zones == nil} {
+				if !isCarried && !(s.facts.store.Scope() == scope && s.facts.store.FreshWithin(section, tick, 0)) {
+					want[section] = true
+				}
+			}
+			var pawns []string
+			if s.reviewPawns {
+				pawns = bridge.RoutinePawnIDs(loaded)
+			}
+			carried.polled, carried.pollTried = reviewPoll(call, poller, s.facts, loaded.Context.Identity, want, pawns), true
+			if carried.polled[facts.Zones] && zones != nil {
+				zones.refreshed, zones.carried = true, false
+			}
+		}
 		if native, ok := s.native.(EntityNative); ok {
-			refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick(), entitySectionsCarried{zones: loaded.Zones != nil, buildings: loaded.Buildings != nil, bills: loaded.Bills != nil})
+			refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick(), carried)
 		}
 		if zones != nil {
 			if _, err := zones.Zones(call, loaded.Context.Identity); err != nil {
@@ -1747,6 +1775,15 @@ func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 		request.Population, request.Research, request.ColonistPawns = proto.Bool(population), proto.Bool(research), proto.Bool(pawns)
 		request.ColonistPawnFields, request.PopulationFields, request.ResearchFields = bundleMasks()
 		s.bundleStepFamilies(request, tick, wanted)
+		// A native with mirror_poll serves the colony facts and the pawn
+		// detail through the review's poll instead (#795, reviewPoll):
+		// #773 deltas beside the entity deltas, one hop. The entity
+		// keyframes still ride here: the bundle seeds them under the
+		// full list reads' keys, which planners read too.
+		if _, ok := s.native.(MirrorPollNative); ok {
+			s.reviewPawns = pawns
+			request.ColonyFacts, request.ColonistPawns, request.ColonistPawnFields = nil, nil, nil
+		}
 	}
 	return request
 }

@@ -35,6 +35,12 @@ const (
 	// The planning window over the ask's window rect, as a CellGrid: the
 	// planning fields of observations_get_cells, one array per SiteCell field.
 	Section_SECTION_PLANNING_CELLS Section = 3
+	Section_SECTION_ZONES          Section = 4 // observations_list_zones, the whole census, rows keyed by zone id (#358)
+	// The pawn list and colony facts reads the ask names, each answered as its
+	// #773 changed-since read answers it: rows keyed by pawn id, and by the
+	// colony facts row paths the controller splits the snapshot into.
+	Section_SECTION_PAWNS        Section = 5
+	Section_SECTION_COLONY_FACTS Section = 6
 )
 
 // Enum value maps for Section.
@@ -44,12 +50,18 @@ var (
 		1: "SECTION_BUILDINGS",
 		2: "SECTION_BILLS",
 		3: "SECTION_PLANNING_CELLS",
+		4: "SECTION_ZONES",
+		5: "SECTION_PAWNS",
+		6: "SECTION_COLONY_FACTS",
 	}
 	Section_value = map[string]int32{
 		"SECTION_UNSPECIFIED":    0,
 		"SECTION_BUILDINGS":      1,
 		"SECTION_BILLS":          2,
 		"SECTION_PLANNING_CELLS": 3,
+		"SECTION_ZONES":          4,
+		"SECTION_PAWNS":          5,
+		"SECTION_COLONY_FACTS":   6,
 	}
 )
 
@@ -203,7 +215,19 @@ type SectionAsk struct {
 	// SECTION_PLANNING_CELLS only, and required there: the window, at most
 	// 65536 cells. A window other than the one since was served for is a
 	// keyframe.
-	Window        *CellRect `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	Window *CellRect `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	// SECTION_PAWNS and SECTION_COLONY_FACTS only, and required there (the
+	// one matching the section): the read the section answers, identity
+	// scoped to the poll's. Its changed_since is the #773 ask; the section's
+	// since is unused. An ask the tracker cannot answer is answered whole
+	// (stale rule C).
+	Pawns       *observationspb.ListPawnsRequest   `protobuf:"bytes,4,opt,name=pawns,proto3" json:"pawns,omitempty"`
+	ColonyFacts *observationspb.ColonyFactsRequest `protobuf:"bytes,5,opt,name=colony_facts,json=colonyFacts,proto3" json:"colony_facts,omitempty"`
+	// The drift backstop (#795): beside a delta, the section's keyframe at
+	// the same watermark (SectionPage.resync) for the client to compare
+	// with what the delta leaves it holding. Entity and planning cell
+	// sections; ignored where the page is a keyframe anyway.
+	Resync        *bool `protobuf:"varint,6,opt,name=resync,proto3,oneof" json:"resync,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -257,6 +281,27 @@ func (x *SectionAsk) GetWindow() *CellRect {
 		return x.Window
 	}
 	return nil
+}
+
+func (x *SectionAsk) GetPawns() *observationspb.ListPawnsRequest {
+	if x != nil {
+		return x.Pawns
+	}
+	return nil
+}
+
+func (x *SectionAsk) GetColonyFacts() *observationspb.ColonyFactsRequest {
+	if x != nil {
+		return x.ColonyFacts
+	}
+	return nil
+}
+
+func (x *SectionAsk) GetResync() bool {
+	if x != nil && x.Resync != nil {
+		return *x.Resync
+	}
+	return false
 }
 
 type CellRect struct {
@@ -814,7 +859,8 @@ func (x *CellGrid) GetRuinHold() *FieldArray {
 
 type MirrorPollRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Absent: the current map. Present and stale: the StaleIdentity failure.
+	// Required. Stale: the StaleIdentity failure, carrying the current
+	// context to re-anchor on.
 	Identity           *commonpb.Identity `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
 	Epoch              *Epoch             `protobuf:"bytes,2,opt,name=epoch,proto3" json:"epoch,omitempty"` // the epoch the client's watermarks belong to
 	Asks               []*SectionAsk      `protobuf:"bytes,3,rep,name=asks,proto3" json:"asks,omitempty"`
@@ -899,11 +945,17 @@ func (x *MirrorPollRequest) GetJournalAfterCursor() int64 {
 
 // The whole section at `at`.
 type Keyframe struct {
-	state         protoimpl.MessageState          `protogen:"open.v1"`
-	At            *Watermark                      `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"`
-	Buildings     []*observationspb.BuildingState `protobuf:"bytes,2,rep,name=buildings,proto3" json:"buildings,omitempty"`
-	Bills         []*observationspb.BillStack     `protobuf:"bytes,3,rep,name=bills,proto3" json:"bills,omitempty"`
-	Cells         *CellGrid                       `protobuf:"bytes,4,opt,name=cells,proto3" json:"cells,omitempty"` // SECTION_PLANNING_CELLS
+	state     protoimpl.MessageState          `protogen:"open.v1"`
+	At        *Watermark                      `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"`
+	Buildings []*observationspb.BuildingState `protobuf:"bytes,2,rep,name=buildings,proto3" json:"buildings,omitempty"`
+	Bills     []*observationspb.BillStack     `protobuf:"bytes,3,rep,name=bills,proto3" json:"bills,omitempty"`
+	Cells     *CellGrid                       `protobuf:"bytes,4,opt,name=cells,proto3" json:"cells,omitempty"` // SECTION_PLANNING_CELLS
+	// SECTION_ZONES: the census (context, map snapshot token, every zone).
+	Zones *observationspb.ZonesSnapshot `protobuf:"bytes,5,opt,name=zones,proto3" json:"zones,omitempty"`
+	// SECTION_PAWNS, SECTION_COLONY_FACTS: the snapshot the ask's read
+	// answers, a #773 delta of it when its delta names since.
+	Pawns         *observationspb.PawnSnapshot        `protobuf:"bytes,6,opt,name=pawns,proto3" json:"pawns,omitempty"`
+	ColonyFacts   *observationspb.ColonyFactsSnapshot `protobuf:"bytes,7,opt,name=colony_facts,json=colonyFacts,proto3" json:"colony_facts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -966,15 +1018,39 @@ func (x *Keyframe) GetCells() *CellGrid {
 	return nil
 }
 
+func (x *Keyframe) GetZones() *observationspb.ZonesSnapshot {
+	if x != nil {
+		return x.Zones
+	}
+	return nil
+}
+
+func (x *Keyframe) GetPawns() *observationspb.PawnSnapshot {
+	if x != nil {
+		return x.Pawns
+	}
+	return nil
+}
+
+func (x *Keyframe) GetColonyFacts() *observationspb.ColonyFactsSnapshot {
+	if x != nil {
+		return x.ColonyFacts
+	}
+	return nil
+}
+
 // The rows changed after `from`, through `to`, and the ids removed since.
 type Delta struct {
-	state         protoimpl.MessageState          `protogen:"open.v1"`
-	From          *Watermark                      `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
-	To            *Watermark                      `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
-	Buildings     []*observationspb.BuildingState `protobuf:"bytes,3,rep,name=buildings,proto3" json:"buildings,omitempty"`
-	Bills         []*observationspb.BillStack     `protobuf:"bytes,4,rep,name=bills,proto3" json:"bills,omitempty"`
-	Tombstones    []string                        `protobuf:"bytes,5,rep,name=tombstones,proto3" json:"tombstones,omitempty"`
-	Cells         *CellGrid                       `protobuf:"bytes,6,opt,name=cells,proto3" json:"cells,omitempty"` // SECTION_PLANNING_CELLS: the changed arrays only
+	state      protoimpl.MessageState          `protogen:"open.v1"`
+	From       *Watermark                      `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	To         *Watermark                      `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	Buildings  []*observationspb.BuildingState `protobuf:"bytes,3,rep,name=buildings,proto3" json:"buildings,omitempty"`
+	Bills      []*observationspb.BillStack     `protobuf:"bytes,4,rep,name=bills,proto3" json:"bills,omitempty"`
+	Tombstones []string                        `protobuf:"bytes,5,rep,name=tombstones,proto3" json:"tombstones,omitempty"`
+	Cells      *CellGrid                       `protobuf:"bytes,6,opt,name=cells,proto3" json:"cells,omitempty"` // SECTION_PLANNING_CELLS: the changed arrays only
+	// SECTION_ZONES: the census header and the changed zones; removed zone
+	// ids are tombstones.
+	Zones         *observationspb.ZonesSnapshot `protobuf:"bytes,7,opt,name=zones,proto3" json:"zones,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1051,6 +1127,13 @@ func (x *Delta) GetCells() *CellGrid {
 	return nil
 }
 
+func (x *Delta) GetZones() *observationspb.ZonesSnapshot {
+	if x != nil {
+		return x.Zones
+	}
+	return nil
+}
+
 type SectionPage struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Section *Section               `protobuf:"varint,1,opt,name=section,proto3,enum=rimgovernor.mirror.v1.Section,oneof" json:"section,omitempty"`
@@ -1061,7 +1144,9 @@ type SectionPage struct {
 	Body isSectionPage_Body `protobuf_oneof:"body"`
 	// The section did not fit this page's byte budget and has no body:
 	// re-poll with wait_ms 0 from the same watermark.
-	More          *bool `protobuf:"varint,4,opt,name=more,proto3,oneof" json:"more,omitempty"`
+	More *bool `protobuf:"varint,4,opt,name=more,proto3,oneof" json:"more,omitempty"`
+	// The keyframe an ask's resync asked for, beside its delta.
+	Resync        *Keyframe `protobuf:"bytes,5,opt,name=resync,proto3" json:"resync,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1133,6 +1218,13 @@ func (x *SectionPage) GetMore() bool {
 		return *x.More
 	}
 	return false
+}
+
+func (x *SectionPage) GetResync() *Keyframe {
+	if x != nil {
+		return x.Resync
+	}
+	return nil
 }
 
 type isSectionPage_Body interface {
@@ -1320,14 +1412,18 @@ const file_mirror_proto_rawDesc = "" +
 	"\x11native_generation\x18\x03 \x01(\x04H\x01R\x10nativeGeneration\x88\x01\x01B\n" +
 	"\n" +
 	"\b_processB\x14\n" +
-	"\x12_native_generation\"\xc8\x01\n" +
+	"\x12_native_generation\"\x89\x03\n" +
 	"\n" +
 	"SectionAsk\x12=\n" +
 	"\asection\x18\x01 \x01(\x0e2\x1e.rimgovernor.mirror.v1.SectionH\x00R\asection\x88\x01\x01\x126\n" +
 	"\x05since\x18\x02 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x05since\x127\n" +
-	"\x06window\x18\x03 \x01(\v2\x1f.rimgovernor.mirror.v1.CellRectR\x06windowB\n" +
+	"\x06window\x18\x03 \x01(\v2\x1f.rimgovernor.mirror.v1.CellRectR\x06window\x12C\n" +
+	"\x05pawns\x18\x04 \x01(\v2-.rimgovernor.observations.v1.ListPawnsRequestR\x05pawns\x12R\n" +
+	"\fcolony_facts\x18\x05 \x01(\v2/.rimgovernor.observations.v1.ColonyFactsRequestR\vcolonyFacts\x12\x1b\n" +
+	"\x06resync\x18\x06 \x01(\bH\x01R\x06resync\x88\x01\x01B\n" +
 	"\n" +
-	"\b_section\"\x89\x01\n" +
+	"\b_sectionB\t\n" +
+	"\a_resync\"\x89\x01\n" +
 	"\bCellRect\x12\x11\n" +
 	"\x01x\x18\x01 \x01(\x05H\x00R\x01x\x88\x01\x01\x12\x11\n" +
 	"\x01z\x18\x02 \x01(\x05H\x01R\x01z\x88\x01\x01\x12\x19\n" +
@@ -1387,12 +1483,15 @@ const file_mirror_proto_rawDesc = "" +
 	"\f_byte_budgetB\n" +
 	"\n" +
 	"\b_wait_msB\x17\n" +
-	"\x15_journal_after_cursor\"\xfb\x01\n" +
+	"\x15_journal_after_cursor\"\xd3\x03\n" +
 	"\bKeyframe\x120\n" +
 	"\x02at\x18\x01 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x02at\x12H\n" +
 	"\tbuildings\x18\x02 \x03(\v2*.rimgovernor.observations.v1.BuildingStateR\tbuildings\x12<\n" +
 	"\x05bills\x18\x03 \x03(\v2&.rimgovernor.observations.v1.BillStackR\x05bills\x125\n" +
-	"\x05cells\x18\x04 \x01(\v2\x1f.rimgovernor.mirror.v1.CellGridR\x05cells\"\xce\x02\n" +
+	"\x05cells\x18\x04 \x01(\v2\x1f.rimgovernor.mirror.v1.CellGridR\x05cells\x12@\n" +
+	"\x05zones\x18\x05 \x01(\v2*.rimgovernor.observations.v1.ZonesSnapshotR\x05zones\x12?\n" +
+	"\x05pawns\x18\x06 \x01(\v2).rimgovernor.observations.v1.PawnSnapshotR\x05pawns\x12S\n" +
+	"\fcolony_facts\x18\a \x01(\v20.rimgovernor.observations.v1.ColonyFactsSnapshotR\vcolonyFacts\"\x90\x03\n" +
 	"\x05Delta\x124\n" +
 	"\x04from\x18\x01 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x04from\x120\n" +
 	"\x02to\x18\x02 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x02to\x12H\n" +
@@ -1401,12 +1500,14 @@ const file_mirror_proto_rawDesc = "" +
 	"\n" +
 	"tombstones\x18\x05 \x03(\tR\n" +
 	"tombstones\x125\n" +
-	"\x05cells\x18\x06 \x01(\v2\x1f.rimgovernor.mirror.v1.CellGridR\x05cells\"\xf7\x01\n" +
+	"\x05cells\x18\x06 \x01(\v2\x1f.rimgovernor.mirror.v1.CellGridR\x05cells\x12@\n" +
+	"\x05zones\x18\a \x01(\v2*.rimgovernor.observations.v1.ZonesSnapshotR\x05zones\"\xb0\x02\n" +
 	"\vSectionPage\x12=\n" +
 	"\asection\x18\x01 \x01(\x0e2\x1e.rimgovernor.mirror.v1.SectionH\x01R\asection\x88\x01\x01\x12=\n" +
 	"\bkeyframe\x18\x02 \x01(\v2\x1f.rimgovernor.mirror.v1.KeyframeH\x00R\bkeyframe\x124\n" +
 	"\x05delta\x18\x03 \x01(\v2\x1c.rimgovernor.mirror.v1.DeltaH\x00R\x05delta\x12\x17\n" +
-	"\x04more\x18\x04 \x01(\bH\x02R\x04more\x88\x01\x01B\x06\n" +
+	"\x04more\x18\x04 \x01(\bH\x02R\x04more\x88\x01\x01\x127\n" +
+	"\x06resync\x18\x05 \x01(\v2\x1f.rimgovernor.mirror.v1.KeyframeR\x06resyncB\x06\n" +
 	"\x04bodyB\n" +
 	"\n" +
 	"\b_sectionB\a\n" +
@@ -1421,12 +1522,15 @@ const file_mirror_proto_rawDesc = "" +
 	"\x0fMirrorPollReply\x127\n" +
 	"\x04page\x18\x01 \x01(\v2!.rimgovernor.mirror.v1.MirrorPageH\x00R\x04page\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome*h\n" +
+	"\aoutcome*\xa8\x01\n" +
 	"\aSection\x12\x17\n" +
 	"\x13SECTION_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SECTION_BUILDINGS\x10\x01\x12\x11\n" +
 	"\rSECTION_BILLS\x10\x02\x12\x1a\n" +
-	"\x16SECTION_PLANNING_CELLS\x10\x03BeZEgithub.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb;mirrorpb\xaa\x02\x1bRimGovernor.Protocol.Mirrorb\x06proto3"
+	"\x16SECTION_PLANNING_CELLS\x10\x03\x12\x11\n" +
+	"\rSECTION_ZONES\x10\x04\x12\x11\n" +
+	"\rSECTION_PAWNS\x10\x05\x12\x18\n" +
+	"\x14SECTION_COLONY_FACTS\x10\x06BeZEgithub.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb;mirrorpb\xaa\x02\x1bRimGovernor.Protocol.Mirrorb\x06proto3"
 
 var (
 	file_mirror_proto_rawDescOnce sync.Once
@@ -1443,81 +1547,93 @@ func file_mirror_proto_rawDescGZIP() []byte {
 var file_mirror_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_mirror_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_mirror_proto_goTypes = []any{
-	(Section)(0),                         // 0: rimgovernor.mirror.v1.Section
-	(*Watermark)(nil),                    // 1: rimgovernor.mirror.v1.Watermark
-	(*Epoch)(nil),                        // 2: rimgovernor.mirror.v1.Epoch
-	(*SectionAsk)(nil),                   // 3: rimgovernor.mirror.v1.SectionAsk
-	(*CellRect)(nil),                     // 4: rimgovernor.mirror.v1.CellRect
-	(*FieldArray)(nil),                   // 5: rimgovernor.mirror.v1.FieldArray
-	(*PackedUint32)(nil),                 // 6: rimgovernor.mirror.v1.PackedUint32
-	(*PackedDouble)(nil),                 // 7: rimgovernor.mirror.v1.PackedDouble
-	(*SparseArray)(nil),                  // 8: rimgovernor.mirror.v1.SparseArray
-	(*CellGrid)(nil),                     // 9: rimgovernor.mirror.v1.CellGrid
-	(*MirrorPollRequest)(nil),            // 10: rimgovernor.mirror.v1.MirrorPollRequest
-	(*Keyframe)(nil),                     // 11: rimgovernor.mirror.v1.Keyframe
-	(*Delta)(nil),                        // 12: rimgovernor.mirror.v1.Delta
-	(*SectionPage)(nil),                  // 13: rimgovernor.mirror.v1.SectionPage
-	(*MirrorPage)(nil),                   // 14: rimgovernor.mirror.v1.MirrorPage
-	(*MirrorPollReply)(nil),              // 15: rimgovernor.mirror.v1.MirrorPollReply
-	(*commonpb.Identity)(nil),            // 16: rimgovernor.common.v1.Identity
-	(*observationspb.BuildingState)(nil), // 17: rimgovernor.observations.v1.BuildingState
-	(*observationspb.BillStack)(nil),     // 18: rimgovernor.observations.v1.BillStack
-	(*clockpb.EventsPage)(nil),           // 19: rimgovernor.clock.v1.EventsPage
-	(*commonpb.Failure)(nil),             // 20: rimgovernor.common.v1.Failure
+	(Section)(0),                               // 0: rimgovernor.mirror.v1.Section
+	(*Watermark)(nil),                          // 1: rimgovernor.mirror.v1.Watermark
+	(*Epoch)(nil),                              // 2: rimgovernor.mirror.v1.Epoch
+	(*SectionAsk)(nil),                         // 3: rimgovernor.mirror.v1.SectionAsk
+	(*CellRect)(nil),                           // 4: rimgovernor.mirror.v1.CellRect
+	(*FieldArray)(nil),                         // 5: rimgovernor.mirror.v1.FieldArray
+	(*PackedUint32)(nil),                       // 6: rimgovernor.mirror.v1.PackedUint32
+	(*PackedDouble)(nil),                       // 7: rimgovernor.mirror.v1.PackedDouble
+	(*SparseArray)(nil),                        // 8: rimgovernor.mirror.v1.SparseArray
+	(*CellGrid)(nil),                           // 9: rimgovernor.mirror.v1.CellGrid
+	(*MirrorPollRequest)(nil),                  // 10: rimgovernor.mirror.v1.MirrorPollRequest
+	(*Keyframe)(nil),                           // 11: rimgovernor.mirror.v1.Keyframe
+	(*Delta)(nil),                              // 12: rimgovernor.mirror.v1.Delta
+	(*SectionPage)(nil),                        // 13: rimgovernor.mirror.v1.SectionPage
+	(*MirrorPage)(nil),                         // 14: rimgovernor.mirror.v1.MirrorPage
+	(*MirrorPollReply)(nil),                    // 15: rimgovernor.mirror.v1.MirrorPollReply
+	(*commonpb.Identity)(nil),                  // 16: rimgovernor.common.v1.Identity
+	(*observationspb.ListPawnsRequest)(nil),    // 17: rimgovernor.observations.v1.ListPawnsRequest
+	(*observationspb.ColonyFactsRequest)(nil),  // 18: rimgovernor.observations.v1.ColonyFactsRequest
+	(*observationspb.BuildingState)(nil),       // 19: rimgovernor.observations.v1.BuildingState
+	(*observationspb.BillStack)(nil),           // 20: rimgovernor.observations.v1.BillStack
+	(*observationspb.ZonesSnapshot)(nil),       // 21: rimgovernor.observations.v1.ZonesSnapshot
+	(*observationspb.PawnSnapshot)(nil),        // 22: rimgovernor.observations.v1.PawnSnapshot
+	(*observationspb.ColonyFactsSnapshot)(nil), // 23: rimgovernor.observations.v1.ColonyFactsSnapshot
+	(*clockpb.EventsPage)(nil),                 // 24: rimgovernor.clock.v1.EventsPage
+	(*commonpb.Failure)(nil),                   // 25: rimgovernor.common.v1.Failure
 }
 var file_mirror_proto_depIdxs = []int32{
 	16, // 0: rimgovernor.mirror.v1.Epoch.identity:type_name -> rimgovernor.common.v1.Identity
 	0,  // 1: rimgovernor.mirror.v1.SectionAsk.section:type_name -> rimgovernor.mirror.v1.Section
 	1,  // 2: rimgovernor.mirror.v1.SectionAsk.since:type_name -> rimgovernor.mirror.v1.Watermark
 	4,  // 3: rimgovernor.mirror.v1.SectionAsk.window:type_name -> rimgovernor.mirror.v1.CellRect
-	6,  // 4: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
-	7,  // 5: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
-	8,  // 6: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
-	4,  // 7: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
-	5,  // 8: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 9: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 10: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 11: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 12: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 13: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 14: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 15: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 16: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 17: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 18: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 19: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 20: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 21: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 22: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 23: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 24: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 25: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	5,  // 26: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
-	16, // 27: rimgovernor.mirror.v1.MirrorPollRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	2,  // 28: rimgovernor.mirror.v1.MirrorPollRequest.epoch:type_name -> rimgovernor.mirror.v1.Epoch
-	3,  // 29: rimgovernor.mirror.v1.MirrorPollRequest.asks:type_name -> rimgovernor.mirror.v1.SectionAsk
-	1,  // 30: rimgovernor.mirror.v1.Keyframe.at:type_name -> rimgovernor.mirror.v1.Watermark
-	17, // 31: rimgovernor.mirror.v1.Keyframe.buildings:type_name -> rimgovernor.observations.v1.BuildingState
-	18, // 32: rimgovernor.mirror.v1.Keyframe.bills:type_name -> rimgovernor.observations.v1.BillStack
-	9,  // 33: rimgovernor.mirror.v1.Keyframe.cells:type_name -> rimgovernor.mirror.v1.CellGrid
-	1,  // 34: rimgovernor.mirror.v1.Delta.from:type_name -> rimgovernor.mirror.v1.Watermark
-	1,  // 35: rimgovernor.mirror.v1.Delta.to:type_name -> rimgovernor.mirror.v1.Watermark
-	17, // 36: rimgovernor.mirror.v1.Delta.buildings:type_name -> rimgovernor.observations.v1.BuildingState
-	18, // 37: rimgovernor.mirror.v1.Delta.bills:type_name -> rimgovernor.observations.v1.BillStack
-	9,  // 38: rimgovernor.mirror.v1.Delta.cells:type_name -> rimgovernor.mirror.v1.CellGrid
-	0,  // 39: rimgovernor.mirror.v1.SectionPage.section:type_name -> rimgovernor.mirror.v1.Section
-	11, // 40: rimgovernor.mirror.v1.SectionPage.keyframe:type_name -> rimgovernor.mirror.v1.Keyframe
-	12, // 41: rimgovernor.mirror.v1.SectionPage.delta:type_name -> rimgovernor.mirror.v1.Delta
-	2,  // 42: rimgovernor.mirror.v1.MirrorPage.epoch:type_name -> rimgovernor.mirror.v1.Epoch
-	13, // 43: rimgovernor.mirror.v1.MirrorPage.sections:type_name -> rimgovernor.mirror.v1.SectionPage
-	19, // 44: rimgovernor.mirror.v1.MirrorPage.journal:type_name -> rimgovernor.clock.v1.EventsPage
-	14, // 45: rimgovernor.mirror.v1.MirrorPollReply.page:type_name -> rimgovernor.mirror.v1.MirrorPage
-	20, // 46: rimgovernor.mirror.v1.MirrorPollReply.failure:type_name -> rimgovernor.common.v1.Failure
-	47, // [47:47] is the sub-list for method output_type
-	47, // [47:47] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	17, // 4: rimgovernor.mirror.v1.SectionAsk.pawns:type_name -> rimgovernor.observations.v1.ListPawnsRequest
+	18, // 5: rimgovernor.mirror.v1.SectionAsk.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsRequest
+	6,  // 6: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
+	7,  // 7: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
+	8,  // 8: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
+	4,  // 9: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
+	5,  // 10: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 11: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 12: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 13: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 14: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 15: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 16: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 17: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 18: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 19: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 20: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 21: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 22: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 23: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 24: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 25: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 26: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 27: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	5,  // 28: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 29: rimgovernor.mirror.v1.MirrorPollRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	2,  // 30: rimgovernor.mirror.v1.MirrorPollRequest.epoch:type_name -> rimgovernor.mirror.v1.Epoch
+	3,  // 31: rimgovernor.mirror.v1.MirrorPollRequest.asks:type_name -> rimgovernor.mirror.v1.SectionAsk
+	1,  // 32: rimgovernor.mirror.v1.Keyframe.at:type_name -> rimgovernor.mirror.v1.Watermark
+	19, // 33: rimgovernor.mirror.v1.Keyframe.buildings:type_name -> rimgovernor.observations.v1.BuildingState
+	20, // 34: rimgovernor.mirror.v1.Keyframe.bills:type_name -> rimgovernor.observations.v1.BillStack
+	9,  // 35: rimgovernor.mirror.v1.Keyframe.cells:type_name -> rimgovernor.mirror.v1.CellGrid
+	21, // 36: rimgovernor.mirror.v1.Keyframe.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
+	22, // 37: rimgovernor.mirror.v1.Keyframe.pawns:type_name -> rimgovernor.observations.v1.PawnSnapshot
+	23, // 38: rimgovernor.mirror.v1.Keyframe.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
+	1,  // 39: rimgovernor.mirror.v1.Delta.from:type_name -> rimgovernor.mirror.v1.Watermark
+	1,  // 40: rimgovernor.mirror.v1.Delta.to:type_name -> rimgovernor.mirror.v1.Watermark
+	19, // 41: rimgovernor.mirror.v1.Delta.buildings:type_name -> rimgovernor.observations.v1.BuildingState
+	20, // 42: rimgovernor.mirror.v1.Delta.bills:type_name -> rimgovernor.observations.v1.BillStack
+	9,  // 43: rimgovernor.mirror.v1.Delta.cells:type_name -> rimgovernor.mirror.v1.CellGrid
+	21, // 44: rimgovernor.mirror.v1.Delta.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
+	0,  // 45: rimgovernor.mirror.v1.SectionPage.section:type_name -> rimgovernor.mirror.v1.Section
+	11, // 46: rimgovernor.mirror.v1.SectionPage.keyframe:type_name -> rimgovernor.mirror.v1.Keyframe
+	12, // 47: rimgovernor.mirror.v1.SectionPage.delta:type_name -> rimgovernor.mirror.v1.Delta
+	11, // 48: rimgovernor.mirror.v1.SectionPage.resync:type_name -> rimgovernor.mirror.v1.Keyframe
+	2,  // 49: rimgovernor.mirror.v1.MirrorPage.epoch:type_name -> rimgovernor.mirror.v1.Epoch
+	13, // 50: rimgovernor.mirror.v1.MirrorPage.sections:type_name -> rimgovernor.mirror.v1.SectionPage
+	24, // 51: rimgovernor.mirror.v1.MirrorPage.journal:type_name -> rimgovernor.clock.v1.EventsPage
+	14, // 52: rimgovernor.mirror.v1.MirrorPollReply.page:type_name -> rimgovernor.mirror.v1.MirrorPage
+	25, // 53: rimgovernor.mirror.v1.MirrorPollReply.failure:type_name -> rimgovernor.common.v1.Failure
+	54, // [54:54] is the sub-list for method output_type
+	54, // [54:54] is the sub-list for method input_type
+	54, // [54:54] is the sub-list for extension type_name
+	54, // [54:54] is the sub-list for extension extendee
+	0,  // [0:54] is the sub-list for field type_name
 }
 
 func init() { file_mirror_proto_init() }

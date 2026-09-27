@@ -95,8 +95,10 @@ namespace HomeBridge.BridgeTools
 
         // Read is the section page for window on map: a keyframe when since is
         // null or older than the window's first read, else the delta after
-        // since. Null when the window is off the map or the read failed.
-        internal static Mirror.SectionPage? Read(Map map, Common.ObservationContext context, Mirror.CellRect window, EntityTracking.Mark? since)
+        // since, with the whole window beside it when resync is set (the
+        // drift backstop). Null when the window is off the map or the read
+        // failed.
+        internal static Mirror.SectionPage? Read(Map map, Common.ObservationContext context, Mirror.CellRect window, EntityTracking.Mark? since, bool resync = false)
         {
             if (window.X + window.Width > map.Size.x || window.Z + window.Height > map.Size.z) return null;
             var cols = Snapshot(map, context, window);
@@ -132,7 +134,17 @@ namespace HomeBridge.BridgeTools
                 Set(grid, i, Encode(state.Cur[i], held, Kinds[i], grid, table, dense: held == null));
             }
             if (keyframe) page.Keyframe = new Mirror.Keyframe { Cells = grid };
-            else page.Delta = new Mirror.Delta { From = new Mirror.Watermark { Tick = since!.Value.Tick, Seq = since.Value.Seq }, Cells = grid };
+            else
+            {
+                page.Delta = new Mirror.Delta { From = new Mirror.Watermark { Tick = since!.Value.Tick, Seq = since.Value.Seq }, Cells = grid };
+                if (resync)
+                {
+                    var whole = new Mirror.CellGrid { Rect = window.Clone() };
+                    var strings = new Dictionary<string, uint>(StringComparer.Ordinal);
+                    for (var i = 0; i < cols.Length; i++) Set(whole, i, Encode(state.Cur[i], null, Kinds[i], whole, strings));
+                    page.Resync = new Mirror.Keyframe { Cells = whole };
+                }
+            }
             return page;
         }
 

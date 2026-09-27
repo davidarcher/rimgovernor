@@ -56,8 +56,8 @@ func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFac
 	// current in one immediate poll over the mirror's watermarks (#795),
 	// unless the poll loop already filed them at this tick; a section the
 	// page did not serve falls back to its list read.
-	var polled map[facts.Section]bool
-	if poller, ok := native.(MirrorPollNative); ok {
+	polled := carried.polled
+	if poller, ok := native.(MirrorPollNative); ok && !carried.pollTried {
 		want := map[facts.Section]bool{}
 		for section, isCarried := range map[facts.Section]bool{facts.Buildings: carried.buildings, facts.Bills: carried.bills} {
 			if !isCarried && !(f.store.Scope() == scope && f.store.FreshWithin(section, tick, 0)) {
@@ -82,6 +82,10 @@ func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFac
 // carried in full (#593).
 type entitySectionsCarried struct {
 	zones, buildings, bills bool
+	// polled are the sections the step's review poll served; pollTried
+	// is set once it ran, so the refresher does not poll again.
+	polled    map[facts.Section]bool
+	pollTried bool
 }
 
 func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, scope facts.Scope, identity *c.Identity, tick int64, carried, polled bool, section facts.Section, source string, read func(since int64) (bridge.EntityRows[T], error)) {

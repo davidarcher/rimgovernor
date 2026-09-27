@@ -128,17 +128,36 @@ func (caller *Client) readCall(ctx context.Context, name string, request, reply 
 		return result, err
 	}
 	snapshot, delta := trackedSnapshot(reply)
+	complete, err := caller.completeDelta(ctx, name, key, ask, snapshot, delta)
+	if err != nil || complete {
+		return result, err
+	}
+	// The delta cannot be completed: read in full.
+	proto.Reset(reply)
+	if result, err = caller.deltaCall(ctx, name, request, reply, nil); err != nil {
+		return result, err
+	}
+	snapshot, delta = trackedSnapshot(reply)
+	_, err = caller.completeDelta(ctx, name, key, nil, snapshot, delta)
+	return result, err
+}
+
+// completeDelta restores a tracked snapshot's held parts from the reply
+// its ask named and keeps it for the next ask: true when the snapshot is
+// now the full reply. False when a delta cannot be completed (its base is
+// gone, a held path does not resolve, or a tombstoned element is still
+// listed); the request's store entry is dropped so the next read is full.
+func (caller *Client) completeDelta(ctx context.Context, name, key string, ask *o.SectionDeltaAsk, snapshot protoreflect.Message, delta *o.SectionDelta) (bool, error) {
 	if ask == nil || snapshot == nil || delta.GetSince() == nil {
 		// A full reply, asked or not.
 		if len(delta.GetHeld()) != 0 || len(delta.GetRemoved()) != 0 {
-			return result, contract("full read held parts")
+			return false, contract("full read held parts")
 		}
 		caller.deltaKeep(ctx, name, key, snapshot, delta, ask != nil)
-		return result, nil
+		return true, nil
 	}
 	failure := ""
-	switch {
-	case len(delta.GetHeld()) != 0 || len(delta.GetRemoved()) != 0:
+	if len(delta.GetHeld()) != 0 || len(delta.GetRemoved()) != 0 {
 		base := caller.deltas.base(key, deltaMark(delta.GetTracker(), delta.GetSince()))
 		switch {
 		case base == nil || delta.GetTracker() != ask.GetTracker() || !proto.Equal(delta.GetSince(), ask.GetSince()):
@@ -152,20 +171,12 @@ func (caller *Client) readCall(ctx context.Context, name string, request, reply 
 		}
 	}
 	if failure != "" {
-		// The delta cannot be completed: read in full.
 		caller.deltas.drop(key)
 		caller.recordDelta(ctx, name, delta, "delta_refused", failure)
-		proto.Reset(reply)
-		if result, err = caller.deltaCall(ctx, name, request, reply, nil); err != nil {
-			return result, err
-		}
-		snapshot, delta = trackedSnapshot(reply)
-		if len(delta.GetHeld()) != 0 || len(delta.GetRemoved()) != 0 {
-			return result, contract("full read held parts")
-		}
+		return false, nil
 	}
 	caller.deltaKeep(ctx, name, key, snapshot, delta, false)
-	return result, nil
+	return true, nil
 }
 
 func (caller *Client) deltaCall(ctx context.Context, name string, request, reply proto.Message, ask *o.SectionDeltaAsk) (Result, error) {

@@ -19,6 +19,12 @@ enum Section {
   // The planning window over the ask's window rect, as a CellGrid: the
   // planning fields of observations_get_cells, one array per SiteCell field.
   SECTION_PLANNING_CELLS = 3;
+  SECTION_ZONES = 4; // observations_list_zones, the whole census, rows keyed by zone id (#358)
+  // The pawn list and colony facts reads the ask names, each answered as its
+  // #773 changed-since read answers it: rows keyed by pawn id, and by the
+  // colony facts row paths the controller splits the snapshot into.
+  SECTION_PAWNS = 5;
+  SECTION_COLONY_FACTS = 6;
 }
 
 // How far a section is complete: every change through tick, and within tick
@@ -43,6 +49,18 @@ message SectionAsk {
   // 65536 cells. A window other than the one since was served for is a
   // keyframe.
   CellRect window = 3;
+  // SECTION_PAWNS and SECTION_COLONY_FACTS only, and required there (the
+  // one matching the section): the read the section answers, identity
+  // scoped to the poll's. Its changed_since is the #773 ask; the section's
+  // since is unused. An ask the tracker cannot answer is answered whole
+  // (stale rule C).
+  rimgovernor.observations.v1.ListPawnsRequest pawns = 4;
+  rimgovernor.observations.v1.ColonyFactsRequest colony_facts = 5;
+  // The drift backstop (#795): beside a delta, the section's keyframe at
+  // the same watermark (SectionPage.resync) for the client to compare
+  // with what the delta leaves it holding. Entity and planning cell
+  // sections; ignored where the page is a keyframe anyway.
+  optional bool resync = 6;
 }
 
 message CellRect {
@@ -112,7 +130,8 @@ message CellGrid {
 }
 
 message MirrorPollRequest {
-  // Absent: the current map. Present and stale: the StaleIdentity failure.
+  // Required. Stale: the StaleIdentity failure, carrying the current
+  // context to re-anchor on.
   rimgovernor.common.v1.Identity identity = 1;
   Epoch epoch = 2; // the epoch the client's watermarks belong to
   repeated SectionAsk asks = 3;
@@ -127,6 +146,12 @@ message Keyframe {
   repeated rimgovernor.observations.v1.BuildingState buildings = 2;
   repeated rimgovernor.observations.v1.BillStack bills = 3;
   CellGrid cells = 4; // SECTION_PLANNING_CELLS
+  // SECTION_ZONES: the census (context, map snapshot token, every zone).
+  rimgovernor.observations.v1.ZonesSnapshot zones = 5;
+  // SECTION_PAWNS, SECTION_COLONY_FACTS: the snapshot the ask's read
+  // answers, a #773 delta of it when its delta names since.
+  rimgovernor.observations.v1.PawnSnapshot pawns = 6;
+  rimgovernor.observations.v1.ColonyFactsSnapshot colony_facts = 7;
 }
 
 // The rows changed after `from`, through `to`, and the ids removed since.
@@ -137,6 +162,9 @@ message Delta {
   repeated rimgovernor.observations.v1.BillStack bills = 4;
   repeated string tombstones = 5;
   CellGrid cells = 6; // SECTION_PLANNING_CELLS: the changed arrays only
+  // SECTION_ZONES: the census header and the changed zones; removed zone
+  // ids are tombstones.
+  rimgovernor.observations.v1.ZonesSnapshot zones = 7;
 }
 
 message SectionPage {
@@ -148,6 +176,8 @@ message SectionPage {
   // The section did not fit this page's byte budget and has no body:
   // re-poll with wait_ms 0 from the same watermark.
   optional bool more = 4;
+  // The keyframe an ask's resync asked for, beside its delta.
+  Keyframe resync = 5;
 }
 
 message MirrorPage {

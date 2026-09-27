@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class NativeColonyObservationTools
     {
-        private const string ToolName = "rimgovernor/observations_read_colony_facts";
+        internal const string ToolName = "rimgovernor/observations_read_colony_facts";
         private static readonly string[] StarterDefinitions = {
             "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater",
             "PassiveCooler", "Cooler", "WoodFiredGenerator", "SolarGenerator", "WindTurbine", "ChemfuelPoweredGenerator", "GeothermalGenerator", "Battery", "PowerConduit", "Sandbags", "Barricade",

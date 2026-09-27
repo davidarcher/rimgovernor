@@ -136,6 +136,20 @@ func (m *Mirror) RequestResync(name string) {
 	m.resync[name] = true
 }
 
+// ResyncDue counts one delta ask of a section refreshed outside Refresh
+// (a polled section, #795) and reports whether it should carry the
+// backstop keyframe: when asked for, or every ResyncEvery-th ask. It
+// consumes the request.
+func (m *Mirror) ResyncDue(name string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	n := m.refreshes[name]
+	m.refreshes[name] = n + 1
+	due := m.resync[name] || n%ResyncEvery == ResyncEvery-1
+	delete(m.resync, name)
+	return due
+}
+
 // Get is the section's table under scope, false when none is held.
 func Get[K comparable, R any](m *Mirror, scope Scope, name string) (Table[K, R], bool) {
 	m.mu.RLock()

@@ -198,3 +198,22 @@ type failingSection struct{ *world }
 func (failingSection) Read(context.Context, Watermark) (Read[string, string], error) {
 	return Read[string, string]{}, errors.New("boom")
 }
+
+// A polled section carries the backstop every ResyncEvery-th ask and on the
+// first ask after RequestResync, which it consumes (#795).
+func TestResyncDueCadenceAndRequest(t *testing.T) {
+	m := New()
+	due := 0
+	for i := 0; i < 2*ResyncEvery; i++ {
+		if m.ResyncDue("bills") {
+			due++
+		}
+	}
+	if due != 2 {
+		t.Fatalf("due %d times in %d asks, want 2", due, 2*ResyncEvery)
+	}
+	m.RequestResync("bills")
+	if !m.ResyncDue("bills") || m.ResyncDue("bills") {
+		t.Fatal("a requested resync is due once")
+	}
+}

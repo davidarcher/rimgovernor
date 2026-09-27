@@ -75,12 +75,36 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	var page *k.EventsPage
 	var mirrored *mp.MirrorPage
 	if poller, ok := native.(MirrorPollNative); ok {
-		epoch, asks := s.facts.mirrorAsks(nil)
-		ask := &mp.MirrorPollRequest{Epoch: epoch, Asks: asks, ByteBudget: proto.Uint32(bridge.MirrorPollMaxBytes), JournalAfterCursor: proto.Int64(review.InboxCursor)}
-		if wait > 0 {
-			ask.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+		// The poll is asked for a world (#795): the epoch's, else the
+		// current scope read once. A load between them answers
+		// StaleIdentity with the current context; the poll re-anchors on
+		// it and asks again, once.
+		identity, err := s.mirrorIdentity(call, native)
+		if err != nil {
+			return fail(err)
 		}
-		reply, _, err := poller.MirrorPoll(call, ask)
+		var ask *mp.MirrorPollRequest
+		var reply *mp.MirrorPollReply
+		for attempt := 0; ; attempt++ {
+			epoch, asks := s.facts.mirrorAsks(nil)
+			if epoch != nil && !proto.Equal(epoch.Identity, identity) {
+				// Watermarks of another world: keyframes for this one.
+				s.facts.resetEpoch()
+				epoch, asks = s.facts.mirrorAsks(nil)
+			}
+			ask = &mp.MirrorPollRequest{Identity: proto.Clone(identity).(*c.Identity), Epoch: epoch, Asks: asks, ByteBudget: proto.Uint32(bridge.MirrorPollMaxBytes), JournalAfterCursor: proto.Int64(review.InboxCursor)}
+			if wait > 0 {
+				ask.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+			}
+			reply, _, err = poller.MirrorPoll(call, ask)
+			var stale *bridge.NativeFailure
+			if attempt == 0 && errors.As(err, &stale) && stale.Value.GetCode() == c.FailureCode_FAILURE_CODE_STALE_IDENTITY && stale.Value.GetObservedContext().GetIdentity() != nil {
+				identity = stale.Value.GetObservedContext().GetIdentity()
+				s.facts.resetEpoch()
+				continue
+			}
+			break
+		}
 		if err != nil {
 			return fail(err)
 		}
@@ -216,7 +240,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	// The page's sections are filed after its events invalidated the
 	// store: they describe the same snapshot, at or after every event.
 	if mirrored != nil {
-		applied := s.facts.applyMirrorPage(mirrored)
+		applied := s.facts.applyMirrorPage(call, mirrored)
 		out.More, out.MirrorChanged = applied.more, applied.changed > 0
 	}
 	review, err = s.player.journal.ReadClockReview(call, s.config.Profile)

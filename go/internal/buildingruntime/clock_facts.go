@@ -42,6 +42,10 @@ type clockFacts struct {
 	// window view request (#650): every later review asks for the legacy
 	// band instead.
 	viewUnsupported bool
+	// pollZones is set when the native's zones are the policy census
+	// (observation.ZonesNative): the poll loop then carries them (#795).
+	// Guarded by mu.
+	pollZones bool
 	// definitions pools the project definition names the planners read
 	// beyond the census, so a step reads them once (#599).
 	definitions *observation.DefinitionPool

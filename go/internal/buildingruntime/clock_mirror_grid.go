@@ -24,7 +24,7 @@ import (
 // grid it is newer than; a delta applies only over the grid held at exactly
 // its from, since its sparse arrays are relative to that one. It reports
 // the arrays applied.
-func (f *clockFacts) applyGridSection(scope mirror.Scope, storeScope facts.Scope, section *mp.SectionPage) (int, bool) {
+func (f *clockFacts) applyGridSection(ctx context.Context, scope mirror.Scope, storeScope facts.Scope, section *mp.SectionPage) (int, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	held := f.grid
@@ -62,6 +62,18 @@ func (f *clockFacts) applyGridSection(scope mirror.Scope, storeScope facts.Scope
 		clockSchedulerLog("mirror poll: planning cell grid refused: %v", err)
 		return 0, false
 	}
+	// The resync backstop: the whole grid at the delta's watermark,
+	// compared with the grid the delta built, then kept.
+	if r := section.GetResync(); r != nil && section.GetDelta() != nil {
+		full, e := bridge.ApplyCellGrid(nil, true, r.Cells)
+		if e != nil {
+			clockSchedulerLog("mirror poll: planning cell resync grid refused: %v", e)
+		} else {
+			drift := mirror.Drift(cellRows(grid.Cells()), cellRows(full.Cells()), func(a, b policy.SiteCell) bool { return a == b })
+			mirrorEvent(ctx, facts.PlanningCells, mirror.Outcome{Kind: mirror.Resync, Since: f.gridAt, Changed: bridge.GridArrays(wire), Checked: true, Drift: drift})
+			grid = full
+		}
+	}
 	f.grid, f.gridAt, f.gridScope = grid, at, scope
 	f.fileGrid(scope, storeScope, grid, at)
 	return bridge.GridArrays(wire), true
@@ -97,7 +109,7 @@ func (p *planningWindow) pollGrid(ctx context.Context, native MirrorPollNative, 
 		clockSchedulerLog("mirror poll: planning window read failed: %v", err)
 		return facts.Held[observation.PlanningCells]{}, false
 	}
-	for _, section := range f.applyMirrorPage(reply.GetPage()).served {
+	for _, section := range f.applyMirrorPage(ctx, reply.GetPage()).served {
 		if section != facts.PlanningCells {
 			continue
 		}
