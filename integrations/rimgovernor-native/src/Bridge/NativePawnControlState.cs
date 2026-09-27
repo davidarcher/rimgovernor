@@ -213,17 +213,34 @@ namespace HomeBridge.BridgeTools
             harmony.Patch(target, before == null ? null : new HarmonyMethod(before), after == null ? null : new HarmonyMethod(after));
             Targets.Add(Tuple.Create(target,before,after));
         }
+        // The hook audit walks Harmony's patch registry, 15-50 ms a pass, and
+        // every pawn row asked it (#858: most of a snapshot frame). On the
+        // game thread it is re-run at most once per AuditMillis; another mod
+        // unpatching a hook is caught within that window. A failed audit is
+        // never cached.
+        private const long AuditMillis = 1000;
+        private static long readyAt;
+        private static bool ready;
         internal static bool IsReady
         {
             get
             {
                 if (!initialized) return false;
-                try { return DraftOwnership.Healthy && NativeAuthorityHooks.Health.Ready && Targets.Count == 4 && Targets.All(target => {
+                if (!UnityData.IsInMainThread) return Audit();
+                var now = System.Diagnostics.Stopwatch.GetTimestamp();
+                if (ready && now - readyAt < AuditMillis * System.Diagnostics.Stopwatch.Frequency / 1000) return ready;
+                readyAt = now;
+                ready = Audit();
+                return ready;
+            }
+        }
+        private static bool Audit()
+        {
+            try { return DraftOwnership.Healthy && NativeAuthorityHooks.Health.Ready && Targets.Count == 4 && Targets.All(target => {
                     var patch = Harmony.GetPatchInfo(target.Item1);
                     return patch != null && (target.Item2 == null || patch.Prefixes.Any(p => p.owner == HookOwner && p.PatchMethod == target.Item2))
                         && (target.Item3 == null || patch.Postfixes.Any(p => p.owner == HookOwner && p.PatchMethod == target.Item3)); }); }
-                catch { return false; }
-            }
+            catch { return false; }
         }
         private static void Ordered(Pawn ___pawn, bool __result)
         {

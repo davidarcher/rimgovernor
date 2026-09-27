@@ -76,8 +76,12 @@ namespace HomeBridge.BridgeTools
             if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
             source = source.Distinct().ToList();
             var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
+            // An id filter picks its pawns before any row is built: a frame asks
+            // for the colonists by id, and the map holds every animal too (#858).
+            var wanted = parsed.Filter != null && parsed.Filter.Ids.Count > 0 ? new HashSet<string>(parsed.Filter.Ids, StringComparer.Ordinal) : null;
             var selected = new List<KeyValuePair<Pawn, Obs.PawnState>>();
             foreach (var pawn in source) {
+                if (wanted != null && !wanted.Contains(pawn.GetUniqueLoadID())) continue;
                 var row = Core(pawn, colonists, context);
                 if (Matches(row, parsed.Filter)) selected.Add(new KeyValuePair<Pawn, Obs.PawnState>(pawn, row));
             }
