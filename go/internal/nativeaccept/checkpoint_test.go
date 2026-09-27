@@ -152,7 +152,7 @@ func ringFixture(t *testing.T, every time.Duration) (*CheckpointRing, string) {
 		Dir: filepath.Join(root, "checkpoints", "a", "b"), Case: "a/b", Every: every, Keep: 3,
 		Config: cfg, StorePath: statePath, Fingerprint: Fingerprint{Package: "p", Start: "s"},
 		Saver: func(ctx context.Context, name, label string, force bool) (string, uint64, map[string]any, error) {
-			path := cfg.profileSave(name)
+			path := cfg.ProfileSave(name)
 			if err := os.WriteFile(path, []byte("save "+label), 0644); err != nil {
 				return "", 0, nil, err
 			}

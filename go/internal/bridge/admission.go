@@ -229,6 +229,8 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/placement_preview":                    AdmissionControl,
 	"rimgovernor/lifecycle_read_identity":              AdmissionControl,
 	"rimgovernor/lifecycle_read_tick":                  AdmissionControl,
+	"rimgovernor/lifecycle_read_governor_state":        AdmissionControl,
+	"rimgovernor/lifecycle_put_governor_state":         AdmissionControl,
 	"rimgovernor/lifecycle_save":                       AdmissionControl,
 	"rimgovernor/presentation_overlay":                 AdmissionControl,
 	"rimgovernor/presentation_status_strip":            AdmissionControl,

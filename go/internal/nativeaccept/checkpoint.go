@@ -781,7 +781,7 @@ func (r *CheckpointRing) bridgeSave(ctx context.Context, h *Harness, name, label
 	if _, _, err := Outcome(reply, "completed"); err != nil {
 		return "", 0, nil, fmt.Errorf("lifecycle_save: %w", err)
 	}
-	path = r.Config.profileSave(name)
+	path = r.Config.ProfileSave(name)
 	if _, err := os.Stat(path); err != nil {
 		return "", 0, nil, fmt.Errorf("lifecycle_save completed but %s is not there", path)
 	}
@@ -917,16 +917,16 @@ func serviceSaveWhilePaused(ctx context.Context, cfg *Config, name string, apiCa
 	if status != 201 {
 		return "", fmt.Errorf("save status=%d body=%#v", status, saved)
 	}
-	src := cfg.profileSave(name)
+	src := cfg.ProfileSave(name)
 	if _, err := os.Stat(src); err != nil {
 		return "", fmt.Errorf("save completed but %s is missing: %w", src, err)
 	}
 	return src, nil
 }
 
-// profileSave is where the running game writes a save named name: the
+// ProfileSave is where the running game writes a save named name: the
 // headless profile under Prepare, the windowed one under PrepareRendered.
-func (c *Config) profileSave(name string) string {
+func (c *Config) ProfileSave(name string) string {
 	profile := "profile"
 	if c.Headless {
 		profile = "headless-profile"

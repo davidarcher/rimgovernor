@@ -8,6 +8,8 @@ one `payload` ProtoJSON string plus host operation metadata.
 |---|---|---|
 | rimgovernor/lifecycle_read_identity | rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity | Protocol/ProtoIdentityTools.cs |
 | rimgovernor/lifecycle_read_tick | rimgovernor.lifecycle.v1.Lifecycle/ReadTick | Protocol/ProtoIdentityTools.cs |
+| rimgovernor/lifecycle_read_governor_state | rimgovernor.lifecycle.v1.Lifecycle/ReadGovernorState | Protocol/ProtoGovernorStateTools.cs |
+| rimgovernor/lifecycle_put_governor_state | rimgovernor.lifecycle.v1.Lifecycle/PutGovernorState | Protocol/ProtoGovernorStateTools.cs |
 | rimgovernor/authority_read_status | rimgovernor.authority.v1.Authority/ReadStatus | Protocol/NativeAuthorityTools.cs |
 | rimgovernor/placement_preview | rimgovernor.placement.v1.Placement/Preview | PlacementPreviewsTool.cs, Protocol/PlacementProtocol.cs, PlacementPreviewOperation.cs |
 | rimgovernor/authority_control | rimgovernor.authority.v1.Authority/Control | Protocol/NativeAuthorityControlTools.cs |

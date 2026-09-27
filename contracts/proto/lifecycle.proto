@@ -124,7 +124,24 @@ message RequestStatus {
   optional string request_id = 1;
   optional string expected_instance_id = 2;
 }
+// Governor state (#882): opaque ASCII blobs Go keeps in the save's
+// GovernorState game component. Native stores and returns them verbatim and
+// never interprets them; they persist once the game next saves.
+message GovernorStateRequest {}
+message GovernorStateBlobs { map<string, string> blobs = 1; }
+message GovernorStateReply {
+  oneof outcome {
+    GovernorStateBlobs loaded = 1;
+    rimgovernor.common.v1.Unavailable unavailable = 2;
+    rimgovernor.common.v1.Failure failure = 3;
+  }
+}
+// Put replaces the blob under key; an empty blob deletes it. The reply's
+// loaded outcome carries every blob after the put.
+message PutGovernorStateRequest { optional string key = 1; optional string blob = 2; }
 service Lifecycle {
+  rpc ReadGovernorState(GovernorStateRequest) returns (GovernorStateReply);
+  rpc PutGovernorState(PutGovernorStateRequest) returns (GovernorStateReply);
   rpc ReadIdentity(IdentityRequest) returns (IdentityReply);
   rpc Save(SaveRequest) returns (SaveReply);
   rpc Load(LoadRequest) returns (LoadReply);

@@ -49,7 +49,7 @@ func RecordWorld(cfg *Config, start Start) WorldRecord {
 	src := start.world()
 	rec := WorldRecord{Seed: src.seed, Pinned: src.pinned, Save: src.save}
 	if src.save != "" && cfg != nil {
-		if data, err := os.ReadFile(cfg.profileSave(src.save)); err == nil {
+		if data, err := os.ReadFile(cfg.ProfileSave(src.save)); err == nil {
 			sum := sha256.Sum256(data)
 			rec.SaveSHA256 = hex.EncodeToString(sum[:])
 			if seed := saveSeed(data); seed != "" {

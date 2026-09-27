@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -23,7 +24,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name:   "lifecycle/load",
-		Scope:  "Trusted native rimgovernor/lifecycle_load: a setup checkpoint save, an async MAP-readiness load of that save polled via rimgovernor/lifecycle_read_load to LoadCompleted with map_ready and a fresh load token, a second VISUAL-readiness load of the same save reaching a completed VISUAL outcome, and an unknown-request-id rejection. No reconnect/competing-viewer capability exercised.",
+		Scope:  "Trusted native rimgovernor/lifecycle_load: governor state (#882) empty on a fresh game, a put blob surviving the save and load with its save-size delta reported; a setup checkpoint save, an async MAP-readiness load of that save polled via rimgovernor/lifecycle_read_load to LoadCompleted with map_ready and a fresh load token, a second VISUAL-readiness load of the same save reaching a completed VISUAL outcome, and an unknown-request-id rejection. No reconnect/competing-viewer capability exercised.",
 		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Run:    runLoad,
@@ -58,23 +59,28 @@ func runLoad(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("missing colony id or load token before setup save")
 	}
 
+	// Governor state (#882): a fresh game carries none, and a put blob rides
+	// the setup save. The save-size delta of that blob is reported.
+	if blobs, err := governorState(ctx, h, "governor-state-fresh", "lifecycle_read_governor_state", map[string]any{}); err != nil || len(blobs) != 0 {
+		return fmt.Errorf("governor-state-fresh: want no blobs, got %v %v", blobs, err)
+	}
+	emptySize, err := save(ctx, s, "size-save", identity, fmt.Sprintf("loadaccept-size-%d", time.Now().UnixNano()))
+	if err != nil {
+		return err
+	}
+	governorBlob := `{"schemaVersion":1,"goals":[` + strings.Repeat(`{"id":"g","kind":"MaintainResource","payload":{}},`, 200) + `{}]}`
+	if blobs, err := governorState(ctx, h, "governor-state-put", "lifecycle_put_governor_state", map[string]any{"key": "goals", "blob": governorBlob}); err != nil || blobs["goals"] != governorBlob {
+		return fmt.Errorf("governor-state-put: blob not stored: %v", err)
+	}
+
 	// Setup: a trusted checkpoint save this run then loads back.
 	setupSaveName := fmt.Sprintf("loadaccept-checkpoint-%d", time.Now().UnixNano())
-	setupReply, err := h.Wire(ctx, "setup-save", "lifecycle_save", map[string]any{
-		"player": map[string]any{
-			"identity":        identity,
-			"playerDirection": 1,
-			"requestId":       fmt.Sprintf("loadaccept-setup-%d", time.Now().UnixNano()),
-		},
-		"saveName": setupSaveName,
-	})
+	setupSize, err := save(ctx, s, "setup-save", identity, setupSaveName)
 	if err != nil {
-		return fmt.Errorf("setup-save: %w", err)
-	}
-	if _, _, err := na.Outcome(setupReply, "completed"); err != nil {
-		return fmt.Errorf("setup-save: expected a completed save: %w", err)
+		return err
 	}
 	report["setup_save"] = setupSaveName
+	report["governor_state_save_bytes"] = map[string]any{"blob": len(governorBlob), "saveDelta": setupSize - emptySize}
 
 	// Case 1: happy path load. Start the load; native may complete synchronously
 	// (unlikely, but the reply shape allows it) or return LoadPending, in which
@@ -117,6 +123,10 @@ func runLoad(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("load-happy: expected READINESS_MAP, got %q", completed["readiness"])
 	}
 	report["case_happy"] = map[string]any{"saveName": setupSaveName, "colonyId": originalColonyID, "newLoadToken": afterIdentity["loadToken"]}
+	if blobs, err := governorState(ctx, h, "governor-state-loaded", "lifecycle_read_governor_state", map[string]any{}); err != nil || blobs["goals"] != governorBlob || len(blobs) != 1 {
+		return fmt.Errorf("governor-state-loaded: blob did not survive the save and load: %v", err)
+	}
+	report["case_governor_state_round_trip"] = true
 
 	// Case 1b: a VISUAL-readiness load of the same save must not complete
 	// until the map has actually been drawn -- not merely MAP-ready with data
@@ -168,4 +178,46 @@ func runLoad(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	return nil
+}
+
+// save takes a trusted checkpoint save and returns its file size.
+func save(ctx context.Context, s cases.Session, label string, identity map[string]any, name string) (int64, error) {
+	h := s.Harness()
+	reply, err := h.Wire(ctx, label, "lifecycle_save", map[string]any{
+		"player": map[string]any{
+			"identity":        identity,
+			"playerDirection": 1,
+			"requestId":       fmt.Sprintf("loadaccept-%s-%d", label, time.Now().UnixNano()),
+		},
+		"saveName": name,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", label, err)
+	}
+	if _, _, err := na.Outcome(reply, "completed"); err != nil {
+		return 0, fmt.Errorf("%s: expected a completed save: %w", label, err)
+	}
+	info, err := os.Stat(s.Config().ProfileSave(name))
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", label, err)
+	}
+	return info.Size(), nil
+}
+
+// governorState calls a governor-state method and returns its loaded blobs.
+func governorState(ctx context.Context, h *na.Harness, label, method string, request map[string]any) (map[string]string, error) {
+	reply, err := h.Wire(ctx, label, method, request)
+	if err != nil {
+		return nil, err
+	}
+	_, loaded, err := na.Outcome(reply, "loaded")
+	if err != nil {
+		return nil, err
+	}
+	blobs := map[string]string{}
+	raw, _ := na.AsMap(loaded["blobs"])
+	for key, value := range raw {
+		blobs[key] = na.AsString(value)
+	}
+	return blobs, nil
 }
