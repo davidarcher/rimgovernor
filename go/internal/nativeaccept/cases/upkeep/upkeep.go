@@ -548,7 +548,7 @@ func watchSleeping(ctx context.Context, journal *store.Store, prepared map[strin
 	}
 	// The fixture leaves no vacant suitable bed, so the first method builds
 	// one (a Building action). Ownership then comes either from the
-	// controller's AssignBed (a bed_assign action, followed as its own
+	// controller's BedAssignIntent (a bed_assign action, followed as its own
 	// method) or from the colonist claiming the new bed on their own; the
 	// goal recovers only on observed sleep in an owned suitable bed, which
 	// waitNeed below confirms and verifySleeping checks natively.

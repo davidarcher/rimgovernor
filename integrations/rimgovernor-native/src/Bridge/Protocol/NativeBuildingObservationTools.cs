@@ -146,12 +146,6 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        // Shared with NativeBedAssignOperations: AssignBed's bed precondition
-        // reuses this same generic building CAS token (ReadBedTarget/bridge
-        // treats a bed like any repairable building), not a bed-specific
-        // occupancy token -- the previousBed field already guards the pawn's
-        // prior ownership, so this only needs to catch hit points/status/fire
-        // changes since the caller last observed.
         internal static Obs.SnapshotRef Token(Thing thing, Common.ObservationContext context) =>
             NativeObservationSnapshot.Snapshot("building", context, Id(thing.GetUniqueLoadID()), w => {
                 w.Write(Status(thing) ?? ""); w.Write(thing.HitPoints); w.Write(thing.IsBurning());

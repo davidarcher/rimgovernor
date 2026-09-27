@@ -63,8 +63,8 @@ message Operation {
   reserved 2, 9, 10, 11, 17, 19;
   reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
   // Settings moved to Actions/Apply intents (#941).
-  reserved 12, 32, 46, 53, 58;
-  reserved "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy", "set_prisoner_interaction";
+  reserved 12, 21, 32, 46, 53, 58;
+  reserved "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy", "set_prisoner_interaction", "assign_bed";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -84,7 +84,6 @@ message Operation {
     EditZoneCells edit_zone_cells = 16;
     PatchStockpile patch_stockpile = 18;
     ExtendHome extend_home = 20;
-    AssignBed assign_bed = 21;
     RemoveWall remove_wall = 22;
     RecoverService recover_service = 25;
     ManageWaste manage_waste = 26;
@@ -305,7 +304,6 @@ enum CellEdit { CELL_EDIT_UNSPECIFIED = 0; CELL_EDIT_ADD = 1; CELL_EDIT_REMOVE =
 message EditZoneCells { EntityPrecondition zone = 1; optional CellEdit edit = 2; Cells cells = 3; optional bool allow_split = 4; optional bool require_covered_empty = 5; }
 message PatchStockpile { EntityPrecondition zone = 1; StockpileSettings settings = 2; }
 message ExtendHome { EntityPrecondition target = 1; optional string shape_token = 2; optional int64 revision = 3; }
-message AssignBed { EntityPrecondition pawn = 1; EntityPrecondition bed = 2; Assignment expected_previous_bed = 3; }
 // Exact non-colony occupant; no snapshot token. Native repeats eligibility and roof safety at apply.
 message Deconstruct { EntityPrecondition target = 1; }
 message ReleaseDeconstructions {}
@@ -433,6 +431,7 @@ message Action {
     PrisonerInteractionIntent prisoner = 19;
     AcceptQuestIntent accept_quest = 20;
     FormCaravanIntent form_caravan = 21;
+    BedAssignIntent bed_assign = 22;
   }
 }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
@@ -440,6 +439,11 @@ message Action {
 // and label stand in for an entity precondition, and native refuses on any drift.
 // With joiner_letter_token, window_id is a WandererJoins letter ID and option 0
 // accepts the joiner; a joiner already accepted by that letter applies again.
+// Assign one free colonist to one humanlike bed, replacing the bed it owned
+// when the planner chose (expected_previous_bed: that bed or clear). Native
+// checks the pawn, the bed and that ownership live; a pawn that already owns
+// the bed applies again.
+message BedAssignIntent { optional string pawn_id = 1; optional string bed_id = 2; Assignment expected_previous_bed = 3; }
 // Set one colony prisoner's exclusive interaction mode. Native checks the
 // prisoner and the mode's eligibility (recruitable, wild man, Ideology) live;
 // a prisoner already set to the mode applies again.

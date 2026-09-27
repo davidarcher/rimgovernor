@@ -24,7 +24,7 @@ const (
 
 // RoutineSleepingUpkeepPlanner answers MaintainSleeping: it transfers
 // ownership of a vacant suitable bed to a colonist without one (a one-shot
-// AssignBed the native side re-vets for roof, access, allowed area and the
+// BedAssignIntent native checks for roof, access, allowed area and the
 // pawn's comfortable band), and when no bed can be assigned it stages one
 // through the same building ladder the hospital walks (furnish a
 // Bedroom-hosting room warm enough for the waiting colonists, else a starter
@@ -341,9 +341,8 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	// Assign: one pawn, one bed, once per goal epoch. A method that already
 	// ran this epoch (the native side refused it, or the player undid it) is
 	// not retried; the next epoch reconsiders. The one exception is an
-	// attempt the native side never admitted (the pawn's CAS token moves
-	// whenever the colonist lies down between inspection and write): that
-	// leaves no effect behind, so a bounded number of fresh attempts follow.
+	// intent native refused: that leaves no effect behind, so a bounded
+	// number of fresh attempts follow.
 	method, err := r.assignMethod(call, goal, choice)
 	if err != nil {
 		return RoutineBuildingResult{}, err
@@ -394,12 +393,12 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
 }
 
-// sleepingAssignAttempts bounds the unadmitted assignment attempts one goal
+// sleepingAssignAttempts bounds the refused assignment attempts one goal
 // epoch may make for the same pawn and bed.
 const sleepingAssignAttempts = 3
 
 // assignMethod returns the method ID for the next assignment attempt of this
-// epoch, or "" when the pair was already attempted and admitted (or the
+// epoch, or "" when the pair was already applied (or the
 // attempt bound is spent).
 func (r *RoutineSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.GoalState, choice policy.SleepingChoice) (domain.MethodID, error) {
 	p := r.reviewer.player
@@ -428,7 +427,7 @@ func (r *RoutineSleepingUpkeepPlanner) assignMethod(call context.Context, goal s
 }
 
 // sleepingAssignUnadmitted reports a settled plan whose every action ended
-// absent: the native side refused it before admission, so nothing changed.
+// absent: native refused it, so nothing changed.
 func sleepingAssignUnadmitted(progress []domain.Progress) bool {
 	if len(progress) == 0 || domain.GoalWorkOpen(progress) {
 		return false

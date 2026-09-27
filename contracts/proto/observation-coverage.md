@@ -298,7 +298,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | CreateZone.expected_map_snapshot_token | GetCells.map_snapshot, bound to exact inspected map/geometry query |
 | DeleteZone/EditZoneCells/PatchStockpile.zone | ListZones.zone.snapshot |
 | ExtendHome.target/shape/revision | ReadColonyFacts.upkeep.home_coverage.target.snapshot/shape_token and revision |
-| AssignBed.pawn/bed/expected_previous_bed | ListPawns.pawn.snapshot; ListBuildings.building.snapshot; pawn settings/owned bed readback |
+| BedAssignIntent.pawn_id/bed_id/expected_previous_bed | ListPawns.pawn and owned bed; ListBuildings.building |
 | RemoveWall.wall/expected_site_snapshot_token | ListWallUpgradeSites.target.snapshot and site.snapshot, exact geometry below |
 | RecoverService.target/pawn | ReadRecovery.building.snapshot; ListPawns.pawn.snapshot |
 | ManageWaste.target/pawn | ReadWaste.thing.snapshot; ListPawns.pawn.snapshot |

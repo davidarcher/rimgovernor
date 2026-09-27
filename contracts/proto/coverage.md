@@ -22,7 +22,7 @@ discovered/mapped, not as live source links.
 | `rimworld/load_game_ready` | Lifecycle.Load / ReadLoad | Typed | `controller/rimgovernor/bridge.py:153` |
 | `home/upkeep_home` | Operations.Preview / Execute: ExtendHome | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/upkeep_wall` | Operations.Preview / Execute: RemoveWall | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/upkeep_bed` | Operations.Preview / Execute: AssignBed | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/upkeep_bed` | Actions.Apply BedAssignIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/recover_service` | Operations.Preview / Execute: RecoverService | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/husbandry_config` | Operations.Preview / Execute: SetAnimalTraining / SlaughterAnimal | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/relieve_need` | Operations.Preview / Execute: RelieveNeed | Typed | `controller/rimgovernor/bridge_game.py:15` |

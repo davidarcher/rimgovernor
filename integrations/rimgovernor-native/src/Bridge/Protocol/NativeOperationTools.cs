@@ -54,7 +54,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeQuestFulfillRecord> QuestFulfills = new Dictionary<Common.AttemptKey, NativeQuestFulfillRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.SetDrugPolicy> DrugPolicies = new Dictionary<Common.AttemptKey, Operations.SetDrugPolicy>();
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanTravelRecord> CaravanTravels = new Dictionary<Common.AttemptKey, NativeCaravanTravelRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeBedAssignRecord> BedAssignments = new Dictionary<Common.AttemptKey, NativeBedAssignRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDeconstructionRecord> Deconstructions = new Dictionary<Common.AttemptKey, NativeDeconstructionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
@@ -182,8 +181,6 @@ namespace HomeBridge.BridgeTools
                 return NativeQuestFulfillOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
                 return NativeCaravanTravel.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AssignBed)
-                return NativeBedAssignOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
                 return NativeExcavationOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Deconstruct)
@@ -277,8 +274,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeDrugPolicyOperations.Preview(parsed.Operation.SetDrugPolicy, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
                     return ProtoBoundary.Encode(NativeCaravanTravel.Preview(parsed.Operation.TravelCaravan, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AssignBed)
-                    return ProtoBoundary.Encode(NativeBedAssignOperations.Preview(parsed.Operation.AssignBed, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
                     return ProtoBoundary.Encode(NativeExcavationOperations.Preview(parsed.Operation.ExcavateCell, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Deconstruct)
@@ -419,9 +414,6 @@ namespace HomeBridge.BridgeTools
                     NativeCaravanTravelRecord caravanTravel;
                     if (state.CaravanTravels.TryGetValue(parsed.Attempt, out caravanTravel))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeCaravanTravel.Observe(parsed.Attempt, context, caravanTravel) });
-                    NativeBedAssignRecord bedAssign;
-                    if (state.BedAssignments.TryGetValue(parsed.Attempt, out bedAssign))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = bedAssign.Observe(parsed.Attempt, context) });
                     NativeExcavationRecord excavation;
                     if (state.Excavation.TryGetValue(parsed.Attempt, out excavation))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = excavation.Observe(parsed.Attempt, context) });

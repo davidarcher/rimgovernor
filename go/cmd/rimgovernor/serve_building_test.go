@@ -14,7 +14,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedassign"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -76,16 +75,6 @@ type unusedBuildingCapabilities struct {
 	boundary.Native
 	buildingruntime.NativeAuthority
 	boundary.BuildingWriter
-}
-
-type unusedBedAssignCapabilities struct {
-	bedassign.Native
-	bedassign.Writer
-}
-
-func unusedBedAssign() *bedassign.Capabilities {
-	caps := unusedBedAssignCapabilities{}
-	return &bedassign.Capabilities{Native: caps, Writer: caps}
 }
 
 type unusedDraftCapabilities struct {

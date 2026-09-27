@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedassign"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/beduse"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -88,10 +87,7 @@ type SessionConfig struct {
 	StockpileWrite *stockpilewrite.Capabilities
 	// OpenCasket backs the shrine family casket opening (#460), a Repair-shaped
 	// pawn order whose opener the melee lock drafts first.
-	OpenCasket *OpenCasketCapabilities
-	// BedAssign backs the sleeping family's bed ownership transfer, the
-	// same one-shot CAS write shape as BedUse.
-	BedAssign       *bedassign.Capabilities
+	OpenCasket      *OpenCasketCapabilities
 	Trade           *TradeCapabilities
 	Husbandry       *HusbandryCapabilities
 	HomeCoverage    *HomeCoverageCapabilities
@@ -390,9 +386,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil) {
 		return cleanup(ErrControl)
 	}
-	if config.BedAssign != nil && (config.BedAssign.Native == nil || config.BedAssign.Writer == nil) {
-		return cleanup(ErrControl)
-	}
 	if config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -496,11 +489,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.StockpileWrite != nil {
 		if err := worker.EnableZoneWrite(stockpilewrite.NewBoundary(place, *config.StockpileWrite), domain.ZoneCellEditAction, domain.StockpilePatchAction); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.BedAssign != nil {
-		if err := worker.EnableBedAssign(bedassign.NewBoundary(place, *config.BedAssign)); err != nil {
 			return cleanup(err)
 		}
 	}

@@ -13,7 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedassign"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/beduse"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -150,7 +149,6 @@ type buildingServiceBridge struct {
 	zoneDelete          *zonedelete.Capabilities
 	stockpileWrite      *stockpilewrite.Capabilities
 	openCasket          *buildingruntime.OpenCasketCapabilities
-	bedAssign           *bedassign.Capabilities
 	homeCoverage        *buildingruntime.HomeCoverageCapabilities
 	wallRemoval         *buildingruntime.WallRemovalCapabilities
 	presentationMedia   *bridge.PresentationMedia
@@ -295,10 +293,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	bedAssignWriter, err := bridge.NewBedAssignWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	homeCoverageWriter, err := bridge.NewHomeCoverageWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -356,7 +350,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		zoneDelete:          &zonedelete.Capabilities{Native: client, Writer: zoneDeleteControl},
 		stockpileWrite:      &stockpilewrite.Capabilities{Native: client, Writer: stockpileWriteControl},
 		openCasket:          &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
-		bedAssign:           &bedassign.Capabilities{Native: client, Writer: bedAssignWriter},
 		homeCoverage:        &buildingruntime.HomeCoverageCapabilities{Native: client, Writer: homeCoverageWriter},
 		wallRemoval:         &buildingruntime.WallRemovalCapabilities{Native: client, Writer: wallRemovalWriter},
 		presentationMedia:   presentationMedia,
@@ -754,14 +747,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		openCasketCapabilities = client.openCasket
 	}
-	// The sleeping family transfers bed ownership through the shared executor.
-	var bedAssignCapabilities *bedassign.Capabilities
-	if config.routineSleepingPlans {
-		if client.bedAssign == nil {
-			return errors.New("sleeping plans require typed capabilities")
-		}
-		bedAssignCapabilities = client.bedAssign
-	}
 	// The home-coverage family extends Home through the shared executor
 	// (typed ExtendHome, #292); without the capability its plans never leave
 	// pending.
@@ -821,7 +806,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		ZoneDelete:          zoneDeleteCapabilities,
 		StockpileWrite:      client.stockpileWrite,
 		OpenCasket:          openCasketCapabilities,
-		BedAssign:           bedAssignCapabilities,
 		HomeCoverage:        homeCoverageCapabilities,
 		WallRemoval:         wallRemovalCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})

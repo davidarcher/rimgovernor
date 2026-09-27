@@ -144,10 +144,8 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 	}
 }
 
-// An assignment the native side refused before admission (a pawn CAS token
-// that moved between inspection and write, observed absent) leaves nothing
-// behind, so the epoch retries it a bounded number of times; an attempt that
-// was admitted is never repeated.
+// An assignment intent native refused leaves nothing behind, so the epoch
+// retries it a bounded number of times; an applied one is never repeated.
 func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -156,7 +154,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	settle := func(method domain.MethodID, effect domain.Effect) {
+	settle := func(method domain.MethodID, receipt domain.Receipt) {
 		t.Helper()
 		goal := sleepingGoal(t, db)
 		var plan domain.PlanID
@@ -175,27 +173,14 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		action := state.Progress[0].Action().ID()
 		snapshot := review.Snapshot
 		snapshot.Plan, snapshot.Revision = plan, state.Spec.Revision()
-		v := store.BedAssignAdmission{Snapshot: snapshot, Tick: review.Tick, Pawn: "patient", Bed: "bed", PreviousBedClear: true, PawnSnapshotToken: "pawn-cas", BedSnapshotToken: "bed-cas"}
-		if _, err = db.PrepareBedAssign(ctx, plan, action, v); err != nil {
+		if _, err = db.Prepare(ctx, plan, action, snapshot, review.Tick); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = db.Dispatch(ctx, plan, action, snapshot, review.Tick); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = db.RecordReceipt(ctx, plan, action, 1, domain.ReceiptUnknown); err != nil {
+		if _, err = db.RecordReceipt(ctx, plan, action, 1, receipt); err != nil {
 			t.Fatal(err)
-		}
-		// The worker observes at the root plan's scope, as the live
-		// executor does.
-		if _, err = db.Observe(ctx, plan, domain.Observation{Action: action, Attempt: 1, Snapshot: review.Snapshot, Tick: review.Tick, Causality: domain.AfterDispatch, Effect: effect}, review.Snapshot); err != nil {
-			t.Fatal(err)
-		}
-		// The worker retires an absent attempt by cancelling it (the live
-		// run's "stage=cancelled effect=absent").
-		if effect == domain.EffectAbsent {
-			if _, err = db.Cancel(ctx, plan, action); err != nil {
-				t.Fatal(err)
-			}
 		}
 	}
 	for i, method := range []domain.MethodID{"sleeping-assign-patient-bed", "sleeping-assign-patient-bed-retry1", "sleeping-assign-patient-bed-retry2"} {
@@ -206,7 +191,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		if goal := sleepingGoal(t, db); len(goal.Methods) != i+1 || goal.Methods[i].Method != method {
 			t.Fatal(i, goal.Methods)
 		}
-		settle(method, domain.EffectAbsent)
+		settle(method, domain.ReceiptRefused)
 	}
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != 0 {
 		t.Fatal("fourth attempt", result, err)
@@ -220,9 +205,9 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	settle("sleeping-assign-patient-bed", domain.EffectCompleted)
+	settle("sleeping-assign-patient-bed", domain.ReceiptAccepted)
 	// Only observed sleep completes the goal, so the completed assignment
-	// earns a bounded clock window; the unadmitted attempts above earned
+	// earns a bounded clock window; the refused attempts above earned
 	// none.
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != sleepingObservationSlice {
 		t.Fatal(result, err)

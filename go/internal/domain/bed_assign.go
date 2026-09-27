@@ -26,9 +26,8 @@ func (p PreviousBed) ID() string  { return p.id }
 
 // BedAssign is explicit intent to assign one already-observed undrafted pawn
 // to one already-observed bed, replacing its previously observed bed
-// ownership (if any). It reuses the native AssignBed operation, the same one
-// the legacy JSON home/upkeep_bed tool drives. Native reachability and
-// current suitability are established at inspection, not here.
+// ownership (if any), sent as a BedAssignIntent on Actions/Apply. Native
+// checks reachability and current suitability when it applies.
 type BedAssign struct {
 	pawn     PawnID
 	bed      string

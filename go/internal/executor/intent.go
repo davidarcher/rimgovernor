@@ -29,6 +29,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.PrisonerInteractionAction: true,
 	domain.QuestAcceptAction:         true,
 	domain.CaravanDepartureAction:    true,
+	domain.BedAssignAction:           true,
 }
 
 // runIntent dispatches one plain intent. The receipt is terminal: applied

@@ -4,7 +4,7 @@ import "sort"
 
 // Room quality ranking (#813, B2 of #799): a Jealous colonist holds the
 // colony's best bedroom and an Ascetic colonist the plainest. Both are met
-// by swapping existing bedrooms one AssignBed at a time: the mover takes the
+// by swapping existing bedrooms one BedAssignIntent at a time: the mover takes the
 // other room's bed, the native claim evicts its owner, and the sleeping
 // planner then assigns the evicted owner a vacant bed (the mover's old one
 // among them; plainest first for an ascetic, see SelectSleepingMethod).
@@ -53,7 +53,7 @@ func soloBedrooms(obs SleepingObservation) []soloBedroom {
 	return out
 }
 
-// BedroomSwap is one AssignBed moving Pawn out of PreviousBed into Bed.
+// BedroomSwap is one BedAssignIntent moving Pawn out of PreviousBed into Bed.
 type BedroomSwap struct {
 	Pawn             PawnID
 	Bed, PreviousBed string

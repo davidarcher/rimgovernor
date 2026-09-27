@@ -41,6 +41,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Prisoner] = new PrisonerInteractionActionHandler(),
             [Operations.Action.IntentOneofCase.AcceptQuest] = new AcceptQuestActionHandler(),
             [Operations.Action.IntentOneofCase.FormCaravan] = new FormCaravanActionHandler(),
+            [Operations.Action.IntentOneofCase.BedAssign] = new BedAssignActionHandler(),
         };
 
         private const int ReplayCapacity = 256;
