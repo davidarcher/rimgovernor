@@ -262,12 +262,10 @@ type routineDevelopmentDTO struct {
 	// admission. HeldWorkers is labor open startup work and withheld prerequisites
 	// hold without a slot; UnusedWorkers the auto census workers nothing
 	// took (null with an unknown census); Limiting the
-	// first reason an eligible goal was left unselected; Continuation
-	// "yield_bound" once the review's yields are spent.
+	// first reason an eligible goal was left unselected.
 	HeldWorkers   int                      `json:"heldWorkers"`
 	UnusedWorkers *int                     `json:"unusedWorkers"`
 	Limiting      policy.DevelopmentReason `json:"limiting"`
-	Continuation  string                   `json:"continuation"`
 }
 type routineLaborDTO struct {
 	Work policy.WorkType `json:"work"`
@@ -418,7 +416,7 @@ func routineRosterPawn(p policy.PawnProfile) routineRosterPawnDTO {
 }
 
 func routineDevelopment(s policy.DevelopmentState) routineDevelopmentDTO {
-	dto := routineDevelopmentDTO{Tick: s.Tick, Capacity: s.Capacity, Labor: []routineLaborDTO{}, Committed: []domain.GoalID{}, Rows: []routineDevelopmentRowDTO{}, Limiting: s.Limiting, Continuation: s.Continuation}
+	dto := routineDevelopmentDTO{Tick: s.Tick, Capacity: s.Capacity, Labor: []routineLaborDTO{}, Committed: []domain.GoalID{}, Rows: []routineDevelopmentRowDTO{}, Limiting: s.Limiting}
 	for _, h := range s.Holds {
 		if !h.Slot && len(h.Labor) > 0 {
 			dto.HeldWorkers++

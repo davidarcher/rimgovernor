@@ -19,8 +19,8 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 			}
 		}
 	}
-	if s.Yields < 0 || s.Yields > MaxDevelopmentYields || s.Continuation != "" && s.Continuation != DevelopmentYieldBound || len(s.Holds) > 4096 {
-		return errors.New("invalid development continuation")
+	if len(s.Holds) > 4096 {
+		return errors.New("invalid development holds")
 	}
 	for _, h := range s.Holds {
 		if h.Goal != "" && !validResource(Resource(h.Goal)) || !validLabor(h.Labor) {
@@ -80,8 +80,6 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 			if row.Reason != "" || row.Committed || !k {
 				return errors.New("invalid development selection")
 			}
-		} else if row.Granted {
-			return errors.New("invalid development grant")
 		}
 	}
 	return nil

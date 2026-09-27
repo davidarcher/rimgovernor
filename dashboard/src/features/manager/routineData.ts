@@ -9,7 +9,7 @@ export type LaborRow = {work: string; free: number};
 // unusedWorkers the auto census workers nothing took (null when explicit or
 // unknown), limiting the first reason an eligible goal waits. Servers before
 // automatic admission omit these fields.
-export type Development = {tick: number; workers: number | null; labor: LaborRow[]; capacity: number; committed: string[]; rows: DevelopmentRow[]; heldWorkers: number; unusedWorkers: number | null; limiting: DevelopmentReason; continuation: string};
+export type Development = {tick: number; workers: number | null; labor: LaborRow[]; capacity: number; committed: string[]; rows: DevelopmentRow[]; heldWorkers: number; unusedWorkers: number | null; limiting: DevelopmentReason};
 // The roster planner's last recorded report (#448): coverage per work type,
 // skills no assignment exercises and each pawn's typed profile as the
 // planner scored it. Pawn ids are the native pawn ids the colonist roster
@@ -58,7 +58,7 @@ function list(v: unknown, limit: number): unknown[] {if (!Array.isArray(v) || v.
 function reason(v: unknown): DevelopmentReason {const r = developmentReasons.find(item => item === v); if (r === undefined) throw Error('Unknown development reason'); return r;}
 
 export function readDevelopment(value: unknown): Development {
-  const v = object(value, ['tick', 'workers', 'labor', 'capacity', 'committed', 'rows', 'heldWorkers', 'unusedWorkers', 'limiting', 'continuation']);
+  const v = object(value, ['tick', 'workers', 'labor', 'capacity', 'committed', 'rows', 'heldWorkers', 'unusedWorkers', 'limiting']);
   const labor = list(v.labor, 64).map(item => {const l = object(item, ['work', 'free']); return {work: id(l.work), free: count(l.free)};});
   const rows = list(v.rows, 256).map((item): DevelopmentRow => {
     const r = object(item, ['goal', 'score', 'deficit', 'risk', 'waitingSince', 'selected', 'committed', 'reason', 'bottleneck']);
@@ -67,7 +67,7 @@ export function readDevelopment(value: unknown): Development {
     return row;
   });
   const result: Development = {tick: tick(v.tick), workers: nullable(v.workers, count), labor, capacity: count(v.capacity), committed: list(v.committed, 256).map(id), rows,
-    heldWorkers: count(v.heldWorkers), unusedWorkers: nullable(v.unusedWorkers, count), limiting: reason(v.limiting), continuation: text(v.continuation)};
+    heldWorkers: count(v.heldWorkers), unusedWorkers: nullable(v.unusedWorkers, count), limiting: reason(v.limiting)};
   if (new Set(rows.map(r => r.goal)).size !== rows.length || rows.filter(r => r.selected).length + result.committed.length > result.capacity) throw Error('Inconsistent development admission');
   return result;
 }

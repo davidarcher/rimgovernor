@@ -241,9 +241,6 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 	}
 	if defenseCoverAttempts(history, tick) >= maxDefenseCoverAttempts {
 		clockSchedulerLog("defense-layout: cover clearance exhausted for the day (%d things waiting)", len(clearances))
-		if err = yieldDevelopment(call, p.journal, review, policy.EnsureDefensiveLayout); err != nil {
-			return RoutineDefenseLayoutResult{}, false, err
-		}
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted}, true, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseCoverPrefix, tick))

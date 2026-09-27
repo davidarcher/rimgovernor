@@ -3,7 +3,7 @@ import {cleanup, render, screen, waitFor, within} from '@testing-library/react';
 import {afterEach, expect, it, vi} from 'vitest';
 import DevelopmentPanel from './DevelopmentPanel';
 const reply = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {status, headers: {'content-type': 'application/json'}}));
-const development = {tick: 500, workers: 3, labor: [{work: 'Construction', free: 0}], capacity: 2, heldWorkers: 0, unusedWorkers: null, limiting: 'labor_unavailable', continuation: '', committed: [], rows: [
+const development = {tick: 500, workers: 3, labor: [{work: 'Construction', free: 0}], capacity: 2, heldWorkers: 0, unusedWorkers: null, limiting: 'labor_unavailable', committed: [], rows: [
   {goal: 'ensure-research', score: 60, deficit: 0.6, risk: null, waitingSince: 100, selected: true, committed: false, reason: '', bottleneck: ''},
   {goal: 'ensure-comfort', score: 40, deficit: 0.5, risk: 0, waitingSince: 100, selected: false, committed: false, reason: 'labor_unavailable', bottleneck: 'Construction'},
   {goal: 'maintain-wood', score: 0, deficit: 0.3, risk: 1, waitingSince: 200, selected: false, committed: false, reason: 'risk_deferred', bottleneck: ''},

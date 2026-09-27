@@ -27,10 +27,9 @@ Optional-project admission is automatic (#655; the fixed-count
 (`policy.DevelopmentCensus` matched by the worker allocator): a pawn enabled for
 three work types is one worker, open startup and survival work holds its worker
 without a slot, and open work beyond the census pauses new admissions
-(`workers_overcommitted`) without cancelling it. The ranking, a planner's yield and
+(`workers_overcommitted`) without cancelling it. The ranking and
 method admission share one fit (`policy/development_capacity.go`): labor and the stage
-are checked before the slot count, a yield regrants only rows that pass the same
-check (bounded per review, `yield_bound`), and admission refits against commitments
+are checked before the slot count, and admission refits against commitments
 read inside its transaction, so a player project or another admission since the
 ranking is counted. The development record shows the mode, workers held by startup
 work, unused workers and the limiting reason. A goal waiting on a measured shortfall lends its ordering to the goal that acquires it 

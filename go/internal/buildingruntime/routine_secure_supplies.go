@@ -275,11 +275,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 			return fallback, nil
 		}
 		// Every route for this item is spent: the direct-haul budget, the
-		// covered-storage zones and the supply room. The slot is no use
-		// to this goal until a new episode, so hand it on (#225).
-		if err = yieldDevelopment(call, p.journal, review, policy.SecureSupplies); err != nil {
-			return PlanResult{}, err
-		}
+		// covered-storage zones and the supply room.
 		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))

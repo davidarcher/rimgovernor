@@ -27,15 +27,6 @@ import (
 // ranking's own bound, kept for planner cost, not a worker ratio.
 const MaxAutoDevelopmentProjects = 8
 
-// MaxDevelopmentYields bounds the regrants one review hands out after
-// planners report no method (YieldDevelopment); past it a yield records
-// DevelopmentYieldBound and the next review ranks again.
-const MaxDevelopmentYields = 8
-
-// DevelopmentYieldBound is the continuation a review records once its
-// yields are spent.
-const DevelopmentYieldBound = "yield_bound"
-
 // DevelopmentWorker is one available pawn of the distinct-worker census:
 // the work types it is enabled for (priority above zero, not disabled, not
 // incapable).

@@ -160,10 +160,6 @@ type DevelopmentRow struct {
 	// method this review (colony-3: EnsureDefensiveLayout and
 	// MaintainAnimalFeed held both slots for a game day) hands the slot on.
 	Idle bool
-	// Granted: the row took its slot from a planner's yield after this
-	// review's ranking (YieldDevelopment). Its planner may not have run under
-	// the selection, so the next review does not judge it idle.
-	Granted bool
 	// LaborIdleSince is the first review tick at which the goal's open
 	// work found its labor idle (laborIdle), carried while it stays idle;
 	// unknown while the work is picked up or the goal holds no open work.
@@ -171,8 +167,8 @@ type DevelopmentRow struct {
 	// LaborEvidence is this review's evidence for the goal's open work
 	// (CommitmentLabor): attributed if any commitment's work is attended.
 	LaborEvidence LaborEvidence
-	// Labor is the goal's labor profile the ranking fitted; a yield and
-	// method admission refit the same profile.
+	// Labor is the goal's labor profile the ranking fitted; method
+	// admission refits the same profile.
 	Labor LaborProfile `json:",omitempty"`
 	// Donation is the ordering the row inherited from a blocked dependent
 	// (#651); nil when it serves none.
@@ -202,12 +198,8 @@ type DevelopmentState struct {
 	// Holds is the labor open work and withheld prerequisites held ahead
 	// of the ranked rows (CommitmentHolds).
 	Holds []DevelopmentHold
-	// Yields counts the regrants YieldDevelopment made under this review;
-	// Continuation is DevelopmentYieldBound once they are spent.
-	Yields       int
-	Continuation string
 	// StageHold: the Foothold hold (#630) held the comfort-class goals
-	// (StageDevelopmentGoal) at this ranking; a yield grants none of them.
+	// (StageDevelopmentGoal) at this ranking.
 	StageHold bool
 	// Unused is the census workers no hold or selection took (automatic
 	// mode with a known census); Limiting is the reason the first eligible
@@ -399,7 +391,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		if exists {
 			since = previous.WaitingSince
 		}
-		idle := exists && !committed[g.ID] && (previous.Selected && !previous.Committed && !previous.Granted && !r.Previous.Partial || previous.Idle && !previous.Selected)
+		idle := exists && !committed[g.ID] && (previous.Selected && !previous.Committed && !r.Previous.Partial || previous.Idle && !previous.Selected)
 		fraction, known := g.Deficit.Value()
 		score := weights.Deficit*fraction + float64(r.Tick-since)/weights.AgeTicks
 		if g.Source == PlayerGoal {
@@ -551,4 +543,41 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	}
 	summarizeDevelopment(&result)
 	return result, nil
+}
+
+// summarizeDevelopment records the diagnostics the rows imply: the first
+// limiting reason and, in automatic mode with a known census, the workers
+// no hold or selection took.
+func summarizeDevelopment(s *DevelopmentState) {
+	s.Limiting = ""
+	for _, row := range s.Rows {
+		switch row.Reason {
+		case DevelopmentCapacity, DevelopmentLabor, DevelopmentStage, DevelopmentOvercommitted, DevelopmentWorkersUnknown, DevelopmentNoWorkers:
+			if s.Limiting == "" {
+				s.Limiting = row.Reason
+			}
+		}
+	}
+	s.Unused = domain.Unknown[int]()
+	census, known := s.Census.Value()
+	if !known {
+		return
+	}
+	var demands []LaborProfile
+	for _, h := range s.Holds {
+		demands = append(demands, h.Labor)
+	}
+	for _, row := range s.Rows {
+		if row.Selected {
+			demands = append(demands, row.Labor)
+		}
+	}
+	fits, _ := developmentFit(s.Census, s.Labor, demands)
+	used := 0
+	for i, d := range demands {
+		if fits[i] && len(d) > 0 {
+			used++
+		}
+	}
+	s.Unused = domain.Known(max(0, len(census)-used))
 }

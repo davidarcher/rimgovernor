@@ -265,9 +265,6 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		return PlanResult{}, err
 	}
 	if attempt >= maxMedicalAttemptsPerPatient {
-		if err = yieldDevelopment(call, p.journal, review, policy.MaintainStorage); err != nil {
-			return PlanResult{}, err
-		}
 		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))

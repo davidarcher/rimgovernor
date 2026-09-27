@@ -322,9 +322,6 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 				return RoutineDefenseLayoutResult{}, err
 			}
-			if err = yieldDevelopment(call, p.journal, review, policy.EnsureDefensiveLayout); err != nil {
-				return RoutineDefenseLayoutResult{}, err
-			}
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: name}, nil
 		}
 		buildings = defenseMissingBuildings(buildings, census)
@@ -424,9 +421,6 @@ func (r *RoutineDefenseLayoutPlanner) rearm(call, epoch context.Context, goal st
 	}
 	if defenseRearmAttempts(history, order.Turret, tick) >= maxDefenseRearmAttempts {
 		clockSchedulerLog("defense-layout: rearm of %s at %v exhausted", order.Turret, order.Cell)
-		if err = yieldDevelopment(call, p.journal, review, policy.EnsureDefensiveLayout); err != nil {
-			return RoutineDefenseLayoutResult{}, err
-		}
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: policy.TierTurrets}, nil
 	}
 	if arbiter == nil || !arbiter.tryClaim([]domain.PawnID{domain.PawnID(order.Pawn)}, "defense-rearm:"+order.Turret) {

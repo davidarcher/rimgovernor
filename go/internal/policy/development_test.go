@@ -42,23 +42,10 @@ func requireSelected(t *testing.T, s DevelopmentState, ids ...GoalID) {
 		t.Fatalf("selected %v, want %v: %+v", selected(s), ids, s.Rows)
 	}
 }
-func TestDevelopmentCapacityAndYield(t *testing.T) {
+func TestDevelopmentCapacity(t *testing.T) {
 	r := developmentFixture()
 	s := rank(t, r)
 	requireSelected(t, s, "storage", "defense", "wood")
-	next := YieldDevelopment(s, "storage")
-	requireSelected(t, next, "defense", "wood")
-	requireSelected(t, s, "storage", "defense", "wood")
-	if next.Rows[0].Goal != "storage" || next.Rows[0].Reason != DevelopmentMethodUnavailable || !next.Rows[0].Idle || next.Rows[0].Granted {
-		t.Fatalf("yield should mark the yielder unavailable and idle: %+v", next.Rows)
-	}
-	if ValidateDevelopmentState(next) != nil {
-		t.Fatal(next)
-	}
-	// Yielding an unselected goal changes nothing.
-	if y := YieldDevelopment(next, "storage"); !reflect.DeepEqual(y, next) {
-		t.Fatal(y)
-	}
 	r.Workers = domain.Known(1)
 	requireSelected(t, rank(t, r), "storage", "defense", "wood")
 	r.Workers = domain.Known(0)

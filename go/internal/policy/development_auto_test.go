@@ -100,51 +100,6 @@ func TestAutoDevelopmentSkipsInfeasibleHighRank(t *testing.T) {
 	if row := rowOf(s, "study"); row.Reason != DevelopmentLabor || row.Bottleneck != WorkResearch {
 		t.Fatal(row)
 	}
-	// A selected goal whose planner finds nothing yields: its builder goes
-	// to the next goal the same fit accepts, never to a labor-less one.
-	r.Goals[0].MethodUnavailable = false
-	s = rank(t, r)
-	requireSelected(t, s, "build", "wood")
-	if rowOf(s, "shed").Reason != DevelopmentLabor {
-		t.Fatal(rowOf(s, "shed"))
-	}
-	y := YieldDevelopment(s, "build")
-	requireSelected(t, y, "wood", "shed")
-	if !rowOf(y, "shed").Granted || rowOf(y, "study").Selected || y.Yields != 1 {
-		t.Fatalf("%+v", y.Rows)
-	}
-	if err := ValidateDevelopmentState(y); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// A yield never grants a stage-held or risky row, and regrants per review
-// are bounded.
-func TestYieldKeepsStageRiskAndBound(t *testing.T) {
-	r := autoFixture()
-	r.Census = census(worker("a", WorkConstruction, WorkResearch))
-	r.Workers = domain.Known(1)
-	r.Stage = ColonyStageRecord{Stage: StageFoothold, Held: true}
-	r.Goals = []DevelopmentGoal{
-		{ID: "study", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkResearch}},
-		{ID: EnsureComfort, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.9), Labor: GoalLabor(EnsureComfort)},
-		{ID: "risky", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.8), Labor: LaborProfile{WorkConstruction}, Risk: domain.Known(1.0)},
-	}
-	s := rank(t, r)
-	requireSelected(t, s, "study")
-	y := YieldDevelopment(s, "study")
-	requireSelected(t, y)
-	if rowOf(y, EnsureComfort).Selected || rowOf(y, "risky").Reason != DevelopmentRisk {
-		t.Fatalf("%+v", y.Rows)
-	}
-	s.Yields = MaxDevelopmentYields
-	y = YieldDevelopment(s, "study")
-	if y.Continuation != DevelopmentYieldBound || len(selected(y)) != 0 {
-		t.Fatalf("%+v", y)
-	}
-	if err := ValidateDevelopmentState(y); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // Startup work takes no slot but holds its worker in automatic mode; open

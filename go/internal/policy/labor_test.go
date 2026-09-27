@@ -74,14 +74,8 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	r.Goals = append(r.Goals, DevelopmentGoal{ID: "monitor", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.1)})
 	s = rank(t, r)
 	requireSelected(t, s, "monitor")
-	// Labor deferral is not capacity deferral: yielding a slot does not hand
-	// it to a goal whose work type is still occupied.
 	r.Labor = domain.Known(map[WorkType]int{WorkResearch: 1})
-	s = rank(t, r)
-	requireSelected(t, s, "research", "monitor")
-	if y := YieldDevelopment(s, "research"); !reflect.DeepEqual(selected(y), []GoalID{"monitor"}) {
-		t.Fatal(selected(y))
-	}
+	requireSelected(t, rank(t, r), "research", "monitor")
 	r.Labor = domain.Known(map[WorkType]int{"": 1})
 	if _, err := RankDevelopment(r); err == nil {
 		t.Fatal("invalid labor census accepted")
