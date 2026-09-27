@@ -181,6 +181,26 @@ func TestCommitStockpileZoneMethodCappedAtOneAction(t *testing.T) {
 	}
 }
 
+// MaintainStockpiles admits the opening stockpiles (general, food, dump,
+// weapons) together as one method; the live colony refused every such
+// create here with ErrConflict until the need was bound and uncapped.
+func TestCommitOpeningStockpilesBindToStockpilesGoal(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Facts.Stockpiles = domain.Known(policy.StockpileReview{Known: true, Active: true})
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.MaintainStockpiles)
+	if g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g)
+	}
+	plan := stockpilePlan(t, "opening-plan", []domain.Cell{{X: 4, Z: 6}}, []domain.Cell{{X: 8, Z: 6}}, []domain.Cell{{X: 12, Z: 6}}, []domain.Cell{{X: 16, Z: 6}})
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "stockpile-create", plan); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // A goal bound only to MaintainFoodStorage must not admit a growing-zone plan:
 // admitZoneMethod requires the plan's own zone kind to match the need the
 // goal was actually bound under, not just any zone-create action family.

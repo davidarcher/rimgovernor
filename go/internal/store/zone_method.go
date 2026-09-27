@@ -80,9 +80,9 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	needs := []policy.GoalID{policy.EnsureFoodSupply, policy.MaintainResource, policy.TidyLayout}
 	if stockpile {
 		limit = 1
-		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.MaintainFoodStorage, policy.ClearHomeObstructions, policy.TidyLayout}
+		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.MaintainFoodStorage, policy.ClearHomeObstructions, policy.TidyLayout, policy.MaintainStockpiles}
 	}
-	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > limit {
+	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal {
 		return ErrConflict
 	}
 	bound := false
@@ -95,8 +95,15 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 			bound = bound || binding.Need == need
 		}
 		social = binding.Need == policy.MaintainResource && !stockpile
+		// MaintainStockpiles creates the missing fixed-role zones and the
+		// opening stockpiles (general, food, dump, weapons) together as one
+		// method (routine_stockpiles.go create). Unbound here, every opening
+		// create failed this admission with ErrConflict on a live colony.
+		if stockpile && binding.Need == policy.MaintainStockpiles {
+			limit = 16
+		}
 	}
-	if !bound {
+	if !bound || len(plan.Actions()) > limit {
 		return ErrConflict
 	}
 	cells := map[domain.Cell]bool{}
