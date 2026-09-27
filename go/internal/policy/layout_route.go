@@ -16,6 +16,7 @@ import (
 var routeTrips = [][2]ModuleRole{
 	{ModuleBedroom, ModuleDining},
 	{ModuleKitchen, ModuleFreezer},
+	{"", ModuleFreezer},
 	{ModuleStorage, ModuleWorkshop},
 	{"", ModuleStorage},
 	{ModuleHospital, ""},
@@ -65,6 +66,9 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 	for _, r := range p.Rooms {
 		if _, ok := walk[r.Door]; !ok {
 			walk[r.Door] = -1
+		}
+		if r.Link != nil {
+			walk[*r.Link] = -1
 		}
 	}
 	cells := func(role ModuleRole) [][]domain.Cell {

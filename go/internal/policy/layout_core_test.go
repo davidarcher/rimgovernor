@@ -34,20 +34,13 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 	count := map[ModuleRole]int{}
 	for i, a := range p.Rooms {
 		count[a.Role]++
-		// The door is in the wall and opens on the hallway; the freezer's
-		// opens sideways into the kitchen (#819).
-		if a.DoorRot == domain.East || a.DoorRot == domain.West {
-			if a.Role != ModuleFreezer {
-				t.Fatal("side door off the freezer", a)
-			}
-		} else {
-			step := int32(-1)
-			if a.DoorRot == domain.North {
-				step = 1
-			}
-			if !hall(domain.Cell{X: a.Door.X, Z: a.Door.Z + step}) {
-				t.Fatal("room off the spine", a)
-			}
+		// The door is in the wall and opens on the hallway.
+		step := int32(-1)
+		if a.DoorRot == domain.North {
+			step = 1
+		}
+		if !hall(domain.Cell{X: a.Door.X, Z: a.Door.Z + step}) {
+			t.Fatal("room off the spine", a)
 		}
 		if a.Role == ModuleBedroom && a.Interior.Width*a.Interior.Height < 25 {
 			t.Fatal("small bedroom", a)
@@ -108,8 +101,9 @@ func TestGrowStopsAtEdge(t *testing.T) {
 	}
 }
 
-// The freezer shares a wall with the kitchen and opens only into it (#819).
-func TestFreezerOpensIntoTheKitchen(t *testing.T) {
+// The freezer shares a wall with the kitchen: its hallway door takes the
+// haulers, its link door the cook (#819).
+func TestFreezerLinksToTheKitchen(t *testing.T) {
 	p := PlanCore(coreTestZones(), 3)
 	var kitchen, freezer LayoutRoom
 	for _, r := range p.Rooms {
@@ -121,17 +115,21 @@ func TestFreezerOpensIntoTheKitchen(t *testing.T) {
 		}
 	}
 	k, f := kitchen.Interior, freezer.Interior
-	if f.X != k.X+k.Width+1 && f.X+f.Width+1 != k.X {
-		t.Fatalf("freezer %+v not beside kitchen %+v", f, k)
+	if freezer.Link == nil {
+		t.Fatalf("freezer %+v has no kitchen door", freezer)
 	}
-	fp, err := freezer.Footprint()
-	if err != nil {
-		t.Fatal(err)
+	l := *freezer.Link
+	inside := func(r Rectangle, c domain.Cell) bool {
+		return c.X >= r.X && c.X < r.X+r.Width && c.Z >= r.Z && c.Z < r.Z+r.Height
 	}
-	if th := fp.Threshold(); th.X < k.X || th.X >= k.X+k.Width || th.Z < k.Z || th.Z >= k.Z+k.Height {
-		t.Fatalf("freezer door %v opens onto %v, outside the kitchen %+v", freezer.Door, th, k)
+	for _, step := range []int32{-1, 1} {
+		a, b := domain.Cell{X: l.X - step, Z: l.Z}, domain.Cell{X: l.X + step, Z: l.Z}
+		if inside(k, a) && inside(f, b) {
+			if _, err := CheckRoutes(p); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
 	}
-	if _, err := CheckRoutes(p); err != nil {
-		t.Fatal(err)
-	}
+	t.Fatalf("link %v is not in the wall between kitchen %+v and freezer %+v", l, k, f)
 }

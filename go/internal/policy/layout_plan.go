@@ -22,6 +22,10 @@ type LayoutRoom struct {
 	Interior Rectangle
 	Door     domain.Cell
 	DoorRot  domain.Rotation
+	// Link, when set, is a second door in a wall shared with a neighbour:
+	// the freezer's door into the kitchen (#819). Plans saved before it
+	// have none.
+	Link *domain.Cell
 	// Dug is a room mined out of natural rock.
 	Dug bool
 }
