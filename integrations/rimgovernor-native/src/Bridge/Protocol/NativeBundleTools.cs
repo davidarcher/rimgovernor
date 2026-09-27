@@ -160,6 +160,22 @@ namespace HomeBridge.BridgeTools
                   DeltaShape = DeltaShape(request, context!), DeltaAsk = request.ChangedSince };
         }
 
+        // On the main thread: one snapshot stream frame (#858), every state
+        // family request names read exactly as a bundle hop reads it, or
+        // null when the map has no readable context.
+        internal static Obs.BundleSnapshot? CaptureFrame(Map map, Obs.BundleRequest request)
+        {
+            if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
+            var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
+            var status = new Obs.StatusRequest { Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
+                Colonists = true, Threats = true, ColonistDetail = false, Page = new Common.PageRequest { Limit = 256 } };
+            if (!NativeObservationTools.TryStatus(map, status, context, out var emergency, out _)) return null;
+            observed.Emergency = emergency;
+            ReadFamilies(map, request, context, observed);
+            ReadStepFamilies(map, request, context, observed);
+            return observed;
+        }
+
         // On an encoder worker (#644), once per hop: formats the captured
         // reply once, and only when it outgrows the envelope drops the step
         // families, then the census families, formatting again after each

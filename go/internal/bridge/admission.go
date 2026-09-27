@@ -251,6 +251,7 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/lifecycle_read_load":                  AdmissionControl,
 	"rimgovernor/observations_read_status":             AdmissionObservation,
 	"rimgovernor/observations_read_bundle":             AdmissionObservation,
+	methodOpenSnapshotStream:                           AdmissionObservation,
 	"rimgovernor/observations_list_pawns":              AdmissionObservation,
 	"rimgovernor/observations_get_cells":               AdmissionObservation,
 	"rimgovernor/observations_list_supplies":           AdmissionObservation,

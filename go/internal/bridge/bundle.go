@@ -171,6 +171,13 @@ func (client *Client) seedBundle(ctx context.Context, request *o.BundleRequest, 
 		}
 		cache.seed(readCacheKey{method: method, request: string(encoded)}, scope, payload, raw)
 	}
+	bundleReplies(request, v, emergency, seed)
+}
+
+// bundleReplies hands seed every section of v as the (method, request,
+// reply) its dedicated read would have produced: the step cache seeds them,
+// and a snapshot stream frame (#858) is served from them.
+func bundleReplies(request *o.BundleRequest, v *o.BundleSnapshot, emergency EmergencyObservation, seed func(method string, request, reply proto.Message)) {
 	seed("rimgovernor/lifecycle_read_tick", &l.TickRequest{}, &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: v.Context, Paused: v.Paused}}})
 	identity := v.Context.Identity
 	if v.Emergency != nil {
@@ -188,7 +195,7 @@ func (client *Client) seedBundle(ctx context.Context, request *o.BundleRequest, 
 	if ids := routinePawnIDs(emergency); v.ColonistPawns != nil && len(ids) > 0 && maskServes(request.GetColonistPawnFields(), seededPawnFields) {
 		seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, ids, pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true}), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: v.ColonistPawns}})
 	}
-	client.seedBundleStepFamilies(ctx, request, v, seed)
+	seedBundleStepFamilies(request, v, seed)
 }
 
 // The optional blocks (#360) the consumers of each seeded key decode: every

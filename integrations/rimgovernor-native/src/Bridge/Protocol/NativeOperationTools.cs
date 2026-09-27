@@ -109,8 +109,13 @@ namespace HomeBridge.BridgeTools
         // intent to the activity overlay (#822).
         internal static Operations.ExecuteReply ExecuteNative(Operations.ExecuteRequest request)
         {
-            using (OperationIntent.Scope(request.Operation?.HasIntent == true ? request.Operation.Intent : null))
-                return ExecuteNativeCore(request);
+            // The next snapshot frame reflects the op, applied or refused (#858).
+            try
+            {
+                using (OperationIntent.Scope(request.Operation?.HasIntent == true ? request.Operation.Intent : null))
+                    return ExecuteNativeCore(request);
+            }
+            finally { SnapshotStream.NoteWrite(); }
         }
 
         private static Operations.ExecuteReply ExecuteNativeCore(Operations.ExecuteRequest request)
@@ -614,7 +619,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_release_owned_draft", request, Operations.ReleaseOwnedDraftRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Operations.ReleaseOwnedDraftReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(NativeDraftOperations.Release(parsed)), cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThread(ctx, () => { try { return ProtoBoundary.Encode(NativeDraftOperations.Release(parsed)); } finally { SnapshotStream.NoteWrite(); } }, cancellationToken).ConfigureAwait(false);
         }
 
         private static bool ValidAttempt([NotNullWhen(true)] Common.AttemptKey? value) => value != null && value.HasControllerSessionId

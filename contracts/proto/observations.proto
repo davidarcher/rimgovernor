@@ -1299,6 +1299,23 @@ message ArchitectDesignatorsSnapshot { rimgovernor.common.v1.ObservationContext 
 message ArchitectDesignatorsRequest { ReadScope scope = 1; optional string category_id = 2; optional bool include_hidden = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
+// The snapshot stream (#858): native publishes whole BundleSnapshot frames
+// into a named shared-memory ring and signals a named event; this request
+// opens it (or replaces its subscription) and names the ring. A frame carries
+// every state family whole (no page caps, no field masks) plus the
+// subscription's resource sources and planning window band. Clock status and
+// events stay on ReadBundle.
+message SnapshotStreamRequest {
+  repeated string resource_sources = 1; // list_resource_sources per named resource, no development
+  Rectangle planning_window = 2;        // get_cells band the frame carries, full every frame
+}
+message SnapshotStreamOpened {
+  string name = 1;       // mapping name; the ready event is name + "-ready"
+  uint32 slots = 2;
+  uint32 slot_bytes = 3;
+}
+message SnapshotStreamReply { oneof outcome { SnapshotStreamOpened opened = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+
 service Observations {
   rpc GetClearanceTargets(ClearanceTargetsRequest) returns (ClearanceTargetsReply);
   rpc GetAncientShrines(AncientShrinesRequest) returns (AncientShrinesReply);
@@ -1308,6 +1325,7 @@ service Observations {
   rpc ReadStatus(StatusRequest) returns (StatusReply);
   rpc ReadObservationBatch(ObservationBatchRequest) returns (ObservationBatchReply);
   rpc ReadBundle(BundleRequest) returns (BundleReply);
+  rpc OpenSnapshotStream(SnapshotStreamRequest) returns (SnapshotStreamReply);
   rpc ListPawns(ListPawnsRequest) returns (ListPawnsReply);
   rpc ListSupplies(ListSuppliesRequest) returns (ListSuppliesReply);
   rpc ListBuildings(ListBuildingsRequest) returns (ListBuildingsReply);

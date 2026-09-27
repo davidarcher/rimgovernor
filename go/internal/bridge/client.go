@@ -218,6 +218,7 @@ type Client struct {
 	writes atomic.Int64
 
 	deltas deltaStore
+	frames *frameStream
 
 	recorder         *FlightRecorder
 	recordingContext func() map[string]any
@@ -245,9 +246,16 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	default:
 		return nil, fmt.Errorf("%w: invalid log level", ErrContract)
 	}
-	return open(ctx, config.GameID, config.Timeout, config.Recorder, config.Transcript, func() mcp.Transport {
+	client, err := open(ctx, config.GameID, config.Timeout, config.Recorder, config.Transcript, func() mcp.Transport {
 		return &gabsHTTPTransport{executable: config.Executable, configDir: config.ConfigDir, logLevel: config.LogLevel, stderr: config.Stderr, spawned: config.Spawned}
 	})
+	if err != nil {
+		return nil, err
+	}
+	// The snapshot stream (#858) serves the state families of a game on
+	// this host; test clients built with open read over GABP only.
+	client.frames = newFrameStream()
+	return client, nil
 }
 
 func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, transcript *Transcript, factory transportFactory) (*Client, error) {
@@ -291,6 +299,7 @@ func (c *Client) Close() error {
 	c.mu.Unlock()
 	c.lifecycle <- struct{}{}
 	defer func() { <-c.lifecycle }()
+	c.frames.close()
 	return c.closeLive()
 }
 

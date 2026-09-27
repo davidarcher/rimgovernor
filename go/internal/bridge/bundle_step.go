@@ -1,8 +1,6 @@
 package bridge
 
 import (
-	"context"
-
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -150,7 +148,7 @@ func validateBundleStepFamilies(request *o.BundleRequest, v *o.BundleSnapshot) e
 // dedicated reads use, as seedBundle does the census families. An entity
 // section rides as the full first page (no since tick, no cursor); the
 // planning window rides as the band the request named, delta or full.
-func (client *Client) seedBundleStepFamilies(ctx context.Context, request *o.BundleRequest, v *o.BundleSnapshot, seed func(method string, request, reply proto.Message)) {
+func seedBundleStepFamilies(request *o.BundleRequest, v *o.BundleSnapshot, seed func(method string, request, reply proto.Message)) {
 	identity := v.Context.Identity
 	if v.Buildings != nil {
 		seed("rimgovernor/observations_list_buildings", buildingsListRequest(identity, ""), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.Buildings}})

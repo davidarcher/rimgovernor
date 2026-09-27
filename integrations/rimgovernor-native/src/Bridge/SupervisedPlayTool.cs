@@ -336,6 +336,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
             OnUpdate();
+            SnapshotStream.OnFrame();
         }
 
         internal static void OnUpdate()
