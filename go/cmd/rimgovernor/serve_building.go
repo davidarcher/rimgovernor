@@ -18,7 +18,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/claimbuilding"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cutplant"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/excavation"
@@ -29,7 +28,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movebuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
@@ -107,8 +105,6 @@ type buildingServiceBridge struct {
 	acquisition         *acquisition.AcquisitionCapabilities
 	mineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 	excavation          *excavation.ExcavationCapabilities
-	supplies            *supply.SupplyCapabilities
-	cutPlant            *cutplant.CutPlantCapabilities
 	moveBuilding        *movebuilding.Capabilities
 	deconstruction      *buildingruntime.DeconstructionCapabilities
 	draft               *draft.DraftCapabilities
@@ -190,10 +186,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	supplies, err := bridge.NewSupplyControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	attack, err := bridge.NewAttackControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -207,10 +199,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	deconstructionWriter, err := bridge.NewDeconstructionWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	cutPlantWriter, err := bridge.NewCutPlantControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -270,8 +258,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		excavation:      &excavation.ExcavationCapabilities{Native: client, Writer: excavationWriter},
-		supplies:        &supply.SupplyCapabilities{Native: client, Writer: supplies},
-		cutPlant:        &cutplant.CutPlantCapabilities{Native: client, Writer: cutPlantWriter},
 		moveBuilding:    &movebuilding.Capabilities{Native: client, Writer: moveBuildingWriter},
 		deconstruction:  &buildingruntime.DeconstructionCapabilities{Native: client, Writer: deconstructionWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
@@ -376,10 +362,6 @@ func drainBuilding(owner buildingCloser) error {
 	}
 }
 
-func supplyExecutorRequired(config serveConfig) bool {
-	return config.routineSupplyPlans || config.routineFoodStorageUpkeepPlans
-}
-
 func haulExecutorRequired(config serveConfig) bool {
 	return config.routineSecureSuppliesPlans || config.routineHaulPlans || config.routineFoodStorageUpkeepPlans
 }
@@ -429,13 +411,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return errors.New("clock service requires complete clock capabilities")
 		}
 		clockCapabilities = client.clock
-	}
-	var supplyCapabilities *supply.SupplyCapabilities
-	if supplyExecutorRequired(config) {
-		if client.supplies == nil {
-			return errors.New("supply plans require typed supply capabilities")
-		}
-		supplyCapabilities = client.supplies
 	}
 	var acquisitionCapabilities *acquisition.AcquisitionCapabilities
 	if config.routineAcquisitionPlans {
@@ -524,13 +499,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return errors.New("clearance, shrine, resource and shelter plans require typed deconstruction capabilities")
 		}
 		deconstructionCapabilities = client.deconstruction
-	}
-	var cutPlantCapabilities *cutplant.CutPlantCapabilities
-	if config.routineBlightPlans {
-		if client.cutPlant == nil {
-			return errors.New("blight plans require typed cut plant capabilities")
-		}
-		cutPlantCapabilities = client.cutPlant
 	}
 	var wasteCapabilities *buildingruntime.WasteCapabilities
 	if config.routineWastePlans {
@@ -637,7 +605,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Acquisition:         acquisitionCapabilities,
 		MineAcquisition:     mineAcquisitionCapabilities,
 		Excavation:          excavationCapabilities,
-		Supplies:            supplyCapabilities,
 		Draft:               client.draft,
 		Clock:               clockCapabilities,
 		Melee:               meleeCapabilities,
@@ -651,7 +618,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Repair:              repairCapabilities,
 		Clean:               cleanCapabilities,
 		Waste:               wasteCapabilities,
-		CutPlant:            cutPlantCapabilities,
 		MoveBuilding:        moveBuildingCapabilities,
 		Deconstruction:      deconstructionCapabilities,
 		MoodRelief:          moodReliefCapabilities,

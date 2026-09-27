@@ -179,8 +179,8 @@ func runBlight(ctx context.Context, s cases.Session) error {
 			batch[target.Plant()] = true
 			seen[target.Plant()] = true
 		}
-		// The plan settles only on the native observation of every plant
-		// gone; a standing designated plant holds the attempt pending.
+		// Each cut is a DesignateIntent: the plan completes on its applied
+		// receipts; the goal settles when the census empties.
 		doneCtx, doneCancel := context.WithTimeout(ctx, 4*time.Minute)
 		state, incidental, err := na.WaitPlanTerminal(doneCtx, journal, method.Plan)
 		doneCancel()

@@ -108,7 +108,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 	var census []policy.BlightedPlant
 	byID := map[string]domain.CutPlant{}
 	for _, target := range read.Targets {
-		census = append(census, policy.BlightedPlant{ID: target.Plant.Plant(), Definition: target.Plant.Definition(), Cell: target.Plant.Cell(), Token: target.Token})
+		census = append(census, policy.BlightedPlant{ID: target.Plant.Plant(), Definition: target.Plant.Definition(), Cell: target.Plant.Cell(), Eligible: true})
 		byID[target.Plant.Plant()] = target.Plant
 	}
 	targets := policy.SelectBlightCuts(census, claimed, 8)

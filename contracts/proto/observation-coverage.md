@@ -289,7 +289,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | InstallBuilding.packed_or_inner | none: the exact inner building or packed item (ColonyFacts ids) is re-resolved and every rule re-evaluated at apply |
 | AcquireResource.source | ListResourceSources.source.snapshot |
 | ExcavateCell.expected_snapshot_token | ReadExcavationSite.cells[].snapshot (cell + rock def + hit points + designation; never a Mineable ThingID) |
-| DesignateThing.target | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
+| DesignateIntent.thing_id | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
 | PatchBuilding.building | ReadBuildingSettings.snapshot (same building ID) |
 | WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
 | ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |

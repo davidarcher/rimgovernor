@@ -27,8 +27,6 @@ namespace HomeBridge.BridgeTools
         // NativeBuildingTemperature, medical via NativeBedUse, plant_def via
         // NativeGrowerCrop), observed by field.
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingPatches = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
-        internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
-        internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> CutPlants = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         // InstallBuilding admissions (NativeMoveBuilding, #808), observed by the queued installation.
         internal readonly Dictionary<Common.AttemptKey, Receipts.InstallationEffect> Moves = new Dictionary<Common.AttemptKey, Receipts.InstallationEffect>();
         // Uninstall admissions (NativeUninstallBuilding, #843), observed by the uninstall designation.
@@ -117,10 +115,6 @@ namespace HomeBridge.BridgeTools
                         : request.Operation.PatchBuilding.HasClaim
                             ? NativeClaimBuilding.Execute(state, request, context)
                             : NativeBuildingTemperature.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DesignateThing)
-                return NativeCutPlant.IsCutPlant(request.Operation.DesignateThing)
-                    ? NativeCutPlant.Execute(state, request, context)
-                    : NativeSupplyAllow.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Uninstall)
                 return NativeUninstallBuilding.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.InstallBuilding)
@@ -191,10 +185,6 @@ namespace HomeBridge.BridgeTools
                             : parsed.Operation.PatchBuilding.HasClaim
                                 ? NativeClaimBuilding.Preview(parsed.Operation.PatchBuilding, context)
                                 : NativeBuildingTemperature.Preview(parsed.Operation.PatchBuilding, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DesignateThing)
-                    return ProtoBoundary.Encode(NativeCutPlant.IsCutPlant(parsed.Operation.DesignateThing)
-                        ? NativeCutPlant.Preview(parsed.Operation.DesignateThing, context)
-                        : NativeSupplyAllow.Preview(parsed.Operation.DesignateThing, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Uninstall)
                     return ProtoBoundary.Encode(NativeUninstallBuilding.Preview(parsed.Operation.Uninstall, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.InstallBuilding)
@@ -272,15 +262,9 @@ namespace HomeBridge.BridgeTools
                 {
                     var lookup = state.Ledger.Lookup(parsed.Attempt, context);
                     if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
-                    Receipts.DesignationEffect allowed;
                     INativeAcquisitionRecord acquisition;
                     if (state.Acquisition.TryGetValue(parsed.Attempt, out acquisition))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = acquisition.Observe(parsed.Attempt, context) });
-                    if (state.AllowedSupplies.TryGetValue(parsed.Attempt, out allowed))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeSupplyAllow.Observe(parsed.Attempt, context, allowed) });
-                    Receipts.DesignationEffect cut;
-                    if (state.CutPlants.TryGetValue(parsed.Attempt, out cut))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeCutPlant.Observe(parsed.Attempt, context, cut) });
                     Receipts.InstallationEffect uninstall;
                     if (state.Uninstalls.TryGetValue(parsed.Attempt, out uninstall))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeUninstallBuilding.Observe(parsed.Attempt, context, uninstall) });

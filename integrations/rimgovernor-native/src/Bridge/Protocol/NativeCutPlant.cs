@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
 {
     // The blight responder's native half (#245): the crop-blight census in
     // the colony read (Read) and the CutPlant designation on one exact
-    // blighted plant (DesignateThing with THING_DESIGNATION_CUT_PLANT). The
+    // blighted plant (DesignateIntent with THING_DESIGNATION_CUT_PLANT). The
     // designation is the whole write; ordinary plant-cutting work cuts the
     // plant afterwards, and the census emptying is what settles the goal.
     internal static class NativeCutPlant
@@ -24,13 +24,6 @@ namespace HomeBridge.BridgeTools
         internal const string Kind = "Cut plant";
         internal const string DesignationDef = "CutPlant";
         internal const int Limit = 64;
-
-        internal static bool Valid(Operations.DesignateThing? command) => command != null
-            && NativeDraftProtocol.ValidEntity(command.Target) && command.HasDesignation
-            && command.Designation == Operations.ThingDesignation.CutPlant;
-
-        internal static bool IsCutPlant(Operations.DesignateThing? command) => command != null && command.HasDesignation
-            && command.Designation == Operations.ThingDesignation.CutPlant;
 
         // Census membership: a blighted plant on colony ground (a growing
         // zone or the home area). Blight on wild plants outside both is the
@@ -84,114 +77,54 @@ namespace HomeBridge.BridgeTools
             && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
             && p.CanReach(plant, PathEndMode.Touch, Danger.None);
 
-        // Prepare is the apply-time precondition list for CutPlant
-        // (action-contracts.md), one rule at a time so a refusal names the
-        // fact that moved; the token comparison closes it.
-        private static bool Prepare(Operations.DesignateThing command, Common.ObservationContext context, out Plant? plant, out Common.Failure failure)
+        // The apply-time precondition list for CutPlant (action-contracts.md),
+        // one rule at a time so a refusal names the fact that moved; a plant
+        // already designated applies again.
+        private static ApplyPreconditions Rules(Operations.DesignateIntent intent, Map map, out Plant? plant)
         {
-            plant = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "CutPlant requires an exact blighted plant snapshot.");
-            if (!Valid(command)) return false;
-            var map = ProtoBoundary.LoadedMap(context);
-            var found = map.listerThings.AllThings.OfType<Plant>().SingleOrDefault(p => p.GetUniqueLoadID() == command.Target.EntityId);
+            Plant? found = null;
             var rules = new ApplyPreconditions(Kind)
-                .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
+                .Require(() => intent.HasThingId && ProtoBoundary.IsIdentifier(intent.ThingId), "CutPlant requires an exact blighted plant")
+                .Present(() => (found = map.listerThings.AllThings.OfType<Plant>().SingleOrDefault(p => p.GetUniqueLoadID() == intent.ThingId)) != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
                 .Require(() => found!.Blighted, "the plant is not blighted")
                 .Require(() => !found!.Position.Fogged(map), "the plant's cell is fogged")
                 .Require(() => InColony(found!, map), "the plant stands outside the colony's growing zones and home area")
                 .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the plant is forbidden")
-                .Require(() => !Designated(found!), "the plant is already designated")
-                .Require(() => new Designator_PlantsCut().CanDesignateThing(found!).Accepted, "the native cut designator refuses the plant")
-                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, found!)), "no free colonist with plant cutting enabled can reach the plant")
-                .Token(() => Snapshot(found!, context).Token == command.Target.ExpectedSnapshotToken, "the plant snapshot changed since it was read");
-            if (!rules.Holds) { failure = rules.Failure(); return false; }
+                .Require(() => Designated(found!) || new Designator_PlantsCut().CanDesignateThing(found!).Accepted, "the native cut designator refuses the plant")
+                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, found!)), "no free colonist with plant cutting enabled can reach the plant");
             plant = found;
-            return true;
+            return rules;
         }
 
-        private static Receipts.EffectEvidence Evidence(Plant plant) => new Receipts.EffectEvidence {
-            Designation = new Receipts.DesignationEffect { ThingId = plant.GetUniqueLoadID(), DesignationDef = DesignationDef,
-                Present = plant.Map.designationManager.DesignationOn(plant, DesignationDefOf.CutPlant) != null,
-                ResourceDef = plant.def.defName, Cell = new Common.Cell { X = plant.Position.x, Z = plant.Position.z } } };
-
-        internal static Operations.PreviewReply Preview(Operations.DesignateThing command, Common.ObservationContext context)
+        internal static Common.Failure? Validate(Operations.DesignateIntent intent, Common.ObservationContext context)
         {
-            try
-            {
-                if (!Prepare(command, context, out var plant, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                // Proposed=true is never a claim that an effect already happened.
-                var proposed = Evidence(plant!); proposed.Designation.Present = true;
-                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                    Context = context.Clone(), Accepted = true, Projected = proposed } };
-            }
-            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Cut plant preview failed: " + error.GetType().Name) }; }
+            var rules = Rules(intent, ProtoBoundary.LoadedMap(context), out _);
+            return rules.Holds ? null : rules.Failure();
         }
 
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.DesignateIntent intent, Common.ObservationContext context)
         {
-            NativeAttemptLedger.Admission? handle = null;
-            Receipts.EffectEvidence? evidence = null;
-            var pre = request.Precondition;
-            try
-            {
-                if (!Prepare(request.Operation.DesignateThing, context, out var plant, out var failure)) return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                using (authority.Owned())
-                {
-                    var current = authority.Check(pre.ExpectedGeneration);
-                    if (!current.Success || !Prepare(request.Operation.DesignateThing, context, out var checkedPlant, out failure)
-                        || !ReferenceEquals(checkedPlant, plant)) throw new InvalidOperationException("Cut plant admission changed before effect.");
-                    new Designator_PlantsCut().DesignateThing(plant);
-                    evidence = Evidence(plant!);
-                    if (!evidence.Designation.Present) throw new InvalidOperationException("Native CutPlant designation was not observed.");
-                    state.CutPlants.Add(pre.Attempt.Clone(), evidence.Designation.Clone());
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                return handle == null
-                    ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Cut plant admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted CutPlant requires observation: " + error.GetType().Name) };
-            }
+            var rules = Rules(intent, ProtoBoundary.LoadedMap(context), out var plant);
+            if (!rules.Holds) throw new InvalidOperationException("Cut plant prerequisites changed before apply: " + rules.Reason);
+            if (!Designated(plant!)) new Designator_PlantsCut().DesignateThing(plant);
+            if (!Designated(plant!)) throw new InvalidOperationException("Native CutPlant designation was not observed.");
+            return new Receipts.EffectEvidence { Designation = new Receipts.DesignationEffect { ThingId = plant!.GetUniqueLoadID(), DesignationDef = DesignationDef,
+                Present = true, ResourceDef = plant.def.defName, Cell = new Common.Cell { X = plant.Position.x, Z = plant.Position.z } } };
         }
+    }
 
-        // Observe: the plant gone from the map is the designation's ordinary
-        // outcome (cut, or otherwise removed) and completes the attempt; a
-        // plant still standing with its designation is pending; a standing
-        // plant whose designation was removed is unsuccessful (the player
-        // cancelled it), never re-designated here.
-        internal static Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context, Receipts.DesignationEffect original)
+    // DesignateIntent dispatches by designation: CUT_PLANT to the blight
+    // responder, ALLOW/FORBID to the supply census's item rules.
+    internal sealed class DesignateActionHandler : IActionHandler
+    {
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
-            var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
-            try
-            {
-                var map = ProtoBoundary.LoadedMap(context);
-                var plant = map.listerThings.AllThings.OfType<Plant>().SingleOrDefault(p => p.GetUniqueLoadID() == original.ThingId);
-                if (plant == null || plant.Destroyed || !plant.Spawned)
-                {
-                    result.Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Designation = original.Clone() } };
-                    return result;
-                }
-                var evidence = Evidence(plant);
-                if (evidence.Designation.Present) result.Pending = new Receipts.PendingEffect { Evidence = evidence };
-                else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
-                    Evidence = evidence, Detail = "The plant stands without its CutPlant designation; a cancelled designation is not repeated." };
-                return result;
-            }
-            catch (Exception)
-            {
-                result.CompleteInspection = false;
-                result.Unknown = new Receipts.UnknownEffect { Reason = "The exact plant could not be inspected; absence does not prove the cut." };
-                return result;
-            }
+            var intent = action.Designate;
+            if (intent != null && intent.HasDesignation && intent.Designation == Operations.ThingDesignation.CutPlant) return NativeCutPlant.Validate(intent, context);
+            if (NativeSupplyAllow.Wants(intent)) return NativeSupplyAllow.Validate(intent!, context);
+            return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Designate supports only CutPlant, Allow and Forbid.");
         }
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
+            action.Designate.Designation == Operations.ThingDesignation.CutPlant ? NativeCutPlant.Apply(action.Designate, context) : NativeSupplyAllow.Apply(action.Designate, context);
     }
 }

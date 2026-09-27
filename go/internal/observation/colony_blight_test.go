@@ -19,7 +19,7 @@ func TestColonyBlightCensusIsKnownOnlyWithoutIssue(t *testing.T) {
 		Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(4)}, Snapshot: &o.SnapshotRef{EntityId: proto.String("Plant_Rice1"), Token: proto.String("cut-a")}},
 		Designated: proto.Bool(true), ZoneId: proto.String("7")}}
 	plants, known := colonyBlight(v).Value()
-	if !known || len(plants) != 1 || plants[0].ID != "Plant_Rice1" || plants[0].Token != "cut-a" || !plants[0].Designated || plants[0].Zone != "7" || plants[0].Cell != (domain.Cell{X: 3, Z: 4}) {
+	if !known || len(plants) != 1 || plants[0].ID != "Plant_Rice1" || !plants[0].Eligible || !plants[0].Designated || plants[0].Zone != "7" || plants[0].Cell != (domain.Cell{X: 3, Z: 4}) {
 		t.Fatal(plants)
 	}
 	v.Issues = []*o.ReadIssue{{Field: proto.String("blighted_plants")}}

@@ -30,7 +30,7 @@ func (n *routineBlightNative) ReadBlightedPlants(_ context.Context, _ *c.Identit
 			continue
 		}
 		plant, _ := domain.NewCutPlant(row.Plant.GetId(), row.Plant.GetDefName(), domain.Cell{X: row.Plant.Position.GetX(), Z: row.Plant.Position.GetZ()})
-		out.Targets = append(out.Targets, bridge.CutPlantTarget{Plant: plant, Token: row.Plant.Snapshot.GetToken()})
+		out.Targets = append(out.Targets, bridge.CutPlantTarget{Plant: plant})
 	}
 	return out, bridge.Result{}, nil
 }

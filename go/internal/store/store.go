@@ -31,12 +31,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/store/repair"
 	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
-	"github.com/davidarcher/RimGovernor/go/internal/store/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/store/tend"
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 135
+const schemaVersion = 136
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -60,7 +59,6 @@ type PlanState struct {
 	Admissions                    []ActionAdmission
 	DraftAdmissions               []ActionDraftAdmission
 	AcquisitionAdmissions         []ActionAcquisitionAdmission
-	SupplyAdmissions              []ActionSupplyAdmission
 	TendAdmissions                []ActionTendAdmission
 	RescueAdmissions              []ActionRescueAdmission
 	CaptureAdmissions             []ActionCaptureAdmission
@@ -74,7 +72,6 @@ type PlanState struct {
 	RecoveryServiceAdmissions     []ActionRecoveryServiceAdmission
 	BuildingTemperatureAdmissions []ActionBuildingTemperatureAdmission
 	MineAcquisitionAdmissions     []ActionMineAcquisitionAdmission
-	CutPlantAdmissions            []ActionCutPlantAdmission
 	MoveBuildingAdmissions        []ActionMoveBuildingAdmission
 	DeconstructionAdmissions      []ActionDeconstructionAdmission
 	ExcavationAdmissions          []ActionExcavationAdmission
@@ -242,7 +239,6 @@ CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), paylo
 CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE bill_claims(colony TEXT NOT NULL,load_token TEXT NOT NULL,map_id INTEGER NOT NULL,bench TEXT NOT NULL,recipe TEXT NOT NULL,PRIMARY KEY(colony,load_token,map_id,bench,recipe)) STRICT;
 CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE supply_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE tend_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE rescue_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE capture_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -256,7 +252,6 @@ CREATE TABLE mood_relief_admissions(action_id TEXT PRIMARY KEY REFERENCES action
 CREATE TABLE recovery_service_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE building_temperature_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mine_acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE cut_plant_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE move_building_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE deconstruction_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE excavation_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -328,7 +323,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM cut_plant_admissions LIMIT 0", "SELECT action_id,payload FROM move_building_admissions LIMIT 0", "SELECT action_id,payload FROM deconstruction_admissions LIMIT 0", "SELECT action_id,payload FROM excavation_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM move_building_admissions LIMIT 0", "SELECT action_id,payload FROM deconstruction_admissions LIMIT 0", "SELECT action_id,payload FROM excavation_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -589,16 +584,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if deconstructionPresent {
 			state.DeconstructionAdmissions = append(state.DeconstructionAdmissions, ActionDeconstructionAdmission{Action: a.ID(), Admission: deconstructionAdmission})
 		}
-		cutPlantAdmission, cutPlantPresent, e := loadCutPlantAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.CutPlantAction && !cutPlantPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("cut plant progress lacks admission")
-		}
-		if cutPlantPresent {
-			state.CutPlantAdmissions = append(state.CutPlantAdmissions, ActionCutPlantAdmission{Action: a.ID(), Admission: cutPlantAdmission})
-		}
 		moveBuildingAdmission, moveBuildingPresent, e := loadMoveBuildingAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
@@ -618,16 +603,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		}
 		if excavationPresent {
 			state.ExcavationAdmissions = append(state.ExcavationAdmissions, ActionExcavationAdmission{Action: a.ID(), Admission: excavationAdmission})
-		}
-		supplyAdmission, supplyPresent, e := supply.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if (a.Kind() == domain.SupplyAllowAction || a.Kind() == domain.SupplyForbidAction) && !supplyPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("supply progress lacks admission")
-		}
-		if supplyPresent {
-			state.SupplyAdmissions = append(state.SupplyAdmissions, ActionSupplyAdmission{Action: a.ID(), Admission: supplyAdmission})
 		}
 
 		admission, present, err := loadAdmission(ctx, tx, a, p)
@@ -912,14 +887,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			return domain.Progress{}, errors.New("acquisition dispatch lacks current admission")
 		}
 	}
-	if current.Action().Kind() == domain.SupplyAllowAction || current.Action().Kind() == domain.SupplyForbidAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("supply requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !supply.GuardDispatch(state.SupplyAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("supply dispatch lacks current admission")
-		}
-	}
 	if current.Action().Kind() == domain.MineAcquisitionAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("mine acquisition requires typed preparation")
@@ -934,14 +901,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		}
 		if event.Kind == "dispatch" && !deconstructionGuardDispatch(state.DeconstructionAdmissions, action, event.Snapshot, event.Tick) {
 			return domain.Progress{}, errors.New("deconstruction dispatch lacks current admission")
-		}
-	}
-	if current.Action().Kind() == domain.CutPlantAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("cut plant requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !cutPlantGuardDispatch(state.CutPlantAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("cut plant dispatch lacks current admission")
 		}
 	}
 	if k := current.Action().Kind(); k == domain.MoveBuildingAction || k == domain.UninstallBuildingAction {

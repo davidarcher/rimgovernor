@@ -35,7 +35,7 @@ func (n *routineSupplyNative) ReadAllowSupplies(_ context.Context, _ *c.Identity
 	out := bridge.SupplyRead{Context: n.context}
 	for i := 0; i < 10; i++ {
 		s, _ := domain.NewSupplyAllow(fmt.Sprintf("item-%02d", i), "Steel", cell)
-		out.Targets = append(out.Targets, bridge.SupplyTarget{Supply: s, Token: "token"})
+		out.Targets = append(out.Targets, bridge.SupplyTarget{Supply: s})
 	}
 	return out, bridge.Result{}, nil
 }

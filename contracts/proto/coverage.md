@@ -45,7 +45,7 @@ discovered/mapped, not as live source links.
 | `home/dialog_text` | PresentationReads.DialogFields / PreviewDialogText; PlayerPresentation.Apply text | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | (none: game-opened `Verse.Dialog_NodeTree`) | Observations.ReadColonyFacts `dialog` (ChoiceDialog, indexed options); Actions.Apply DialogIntent; Clock `STOP_REASON_DIALOG_PAUSE` | Typed (#156) | none: the legacy controller never read or answered force-pausing choice dialogs |
 | `rimworld/set_time_speed` | Clock.Start / Pause / ChangeSpeed; unsupervised autonomous bypass removed | Typed replacement | `controller/rimgovernor/bridge_game.py:17` |
-| `rimworld/apply_architect_designator` | Operations.Preview / Execute DesignateThing (Allow/Forbid/Hunt/Harvest/Deconstruct) | Closed replacement | `controller/rimgovernor/bridge_game.py:17` |
+| `rimworld/apply_architect_designator` | Actions.Apply DesignateIntent (Allow/Forbid/CutPlant) | Closed replacement | `controller/rimgovernor/bridge_game.py:17` |
 | `rimworld/open_letter` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/bridge_game.py:18` |
 | `rimworld/dismiss_letter` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/bridge_game.py:18` |
 | `rimworld/click_screen_target` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/bridge_game.py:18` |

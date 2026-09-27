@@ -23,7 +23,7 @@ func colonyBlight(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.BlightedPlant] 
 		}
 		plants = append(plants, policy.BlightedPlant{ID: plant.GetId(), Definition: plant.GetDefName(),
 			Cell: domain.Cell{X: position.GetX(), Z: position.GetZ()}, Zone: row.GetZoneId(),
-			Designated: row.GetDesignated(), Token: plant.GetSnapshot().GetToken()})
+			Designated: row.GetDesignated(), Eligible: plant.GetSnapshot() != nil})
 	}
 	return domain.Known(plants)
 }

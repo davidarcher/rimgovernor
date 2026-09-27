@@ -89,12 +89,8 @@ type Result struct {
 type Executor struct {
 	acquisition                AcquisitionBoundary
 	acquisitionJournal         AcquisitionJournal
-	supply                     SupplyBoundary
-	supplyJournal              SupplyJournal
-	cutPlant                   CutPlantBoundary
 	deconstruction             DeconstructionBoundary
 	deconstructionJournal      DeconstructionJournal
-	cutPlantJournal            CutPlantJournal
 	moveBuilding               MoveBuildingBoundary
 	moveBuildingJournal        MoveBuildingJournal
 	tend                       TendBoundary
@@ -319,17 +315,11 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.AcquisitionAction && e.acquisition != nil {
 		return e.runAcquisition(ctx, action, progress, authority, generation)
 	}
-	if (action.Kind() == domain.SupplyAllowAction || action.Kind() == domain.SupplyForbidAction) && e.supply != nil {
-		return e.runSupply(ctx, action, progress, authority, generation)
-	}
 	if action.Kind() == domain.DeconstructionAction && e.deconstruction != nil {
 		return e.runDeconstruction(ctx, action, progress, authority, generation)
 	}
 	if (action.Kind() == domain.MoveBuildingAction || action.Kind() == domain.UninstallBuildingAction) && e.moveBuilding != nil {
 		return e.runMoveBuilding(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.CutPlantAction && e.cutPlant != nil {
-		return e.runCutPlant(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.TendAction && e.tend != nil {
 		return e.runTend(ctx, action, progress, authority, generation)

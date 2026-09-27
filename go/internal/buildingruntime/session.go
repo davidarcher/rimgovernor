@@ -13,7 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/claimbuilding"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cutplant"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/excavation"
@@ -24,7 +23,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movebuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
@@ -34,8 +32,6 @@ import (
 type SessionConfig struct {
 	Deconstruction *DeconstructionCapabilities
 	Acquisition    *acquisition.AcquisitionCapabilities
-	Supplies       *supply.SupplyCapabilities
-	CutPlant       *cutplant.CutPlantCapabilities
 	// MoveBuilding backs the tidy family's furniture re-siting through the
 	// game's Reinstall (#808).
 	MoveBuilding    *movebuilding.Capabilities
@@ -294,12 +290,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		moves = &movementBoundary{Boundary: place, writer: config.Movement.Writer}
 	}
 	var worker *executor.Executor
-	if config.Supplies != nil && (config.Supplies.Native == nil || config.Supplies.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.Supplies != nil && (config.Supplies.Native == nil || config.Supplies.Writer == nil)", ErrControl))
-	}
-	if config.CutPlant != nil && (config.CutPlant.Native == nil || config.CutPlant.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.CutPlant != nil && (config.CutPlant.Native == nil || config.CutPlant.Writer == nil)", ErrControl))
-	}
 	if config.MoveBuilding != nil && (config.MoveBuilding.Native == nil || config.MoveBuilding.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.MoveBuilding != nil && (config.MoveBuilding.Native == nil || config.MoveBuilding.Writer == nil)", ErrControl))
 	}
@@ -392,22 +382,12 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	// typed boundary value, rather than composed into a single value for
 	// executor.New to discover by type assertion — see executor.EnableAcquisition
 	// for why the composed-value approach was unsafe.
-	if config.Supplies != nil {
-		if err := worker.EnableSupply(supply.NewSupplyBoundary(place, *config.Supplies)); err != nil {
-			return cleanup(err)
-		}
-	}
 	if config.Deconstruction != nil {
 		b, err := NewDeconstructionBoundary(deconstructionColonyFacts{config.Deconstruction.Native, colonyFacts}, config.Deconstruction.Writer, place.Leases, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
 		if err = worker.EnableDeconstruction(b); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.CutPlant != nil {
-		if err := worker.EnableCutPlant(cutplant.NewCutPlantBoundary(place, *config.CutPlant)); err != nil {
 			return cleanup(err)
 		}
 	}

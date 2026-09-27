@@ -47,7 +47,6 @@ Protobuf parsing/formatting. Generated compile inputs come from
 
 `Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`
 and temporary `SetDrafted` plus guarded `AttackTarget` under an existing owned draft;
-`DesignateThing` supports only Allow on exact eligible loose supply snapshots;
 other command variants return unsupported. Their presence does not advertise
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;

@@ -100,13 +100,13 @@ func TestSupplyClaimFollowsCompletedAllowNotCancelledAttempt(t *testing.T) {
 	// item-0 is allowed; item-1 was hauled aside before its write.
 	first := plan.Actions()[0]
 	var err error
-	if _, err = s.PrepareSupply(ctx, plan.ID(), first.ID(), SupplyAdmission{Snapshot: snapshot, Tick: 10, Thing: "item-0", SnapshotToken: "cas"}); err != nil {
+	if _, err = s.Prepare(ctx, plan.ID(), first.ID(), snapshot, 10); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, plan.ID(), first.ID(), snapshot, 10); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.Observe(ctx, plan.ID(), domain.Observation{Action: first.ID(), Attempt: 1, Snapshot: snapshot, Tick: 11, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, snapshot); err != nil {
+	if _, err = s.RecordReceipt(ctx, plan.ID(), first.ID(), 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Cancel(ctx, plan.ID(), plan.Actions()[1].ID()); err != nil {

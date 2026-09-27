@@ -15,15 +15,15 @@ const RemoveBlight GoalID = "RemoveBlight"
 
 // BlightedPlant is one native census row: a blighted plant standing in a
 // player growing zone or on home ground. Designated is native's own record
-// of an existing cut or harvest designation; Token is the plant's read-time
-// snapshot the CutPlant designation compares at apply.
+// of an existing cut or harvest designation; Eligible is whether native
+// offers the plant for a CutPlant designation.
 type BlightedPlant struct {
 	ID         string
 	Definition string
 	Cell       domain.Cell
 	Zone       string
 	Designated bool
-	Token      string
+	Eligible   bool
 }
 
 // BlightDeficit is the binary RemoveBlight deficit signal: an unknown census
@@ -45,7 +45,7 @@ func BlightDeficit(plants domain.Fact[[]BlightedPlant]) domain.Fact[bool] {
 func SelectBlightCuts(plants []BlightedPlant, claimed map[string]bool, limit int) []BlightedPlant {
 	var out []BlightedPlant
 	for _, plant := range plants {
-		if plant.ID == "" || plant.Token == "" || plant.Designated || claimed[plant.ID] {
+		if plant.ID == "" || !plant.Eligible || plant.Designated || claimed[plant.ID] {
 			continue
 		}
 		out = append(out, plant)

@@ -14,7 +14,7 @@ func TestRemoveBlightOpensOnCensusAndSettlesOnEmpty(t *testing.T) {
 	if assessment(t, r, RemoveBlight) != domain.NeedUnknown || !hasNeed(r, RemoveBlight) {
 		t.Fatal("unknown census must not count as recovered", r)
 	}
-	f.Blight = domain.Known([]BlightedPlant{{ID: "Plant_Rice1", Token: "cut-a", Designated: true}})
+	f.Blight = domain.Known([]BlightedPlant{{ID: "Plant_Rice1", Designated: true}})
 	f.AvailableMethods = domain.Known([]GoalID{})
 	r = needs(t, f, r.Latches)
 	if !hasNeed(r, RemoveBlight) {
@@ -44,7 +44,7 @@ func TestRemoveBlightOpensOnCensusAndSettlesOnEmpty(t *testing.T) {
 func TestSelectBlightCutsSkipsDesignatedAndClaimed(t *testing.T) {
 	t.Parallel()
 	plants := []BlightedPlant{
-		{ID: "c", Token: "t"}, {ID: "a", Token: "t", Designated: true}, {ID: "b", Token: "t"}, {ID: "d", Token: "t"}, {ID: "e"},
+		{ID: "c", Eligible: true}, {ID: "a", Eligible: true, Designated: true}, {ID: "b", Eligible: true}, {ID: "d", Eligible: true}, {ID: "e"},
 	}
 	got := SelectBlightCuts(plants, map[string]bool{"d": true}, 8)
 	if len(got) != 2 || got[0].ID != "b" || got[1].ID != "c" {

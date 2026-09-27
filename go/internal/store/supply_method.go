@@ -14,9 +14,9 @@ import (
 // attempt (the stack left its cell before the write) claims nothing, so the
 // next census can re-target the same stack where it now lies.
 //
-// Only a plan holding a supply action with an observe transition can carry
-// a completed Allow (Completed is reached solely through Observe), so the
-// link query excludes the rest before the full plan load.
+// Only a plan holding a supply action with a receipt transition can carry
+// a completed Allow (an Allow intent completes on its receipt), so the link
+// query excludes the rest before the full plan load.
 func (s *Store) SupplyClaims(ctx context.Context, world World) (map[string]bool, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
@@ -31,7 +31,7 @@ func (s *Store) SupplyClaims(ctx context.Context, world World) (map[string]bool,
 }
 func supplyClaims(ctx context.Context, tx *sql.Tx, world World) (map[string]bool, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT a.plan_id FROM actions a JOIN transitions t ON t.action_id=a.id
- WHERE a.kind=? AND json_extract(t.payload,'$.Kind')='observe' ORDER BY a.plan_id LIMIT 257`, domain.SupplyAllowAction)
+ WHERE a.kind=? AND json_extract(t.payload,'$.Kind')='receipt' ORDER BY a.plan_id LIMIT 257`, domain.SupplyAllowAction)
 	if err != nil {
 		return nil, err
 	}
@@ -61,10 +61,8 @@ func supplyClaims(ctx context.Context, tx *sql.Tx, world World) (map[string]bool
 		for _, progress := range plan.Progress {
 			v := progress.View()
 			supply, ok := progress.Action().SupplyAllow()
-			effect, known := v.Effect.Value()
-			renewed, renewedKnown := v.UnsuccessfulReason.Value()
-			claimed := known && effect == domain.EffectCompleted && v.Stage == domain.Completed || renewedKnown && renewed == domain.OutcomeNotAchieved && v.Stage == domain.Unsuccessful
-			if !ok || !claimed || v.Snapshot.Colony != world.Colony || v.Snapshot.Load != world.Load || v.Snapshot.Map != world.Map {
+			// An applied Allow intent is terminal on its receipt.
+			if !ok || v.Stage != domain.Completed || v.Snapshot.Colony != world.Colony || v.Snapshot.Load != world.Load || v.Snapshot.Map != world.Map {
 				continue
 			}
 			out[supply.Thing()] = true
