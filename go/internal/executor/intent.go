@@ -33,6 +33,10 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.WorkAssignmentAction:      true,
 	domain.HusbandryAction:           true,
 	domain.ProductionBillAction:      true,
+	domain.ZoneCreateAction:          true,
+	domain.ZoneDeleteAction:          true,
+	domain.ZoneCellEditAction:        true,
+	domain.StockpilePatchAction:      true,
 }
 
 // runIntent dispatches one plain intent. The receipt is terminal: applied
@@ -98,5 +102,5 @@ func (e *Executor) runIntent(ctx context.Context, action domain.Action, p domain
 	if _, check := next.RecordReceipt(attempt.Attempt, kind); check != nil {
 		kind, err = domain.ReceiptUnknown, errors.Join(err, ErrEvidence)
 	}
-	return e.record(result, v.Plan, attempt, kind, errors.Join(err, ctx.Err()))
+	return e.recordZone(result, v.Plan, attempt, kind, receipt.Zone, errors.Join(err, ctx.Err()))
 }

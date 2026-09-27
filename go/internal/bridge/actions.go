@@ -45,6 +45,10 @@ func init() {
 	registerIntentKind(domain.WorkAssignmentAction, workSettingsAction)
 	registerIntentKind(domain.ProductionBillAction, productionBillAction)
 	registerIntentKind(domain.HusbandryAction, husbandryAction)
+	registerIntentKind(domain.ZoneCreateAction, zoneCreateAction)
+	registerIntentKind(domain.ZoneDeleteAction, zoneDeleteAction)
+	registerIntentKind(domain.ZoneCellEditAction, zoneCellsAction)
+	registerIntentKind(domain.StockpilePatchAction, stockpileAction)
 }
 
 // movementAction is the Actions/Apply move arm of one domain movement.

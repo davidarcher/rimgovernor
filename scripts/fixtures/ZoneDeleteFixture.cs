@@ -9,10 +9,10 @@ namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Builds one small walled, explicitly
     // roofed, empty and unzoned 2x2 interior near an existing colonist and
-    // reports its exact cells, so zoneaccept can exercise the typed CreateZone
-    // dispatch (a stockpile zone needs roofed, walkable, clear, unzoned
-    // ground -- NativeZoneCreation.Prepare's own stockpile eligibility) and
-    // then the typed DeleteZone dispatch on the zone it creates, without
+    // reports its exact cells, so zone/delete can apply a CreateZone intent
+    // (a stockpile zone needs roofed, walkable, clear, unzoned ground --
+    // NativeZoneCreation.Prepare's own stockpile eligibility) and then the
+    // settings, cell and DeleteZone intents on the zone it creates, without
     // depending on native random colony layout, mirroring BedAssignFixture's
     // own small-enclosure pattern.
     public sealed class ZoneDeleteFixture

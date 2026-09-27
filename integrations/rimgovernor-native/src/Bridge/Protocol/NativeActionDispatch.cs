@@ -45,6 +45,10 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.WorkSettings] = new WorkSettingsActionHandler(),
             [Operations.Action.IntentOneofCase.ProductionBill] = new ProductionBillActionHandler(),
             [Operations.Action.IntentOneofCase.Husbandry] = new HusbandryActionHandler(),
+            [Operations.Action.IntentOneofCase.CreateZone] = new ZoneCreationActionHandler(),
+            [Operations.Action.IntentOneofCase.DeleteZone] = new ZoneDeletionActionHandler(),
+            [Operations.Action.IntentOneofCase.ZoneCells] = new ZoneCellsActionHandler(),
+            [Operations.Action.IntentOneofCase.Stockpile] = new StockpileActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

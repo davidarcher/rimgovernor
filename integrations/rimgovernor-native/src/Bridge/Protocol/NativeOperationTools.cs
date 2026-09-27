@@ -22,9 +22,6 @@ namespace HomeBridge.BridgeTools
         internal readonly NativeAttemptLedger Ledger;
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeZoneRecord> Zones = new Dictionary<Common.AttemptKey, NativeZoneRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeZoneEditRecord> ZoneEdits = new Dictionary<Common.AttemptKey, NativeZoneEditRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeStockpilePatchRecord> StockpilePatches = new Dictionary<Common.AttemptKey, NativeStockpilePatchRecord>();
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         // PatchBuilding admissions of any implemented field (target_temperature via
         // NativeBuildingTemperature, medical via NativeBedUse, plant_def via
@@ -113,7 +110,6 @@ namespace HomeBridge.BridgeTools
             NativeDrugPolicy.Install();
             var prior = state.Ledger.Inspect("rimgovernor.operations.v1.Operations/Execute", request);
             if (prior.Kind != NativeAttemptLedger.DecisionKind.New) return prior.DecidedReply;
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CreateZone) return NativeZoneCreation.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AcquireResource)
                 return NativePlantAcquisition.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CancelAcquisition)
@@ -181,12 +177,6 @@ namespace HomeBridge.BridgeTools
                 return NativeWallRemovalOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
                 return NativeArrestOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
-                return NativeZoneDeletion.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
-                return NativeZoneCellEdit.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchStockpile)
-                return NativeStockpilePatch.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExtendHome)
                 return NativeHomeCoverageOperations.Execute(state, request, context);
             return Refuse(Common.FailureCode.Unsupported, "This native adapter does not implement the " + request.Operation.CommandCase + " operation; buildings are placed through Actions/Apply.");
@@ -267,12 +257,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeWallRemovalOperations.Preview(parsed.Operation.RemoveWall, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
                     return ProtoBoundary.Encode(NativeArrestOperations.Preview(parsed.Operation.Arrest, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
-                    return ProtoBoundary.Encode(NativeZoneDeletion.Preview(parsed.Operation.DeleteZone, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
-                    return ProtoBoundary.Encode(NativeZoneCellEdit.Preview(parsed.Operation.EditZoneCells, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchStockpile)
-                    return ProtoBoundary.Encode(NativeStockpilePatch.Preview(parsed.Operation.PatchStockpile, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExtendHome)
                     return ProtoBoundary.Encode(NativeHomeCoverageOperations.Preview(parsed.Operation.ExtendHome, context));
                 return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview does not implement this operation; building placement previews through rimgovernor/placement_preview.") });
@@ -314,8 +298,6 @@ namespace HomeBridge.BridgeTools
                     var lookup = state.Ledger.Lookup(parsed.Attempt, context);
                     if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
                     Receipts.DesignationEffect allowed;
-                    NativeZoneRecord zone;
-                    if (state.Zones.TryGetValue(parsed.Attempt, out zone)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = zone.Observe(parsed.Attempt, context) });
                     INativeAcquisitionRecord acquisition;
                     if (state.Acquisition.TryGetValue(parsed.Attempt, out acquisition))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = acquisition.Observe(parsed.Attempt, context) });
@@ -399,12 +381,6 @@ namespace HomeBridge.BridgeTools
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = arrest.Observe(parsed.Attempt, context) });
                     if (state.WallRemovals.TryGetValue(parsed.Attempt, out wallRemoval))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = wallRemoval.Observe(parsed.Attempt, context) });
-                    NativeZoneEditRecord zoneEdit;
-                    if (state.ZoneEdits.TryGetValue(parsed.Attempt, out zoneEdit))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = zoneEdit.Observe(parsed.Attempt, context) });
-                    NativeStockpilePatchRecord stockpilePatch;
-                    if (state.StockpilePatches.TryGetValue(parsed.Attempt, out stockpilePatch))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = stockpilePatch.Observe(parsed.Attempt, context) });
                     NativeHomeCoverageRecord homeCoverage;
                     if (state.HomeCoverage.TryGetValue(parsed.Attempt, out homeCoverage))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = homeCoverage.Observe(parsed.Attempt, context) });

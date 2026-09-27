@@ -11,7 +11,5 @@ internal static class ZoneProof {
  Func<string,bool> valid=s=>(bool)type.GetMethod("Valid",flags)!.Invoke(null,new[]{parse(s)})!;
  check(valid(json),"native growing configuration valid");
  foreach(var bad in new[]{"{}",json.Replace("Plant_Rice",""),json.Replace("\"allowSow\":true","\"allowSow\":false"),json.Replace("\"x\":1","\"x\":0")})check(!valid(bad),"native zone rejects malformed configuration");
- var hash=(string)type.GetMethod("ConfigurationToken",flags)!.Invoke(null,new object?[]{parse(json),null})!;
- check(hash=="zone-defa6b500f62968795cd38e729afec1f76043176f93cab6983029e87a4556a9c","Go/native exact zone configuration hash");
  }
 }

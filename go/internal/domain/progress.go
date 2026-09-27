@@ -202,12 +202,7 @@ func (v ConstructionIdentity) Validate() error {
 	return nil
 }
 
-// Zone is the native zone the completed zone_create receipt identifies (the
-// zone's unique load id, ZoneEffect.zone_id). It is the identity later native
-// censuses name the zone by, which is how a completed stockpile method owns
-// its zone for MaintainHomeCoverage (#315).
 type Observation struct {
-	Zone               string `json:",omitempty"`
 	Action             ActionID
 	Attempt            AttemptID
 	Snapshot           GenerationSnapshot
@@ -217,6 +212,10 @@ type Observation struct {
 	UnsuccessfulReason UnsuccessfulReason   `json:",omitempty"`
 }
 type ProgressView struct {
+	// Zone is the native zone an applied zone_create receipt identifies (the
+	// zone's unique load id, ZoneEffect.zone_id). It is the identity later
+	// native censuses name the zone by, which is how a completed stockpile
+	// method owns its zone for MaintainHomeCoverage (#315).
 	Zone               Fact[string]
 	Action             ActionID
 	Attempt            AttemptID
@@ -378,6 +377,20 @@ func (p Progress) RecordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 	}
 	return p.recordReceipt(attempt, receipt)
 }
+
+// RecordZoneReceipt records an applied zone_create's receipt together with
+// the native zone identity its evidence named, which zone claims read.
+func (p Progress) RecordZoneReceipt(attempt AttemptID, receipt Receipt, zone string) (Progress, error) {
+	if p.action.kind != ZoneCreateAction || receipt != ReceiptAccepted || !validID(zone) {
+		return p, errors.New("zone identity requires an applied zone create")
+	}
+	next, err := p.recordReceipt(attempt, receipt)
+	if err != nil {
+		return p, err
+	}
+	next.view.Zone = Known(zone)
+	return next, nil
+}
 func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, error) {
 	if attempt == 0 || attempt != p.view.Attempt {
 		return p, errors.New("receipt belongs to a different dispatch attempt")
@@ -480,9 +493,6 @@ func (p Progress) Observe(observation Observation, current GenerationSnapshot) (
 	return p.observe(observation, current)
 }
 func (p Progress) observe(observation Observation, current GenerationSnapshot) (Progress, error) {
-	if observation.Zone != "" && (p.action.Kind() != ZoneCreateAction || observation.Effect != EffectCompleted || observation.Causality != AfterDispatch || !validID(observation.Zone)) {
-		return p, errors.New("zone identity requires correlated completed zone evidence")
-	}
 	if !p.view.Unresolved {
 		return p, errors.New("no dispatched effect to observe")
 	}
@@ -506,9 +516,6 @@ func (p Progress) observe(observation Observation, current GenerationSnapshot) (
 		}
 	} else if observation.UnsuccessfulReason != "" {
 		return p, errors.New("unsuccessful reason requires unsuccessful effect")
-	}
-	if observation.Zone != "" {
-		p.view.Zone = Known(observation.Zone)
 	}
 	p.view.Tick, p.view.Effect = observation.Tick, Known(observation.Effect)
 	if observation.Effect == EffectUnsuccessful {

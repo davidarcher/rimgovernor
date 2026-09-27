@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
             // building's faction (NativeClaimBuilding, #459). forbidden/
             // power/owner remain the "settings" unsupported issue below.
             // A player storage building (shelf) reports its storage token
-            // (NativeStockpilePatch, PatchStockpile on a building) first.
+            // (NativeStockpilePatch, a StockpileIntent on a building) first.
             var tempControl = thing.TryGetComp<CompTempControl>();
             if (NativeStockpilePatch.StorageEligible(thing))
                 row.Settings = NativeStockpilePatch.Settings((Building_Storage)thing, context);

@@ -13,8 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	receipts "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"google.golang.org/protobuf/proto"
 	"math"
 )
 
@@ -130,7 +128,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		blocked = !foodPlanAdditionalField(projection, openPlans)
 	}
-	wait, _, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
+	wait, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
@@ -531,32 +529,20 @@ func uniqueFieldDefinitions(values []string) []string {
 	return out
 }
 
-// Growth time belongs to an exact completed zone in this goal epoch. Its deadline
-// starts at durable creation and cannot be renewed by polling or restarting.
-// The native zone ids of every observed controller-created growing zone are
-// returned so expansion can treat them as managed farms.
-func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Goal, current domain.GenerationSnapshot, facts observation.ColonyProjection) (uint32, map[string]bool, error) {
-	native, ok := r.native.(interface {
-		LookupZone(context.Context, bridge.ZoneAttempt) (*receipts.LookupReply, bridge.Result, error)
-		ObserveZone(context.Context, bridge.ZoneAttempt, *receipts.Receipt) (*receipts.ProgressReply, bridge.Result, error)
-	})
-	if !ok {
-		return 0, nil, nil
-	}
+// Growth time belongs to a zone an applied zone_create of this goal epoch
+// created, while the farm census still lists it growing the crop. Its
+// deadline starts at durable creation and cannot be renewed by polling or
+// restarting.
+func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Goal, current domain.GenerationSnapshot, facts observation.ColonyProjection) (uint32, error) {
 	methods, err := r.reviewer.player.journal.LoadGoalMethods(ctx, goal.ID, goal.Epoch)
 	if err != nil {
-		return 0, nil, err
-	}
-	namespace, err := r.reviewer.player.journal.Identity(ctx)
-	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	var remaining uint32
-	managed := map[string]bool{}
 	for _, method := range methods {
 		plan, err := r.reviewer.player.journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
-			return 0, nil, err
+			return 0, err
 		}
 		snapshot := current
 		snapshot.Plan = plan.Spec.ID()
@@ -564,7 +550,8 @@ func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Go
 		for _, progress := range plan.Progress {
 			v := progress.View()
 			zone, ok := progress.Action().ZoneCreate()
-			if !ok || v.Stage != domain.Completed || v.Unresolved || !v.Snapshot.Matches(snapshot) || v.Tick > facts.Identity.Tick {
+			id, created := v.Zone.Value()
+			if !ok || !created || v.Stage != domain.Completed || v.Unresolved || !v.Snapshot.Matches(snapshot) || v.Tick > facts.Identity.Tick {
 				continue
 			}
 			var budget domain.Tick
@@ -579,38 +566,12 @@ func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Go
 			if budget == 0 || facts.Identity.Tick-v.Tick >= budget {
 				continue
 			}
-			token := ""
-			for _, row := range plan.ZoneAdmissions {
-				if row.Action == v.Action && row.Admission.Snapshot == v.Snapshot {
-					token = row.Admission.SnapshotToken
+			for _, farm := range facts.Farms {
+				if farm.ID == id && farm.Crop == zone.Crop() {
+					remaining = max(remaining, uint32(budget-(facts.Identity.Tick-v.Tick)))
 				}
 			}
-			if token == "" {
-				continue
-			}
-			attempt := bridge.ZoneAttempt{Identity: boundary.Identity(snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(namespace)), ActionId: proto.String(string(v.Action)), AttemptId: proto.Uint64(uint64(v.Attempt))}, Generation: uint64(snapshot.Native), Token: token, Zone: zone}
-			lookup, _, err := native.LookupZone(ctx, attempt)
-			if err != nil {
-				return 0, nil, err
-			}
-			if lookup.GetReceipt() == nil {
-				continue
-			}
-			observed, _, err := native.ObserveZone(ctx, attempt, lookup.GetReceipt())
-			if err != nil {
-				return 0, nil, err
-			}
-			p := observed.GetProgress()
-			if p == nil || p.GetCompleted() == nil || !p.GetCompleteInspection() || domain.Tick(p.Context.GetTick()) != facts.Identity.Tick {
-				continue
-			}
-			matches, err := bridge.ZoneMatches(p.GetCompleted().GetEvidence(), zone, token)
-			if err != nil || !matches {
-				continue
-			}
-			managed[p.GetCompleted().GetEvidence().GetZone().GetZoneId()] = true
-			remaining = max(remaining, uint32(budget-(facts.Identity.Tick-v.Tick)))
 		}
 	}
-	return remaining, managed, nil
+	return remaining, nil
 }

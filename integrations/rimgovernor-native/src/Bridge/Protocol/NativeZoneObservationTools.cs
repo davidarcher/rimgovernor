@@ -72,11 +72,10 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        // Per-zone CAS token: unlike NativeZoneCreation.MapSnapshot's whole-map
-        // hash (CreateZone only needs "did any zone move"), EditZoneCells and
-        // DeleteZone each guard one specific zone's own cell list and
+        // Per-zone snapshot token over one zone's own cell list and
         // configuration, mirroring NativeBuildingObservationTools.Token's
-        // per-entity shape.
+        // per-entity shape. The zone intents send none: native validates them
+        // against the live zone at apply (#941).
         internal static Obs.SnapshotRef Token(Zone zone, Common.ObservationContext context) =>
             NativeObservationSnapshot.Snapshot("zone", context, Id(zone.GetUniqueLoadID()), w => {
                 var cells = zone.Cells.OrderBy(c => c.x).ThenBy(c => c.z).ToArray();

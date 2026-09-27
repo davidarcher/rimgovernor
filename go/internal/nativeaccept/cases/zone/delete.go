@@ -1,31 +1,30 @@
-// The zone/delete case exercises the full set of typed native zone dispatch
-// verticals (N01.04, issue #34) in one run: CreateZone, the native
-// rimgovernor/observations_list_zones tool (NativeZoneObservationTools.cs),
-// PatchStockpile (NativeStockpilePatch.cs), EditZoneCells
-// (NativeZoneCellEdit.cs, both directions), and DeleteZone
-// (NativeZoneDeletion.cs).
+// The zone/delete case exercises the native zone intents (N01.04, issues
+// #34 and #941) in one run, each one Action on rimgovernor/operations_apply,
+// the same Actions/Apply call Go's plain intent path sends: CreateZone
+// (NativeZoneCreation.cs), StockpileIntent (NativeStockpilePatch.cs),
+// ZoneCellsIntent (NativeZoneCellEdit.cs, both directions) and
+// DeleteZoneIntent (NativeZoneDeletion.cs), read back through the native
+// rimgovernor/observations_list_zones tool (NativeZoneObservationTools.cs).
 //
 // A real stockpile zone is created over a disposable fixture's roofed,
-// walled, empty 2x2 interior through the typed operations contract with the
-// allow-list body the Go covered-storage planners send (Nothing preset plus
-// an explicit thing_def allow list) and a hit-point/quality range; its
-// filter and per-zone CAS snapshot token are read back through the
-// ListZones tool (not just inferred from the create receipt). The priority
-// and ranges are then changed through PatchStockpile, with an unresolvable
-// selector refused. One corner cell is then removed
-// through EditZoneCells (leaving a contiguous 3-cell L-shape, and returning
-// that cell to genuinely free ground), that same cell is added back through
-// EditZoneCells (restoring the original 2x2), and the exact zone is then
-// deleted through the typed operations contract -- with stale-token
-// refusal, preview non-mutation, real effect evidence, real ListZones
-// readbacks and replay idempotency checked at each step, mirroring
-// bedassignaccept's own real-evidence shape.
+// walled, empty 2x2 interior with the allow-list body the Go covered-storage
+// planners send (Nothing preset plus an explicit thing_def allow list) and a
+// hit-point/quality range; its filter is read back through ListZones (not
+// just inferred from the applied evidence). The priority and ranges are then
+// changed through a StockpileIntent, with an unresolvable selector refused.
+// One corner cell is removed (leaving a contiguous 3-cell L-shape, and
+// returning that cell to genuinely free ground), that same cell is added
+// back (restoring the original 2x2), and the exact zone is then deleted.
+// Native validates each intent against live state at apply: a stale census
+// token and a missing zone refuse, and resending an intent whose effect
+// already holds applies again without touching the zone.
 package zone
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -37,14 +36,14 @@ const sessionOwner = "native-zone-acceptance"
 func init() {
 	cases.Register(cases.Case{
 		Name: "zone/delete",
-		Scope: "Native typed zone dispatch: a real allow-list stockpile zone with hit-point/quality ranges " +
-			"is created via the typed CreateZone operation over a disposable fixture site, its filter and per-zone CAS " +
-			"snapshot token are read back through the rimgovernor/observations_list_zones tool, its priority and ranges " +
-			"are changed via the typed PatchStockpile operation, one corner cell is removed and then re-added " +
-			"through the typed EditZoneCells operation, and the exact zone is deleted via the typed DeleteZone " +
-			"operation, with stale-token refusal, preview non-mutation, real effect evidence, real ListZones " +
-			"readbacks and replay idempotency. The re-add runs under a playing clock window and the journal's " +
-			"observation_invalidated names the zone id and its cell rectangle (#359).",
+		Scope: "Native zone intents on operations_apply: a real allow-list stockpile zone with hit-point/quality ranges " +
+			"is created by a CreateZone action over a disposable fixture site and its filter read back through " +
+			"rimgovernor/observations_list_zones, its priority and ranges are changed by a StockpileIntent (an " +
+			"unresolvable selector refused), one corner cell is removed and then re-added by ZoneCellsIntents, and the " +
+			"exact zone is deleted by a DeleteZoneIntent, with a stale census token and a missing zone refused, real " +
+			"applied evidence and ListZones readbacks, and resends of effects that already hold applying again. The " +
+			"re-add runs under a playing clock window and the journal's observation_invalidated names the zone id and " +
+			"its cell rectangle (#359).",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/zone_delete_prepare"},
 		Budget: 5 * time.Minute,
 		Run:    run,
@@ -60,7 +59,7 @@ func run(ctx context.Context, s cases.Session) error {
 	h := s.Harness()
 	identity := s.Identity()
 	prepared := s.Prepared()
-	for _, required := range []string{"rimgovernor/operations_execute", "rimgovernor/observations_list_zones", "rimgovernor/observations_read_colony_facts"} {
+	for _, required := range []string{"rimgovernor/operations_apply", "rimgovernor/observations_list_zones"} {
 		if !na.Contains(s.Names(), required) {
 			return fmt.Errorf("missing %s in discovery", required)
 		}
@@ -78,41 +77,6 @@ func run(ctx context.Context, s cases.Session) error {
 
 	if _, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity); err != nil {
 		return err
-	}
-
-	currentGeneration := func(label string) (any, error) {
-		reply, err := h.Wire(ctx, label, "authority_read_status", map[string]any{"identity": identity})
-		if err != nil {
-			return nil, err
-		}
-		_, status, err := na.Outcome(reply, "status")
-		if err != nil {
-			return nil, err
-		}
-		statusContext, _ := na.AsMap(status["context"])
-		return statusContext["nativeGeneration"], nil
-	}
-
-	// mapSnapshotToken reads the whole-map zone census token through
-	// rimgovernor/observations_list_zones, the same
-	// boundary read bridge.ReadZoneTarget issues for CreateZone.
-	mapSnapshotToken := func(label string) (string, error) {
-		reply, err := h.Wire(ctx, label, "observations_list_zones", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity},
-		})
-		if err != nil {
-			return "", err
-		}
-		_, observed, err := na.Outcome(reply, "observed")
-		if err != nil {
-			return "", err
-		}
-		snapshot, _ := na.AsMap(observed["mapSnapshot"])
-		token := na.AsString(snapshot["token"])
-		if token == "" {
-			return "", fmt.Errorf("%s: missing zone map snapshot token", label)
-		}
-		return token, nil
 	}
 
 	// zoneRow reads one zone's row (with its filter) through the
@@ -142,9 +106,9 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		return row, nil
 	}
-	// zoneState reads one zone's exact per-zone CAS snapshot token -- the
-	// same boundary read a PatchStockpile/EditZoneCells/DeleteZone caller
-	// issues. present=false with no error means the zone is not listed.
+	// zoneState reads one zone's listed snapshot token, used here only to
+	// detect whether a refused or resent intent touched the zone.
+	// present=false with no error means the zone is not listed.
 	zoneState := func(label, zoneID string) (token string, present bool, err error) {
 		row, err := zoneRow(label, zoneID)
 		if err != nil || row == nil {
@@ -190,111 +154,90 @@ func run(ctx context.Context, s cases.Session) error {
 		return nil
 	}
 
-	buildRequest := func(actionID string, generation any, operation map[string]any) map[string]any {
-		return map[string]any{
-			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": generation,
-				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": "1"},
-			},
-			"operation": operation,
+	// apply sends one intent (arm is its Action oneof field) through
+	// operations_apply and returns its single result.
+	apply := func(label, key, arm string, intent map[string]any) (map[string]any, error) {
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{
+			"key": key, arm: intent,
+		}}})
+		if err != nil {
+			return nil, err
 		}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return nil, fmt.Errorf("%s: expected one result, got %#v", label, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		return result, nil
 	}
-	failureCode := func(label string, request map[string]any) (string, error) {
-		reply, err := h.Wire(ctx, label, "operations_execute", request)
+	// applied returns the ZoneEffect of an applied result.
+	applied := func(label, key, arm string, intent map[string]any) (map[string]any, error) {
+		result, err := apply(label, key, arm, intent)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		_, failure, err := na.Outcome(reply, "failure")
+		receipt, _ := na.AsMap(result["applied"])
+		outcome, _ := na.AsMap(receipt["applied"])
+		observed, _ := na.AsMap(outcome["observed"])
+		effect, ok := na.AsMap(observed["zone"])
+		if !ok {
+			return nil, fmt.Errorf("%s: expected applied zone evidence, got %#v", label, result)
+		}
+		return effect, nil
+	}
+	// refused asserts a refusal with one of codes whose reason names the
+	// rule that failed.
+	refused := func(label, key, arm string, intent map[string]any, reason string, codes ...string) error {
+		result, err := apply(label, key, arm, intent)
 		if err != nil {
-			return "", err
+			return err
 		}
-		return na.AsString(failure["code"]), nil
+		refusal, ok := na.AsMap(result["refused"])
+		got := na.AsString(refusal["reason"])
+		if !ok || !na.Contains(codes, na.AsString(refusal["code"])) || !strings.Contains(got, reason) {
+			return fmt.Errorf("%s: expected %v %q, got %#v", label, codes, reason, result)
+		}
+		report[strings.ReplaceAll(label, "-", "_")] = got
+		return nil
 	}
 
-	// --- CreateZone: real dispatch, first acceptance coverage for this operation. ---
+	// --- CreateZone ---
 
-	mapToken, err := mapSnapshotToken("map-before-create")
-	if err != nil {
-		return err
-	}
 	// The allow-list body bridge.stockpileSettings sends for
 	// an AllowOnlyFilter stockpile, plus both filter ranges.
 	stockpileBody := map[string]any{"priority": "STORAGE_PRIORITY_IMPORTANT", "preset": "FILTER_PRESET_NOTHING",
 		"filter": map[string]any{"allow": []map[string]any{{"thingDef": "Steel"}, {"thingDef": "WoodLog"}},
 			"hitPointsMin": 0.5, "hitPointsMax": 1, "qualityMin": "Normal", "qualityMax": "Legendary"}}
-	createOperation := map[string]any{"createZone": map[string]any{
-		"expectedMapSnapshotToken": mapToken,
-		"label":                    "RimGovernor supplies storage",
-		"type":                     "ZONE_TYPE_STOCKPILE",
-		"cells":                    map[string]any{"explicitCells": map[string]any{"cells": cells}},
-		"stockpile":                stockpileBody,
-	}}
-
-	staleCreateGeneration, err := currentGeneration("generation-stale-create")
+	create := func(token string) map[string]any {
+		intent := map[string]any{
+			"label":     "RimGovernor supplies storage",
+			"type":      "ZONE_TYPE_STOCKPILE",
+			"cells":     map[string]any{"explicitCells": map[string]any{"cells": cells}},
+			"stockpile": stockpileBody,
+		}
+		if token != "" {
+			intent["expectedMapSnapshotToken"] = token
+		}
+		return intent
+	}
+	// A census token, when sent, still pins the map the planner sited on.
+	if err := refused("create-stale-token", "zone-create-stale", "createZone",
+		create("zone-stale-00000000000000000000000000000000000000000000000000000000000000"), "the map's zone census changed since it was read",
+		"FAILURE_CODE_INVALID_REQUEST"); err != nil {
+		return err
+	}
+	createEffect, err := applied("apply-create", "zone-create", "createZone", create(""))
 	if err != nil {
 		return err
 	}
-	staleCreateRequest := buildRequest("zone-create-stale-token", staleCreateGeneration, map[string]any{"createZone": map[string]any{
-		"expectedMapSnapshotToken": "zone-stale-00000000000000000000000000000000000000000000000000000000000000",
-		"label":                    "RimGovernor supplies storage", "type": "ZONE_TYPE_STOCKPILE",
-		"cells":     map[string]any{"explicitCells": map[string]any{"cells": cells}},
-		"stockpile": stockpileBody,
-	}})
-	if code, err := failureCode("create-stale-token", staleCreateRequest); err != nil {
-		return err
-	} else if code != "FAILURE_CODE_INVALID_REQUEST" && code != "FAILURE_CODE_NOT_FOUND" {
-		return fmt.Errorf("create-stale-token: expected an invalid-request/not-found refusal, got %q", code)
-	}
-
-	createPreviewReply, err := h.Wire(ctx, "preview-create", "operations_preview", map[string]any{"identity": identity, "operation": createOperation})
-	if err != nil {
-		return err
-	}
-	createPreviewEvaluated, ok := na.AsMap(createPreviewReply["evaluated"])
-	if !ok {
-		return fmt.Errorf("preview-create: expected an evaluated reply, got %#v", createPreviewReply)
-	}
-	if accepted, _ := na.AsBool(createPreviewEvaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview-create: expected the zone creation to be accepted, got %#v", createPreviewEvaluated)
-	}
-
-	createGeneration, err := currentGeneration("generation-before-create")
-	if err != nil {
-		return err
-	}
-	createRequest := buildRequest("zone-create", createGeneration, createOperation)
-	createReply, err := h.Wire(ctx, "execute-create", "operations_execute", createRequest)
-	if err != nil {
-		return err
-	}
-	_, createReceipt, err := na.Outcome(createReply, "receipt")
-	if err != nil {
-		return err
-	}
-	createApplied, ok := na.AsMap(createReceipt["applied"])
-	if !ok {
-		return fmt.Errorf("execute-create: expected an applied outcome, got %#v", createReceipt)
-	}
-	createObserved, _ := na.AsMap(createApplied["observed"])
-	createZoneEffect, ok := na.AsMap(createObserved["zone"])
-	if !ok {
-		return fmt.Errorf("execute-create: expected zone effect evidence, got %#v", createObserved)
-	}
-	zoneID := na.AsString(createZoneEffect["zoneId"])
+	zoneID := na.AsString(createEffect["zoneId"])
 	if zoneID == "" {
-		return fmt.Errorf("execute-create: missing zoneId in effect evidence: %#v", createZoneEffect)
+		return fmt.Errorf("apply-create: missing zoneId in effect evidence: %#v", createEffect)
 	}
-	if present, _ := na.AsBool(createZoneEffect["present"]); !present {
-		return fmt.Errorf("execute-create: expected present=true in the effect evidence, got %#v", createZoneEffect)
-	}
-	createSnapshot, _ := na.AsMap(createZoneEffect["snapshot"])
-	if na.AsString(createSnapshot["afterToken"]) == "" {
-		return fmt.Errorf("execute-create: expected an after-token proving the live settings equal the admitted body, got %#v", createZoneEffect)
+	if present, _ := na.AsBool(createEffect["present"]); !present || int(na.AsNumber(createEffect["listedCellCount"])) != len(cells) {
+		return fmt.Errorf("apply-create: expected a present %d-cell zone, got %#v", len(cells), createEffect)
 	}
 	report["created_zone_id"] = zoneID
-
-	// --- ListZones: real per-zone CAS snapshot token and filter readback. ---
-
 	tokenAfterCreate, present, err := zoneState("zone-after-create", zoneID)
 	if err != nil {
 		return err
@@ -302,82 +245,47 @@ func run(ctx context.Context, s cases.Session) error {
 	if !present {
 		return fmt.Errorf("zone-after-create: expected the created zone to be listed")
 	}
-	report["zone_token_after_create"] = tokenAfterCreate
 	if err := zoneFilter("filter-after-create", zoneID, "Important", []string{"Steel", "WoodLog"}, 0.5, 1, "Normal", "Legendary"); err != nil {
 		return err
 	}
+	// A resend (a lost reply's new attempt) finds the zone standing and
+	// applies again with the same identity instead of a second zone.
+	if resent, err := applied("resend-create", "zone-create-resend", "createZone", create("")); err != nil {
+		return err
+	} else if na.AsString(resent["zoneId"]) != zoneID {
+		return fmt.Errorf("resend-create: expected the standing zone %s, got %#v", zoneID, resent)
+	}
+	if token, _, err := zoneState("zone-after-create-resend", zoneID); err != nil {
+		return err
+	} else if token != tokenAfterCreate {
+		return fmt.Errorf("resend-create: a standing create changed the zone")
+	}
 
-	// --- PatchStockpile: real dispatch, first acceptance coverage for this operation. ---
+	// --- StockpileIntent ---
 	//
 	// Priority and the hit-point range change; the absent quality range and
 	// selectors preserve the live filter. A selector that does not resolve
 	// refuses the whole body before anything is applied.
 
-	unresolvedGeneration, err := currentGeneration("generation-patch-unresolved")
-	if err != nil {
-		return err
-	}
-	unresolvedRequest := buildRequest("stockpile-patch-unresolved", unresolvedGeneration, map[string]any{"patchStockpile": map[string]any{
-		"zone":     map[string]any{"entityId": zoneID, "expectedSnapshotToken": tokenAfterCreate},
+	if err := refused("patch-unresolved-selector", "stockpile-unresolved", "stockpile", map[string]any{
+		"targetId": zoneID,
 		"settings": map[string]any{"filter": map[string]any{"allow": []map[string]any{{"thingDef": "NoSuchThingDefForZoneAccept"}}}},
-	}})
-	if code, err := failureCode("patch-unresolved-selector", unresolvedRequest); err != nil {
+	}, "Stockpile patch refused", "FAILURE_CODE_INVALID_REQUEST"); err != nil {
 		return err
-	} else if code != "FAILURE_CODE_INVALID_REQUEST" {
-		return fmt.Errorf("patch-unresolved-selector: expected an invalid-request refusal, got %q", code)
 	}
 	if token, _, err := zoneState("zone-after-patch-unresolved", zoneID); err != nil {
 		return err
 	} else if token != tokenAfterCreate {
 		return fmt.Errorf("patch-unresolved-selector: a refused body unexpectedly changed the zone")
 	}
-
-	patchOperation := map[string]any{"patchStockpile": map[string]any{
-		"zone":     map[string]any{"entityId": zoneID, "expectedSnapshotToken": tokenAfterCreate},
+	patch := map[string]any{
+		"targetId": zoneID,
 		"settings": map[string]any{"priority": "STORAGE_PRIORITY_NORMAL", "filter": map[string]any{"hitPointsMin": 0.25, "hitPointsMax": 0.75}},
-	}}
-	patchPreviewReply, err := h.Wire(ctx, "preview-patch", "operations_preview", map[string]any{"identity": identity, "operation": patchOperation})
-	if err != nil {
+	}
+	if effect, err := applied("apply-patch", "stockpile-patch", "stockpile", patch); err != nil {
 		return err
-	}
-	patchPreviewEvaluated, ok := na.AsMap(patchPreviewReply["evaluated"])
-	if !ok {
-		return fmt.Errorf("preview-patch: expected an evaluated reply, got %#v", patchPreviewReply)
-	}
-	if accepted, _ := na.AsBool(patchPreviewEvaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview-patch: expected the stockpile patch to be accepted, got %#v", patchPreviewEvaluated)
-	}
-	if token, _, err := zoneState("zone-after-patch-preview", zoneID); err != nil {
-		return err
-	} else if token != tokenAfterCreate {
-		return fmt.Errorf("preview-patch: dry-run preview unexpectedly changed the zone")
-	}
-
-	patchGeneration, err := currentGeneration("generation-before-patch")
-	if err != nil {
-		return err
-	}
-	patchRequest := buildRequest("stockpile-patch", patchGeneration, patchOperation)
-	patchReply, err := h.Wire(ctx, "execute-patch", "operations_execute", patchRequest)
-	if err != nil {
-		return err
-	}
-	_, patchReceipt, err := na.Outcome(patchReply, "receipt")
-	if err != nil {
-		return err
-	}
-	patchApplied, ok := na.AsMap(patchReceipt["applied"])
-	if !ok {
-		return fmt.Errorf("execute-patch: expected an applied outcome, got %#v", patchReceipt)
-	}
-	patchObserved, _ := na.AsMap(patchApplied["observed"])
-	patchZoneEffect, ok := na.AsMap(patchObserved["zone"])
-	if !ok {
-		return fmt.Errorf("execute-patch: expected zone effect evidence, got %#v", patchObserved)
-	}
-	patchSnapshot, _ := na.AsMap(patchZoneEffect["snapshot"])
-	if na.AsString(patchSnapshot["beforeToken"]) != tokenAfterCreate || na.AsString(patchSnapshot["afterToken"]) == "" || na.AsString(patchSnapshot["afterToken"]) == tokenAfterCreate {
-		return fmt.Errorf("execute-patch: expected before=admitted token and a changed after-token, got %#v", patchZoneEffect)
+	} else if na.AsString(effect["zoneId"]) != zoneID {
+		return fmt.Errorf("apply-patch: unexpected zone effect identity: %#v", effect)
 	}
 	if err := zoneFilter("filter-after-patch", zoneID, "Normal", []string{"Steel", "WoodLog"}, 0.25, 0.75, "Normal", "Legendary"); err != nil {
 		return err
@@ -386,288 +294,101 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if tokenAfterPatch != na.AsString(patchSnapshot["afterToken"]) {
-		return fmt.Errorf("execute-patch: ListZones token %q differs from the receipt's after-token %#v", tokenAfterPatch, patchSnapshot)
+	if tokenAfterPatch == tokenAfterCreate {
+		return fmt.Errorf("apply-patch: the listed zone did not change")
 	}
-	// Replay: the exact same patch attempt returns an identical receipt, and
-	// its progress read completes against the live settings.
-	replayPatchReply, err := h.Wire(ctx, "replay-patch", "operations_execute", patchRequest)
-	if err != nil {
+	if _, err := applied("resend-patch", "stockpile-patch-resend", "stockpile", patch); err != nil {
 		return err
 	}
-	_, replayPatch, err := na.Outcome(replayPatchReply, "receipt")
-	if err != nil {
+	if token, _, err := zoneState("zone-after-patch-resend", zoneID); err != nil {
 		return err
+	} else if token != tokenAfterPatch {
+		return fmt.Errorf("resend-patch: settings that already hold were written again")
 	}
-	if !na.DeepEqual(replayPatch, patchReceipt) {
-		return fmt.Errorf("replay-patch: replay of the same attempt returned a different receipt")
-	}
-	patchPrecondition, _ := na.AsMap(patchRequest["precondition"])
-	patchProgressReply, err := h.Wire(ctx, "progress-patch", "receipts_observe_progress", map[string]any{"identity": identity, "attempt": patchPrecondition["attempt"]})
-	if err != nil {
-		return err
-	}
-	_, patchProgress, err := na.Outcome(patchProgressReply, "progress")
-	if err != nil {
-		return err
-	}
-	if _, completed := na.AsMap(patchProgress["completed"]); !completed {
-		return fmt.Errorf("progress-patch: expected a completed effect, got %#v", patchProgress)
-	}
-	report["zone_token_after_patch"] = tokenAfterPatch
-	tokenAfterCreate = tokenAfterPatch
 
-	// --- EditZoneCells: real dispatch, first acceptance coverage for this operation. ---
+	// --- ZoneCellsIntent ---
 	//
 	// cells[0] is one corner of the fixture's 2x2 interior. Removing it
 	// leaves a contiguous 3-cell L-shape and returns that cell to genuinely
-	// free ground (EditZoneCells's ADD never steals a cell from another
-	// zone -- it only ever accepts free ground, matching CreateZone's own
-	// eligibility test -- so re-adding the very cell this harness just
-	// freed is the one add case the fixture can exercise without a second
-	// site).
+	// free ground (an add never steals a cell from another zone -- it only
+	// ever accepts free ground, matching CreateZone's own eligibility test --
+	// so re-adding the very cell this harness just freed is the one add case
+	// the fixture can exercise without a second site).
 
 	editCell := cells[0]
-
-	staleEditGeneration, err := currentGeneration("generation-stale-edit-remove")
+	edit := func(zone, op string) map[string]any {
+		return map[string]any{"zoneId": zone, "edit": op, "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{editCell}}}}
+	}
+	if err := refused("edit-missing-zone", "zone-edit-missing", "zoneCells", edit("Zone_999999", "CELL_EDIT_REMOVE"),
+		"Zone cell edit refused: the exact zone no longer exists on this map", "FAILURE_CODE_NOT_FOUND"); err != nil {
+		return err
+	}
+	removeEffect, err := applied("apply-edit-remove", "zone-edit-remove", "zoneCells", edit(zoneID, "CELL_EDIT_REMOVE"))
 	if err != nil {
 		return err
 	}
-	staleEditRemoveRequest := buildRequest("zone-edit-remove-stale-token", staleEditGeneration, map[string]any{"editZoneCells": map[string]any{
-		"zone": map[string]any{"entityId": zoneID, "expectedSnapshotToken": "zone-stale-00000000000000000000000000000000000000000000000000000000000000"},
-		"edit": "CELL_EDIT_REMOVE", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{editCell}}},
-	}})
-	if code, err := failureCode("edit-remove-stale-token", staleEditRemoveRequest); err != nil {
-		return err
-	} else if code != "FAILURE_CODE_INVALID_REQUEST" && code != "FAILURE_CODE_NOT_FOUND" {
-		return fmt.Errorf("edit-remove-stale-token: expected an invalid-request/not-found refusal, got %q", code)
+	if present, _ := na.AsBool(removeEffect["present"]); !present || int(na.AsNumber(removeEffect["listedCellCount"])) != len(cells)-1 {
+		return fmt.Errorf("apply-edit-remove: expected %d listed cells after removing one, got %#v", len(cells)-1, removeEffect)
 	}
-
-	removeOperation := map[string]any{"editZoneCells": map[string]any{
-		"zone": map[string]any{"entityId": zoneID, "expectedSnapshotToken": tokenAfterCreate},
-		"edit": "CELL_EDIT_REMOVE", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{editCell}}},
-	}}
-	removePreviewReply, err := h.Wire(ctx, "preview-edit-remove", "operations_preview", map[string]any{"identity": identity, "operation": removeOperation})
-	if err != nil {
-		return err
-	}
-	removePreviewEvaluated, ok := na.AsMap(removePreviewReply["evaluated"])
-	if !ok {
-		return fmt.Errorf("preview-edit-remove: expected an evaluated reply, got %#v", removePreviewReply)
-	}
-	if accepted, _ := na.AsBool(removePreviewEvaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview-edit-remove: expected the cell removal to be accepted, got %#v", removePreviewEvaluated)
-	}
-	if token, previewPresent, err := zoneState("zone-after-edit-remove-preview", zoneID); err != nil {
-		return err
-	} else if token != tokenAfterCreate || !previewPresent {
-		return fmt.Errorf("preview-edit-remove: dry-run preview unexpectedly changed the zone")
-	}
-
-	editRemoveGeneration, err := currentGeneration("generation-before-edit-remove")
-	if err != nil {
-		return err
-	}
-	editRemoveRequest := buildRequest("zone-edit-remove", editRemoveGeneration, removeOperation)
-	editRemoveReply, err := h.Wire(ctx, "execute-edit-remove", "operations_execute", editRemoveRequest)
-	if err != nil {
-		return err
-	}
-	_, editRemoveReceipt, err := na.Outcome(editRemoveReply, "receipt")
-	if err != nil {
-		return err
-	}
-	editRemoveApplied, ok := na.AsMap(editRemoveReceipt["applied"])
-	if !ok {
-		return fmt.Errorf("execute-edit-remove: expected an applied outcome, got %#v", editRemoveReceipt)
-	}
-	editRemoveObserved, _ := na.AsMap(editRemoveApplied["observed"])
-	editRemoveZoneEffect, ok := na.AsMap(editRemoveObserved["zone"])
-	if !ok {
-		return fmt.Errorf("execute-edit-remove: expected zone effect evidence, got %#v", editRemoveObserved)
-	}
-	if present, _ := na.AsBool(editRemoveZoneEffect["present"]); !present {
-		return fmt.Errorf("execute-edit-remove: expected present=true (3 cells remain), got %#v", editRemoveZoneEffect)
-	}
-	if listed := na.AsNumber(editRemoveZoneEffect["listedCellCount"]); int(listed) != len(cells)-1 {
-		return fmt.Errorf("execute-edit-remove: expected %d listed cells after removing one, got %#v", len(cells)-1, editRemoveZoneEffect)
-	}
-
 	tokenAfterRemove, present, err := zoneState("zone-after-edit-remove", zoneID)
 	if err != nil {
 		return err
 	}
-	if !present {
-		return fmt.Errorf("zone-after-edit-remove: expected the zone to still be listed with 3 cells")
+	if !present || tokenAfterRemove == tokenAfterPatch {
+		return fmt.Errorf("zone-after-edit-remove: expected the zone listed and changed by a real cell removal")
 	}
-	if tokenAfterRemove == tokenAfterCreate {
-		return fmt.Errorf("zone-after-edit-remove: expected the per-zone CAS token to change after a real cell removal")
-	}
-
-	// Replay: the exact same remove attempt returns an identical receipt.
-	replayEditRemoveReply, err := h.Wire(ctx, "replay-edit-remove", "operations_execute", editRemoveRequest)
-	if err != nil {
+	if _, err := applied("resend-edit-remove", "zone-edit-remove-resend", "zoneCells", edit(zoneID, "CELL_EDIT_REMOVE")); err != nil {
 		return err
 	}
-	_, replayEditRemove, err := na.Outcome(replayEditRemoveReply, "receipt")
-	if err != nil {
+	if token, _, err := zoneState("zone-after-edit-remove-resend", zoneID); err != nil {
 		return err
-	}
-	if !na.DeepEqual(replayEditRemove, editRemoveReceipt) {
-		return fmt.Errorf("replay-edit-remove: replay of the same attempt returned a different receipt")
+	} else if token != tokenAfterRemove {
+		return fmt.Errorf("resend-edit-remove: a cell already out of the zone was edited again")
 	}
 	report["zone_cells_after_edit_remove"] = len(cells) - 1
-
-	addOperation := map[string]any{"editZoneCells": map[string]any{
-		"zone": map[string]any{"entityId": zoneID, "expectedSnapshotToken": tokenAfterRemove},
-		"edit": "CELL_EDIT_ADD", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{editCell}}},
-	}}
-	addPreviewReply, err := h.Wire(ctx, "preview-edit-add", "operations_preview", map[string]any{"identity": identity, "operation": addOperation})
-	if err != nil {
-		return err
-	}
-	addPreviewEvaluated, ok := na.AsMap(addPreviewReply["evaluated"])
-	if !ok {
-		return fmt.Errorf("preview-edit-add: expected an evaluated reply, got %#v", addPreviewReply)
-	}
-	if accepted, _ := na.AsBool(addPreviewEvaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview-edit-add: expected the cell addition to be accepted, got %#v", addPreviewEvaluated)
-	}
 
 	// The add runs under a playing clock window so the native probe sees
 	// the zone change and journals an observation_invalidated narrowed to
 	// this zone and its rectangle (#359); the window is paused again before
 	// the readbacks below.
-	var editAddReply map[string]any
+	var addEffect map[string]any
 	if _, err := editUnderEpoch(ctx, h, identity, report, zoneID, cells, func() error {
-		editAddGeneration, err := currentGeneration("generation-before-edit-add")
-		if err != nil {
-			return err
-		}
-		editAddReply, err = h.Wire(ctx, "execute-edit-add", "operations_execute", buildRequest("zone-edit-add", editAddGeneration, addOperation))
+		addEffect, err = applied("apply-edit-add", "zone-edit-add", "zoneCells", edit(zoneID, "CELL_EDIT_ADD"))
 		return err
 	}); err != nil {
 		return err
 	}
-	_, editAddReceipt, err := na.Outcome(editAddReply, "receipt")
-	if err != nil {
+	if int(na.AsNumber(addEffect["listedCellCount"])) != len(cells) {
+		return fmt.Errorf("apply-edit-add: expected %d listed cells after re-adding the corner, got %#v", len(cells), addEffect)
+	}
+	if _, present, err := zoneState("zone-after-edit-add", zoneID); err != nil {
 		return err
-	}
-	editAddApplied, ok := na.AsMap(editAddReceipt["applied"])
-	if !ok {
-		return fmt.Errorf("execute-edit-add: expected an applied outcome, got %#v", editAddReceipt)
-	}
-	editAddObserved, _ := na.AsMap(editAddApplied["observed"])
-	editAddZoneEffect, ok := na.AsMap(editAddObserved["zone"])
-	if !ok {
-		return fmt.Errorf("execute-edit-add: expected zone effect evidence, got %#v", editAddObserved)
-	}
-	if listed := na.AsNumber(editAddZoneEffect["listedCellCount"]); int(listed) != len(cells) {
-		return fmt.Errorf("execute-edit-add: expected %d listed cells after re-adding the corner, got %#v", len(cells), editAddZoneEffect)
-	}
-
-	deleteToken, present, err := zoneState("zone-after-edit-add", zoneID)
-	if err != nil {
-		return err
-	}
-	if !present {
+	} else if !present {
 		return fmt.Errorf("zone-after-edit-add: expected the zone to be listed with all %d cells restored", len(cells))
 	}
 	report["zone_cells_after_edit_add"] = len(cells)
 
-	// --- DeleteZone: real dispatch. ---
+	// --- DeleteZoneIntent ---
 
-	staleDeleteGeneration, err := currentGeneration("generation-stale-delete")
+	deleteEffect, err := applied("apply-delete", "zone-delete", "deleteZone", map[string]any{"zoneId": zoneID})
 	if err != nil {
 		return err
 	}
-	staleDeleteRequest := buildRequest("zone-delete-stale-token", staleDeleteGeneration, map[string]any{"deleteZone": map[string]any{
-		"zone": map[string]any{"entityId": zoneID, "expectedSnapshotToken": "zone-stale-00000000000000000000000000000000000000000000000000000000000000"},
-	}})
-	if code, err := failureCode("delete-stale-token", staleDeleteRequest); err != nil {
-		return err
-	} else if code != "FAILURE_CODE_INVALID_REQUEST" && code != "FAILURE_CODE_NOT_FOUND" {
-		return fmt.Errorf("delete-stale-token: expected an invalid-request/not-found refusal, got %q", code)
+	if na.AsString(deleteEffect["zoneId"]) != zoneID {
+		return fmt.Errorf("apply-delete: unexpected zone effect identity: %#v", deleteEffect)
 	}
-
-	deleteOperation := map[string]any{"deleteZone": map[string]any{"zone": map[string]any{"entityId": zoneID, "expectedSnapshotToken": deleteToken}}}
-	deletePreviewReply, err := h.Wire(ctx, "preview-delete", "operations_preview", map[string]any{"identity": identity, "operation": deleteOperation})
-	if err != nil {
-		return err
+	if present, _ := na.AsBool(deleteEffect["present"]); present {
+		return fmt.Errorf("apply-delete: expected present=false in the effect evidence, got %#v", deleteEffect)
 	}
-	deletePreviewEvaluated, ok := na.AsMap(deletePreviewReply["evaluated"])
-	if !ok {
-		return fmt.Errorf("preview-delete: expected an evaluated reply, got %#v", deletePreviewReply)
-	}
-	if accepted, _ := na.AsBool(deletePreviewEvaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview-delete: expected the zone deletion to be accepted, got %#v", deletePreviewEvaluated)
-	}
-	if _, previewPresent, err := zoneState("zone-after-delete-preview", zoneID); err != nil {
-		return err
-	} else if !previewPresent {
-		return fmt.Errorf("preview-delete: dry-run preview unexpectedly deleted the zone")
-	}
-
-	deleteGeneration, err := currentGeneration("generation-before-delete")
-	if err != nil {
-		return err
-	}
-	deleteRequest := buildRequest("zone-delete", deleteGeneration, deleteOperation)
-	deleteReply, err := h.Wire(ctx, "execute-delete", "operations_execute", deleteRequest)
-	if err != nil {
-		return err
-	}
-	_, deleteReceipt, err := na.Outcome(deleteReply, "receipt")
-	if err != nil {
-		return err
-	}
-	deleteApplied, ok := na.AsMap(deleteReceipt["applied"])
-	if !ok {
-		return fmt.Errorf("execute-delete: expected an applied outcome, got %#v", deleteReceipt)
-	}
-	deleteObserved, _ := na.AsMap(deleteApplied["observed"])
-	deleteZoneEffect, ok := na.AsMap(deleteObserved["zone"])
-	if !ok {
-		return fmt.Errorf("execute-delete: expected zone effect evidence, got %#v", deleteObserved)
-	}
-	if na.AsString(deleteZoneEffect["zoneId"]) != zoneID {
-		return fmt.Errorf("execute-delete: unexpected zone effect identity: %#v", deleteZoneEffect)
-	}
-	if present, _ := na.AsBool(deleteZoneEffect["present"]); present {
-		return fmt.Errorf("execute-delete: expected present=false in the effect evidence, got %#v", deleteZoneEffect)
-	}
-
 	if _, afterDeletePresent, err := zoneState("zone-after-delete", zoneID); err != nil {
 		return err
 	} else if afterDeletePresent {
 		return fmt.Errorf("zone-after-delete: expected the deleted zone to no longer be listed")
 	}
 	report["zone_deleted"] = true
-
-	// Replay: the exact same delete attempt returns an identical receipt.
-	replayReply, err := h.Wire(ctx, "replay-delete", "operations_execute", deleteRequest)
-	if err != nil {
+	// A zone already gone is the deletion's effect: the resend applies.
+	if _, err := applied("resend-delete", "zone-delete-resend", "deleteZone", map[string]any{"zoneId": zoneID}); err != nil {
 		return err
-	}
-	_, replay, err := na.Outcome(replayReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(replay, deleteReceipt) {
-		return fmt.Errorf("replay-delete: replay of the same attempt returned a different receipt")
-	}
-	deletePrecondition, _ := na.AsMap(deleteRequest["precondition"])
-	deleteAttempt := map[string]any{"identity": identity, "attempt": deletePrecondition["attempt"]}
-	lookupReply, err := h.Wire(ctx, "lookup-delete", "receipts_lookup", deleteAttempt)
-	if err != nil {
-		return err
-	}
-	_, lookup, err := na.Outcome(lookupReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(lookup, deleteReceipt) {
-		return fmt.Errorf("lookup-delete: expected the same receipt as execute, got %#v", lookup)
 	}
 
 	logData, err := os.ReadFile(s.Config().StartupLogPath())

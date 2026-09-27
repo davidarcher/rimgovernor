@@ -37,7 +37,7 @@ discovered/mapped, not as live source links.
 | `home/acquire_resource` | Operations.Preview / Execute: AcquireResource | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/cancel_construction` | Operations.Preview / Execute: CancelConstruction | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/confirm_colony_names` | Actions.Apply NamingIntent (autopilot); PresentationReads.PreviewNaming/PlayerPresentation.Apply naming (future player affordance, unregistered) | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/zone_cells` | Operations.Preview / Execute: CreateZone / DeleteZone / EditZoneCells / RepairZone / PatchStockpile / PatchGrowing; Observations.ListZones | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/zone_cells` | Actions.Apply CreateZone / DeleteZoneIntent / ZoneCellsIntent / StockpileIntent; Operations.Preview CreateZone (planner siting); Operations RepairZone / PatchGrowing; Observations.ListZones | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/place_building` | Operations.Preview / Execute: PlaceBuilding; Placement.Preview | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/pawn_config` | Actions.Apply WorkSettingsIntent; Observations.ReadPawnSettings | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/building_config` | Operations.Preview / Execute: PatchBuilding; Observations.ReadBuildingSettings / PresentationReads.Gizmos | Typed | `controller/rimgovernor/bridge_game.py:16` |

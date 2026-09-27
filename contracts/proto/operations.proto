@@ -66,6 +66,8 @@ message Operation {
   reserved 7, 8, 12, 21, 30, 31, 32, 46, 48 to 53, 58, 59;
   reserved "patch_pawn", "add_bill", "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy", "set_prisoner_interaction", "assign_bed", "set_drug_policy";
   reserved "set_animal_training", "slaughter_animal", "tame_animal", "release_animal", "set_animal_area", "set_animal_master", "set_animal_following";
+  reserved 15, 16, 18;
+  reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -78,10 +80,9 @@ message Operation {
     AcquireResource acquire_resource = 4;
     DesignateThing designate_thing = 5;
     PatchBuilding patch_building = 6;
+    // Preview only: the siting read planners run per candidate; zones are
+    // created through the create_zone Action arm.
     CreateZone create_zone = 14;
-    DeleteZone delete_zone = 15;
-    EditZoneCells edit_zone_cells = 16;
-    PatchStockpile patch_stockpile = 18;
     ExtendHome extend_home = 20;
     RemoveWall remove_wall = 22;
     RecoverService recover_service = 25;
@@ -266,10 +267,20 @@ message StockpileSettings { optional StoragePriority priority = 1; optional Filt
 message GrowingSettings { optional string plant_def = 1; optional bool allow_sow = 2; optional bool allow_cut = 3; }
 message FishingSettings { optional double population_floor = 1; }
 message CreateZone { optional string expected_map_snapshot_token = 1; optional ZoneType type = 2; optional string label = 3; Cells cells = 4; StockpileSettings stockpile = 5; GrowingSettings growing = 6; optional bool require_covered_empty = 7; FishingSettings fishing = 8; optional string extend_zone_id = 9; }
-message DeleteZone { EntityPrecondition zone = 1; }
+// Delete one zone. Native refuses a zone holding a phantom cell or a
+// stockpile whose haul grid disagrees with its cells; a zone already gone
+// applies again.
+message DeleteZoneIntent { optional string zone_id = 1; }
 enum CellEdit { CELL_EDIT_UNSPECIFIED = 0; CELL_EDIT_ADD = 1; CELL_EDIT_REMOVE = 2; }
-message EditZoneCells { EntityPrecondition zone = 1; optional CellEdit edit = 2; Cells cells = 3; optional bool allow_split = 4; optional bool require_covered_empty = 5; }
-message PatchStockpile { EntityPrecondition zone = 1; StockpileSettings settings = 2; }
+// Add free zoneable cells to one zone, or remove cells of its own. Native
+// checks the zone, every cell and a contiguous result live when it applies;
+// cells already in (add) or already out of (remove) the zone apply again.
+message ZoneCellsIntent { optional string zone_id = 1; optional CellEdit edit = 2; Cells cells = 3; }
+// Set the priority and filter of one stockpile zone or player storage
+// building (a shelf). Native resolves the settings against the target's
+// storable definitions when it applies; settings that already hold apply
+// again.
+message StockpileIntent { optional string target_id = 1; StockpileSettings settings = 2; }
 message ExtendHome { EntityPrecondition target = 1; optional string shape_token = 2; optional int64 revision = 3; }
 // Exact non-colony occupant; no snapshot token. Native repeats eligibility and roof safety at apply.
 message Deconstruct { EntityPrecondition target = 1; }
@@ -391,6 +402,14 @@ message Action {
     WorkSettingsIntent work_settings = 23;
     ProductionBillIntent production_bill = 24;
     HusbandryIntent husbandry = 25;
+    // Create one zone (expected_map_snapshot_token is not sent: native
+    // checks the ground live when it applies). A zone whose cells and
+    // configuration already equal the request, or a fishing zone already
+    // extended over them, applies again; applied evidence names the zone.
+    CreateZone create_zone = 26;
+    DeleteZoneIntent delete_zone = 27;
+    ZoneCellsIntent zone_cells = 28;
+    StockpileIntent stockpile = 29;
   }
 }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog

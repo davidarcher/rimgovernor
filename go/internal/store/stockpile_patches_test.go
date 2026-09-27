@@ -31,18 +31,15 @@ func TestStockpilePatchesListTheLatestCompletedPatch(t *testing.T) {
 	}
 	current := r.Current
 	current.Plan, current.Revision = plan.ID(), plan.Revision()
-	for _, a := range []struct {
-		id    domain.ActionID
-		thing string
-	}{{"patch-zone", "Zone_7"}, {"patch-shelf", "Shelf_1"}} {
-		if _, err = s.PrepareBuildingTemperature(ctx, plan.ID(), a.id, BuildingTemperatureAdmission{Snapshot: current, Tick: 10, Thing: a.thing, SnapshotToken: "cas"}); err != nil {
-			t.Fatal(a.id, err)
+	for _, id := range []domain.ActionID{"patch-zone", "patch-shelf"} {
+		if _, err = s.Prepare(ctx, plan.ID(), id, current, 11); err != nil {
+			t.Fatal(id, err)
 		}
-		if _, err = s.Dispatch(ctx, plan.ID(), a.id, current, 10); err != nil {
-			t.Fatal(a.id, err)
+		if _, err = s.Dispatch(ctx, plan.ID(), id, current, 11); err != nil {
+			t.Fatal(id, err)
 		}
-		if _, err = s.Observe(ctx, plan.ID(), domain.Observation{Action: a.id, Attempt: 1, Snapshot: current, Tick: 11, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, current); err != nil {
-			t.Fatal(a.id, err)
+		if _, err = s.RecordReceipt(ctx, plan.ID(), id, 1, domain.ReceiptAccepted); err != nil {
+			t.Fatal(id, err)
 		}
 	}
 	got, err := s.StockpilePatches(ctx, r.Current, 12)

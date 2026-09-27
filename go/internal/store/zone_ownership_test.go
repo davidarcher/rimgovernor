@@ -10,7 +10,7 @@ import (
 )
 
 // completedStockpile commits one stockpile method on the fixture goal and
-// observes its creation completed; zone is the identity the receipt named
+// records its applied receipt; zone is the identity the receipt named
 // (empty for a completion recorded without one).
 func completedStockpile(t *testing.T, zone string) (*Store, string, domain.GenerationSnapshot) {
 	t.Helper()
@@ -30,14 +30,18 @@ func completedStockpile(t *testing.T, zone string) (*Store, string, domain.Gener
 	if err != nil || !d.Admitted {
 		t.Fatal(d, err)
 	}
-	if _, err = s.PrepareZone(ctx, p.ID(), a.ID(), ZoneAdmission{Snapshot: current, Tick: 10, SnapshotToken: "token"}); err != nil {
+	if _, err = s.Prepare(ctx, p.ID(), a.ID(), current, 11); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.Dispatch(ctx, p.ID(), a.ID(), current, 10); err != nil {
+	if _, err = s.Dispatch(ctx, p.ID(), a.ID(), current, 11); err != nil {
 		t.Fatal(err)
 	}
-	observed := domain.Observation{Action: a.ID(), Attempt: 1, Snapshot: current, Tick: 11, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch, Zone: zone}
-	if _, err = s.Observe(ctx, p.ID(), observed, current); err != nil {
+	if zone == "" {
+		_, err = s.RecordReceipt(ctx, p.ID(), a.ID(), 1, domain.ReceiptAccepted)
+	} else {
+		_, err = s.RecordZoneReceipt(ctx, p.ID(), a.ID(), 1, zone)
+	}
+	if err != nil {
 		t.Fatal(err)
 	}
 	return s, path, r.Current

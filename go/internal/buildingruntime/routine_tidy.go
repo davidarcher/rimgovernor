@@ -14,7 +14,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // RoutineTidySource previews the re-sited zone and refreshes one zone's
@@ -22,7 +21,6 @@ import (
 type RoutineTidySource interface {
 	FieldNative
 	ReadZoneDeleteTarget(context.Context, *c.Identity, string) (bridge.ZoneDeleteTarget, bridge.Result, error)
-	PreviewZoneDelete(context.Context, *c.Identity, domain.ZoneDelete) (*op.PreviewReply, bridge.Result, error)
 }
 
 // RoutineTidyPlanner executes the TidyLayout review's proposal (#611) one
@@ -357,18 +355,6 @@ func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlSt
 	del, err := domain.NewZoneDelete(t.Item, old.Token)
 	if err != nil {
 		return RoutineTidyResult{}, err
-	}
-	preview, _, err := r.native.PreviewZoneDelete(call, identity, del)
-	if err != nil {
-		var refusal *bridge.NativeFailure
-		if errors.As(err, &refusal) {
-			clockSchedulerLog("Tidy: delete %s refused at preview: %s", t.Item, refusal.Value.GetDetail())
-			return RoutineTidyResult{Reason: BuildingMethodRefused}, nil
-		}
-		return RoutineTidyResult{}, err
-	}
-	if v := preview.GetEvaluated(); v == nil || !v.GetAccepted() {
-		return RoutineTidyResult{Reason: BuildingMethodRefused}, nil
 	}
 	id := tidyPlanID(goal, deleteMethod)
 	action, err := domain.NewZoneDeleteAction(domain.ActionID(fmt.Sprintf("%s-0", id)), del)

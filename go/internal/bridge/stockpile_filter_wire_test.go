@@ -75,30 +75,37 @@ func TestStockpileSettingsCarriesRanges(t *testing.T) {
 	}
 }
 
-// The two stockpile write kinds put the same ProtoJSON on the wire the
-// zone/delete acceptance case sends by hand.
-func TestStockpileWriteOperations(t *testing.T) {
+// The zone and stockpile intents put the same ProtoJSON on the wire the
+// zone/delete acceptance case sends by hand; no CAS token is sent.
+func TestZoneIntentActions(t *testing.T) {
 	edit, _ := domain.NewZoneCellEdit("Zone_7", "tok", domain.RemoveZoneCells, []domain.Cell{{X: 2, Z: 3}})
 	ea, _ := domain.NewZoneCellEditAction("e", edit)
-	got, err := stockpileWriteOperation(ea)
+	got, err := IntentAction("k", ea)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"editZoneCells":{"zone":{"entityId":"Zone_7","expectedSnapshotToken":"tok"},"edit":"CELL_EDIT_REMOVE","cells":{"explicitCells":{"cells":[{"x":2,"z":3}]}}}}`
+	want := `{"key":"k","zoneCells":{"zoneId":"Zone_7","edit":"CELL_EDIT_REMOVE","cells":{"explicitCells":{"cells":[{"x":2,"z":3}]}}}}`
 	if s := compactJSON(t, got); s != want {
 		t.Fatal(s)
 	}
 	patch, _ := domain.NewStockpilePatch(domain.StorageBuildingTarget, "Shelf_1", "tok", domain.GeneralFilter(), domain.CriticalPriority, "shelf:Shelf_1")
 	pa, _ := domain.NewStockpilePatchAction("p", patch)
-	if got, err = stockpileWriteOperation(pa); err != nil {
+	if got, err = IntentAction("k", pa); err != nil {
 		t.Fatal(err)
 	}
-	want = `{"patchStockpile":{"zone":{"entityId":"Shelf_1","expectedSnapshotToken":"tok"},"settings":{"priority":"STORAGE_PRIORITY_CRITICAL","preset":"FILTER_PRESET_NONPERISHABLES","filter":{"disallow":[{"categoryDef":"Chunks"}]}}}}`
+	want = `{"key":"k","stockpile":{"targetId":"Shelf_1","settings":{"priority":"STORAGE_PRIORITY_CRITICAL","preset":"FILTER_PRESET_NONPERISHABLES","filter":{"disallow":[{"categoryDef":"Chunks"}]}}}}`
 	if s := compactJSON(t, got); s != want {
 		t.Fatal(s)
 	}
-	if _, err := stockpileWriteOperation(domain.Action{}); err == nil {
-		t.Fatal("accepted a non-stockpile action")
+	del, _ := domain.NewZoneDelete("Zone_7", "tok")
+	da, _ := domain.NewZoneDeleteAction("d", del)
+	if got, err = IntentAction("k", da); err != nil || compactJSON(t, got) != `{"key":"k","deleteZone":{"zoneId":"Zone_7"}}` {
+		t.Fatal(got, err)
+	}
+	zone, _ := domain.NewZoneCreate(domain.GrowingZone, "Plant_Rice", []domain.Cell{{X: 0, Z: 0}})
+	za, _ := domain.NewZoneCreateAction("z", zone)
+	if got, err = IntentAction("k", za); err != nil || got.GetCreateZone().ExpectedMapSnapshotToken != nil || got.GetCreateZone().GetGrowing().GetPlantDef() != "Plant_Rice" {
+		t.Fatal(got, err)
 	}
 }
 

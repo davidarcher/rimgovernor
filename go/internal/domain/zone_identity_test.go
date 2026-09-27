@@ -30,35 +30,31 @@ func dispatchedZone(t *testing.T) (Progress, GenerationSnapshot) {
 	return p, s
 }
 
-// The zone identity a completed creation receipt names is the only ownership
-// evidence a stockpile claim has (#315), so it is kept exactly like a
-// construction identity: on correlated completed zone evidence only.
-func TestCompletedZoneIdentityRequiresCausalCompletedZoneEvidence(t *testing.T) {
-	p, scope := dispatchedZone(t)
-	for _, effect := range []Effect{EffectUnknown, EffectPending, EffectCompleted, EffectAbsent} {
-		for _, causality := range []ObservationCausality{"", AfterDispatch} {
-			o := Observation{Action: p.View().Action, Attempt: p.View().Attempt, Snapshot: scope, Tick: 11, Effect: effect, Causality: causality, Zone: "Zone_7"}
-			got, err := p.Observe(o, scope)
-			if effect == EffectCompleted && causality == AfterDispatch {
-				id, known := got.View().Zone.Value()
-				if err != nil || !known || id != "Zone_7" {
-					t.Fatal(got, err)
-				}
-			} else if err == nil || got != p {
-				t.Fatal("invalid zone identity changed progress", got, err)
-			}
+// The zone identity an applied creation receipt names is the only ownership
+// evidence a stockpile claim has (#315), so only an accepted zone_create
+// receipt with a valid id records one.
+func TestZoneIdentityRequiresAnAppliedZoneCreateReceipt(t *testing.T) {
+	p, _ := dispatchedZone(t)
+	attempt := p.View().Attempt
+	for _, receipt := range []Receipt{ReceiptRefused, ReceiptUnknown, ReceiptUnsent} {
+		if got, err := p.RecordZoneReceipt(attempt, receipt, "Zone_7"); err == nil || got != p {
+			t.Fatal("a non-applied receipt recorded a zone identity", receipt, got, err)
 		}
 	}
-	if _, err := p.Observe(Observation{Action: p.View().Action, Attempt: p.View().Attempt, Snapshot: scope, Tick: 11, Effect: EffectCompleted, Causality: AfterDispatch, Zone: " "}, scope); err == nil {
+	if _, err := p.RecordZoneReceipt(attempt, ReceiptAccepted, " "); err == nil {
 		t.Fatal("blank zone identity accepted")
 	}
-	building, scope := dispatched(t)
-	if _, err := building.Observe(Observation{Action: building.View().Action, Attempt: building.View().Attempt, Snapshot: scope, Tick: 11, Effect: EffectCompleted, Causality: AfterDispatch, Zone: "Zone_7"}, scope); err == nil {
-		t.Fatal("building completion accepted a zone identity")
+	got, err := p.RecordZoneReceipt(attempt, ReceiptAccepted, "Zone_7")
+	if id, known := got.View().Zone.Value(); err != nil || !known || id != "Zone_7" {
+		t.Fatal(got, err)
 	}
-	if got, err := p.Observe(Observation{Action: p.View().Action, Attempt: p.View().Attempt, Snapshot: scope, Tick: 11, Effect: EffectCompleted, Causality: AfterDispatch}, scope); err != nil {
+	building, _ := dispatched(t)
+	if _, err := building.RecordZoneReceipt(building.View().Attempt, ReceiptAccepted, "Zone_7"); err == nil {
+		t.Fatal("a building receipt accepted a zone identity")
+	}
+	if got, err := p.RecordReceipt(attempt, ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	} else if _, known := got.View().Zone.Value(); known {
-		t.Fatal("completion without a receipt identity invented one")
+		t.Fatal("a receipt without an identity invented one")
 	}
 }

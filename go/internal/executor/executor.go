@@ -60,6 +60,14 @@ type Receipt struct {
 	Attempt  domain.AttemptID
 	Snapshot domain.GenerationSnapshot
 	Kind     domain.Receipt
+	// Zone is the zone an applied zone_create's evidence names.
+	Zone string
+}
+
+// ZoneJournal records an applied zone_create's receipt with the zone
+// identity its evidence named.
+type ZoneJournal interface {
+	RecordZoneReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, string) (domain.Progress, error)
 }
 
 type Boundary interface {
@@ -79,8 +87,6 @@ type Result struct {
 }
 
 type Executor struct {
-	zone                       ZoneBoundary
-	zoneJournal                ZoneJournal
 	acquisition                AcquisitionBoundary
 	acquisitionJournal         AcquisitionJournal
 	supply                     SupplyBoundary
@@ -124,8 +130,6 @@ type Executor struct {
 	growerCropJournal          GrowerCropJournal
 	claimBuilding              ClaimBuildingBoundary
 	claimBuildingJournal       ClaimBuildingJournal
-	zoneWrite                  map[domain.ActionKind]ZoneWriteBoundary
-	zoneWriteJournal           ZoneWriteJournal
 	trade                      TradeBoundary
 	tradeJournal               TradeJournal
 	homeCoverage               HomeCoverageBoundary
@@ -316,9 +320,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.ZoneCreateAction && e.zone != nil {
-		return e.runZone(ctx, action, progress, authority, generation)
-	}
 	if action.Kind() == domain.AcquisitionAction && e.acquisition != nil {
 		return e.runAcquisition(ctx, action, progress, authority, generation)
 	}
@@ -391,9 +392,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.ClaimBuildingAction && e.claimBuilding != nil {
 		return e.runClaimBuilding(ctx, action, progress, authority, generation)
 	}
-	if w := e.zoneWrite[action.Kind()]; w != nil {
-		return e.runZoneWrite(ctx, w, action, progress, authority, generation)
-	}
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)
 	}
@@ -463,11 +461,22 @@ func (e *Executor) fresh(start, end time.Time) bool {
 	return !start.IsZero() && !end.IsZero() && !end.Before(start) && !now.Before(end) && !now.Before(start) && now.Sub(start) <= e.limits.MaxAge
 }
 func (e *Executor) record(result Result, plan domain.PlanID, placement Placement, kind domain.Receipt, cause error) (Result, error) {
+	return e.recordZone(result, plan, placement, kind, "", cause)
+}
+
+// recordZone is record naming the zone an applied zone_create created.
+func (e *Executor) recordZone(result Result, plan domain.PlanID, placement Placement, kind domain.Receipt, zone string, cause error) (Result, error) {
 	// Caller/authority cancellation must not erase the attempt. Only a bounded local
 	// journal write uses a fresh context; native calls never outlive their authority.
 	ctx, cancel := context.WithTimeout(context.Background(), e.limits.JournalTimeout)
 	defer cancel()
-	progress, err := e.journal.RecordReceipt(ctx, plan, placement.Action.ID(), placement.Attempt, kind)
+	var progress domain.Progress
+	var err error
+	if journal, ok := e.journal.(ZoneJournal); ok && zone != "" && kind == domain.ReceiptAccepted {
+		progress, err = journal.RecordZoneReceipt(ctx, plan, placement.Action.ID(), placement.Attempt, zone)
+	} else {
+		progress, err = e.journal.RecordReceipt(ctx, plan, placement.Action.ID(), placement.Attempt, kind)
+	}
 	if err == nil {
 		result.Progress = progress
 	}

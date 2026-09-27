@@ -13,7 +13,7 @@ import (
 )
 
 // Admission is a zone's footprint record, written once at method admission
-// (AdmitBuildingMethod) and moved to the current generation by PrepareZone.
+// (AdmitBuildingMethod); the zone_create intent prepares only under it.
 // Building intents carry none: native validates a placement when it applies
 // the intent (#856).
 type Admission struct {
@@ -89,7 +89,7 @@ func loadAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Pr
 	}
 	v := p.View()
 	// The footprint agrees with progress on the world, plan and revision
-	// rather than on the native generation (PrepareZone).
+	// rather than on the native generation, which moves under it.
 	recorded, progressed := admission.Snapshot, v.Snapshot
 	recorded.Native, progressed.Native = 0, 0
 	if (v.Stage == domain.Prepared || v.Attempt > 0) && !recorded.Matches(progressed) {

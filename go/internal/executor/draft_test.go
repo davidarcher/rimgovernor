@@ -41,7 +41,7 @@ func (d *draftFake) Draft(ctx context.Context, p DraftDispatch) (DraftReceipt, e
 	if d.call != nil {
 		return d.call(ctx, p)
 	}
-	return DraftReceipt{Receipt: Receipt{p.Attempt.Action.ID(), p.Attempt.Attempt, p.Attempt.Snapshot, domain.ReceiptAccepted}, Claim: domain.Known(d.claim(p.Attempt))}, nil
+	return DraftReceipt{Receipt: Receipt{Action: p.Attempt.Action.ID(), Attempt: p.Attempt.Attempt, Snapshot: p.Attempt.Snapshot, Kind: domain.ReceiptAccepted}, Claim: domain.Known(d.claim(p.Attempt))}, nil
 }
 func (d *draftFake) ObserveDraft(_ context.Context, p Placement, current domain.GenerationSnapshot) (DraftEvidence, error) {
 	now := d.f.clock.Now()

@@ -58,6 +58,9 @@ func DispatchIntent(ctx context.Context, leases LeaseSource, p executor.Placemen
 	switch {
 	case result.GetApplied().GetApplied() != nil:
 		out.Kind = domain.ReceiptAccepted
+		if p.Action.Kind() == domain.ZoneCreateAction {
+			out.Zone = result.GetApplied().GetApplied().GetObserved().GetZone().GetZoneId()
+		}
 	case result.GetRefused() != nil:
 		out.Kind = domain.ReceiptRefused
 	case result.GetFailed() != nil && result.GetFailed().GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT:

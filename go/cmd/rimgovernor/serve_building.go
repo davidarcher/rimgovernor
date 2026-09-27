@@ -30,11 +30,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movebuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/stockpilewrite"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zonedelete"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
@@ -112,7 +109,6 @@ type buildingServiceBridge struct {
 	acquisition         *acquisition.AcquisitionCapabilities
 	mineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 	excavation          *excavation.ExcavationCapabilities
-	zones               *zone.ZoneCapabilities
 	supplies            *supply.SupplyCapabilities
 	cutPlant            *cutplant.CutPlantCapabilities
 	moveBuilding        *movebuilding.Capabilities
@@ -141,8 +137,6 @@ type buildingServiceBridge struct {
 	bedUse              *beduse.Capabilities
 	growerCrop          *growercrop.Capabilities
 	claimBuilding       *claimbuilding.Capabilities
-	zoneDelete          *zonedelete.Capabilities
-	stockpileWrite      *stockpilewrite.Capabilities
 	openCasket          *buildingruntime.OpenCasketCapabilities
 	homeCoverage        *buildingruntime.HomeCoverageCapabilities
 	wallRemoval         *buildingruntime.WallRemovalCapabilities
@@ -189,10 +183,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	clock, err := bridge.NewClockControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	zones, err := bridge.NewZoneControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -268,14 +258,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	zoneDeleteControl, err := bridge.NewZoneDeleteControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	stockpileWriteControl, err := bridge.NewStockpileWriteControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	homeCoverageWriter, err := bridge.NewHomeCoverageWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -297,7 +279,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: actionsWriter, moodReliefWorld: client,
-		zones:           &zone.ZoneCapabilities{Native: client, Writer: zones},
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		excavation:      &excavation.ExcavationCapabilities{Native: client, Writer: excavationWriter},
@@ -327,8 +308,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		claimBuilding:       &claimbuilding.Capabilities{Native: client, Writer: claimBuildingControl},
-		zoneDelete:          &zonedelete.Capabilities{Native: client, Writer: zoneDeleteControl},
-		stockpileWrite:      &stockpilewrite.Capabilities{Native: client, Writer: stockpileWriteControl},
 		openCasket:          &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
 		homeCoverage:        &buildingruntime.HomeCoverageCapabilities{Native: client, Writer: homeCoverageWriter},
 		wallRemoval:         &buildingruntime.WallRemovalCapabilities{Native: client, Writer: wallRemovalWriter},
@@ -411,17 +390,6 @@ func drainBuilding(owner buildingCloser) error {
 	}
 }
 
-// zoneExecutorRequired reports whether the composition dispatches zone-create
-// actions: field and food-storage plans, SecureSupplies' covered-storage
-// fallback (routine_secure_supplies.go), MaintainResource's material-storage
-// fallback (routine_resource.go), clearance's chunk-dump stockpile,
-// and MaintainAnimalFeed's feed-storage
-// fallback (routine_animal_feed.go, #311: the feed zone sat pending as an
-// unsupported action until the family carried the executor).
-func zoneExecutorRequired(config serveConfig) bool {
-	return config.routineFieldPlans || config.routineFoodStoragePlans || config.routineSecureSuppliesPlans || config.routineResourcePlans || config.routineAnimalFeedPlans || config.routineFoodStorageUpkeepPlans || config.routineClearancePlans
-}
-
 func supplyExecutorRequired(config serveConfig) bool {
 	return config.routineSupplyPlans || config.routineFoodStorageUpkeepPlans
 }
@@ -482,13 +450,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return errors.New("supply plans require typed supply capabilities")
 		}
 		supplyCapabilities = client.supplies
-	}
-	var zoneCapabilities *zone.ZoneCapabilities
-	if zoneExecutorRequired(config) {
-		if client.zones == nil {
-			return errors.New("zone plans require typed zone capabilities")
-		}
-		zoneCapabilities = client.zones
 	}
 	var acquisitionCapabilities *acquisition.AcquisitionCapabilities
 	if config.routineAcquisitionPlans {
@@ -668,15 +629,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		claimBuildingCapabilities = client.claimBuilding
 	}
-	// The tidy family dissolves re-sited zones, and the stockpiles family
-	// retired stockpiles (#725), through the shared executor (#611).
-	var zoneDeleteCapabilities *zonedelete.Capabilities
-	if config.routineTidyPlans || config.routineStockpilePlans {
-		if client.zoneDelete == nil {
-			return errors.New("tidy and stockpile plans require typed zone delete capabilities")
-		}
-		zoneDeleteCapabilities = client.zoneDelete
-	}
 	// ... and re-sites furniture through the game's Reinstall (#808).
 	var moveBuildingCapabilities *movebuilding.Capabilities
 	if config.routineTidyPlans {
@@ -719,7 +671,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Acquisition:         acquisitionCapabilities,
 		MineAcquisition:     mineAcquisitionCapabilities,
 		Excavation:          excavationCapabilities,
-		Zones:               zoneCapabilities,
 		Supplies:            supplyCapabilities,
 		Draft:               client.draft,
 		Clock:               clockCapabilities,
@@ -746,8 +697,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		BedUse:              bedUseCapabilities,
 		GrowerCrop:          growerCropCapabilities,
 		ClaimBuilding:       claimBuildingCapabilities,
-		ZoneDelete:          zoneDeleteCapabilities,
-		StockpileWrite:      client.stockpileWrite,
 		OpenCasket:          openCasketCapabilities,
 		HomeCoverage:        homeCoverageCapabilities,
 		WallRemoval:         wallRemovalCapabilities,

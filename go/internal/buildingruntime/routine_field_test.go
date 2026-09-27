@@ -2,35 +2,30 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
 	"testing"
-	"time"
 )
 
 type fieldTestNative struct {
 	*routineNative
-	changed bool
 }
 
 func (n *fieldTestNative) PreviewZone(ctx context.Context, id *c.Identity, target bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error) {
 	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
 }
-func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
+func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	base, db, session, request, n := sleepingFixture(t)
+	base, db, session, _, n := sleepingFixture(t)
 	reviewer := base.reviewer
 	reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureFoodSupply})
 	v := n.reply.GetObserved()
@@ -78,34 +73,16 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	}
 	a := plan.Spec.Actions()[0]
 	tick := domain.Tick(v.Context.GetTick())
-	if _, err := db.PrepareZone(ctx, result.Plan, a.ID(), store.ZoneAdmission{Snapshot: snapshot, Tick: tick, SnapshotToken: "fresh-map"}); err != nil {
+	// A zone_create is an intent: it prepares untyped under the footprint
+	// admission and its applied receipt records the created zone.
+	if _, err := db.Prepare(ctx, result.Plan, a.ID(), snapshot, tick); err != nil {
 		t.Fatal(err)
-	}
-	stored, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil || len(stored.ZoneAdmissions) != 1 || stored.ZoneAdmissions[0].Admission.SnapshotToken != "fresh-map" {
-		t.Fatal(stored, err)
-	}
-	// Native authority that moved since the method admission re-prepares
-	// the zone under the current generation; the footprint record written
-	// at admission still accounts for it (#217).
-	moved := snapshot
-	moved.Native++
-	if _, err := db.PrepareZone(ctx, result.Plan, a.ID(), store.ZoneAdmission{Snapshot: moved, Tick: tick, SnapshotToken: "fresh-map"}); err != nil {
-		t.Fatal("zone stranded after a native generation change:", err)
-	}
-	if _, err := db.PrepareZone(ctx, result.Plan, a.ID(), store.ZoneAdmission{Snapshot: snapshot, Tick: tick, SnapshotToken: "fresh-map"}); err != nil {
-		t.Fatal(err)
-	}
-
-	// The shared reservation cannot bypass typed map preparation.
-	if _, err := db.Prepare(ctx, result.Plan, a.ID(), plan.Admissions[0].Admission.Snapshot, plan.Admissions[0].Admission.Tick); err == nil {
-		t.Fatal("generic zone preparation bypass")
 	}
 	dispatched, err := db.Dispatch(ctx, result.Plan, a.ID(), snapshot, tick)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Observe(ctx, result.Plan, domain.Observation{Action: a.ID(), Attempt: dispatched.View().Attempt, Snapshot: snapshot, Tick: tick + 1, Effect: domain.EffectCompleted}, snapshot); err != nil {
+	if _, err := db.RecordZoneReceipt(ctx, result.Plan, a.ID(), dispatched.View().Attempt, "field"); err != nil {
 		t.Fatal(err)
 	}
 	review, err := db.LoadRoutineReview(ctx)
@@ -122,110 +99,20 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 			goal = g.Goal
 		}
 	}
-	n.reply.GetObserved().Context.Tick = proto.Int64(int64(tick + 1))
-	facts := observation.ColonyProjection{Identity: observation.Identity{Tick: tick + 1}, Definitions: []observation.PlanningDefinition{{Name: "Plant_Rice", GrowDays: domain.Known(3.0)}}}
-	allowance, managed, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts)
-	if err != nil || allowance == 0 || len(managed) != 1 {
-		t.Fatal("growth budget", allowance, managed, err)
+	facts := observation.ColonyProjection{Identity: observation.Identity{Tick: tick + 1}, Definitions: []observation.PlanningDefinition{{Name: "Plant_Rice", GrowDays: domain.Known(3.0)}}, Farms: []observation.FarmZoneFact{{ID: "field", Crop: "Plant_Rice"}}}
+	allowance, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts)
+	if err != nil || allowance == 0 {
+		t.Fatal("growth budget", allowance, err)
 	}
 	facts.Identity.Tick += domain.Tick(allowance)
-	if wait, _, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts); err != nil || wait != 0 {
+	if wait, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts); err != nil || wait != 0 {
 		t.Fatal("deadline renewed", wait, err)
 	}
 	facts.Identity.Tick = tick + 1
-	planner.native.(*fieldTestNative).changed = true
-	if wait, _, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts); err != nil || wait != 0 {
+	facts.Farms[0].Crop = "Plant_Potato"
+	if wait, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts); err != nil || wait != 0 {
 		t.Fatal("changed field granted time", wait, err)
 	}
-
-	if len(plan.Spec.Actions()) < 2 {
-		t.Fatal("need second patch")
-	}
-	second := plan.Spec.Actions()[1]
-	boundary := &fieldExecutorTest{clock: reviewer.clock, tick: tick + 1}
-	worker, err := executor.New(db, boundary, reviewer.clock, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = worker.EnableZone(boundary); err != nil {
-		t.Fatal(err)
-	}
-	if err = worker.UpdateAuthority(executor.Authority{Snapshot: snapshot, Enabled: true}); err != nil {
-		t.Fatal(err)
-	}
-	attempt, err := worker.Run(ctx, result.Plan, second.ID())
-	if err == nil || !attempt.Progress.View().Unresolved || boundary.writes != 1 {
-		t.Fatal("lost reply", attempt, err)
-	}
-	if _, err = worker.Run(ctx, result.Plan, second.ID()); err != nil || boundary.writes != 1 {
-		t.Fatal("uncertainty retried", err)
-	}
-	request.Kind = store.PauseControl
-	request.RequestID = "manual-fields"
-	if _, err := reviewer.player.Pause(ctx, request); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = worker.UpdateAuthority(executor.Authority{Snapshot: snapshot, Enabled: false}); err != nil {
-		t.Fatal(err)
-	}
-	boundary.complete = true
-	recovered, err := worker.Run(ctx, result.Plan, second.ID())
-	if err != nil || recovered.Progress.View().Unresolved || recovered.Progress.View().Effect != domain.Known(domain.EffectCompleted) || boundary.writes != 1 {
-		t.Fatal("manual observation", recovered, err)
-	}
-	stored, err = db.LoadPlan(ctx, result.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Manual suspends the goal: the remaining patches stay pending for the
-	// resumed goal rather than being cancelled.
-	for _, p := range stored.Progress {
-		if p.Action().ID() != a.ID() && p.Action().ID() != second.ID() && p.View().Stage != domain.Pending {
-			t.Fatal(p)
-		}
-	}
-}
-
-func (n *fieldTestNative) LookupZone(ctx context.Context, w bridge.ZoneAttempt) (*r.LookupReply, bridge.Result, error) {
-	return &r.LookupReply{Outcome: &r.LookupReply_Receipt{Receipt: &r.Receipt{Attempt: w.Attempt}}}, bridge.Result{}, nil
-}
-func (n *fieldTestNative) ObserveZone(ctx context.Context, w bridge.ZoneAttempt, receipt *r.Receipt) (*r.ProgressReply, bridge.Result, error) {
-	token := bridge.ZoneConfigurationToken(w.Zone)
-	if n.changed {
-		token = "changed"
-	}
-	d := &r.ZoneEffect{ZoneId: proto.String("field"), Present: proto.Bool(true), ListedCellCount: proto.Int32(int32(len(w.Zone.Cells()))), GridCellCount: proto.Int32(int32(len(w.Zone.Cells()))), ChangedCells: proto.Int32(int32(len(w.Zone.Cells()))), PhantomCellCount: proto.Int32(0), Snapshot: &r.SnapshotEvidence{EntityId: proto.String("field"), BeforeToken: proto.String(w.Token), AfterToken: proto.String(token)}}
-	for _, cell := range w.Zone.Cells() {
-		d.Cells = append(d.Cells, &r.CellResult{Cell: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}, Accepted: proto.Bool(true)})
-	}
-	return &r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: &r.Progress{Attempt: w.Attempt, Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: &r.EffectEvidence{Effect: &r.EffectEvidence_Zone{Zone: d}}}}}}}, bridge.Result{}, nil
-}
-
-type fieldExecutorTest struct {
-	executor.Boundary
-	clock    executor.Clock
-	tick     domain.Tick
-	writes   int
-	complete bool
-}
-
-func (n *fieldExecutorTest) InspectZone(ctx context.Context, target executor.Target) (executor.ZoneInspection, error) {
-	zone, _ := target.Action.ZoneCreate()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true)})
-	return executor.ZoneInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Zone: zone, SnapshotToken: "fresh-map", Accepted: true, Emergency: emergency}, nil
-}
-func (n *fieldExecutorTest) CreateZone(ctx context.Context, d executor.ZoneDispatch) (executor.Receipt, error) {
-	n.writes++
-	return executor.Receipt{}, errors.New("lost native reply")
-}
-func (n *fieldExecutorTest) ObserveZone(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.ZoneEvidence, error) {
-	zone, _ := p.Action.ZoneCreate()
-	effect, id := domain.EffectUnknown, ""
-	if n.complete {
-		effect, id = domain.EffectCompleted, "field"
-	}
-	return executor.ZoneEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: n.tick + 2, Effect: effect, Causality: domain.AfterDispatch, Zone: id}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: n.complete, Zone: zone, Matches: domain.Known(n.complete)}, nil
 }
 
 // Open hunting or foraging under EnsureFoodSupply must not starve the field

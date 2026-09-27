@@ -62,22 +62,13 @@ func Patched(a domain.Action) (thing, before string, ok bool) {
 	if cb, ok := a.ClaimBuilding(); ok {
 		return cb.Thing(), cb.BeforeToken(), true
 	}
-	if zd, ok := a.ZoneDelete(); ok {
-		return zd.Zone(), zd.BeforeToken(), true
-	}
-	if ze, ok := a.ZoneCellEdit(); ok {
-		return ze.Zone(), ze.BeforeToken(), true
-	}
-	if sp, ok := a.StockpilePatch(); ok {
-		return sp.Target(), sp.BeforeToken(), true
-	}
 	return "", "", false
 }
 
 // Kind reports whether the action is one of the building-patch kinds this
 // admission record guards.
 func Kind(kind domain.ActionKind) bool {
-	return kind == domain.BuildingTemperatureAction || kind == domain.BedUseAction || kind == domain.GrowerCropAction || kind == domain.ClaimBuildingAction || kind == domain.ZoneDeleteAction || kind == domain.ZoneCellEditAction || kind == domain.StockpilePatchAction
+	return kind == domain.BuildingTemperatureAction || kind == domain.BedUseAction || kind == domain.GrowerCropAction || kind == domain.ClaimBuildingAction
 }
 
 func LoadAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (Admission, bool, error) {

@@ -33,11 +33,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/store/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/store/tend"
-	"github.com/davidarcher/RimGovernor/go/internal/store/zone"
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 129
+const schemaVersion = 130
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -55,8 +54,6 @@ type Store struct{ db *sql.DB }
 // It is independent of HTTP process sessions and survives controller restarts.
 type ControllerSessionID = core.ControllerSessionID
 type PlanState struct {
-	ZoneAdmissions []ActionZoneAdmission
-
 	Retired                       bool
 	Spec                          domain.PlanSpec
 	Progress                      []domain.Progress
@@ -246,7 +243,6 @@ CREATE TABLE action_dependencies(plan_id TEXT NOT NULL REFERENCES plans(id), act
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE bill_claims(colony TEXT NOT NULL,load_token TEXT NOT NULL,map_id INTEGER NOT NULL,bench TEXT NOT NULL,recipe TEXT NOT NULL,PRIMARY KEY(colony,load_token,map_id,bench,recipe)) STRICT;
-CREATE TABLE zone_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE supply_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE tend_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -655,16 +651,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if supplyPresent {
 			state.SupplyAdmissions = append(state.SupplyAdmissions, ActionSupplyAdmission{Action: a.ID(), Admission: supplyAdmission})
 		}
-		zoneAdmission, zonePresent, e := zone.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.ZoneCreateAction && !zonePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("zone progress lacks admission")
-		}
-		if zonePresent {
-			state.ZoneAdmissions = append(state.ZoneAdmissions, ActionZoneAdmission{Action: a.ID(), Admission: zoneAdmission})
-		}
 
 		admission, present, err := loadAdmission(ctx, tx, a, p)
 		if err != nil {
@@ -840,6 +826,7 @@ type transition struct {
 	Attempt                domain.AttemptID
 	Receipt                domain.Receipt
 	Observation            domain.Observation
+	Zone                   string                          `json:",omitempty"`
 	HeldReasons            []domain.HeldReason             `json:",omitempty"`
 	DraftReceipt           *draftReceiptEvent              `json:",omitempty"`
 	DraftObserve           *draftObserveEvent              `json:",omitempty"`
@@ -887,6 +874,9 @@ func apply(p domain.Progress, e transition) (domain.Progress, error) {
 	case "dispatch":
 		return p.MarkDispatched(e.Snapshot, e.Tick)
 	case "receipt":
+		if e.Zone != "" {
+			return p.RecordZoneReceipt(e.Attempt, e.Receipt, e.Zone)
+		}
 		return p.RecordReceipt(e.Attempt, e.Receipt)
 	case "observe":
 		return p.Observe(e.Observation, e.Snapshot)
@@ -1023,12 +1013,15 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			}
 		}
 	}
-	if current.Action().Kind() == domain.ZoneCreateAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("zone requires typed preparation")
+	// A zone_create prepares only under its method's footprint record,
+	// which keeps the footprint accounted while the intent is in flight.
+	if current.Action().Kind() == domain.ZoneCreateAction && event.Kind == "prepare" {
+		accounted := false
+		for _, record := range state.Admissions {
+			accounted = accounted || record.Action == action && record.Admission.Tick <= event.Tick
 		}
-		if event.Kind == "dispatch" && !zone.GuardDispatch(state.ZoneAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("zone dispatch lacks current admission")
+		if !accounted {
+			return domain.Progress{}, errors.New("zone requires shared footprint admission")
 		}
 	}
 	if current.Action().Kind() == domain.TendAction {
@@ -1171,9 +1164,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		if record.Action != action {
 			continue
 		}
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("accounted work requires ReserveAndPrepare")
-		}
 		if event.Kind == "dispatch" && event.Tick < record.Admission.Tick {
 			return domain.Progress{}, errors.New("dispatch predates latest admission observation")
 		}
@@ -1216,6 +1206,12 @@ func (s *Store) Dispatch(ctx context.Context, plan domain.PlanID, action domain.
 }
 func (s *Store) RecordReceipt(ctx context.Context, plan domain.PlanID, action domain.ActionID, attempt domain.AttemptID, receipt domain.Receipt) (domain.Progress, error) {
 	return s.advance(ctx, plan, action, transition{Kind: "receipt", Attempt: attempt, Receipt: receipt})
+}
+
+// RecordZoneReceipt records an applied zone_create's receipt with the zone
+// identity native created, which zone claims read.
+func (s *Store) RecordZoneReceipt(ctx context.Context, plan domain.PlanID, action domain.ActionID, attempt domain.AttemptID, zone string) (domain.Progress, error) {
+	return s.advance(ctx, plan, action, transition{Kind: "receipt", Attempt: attempt, Receipt: domain.ReceiptAccepted, Zone: zone})
 }
 func (s *Store) Observe(ctx context.Context, plan domain.PlanID, observation domain.Observation, current domain.GenerationSnapshot) (domain.Progress, error) {
 	return s.advance(ctx, plan, observation.Action, transition{Kind: "observe", Snapshot: current, Observation: observation})

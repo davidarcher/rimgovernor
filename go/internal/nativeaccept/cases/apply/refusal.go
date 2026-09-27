@@ -24,7 +24,7 @@ const sessionOwner = "native-apply-refusal-acceptance"
 func init() {
 	cases.Register(cases.Case{
 		Name: "apply/refusal",
-		Scope: "Apply-time precondition refusals (#242, #252): for zone cell edit, stockpile patch, zone deletion, zone creation, " +
+		Scope: "Apply-time precondition refusals (#242, #252): for zone cell edit, stockpile patch, zone creation, " +
 			"Allow, haul, work settings, bills, build, hunt, tame, grower crop, plant and mine acquisition, excavation and wall " +
 			"removal, a write whose token was valid when read is executed after the fixture moved the world and is refused " +
 			"with the documented reason naming the moved fact; the acquisition writes are refused the same way without a " +
@@ -86,7 +86,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	plantCell, rockCell, preyCell, buildCell := cellOf("plantCell"), cellOf("rockCell"), cellOf("preyCell"), cellOf("buildCell")
 	tokens := map[string]string{}
-	for _, key := range []string{"zoneId", "zoneToken", "mapToken", "wallId", "wallToken", "itemId", "itemToken", "haulItemId", "haulItemToken",
+	for _, key := range []string{"zoneId", "wallId", "wallToken", "itemId", "itemToken", "haulItemId", "haulItemToken",
 		"pawnId", "pawnWorkToken", "plantId", "plantToken", "plantResource", "rockId", "rockToken", "rockResource", "rockDef", "excavateToken",
 		"benchId", "benchToken", "preyId", "preyResource", "tameId", "growerId", "growerToken", "growerCrop"} {
 		if tokens[key], err = str(key); err != nil {
@@ -169,7 +169,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return nil
 	}
 	at := func(cell map[string]any) string { return fmt.Sprintf("(%v, %v)", cell["x"], cell["z"]) }
-	zone := map[string]any{"entityId": tokens["zoneId"], "expectedSnapshotToken": tokens["zoneToken"]}
 
 	// Build: the open build cell is walled over after the placement preview
 	// accepted it; the Actions/Apply building intent (#856) is refused with
@@ -224,42 +223,37 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["build"] = na.AsString(buildRefusal["reason"])
 
-	// Zone cell edit: the free roofed cell is walled over after the read.
+	// Zone intents are Actions/Apply intents (#941). Zone cell edit and zone
+	// creation: the free roofed cell is walled over after the read.
 	if err := move("fill-free-cell", map[string]any{"action": "fill_cell", "x": freeCells[0]["x"], "z": freeCells[0]["z"]}); err != nil {
 		return err
 	}
-	if err := refused("zone-edit-add", map[string]any{"editZoneCells": map[string]any{
-		"zone": zone, "edit": "CELL_EDIT_ADD", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{freeCells[0]}}},
+	if err := intentRefused("zone-edit-add", map[string]any{"zoneCells": map[string]any{
+		"zoneId": tokens["zoneId"], "edit": "CELL_EDIT_ADD", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{freeCells[0]}}},
 	}}, "FAILURE_CODE_INVALID_REQUEST", "Zone cell edit refused: cell "+at(freeCells[0])+" is not free zoneable ground"); err != nil {
 		return err
 	}
+	if err := intentRefused("zone-create", map[string]any{"createZone": map[string]any{
+		"label": "RimGovernor apply refusal", "type": "ZONE_TYPE_STOCKPILE",
+		"cells":     map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{freeCells[0]}}},
+		"stockpile": map[string]any{"priority": "STORAGE_PRIORITY_NORMAL", "preset": "FILTER_PRESET_NOTHING"},
+	}}, "FAILURE_CODE_INVALID_REQUEST", "Zone creation refused: fresh free ground required: cell "+at(freeCells[0])+" is not roofed, walkable, unzoned, empty storage ground"); err != nil {
+		return err
+	}
 
-	// Stockpile patch, zone deletion and a cell removal: the zone is gone.
+	// Stockpile patch and a cell removal: the zone is gone. (A deletion of
+	// the gone zone is its effect already holding, so it applies.)
 	if err := move("delete-zone", map[string]any{"action": "delete_zone", "id": tokens["zoneId"]}); err != nil {
 		return err
 	}
-	if err := refused("stockpile-patch", map[string]any{"patchStockpile": map[string]any{
-		"zone": zone, "settings": map[string]any{"priority": "STORAGE_PRIORITY_IMPORTANT"},
-	}}, "FAILURE_CODE_NOT_FOUND", "Stockpile patch refused: the exact stockpile zone no longer exists on this map"); err != nil {
+	if err := intentRefused("stockpile-patch", map[string]any{"stockpile": map[string]any{
+		"targetId": tokens["zoneId"], "settings": map[string]any{"priority": "STORAGE_PRIORITY_IMPORTANT"},
+	}}, "FAILURE_CODE_NOT_FOUND", "Stockpile patch refused: the exact stockpile zone or storage building no longer exists on this map"); err != nil {
 		return err
 	}
-	if err := refused("zone-delete", map[string]any{"deleteZone": map[string]any{"zone": zone}},
-		"FAILURE_CODE_NOT_FOUND", "Zone deletion refused: the exact zone no longer exists on this map"); err != nil {
-		return err
-	}
-	if err := refused("zone-edit-remove", map[string]any{"editZoneCells": map[string]any{
-		"zone": zone, "edit": "CELL_EDIT_REMOVE", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{zoneCells[0]}}},
+	if err := intentRefused("zone-edit-remove", map[string]any{"zoneCells": map[string]any{
+		"zoneId": tokens["zoneId"], "edit": "CELL_EDIT_REMOVE", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{zoneCells[0]}}},
 	}}, "FAILURE_CODE_NOT_FOUND", "Zone cell edit refused: the exact zone no longer exists on this map"); err != nil {
-		return err
-	}
-
-	// Zone creation: the freed cells are fresh ground again, so every cell
-	// rule holds and the deletion is caught by the closing census rule.
-	if err := refused("zone-create", map[string]any{"createZone": map[string]any{
-		"expectedMapSnapshotToken": tokens["mapToken"], "label": "RimGovernor apply refusal", "type": "ZONE_TYPE_STOCKPILE",
-		"cells":     map[string]any{"explicitCells": map[string]any{"cells": zoneCells}},
-		"stockpile": map[string]any{"priority": "STORAGE_PRIORITY_NORMAL", "preset": "FILTER_PRESET_NOTHING"},
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Zone creation refused: the map's zone census changed since it was read"); err != nil {
 		return err
 	}
 
