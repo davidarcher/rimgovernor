@@ -31,6 +31,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
 	formed := false // a manhunter formation this stop (#900)
 	manhunterWaitTurn(view, &next)
+	siegeTurn(view, &next)
 	if pods, ok := view.Pods.Value(); ok && next.Pods == nil {
 		// The arrival row may leave a later frame; the fight keeps it (#891).
 		next.Pods = &pods
@@ -61,6 +62,10 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			// A manhunter pack picks its own tactic (#898).
 			next.Tactic, next.Roles, next.Refusal = TacticManhunter, manhunterFormation(view, geometry, next.Relieved), ""
 			formed = true
+		} else if mode := siegeMode(view, next); mode != "" {
+			// A siege picks its own tactic (#776).
+			next.Tactic, next.Roles, next.Refusal = TacticSiege, siegeFormation(view, mode), ""
+			next.SiegeMode = mode
 		} else if b, ok := predictBreach(view); ok {
 			// A sapper or breacher raid posts inside its predicted breach (#913).
 			next.Tactic, next.Roles, next.Refusal = TacticSapper, sapperFormation(view, b), ""
@@ -79,6 +84,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		next.Roles = focusFire(view, next.Roles, memory.Roles)
 	}
 	next.Roles = dropMissingTargets(view, next.Roles)
+	siegeHold(&next)
 	manhunterKite(view, &next)
 	sapperIntercept(view, &next)
 	sapperRush(view, stop, &next)
@@ -383,6 +389,10 @@ type CombatMemory struct {
 	Intercept bool `json:",omitempty"`
 	// Rushing is a sapper fight whose posted brawlers rush the breach (#915).
 	Rushing bool `json:",omitempty"`
+	// SiegeCamp is the tick a siege camp was first seen; SiegeMode the
+	// siege tactic's mode at its last formation (#776).
+	SiegeCamp domain.Tick `json:",omitempty"`
+	SiegeMode SiegeMode   `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
@@ -488,6 +498,9 @@ func interruptsAim(s CombatPawnState) bool {
 func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 	if len(m.Roles) == 0 || stop.Kind == StopRaidPhase || stop.Kind == StopBreach {
 		return true
+	}
+	if m.Tactic == TacticSiege || siegeMode(view, m) != "" {
+		return reformSiege(view, m)
 	}
 	if m.Tactic == TacticSapper || reformSapper(view, m) {
 		return reformSapper(view, m)

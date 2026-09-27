@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"context"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -26,14 +27,18 @@ func TestDefenseReplaySapperRaidBypassesTheLine(t *testing.T) {
 	}
 }
 
-// defense/siege: a Siege raid that never enters the corridor is answered
-// with a squad sortie on the besiegers, never a line position.
-func TestDefenseReplaySiegeIsASquadSortie(t *testing.T) {
+// defense/siege: a Siege raid still travelling (its supplies not landed)
+// is answered by the siege tactic holding at home (#776): attacking now
+// makes them flee.
+func TestDefenseReplaySiegeHoldsWhileTravelling(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/siege.json.gz")
-	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
-	if melee, ranged := squadAttacks(t, db, results[0].Plan); len(melee)+len(ranged) == 0 {
-		t.Fatal("the sortie attacks no besieger")
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSiege)
+	fight, _, _ := db.LoadCombatFight(context.Background(), results[0].Plan)
+	for _, role := range fight.Memory.Roles {
+		if role.Target != "" {
+			t.Fatalf("sortie before the camp: %+v", role)
+		}
 	}
 }
 
