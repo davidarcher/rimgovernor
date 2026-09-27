@@ -81,7 +81,7 @@ const (
 // defender. This proposal covers the general N-opponent case only; the
 // single-raider tribal 3-defender/85%-health sub-case is the caller's
 // separate SelectTribalRaiderDefense preference, and an unarmed defender is
-// simply excluded here rather than equipped inline (RoutineEquipPlanner arms
+// never sent to melee (#948) and is not equipped inline (RoutineEquipPlanner arms
 // colonists on its own independently-scheduled goal).
 //
 // Assignments are a proposal only; native (melee intents) and
@@ -153,7 +153,13 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 	eligibleDefender := squadDefenderEligible
 
 	var threatPool, buildings []SquadThreatFacts
+	standing := false
 	for _, t := range threats {
+		if !t.Building {
+			dead, dk := t.Dead.Value()
+			downed, wk := t.Downed.Value()
+			standing = standing || !dk || !wk || !dead && !downed
+		}
 		switch {
 		case !eligibleThreat(t):
 		case t.Building:
@@ -164,7 +170,9 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 	}
 	// Buildings wait for the field to clear: a hive's insects and a ship
 	// part's guards are the live danger, the building itself goes nowhere.
-	if len(threatPool) == 0 {
+	// Any standing hostile pawn guards it, eligible or not: a hive is not
+	// attacked while its insects still fight (#948).
+	if len(threatPool) == 0 && !standing {
 		threatPool = buildings
 	}
 	sort.Slice(threatPool, func(i, j int) bool { return threatPool[i].ID < threatPool[j].ID })
@@ -200,6 +208,11 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 				}
 				equipped, known := d.RangedEquipped.Value()
 				if ranged && (!known || !equipped) {
+					continue
+				}
+				// Melee needs a weapon in hand: fists lose to anything
+				// worth fighting (#948).
+				if armed, ak := d.Armed.Value(); !ranged && (!ak || !armed) {
 					continue
 				}
 				used[d.ID] = true

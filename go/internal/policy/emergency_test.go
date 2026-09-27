@@ -142,6 +142,29 @@ func TestEmergencyUndiscoveredThreatNeitherHoldsNorCounts(t *testing.T) {
 		}
 	}
 }
+
+// #948: a dormant ruin hive or an idle insect next to a colonist is left
+// alone; only an engaging one (or one with no passive fact) holds.
+func TestEmergencyPassiveInsectOrHiveDoesNotHold(t *testing.T) {
+	for _, kind := range []ThreatKind{Hostile, HostileBuilding} {
+		f := completeEmergency()
+		row := EmergencyThreat{ID: "hive", Kind: kind, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(kind == Hostile), Distance: domain.Known(3.0), Passive: domain.Known(true)}
+		if kind == HostileBuilding {
+			row.SnapshotToken, row.Definition, row.Cells = "token", "Hive", []domain.Cell{{X: 1, Z: 1}}
+		}
+		f.Threats = []EmergencyThreat{row}
+		if !evaluateEmergency(t, f).Clear {
+			t.Fatalf("passive %v held", kind)
+		}
+		for _, passive := range []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)} {
+			f.Threats[0].Passive = passive
+			if !hasEmergencyHold(evaluateEmergency(t, f), EmergencyUnsafeThreat, "hive") {
+				t.Fatalf("engaging %v under passive %v cleared", kind, passive)
+			}
+		}
+	}
+}
+
 func TestEmergencyThreatCategoriesAndContradictions(t *testing.T) {
 	for _, kind := range []ThreatKind{Hostile, HuntingPredator, IgnoredHunter, NearbyPredator, NearbyDowned} {
 		f := completeEmergency()

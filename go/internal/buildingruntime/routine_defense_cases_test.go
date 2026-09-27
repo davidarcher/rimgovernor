@@ -76,6 +76,30 @@ func TestDefenseReplayHiveIsSquadTargeted(t *testing.T) {
 	}
 }
 
+// defense/hive with the hive read passive (dormant, or awake with nobody
+// inside its boundary and no insect engaging): the recorded census holds
+// nothing and the fight has no target (#948).
+func TestDefenseSnapshotPassiveHiveIsLeftAlone(t *testing.T) {
+	t.Parallel()
+	step, err := snapshot.LoadDefense("testdata/defense/hive.json.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts := step.Emergency
+	if len(facts.Threats) == 0 || !policy.ThreatHolds(facts.Threats[0]) {
+		t.Fatal("the recorded hive does not hold", facts.Threats)
+	}
+	for i := range facts.Threats {
+		facts.Threats[i].Passive = domain.Known(true)
+		if policy.ThreatHolds(facts.Threats[i]) {
+			t.Fatal("a passive threat holds", facts.Threats[i].ID)
+		}
+	}
+	if ids, _, buildings := defenseTargets(facts.Threats); len(ids)+len(buildings) != 0 {
+		t.Fatal("a passive hive is a defense target", ids, buildings)
+	}
+}
+
 // defense/shippart: with every colonist carrying a rifle, a crashed ship
 // part is shot by a defender with a line of fire.
 func TestDefenseReplayShipPartIsShotFromALineOfFire(t *testing.T) {
@@ -88,12 +112,13 @@ func TestDefenseReplayShipPartIsShotFromALineOfFire(t *testing.T) {
 }
 
 // defense/raid-breach: an edge assault is held from the firing line; once
-// a raider is behind the line the same fight re-forms as squad defense at
-// the threat. The recording's later steps (a cancelled hold, then a fresh
-// squad plan) replay as one fight.
-func TestDefenseReplayBreachFallsBackToSquadDefense(t *testing.T) {
+// a raider is behind the line the hold is dropped. The recording has one
+// free armed colonist and five unarmed ones against four melee raiders: no
+// armed pair per raider, so no squad forms and nobody brawls with fists
+// (#948). The later steps replay as one fight.
+func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
 	t.Parallel()
-	results, methods, db := replayDefense(t,
+	results, _, db := replayDefense(t,
 		"testdata/defense/raid-breach-1-hold.json.gz",
 		"testdata/defense/raid-breach-2-held.json.gz",
 		"testdata/defense/raid-breach-3-fallback.json.gz",
@@ -101,9 +126,7 @@ func TestDefenseReplayBreachFallsBackToSquadDefense(t *testing.T) {
 	if results[0].Reason != BuildingMethodAdmitted {
 		t.Fatal(results)
 	}
-	// The defenders drafted at admission (#910), the hold re-formed as
-	// squad defense orders them at once.
-	if results[1].Reason != BuildingMethodExistingWork || results[2].Reason != BuildingMethodCombatOrders || results[3].Reason != BuildingMethodExistingWork {
+	if results[1].Reason != BuildingMethodExistingWork || results[2].Reason != BuildingMethodHoldFallback || results[3].Reason != BuildingMethodExistingWork {
 		t.Fatal(results)
 	}
 	for _, r := range results[1:] {
@@ -111,9 +134,8 @@ func TestDefenseReplayBreachFallsBackToSquadDefense(t *testing.T) {
 			t.Fatal("the fight changed plans", results)
 		}
 	}
-	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
-	if melee, ranged := squadAttacks(t, db, results[3].Plan); len(melee)+len(ranged) == 0 {
-		t.Fatal("squad defense attacks no intruder")
+	if melee, ranged := squadAttacks(t, db, results[3].Plan); len(melee)+len(ranged) != 0 {
+		t.Fatal("an unviable squad attacked", melee, ranged)
 	}
 }
 

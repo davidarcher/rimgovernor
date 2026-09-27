@@ -111,6 +111,21 @@ internal static class NativeThreatClassifierProbe
         Check(projected == 2 && scan.ProximityChecks == 0, "no projection or scan for the unplaceable");
     }
 
+    // The insect passive fact (#948) rides on hostile rows only; other
+    // pawns leave it unset.
+    private static void Passive()
+    {
+        var pawns = new List<P> {
+            Pawn("dormantSpider", new ThreatFacts { FactionHostile = true, FactionId = "Insect", Passive = true, X = 3, Z = 0 }),
+            Pawn("angrySpider", new ThreatFacts { FactionHostile = true, FactionId = "Insect", Passive = false, X = 4, Z = 0 }),
+            Pawn("raider", new ThreatFacts { FactionHostile = true, FactionId = "F", X = 5, Z = 0 }),
+        };
+        var (t, _) = Run(pawns, Colonists, 30);
+        Check(t.Hostiles.Count == 3 && t.Hostiles[0].HasPassive && t.Hostiles[0].Passive, "dormant insect is passive");
+        Check(t.Hostiles[1].HasPassive && !t.Hostiles[1].Passive, "engaging insect is not passive");
+        Check(!t.Hostiles[2].HasPassive, "a raider carries no passive fact");
+    }
+
     // A zero radius keeps hostiles and hunts and discards the proximity
     // branch without scanning.
     private static void ZeroRadius()

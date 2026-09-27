@@ -218,7 +218,7 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 			if err = observe(pawn); err != nil {
 				return EmergencyObservation{}, err
 			}
-			threat := policy.EmergencyThreat{ID: pawn.ID, Kind: group.kind, Dead: pawn.Dead, Downed: pawn.Downed, Animal: emergencyBool(row.Pawn.Animal), Fogged: emergencyBool(row.Pawn.Fogged)}
+			threat := policy.EmergencyThreat{ID: pawn.ID, Kind: group.kind, Dead: pawn.Dead, Downed: pawn.Downed, Animal: emergencyBool(row.Pawn.Animal), Fogged: emergencyBool(row.Pawn.Fogged), Passive: emergencyBool(row.Passive)}
 			if row.Pawn.NearestColonistDistance != nil {
 				threat.Distance = domain.Known(row.Pawn.GetNearestColonistDistance())
 			}
@@ -278,7 +278,7 @@ func emergencyBuilding(row *o.ThreatBuilding, ctx *c.ObservationContext) (policy
 		cells = append(cells, at)
 	}
 	result = policy.EmergencyThreat{ID: policy.PawnID(row.Building.GetId()), Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false),
-		SnapshotToken: row.Building.Snapshot.GetToken(), Definition: row.Building.GetDefName(), Cells: cells}
+		SnapshotToken: row.Building.Snapshot.GetToken(), Definition: row.Building.GetDefName(), Cells: cells, Passive: emergencyBool(row.Passive)}
 	if row.NearestColonistDistance != nil {
 		result.Distance = domain.Known(float64(row.GetNearestColonistDistance()))
 	}

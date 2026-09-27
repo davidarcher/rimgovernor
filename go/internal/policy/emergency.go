@@ -70,6 +70,18 @@ type EmergencyThreat struct {
 	// Fogged is the native discovery fact: the pawn stands in fog the colony
 	// has not explored. Unknown counts as discovered.
 	Fogged domain.Fact[bool]
+	// Passive is set on insects and hives only (#948): true when the thing
+	// is dormant, or awake but not engaging the colony (no insect targets
+	// anything of ours, no colonist inside the hive's boundary). A dormant
+	// ruin hive makes jelly but neither spreads nor spawns; it is left
+	// alone, never held for or attacked. Unknown counts as engaging.
+	Passive domain.Fact[bool]
+}
+
+// Engaging reports a threat that is not known passive.
+func (t EmergencyThreat) Engaging() bool {
+	passive, known := t.Passive.Value()
+	return !known || !passive
 }
 
 // Building reports whether the row is a hostile building rather than a pawn.
@@ -107,7 +119,8 @@ func (t EmergencyThreat) Undiscovered() bool {
 
 // ThreatHolds reports whether one census row is an emergency the colony must
 // answer before anything else: a live, standing hostile, hunting predator or
-// hostile building it has discovered and that is not distant. A nearby wild
+// hostile building it has discovered, that is not distant and that is not a
+// passive insect or hive (#948). A nearby wild
 // predator or downed animal is a watch row, never a hold.
 func ThreatHolds(t EmergencyThreat) bool {
 	if t.Kind != Hostile && t.Kind != HuntingPredator && t.Kind != HostileBuilding {
@@ -118,7 +131,7 @@ func ThreatHolds(t EmergencyThreat) bool {
 	if dk && dead || wk && downed {
 		return false
 	}
-	return !t.DistantThreat() && !t.Undiscovered()
+	return t.Engaging() && !t.DistantThreat() && !t.Undiscovered()
 }
 
 type EmergencyFacts struct {

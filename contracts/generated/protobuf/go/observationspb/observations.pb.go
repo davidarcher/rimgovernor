@@ -31666,6 +31666,10 @@ func (*ColonyFactsReply_Unavailable) isColonyFactsReply_Outcome() {}
 func (*ColonyFactsReply_Failure) isColonyFactsReply_Outcome() {}
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.
+// passive (#948, on ThreatPawn and ThreatBuilding) is set for insects and
+// hives only: true when the thing is dormant or awake but not engaging (no
+// insect targets a player thing and no colonist is inside the hive's
+// boundary). A passive threat is left alone, never held for or attacked.
 type ThreatPawn struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Pawn           *PawnState             `protobuf:"bytes,1,opt,name=pawn,proto3" json:"pawn,omitempty"`
@@ -31673,6 +31677,7 @@ type ThreatPawn struct {
 	PreyIsOurs     *bool                  `protobuf:"varint,3,opt,name=prey_is_ours,json=preyIsOurs,proto3,oneof" json:"prey_is_ours,omitempty"`
 	PredatorIsOurs *bool                  `protobuf:"varint,4,opt,name=predator_is_ours,json=predatorIsOurs,proto3,oneof" json:"predator_is_ours,omitempty"`
 	IgnoredReason  *string                `protobuf:"bytes,5,opt,name=ignored_reason,json=ignoredReason,proto3,oneof" json:"ignored_reason,omitempty"`
+	Passive        *bool                  `protobuf:"varint,6,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -31742,6 +31747,13 @@ func (x *ThreatPawn) GetIgnoredReason() string {
 	return ""
 }
 
+func (x *ThreatPawn) GetPassive() bool {
+	if x != nil && x.Passive != nil {
+		return *x.Passive
+	}
+	return false
+}
+
 // A hostile-faction building that is itself a combat target (an insect hive,
 // a crashed ship part, a mech-cluster piece with combat power): its own CAS
 // token rides on building.snapshot for Operations.AttackTarget, and
@@ -31756,6 +31768,7 @@ type ThreatBuilding struct {
 	MaxHitPoints            *int32                 `protobuf:"varint,4,opt,name=max_hit_points,json=maxHitPoints,proto3,oneof" json:"max_hit_points,omitempty"`
 	NearestColonistDistance *int32                 `protobuf:"varint,5,opt,name=nearest_colonist_distance,json=nearestColonistDistance,proto3,oneof" json:"nearest_colonist_distance,omitempty"`
 	OccupiedCells           []*commonpb.Cell       `protobuf:"bytes,6,rep,name=occupied_cells,json=occupiedCells,proto3" json:"occupied_cells,omitempty"`
+	Passive                 *bool                  `protobuf:"varint,7,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -31830,6 +31843,13 @@ func (x *ThreatBuilding) GetOccupiedCells() []*commonpb.Cell {
 		return x.OccupiedCells
 	}
 	return nil
+}
+
+func (x *ThreatBuilding) GetPassive() bool {
+	if x != nil && x.Passive != nil {
+		return *x.Passive
+	}
+	return false
 }
 
 type ThreatsSnapshot struct {
@@ -38420,7 +38440,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v20.rimgovernor.observations.v1.ColonyFactsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xbf\x02\n" +
+	"\aoutcome\"\xea\x02\n" +
 	"\n" +
 	"ThreatPawn\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12:\n" +
@@ -38428,10 +38448,13 @@ const file_observations_proto_rawDesc = "" +
 	"\fprey_is_ours\x18\x03 \x01(\bH\x00R\n" +
 	"preyIsOurs\x88\x01\x01\x12-\n" +
 	"\x10predator_is_ours\x18\x04 \x01(\bH\x01R\x0epredatorIsOurs\x88\x01\x01\x12*\n" +
-	"\x0eignored_reason\x18\x05 \x01(\tH\x02R\rignoredReason\x88\x01\x01B\x0f\n" +
+	"\x0eignored_reason\x18\x05 \x01(\tH\x02R\rignoredReason\x88\x01\x01\x12\x1d\n" +
+	"\apassive\x18\x06 \x01(\bH\x03R\apassive\x88\x01\x01B\x0f\n" +
 	"\r_prey_is_oursB\x13\n" +
 	"\x11_predator_is_oursB\x11\n" +
-	"\x0f_ignored_reason\"\xa7\x03\n" +
+	"\x0f_ignored_reasonB\n" +
+	"\n" +
+	"\b_passive\"\xd2\x03\n" +
 	"\x0eThreatBuilding\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12*\n" +
 	"\x0ehostile_reason\x18\x02 \x01(\tH\x00R\rhostileReason\x88\x01\x01\x12\"\n" +
@@ -38439,11 +38462,14 @@ const file_observations_proto_rawDesc = "" +
 	"hit_points\x18\x03 \x01(\x05H\x01R\thitPoints\x88\x01\x01\x12)\n" +
 	"\x0emax_hit_points\x18\x04 \x01(\x05H\x02R\fmaxHitPoints\x88\x01\x01\x12?\n" +
 	"\x19nearest_colonist_distance\x18\x05 \x01(\x05H\x03R\x17nearestColonistDistance\x88\x01\x01\x12B\n" +
-	"\x0eoccupied_cells\x18\x06 \x03(\v2\x1b.rimgovernor.common.v1.CellR\roccupiedCellsB\x11\n" +
+	"\x0eoccupied_cells\x18\x06 \x03(\v2\x1b.rimgovernor.common.v1.CellR\roccupiedCells\x12\x1d\n" +
+	"\apassive\x18\a \x01(\bH\x04R\apassive\x88\x01\x01B\x11\n" +
 	"\x0f_hostile_reasonB\r\n" +
 	"\v_hit_pointsB\x11\n" +
 	"\x0f_max_hit_pointsB\x1c\n" +
-	"\x1a_nearest_colonist_distance\"\x81\x04\n" +
+	"\x1a_nearest_colonist_distanceB\n" +
+	"\n" +
+	"\b_passive\"\x81\x04\n" +
 	"\x0fThreatsSnapshot\x12C\n" +
 	"\bhostiles\x18\x01 \x03(\v2'.rimgovernor.observations.v1.ThreatPawnR\bhostiles\x12T\n" +
 	"\x11hunting_predators\x18\x02 \x03(\v2'.rimgovernor.observations.v1.ThreatPawnR\x10huntingPredators\x12P\n" +

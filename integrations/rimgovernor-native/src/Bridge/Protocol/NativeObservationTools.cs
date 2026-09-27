@@ -253,6 +253,7 @@ namespace HomeBridge.BridgeTools
                 row.Building.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Building.Id, Token = NativeWasteOperations.Token(context.Identity, building) };
                 if (colonists.Count > 0) row.NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)));
                 foreach (var cell in building.OccupiedRect()) row.OccupiedCells.Add(Cell(cell.x, cell.z));
+                if (building is Hive) row.Passive = !HiveEngaging(building, colonists, spawned, player);
                 threats.HostileBuildings.Add(row);
             }
             result.Threats=threats; return result;
@@ -267,8 +268,26 @@ namespace HomeBridge.BridgeTools
                 FactionHostile = pawn.Faction != null && !ours && pawn.Faction.HostileTo(player), PredatorHunt = hunt,
                 Downed = pawn.Downed, Predator = pawn.RaceProps.predator, X = pawn.Position.x, Z = pawn.Position.z };
             if (facts.FactionHostile) facts.FactionId = pawn.Faction!.GetUniqueLoadID();
+            if (facts.FactionHostile && pawn.Faction == Faction.OfInsects) facts.Passive = !InsectEngaging(pawn, player);
             if (hunt) { var prey = HuntedPawn(pawn); if (prey != null) { facts.HasPrey = true; facts.PreyOurs = prey.Faction == player || prey.HostFaction == player; } }
             return facts;
+        }
+        // Insects and hives (#948): a dormant hive makes jelly but neither
+        // spreads nor spawns, and its insects attack only what trespasses the
+        // hive's boundary; leftover insects attack only a colonist that comes
+        // very close. So an insect is engaging only while awake and targeting
+        // something of the player's, and a hive only while awake with a
+        // colonist inside its boundary or one of its insects engaging.
+        internal const int HiveBoundaryCells = 10;
+        private static bool Awake(Thing thing) => thing.TryGetComp<CompCanBeDormant>()?.Awake ?? true;
+        private static bool PlayerThing(Thing? thing, Faction player) => thing != null && (thing.Faction == player || thing is Pawn p && p.HostFaction == player);
+        internal static bool InsectEngaging(Pawn pawn, Faction player) => Awake(pawn)
+            && (PlayerThing(pawn.mindState?.enemyTarget, player) || PlayerThing(pawn.CurJob?.targetA.Thing, player));
+        internal static bool HiveEngaging(Thing hive, IReadOnlyList<Pawn> colonists, IReadOnlyList<Pawn> spawned, Faction player)
+        {
+            if (!Awake(hive)) return false;
+            if (colonists.Any(p => Math.Max(Math.Abs(p.Position.x-hive.Position.x),Math.Abs(p.Position.z-hive.Position.z)) <= HiveBoundaryCells)) return true;
+            return spawned.Any(p => !p.Dead && p.Faction == Faction.OfInsects && InsectEngaging(p, player));
         }
         private static Pawn? HuntedPawn(Pawn pawn) { var target = pawn.CurJob?.targetA.Thing; return target as Pawn ?? (target as Corpse)?.InnerPawn; }
 

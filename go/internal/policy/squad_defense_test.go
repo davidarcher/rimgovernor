@@ -240,6 +240,31 @@ func TestSquadDefenderEligibleDistinguishesOwnedDrafts(t *testing.T) {
 	}
 }
 
+// #948: an unarmed colonist never melees, and a hive is not engaged while
+// one of its insects (an ineligible animal) still stands.
+func TestSelectSquadDefenseNeverMeleesUnarmedOrAGuardedHive(t *testing.T) {
+	unarmed := func(id domain.PawnID) SquadDefenderFacts {
+		d := squadDefender(id, false)
+		d.Armed = domain.Known(false)
+		return d
+	}
+	fists := []SquadDefenderFacts{unarmed("a"), unarmed("b")}
+	if a, ok := SelectSquadDefense([]SquadThreatFacts{squadThreat("raider", false)}, fists); ok {
+		t.Fatal("unarmed colonists sent to melee", a)
+	}
+	hive := SquadThreatFacts{ID: "hive", Dead: domain.Known(false), Building: true}
+	if a, ok := SelectSquadDefense([]SquadThreatFacts{hive}, fists); ok {
+		t.Fatal("unarmed colonists sent at a hive", a)
+	}
+	armed := []SquadDefenderFacts{squadDefender("a", false), squadDefender("b", false)}
+	if a, ok := SelectSquadDefense([]SquadThreatFacts{squadAnimalThreat("megaspider", 1.6, false), hive}, armed); ok {
+		t.Fatal("hive attacked while its insect stands", a)
+	}
+	if a, ok := SelectSquadDefense([]SquadThreatFacts{hive}, armed); !ok || len(a) != 2 {
+		t.Fatal("armed defenders do not engage an unguarded hive", a, ok)
+	}
+}
+
 func TestSquadAdoptsDraftWithForcedQueuedWork(t *testing.T) {
 	a, b, c := squadDefender("a", false), squadDefender("b", false), squadDefender("c", false)
 	a.Drafted, a.DraftOwned = domain.Known(true), domain.Known(false)

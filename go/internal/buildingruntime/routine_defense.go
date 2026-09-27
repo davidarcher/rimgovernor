@@ -596,6 +596,8 @@ func defenseTargets(threats []policy.EmergencyThreat) ([]string, map[string]bool
 	hunting := map[string]bool{}
 	for _, threat := range threats {
 		switch {
+		case !threat.Engaging():
+			// A dormant hive or idle insect is left alone (#948).
 		case threat.Building():
 			if dead, known := threat.Dead.Value(); known && !dead {
 				buildings = append(buildings, threat)

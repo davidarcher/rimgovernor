@@ -25,6 +25,9 @@ namespace HomeBridge.BridgeTools
         internal bool Downed;
         internal bool Predator;
         internal int X, Z;
+        /// Insects only (#948): dormant, or awake but targeting nothing of
+        /// the player's. Null for every other pawn.
+        internal bool? Passive;
     }
 
     /// Filter-first threat classification (#646): each pawn is classified
@@ -68,6 +71,7 @@ namespace HomeBridge.BridgeTools
                 if (nearest.HasValue) row.NearestColonistDistance = nearest.Value;
                 row.Hostile = hostile;
                 var threat = new Obs.ThreatPawn { Pawn = row };
+                if (hostile && f.Passive.HasValue) threat.Passive = f.Passive.Value;
                 if (hostile) { row.HostileReason = manhunter ? "manhunter:"+f.Mental : "faction:"+f.FactionId; threats.Hostiles.Add(threat); }
                 else if (f.PredatorHunt) {
                     threat.PredatorIsOurs = f.Ours;
