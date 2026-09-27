@@ -19,7 +19,8 @@ Desktop.ini
 nul
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/skills/
 
 # Temporary test logs and artifacts
 tmp/
