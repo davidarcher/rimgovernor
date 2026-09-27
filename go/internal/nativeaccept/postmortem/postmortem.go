@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/stepresult"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -893,33 +894,32 @@ func flightFailures(dir string) []Line {
 		for scanner.Scan() {
 			n++
 			line := string(scanner.Bytes())
-			if !strings.Contains(line, `"kind":"native_response"`) || !strings.Contains(line, "FAILURE_CODE_") {
+			if !strings.Contains(line, `"kind":"native_response"`) {
 				continue
 			}
 			var row struct {
-				Sequence uint64 `json:"sequence"`
-				Payload  struct {
-					NativeTool string `json:"native_tool"`
-					Tool       string `json:"tool"`
-					Result     struct {
-						Failure struct {
-							Code   string `json:"code"`
-							Detail string `json:"detail"`
-						} `json:"failure"`
-					} `json:"result"`
-				} `json:"payload"`
+				Sequence uint64         `json:"sequence"`
+				Payload  map[string]any `json:"payload"`
 			}
-			if json.Unmarshal([]byte(line), &row) != nil || row.Payload.Result.Failure.Code == "" {
+			if json.Unmarshal([]byte(line), &row) != nil {
 				continue
 			}
-			tool := row.Payload.NativeTool
-			if tool == "" {
-				tool = row.Payload.Tool
+			reply, ok := bridge.RecordedReply(row.Payload)
+			if !ok {
+				continue
 			}
-			failure := row.Payload.Result.Failure
-			text := fmt.Sprintf("native_response %s: %s", tool, failure.Code)
-			if failure.Detail != "" {
-				text += ": " + clip(failure.Detail)
+			failure, _ := reply["failure"].(map[string]any)
+			code, _ := failure["code"].(string)
+			if code == "" {
+				continue
+			}
+			tool := asString(row.Payload["native_tool"])
+			if tool == "" {
+				tool = asString(row.Payload["tool"])
+			}
+			text := fmt.Sprintf("native_response %s: %s", tool, code)
+			if detail := asString(failure["detail"]); detail != "" {
+				text += ": " + clip(detail)
 			}
 			g, ok := index[text]
 			if !ok {

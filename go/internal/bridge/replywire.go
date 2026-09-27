@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
 // The companion answers the controller in one wrapper field (#757): "proto",
@@ -131,48 +132,69 @@ func refuseUnknown(m protoreflect.Message) error {
 	return err
 }
 
-// The reply type a protoCall decodes into rides the call's context so a
-// recorded native_response keeps ProtoJSON text: acceptance cases and
-// flight-log tools read "payload" from those rows.
+// The reply type a protoCall decodes into rides the call's context so the
+// recorded native_response row names it ("reply_type"): the row keeps the
+// wrapper's binary "proto" as received (#774) and readers decode it with
+// RecordedReply.
 type recordedReplyKey struct{}
 
 func withRecordedReply(ctx context.Context, reply proto.Message) context.Context {
-	return context.WithValue(ctx, recordedReplyKey{}, reply.ProtoReflect().Type())
+	return context.WithValue(ctx, recordedReplyKey{}, string(reply.ProtoReflect().Descriptor().FullName()))
 }
 
-// recordableResult renders a binary wrapper as the ProtoJSON wrapper it
-// replaces, for the flight recorder only; anything it cannot render is
-// recorded as received.
-func recordableResult(ctx context.Context, structured json.RawMessage) json.RawMessage {
-	kind, _ := ctx.Value(recordedReplyKey{}).(protoreflect.MessageType)
-	if kind == nil || !bytes.Contains(structured, []byte(`"proto"`)) {
-		return structured
+func recordedReplyType(ctx context.Context) string {
+	name, _ := ctx.Value(recordedReplyKey{}).(string)
+	return name
+}
+
+// RecordedReplyJSON renders a recorded native_response row payload's reply
+// as ProtoJSON text: the binary "proto" decoded by the row's "reply_type",
+// or the ProtoJSON "payload" a call without the encoding argument received.
+func RecordedReplyJSON(row map[string]any) (string, bool) {
+	result, ok := row["result"].(map[string]any)
+	if !ok {
+		return "", false
 	}
-	var fields map[string]json.RawMessage
-	if json.Unmarshal(structured, &fields) != nil || fields["proto"] == nil {
-		return structured
+	if payload, ok := result["payload"].(string); ok {
+		return payload, true
 	}
-	w, err := decodePacked(fields["proto"], maxMediaProtoBytes)
+	packed, ok := result["proto"].(string)
+	typeName, _ := row["reply_type"].(string)
+	if !ok || typeName == "" {
+		return "", false
+	}
+	kind, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(typeName))
 	if err != nil {
-		return structured
+		return "", false
+	}
+	quoted, err := json.Marshal(packed)
+	if err != nil {
+		return "", false
+	}
+	w, err := decodePacked(quoted, maxMediaProtoBytes)
+	if err != nil {
+		return "", false
 	}
 	reply := kind.New().Interface()
 	if (proto.UnmarshalOptions{RecursionLimit: 64, DiscardUnknown: true}).Unmarshal(w.data, reply) != nil {
-		return structured
+		return "", false
 	}
 	text, err := protojson.Marshal(reply)
 	if err != nil {
-		return structured
+		return "", false
 	}
-	quoted, err := json.Marshal(string(text))
-	if err != nil {
-		return structured
+	return string(text), true
+}
+
+// RecordedReply is RecordedReplyJSON parsed into a generic map.
+func RecordedReply(row map[string]any) (map[string]any, bool) {
+	text, ok := RecordedReplyJSON(row)
+	if !ok {
+		return nil, false
 	}
-	delete(fields, "proto")
-	fields["payload"] = quoted
-	out, err := json.Marshal(fields)
-	if err != nil {
-		return structured
+	var reply map[string]any
+	if json.Unmarshal([]byte(text), &reply) != nil {
+		return nil, false
 	}
-	return out
+	return reply, true
 }

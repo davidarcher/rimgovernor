@@ -322,26 +322,16 @@ func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary
 		}
 		tool, _ := row.Payload["native_tool"].(string)
 		if tool == clockStartTool {
-			if wrapper, ok := row.Payload["result"].(map[string]any); ok {
-				if payload, ok := wrapper["payload"].(string); ok && strings.Contains(payload, `"receipt"`) {
-					starts = append(starts, row.WallTime)
-				}
+			if reply, ok := bridge.RecordedReply(row.Payload); ok && reply["receipt"] != nil {
+				starts = append(starts, row.WallTime)
 			}
 			continue
 		}
 		if tool != clockEventsTool {
 			continue
 		}
-		wrapper, ok := row.Payload["result"].(map[string]any)
+		reply, ok := bridge.RecordedReply(row.Payload)
 		if !ok {
-			continue
-		}
-		payload, ok := wrapper["payload"].(string)
-		if !ok {
-			continue
-		}
-		var reply any
-		if json.Unmarshal([]byte(payload), &reply) != nil {
 			continue
 		}
 		for _, event := range findEvents(reply) {

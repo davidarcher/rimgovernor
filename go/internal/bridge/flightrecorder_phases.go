@@ -409,7 +409,7 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			if row.Kind != "native_response" || entry.Wrapper != "games_call_tool" {
 				continue
 			}
-			tick, paused, hasTick, hasPaused, pause, hasPause := replyClock(row.Payload["result"])
+			tick, paused, hasTick, hasPaused, pause, hasPause := replyClock(row.Payload)
 			if hasPause {
 				summary.Clock.NativePauseSamples++
 				if !havePause {
@@ -627,7 +627,7 @@ func number(value any) (float64, bool) {
 // replyClock reads the observation tick and, for clock status replies (or a
 // bundle's clock status section), the actual-paused flag out of a recorded
 // games_call_tool result. The recorded
-// result is the ProtoBoundary wrapper {"payload": "<ProtoJSON>"}; the tick
+// reply is decoded by RecordedReply; the tick
 // lives at <reply>.<outcome>.context.tick for observation replies and at
 // <reply>.status.context.tick for clock status.
 // nativePause is one status sample's native pause account (issue #621):
@@ -644,17 +644,9 @@ type nativePause struct {
 	maxFrameMs              float64
 }
 
-func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bool, pause nativePause, hasPause bool) {
-	wrapper, ok := result.(map[string]any)
+func replyClock(row map[string]any) (tick int64, paused bool, hasTick bool, hasPaused bool, pause nativePause, hasPause bool) {
+	reply, ok := RecordedReply(row)
 	if !ok {
-		return
-	}
-	payload, ok := wrapper["payload"].(string)
-	if !ok || len(payload) > maxProtoBytes {
-		return
-	}
-	var reply map[string]any
-	if json.Unmarshal([]byte(payload), &reply) != nil {
 		return
 	}
 	status := func(candidate map[string]any) {

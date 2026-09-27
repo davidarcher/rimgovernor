@@ -129,25 +129,29 @@ func TestProtoCallAlwaysAsksForBinaryReplies(t *testing.T) {
 	}
 }
 
-// The flight recorder keeps ProtoJSON text for a binary reply: acceptance
-// cases and flight-log tools read "payload" from native_response rows.
-func TestRecordableResultRendersBinaryAsPayload(t *testing.T) {
+// The flight recorder keeps a binary reply as received (#774); readers
+// decode it by the row's reply_type.
+func TestRecordedReplyDecodesBinaryRow(t *testing.T) {
 	data, _ := proto.Marshal(pbLoaded())
-	raw := encode(map[string]any{"proto": gzipBase64(t, data), "timing": map[string]float64{"queueMs": 1}})
 	ctx := withRecordedReply(context.Background(), &l.IdentityReply{})
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(recordableResult(ctx, raw), &fields); err != nil {
-		t.Fatal(err)
+	row := map[string]any{
+		"reply_type": recordedReplyType(ctx),
+		"result":     map[string]any{"proto": gzipBase64(t, data), "timing": map[string]any{"queueMs": 1.0}},
 	}
-	var text string
-	if fields["proto"] != nil || fields["timing"] == nil || json.Unmarshal(fields["payload"], &text) != nil {
-		t.Fatalf("recorded %v", fields)
-	}
+	text, ok := RecordedReplyJSON(row)
 	reply := &l.IdentityReply{}
-	if err := protojson.Unmarshal([]byte(text), reply); err != nil || !proto.Equal(reply, pbLoaded()) {
-		t.Fatalf("recorded payload %q %v", text, err)
+	if !ok || protojson.Unmarshal([]byte(text), reply) != nil || !proto.Equal(reply, pbLoaded()) {
+		t.Fatalf("decoded %q %v", text, ok)
 	}
-	if got := recordableResult(context.Background(), raw); string(got) != string(raw) {
-		t.Fatal("untyped context rewrote the result")
+	if m, ok := RecordedReply(row); !ok || m["loaded"] == nil {
+		t.Fatalf("map %v", m)
+	}
+	delete(row, "reply_type")
+	if _, ok := RecordedReplyJSON(row); ok {
+		t.Fatal("untyped binary row decoded")
+	}
+	legacy := map[string]any{"result": map[string]any{"payload": `{"loaded":{}}`}}
+	if text, ok := RecordedReplyJSON(legacy); !ok || text != `{"loaded":{}}` {
+		t.Fatalf("payload row %q", text)
 	}
 }

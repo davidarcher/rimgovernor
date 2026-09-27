@@ -596,7 +596,11 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 					timing["native_frames"] = native.frames
 				}
 			}
-			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": recordableResult(ctx, decoded.Structured), "timing": timing})
+			row := map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": timing}
+			if typeName := recordedReplyType(ctx); typeName != "" {
+				row["reply_type"] = typeName
+			}
+			c.recorder.Event("native_response", recordCtx, false, row)
 		}
 	}
 	return decoded, decodeErr

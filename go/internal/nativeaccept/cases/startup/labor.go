@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -377,7 +378,11 @@ func idleAccount(flightPath string) startuplabor.Account {
 		if !row.HasTick {
 			continue
 		}
-		samples = append(samples, startuplabor.SamplesFromPawnSnapshot(domain.Tick(row.Tick), row.Payload, false)...)
+		reply, ok := bridge.RecordedReply(row.Payload)
+		if !ok {
+			continue
+		}
+		samples = append(samples, startuplabor.SamplesFromPawnSnapshot(domain.Tick(row.Tick), reply, false)...)
 	}
 	return startuplabor.Accumulate(samples, 0)
 }

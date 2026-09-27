@@ -1,8 +1,11 @@
 package postmortem
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,6 +13,9 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	"github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	"google.golang.org/protobuf/proto"
 )
 
 // fixture writes a case output directory shaped like a failed serve-driven
@@ -216,11 +222,32 @@ func TestRevisionAgainstMain(t *testing.T) {
 // group first, and a success response stays out.
 func TestRefusalsReportNativeResponseFailures(t *testing.T) {
 	dir := t.TempDir()
+	// Rows as the recorder writes them since #774: the binary "proto" as
+	// received, named by reply_type.
+	row := func(seq int, tool string, reply proto.Message) string {
+		data, err := proto.Marshal(reply)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buffer bytes.Buffer
+		w := gzip.NewWriter(&buffer)
+		w.Write(data)
+		w.Close()
+		line, _ := json.Marshal(map[string]any{"version": 1, "run": "r", "sequence": seq, "kind": "native_response", "context": map[string]any{}, "payload": map[string]any{
+			"native_tool": tool,
+			"reply_type":  string(reply.ProtoReflect().Descriptor().FullName()),
+			"result":      map[string]any{"proto": base64.StdEncoding.EncodeToString(buffer.Bytes())},
+		}})
+		return string(line)
+	}
+	failed := func(code commonpb.FailureCode, detail string) proto.Message {
+		return &lifecyclepb.IdentityReply{Outcome: &lifecyclepb.IdentityReply_Failure{Failure: &commonpb.Failure{Code: &code, Detail: &detail}}}
+	}
 	rows := []string{
-		`{"version":1,"run":"r","sequence":1,"kind":"native_response","context":{},"payload":{"native_tool":"rimgovernor/colony_facts","result":{"failure":{"code":"FAILURE_CODE_STALE_CONTEXT","detail":"context changed"}}}}`,
-		`{"version":1,"run":"r","sequence":2,"kind":"native_response","context":{},"payload":{"native_tool":"rimgovernor/colony_facts","result":{"facts":{}}}}`,
-		`{"version":1,"run":"r","sequence":3,"kind":"native_response","context":{},"payload":{"native_tool":"rimgovernor/orders_build","result":{"failure":{"code":"FAILURE_CODE_INVALID_TARGET","detail":"blocked"}}}}`,
-		`{"version":1,"run":"r","sequence":4,"kind":"native_response","context":{},"payload":{"native_tool":"rimgovernor/colony_facts","result":{"failure":{"code":"FAILURE_CODE_STALE_CONTEXT","detail":"context changed"}}}}`,
+		row(1, "rimgovernor/colony_facts", failed(commonpb.FailureCode_FAILURE_CODE_STALE_IDENTITY, "context changed")),
+		row(2, "rimgovernor/colony_facts", &lifecyclepb.IdentityReply{}),
+		row(3, "rimgovernor/orders_build", failed(commonpb.FailureCode_FAILURE_CODE_UNAVAILABLE, "blocked")),
+		row(4, "rimgovernor/colony_facts", failed(commonpb.FailureCode_FAILURE_CODE_STALE_IDENTITY, "context changed")),
 	}
 	if err := os.WriteFile(filepath.Join(dir, "flight.jsonl"), []byte(strings.Join(rows, "\n")+"\n"), 0644); err != nil {
 		t.Fatal(err)
@@ -229,10 +256,10 @@ func TestRefusalsReportNativeResponseFailures(t *testing.T) {
 	if len(s.Lines) != 2 {
 		t.Fatalf("want two failure groups, got %+v", s)
 	}
-	if s.Lines[0] != (Line{Text: "native_response rimgovernor/colony_facts: FAILURE_CODE_STALE_CONTEXT: context changed (x2)", Evidence: "flight.jsonl:4 seq 4"}) {
+	if s.Lines[0] != (Line{Text: "native_response rimgovernor/colony_facts: FAILURE_CODE_STALE_IDENTITY: context changed (x2)", Evidence: "flight.jsonl:4 seq 4"}) {
 		t.Fatalf("latest group: %+v", s.Lines[0])
 	}
-	if s.Lines[1] != (Line{Text: "native_response rimgovernor/orders_build: FAILURE_CODE_INVALID_TARGET: blocked", Evidence: "flight.jsonl:3 seq 3"}) {
+	if s.Lines[1] != (Line{Text: "native_response rimgovernor/orders_build: FAILURE_CODE_UNAVAILABLE: blocked", Evidence: "flight.jsonl:3 seq 3"}) {
 		t.Fatalf("older group: %+v", s.Lines[1])
 	}
 }
