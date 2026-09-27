@@ -35,6 +35,9 @@ message EffectEvidence {
   // Area and surgery effects went with RecoveryArea and QueueSurgery (#938).
   reserved 12, 14;
   reserved "area", "surgery";
+  // Revoking authority releases owned deconstructions natively (#940).
+  reserved 25;
+  reserved "release_deconstructions";
   oneof effect {
     ConstructionEffect construction = 1;
     InstallationEffect installation = 2;
@@ -57,7 +60,6 @@ message EffectEvidence {
     ExcavationEffect excavation = 22;
     DialogEffect dialog = 23;
     DeconstructEffect deconstruct = 24;
-    ReleaseDeconstructionsEffect release_deconstructions = 25;
     CombatOrdersEffect combat_orders = 26;
   }
 }
@@ -164,7 +166,6 @@ message ZoneEffect { SnapshotEvidence snapshot = 1; optional string zone_id = 2;
 message HomeEffect { SnapshotEvidence snapshot = 1; optional string shape_token = 2; optional int64 revision = 3; optional int32 changed_cells = 4; optional bool covered = 5; }
 message BedEffect { optional string pawn_id = 1; optional string bed_id = 2; optional string previous_bed_id = 3; optional bool assigned = 4; optional bool sleeping = 5; }
 message DeconstructEffect { optional string target_id = 1; optional string designation_id = 2; repeated string worker_ids = 3; optional bool demolition_observed = 4; SnapshotEvidence site = 5; }
-message ReleaseDeconstructionsEffect { optional int32 released_count = 1; }
 // One result per CombatOrders order, in request order. An applied result
 // names the ordered job where one was taken (Goto, AttackStatic,
 // AttackMelee, Wait_Combat); a refusal carries a short snake_case reason:

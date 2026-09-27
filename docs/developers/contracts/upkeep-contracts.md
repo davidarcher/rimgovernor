@@ -264,27 +264,21 @@ can remove deconstruction salvage: native diagonal access to a wall does not gra
 the same access to loose items. The enclosed interior and its construction approach
 remain available; stonecutter placement preserves that approach.
 
-`Deconstruct { target: EntityPrecondition }` clears one exact building
-through native `Designator_Deconstruct`. The entity carries no CAS token. Preview
-and apply require player deconstructibility, visible geometry and safe remaining
-roof support; apply resolves the exact occupant again. Enclosing colony walls
-require guarded `RemoveWall`; generic deconstruction cannot bypass its enclosure
-and replacement checks.
+`DeconstructIntent { target_id }` on Actions/Apply clears one exact building
+through native `Designator_Deconstruct` (#940). Native checks player
+deconstructibility, visible geometry, safe remaining roof support and a
+pending wall upgrade live when it applies. Enclosing colony walls require
+guarded `RemoveWall`; generic deconstruction cannot bypass its enclosure and
+replacement checks.
 
-An explicit operation adopts a standing designation rather than placing a
-second one; there is no designation ownership ledger. The receipt names the
-target and designation.
-`DeconstructEffect` carries `target_id`, `designation_id`, `worker_ids`,
-`demolition_observed` and `site`. Workers are recorded when native demolition
-finishes. Only the native deconstruct job establishes completion; disappearance
-without that callback is unsuccessful. Receipt and designation ownership are
-scoped to the loaded game, like the operation ledger; loaded designations without
-a current receipt remain untouched until explicitly adopted. Manual releases
-owned pending designations.
-`ReleaseDeconstructions` retires pending work on stop and removes only the exact
-controller-admitted designations, returning a separate `released_count` effect.
-Player replacements survive release. The Go bridge rejects unknown evidence
-fields and completion without observed demolition.
+The intent adopts a standing designation rather than placing a second one,
+and a target the controller already owns applies again. Applied evidence is
+a `DeconstructEffect` naming the target and designation; applied means
+designated, not demolished. Native job guards hold owned work to active
+authority and the target's safety. Ownership is scoped to the loaded game;
+loaded designations remain untouched until explicitly adopted. Revoking
+authority releases exactly the controller-owned pending designations; player
+replacements survive.
 
 `home/upkeep_wall` creates an ordinary native deconstruction designation. Completion
 comes from the actual native deconstruction job, not disappearance of a wall. The
@@ -323,11 +317,10 @@ counterpart: it holds the clearance goal while it has work and is described
 under the breach goal in `controller-contracts.md`.
 Unknown observations preserve the previous need. Recovery requires no eligible
 candidate and no unresolved issued action; recurrence keeps the goal identity.
-Every dispatch rechecks eligibility, authority and emergency facts. Only the
-native demolition callback completes its action. Stop calls
-`ReleaseDeconstructions` before revoking authority, and native authority loss
-also releases exact controller-owned designations. Issued actions remain under
-observation. Salvage uses ordinary hauling and does not gate this goal.
+Native rechecks eligibility at apply; the action completes on its applied
+result and the census decides recovery. Native authority loss releases exact
+controller-owned designations. Salvage uses ordinary hauling and does not gate
+this goal.
 
 `SecureSupplies`, `MaintainEssentialRepairs`, `MaintainCleanFacilities` and
 `MaintainFireSafety` retain their goal identities across recovery and recurrence.

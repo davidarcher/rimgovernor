@@ -30,8 +30,7 @@ import (
 )
 
 type SessionConfig struct {
-	Deconstruction *DeconstructionCapabilities
-	Acquisition    *acquisition.AcquisitionCapabilities
+	Acquisition *acquisition.AcquisitionCapabilities
 	// MoveBuilding backs the tidy family's furniture re-siting through the
 	// game's Reinstall (#808).
 	MoveBuilding    *movebuilding.Capabilities
@@ -240,12 +239,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			config.Control.Worlds = draftBoundary
 		}
 	}
-	if config.Deconstruction != nil {
-		if config.Deconstruction.Native == nil || config.Deconstruction.Writer == nil {
-			return nil, fmt.Errorf("%w: NewSession: config.Deconstruction.Native == nil || config.Deconstruction.Writer == nil", ErrControl)
-		}
-		config.Control.BeforeRevoke = releaseDeconstructions(config.Deconstruction.Writer, string(namespace))
-	}
 	config.Control.StopWrites = sink.stop
 	config.Control.CleanupWrites = sink.cleanup
 	config.Control.ResumeWrites = sink.resume
@@ -382,15 +375,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	// typed boundary value, rather than composed into a single value for
 	// executor.New to discover by type assertion — see executor.EnableAcquisition
 	// for why the composed-value approach was unsafe.
-	if config.Deconstruction != nil {
-		b, err := NewDeconstructionBoundary(deconstructionColonyFacts{config.Deconstruction.Native, colonyFacts}, config.Deconstruction.Writer, place.Leases, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err = worker.EnableDeconstruction(b); err != nil {
-			return cleanup(err)
-		}
-	}
 	if config.MoveBuilding != nil {
 		if err := worker.EnableMoveBuilding(movebuilding.NewBoundary(place, *config.MoveBuilding)); err != nil {
 			return cleanup(err)

@@ -106,7 +106,6 @@ type buildingServiceBridge struct {
 	mineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 	excavation          *excavation.ExcavationCapabilities
 	moveBuilding        *movebuilding.Capabilities
-	deconstruction      *buildingruntime.DeconstructionCapabilities
 	draft               *draft.DraftCapabilities
 	clock               *buildingruntime.ClockCapabilities
 	clockReads          serviceClockReads
@@ -198,10 +197,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	deconstructionWriter, err := bridge.NewDeconstructionWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	moveBuildingWriter, err := bridge.NewMoveBuildingControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -259,7 +254,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		excavation:      &excavation.ExcavationCapabilities{Native: client, Writer: excavationWriter},
 		moveBuilding:    &movebuilding.Capabilities{Native: client, Writer: moveBuildingWriter},
-		deconstruction:  &buildingruntime.DeconstructionCapabilities{Native: client, Writer: deconstructionWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
 		melee:               &melee.MeleeCapabilities{Writer: actionsWriter},
@@ -491,15 +485,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		cleanCapabilities = client.clean
 	}
-	var deconstructionCapabilities *buildingruntime.DeconstructionCapabilities
-	// Resource plans remove exhausted deep drills through the same path
-	// (#538); the initial shelter clears ruins off its ring (#709).
-	if config.routineClearancePlans || config.routineShrinePlans || config.routineResourcePlans || config.routineShelterPlans {
-		if client.deconstruction == nil {
-			return errors.New("clearance, shrine, resource and shelter plans require typed deconstruction capabilities")
-		}
-		deconstructionCapabilities = client.deconstruction
-	}
 	var wasteCapabilities *buildingruntime.WasteCapabilities
 	if config.routineWastePlans {
 		if client.waste == nil {
@@ -619,7 +604,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Clean:               cleanCapabilities,
 		Waste:               wasteCapabilities,
 		MoveBuilding:        moveBuildingCapabilities,
-		Deconstruction:      deconstructionCapabilities,
 		MoodRelief:          moodReliefCapabilities,
 		GearReplace:         gearReplaceCapabilities,
 		RecoveryService:     recoveryServiceCapabilities,

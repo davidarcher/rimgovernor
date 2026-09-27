@@ -43,6 +43,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.CutPlantAction:            true,
 	domain.SupplyAllowAction:         true,
 	domain.SupplyForbidAction:        true,
+	domain.DeconstructionAction:      true,
 }
 
 // runIntent dispatches one plain intent. The receipt is terminal: applied

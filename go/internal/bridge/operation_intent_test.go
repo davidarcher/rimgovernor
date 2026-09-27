@@ -4,10 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestFormatOperationIntent(t *testing.T) {
@@ -28,19 +26,11 @@ func TestFormatOperationIntent(t *testing.T) {
 }
 
 func TestExecuteCarriesContextIntent(t *testing.T) {
-	var want string
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
-		expected := deconstructionOperation("ruin")
-		if want != "" {
-			expected.Intent = proto.String(want)
-		}
-		draftTestRequest(t, arg, &o.ExecuteRequest{Precondition: buildingPre(), Operation: expected})
-		return pbResult(&o.ExecuteReply{Outcome: &o.ExecuteReply_Receipt{Receipt: deconstructionTestReceipt()}}), nil
-	}}, time.Second)
-	writer, _ := NewDeconstructionWriter(client)
-	for _, want = range []string{"Clearance: deconstruct", ""} {
-		if _, _, err := writer.ApplyDeconstruction(WithOperationIntent(context.Background(), want), buildingPre(), "ruin"); err != nil {
-			t.Fatal(want, err)
+	request := &o.ExecuteRequest{Precondition: buildingPre(), Operation: &o.Operation{}}
+	for _, want := range []string{"Clearance: deconstruct", ""} {
+		got := stampOperationIntent(WithOperationIntent(context.Background(), want), "rimgovernor/operations_execute", request).(*o.ExecuteRequest)
+		if got.GetOperation().GetIntent() != want || (want == "") != (got == request) || request.GetOperation().Intent != nil {
+			t.Fatal(want, got)
 		}
 	}
 }

@@ -135,12 +135,3 @@ type chatColonyFacts struct {
 func (n chatColonyFacts) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	return n.facts.read(ctx, n.ChatFactsNative, identity, planning)
 }
-
-type deconstructionColonyFacts struct {
-	DeconstructionNative
-	facts *ColonyFacts
-}
-
-func (n deconstructionColonyFacts) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
-	return n.facts.read(ctx, n.DeconstructionNative, identity, planning)
-}

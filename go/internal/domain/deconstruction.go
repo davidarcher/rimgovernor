@@ -4,8 +4,8 @@ import "errors"
 
 const DeconstructionAction ActionKind = "deconstruction"
 
-// Deconstruction designates one observed non-player building. Native safety
-// and identity are rechecked at dispatch; only observed demolition completes it.
+// Deconstruction designates one observed building (a DeconstructIntent).
+// Native safety and identity are checked at apply; applied means designated.
 // A breach (#458) is the same designation on a sealed ancient shrine's
 // perimeter wall: the dispatch guard reads the shrine census instead of the
 // Home clearance census, since the wall is an ancient danger by definition.

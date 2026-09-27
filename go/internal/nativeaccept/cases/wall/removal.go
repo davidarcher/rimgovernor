@@ -430,13 +430,15 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	if designated, _ := na.AsBool(standingRow["designated"]); !designated || na.AsString(standingRow["removalId"]) != "" {
 		return fmt.Errorf("standing demolition designation not observed: %#v", standingRow)
 	}
-	unsafeReply, err := h.Wire(ctx, "generic-enclosure-refusal", "operations_preview", map[string]any{
-		"identity": identity, "operation": map[string]any{"deconstruct": map[string]any{"target": map[string]any{"entityId": chosen.wall}}}})
+	unsafeReply, err := h.Wire(ctx, "generic-enclosure-refusal", "operations_apply", map[string]any{
+		"identity": identity, "actions": []any{map[string]any{"key": "generic-enclosure-refusal", "deconstruct": map[string]any{"targetId": chosen.wall}}}})
 	if err != nil {
 		return err
 	}
-	if _, _, err := na.Outcome(unsafeReply, "failure"); err != nil {
-		return fmt.Errorf("generic demolition bypassed enclosure guards: %w", err)
+	if results := na.AsSlice(unsafeReply["results"]); len(results) != 1 {
+		return fmt.Errorf("generic demolition: expected one result: %#v", unsafeReply)
+	} else if result, _ := na.AsMap(results[0]); result["refused"] == nil {
+		return fmt.Errorf("generic demolition bypassed enclosure guards: %#v", result)
 	}
 	demolishRequest, demolishReceipt, err := execute("execute-adopt-demolition", "wall-demolish", chosen.wall)
 	if err != nil {

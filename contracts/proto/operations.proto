@@ -69,8 +69,8 @@ message Operation {
   reserved 15, 16, 18;
   reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
   // Designations and construction-adjacent orders moved to Actions/Apply (#940).
-  reserved 5, 20, 60;
-  reserved "designate_thing", "extend_home", "clear_cover";
+  reserved 5, 20, 55, 56, 60;
+  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -98,8 +98,6 @@ message Operation {
     PawnTargetOrder pawn_target_order = 36;
     ExcavateCell excavate_cell = 47;
     CancelAcquisition cancel_acquisition = 54;
-    Deconstruct deconstruct = 55;
-    ReleaseDeconstructions release_deconstructions = 56;
     Arrest arrest = 57;
     Uninstall uninstall = 61;
     CombatOrders combat_orders = 62;
@@ -288,9 +286,6 @@ message ZoneCellsIntent { optional string zone_id = 1; optional CellEdit edit = 
 // storable definitions when it applies; settings that already hold apply
 // again.
 message StockpileIntent { optional string target_id = 1; StockpileSettings settings = 2; }
-// Exact non-colony occupant; no snapshot token. Native repeats eligibility and roof safety at apply.
-message Deconstruct { EntityPrecondition target = 1; }
-message ReleaseDeconstructions {}
 message RemoveWall { EntityPrecondition wall = 1; optional string expected_site_snapshot_token = 2; }
 // Vanilla custody: an armed, violence-capable, owned drafted arrester and a
 // target still in a legal arrestable mental state. Destination is a prisoner
@@ -416,6 +411,7 @@ message Action {
     HomeIntent home = 31;
     CoverIntent cover = 32;
     DesignateIntent designate = 33;
+    DeconstructIntent deconstruct = 34;
   }
 }
 // Extend Home over the missing cells of one facility's bounded batch (a
@@ -432,6 +428,12 @@ message CoverIntent { optional string thing_id = 1; optional string designation_
 // plant cut (CUT_PLANT). Native checks the thing's eligibility live when it
 // applies; a thing already in the wanted state applies again.
 message DesignateIntent { optional string thing_id = 1; optional ThingDesignation designation = 2; }
+// Designate one exact building for deconstruction, adopting a player
+// designation already on it. Native checks the target's safety (roof
+// support, enclosing colony walls, a pending wall upgrade) and the game
+// designator live when it applies; a target this controller already owns
+// applies again. Revoking authority releases every owned designation.
+message DeconstructIntent { optional string target_id = 1; }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree): window_id plus the exact observed option index
 // and label stand in for an entity precondition, and native refuses on any drift.

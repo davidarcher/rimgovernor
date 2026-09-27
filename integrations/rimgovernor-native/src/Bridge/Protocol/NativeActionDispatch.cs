@@ -53,6 +53,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Home] = new HomeActionHandler(),
             [Operations.Action.IntentOneofCase.Cover] = new CoverActionHandler(),
             [Operations.Action.IntentOneofCase.Designate] = new DesignateActionHandler(),
+            [Operations.Action.IntentOneofCase.Deconstruct] = new DeconstructActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

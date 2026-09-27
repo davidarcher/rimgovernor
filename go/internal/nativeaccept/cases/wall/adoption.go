@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "wall/adoption", Scope: "Smoke: explicit demolition adoption has a receipt; release removes adopted work and preserves unadopted player work.",
+	cases.Register(cases.Case{Name: "wall/adoption", Scope: "Smoke: a DeconstructIntent adopts a player designation with applied evidence; revoking authority removes adopted work and preserves unadopted player work.",
 		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.LabStart()}, Budget: time.Minute, Run: runAdoption})
 }
 
@@ -28,28 +28,18 @@ func runAdoption(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	execute := func(label string, op map[string]any) (map[string]any, error) {
-		reply, err := h.Wire(ctx, label, "operations_execute", map[string]any{
-			"precondition": map[string]any{"identity": s.Identity(), "expectedGeneration": fmt.Sprint(na.GrantGeneration(grant)),
-				"attempt": map[string]any{"controllerSessionId": "adoption-smoke", "actionId": label, "attemptId": "1"}}, "operation": op})
-		if err != nil {
-			return nil, err
-		}
-		_, receipt, err := na.Outcome(reply, "receipt")
-		return receipt, err
-	}
-	receipt, err := execute("adopt", map[string]any{"deconstruct": map[string]any{"target": map[string]any{"entityId": ids[0]}}})
+	result, err := applyDeconstruct(ctx, s, "adopt", ids[0])
 	if err != nil {
 		return err
 	}
-	applied, _ := na.AsMap(receipt["applied"])
+	applied, _ := na.AsMap(result["applied"])
 	observed, _ := na.AsMap(applied["observed"])
 	effect, _ := na.AsMap(observed["deconstruct"])
 	if effect["targetId"] != ids[0] || na.AsString(effect["designationId"]) == "" {
-		return fmt.Errorf("adoption lacks exact designation receipt: %#v", receipt)
+		return fmt.Errorf("adoption lacks exact designation evidence: %#v", result)
 	}
-	s.Report()["adoption_receipt"] = receipt
-	if _, err := execute("release", map[string]any{"releaseDeconstructions": map[string]any{}}); err != nil {
+	s.Report()["adoption_result"] = result
+	if _, err := na.RevokeManual(ctx, h.WireFunc(), "release", s.Identity(), grant); err != nil {
 		return err
 	}
 	for _, i := range []int{0, 1} {
@@ -64,4 +54,23 @@ func runAdoption(ctx context.Context, s cases.Session) error {
 		}
 	}
 	return nil
+}
+
+// applyDeconstruct sends one DeconstructIntent under key and returns its
+// ActionResult; a refusal or failure is an error.
+func applyDeconstruct(ctx context.Context, s cases.Session, key string, target any) (map[string]any, error) {
+	reply, err := s.Harness().Wire(ctx, key, "operations_apply", map[string]any{"identity": s.Identity(),
+		"actions": []any{map[string]any{"key": key, "deconstruct": map[string]any{"targetId": target}}}})
+	if err != nil {
+		return nil, err
+	}
+	results := na.AsSlice(reply["results"])
+	if len(results) != 1 {
+		return nil, fmt.Errorf("%s: expected one result: %#v", key, reply)
+	}
+	result, _ := na.AsMap(results[0])
+	if _, ok := na.AsMap(result["applied"]); !ok {
+		return nil, fmt.Errorf("%s: not applied: %#v", key, result)
+	}
+	return result, nil
 }

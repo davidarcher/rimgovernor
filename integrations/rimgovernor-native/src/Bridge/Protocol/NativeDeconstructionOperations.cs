@@ -46,17 +46,6 @@ namespace HomeBridge.BridgeTools
             if (Target.Spawned && Target.Map == Map) effect.Site.AfterToken = NativeBuildingObservationTools.Token(Target, context).Token;
             return new Receipts.EffectEvidence { Deconstruct = effect };
         }
-        internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
-        {
-            var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
-            if (ProtoBoundary.ResolveMap(context) != Map)
-            { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Deconstruction map changed." }; return result; }
-            var evidence = Evidence(context);
-            if (Complete) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
-            else if (Blocker() is string blocker) result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved, Detail = blocker, Evidence = evidence };
-            else result.Pending = new Receipts.PendingEffect { Evidence = evidence };
-            return result;
-        }
     }
 
     internal static class NativeDeconstructionOperations
@@ -133,62 +122,47 @@ namespace HomeBridge.BridgeTools
             if (cells.Any(c => !RoofSupportSafety.GeometryKnown(target.Map, c))) return "Unknown roof support geometry.";
             return ExcavationSafety.Check(target.Map, cells, out _, out var blocker) == ExcavationSafety.Support.Supported ? null : blocker ?? "Roof support is unproven.";
         }
-        private static bool Prepare(Operations.Deconstruct command, Common.ObservationContext context, out Building? target, out Common.Failure failure)
+        // The apply-time precondition list for Deconstruct: the exact target,
+        // its safety, no pending wall upgrade, and the game designator. A
+        // target this controller already owns applies again with its record.
+        private static string? Refusal(Operations.DeconstructIntent? intent, Common.ObservationContext context, out Building? target, out Common.FailureCode code)
         {
-            target = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Deconstruct requires an exact target and no snapshot token.");
-            if (command?.Target == null || !command.Target.HasEntityId || !ProtoBoundary.IsIdentifier(command.Target.EntityId) || command.Target.HasExpectedSnapshotToken) return false;
+            target = null; code = Common.FailureCode.InvalidRequest;
+            if (intent == null || !intent.HasTargetId || !ProtoBoundary.IsIdentifier(intent.TargetId)) return "Deconstruct requires an exact target.";
             var map = ProtoBoundary.ResolveMap(context);
-            target = map?.listerThings.AllThings.OfType<Building>().FirstOrDefault(b => b.GetUniqueLoadID() == command.Target.EntityId);
-            if (target == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact deconstruction target is absent."); return false; }
+            target = map?.listerThings.AllThings.OfType<Building>().FirstOrDefault(b => b.GetUniqueLoadID() == intent.TargetId);
+            if (target == null) { code = Common.FailureCode.NotFound; return "Exact deconstruction target is absent."; }
             var blocker = Safety(target);
-            if (blocker != null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, blocker); return false; }
-            if (Claim(target) != null || WallUpgradeSafety.Pending(target) != null)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Existing designation is preserved; observe its original receipt if controller-owned."); return false; }
+            if (blocker != null) return blocker;
+            if (Claim(target) != null) return null;
+            if (WallUpgradeSafety.Pending(target) != null) return "A pending wall upgrade owns the target.";
             if (map!.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null && !new Designator_Deconstruct().CanDesignateThing(target).Accepted)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native deconstruction designator refused the target."); return false; }
-            return true;
+                return "Native deconstruction designator refused the target.";
+            return null;
         }
-        internal static Operations.PreviewReply Preview(Operations.Deconstruct command, Common.ObservationContext context)
+        internal static Common.Failure? Validate(Operations.DeconstructIntent? intent, Common.ObservationContext context)
         {
-            if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
-            return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
+            CurrentRecords();
+            var refusal = Refusal(intent, context, out _, out var code);
+            return refusal == null ? null : ProtoBoundary.Fail(code, refusal);
         }
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
+        // Apply designates the target (adopting a player designation already
+        // on it) and records it so the job guards hold the work to authority
+        // and safety; revoking authority releases every owned designation.
+        internal static Receipts.EffectEvidence Apply(Operations.DeconstructIntent intent, Common.ObservationContext context)
         {
-            NativeAttemptLedger.Admission? handle = null;
-            Receipts.EffectEvidence? evidence = null;
-            var pre = request.Precondition;
-            try
-            {
-                Install(); CurrentRecords();
-                if (!Prepare(request.Operation.Deconstruct, context, out var target, out var failure)) return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration); context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                var record = new NativeDeconstructionRecord(target!, context);
-                state.Deconstructions.Add(pre.Attempt.Clone(), record); records.Add(record);
-                using (authority.Owned())
-                {
-                    if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(request.Operation.Deconstruct, context, out var current, out _) || !ReferenceEquals(current, target))
-                        throw new InvalidOperationException("Deconstruction occupant or safety changed before apply.");
-                    if (record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null)
-                        new Designator_Deconstruct().DesignateThing(target);
-                    record.Designation = record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
-                    if (record.Designation == null) throw new InvalidOperationException("Native designation was not created.");
-                    evidence = record.Evidence(context);
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Deconstruction interrupted: " + error.GetType().Name) };
-                return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Deconstruction failed: " + error.GetType().Name) };
-            }
+            Install(); CurrentRecords();
+            var refusal = Refusal(intent, context, out var target, out _);
+            if (refusal != null) throw new InvalidOperationException("Deconstruction prerequisites changed before apply: " + refusal);
+            var owned = Claim(target!);
+            if (owned != null) return owned.Evidence(context);
+            var record = new NativeDeconstructionRecord(target!, context);
+            if (record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null)
+                new Designator_Deconstruct().DesignateThing(target);
+            record.Designation = record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
+            if (record.Designation == null) throw new InvalidOperationException("Native designation was not created.");
+            records.Add(record);
+            return record.Evidence(context);
         }
         internal static int ReleaseAll()
         {
@@ -200,29 +174,11 @@ namespace HomeBridge.BridgeTools
             }
             return count;
         }
-        internal static Operations.ExecuteReply ExecuteRelease(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
-        {
-            NativeAttemptLedger.Admission? handle = null;
-            var pre = request.Precondition;
-            try
-            {
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration); context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                int count;
-                using (authority.Owned()) count = ReleaseAll();
-                var evidence = new Receipts.EffectEvidence { ReleaseDeconstructions = new Receipts.ReleaseDeconstructionsEffect { ReleasedCount = count } };
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, null!, "Deconstruction release interrupted: " + error.GetType().Name) };
-                return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Deconstruction release failed: " + error.GetType().Name) };
-            }
-        }
+    }
+
+    internal sealed class DeconstructActionHandler : IActionHandler
+    {
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeDeconstructionOperations.Validate(action.Deconstruct, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeDeconstructionOperations.Apply(action.Deconstruct, context);
     }
 }

@@ -53,9 +53,6 @@ type ControlConfig struct {
 	// owned drafts a suspended plan still holds, since a resume in the same
 	// world continues that plan (#228). Nil falls back to CleanupWrites.
 	ResumeWrites func(context.Context) error
-	// BeforeRevoke releases owned pending designations while native authority
-	// still permits the release. Local dispatch is already disabled.
-	BeforeRevoke func(context.Context, *c.Identity, uint64) error
 	// Worlds reads actual native identity without entering the control gate.
 	// Without it, shutdown cannot retire a target by proving world replacement.
 	Worlds WorldSource
@@ -514,11 +511,6 @@ func (control *Control) revoke(ctx context.Context, reason a.RevocationReason) e
 	generation := status.Context.GetNativeGeneration()
 	if generation == ^uint64(0) {
 		return fmt.Errorf("%w: revoke: generation == ^uint64(0)", ErrControl)
-	}
-	if control.config.BeforeRevoke != nil {
-		if err := control.config.BeforeRevoke(ctx, controlIdentity(snapshot), generation); err != nil {
-			return err
-		}
 	}
 	result, _, err := control.native.Revoke(ctx, &a.Revoke{Identity: controlIdentity(snapshot), ExpectedGeneration: proto.Uint64(generation), Reason: reason.Enum()})
 	if err != nil {
