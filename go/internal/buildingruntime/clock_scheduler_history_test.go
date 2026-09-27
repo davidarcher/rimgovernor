@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -73,9 +74,15 @@ func seedClockHistory(tb testing.TB, db *store.Store, path string, plans, attemp
 }
 
 // seedClockHistoryAttempts is the attempt half of seedClockHistory.
+// Retirement deletes the attempts and epochs it retires and leaves only
+// the watermark (RetiredThrough = LastAllocated). After the first real
+// retirement, all but the last two tails are filed by advancing the
+// watermark directly; the rest go through the store and retire as the
+// scheduler's maintenance does.
 func seedClockHistoryAttempts(tb testing.TB, db *store.Store, path string, attempts int) {
 	tb.Helper()
 	ctx := context.Background()
+	skipped := false
 	head, err := db.ReadClockSequence(ctx)
 	if err != nil {
 		tb.Fatal(err)
@@ -110,7 +117,50 @@ func seedClockHistoryAttempts(tb testing.TB, db *store.Store, path string, attem
 				tb.Fatal(err)
 			}
 			head = retired.State
+			if skip := attempts - 1 - i - 2*clockHistoryTail; !skipped && skip > 0 {
+				advanceClockWatermark(tb, path, uint64(skip))
+				if head, err = db.ReadClockSequence(ctx); err != nil {
+					tb.Fatal(err)
+				}
+				i += skip
+				skipped = true
+			}
 		}
+	}
+}
+
+// advanceClockWatermark leaves the clock sequence as a retirement after
+// skip more settled attempts would: allocated and retired past them, the
+// retained set unchanged.
+func advanceClockWatermark(tb testing.TB, path string, skip uint64) {
+	tb.Helper()
+	ctx := context.Background()
+	raw, err := sql.Open(store.DriverName, path)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	defer raw.Close()
+	var data []byte
+	if err = raw.QueryRowContext(ctx, "SELECT payload FROM clock_sequence WHERE singleton=1").Scan(&data); err != nil {
+		tb.Fatal(err)
+	}
+	var head struct {
+		LastAllocated, RetiredThrough uint64
+		Retained                      []uint64
+	}
+	if err = json.Unmarshal(data, &head); err != nil {
+		tb.Fatal(err)
+	}
+	if head.RetiredThrough != head.LastAllocated {
+		tb.Fatalf("clock sequence has live attempts past %d: %s", head.RetiredThrough, data)
+	}
+	head.LastAllocated += skip
+	head.RetiredThrough = head.LastAllocated
+	if data, err = json.Marshal(head); err != nil {
+		tb.Fatal(err)
+	}
+	if _, err = raw.ExecContext(ctx, "UPDATE clock_sequence SET payload=? WHERE singleton=1", data); err != nil {
+		tb.Fatal(err)
 	}
 }
 
