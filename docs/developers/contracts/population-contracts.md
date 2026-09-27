@@ -21,12 +21,12 @@ require an eligible worker, reachable target and suitable available custody bed.
 `rimgovernor/observations_read_population` reads human pawn custody, recruitment
 eligibility, current exclusive interaction, resistance, time held as a prisoner
 (`prisoner_ticks`, the `TimeAsPrisoner` record), food need, bed and owned bed,
-and lists the installed exclusive interactions `SetPrisonerInteraction` accepts:
+and lists the installed exclusive interactions `PrisonerInteractionIntent` accepts:
 `AttemptRecruit`, `MaintainOnly`, `ReduceResistance`, `Release`, and `Enslave` and
 `Convert` while Ideology is active. Execution and non-exclusive toggles are player-only.
-A write requires the exact prior prisoner settings token and a living current-map
-colony prisoner; native gates (recruitable, wild man, classic ideology mode) refuse
-ineligible modes. Routine planning (`MaintainPopulation`) proposes `AttemptRecruit`
+The intent rides Actions/Apply: native requires a living current-map colony prisoner
+when it applies, its gates (recruitable, wild man, classic ideology mode) refuse
+ineligible modes, and a prisoner already set to the mode applies again. Routine planning (`MaintainPopulation`) proposes `AttemptRecruit`
 for any recruitable prisoner not already set to it and, with
 `RoutinePolicy.PrisonerReleaseAfterDays` = `N` (15 by default), `Release` for a prisoner held at least
 `N` days whom the colony cannot turn (recruit resistance still above zero, or never

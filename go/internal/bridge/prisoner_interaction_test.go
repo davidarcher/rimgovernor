@@ -30,14 +30,14 @@ func prisonerPerson(id, interaction string) *o.PopulationPerson {
 	return person
 }
 
-// Every mode SetPrisonerInteraction writes reads back as a known current
+// Every mode PrisonerInteractionIntent writes reads back as a known current
 // interaction; any other native defName (Execution, unexposed DLC modes)
 // stays unknown instead of being misread as one of them.
 func TestPrisonerInteractionReadsEveryExposedMode(t *testing.T) {
-	names := map[string]PrisonerInteractionMode{
-		"AttemptRecruit": PrisonerInteractionRecruit, "MaintainOnly": PrisonerInteractionMaintain,
-		"ReduceResistance": PrisonerInteractionReduceResistance, "Release": PrisonerInteractionRelease,
-		"Enslave": PrisonerInteractionEnslave, "Convert": PrisonerInteractionConvert,
+	names := map[string]domain.PrisonerInteractionMode{
+		"AttemptRecruit": domain.PrisonerInteractionRecruit, "MaintainOnly": domain.PrisonerInteractionMaintain,
+		"ReduceResistance": domain.PrisonerInteractionReduceResistance, "Release": domain.PrisonerInteractionRelease,
+		"Enslave": domain.PrisonerInteractionEnslave, "Convert": domain.PrisonerInteractionConvert,
 	}
 	persons := []*o.PopulationPerson{prisonerPerson("p-Execution", "Execution"), prisonerPerson("p-none", "")}
 	persons[0].Resistance, persons[0].PrisonerTicks = proto.Float64(12.5), proto.Int64(180000)
@@ -51,18 +51,6 @@ func TestPrisonerInteractionReadsEveryExposedMode(t *testing.T) {
 		}
 		return pbResult(reply), nil
 	}}, time.Second)
-	for name, want := range names {
-		target, _, err := client.ReadPrisonerInteractionTarget(context.Background(), pbIdentity(), "p-"+name)
-		if err != nil || !target.CurrentInteractionKnown || target.CurrentInteraction != want {
-			t.Fatal(name, target, err)
-		}
-	}
-	for _, unknown := range []string{"p-Execution", "p-none"} {
-		target, _, err := client.ReadPrisonerInteractionTarget(context.Background(), pbIdentity(), unknown)
-		if err != nil || target.CurrentInteractionKnown {
-			t.Fatal(unknown, target, err)
-		}
-	}
 	census, _, err := client.ReadRoutinePopulation(context.Background(), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
@@ -72,14 +60,18 @@ func TestPrisonerInteractionReadsEveryExposedMode(t *testing.T) {
 	for _, row := range rows {
 		seen[row.Pawn] = row.CurrentInteraction
 	}
-	if _, known := seen["p-Execution"].Value(); known || len(seen) != 8 {
+	if len(seen) != 8 {
 		t.Fatal(seen)
 	}
-	if mode, known := seen["p-Release"].Value(); !known || mode != domain.PrisonerInteractionRelease {
-		t.Fatal(seen["p-Release"])
+	for _, unknown := range []domain.PawnID{"p-Execution", "p-none"} {
+		if _, known := seen[unknown].Value(); known {
+			t.Fatal(unknown, seen[unknown])
+		}
 	}
-	if mode, known := seen["p-Convert"].Value(); !known || mode != domain.PrisonerInteractionConvert {
-		t.Fatal(seen["p-Convert"])
+	for name, want := range names {
+		if mode, known := seen[domain.PawnID("p-"+name)].Value(); !known || mode != want {
+			t.Fatal(name, mode)
+		}
 	}
 	// The release path's facts decode only when native carried them.
 	for _, row := range rows {
@@ -95,26 +87,26 @@ func TestPrisonerInteractionReadsEveryExposedMode(t *testing.T) {
 	}
 }
 
-func TestPrisonerInteractionWireCoversEveryMode(t *testing.T) {
-	for mode, want := range map[PrisonerInteractionMode]op.PrisonerInteraction{
-		PrisonerInteractionRecruit:          op.PrisonerInteraction_PRISONER_INTERACTION_ATTEMPT_RECRUIT,
-		PrisonerInteractionMaintain:         op.PrisonerInteraction_PRISONER_INTERACTION_MAINTAIN_ONLY,
-		PrisonerInteractionReduceResistance: op.PrisonerInteraction_PRISONER_INTERACTION_REDUCE_RESISTANCE,
-		PrisonerInteractionRelease:          op.PrisonerInteraction_PRISONER_INTERACTION_RELEASE,
-		PrisonerInteractionEnslave:          op.PrisonerInteraction_PRISONER_INTERACTION_ENSLAVE,
-		PrisonerInteractionConvert:          op.PrisonerInteraction_PRISONER_INTERACTION_CONVERT,
+func TestPrisonerInteractionIntentCoversEveryMode(t *testing.T) {
+	for mode, want := range map[domain.PrisonerInteractionMode]op.PrisonerInteraction{
+		domain.PrisonerInteractionRecruit:          op.PrisonerInteraction_PRISONER_INTERACTION_ATTEMPT_RECRUIT,
+		domain.PrisonerInteractionMaintain:         op.PrisonerInteraction_PRISONER_INTERACTION_MAINTAIN_ONLY,
+		domain.PrisonerInteractionReduceResistance: op.PrisonerInteraction_PRISONER_INTERACTION_REDUCE_RESISTANCE,
+		domain.PrisonerInteractionRelease:          op.PrisonerInteraction_PRISONER_INTERACTION_RELEASE,
+		domain.PrisonerInteractionEnslave:          op.PrisonerInteraction_PRISONER_INTERACTION_ENSLAVE,
+		domain.PrisonerInteractionConvert:          op.PrisonerInteraction_PRISONER_INTERACTION_CONVERT,
 	} {
-		if got := prisonerInteractionOperation("pawn", "tok", mode).GetSetPrisonerInteraction().GetInteraction(); got != want {
-			t.Fatal(mode, got)
+		interaction, err := domain.NewPrisonerInteraction("pawn", mode)
+		if err != nil {
+			t.Fatal(err)
 		}
-		if err := prisonerInteractionCommand("pawn", "tok", mode); err != nil {
-			t.Fatal(mode, err)
+		action, err := domain.NewPrisonerInteractionAction("a", interaction)
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-	if err := prisonerInteractionCommand("pawn", "tok", PrisonerInteractionModeUnspecified); err == nil {
-		t.Fatal("unspecified mode accepted")
-	}
-	if err := prisonerInteractionCommand("pawn", "tok", PrisonerInteractionConvert+1); err == nil {
-		t.Fatal("out-of-range mode accepted")
+		built, err := prisonerInteractionAction(action)
+		if err != nil || built.GetPrisoner().GetPawnId() != "pawn" || built.GetPrisoner().GetInteraction() != want {
+			t.Fatal(mode, built, err)
+		}
 	}
 }

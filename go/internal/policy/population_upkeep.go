@@ -17,7 +17,7 @@ import (
 // conversion and every other redirection remain player-only orders through
 // SetPopulationDecision. Native eligibility (recruitable, alive, prisoner,
 // not a wild man barred from the mode) is still re-validated by
-// EvaluatePrisonerInteraction immediately before dispatch; this only decides
+// native when it applies the intent; this only decides
 // which already-observed candidate to try.
 const MaintainPopulation GoalID = "MaintainPopulation"
 
@@ -31,6 +31,19 @@ const MaintainPopulation GoalID = "MaintainPopulation"
 type PrisonerPolicy struct {
 	ReleaseAfterDays float64
 	FoodTargetDays   float64
+}
+
+// PrisonerFacts is one observed prisoner's population census row.
+type PrisonerFacts struct {
+	Pawn               domain.PawnID
+	Dead               domain.Fact[bool]
+	Prisoner           domain.Fact[bool]
+	Recruitable        domain.Fact[bool]
+	CurrentInteraction domain.Fact[domain.PrisonerInteractionMode]
+	// Resistance and HeldTicks feed the release path only: native's
+	// remaining recruit resistance and the TimeAsPrisoner record, in ticks.
+	Resistance domain.Fact[float64]
+	HeldTicks  domain.Fact[int64]
 }
 
 // PrisonerPlanReason names why RoutinePrisonerInteractionPlanner did or did

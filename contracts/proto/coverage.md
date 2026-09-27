@@ -33,7 +33,7 @@ discovered/mapped, not as live source links.
 | `home/accept_quest` | Operations.Preview / Execute: AcceptQuest | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/manage_waste` | Operations.Preview / Execute: ManageWaste | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/gear_upkeep` | Operations.Preview / Execute: ImproveGear; Observations.ReadGear | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/population` | Operations.Preview / Execute: SetPrisonerInteraction; Observations.ReadPopulation | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/population` | Actions.Apply PrisonerInteractionIntent; Observations.ReadPopulation | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/acquire_resource` | Operations.Preview / Execute: AcquireResource | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/cancel_construction` | Operations.Preview / Execute: CancelConstruction | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/confirm_colony_names` | Actions.Apply NamingIntent (autopilot); PresentationReads.PreviewNaming/PlayerPresentation.Apply naming (future player affordance, unregistered) | Typed | `controller/rimgovernor/bridge_game.py:15` |

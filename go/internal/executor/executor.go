@@ -142,8 +142,6 @@ type Executor struct {
 	homeCoverageJournal        HomeCoverageJournal
 	wallRemoval                WallRemovalBoundary
 	wallRemovalJournal         WallRemovalJournal
-	prisonerInteraction        PrisonerInteractionBoundary
-	prisonerInteractionJournal PrisonerInteractionJournal
 	questAccept                QuestAcceptBoundary
 	questAcceptJournal         QuestAcceptJournal
 	mineAcquisition            AcquisitionBoundary
@@ -428,9 +426,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.HomeCoverageAction && e.homeCoverage != nil {
 		return e.runHomeCoverage(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.PrisonerInteractionAction && e.prisonerInteraction != nil {
-		return e.runPrisonerInteraction(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.QuestAcceptAction && e.questAccept != nil {
 		return e.runQuestAccept(ctx, action, progress, authority, generation)

@@ -107,7 +107,6 @@ const (
 	HeldNativeIneligible               HeldReason = "native_ineligible"
 	HeldPatientIneligible              HeldReason = "patient_ineligible"
 	HeldPlayerOrder                    HeldReason = "player_order"
-	HeldPrisonerUnavailable            HeldReason = "prisoner_unavailable"
 	HeldRecoveryServicePawnUnavailable HeldReason = "recovery_service_pawn_unavailable"
 	HeldRepairerUnavailable            HeldReason = "repairer_unavailable"
 	HeldRescuerUnavailable             HeldReason = "rescuer_unavailable"
@@ -137,7 +136,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldDoctorUnavailable, HeldDraftOwnership, HeldEquipPawnUnavailable, HeldFilthIneligible,
 	HeldGearReplacePawnUnavailable, HeldHomeCoverageExcluded,
 	HeldHomeCoverageGeometryChanged, HeldHusbandryAnimalUnavailable,
-	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder, HeldPrisonerUnavailable,
+	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder,
 	HeldRecoveryServicePawnUnavailable,
 	HeldRepairerUnavailable, HeldRescuerUnavailable,
 	HeldStructureIneligible, HeldUnsuitableEquipment,

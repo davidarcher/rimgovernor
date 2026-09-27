@@ -142,7 +142,6 @@ type buildingServiceBridge struct {
 	gearReplace         *buildingruntime.GearReplaceCapabilities
 	recoveryService     *buildingruntime.RecoveryServiceCapabilities
 	husbandry           *buildingruntime.HusbandryCapabilities
-	prisonerInteraction *buildingruntime.PrisonerInteractionCapabilities
 	questAccept         *buildingruntime.QuestAcceptCapabilities
 	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
 	trade               *buildingruntime.TradeCapabilities
@@ -270,10 +269,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	prisonerInteractionWriter, err := bridge.NewPrisonerInteractionWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	questAcceptWriter, err := bridge.NewQuestAcceptWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -363,7 +358,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		gearReplace:         &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		recoveryService:     &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
 		husbandry:           &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
-		prisonerInteraction: &buildingruntime.PrisonerInteractionCapabilities{Native: client, Writer: prisonerInteractionWriter},
 		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAcceptWriter},
 		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDepartureWriter},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
@@ -706,13 +700,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		husbandryCapabilities = client.husbandry
 	}
-	var prisonerInteractionCapabilities *buildingruntime.PrisonerInteractionCapabilities
-	if config.routinePrisonerInteractionPlans {
-		if client.prisonerInteraction == nil {
-			return errors.New("prisoner interaction plans require typed capabilities")
-		}
-		prisonerInteractionCapabilities = client.prisonerInteraction
-	}
 	var questAcceptCapabilities *buildingruntime.QuestAcceptCapabilities
 	if config.routinePopulationJoinerPlans {
 		if client.questAccept == nil {
@@ -855,7 +842,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		GearReplace:         gearReplaceCapabilities,
 		RecoveryService:     recoveryServiceCapabilities,
 		Husbandry:           husbandryCapabilities,
-		PrisonerInteraction: prisonerInteractionCapabilities,
 		QuestAccept:         questAcceptCapabilities,
 		CaravanDeparture:    caravanDepartureCapabilities,
 		Trade:               tradeCapabilities,

@@ -6,12 +6,10 @@
 // A downed hostile is actually captured into prisoner custody and a downed,
 // unadmitted friendly guest is actually rescued into an ordinary bed --
 // real native roster/status change observed via ticks, not just a receipt.
-// Between the two, the captured prisoner exercises SetPrisonerInteraction
-// (issue #95): the ReduceResistance and AttemptRecruit modes apply and read
-// back held, and once the fixture recruits the prisoner through the native
-// recruit-success path the progress reads report the actual recruited
-// outcome -- completed for the recruit order, unsuccessful for the
-// superseded ReduceResistance order -- rather than a settings readback.
+// Between the two, the captured prisoner takes PrisonerInteractionIntents
+// on Actions/Apply (issues #95, #941): the ReduceResistance and
+// AttemptRecruit modes apply and read back, and once the fixture recruits
+// the prisoner a further intent is refused against live custody state.
 // Uses the disposable test/population_setup fixture (PopulationFixture.cs)
 // since a deterministic downed candidate and guest near a ready prison and
 // spare beds cannot be relied on from native random pawn generation and
@@ -51,8 +49,8 @@ func init() {
 			"into prisoner custody and an actual Rescue job carries a downed unadmitted guest into an ordinary bed, " +
 			"both issued through the typed operations contract, exact CAS/stale-identity refusal, preview non-mutation, " +
 			"real roster/status change observed via native ticks, and replay idempotency. The captured prisoner then " +
-			"takes ReduceResistance and AttemptRecruit interaction writes whose progress reads report the actual " +
-			"recruited custody outcome after a native recruit.",
+			"takes ReduceResistance and AttemptRecruit interaction intents on Actions/Apply that read back, and a " +
+			"further intent is refused once a native recruit has taken the pawn out of custody.",
 		Start:  cases.Fixture{Op: "test/population_setup", Args: map[string]any{"candidateKind": "Villager"}, On: cases.LabStart()},
 		Budget: cases.LabBudget,
 		Run:    run,
@@ -344,8 +342,8 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	// personRow reads the prisoner through rimgovernor/observations_read_population,
-	// the same read bridge.ReadPrisonerInteractionTarget decodes the
-	// settings CAS token and current interaction from.
+	// the same read bridge.ReadRoutinePopulation decodes the current
+	// interaction from.
 	personRow := func(label string) (map[string]any, []string, error) {
 		reply, err := h.Wire(ctx, label, "observations_read_population", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
 		if err != nil {
@@ -369,15 +367,6 @@ func run(ctx context.Context, s cases.Session) error {
 			}
 		}
 		return nil, supported, fmt.Errorf("%s: candidate %s missing from the population census", label, candidateID)
-	}
-	personToken := func(person map[string]any) (string, error) {
-		pawn, _ := na.AsMap(person["pawn"])
-		snapshot, _ := na.AsMap(pawn["snapshot"])
-		t := na.AsString(snapshot["token"])
-		if t == "" {
-			return "", fmt.Errorf("missing population snapshot token: %#v", person)
-		}
-		return t, nil
 	}
 	prisonerBefore, supported, err := personRow("prisoner-before")
 	if err != nil {
@@ -403,92 +392,53 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("prisoner-before: expected prisonerTicks on the captured prisoner: %#v", prisonerBefore)
 	}
 	report["prisoner_ticks"] = prisonerBefore["prisonerTicks"]
-	interactionOperation := func(token, mode string) map[string]any {
-		return map[string]any{"setPrisonerInteraction": map[string]any{
-			"pawn": map[string]any{"entityId": candidateID, "expectedSnapshotToken": token}, "interaction": mode,
-		}}
+	// applyInteraction sends one PrisonerInteractionIntent on Actions/Apply
+	// (#941) and returns the action's result: applied carries the prisoner
+	// evidence, refused the native reason.
+	applyInteraction := func(label, key, pawn, mode string) (map[string]any, error) {
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{
+			"key": key, "prisoner": map[string]any{"pawnId": pawn, "interaction": mode},
+		}}})
+		if err != nil {
+			return nil, err
+		}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return nil, fmt.Errorf("%s: expected one result, got %#v", label, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		return result, nil
 	}
-	// prisonerEffect returns the PrisonerEffect evidence of a receipt or a
-	// completed/unsuccessful progress body.
-	prisonerEffect := func(body map[string]any) map[string]any {
-		if applied, ok := na.AsMap(body["applied"]); ok {
-			body = applied
-		}
-		if observed, ok := na.AsMap(body["observed"]); ok {
-			body = observed
-		}
-		if evidence, ok := na.AsMap(body["evidence"]); ok {
-			body = evidence
-		}
-		effect, _ := na.AsMap(body["prisoner"])
-		return effect
-	}
-	executeInteraction := func(label, actionID, token, mode string) (map[string]any, map[string]any, error) {
-		generation, err := currentGeneration("generation-before-" + label)
+	appliedInteraction := func(label, key, mode, def string) error {
+		result, err := applyInteraction(label, key, candidateID, mode)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
-		request := buildRequest(actionID, "1", generation, interactionOperation(token, mode))
-		reply, err := h.Wire(ctx, label, "operations_execute", request)
-		if err != nil {
-			return nil, nil, err
+		receipt, _ := na.AsMap(result["applied"])
+		applied, _ := na.AsMap(receipt["applied"])
+		observed, _ := na.AsMap(applied["observed"])
+		effect, ok := na.AsMap(observed["prisoner"])
+		if !ok || na.AsString(effect["outcome"]) != "held" || na.AsString(effect["interactionDef"]) != def {
+			return fmt.Errorf("%s: expected applied held %s evidence, got %#v", label, def, result)
 		}
-		_, receipt, err := na.Outcome(reply, "receipt")
-		if err != nil {
-			return nil, nil, err
-		}
-		if _, ok := na.AsMap(receipt["applied"]); !ok {
-			return nil, nil, fmt.Errorf("%s: expected an applied outcome, got %#v", label, receipt)
-		}
-		effect := prisonerEffect(receipt)
-		if na.AsString(effect["outcome"]) != "held" || na.AsString(effect["interactionDef"]) == "" {
-			return nil, nil, fmt.Errorf("%s: expected held prisoner evidence, got %#v", label, effect)
-		}
-		precondition, _ := na.AsMap(request["precondition"])
-		return receipt, map[string]any{"identity": identity, "attempt": precondition["attempt"]}, nil
-	}
-	observeInteraction := func(label string, attempt map[string]any) (string, map[string]any, error) {
-		reply, err := h.Wire(ctx, label, "receipts_observe_progress", attempt)
-		if err != nil {
-			return "", nil, err
-		}
-		_, progress, err := na.Outcome(reply, "progress")
-		if err != nil {
-			return "", nil, err
-		}
-		if complete, _ := na.AsBool(progress["completeInspection"]); !complete {
-			return "", nil, fmt.Errorf("%s: expected a complete inspection, got %#v", label, progress)
-		}
-		for _, state := range []string{"completed", "unsuccessful"} {
-			if body, ok := na.AsMap(progress[state]); ok {
-				return state, prisonerEffect(body), nil
-			}
-		}
-		return "", nil, fmt.Errorf("%s: expected completed or unsuccessful progress, got %#v", label, progress)
+		return nil
 	}
 
-	// Refusal: a stale settings token must be refused before any write.
-	staleGeneration, err := currentGeneration("generation-before-interaction-stale")
+	// Refusal: an absent prisoner is refused at apply time, before any write.
+	missing, err := applyInteraction("apply-interaction-missing", "prisoner-interaction-missing", "Thing_NoSuchPrisoner", "PRISONER_INTERACTION_REDUCE_RESISTANCE")
 	if err != nil {
 		return err
 	}
-	staleCode, err := failureCode(ctx, h, "execute-interaction-stale", buildRequest("prisoner-interaction-stale", "1", staleGeneration,
-		interactionOperation("stale-settings-token", "PRISONER_INTERACTION_REDUCE_RESISTANCE")))
-	if err != nil {
-		return err
-	}
-	if staleCode != "FAILURE_CODE_INVALID_REQUEST" {
-		return fmt.Errorf("execute-interaction-stale: expected INVALID_REQUEST, got %s", staleCode)
+	if refusal, ok := na.AsMap(missing["refused"]); !ok || na.AsString(refusal["code"]) != "FAILURE_CODE_NOT_FOUND" {
+		return fmt.Errorf("apply-interaction-missing: expected a NOT_FOUND refusal, got %#v", missing)
 	}
 
 	// ReduceResistance: a Core mode beyond the routine Recruit/Maintain pair.
-	reduceToken, err := personToken(prisonerBefore)
-	if err != nil {
-		return err
-	}
-	_, reduceAttempt, err := executeInteraction("execute-reduce-resistance", "prisoner-interaction-reduce", reduceToken, "PRISONER_INTERACTION_REDUCE_RESISTANCE")
-	if err != nil {
-		return err
+	// Resending the same intent applies again as it stands.
+	for _, label := range []string{"apply-reduce-resistance", "resend-reduce-resistance"} {
+		if err := appliedInteraction(label, "prisoner-interaction-reduce", "PRISONER_INTERACTION_REDUCE_RESISTANCE", "ReduceResistance"); err != nil {
+			return err
+		}
 	}
 	afterReduce, _, err := personRow("prisoner-after-reduce")
 	if err != nil {
@@ -497,47 +447,22 @@ func run(ctx context.Context, s cases.Session) error {
 	if na.AsString(afterReduce["interaction"]) != "ReduceResistance" {
 		return fmt.Errorf("prisoner-after-reduce: expected the native interaction to read back ReduceResistance, got %#v", afterReduce)
 	}
-	state, effect, err := observeInteraction("observe-reduce-held", reduceAttempt)
-	if err != nil {
-		return err
-	}
-	if state != "completed" || na.AsString(effect["outcome"]) != "held" || na.AsString(effect["interactionDef"]) != "ReduceResistance" {
-		return fmt.Errorf("observe-reduce-held: expected completed/held ReduceResistance, got %s %#v", state, effect)
-	}
 	report["reduce_resistance_held"] = true
 
-	// AttemptRecruit: the token changed with the ReduceResistance write, so
-	// the fresh census token is required.
-	recruitToken, err := personToken(afterReduce)
+	if err := appliedInteraction("apply-recruit", "prisoner-interaction-recruit", "PRISONER_INTERACTION_ATTEMPT_RECRUIT", "AttemptRecruit"); err != nil {
+		return err
+	}
+	afterSet, _, err := personRow("prisoner-after-recruit-order")
 	if err != nil {
 		return err
 	}
-	if recruitToken == reduceToken {
-		return fmt.Errorf("prisoner-after-reduce: expected the settings token to change after the write")
-	}
-	_, recruitAttempt, err := executeInteraction("execute-recruit", "prisoner-interaction-recruit", recruitToken, "PRISONER_INTERACTION_ATTEMPT_RECRUIT")
-	if err != nil {
-		return err
-	}
-	state, effect, err = observeInteraction("observe-recruit-held", recruitAttempt)
-	if err != nil {
-		return err
-	}
-	if state != "completed" || na.AsString(effect["outcome"]) != "held" || na.AsString(effect["interactionDef"]) != "AttemptRecruit" {
-		return fmt.Errorf("observe-recruit-held: expected completed/held AttemptRecruit, got %s %#v", state, effect)
-	}
-	// The superseded ReduceResistance order no longer holds its setting.
-	state, effect, err = observeInteraction("observe-reduce-superseded", reduceAttempt)
-	if err != nil {
-		return err
-	}
-	if state != "unsuccessful" || na.AsString(effect["outcome"]) != "held" {
-		return fmt.Errorf("observe-reduce-superseded: expected unsuccessful/held, got %s %#v", state, effect)
+	if na.AsString(afterSet["interaction"]) != "AttemptRecruit" {
+		return fmt.Errorf("prisoner-after-recruit-order: expected AttemptRecruit, got %#v", afterSet)
 	}
 
 	// Actual outcome: the fixture recruits through the native recruit-success
-	// path; progress reads must report recruited from the pawn's custody
-	// state, not from the setting that no longer exists.
+	// path; the census reports the admitted colonist, and a further
+	// interaction intent is refused because the pawn is no longer a prisoner.
 	recruited, err := h.Call(ctx, "fixture-recruit", "test/population_recruit", map[string]any{})
 	if err != nil {
 		return err
@@ -556,19 +481,12 @@ func run(ctx context.Context, s cases.Session) error {
 	if admitted, _ := na.AsBool(afterRecruit["admitted"]); !admitted {
 		return fmt.Errorf("prisoner-after-recruit: expected the candidate to be an admitted colonist: %#v", afterRecruit)
 	}
-	state, effect, err = observeInteraction("observe-recruit-outcome", recruitAttempt)
+	gone, err := applyInteraction("apply-after-recruit", "prisoner-interaction-after-recruit", candidateID, "PRISONER_INTERACTION_MAINTAIN_ONLY")
 	if err != nil {
 		return err
 	}
-	if state != "completed" || na.AsString(effect["outcome"]) != "recruited" {
-		return fmt.Errorf("observe-recruit-outcome: expected completed/recruited, got %s %#v", state, effect)
-	}
-	state, effect, err = observeInteraction("observe-reduce-outcome", reduceAttempt)
-	if err != nil {
-		return err
-	}
-	if state != "unsuccessful" || na.AsString(effect["outcome"]) != "recruited" {
-		return fmt.Errorf("observe-reduce-outcome: expected unsuccessful/recruited, got %s %#v", state, effect)
+	if _, ok := na.AsMap(gone["refused"]); !ok {
+		return fmt.Errorf("apply-after-recruit: expected a refusal for a recruited colonist, got %#v", gone)
 	}
 	report["candidate_recruited"] = true
 

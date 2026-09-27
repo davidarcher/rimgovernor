@@ -38,6 +38,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Research] = new ResearchActionHandler(),
             [Operations.Action.IntentOneofCase.Naming] = new NamingActionHandler(),
             [Operations.Action.IntentOneofCase.Dialog] = new DialogActionHandler(),
+            [Operations.Action.IntentOneofCase.Prisoner] = new PrisonerInteractionActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

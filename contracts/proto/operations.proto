@@ -63,8 +63,8 @@ message Operation {
   reserved 2, 9, 10, 11, 17, 19;
   reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
   // Settings moved to Actions/Apply intents (#941).
-  reserved 12, 46, 53, 58;
-  reserved "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy";
+  reserved 12, 32, 46, 53, 58;
+  reserved "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy", "set_prisoner_interaction";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -88,7 +88,6 @@ message Operation {
     ImproveGear improve_gear = 28;
     SetAnimalTraining set_animal_training = 30;
     SlaughterAnimal slaughter_animal = 31;
-    SetPrisonerInteraction set_prisoner_interaction = 32;
     SetDrafted set_drafted = 33;
     AttackTarget attack_target = 35;
     PawnTargetOrder pawn_target_order = 36;
@@ -345,7 +344,6 @@ enum PrisonerInteraction {
   PRISONER_INTERACTION_UNSPECIFIED = 0; PRISONER_INTERACTION_ATTEMPT_RECRUIT = 1; PRISONER_INTERACTION_MAINTAIN_ONLY = 2;
   PRISONER_INTERACTION_REDUCE_RESISTANCE = 3; PRISONER_INTERACTION_RELEASE = 4; PRISONER_INTERACTION_ENSLAVE = 5; PRISONER_INTERACTION_CONVERT = 6;
 }
-message SetPrisonerInteraction { EntityPrecondition pawn = 1; optional PrisonerInteraction interaction = 2; }
 message SetDrafted { EntityPrecondition pawn = 1; optional bool drafted = 2; optional string expected_draft_owner = 3; optional bool allow_persistent_draft = 4; }
 enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE_MELEE = 2; ATTACK_MODE_RANGED = 3; }
 message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
@@ -433,6 +431,7 @@ message Action {
     ResearchIntent research = 16;
     NamingIntent naming = 17;
     DialogIntent dialog = 18;
+    PrisonerInteractionIntent prisoner = 19;
   }
 }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
@@ -440,6 +439,10 @@ message Action {
 // and label stand in for an entity precondition, and native refuses on any drift.
 // With joiner_letter_token, window_id is a WandererJoins letter ID and option 0
 // accepts the joiner; a joiner already accepted by that letter applies again.
+// Set one colony prisoner's exclusive interaction mode. Native checks the
+// prisoner and the mode's eligibility (recruitable, wild man, Ideology) live;
+// a prisoner already set to the mode applies again.
+message PrisonerInteractionIntent { optional string pawn_id = 1; optional PrisonerInteraction interaction = 2; }
 message DialogIntent { optional int32 window_id = 1; optional int32 option_index = 2; optional string option_label = 3; optional string joiner_letter_token = 4; }
 // Confirm the exact observed suggestions of the colony-wide initial
 // faction/settlement naming dialog; window_id plus the suggestions stand in

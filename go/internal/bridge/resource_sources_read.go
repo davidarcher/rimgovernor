@@ -28,7 +28,7 @@ type ResourceSourceRow = policy.ResourceSource
 // reachable native mine/harvest sources via the typed
 // rimgovernor/observations_list_resource_sources RPC (ListResourceSources),
 // before the acquisition-selection loop. It requires a
-// single complete page, like ReadHusbandryTarget/ReadPrisonerInteractionTarget
+// single complete page, like ReadHusbandryTarget
 // -- pagination is unsupported by the native read adapter this calls, and any
 // oversized native collection is reported Unavailable rather than silently
 // truncated. Extraction-development detail is never requested. The returned

@@ -11,105 +11,16 @@ import (
 )
 
 // prisonerInteractionDefNames maps the open native defName
-// PopulationPerson.Interaction carries to the mode SetPrisonerInteraction
-// writes it as; any other current interaction (Execution, DLC modes this
-// boundary does not expose) stays unknown rather than misread.
-var prisonerInteractionDefNames = map[string]PrisonerInteractionMode{
-	"AttemptRecruit":   PrisonerInteractionRecruit,
-	"MaintainOnly":     PrisonerInteractionMaintain,
-	"ReduceResistance": PrisonerInteractionReduceResistance,
-	"Release":          PrisonerInteractionRelease,
-	"Enslave":          PrisonerInteractionEnslave,
-	"Convert":          PrisonerInteractionConvert,
-}
-
-var prisonerInteractionDomain = map[PrisonerInteractionMode]domain.PrisonerInteractionMode{
-	PrisonerInteractionRecruit:          domain.PrisonerInteractionRecruit,
-	PrisonerInteractionMaintain:         domain.PrisonerInteractionMaintain,
-	PrisonerInteractionReduceResistance: domain.PrisonerInteractionReduceResistance,
-	PrisonerInteractionRelease:          domain.PrisonerInteractionRelease,
-	PrisonerInteractionEnslave:          domain.PrisonerInteractionEnslave,
-	PrisonerInteractionConvert:          domain.PrisonerInteractionConvert,
-}
-
-// PrisonerTarget is the fresh prisoner CAS evidence InspectPrisonerInteraction
-// needs immediately before preview: the per-pawn settings snapshot token
-// PawnState.Snapshot carries, and the dead/prisoner/recruitable/current
-// interaction eligibility facts a selected interaction is re-validated
-// against. The routine candidate search itself is out of scope here, the
-// same way ReadHusbandryTarget needs no dedicated herd search to dispatch
-// one already-selected animal/method pair.
-type PrisonerTarget struct {
-	Context                 *c.ObservationContext
-	Pawn                    string
-	SnapshotToken           string
-	Dead                    bool
-	DeadKnown               bool
-	Prisoner                bool
-	PrisonerKnown           bool
-	Recruitable             bool
-	RecruitableKnown        bool
-	CurrentInteraction      PrisonerInteractionMode
-	CurrentInteractionKnown bool
-}
-
-// ReadPrisonerInteractionTarget reads the whole population census via the
-// dedicated ReadPopulation observation and extracts one already-selected
-// prisoner's fresh CAS token and eligibility facts. It requires a single
-// complete page, like ReadHusbandryTarget; a paginated population is
-// deferred to whatever candidate search eventually drives a routine
-// Population-* planner.
-func (client *Client) ReadPrisonerInteractionTarget(ctx context.Context, identity *c.Identity, pawn string) (PrisonerTarget, Result, error) {
-	if validID(pawn) != nil {
-		return PrisonerTarget{}, Result{}, contract("invalid prisoner interaction target identity")
-	}
-	identity = proto.Clone(identity).(*c.Identity)
-	reply := &o.PopulationReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_population", populationRequest(identity), reply)
-	if err != nil {
-		return PrisonerTarget{}, raw, err
-	}
-	if err = buildingUnknown(reply); err != nil {
-		return PrisonerTarget{}, raw, err
-	}
-	observed := reply.GetObserved()
-	if observed == nil {
-		return PrisonerTarget{}, raw, ErrUnavailable
-	}
-	var row *o.PopulationPerson
-	for _, candidate := range observed.Persons {
-		if candidate == nil || candidate.Pawn.GetPawn().GetId() != pawn {
-			continue
-		}
-		if row != nil {
-			return PrisonerTarget{}, raw, contract("duplicate population person")
-		}
-		row = candidate
-	}
-	if row == nil {
-		return PrisonerTarget{}, raw, ErrUnavailable
-	}
-	snapshotToken := row.GetPawn().GetSnapshot().GetToken()
-	if validID(snapshotToken) != nil {
-		return PrisonerTarget{}, raw, contract("prisoner interaction target CAS token unavailable")
-	}
-	out := PrisonerTarget{Context: observed.Context, Pawn: pawn, SnapshotToken: snapshotToken}
-	state := row.GetPawn()
-	if state.Dead != nil {
-		out.DeadKnown, out.Dead = true, state.GetDead()
-	}
-	if state.Prisoner != nil {
-		out.PrisonerKnown, out.Prisoner = true, state.GetPrisoner()
-	}
-	if row.Recruitable != nil {
-		out.RecruitableKnown, out.Recruitable = true, row.GetRecruitable()
-	}
-	if row.Interaction != nil {
-		if mode, ok := prisonerInteractionDefNames[row.GetInteraction()]; ok {
-			out.CurrentInteractionKnown, out.CurrentInteraction = true, mode
-		}
-	}
-	return out, raw, nil
+// PopulationPerson.Interaction carries to the domain mode; any other current
+// interaction (Execution, DLC modes the intent does not expose) stays
+// unknown rather than misread.
+var prisonerInteractionDefNames = map[string]domain.PrisonerInteractionMode{
+	"AttemptRecruit":   domain.PrisonerInteractionRecruit,
+	"MaintainOnly":     domain.PrisonerInteractionMaintain,
+	"ReduceResistance": domain.PrisonerInteractionReduceResistance,
+	"Release":          domain.PrisonerInteractionRelease,
+	"Enslave":          domain.PrisonerInteractionEnslave,
+	"Convert":          domain.PrisonerInteractionConvert,
 }
 
 // PrisonerCensus is one routine review cycle's whole prisoner census, read
@@ -129,8 +40,7 @@ type PrisonerCensus struct {
 
 // ReadRoutinePopulation reads the whole population census and extracts every
 // living-or-dead prisoner's recruit/maintain facts. It requires a single
-// complete page, like ReadPrisonerInteractionTarget; a paginated population
-// is deferred to whatever candidate search eventually needs one.
+// complete page.
 // populationRequest is the exact request the population reads issue, the
 // key the bundle seeds its population section under.
 func populationRequest(identity *c.Identity) *o.PopulationRequest {
@@ -195,11 +105,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		if pawn.Prisoner == nil || !pawn.GetPrisoner() {
 			continue // MaintainPopulation's recruit census only ever considers colony prisoners.
 		}
-		snapshotToken := pawn.GetSnapshot().GetToken()
-		if validID(snapshotToken) != nil {
-			return PrisonerCensus{}, contract("population person CAS token unavailable")
-		}
-		f := policy.PrisonerFacts{Pawn: domain.PawnID(id), SnapshotToken: snapshotToken, Prisoner: domain.Known(true)}
+		f := policy.PrisonerFacts{Pawn: domain.PawnID(id), Prisoner: domain.Known(true)}
 		if pawn.Dead != nil {
 			f.Dead = domain.Known(pawn.GetDead())
 		}
@@ -214,7 +120,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		}
 		if person.Interaction != nil {
 			if mode, ok := prisonerInteractionDefNames[person.GetInteraction()]; ok {
-				f.CurrentInteraction = domain.Known(prisonerInteractionDomain[mode])
+				f.CurrentInteraction = domain.Known(mode)
 			}
 		}
 		rows = append(rows, f)

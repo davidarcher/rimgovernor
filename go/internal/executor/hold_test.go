@@ -22,7 +22,7 @@ func allKnownReasons() []policy.Reason {
 		policy.DoctorUnavailable, policy.DraftOwnership, policy.EquipPawnUnavailable, policy.FilthIneligible,
 		policy.GearReplacePawnUnavailable, policy.HomeCoverageExcluded,
 		policy.HomeCoverageGeometryChanged, policy.HusbandryAnimalUnavailable,
-		policy.NativeIneligible, policy.PatientIneligible, policy.PlayerOrder, policy.PrisonerUnavailable,
+		policy.NativeIneligible, policy.PatientIneligible, policy.PlayerOrder,
 		policy.RecoveryServicePawnUnavailable,
 		policy.RepairerUnavailable, policy.RescuerUnavailable,
 		policy.StructureIneligible, policy.UnsuitableEquipment,

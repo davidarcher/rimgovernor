@@ -80,12 +80,12 @@ namespace HomeBridge.BridgeTools
                 }
                 if (p.ownership?.OwnedBed != null) person.OwnedBed = new Obs.BuildingState { Building = NativePawnObservationTools.Entity(p.ownership.OwnedBed) };
                 if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
-                // The prisoner-interaction settings token: what SetPrisonerInteraction
-                // compares expected_snapshot_token against.
+                // The prisoner custody and interaction settings token
+                // (NativePrisonerInteractionOperations.Settings).
                 row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
                 snapshot.Persons.Add(person);
             }
-            // The installed subset of the modes SetPrisonerInteraction accepts.
+            // The installed subset of the modes PrisonerInteractionIntent accepts.
             foreach (var name in new[] { "AttemptRecruit", "MaintainOnly", "ReduceResistance", "Release", "Enslave", "Convert" })
             {
                 var def = DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
