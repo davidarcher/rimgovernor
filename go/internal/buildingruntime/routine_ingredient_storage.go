@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -431,4 +432,18 @@ func ingredientStorageFailed(progress []domain.Progress) bool {
 		}
 	}
 	return true
+}
+
+// An ingredients:<benchID> stockpile retires once the bench census no
+// longer lists its bench; its allow-list stays the creating planner's, so
+// the role otherwise publishes nothing.
+func init() {
+	RegisterStockpileRole("ingredients", func(in StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
+		_, bench, _ := strings.Cut(role, ":")
+		standing, known := in.Benches.Value()
+		if !known || bench == "" || standing[bench] {
+			return policy.StockpileRoleState{}, false
+		}
+		return policy.StockpileRoleState{Retired: true}, true
+	})
 }

@@ -321,10 +321,36 @@ shrink: none) fit a budget of 8 per colonist; the first always fits. A
 role-less legacy claim is resized and merged, never retargeted or deleted.
 The desired state per role comes from the role's owning planner through
 `buildingruntime.RegisterStockpileRole(prefix, source)`; a role no source
-claims keeps its settings. `RoutineStockpilePlanner` commits the edits as
-one plan per cycle, each action under the zone's fresh CAS token:
-`zone_cell_edit`, `stockpile_patch` or `zone_delete`. Each is a
-`layout`/`stockpiles` clock event.
+claims keeps its settings, and a source answers nothing while the fact it
+judges by is unknown. The owners: `general` and `covered:<def>` (secure
+supplies, fixed settings), `ingredients:<benchID>` (retired once the bench
+census no longer lists the bench), `medicine:<roomID>` (retired once the
+room census no longer shows the room as a hospital), and MaintainStockpiles'
+own `apparel`, `weapons`, `dump:worn`, `dump:rotten` and `dump:corpses`.
+
+Built shelves (#721) inside an owned zone are MaintainStockpiles' too: a
+shelf whose last applied patch differs from its zone's desired settings
+(never patched: native defaults) is patched like the zone, role
+`shelf:<buildingID>`, ranked with retargets and costing three hauls per
+shelf cell.
+
+The fixed roles (#724) are created when the colony has things for one and
+no zone of it: serviceable stored apparel (apparel), unbiocoded weapons by
+trade on the map (weapons), poor stored apparel and worn-out garments on
+pawns (`dump:worn`, Low), spoiled items and rotting animal corpses
+(`dump:rotten`, Low), unburied humanlike corpses (`dump:corpses`, Low). A
+gear stockpile takes the free indoor roofed 2x2 patch cheapest to haul to
+from the general store (`policy.RankSitesByHaul`); a dump takes the nearest
+free outdoor 2x2 patch six cells clear of any living room
+(`policy.OutdoorDumpSites`), never while the room census is unknown. A
+create ranks after retargets and before grows; its hauls are the things
+waiting for it.
+
+`RoutineStockpilePlanner` commits the edits as one plan per cycle, each
+action under its target's fresh CAS token: `zone_cell_edit`,
+`stockpile_patch` (zone or shelf) or `zone_delete`. A create is a native
+zone preview and a `zone_create` method admitted alone, once no other edit
+stands. Each is a `layout`/`stockpiles` clock event.
 
 Site selection compares up to the configured method-attempt limit using native
 terrain/fertility, placement, danger, current stock and projected travel to each

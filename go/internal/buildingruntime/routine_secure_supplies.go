@@ -20,6 +20,20 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
+// The general store keeps the general filter at Normal priority; a
+// covered:<def> fallback zone keeps its one definition at Important.
+func init() {
+	RegisterStockpileRole(domain.GeneralRole, fixedStockpileRole(domain.GeneralFilter(), domain.NormalPriority))
+	RegisterStockpileRole(strings.TrimSuffix(domain.CoveredRolePrefix, ":"), func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
+		_, definition, _ := strings.Cut(role, ":")
+		filter, err := domain.AllowOnlyFilter([]string{definition})
+		if definition == "" || err != nil {
+			return policy.StockpileRoleState{}, false
+		}
+		return policy.StockpileRoleState{Filter: filter, Priority: domain.ImportantPriority}, true
+	})
+}
+
 // RoutineSecureSuppliesSource reuses the generic colony read for the vulnerable
 // item census (cell/definition included) and the existing tend pawn read
 // (already requests combat+work+care details) for hauler eligibility: dead/

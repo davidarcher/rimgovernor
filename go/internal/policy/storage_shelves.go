@@ -14,7 +14,8 @@ import (
 // stockpile the zone gives up those cells (ZoneManager
 // .Notify_NoZoneOverlapThingSpawned), so a shelf sited inside a zone trades
 // its two floor stacks for six shelf stacks. Its default settings (Preferred,
-// every category) are replaced by the served zone's filter and priority.
+// every category) are replaced by the served zone's desired filter and
+// priority by MaintainStockpiles (StockpileShelfPatch).
 const (
 	ShelfDefinition   = "Shelf"
 	ShelfResearch     = "ComplexFurniture"
@@ -35,13 +36,12 @@ type ShelfZone struct {
 
 // ShelfRecord is one shelf the planner placed for a zone. Building is the
 // built shelf's identity, empty while it is not (yet) built; Open marks a
-// placement still in flight; Patched marks a completed settings patch.
+// placement still in flight.
 type ShelfRecord struct {
 	Zone     string
 	Building string
 	Cells    []domain.Cell
 	Open     bool
-	Patched  bool
 }
 
 type ShelfStepKind string
@@ -49,16 +49,14 @@ type ShelfStepKind string
 const (
 	ShelfNone  ShelfStepKind = ""
 	ShelfBuild ShelfStepKind = "build"
-	ShelfPatch ShelfStepKind = "patch"
 )
 
-// ShelfStep is the next shelf action: configure a built shelf like its zone,
-// or place another shelf inside a zone (Pieces are the candidate sites in
-// preference order; the caller previews them in turn).
+// ShelfStep is the next shelf action: place another shelf inside a zone
+// (Pieces are the candidate sites in preference order; the caller previews
+// them in turn).
 type ShelfStep struct {
 	Kind   ShelfStepKind
 	Zone   ShelfZone
-	Shelf  ShelfRecord
 	Pieces []InteriorPiece
 }
 
@@ -74,21 +72,11 @@ type ShelfRequest struct {
 // maxShelfSites bounds the sites one build step previews.
 const maxShelfSites = 4
 
-// NextShelfStep configures before it builds and builds one shelf at a time:
-// a built unpatched shelf is patched first; an open placement waits; then
+// NextShelfStep builds one shelf at a time: an open placement waits; then
 // the first zone (by id) under its shelf quota gets candidate sites.
 func NextShelfStep(r ShelfRequest) ShelfStep {
 	zones := append([]ShelfZone(nil), r.Zones...)
 	sort.Slice(zones, func(i, j int) bool { return zones[i].Zone < zones[j].Zone })
-	byID := map[string]ShelfZone{}
-	for _, z := range zones {
-		byID[z.Zone] = z
-	}
-	for _, s := range r.Shelves {
-		if z, ok := byID[s.Zone]; ok && s.Building != "" && !s.Patched && !s.Open {
-			return ShelfStep{Kind: ShelfPatch, Zone: z, Shelf: s}
-		}
-	}
 	for _, s := range r.Shelves {
 		if s.Open {
 			return ShelfStep{}

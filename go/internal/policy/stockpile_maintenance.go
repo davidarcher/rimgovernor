@@ -11,8 +11,9 @@ import (
 // hold (#725), every review cycle: a zone near capacity grows onto the open
 // cells beside it, one that sat mostly empty sheds its empty edge cells, a
 // zone whose role's desired filter or priority changed is patched, a zone
-// whose role's purpose is gone is deleted, and a same-role fragment is
-// deleted into its larger sibling. It acts on the zones the colony created
+// whose role's purpose is gone is deleted, a same-role fragment is
+// deleted into its larger sibling, and a fixed role the colony has things
+// for but no zone of is created (#724). It acts on the zones the colony created
 // (store.OwnedZone), role-keyed; a role-less legacy claim is resized and
 // merged but never retargeted or deleted. Edits are rate-limited by the haul
 // jobs each would trigger, not by how rarely the routine acts.
@@ -120,6 +121,66 @@ type StockpileRequest struct {
 	Protected []domain.Cell
 	// Colonists sizes the haul budget; unknown holds every edit.
 	Colonists domain.Fact[int64]
+	// Needs counts, per fixed role (#724: apparel, weapons, dumps), the
+	// things waiting for it; a role with things and no zone is created.
+	Needs map[string]int
+	// Rooms sites the dumps clear of living rooms; unknown creates none.
+	Rooms domain.Fact[[]Room]
+	// Anchor sites the gear stockpiles when no general store stands.
+	Anchor domain.Cell
+	// Shelves are the built shelves inside the zones (#721): each carries
+	// its zone's desired settings, patched until it does.
+	Shelves []StockpileShelf
+}
+
+// StockpileShelf is one built shelf serving an owned zone and the settings
+// last patched onto it (Patched false: never patched, native defaults).
+type StockpileShelf struct {
+	Building string
+	Zone     string
+	Cells    int
+	Patched  bool
+	Filter   domain.StockpileFilter
+	Priority domain.StockpilePriority
+}
+
+// StockpileShelfPatch configures a shelf like its zone (#721): Zone names
+// the shelf building, Role is shelf:<buildingID>.
+const StockpileShelfPatch StockpileEditKind = "shelf"
+
+// stockpileShelfEdits patches every shelf whose settings differ from its
+// zone's desired ones: the zone role's published state, else the zone's
+// own settings. A shelf of a zone that is gone or retiring waits.
+func stockpileShelfEdits(roles StockpileRoles, zones []StockpileZone, shelves []StockpileShelf) []StockpileEdit {
+	byID := map[string]StockpileZone{}
+	for _, z := range zones {
+		byID[z.ID] = z
+	}
+	sorted := append([]StockpileShelf(nil), shelves...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Building < sorted[j].Building })
+	var out []StockpileEdit
+	for _, s := range sorted {
+		z, ok := byID[s.Zone]
+		if !ok || s.Building == "" {
+			continue
+		}
+		filter, priority := z.Filter, z.Priority
+		if z.Role != "" && roles != nil {
+			if want, published := roles(z.Role); published {
+				if want.Retired {
+					continue
+				}
+				filter, priority = want.Filter, want.Priority
+			}
+		}
+		if s.Patched && s.Filter == filter && s.Priority == priority {
+			continue
+		}
+		hauls := s.Cells * ShelfItemsPerCell
+		out = append(out, StockpileEdit{Kind: StockpileShelfPatch, Zone: s.Building, Role: ShelfRole(s.Building), Filter: filter, Priority: priority, Hauls: hauls,
+			Explanation: fmt.Sprintf("shelf %s in stockpile %s (%s): configure like its zone (priority %s); up to %d stacks may rehome", s.Building, z.ID, z.Role, priority, hauls)})
+	}
+	return out
 }
 
 // StockpileReview is the outcome: the edits this cycle admits within the
@@ -134,7 +195,9 @@ type StockpileReview struct {
 }
 
 // PlanStockpileMaintenance proposes this cycle's edits, one per zone, in
-// urgency order (delete, retarget, grow, merge, shrink; ties by zone id),
+// urgency order (delete, retarget and shelf patch, create, grow, merge,
+// shrink; ties by
+// zone id),
 // admitting each while the haul jobs it triggers fit the cycle's budget
 // (the first edit always fits, so an edit larger than the budget still
 // lands, alone). Deterministic over its input.
@@ -161,6 +224,10 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	for _, z := range zones {
 		take(stockpileSettingsEdit(r.Roles, z))
 	}
+	for _, e := range stockpileShelfEdits(r.Roles, zones, r.Shelves) {
+		take(e, true)
+	}
+	candidates = append(candidates, stockpileCreateEdits(r, open)...)
 	for _, z := range zones {
 		if !touched[z.ID] {
 			take(stockpileGrowEdit(open, z))
@@ -176,7 +243,7 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 			take(stockpileShrinkEdit(r.Tick, z))
 		}
 	}
-	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileGrow: 2, StockpileMerge: 3, StockpileShrink: 4}
+	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileShelfPatch: 1, StockpileCreate: 2, StockpileGrow: 3, StockpileMerge: 4, StockpileShrink: 5}
 	sort.SliceStable(candidates, func(i, j int) bool { return rank[candidates[i].Kind] < rank[candidates[j].Kind] })
 	spent := 0
 	for _, e := range candidates {

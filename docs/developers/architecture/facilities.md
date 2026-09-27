@@ -36,8 +36,9 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    `MaintainResource`. Hauling then brings the inputs to the bench. Once
    ComplexFurniture is researched, `RoutineStorageShelvesPlanner` places a
    Shelf inside that stockpile (and the SecureSupplies general store), up to
-   a third of its footprint, and patches each built shelf with the zone's
-   filter and priority (role `shelf:<buildingID>`). Native storage capacity
+   a third of its footprint; `MaintainStockpiles` patches each built shelf
+   with the zone's desired filter and priority (role `shelf:<buildingID>`)
+   and again whenever those change. Native storage capacity
    counts a shelf cell's free slots (three stacks per cell).
 6. **Bill**: `RoutineResourcePlanner` dispatches the bill and native readback
    of the rising item count carries the deficit to recovery. The native

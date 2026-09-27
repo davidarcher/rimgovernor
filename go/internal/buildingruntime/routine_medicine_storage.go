@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -15,6 +16,33 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
+
+// A medicine:<roomID> stockpile keeps its settings while the room hosts a
+// hospital and retires once the room census no longer shows it as one
+// (the room gone, or its role changed); an unknown census or role holds it.
+func init() {
+	RegisterStockpileRole("medicine", func(in StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
+		_, id, _ := strings.Cut(role, ":")
+		rooms, known := in.Projection.Rooms.Value()
+		filter, err := medicineFilter()
+		facility, ferr := policy.Facility(policy.RoomRoleHospital)
+		if !known || id == "" || err != nil || ferr != nil {
+			return policy.StockpileRoleState{}, false
+		}
+		state := policy.StockpileRoleState{Filter: filter, Priority: domain.ImportantPriority}
+		room, found := rooms.Room(id)
+		if !found {
+			state.Retired = true
+			return state, true
+		}
+		kind, known := room.Role.Value()
+		if !known {
+			return policy.StockpileRoleState{}, false
+		}
+		state.Retired = !facility.Hosts(kind)
+		return state, true
+	})
+}
 
 // medicineStorageAttempts bounds the medicine stockpile per hospital room:
 // another attempt only after every earlier one ended failed.

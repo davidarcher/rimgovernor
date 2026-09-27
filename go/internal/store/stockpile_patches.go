@@ -8,19 +8,22 @@ import (
 )
 
 // AppliedStockpile is the last completed autopilot stockpile_patch on one
-// zone: the settings (and role, when the patch carried one) the zone holds
-// since, as of Tick. It supersedes the zone_create's settings in OwnedZone.
+// storage target (a zone, or a storage building such as a shelf): the
+// settings (and role, when the patch carried one) the target holds
+// since, as of Tick. On a zone it supersedes the zone_create's settings in
+// OwnedZone.
 type AppliedStockpile struct {
-	Zone     string
+	Target   string
+	Kind     domain.StorageTargetKind
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
 	Role     string
 	Tick     domain.Tick
 }
 
-// StockpilePatches lists, per zone id, the latest completed autopilot
-// stockpile_patch of the current world scope at or before tick. Storage
-// building targets are left out: they are not zones.
+// StockpilePatches lists, per target id, the latest completed autopilot
+// stockpile_patch of the current world scope at or before tick, zones and
+// storage buildings alike.
 func (s *Store) StockpilePatches(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick) (map[string]AppliedStockpile, error) {
 	if current.Validate() != nil || tick < 0 {
 		return nil, ErrConflict
@@ -71,13 +74,13 @@ func stockpilePatches(ctx context.Context, tx *sql.Tx, current domain.Generation
 			v := progress.View()
 			patch, isPatch := progress.Action().StockpilePatch()
 			effect, ek := v.Effect.Value()
-			if !isPatch || patch.TargetKind() != domain.StorageZoneTarget || !ek || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
+			if !isPatch || !ek || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
 			if prior, seen := result[patch.Target()]; seen && prior.Tick > v.Tick {
 				continue
 			}
-			result[patch.Target()] = AppliedStockpile{Zone: patch.Target(), Filter: patch.Filter(), Priority: patch.Priority(), Role: patch.Role(), Tick: v.Tick}
+			result[patch.Target()] = AppliedStockpile{Target: patch.Target(), Kind: patch.TargetKind(), Filter: patch.Filter(), Priority: patch.Priority(), Role: patch.Role(), Tick: v.Tick}
 		}
 	}
 	return result, nil

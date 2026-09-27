@@ -692,7 +692,7 @@ var plannerCatalog = []plannerEntry{
 			out.RawFoodStock = &method
 			return method.Reason, nil
 		}},
-	{name: "storage-shelves", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.StockpilePatchAction}, sections: sectionsBuilding,
+	{name: "storage-shelves", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.StorageShelves != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.StorageShelves.step(ctx, epoch)
@@ -795,7 +795,7 @@ var plannerCatalog = []plannerEntry{
 			out.Tidy = &method
 			return method.Reason, nil
 		}},
-	{name: "stockpiles", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.ZoneDeleteAction}, sections: sectionsBuilding,
+	{name: "stockpiles", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.ZoneDeleteAction, domain.ZoneCreateAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Stockpiles != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Stockpiles.step(ctx, epoch, arbiter)

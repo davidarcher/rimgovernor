@@ -6,33 +6,27 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // RoutineStorageShelvesPlanner (#721) places shelves inside the stockpiles
 // this colony created -- the general store and the working stockpiles at the
-// benches -- and configures each built shelf like the zone it serves:
-// the zone's filter and priority, claimed under role shelf:<buildingID>.
-// Each shelf is a method of the goal that created its zone, taken only
-// while that goal is active and selected; policy.NextShelfStep picks the
-// step (patch before build, one open shelf at a time, a third of the
-// footprint at most).
+// benches. Each shelf is a method of the goal that created its zone, taken
+// only while that goal is active and selected; policy.NextShelfStep picks
+// the step (one open shelf at a time, a third of the footprint at most).
+// MaintainStockpiles configures every built shelf like its zone
+// (policy.StockpileShelfPatch, role shelf:<buildingID>).
 type RoutineStorageShelvesPlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineStorageShelvesSource
 }
 
-// RoutineStorageShelvesSource is the room census, the building preview and
-// the storage building read the shelf patch's CAS token comes from.
+// RoutineStorageShelvesSource is the room census and the building preview.
 type RoutineStorageShelvesSource interface {
 	RoutineBuildingSource
-	ReadStorageBuildingTarget(context.Context, *c.Identity, string) (bridge.StorageBuildingTarget, bridge.Result, error)
 }
 
 type RoutineStorageShelvesResult struct {
@@ -45,11 +39,8 @@ type RoutineStorageShelvesResult struct {
 // Food storage (meal shelves, freezers) is planned by its own goals.
 var shelfGoals = map[policy.GoalID]bool{policy.SecureSupplies: true, policy.MaintainResource: true}
 
-// Attempt bounds: shelves a zone may ever be given, and patches per shelf.
-const (
-	maxShelvesPerZone     = 8
-	maxShelfPatchAttempts = 3
-)
+// maxShelvesPerZone bounds the shelves a zone may ever be given.
+const maxShelvesPerZone = 8
 
 func NewRoutineStorageShelvesPlanner(reviewer *RoutineReviewer, native RoutineStorageShelvesSource) (*RoutineStorageShelvesPlanner, error) {
 	if reviewer == nil || native == nil {
@@ -70,16 +61,11 @@ func (r *RoutineStorageShelvesPlanner) Step(ctx context.Context) (RoutineStorage
 	return r.step(call, epoch)
 }
 
-// shelfPlanID and shelfPatchPlanID are world-scoped and epoch-free, so a
-// shelf placed under one goal episode is still found in the next.
+// shelfPlanID is world-scoped and epoch-free, so a shelf placed under one
+// goal episode is still found in the next.
 func shelfPlanID(s domain.GenerationSnapshot, zone string, index int) domain.PlanID {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d/%s/%d", s.Colony, s.Load, s.Map, zone, index)))
 	return domain.PlanID(fmt.Sprintf("routine-storage-shelf-%x", digest[:16]))
-}
-
-func shelfPatchPlanID(s domain.GenerationSnapshot, building string, attempt int) domain.PlanID {
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d/%s/patch/%d", s.Colony, s.Load, s.Map, building, attempt)))
-	return domain.PlanID(fmt.Sprintf("routine-storage-shelf-patch-%x", digest[:16]))
 }
 
 func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (RoutineStorageShelvesResult, error) {
@@ -167,7 +153,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 		}
 		owner[z.ID] = z
 		request.Zones = append(request.Zones, policy.ShelfZone{Zone: z.ID, Cells: cells, Filter: z.Filter, Priority: z.Priority})
-		shelves, index, err := r.zoneShelves(call, state.Snapshot, z.ID)
+		shelves, index, err := zoneShelves(call, p.journal, state.Snapshot, z.ID)
 		if err != nil {
 			return RoutineStorageShelvesResult{}, err
 		}
@@ -175,11 +161,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 		request.Shelves = append(request.Shelves, shelves...)
 	}
 	step := policy.NextShelfStep(request)
-	switch step.Kind {
-	case policy.ShelfPatch:
-		z := owner[step.Zone.Zone]
-		return r.patch(call, epoch, state, goals[z.Goal], step, facts.Identity.Tick)
-	case policy.ShelfBuild:
+	if step.Kind == policy.ShelfBuild {
 		z := owner[step.Zone.Zone]
 		if next[z.ID] >= maxShelvesPerZone {
 			return RoutineStorageShelvesResult{Reason: BuildingMethodExhausted}, nil
@@ -190,9 +172,8 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 }
 
 // zoneShelves reads back the zone's shelf plans in index order: the
-// shelves built or in flight, their patch state, and the next free index.
-func (r *RoutineStorageShelvesPlanner) zoneShelves(ctx context.Context, s domain.GenerationSnapshot, zone string) ([]policy.ShelfRecord, int, error) {
-	journal := r.reviewer.player.journal
+// shelves built or in flight, and the next free index.
+func zoneShelves(ctx context.Context, journal *store.Store, s domain.GenerationSnapshot, zone string) ([]policy.ShelfRecord, int, error) {
 	var out []policy.ShelfRecord
 	for index := 0; index < maxShelvesPerZone; index++ {
 		plan, err := journal.LoadPlan(ctx, shelfPlanID(s, zone, index))
@@ -231,27 +212,6 @@ func (r *RoutineStorageShelvesPlanner) zoneShelves(ctx context.Context, s domain
 		}
 		if record.Building == "" {
 			continue
-		}
-		for attempt := 0; attempt < maxShelfPatchAttempts; attempt++ {
-			patch, err := journal.LoadPlan(ctx, shelfPatchPlanID(s, record.Building, attempt))
-			if errors.Is(err, store.ErrNotFound) {
-				break
-			}
-			if err != nil {
-				return nil, 0, err
-			}
-			if domain.GoalWorkOpen(patch.Progress) {
-				record.Open = true
-				break
-			}
-			if routineBuildingCompleted(patch.Progress) {
-				record.Patched = true
-				break
-			}
-			if attempt == maxShelfPatchAttempts-1 {
-				// Every attempt failed: leave the shelf as it stands.
-				record.Patched = true
-			}
 		}
 		out = append(out, record)
 	}
@@ -320,59 +280,4 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 		return RoutineStorageShelvesResult{Reason: BuildingMethodAdmitted, Plan: snapshot.Plan}, nil
 	}
 	return RoutineStorageShelvesResult{Reason: BuildingMethodNoSpace}, nil
-}
-
-// patch configures a built shelf like its zone under the shelf's current
-// storage token.
-func (r *RoutineStorageShelvesPlanner) patch(call, epoch context.Context, state ControlState, goal store.GoalState, step policy.ShelfStep, tick domain.Tick) (RoutineStorageShelvesResult, error) {
-	p := r.reviewer.player
-	target, _, err := r.native.ReadStorageBuildingTarget(call, boundary.Identity(state.Snapshot), step.Shelf.Building)
-	if err != nil {
-		return RoutineStorageShelvesResult{}, err
-	}
-	if _, err = boundary.Context(target.Context, state.Snapshot); err != nil || domain.Tick(target.Context.GetTick()) < tick {
-		return RoutineStorageShelvesResult{}, ErrControl
-	}
-	if !target.Present {
-		return RoutineStorageShelvesResult{Reason: BuildingMethodUsed}, nil
-	}
-	attempt := 0
-	var id domain.PlanID
-	for ; attempt < maxShelfPatchAttempts; attempt++ {
-		id = shelfPatchPlanID(state.Snapshot, step.Shelf.Building, attempt)
-		if _, err := p.journal.LoadPlan(call, id); errors.Is(err, store.ErrNotFound) {
-			break
-		} else if err != nil {
-			return RoutineStorageShelvesResult{}, err
-		}
-	}
-	if attempt == maxShelfPatchAttempts {
-		return RoutineStorageShelvesResult{Reason: BuildingMethodExhausted}, nil
-	}
-	value, err := domain.NewStockpilePatch(domain.StorageBuildingTarget, step.Shelf.Building, target.Token, step.Zone.Filter, step.Zone.Priority, policy.ShelfRole(step.Shelf.Building))
-	if err != nil {
-		return RoutineStorageShelvesResult{}, err
-	}
-	action, err := domain.NewStockpilePatchAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
-	if err != nil {
-		return RoutineStorageShelvesResult{}, err
-	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return RoutineStorageShelvesResult{}, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return RoutineStorageShelvesResult{}, err
-	}
-	if p.session.State() != state {
-		return RoutineStorageShelvesResult{}, ErrControl
-	}
-	method := domain.MethodID(fmt.Sprintf("storage-shelf-patch-%s-%d", step.Shelf.Building, attempt))
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, "configure shelf like zone "+step.Zone.Zone, plan); err != nil {
-		if errors.Is(err, store.ErrNotAdmitted) {
-			return RoutineStorageShelvesResult{Reason: BuildingMethodRefused}, nil
-		}
-		return RoutineStorageShelvesResult{}, err
-	}
-	return RoutineStorageShelvesResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
 }

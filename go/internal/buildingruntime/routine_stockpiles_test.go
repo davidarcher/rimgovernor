@@ -46,8 +46,8 @@ func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
 		{ID: "Zone_3", Kind: domain.GrowingZone, Crop: "Plant_Rice"},
 		{ID: "Zone_9", Kind: domain.StockpileZone, Role: "general"},
 	}
-	patches := map[string]store.AppliedStockpile{"Zone_2": {Zone: "Zone_2", Filter: food, Priority: domain.PreferredPriority, Role: "kitchen", Tick: 10}}
-	request := stockpileRequest(projection, owned, patches)
+	patches := map[string]store.AppliedStockpile{"Zone_2": {Target: "Zone_2", Kind: domain.StorageZoneTarget, Filter: food, Priority: domain.PreferredPriority, Role: "kitchen", Tick: 10}}
+	request := stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool]())
 	if len(request.Zones) != 2 || request.Tick != 5000 {
 		t.Fatalf("request zones %+v", request.Zones)
 	}
@@ -104,6 +104,7 @@ func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
 		{policy.StockpileEdit{Kind: policy.StockpileGrow, Zone: "Zone_1", Cells: cells}, domain.ZoneCellEditAction},
 		{policy.StockpileEdit{Kind: policy.StockpileShrink, Zone: "Zone_1", Cells: cells}, domain.ZoneCellEditAction},
 		{policy.StockpileEdit{Kind: policy.StockpileRetarget, Zone: "Zone_1", Filter: domain.FoodFilter(), Priority: domain.ImportantPriority, Role: "kitchen"}, domain.StockpilePatchAction},
+		{policy.StockpileEdit{Kind: policy.StockpileShelfPatch, Zone: "Shelf_1", Filter: domain.FoodFilter(), Priority: domain.ImportantPriority, Role: "kitchen"}, domain.StockpilePatchAction},
 		{policy.StockpileEdit{Kind: policy.StockpileDelete, Zone: "Zone_1"}, domain.ZoneDeleteAction},
 		{policy.StockpileEdit{Kind: policy.StockpileMerge, Zone: "Zone_1", Into: "Zone_2"}, domain.ZoneDeleteAction},
 	} {
@@ -120,17 +121,21 @@ func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
 				t.Fatalf("edit %+v", e)
 			}
 		}
-		if p, ok := a.StockpilePatch(); ok && (p.Role() != "kitchen" || p.TargetKind() != domain.StorageZoneTarget || p.BeforeToken() != "tok") {
+		want := domain.StorageZoneTarget
+		if tc.edit.Kind == policy.StockpileShelfPatch {
+			want = domain.StorageBuildingTarget
+		}
+		if p, ok := a.StockpilePatch(); ok && (p.Role() != "kitchen" || p.TargetKind() != want || p.Target() != tc.edit.Zone || p.BeforeToken() != "tok") {
 			t.Fatalf("patch %+v", p)
 		}
 	}
 }
 
 func TestStockpileRolesResolveByPrefix(t *testing.T) {
-	RegisterStockpileRole("test-role", func(_ *observation.ColonyProjection, role string) (policy.StockpileRoleState, bool) {
+	RegisterStockpileRole("test-role", func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
 		return policy.StockpileRoleState{Retired: role == "test-role:gone"}, true
 	})
-	roles := stockpileRoles(&observation.ColonyProjection{})
+	roles := stockpileRoles(StockpileRoleInput{Projection: &observation.ColonyProjection{}})
 	if state, ok := roles("test-role:gone"); !ok || !state.Retired {
 		t.Fatal("prefixed role unresolved")
 	}
@@ -145,7 +150,89 @@ func TestStockpileRolesResolveByPrefix(t *testing.T) {
 			t.Fatal("double registration accepted")
 		}
 	}()
-	RegisterStockpileRole("test-role", func(*observation.ColonyProjection, string) (policy.StockpileRoleState, bool) {
+	RegisterStockpileRole("test-role", func(StockpileRoleInput, string) (policy.StockpileRoleState, bool) {
 		return policy.StockpileRoleState{}, false
 	})
+}
+
+// The registered owners publish every role's desired state (#724/#725): a
+// medicine zone retires with its hospital, an ingredients zone with its
+// bench, the general store, covered fallbacks, gear and dumps keep fixed
+// settings; an unknown census publishes nothing.
+func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
+	projection := &observation.ColonyProjection{}
+	projection.Rooms = domain.Known(policy.RoomObservation{Rooms: []policy.Room{
+		{ID: "Room_1", Role: domain.Known(policy.RoomRoleHospital)},
+		{ID: "Room_2", Role: domain.Known(policy.RoomRoleKitchen)},
+		{ID: "Room_3", Role: domain.Unknown[policy.RoomRole]()},
+	}})
+	roles := stockpileRoles(StockpileRoleInput{Projection: projection, Benches: domain.Known(map[string]bool{"Bench_1": true})})
+	medicine, _ := medicineFilter()
+	for _, tc := range []struct {
+		role      string
+		published bool
+		retired   bool
+		filter    domain.StockpileFilter
+		priority  domain.StockpilePriority
+	}{
+		{"medicine:Room_1", true, false, medicine, domain.ImportantPriority},
+		{"medicine:Room_2", true, true, medicine, domain.ImportantPriority},
+		{"medicine:Room_9", true, true, medicine, domain.ImportantPriority},
+		{"medicine:Room_3", false, false, domain.StockpileFilter{}, ""},
+		{"ingredients:Bench_1", false, false, domain.StockpileFilter{}, ""},
+		{"ingredients:Bench_2", true, true, domain.StockpileFilter{}, ""},
+		{domain.GeneralRole, true, false, domain.GeneralFilter(), domain.NormalPriority},
+		{"covered:WoodLog", true, false, mustAllowOnly(t, "WoodLog"), domain.ImportantPriority},
+		{domain.ApparelRole, true, false, domain.ApparelFilter(), domain.PreferredPriority},
+		{domain.WeaponsRole, true, false, domain.WeaponsFilter(), domain.PreferredPriority},
+		{domain.WornDumpRole, true, false, domain.WornDumpFilter(), domain.LowPriority},
+		{domain.RottenDumpRole, true, false, domain.RottenDumpFilter(), domain.LowPriority},
+		{domain.CorpseDumpRole, true, false, domain.CorpseDumpFilter(), domain.LowPriority},
+		{"dump:other", false, false, domain.StockpileFilter{}, ""},
+	} {
+		state, ok := roles(tc.role)
+		if ok != tc.published || state.Retired != tc.retired || ok && !tc.retired && (state.Filter != tc.filter || state.Priority != tc.priority) {
+			t.Errorf("%s: %+v %v", tc.role, state, ok)
+		}
+	}
+	unknown := stockpileRoles(StockpileRoleInput{Projection: &observation.ColonyProjection{}})
+	for _, role := range []string{"medicine:Room_1", "ingredients:Bench_2"} {
+		if _, ok := unknown(role); ok {
+			t.Errorf("%s published over an unknown census", role)
+		}
+	}
+}
+
+func mustAllowOnly(t *testing.T, def string) domain.StockpileFilter {
+	f, err := domain.AllowOnlyFilter([]string{def})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+// Needs count serviceable stored apparel for the apparel role, poor stored
+// apparel and worn-out garments for the worn dump, spoiled items and
+// rotting animal corpses for the rotten dump and humanlike corpses for the
+// corpse dump; buried corpses wait for nothing.
+func TestStockpileNeedsFromColonyFacts(t *testing.T) {
+	facts := policy.RoutineFacts{
+		Gear: domain.Known(policy.GearObservation{
+			Stored: domain.Known([]policy.GearStock{{Definition: "Apparel_Parka", Quality: 2, HPBand: 7, Count: 2}, {Definition: "Apparel_Pants", Quality: 1, HPBand: 9, Count: 1}}),
+			Pawns:  []policy.GearPawn{{Apparel: domain.Known([]policy.GearApparel{{Definition: "Apparel_Shirt", Condition: 0.3}, {Definition: "Apparel_Pants", Condition: 0.9}})}},
+		}),
+		Waste: domain.Known([]policy.WasteItem{
+			{Kind: "spoiled", State: policy.WasteExposed},
+			{Kind: "corpse", CorpseOf: domain.CorpseAnimal, State: policy.WasteExposed},
+			{Kind: "corpse", CorpseOf: domain.CorpseStranger, State: policy.WasteExposed},
+			{Kind: "corpse", CorpseOf: domain.CorpseColonist, State: policy.WasteBuried},
+		}),
+	}
+	needs := stockpileNeeds(facts, 4)
+	want := map[string]int{domain.ApparelRole: 2, domain.WeaponsRole: 4, domain.WornDumpRole: 2, domain.RottenDumpRole: 2, domain.CorpseDumpRole: 1}
+	for role, n := range want {
+		if needs[role] != n {
+			t.Errorf("%s: %d, want %d (%v)", role, needs[role], n, needs)
+		}
+	}
 }

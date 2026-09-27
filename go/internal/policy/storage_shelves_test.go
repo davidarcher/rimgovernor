@@ -81,7 +81,7 @@ func TestShelfSitesKeepASmallZoneContiguousAndReachable(t *testing.T) {
 	}
 }
 
-func TestNextShelfStepPatchesBeforeBuildingAndBuildsOneAtATime(t *testing.T) {
+func TestNextShelfStepBuildsOneAtATime(t *testing.T) {
 	t.Parallel()
 	zone, cells := shelfRoom(5, 5, domain.Cell{X: 3, Z: 0})
 	z := ShelfZone{Zone: "Zone_1", Cells: zone, Filter: domain.GeneralFilter(), Priority: domain.NormalPriority}
@@ -95,8 +95,8 @@ func TestNextShelfStepPatchesBeforeBuildingAndBuildsOneAtATime(t *testing.T) {
 	}
 	built := ShelfRecord{Zone: "Zone_1", Building: "Shelf_9", Cells: []domain.Cell{{X: 1, Z: 5}, {X: 2, Z: 5}}}
 	request.Shelves = []ShelfRecord{built}
-	if got := NextShelfStep(request); got.Kind != ShelfPatch || got.Shelf.Building != "Shelf_9" || got.Zone.Filter != domain.GeneralFilter() {
-		t.Fatal(got)
+	if got := NextShelfStep(request); got.Kind != ShelfBuild {
+		t.Fatal("a built shelf under quota holds nothing", got)
 	}
 	built.Open = true
 	request.Shelves = []ShelfRecord{built}
@@ -104,7 +104,7 @@ func TestNextShelfStepPatchesBeforeBuildingAndBuildsOneAtATime(t *testing.T) {
 		t.Fatal("an open shelf holds the next", got)
 	}
 	// 25 zone cells + 10 shelf cells: a third is 10 cells, five shelves.
-	built.Open, built.Patched = false, true
+	built.Open = false
 	request.Shelves = []ShelfRecord{built, built, built, built, built}
 	if got := NextShelfStep(request); got.Kind != ShelfNone {
 		t.Fatal("quota reached", got)

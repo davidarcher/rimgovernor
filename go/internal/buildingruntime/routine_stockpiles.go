@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -14,6 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // stockpileMemory remembers, per world, since when each owned stockpile has
@@ -75,8 +78,9 @@ func (m *stockpileMemory) fill(world string, zones []policy.StockpileZone) {
 // stockpileRequest builds the MaintainStockpiles input from the projection's
 // planning cells (a zone's cells are those naming it; a cell whose
 // storage-empty flag is false holds things) and the colony's stockpile
-// claims, their settings superseded by the latest patch of each.
-func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile) policy.StockpileRequest {
+// claims, their settings superseded by the latest patch of each; the
+// registered roles judge on the projection and benches.
+func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool]) policy.StockpileRequest {
 	type cells struct{ all, stored []domain.Cell }
 	byZone := map[string]*cells{}
 	for _, cell := range projection.Cells {
@@ -94,14 +98,17 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 			entry.stored = append(entry.stored, cell.Cell)
 		}
 	}
-	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(projection), Cells: projection.Cells, Bounds: projection.Bounds, Protected: layoutProtected(*projection, nil), Colonists: projection.Facts.Colonists}
+	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: layoutProtected(*projection, nil), Colonists: projection.Facts.Colonists, Anchor: projection.Center, Rooms: domain.Unknown[[]policy.Room]()}
+	if rooms, ok := projection.Rooms.Value(); ok {
+		request.Rooms = domain.Known(rooms.Rooms)
+	}
 	for _, z := range owned {
 		entry := byZone[z.ID]
 		if z.Kind != domain.StockpileZone || entry == nil {
 			continue
 		}
 		zone := policy.StockpileZone{ID: z.ID, Role: z.Role, Cells: entry.all, Stored: entry.stored, Filter: z.Filter, Priority: z.Priority}
-		if patch, ok := patches[z.ID]; ok {
+		if patch, ok := patches[z.ID]; ok && patch.Kind == domain.StorageZoneTarget {
 			zone.Filter, zone.Priority = patch.Filter, patch.Priority
 			if patch.Role != "" {
 				zone.Role = patch.Role
@@ -147,7 +154,146 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 	if err != nil {
 		return policy.StockpileRequest{}, false, err
 	}
-	return stockpileRequest(projection, owned, patches), true, nil
+	benches := domain.Unknown[map[string]bool]()
+	roles := map[string]bool{}
+	for _, z := range owned {
+		roles[z.Role] = true
+		if _, read := benches.Value(); strings.HasPrefix(z.Role, domain.IngredientsPrefix) && !read {
+			if benches, err = r.standingBenches(ctx, snapshot, projection.Identity); err != nil {
+				return policy.StockpileRequest{}, false, err
+			}
+		}
+	}
+	request := stockpileRequest(projection, owned, patches, benches)
+	for _, z := range request.Zones {
+		shelves, _, err := zoneShelves(ctx, r.player.journal, snapshot, z.ID)
+		if err != nil {
+			return policy.StockpileRequest{}, false, err
+		}
+		for _, s := range shelves {
+			if s.Building == "" || s.Open {
+				continue
+			}
+			shelf := policy.StockpileShelf{Building: s.Building, Zone: z.ID, Cells: len(s.Cells)}
+			if applied, ok := patches[s.Building]; ok && applied.Kind == domain.StorageBuildingTarget {
+				shelf.Patched, shelf.Filter, shelf.Priority = true, applied.Filter, applied.Priority
+			}
+			request.Shelves = append(request.Shelves, shelf)
+		}
+	}
+	weapons := 0
+	if !roles[domain.WeaponsRole] {
+		if weapons, err = r.looseWeapons(ctx, snapshot, projection.Bounds); err != nil {
+			return policy.StockpileRequest{}, false, err
+		}
+	}
+	request.Needs = stockpileNeeds(projection.Facts, weapons)
+	return request, true, nil
+}
+
+// stockpileNeeds counts the things waiting for each fixed role (#724):
+// serviceable stored apparel (hit points and quality over the gear floors)
+// for apparel, the loose weapons for weapons, poor stored apparel and the
+// worn-out garments pawns will shed for the worn dump, spoiled items and
+// rotting animal corpses for the rotten dump, humanlike corpses for the
+// corpse dump. An unknown census counts nothing.
+func stockpileNeeds(facts policy.RoutineFacts, weapons int) map[string]int {
+	needs := map[string]int{domain.WeaponsRole: weapons}
+	if gear, ok := facts.Gear.Value(); ok {
+		if stored, ok := gear.Stored.Value(); ok {
+			for _, row := range stored {
+				if float64(row.HPBand) >= domain.GearHitPointFloor*10 && row.Quality >= 2 {
+					needs[domain.ApparelRole] += row.Count
+				} else {
+					needs[domain.WornDumpRole] += row.Count
+				}
+			}
+		}
+		for _, pawn := range gear.Pawns {
+			worn, _ := pawn.Apparel.Value()
+			for _, a := range worn {
+				if a.Condition < domain.GearHitPointFloor {
+					needs[domain.WornDumpRole]++
+				}
+			}
+		}
+	}
+	if waste, ok := facts.Waste.Value(); ok {
+		for _, item := range waste {
+			if item.State == policy.WasteBuried {
+				continue
+			}
+			switch {
+			case item.Kind == "spoiled", item.Kind == "corpse" && item.CorpseOf == domain.CorpseAnimal:
+				needs[domain.RottenDumpRole]++
+			case item.Kind == "corpse" && (item.CorpseOf == domain.CorpseColonist || item.CorpseOf == domain.CorpseStranger):
+				needs[domain.CorpseDumpRole]++
+			}
+		}
+	}
+	return needs
+}
+
+// weaponCensus is the loose-weapon read the weapons role counts from.
+type weaponCensus interface {
+	ReadEquipWeapons(context.Context, *c.Identity, domain.Cell, domain.Cell) (bridge.EquipRead, bridge.Result, error)
+}
+
+// looseWeapons counts the unbiocoded weapons by trade lying on the map; a
+// source without the read counts none.
+func (r *RoutineReviewer) looseWeapons(ctx context.Context, snapshot domain.GenerationSnapshot, bounds policy.Bounds) (int, error) {
+	source, ok := r.native.(weaponCensus)
+	if !ok || bounds.Width <= 0 || bounds.Height <= 0 {
+		return 0, nil
+	}
+	read, _, err := source.ReadEquipWeapons(ctx, boundary.Identity(snapshot), domain.Cell{}, domain.Cell{X: bounds.Width - 1, Z: bounds.Height - 1})
+	if err != nil {
+		return 0, err
+	}
+	if _, err = boundary.Context(read.Context, snapshot); err != nil {
+		return 0, ErrControl
+	}
+	count := 0
+	for _, w := range read.Targets {
+		if !w.Biocoded && policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee) != policy.WeaponMakeshift {
+			count++
+		}
+	}
+	return count, nil
+}
+
+// standingBenches is the bench census as a set of ids; unknown without
+// the read.
+func (r *RoutineReviewer) standingBenches(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity) (domain.Fact[map[string]bool], error) {
+	native, ok := r.native.(RoutineWorkBenchSource)
+	if !ok {
+		return domain.Unknown[map[string]bool](), nil
+	}
+	rows, _, err := r.benchSource(native, expected, false).ReadGearBenches(ctx, boundary.Identity(snapshot))
+	if err != nil {
+		return domain.Unknown[map[string]bool](), err
+	}
+	ids := map[string]bool{}
+	for _, row := range rows {
+		ids[row.Bench.ID] = true
+	}
+	return domain.Known(ids), nil
+}
+
+// The gear stockpiles and dumps are MaintainStockpiles' own roles (#724):
+// fixed settings, never retired.
+func init() {
+	specs := map[string]domain.StockpileRoleSpec{}
+	for _, spec := range domain.GearAndDumpRoles() {
+		specs[spec.Role] = spec
+	}
+	source := func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
+		spec, ok := specs[role]
+		return policy.StockpileRoleState{Filter: spec.Filter, Priority: spec.Priority}, ok
+	}
+	for _, prefix := range []string{domain.ApparelRole, domain.WeaponsRole, "dump"} {
+		RegisterStockpileRole(prefix, source)
+	}
 }
 
 // RoutineStockpileSource refreshes one zone's presence and CAS token for
@@ -159,7 +305,9 @@ type RoutineStockpileSource interface {
 // RoutineStockpilePlanner commits the MaintainStockpiles review's edits
 // (#725) as one plan per cycle, one action per zone under that zone's
 // fresh CAS token: zone_cell_edit to grow or shrink, stockpile_patch to
-// retarget, zone_delete to delete or merge. A plan still open holds the
+// retarget a zone or configure a shelf like its zone, zone_delete to
+// delete or merge. A missing fixed-role zone (#724) is a zone_create
+// admitted alone once no other edit stands. A plan still open holds the
 // next cycle.
 type RoutineStockpilePlanner struct {
 	reviewer *RoutineReviewer
@@ -238,7 +386,11 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
+	observe := r.reviewer.observeOwned
+	if r.reviewer.roomsEnabled() {
+		observe = r.reviewer.observeRooms
+	}
+	read, err := observe(call, r.reviewer.native, expected, claims)
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}
@@ -266,20 +418,30 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	}
 	identity := boundary.Identity(state.Snapshot)
 	var actions []domain.Action
+	var creates []policy.StockpileEdit
 	for _, e := range proposal.Edits {
-		target, _, err := r.native.ReadZoneDeleteTarget(call, identity, e.Zone)
+		if e.Kind == policy.StockpileCreate {
+			creates = append(creates, e)
+			continue
+		}
+		token, err := r.editToken(call, identity, e)
 		if err != nil {
 			return RoutineStockpileResult{}, err
 		}
-		if !target.Present || target.Type != "stockpile" || target.Token == "" {
+		if token == "" {
 			continue
 		}
-		action, err := stockpileEditAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), e, target.Token)
+		action, err := stockpileEditAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), e, token)
 		if err != nil {
 			clockSchedulerLog("Stockpiles: %s %s dropped: %v", e.Kind, e.Zone, err)
 			continue
 		}
 		actions = append(actions, action)
+	}
+	if len(actions) == 0 && len(creates) > 0 {
+		// A new zone is admitted alone, previewed, once the edits of
+		// standing zones are done.
+		return r.create(call, epoch, state, goal, projection, read.StartedAt, creates[0])
 	}
 	if len(actions) == 0 {
 		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
@@ -299,12 +461,116 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		return RoutineStockpileResult{}, err
 	}
 	for _, e := range proposal.Edits {
+		if e.Kind == policy.StockpileCreate {
+			continue
+		}
 		clockEvent(call, "layout", "stockpiles", "stockpile edit admitted: "+e.Explanation, "zone", e.Zone, "kind", string(e.Kind), "plan", string(id))
 	}
 	return RoutineStockpileResult{Reason: BuildingMethodAdmitted, Plan: id, Edits: len(actions)}, nil
 }
 
-// stockpileEditAction is one edit's action under the zone's token.
+// create admits one fixed-role zone (#724) as its own method: the zone is
+// previewed natively on the review's zone map token and admitted with its
+// footprint reserved, like every routine zone.
+func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time, e policy.StockpileEdit) (RoutineStockpileResult, error) {
+	p := r.reviewer.player
+	native, ok := r.native.(interface {
+		PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
+	})
+	token, tk := projection.ZoneMapToken.Value()
+	if !ok || !tk {
+		return RoutineStockpileResult{Reason: BuildingMethodUnknown}, nil
+	}
+	value, err := domain.NewFilteredStockpileZone(e.Filter, e.Priority, e.Cells)
+	if err == nil {
+		value, err = value.WithRole(e.Role)
+	}
+	if err != nil {
+		return RoutineStockpileResult{}, err
+	}
+	tick := projection.Identity.Tick
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/create/%s/%d", goal.Goal.ID, goal.Goal.Epoch, e.Role, tick)))
+	id := domain.PlanID(fmt.Sprintf("routine-stockpile-create-%x", digest[:16]))
+	method := domain.MethodID(fmt.Sprintf("stockpile-create-%x", digest[:8]))
+	if _, err := p.journal.LoadPlan(call, id); err == nil {
+		return RoutineStockpileResult{Reason: BuildingMethodUsed}, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineStockpileResult{}, err
+	}
+	snapshot := state.Snapshot
+	snapshot.Plan = id
+	snapshot.Revision = 1
+	reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+	var refused *bridge.NativeFailure
+	if errors.As(err, &refused) {
+		clockSchedulerLog("Stockpiles: create %s refused code=%v detail=%q", e.Role, refused.Value.GetCode(), refused.Value.GetDetail())
+		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
+	}
+	if err != nil {
+		return RoutineStockpileResult{}, err
+	}
+	v := reply.GetEvaluated()
+	if v == nil || !v.GetAccepted() {
+		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
+	}
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != tick {
+		return RoutineStockpileResult{}, ErrControl
+	}
+	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	if err != nil {
+		return RoutineStockpileResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineStockpileResult{}, err
+	}
+	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(value.Cells()), Costs: domain.Known([]policy.Amount{})}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineStockpileResult{}, err
+	}
+	now := r.reviewer.clock.Now()
+	if p.session.State() != state || now.Before(started) || now.Sub(started) > r.reviewer.maxAge {
+		return RoutineStockpileResult{}, ErrControl
+	}
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	if err != nil {
+		return RoutineStockpileResult{}, err
+	}
+	if !decision.Admitted {
+		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
+	}
+	clockEvent(call, "layout", "stockpiles", "stockpile edit admitted: "+e.Explanation, "role", e.Role, "kind", string(e.Kind), "plan", string(id))
+	return RoutineStockpileResult{Reason: BuildingMethodAdmitted, Plan: id, Edits: 1}, nil
+}
+
+// shelfTargetSource reads a shelf's storage settings CAS token.
+type shelfTargetSource interface {
+	ReadStorageBuildingTarget(context.Context, *c.Identity, string) (bridge.StorageBuildingTarget, bridge.Result, error)
+}
+
+// editToken is the fresh CAS token of the edit's target: the stockpile
+// zone's, or the shelf's for a shelf patch. Empty when the target is gone
+// or the source cannot read it.
+func (r *RoutineStockpilePlanner) editToken(ctx context.Context, identity *c.Identity, e policy.StockpileEdit) (string, error) {
+	if e.Kind == policy.StockpileShelfPatch {
+		source, ok := r.native.(shelfTargetSource)
+		if !ok {
+			return "", nil
+		}
+		target, _, err := source.ReadStorageBuildingTarget(ctx, identity, e.Zone)
+		if err != nil || !target.Present {
+			return "", err
+		}
+		return target.Token, nil
+	}
+	target, _, err := r.native.ReadZoneDeleteTarget(ctx, identity, e.Zone)
+	if err != nil || !target.Present || target.Type != "stockpile" {
+		return "", err
+	}
+	return target.Token, nil
+}
+
+// stockpileEditAction is one edit's action under the target's token.
 func stockpileEditAction(id domain.ActionID, e policy.StockpileEdit, token string) (domain.Action, error) {
 	switch e.Kind {
 	case policy.StockpileGrow, policy.StockpileShrink:
@@ -319,6 +585,12 @@ func stockpileEditAction(id domain.ActionID, e policy.StockpileEdit, token strin
 		return domain.NewZoneCellEditAction(id, edit)
 	case policy.StockpileRetarget:
 		patch, err := domain.NewStockpilePatch(domain.StorageZoneTarget, e.Zone, token, e.Filter, e.Priority, e.Role)
+		if err != nil {
+			return domain.Action{}, err
+		}
+		return domain.NewStockpilePatchAction(id, patch)
+	case policy.StockpileShelfPatch:
+		patch, err := domain.NewStockpilePatch(domain.StorageBuildingTarget, e.Zone, token, e.Filter, e.Priority, e.Role)
 		if err != nil {
 			return domain.Action{}, err
 		}

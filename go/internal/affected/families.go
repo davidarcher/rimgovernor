@@ -70,7 +70,6 @@ var routineFamilyFiles = map[string][]string{
 	"routine_ingredient_storage.go":   {"ingredient-storage"},
 	"routine_meal_shelf.go":           {"comfort"},
 	"routine_raw_food_stock.go":       {"refrigeration"},
-	"routine_storage_shelves.go":      {"secure-supplies", "ingredient-storage"},
 	"routine_lighting.go":             {"lighting"},
 	"routine_medical.go":              {"medical"},
 	"routine_medicine_tier.go":        {"medical"},
@@ -108,6 +107,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_tidy_furniture.go":       {"tidy"},
 	"routine_stockpiles.go":           {"stockpiles"},
 	"stockpile_roles.go":              {"stockpiles"},
+	"routine_storage_shelves.go":      {"secure-supplies", "ingredient-storage"},
 	"routine_supplies.go":             {"supply"},
 	"routine_temperature.go":          {"temperature"},
 	"routine_tend.go":                 {"tend"},
@@ -234,7 +234,8 @@ func buildingruntimeUsers(dir string) (map[string][]string, error) {
 		for _, decl := range file.Decls {
 			switch decl := decl.(type) {
 			case *ast.FuncDecl:
-				if decl.Recv == nil {
+				// init is never referenced; every file may declare one.
+				if decl.Recv == nil && decl.Name.Name != "init" {
 					owner[decl.Name.Name] = base
 				}
 			case *ast.GenDecl:

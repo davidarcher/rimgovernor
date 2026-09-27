@@ -10,8 +10,8 @@ import (
 )
 
 // A completed stockpile_patch on a zone is the zone's applied settings from
-// its completion tick on; a storage building target is no zone.
-func TestStockpilePatchesListTheLatestCompletedZonePatch(t *testing.T) {
+// its completion tick on, and one on a storage building the building's.
+func TestStockpilePatchesListTheLatestCompletedPatch(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "patches.db"))
@@ -46,11 +46,14 @@ func TestStockpilePatchesListTheLatestCompletedZonePatch(t *testing.T) {
 		}
 	}
 	got, err := s.StockpilePatches(ctx, r.Current, 12)
-	if err != nil || len(got) != 1 {
+	if err != nil || len(got) != 2 {
 		t.Fatal(got, err)
 	}
-	if p := got["Zone_7"]; p.Filter != domain.FoodFilter() || p.Priority != domain.ImportantPriority || p.Role != "kitchen" || p.Tick != 11 {
+	if p := got["Zone_7"]; p.Kind != domain.StorageZoneTarget || p.Filter != domain.FoodFilter() || p.Priority != domain.ImportantPriority || p.Role != "kitchen" || p.Tick != 11 {
 		t.Fatalf("applied %+v", p)
+	}
+	if p := got["Shelf_1"]; p.Kind != domain.StorageBuildingTarget || p.Filter != domain.FoodFilter() || p.Tick != 11 {
+		t.Fatalf("shelf applied %+v", p)
 	}
 	if got, err = s.StockpilePatches(ctx, r.Current, 10); err != nil || len(got) != 0 {
 		t.Fatal("a future completion applied", got, err)
