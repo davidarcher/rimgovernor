@@ -654,12 +654,10 @@ type CeilingRatio struct {
 }
 
 // CeilingRatios reports achieved_tps / ceiling_tps for every governed row
-// that advanced, the ceiling being the run's own "governor-off" wall TPS
-// when the run has that row (same box, same load), else recorded (the
-// governor-off TPS recorded for the fixture, #737). Nil when neither is
-// known.
-func CeilingRatios(rows []SpeedMetrics, recorded float64) []CeilingRatio {
-	ceiling := recorded
+// that advanced, the ceiling being the run's own "governor-off" wall TPS.
+// Nil when the run has no such row.
+func CeilingRatios(rows []SpeedMetrics) []CeilingRatio {
+	var ceiling float64
 	for _, row := range rows {
 		if row.Case == "governor-off" && row.WallTPS > 0 {
 			ceiling = row.WallTPS
