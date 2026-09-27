@@ -36,9 +36,7 @@ the exact patient/recipe/body-part outcome. Completed, absent and unsuccessful
 outcomes require causally fresh complete inspection; a current Go consumer's
 strictly-later-tick rule must adapt to same-tick synchronous verified readbacks.
 
-Production policy requires all four replacement wrappers (floors, commitments,
-stopped definitions, drills); present-empty explicitly clears the respective
-policy. An omitted wrapper refuses rather than clearing unreadable state. Settings
+Settings
 results for WORK/TRAINING/SCHEDULE identify the exact work definition, trainable
 definition or hour (0–23). Multiple entry outcomes must not collapse into an
 ambiguous field-category result. Cascaded native changes appear in the complete
@@ -70,7 +68,6 @@ Source files below are under `integrations/rimgovernor-native/src/Bridge`. Read-
 | PawnConfigTool.cs | PatchPawn | Work,schedule,food allow,care,hostility,self-tend,follow,area,master,training/slaughter/release; cascaded changes in snapshot. Food allow uses full settings CAS and native eligibility, assigning a copy without changing shared policies. Drop/nickname excluded from automation. |
 | BillsTool.cs | AddBill/PatchBill/DeleteBill/MoveBill | Native bill ID plus expected bench stack; optional repeat/filter/worker/store fields; exact stack readback. Index alone is not identity. Production is later observation. |
 | ResearchTool.cs | SelectResearch | Native eligible project selection, never finish research; current/progress/capability reads separate. |
-| ProductionPolicyTool.cs | SetProductionPolicy | Typed floors/commitments/stops/drill rows, owned native enforcement and interrupted pawn IDs. No adopting player drills. |
 | ZoneCellsTool.cs | CreateZone/DeleteZone/EditZoneCells/RepairZone/PatchStockpile/PatchGrowing | Exact cells, crop/sow/cut/filter/priority; per-cell refusal and complete geometry/filter readback. Repair and allow_split require explicit reviewed player maintenance. Typed native: `NativeZoneCreation.cs` (any label, any priority/preset/`FilterPatch` body for stockpiles; growing zones stay the fixed crop shape), `NativeStockpilePatch.cs` (priority and/or filter patch on one stockpile under its ListZones token; absent parts preserve the live setting, an unresolved selector refuses the whole body) and `NativeZoneCellEdit.cs`/`NativeZoneDeletion.cs`. `FilterPatch` selectors are exact defNames; `hit_points_min/max` are fractions in [0, 1] and `quality_min/max` QualityCategory names, each pair required together. ListZones `include_filter` returns the live allowed defs, configurable special rules and both ranges; the per-zone token covers them. the `zone/delete` case (`acceptance run zone/delete`) covers all four. RepairZone/PatchGrowing have no typed native handler. |
 | HomeCoverageTool.cs | ExtendHome | Shape/revision-bound batches restore missing cells in connected enclosed facilities. Coverage is not cleaned floor. |
 | UpkeepBedTool.cs | AssignBed | Exact prior assignment + native bed eligibility; assignment differs from sleeping. |

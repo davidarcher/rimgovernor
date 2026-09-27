@@ -99,8 +99,7 @@ target is a full deficit while the research tab is idle and the target unfinishe
 current project (including one the player chose) or a finished target counts as
 recovered. A resource target's deficit is the worst-covered target's shortfall against
 the reachable, unforbidden item census. Unknown stock or research state cannot admit a
-new project and never counts as recovery. The production-policy push is configuration,
-not development work: it is admitted without a ranking row and holds no slot.
+new project and never counts as recovery.
 
 `max_development_projects` defaults to two and accepts integer values from one through
 eight through the versioned player settings API. Available capacity is the smaller of

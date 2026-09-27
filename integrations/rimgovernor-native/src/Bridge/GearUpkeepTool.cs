@@ -63,8 +63,8 @@ namespace HomeBridge.BridgeTools
             if (!a.Spawned || a.Map != p.Map || a.Position.Fogged(p.Map) || a.IsForbidden(p) || a.IsBurning())
                 return "Item unavailable or forbidden";
             if (a.Faction != null && !a.Faction.IsPlayer) return "Item belongs to another faction";
-            if (!ProductionPolicyGuard.Budgets(p.Map, p).TryGetValue(a.def.defName, out var budget) || budget < 1)
-                return "Apparel stock is protected by production policy or commitments";
+            if (!MaterialBudget.Budgets(p.Map, p).TryGetValue(a.def.defName, out var budget) || budget < 1)
+                return "Apparel stock is committed elsewhere";
             if (!p.outfits.CurrentApparelPolicy.filter.Allows(a)) return "Apparel policy excludes item";
             if (!a.PawnCanWear(p) || !ApparelUtility.HasPartsToWear(p, a.def) ||
                 !a.def.apparel.developmentalStageFilter.Has(p.DevelopmentalStage)) return "Body, age or definition incompatible";
@@ -98,8 +98,8 @@ namespace HomeBridge.BridgeTools
                 || (weapon.Faction != null && !weapon.Faction.IsPlayer)) return "Weapon unavailable or reserved";
             if (!p.CanReserveAndReach(weapon, PathEndMode.ClosestTouch, p.NormalMaxDanger())) return "Weapon not safely reachable";
             if (!EquipmentUtility.CanEquip(weapon, p, out var reason)) return reason ?? "Native weapon eligibility refused";
-            if (!ProductionPolicyGuard.Budgets(p.Map, p).TryGetValue(weapon.def.defName, out var budget) || budget < 1)
-                return "Weapon protected by production policy or commitments";
+            if (!MaterialBudget.Budgets(p.Map, p).TryGetValue(weapon.def.defName, out var budget) || budget < 1)
+                return "Weapon stock is committed elsewhere";
             var primary = p.equipment?.Primary;
             if (primary != null) {
                 if (primary.TryGetQuality(out var oldQuality) && (!weapon.TryGetQuality(out var quality) || quality < oldQuality))
@@ -155,7 +155,7 @@ namespace HomeBridge.BridgeTools
             var hot = p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax);
             var uncovered = Uncovered(p);
             if (!cold && !hot && uncovered.Count == 0) return needs;
-            var budgets = ProductionPolicyGuard.Budgets(p.Map, p);
+            var budgets = MaterialBudget.Budgets(p.Map, p);
             // Definition-level candidates: allowed, wearable, displacing no forced or locked garment,
             // one per budgeted stuff, ranked by the insulation stat the deficit names.
             List<Tuple<ThingDef, ThingDef?, float>> Options(StatDef stat, Func<ThingDef, bool> covers)

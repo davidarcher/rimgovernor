@@ -24,7 +24,7 @@ func init() {
 		Scope:       "Remove an exhausted deep drill through the Hands deconstruction path while a steel runway is in deficit (#538); the drill over barren ground must be designated and demolished by pawns, the scanner and seeded lump untouched.",
 		Start:       cases.Fixture{Op: "test/production_materials_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{"scenario": "exhausted"}, On: cases.Save{Name: baselineSave}},
 		RequiredOps: []string{"test/production_materials_audit"},
-		Serve:       &cases.ServeSpec{Families: []string{"work,resource,production-policy,power"}, NativeTimeout: 15 * time.Second, Prefix: "exhausted"},
+		Serve:       &cases.ServeSpec{Families: []string{"work,resource,power"}, NativeTimeout: 15 * time.Second, Prefix: "exhausted"},
 		QuietWorld:  true,
 		// The removal runs fresh so the staged runway history and the single
 		// removal plan always describe the same run.

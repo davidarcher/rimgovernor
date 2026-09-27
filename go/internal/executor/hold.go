@@ -47,7 +47,6 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.PatientIneligible:              domain.HeldPatientIneligible,
 	policy.PlayerOrder:                    domain.HeldPlayerOrder,
 	policy.PrisonerUnavailable:            domain.HeldPrisonerUnavailable,
-	policy.ProductionPolicySatisfied:      domain.HeldProductionPolicySatisfied,
 	policy.RecoveryServicePawnUnavailable: domain.HeldRecoveryServicePawnUnavailable,
 	policy.RepairerUnavailable:            domain.HeldRepairerUnavailable,
 	policy.RescuerUnavailable:             domain.HeldRescuerUnavailable,

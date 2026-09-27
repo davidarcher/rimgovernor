@@ -20335,10 +20335,6 @@
     "Need": "MaintainResource"
    },
    {
-    "Goal": "routine-8c1f5757b5f0e2f5-ProductionPolicy",
-    "Need": "ProductionPolicy"
-   },
-   {
     "Goal": "routine-8c1f5757b5f0e2f5-TradeWithCaravan",
     "Need": "TradeWithCaravan"
    },
@@ -20663,20 +20659,6 @@
     "Method": "assess",
     "NextReview": 11500,
     "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 11500
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "ProductionPolicy",
-    "LastProgress": 9000,
-    "Method": "assess",
-    "NextReview": 11500
    },
    {
     "Expected": "deficit shrinks or the method's work settles",

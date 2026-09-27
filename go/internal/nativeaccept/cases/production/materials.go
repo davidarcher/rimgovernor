@@ -22,7 +22,7 @@ func init() {
 			Scope:       "Recover a material runway deficit through ordinary pawn production; native stock must rise, with deep steel depletion or a Make_ComponentIndustrial bill proving its source.",
 			Start:       cases.Fixture{Op: "test/production_materials_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{"scenario": scenario}, On: cases.Save{Name: baselineSave}},
 			RequiredOps: []string{"test/production_materials_audit"},
-			Serve:       &cases.ServeSpec{Families: []string{"work,resource,production-policy,power"}, NativeTimeout: 15 * time.Second, Prefix: scenario},
+			Serve:       &cases.ServeSpec{Families: []string{"work,resource,power"}, NativeTimeout: 15 * time.Second, Prefix: scenario},
 			QuietWorld:  true,
 			// The six-minute production window starts fresh so its native
 			// stock baseline and staged history always describe the same run.

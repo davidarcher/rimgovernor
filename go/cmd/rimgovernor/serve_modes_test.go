@@ -118,20 +118,13 @@ func TestServeRoutineFamiliesSelection(t *testing.T) {
 	if _, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard); err == nil {
 		t.Fatal("unknown family accepted")
 	}
-	// Family-scoped tuning flags need their family composed.
-	withRoutineFamilies(t, "sleeping", true)
-	for _, extra := range [][]string{{"--routine-resource-reserve", "Steel:100"}} {
-		if _, err := parseServe(append(append(serveBase(dir), "--profile", dir), extra...), io.Discard); err == nil {
-			t.Fatalf("accepted %v without its family", extra)
-		}
-	}
 	withRoutineFamilies(t, "", true)
 	// The resource family keeps the default floors; no flag sets them (#875).
 	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil || !c.resourceTargetsConfigured() || c.resourceTargets()["Steel"] != 200 || c.resourceTargets()["ComponentIndustrial"] != 10 {
 		t.Fatal(c, err)
 	}
-	for _, gone := range []string{"--routine-resource-target", "--routine-component-target", "--routine-stone-block-target"} {
+	for _, gone := range []string{"--routine-resource-target", "--routine-component-target", "--routine-stone-block-target", "--routine-resource-reserve", "--routine-resource-stop"} {
 		if _, err := parseServe(append(serveBase(dir), "--profile", dir, gone, "1"), io.Discard); err == nil {
 			t.Fatal("deleted flag accepted:", gone)
 		}

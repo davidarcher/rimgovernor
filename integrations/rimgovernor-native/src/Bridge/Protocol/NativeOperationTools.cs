@@ -59,7 +59,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeQuestRecord> Quests = new Dictionary<Common.AttemptKey, NativeQuestRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeSettlementGiftRecord> SettlementGifts = new Dictionary<Common.AttemptKey, NativeSettlementGiftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeQuestFulfillRecord> QuestFulfills = new Dictionary<Common.AttemptKey, NativeQuestFulfillRecord>();
-        internal readonly Dictionary<Common.AttemptKey, Operations.SetProductionPolicy> ProductionPolicies = new Dictionary<Common.AttemptKey, Operations.SetProductionPolicy>();
         internal readonly Dictionary<Common.AttemptKey, Operations.SetDrugPolicy> DrugPolicies = new Dictionary<Common.AttemptKey, Operations.SetDrugPolicy>();
         internal readonly Dictionary<Common.AttemptKey, NativeSurgeryRecord> Surgeries = new Dictionary<Common.AttemptKey, NativeSurgeryRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanTravelRecord> CaravanTravels = new Dictionary<Common.AttemptKey, NativeCaravanTravelRecord>();
@@ -202,8 +201,6 @@ namespace HomeBridge.BridgeTools
                 return NativeSettlementGiftOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.FulfillQuest)
                 return NativeQuestFulfillOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetProductionPolicy)
-                return NativeProductionPolicyOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.QueueSurgery)
                 return NativeSurgeryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
@@ -363,8 +360,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeSettlementGiftOperations.Preview(parsed.Operation.GiftCaravanSilver, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.FulfillQuest)
                     return ProtoBoundary.Encode(NativeQuestFulfillOperations.Preview(parsed.Operation.FulfillQuest, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetProductionPolicy)
-                    return ProtoBoundary.Encode(NativeProductionPolicyOperations.Preview(parsed.Operation.SetProductionPolicy, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetDrugPolicy)
                     return ProtoBoundary.Encode(NativeDrugPolicyOperations.Preview(parsed.Operation.SetDrugPolicy, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.QueueSurgery)
@@ -541,11 +536,8 @@ namespace HomeBridge.BridgeTools
                     NativeQuestFulfillRecord questFulfill;
                     if (state.QuestFulfills.TryGetValue(parsed.Attempt, out questFulfill))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeQuestFulfillOperations.Observe(parsed.Attempt, context, questFulfill) }));
-                    Operations.SetProductionPolicy productionPolicy;
                     if (state.DrugPolicies.TryGetValue(parsed.Attempt, out var drugPolicy))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeDrugPolicyOperations.Observe(parsed.Attempt, context, drugPolicy) }));
-                    if (state.ProductionPolicies.TryGetValue(parsed.Attempt, out productionPolicy))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeProductionPolicyOperations.Observe(parsed.Attempt, context, productionPolicy) }));
                     NativeSurgeryRecord surgery;
                     if (state.Surgeries.TryGetValue(parsed.Attempt, out surgery))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = surgery.Observe(parsed.Attempt, context) }));

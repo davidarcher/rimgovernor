@@ -213,7 +213,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 // developmentExemptMethod reports a method that is no development project:
 // every action is a QuestAccept or a joiner-letter answer (one native write
 // with no pawn work behind it; the quest's own parts walk the joiner in, so
-// MaintainPopulation answers it without a slot, the way ProductionPolicy's
+// MaintainPopulation answers it without a slot, the way TradeWithCaravan's
 // configuration pushes are exempt by need), or an Equip of a weapon the
 // colony already owns (one pawn walks to a loose bow and picks it up, a
 // minute of forced work that builds nothing; #411: EnsureBasicDefense

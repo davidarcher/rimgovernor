@@ -119,7 +119,7 @@ func resourceRunways(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest) ([
 				stock = domain.Known(n)
 			}
 		}
-		reserve := max(r.Policy.ResourceTargets[resource], r.Policy.ResourceReserves[resource])
+		reserve := r.Policy.ResourceTargets[resource]
 		result = append(result, policy.ForecastResourceRunway(resource, stock, r.Facts.ResourceSurfaceOre[resource], reserve, history))
 	}
 	return result, nil

@@ -31,7 +31,7 @@ func animalFeed(t *testing.T, path string) policy.AnimalFeedMethod {
 		t.Fatalf("%s: %d feed selections recorded", path, len(p.AnimalFeed))
 	}
 	c := p.AnimalFeed[0]
-	m, err := policy.SelectAnimalFeedMethod(c.Targets, c.Stocks, c.Have, c.Stopped)
+	m, err := policy.SelectAnimalFeedMethod(c.Targets, c.Stocks, c.Have)
 	if err != nil {
 		t.Fatal(err)
 	}

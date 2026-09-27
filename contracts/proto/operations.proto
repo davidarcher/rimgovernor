@@ -47,6 +47,7 @@ message CaravanPreparation { optional float mass_usage = 1; optional float mass_
 message SurgeryPreparation { optional string recipe_def = 1; optional int32 part_index = 2; repeated string practitioner_ids = 3; repeated DefCount missing_ingredients = 4; optional bool requires_medicine = 5; optional bool has_permitted_medicine = 6; optional string medical_catalog_snapshot_token = 7; }
 message TradePreparation { optional string session_id = 1; optional string deal_signature = 2; optional string sheet_snapshot_token = 3; optional int32 available_silver = 4; optional int32 goodwill = 5; optional int32 expected_goodwill_gain = 6; optional string resource_def = 7; optional int32 required_count = 8; optional int32 available_count = 9; optional string settlement_id = 10; }
 message Operation {
+  reserved 13;
   // Trade moved to Actions/Apply (TradeIntent).
   reserved 37 to 40;
   reserved "open_trade", "set_trade_lines", "accept_trade", "end_trade";
@@ -63,7 +64,6 @@ message Operation {
     DeleteBill delete_bill = 10;
     MoveBill move_bill = 11;
     SelectResearch select_research = 12;
-    SetProductionPolicy set_production_policy = 13;
     CreateZone create_zone = 14;
     DeleteZone delete_zone = 15;
     EditZoneCells edit_zone_cells = 16;
@@ -282,12 +282,7 @@ message PatchBill { BillPrecondition bill = 1; BillSettings settings = 2; }
 message DeleteBill { BillPrecondition bill = 1; }
 message MoveBill { BillPrecondition bill = 1; optional int32 destination_index = 2; }
 message SelectResearch { optional string project_def = 1; optional string expected_snapshot_token = 2; }
-message DrillPolicy { optional string building_def = 1; rimgovernor.common.v1.Cell cell = 2; optional string resource_def = 3; optional int32 stock_target = 4; }
-message DefCounts { repeated DefCount rows = 1; }
 message DefinitionList { repeated string defs = 1; }
-message DrillPolicies { repeated DrillPolicy rows = 1; }
-// All four replacement messages are required. Present-empty explicitly clears.
-message SetProductionPolicy { optional string expected_snapshot_token = 1; DefCounts floors = 2; DefCounts commitments = 3; DefinitionList stopped_defs = 4; DrillPolicies drills = 5; }
 enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; ZONE_TYPE_FISHING = 4; }
 enum StoragePriority { STORAGE_PRIORITY_UNSPECIFIED = 0; STORAGE_PRIORITY_LOW = 1; STORAGE_PRIORITY_NORMAL = 2; STORAGE_PRIORITY_PREFERRED = 3; STORAGE_PRIORITY_IMPORTANT = 4; STORAGE_PRIORITY_CRITICAL = 5; }
 enum FilterPreset { FILTER_PRESET_UNSPECIFIED = 0; FILTER_PRESET_EVERYTHING = 1; FILTER_PRESET_NOTHING = 2; FILTER_PRESET_FOOD = 3; FILTER_PRESET_PERISHABLES = 4; FILTER_PRESET_NONPERISHABLES = 5; FILTER_PRESET_OUTDOOR_SAFE = 6; }

@@ -110,7 +110,6 @@ const (
 	HeldPatientIneligible              HeldReason = "patient_ineligible"
 	HeldPlayerOrder                    HeldReason = "player_order"
 	HeldPrisonerUnavailable            HeldReason = "prisoner_unavailable"
-	HeldProductionPolicySatisfied      HeldReason = "production_policy_satisfied"
 	HeldRecoveryServicePawnUnavailable HeldReason = "recovery_service_pawn_unavailable"
 	HeldRepairerUnavailable            HeldReason = "repairer_unavailable"
 	HeldRescuerUnavailable             HeldReason = "rescuer_unavailable"
@@ -142,7 +141,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldGearReplacePawnUnavailable, HeldHaulerUnavailable, HeldThingAbsent, HeldHomeCoverageExcluded,
 	HeldHomeCoverageGeometryChanged, HeldHusbandryAnimalUnavailable,
 	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder, HeldPrisonerUnavailable,
-	HeldProductionPolicySatisfied, HeldRecoveryServicePawnUnavailable,
+	HeldRecoveryServicePawnUnavailable,
 	HeldRepairerUnavailable, HeldRescuerUnavailable, HeldResearchProjectClaimed,
 	HeldStructureIneligible, HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,

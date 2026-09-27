@@ -130,9 +130,8 @@ func TestRoutineDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
 	}
 }
 
-// Configured research/resource targets rank with a measured deficit, and a
-// production policy push is admitted without holding a development slot.
-func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
+// Configured research/resource targets rank with a measured deficit.
+func TestRoutineDevelopmentConfiguredTargets(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
@@ -140,7 +139,6 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	r.Policy.SetProjectLimit(1)
 	r.Policy.ResearchLadder = []string{"Stonecutting"}
 	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
-	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
 	r.Facts.Wood = domain.Known(int64(400))
@@ -153,19 +151,7 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	if !research.Selected || !resource.Selected {
 		t.Fatal(research, resource)
 	}
-	for _, row := range out.Review.Development.Rows {
-		if row.Goal == policy.ProductionPolicy {
-			t.Fatal("configuration push must not rank for development")
-		}
-	}
-	g := routineGoal(t, out, policy.ProductionPolicy)
-	if g.Goal.Need != domain.NeedDeficit {
-		t.Fatal(g.Goal)
-	}
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "push", plan(t, "push", "push-action")); err != nil {
-		t.Fatal("exempt push refused", err)
-	}
-	g = routineGoal(t, out, policy.MaintainResource)
+	g := routineGoal(t, out, policy.MaintainResource)
 	// A method that is only a quest acceptance (#250) is a settings write
 	// with no pawn work: it is admitted without the slot the same goal's
 	// pawn-work methods still need.

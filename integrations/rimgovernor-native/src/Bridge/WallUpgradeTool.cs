@@ -106,13 +106,10 @@ namespace HomeBridge.BridgeTools
                 if (stuff == null || stuff.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) != true
                     || !GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(stuff)
                     || r.Backup.Any(id => Wall(map, id)?.Stuff != stuff)) return "Native stone replacement material changed";
-                var policy = ProductionPolicyGuard.LoadedState(); var key = ProductionPolicyGuard.Key(map, stuff.defName);
-                if (policy.Stopped.Contains(key)) return "Production policy prevents replacement";
-                var budgets = ProductionPolicyGuard.Budgets(map);
+                var budgets = MaterialBudget.Budgets(map);
                 var required = ThingDefOf.Wall.CostListAdjusted(stuff).Where(c => c.thingDef == stuff).Sum(c => c.count);
-                policy.Commitments.TryGetValue(key, out var held);
                 budgets.TryGetValue(stuff.defName, out var available);
-                if (available + (Supervisor.IsActive ? Math.Min(required, held) : 0) < required)
+                if (available < required)
                     return "Materials no longer cover the permanent wall and existing reservations";
             } else {
                 var permanent = Wall(map, r.Permanent);

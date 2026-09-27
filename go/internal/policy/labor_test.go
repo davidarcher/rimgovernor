@@ -23,7 +23,7 @@ func TestRoutineLaborCountsEnabledWorkTypes(t *testing.T) {
 	if _, known := RoutineLabor([]WorkPawn{builder, emptyWork}).Value(); known {
 		t.Fatal("empty work list became labor evidence")
 	}
-	if GoalLabor(EnsureComfort)[0] != WorkConstruction || GoalLabor(EnsureResearch)[0] != WorkResearch || GoalLabor(ActiveCombat) != nil || GoalLabor(ProductionPolicy) != nil {
+	if GoalLabor(EnsureComfort)[0] != WorkConstruction || GoalLabor(EnsureResearch)[0] != WorkResearch || GoalLabor(ActiveCombat) != nil {
 		t.Fatal("unexpected goal labor profiles")
 	}
 	// Feed is cooked and hauled, never handled (#311).

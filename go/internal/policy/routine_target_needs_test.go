@@ -61,7 +61,6 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	p := DefaultRoutinePolicy()
 	p.ResearchLadder = []string{"Stonecutting"}
 	p.ResourceTargets = map[Resource]int64{"Steel": 100}
-	p.ResourceReserves = map[Resource]int64{"WoodLog": 50}
 	f := stableRoutine()
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting"}})
 	f.Resources = domain.Known([]Amount{{Resource: "Steel", Count: 40}})
@@ -69,14 +68,11 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hasNeed(r, ProductionPolicy) || !DevelopmentExempt(ProductionPolicy) {
-		t.Fatal("configuration push must not hold a development slot")
-	}
 	assessed := map[GoalID]domain.NeedState{}
 	for _, a := range r.Assessments {
 		assessed[a.ID] = a.Need
 	}
-	if assessed[ProductionPolicy] != domain.NeedDeficit || assessed[EnsureResearch] != domain.NeedDeficit || assessed[MaintainResource] != domain.NeedDeficit {
+	if assessed[EnsureResearch] != domain.NeedDeficit || assessed[MaintainResource] != domain.NeedDeficit {
 		t.Fatal(assessed)
 	}
 	state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Limit: 2, Goals: r.Goals})

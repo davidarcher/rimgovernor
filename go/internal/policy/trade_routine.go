@@ -14,7 +14,7 @@ import (
 // component shortfall under RoutineTradePolicy.ComponentTarget) or to sell
 // to it (stock above a MaintainResource target), RoutineTradePlanner opens
 // one bounded session per caravan and settles it. It is config-only work
-// like ProductionPolicy: a negotiator's conversation, not a development
+// like a configuration push: a negotiator's conversation, not a development
 // project, so it holds no development slot.
 
 // ComponentResource is the one component definition the trade goal buys and
@@ -102,15 +102,11 @@ func DefaultTradeRetainedMinimum() map[Resource]int64 {
 }
 
 // RoutineTradeFloors is the per-definition floor set the routine trade
-// review sells against: EconomicReserves over the operator's resource
-// reserves (RoutinePolicy.ResourceReserves) and native's outstanding
-// construction deficits when the caller has read them (nil otherwise).
+// review sells against: EconomicReserves over native's outstanding
+// construction deficits when the caller has read them (nil otherwise);
+// stock targets, which carry the derived resource needs, apply separately.
 func RoutineTradeFloors(p RoutinePolicy, construction map[string]int64) map[string]int64 {
-	reserves := map[string]int64{}
-	for resource, reserve := range p.ResourceReserves {
-		reserves[string(resource)] = reserve
-	}
-	floors, _ := EconomicReserves(domain.TradeEconomicPolicy{}, TradeReserveFacts{Reserves: reserves, Construction: construction})
+	floors, _ := EconomicReserves(domain.TradeEconomicPolicy{}, TradeReserveFacts{Construction: construction})
 	return floors
 }
 

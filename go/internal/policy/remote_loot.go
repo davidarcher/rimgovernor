@@ -106,7 +106,8 @@ func remoteLootHold(r RemoteWorkRequest, row LootItem) (string, error) {
 }
 
 // LootDemand builds the demand remote loot scores against: the effective
-// stock targets, the operator's reserve floors and the current usable stock.
+// stock targets (which carry the derived resource needs) and the current
+// usable stock.
 func LootDemand(p RoutinePolicy, f RoutineFacts) (domain.Fact[[]ResourceDemand], error) {
 	targets, err := p.EffectiveResourceTargets(f.Resources, f.ResourceNeeds)
 	if err != nil {
@@ -116,11 +117,6 @@ func LootDemand(p RoutinePolicy, f RoutineFacts) (domain.Fact[[]ResourceDemand],
 	for resource, count := range targets {
 		if count > 0 {
 			in.Targets = append(in.Targets, ResourceDemand{Key: ResourceKey{Def: resource}, Count: count, Priority: 2})
-		}
-	}
-	for resource, count := range p.ResourceReserves {
-		if count > 0 {
-			in.EconomicFloors[string(resource)] = count
 		}
 	}
 	if stock, known := f.Resources.Value(); known {

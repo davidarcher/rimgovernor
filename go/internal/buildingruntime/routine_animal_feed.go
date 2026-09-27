@@ -158,8 +158,8 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	for _, row := range rows {
 		have[row.Resource] = row.Count
 	}
-	snap.NoteAnimalFeed(call, snap.AnimalFeedCall{Targets: targets, Stocks: supply.Stocks, Have: have, Stopped: r.reviewer.policy.StoppedResources})
-	choice, err := policy.SelectAnimalFeedMethod(targets, supply.Stocks, have, r.reviewer.policy.StoppedResources)
+	snap.NoteAnimalFeed(call, snap.AnimalFeedCall{Targets: targets, Stocks: supply.Stocks, Have: have})
+	choice, err := policy.SelectAnimalFeedMethod(targets, supply.Stocks, have)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

@@ -90,9 +90,6 @@ type serveConfig struct {
 	routineTradePlans               bool
 	routineResourcePlans            bool
 	routineAnimalFeedPlans          bool
-	routineProductionPolicyPlans    bool
-	routineResourceReserves         resourceReserveFlags
-	routineStoppedResources         stoppedResourceFlags
 	routineMethods                  bool
 	caravanJourneyTracking          bool
 	worldEvaluation                 bool
@@ -142,8 +139,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.debug, "debug", false, "log debug records too: the clock trace (which step branch ran, what each planner decided, what a routine refused and why) and refused pawn orders; stderr only, never flight rows")
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
-	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
-	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
 	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server; enables POST /api/chat")
@@ -157,7 +152,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-test-acceleration", "routine-resource-reserve", "routine-resource-stop", "chat-model", "chat-base-url", "resume"} {
+		for _, name := range []string{"profile", "clock-test-acceleration", "chat-model", "chat-base-url", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -178,9 +173,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.clockBlindTicks > maxClockBlindTicks {
 		return c, fmt.Errorf("--clock-blind-ticks must be 0 through %d", maxClockBlindTicks)
-	}
-	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
-		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require the production-policy routine family")
 	}
 	if !filepath.IsAbs(c.state) || !filepath.IsAbs(c.bridge.Launch.StateDir) || c.bridge.GameID == "" {
 		return c, errors.New("absolute --state, --config and a --game ID are required")
@@ -305,7 +297,6 @@ func routineFamilies(c *serveConfig) []routineFamily {
 		{"trade", &c.routineTradePlans},
 		{"resource", &c.routineResourcePlans},
 		{"animal-feed", &c.routineAnimalFeedPlans},
-		{"production-policy", &c.routineProductionPolicyPlans},
 	}
 }
 

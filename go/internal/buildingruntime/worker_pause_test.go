@@ -56,7 +56,7 @@ func TestLiveDispatchKindCoversEveryRoutineKind(t *testing.T) {
 	for _, kind := range []domain.ActionKind{
 		domain.BuildingAction, domain.HaulAction, domain.SupplyAllowAction, domain.WorkAssignmentAction, domain.ZoneCreateAction,
 		domain.ProductionBillAction, domain.GrowerCropAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction,
-		domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ProductionPolicyAction, domain.ResearchSelectAction, domain.HomeCoverageAction,
+		domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ResearchSelectAction, domain.HomeCoverageAction,
 	} {
 		if !liveDispatchKind(kind) {
 			t.Errorf("%s: not dispatched live", kind)

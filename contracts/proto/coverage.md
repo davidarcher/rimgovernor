@@ -36,7 +36,6 @@ discovered/mapped, not as live source links.
 | `home/gear_upkeep` | Operations.Preview / Execute: ImproveGear; Observations.ReadGear | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/population` | Operations.Preview / Execute: SetPrisonerInteraction; Observations.ReadPopulation | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/acquire_resource` | Operations.Preview / Execute: AcquireResource | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/production_policy` | Operations.Preview / Execute: SetProductionPolicy; Observations.ReadColonyFacts policy snapshot | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/cancel_construction` | Operations.Preview / Execute: CancelConstruction | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/confirm_colony_names` | Operations.ConfirmColonyNames (autopilot); PresentationReads.PreviewNaming/PlayerPresentation.Apply naming (future player affordance, unregistered) | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/zone_cells` | Operations.Preview / Execute: CreateZone / DeleteZone / EditZoneCells / RepairZone / PatchStockpile / PatchGrowing; Observations.ListZones | Typed | `controller/rimgovernor/bridge_game.py:15` |

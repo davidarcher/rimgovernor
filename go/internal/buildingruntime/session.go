@@ -104,7 +104,6 @@ type SessionConfig struct {
 	CaravanDeparture    *CaravanDepartureCapabilities
 	MineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 	Excavation          *excavation.ExcavationCapabilities
-	ProductionPolicy    *ProductionPolicyCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -450,9 +449,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Excavation != nil && (config.Excavation.Native == nil || config.Excavation.Writer == nil) {
 		return cleanup(ErrControl)
 	}
-	if config.ProductionPolicy != nil && (config.ProductionPolicy.Native == nil || config.ProductionPolicy.Writer == nil) {
-		return cleanup(ErrControl)
-	}
 	routine := []executor.RoutineScope{planAuthorizer{journal, config.RoutineMethods}}
 	switch {
 	case meleeBoundary != nil && rangedBoundary != nil && movementBoundary != nil:
@@ -593,11 +589,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 
 	if config.DialogAnswer != nil {
 		if err := worker.EnableDialogAnswer(&dialogAnswerBoundary{Boundary: place, dialog: *config.DialogAnswer}); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.ProductionPolicy != nil {
-		if err := worker.EnableProductionPolicy(&productionPolicyBoundary{Boundary: place, production: *config.ProductionPolicy}); err != nil {
 			return cleanup(err)
 		}
 	}

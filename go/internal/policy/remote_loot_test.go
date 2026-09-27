@@ -137,7 +137,6 @@ func TestRemoteLootScoresAgainstDemand(t *testing.T) {
 func TestLootDemandAndReachFromFacts(t *testing.T) {
 	p := DefaultRoutinePolicy()
 	p.ResourceTargets = map[Resource]int64{"Steel": 300}
-	p.ResourceReserves = map[Resource]int64{"WoodLog": 100}
 	f := RoutineFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 120}, {Resource: "WoodLog", Count: 500}})}
 	demand, err := LootDemand(p, f)
 	if err != nil {

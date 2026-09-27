@@ -18,20 +18,19 @@ func assessment(t *testing.T, r RoutineNeeds, id GoalID) domain.NeedState {
 
 func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	r := needs(t, RoutineFacts{}, RoutineLatches{})
-	if len(r.Assessments) != 49 {
+	if len(r.Assessments) != 48 {
 		t.Fatal(r)
 	}
 	for _, n := range r.Assessments {
-		// EnsureResearch, MaintainResource and ProductionPolicy are gated on
-		// operator config (RoutinePolicy.ResourceTargets/
-		// ResourceReserves/StoppedResources): DefaultRoutinePolicy's empty
+		// EnsureResearch and MaintainResource are gated on
+		// operator config (RoutinePolicy.ResearchLadder/ResourceTargets): DefaultRoutinePolicy's empty
 		// target/map is itself known evidence ("no target configured" is
 		// certain, not unobserved) even though every other assessment here
 		// is correctly still Unknown. With a target configured, research and
 		// resource needs are measured from native facts (see
 		// TestConfiguredTargetsRankForDevelopment). TradeWithCaravan is
 		// gated the same way on the trader census being read at all.
-		if n.ID == EnsureResearch || n.ID == MaintainResource || n.ID == ProductionPolicy || n.ID == EnsureDefensiveLayout || n.ID == TradeWithCaravan {
+		if n.ID == EnsureResearch || n.ID == MaintainResource || n.ID == EnsureDefensiveLayout || n.ID == TradeWithCaravan {
 			continue
 		}
 		if n.Need != domain.NeedUnknown {
@@ -40,12 +39,6 @@ func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	}
 	r = needs(t, stableRoutine(), RoutineLatches{})
 	for _, n := range r.Assessments {
-		if n.ID == ProductionPolicy {
-			if n.Need != domain.NeedDeficit {
-				t.Fatal("empty policy must reconcile native drift", n)
-			}
-			continue
-		}
 		if n.Need != domain.NeedRecovered {
 			t.Fatal("stable evidence not recovered", n)
 		}

@@ -31,6 +31,7 @@ message Uncertain {
 // The admitted operation is recovered from the immutable request for this attempt.
 // Every evidence branch is concrete; none permits arbitrary named properties.
 message EffectEvidence {
+  reserved 7;
   oneof effect {
     ConstructionEffect construction = 1;
     InstallationEffect installation = 2;
@@ -38,7 +39,6 @@ message EffectEvidence {
     SettingsEffect settings = 4;
     BillEffect bill = 5;
     ResearchEffect research = 6;
-    ProductionPolicyEffect production_policy = 7;
     ZoneEffect zone = 8;
     HomeEffect home = 9;
     BedEffect bed = 10;
@@ -158,7 +158,6 @@ message SettingsEffect { SnapshotEvidence snapshot = 1; repeated FieldResult fie
 message BillEffect { SnapshotEvidence stack = 1; optional string bill_id = 2; optional string recipe_def = 3; optional bool present = 4; optional int32 index = 5; repeated string ordered_bill_ids = 6; optional bool configuration_matches = 7; optional uint32 iterations = 8; optional bool output_complete = 9; optional bool output_observed = 10; repeated ProductionOutput outputs = 11; }
 message ProductionOutput { optional string thing_id = 1; optional string def_name = 2; optional int32 units = 3; }
 message ResearchEffect { optional string previous_project_def = 1; optional string current_project_def = 2; SnapshotEvidence snapshot = 3; }
-message ProductionPolicyEffect { SnapshotEvidence snapshot = 1; optional bool changed = 2; repeated string interrupted_pawn_ids = 3; }
 message CellResult { rimgovernor.common.v1.Cell cell = 1; optional bool accepted = 2; optional string reason = 3; optional string taken_from_zone_id = 4; }
 message ZoneEffect { SnapshotEvidence snapshot = 1; optional string zone_id = 2; optional bool present = 3; optional int32 changed_cells = 4; repeated CellResult cells = 5; optional int32 listed_cell_count = 6; optional int32 grid_cell_count = 7; optional int32 phantom_cell_count = 8; }
 message HomeEffect { SnapshotEvidence snapshot = 1; optional string shape_token = 2; optional int64 revision = 3; optional int32 changed_cells = 4; optional bool covered = 5; }

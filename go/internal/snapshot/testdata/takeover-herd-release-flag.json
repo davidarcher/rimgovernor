@@ -35356,10 +35356,6 @@
     "Need": "MaintainResource"
    },
    {
-    "Goal": "routine-6cb69ccfa0314397-ProductionPolicy",
-    "Need": "ProductionPolicy"
-   },
-   {
     "Goal": "routine-6cb69ccfa0314397-TradeWithCaravan",
     "Need": "TradeWithCaravan"
    },
@@ -35585,14 +35581,6 @@
     "Method": "assess",
     "NextReview": 2532,
     "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "ProductionPolicy",
-    "LastProgress": 32,
-    "Method": "assess",
-    "NextReview": 2532
    },
    {
     "Blocked": "no_method",

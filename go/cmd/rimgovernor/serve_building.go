@@ -150,7 +150,6 @@ type buildingServiceBridge struct {
 	apparelPolicy       *buildingruntime.ApparelPolicyCapabilities
 	dialog              *buildingruntime.DialogAnswerCapabilities
 	trade               *buildingruntime.TradeCapabilities
-	production          *buildingruntime.ProductionPolicyCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
 	bedUse              *beduse.Capabilities
 	growerCrop          *growercrop.Capabilities
@@ -314,10 +313,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	productionPolicyWriter, err := bridge.NewProductionPolicyWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	buildingTemperatureControl, err := bridge.NewBuildingTemperatureControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -399,7 +394,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		apparelPolicy:       &buildingruntime.ApparelPolicyCapabilities{Native: client, Writer: apparelPolicyControl},
 		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
-		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
@@ -790,13 +784,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		capabilities.HomeFoodMinDays = thresholds.FoodMinDays
 		caravanDepartureCapabilities = &capabilities
 	}
-	var productionPolicyCapabilities *buildingruntime.ProductionPolicyCapabilities
-	if config.routineProductionPolicyPlans {
-		if client.production == nil {
-			return errors.New("production policy plans require typed capabilities")
-		}
-		productionPolicyCapabilities = client.production
-	}
 	// The refrigeration family patches cooler targets through the shared
 	// executor.
 	var buildingTemperatureCapabilities *buildingtemperature.Capabilities
@@ -922,7 +909,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		ApparelPolicy:       client.apparelPolicy,
 		DialogAnswer:        dialogCapabilities,
 		Trade:               tradeCapabilities,
-		ProductionPolicy:    productionPolicyCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedUse:              bedUseCapabilities,
 		GrowerCrop:          growerCropCapabilities,

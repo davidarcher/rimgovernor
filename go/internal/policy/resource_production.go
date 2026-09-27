@@ -11,16 +11,14 @@ import (
 
 // MaintainResource-* pure primitives:
 // ingredient deficits, mining progress, resource method,
-// production budgets. The dispatch vertical built on top of these
+// and stock selection. The dispatch vertical built on top of these
 // (buildingruntime.RoutineResourcePlanner) is a single
 // config-only policy.MaintainResource goal, mirroring EnsureResearch's
 // posture, whose method is a generic bench/recipe StockTarget production
 // bill exactly like GearProduce/MaintainMedicalReserves dispatch through.
 // Native mining-source acquisition (SelectResourceSources below),
-// material-storage zoning and the native SetProductionPolicy floors/
-// commitments push (ProductionFloors below) remain entirely unwired to any
-// native call — see SelectResourceTarget, SelectResourceMethod and
-// ProductionFloors's own doc comments for what is and is not covered.
+// and material-storage zoning remain unwired to any native call — see
+// SelectResourceTarget and SelectResourceMethod's own doc comments.
 
 // ResourceRequirement is one native recipe-ingredient alternative's exact
 // required quantity and the deficit against current stock.
@@ -98,46 +96,6 @@ func ResourceExtractionAdvanced(tick, lastProgressTick domain.Tick, mining, prio
 		}
 	}
 	return false
-}
-
-// ProductionFloors is the reserve half of the production budget only: given
-// RoutinePolicy's operator-declared per-resource reserve floors and
-// stopped-spending set, it returns the exact floors map (zero reserves
-// omitted) and the stopped definitions sorted for deterministic dispatch. A
-// second source of floors -- outstanding, unconfirmed construction-bundle
-// ingredient costs -- has no Go equivalent yet; that half depends on the still-unported
-// multi-step staged-bundle admission model MaintainStoneShell already needs
-// dedicated design work for, so it is not attempted here. This is a pure
-// primitive: nothing yet calls it, pending the native SetProductionPolicy
-// operation category, which this round's investigation found is not just
-// missing Go wiring but has no native Execute/Preview handler at all
-// (contracts/proto/operations.proto's SetProductionPolicy message and
-// observations.proto's ReadProductionPolicy RPC are both fully unimplemented
-// on the native side).
-func ProductionFloors(reserves map[Resource]int64, stopped []Resource) (map[Resource]int64, []Resource, error) {
-	if len(reserves) > 4096 || len(stopped) > 4096 {
-		return nil, nil, errors.New("production policy input exceeds bound")
-	}
-	floors := map[Resource]int64{}
-	for resource, reserve := range reserves {
-		if !validResource(resource) || reserve < 0 || reserve > 10000 {
-			return nil, nil, errors.New("invalid resource reserve")
-		}
-		if reserve != 0 {
-			floors[resource] = reserve
-		}
-	}
-	seen := map[Resource]bool{}
-	stoppedOut := make([]Resource, 0, len(stopped))
-	for _, resource := range stopped {
-		if !validResource(resource) || seen[resource] {
-			return nil, nil, errors.New("invalid or duplicate stopped resource")
-		}
-		seen[resource] = true
-		stoppedOut = append(stoppedOut, resource)
-	}
-	sort.Slice(stoppedOut, func(i, j int) bool { return stoppedOut[i] < stoppedOut[j] })
-	return floors, stoppedOut, nil
 }
 
 // ResourceSourceMethod names how one native resource source is acquired.

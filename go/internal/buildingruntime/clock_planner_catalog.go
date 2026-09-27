@@ -724,16 +724,6 @@ var plannerCatalog = []plannerEntry{
 			out.AnimalFeed = &method
 			return method.Reason, nil
 		}},
-	{name: "productionPolicy", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionPolicyAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.ProductionPolicy != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
-			method, err := s.config.ProductionPolicy.step(ctx, epoch, arbiter)
-			if err != nil {
-				return "", err
-			}
-			out.ProductionPolicy = &method
-			return method.Reason, nil
-		}},
 	{name: "caravanJourney", class: classOptional, priority: plannerMaintenance, families: []bridge.FactFamily{bridge.FactWorld},
 		configured: func(c *ClockSchedulerConfig) bool { return c.CaravanJourney != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

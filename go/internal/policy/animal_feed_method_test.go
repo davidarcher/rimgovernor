@@ -23,7 +23,7 @@ func TestAnimalFeedSelectsCheapestCoveringSharedStock(t *testing.T) {
 		// Does not cover every deficit animal.
 		feedStock("partial", "Grass", "", 20, 40, "muffalo1"),
 	}
-	choice, err := SelectAnimalFeedMethod(targets, stocks, map[Resource]int64{"Hay": 3}, nil)
+	choice, err := SelectAnimalFeedMethod(targets, stocks, map[Resource]int64{"Hay": 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestAnimalFeedTieBreaksLowestDefNameThenID(t *testing.T) {
 		feedStock("b", "Hay", "", 10, 20, "muffalo1"),
 		feedStock("a", "Hay", "", 10, 20, "muffalo1"),
 	}
-	choice, err := SelectAnimalFeedMethod(targets, stocks, nil, nil)
+	choice, err := SelectAnimalFeedMethod(targets, stocks, nil)
 	if err != nil || choice.Resource != "Hay" {
 		t.Fatalf("%+v %v", choice, err)
 	}
@@ -55,7 +55,7 @@ func TestAnimalFeedIgnoresOtherRaceGroups(t *testing.T) {
 		{ID: "chicken1", Definition: "Chicken", Nutrition: 100},
 	}
 	stocks := []FoodStock{feedStock("hay", "Hay", "", 10, 40, "muffalo1", "chicken1")}
-	choice, err := SelectAnimalFeedMethod(targets, stocks, nil, nil)
+	choice, err := SelectAnimalFeedMethod(targets, stocks, nil)
 	if err != nil || choice.Reason != AnimalFeedSelected {
 		t.Fatalf("%+v %v", choice, err)
 	}
@@ -66,7 +66,7 @@ func TestAnimalFeedIgnoresOtherRaceGroups(t *testing.T) {
 }
 
 func TestAnimalFeedNoDeficitWhenNoTargets(t *testing.T) {
-	choice, err := SelectAnimalFeedMethod(nil, nil, nil, nil)
+	choice, err := SelectAnimalFeedMethod(nil, nil, nil)
 	if err != nil || choice.Reason != AnimalFeedNoDeficit {
 		t.Fatalf("%+v %v", choice, err)
 	}
@@ -74,29 +74,15 @@ func TestAnimalFeedNoDeficitWhenNoTargets(t *testing.T) {
 
 func TestAnimalFeedFallsBackToKibbleWhenNothingCovers(t *testing.T) {
 	targets := []AnimalFeedTarget{{ID: "muffalo1", Definition: "Muffalo", Nutrition: 4}}
-	choice, err := SelectAnimalFeedMethod(targets, nil, map[Resource]int64{"Kibble": 3}, nil)
+	choice, err := SelectAnimalFeedMethod(targets, nil, map[Resource]int64{"Kibble": 3})
 	// 4 nutrition at 0.05 per kibble is 80 items above the 3 in stock.
 	if err != nil || choice.Reason != AnimalFeedSelected || choice.Resource != AnimalFeedFallbackResource || choice.Target != 83 {
 		t.Fatalf("%+v %v", choice, err)
 	}
 	// A stock that doesn't cover the deficit animal is likewise kibble.
 	stocks := []FoodStock{feedStock("hay", "Hay", "", 10, 40, "other")}
-	choice, err = SelectAnimalFeedMethod(targets, stocks, nil, nil)
+	choice, err = SelectAnimalFeedMethod(targets, stocks, nil)
 	if err != nil || choice.Reason != AnimalFeedSelected || choice.Resource != AnimalFeedFallbackResource {
-		t.Fatalf("%+v %v", choice, err)
-	}
-	// Unless the player stopped kibble spending.
-	choice, err = SelectAnimalFeedMethod(targets, stocks, nil, []Resource{"Kibble"})
-	if err != nil || choice.Reason != AnimalFeedRestricted {
-		t.Fatalf("%+v %v", choice, err)
-	}
-}
-
-func TestAnimalFeedRestrictedByStoppedResource(t *testing.T) {
-	targets := []AnimalFeedTarget{{ID: "muffalo1", Definition: "Muffalo", Nutrition: 4}}
-	stocks := []FoodStock{feedStock("hay", "Hay", "", 10, 40, "muffalo1")}
-	choice, err := SelectAnimalFeedMethod(targets, stocks, nil, []Resource{"Hay"})
-	if err != nil || choice.Reason != AnimalFeedRestricted {
 		t.Fatalf("%+v %v", choice, err)
 	}
 }
@@ -104,7 +90,7 @@ func TestAnimalFeedRestrictedByStoppedResource(t *testing.T) {
 func TestAnimalFeedExceedsBoundedPlanningLimit(t *testing.T) {
 	targets := []AnimalFeedTarget{{ID: "muffalo1", Definition: "Muffalo", Nutrition: 1000000}}
 	stocks := []FoodStock{feedStock("hay", "Hay", "", 10, 40, "muffalo1")}
-	choice, err := SelectAnimalFeedMethod(targets, stocks, nil, nil)
+	choice, err := SelectAnimalFeedMethod(targets, stocks, nil)
 	if err != nil || choice.Reason != AnimalFeedExceedsBound {
 		t.Fatalf("%+v %v", choice, err)
 	}
@@ -112,18 +98,13 @@ func TestAnimalFeedExceedsBoundedPlanningLimit(t *testing.T) {
 
 func TestAnimalFeedInvalidInputsRejected(t *testing.T) {
 	badTarget := []AnimalFeedTarget{{ID: "", Definition: "Muffalo", Nutrition: 4}}
-	if _, err := SelectAnimalFeedMethod(badTarget, nil, nil, nil); err == nil {
+	if _, err := SelectAnimalFeedMethod(badTarget, nil, nil); err == nil {
 		t.Fatal("empty animal id accepted")
 	}
 	nanTarget := []AnimalFeedTarget{{ID: "muffalo1", Definition: "Muffalo", Nutrition: -1}}
 	stocks := []FoodStock{feedStock("hay", "Hay", "", 10, 40, "muffalo1")}
-	if _, err := SelectAnimalFeedMethod(nanTarget, stocks, nil, nil); err == nil {
+	if _, err := SelectAnimalFeedMethod(nanTarget, stocks, nil); err == nil {
 		t.Fatal("negative nutrition target accepted")
-	}
-	validTargets := []AnimalFeedTarget{{ID: "muffalo1", Definition: "Muffalo", Nutrition: 4}}
-	badStop := []Resource{""}
-	if _, err := SelectAnimalFeedMethod(validTargets, stocks, nil, badStop); err == nil {
-		t.Fatal("empty stopped resource accepted")
 	}
 }
 
@@ -136,7 +117,7 @@ func TestAnimalFeedCarriesBenchesEveryCoveredAnimalReaches(t *testing.T) {
 		{ID: "husky2", Definition: "Husky", Nutrition: 2, ReachableBenches: []string{"Thing_ButcherSpot3", "Thing_ButcherSpot1"}},
 		{ID: "muffalo1", Definition: "Muffalo", Nutrition: 2, ReachableBenches: []string{"Thing_ButcherSpot9"}},
 	}
-	choice, err := SelectAnimalFeedMethod(targets, nil, nil, nil)
+	choice, err := SelectAnimalFeedMethod(targets, nil, nil)
 	if err != nil || choice.Reason != AnimalFeedSelected {
 		t.Fatalf("%+v %v", choice, err)
 	}
@@ -144,12 +125,12 @@ func TestAnimalFeedCarriesBenchesEveryCoveredAnimalReaches(t *testing.T) {
 		t.Fatalf("benches = %v", choice.Benches)
 	}
 	confined := []AnimalFeedTarget{{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableBenches: []string{}}}
-	choice, err = SelectAnimalFeedMethod(confined, nil, nil, nil)
+	choice, err = SelectAnimalFeedMethod(confined, nil, nil)
 	if err != nil || choice.Reason != AnimalFeedSelected || choice.Benches == nil || len(choice.Benches) != 0 {
 		t.Fatalf("%+v %v", choice, err)
 	}
 	bad := []AnimalFeedTarget{{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableBenches: []string{""}}}
-	if _, err = SelectAnimalFeedMethod(bad, nil, nil, nil); err == nil {
+	if _, err = SelectAnimalFeedMethod(bad, nil, nil); err == nil {
 		t.Fatal("blank bench id accepted")
 	}
 }
@@ -166,7 +147,7 @@ func TestAnimalFeedDeliveryFallsBackToReachableStorage(t *testing.T) {
 		{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableStorage: kibble, StorageCandidates: cells},
 		{ID: "husky2", Definition: "Husky", Nutrition: 2, ReachableStorage: kibble, StorageCandidates: cells[1:]},
 	}
-	choice, err := SelectAnimalFeedMethod(targets, nil, nil, nil)
+	choice, err := SelectAnimalFeedMethod(targets, nil, nil)
 	if err != nil || choice.Reason != AnimalFeedSelected || choice.Resource != AnimalFeedFallbackResource || !choice.Delivered || len(choice.Benches) != 0 {
 		t.Fatalf("%+v %v", choice, err)
 	}
@@ -174,27 +155,27 @@ func TestAnimalFeedDeliveryFallsBackToReachableStorage(t *testing.T) {
 		t.Fatalf("cells = %v", choice.StorageCells)
 	}
 	targets[1].ReachableStorage = hayOnly
-	choice, err = SelectAnimalFeedMethod(targets, nil, nil, nil)
+	choice, err = SelectAnimalFeedMethod(targets, nil, nil)
 	if err != nil || choice.Reason != AnimalFeedSelected || choice.Delivered {
 		t.Fatalf("%+v %v", choice, err)
 	}
 	targets[1].StorageCandidates = nil
-	choice, err = SelectAnimalFeedMethod(targets, nil, nil, nil)
+	choice, err = SelectAnimalFeedMethod(targets, nil, nil)
 	if err != nil || choice.Reason != AnimalFeedSelected || choice.Delivered || len(choice.StorageCells) != 0 {
 		t.Fatalf("%+v %v", choice, err)
 	}
 	// Another race's storage never delivers for the covered one.
 	targets = append(targets[:1], AnimalFeedTarget{ID: "muffalo1", Definition: "Muffalo", Nutrition: 2, ReachableStorage: hayOnly})
-	choice, err = SelectAnimalFeedMethod(targets, nil, nil, nil)
+	choice, err = SelectAnimalFeedMethod(targets, nil, nil)
 	if err != nil || !choice.Delivered || !reflect.DeepEqual(choice.StorageCells, []domain.Cell{{X: 5, Z: 5}, {X: 6, Z: 5}, {X: 6, Z: 6}}) {
 		t.Fatalf("%+v %v", choice, err)
 	}
 	bad := []AnimalFeedTarget{{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableStorage: []AnimalFeedStorage{{Zone: ""}}}}
-	if _, err = SelectAnimalFeedMethod(bad, nil, nil, nil); err == nil {
+	if _, err = SelectAnimalFeedMethod(bad, nil, nil); err == nil {
 		t.Fatal("blank zone id accepted")
 	}
 	bad = []AnimalFeedTarget{{ID: "husky1", Definition: "Husky", Nutrition: 2, StorageCandidates: []domain.Cell{{X: -1, Z: 0}}}}
-	if _, err = SelectAnimalFeedMethod(bad, nil, nil, nil); err == nil {
+	if _, err = SelectAnimalFeedMethod(bad, nil, nil); err == nil {
 		t.Fatal("negative candidate cell accepted")
 	}
 }

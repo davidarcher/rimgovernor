@@ -46,14 +46,13 @@ func Window() time.Duration {
 
 // Spec is the serve spec every food-pipeline observation launches:
 // EnsureFoodSupply's own families only (field growing, food storage,
-// harvest/wood acquisition, cooking bills, starting supplies; the
-// production-policy family only so the executor's capability is wired), so
+// harvest/wood acquisition, cooking bills, starting supplies), so
 // the food outcome under diagnosis is not confounded by other families and
 // every family shares one step budget (#103). StepStall fails fast when no
 // scheduler step admits a clock window.
 func Spec(prefix string) cases.ServeSpec {
 	return cases.ServeSpec{
-		Families:      []string{"field,food-storage,acquisition,cooking,supply,production-policy"},
+		Families:      []string{"field,food-storage,acquisition,cooking,supply"},
 		NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: prefix,
 	}
 }

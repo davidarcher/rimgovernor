@@ -10,7 +10,7 @@
 //	                with a service restart between them; every goal
 //	                recovered earlier must stay closed (campaign.go).
 //	home-coverage, colony-extent -- the sleeping fixture's rooms.
-//	takeover, production/policy-clear -- the feed fixture's pet.
+//	takeover -- the feed fixture's pet.
 //
 // Every case opens on the tribal8 baseline save (the fixture stages its
 // deficit on the loaded map) so a kept process serves the whole family.

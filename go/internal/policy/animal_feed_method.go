@@ -13,7 +13,6 @@ type AnimalFeedReason string
 
 const (
 	AnimalFeedNoDeficit    AnimalFeedReason = "no_animal_feed_deficit"
-	AnimalFeedRestricted   AnimalFeedReason = "feed_resource_restricted_by_player_policy"
 	AnimalFeedExceedsBound AnimalFeedReason = "feed_requirement_exceeds_bounded_stock_planning_limit"
 	AnimalFeedSelected     AnimalFeedReason = "feed_resource_selected"
 )
@@ -61,25 +60,16 @@ const (
 // and require enough stock to cover their combined missing nutrition.
 // The selection is recomputed fresh every tick from the current deficit and
 // stock census -- idempotent, content-addressed dispatch like every other
-// RoutineXPlanner. A resource
-// under player spending restriction (StoppedResources) is skipped, the same
-// gate the resource-policy planner applies. Only the animals presently below
+// RoutineXPlanner. Only the animals presently below
 // threshold are covered, since AnimalFeedTarget carries only deficit rows.
 // When no shared stock covers them at all, the method is kibble production
 // (AnimalFeedFallbackResource) sized by the same missing nutrition.
-func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have map[Resource]int64, stopped []Resource) (AnimalFeedMethod, error) {
+func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have map[Resource]int64) (AnimalFeedMethod, error) {
 	if len(targets) > 256 || len(stocks) > 4096 || len(have) > 4096 {
 		return AnimalFeedMethod{}, errors.New("animal feed inputs exceed bound")
 	}
 	if len(targets) == 0 {
 		return AnimalFeedMethod{Reason: AnimalFeedNoDeficit}, nil
-	}
-	restricted := map[Resource]bool{}
-	for _, r := range stopped {
-		if !validResource(r) {
-			return AnimalFeedMethod{}, errors.New("invalid stopped resource")
-		}
-		restricted[r] = true
 	}
 	race := targets[0].Definition
 	group := map[PawnID]bool{}
@@ -153,9 +143,6 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 		// animal is fed by a bench inside its area rather than by stock it
 		// cannot walk to.
 		bestResource, bestNutritionPerItem = AnimalFeedFallbackResource, animalFeedFallbackNutrition
-	}
-	if restricted[bestResource] {
-		return AnimalFeedMethod{Reason: AnimalFeedRestricted}, nil
 	}
 	items := math.Ceil(missing / bestNutritionPerItem)
 	if !foodNumber(items) {

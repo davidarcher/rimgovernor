@@ -1196,18 +1196,6 @@ message ObservationBatchSnapshot {
 message ObservationBatchRequest { ReadScope scope = 1; StatusRequest status = 2; ListPawnsRequest pawns = 3; ListSuppliesRequest supplies = 4; ListBuildingsRequest buildings = 5; ListRoomsRequest rooms = 6; ListZonesRequest zones = 7; }
 message ObservationBatchReply { oneof outcome { ObservationBatchSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
-// New read producer required: existing Policy(...) is a replacement command.
-message ProductionPolicySnapshot {
-  SnapshotRef snapshot = 1;
-  repeated Quantity floors = 2;
-  repeated Quantity commitments = 3;
-  repeated string stopped_defs = 4;
-  repeated OwnedDrill drills = 5;
-  optional bool commitments_active = 6;
-  Completeness completeness = 7;
-}
-message ProductionPolicyRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
-message ProductionPolicyReply { oneof outcome { ProductionPolicySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ArchitectCategory { optional string id = 1; optional string label = 2; optional bool visible = 3; optional bool enabled = 4; optional uint32 designator_count = 5; }
 message ArchitectDesignator {
   optional string id = 1; optional string category_id = 2; optional string label = 3;
@@ -1242,7 +1230,6 @@ message SnapshotStreamReply { oneof outcome { SnapshotStreamOpened opened = 1; r
 service Observations {
   rpc GetClearanceTargets(ClearanceTargetsRequest) returns (ClearanceTargetsReply);
   rpc GetAncientShrines(AncientShrinesRequest) returns (AncientShrinesReply);
-  rpc ReadProductionPolicy(ProductionPolicyRequest) returns (ProductionPolicyReply);
   rpc ListArchitectCategories(ArchitectCategoriesRequest) returns (ArchitectCategoriesReply);
   rpc ListArchitectDesignators(ArchitectDesignatorsRequest) returns (ArchitectDesignatorsReply);
   rpc ReadStatus(StatusRequest) returns (StatusReply);

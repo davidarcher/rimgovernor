@@ -143,7 +143,7 @@ Sources in this table are under
 | WorldProgressionTool.cs / world_progression | ReadWorldProgression; WorldMap, FactionState, CaravanState, QuestState, CaravanAssembly | world_progression, expedition_policy, trade_policy |
 | PlacementPreviewsTool.cs / placement_previews | placement.proto; exact ordered candidate request and evaluated/failure result | placement_previews, construction_preflight |
 | PawnImageTool.cs / pawn_image | presentation.proto; scoped render capture and unavailable | player presentation |
-| BillsTool.cs / bills list and recipes | ReadBills / ReadRecipes; BillStack, BillState, RecipeState, IngredientRequirement (native handler `NativeBillsObservationTools.cs`; recipe ingredient rows carry required counts only, no stock scan; the `bills/census` acceptance case covers it) | colony_skills, production_policy, gear/medical/resource benches, player inspections |
+| BillsTool.cs / bills list and recipes | ReadBills / ReadRecipes; BillStack, BillState, RecipeState, IngredientRequirement (native handler `NativeBillsObservationTools.cs`; recipe ingredient rows carry required counts only, no stock scan; the `bills/census` acceptance case covers it) | colony_skills, gear/medical/resource benches, player inspections |
 | BuildingConfigTool.cs / building_config read | ReadBuildingSettings; BuildingSettings, scoped token; gizmos in presentation | building_config, thermal_control, player inspections |
 | PawnConfigTool.cs / pawn_config read | ReadPawnSettings; PawnSettings, scoped token | pawn_config, medical/work/settings readers |
 | OrderTool.cs / order resolve | ResolveTarget; exact typed target or explicit ambiguity | hands, target resolution, player inspections |
@@ -155,7 +155,7 @@ Sources in this table are under
 The remaining 22 production exports are operations/presentation-owned:
 accept_quest, acquire_resource, cancel_construction, caravan_gift,
 confirm_colony_names, dialog_text, fulfill_quest, husbandry_config, manage_waste,
-place_building, play_until_event, player_input, production_policy, recover_service,
+place_building, play_until_event, player_input, recover_service,
 recovery_area, relieve_need, render_demand, upkeep_bed, upkeep_home, upkeep_wall,
 video_stream, zone_cells. Trade preview is operation preview, not a mutation branch
 on ReadTradeSheet. These operations reuse exact entity/settings observations or
@@ -306,7 +306,6 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | PatchPawn.pawn | ReadPawnSettings.snapshot (same pawn ID) |
 | AddBill.bench; Patch/Delete/MoveBill.bill | ReadBills.bench.snapshot and BillState.id; whole ordered stack token |
 | SelectResearch.expected_snapshot_token | ReadResearch.snapshot |
-| SetProductionPolicy.expected_snapshot_token | ReadProductionPolicy.snapshot |
 | CreateZone.expected_map_snapshot_token | GetCells.map_snapshot, bound to exact inspected map/geometry query |
 | DeleteZone/EditZoneCells/RepairZone/PatchStockpile/PatchGrowing.zone | ListZones.zone.snapshot |
 | ExtendHome.target/shape/revision | ReadColonyFacts.upkeep.home_coverage.target.snapshot/shape_token and revision |
@@ -337,11 +336,8 @@ are also available from CaravanCatalog.return_storage_snapshot/MedicalCatalog.
 
 New producer obligations are explicit:
 
-- ProductionPolicyState.cs stores map-scoped Floors, Commitments and Stopped;
-  MiningState.cs:61-74 stores DrillingRecord definition/resource/IDs/cell/recovered/
-  Target. ReadProductionPolicy reads these without invoking the replacement
-  Policy command or lazily creating state. Snapshot covers all four replacement
-  collections; commitments_active reflects native supervision semantics.
+- MiningState.cs:61-74 stores DrillingRecord definition/resource/IDs/cell/recovered/
+  Target.
 - ExtractionDevelopment.cs:57-60 provides site definition/cell/rotation/resource,
   power/spare power and work types. ResourceAcquisitionTool.cs:83-89 and
   MiningState.cs supply pending/current drill IDs, recovered units, target,

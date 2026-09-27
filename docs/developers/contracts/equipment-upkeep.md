@@ -50,8 +50,8 @@ when cloth is funded and otherwise from any funded material the recipe accepts
 (leather from hunting is the usual interim before a cotton field). Native
 bills replace their ingredient membership with the funded material set, retained
 through preview, admission, persistence and execution. Native ingredient
-admission and consumption retain the existing production-policy
-guards. Required work types feed the shared work-allocation method: while the
+admission and consumption keep stock committed to construction and other
+pawns' bill jobs. Required work types feed the shared work-allocation method: while the
 goal is in deficit, every standing bench recipe that produces a reported
 replacement need contributes its work type to `EnsureWorkAssignments` before
 any bill exists, the same way a resource deficit covers its benches, because

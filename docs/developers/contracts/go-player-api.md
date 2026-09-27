@@ -87,8 +87,8 @@ Population policy is a full replacement. Expedition policy is a patch merged
 over the policy in force (an unset field keeps its value; a world with no
 policy starts from the documented defaults). A population decision for
 rescue, capture or recruit requires an established population policy; ignore
-never does, so a direction can always be withdrawn. The autopilot owns production policy
-(reserves and spending); there is no player resource-policy route. Work
+never does, so a direction can always be withdrawn. The autopilot owns resource stock
+targets; there is no player resource-policy route. Work
 preferences attach to the live root plan.
 
 ## Plan projection

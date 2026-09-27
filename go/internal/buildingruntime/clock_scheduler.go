@@ -131,7 +131,6 @@ type ClockSchedulerConfig struct {
 	IngredientStorage   *RoutineIngredientStoragePlanner
 	Resource            *RoutineResourcePlanner
 	AnimalFeed          *RoutineAnimalFeedPlanner
-	ProductionPolicy    *RoutineProductionPolicyPlanner
 	CaravanJourney      *CaravanJourneyTracker
 	HomeCoverage        *RoutineHomeCoveragePlanner
 	StoneShell          *RoutineStoneShellPlanner
@@ -201,7 +200,6 @@ type ClockSchedulerResult struct {
 	IngredientStorage            *RoutineIngredientStorageResult
 	Resource                     *RoutineResourceResult
 	AnimalFeed                   *RoutineResourceResult
-	ProductionPolicy             *RoutineProductionPolicyResult
 	CaravanJourney               *CaravanJourneyResult
 	HomeCoverage                 *RoutineHomeCoverageResult
 	StoneShell                   *RoutineStoneShellResult
@@ -563,9 +561,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.DefenseLayout != nil && (config.Routine == nil || config.DefenseLayout.reviewer != config.Routine) {
-		return nil, ErrControl
-	}
-	if config.ProductionPolicy != nil && (config.Routine == nil || config.ProductionPolicy.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -1941,7 +1936,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.CutPlantAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.ProductionPolicyAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
+				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.CutPlantAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

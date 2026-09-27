@@ -87,7 +87,6 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/observations_read_observation_batch` | `rimgovernor.observations.v1.Observations/ReadObservationBatch` | `rimgovernor.observations.v1.ObservationBatchRequest` | `rimgovernor.observations.v1.ObservationBatchReply` |
 | `rimgovernor/observations_read_pawn_settings` | `rimgovernor.observations.v1.Observations/ReadPawnSettings` | `rimgovernor.observations.v1.PawnSettingsRequest` | `rimgovernor.observations.v1.PawnSettingsReply` |
 | `rimgovernor/observations_read_population` | `rimgovernor.observations.v1.Observations/ReadPopulation` | `rimgovernor.observations.v1.PopulationRequest` | `rimgovernor.observations.v1.PopulationReply` |
-| `rimgovernor/observations_read_production_policy` | `rimgovernor.observations.v1.Observations/ReadProductionPolicy` | `rimgovernor.observations.v1.ProductionPolicyRequest` | `rimgovernor.observations.v1.ProductionPolicyReply` |
 | `rimgovernor/observations_read_recipes` | `rimgovernor.observations.v1.Observations/ReadRecipes` | `rimgovernor.observations.v1.RecipesRequest` | `rimgovernor.observations.v1.RecipesReply` |
 | `rimgovernor/observations_read_recovery` | `rimgovernor.observations.v1.Observations/ReadRecovery` | `rimgovernor.observations.v1.RecoveryRequest` | `rimgovernor.observations.v1.RecoveryReply` |
 | `rimgovernor/observations_read_research` | `rimgovernor.observations.v1.Observations/ReadResearch` | `rimgovernor.observations.v1.ResearchRequest` | `rimgovernor.observations.v1.ResearchReply` |

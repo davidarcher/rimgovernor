@@ -34,7 +34,6 @@ const (
 	MaintainEquipment       GoalID = "MaintainEquipment"
 	EnsureResearch          GoalID = "EnsureResearch"
 	MaintainResource        GoalID = "MaintainResource"
-	ProductionPolicy        GoalID = "ProductionPolicy"
 	EnsureDefensiveLayout   GoalID = "EnsureDefensiveLayout"
 	TradeWithCaravan        GoalID = "TradeWithCaravan"
 )
@@ -123,11 +122,9 @@ type RoutinePolicy struct {
 	// definition name to the native stock floor MaintainResource should keep
 	// it above; an empty map disables the goal entirely. The deficit is
 	// measured against RoutineFacts.Resources each review as the worst-covered
-	// target's shortfall fraction. There is no plan-wide resource policy
-	// (many simultaneously tracked floors driving both goal creation and the
-	// native SetProductionPolicy push); this only supports
+	// target's shortfall fraction. This only supports
 	// policy.SelectResourceTarget's own single-goal dynamic-target selection
-	// across these targets and issues no SetProductionPolicy push at all.
+	// across these targets.
 	ResourceTargets map[Resource]int64
 	// GearSpareTargets optionally maintains unworn replacements by definition.
 	// MaintainResource owns both its stockpile zone and standing production bill.
@@ -140,17 +137,6 @@ type RoutinePolicy struct {
 	// do-until bill fed from map chunks without the operator naming the
 	// stone. Zero disables it.
 	StoneBlockTarget int64
-	// ResourceReserves and StoppedResources are operator-declared inputs to
-	// ProductionFloors: the per-resource reserve/spending-stopped
-	// configuration. Unlike
-	// ResourceTargets (which drives MaintainResource's own goal/method
-	// selection), these supply defaults for ProductionPolicy. Explicit
-	// per-resource directives override them; the routine planner dispatches
-	// the merged floors/stopped rows through native SetProductionPolicy
-	// write whenever they diverge from a fresh ReadProductionPolicy. The push
-	// is not development work and holds no development slot (DevelopmentExempt).
-	ResourceReserves map[Resource]int64
-	StoppedResources []Resource
 	// Trade is TradeWithCaravan's configuration (policy/trade_routine.go).
 	Trade RoutineTradePolicy
 	// PrisonerReleaseAfterDays lets MaintainPopulation propose
@@ -243,9 +229,6 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.StoneBlockTarget < 0 || p.StoneBlockTarget > 10000 {
 		return errors.New("invalid stone block target")
-	}
-	if _, _, err := ProductionFloors(p.ResourceReserves, p.StoppedResources); err != nil {
-		return err
 	}
 	return nil
 }
@@ -908,17 +891,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Goals[len(r.Goals)-1].MethodUnavailable = ResearchGoalTarget("", f.ResearchNeeds, f.Research) != "" && r.WoodFloor == 0 && len(DependencyResourceNeeds(f.Dependencies)) == 0
 	}
 	addAssessment(MaintainResource, resourcePriority, resourceRecovered)
-	// ProductionPolicy is a configuration push, not development work: it needs
-	// no pawn labor and holds no optional capacity slot, so it is assessed (and
-	// admitted) outside the development ranking. Reconciliation stays
-	// active, including empty desired policy: the planner performs a fresh
-	// ReadProductionPolicy comparison before proposing each repair.
-	productionPolicyRecovered := domain.Known(false)
-	addAssessment(ProductionPolicy, 4, productionPolicyRecovered)
 	// EnsureDefensiveLayout is config-only like EnsureResearch above: opt-in
 	// activates the goal at priority 3 (after the storage gate) and the
 	// planner reports no work once every tier stands.
-	// TradeWithCaravan is config-only like ProductionPolicy: it needs a
+	// TradeWithCaravan is config-only: it needs a
 	// negotiator's conversation, not a development slot, and recovers by
 	// itself when the caravan leaves or nothing is left worth trading.
 	tradeRecovered := TradeRecovered(f.Traders, ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)))
@@ -1241,7 +1217,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// MaintainWaste now has a composed dispatch method (WasteAction,
 		// waste_admissions, WasteBoundary, RoutineWastePlanner); availability
 		// is config-only, gated below through AvailableMethods like
-		// MaintainResource/EnsureResearch/ProductionPolicy.
+		// MaintainResource/EnsureResearch.
 	}
 	blightRecovered := domain.Unknown[bool]()
 	if deficit, known := BlightDeficit(f.Blight).Value(); known {

@@ -175,31 +175,6 @@ player re-designation, removed backup and missing SQL; verify intact roof/enclos
 and no duplicate demolition. Entry points: `scripts/wall_upgrade_acceptance.py` and
 `scripts/wall_material_acceptance.py`.
 
-## Production limits
-
-Sources: [saved fields](../integrations/rimgovernor-native/src/Runtime/Persistence/ProductionPolicyState.cs),
-[selection/consumption guards](../integrations/rimgovernor-native/src/Bridge/ProductionPolicyTool.cs).
-
-| Field/key | Sole target owner | Reconstructible? |
-| --- | --- | --- |
-| `Floors/rimgovernorProductionFloors` (map-ID/resource string -> integer reserve) | SQL policy; native enforcement only | No; desired reserve is not current stock. |
-| `Stopped/rimgovernorProductionStopped` (map-ID/resource strings) | SQL policy; native enforcement only | No; spending prohibition is not a bill setting. |
-
-`Commitments` is an unsaved map/resource count dictionary, applied only during
-supervision. In contrast, saved `Floors` and `Stopped` affect ingredient selection
-and consumption outside supervision too. Vanilla bills, ingredients and settings
-remain game-owned; do not import them as controller ownership.
-
-Migration/removal: lease configuration from SQL, but retire or safely hold admitted
-consumers before expiring a floor/stop. A minimal native safety latch may be needed
-on load/disconnect; its lifetime and release must be defined independently of the
-authoritative policy. Do not drop the current saved protections merely because
-the database or controller is absent. Required acceptance: disconnect at ingredient
-selection and final consumption, carried/unfinished ingredients, load without SQL,
-expired commitments with active jobs and explicit player policy changes. Prove
-stock limits and player bill filters survive. Existing fixture neighbor:
-`controller_tests/test_production_policy.py`; fixtures alone cannot close this gate.
-
 ## Equipment ownership
 
 Sources: [equipment operations](../integrations/rimgovernor-native/src/Bridge/GearUpkeepTool.cs).

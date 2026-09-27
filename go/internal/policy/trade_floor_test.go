@@ -7,18 +7,18 @@ import (
 
 func TestRoutineTradeConstructionFloor(t *testing.T) {
 	for _, tt := range []struct {
-		name                                string
-		reserve, construction, target, want int64
+		name                       string
+		construction, target, want int64
 	}{
-		{"minimum", 0, 0, 0, 500},
-		{"reserve plus construction", 400, 350, 0, 750},
-		{"construction only", 0, 800, 0, 800},
-		{"target dominates", 400, 350, 900, 900},
+		{"minimum", 0, 0, 500},
+		{"construction below minimum", 350, 0, 500},
+		{"construction only", 800, 0, 800},
+		{"target dominates", 350, 900, 900},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			p := RoutinePolicy{ResourceReserves: map[Resource]int64{"Steel": tt.reserve}, ResourceTargets: map[Resource]int64{"Steel": tt.target}, Trade: RoutineTradePolicy{}}
+			p := RoutinePolicy{ResourceTargets: map[Resource]int64{"Steel": tt.target}, Trade: RoutineTradePolicy{}}
 			floors := RoutineTradeFloors(p, map[string]int64{"Steel": tt.construction})
-			if floors["Steel"] != tt.reserve+tt.construction {
+			if floors["Steel"] != tt.construction {
 				t.Fatalf("floor = %v", floors)
 			}
 			wealth := domain.Known(WealthFacts{Items: 30000, Total: 40000})

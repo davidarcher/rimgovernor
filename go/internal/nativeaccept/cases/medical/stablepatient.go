@@ -46,7 +46,7 @@ func init() {
 		// exercises, to prove the pre-seeded growing zone/campfire bill
 		// keeps advancing concurrently with medical dispatch.
 		Serve: &cases.ServeSpec{
-			Families:      []string{"tend,medical,field,food-storage,acquisition,cooking,supply,production-policy"},
+			Families:      []string{"tend,medical,field,food-storage,acquisition,cooking,supply"},
 			NativeTimeout: 15 * time.Second, Prefix: "stable-patient",
 		},
 		Budget: 15 * time.Minute,

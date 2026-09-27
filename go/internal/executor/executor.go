@@ -186,8 +186,6 @@ type Executor struct {
 	mineAcquisitionJournal     MineAcquisitionJournal
 	excavation                 ExcavationBoundary
 	excavationJournal          ExcavationJournal
-	productionPolicy           ProductionPolicyBoundary
-	productionPolicyJournal    ProductionPolicyJournal
 	ranged                     RangedBoundary
 	rangedJournal              RangedJournal
 	movement                   MovementBoundary
@@ -493,9 +491,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.ExcavationAction && e.excavation != nil {
 		return e.runExcavation(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.ProductionPolicyAction && e.productionPolicy != nil {
-		return e.runProductionPolicy(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() != domain.BuildingAction {
 		return Result{}, errors.New("missing or unsupported building action")

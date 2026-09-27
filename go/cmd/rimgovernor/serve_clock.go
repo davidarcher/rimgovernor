@@ -243,7 +243,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	routes := sc.routineRoutesPlans
 	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
 	caravanJourneyTracking, resourceTargets := sc.caravanJourneyTracking, sc.resourceTargetsConfigured()
-	animalFeedPlans, productionPolicyPlans := sc.routineAnimalFeedPlans, sc.routineProductionPolicyPlans
+	animalFeedPlans := sc.routineAnimalFeedPlans
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	haul, waste, moodRelief, naming, dialog, trade := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
@@ -286,7 +286,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -680,16 +680,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
-		if productionPolicyPlans {
-			productionPolicyNative, ok := reads.(buildingruntime.RoutineProductionPolicySource)
-			if !ok {
-				return nil, errors.New("production policy plans require typed production policy observations")
-			}
-			config.ProductionPolicy, err = buildingruntime.NewRoutineProductionPolicyPlanner(reviewer, productionPolicyNative)
-			if err != nil {
-				return nil, err
-			}
-		}
 		if supplies {
 			source, ok := reads.(buildingruntime.RoutineSupplySource)
 			if !ok {
@@ -971,11 +961,6 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	// ended with every survivor unarmed beside loose bows).
 	if sc.routineEquipPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureBasicDefense)
-	}
-	if sc.routineProductionPolicyPlans {
-		thresholds.ResourceReserves = sc.routineResourceReserves.Map()
-		thresholds.StoppedResources = sc.routineStoppedResources.Slice()
-		capabilities.Methods = append(capabilities.Methods, policy.ProductionPolicy)
 	}
 	return thresholds, capabilities
 }
