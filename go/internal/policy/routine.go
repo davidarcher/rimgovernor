@@ -61,20 +61,13 @@ const flooringPriority = 3
 const routesPriority = 3
 
 type RoutinePolicy struct {
-	AnimalUpkeep   AnimalUpkeepPolicy
-	MedicalReserve MedicalReservePolicy
-	FoodStorage    FoodStoragePolicy
-	Cleanliness    CleanlinessPolicy
-	Lighting       LightingPolicy
-	Flooring       FlooringPolicy
-	Routes         RoutesPolicy
-	// MaxDevelopmentProjects is the concurrent optional-project slot count
-	// (1..8; StageDevelopmentLimit adds one at Development). With
-	// AutoDevelopment it is MaxAutoDevelopmentProjects and only bounds
-	// planner cost: distinct observed workers decide admission
-	// (development_capacity.go).
-	MaxDevelopmentProjects                        int
-	AutoDevelopment                               bool
+	AnimalUpkeep                                  AnimalUpkeepPolicy
+	MedicalReserve                                MedicalReservePolicy
+	FoodStorage                                   FoodStoragePolicy
+	Cleanliness                                   CleanlinessPolicy
+	Lighting                                      LightingPolicy
+	Flooring                                      FlooringPolicy
+	Routes                                        RoutesPolicy
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	FoodReserveDays                               float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -156,16 +149,10 @@ type RoutinePolicy struct {
 	Stage ColonyStagePolicy
 }
 
-// SetProjectLimit makes the development limit an explicit slot count
-// (1..8), leaving automatic admission; serve always runs auto (#875).
-func (p *RoutinePolicy) SetProjectLimit(n int) {
-	p.MaxDevelopmentProjects, p.AutoDevelopment = n, false
-}
-
 // DefaultRoutinePolicy admits development automatically (#655): slots
 // bound planner cost only and distinct observed workers decide admission.
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), MaxDevelopmentProjects: MaxAutoDevelopmentProjects, AutoDevelopment: true, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder()}
 }
 
@@ -181,9 +168,6 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if !p.Cleanliness.valid() {
 		return errors.New("invalid cleanliness thresholds")
-	}
-	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 || p.AutoDevelopment && p.MaxDevelopmentProjects != MaxAutoDevelopmentProjects {
-		return errors.New("invalid development project limit")
 	}
 	for _, n := range []float64{p.FoodMinDays, p.FoodTargetDays, p.FootholdFoodDays, p.FoodReserveDays, p.ColdEnter, p.ColdExit, p.HotExit, p.HotEnter, p.PrisonerReleaseAfterDays} {
 		if math.IsNaN(n) || math.IsInf(n, 0) {

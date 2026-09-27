@@ -60,7 +60,6 @@ type Inspection struct {
 	// Held contains other-plan commitments only. Completeness must come from
 	// the runtime's accounting owner, never from an empty native response.
 	ExternalHoldsComplete bool
-	Rules                 []policy.ResourceRule
 	admission             store.Admission
 }
 
@@ -640,7 +639,7 @@ func (e *Executor) inspect(ctx context.Context, target Target, progress domain.P
 			purpose = record.Admission.SpendingPurpose()
 		}
 	}
-	input, err := policy.NewInput(policy.Request{Current: inspection.Current, CurrentTick: inspection.Tick, Bounds: inspection.Bounds, Stock: inspection.Stock, Held: reservations, Rules: inspection.Rules, Candidates: []policy.Candidate{{Action: target.Action, Progress: progress, Purpose: purpose, Preview: inspection.Preview}}})
+	input, err := policy.NewInput(policy.Request{Current: inspection.Current, CurrentTick: inspection.Tick, Bounds: inspection.Bounds, Stock: inspection.Stock, Held: reservations, Candidates: []policy.Candidate{{Action: target.Action, Progress: progress, Purpose: purpose, Preview: inspection.Preview}}})
 	if err != nil {
 		return inspection, nil, progress, fmt.Errorf("%w: %v", ErrEvidence, err)
 	}

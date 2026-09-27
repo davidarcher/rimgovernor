@@ -14,7 +14,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 )
@@ -40,7 +39,6 @@ func (w *playerWorldSource) ReadWorld(ctx context.Context) (store.World, error) 
 }
 
 type playerFakeSession struct {
-	rules                               []policy.ResourceRule
 	mu                                  sync.Mutex
 	state                               ControlState
 	granted                             bool

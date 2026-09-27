@@ -27,7 +27,6 @@ func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 	}
 	req := methodRequest(t, shelter, "shell", 60, 60)
 	req.Purpose = policy.Shelter
-	req.Rules = nil
 	req.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(40))}}
 	d, err := s.AdmitBuildingMethod(ctx, req)
 	if err != nil || !d.Admitted {

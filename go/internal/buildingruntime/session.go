@@ -52,7 +52,6 @@ type SessionConfig struct {
 	RoutineMethods  bool
 	Control         ControlConfig
 	Executor        executor.Limits
-	Rules           []policy.ResourceRule
 	Draft           *draft.DraftCapabilities
 	Clock           *ClockCapabilities
 	Melee           *melee.MeleeCapabilities
@@ -111,7 +110,6 @@ type SessionConfig struct {
 type Session struct {
 	routineMethods bool
 	colonyFacts    *ColonyFacts
-	rules          []policy.ResourceRule
 	control        *Control
 	executor       *executor.Executor
 	journal        *store.Store
@@ -301,7 +299,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	sink.mu.Lock()
 	sink.control = control
 	sink.mu.Unlock()
-	place, err := boundary.NewBoundary(native, writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, sessionHolds{journal}, clock, string(namespace), config.Rules)
+	place, err := boundary.NewBoundary(native, writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, sessionHolds{journal}, clock, string(namespace))
 	if err != nil {
 		return cleanup(err)
 	}
@@ -773,7 +771,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 		return cleanup(err)
 	}
-	return &Session{routineMethods: config.RoutineMethods, colonyFacts: colonyFacts, rules: append([]policy.ResourceRule(nil), config.Rules...), control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
+	return &Session{routineMethods: config.RoutineMethods, colonyFacts: colonyFacts, control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
 }
 
 // Publish only after the final fallible construction check. Until publication,
@@ -834,9 +832,6 @@ func (s *Session) Run(ctx context.Context, plan domain.PlanID, action domain.Act
 func (s *Session) Close(ctx context.Context) error { return s.control.Close(ctx) }
 
 func (s *Session) RoutineMethodsEnabled() bool { return s.routineMethods }
-func (s *Session) ResourceRules() []policy.ResourceRule {
-	return append([]policy.ResourceRule(nil), s.rules...)
-}
 
 // ColonyFacts serves the session's colony facts reads from the routine
 // review's mirrored census once a scheduler binds its reviewer.

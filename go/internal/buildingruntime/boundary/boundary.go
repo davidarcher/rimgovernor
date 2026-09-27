@@ -56,19 +56,15 @@ type Boundary struct {
 	Holds   HoldsSource
 	Clock   executor.Clock
 	Session string
-	Rules   []policy.ResourceRule
 }
 
 var _ executor.Boundary = (*Boundary)(nil)
 
-func NewBoundary(native Native, writer BuildingWriter, leases LeaseSource, holds HoldsSource, clock executor.Clock, controllerSessionID string, rules []policy.ResourceRule) (*Boundary, error) {
-	if err := policy.ValidateResourceRules(rules); err != nil {
-		return nil, err
-	}
+func NewBoundary(native Native, writer BuildingWriter, leases LeaseSource, holds HoldsSource, clock executor.Clock, controllerSessionID string) (*Boundary, error) {
 	if native == nil || writer == nil || leases == nil || holds == nil || clock == nil || !ValidID(controllerSessionID) {
 		return nil, errors.New("invalid building boundary dependencies")
 	}
-	return &Boundary{native, writer, leases, holds, clock, controllerSessionID, append([]policy.ResourceRule(nil), rules...)}, nil
+	return &Boundary{native, writer, leases, holds, clock, controllerSessionID}, nil
 }
 func (b *Boundary) Inspect(ctx context.Context, target executor.Target) (executor.Inspection, error) {
 	out := executor.Inspection{StartedAt: b.Clock.Now()}
@@ -147,7 +143,6 @@ func (b *Boundary) Inspect(ctx context.Context, target executor.Target) (executo
 	out.Stock = preview.Stock
 	out.Held = held
 	out.ExternalHoldsComplete = true
-	out.Rules = append([]policy.ResourceRule(nil), b.Rules...)
 	out.ObservedAt = b.Clock.Now()
 	return out, nil
 }

@@ -209,5 +209,5 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	if len(selected) == 0 {
 		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
 	}
-	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, partial: true, check: check})
+	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, check: check})
 }

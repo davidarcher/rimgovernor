@@ -75,7 +75,7 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	if assessed[EnsureResearch] != domain.NeedDeficit || assessed[MaintainResource] != domain.NeedDeficit {
 		t.Fatal(assessed)
 	}
-	state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Limit: 2, Goals: r.Goals})
+	state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Goals: r.Goals})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestResourceGoalYieldsItsSlotToRecordedResearch(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Limit: 1, Goals: r.Goals})
+		state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Goals: r.Goals})
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -108,7 +108,6 @@ func TestRoutineAnimalNeedsRankWhenTheirMethodIsDeclared(t *testing.T) {
 			f.AvailableMethods = domain.Known([]GoalID{MaintainAnimalFeed, MaintainAnimalContainment})
 		}
 		request := developmentFixture()
-		request.Limit = 2
 		request.Goals = needs(t, f, RoutineLatches{}).Goals
 		got := selected(rank(t, request))
 		if declared != (len(got) == 2) {

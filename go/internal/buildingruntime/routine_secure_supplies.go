@@ -482,7 +482,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 		return PlanResult{}, err
 	}
 	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
-	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
 }
 
@@ -557,7 +557,7 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 		return PlanResult{}, err
 	}
 	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
-	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: generalStoreMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: generalStoreMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
 }
 
@@ -758,7 +758,7 @@ planned:
 			return PlanResult{}, err
 		}
 		proposal := r.proposal(call, planID, goal, state, projection.Identity.Tick, actions, previewClaims(previews))
-		proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: previews, Purpose: policy.Routine})
+		proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
 		return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
 	}
 	return PlanResult{Kind: PlanWaiting, Dependency: "supply room site", Reason: BuildingMethodNoSpace}, nil

@@ -76,24 +76,15 @@ func GearSoldierPresent(gear domain.Fact[GearObservation]) bool {
 }
 
 // gearAvailable is the ingredient stock a gear bill may spend: the known
-// supply census less each MaintainResource reserve and concurrent hold, and
-// nothing of a resource whose spending rule is not Allow. Known reports which
-// resources the census measured at all.
-func gearAvailable(stock []Stock, rules []ResourceRule, holds []Amount) (available map[Resource]int64, known map[Resource]bool) {
+// supply census less each concurrent hold. Known reports which resources the
+// census measured at all.
+func gearAvailable(stock []Stock, holds []Amount) (available map[Resource]int64, known map[Resource]bool) {
 	available = map[Resource]int64{}
 	known = map[Resource]bool{}
 	for _, s := range stock {
 		if n, ok := s.Available.Value(); ok {
 			available[s.Resource] = n
 			known[s.Resource] = true
-		}
-	}
-	for _, rule := range rules {
-		if rule.Spending != Allow {
-			available[rule.Resource] = 0
-			known[rule.Resource] = true
-		} else {
-			available[rule.Resource] = max(0, available[rule.Resource]-rule.Reserve)
 		}
 	}
 	for _, hold := range holds {
@@ -103,11 +94,11 @@ func gearAvailable(stock []Stock, rules []ResourceRule, holds []Amount) (availab
 }
 
 // GearMaterialBudget is the loadout model's Budget: what each measured
-// material can fund after MaintainResource reserves and holds, the same
+// material can fund after holds, the same
 // floor food bills honour (#470). Unmeasured resources are absent, which the
 // model treats as unfunded.
-func GearMaterialBudget(stock []Stock, rules []ResourceRule, holds []Amount) []Amount {
-	available, known := gearAvailable(stock, rules, holds)
+func GearMaterialBudget(stock []Stock, holds []Amount) []Amount {
+	available, known := gearAvailable(stock, holds)
 	out := []Amount{}
 	for resource := range known {
 		out = append(out, Amount{resource, available[resource]})

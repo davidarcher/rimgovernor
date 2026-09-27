@@ -128,12 +128,10 @@ func TestRoutineShelterAdmitsWholeShellInOneWave(t *testing.T) {
 }
 
 // A shell is admitted without a stock check: RimWorld places its blueprints
-// regardless and the frames hold natively for materials (#602). A spending
-// rule still refuses it whole, and an operator reserve admits the cells the
-// budget above the reserve covers, leaving the rest pending unreserved.
+// regardless and the frames hold natively for materials (#602).
 func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 	t.Parallel()
-	for _, change := range []string{"stock-short", "stock-zero", "stock-unknown", "reserve", "spending-stop"} {
+	for _, change := range []string{"stock-short", "stock-zero", "stock-unknown"} {
 		t.Run(change, func(t *testing.T) {
 			t.Parallel()
 			r, db, n := shelterFixture(t)
@@ -149,12 +147,6 @@ func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 					v.Stock.Values[0].Available = domain.Unknown[int64]()
 				}
 			}
-			switch change {
-			case "reserve":
-				r.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
-			case "spending-stop":
-				r.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Spending: policy.Stop}}
-			}
 			result, err := r.Step(context.Background())
 			if err != nil {
 				t.Fatal(err)
@@ -163,12 +155,6 @@ func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if change == "spending-stop" {
-				if result.Reason != BuildingMethodRefused || len(result.Decision.Refused) != 32 || result.Decision.Refused[0].Reason != policy.SpendingBlocked || len(plans) != 4 {
-					t.Fatal("spending rule did not refuse the shell", result, len(plans))
-				}
-				return
-			}
 			if result.Reason != BuildingMethodAdmitted || len(plans) != 5 {
 				t.Fatal("shell not admitted", result, len(plans))
 			}
@@ -176,24 +162,8 @@ func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 			if err != nil || len(plan.Progress) != 32 {
 				t.Fatal(plan, err)
 			}
-			admissions, refused := 32, 0
-			if change == "reserve" {
-				// 180 wood covers the door and 31 walls exactly; the reserve
-				// of one leaves the last-sorted wall pending unreserved.
-				admissions, refused = 31, 1
-			}
-			if len(plan.Admissions) != admissions || len(result.Decision.Refused) != refused {
-				t.Fatal("wrong admitted prefix", len(plan.Admissions), result.Decision.Refused)
-			}
-			for _, refusal := range result.Decision.Refused {
-				if refusal.Reason != policy.InsufficientStock || refusal.Resource != "WoodLog" {
-					t.Fatal(refusal)
-				}
-				for _, admission := range plan.Admissions {
-					if admission.Action == refusal.Action {
-						t.Fatal("refused wall reserved", refusal)
-					}
-				}
+			if len(plan.Admissions) != 32 || len(result.Decision.Refused) != 0 {
+				t.Fatal("shell not admitted whole", len(plan.Admissions), result.Decision.Refused)
 			}
 			if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
 				t.Fatal(again, err)

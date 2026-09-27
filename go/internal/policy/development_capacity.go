@@ -10,21 +10,20 @@ import (
 // Development capacity (#649) is the one accounting the ranking, a
 // planner's yield and method admission share. A development slot is a
 // concurrent optional project (a goal ranked at priority 3-4 or a player
-// project); the limit (a fixed count set by tests, or
-// MaxAutoDevelopmentProjects in automatic mode) bounds planner cost and
+// project); the limit (MaxAutoDevelopmentProjects) bounds planner cost and
 // queue growth, never worker use. Worker capacity is separate: each held
 // or selected project needs labor for its profile, and developmentFit
 // decides whether the next one still gets it.
 //
-// Explicit mode keeps the per-work-type headcount (laborLedger). Automatic
-// mode matches one distinct census worker per project (AllocateWorkers,
+// Admission matches one distinct census worker per project (AllocateWorkers,
 // #647), so a pawn enabled for three work types is one worker, and open
 // startup/survival work that takes no slot still holds its worker
 // (DevelopmentHold with Slot false). One worker per project is the
 // admission floor, not a ratio: an admitted project's designations are
-// open to every enabled pawn natively.
+// open to every enabled pawn natively. An unobserved census falls back to
+// the per-work-type headcount (laborLedger).
 
-// MaxAutoDevelopmentProjects is the automatic mode's slot bound: the
+// MaxAutoDevelopmentProjects is the slot bound: the
 // ranking's own bound, kept for planner cost, not a worker ratio.
 const MaxAutoDevelopmentProjects = 8
 
@@ -99,7 +98,7 @@ func DevelopmentCensus(pawns []WorkPawn) domain.Fact[[]DevelopmentWorker] {
 // is neither stalled nor released (a labor_idle row). Optional work holds
 // a slot; startup/survival work holds only its worker, and only in
 // automatic mode. Withheld labor comes first, then goals in ID order.
-func CommitmentHolds(commitments []Commitment, now domain.Tick, released map[GoalID]bool, auto bool, withheld LaborProfile) []DevelopmentHold {
+func CommitmentHolds(commitments []Commitment, now domain.Tick, released map[GoalID]bool, withheld LaborProfile) []DevelopmentHold {
 	var holds []DevelopmentHold
 	for _, w := range withheld {
 		holds = append(holds, DevelopmentHold{Labor: LaborProfile{w}})
@@ -114,9 +113,6 @@ func CommitmentHolds(commitments []Commitment, now domain.Tick, released map[Goa
 			continue
 		}
 		slot := c.Source == PlayerGoal || c.Priority >= 3
-		if !slot && !auto {
-			continue
-		}
 		if prev, seen := byGoal[c.Goal]; seen && (prev.Slot || !slot) {
 			continue
 		}
@@ -138,11 +134,11 @@ func CommitmentHolds(commitments []Commitment, now domain.Tick, released map[Goa
 // mode with a known census, one pawn of a free type on the per-type
 // headcount otherwise. An empty profile needs no worker. A demand that
 // does not fit names its bottleneck.
-func developmentFit(auto bool, census domain.Fact[[]DevelopmentWorker], labor domain.Fact[map[WorkType]int], demands []LaborProfile) ([]bool, []WorkType) {
+func developmentFit(census domain.Fact[[]DevelopmentWorker], labor domain.Fact[map[WorkType]int], demands []LaborProfile) ([]bool, []WorkType) {
 	fits := make([]bool, len(demands))
 	bottlenecks := make([]WorkType, len(demands))
 	workers, known := census.Value()
-	if !auto || !known {
+	if !known {
 		ledger := newLaborLedger(labor)
 		for i, d := range demands {
 			bottlenecks[i], fits[i] = ledger.take(d)
@@ -192,9 +188,9 @@ func holdsFit(s DevelopmentState, rows []LaborProfile) (fits []bool, bottlenecks
 		demands = append(demands, h.Labor)
 	}
 	demands = append(demands, rows...)
-	all, necks := developmentFit(s.Auto, s.Census, s.Labor, demands)
+	all, necks := developmentFit(s.Census, s.Labor, demands)
 	for _, ok := range all[:len(s.Holds)] {
-		overcommitted = overcommitted || s.Auto && !ok
+		overcommitted = overcommitted || !ok
 	}
 	return all[len(s.Holds):], necks[len(s.Holds):], overcommitted
 }

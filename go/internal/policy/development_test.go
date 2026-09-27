@@ -11,7 +11,7 @@ import (
 func developmentFixture() DevelopmentRequest {
 	return DevelopmentRequest{
 		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
-		Workers: domain.Known(3), Limit: 1,
+		Workers: domain.Known(3),
 		Goals: []DevelopmentGoal{
 			{ID: "storage", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0)},
 			{ID: "defense", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.5)},
@@ -60,7 +60,6 @@ func TestDevelopmentCapacityAndYield(t *testing.T) {
 		t.Fatal(y)
 	}
 	r.Workers = domain.Known(1)
-	r.Limit = 8
 	requireSelected(t, rank(t, r), "storage", "defense", "wood")
 	r.Workers = domain.Known(0)
 	requireSelected(t, rank(t, r))
@@ -227,7 +226,6 @@ func TestDevelopmentSharedProgressCommitments(t *testing.T) {
 }
 func TestDevelopmentRejectsInvalidInputs(t *testing.T) {
 	for _, mutate := range []func(*DevelopmentRequest){
-		func(r *DevelopmentRequest) { r.Limit = 0 }, func(r *DevelopmentRequest) { r.Limit = 9 },
 		func(r *DevelopmentRequest) { r.Tick = -1 }, func(r *DevelopmentRequest) { r.Workers = domain.Known(-1) },
 		func(r *DevelopmentRequest) { r.Goals[0].Deficit = domain.Known(math.NaN()) },
 		func(r *DevelopmentRequest) { r.Goals[0].Deficit = domain.Known(math.Inf(1)) },
@@ -327,7 +325,7 @@ func TestStalledCommitmentReleasesCapacity(t *testing.T) {
 		out.Progress = p
 		return out
 	}
-	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: 5000 + DevelopmentStallTicks, Workers: s.workers, Limit: 1, Goals: s.goals}
+	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: 5000 + DevelopmentStallTicks, Workers: s.workers, Goals: s.goals}
 	r.Commitments = []Commitment{observe(r.Tick)}
 	fresh := rank(t, r)
 	requireSelected(t, fresh, "defense")

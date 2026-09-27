@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -125,7 +124,7 @@ func (j *schedulingJournal) Hold(ctx context.Context, plan domain.PlanID, action
 }
 
 func BenchmarkExecutorScheduling(b *testing.B) {
-	for _, scenario := range []string{"HeldInsufficientStock", "DispatchAccepted", "ReconcilePending", "ReconcileCompleted"} {
+	for _, scenario := range []string{"DispatchAccepted", "ReconcilePending", "ReconcileCompleted"} {
 		b.Run(scenario, func(b *testing.B) {
 			b.StopTimer()
 			ctx := context.Background()
@@ -166,10 +165,6 @@ func BenchmarkExecutorScheduling(b *testing.B) {
 			expectedStage := domain.AwaitingObservation
 			inspections, placements, observations := 2, 1, 0
 			switch scenario {
-			case "HeldInsufficientStock":
-				env.stock = 0
-				expectedStage = domain.Pending
-				inspections, placements = 1, 0
 			case "ReconcilePending", "ReconcileCompleted":
 				// Prepare the observation checkpoint through the same real guarded dispatch
 				// path, outside timing. Every iteration starts from this unresolved attempt.
@@ -196,11 +191,7 @@ func BenchmarkExecutorScheduling(b *testing.B) {
 				b.StartTimer()
 				result, err := executor.Run(ctx, plan.ID(), action.ID())
 				b.StopTimer()
-				if scenario == "HeldInsufficientStock" {
-					if !errors.Is(err, ErrHeld) || len(result.Refused) == 0 {
-						b.Fatal(result, err)
-					}
-				} else if err != nil {
+				if err != nil {
 					b.Fatal(err)
 				}
 				if result.Progress.View().Stage != expectedStage || result.NativeCalled != (placements == 1) {

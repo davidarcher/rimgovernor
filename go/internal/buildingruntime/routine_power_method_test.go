@@ -145,7 +145,7 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 
 func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) {
 	t.Parallel()
-	for _, phase := range []string{"unsafe", "geometry", "unknown", "stock", "skill", "switched", "flare", "cancelled"} {
+	for _, phase := range []string{"unsafe", "geometry", "unknown", "skill", "switched", "flare", "cancelled"} {
 		t.Run(phase, func(t *testing.T) {
 			p, db, n, _ := powerFixture(t, true)
 			v := n.reply.GetObserved()
@@ -167,9 +167,6 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 						preview.Preview.Footprint = domain.Known([]domain.Cell{{X: 4, Z: 4}})
 					case "unknown":
 						preview.Preview.SafeToPlace = domain.Unknown[bool]()
-					case "stock":
-						preview.Stock.Values[0].Available = domain.Known(int64(2))
-						p.reviewer.rules = []policy.ResourceRule{{Resource: "Steel", Reserve: 1, Spending: policy.Allow}}
 					case "cancelled":
 						p.reviewer.player.session.(*playerFakeSession).mu.Lock()
 						p.reviewer.player.session.(*playerFakeSession).state.Snapshot.Native++
@@ -186,28 +183,5 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 				t.Fatal("partial power method", plans, err)
 			}
 		})
-	}
-}
-
-func TestRoutinePowerMissingNativeComponentsPreventsGeneration(t *testing.T) {
-	t.Parallel()
-	p, db, n, _ := powerFixture(t, false)
-	original := n.onPreview
-	n.onPreview = func(ctx context.Context, preview *bridge.BuildingPreview) {
-		original(ctx, preview)
-		preview.Preview.Costs = domain.Known([]policy.Amount{{Resource: "Steel", Count: 100}, {Resource: "ComponentIndustrial", Count: 2}})
-		preview.Stock.Values = append(preview.Stock.Values, policy.Stock{Resource: "ComponentIndustrial", Available: domain.Known(int64(0))})
-		// Stock is a spending budget only under an operator reserve.
-		p.reviewer.rules = []policy.ResourceRule{{Resource: "ComponentIndustrial", Reserve: 1, Spending: policy.Allow}}
-	}
-	result, err := p.Step(context.Background())
-	// The stock refusal lends the bounded stock wait: the components may be
-	// in a hauler's hands or on a bench (#66).
-	if err != nil || result.Reason != BuildingMethodRefused || result.Decision.Admitted || result.NativeWorkTicks != stockWaitTicks {
-		t.Fatal(result, err)
-	}
-	plans, err := db.LoadPlans(context.Background(), 256)
-	if err != nil || len(plans) != 2 { // the guidance submission and the empty root plan
-		t.Fatal("unfunded generation was journaled", plans, err)
 	}
 }

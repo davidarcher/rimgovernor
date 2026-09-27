@@ -78,7 +78,7 @@ Player acceleration (every Ultrafast window without
 PACING_PLAYER_ACCELERATED`, #627) is the player-launch mode: Ultrafast only,
 never with `--clock-test-acceleration` (which stays acceptance-only). Native
 raises Ultrafast's multiplier between 15x and 150x against the frame budget
-(`frame_budget_ms`, 5..45, default 30): a frame whose tick work exceeds it
+(30 ms, reported as `Epoch.frame_budget_ms`; the start request carries none): a frame whose tick work exceeds it
 lowers the rate at once, one under 75% of it climbs 25% per 250 ms; the
 game's forced slowdown is kept. Every tick of such an epoch runs the full
 safety check, so hazard bounds stay tick-bounded however many ticks a frame

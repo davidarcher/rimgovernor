@@ -238,7 +238,7 @@ func TestTemperatureRepeatedReviewValidatesChangedRoomTick(t *testing.T) {
 
 func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 	t.Parallel()
-	for _, mode := range []string{"unavailable", "existing", "recovered", "skill", "spill", "stock"} {
+	for _, mode := range []string{"unavailable", "existing", "recovered", "skill", "spill"} {
 		t.Run(mode, func(t *testing.T) {
 			p, db, n, _ := temperatureFixture(t, false)
 			room := n.rooms.GetObserved().Rooms[0]
@@ -260,14 +260,6 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 					footprint, _ := preview.Preview.Footprint.Value()
 					preview.Preview.Footprint = domain.Known(append(footprint, domain.Cell{X: 2, Z: 2}))
 				}
-			case "stock":
-				original := n.onPreview
-				n.onPreview = func(ctx context.Context, preview *bridge.BuildingPreview) {
-					original(ctx, preview)
-					preview.Stock.Values[0].Available = domain.Known(int64(0))
-					// Stock is a spending budget only under an operator reserve.
-					p.reviewer.rules = []policy.ResourceRule{{Resource: preview.Stock.Values[0].Resource, Reserve: 1, Spending: policy.Allow}}
-				}
 			}
 			// Planners plan from the review's census, so the review must
 			// observe the mutation before the planner steps (#75).
@@ -278,13 +270,8 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Only a stock refusal lends the bounded stock wait; a spilled
-			// footprint or a missing builder is not resolved by ticks (#66).
-			wait := uint32(0)
-			if mode == "stock" {
-				wait = stockWaitTicks
-			}
-			if result.Decision.Admitted || result.NativeWorkTicks != wait {
+			// A spilled footprint or a missing builder is not resolved by ticks (#66).
+			if result.Decision.Admitted || result.NativeWorkTicks != 0 {
 				t.Fatal(result)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)

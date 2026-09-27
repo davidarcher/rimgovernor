@@ -20176,7 +20176,6 @@
    "FeedMinimumDays": 2,
    "FeedTargetDays": 4
   },
-  "AutoDevelopment": true,
   "Cleanliness": {
    "EnterC": -1,
    "ExitC": -0.25,
@@ -20258,7 +20257,6 @@
    "LitGlow": 0.3,
    "PlacementRadius": 2
   },
-  "MaxDevelopmentProjects": 8,
   "MedicalReserve": {
    "MinimumPerColonist": 1,
    "TargetPerColonist": 3
@@ -20287,7 +20285,6 @@
    "zones": 12145
   },
   "Development": {
-   "Auto": true,
    "Capacity": 8,
    "Census": [
     {

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"math"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -25,13 +24,10 @@ type Stock struct {
 }
 type Bounds struct{ Width, Height int32 }
 
-// Purpose is the spending class a building candidate is admitted under.
-// Defense work may spend under a DefenseOnly rule. RimWorld places every
-// frame regardless of stock and holds it natively for materials, so
-// InsufficientStock is a refusal only where the operator reserved some of
-// the resource (#602): otherwise the game settles materials when the work
-// happens. The purpose is recorded with the admission and applied again
-// at dispatch.
+// Purpose is the spending class a building candidate is admitted under,
+// recorded with the admission. RimWorld places every frame regardless of
+// stock and holds it natively for materials (#602), so admission never
+// refuses for stock: the game settles materials when the work happens.
 type Purpose string
 
 const (
@@ -45,19 +41,6 @@ func ValidPurpose(p Purpose) bool {
 	return p == Routine || p == Defense || p == Shelter
 }
 
-type Spending string
-
-const (
-	Allow       Spending = "allow"
-	Stop        Spending = "stop"
-	DefenseOnly Spending = "defense_only"
-)
-
-type ResourceRule struct {
-	Resource Resource
-	Reserve  int64
-	Spending Spending
-}
 type Dependency struct {
 	Action    domain.ActionID
 	Completed domain.Fact[bool]
@@ -129,7 +112,6 @@ type Request struct {
 	Candidates  []Candidate
 	Stock       StockObservation
 	Held        []Reservation
-	Rules       []ResourceRule
 }
 
 // Input owns deep copies and exposes no mutable observations.
@@ -137,20 +119,17 @@ type Input struct{ request Request }
 type Reason string
 
 const (
-	NotReady           Reason = "not_ready"
-	AlreadyReserved    Reason = "already_reserved"
-	UnknownFacts       Reason = "unknown_facts"
-	StaleFacts         Reason = "stale_facts"
-	UnsafePlacement    Reason = "unsafe_placement"
-	UnsafeThreat       Reason = "unsafe_threat"
-	CriticalMedical    Reason = "critical_medical"
-	MaterialRequired   Reason = "explicit_material_required"
-	DependencyBlocked  Reason = "dependency_incomplete"
-	GeometryBlocked    Reason = "geometry_conflict"
-	SpendingBlocked    Reason = "spending_policy"
-	InsufficientStock  Reason = "insufficient_stock"
-	InvalidHeld        Reason = "held_reservation_unverifiable"
-	ArithmeticOverflow Reason = "arithmetic_overflow"
+	NotReady          Reason = "not_ready"
+	AlreadyReserved   Reason = "already_reserved"
+	UnknownFacts      Reason = "unknown_facts"
+	StaleFacts        Reason = "stale_facts"
+	UnsafePlacement   Reason = "unsafe_placement"
+	UnsafeThreat      Reason = "unsafe_threat"
+	CriticalMedical   Reason = "critical_medical"
+	MaterialRequired  Reason = "explicit_material_required"
+	DependencyBlocked Reason = "dependency_incomplete"
+	GeometryBlocked   Reason = "geometry_conflict"
+	InvalidHeld       Reason = "held_reservation_unverifiable"
 	// NoDevelopmentSlot refuses a routine goal method whose goal the routine
 	// review has not selected for development (store.ErrNotAdmitted).
 	NoDevelopmentSlot Reason = "no_development_slot"
@@ -174,7 +153,7 @@ func NewInput(r Request) (Input, error) {
 	if r.CurrentTick < 0 {
 		return Input{}, errors.New("negative current tick")
 	}
-	if len(r.Candidates) > 256 || len(r.Held) > 256 || len(r.Stock.Values) > 256 || len(r.Rules) > 256 {
+	if len(r.Candidates) > 256 || len(r.Held) > 256 || len(r.Stock.Values) > 256 {
 		return Input{}, errors.New("admission collection exceeds 256 rows")
 	}
 	if b, known := r.Bounds.Value(); known && (b.Width <= 0 || b.Height <= 0) {
@@ -263,28 +242,7 @@ func NewInput(r Request) (Input, error) {
 			return Input{}, errors.New("negative stock")
 		}
 	}
-	r.Rules = append([]ResourceRule(nil), r.Rules...)
-	if err := ValidateResourceRules(r.Rules); err != nil {
-		return Input{}, err
-	}
 	return Input{r}, nil
-}
-
-func ValidateResourceRules(rules []ResourceRule) error {
-	if len(rules) > 256 {
-		return errors.New("resource policy exceeds 256 rules")
-	}
-	resources := map[Resource]bool{}
-	for _, rule := range rules {
-		if !validResource(rule.Resource) || resources[rule.Resource] || rule.Reserve < 0 {
-			return errors.New("invalid or duplicate resource rule")
-		}
-		resources[rule.Resource] = true
-		if rule.Spending != Allow && rule.Spending != Stop && rule.Spending != DefenseOnly {
-			return errors.New("invalid spending mode")
-		}
-	}
-	return nil
 }
 func validAction(a domain.Action, p domain.Progress) error {
 	b, ok := a.Building()
@@ -379,12 +337,6 @@ func footprint(cells []domain.Cell, a domain.Action, bounds Bounds) bool {
 	}
 	return anchor
 }
-func add(a, b int64) (int64, bool) {
-	if b > math.MaxInt64-a {
-		return 0, false
-	}
-	return a + b, true
-}
 
 func Admit(input Input) Decision {
 	r := input.request
@@ -402,19 +354,10 @@ func Admit(input Input) Decision {
 	})
 	bounds, boundsKnown := r.Bounds.Value()
 	stockFresh := r.Stock.Snapshot.Matches(r.Current)
-	stock := map[Resource]domain.Fact[int64]{}
-	for _, s := range r.Stock.Values {
-		stock[s.Resource] = s.Available
-	}
-	rules := map[Resource]ResourceRule{}
-	for _, rule := range r.Rules {
-		rules[rule.Resource] = rule
-	}
-	used := map[Resource]int64{}
 	occupied := map[domain.Cell]int{}
 	heldIDs := map[domain.ActionID]bool{}
 	heldProblem := Reason("")
-	heldInvalid, heldOverflow := false, false
+	heldInvalid := false
 	for _, h := range r.Held {
 		if released(h) {
 			continue
@@ -436,31 +379,13 @@ func Admit(input Input) Decision {
 		for _, c := range h.Footprint {
 			occupied[c]++
 		}
-		// A complete correlated inspection proves the placement write settled.
-		// Fresh net stock now owns its remaining cost; keep geometry and uncertain
-		// completion pinned without subtracting the original cost a second time.
-		constructionTick, constructionKnown := v.ConstructionObserved.Value()
-		if r.Stock.NativeConstruction && stockFresh && constructionKnown && observed && effect == domain.EffectPending && constructionTick < r.Stock.Tick && v.Tick <= r.Stock.Tick && sameWorld(v.Snapshot, r.Current) {
-			continue
-		}
-		for _, cost := range h.Costs {
-			sum, ok := add(used[cost.Resource], cost.Count)
-			if !ok {
-				heldOverflow = true
-			} else {
-				used[cost.Resource] = sum
-			}
-		}
-	}
-	if heldOverflow {
-		heldProblem = ArithmeticOverflow
 	}
 	if heldInvalid {
 		heldProblem = InvalidHeld
 	}
 	sort.Slice(result.Held, func(i, j int) bool { return result.Held[i].Action.ID() < result.Held[j].Action.ID() })
 	for _, c := range candidates {
-		budget, space, identities := used, occupied, heldIDs
+		space, identities := occupied, heldIDs
 		replace := -1
 		if heldProblem == "" {
 			for i, h := range result.Held {
@@ -473,14 +398,10 @@ func Admit(input Input) Decision {
 					cv.Attempt == 0 && !cv.Unresolved && (hv.Stage == domain.Pending || hv.Stage == domain.Prepared) &&
 					hv.Attempt == 0 && !hv.Unresolved {
 					// Replace the hold only if fresh revalidation succeeds. Failed
-					// admission must not expose its resources or geometry to rivals.
+					// admission must not expose its geometry to rivals.
 					replace = i
-					budget = maps.Clone(used)
 					space = maps.Clone(occupied)
 					identities = maps.Clone(heldIDs)
-					for _, cost := range h.Costs {
-						budget[cost.Resource] -= cost.Count
-					}
 					for _, cell := range h.Footprint {
 						space[cell]--
 					}
@@ -489,20 +410,17 @@ func Admit(input Input) Decision {
 				}
 			}
 		}
-		reason, resource := assess(c, r, bounds, boundsKnown, stockFresh, stock, rules, budget, space, identities, heldProblem)
+		reason := assess(c, r, bounds, boundsKnown, stockFresh, space, identities, heldProblem)
 		if reason != "" {
-			result.Refused = append(result.Refused, Refusal{c.Action.ID(), reason, resource})
+			result.Refused = append(result.Refused, Refusal{c.Action.ID(), reason, ""})
 			continue
 		}
-		used, occupied, heldIDs = budget, space, identities
+		occupied, heldIDs = space, identities
 		if replace >= 0 {
 			result.Held = append(result.Held[:replace], result.Held[replace+1:]...)
 		}
 		costs, _ := c.Preview.Costs.Value()
 		cells, _ := c.Preview.Footprint.Value()
-		for _, cost := range costs {
-			used[cost.Resource] += cost.Count
-		}
 		for _, cell := range cells {
 			occupied[cell]++
 		}
@@ -510,7 +428,7 @@ func Admit(input Input) Decision {
 	}
 	return result
 }
-func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool, stock map[Resource]domain.Fact[int64], rules map[Resource]ResourceRule, used map[Resource]int64, occupied map[domain.Cell]int, heldIDs map[domain.ActionID]bool, heldProblem Reason) (Reason, Resource) {
+func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool, occupied map[domain.Cell]int, heldIDs map[domain.ActionID]bool, heldProblem Reason) Reason {
 	v := c.Progress.View()
 	// A Prepared action prepared under an older snapshot is not ready to
 	// dispatch as it stands, but an attempt 0 has no write outstanding and is
@@ -518,84 +436,55 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 	// preparation waits.
 	if (v.Stage != domain.Pending && v.Stage != domain.Prepared) || v.Unresolved || v.Tick > r.CurrentTick ||
 		v.Stage == domain.Prepared && v.Attempt > 0 && !v.Snapshot.Matches(r.Current) {
-		return NotReady, ""
+		return NotReady
 	}
 	if heldIDs[c.Action.ID()] {
-		return AlreadyReserved, ""
+		return AlreadyReserved
 	}
 	if heldProblem != "" {
-		return heldProblem, ""
+		return heldProblem
 	}
 	p := c.Preview
 	if !p.Snapshot.Matches(r.Current) || !stockFresh {
-		return StaleFacts, ""
+		return StaleFacts
 	}
 	if p.Action != c.Action {
-		return StaleFacts, ""
+		return StaleFacts
 	}
 	for _, dep := range c.Dependencies {
 		complete, known := dep.Completed.Value()
 		if !known || !complete || !dep.Snapshot.Matches(r.Current) {
-			return DependencyBlocked, ""
+			return DependencyBlocked
 		}
 	}
 	canPlace, canKnown := p.CanPlace.Value()
 	safe, safeKnown := p.SafeToPlace.Value()
 	made, madeKnown := p.MadeFromStuff.Value()
 	if !canKnown || !safeKnown || !madeKnown {
-		return UnknownFacts, ""
+		return UnknownFacts
 	}
 	if !canPlace || !safe {
-		return UnsafePlacement, ""
+		return UnsafePlacement
 	}
 	b, _ := c.Action.Building()
 	if made && b.Stuff() == "" {
-		return MaterialRequired, ""
+		return MaterialRequired
 	}
 	cells, cellsKnown := p.Footprint.Value()
 	costs, costsKnown := p.Costs.Value()
 	if c.Action.Kind() == domain.ZoneCreateAction && (made || len(costs) > 0) {
-		return UnknownFacts, ""
+		return UnknownFacts
 	}
 	if !boundsKnown || !cellsKnown || !costsKnown {
-		return UnknownFacts, ""
+		return UnknownFacts
 	}
 	if !footprint(cells, c.Action, bounds) {
-		return GeometryBlocked, ""
+		return GeometryBlocked
 	}
 	for _, cell := range cells {
 		if occupied[cell] > 0 {
-			return GeometryBlocked, ""
+			return GeometryBlocked
 		}
 	}
-	for _, cost := range costs {
-		if cost.Count == 0 {
-			continue
-		}
-		rule := rules[cost.Resource]
-		if rule.Spending == Stop || rule.Spending == DefenseOnly && c.Purpose != Defense {
-			return SpendingBlocked, cost.Resource
-		}
-		// Frames wait natively for materials; stock is a spending budget
-		// only where the operator reserved some of it.
-		if rule.Reserve == 0 {
-			continue
-		}
-		available, known := stock[cost.Resource].Value()
-		if !known {
-			return UnknownFacts, cost.Resource
-		}
-		needed, ok := add(used[cost.Resource], cost.Count)
-		if !ok {
-			return ArithmeticOverflow, cost.Resource
-		}
-		needed, ok = add(needed, rule.Reserve)
-		if !ok {
-			return ArithmeticOverflow, cost.Resource
-		}
-		if needed > available {
-			return InsufficientStock, cost.Resource
-		}
-	}
-	return "", ""
+	return ""
 }

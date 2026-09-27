@@ -61,7 +61,7 @@ func TestRoutineCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.
 
 func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) {
 	t.Parallel()
-	for _, change := range []string{"usable", "campfire", "unknown", "stock", "definition"} {
+	for _, change := range []string{"usable", "campfire", "unknown", "definition"} {
 		t.Run(change, func(t *testing.T) {
 			p, _, native := cookingFixture(t)
 			v := native.reply.GetObserved()
@@ -78,14 +78,6 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 					want = BuildingMethodUnknown
 				}
 				v.Cooking = []*o.CookingFacts{bench}
-			case "stock":
-				want = BuildingMethodRefused
-				old := native.onPreview
-				native.onPreview = func(ctx context.Context, preview *bridge.BuildingPreview) {
-					old(ctx, preview)
-					preview.Stock.Values[0].Available = domain.Known(int64(4))
-					p.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
-				}
 			case "definition":
 				want = BuildingMethodUnknown
 				v.Planning.GetObserved().Definitions[0].Available = proto.Bool(false)
@@ -95,26 +87,6 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 				t.Fatal(result, err)
 			}
 		})
-	}
-}
-
-func TestRoutineCookingCannotSpendPlayerReservation(t *testing.T) {
-	t.Parallel()
-	p, db, _ := cookingFixture(t)
-	// The held stock is a spending budget under an operator reserve.
-	p.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
-	ctx := context.Background()
-	root := p.reviewer.player.State().Snapshot
-	plan := playerPlan(t, db)
-	root.Plan, root.Revision = plan.Spec.ID(), plan.Spec.Revision()
-	a := plan.Spec.Actions()[0]
-	b, _ := a.Building()
-	if _, err := db.ReserveAndPrepare(ctx, plan.Spec.ID(), a.ID(), store.Admission{Snapshot: root, Tick: 7, Costs: []store.MaterialCost{{Definition: "WoodLog", Count: 5}}, Footprint: []domain.Cell{b.Cell()}}); err != nil {
-		t.Fatal(err)
-	}
-	result, err := p.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodRefused || len(result.Decision.Refused) != 1 || result.Decision.Refused[0].Reason != policy.InsufficientStock {
-		t.Fatal(result, err)
 	}
 }
 

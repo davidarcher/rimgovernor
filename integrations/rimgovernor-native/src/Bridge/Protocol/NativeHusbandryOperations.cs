@@ -16,8 +16,8 @@ namespace HomeBridge.BridgeTools
     // Typed dispatch for MaintainHerd-*'s direct-write animal management
     // orders: recursive training request (SetAnimalTraining) and the
     // slaughter, tame and release-to-wild designations (SlaughterAnimal,
-    // TameAnimal, ReleaseAnimal). Ports the legacy JSON home/husbandry_config
-    // tool's (HusbandryTools.Configure) eligibility checks behind the typed
+    // TameAnimal, ReleaseAnimal). Ported from the JSON home/husbandry_config
+    // tool (deleted, #885): its eligibility checks behind the typed
     // boundary. Unlike job-issuing verticals (haul/recover/relieve), each is an
     // immediate settings write with no native job -- the same shape
     // NativeWorkSettings uses for work priorities. Tame targets a wild
@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool Designated(Pawn animal, DesignationDef def) => animal.Map.designationManager.DesignationOn(animal, def) != null;
 
-        // Mirrors HusbandryTools.Census: same-species player animal identity,
+        // Census token: same-species player animal identity,
         // gender and fertility, so a population change invalidates a stale
         // request. A wild tame target hashes the player herd of its own race.
         internal static string Census(Pawn animal)
@@ -64,7 +64,7 @@ namespace HomeBridge.BridgeTools
             return "census-" + Hash(string.Join(",", others));
         }
 
-        // Mirrors HusbandryTools.Settings: exact designation/training state,
+        // Settings token: exact designation/training state,
         // so a settings change (including one this same order just made)
         // invalidates a stale expected_snapshot_token.
         internal static string Settings(Pawn animal)
@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
                 && ideo.PreceptsListForReading.Any(p => p.def.issue?.defName == "AnimalSlaughter");
         }
 
-        // Mirrors HusbandryTools.SafeToSlaughter.
+        // The slaughter eligibility guard.
         internal static bool SafeToSlaughter(Pawn animal) => !animal.Dead && !animal.Downed && !animal.InMentalState
             && animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.Master == null
             && !TrainableUtility.GetAllColonistBondsFor(animal).Any()

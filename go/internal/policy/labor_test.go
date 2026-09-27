@@ -36,7 +36,6 @@ func TestRoutineLaborCountsEnabledWorkTypes(t *testing.T) {
 // still granted to research, and the deferral names the missing work type.
 func TestDevelopmentLaborBottleneck(t *testing.T) {
 	r := developmentFixture()
-	r.Limit = 3
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1})
 	r.Goals = []DevelopmentGoal{
 		{ID: "comfort", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.9), Labor: GoalLabor(EnsureComfort)},

@@ -108,9 +108,9 @@ func TestPreemptGoalMethodRetiresUndispatchedPlan(t *testing.T) {
 		t.Fatal(d, err)
 	}
 	other := anotherGoal(t, s, "medical")
-	q := methodRequest(t, other, "bed", 40)
+	q := methodRequest(t, other, "bedroom", 40)
 	if d, err = s.AdmitBuildingMethod(ctx, q); err != nil || d.Admitted {
-		t.Fatal("stock held by the shelter admitted the bed", d, err)
+		t.Fatal("geometry held by the shelter admitted the bed", d, err)
 	}
 	if _, err = s.PreemptGoalMethod(ctx, g.Goal.ID, d.Goal.Revision+7, r.Plan.ID()); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)

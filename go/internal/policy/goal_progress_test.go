@@ -138,7 +138,6 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 	// One builder, withheld for the bench: the ranked construction goal
 	// reads labor_unavailable while the plant-cutting goal is selected.
 	r := developmentFixture()
-	r.Limit = 2
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkPlantCutting: 1})
 	r.Goals = []DevelopmentGoal{
 		{ID: EnsureBasicDefense, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkConstruction}},

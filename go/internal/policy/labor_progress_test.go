@@ -44,7 +44,7 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 			t.Fatal("an unrelated haul read as", e, c.Goal)
 		}
 	}
-	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Limit: 2, Goals: s.goals, Commitments: []Commitment{supplies, feed}, LaborUse: use}
+	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{supplies, feed}, LaborUse: use}
 	first := rank(t, r)
 	requireSelected(t, first, "storage")
 	r.Previous, r.Tick = first, first.Tick+DevelopmentIdleTicks/2
@@ -130,7 +130,7 @@ func TestMatchedButStuckActivityFollowsTheStallBound(t *testing.T) {
 		t.Fatal("fixture: effect", effect)
 	}
 	stuck := WorkPawn{ID: "a", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}}), Job: domain.Known(PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: "Thing_Steel1"})})}
-	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Limit: 1, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: RoutineLaborUse([]WorkPawn{stuck})}
+	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: RoutineLaborUse([]WorkPawn{stuck})}
 	state := rank(t, r)
 	for _, tick := range []domain.Tick{DevelopmentIdleTicks, DevelopmentStallTicks / 2, DevelopmentStallTicks} {
 		r.Previous, r.Tick = state, 5000+tick
@@ -155,7 +155,7 @@ func TestLaborIdleSinceResetsOnRewindAndWorldChange(t *testing.T) {
 	c := s.commitment("supplies", AutopilotGoal, 4, true)
 	c.Labor, c.Targets = GoalLabor(SecureSupplies), domain.Known(WorkTargets{Things: []string{"Thing_Steel1"}})
 	other := WorkPawn{ID: "a", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}}), Job: domain.Known(PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: "Thing_Other9"})})}
-	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Limit: 1, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: RoutineLaborUse([]WorkPawn{other})}
+	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: RoutineLaborUse([]WorkPawn{other})}
 	first := rank(t, r)
 	if row := s.row(first, "supplies"); row.LaborIdleSince != domain.Known(domain.Tick(5000)) {
 		t.Fatal(row)

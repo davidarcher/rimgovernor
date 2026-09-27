@@ -195,11 +195,9 @@ type DevelopmentState struct {
 	// planners a wake named, so a selected goal whose planner did not run
 	// is not judged idle by the next review.
 	Partial bool
-	// Auto: the ranking matched distinct workers (development_capacity.go);
-	// Census is the worker census it matched, unknown in explicit mode or
-	// when the census was unobserved (the per-type Labor headcount then
-	// decides).
-	Auto   bool
+	// Census is the worker census the ranking matched distinct workers
+	// from (development_capacity.go), unknown when unobserved (the
+	// per-type Labor headcount then decides).
 	Census domain.Fact[[]DevelopmentWorker]
 	// Holds is the labor open work and withheld prerequisites held ahead
 	// of the ranked rows (CommitmentHolds).
@@ -231,7 +229,6 @@ type DevelopmentRequest struct {
 	LaborUse domain.Fact[LaborUse]
 	// Weights zero value uses DefaultDevelopmentWeights.
 	Weights     DevelopmentWeights
-	Limit       int
 	Goals       []DevelopmentGoal
 	Commitments []Commitment
 	Previous    DevelopmentState
@@ -245,9 +242,8 @@ type DevelopmentRequest struct {
 	// (ReviewColonyStage); its Foothold hold refuses the comfort-class
 	// development with DevelopmentStage.
 	Stage ColonyStageRecord
-	// Auto matches distinct workers from Census (automatic mode); Limit
-	// is then the slot bound only (MaxAutoDevelopmentProjects).
-	Auto   bool
+	// Census is the distinct workers admission matches; the slot bound
+	// is MaxAutoDevelopmentProjects.
 	Census domain.Fact[[]DevelopmentWorker]
 	// Dependencies are the live prerequisite edges (#651); a prerequisite
 	// row with an open shortfall ranks ahead of undonated rows
@@ -271,7 +267,7 @@ func validGoal(id GoalID, source GoalSource, priority int) bool {
 // RankDevelopment ports development_priorities.arbitrate. It grants selection
 // slots only; native admission, shared resource reservations and Hands still apply.
 func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
-	if r.Snapshot.Validate() != nil || r.Tick < 0 || r.Limit < 1 || r.Limit > 8 || len(r.Goals) > 512 || len(r.Commitments) > 4096 {
+	if r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 512 || len(r.Commitments) > 4096 {
 		return DevelopmentState{}, errors.New("invalid development review")
 	}
 	weights := r.Weights
@@ -298,10 +294,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	if census, known := r.Census.Value(); known && len(census) > MaxAllocWorkers {
 		return DevelopmentState{}, errors.New("invalid worker census")
 	}
-	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(r.Limit, workers), Auto: r.Auto, StageHold: r.Stage.HoldsDevelopment()}
-	if r.Auto {
-		result.Census = r.Census
-	}
+	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(MaxAutoDevelopmentProjects, workers), Census: r.Census, StageHold: r.Stage.HoldsDevelopment()}
 	result.Partial = r.Partial
 	if !validLabor(r.Withheld) {
 		return DevelopmentState{}, errors.New("invalid withheld labor")
@@ -377,7 +370,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	for id := range committed {
 		result.Committed = append(result.Committed, id)
 	}
-	result.Holds = CommitmentHolds(r.Commitments, r.Tick, released, r.Auto, r.Withheld)
+	result.Holds = CommitmentHolds(r.Commitments, r.Tick, released, r.Withheld)
 	sort.Slice(result.Committed, func(i, j int) bool { return result.Committed[i] < result.Committed[j] })
 	emergency := false
 	seen := map[GoalID]bool{}

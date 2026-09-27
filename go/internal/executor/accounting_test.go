@@ -72,7 +72,9 @@ func TestRestartRebuildsCompetingPreparedAndDispatchedHolds(t *testing.T) {
 		t.Run(map[bool]string{false: "prepared", true: "dispatched"}[dispatch], func(t *testing.T) {
 			f, held := multiple(t)
 			ctx := context.Background()
-			if _, err := f.store.ReserveAndPrepare(ctx, f.plan.ID(), held.ID(), heldAdmission(f, held, 12)); err != nil {
+			admission := heldAdmission(f, held, 12)
+			admission.Footprint = append(admission.Footprint, heldAdmission(f, f.action, 0).Footprint...)
+			if _, err := f.store.ReserveAndPrepare(ctx, f.plan.ID(), held.ID(), admission); err != nil {
 				t.Fatal(err)
 			}
 			if dispatch {
@@ -82,17 +84,16 @@ func TestRestartRebuildsCompetingPreparedAndDispatchedHolds(t *testing.T) {
 			}
 			reopenExecutor(t, f)
 			result, err := f.run()
-			if !errors.Is(err, ErrHeld) || result.NativeCalled || len(result.Refused) != 1 || result.Refused[0].Reason != policy.InsufficientStock {
+			if !errors.Is(err, ErrHeld) || result.NativeCalled || len(result.Refused) != 1 || result.Refused[0].Reason != policy.GeometryBlocked {
 				t.Fatal("restart omitted durable hold", result, err)
 			}
 		})
 	}
 }
 
-// A reservation recorded as shelter work dispatches under the same class:
-// the competing hold that starves a routine wall does not hold a shell's,
+// A reservation recorded as shelter work dispatches beside a competing hold
 // and the rewritten admission keeps the purpose (#602).
-func TestRecordedShelterPurposeSpendsWithoutStockAtDispatch(t *testing.T) {
+func TestRecordedShelterPurposeSurvivesDispatch(t *testing.T) {
 	f, held := multiple(t)
 	ctx := context.Background()
 	if _, err := f.store.ReserveAndPrepare(ctx, f.plan.ID(), held.ID(), heldAdmission(f, held, 12)); err != nil {
@@ -102,11 +103,6 @@ func TestRecordedShelterPurposeSpendsWithoutStockAtDispatch(t *testing.T) {
 	own.Purpose = policy.Shelter
 	if _, err := f.store.ReserveAndPrepare(ctx, f.plan.ID(), f.action.ID(), own); err != nil {
 		t.Fatal(err)
-	}
-	// Without an operator reserve the stock is no spending budget.
-	f.env.onInspect = func(_ int, in Inspection) Inspection {
-		in.Rules = nil
-		return in
 	}
 	reopenExecutor(t, f)
 	result, err := f.run()
@@ -121,20 +117,6 @@ func TestRecordedShelterPurposeSpendsWithoutStockAtDispatch(t *testing.T) {
 		if record.Action == f.action.ID() && record.Admission.Purpose != policy.Shelter {
 			t.Fatal("dispatch dropped the recorded purpose", record)
 		}
-	}
-	// A spending rule still holds a shell at dispatch.
-	f, _ = multiple(t)
-	own = heldAdmission(f, f.action, 10)
-	own.Purpose = policy.Shelter
-	if _, err := f.store.ReserveAndPrepare(ctx, f.plan.ID(), f.action.ID(), own); err != nil {
-		t.Fatal(err)
-	}
-	f.env.onInspect = func(_ int, in Inspection) Inspection {
-		in.Rules = []policy.ResourceRule{{Resource: "WoodLog", Spending: policy.Stop}}
-		return in
-	}
-	if result, err := f.run(); !errors.Is(err, ErrHeld) || result.NativeCalled || len(result.Refused) != 1 || result.Refused[0].Reason != policy.SpendingBlocked {
-		t.Fatal("spending rule ignored for shelter", result, err)
 	}
 }
 func TestMissingProtectedAdmissionRefusesButUnadmittedPendingDoesNot(t *testing.T) {

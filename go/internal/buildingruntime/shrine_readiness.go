@@ -156,7 +156,7 @@ func routineShrineHolds(ctx context.Context, native any, snapshot domain.Generat
 	if err != nil {
 		return nil, shrinePolicy, err
 	}
-	if shrinePolicy, err = judgeShrineOpening(ctx, reads, boundary.Identity(snapshot), shrines, projection); err != nil {
+	if shrinePolicy, err = shrineOpening(ctx, reads, boundary.Identity(snapshot), shrines, projection); err != nil {
 		return nil, shrinePolicy, err
 	}
 	out := make([]policy.ShrineHold, 0, len(reports))
@@ -286,6 +286,3 @@ func shrineOpeningFromHolds(holds []policy.ShrineHold) policy.ShrinePolicy {
 	}
 	return out
 }
-
-// judgeShrineOpening is shrineOpening; tests replace it to stage a ready gate.
-var judgeShrineOpening = shrineOpening

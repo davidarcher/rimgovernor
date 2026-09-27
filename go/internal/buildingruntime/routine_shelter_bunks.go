@@ -551,7 +551,7 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 		clockSchedulerLog("%s: %s: none of %d bunks placeable", r.goal, method, len(anchors))
 		return RoutineBuildingResult{}, false, nil
 	}
-	result, err := r.admitPreviews(call, epoch, routineAdmission{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Routine, partial: true, check: s.check})
+	result, err := r.admitPreviews(call, epoch, routineAdmission{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Routine, check: s.check})
 	if err != nil {
 		return result, false, err
 	}

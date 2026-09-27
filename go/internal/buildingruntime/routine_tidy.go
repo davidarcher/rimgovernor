@@ -255,7 +255,7 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 		return RoutineTidyResult{}, ErrControl
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: tick}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}

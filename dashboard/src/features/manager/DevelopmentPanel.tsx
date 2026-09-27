@@ -55,7 +55,7 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
     {state.value?.stage && <p className="colony-stage" data-testid="colony-stage">Colony stage {state.value.stage.stage} since tick {state.value.stage.since.toLocaleString()}{state.value.stage.blocker ? ` · next stage waits on ${state.value.stage.blocker}: ${state.value.stage.reason}` : ''}{state.value.stage.held ? ' · comfort-class development held' : ''}</p>}
     {state.value && !d && <p>No routine review has ranked development yet.</p>}
     {d && <>
-      <p>Reviewed tick {d.tick.toLocaleString()} · {d.mode === 'auto' ? 'Automatic admission, at most' : 'Project limit'} {d.capacity} · Workers {d.workers ?? 'unknown'} · Committed {d.committed.length ? d.committed.join(', ') : 'none'}</p>
+      <p>Reviewed tick {d.tick.toLocaleString()} · Automatic admission, at most {d.capacity} · Workers {d.workers ?? 'unknown'} · Committed {d.committed.length ? d.committed.join(', ') : 'none'}</p>
       <p className="development-capacity" data-testid="development-capacity">Held by startup work: {d.heldWorkers}{d.unusedWorkers !== null && ` · Unused workers: ${d.unusedWorkers}`} · {d.limiting ? `Limited by: ${reasonLabels[d.limiting]}` : 'No eligible goal waiting'}{d.continuation && ' · Regrants spent until the next review'}</p>
       {d.labor.length > 0 && <p className="development-labor">Free labor: {d.labor.map(l => `${l.work} ${l.free}`).join(' · ')}</p>}
       {d.rows.length === 0 ? <p>No optional goals are competing.</p> : <table className="development-table"><thead><tr><th scope="col">Goal</th><th scope="col">Status</th><th scope="col">Score</th><th scope="col">Deficit</th><th scope="col">Risk</th><th scope="col">Waiting since</th></tr></thead>

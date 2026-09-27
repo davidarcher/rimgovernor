@@ -121,7 +121,7 @@ namespace HomeBridge.BridgeTools
             string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured,
             int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false, string medicalRestIds = "",
-            int blindTickBudget = 0, int maxTicksPerSecond = 0, bool playerPaced = false, int frameBudgetMs = 0)
+            int blindTickBudget = 0, int maxTicksPerSecond = 0, bool playerPaced = false)
         {
             lock (Gate)
             {
@@ -163,7 +163,7 @@ namespace HomeBridge.BridgeTools
                     LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(), LastDigestTick = Find.TickManager.TicksGame,
                     TestAcceleration = testAcceleration,
                     BlindTickBudget = Clamp(blindTickBudget, 0, 1800000), MaxTicksPerSecond = Clamp(maxTicksPerSecond, 0, 60000),
-                    PlayerPaced = playerPaced, FrameBudgetMs = ClampFrameBudget(frameBudgetMs), Paced = PacedFloorMultiplier, LastPaceMs = NowMs(),
+                    PlayerPaced = playerPaced, FrameBudgetMs = DefaultFrameBudgetMs, Paced = PacedFloorMultiplier, LastPaceMs = NowMs(),
                     LastReadTick = Find.TickManager.TicksGame, AckedCursor = _cursor,
                     IgnoredHostiles = PawnIds(ignoredHostiles),
                     IgnoredDowned = PawnIds(ignoredDowned),

@@ -77,8 +77,9 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.AnimalState AnimalRow(Pawn animal)
         {
-            var row = new Obs.AnimalState { Gender = animal.gender.ToString(), BodySize = Number(animal.RaceProps.baseBodySize) };
-            if (animal.ageTracker != null) row.AgeYears = Number(animal.ageTracker.AgeBiologicalYearsFloat);
+            // Gender, age and the other herd facts (#875) come only from the
+            // colony upkeep census (NativeHusbandryOperations.HerdFacts, #885).
+            var row = new Obs.AnimalState { BodySize = Number(animal.RaceProps.baseBodySize) };
             if (animal.training != null)
             {
                 foreach (var def in DefDatabase<TrainableDef>.AllDefsListForReading)

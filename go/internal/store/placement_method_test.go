@@ -13,11 +13,11 @@ func TestSelectedPlacementUsesSharedMethodAccounting(t *testing.T) {
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	other := anotherGoal(t, s, "other")
-	held, err := s.AdmitBuildingMethod(ctx, methodRequest(t, other, "held", 50))
+	held, err := s.AdmitBuildingMethod(ctx, methodRequest(t, other, "held", 50, 50))
 	if err != nil || !held.Admitted {
 		t.Fatal(held, err)
 	}
-	r := methodRequest(t, g, "bed", 60, 60)
+	r := methodRequest(t, g, "beds", 60, 60)
 	r.Previews[0].SafeToPlace = domain.Known(false)
 	searchRequest := policy.PlacementSearchRequest{Snapshot: r.Current, Tick: r.Tick, Bounds: policy.Bounds{Width: 100, Height: 100}, Center: domain.Cell{X: 30, Z: 5}, Environment: policy.PlacementAnywhere, Radius: 22, Limit: 64}
 	for _, a := range r.Plan.Actions() {
@@ -38,8 +38,8 @@ func TestSelectedPlacementUsesSharedMethodAccounting(t *testing.T) {
 	}
 	r.Previews = []policy.Preview{selected}
 	d, err := s.AdmitBuildingMethod(ctx, r)
-	if err != nil || d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != policy.InsufficientStock {
-		t.Fatal("selection bypassed shared stock", d, err)
+	if err != nil || d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != policy.GeometryBlocked {
+		t.Fatal("selection bypassed shared geometry", d, err)
 	}
 	if _, err = s.CancelGoal(ctx, other.Goal.ID, held.Goal.Revision); err != nil {
 		t.Fatal(err)

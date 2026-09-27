@@ -78,14 +78,11 @@ func haulPairFixture(t *testing.T) (*RoutineReviewer, *routineNative) {
 			Job:       &o.JobEvidence{DefName: proto.String("Wait"), PlayerForced: proto.Bool(false)},
 			Health:    &o.PawnHealth{NeedsTend: proto.Bool(false), Bleeding: proto.Bool(false)},
 			Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{},
-			Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), Work: []*o.WorkSetting{{DefName: proto.String("Hauling"), Priority: proto.Int32(1), Disabled: proto.Bool(!hauls)}}},
+			Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), Work: []*o.WorkSetting{{DefName: proto.String("Hauling"), Priority: proto.Int32(1), Disabled: proto.Bool(!hauls)}, {DefName: proto.String("Construction"), Priority: proto.Int32(1), Disabled: proto.Bool(false)}}},
 			Issues:   []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
 	}
 	rows := []*o.PawnState{row("hauler", true), row("hauler2", true), row("hauler3", true)}
 	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: rows, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(3), Returned: proto.Uint64(3), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
-	// The fixture already holds one player Wall plan in flight; two more
-	// slots let both haul goals be selected in one review.
-	reviewer.policy.SetProjectLimit(3)
 	reviewer.native = &haulPairNative{routineNative: native}
 	got, err := reviewer.Step(context.Background())
 	if err != nil {

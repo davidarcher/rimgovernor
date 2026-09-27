@@ -17,8 +17,8 @@ import (
 // NativeHusbandryOperations.cs (integrations/rimgovernor-native/src/Bridge/Protocol),
 // wired onto Operation_SetAnimalTraining/SlaughterAnimal/TameAnimal/
 // ReleaseAnimal/SetAnimalArea/SetAnimalMaster/SetAnimalFollowing in
-// NativeOperationTools.cs's Execute/Preview dispatch. It ports the legacy
-// JSON home/husbandry_config tool's (HusbandryTools.Configure) eligibility
+// NativeOperationTools.cs's Execute/Preview dispatch. It ports the deleted (#885)
+// JSON home/husbandry_config tool's eligibility
 // checks behind the typed boundary: an accepted order is a direct settings
 // write (no native job), so acceptance is the effect, not a promise of one.
 type HusbandryMethod int32

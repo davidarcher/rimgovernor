@@ -135,7 +135,7 @@ func TestWorkerHeldStale(t *testing.T) {
 	if workerHeldStale(pending, stale, nil) || workerHeldStale(pending, stale, executor.ErrEvidence) {
 		t.Fatal("only a hold counts")
 	}
-	if workerHeldStale(pending, executor.Result{Refused: []policy.Refusal{{Reason: policy.InsufficientStock}}}, executor.ErrHeld) {
+	if workerHeldStale(pending, executor.Result{Refused: []policy.Refusal{{Reason: policy.GeometryBlocked}}}, executor.ErrHeld) {
 		t.Fatal("a world-condition refusal is not stale facts")
 	}
 	if workerHeldStale(domain.ProgressView{Stage: domain.AwaitingObservation, Unresolved: true}, stale, executor.ErrHeld) {

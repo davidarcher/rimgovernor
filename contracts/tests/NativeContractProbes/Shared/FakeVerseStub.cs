@@ -125,13 +125,13 @@ namespace HomeBridge.BridgeTools
         private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
         private static object Start(string owner, Verse.TimeSpeed speed, int leaseMs, string mode, float healthDrop, float minHealth, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured, int cooldown, int maxTicks, string surgical, bool acceleration, string rest,
-            int blindTickBudget = 0, int maxTicksPerSecond = 0, bool playerPaced = false, int frameBudgetMs = 0)
+            int blindTickBudget = 0, int maxTicksPerSecond = 0, bool playerPaced = false)
         {
             var s = new State
             {
                 Active = true, Epoch = ++_epoch, Session = Verse.Current.Game, Map = Verse.Find.CurrentMap, RequestedSpeed = speed,
                 BlindTickBudget = blindTickBudget, MaxTicksPerSecond = maxTicksPerSecond,
-                PlayerPaced = playerPaced, FrameBudgetMs = playerPaced ? ClampFrameBudget(frameBudgetMs) : 0,
+                PlayerPaced = playerPaced, FrameBudgetMs = playerPaced ? DefaultFrameBudgetMs : 0,
                 StartTick = Verse.Find.TickManager.TicksGame, TickDeadline = Verse.Find.TickManager.TicksGame + maxTicks, LastTick = Verse.Find.TickManager.TicksGame
             };
             EnsureJournal();
@@ -186,8 +186,7 @@ namespace HomeBridge.BridgeTools
         // Player acceleration (#627) lives in the production
         // SupervisedPlayPacing.cs partial, outside this project; the fake
         // reports a pacing epoch at Ultrafast's own rate with no frames.
-        internal const int DefaultFrameBudgetMs = 30, MinFrameBudgetMs = 5, MaxFrameBudgetMs = 45;
-        internal static int ClampFrameBudget(int ms) => ms == 0 ? DefaultFrameBudgetMs : Math.Max(MinFrameBudgetMs, Math.Min(MaxFrameBudgetMs, ms));
+        internal const int DefaultFrameBudgetMs = 30;
         private static double EffectiveTicksPerSecond() => 0;
         private static void ReportFrames(RimGovernor.Protocol.Clock.Status status) { }
         private static int PacedTicksPerSecond(State s) => 900;

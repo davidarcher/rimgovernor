@@ -64,7 +64,6 @@ and talks GABP to RimBridgeServer directly.
 | `--assets`, `--listen`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); native call timeout. |
 | `--clock-test-acceleration` | Acceptance only: every window at boosted Ultrafast. Otherwise each window runs at the speed the player last chose in game (Ultrafast under player pacing when none was chosen, #875). |
 | `--routine-resource-*` | Routine tuning: resource reserves/stops (MaintainResource keeps the default floors: Steel 200, ComponentIndustrial 10, stone blocks 150; trade buys components toward the same floor). |
-| `--resource-rule` | Resource reservation rules for building admission. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
 | `--chat-model`, `--chat-base-url` | Local model chat; `--chat-base-url` requires `--chat-model`. |
 | `--flight-recorder <path>` | Where the flight recorder ring lives (default `<profile>/flight/flight.jsonl`; none under `--observe`) (see [Native request diagnostics](#native-request-diagnostics)). |
@@ -647,25 +646,6 @@ or already committed campfire work. Native previews and shared reservations deci
 geometry and cost. Building the campfire does not certify a food bill or cooked
 food; bill/upkeep methods remain separate action-family work.
 
-Configure shared spending rules with repeatable `serve`
-options such as `--resource-rule WoodLog:allow:50` or
-`--resource-rule Steel:defense_only:100`. Each rule names a native resource,
-`allow`, `stop` or `defense_only`, and a nonnegative reserve. Duplicate resources
-and invalid rules fail startup. Routine method admission and Hands use the same
-session rules; current building methods have routine purpose. Rules apply to new
-admission and dispatch, without undoing issued native work. These process settings
-are not saved in SQLite: supply them again on restart.
-
-Native preview stock already subtracts every blueprint/frame's remaining material
-deficit. After a complete attempt-correlated observation of a pending construction,
-Go retains its footprint but lets net stock from a later game tick replace its
-original cost reservation. Repeated pending reads retain the first proof tick;
-unknown evidence clears it. Same-tick stock, unobserved writes and gross stock keep
-the original cost hold. The proof replays from the fresh Go journal; it does not
-certify pawn completion. The construction-accounting scenario is two shared
-player projects under a reserve that permits exactly two walls, including
-unfinished work and restart; it has no Go acceptance binary yet.
-
 Autonomous play attaches the reviewer to the service clock worker. It uses the
 default routine thresholds and requires typed colony observations. Startup
 remains disabled. The reviewer journals needs; the `sleeping` family compiles
@@ -826,10 +806,8 @@ For the container runner, pass `--start-save RimGovernor-tribal8-baseline` to
 repeat the committed starting colony.
 `--cooking-methods` adds campfire
 construction and verifies that cooking still needs a bill after the building
-completes. Its `--resource-rule WoodLog:stop:0` variant uses the same room fixture
-and compile-only cooking to verify pending player work, no routine admissions or
-construction orders, Manual and disabled restart. Normal authorized clock windows
-remain available under spending restrictions. Clock acceptance additionally requires a healthy colony and verifies clock
+completes.
+Clock acceptance additionally requires a healthy colony and verifies clock
 advancement and construction.
 
 ## Local interpretation

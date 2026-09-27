@@ -118,27 +118,26 @@ func TestSoldierArmorGapProgression(t *testing.T) {
 	}
 }
 
-func TestGearBudgetRefusesUnderReserve(t *testing.T) {
+func TestGearBudgetRefusesUnderHolds(t *testing.T) {
 	stock := []Stock{{Resource: "Steel", Available: domain.Known(int64(100))}, {Resource: "Plasteel", Available: domain.Known(int64(30))}, {Resource: "Cloth", Available: domain.Known(int64(50))}}
-	rules := []ResourceRule{{Resource: "Steel", Spending: Allow, Reserve: 80}, {Resource: "Cloth", Spending: Stop}}
-	holds := []Amount{{"Plasteel", 25}}
-	budget := GearMaterialBudget(stock, rules, holds)
-	if !reflect.DeepEqual(budget, []Amount{{"Cloth", 0}, {"Plasteel", 5}, {"Steel", 20}}) {
+	holds := []Amount{{"Steel", 80}, {"Plasteel", 25}}
+	budget := GearMaterialBudget(stock, holds)
+	if !reflect.DeepEqual(budget, []Amount{{"Cloth", 50}, {"Plasteel", 5}, {"Steel", 20}}) {
 		t.Fatal(budget)
 	}
 	helmet := armorOption("Apparel_SimpleHelmet", GearHeadgear, 50, 50, []string{"Smithing"}, Amount{"Steel", 40})
 	p := GearLoadoutInput{Role: GearRoleInput{DraftedSquad: true}, Research: []string{"Smithing"}, Budget: budget}
 	if gearEligible(p, helmet) {
-		t.Fatal("steel under reserve")
+		t.Fatal("steel under holds")
 	}
 	stored := helmet
 	stored.ID, stored.Source = "helmet-stored", GearStored
 	if !gearEligible(p, stored) {
 		t.Fatal("a stored helmet costs no steel")
 	}
-	p.Budget = GearMaterialBudget(stock, []ResourceRule{{Resource: "Steel", Spending: Allow, Reserve: 60}}, nil)
+	p.Budget = GearMaterialBudget(stock, []Amount{{"Steel", 60}})
 	if !gearEligible(p, helmet) {
-		t.Fatal("steel over reserve")
+		t.Fatal("steel over holds")
 	}
 	p.Budget = nil
 	if !gearEligible(p, helmet) {

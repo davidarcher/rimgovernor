@@ -607,9 +607,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewGearReplaceAction(id, g)
 		return a, ordinal, err
 	}
-	if kind == "open_casket" && pawn.Valid && target.Valid && x.Valid && z.Valid && (!def.Valid || def.String == "heat") && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
-		// A "heat" row predates the heat fallback's removal (#875); it loads
-		// as a plain opening so an old journal still reads.
+	if kind == "open_casket" && pawn.Valid && target.Valid && x.Valid && z.Valid && !def.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		op, err := domain.NewOpenCasket(domain.PawnID(pawn.String), target.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
 		if err != nil {
 			return domain.Action{}, 0, err

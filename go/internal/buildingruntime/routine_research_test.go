@@ -62,17 +62,15 @@ func (n *researchNative) ReadResearch(ctx context.Context, _ *c.Identity) (bridg
 func TestRoutineResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 	t.Parallel()
 	reviewer, db, _, _, base := routineFixture(t)
-	// The explicit two-slot path: the fixture's player plan holds one.
-	reviewer.policy.SetProjectLimit(2)
 	n := &researchNative{routineNative: base, finished: []string{"Stonecutting"}}
 	v := base.reply.GetObserved()
-	// Three research-capable colonists: a development slot is bounded by
+	// Three research- and construction-capable colonists: a development slot is bounded by
 	// observed workers, and the fixture's own player plan holds one.
 	v.ColonistCount, v.WorkerCount = proto.Uint32(3), proto.Uint32(3)
 	complete := &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(3), Returned: proto.Uint64(3), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
 	pawns := &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: complete}
 	for _, id := range n.ids() {
-		pawns.Pawns = append(pawns.Pawns, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(0)}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{Skills: []*o.Skill{{Definition: &o.DefinitionRef{DefName: proto.String("Intellectual")}, Level: proto.Int32(6), Passion: proto.String("None"), Disabled: proto.Bool(false)}}}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), Work: []*o.WorkSetting{{DefName: proto.String("Research"), Priority: proto.Int32(1), Disabled: proto.Bool(false)}}}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}, {Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}})
+		pawns.Pawns = append(pawns.Pawns, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(0)}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{Skills: []*o.Skill{{Definition: &o.DefinitionRef{DefName: proto.String("Intellectual")}, Level: proto.Int32(6), Passion: proto.String("None"), Disabled: proto.Bool(false)}}}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), Work: []*o.WorkSetting{{DefName: proto.String("Research"), Priority: proto.Int32(1), Disabled: proto.Bool(false)}, {DefName: proto.String("Construction"), Priority: proto.Int32(1), Disabled: proto.Bool(false)}}}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}, {Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}})
 	}
 	base.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: pawns}}
 	reviewer.native = n
@@ -123,15 +121,13 @@ func TestRoutineResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 func TestRoutineResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 	t.Parallel()
 	reviewer, db, _, _, base := routineFixture(t)
-	// The explicit two-slot path: the fixture's player plan holds one.
-	reviewer.policy.SetProjectLimit(2)
 	n := &researchNative{routineNative: base, finished: []string{"Stonecutting"}, benchMissing: true}
 	v := base.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(3), proto.Uint32(3)
 	complete := &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(3), Returned: proto.Uint64(3), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
 	pawns := &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: complete}
 	for _, id := range n.ids() {
-		pawns.Pawns = append(pawns.Pawns, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(0)}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{Skills: []*o.Skill{{Definition: &o.DefinitionRef{DefName: proto.String("Intellectual")}, Level: proto.Int32(6), Passion: proto.String("None"), Disabled: proto.Bool(false)}}}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), Work: []*o.WorkSetting{{DefName: proto.String("Research"), Priority: proto.Int32(1), Disabled: proto.Bool(false)}}}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}, {Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}})
+		pawns.Pawns = append(pawns.Pawns, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(0)}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{Skills: []*o.Skill{{Definition: &o.DefinitionRef{DefName: proto.String("Intellectual")}, Level: proto.Int32(6), Passion: proto.String("None"), Disabled: proto.Bool(false)}}}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), Work: []*o.WorkSetting{{DefName: proto.String("Research"), Priority: proto.Int32(1), Disabled: proto.Bool(false)}, {DefName: proto.String("Construction"), Priority: proto.Int32(1), Disabled: proto.Bool(false)}}}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}, {Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}})
 	}
 	base.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: pawns}}
 	reviewer.native = n

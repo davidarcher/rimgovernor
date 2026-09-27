@@ -143,8 +143,9 @@ func (ObservedSpeed) EnumDescriptor() ([]byte, []int) {
 
 // How a running Ultrafast epoch paces its ticks (#627). FIXED is the speed's
 // own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
-// boosted rate while the frame's tick work stays inside frame_budget_ms, so
-// input, rendering and control dispatch keep their share of each frame; the
+// boosted rate while the frame's tick work stays inside native's 30 ms frame
+// budget, so input, rendering and control dispatch keep their share of each
+// frame; the
 // game's forced slowdown still holds it at Normal. It needs no test launch.
 type Pacing int32
 
@@ -927,10 +928,9 @@ type StartRequest struct {
 	// SpeedRequest. Zero or absent is the speed's own rate.
 	MaxTicksPerSecond *uint32 `protobuf:"varint,8,opt,name=max_ticks_per_second,json=maxTicksPerSecond,proto3,oneof" json:"max_ticks_per_second,omitempty"`
 	// PACING_PLAYER_ACCELERATED requires SPEED_ULTRAFAST and excludes
-	// test_acceleration; absent is PACING_FIXED. frame_budget_ms (5..45,
-	// absent = 30) is the wall time per frame the tick loop may take.
+	// test_acceleration; absent is PACING_FIXED. Native paces it against its
+	// own 30 ms frame budget (Epoch.frame_budget_ms).
 	Pacing        *Pacing `protobuf:"varint,9,opt,name=pacing,proto3,enum=rimgovernor.clock.v1.Pacing,oneof" json:"pacing,omitempty"`
-	FrameBudgetMs *uint32 `protobuf:"varint,10,opt,name=frame_budget_ms,json=frameBudgetMs,proto3,oneof" json:"frame_budget_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1026,13 +1026,6 @@ func (x *StartRequest) GetPacing() Pacing {
 		return *x.Pacing
 	}
 	return Pacing_PACING_UNSPECIFIED
-}
-
-func (x *StartRequest) GetFrameBudgetMs() uint32 {
-	if x != nil && x.FrameBudgetMs != nil {
-		return *x.FrameBudgetMs
-	}
-	return 0
 }
 
 type OwnedRequest struct {
@@ -5231,7 +5224,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x15controller_session_id\x18\x01 \x01(\tH\x00R\x13controllerSessionId\x88\x01\x01\x12\x19\n" +
 	"\x05epoch\x18\x02 \x01(\x03H\x01R\x05epoch\x88\x01\x01B\x18\n" +
 	"\x16_controller_session_idB\b\n" +
-	"\x06_epoch\"\x98\x05\n" +
+	"\x06_epoch\"\xee\x04\n" +
 	"\fStartRequest\x12I\n" +
 	"\tauthority\x18\x01 \x01(\v2+.rimgovernor.authority.v1.WritePreconditionR\tauthority\x126\n" +
 	"\x05speed\x18\x02 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01\x129\n" +
@@ -5241,9 +5234,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x11test_acceleration\x18\x06 \x01(\bH\x03R\x10testAcceleration\x88\x01\x01\x12/\n" +
 	"\x11blind_tick_budget\x18\a \x01(\rH\x04R\x0fblindTickBudget\x88\x01\x01\x124\n" +
 	"\x14max_ticks_per_second\x18\b \x01(\rH\x05R\x11maxTicksPerSecond\x88\x01\x01\x129\n" +
-	"\x06pacing\x18\t \x01(\x0e2\x1c.rimgovernor.clock.v1.PacingH\x06R\x06pacing\x88\x01\x01\x12+\n" +
-	"\x0fframe_budget_ms\x18\n" +
-	" \x01(\rH\aR\rframeBudgetMs\x88\x01\x01B\b\n" +
+	"\x06pacing\x18\t \x01(\x0e2\x1c.rimgovernor.clock.v1.PacingH\x06R\x06pacing\x88\x01\x01B\b\n" +
 	"\x06_speedB\v\n" +
 	"\t_lease_msB\f\n" +
 	"\n" +
@@ -5251,8 +5242,8 @@ const file_clock_proto_rawDesc = "" +
 	"\x12_test_accelerationB\x14\n" +
 	"\x12_blind_tick_budgetB\x17\n" +
 	"\x15_max_ticks_per_secondB\t\n" +
-	"\a_pacingB\x12\n" +
-	"\x10_frame_budget_ms\"\x83\x01\n" +
+	"\a_pacingJ\x04\b\n" +
+	"\x10\vR\x0fframe_budget_ms\"\x83\x01\n" +
 	"\fOwnedRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x126\n" +
 	"\x05owner\x18\x02 \x01(\v2 .rimgovernor.clock.v1.EpochOwnerR\x05owner\"\xc0\x01\n" +

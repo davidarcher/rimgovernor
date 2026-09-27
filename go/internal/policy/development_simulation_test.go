@@ -80,7 +80,7 @@ func (s *developmentSim) review() DevelopmentState {
 		commitments = append(commitments, s.commitment(goal, AutopilotGoal, 4, true))
 	}
 	commitments = append(commitments, s.player...)
-	state, err := RankDevelopment(DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Labor: s.labor, Limit: s.limit, Goals: s.goals, Commitments: commitments, Previous: s.state})
+	state, err := RankDevelopment(DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Labor: s.labor, Goals: s.goals, Commitments: commitments, Previous: s.state})
 	if err != nil {
 		s.t.Fatal(err)
 	}

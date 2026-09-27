@@ -267,7 +267,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoutineIngredientStorageResult{}, observation.ErrStale
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{evaluated}, Purpose: policy.Routine})
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{evaluated}, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}

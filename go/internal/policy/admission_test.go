@@ -34,7 +34,7 @@ func candidate(t *testing.T, id domain.ActionID, x int32, count int64) Candidate
 	return Candidate{Action: a, Progress: p, Purpose: Routine, Preview: Preview{Action: a, Snapshot: current(), Tick: 20, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{b.Cell()}), Costs: domain.Known([]Amount{{"Steel", count}})}}
 }
 func request(c ...Candidate) Request {
-	return Request{Current: current(), CurrentTick: 20, Bounds: domain.Known(Bounds{100, 100}), Candidates: c, Stock: StockObservation{Snapshot: current(), Tick: 20, Values: []Stock{{"Steel", domain.Known(int64(101))}}}, Rules: []ResourceRule{{"Steel", 1, Allow}}}
+	return Request{Current: current(), CurrentTick: 20, Bounds: domain.Known(Bounds{100, 100}), Candidates: c, Stock: StockObservation{Snapshot: current(), Tick: 20, Values: []Stock{{"Steel", domain.Known(int64(101))}}}}
 }
 func decide(t *testing.T, r Request) Decision {
 	t.Helper()
@@ -70,32 +70,26 @@ func issue(t *testing.T, c Candidate) Candidate {
 	return c
 }
 
-func TestPriorityStableIdentityAndNoOvercommit(t *testing.T) {
-	a, b, c := candidate(t, "a", 1, 60), candidate(t, "b", 2, 50), candidate(t, "c", 3, 40)
+func TestPriorityStableIdentityOrdering(t *testing.T) {
+	a, b, c := candidate(t, "a", 1, 60), candidate(t, "b", 1, 50), candidate(t, "c", 1, 40)
 	b.Priority = 2
-	r := request(c, a, b)
-	d := decide(t, r)
-	if len(d.Admitted) != 2 || d.Admitted[0].Action.ID() != "b" || d.Admitted[1].Action.ID() != "c" || len(d.Refused) != 1 || d.Refused[0].Action != "a" {
+	d := decide(t, request(c, a, b))
+	if len(d.Admitted) != 1 || d.Admitted[0].Action.ID() != "b" || len(d.Refused) != 2 {
 		t.Fatal(d)
 	}
-	a.Preview.Costs = domain.Known([]Amount{{"Steel", 50}})
-	r = request(b, a)
 	b.Priority = 0
-	r.Candidates = []Candidate{b, a}
-	d = decide(t, r)
+	d = decide(t, request(c, b, a))
 	if d.Admitted[0].Action.ID() != "a" {
 		t.Fatal("equal priority not stable ID ordered")
 	}
 }
 func TestUnknownUnsafeAndStaleFactsRefuse(t *testing.T) {
 	for name, change := range map[string]func(*Request){
-		"stock":         func(r *Request) { r.Stock.Values[0].Available = domain.Unknown[int64]() },
-		"missing stock": func(r *Request) { r.Stock.Values = nil },
-		"cost":          func(r *Request) { r.Candidates[0].Preview.Costs = domain.Unknown[[]Amount]() },
-		"footprint":     func(r *Request) { r.Candidates[0].Preview.Footprint = domain.Unknown[[]domain.Cell]() },
-		"bounds":        func(r *Request) { r.Bounds = domain.Unknown[Bounds]() },
-		"safe":          func(r *Request) { r.Candidates[0].Preview.SafeToPlace = domain.Unknown[bool]() },
-		"material":      func(r *Request) { r.Candidates[0].Preview.MadeFromStuff = domain.Unknown[bool]() },
+		"cost":      func(r *Request) { r.Candidates[0].Preview.Costs = domain.Unknown[[]Amount]() },
+		"footprint": func(r *Request) { r.Candidates[0].Preview.Footprint = domain.Unknown[[]domain.Cell]() },
+		"bounds":    func(r *Request) { r.Bounds = domain.Unknown[Bounds]() },
+		"safe":      func(r *Request) { r.Candidates[0].Preview.SafeToPlace = domain.Unknown[bool]() },
+		"material":  func(r *Request) { r.Candidates[0].Preview.MadeFromStuff = domain.Unknown[bool]() },
 	} {
 		t.Run(name, func(t *testing.T) { r := request(candidate(t, "a", 1, 10)); change(&r); reason(t, r, UnknownFacts) })
 	}
@@ -136,20 +130,9 @@ func TestFootprintUsesAllNativeCells(t *testing.T) {
 		reason(t, request(c), GeometryBlocked)
 	}
 }
-func TestSpendingReservesAndDependencies(t *testing.T) {
+func TestDependencies(t *testing.T) {
 	c := candidate(t, "a", 1, 10)
 	r := request(c)
-	r.Rules = []ResourceRule{{"Steel", 95, Allow}}
-	reason(t, r, InsufficientStock)
-	r.Rules = []ResourceRule{{"Steel", 0, Stop}}
-	reason(t, r, SpendingBlocked)
-	r.Rules = []ResourceRule{{"Steel", 0, DefenseOnly}}
-	reason(t, r, SpendingBlocked)
-	r.Candidates[0].Purpose = Defense
-	if len(decide(t, r).Admitted) != 1 {
-		t.Fatal("defense spending blocked")
-	}
-	r = request(c)
 	r.Candidates[0].Dependencies = []Dependency{{Action: "previous", Snapshot: current(), Tick: 20}}
 	reason(t, r, DependencyBlocked)
 	r.Candidates[0].Dependencies[0].Completed = domain.Known(false)
@@ -162,44 +145,19 @@ func TestSpendingReservesAndDependencies(t *testing.T) {
 	reason(t, request(issued), NotReady)
 }
 
-// Without an operator reserve no work spends a stock budget: frames hold
-// natively for materials (#602). Spending rules and an operator reserve
-// still apply, and an admitted shell still counts against what routine work
-// may spend.
-func TestShelterPurposeSkipsStockButKeepsSpendingAndReserve(t *testing.T) {
+// No work spends a stock budget: frames hold natively for materials (#602).
+func TestAdmissionSkipsStock(t *testing.T) {
 	c := candidate(t, "a", 1, 150)
 	r := request(c)
-	reason(t, r, InsufficientStock)
-	r.Rules = nil
 	if d := decide(t, r); len(d.Admitted) != 1 || len(d.Refused) != 0 {
-		t.Fatal("routine held for stock without a reserve", d.Refused)
-	}
-	r.Candidates[0].Purpose = Shelter
-	if d := decide(t, r); len(d.Admitted) != 1 || len(d.Refused) != 0 {
-		t.Fatal("shelter held for stock", d.Refused)
+		t.Fatal("routine held for stock", d.Refused)
 	}
 	r.Stock.Values[0].Available = domain.Unknown[int64]()
 	if d := decide(t, r); len(d.Admitted) != 1 {
-		t.Fatal("shelter held for unknown stock", d.Refused)
+		t.Fatal("held for unknown stock", d.Refused)
 	}
-	r = request(c)
-	r.Candidates[0].Purpose = Shelter
-	r.Rules = []ResourceRule{{"Steel", 0, Stop}}
-	reason(t, r, SpendingBlocked)
-	r.Rules = []ResourceRule{{"Steel", 0, DefenseOnly}}
-	reason(t, r, SpendingBlocked)
-	r.Rules = []ResourceRule{{"Steel", 1, Allow}}
-	reason(t, r, InsufficientStock)
-	r.Rules = nil
 	r.Stock.Snapshot.Native++
 	reason(t, r, StaleFacts)
-	// A shell admitted beside routine work still spends the shared budget.
-	shell, furniture := candidate(t, "a", 1, 90), candidate(t, "b", 2, 20)
-	shell.Purpose = Shelter
-	d := decide(t, request(shell, furniture))
-	if len(d.Admitted) != 1 || d.Admitted[0].Action != shell.Action || len(d.Refused) != 1 || d.Refused[0].Reason != InsufficientStock {
-		t.Fatal(d.Admitted, d.Refused)
-	}
 	r = request(c)
 	r.Candidates[0].Purpose = Purpose("shell")
 	if _, err := NewInput(r); err == nil {
@@ -214,15 +172,15 @@ func TestCancellationRetainsUncertainReservation(t *testing.T) {
 		t.Fatal(err)
 	}
 	old.Progress = p
-	r := request(candidate(t, "new", 2, 1))
+	r := request(candidate(t, "new", 1, 1))
 	r.Held = []Reservation{hold(old)}
-	reason(t, r, InsufficientStock)
+	reason(t, r, GeometryBlocked)
 	old.Progress, err = old.Progress.Observe(domain.Observation{Action: "old", Attempt: 1, Snapshot: ctx, Tick: 11, Effect: domain.EffectUnknown}, ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	r.Held = []Reservation{hold(old)}
-	reason(t, r, InsufficientStock)
+	reason(t, r, GeometryBlocked)
 	old.Progress, err = old.Progress.Observe(domain.Observation{Action: "old", Attempt: 1, Snapshot: ctx, Tick: 12, Effect: domain.EffectAbsent}, ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -273,11 +231,11 @@ func TestCompletedWorkYieldsToFreshNativePlacement(t *testing.T) {
 			}
 			r.Candidates[0].Preview.SafeToPlace = domain.Known(false)
 			reason(t, r, UnsafePlacement)
-			r.Candidates = []Candidate{candidate(t, "new", 2, 1)}
+			r.Candidates = []Candidate{candidate(t, "new", 1, 1)}
 			r.Stock.Tick = 14
 			r.CurrentTick = 14
 			r.Candidates[0].Preview.Tick = 14
-			reason(t, r, InsufficientStock)
+			reason(t, r, GeometryBlocked)
 			r.CurrentTick = 20
 			r.Candidates[0].Preview.Tick = 20
 			r.Stock.Tick = 20
@@ -291,7 +249,7 @@ func TestCompletedWorkYieldsToFreshNativePlacement(t *testing.T) {
 
 func TestHeldOrderingAndOtherPlanReservations(t *testing.T) {
 	r := request(candidate(t, "new", 1, 10))
-	held := hold(candidate(t, "held", 2, 95))
+	held := hold(candidate(t, "held", 1, 95))
 	other, err := domain.NewPlan("other", 1, []domain.Action{held.Action})
 	if err != nil {
 		t.Fatal(err)
@@ -302,7 +260,7 @@ func TestHeldOrderingAndOtherPlanReservations(t *testing.T) {
 	}
 	held.Snapshot.Plan = "other"
 	r.Held = []Reservation{held}
-	reason(t, r, InsufficientStock)
+	reason(t, r, GeometryBlocked)
 	large := hold(candidate(t, "large", 3, math.MaxInt64))
 	invalid := hold(candidate(t, "invalid", 4, 1))
 	invalid.Footprint = nil
@@ -354,8 +312,6 @@ func TestPreparedRestartRevalidatesWithoutDoubleReservation(t *testing.T) {
 	if d.Admitted[0].Progress.View().Stage != domain.Prepared {
 		t.Fatal("revalidation rewrote durable progress")
 	}
-	r.Held[1].Costs[0].Count = 21
-	reason(t, r, InsufficientStock)
 	// The native generation moved after preparation: an attempt-0 Prepared
 	// action has no write outstanding, so it is re-prepared under the
 	// current snapshot and its own stale hold is superseded, not double
@@ -369,14 +325,12 @@ func TestPreparedRestartRevalidatesWithoutDoubleReservation(t *testing.T) {
 	if len(d.Admitted) != 1 || len(d.Held) != 1 || d.Held[0].Action.ID() != "competing" {
 		t.Fatal("stale prepared attempt 0 not re-prepared", d)
 	}
-	stale.Held[1].Costs[0].Count = 21
-	reason(t, stale, InsufficientStock)
 	r = request(c)
 	r.Candidates[0].Preview.SafeToPlace = domain.Known(false)
 	r.Held = []Reservation{old}
-	r.Candidates = append(r.Candidates, candidate(t, "b", 2, 21))
+	r.Candidates = append(r.Candidates, candidate(t, "b", 1, 21))
 	d = decide(t, r)
-	if len(d.Admitted) != 0 || len(d.Held) != 1 || len(d.Refused) != 2 || d.Refused[0].Reason != UnsafePlacement || d.Refused[1].Reason != InsufficientStock {
+	if len(d.Admitted) != 0 || len(d.Held) != 1 || len(d.Refused) != 2 || d.Refused[0].Reason != UnsafePlacement || d.Refused[1].Reason != GeometryBlocked {
 		t.Fatal("failed revalidation released held work", d)
 	}
 	r = request(c)
@@ -388,7 +342,7 @@ func TestPreparedRestartRevalidatesWithoutDoubleReservation(t *testing.T) {
 		t.Fatal("footprint exceeded canonical selected-rotation bound")
 	}
 }
-func TestValidationCopiesAndOverflow(t *testing.T) {
+func TestValidationCopies(t *testing.T) {
 	r := request(candidate(t, "a", 1, 10))
 	input, err := NewInput(r)
 	if err != nil {
@@ -406,13 +360,7 @@ func TestValidationCopiesAndOverflow(t *testing.T) {
 	if !reflect.DeepEqual(Admit(input).Admitted[0].Costs, []Amount{{"Steel", 10}}) {
 		t.Fatal("result mutation altered input")
 	}
-	r = request(candidate(t, "a", 1, math.MaxInt64))
-	r.Stock.Values[0].Available = domain.Known(int64(math.MaxInt64))
-	r.Rules = []ResourceRule{{"Steel", 1, Allow}}
-	reason(t, r, ArithmeticOverflow)
-	r.Held = []Reservation{hold(candidate(t, "held", 2, 1))}
-	reason(t, r, ArithmeticOverflow)
-	for _, change := range []func(*Request){func(r *Request) { r.Candidates = append(r.Candidates, r.Candidates[0]) }, func(r *Request) { r.Candidates[0].Dependencies = []Dependency{{Action: "a"}} }, func(r *Request) { r.Candidates[0].Dependencies = []Dependency{{Action: "b"}, {Action: "b"}} }, func(r *Request) { r.Stock.Values = append(r.Stock.Values, r.Stock.Values[0]) }, func(r *Request) { r.Candidates[0].Preview.Costs = domain.Known([]Amount{{"Steel", -1}}) }, func(r *Request) { r.Rules = []ResourceRule{{"Steel", -1, Allow}} }} {
+	for _, change := range []func(*Request){func(r *Request) { r.Candidates = append(r.Candidates, r.Candidates[0]) }, func(r *Request) { r.Candidates[0].Dependencies = []Dependency{{Action: "a"}} }, func(r *Request) { r.Candidates[0].Dependencies = []Dependency{{Action: "b"}, {Action: "b"}} }, func(r *Request) { r.Stock.Values = append(r.Stock.Values, r.Stock.Values[0]) }, func(r *Request) { r.Candidates[0].Preview.Costs = domain.Known([]Amount{{"Steel", -1}}) }} {
 		r := request(candidate(t, "a", 1, 10))
 		change(&r)
 		if _, err = NewInput(r); err == nil {
@@ -425,20 +373,20 @@ func TestAdmissionConservationAndPermutation(t *testing.T) {
 	for trial := 0; trial < 100; trial++ {
 		var candidates []Candidate
 		for i := 0; i < 20; i++ {
-			c := candidate(t, domain.ActionID(fmt.Sprintf("a%02d", i)), int32(i), int64(random.Intn(30)))
+			c := candidate(t, domain.ActionID(fmt.Sprintf("a%02d", i)), int32(random.Intn(8)), int64(random.Intn(30)))
 			c.Priority = int32(random.Intn(4))
 			candidates = append(candidates, c)
 		}
 		r := request(candidates...)
-		reserve := 1 + int64(random.Intn(30))
-		r.Rules = []ResourceRule{{"Steel", reserve, Allow}}
 		baseline := decide(t, r)
-		sum := reserve
+		cells := map[domain.Cell]bool{}
 		for _, a := range baseline.Admitted {
-			sum += a.Costs[0].Count
-		}
-		if sum > 101 {
-			t.Fatal("overcommit", sum)
+			for _, cell := range a.Footprint {
+				if cells[cell] {
+					t.Fatal("overlapping admission", cell)
+				}
+				cells[cell] = true
+			}
 		}
 		random.Shuffle(len(r.Candidates), func(i, j int) { r.Candidates[i], r.Candidates[j] = r.Candidates[j], r.Candidates[i] })
 		if !reflect.DeepEqual(baseline, decide(t, r)) {

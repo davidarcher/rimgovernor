@@ -39,7 +39,7 @@ func (f *environment) Inspect(_ context.Context, target Target) (Inspection, err
 		return Inspection{}, err
 	}
 	now := f.clock.Now()
-	result := Inspection{Emergency: clearance, ExternalHoldsComplete: true, Current: target.Snapshot, Tick: tick, StartedAt: now, ObservedAt: now, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Preview: policy.Preview{Action: target.Action, Snapshot: target.Snapshot, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{building.Cell()}), Costs: domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 10}})}, Stock: policy.StockObservation{Snapshot: target.Snapshot, Tick: tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(stock)}}}, Rules: []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}}
+	result := Inspection{Emergency: clearance, ExternalHoldsComplete: true, Current: target.Snapshot, Tick: tick, StartedAt: now, ObservedAt: now, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Preview: policy.Preview{Action: target.Action, Snapshot: target.Snapshot, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{building.Cell()}), Costs: domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 10}})}, Stock: policy.StockObservation{Snapshot: target.Snapshot, Tick: tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(stock)}}}}
 	if f.onInspect != nil {
 		return f.onInspect(count, result), nil
 	}
@@ -202,17 +202,17 @@ func TestDurableDispatchThenObservedConstruction(t *testing.T) {
 	}
 }
 
-func TestResourcesLostDuringPreparationHoldPrepared(t *testing.T) {
+func TestUnsafePreviewDuringPreparationHoldsPrepared(t *testing.T) {
 	f := newFixture(t)
 	f.env.onInspect = func(n int, in Inspection) Inspection {
 		if n == 2 {
-			in.Stock.Values[0].Available = domain.Known(int64(0))
+			in.Preview.SafeToPlace = domain.Known(false)
 		}
 		return in
 	}
 	result, err := f.run()
 	if !errors.Is(err, ErrHeld) || result.NativeCalled || f.progress(t).Stage != domain.Prepared {
-		t.Fatalf("resource loss dispatched: %+v %v", result, err)
+		t.Fatalf("unsafe preview dispatched: %+v %v", result, err)
 	}
 	f.env.onInspect = nil
 	result, err = f.run()
@@ -229,7 +229,7 @@ func TestPreparedUnderMovedAuthorityIsRePreparedAndDispatched(t *testing.T) {
 	f := newFixture(t)
 	f.env.onInspect = func(n int, in Inspection) Inspection {
 		if n == 2 {
-			in.Stock.Values[0].Available = domain.Known(int64(0))
+			in.Preview.SafeToPlace = domain.Known(false)
 		}
 		return in
 	}
@@ -536,15 +536,11 @@ func TestCompletedProofMustMatchResolvedBuilding(t *testing.T) {
 	}
 }
 
-func TestCompetingReservationAndResourceReserveHoldDispatch(t *testing.T) {
-	for _, reserve := range []bool{false, true} {
+func TestCompetingReservationHoldsDispatch(t *testing.T) {
+	{
 		f := newFixture(t)
 		f.env.onInspect = func(_ int, in Inspection) Inspection {
-			if reserve {
-				in.Rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 15, Spending: policy.Allow}}
-				return in
-			}
-			building, _ := domain.NewBuilding("Wall", domain.Cell{X: 20, Z: 20}, domain.North, "WoodLog")
+			building, _ := domain.NewBuilding("Wall", domain.Cell{X: 10, Z: 10}, domain.North, "WoodLog")
 			action, _ := domain.NewBuildingAction("other-action", building)
 			plan, _ := domain.NewPlan("other-plan", 1, []domain.Action{action})
 			progress, _ := domain.NewProgress(plan, action.ID())
@@ -554,7 +550,7 @@ func TestCompetingReservationAndResourceReserveHoldDispatch(t *testing.T) {
 			return in
 		}
 		if result, err := f.run(); !errors.Is(err, ErrHeld) || result.NativeCalled {
-			t.Fatal("reserved resources spent", err)
+			t.Fatal("reserved geometry dispatched", err)
 		}
 	}
 }

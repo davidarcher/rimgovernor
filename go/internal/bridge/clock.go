@@ -85,7 +85,7 @@ func (control *ClockControl) Start(ctx context.Context, request *k.StartRequest)
 	if err := clockPolicy(request.Policy, int64(request.GetMaxTicks())); err != nil {
 		return nil, Result{}, err
 	}
-	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Start: &ClockStart{Speed: request.GetSpeed(), Policy: request.Policy, LeaseMS: request.GetLeaseMs(), MaxTicks: request.GetMaxTicks(), TestAcceleration: request.GetTestAcceleration(), BlindTickBudget: request.GetBlindTickBudget(), MaxTicksPerSecond: request.GetMaxTicksPerSecond(), PlayerAccelerated: request.GetPacing() == k.Pacing_PACING_PLAYER_ACCELERATED, FrameBudgetMS: request.GetFrameBudgetMs()}}}
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Start: &ClockStart{Speed: request.GetSpeed(), Policy: request.Policy, LeaseMS: request.GetLeaseMs(), MaxTicks: request.GetMaxTicks(), TestAcceleration: request.GetTestAcceleration(), BlindTickBudget: request.GetBlindTickBudget(), MaxTicksPerSecond: request.GetMaxTicksPerSecond(), PlayerAccelerated: request.GetPacing() == k.Pacing_PACING_PLAYER_ACCELERATED}}}
 	return control.clockCall(ctx, "rimgovernor/clock_start", request, request.Authority, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
 func (control *ClockControl) Renew(ctx context.Context, request *k.RenewRequest, originalEpoch *k.Epoch) (*k.ControlReply, Result, error) {
@@ -532,28 +532,16 @@ func clockWire(value proto.Message) error {
 }
 
 // clockPacing checks a start's pacing (issue #627): player acceleration is
-// Ultrafast without test acceleration, and only it carries a frame budget.
+// Ultrafast without test acceleration.
 func clockPacing(request *k.StartRequest) error {
 	switch request.GetPacing() {
 	case k.Pacing_PACING_UNSPECIFIED, k.Pacing_PACING_FIXED:
-		if request.FrameBudgetMs != nil {
-			return contract("clock frame budget requires player acceleration")
-		}
 		return nil
 	case k.Pacing_PACING_PLAYER_ACCELERATED:
 		if request.GetSpeed() != k.Speed_SPEED_ULTRAFAST || request.GetTestAcceleration() {
 			return contract("clock player acceleration requires ultrafast without test acceleration")
 		}
-		if request.FrameBudgetMs != nil && (request.GetFrameBudgetMs() < MinClockFrameBudgetMS || request.GetFrameBudgetMs() > MaxClockFrameBudgetMS) {
-			return contract("clock frame budget")
-		}
 		return nil
 	}
 	return contract("clock pacing")
 }
-
-// The wire bounds on StartRequest.frame_budget_ms.
-const (
-	MinClockFrameBudgetMS = 5
-	MaxClockFrameBudgetMS = 45
-)

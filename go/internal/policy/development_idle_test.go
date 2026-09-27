@@ -18,7 +18,7 @@ func TestIdleLaborRecordsButKeepsCommitmentAcrossReviews(t *testing.T) {
 	c.Dispatched = domain.Known(s.tick)
 	idle := domain.Known(LaborUse{Busy: map[WorkType]int{WorkConstruction: 2}, Idle: map[WorkType]int{WorkPlantCutting: 2}})
 	busy := domain.Known(LaborUse{Busy: map[WorkType]int{WorkPlantCutting: 1, WorkConstruction: 1}, Idle: map[WorkType]int{WorkPlantCutting: 1}})
-	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Limit: 1, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: idle}
+	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: idle}
 	first := rank(t, r)
 	if row := s.row(first, "wood"); row.Reason != DevelopmentCommitted || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) || !reflect.DeepEqual(first.Committed, []GoalID{"wood"}) {
 		t.Fatal("an idle review keeps the commitment and starts the idle age", row, first.Committed)

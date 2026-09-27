@@ -163,7 +163,6 @@ type MedicinePlanningRequest struct {
 	Seen     []domain.MethodID
 	Benches  domain.Fact[[]GearBench]
 	Stock    []Stock
-	Rules    []ResourceRule
 	Holds    []Amount
 }
 
@@ -215,7 +214,7 @@ func SelectMedicineMethod(r MedicinePlanningRequest) (MedicineMethod, error) {
 	if !known {
 		return MedicineMethod{Kind: MedicineUnknown}, nil
 	}
-	gearRequest := GearPlanningRequest{Stock: r.Stock, Rules: r.Rules, Holds: r.Holds}
+	gearRequest := GearPlanningRequest{Stock: r.Stock, Holds: r.Holds}
 	if err := validateGearProduction(benches, gearRequest); err != nil {
 		return MedicineMethod{}, err
 	}

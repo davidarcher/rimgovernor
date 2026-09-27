@@ -162,7 +162,7 @@ type GearLoadoutInput struct {
 	// once every project its Research names is finished (Smithing remains
 	// the legacy flag for the simple helmet).
 	Research []string
-	// Budget is GearMaterialBudget: stock after MaintainResource reserves.
+	// Budget is GearMaterialBudget: stock after holds.
 	// A bill option whose Ingredients exceed it is refused; nil is
 	// unbudgeted.
 	Budget []Amount

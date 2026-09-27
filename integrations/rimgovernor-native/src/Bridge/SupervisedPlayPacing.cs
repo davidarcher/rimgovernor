@@ -20,8 +20,6 @@ namespace HomeBridge.BridgeTools
     internal static partial class Supervisor
     {
         internal const int DefaultFrameBudgetMs = 30;
-        internal const int MinFrameBudgetMs = 5;
-        internal const int MaxFrameBudgetMs = 45;
         // Ultrafast's own multiplier is the floor: pacing never runs a
         // player slower than the speed they chose. The boosted rate (150x,
         // 9000 ticks/s) is the ceiling.
@@ -174,7 +172,5 @@ namespace HomeBridge.BridgeTools
             FramesFor(Current.Game);
             status.PacedFrames = _pacedFrames; status.PacedFramesOverBudget = _pacedFramesOverBudget; status.MaxPacedFrameMs = _maxPacedFrameMs;
         }
-
-        internal static int ClampFrameBudget(int ms) => ms == 0 ? DefaultFrameBudgetMs : Clamp(ms, MinFrameBudgetMs, MaxFrameBudgetMs);
     }
 }

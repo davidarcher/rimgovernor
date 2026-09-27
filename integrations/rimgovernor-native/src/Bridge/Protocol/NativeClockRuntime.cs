@@ -139,7 +139,7 @@ namespace HomeBridge.BridgeTools
                         ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedInjuredColonistIds),
                         (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), request.TestAcceleration, ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds),
                         (int)request.BlindTickBudget, (int)request.MaxTicksPerSecond,
-                        request.Pacing == Clock.Pacing.PlayerAccelerated, (int)request.FrameBudgetMs);
+                        request.Pacing == Clock.Pacing.PlayerAccelerated);
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
                     ArmWatches(_state, context);
                     return TypedStatus(context);
@@ -191,8 +191,7 @@ namespace HomeBridge.BridgeTools
         private static bool ValidPacing(Clock.StartRequest request)
         {
             if (request.HasPacing && request.Pacing != Clock.Pacing.Fixed && request.Pacing != Clock.Pacing.PlayerAccelerated) return false;
-            if (request.HasFrameBudgetMs && (request.FrameBudgetMs < MinFrameBudgetMs || request.FrameBudgetMs > MaxFrameBudgetMs)) return false;
-            if (request.Pacing != Clock.Pacing.PlayerAccelerated) return !request.HasFrameBudgetMs;
+            if (request.Pacing != Clock.Pacing.PlayerAccelerated) return true;
             return request.Speed == Clock.Speed.Ultrafast && !request.TestAcceleration;
         }
         private static bool ValidCeiling(bool hasBudget, uint budget, bool hasCeiling, uint ceiling)

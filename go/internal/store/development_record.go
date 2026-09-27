@@ -15,9 +15,8 @@ type RoutineDevelopment struct {
 	Committed []domain.GoalID
 	Rows      []RoutineDevelopmentRow
 	Partial   bool `json:",omitempty"`
-	// Auto and the fields below (#649) are absent from explicit-mode
-	// records written before automatic admission existed.
-	Auto         bool                        `json:",omitempty"`
+	// The fields below (#649) are absent from records written before
+	// automatic admission existed.
 	Census       *[]policy.DevelopmentWorker `json:",omitempty"`
 	Holds        []policy.DevelopmentHold    `json:",omitempty"`
 	StageHold    bool                        `json:",omitempty"`
@@ -48,7 +47,7 @@ type RoutineDevelopmentRow struct {
 
 func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 	r := RoutineDevelopment{Snapshot: s.Snapshot, Tick: s.Tick, Capacity: s.Capacity, Committed: append([]domain.GoalID(nil), s.Committed...), Partial: s.Partial,
-		Auto: s.Auto, Holds: append([]policy.DevelopmentHold(nil), s.Holds...), StageHold: s.StageHold, Yields: s.Yields, Continuation: s.Continuation, Limiting: s.Limiting, Blockers: append([]policy.DependencyBlocker(nil), s.Blockers...)}
+		Holds: append([]policy.DevelopmentHold(nil), s.Holds...), StageHold: s.StageHold, Yields: s.Yields, Continuation: s.Continuation, Limiting: s.Limiting, Blockers: append([]policy.DependencyBlocker(nil), s.Blockers...)}
 	if v, k := s.Workers.Value(); k {
 		r.Workers = &v
 	}
@@ -84,7 +83,7 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 // State rebuilds the policy ranking this record persisted.
 func (r RoutineDevelopment) State() policy.DevelopmentState {
 	s := policy.DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Capacity: r.Capacity, Committed: append([]domain.GoalID(nil), r.Committed...), Partial: r.Partial,
-		Auto: r.Auto, Holds: append([]policy.DevelopmentHold(nil), r.Holds...), StageHold: r.StageHold, Yields: r.Yields, Continuation: r.Continuation, Limiting: r.Limiting, Blockers: append([]policy.DependencyBlocker(nil), r.Blockers...)}
+		Holds: append([]policy.DevelopmentHold(nil), r.Holds...), StageHold: r.StageHold, Yields: r.Yields, Continuation: r.Continuation, Limiting: r.Limiting, Blockers: append([]policy.DependencyBlocker(nil), r.Blockers...)}
 	if r.Workers != nil {
 		s.Workers = domain.Known(*r.Workers)
 	}

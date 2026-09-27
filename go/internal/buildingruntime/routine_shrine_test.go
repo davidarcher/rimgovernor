@@ -6,7 +6,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -24,9 +23,23 @@ type routineShrineNative struct {
 	owned   map[string]bool
 	reads   []string
 	// squad, when set, names the emergency colonists; melee arms every one
-	// of them with a melee weapon (the readiness fixture alternates ranged rows).
+	// of them but the last with a melee weapon, the last staying ranged backup.
 	squad []string
 	melee bool
+	// custody reports the squad as the hosted population.
+	custody bool
+}
+
+func (n *routineShrineNative) ReadRoutinePopulation(ctx context.Context, identity *c.Identity) (bridge.PrisonerCensus, bridge.Result, error) {
+	census, result, err := n.routineBlightNative.ReadRoutinePopulation(ctx, identity)
+	if n.custody {
+		rows := []policy.CustodyFacts{}
+		for range n.squad {
+			rows = append(rows, policy.CustodyFacts{Dead: domain.Known(false), Admitted: domain.Known(true), Guest: domain.Known(false)})
+		}
+		census.Custody = domain.Known(rows)
+	}
+	return census, result, err
 }
 
 func (n *routineShrineNative) ReadClaimBuildingTarget(_ context.Context, _ *c.Identity, thing string) (bridge.ClaimBuildingTarget, bridge.Result, error) {
@@ -41,7 +54,8 @@ func (n *routineShrineNative) ReadAncientShrines(_ context.Context, _ *c.Identit
 func (n *routineShrineNative) ReadCombatPawns(ctx context.Context, identity *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
 	reply, result, err := (&shrineTestNative{}).ReadCombatPawns(ctx, identity, ids)
 	if n.melee {
-		for _, row := range reply.GetObserved().GetPawns() {
+		pawns := reply.GetObserved().GetPawns()
+		for _, row := range pawns[:len(pawns)-1] {
 			row.Equipment.Equipped[0].Ranged = proto.Bool(false)
 		}
 	}
@@ -320,7 +334,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 // sealed. Ready, it is one melee-lock method: an owned draft and a move to
 // the casket's interaction cell for one melee colonist per filled casket,
 // then the opener's OpenCasket on the lowest casket depending on all of
-// them. A lock the planner cannot re-staff holds lock_understaffed.
+// them.
 func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	reviewer, db, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()
@@ -358,10 +372,35 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodNoDeficit {
 		t.Fatal("an unready gate leaves the caskets sealed", result, err)
 	}
-	judgeShrineOpening = func(context.Context, shrineReadinessNative, *c.Identity, []policy.AncientShrine, observation.ColonyProjection) (policy.ShrinePolicy, error) {
-		return policy.ShrinePolicy{Opening: map[string]string{"shrine": policy.CasketOpen}}, nil
+	// Ready the gate: a population policy with room, a spare bed, medicine
+	// and a hosted census the custody reading can count.
+	if _, _, err := reviewer.player.SubmitPopulationPolicy(ctx, playerPopulationPolicyRequest(12, 1)); err != nil {
+		t.Fatal(err)
 	}
-	t.Cleanup(func() { judgeShrineOpening = shrineOpening })
+	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
+		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Comfort:      &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
+		Beds:         []*o.UpkeepBed{{Bed: &o.EntityRef{Id: proto.String("spare"), DefName: proto.String("Bed"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}}, Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
+		Items:        []*o.UpkeepItem{{Item: &o.EntityRef{Id: proto.String("medicine"), DefName: proto.String("MedicineHerbal"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}}, Medicine: proto.Bool(true), Count: proto.Int64(5), Forbidden: proto.Bool(false)}},
+	}}}
+	count := func(n uint64) *o.Completeness {
+		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+	}
+	food := &o.FoodSupplyFacts{Consumers: []*o.FoodConsumer{{PawnId: proto.String("alpha"), NutritionPerDay: proto.Float64(1)}},
+		Stocks: []*o.FoodStock{{Item: &o.EntityRef{Id: proto.String("pemmican"), DefName: proto.String("Pemmican")}, Count: proto.Int64(60), Nutrition: proto.Float64(30), Perishable: proto.Bool(false), EaterIds: []string{"alpha"}}}, Completeness: count(2)}
+	v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: food}}
+	v.Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: proto.Clone(food).(*o.FoodSupplyFacts), Patients: []*o.PatientForecast{{PawnId: proto.String("alpha")}}, Completeness: count(2)}}}
+	for _, row := range native.pawnReply.GetObserved().Pawns {
+		row.Equipment.Armed = proto.Bool(false)
+		for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
+			row.Biography.Skills = append(row.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill)}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: proto.String("None")})
+		}
+		for _, work := range []string{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Firefighter"} {
+			row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String(work), Priority: proto.Int32(1), Disabled: proto.Bool(false)})
+		}
+	}
+	source.custody = true
+	source.melee = true
 	if review, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -369,11 +408,7 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 		t.Fatal(review.Review.ShrineHolds)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodHeld || result.Hold != policy.CasketHoldLockUnderstaffed || result.Shrine != "shrine" {
-		t.Fatal(result, err, review.Review.Development.Rows)
-	}
-	source.melee = true
-	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
+	if err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)

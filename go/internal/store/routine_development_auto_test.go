@@ -14,15 +14,13 @@ import (
 // Automatic mode (#649) through the review and admission transaction:
 // more than two projects fit distinct workers, admission refits against
 // commitments read inside it (an intervening player project, an earlier
-// admission, a retry, a stale review), the record survives a restart, and
-// a switch back to an explicit limit keeps the open work it admitted.
+// admission, a retry, a stale review), and the record survives a restart.
 func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects, r.Policy.AutoDevelopment = policy.MaxAutoDevelopmentProjects, true
 	r.Policy.ResearchLadder = []string{"Stonecutting"}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Workers = domain.Known(4)
@@ -41,7 +39,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 			t.Fatal(need, d.Rows)
 		}
 	}
-	if !d.Auto || d.Census == nil || len(*d.Census) != 4 || d.Unused == nil || *d.Unused != 1 || d.Capacity != 4 {
+	if d.Census == nil || len(*d.Census) != 4 || d.Unused == nil || *d.Unused != 1 || d.Capacity != 4 {
 		t.Fatalf("%+v", d)
 	}
 	s.Close()
@@ -75,23 +73,10 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	if _, err = s.Cancel(ctx, sub.Plan, sub.Action); err != nil {
 		t.Fatal(err)
 	}
-	// Switching to an explicit limit of one keeps the two admitted projects
-	// open; the limit no longer caps selection, so the freed builder takes
-	// expansion.
-	r.Policy.MaxDevelopmentProjects, r.Policy.AutoDevelopment = 1, false
-	r.Tick += 10
-	explicit := reviewRoutine(t, s, &r)
-	if len(explicit.Review.Development.Committed) != 2 || explicit.Review.Development.Auto {
-		t.Fatalf("%+v", explicit.Review.Development)
-	}
-	if row := developmentRow(t, explicit.Review, policy.EnsureExpansion); !row.Selected {
-		t.Fatal(row)
-	}
 	// A reviewed goal from another load is refused on the snapshot.
-	r.Policy.MaxDevelopmentProjects, r.Policy.AutoDevelopment = policy.MaxAutoDevelopmentProjects, true
 	r.Current.Load = "reloaded"
 	reviewRoutine(t, s, &r)
-	stale := routineGoal(t, explicit, policy.EnsureExpansion)
+	stale := routineGoal(t, first, policy.EnsureExpansion)
 	if _, err = s.CommitGoalMethod(ctx, stale.Goal.ID, stale.Revision, "wall", plan(t, "wall2", "wall2-action")); err == nil {
 		t.Fatal("stale review admitted")
 	}

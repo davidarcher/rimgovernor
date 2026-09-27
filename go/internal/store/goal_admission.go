@@ -20,23 +20,13 @@ type BuildingMethodRequest struct {
 	Tick     domain.Tick
 	Bounds   domain.Fact[policy.Bounds]
 	Stock    policy.StockObservation
-	Rules    []policy.ResourceRule
 	Previews []policy.Preview
 	Purpose  policy.Purpose
 	// Reason is the planner's short why, stored with the method (#846).
 	Reason string
-	// PartialStock admits the candidates the stock covers when the only
-	// refusals are InsufficientStock and at least one candidate passed: the
-	// plan is committed whole, the refused actions stay pending without a
-	// reservation, and the worker admits each of them afresh when the
-	// census covers it (#602). Geometry, unknown-fact and spending refusals
-	// still refuse the whole method.
-	PartialStock bool
 }
 
-// BuildingMethodDecision reports an admission. Refused is nonempty on an
-// admitted decision only for a PartialStock request, naming the candidates
-// left pending without a reservation.
+// BuildingMethodDecision reports an admission; Refused lists a refusal's reasons.
 type BuildingMethodDecision struct {
 	Admitted bool
 	Goal     GoalState
@@ -119,15 +109,13 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	if err != nil {
 		return BuildingMethodDecision{}, err
 	}
-	input, err := policy.NewInput(policy.Request{Current: r.Current, CurrentTick: r.Tick, Bounds: r.Bounds, Candidates: candidates, Stock: r.Stock, Held: held, Rules: r.Rules})
+	input, err := policy.NewInput(policy.Request{Current: r.Current, CurrentTick: r.Tick, Bounds: r.Bounds, Candidates: candidates, Stock: r.Stock, Held: held})
 	if err != nil {
 		return BuildingMethodDecision{}, err
 	}
 	decision := policy.Admit(input)
 	if len(decision.Refused) != 0 || len(decision.Admitted) != len(candidates) {
-		if !r.PartialStock || len(decision.Admitted) == 0 || len(decision.Admitted)+len(decision.Refused) != len(candidates) || !onlyInsufficientStock(decision.Refused) {
-			return BuildingMethodDecision{Goal: goal, Refused: decision.Refused}, nil
-		}
+		return BuildingMethodDecision{Goal: goal, Refused: decision.Refused}, nil
 	}
 	goal, err = commitGoalMethod(ctx, tx, r.Goal, r.Revision, r.Method, r.Reason, r.Plan)
 	if errors.Is(err, ErrNotAdmitted) {
@@ -160,15 +148,6 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{}, err
 	}
 	return BuildingMethodDecision{Admitted: true, Goal: goal, Refused: decision.Refused}, nil
-}
-
-func onlyInsufficientStock(refused []policy.Refusal) bool {
-	for _, refusal := range refused {
-		if refusal.Reason != policy.InsufficientStock {
-			return false
-		}
-	}
-	return true
 }
 
 // Read authoritative reservations under the admission transaction. Never accept

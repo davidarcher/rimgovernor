@@ -26,7 +26,6 @@ func TestRoutineDevelopmentPersistsAge(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
 	first := reviewRoutine(t, s, &r)
 	row := developmentRow(t, first.Review, policy.MaintainResource)
 	if !row.Selected || row.Deficit == nil || *row.Deficit <= 0 || first.Review.Development.Workers == nil || *first.Review.Development.Workers != 2 {
@@ -136,7 +135,6 @@ func TestRoutineDevelopmentConfiguredTargets(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
 	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
 	r.Policy.ResearchLadder = []string{"Stonecutting"}
 	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
@@ -212,7 +210,6 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	r.Policy.SetProjectLimit(4)
 	r.Policy.ResearchLadder = []string{"Stonecutting"}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Workers = domain.Known(4)
@@ -290,7 +287,6 @@ func TestRoutineDevelopmentIdleAgeSurvivesRestartAndKeepsClaims(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
 	out := reviewRoutine(t, s, &r)
 	wood := routineGoal(t, out, policy.MaintainResource)
 	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
@@ -363,7 +359,6 @@ func TestRoutineDevelopmentBypassAdmissionHoldsNoSlot(t *testing.T) {
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
 	out := reviewRoutine(t, s, &r)
 	wood := routineGoal(t, out, policy.MaintainResource)
 	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {

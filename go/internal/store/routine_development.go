@@ -169,7 +169,7 @@ func dispatchTick(ctx context.Context, tx *sql.Tx, action domain.ActionID) (doma
 	return result, rows.Err()
 }
 
-func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, limit int, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, []DependencyRecord, error) {
+func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, []DependencyRecord, error) {
 	var bindings []RoutineGoal
 	for i, n := range needs.Assessments {
 		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: states[i].Goal.ID})
@@ -203,7 +203,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 			}
 		}
 	}
-	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Limit: limit, Stage: stage, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Auto: r.Policy.AutoDevelopment, Census: r.Facts.WorkerCensus, Dependencies: dependencies})
+	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Census: r.Facts.WorkerCensus, Dependencies: dependencies})
 	if err != nil {
 		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}
@@ -307,7 +307,7 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, pla
 			withheld = append(withheld, h.Labor...)
 		}
 	}
-	if err = policy.AdmitDevelopment(state, need, policy.CommitmentHolds(commitments, review.Tick, released, state.Auto, withheld)); err != nil {
+	if err = policy.AdmitDevelopment(state, need, policy.CommitmentHolds(commitments, review.Tick, released, withheld)); err != nil {
 		return fmt.Errorf("%w: %v", ErrNotAdmitted, err)
 	}
 	return nil

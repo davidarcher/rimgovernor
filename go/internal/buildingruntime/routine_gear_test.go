@@ -150,7 +150,6 @@ func TestGearProductionPreviewsAndPersistsOnlyFundedMaterials(t *testing.T) {
 		n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}, refuse: refuse}
 		reviewer.native = n
 		reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
-		reviewer.rules = []policy.ResourceRule{{Resource: "Cloth", Spending: policy.Stop}}
 		if _, err := reviewer.Step(context.Background()); err != nil {
 			t.Fatal(err)
 		}
@@ -170,8 +169,8 @@ func TestGearProductionPreviewsAndPersistsOnlyFundedMaterials(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(n.previews) != 1 || !reflect.DeepEqual(n.previews[0].Ingredients(), []string{"Leather_Plain"}) {
-			t.Fatal("protected cloth reached preview", n.previews)
+		if len(n.previews) != 1 || !reflect.DeepEqual(n.previews[0].Ingredients(), []string{"Cloth"}) {
+			t.Fatal("wrong funded material previewed", n.previews)
 		}
 		if n.previews[0].Mode() != domain.GearBatch || n.previews[0].Target() != 2 {
 			t.Fatal("colony gap not batched", n.previews)

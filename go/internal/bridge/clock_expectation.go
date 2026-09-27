@@ -155,6 +155,5 @@ func ValidateClockControlReply(reply *k.ControlReply, e ClockExpectation) error 
 }
 
 func clockStartPacing(start ClockStart) error {
-	pacing, budget := start.WirePacing()
-	return clockPacing(&k.StartRequest{Speed: start.Speed.Enum(), TestAcceleration: &start.TestAcceleration, Pacing: pacing, FrameBudgetMs: budget})
+	return clockPacing(&k.StartRequest{Speed: start.Speed.Enum(), TestAcceleration: &start.TestAcceleration, Pacing: start.WirePacing()})
 }

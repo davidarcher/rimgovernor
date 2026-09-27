@@ -258,14 +258,12 @@ type routineDevelopmentDTO struct {
 	Capacity  int                        `json:"capacity"`
 	Committed []domain.GoalID            `json:"committed"`
 	Rows      []routineDevelopmentRowDTO `json:"rows"`
-	// Mode is explicit (capacity is the operator's slot count) or auto
-	// (distinct observed workers decide, capacity bounds planner cost).
-	// HeldWorkers is labor open startup work and withheld prerequisites
+	// Capacity bounds planner cost; distinct observed workers decide
+	// admission. HeldWorkers is labor open startup work and withheld prerequisites
 	// hold without a slot; UnusedWorkers the auto census workers nothing
-	// took (null in explicit mode or with an unknown census); Limiting the
+	// took (null with an unknown census); Limiting the
 	// first reason an eligible goal was left unselected; Continuation
 	// "yield_bound" once the review's yields are spent.
-	Mode          string                   `json:"mode"`
 	HeldWorkers   int                      `json:"heldWorkers"`
 	UnusedWorkers *int                     `json:"unusedWorkers"`
 	Limiting      policy.DevelopmentReason `json:"limiting"`
@@ -420,10 +418,7 @@ func routineRosterPawn(p policy.PawnProfile) routineRosterPawnDTO {
 }
 
 func routineDevelopment(s policy.DevelopmentState) routineDevelopmentDTO {
-	dto := routineDevelopmentDTO{Tick: s.Tick, Capacity: s.Capacity, Labor: []routineLaborDTO{}, Committed: []domain.GoalID{}, Rows: []routineDevelopmentRowDTO{}, Mode: "explicit", Limiting: s.Limiting, Continuation: s.Continuation}
-	if s.Auto {
-		dto.Mode = "auto"
-	}
+	dto := routineDevelopmentDTO{Tick: s.Tick, Capacity: s.Capacity, Labor: []routineLaborDTO{}, Committed: []domain.GoalID{}, Rows: []routineDevelopmentRowDTO{}, Limiting: s.Limiting, Continuation: s.Continuation}
 	for _, h := range s.Holds {
 		if !h.Slot && len(h.Labor) > 0 {
 			dto.HeldWorkers++

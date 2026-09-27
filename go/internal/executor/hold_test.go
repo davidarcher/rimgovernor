@@ -15,8 +15,8 @@ func allKnownReasons() []policy.Reason {
 	return []policy.Reason{
 		policy.UnsafeThreat, policy.CriticalMedical, policy.StaleFacts, policy.UnknownFacts,
 		policy.NotReady, policy.AlreadyReserved, policy.UnsafePlacement, policy.MaterialRequired,
-		policy.DependencyBlocked, policy.GeometryBlocked, policy.SpendingBlocked, policy.InsufficientStock,
-		policy.InvalidHeld, policy.ArithmeticOverflow,
+		policy.DependencyBlocked, policy.GeometryBlocked,
+		policy.InvalidHeld,
 
 		policy.CleanerUnavailable,
 		policy.DoctorUnavailable, policy.DraftOwnership, policy.EquipPawnUnavailable, policy.FilthIneligible,

@@ -27,8 +27,9 @@ enum ObservedSpeed {
 }
 // How a running Ultrafast epoch paces its ticks (#627). FIXED is the speed's
 // own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
-// boosted rate while the frame's tick work stays inside frame_budget_ms, so
-// input, rendering and control dispatch keep their share of each frame; the
+// boosted rate while the frame's tick work stays inside native's 30 ms frame
+// budget, so input, rendering and control dispatch keep their share of each
+// frame; the
 // game's forced slowdown still holds it at Normal. It needs no test launch.
 enum Pacing {
   PACING_UNSPECIFIED = 0;
@@ -184,10 +185,11 @@ message StartRequest {
   // SpeedRequest. Zero or absent is the speed's own rate.
   optional uint32 max_ticks_per_second = 8;
   // PACING_PLAYER_ACCELERATED requires SPEED_ULTRAFAST and excludes
-  // test_acceleration; absent is PACING_FIXED. frame_budget_ms (5..45,
-  // absent = 30) is the wall time per frame the tick loop may take.
+  // test_acceleration; absent is PACING_FIXED. Native paces it against its
+  // own 30 ms frame budget (Epoch.frame_budget_ms).
   optional Pacing pacing = 9;
-  optional uint32 frame_budget_ms = 10;
+  reserved 10;
+  reserved "frame_budget_ms";
 }
 message OwnedRequest {
   rimgovernor.common.v1.Identity identity = 1;

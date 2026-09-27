@@ -432,36 +432,6 @@ func AuditRoutine(events []map[string]any, baseline int, capabilities map[string
 	return names, nil
 }
 
-// AuditResourceRules asserts a resource-policy plan's actions remain untouched
-// (pending, zero attempts) while the routine reviewer previews placement
-// repeatedly without ever executing.
-func AuditResourceRules(plan map[string]any, names []string) error {
-	actions := AsSlice(plan["actions"])
-	if len(actions) == 0 {
-		return fmt.Errorf("resource rules plan has no actions")
-	}
-	for _, raw := range actions {
-		action, _ := AsMap(raw)
-		progress, _ := AsMap(action["progress"])
-		if AsString(progress["stage"]) != "pending" || AsString(progress["attempt"]) != "0" {
-			return fmt.Errorf("resource rules actions must remain pending with no attempts")
-		}
-	}
-	if Contains(names, clockExecute) {
-		return fmt.Errorf("resource rules trace must never execute")
-	}
-	count := 0
-	for _, n := range names {
-		if n == "rimgovernor/placement_preview" {
-			count++
-		}
-	}
-	if count < 2 {
-		return fmt.Errorf("resource rules trace must preview placement at least twice")
-	}
-	return nil
-}
-
 var developmentGoalNames = map[string]bool{
 	"MaintainResource": true, "EnsureBasicDefense": true, "EnsureComfort": true, "EnsureExpansion": true,
 	"MaintainEquipment": true, "MaintainFireSafety": true, "SecureSupplies": true, "MaintainEssentialRepairs": true,

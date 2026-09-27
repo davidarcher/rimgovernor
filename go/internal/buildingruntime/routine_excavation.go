@@ -586,7 +586,7 @@ func (r *RoutineBuildingPlanner) admitExcavation(call, epoch context.Context, s 
 	if latest.Revision != s.review.Revision || !latest.Enabled {
 		return RoutineBuildingResult{}, ErrControl
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: s.goal.Goal.ID, Revision: s.goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: s.facts.Identity.Tick, Bounds: domain.Known(s.facts.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: previews, Purpose: policy.Routine})
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: s.goal.Goal.ID, Revision: s.goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: s.facts.Identity.Tick, Bounds: domain.Known(s.facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

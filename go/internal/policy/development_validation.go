@@ -28,7 +28,7 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 		}
 	}
 	if census, known := s.Census.Value(); known {
-		if !s.Auto || len(census) > MaxAllocWorkers {
+		if len(census) > MaxAllocWorkers {
 			return errors.New("invalid development census")
 		}
 		for _, w := range census {

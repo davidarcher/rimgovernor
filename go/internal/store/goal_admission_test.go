@@ -32,9 +32,7 @@ func methodRequest(t *testing.T, g GoalState, id string, costs ...int64) Buildin
 	s.Plan = p.ID()
 	s.Revision = p.Revision()
 	r := BuildingMethodRequest{Goal: g.Goal.ID, Revision: g.Revision, Method: "build", Plan: p, Current: s, Tick: g.Goal.Tick, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine,
-		Stock: policy.StockObservation{Snapshot: s, Tick: g.Goal.Tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(101))}}},
-		// Stock is a spending budget only under an operator reserve.
-		Rules: []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}}
+		Stock: policy.StockObservation{Snapshot: s, Tick: g.Goal.Tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(101))}}}}
 	for i, a := range actions {
 		b, _ := a.Building()
 		r.Previews = append(r.Previews, policy.Preview{Action: a, Snapshot: s, Tick: r.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{b.Cell()}), Costs: domain.Known([]policy.Amount{{Resource: "WoodLog", Count: costs[i]}})})
@@ -62,6 +60,7 @@ func TestBuildingMethodAdmissionAllOrNothing(t *testing.T) {
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	r := methodRequest(t, g, "method", 60, 60)
+	r.Previews[1].SafeToPlace = domain.Known(false)
 	d, e := s.AdmitBuildingMethod(ctx, r)
 	if e != nil || d.Admitted || len(d.Refused) != 1 {
 		t.Fatal(d, e)
@@ -69,7 +68,7 @@ func TestBuildingMethodAdmissionAllOrNothing(t *testing.T) {
 	if _, e = s.LoadPlan(ctx, r.Plan.ID()); !errors.Is(e, ErrNotFound) {
 		t.Fatal("partial method persisted", e)
 	}
-	r.Stock.Values[0].Available = domain.Known(int64(121))
+	r.Previews[1].SafeToPlace = domain.Known(true)
 	d, e = s.AdmitBuildingMethod(ctx, r)
 	if e != nil || !d.Admitted {
 		t.Fatal(d, e)
@@ -85,58 +84,6 @@ func TestBuildingMethodAdmissionAllOrNothing(t *testing.T) {
 	}
 }
 
-// A PartialStock request admits the candidates the stock covers and commits
-// the whole plan; the refused ones stay pending without a reservation for
-// the worker to admit afresh (#602). Any other refusal, or no candidate
-// covered, still refuses the method whole.
-func TestBuildingMethodAdmitsAffordablePrefixWhenPartialStock(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s, _, g := goalFixture(t)
-	r := methodRequest(t, g, "method", 60, 30, 30)
-	r.PartialStock = true
-	d, e := s.AdmitBuildingMethod(ctx, r)
-	if e != nil || !d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != policy.InsufficientStock || d.Refused[0].Action != r.Plan.Actions()[2].ID() {
-		t.Fatal(d, e)
-	}
-	p, e := s.LoadPlan(ctx, r.Plan.ID())
-	if e != nil || len(p.Progress) != 3 || len(p.Admissions) != 2 {
-		t.Fatal(p, e)
-	}
-	for _, a := range p.Admissions {
-		if a.Action == r.Plan.Actions()[2].ID() || a.Admission.Purpose != policy.Routine {
-			t.Fatal("refused candidate reserved or purpose lost", a)
-		}
-	}
-	for _, v := range p.Progress {
-		if v.View().Stage != domain.Pending {
-			t.Fatal("admission prepared execution")
-		}
-	}
-	// The unreserved action holds nothing against a competing method.
-	other := anotherGoal(t, s, "storage")
-	competing := methodRequest(t, other, "competing", 10)
-	if d, e = s.AdmitBuildingMethod(ctx, competing); e != nil || !d.Admitted {
-		t.Fatal(d, e)
-	}
-	// Nothing covered: refused whole, as is a mixed refusal.
-	third := anotherGoal(t, s, "third")
-	none := methodRequest(t, third, "none", 5, 5)
-	none.PartialStock = true
-	if d, e = s.AdmitBuildingMethod(ctx, none); e != nil || d.Admitted || len(d.Refused) != 2 {
-		t.Fatal(d, e)
-	}
-	mixed := methodRequest(t, third, "mixed", 1, 1, 60)
-	mixed.PartialStock = true
-	mixed.Previews[1].SafeToPlace = domain.Known(false)
-	if d, e = s.AdmitBuildingMethod(ctx, mixed); e != nil || d.Admitted || d.Refused[1].Reason != policy.UnsafePlacement {
-		t.Fatal(d, e)
-	}
-	if _, e = s.LoadPlan(ctx, mixed.Plan.ID()); !errors.Is(e, ErrNotFound) {
-		t.Fatal("partial method persisted", e)
-	}
-}
-
 // The purpose a method is admitted under is recorded with each reservation
 // and survives a restart, so dispatch spends under the same class (#602).
 func TestBuildingMethodRecordsPurpose(t *testing.T) {
@@ -145,7 +92,6 @@ func TestBuildingMethodRecordsPurpose(t *testing.T) {
 	s, path, g := goalFixture(t)
 	r := methodRequest(t, g, "shell", 60, 60, 60)
 	r.Purpose = policy.Shelter
-	r.Rules = nil
 	if d, e := s.AdmitBuildingMethod(ctx, r); e != nil || !d.Admitted || len(d.Refused) != 0 {
 		t.Fatal("shelter held for stock", d, e)
 	}
@@ -184,9 +130,9 @@ func TestBuildingMethodReservesDependenciesBeforeTheyAreReady(t *testing.T) {
 	s.Close()
 	s = open(t, path)
 	other := anotherGoal(t, s, "storage")
-	competing := methodRequest(t, other, "competing", 30)
+	competing := methodRequest(t, other, "compet", 30)
 	d, e := s.AdmitBuildingMethod(ctx, competing)
-	if e != nil || d.Admitted || d.Refused[0].Reason != policy.InsufficientStock {
+	if e != nil || d.Admitted || d.Refused[0].Reason != policy.GeometryBlocked {
 		t.Fatal(d, e)
 	}
 	current, e := s.LoadGoal(ctx, g.Goal.ID)
@@ -203,19 +149,13 @@ func TestBuildingMethodReservesDependenciesBeforeTheyAreReady(t *testing.T) {
 }
 func TestBuildingMethodRejectsUnknownCostsFloorsAndGeometry(t *testing.T) {
 	t.Parallel()
-	for _, change := range []string{"cost", "stock", "floor", "stopped", "overlap", "direction"} {
+	for _, change := range []string{"cost", "overlap", "direction"} {
 		t.Run(change, func(t *testing.T) {
 			s, _, g := goalFixture(t)
 			r := methodRequest(t, g, "method", 40, 40)
 			switch change {
 			case "cost":
 				r.Previews[1].Costs = domain.Unknown[[]policy.Amount]()
-			case "stock":
-				r.Stock.Values[0].Available = domain.Unknown[int64]()
-			case "floor":
-				r.Rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 30, Spending: policy.Allow}}
-			case "stopped":
-				r.Rules = []policy.ResourceRule{{Resource: "WoodLog", Spending: policy.Stop}}
 			case "overlap":
 				r.Previews[1].Footprint = r.Previews[0].Footprint
 			case "direction":
@@ -231,13 +171,13 @@ func TestBuildingMethodRejectsUnknownCostsFloorsAndGeometry(t *testing.T) {
 		})
 	}
 }
-func TestConcurrentMethodsCannotDoubleSpendObservedStock(t *testing.T) {
+func TestConcurrentMethodsCannotDoubleClaimGeometry(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
 	other := anotherGoal(t, s, "second")
 	second := open(t, path)
-	requests := []BuildingMethodRequest{methodRequest(t, g, "one", 60), methodRequest(t, other, "four", 60)}
+	requests := []BuildingMethodRequest{methodRequest(t, g, "one", 60), methodRequest(t, other, "two", 60)}
 	stores := []*Store{s, second}
 	results := make(chan BuildingMethodDecision, 2)
 	failures := make(chan error, 2)

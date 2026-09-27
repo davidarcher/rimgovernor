@@ -28,7 +28,6 @@ type RoutineReviewer struct {
 	clock     observation.Clock
 	policy    policy.RoutinePolicy
 	maxAge    time.Duration
-	rules     []policy.ResourceRule
 	longitude domain.Fact[float64]
 	// census retains the latest review reading for the planners of the same
 	// tick; see routineCensus.
@@ -193,10 +192,6 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 	if player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > time.Minute {
 		return nil, ErrControl
 	}
-	rules := player.session.ResourceRules()
-	if err := policy.ValidateResourceRules(rules); err != nil {
-		return nil, err
-	}
 	methods := domain.Unknown[[]policy.GoalID]()
 	longitude := domain.Unknown[float64]()
 	reviewerOverlay := false
@@ -216,7 +211,7 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 			longitude = capabilities[0].Longitude
 		}
 	}
-	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...), longitude: longitude, layoutOverlay: reviewerOverlay}
+	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, longitude: longitude, layoutOverlay: reviewerOverlay}
 	if reviewer.roomsEnabled() {
 		if _, ok := native.(observation.TemperatureSource); !ok {
 			return nil, ErrControl

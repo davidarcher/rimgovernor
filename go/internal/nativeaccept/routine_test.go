@@ -366,29 +366,6 @@ func TestRoutineTraceRequiresAttributedNativeReads(t *testing.T) {
 	}
 }
 
-func TestResourceRuleAuditAllowsClockButRejectsConstruction(t *testing.T) {
-	plan := map[string]any{"actions": []any{map[string]any{"progress": map[string]any{"stage": "pending", "attempt": "0"}}}}
-	names := []string{"rimgovernor/placement_preview", "rimgovernor/clock_start", "rimgovernor/placement_preview", "rimgovernor/clock_renew"}
-	if err := AuditResourceRules(plan, names); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if err := AuditResourceRules(plan, append(append([]string{}, names...), clockExecute)); err == nil {
-		t.Fatal("expected an error once operations_execute appears")
-	}
-	if err := AuditResourceRules(plan, names[:2]); err == nil {
-		t.Fatal("expected an error for fewer than two placement previews")
-	}
-	for _, changed := range []map[string]any{
-		{"actions": []any{}},
-		{"actions": []any{map[string]any{"progress": map[string]any{"stage": "pending", "attempt": "1"}}}},
-		{"actions": []any{map[string]any{"progress": map[string]any{"stage": "completed", "attempt": "0"}}}},
-	} {
-		if err := AuditResourceRules(changed, names); err == nil {
-			t.Fatalf("expected an error for plan %v", changed)
-		}
-	}
-}
-
 func TestDevelopmentAuditKeepsPlayerCapacityAndKnownDeficits(t *testing.T) {
 	review := map[string]any{"Snapshot": map[string]any{"Plan": "root"}, "Tick": 10, "Development": map[string]any{
 		"Snapshot": map[string]any{"Plan": "root"}, "Tick": 10, "Workers": 3, "Capacity": 2,

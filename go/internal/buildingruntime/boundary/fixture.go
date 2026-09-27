@@ -61,7 +61,7 @@ func NewFixture(t *testing.T) (*Boundary, *Fixture) {
 	f.Receipt = &r.Receipt{Attempt: attempt, AdmittedContext: ctx, Outcome: &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}}
 	effect := &r.ConstructionEffect{OriginThingId: proto.String("blueprint1"), CurrentThingId: proto.String("building1"), DefName: proto.String("Wall"), Stuff: proto.String("WoodLog"), Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Rotation: p.Rotation_ROTATION_NORTH.Enum(), Stage: r.ConstructionStage_CONSTRUCTION_STAGE_BUILDING.Enum(), Present: proto.Bool(true), Started: proto.Bool(true), Failed: proto.Bool(false)}
 	f.Progress = &r.Progress{Attempt: proto.Clone(attempt).(*c.AttemptKey), Context: proto.Clone(ctx).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: &r.EffectEvidence{Effect: &r.EffectEvidence_Construction{Construction: effect}}}}}
-	boundary, err := NewBoundary(f, f, f, f, FixedClock{}, "session", nil)
+	boundary, err := NewBoundary(f, f, f, f, FixedClock{}, "session")
 	if err != nil {
 		t.Fatal(err)
 	}

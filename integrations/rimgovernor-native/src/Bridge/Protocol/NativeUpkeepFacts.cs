@@ -438,7 +438,7 @@ namespace HomeBridge.BridgeTools
                     };
                     NativeHusbandryOperations.HerdFacts(p, state);
                     // MaintainHerd's training deficit reads this bundle, not
-                    // husbandry_facts: without the rows no trainable is ever due.
+                    // the husbandry read: without the rows no trainable is ever due.
                     if (p.training != null)
                         foreach (var def in DefDatabase<TrainableDef>.AllDefsListForReading)
                         {
@@ -448,7 +448,7 @@ namespace HomeBridge.BridgeTools
                     if (requiresPen) state.Contained = pen != null;
                     if (pen != null) state.PenId = Id(pen.parent.GetUniqueLoadID());
                     // Area reconciliation (#500) reads the colony bundle, not
-                    // husbandry_facts: the saved restriction must travel here.
+                    // the husbandry read: the saved restriction must travel here.
                     if (NativeHusbandryOperations.Eligible(p))
                     {
                         state.AllowedAreaId = NativeHusbandryOperations.AreaId(p);

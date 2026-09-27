@@ -344,17 +344,6 @@ func StageDevelopmentGoal(id GoalID) bool {
 	return false
 }
 
-// StageDevelopmentLimit is the development-project limit at a stage: the
-// configured limit below Development (Foothold's own constraint is the
-// hold on the ranked development projects), one more at Development
-// (never over the ranking's bound of eight).
-func StageDevelopmentLimit(stage ColonyStage, limit int) int {
-	if stage == StageDevelopment {
-		return min(8, limit+1)
-	}
-	return limit
-}
-
 // stageLadderRungs is how many rungs of the research ladder each stage
 // walks: the masonry and power rungs at Foothold, through solar at
 // Reserves, through the medieval crafts at Stable, the whole ladder at
@@ -400,14 +389,13 @@ func StageGoalStallScale(stage ColonyStage) float64 {
 	return 1
 }
 
-// StageRoutinePolicy is p with its budgets set by the stage: the project
-// limit (StageDevelopmentLimit), the research ladder (StageResearchLadder),
+// StageRoutinePolicy is p with its budgets set by the stage: the research
+// ladder (StageResearchLadder),
 // the reserve targets (StageReserveScale over FoodReserveDays, WoodTarget
 // and WoodMax, within the policy's own bounds) and the goal-progress stall
 // deadline (StageGoalStallScale over GoalStallTicks). A stage that has not
 // been reviewed yet (the zero record) is Foothold.
 func StageRoutinePolicy(p RoutinePolicy, stage ColonyStage) RoutinePolicy {
-	p.MaxDevelopmentProjects = StageDevelopmentLimit(stage, p.MaxDevelopmentProjects)
 	p.ResearchLadder = StageResearchLadder(stage, p.ResearchLadder)
 	scale := StageReserveScale(stage)
 	if scale != 1 {

@@ -228,7 +228,7 @@ func TestRoutineStoneShellRefusesZeroStockObservationAsStaleFacts(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: "stale-stock", Plan: spec, Current: snapshot, Tick: 7, Bounds: domain.Known(policy.Bounds{Width: 9, Height: 9}), Rules: p.reviewer.rules, Previews: []policy.Preview{preview.Preview}, Purpose: policy.Routine}
+	request := store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: "stale-stock", Plan: spec, Current: snapshot, Tick: 7, Bounds: domain.Known(policy.Bounds{Width: 9, Height: 9}), Previews: []policy.Preview{preview.Preview}, Purpose: policy.Routine}
 	var zero policy.StockObservation
 	if err := mergeRoutineStock(&zero, preview.Stock, true); err != nil {
 		t.Fatal(err)

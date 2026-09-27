@@ -32,7 +32,7 @@ func TestDevelopmentWeightsDefaultAndValidation(t *testing.T) {
 // smaller deficit can take the slot first; the penalty is order-independent.
 func TestDevelopmentBottleneckOrdering(t *testing.T) {
 	r := developmentFixture()
-	r.Limit, r.Labor = 2, domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1})
+	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1})
 	r.Goals = []DevelopmentGoal{
 		{ID: "comfort", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.6), Labor: GoalLabor(EnsureComfort)},
 		{ID: "expansion", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.5), Labor: GoalLabor(EnsureExpansion)},
@@ -66,7 +66,6 @@ func TestDevelopmentBottleneckOrdering(t *testing.T) {
 
 func TestDevelopmentRiskPenalisesAndDefers(t *testing.T) {
 	r := developmentFixture()
-	r.Limit = 3
 	r.Goals = []DevelopmentGoal{
 		{ID: "safe", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.5), Risk: domain.Known(0.0)},
 		{ID: "cold", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.6), Risk: domain.Known(0.5)},

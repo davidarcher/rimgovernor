@@ -97,22 +97,16 @@ func TestGearProductionPreservesMaterialAndSharedBudget(t *testing.T) {
 	if !reflect.DeepEqual(r, before) {
 		t.Fatal("selection mutated caller inputs")
 	}
-	// The inspected cloth protected by a reserve, hold or spending rule
-	// yields to the recipe's other funded material; with both protected the
-	// bill is refused.
-	for _, change := range []func(*GearPlanningRequest){
-		func(r *GearPlanningRequest) { r.Rules = []ResourceRule{{"Cloth", 21, Allow}} },
-		func(r *GearPlanningRequest) { r.Holds = []Amount{{"Cloth", 21}} },
-		func(r *GearPlanningRequest) { r.Rules = []ResourceRule{{"Cloth", 0, DefenseOnly}} },
-		func(r *GearPlanningRequest) { r.Rules = []ResourceRule{{"Cloth", 0, Stop}} },
-	} {
+	// The inspected cloth protected by a hold yields to the recipe's other
+	// funded material; with both held the bill is refused.
+	{
 		r := gearFixture()
-		change(&r)
+		r.Holds = []Amount{{"Cloth", 21}}
 		m, e := SelectGearMethod(r)
 		if e != nil || m.Kind != GearProduce || !reflect.DeepEqual(m.Costs, []Amount{{"Synthread", 60}}) {
 			t.Fatal(m, e)
 		}
-		r.Rules = append(r.Rules, ResourceRule{"Synthread", 0, Stop})
+		r.Holds = append(r.Holds, Amount{"Synthread", 1 << 40})
 		m, e = SelectGearMethod(r)
 		if e != nil || m.Kind != GearBlocked {
 			t.Fatal(m, e)
@@ -358,8 +352,6 @@ func TestGearExistingItemsRespectGoReservationsAndUnknownStock(t *testing.T) {
 	v, _ := r.Observation.Value()
 	v.Pawns[0].Candidates = domain.Known([]GearCandidate{{Target: "parka", Gain: 1, Definition: "Parka"}})
 	for _, change := range []func(*GearPlanningRequest){
-		func(r *GearPlanningRequest) { r.Rules = []ResourceRule{{"Parka", 3, Allow}} },
-		func(r *GearPlanningRequest) { r.Rules = []ResourceRule{{"Parka", 0, Stop}} },
 		func(r *GearPlanningRequest) { r.Holds = []Amount{{"Parka", 3}} },
 	} {
 		copy := r

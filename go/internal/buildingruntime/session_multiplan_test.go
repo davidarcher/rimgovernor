@@ -30,7 +30,8 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	buildingB, err := domain.NewBuilding("Wall", domain.Cell{X: 5, Z: 6}, domain.North, "WoodLog")
+	buildingA, _ := fixture.Placement.Action.Building()
+	buildingB, err := domain.NewBuilding("Wall", buildingA.Cell(), domain.North, "WoodLog")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +50,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	}
 	native := sessionNative{fixture}
 	authority := &controlNative{generation: 1}
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, Rules: []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}}
 	session, err := NewSession(ctx, config, journal, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
@@ -131,9 +132,9 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	setPreview(actionB, currentB, 2)
 	result, err = session.Run(ctx, planB.ID(), actionB.ID())
 	if !errors.Is(err, executor.ErrHeld) || result.NativeCalled || fixture.Places != 1 {
-		t.Fatalf("B overspent durable A hold: %+v %v", result, err)
+		t.Fatalf("B overlapped durable A hold: %+v %v", result, err)
 	}
-	if len(result.Refused) != 1 || result.Refused[0].Reason != policy.InsufficientStock {
+	if len(result.Refused) != 1 || result.Refused[0].Reason != policy.GeometryBlocked {
 		t.Fatalf("wrong refusal: %+v", result)
 	}
 	if authority.acquires.Load() != 2 || authority.revokes.Load() != 1 {

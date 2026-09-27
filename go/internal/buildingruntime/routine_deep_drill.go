@@ -302,12 +302,12 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		if player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return RoutineResourceResult{}, true, ErrControl
 		}
-		decision, err := player.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: f.Identity.Tick, Bounds: domain.Known(f.Bounds), Stock: preview.Stock, Rules: r.reviewer.rules, Previews: []policy.Preview{p}, Purpose: policy.Routine})
+		decision, err := player.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: f.Identity.Tick, Bounds: domain.Known(f.Bounds), Stock: preview.Stock, Previews: []policy.Preview{p}, Purpose: policy.Routine})
 		if err != nil {
 			return RoutineResourceResult{}, true, err
 		}
 		if !decision.Admitted {
-			return RoutineResourceResult{Reason: BuildingMethodRefused, NativeWorkTicks: stockRefusalWait(decision)}, true, nil
+			return RoutineResourceResult{Reason: BuildingMethodRefused}, true, nil
 		}
 		return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: planID}, true, nil
 	}

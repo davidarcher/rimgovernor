@@ -240,7 +240,7 @@ func TestRepeatedPendingAndRestartKeepImmutableAdmissionTick(t *testing.T) {
 	}
 	// Recreate the boundary, as after restart, with only the journal's latest tick.
 	f.Placement.Tick = second.Observation.Tick
-	b, err = NewBoundary(f, f, f, f, FixedClock{}, "session", nil)
+	b, err = NewBoundary(f, f, f, f, FixedClock{}, "session")
 	if err != nil {
 		t.Fatal(err)
 	}

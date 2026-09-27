@@ -365,7 +365,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 			return RoutineGearResult{}, err
 		}
 	}
-	choice, err := policy.SelectGearMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, Rules: r.reviewer.rules, WeaponDemand: weaponDemand})
+	choice, err := policy.SelectGearMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, WeaponDemand: weaponDemand})
 	if err != nil {
 		return RoutineGearResult{}, err
 	}

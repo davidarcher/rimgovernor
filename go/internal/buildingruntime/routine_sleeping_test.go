@@ -173,52 +173,6 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 	}
 }
 
-// A furnishing method keeps the stock budget but admits the candidates it
-// covers: the second spot stays pending without a reservation for the
-// worker to admit when the census covers it, instead of the one short
-// candidate refusing both (#602). With nothing covered the method is refused.
-func TestRoutineSleepingAdmitsAffordablePrefix(t *testing.T) {
-	t.Parallel()
-	// Stock is a spending budget only under an operator reserve.
-	for _, available := range []int64{51, 21} {
-		r, db, _, _, n := sleepingFixture(t)
-		r.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
-		n.onPreview = func(_ context.Context, v *bridge.BuildingPreview) {
-			v.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 50}})
-			v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(available)}}
-		}
-		result, err := r.Step(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
-		plans, err := db.LoadPlans(context.Background(), 256)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if available == 21 {
-			if result.Reason != BuildingMethodRefused || len(result.Decision.Refused) != 2 || len(plans) != 2 || result.NativeWorkTicks != stockWaitTicks {
-				t.Fatal("uncovered method admitted", result, len(plans))
-			}
-			continue
-		}
-		if result.Reason != BuildingMethodAdmitted || len(result.Decision.Refused) != 1 || result.Decision.Refused[0].Reason != policy.InsufficientStock || result.NativeWorkTicks != 0 || len(plans) != 3 {
-			t.Fatal("affordable spot not admitted", result, len(plans))
-		}
-		p, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
-		if err != nil || len(p.Progress) != 2 || len(p.Admissions) != 1 || p.Admissions[0].Action == result.Decision.Refused[0].Action || p.Admissions[0].Admission.Purpose != policy.Routine {
-			t.Fatal(p, err)
-		}
-		for _, progress := range p.Progress {
-			if progress.View().Stage != domain.Pending || progress.View().Attempt != 0 {
-				t.Fatal("compiler dispatched", progress)
-			}
-		}
-		if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork {
-			t.Fatal(next, err)
-		}
-	}
-}
-
 func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := sleepingFixture(t)
@@ -412,31 +366,6 @@ func TestRoutineSleepingKeepsDoorwayAislesClear(t *testing.T) {
 			if aisle[cell] {
 				t.Fatal("furniture blocks the doorway aisle", cell)
 			}
-		}
-	}
-}
-
-// Only a refusal made entirely of insufficient stock lends the stock wait:
-// anything ticks cannot resolve (geometry, spending, unknown facts) gets none,
-// and neither does an admission (#66).
-func TestStockRefusalWaitOnlyForStock(t *testing.T) {
-	stock := policy.Refusal{Action: "a", Reason: policy.InsufficientStock, Resource: "Steel"}
-	for _, c := range []struct {
-		decision store.BuildingMethodDecision
-		want     uint32
-	}{
-		{store.BuildingMethodDecision{Admitted: true}, 0},
-		// A partial admission's leftover stock refusals are the worker's to
-		// retry; the admitted work lends its own construction ticks.
-		{store.BuildingMethodDecision{Admitted: true, Refused: []policy.Refusal{stock}}, 0},
-		{store.BuildingMethodDecision{}, 0},
-		{store.BuildingMethodDecision{Refused: []policy.Refusal{stock}}, stockWaitTicks},
-		{store.BuildingMethodDecision{Refused: []policy.Refusal{stock, {Action: "b", Reason: policy.InsufficientStock, Resource: "WoodLog"}}}, stockWaitTicks},
-		{store.BuildingMethodDecision{Refused: []policy.Refusal{stock, {Action: "b", Reason: policy.GeometryBlocked}}}, 0},
-		{store.BuildingMethodDecision{Refused: []policy.Refusal{{Action: "a", Reason: policy.SpendingBlocked, Resource: "Steel"}}}, 0},
-	} {
-		if got := stockRefusalWait(c.decision); got != c.want {
-			t.Fatal(c.decision, got)
 		}
 	}
 }

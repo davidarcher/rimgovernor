@@ -341,7 +341,6 @@ type GearPlanningRequest struct {
 	Seen         []domain.MethodID
 	Benches      domain.Fact[[]GearBench]
 	Stock        []Stock
-	Rules        []ResourceRule
 	Holds        []Amount
 }
 
@@ -583,9 +582,6 @@ func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
 	if len(benches) > 256 || len(r.Stock) > 4096 || len(r.Holds) > 4096 {
 		return errors.New("gear production inputs exceed bound")
 	}
-	if err := ValidateResourceRules(r.Rules); err != nil {
-		return err
-	}
 	stock := map[Resource]bool{}
 	for _, s := range r.Stock {
 		n, k := s.Available.Value()
@@ -661,7 +657,7 @@ func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
 }
 
 func gearIngredients(slots [][]Amount, stuff Resource, r GearPlanningRequest) ([]Amount, []Resource, bool, bool) {
-	available, knownStock := gearAvailable(r.Stock, r.Rules, r.Holds)
+	available, knownStock := gearAvailable(r.Stock, r.Holds)
 	used := map[Resource]int64{}
 	for _, slot := range slots {
 		hasStuff := false

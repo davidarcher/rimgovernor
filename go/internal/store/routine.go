@@ -414,13 +414,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		disaster = nil
 	}
 	// The stage the last review left sets this review's goal budgets (the
-	// development limit, the research ladder's pace, the reserve targets);
+	// research ladder's pace, the reserve targets);
 	// the stage this review derives is filed for the next.
 	var previousStage policy.ColonyStageRecord
 	if previous.Stage != nil && !reset {
 		previousStage = *previous.Stage
 	}
-	baseLimit := request.Policy.MaxDevelopmentProjects
 	request.Policy = policy.StageRoutinePolicy(request.Policy, previousStage.Stage)
 	needs := policy.RoutineNeeds{}
 	var detection *RoutineDetection
@@ -702,7 +701,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if !reset {
 			records = previous.Dependencies
 		}
-		development, ready, r.Dependencies, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, policy.StageDevelopmentLimit(stage.Stage, baseLimit), records)
+		development, ready, r.Dependencies, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, records)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}

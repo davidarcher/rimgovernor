@@ -769,23 +769,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil || reason != "" {
 		return RoutineBuildingResult{Reason: reason}, err
 	}
-	// A shell (the initial shelter, expansion, or a power shelter) is
-	// admitted without a stock check: RimWorld places its blueprints
+	// Admission never checks stock: RimWorld places the blueprints
 	// regardless and the frames hold natively for materials, which
-	// MaintainResource then reads it as the WoodLog deficit (#602). Furnishing and
-	// facility methods keep the stock budget, since their open frames would
-	// strand hauling, but admit the candidates the stock covers rather than
-	// refusing the whole method for one short of it.
+	// MaintainResource then reads as the deficit (#602).
 	purpose := policy.Routine
 	if r.shelter || r.power != nil && r.power.Method == policy.PowerShelter {
 		purpose = policy.Shelter
 	}
-	// Partial admission suits methods whose candidates stand alone
-	// (furniture, benches, beds, lamps, floor and route cells, the cells of
-	// a shell); a generator and its conduits, a cooler and its wall, a
-	// heater batch or a pasted layout are one set and admit whole or not.
-	partial := r.power == nil && r.temperature == nil && r.refrigeration == nil && len(r.paste) == 0
-	return r.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose, partial: partial, check: check})
+	return r.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose, check: check})
 }
 
 // routineAdmission is what admitPreviews commits: the previews a method
@@ -803,7 +794,6 @@ type routineAdmission struct {
 	selected []policy.Preview
 	stock    policy.StockObservation
 	purpose  policy.Purpose
-	partial  bool
 	check    func() error
 }
 
@@ -848,7 +838,7 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: a.goal.Goal.ID, Revision: a.goal.Revision, Method: a.method, Reason: a.reason, Plan: plan, Current: a.snapshot, Tick: a.facts.Identity.Tick, Bounds: domain.Known(a.facts.Bounds), Stock: a.stock, Rules: r.reviewer.rules, Previews: a.selected, Purpose: a.purpose, PartialStock: a.partial})
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: a.goal.Goal.ID, Revision: a.goal.Revision, Method: a.method, Reason: a.reason, Plan: plan, Current: a.snapshot, Tick: a.facts.Identity.Tick, Bounds: domain.Known(a.facts.Bounds), Stock: a.stock, Previews: a.selected, Purpose: a.purpose})
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -869,7 +859,7 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 			}
 		}
 	}
-	return RoutineBuildingResult{Reason: reason, Decision: decision, NativeWorkTicks: stockRefusalWait(decision)}, nil
+	return RoutineBuildingResult{Reason: reason, Decision: decision}, nil
 }
 
 // stockWaitTicks bounds one clock window lent to a method refused for
@@ -879,21 +869,6 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 // and the refusal repeats until the clock parks on no_work. The next step
 // re-reads the census, so the wait is the window, not a belief about stock.
 const stockWaitTicks = 2500
-
-// stockRefusalWait is stockWaitTicks when every refusal is insufficient
-// stock and zero otherwise: geometry, spending and unknown facts are not
-// resolved by letting time pass.
-func stockRefusalWait(decision store.BuildingMethodDecision) uint32 {
-	if decision.Admitted || len(decision.Refused) == 0 {
-		return 0
-	}
-	for _, refusal := range decision.Refused {
-		if refusal.Reason != policy.InsufficientStock {
-			return 0
-		}
-	}
-	return stockWaitTicks
-}
 
 func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	if r.power != nil && r.power.Method == policy.PowerShelter {

@@ -81,7 +81,7 @@ func summarizeDevelopment(s *DevelopmentState) {
 	}
 	s.Unused = domain.Unknown[int]()
 	census, known := s.Census.Value()
-	if !s.Auto || !known {
+	if !known {
 		return
 	}
 	var demands []LaborProfile
@@ -93,7 +93,7 @@ func summarizeDevelopment(s *DevelopmentState) {
 			demands = append(demands, row.Labor)
 		}
 	}
-	fits, _ := developmentFit(true, s.Census, s.Labor, demands)
+	fits, _ := developmentFit(s.Census, s.Labor, demands)
 	used := 0
 	for i, d := range demands {
 		if fits[i] && len(d) > 0 {

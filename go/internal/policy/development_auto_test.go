@@ -39,8 +39,8 @@ func worker(id string, work ...WorkType) DevelopmentWorker {
 func autoFixture() DevelopmentRequest {
 	return DevelopmentRequest{
 		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
-		Workers: domain.Known(5), Limit: MaxAutoDevelopmentProjects, Auto: true,
-		Census: census(worker("a", WorkConstruction, WorkHauling), worker("b", WorkConstruction), worker("c", WorkResearch), worker("d", WorkPlantCutting), worker("e", WorkHauling, WorkCooking)),
+		Workers: domain.Known(5),
+		Census:  census(worker("a", WorkConstruction, WorkHauling), worker("b", WorkConstruction), worker("c", WorkResearch), worker("d", WorkPlantCutting), worker("e", WorkHauling, WorkCooking)),
 		Goals: []DevelopmentGoal{
 			{ID: "build", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkConstruction}},
 			{ID: "study", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkResearch}},
@@ -168,10 +168,6 @@ func TestAutoDevelopmentStartupHoldsWorkers(t *testing.T) {
 	if row := rowOf(s, "build"); row.Reason != DevelopmentOvercommitted || s.Limiting != DevelopmentOvercommitted {
 		t.Fatal(row)
 	}
-	// Explicit mode keeps the per-type headcount: startup work holds no slot
-	// and no labor there.
-	r.Auto, r.Limit, r.Labor = false, 2, domain.Known(map[WorkType]int{WorkConstruction: 1})
-	requireSelected(t, rank(t, r), "build")
 }
 
 // Admission refits what the ranking fitted, against commitments read at
@@ -193,7 +189,7 @@ func TestAdmitDevelopmentAgreesWithRank(t *testing.T) {
 	}
 	// A player project accepted since the ranking took a builder: build
 	// is admitted first (rank order), then study finds b taken.
-	player := CommitmentHolds([]Commitment{{Goal: "player-project-x", Source: PlayerGoal, Priority: 3, Progress: actionProgress(t, "p"), Labor: LaborProfile{WorkConstruction}}}, s.Tick, nil, true, nil)
+	player := CommitmentHolds([]Commitment{{Goal: "player-project-x", Source: PlayerGoal, Priority: 3, Progress: actionProgress(t, "p"), Labor: LaborProfile{WorkConstruction}}}, s.Tick, nil, nil)
 	if err := AdmitDevelopment(s, "build", player); err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +197,7 @@ func TestAdmitDevelopmentAgreesWithRank(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Once build is admitted it is a hold, not a selected row ahead.
-	admitted := CommitmentHolds([]Commitment{{Goal: "build", Source: AutopilotGoal, Priority: 3, Progress: actionProgress(t, "bd"), Labor: LaborProfile{WorkConstruction}}}, s.Tick, nil, true, nil)
+	admitted := CommitmentHolds([]Commitment{{Goal: "build", Source: AutopilotGoal, Priority: 3, Progress: actionProgress(t, "bd"), Labor: LaborProfile{WorkConstruction}}}, s.Tick, nil, nil)
 	if err := AdmitDevelopment(s, "study", admitted); err != nil {
 		t.Fatal(err)
 	}

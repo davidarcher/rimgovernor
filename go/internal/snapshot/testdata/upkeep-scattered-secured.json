@@ -10611,7 +10611,6 @@
    "LitGlow": 0.3,
    "PlacementRadius": 2
   },
-  "MaxDevelopmentProjects": 4,
   "MedicalReserve": {
    "MinimumPerColonist": 1,
    "TargetPerColonist": 3

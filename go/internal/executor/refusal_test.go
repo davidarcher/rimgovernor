@@ -25,15 +25,15 @@ func TestRefusalRequiresFreshAdmissionAfterRestart(t *testing.T) {
 	}
 	defer f.store.Close()
 	f.executor.journal = f.store
-	f.env.stock = 0
+	f.env.onInspect = func(_ int, in Inspection) Inspection { in.Preview.SafeToPlace = domain.Known(false); return in }
 	if _, err = f.run(); err == nil {
-		t.Fatal("refusal retry bypassed fresh resource admission")
+		t.Fatal("refusal retry bypassed fresh admission")
 	}
 	_, placed, observed := f.env.counts()
 	if placed != 1 || observed != 0 {
 		t.Fatal("refusal retried without admission or required ledger lookup")
 	}
-	f.env.stock = 20
+	f.env.onInspect = nil
 	result, err = f.run()
 	if err != nil || result.Progress.View().Attempt != 2 {
 		t.Fatal("fresh retry failed", err)

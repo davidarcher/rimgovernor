@@ -36,8 +36,7 @@ type clockIntentRecord struct {
 	// zero (the ceiling is 1..60000, so presence is the record).
 	CeilingSet bool `json:",omitempty"`
 	// Player acceleration (issue #627), omitted when fixed.
-	PlayerAccelerated bool   `json:",omitempty"`
-	FrameBudgetMS     uint32 `json:",omitempty"`
+	PlayerAccelerated bool `json:",omitempty"`
 }
 
 func clockExpectation(v Attempt) bridge.ClockExpectation {
@@ -107,7 +106,6 @@ func encodeClockIntent(v Attempt) ([]byte, error) {
 		record.BlindTickBudget = command.Start.BlindTickBudget
 		record.MaxTicksPerSecond = command.Start.MaxTicksPerSecond
 		record.PlayerAccelerated = command.Start.PlayerAccelerated
-		record.FrameBudgetMS = command.Start.FrameBudgetMS
 		record.Policy, err = clockBinary(command.Start.Policy)
 	case command.Renew != nil:
 		record.Kind = "renew"
@@ -152,7 +150,7 @@ func decodeClockIntent(id string, attempt *c.AttemptKey, b []byte) (Intent, erro
 		if err = clockUnmarshal(record.Policy, policy); err != nil {
 			return Intent{}, err
 		}
-		intent.Command.Start = &bridge.ClockStart{Speed: k.Speed(record.Speed), Policy: policy, LeaseMS: record.LeaseMS, MaxTicks: record.MaxTicks, TestAcceleration: record.TestAcceleration, BlindTickBudget: record.BlindTickBudget, MaxTicksPerSecond: record.MaxTicksPerSecond, PlayerAccelerated: record.PlayerAccelerated, FrameBudgetMS: record.FrameBudgetMS}
+		intent.Command.Start = &bridge.ClockStart{Speed: k.Speed(record.Speed), Policy: policy, LeaseMS: record.LeaseMS, MaxTicks: record.MaxTicks, TestAcceleration: record.TestAcceleration, BlindTickBudget: record.BlindTickBudget, MaxTicksPerSecond: record.MaxTicksPerSecond, PlayerAccelerated: record.PlayerAccelerated}
 	case "renew", "speed":
 		epoch := &k.Epoch{}
 		if err = clockUnmarshal(record.Original, epoch); err != nil {

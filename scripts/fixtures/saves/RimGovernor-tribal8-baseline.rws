@@ -2572,13 +2572,6 @@ AAAAAA==
 				<rimgovernorDrilling />
 				<rimgovernorExcavation />
 			</li>
-			<li Class="HomeBridge.BridgeTools.ProductionPolicyState">
-				<rimgovernorProductionFloors>
-					<keys />
-					<values />
-				</rimgovernorProductionFloors>
-				<rimgovernorProductionStopped />
-			</li>
 			<li Class="HomeBridge.BridgeTools.RecoveryAreas">
 				<rimgovernorRecoveryAreas />
 			</li>

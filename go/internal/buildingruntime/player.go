@@ -8,7 +8,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -20,7 +19,6 @@ type PlayerConfig struct {
 }
 
 type playerSession interface {
-	ResourceRules() []policy.ResourceRule
 	Acquire(context.Context, domain.GenerationSnapshot) (domain.GenerationSnapshot, error)
 	Manual(context.Context) error
 	HoldsGrant(domain.GenerationSnapshot) bool
