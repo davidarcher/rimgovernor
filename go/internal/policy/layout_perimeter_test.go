@@ -336,3 +336,27 @@ func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
 		}
 	}
 }
+
+// A gate stands on each hallway's axis where the wall meets it: the main
+// hallway's row on the east and west sides, each crossing's column on the
+// north and south sides (#952).
+func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
+	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	gates := reserved(p, ReserveGate)
+	onAxis := func(vertical bool, a int32) bool {
+		for _, g := range gates {
+			if vertical && g.Height == 1 && g.Z == a || !vertical && g.Width == 1 && g.X == a {
+				return true
+			}
+		}
+		return false
+	}
+	if len(p.Spine) < 2 {
+		t.Fatal("no crossing", p.Spine)
+	}
+	for _, s := range p.Spine {
+		if alongX(s) && !onAxis(true, s.From.Z) || !alongX(s) && !onAxis(false, s.From.X) {
+			t.Fatal("no gate on the axis of", s, gates)
+		}
+	}
+}

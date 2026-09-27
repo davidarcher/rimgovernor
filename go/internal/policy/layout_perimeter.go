@@ -393,6 +393,17 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		add(ReserveKillboxApproach, rectOf(at(-approachLeg+2, 2), at(-approachLeg, approachLeg+1)))
 	}
 
+	// axes are where the hallways, run straight on, meet sd: the east-west
+	// ones on the east and west sides, the crossings on the others.
+	axes := func(sd ringSide) []int32 {
+		var out []int32
+		for _, sg := range plan.Spine {
+			if alongX(sg) == sd.vertical {
+				out = append(out, sd.pos(sg.From))
+			}
+		}
+		return out
+	}
 	// Wall runs and gates along the dry ring, side by side.
 	for k, sd := range sides {
 		start := int32(-1)
@@ -403,8 +414,16 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			add(ReservePerimeter, rectOf(sd.base(start), sd.cell(end, perimeterThick-1)))
 			n := end - start + 1
 			if n >= 5 {
-				for off := min(perimeterGatePitch/2, n/2); off < n; off += perimeterGatePitch {
-					p := start + off
+				// The pitch runs from a hallway's axis when one meets
+				// this run, so a gate lines up with it (#952).
+				first := start + min(perimeterGatePitch/2, n/2)
+				for _, a := range axes(sd) {
+					if a > start && a < end {
+						first = start + (a-start)%perimeterGatePitch
+						break
+					}
+				}
+				for p := first; p <= end; p += perimeterGatePitch {
 					add(ReserveGate, rectOf(sd.base(p), sd.cell(p, perimeterThick-1)))
 				}
 			}
