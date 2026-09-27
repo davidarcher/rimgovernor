@@ -17,7 +17,9 @@ namespace HomeBridge.BridgeTools
     // order within a class) rather than
     // its own. Pumps equal hops, so every hop runs exactly once; a hop
     // whose caller cancelled while queued is completed cancelled and
-    // skipped. Hops that call the host's InvokeAsync directly (the legacy
+    // skipped. A pump that finds the frame's allowance spent (#988) runs
+    // nothing unless control is queued, and the frame boundary (Frame)
+    // drains what stays queued, so every hop still runs exactly once. Hops that call the host's InvokeAsync directly (the legacy
     // home/* tools) stay outside this ordering.
     internal static class MainThreadAdmission
     {
@@ -31,6 +33,8 @@ namespace HomeBridge.BridgeTools
             internal readonly TaskCompletionSource<object> Completion = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             internal readonly CancellationToken Token;
             internal readonly int QueueDepth;
+            // When it was queued, on the allowance's clock (#988).
+            internal readonly long QueuedAt = Clock();
             internal Hop(int rank, Func<object> body, CancellationToken token, int queueDepth)
             { Rank = rank; Body = body; Token = token; QueueDepth = queueDepth; }
         }
@@ -115,11 +119,14 @@ namespace HomeBridge.BridgeTools
         }
 
         // Runs on the game thread once per queued hop: executes the best
-        // pending hop that is still wanted.
+        // pending hop that is still wanted. While the clock runs and the
+        // frame's allowance is spent, a non-control hop stays queued for the
+        // frame boundary to drain (#988).
         private static object Pump()
         {
             while (true)
             {
+                if (Budgeted() && spent >= AllowanceTicks && !ControlPending()) return null!;
                 var hop = Take();
                 if (hop == null) return null!;
                 // Cancelled while queued: counted so the observation report
@@ -128,6 +135,75 @@ namespace HomeBridge.BridgeTools
                 Run(hop);
                 return null!;
             }
+        }
+
+        // The per-frame main-thread allowance for bridge hops while the
+        // clock runs (#988). Hops that do not fit wait for a later frame
+        // instead of stacking into one; control hops always run and are
+        // charged, so reads defer behind them. Paused, or with no frame
+        // boundary seen for StaleMs (hook missing, game unloading), nothing
+        // is deferred. The allowance is RIMGOVERNOR_MAIN_THREAD_BUDGET_MS
+        // when set to a number in [0.5, 100], else DefaultAllowanceMs.
+        internal const string AllowanceVariable = "RIMGOVERNOR_MAIN_THREAD_BUDGET_MS";
+        internal const double DefaultAllowanceMs = 4.0, StaleMs = 250;
+        internal static Func<long> Clock = System.Diagnostics.Stopwatch.GetTimestamp;
+        internal static long Frequency = System.Diagnostics.Stopwatch.Frequency;
+        internal static long AllowanceTicks = Ticks(Allowance(Environment.GetEnvironmentVariable(AllowanceVariable)));
+        private static bool running;
+        private static long spent, frameAt;
+        private static bool framed;
+        // Session aggregates for the timing block.
+        private static ulong frames, overrunFrames, deferredHops;
+        private static long maxDeferTicks;
+
+        internal static double Allowance(string? configured)
+            => double.TryParse(configured, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ms) && ms >= 0.5 && ms <= 100 ? ms : DefaultAllowanceMs;
+
+        private static long Ticks(double ms) => (long)(ms * Frequency / 1000.0);
+
+        private static bool Budgeted() => running && framed && Clock() - frameAt < Ticks(StaleMs);
+
+        // The frame boundary, on the game thread: a fresh allowance, then
+        // queued control, then deferred hops while it lasts. At least one
+        // deferred hop runs per frame so none starves under a spent allowance.
+        internal static void Frame(bool clockRunning)
+        {
+            if (framed && spent > AllowanceTicks) overrunFrames++;
+            running = clockRunning; framed = true; frameAt = Clock(); spent = 0; frames++;
+            RunControl();
+            var floor = true;
+            while (floor || !running || spent < AllowanceTicks)
+            {
+                var hop = Take();
+                if (hop == null) return;
+                if (hop.Completion.Task.IsCompleted) { FrameAccounting.Cancelled(); continue; }
+                deferredHops++; maxDeferTicks = Math.Max(maxDeferTicks, Clock() - hop.QueuedAt);
+                Run(hop);
+                floor = false;
+            }
+        }
+
+        // The allowance's session account, once the frame boundary has run a
+        // hop a spent allowance left queued.
+        internal static Dictionary<string, object?>? BudgetReport()
+        {
+            if (deferredHops == 0) return null;
+            return new Dictionary<string, object?>
+            {
+                ["allowanceMs"] = AllowanceTicks * 1000.0 / Frequency,
+                ["frames"] = frames,
+                ["overrunFrames"] = overrunFrames,
+                ["deferredHops"] = deferredHops,
+                ["maxDeferMs"] = maxDeferTicks * 1000.0 / Frequency,
+            };
+        }
+
+        // Resets the allowance's state; probes only.
+        internal static void ResetBudget(Func<long> clock, long frequency, double allowanceMs)
+        {
+            Clock = clock; Frequency = frequency; AllowanceTicks = Ticks(allowanceMs);
+            running = framed = false; spent = frameAt = 0;
+            frames = overrunFrames = deferredHops = 0; maxDeferTicks = 0;
         }
 
         // Whether a control hop is queued: an optional quantum yields to it
@@ -161,6 +237,7 @@ namespace HomeBridge.BridgeTools
 
         private static void Run(Hop hop)
         {
+            var began = Clock();
             try
             {
                 var reply = hop.Body();
@@ -168,6 +245,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (OperationCanceledException) { hop.Completion.TrySetCanceled(); }
             catch (Exception e) { hop.Completion.TrySetException(e); }
+            finally { spent += Math.Max(0, Clock() - began); }
         }
 
         // Pending hops per class, for a status line.

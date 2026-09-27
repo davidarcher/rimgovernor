@@ -97,6 +97,7 @@ internal static class NativeReplyEncoderProbe
         SaturationRefusesBoundedly();
         CancellationAndFailureReleaseCapacity();
         ShutdownFailsTheCapture();
+        FrameAllowanceSpreadsReads();
         BridgeCommon.Arguments = null;
         Console.WriteLine("native-reply-encoder: " + checks + " checks passed");
     }
@@ -235,5 +236,58 @@ internal static class NativeReplyEncoderProbe
         var errors = Outcome(throwing);
         Check(errors.Count == 1 && errors[0].Message == "capture failed", "a failed capture reaches the caller as itself");
         Check(MainThreadAdmission.PendingCount() == 0, "no hop is left pending");
+    }
+
+    // The per-frame hop allowance (#988): while the clock runs, reads past
+    // the allowance wait for later frame boundaries, none is dropped, and a
+    // control hop runs regardless; paused or with a stale boundary, nothing
+    // is deferred. Time is a fake clock each hop advances.
+    private static void FrameAllowanceSpreadsReads()
+    {
+        long now = 1;
+        var ran = 0;
+        MainThreadAdmission.ResetBudget(() => now, 1000000, 1.0);
+        try
+        {
+            var game = new FakeGameThread();
+            var ctx = new Context(game);
+            Func<string, Task<object>> hop = cls =>
+            {
+                As(cls);
+                return ProtoBoundary.OnMainThread(ctx, () => { now += 600; ran++; return ProtoBoundary.Encode(new Common.Failure { Detail = cls }); }, CancellationToken.None);
+            };
+
+            MainThreadAdmission.Frame(true);
+            var reads = Enumerable.Range(0, 5).Select(_ => hop(MainThreadAdmission.Observation)).ToList();
+            game.Pump();
+            Check(ran == 2, "two reads fit the running frame's allowance");
+            Check(MainThreadAdmission.PendingCount() == 3, "the rest wait for a later frame");
+            var control = hop(MainThreadAdmission.Control);
+            game.Pump();
+            Settle(control, "control past the allowance");
+
+            MainThreadAdmission.Frame(true);
+            Check(ran == 5, "the next boundary drains what its allowance admits");
+            MainThreadAdmission.Frame(true);
+            Check(ran == 6 && MainThreadAdmission.PendingCount() == 0, "every deferred read runs, none dropped");
+            var report = MainThreadAdmission.BudgetReport();
+            Check(report != null && (ulong)report["deferredHops"] == 3, "the report counts the hops the boundary drained");
+
+            foreach (var read in reads) Settle(read, "deferred read");
+            MainThreadAdmission.Frame(false);
+            var paused = Enumerable.Range(0, 4).Select(_ => hop(MainThreadAdmission.Observation)).ToList();
+            game.Pump();
+            Check(ran == 10, "paused, no read is deferred");
+
+            MainThreadAdmission.Frame(true);
+            now += 1000000;
+            var stale = Enumerable.Range(0, 4).Select(_ => hop(MainThreadAdmission.Observation)).ToList();
+            game.Pump();
+            Check(ran == 14, "without a recent frame boundary, no read is deferred");
+        }
+        finally
+        {
+            MainThreadAdmission.ResetBudget(System.Diagnostics.Stopwatch.GetTimestamp, System.Diagnostics.Stopwatch.Frequency, MainThreadAdmission.DefaultAllowanceMs);
+        }
     }
 }
