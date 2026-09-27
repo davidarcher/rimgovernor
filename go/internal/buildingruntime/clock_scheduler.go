@@ -125,8 +125,6 @@ type ClockSchedulerConfig struct {
 	PopulationJoiner    *RoutinePopulationJoinerPlanner
 	Research            *RoutineResearchPlanner
 	IngredientStorage   *RoutineIngredientStoragePlanner
-	MealShelf           *RoutineMealShelfPlanner
-	RawFoodStock        *RoutineRawFoodStockPlanner
 	StorageShelves      *RoutineStorageShelvesPlanner
 	Resource            *RoutineResourcePlanner
 	AnimalFeed          *RoutineAnimalFeedPlanner
@@ -198,8 +196,6 @@ type ClockSchedulerResult struct {
 	PopulationJoiner             *RoutinePopulationJoinerResult
 	Research                     *RoutineResearchResult
 	IngredientStorage            *RoutineIngredientStorageResult
-	MealShelf                    *RoutineMealShelfResult
-	RawFoodStock                 *RoutineRawFoodStockResult
 	StorageShelves               *RoutineStorageShelvesResult
 	Resource                     *RoutineResourceResult
 	AnimalFeed                   *RoutineResourceResult
@@ -524,12 +520,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine) {
-		return nil, ErrControl
-	}
-	if config.RawFoodStock != nil && (config.Routine == nil || config.RawFoodStock.reviewer != config.Routine) {
-		return nil, ErrControl
-	}
-	if config.MealShelf != nil && (config.Routine == nil || config.MealShelf.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.IngredientStorage != nil && (config.Routine == nil || config.IngredientStorage.reviewer != config.Routine) {

@@ -6,6 +6,8 @@ const (
 	GeneralRole       = "general"
 	CoveredRolePrefix = "covered:"
 	IngredientsPrefix = "ingredients:"
+	MealsRolePrefix   = "meals:"
+	RawFoodRolePrefix = "rawfood:"
 	ApparelRole       = "apparel"
 	WeaponsRole       = "weapons"
 	WornDumpRole      = "dump:worn"

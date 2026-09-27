@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -86,6 +87,77 @@ func stockpileCreateEdits(r StockpileRequest, open stockpileOpen) []StockpileEdi
 		}
 	}
 	return out
+}
+
+// StockpileSite is a role whose zone belongs in one room (#917): the meal
+// shelf in the dining room, the raw-food stock in the freezer. Its absence
+// is a MaintainStockpiles deficit of its own: while no zone of the role's
+// prefix (a role-less legacy claim with the same settings counts) has a
+// cell in Room, the first Candidate whose cells are all open is created.
+// The role key carries the census room ID, which RimWorld renumbers, so a
+// zone is matched by where it stands, never by the key.
+type StockpileSite struct {
+	Role       string
+	Room       []domain.Cell
+	Filter     domain.StockpileFilter
+	Priority   domain.StockpilePriority
+	Candidates [][]domain.Cell
+}
+
+// stockpileSiteEdits proposes a zone for every site no zone serves yet.
+// Cells taken are marked in open.
+func stockpileSiteEdits(r StockpileRequest, open stockpileOpen) []StockpileEdit {
+	var out []StockpileEdit
+	for _, site := range r.Sited {
+		if stockpileSiteServed(r.Zones, site) {
+			continue
+		}
+		for _, cells := range site.Candidates {
+			free := len(cells) > 0
+			for _, c := range cells {
+				free = free && open.ok(c)
+			}
+			if !free {
+				continue
+			}
+			for _, c := range cells {
+				open.taken[c] = true
+			}
+			out = append(out, StockpileEdit{Kind: StockpileCreate, Role: site.Role, Cells: stockpileSorted(cells), Filter: site.Filter, Priority: site.Priority, Hauls: len(cells),
+				Explanation: fmt.Sprintf("stockpile role %s: no zone in its room, create %d cells at (%d,%d)", site.Role, len(cells), cells[0].X, cells[0].Z)})
+			break
+		}
+	}
+	return out
+}
+
+func stockpileSiteServed(zones []StockpileZone, site StockpileSite) bool {
+	prefix, _, _ := strings.Cut(site.Role, ":")
+	room := make(map[domain.Cell]bool, len(site.Room))
+	for _, c := range site.Room {
+		room[c] = true
+	}
+	for _, z := range zones {
+		zonePrefix, _, _ := strings.Cut(z.Role, ":")
+		if zonePrefix != prefix && (z.Role != "" || z.Filter != site.Filter || z.Priority != site.Priority) {
+			continue
+		}
+		for _, c := range z.Cells {
+			if room[c] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// stockpileRoleState is a role's published state; false for a role-less
+// zone or one no owner publishes.
+func stockpileRoleState(roles StockpileRoles, role string) (StockpileRoleState, bool) {
+	if role == "" || roles == nil {
+		return StockpileRoleState{}, false
+	}
+	return roles(role)
 }
 
 // stockpileGearSites are the free indoor roofed 2x2 patches nearest anchor,

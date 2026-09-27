@@ -326,7 +326,19 @@ judges by is unknown. The owners: `general` and `covered:<def>` (secure
 supplies, fixed settings), `ingredients:<benchID>` (retired once the bench
 census no longer lists the bench), `medicine:<roomID>` (retired once the
 room census no longer shows the room as a hospital), and MaintainStockpiles'
-own `apparel`, `weapons`, `dump:worn`, `dump:rotten` and `dump:corpses`.
+own `apparel`, `weapons`, `dump:worn`, `dump:rotten` and `dump:corpses`,
+`meals:<roomID>` and `rawfood:<roomID>`. A role that publishes `Fixed` keeps
+the size it was sited at: never grown, shrunk or merged.
+
+The room-bound roles (#917) are created whenever their room stands without
+one, whatever other goal is in deficit: `meals:<roomID>` (#872), a 2x2
+Critical allow-list of cooked meals on the free roofed patch nearest the
+dining table in the census Dining room, off the table's adjacent cells, and
+`rawfood:<roomID>` (#722), a 2x2 Critical stockpile of raw meat and raw
+plant food (never rotten) in the standing planned freezer, nearest its door
+into the kitchen. RimWorld renumbers rooms, so a room counts as served when
+any zone of the role's prefix, or a role-less legacy claim with the same
+settings, has a cell in it. Both are fixed-size.
 
 Built shelves (#721) inside an owned zone are MaintainStockpiles' too: a
 shelf whose last applied patch differs from its zone's desired settings

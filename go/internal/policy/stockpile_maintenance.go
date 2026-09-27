@@ -13,7 +13,8 @@ import (
 // zone whose role's desired filter or priority changed is patched, a zone
 // whose role's purpose is gone is deleted, a same-role fragment is
 // deleted into its larger sibling, and a fixed role the colony has things
-// for but no zone of is created (#724). It acts on the zones the colony created
+// for but no zone of is created (#724), as is a room-bound role whose room
+// stands without one (#917, StockpileSite). It acts on the zones the colony created
 // (store.OwnedZone), role-keyed; a role-less legacy claim is resized and
 // merged but never retargeted or deleted. Edits are rate-limited by the haul
 // jobs each would trigger, not by how rarely the routine acts.
@@ -51,6 +52,10 @@ type StockpileRoleState struct {
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
 	Retired  bool
+	// Fixed zones keep the size they were sited at: never grown, shrunk
+	// or merged (#917: a Critical shelf that grew would pull the whole
+	// stock out of storage).
+	Fixed bool
 }
 
 // StockpileRoles resolves a role key to its desired state; false leaves the
@@ -131,6 +136,8 @@ type StockpileRequest struct {
 	// Shelves are the built shelves inside the zones (#721): each carries
 	// its zone's desired settings, patched until it does.
 	Shelves []StockpileShelf
+	// Sited are the room-bound roles (#917) created while absent.
+	Sited []StockpileSite
 }
 
 // StockpileShelf is one built shelf serving an owned zone and the settings
@@ -228,6 +235,12 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 		take(e, true)
 	}
 	candidates = append(candidates, stockpileCreateEdits(r, open)...)
+	candidates = append(candidates, stockpileSiteEdits(r, open)...)
+	for _, z := range zones {
+		if state, ok := stockpileRoleState(r.Roles, z.Role); ok && state.Fixed {
+			touched[z.ID] = true
+		}
+	}
 	for _, z := range zones {
 		if !touched[z.ID] {
 			take(stockpileGrowEdit(open, z))

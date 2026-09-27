@@ -189,6 +189,8 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{domain.RottenDumpRole, true, false, domain.RottenDumpFilter(), domain.LowPriority},
 		{domain.CorpseDumpRole, true, false, domain.CorpseDumpFilter(), domain.LowPriority},
 		{"dump:other", false, false, domain.StockpileFilter{}, ""},
+		{"meals:Room_1", true, false, mealShelfFilter(), domain.CriticalPriority},
+		{"rawfood:Room_1", true, false, domain.RawFoodFilter(), domain.CriticalPriority},
 	} {
 		state, ok := roles(tc.role)
 		if ok != tc.published || state.Retired != tc.retired || ok && !tc.retired && (state.Filter != tc.filter || state.Priority != tc.priority) {

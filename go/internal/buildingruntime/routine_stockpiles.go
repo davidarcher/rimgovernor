@@ -102,6 +102,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	if rooms, ok := projection.Rooms.Value(); ok {
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
+	request.Sited = stockpileSites(projection, request.Protected)
 	for _, z := range owned {
 		entry := byZone[z.ID]
 		if z.Kind != domain.StockpileZone || entry == nil {
