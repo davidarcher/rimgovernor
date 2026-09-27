@@ -11,7 +11,7 @@ func TestAggregateBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Metrics{Fixture: "lab-test", Ticks: 500,
+	want := Metrics{Version: MetricsVersion, Fixture: "lab-test", Ticks: 500,
 		ColonistDamage: 13.3, ColonistDowns: 1, EnemyDowns: 1, EnemyDeaths: 1, EnemyFled: 1,
 		FirstContactTick: 1100, ResolvedTick: 1500, ContactToResolution: 400, Winner: Colonist,
 		FriendlyFireHits: 1, OrdersIssued: 1, OrdersRefused: 1, StepLatencyP95Ms: 400}

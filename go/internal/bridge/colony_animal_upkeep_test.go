@@ -61,7 +61,7 @@ func wildWire() *o.UpkeepFacts {
 	v := upkeepWire()
 	pawn := proto.Clone(v.Items[0].Item).(*o.EntityRef)
 	pawn.Id = proto.String("wild")
-	v.WildAnimals = []*o.AnimalFeed{{Pawn: &o.PawnState{Pawn: pawn, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false), MinimumHandlingSkill: proto.Int32(3)}}, Diet: proto.String("OmnivoreAnimal"), RequiresPen: proto.Bool(false)}}
+	v.WildAnimals = []*o.AnimalFeed{{Pawn: &o.PawnState{Pawn: pawn, Wild: proto.Bool(true), Predator: proto.Bool(false), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false), MinimumHandlingSkill: proto.Int32(3), AgeYears: proto.Float64(2), LifeExpectancyYears: proto.Float64(10), Adult: proto.Bool(true), Gender: proto.String("Female"), ManhunterOnTameFail: proto.Float64(0.1)}}, Diet: proto.String("OmnivoreAnimal"), RequiresPen: proto.Bool(false)}}
 	return v
 }
 

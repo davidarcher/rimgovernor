@@ -1046,6 +1046,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		out.Waiting = sel.waiting
 		clockSchedulerLog("step reason: %s", reason)
 		if out.Planners, err = s.runPlanners(call, epoch, &out, sel, status); err != nil {
+			s.replanAfterFailure()
 			return out, err
 		}
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
@@ -1095,6 +1096,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	clockSchedulerLog("step reason: %s planners=%v waiting=%v", reason, sel.planners, sel.waiting)
 	if sel.planners {
 		if out.Planners, err = s.runPlanners(call, epoch, &out, sel, status); err != nil {
+			s.replanAfterFailure()
 			return out, err
 		}
 		if len(out.HeldBy) > 0 {
@@ -1759,6 +1761,13 @@ func (s *ClockScheduler) bundleClockStatus(loaded *o.BundleSnapshot, snapshot do
 
 // fullStepDue reports whether the FullStepEvery safety net promotes a timer
 // step that would otherwise skip the planners.
+// replanAfterFailure makes the next timer step a full one after a planner
+// wave failed with its selection spent (a native generation moved under
+// the review after an authority resume): at a stopped clock no tick
+// re-queues the planners, and the review stays stale until the safety net
+// (#869).
+func (s *ClockScheduler) replanAfterFailure() { s.lastFull = time.Time{} }
+
 func (s *ClockScheduler) fullStepDue() bool {
 	every := s.config.FullStepEvery
 	if every <= 0 {

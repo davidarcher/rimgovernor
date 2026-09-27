@@ -1,4 +1,5 @@
-2026-09-26T10:00:00Z tick=1100 INFO [clock] combat_stop event=entered_range resume_latency_ms=40
-2026-09-26T10:00:01Z tick=1120 INFO [clock] combat_stop event=downed resume_latency_ms=400
-2026-09-26T10:00:01Z tick=1121 INFO [combat] combat_order kind=move outcome=issued
-2026-09-26T10:00:01Z tick=1122 INFO [combat] combat_order kind=move outcome=refused
+2026-09-26T10:00:00Z tick=1100 INFO [clock-scheduler] combat window stopped event=entered_range tick=1100 resume_latency_ms=40 ticks_since_stop=5 trace=a
+2026-09-26T10:00:01Z tick=1120 INFO [clock-scheduler] combat window stopped event=colonist_health tick=1120 resume_latency_ms=400 ticks_since_stop=20 trace=b
+2026-09-26T10:00:01Z tick=1121 INFO [worker] worker outcome action=routine-defense-p1-draft-Thing_Human1 attempt=1 stage=pending stage_after=awaiting_observation outcome="stage=awaiting_observation attempt=1 receipt=accepted effect=- refused=[] err=" repeated=0 trace=c
+2026-09-26T10:00:01Z tick=1122 INFO [worker] worker outcome action=routine-defense-p1-draft-Thing_Human1 attempt=1 stage=awaiting_observation stage_after=completed outcome="stage=completed attempt=1 receipt=accepted effect=completed refused=[] err=" repeated=0 trace=c
+2026-09-26T10:00:01Z tick=1123 WARN [worker] worker outcome action=routine-defense-p1-draft-Thing_Human2 attempt=0 stage=pending stage_after=pending outcome="stage=pending attempt=0 receipt=- effect=- refused=[critical_medical] err=building execution held" err="building execution held" repeated=0 trace=d

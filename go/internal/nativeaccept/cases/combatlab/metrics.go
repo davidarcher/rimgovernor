@@ -26,9 +26,14 @@ const (
 	ServiceLogFile = "service.log"
 )
 
+// MetricsVersion is the Metrics schema version: bump it when a field
+// changes meaning, and re-record the baselines.
+const MetricsVersion = 1
+
 // Metrics is one combat-fixture run: evidence, not a gate. The committed
 // baselines under baselines/ are this shape.
 type Metrics struct {
+	Version int    `json:"version"`
 	Fixture string `json:"fixture"`
 	Ticks   int    `json:"ticks"` // game ticks run after staging
 
@@ -51,11 +56,13 @@ type Metrics struct {
 	DamageDropped    int `json:"damageDropped,omitempty"`
 
 	// OrdersIssued and OrdersRefused count combat orders from the service
-	// log; zero until the combat order op (#850) logs them.
+	// log: combat_order lines (#850) and the routine defense planner's
+	// actions, issued once one completes, refused when one only ever
+	// carried a refusal.
 	OrdersIssued  int `json:"ordersIssued"`
 	OrdersRefused int `json:"ordersRefused"`
-	// StepLatencyP95Ms is the p95 of combat_stop resume_latency_ms (#849),
-	// -1 when no planner served the run.
+	// StepLatencyP95Ms is the p95 of the combat stops' resume_latency_ms
+	// (#849), -1 when no planner served the run.
 	StepLatencyP95Ms int64 `json:"stepLatencyP95Ms"`
 }
 
@@ -73,12 +80,12 @@ type Hit struct {
 // are the pawn ids and sides the staging placed: a staged pawn missing
 // from a later read left the map, which for a hostile is fled.
 func Aggregate(fixture string, staged map[string]string, reads []map[string]any) Metrics {
-	m := Metrics{Fixture: fixture, FirstContactTick: -1, ResolvedTick: -1, ContactToResolution: -1, StepLatencyP95Ms: -1}
+	m := Metrics{Version: MetricsVersion, Fixture: fixture, FirstContactTick: -1, ResolvedTick: -1, ContactToResolution: -1, StepLatencyP95Ms: -1}
 	if len(reads) == 0 {
 		return m
 	}
 	start := int(na.AsNumber(reads[0]["tick"]))
-	for _, read := range reads {
+	for i, read := range reads {
 		tick := int(na.AsNumber(read["tick"]))
 		m.Ticks = tick - start
 		pawns := map[string]map[string]any{}
@@ -89,6 +96,9 @@ func Aggregate(fixture string, staged map[string]string, reads []map[string]any)
 		if m.ResolvedTick < 0 {
 			if side := resolved(staged, pawns); side != "" {
 				m.ResolvedTick, m.Winner = tick, side
+				if i > 0 {
+					m.ResolvedTick = decisiveHit(staged, pawns, side, na.AsSlice(read["damage"]), tick)
+				}
 			}
 		}
 	}
@@ -138,6 +148,40 @@ func Aggregate(fixture string, staged map[string]string, reads []map[string]any)
 	return m
 }
 
+// decisiveHit narrows a resolution first seen on a read at tick to the
+// ledger hit that downed or killed the loser's last standing pawn: a
+// served run reads only once after its window. A loser that left the map
+// or went down without a hit (bleeding) keeps the read's tick.
+func decisiveHit(staged map[string]string, pawns map[string]map[string]any, winner string, damage []any, tick int) int {
+	first := map[string]int{}
+	for _, r := range damage {
+		row, _ := na.AsMap(r)
+		downed, _ := na.AsBool(row["downed"])
+		dead, _ := na.AsBool(row["dead"])
+		id, at := na.AsString(row["victim"]), int(na.AsNumber(row["tick"]))
+		if (downed || dead) && at <= tick {
+			if prev, ok := first[id]; !ok || at < prev {
+				first[id] = at
+			}
+		}
+	}
+	last := -1
+	for id, side := range staged {
+		if side == winner {
+			continue
+		}
+		at, ok := first[id]
+		if _, present := pawns[id]; !ok || !present {
+			return tick
+		}
+		last = max(last, at)
+	}
+	if last < 0 {
+		return tick
+	}
+	return last
+}
+
 // resolved names the side left standing once every staged pawn of the
 // other side is down, dead or off the map; "" while both fight.
 func resolved(staged map[string]string, pawns map[string]map[string]any) string {
@@ -166,9 +210,12 @@ func resolved(staged map[string]string, pawns map[string]map[string]any) string 
 }
 
 var (
-	resumeLatency = regexp.MustCompile(`\bcombat_stop\b.*\bresume_latency_ms=(\d+)`)
+	resumeLatency = regexp.MustCompile(`(\bcombat_stop\b|combat window stopped).*\bresume_latency_ms=(\d+)`)
 	// The combat order op (#850) logs combat_order lines with outcome=.
 	orderLine = regexp.MustCompile(`\bcombat_order\b.*\boutcome=(\w+)`)
+	// The routine defense planner's actions (drafts, holds) report through
+	// the worker.
+	defenseAction = regexp.MustCompile(`worker outcome action=(routine-defense-\S+) .*\bstage_after=(\w+).*\brefused=\[([^\]]*)\]`)
 )
 
 // ScanServiceLog adds the service log's combat orders and step latency.
@@ -182,13 +229,22 @@ func (m *Metrics) ScanServiceLog(path string) error {
 	}
 	defer f.Close()
 	var latencies []int64
+	actions := map[string]string{}
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 1<<20), 1<<24)
 	for sc.Scan() {
 		line := sc.Text()
 		if g := resumeLatency.FindStringSubmatch(line); g != nil {
-			v, _ := strconv.ParseInt(g[1], 10, 64)
+			v, _ := strconv.ParseInt(g[2], 10, 64)
 			latencies = append(latencies, v)
+		}
+		if g := defenseAction.FindStringSubmatch(line); g != nil {
+			switch {
+			case g[2] == "completed":
+				actions[g[1]] = "issued"
+			case g[3] != "" && actions[g[1]] == "":
+				actions[g[1]] = "refused"
+			}
 		}
 		if g := orderLine.FindStringSubmatch(line); g != nil {
 			if g[1] == "refused" {
@@ -196,6 +252,13 @@ func (m *Metrics) ScanServiceLog(path string) error {
 			} else {
 				m.OrdersIssued++
 			}
+		}
+	}
+	for _, outcome := range actions {
+		if outcome == "issued" {
+			m.OrdersIssued++
+		} else {
+			m.OrdersRefused++
 		}
 	}
 	if len(latencies) > 0 {

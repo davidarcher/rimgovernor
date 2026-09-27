@@ -355,6 +355,19 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {
 		t.Fatal("cancelled method authorized")
 	}
+	// An open fight (#852) keeps its settled plan: retired, it would drop
+	// out of its goal and the clock would stop admitting ticks mid-fight
+	// (#869).
+	if err = s.OpenCombatFight(ctx, "bill-plan", policy.CombatMemory{}); err != nil {
+		t.Fatal(err)
+	}
+	reviewRoutine(t, s, &r)
+	if p, err = s.LoadPlan(ctx, "bill-plan"); err != nil || p.Retired {
+		t.Fatal("open fight's plan retired", p.Retired, err)
+	}
+	if err = s.CloseCombatFight(ctx, "bill-plan"); err != nil {
+		t.Fatal(err)
+	}
 	// The next review retires the settled plan.
 	reviewRoutine(t, s, &r)
 	if p, err = s.LoadPlan(ctx, "bill-plan"); err != nil || !p.Retired {
