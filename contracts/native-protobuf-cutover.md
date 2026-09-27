@@ -22,6 +22,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/observations_read_bills | rimgovernor.observations.v1.Observations/ReadBills | Protocol/NativeBillsObservationTools.cs |
 | rimgovernor/observations_read_recipes | rimgovernor.observations.v1.Observations/ReadRecipes | Protocol/NativeBillsObservationTools.cs |
 | rimgovernor/operations_preview | rimgovernor.operations.v1.Operations/Preview | Protocol/NativeOperationTools.cs |
+| rimgovernor/operations_apply | rimgovernor.operations.v1.Actions/Apply | Protocol/NativeActionDispatch.cs |
 | rimgovernor/operations_execute | rimgovernor.operations.v1.Operations/Execute | Protocol/NativeOperationTools.cs |
 | rimgovernor/operations_release_owned_draft | rimgovernor.operations.v1.Operations/ReleaseOwnedDraft | Protocol/NativeOperationTools.cs |
 | rimgovernor/receipts_lookup | rimgovernor.receipts.v1.Attempts/Lookup | Protocol/NativeOperationTools.cs |

@@ -422,3 +422,52 @@ service Operations {
 
 // Autonomous per-role policy assignment; tainted apparel is always excluded.
 message SetApparelPolicy { EntityPrecondition pawn = 1; optional string name = 2; repeated string allowed_defs = 3; optional float min_hit_points = 4; optional float max_hit_points = 5; optional int32 min_quality = 6; optional int32 max_quality = 7; }
+
+// Actions/Apply carries idempotent intents (#856). Actions apply on the game
+// thread in order and independently: native validates each against live
+// state and applies it or refuses it with a reason. A resent key returns its
+// first result while native remembers it (an in-memory window, not saved).
+// The key names the attempt; only the identity is checked.
+service Actions {
+  rpc Apply(ApplyRequest) returns (ApplyReply);
+}
+message ApplyRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  repeated Action actions = 2;
+}
+// One intent kind per arm; 11 and 12 are held for shelter_bunks and movement.
+message Action {
+  optional string key = 1;
+  oneof intent {
+    TradeIntent trade = 10;
+  }
+}
+// One step against RimWorld's single live trade session, named by its
+// trader and negotiator (the step's own ids are ignored).
+message TradeIntent {
+  optional string trader_id = 1;
+  optional string negotiator_id = 2;
+  oneof step {
+    OpenTrade open = 3;
+    SetTradeLines set_lines = 4;
+    AcceptTrade accept = 5;
+    EndTrade end = 6;
+  }
+}
+message Refusal {
+  optional rimgovernor.common.v1.FailureCode code = 1;
+  optional string reason = 2;
+}
+message ActionResult {
+  optional string key = 1;
+  oneof outcome {
+    rimgovernor.receipts.v1.Receipt applied = 2;
+    Refusal refused = 3;
+    rimgovernor.common.v1.Failure failed = 4;
+  }
+}
+// batch_failure means no action in the batch was applied.
+message ApplyReply {
+  repeated ActionResult results = 1;
+  rimgovernor.common.v1.Failure batch_failure = 2;
+}

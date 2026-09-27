@@ -531,162 +531,197 @@ namespace HomeBridge.BridgeTools
         private static bool EndMatches(Operations.EndTrade command) =>
             _sessionId != null && !string.IsNullOrEmpty(command.TraderId) && command.TraderId == SafeString(_sessionTrader) && command.NegotiatorId == SafeString(_sessionNegotiator);
 
+        // --------------------------------------------------------- intent
+        // Actions/Apply's trade arm (NativeActionDispatch). The pair on the
+        // TradeIntent names the session; it replaces the step's own ids.
+        internal static Operations.TradeIntent Normalized(Operations.TradeIntent intent)
+        {
+            var copy = intent.Clone();
+            switch (copy.StepCase)
+            {
+                case Operations.TradeIntent.StepOneofCase.Open: copy.Open.TraderId = copy.TraderId; copy.Open.NegotiatorId = copy.NegotiatorId; break;
+                case Operations.TradeIntent.StepOneofCase.SetLines: copy.SetLines.TraderId = copy.TraderId; copy.SetLines.NegotiatorId = copy.NegotiatorId; break;
+                case Operations.TradeIntent.StepOneofCase.Accept: copy.Accept.TraderId = copy.TraderId; copy.Accept.NegotiatorId = copy.NegotiatorId; break;
+                case Operations.TradeIntent.StepOneofCase.End: copy.End.TraderId = copy.TraderId; copy.End.NegotiatorId = copy.NegotiatorId; break;
+            }
+            return copy;
+        }
+
+        // Whether the step applies to live state now; null when it does.
+        internal static Common.Failure? Validate(Operations.TradeIntent intent, Common.Identity identity)
+        {
+            Common.Failure failure;
+            switch (intent.StepCase)
+            {
+                case Operations.TradeIntent.StepOneofCase.Open:
+                    return PrepareOpen(intent.Open, identity, out _, out _, out _, out failure) ? null : failure;
+                case Operations.TradeIntent.StepOneofCase.SetLines:
+                    var all = RequireSession(identity, out _) ? _sessionDeal!.AllTradeables : new List<Tradeable>();
+                    return PrepareLines(intent.SetLines, identity, all, out _, out failure) ? null : failure;
+                case Operations.TradeIntent.StepOneofCase.Accept:
+                    return PrepareAccept(intent.Accept, identity, out failure) ? null : failure;
+                case Operations.TradeIntent.StepOneofCase.End:
+                    return PrepareEnd(intent.End, identity, out failure) ? null : failure;
+                default:
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A trade intent names exactly one step.");
+            }
+        }
+
+        // What the step would stage, without touching the session.
+        internal static Receipts.EffectEvidence Preview(Operations.TradeIntent intent, Common.Identity identity)
+        {
+            var evidence = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect { SessionId = _sessionId ?? "", DealSignature = _sessionId != null ? DealSignature() : "" } };
+            if (intent.StepCase == Operations.TradeIntent.StepOneofCase.SetLines && RequireSession(identity, out _)
+                && PrepareLines(intent.SetLines, identity, _sessionDeal!.AllTradeables, out var prepared, out _))
+                foreach (var l in prepared) evidence.Trade.Lines.Add(new Receipts.TradeLineEffect { LineId = "#" + l.Index, BeforeCount = l.Before, AfterCount = l.Target });
+            return evidence;
+        }
+
+        // Applies a validated step; the caller holds native authority. A
+        // throw after a partial effect leaves the session to the next read.
+        internal static Receipts.EffectEvidence Apply(Operations.TradeIntent intent, Common.ObservationContext context)
+        {
+            switch (intent.StepCase)
+            {
+                case Operations.TradeIntent.StepOneofCase.Open: return ApplyOpen(intent.Open, context);
+                case Operations.TradeIntent.StepOneofCase.SetLines: return ApplyLines(intent.SetLines, context.Identity);
+                case Operations.TradeIntent.StepOneofCase.Accept: return ApplyAccept(intent.Accept, context.Identity);
+                case Operations.TradeIntent.StepOneofCase.End: return ApplyEnd(intent.End, context.Identity);
+                default: throw new InvalidOperationException("A trade intent names exactly one step.");
+            }
+        }
+
+        private static Receipts.EffectEvidence ApplyOpen(Operations.OpenTrade command, Common.ObservationContext context)
+        {
+            var identity = context.Identity;
+            if (!PrepareOpen(command, identity, out var trader, out var negotiator, out var reuse, out _) || trader == null || negotiator == null)
+                throw new InvalidOperationException("Open prerequisites changed after validation.");
+            var giftMode = command.HasGiftMode && command.GiftMode;
+            var map = ProtoBoundary.ResolveMap(context);
+            if (map == null) throw new InvalidOperationException("No current map.");
+            if (reuse == OpenReuse.Session) return OpenEvidence(trader, false);
+            if (reuse == OpenReuse.Walk) return ApproachEvidence(trader);
+            if (Adjacent(trader, negotiator))
+            {
+                BindSession(trader, negotiator, giftMode, identity, map);
+                if (!TradeSession.Active) throw new InvalidOperationException("Native open readback did not apply.");
+                return OpenEvidence(trader, false);
+            }
+            // The negotiator walks after the trader; the session opens on
+            // arrival (Arrive).
+            var job = JobMaker.MakeJob(JobDefOf.TradeWithPawn, trader);
+            if (job == null || job.def != JobDefOf.TradeWithPawn || !ReferenceEquals(job.targetA.Thing, trader)) throw new InvalidOperationException("Native TradeWithPawn job could not be prepared.");
+            // Registered before the order: a pawn already in touch arrives
+            // inside TryTakeOrderedJob.
+            _walk = new NativeTradeWalk(trader, negotiator, giftMode, identity, map, job);
+            bool taken;
+            try { taken = negotiator.jobs.TryTakeOrderedJob(job, JobTag.Misc); }
+            catch (Exception e) { _walk = null; throw new InvalidOperationException("Ordered TradeWithPawn threw: " + e.GetType().Name, e); }
+            if (!taken) { _walk = null; throw new InvalidOperationException("The negotiator did not take the walk to the trader."); }
+            return _sessionId != null && ReferenceEquals(_sessionTrader, trader) ? OpenEvidence(trader, false) : ApproachEvidence(trader);
+        }
+
+        private static Receipts.EffectEvidence ApplyLines(Operations.SetTradeLines command, Common.Identity identity)
+        {
+            var deal = _sessionDeal; if (deal == null) throw new InvalidOperationException("Trade session closed before native effect.");
+            var all = deal.AllTradeables;
+            if (!PrepareLines(command, identity, all, out var prepared, out _)) throw new InvalidOperationException("Trade lines prerequisites changed after validation.");
+            var lineEffects = new List<Receipts.TradeLineEffect>();
+            foreach (var line in prepared)
+            {
+                var row = all[line.Index];
+                row.AdjustTo(line.Target);
+                lineEffects.Add(new Receipts.TradeLineEffect { LineId = "#" + line.Index, BeforeCount = line.Before, AfterCount = SafeInt(() => row.CountToTransfer) });
+            }
+            SafeUpdateCurrency(deal);
+            var evidence = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect
+            {
+                SessionId = _sessionId ?? "", DealSignature = DealSignature(), Executed = false, Closed = false,
+                BeforeSilver = SessionSilver(), AfterSilver = SessionSilver(),
+            } };
+            foreach (var l in lineEffects) evidence.Trade.Lines.Add(l);
+            return evidence;
+        }
+
+        private static Receipts.EffectEvidence ApplyAccept(Operations.AcceptTrade command, Common.Identity identity)
+        {
+            if (!PrepareAccept(command, identity, out _)) throw new InvalidOperationException("Accept prerequisites changed after validation.");
+            var deal = _sessionDeal!; var traderPawn = _sessionTrader; var faction = traderPawn?.Faction;
+            var beforeSilver = SessionSilver(); var beforeGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : 0;
+            bool executed, actuallyTraded;
+            try { executed = deal.TryExecute(out actuallyTraded); }
+            catch { executed = false; actuallyTraded = false; }
+            var afterGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : beforeGoodwill;
+            var sessionIdForEvidence = _sessionId ?? "";
+            var receiveQuest = !command.HasReceiveQuest || command.ReceiveQuest;
+            var quest = false;
+            if (receiveQuest && traderPawn != null)
+            {
+                try
+                {
+                    if (traderPawn.mindState != null && traderPawn.mindState.hasQuest && _sessionNegotiator != null)
+                    { TradeUtility.ReceiveQuestFromTrader(traderPawn, _sessionNegotiator); quest = true; }
+                }
+                catch { quest = false; }
+            }
+            try { TradeSession.Close(); } catch { }
+            _sessionId = null; _sessionColonyId = null; _sessionLoadToken = null; _sessionMap = null;
+            _sessionDeal = null; _sessionTrader = null; _sessionNegotiator = null; _giftMode = false;
+            // A deal the game would not execute still ends the session: the
+            // intent applied, and its evidence says the deal did not.
+            var evidence = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect
+            {
+                SessionId = sessionIdForEvidence, DealSignature = command.HasExpectedDealSignature ? command.ExpectedDealSignature : "",
+                Executed = executed, ActuallyTraded = actuallyTraded, Closed = true,
+                BeforeSilver = beforeSilver, AfterSilver = 0, BeforeGoodwill = beforeGoodwill, AfterGoodwill = afterGoodwill,
+                FactionId = faction != null ? faction.GetUniqueLoadID() : "",
+            } };
+            if (quest) evidence.Trade.ReceivedQuestIds.Add(sessionIdForEvidence);
+            return evidence;
+        }
+
+        private static Receipts.EffectEvidence ApplyEnd(Operations.EndTrade command, Common.Identity identity)
+        {
+            if (!PrepareEnd(command, identity, out _)) throw new InvalidOperationException("End prerequisites changed after validation.");
+            var sessionIdForEvidence = _sessionId ?? "";
+            var matches = EndMatches(command);
+            if (command.Kind == Operations.EndTradeKind.CloseDialog)
+            {
+                var stack = Find.WindowStack;
+                try { foreach (var w in stack?.Windows?.OfType<Window>().Where(IsTradeDialog).ToList() ?? new List<Window>()) { try { w.Close(false); } catch { try { stack!.TryRemove(w, false); } catch { } } } }
+                catch { }
+            }
+            if (matches) CloseSession(command.HasReceiveQuest && command.ReceiveQuest);
+            return new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect { SessionId = sessionIdForEvidence, Executed = false, Closed = matches } };
+        }
         // -------------------------------------------------------- execute
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
-            var operation = request.Operation; var pre = request.Precondition; var identity = context.Identity;
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
+            var operation = request.Operation; var pre = request.Precondition;
+            var intent = new Operations.TradeIntent();
+            switch (operation.CommandCase)
+            {
+                case Operations.Operation.CommandOneofCase.OpenTrade: intent.Open = operation.OpenTrade; intent.TraderId = operation.OpenTrade.TraderId; intent.NegotiatorId = operation.OpenTrade.NegotiatorId; break;
+                case Operations.Operation.CommandOneofCase.SetTradeLines: intent.SetLines = operation.SetTradeLines; intent.TraderId = operation.SetTradeLines.TraderId; intent.NegotiatorId = operation.SetTradeLines.NegotiatorId; break;
+                case Operations.Operation.CommandOneofCase.AcceptTrade: intent.Accept = operation.AcceptTrade; intent.TraderId = operation.AcceptTrade.TraderId; intent.NegotiatorId = operation.AcceptTrade.NegotiatorId; break;
+                case Operations.Operation.CommandOneofCase.EndTrade: intent.End = operation.EndTrade; intent.TraderId = operation.EndTrade.TraderId; intent.NegotiatorId = operation.EndTrade.NegotiatorId; break;
+                default: return Refuse(Common.FailureCode.Unsupported, "Trade execute implements OpenTrade, SetTradeLines, AcceptTrade and EndTrade only.");
+            }
+            NativeAttemptLedger.Admission? handle = null;
             try
             {
-                Common.Failure failure;
-                if (operation.CommandCase == Operations.Operation.CommandOneofCase.OpenTrade)
-                {
-                    if (!PrepareOpen(operation.OpenTrade, identity, out var trader, out var negotiator, out var reuse, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
-                    using (authority.Owned())
-                    {
-                        if (!PrepareOpen(operation.OpenTrade, identity, out trader, out negotiator, out reuse, out failure) || trader == null || negotiator == null)
-                            throw new InvalidOperationException("Open prerequisites changed after admission.");
-                        var giftMode = operation.OpenTrade.HasGiftMode && operation.OpenTrade.GiftMode;
-                        var map = ProtoBoundary.ResolveMap(context);
-                        if (map == null) throw new InvalidOperationException("No current map after admission.");
-                        if (reuse == OpenReuse.Session)
-                        {
-                            evidence = OpenEvidence(trader, false);
-                        }
-                        else if (reuse == OpenReuse.Walk)
-                        {
-                            evidence = ApproachEvidence(trader);
-                        }
-                        else if (Adjacent(trader, negotiator))
-                        {
-                            BindSession(trader, negotiator, giftMode, identity, map);
-                            evidence = OpenEvidence(trader, false);
-                            if (!TradeSession.Active) throw new InvalidOperationException("Native open readback did not apply.");
-                        }
-                        else
-                        {
-                            // The negotiator walks after the trader; the
-                            // session opens on arrival (Arrive).
-                            var job = JobMaker.MakeJob(JobDefOf.TradeWithPawn, trader);
-                            if (job == null || job.def != JobDefOf.TradeWithPawn || !ReferenceEquals(job.targetA.Thing, trader)) throw new InvalidOperationException("Native TradeWithPawn job could not be prepared.");
-                            // Registered before the order: a pawn already in
-                            // touch arrives inside TryTakeOrderedJob.
-                            _walk = new NativeTradeWalk(trader, negotiator, giftMode, identity, map, job);
-                            bool taken;
-                            try { taken = negotiator.jobs.TryTakeOrderedJob(job, JobTag.Misc); }
-                            catch (Exception e) { _walk = null; throw new InvalidOperationException("Ordered TradeWithPawn threw: " + e.GetType().Name, e); }
-                            if (!taken) { _walk = null; throw new InvalidOperationException("The negotiator did not take the walk to the trader."); }
-                            evidence = _sessionId != null && ReferenceEquals(_sessionTrader, trader) ? OpenEvidence(trader, false) : ApproachEvidence(trader);
-                        }
-                    }
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
-                }
-                if (operation.CommandCase == Operations.Operation.CommandOneofCase.SetTradeLines)
-                {
-                    var all0 = RequireSession(identity, out failure) ? _sessionDeal!.AllTradeables : new List<Tradeable>();
-                    if (!PrepareLines(operation.SetTradeLines, identity, all0, out var prepared, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
-                    using (authority.Owned())
-                    {
-                        var deal = _sessionDeal; if (deal == null) throw new InvalidOperationException("Trade session closed before native effect.");
-                        var all = deal.AllTradeables;
-                        if (!PrepareLines(operation.SetTradeLines, identity, all, out prepared, out failure)) throw new InvalidOperationException("Trade lines prerequisites changed after admission.");
-                        var lineEffects = new List<Receipts.TradeLineEffect>();
-                        foreach (var line in prepared)
-                        {
-                            var row = all[line.Index];
-                            row.AdjustTo(line.Target);
-                            lineEffects.Add(new Receipts.TradeLineEffect { LineId = "#" + line.Index, BeforeCount = line.Before, AfterCount = SafeInt(() => row.CountToTransfer) });
-                        }
-                        SafeUpdateCurrency(deal);
-                        evidence = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect
-                        {
-                            SessionId = _sessionId ?? "", DealSignature = DealSignature(), Executed = false, Closed = false,
-                            BeforeSilver = SessionSilver(), AfterSilver = SessionSilver(),
-                        } };
-                        foreach (var l in lineEffects) evidence.Trade.Lines.Add(l);
-                    }
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
-                }
-                if (operation.CommandCase == Operations.Operation.CommandOneofCase.AcceptTrade)
-                {
-                    if (!PrepareAccept(operation.AcceptTrade, identity, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
-                    using (authority.Owned())
-                    {
-                        if (!PrepareAccept(operation.AcceptTrade, identity, out failure)) throw new InvalidOperationException("Accept prerequisites changed after admission.");
-                        var deal = _sessionDeal!; var traderPawn = _sessionTrader; var faction = traderPawn?.Faction;
-                        var beforeSilver = SessionSilver(); var beforeGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : 0;
-                        bool executed, actuallyTraded;
-                        try { executed = deal.TryExecute(out actuallyTraded); }
-                        catch { executed = false; actuallyTraded = false; }
-                        var afterGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : beforeGoodwill;
-                        var sessionIdForEvidence = _sessionId ?? "";
-                        var receiveQuest = !operation.AcceptTrade.HasReceiveQuest || operation.AcceptTrade.ReceiveQuest;
-                        var quest = false;
-                        if (receiveQuest && traderPawn != null)
-                        {
-                            try
-                            {
-                                if (traderPawn.mindState != null && traderPawn.mindState.hasQuest && _sessionNegotiator != null)
-                                { TradeUtility.ReceiveQuestFromTrader(traderPawn, _sessionNegotiator); quest = true; }
-                            }
-                            catch { quest = false; }
-                        }
-                        var receivedQuestIds = new List<string>(); if (quest) receivedQuestIds.Add(sessionIdForEvidence);
-                        try { TradeSession.Close(); } catch { }
-                        _sessionId = null; _sessionColonyId = null; _sessionLoadToken = null; _sessionMap = null;
-                        _sessionDeal = null; _sessionTrader = null; _sessionNegotiator = null; _giftMode = false;
-                        evidence = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect
-                        {
-                            SessionId = sessionIdForEvidence, DealSignature = operation.AcceptTrade.HasExpectedDealSignature ? operation.AcceptTrade.ExpectedDealSignature : "",
-                            Executed = executed, ActuallyTraded = actuallyTraded, Closed = true,
-                            BeforeSilver = beforeSilver, AfterSilver = 0, BeforeGoodwill = beforeGoodwill, AfterGoodwill = afterGoodwill,
-                            FactionId = faction != null ? faction.GetUniqueLoadID() : "",
-                        } };
-                        foreach (var id in receivedQuestIds) evidence.Trade.ReceivedQuestIds.Add(id);
-                        // A deal the game would not execute still ends the session:
-                        // the intent applied, and its evidence says the deal did not.
-                    }
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
-                }
-                if (operation.CommandCase == Operations.Operation.CommandOneofCase.EndTrade)
-                {
-                    if (!PrepareEnd(operation.EndTrade, identity, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
-                    using (authority.Owned())
-                    {
-                        if (!PrepareEnd(operation.EndTrade, identity, out failure)) throw new InvalidOperationException("End prerequisites changed after admission.");
-                        var closedOurSession = false;
-                        var sessionIdForEvidence = _sessionId ?? "";
-                        var matches = EndMatches(operation.EndTrade);
-                        if (operation.EndTrade.Kind == Operations.EndTradeKind.CloseDialog)
-                        {
-                            var stack = Find.WindowStack;
-                            try { foreach (var w in stack?.Windows?.OfType<Window>().Where(IsTradeDialog).ToList() ?? new List<Window>()) { try { w.Close(false); } catch { try { stack!.TryRemove(w, false); } catch { } } } }
-                            catch { }
-                        }
-                        if (matches)
-                        {
-                            var receiveQuest = operation.EndTrade.HasReceiveQuest && operation.EndTrade.ReceiveQuest;
-                            CloseSession(receiveQuest);
-                            closedOurSession = true;
-                        }
-                        evidence = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect
-                        {
-                            SessionId = sessionIdForEvidence, Executed = false, Closed = closedOurSession,
-                        } };
-                    }
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
-                }
-                return Refuse(Common.FailureCode.Unsupported, "Trade execute implements OpenTrade, SetTradeLines, AcceptTrade and EndTrade only.");
+                var failure = Validate(intent, context.Identity);
+                if (failure != null) return new Operations.ExecuteReply { Failure = failure };
+                if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
+                Receipts.EffectEvidence evidence;
+                using (authority.Owned()) evidence = Apply(intent, context);
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Trade validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted trade order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, null, "Admitted trade order requires observation: " + error.GetType().Name) };
             }
         }
 

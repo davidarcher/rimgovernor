@@ -288,6 +288,7 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/authority_control":                    true,
 	"rimgovernor/operations_release_owned_draft":       true,
 	"rimgovernor/operations_execute":                   true,
+	ActionsApplyMethod:                                 true,
 	"rimgovernor/clock_start":                          true,
 	"rimgovernor/clock_renew":                          true,
 	"rimgovernor/clock_change_speed":                   true,
@@ -457,6 +458,8 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 			typedFailure = r.GetFailure() != nil
 		case *op.ExecuteReply:
 			typedFailure = r.GetFailure() != nil
+		case *op.ApplyReply:
+			typedFailure = r.GetBatchFailure() != nil
 		case *r.LookupReply:
 			typedFailure = r.GetFailure() != nil
 		case *r.ProgressReply:

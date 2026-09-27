@@ -2,7 +2,7 @@
 
 Each canonical Protobuf RPC has one fixed MCP tool name: `rimgovernor/<family>_<snake_case_rpc>`. The family is the middle component of `rimgovernor.<family>.v1`; RPC names are converted from PascalCase to lowercase words separated by underscores. Service names remain part of the descriptor identity but are not repeated in tool names. Consequently, RPC names must remain unique across services within one family, including the three presentation services.
 
-This table comes from the nine official compiled C# `FileDescriptor` objects, not a parallel schema parser or source generator. All 81 methods have unique MCP names, and the longest name is 51 characters, below the 64-character ceiling. `common.proto` contributes shared messages but no RPCs. The table fixes capability identity; it does not claim an adapter is installed or native acceptance has passed.
+This table comes from the nine official compiled C# `FileDescriptor` objects, not a parallel schema parser or source generator. All 82 methods have unique MCP names, and the longest name is 51 characters, below the 64-character ceiling. `common.proto` contributes shared messages but no RPCs. The table fixes capability identity; it does not claim an adapter is installed or native acceptance has passed.
 
 ## Wrapper and dispatch
 
@@ -100,6 +100,7 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/observations_read_world` | `rimgovernor.observations.v1.Observations/ReadWorld` | `rimgovernor.observations.v1.WorldRequest` | `rimgovernor.observations.v1.WorldReply` |
 | `rimgovernor/observations_read_world_progression` | `rimgovernor.observations.v1.Observations/ReadWorldProgression` | `rimgovernor.observations.v1.WorldProgressionRequest` | `rimgovernor.observations.v1.WorldProgressionReply` |
 | `rimgovernor/observations_resolve_target` | `rimgovernor.observations.v1.Observations/ResolveTarget` | `rimgovernor.observations.v1.ResolveTargetRequest` | `rimgovernor.observations.v1.ResolveTargetReply` |
+| `rimgovernor/operations_apply` | `rimgovernor.operations.v1.Actions/Apply` | `rimgovernor.operations.v1.ApplyRequest` | `rimgovernor.operations.v1.ApplyReply` |
 | `rimgovernor/operations_execute` | `rimgovernor.operations.v1.Operations/Execute` | `rimgovernor.operations.v1.ExecuteRequest` | `rimgovernor.operations.v1.ExecuteReply` |
 | `rimgovernor/operations_preview` | `rimgovernor.operations.v1.Operations/Preview` | `rimgovernor.operations.v1.PreviewRequest` | `rimgovernor.operations.v1.PreviewReply` |
 | `rimgovernor/operations_release_owned_draft` | `rimgovernor.operations.v1.Operations/ReleaseOwnedDraft` | `rimgovernor.operations.v1.ReleaseOwnedDraftRequest` | `rimgovernor.operations.v1.ReleaseOwnedDraftReply` |
