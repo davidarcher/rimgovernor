@@ -86,7 +86,7 @@ func run(ctx context.Context, s cases.Session) error {
 			report["food_postmortem_error"] = err.Error()
 		}
 		if reply, err := ph.Wire(stopCtx, "threats-postmortem", "observations_read_status", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "colonists": false, "threats": true, "colonistDetail": false, "page": map[string]any{"limit": 256},
+			"scope": map[string]any{"expectedIdentity": identity}, "colonists": false, "threats": true, "colonistDetail": false,
 		}); err == nil {
 			if _, observed, err := na.Outcome(reply, "observed"); err == nil {
 				report["threats_postmortem"] = observed["threats"]
@@ -454,7 +454,7 @@ func (f foodSummary) evidence() map[string]any {
 // count as warm at-risk.
 func readFoodStorage(ctx context.Context, h *na.Harness, identity map[string]any, label string) (foodSummary, error) {
 	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
 	})
 	if err != nil {
 		return foodSummary{}, err
@@ -507,7 +507,7 @@ func (c coolerRow) evidence() map[string]any {
 
 func readCoolers(ctx context.Context, h *na.Harness, identity map[string]any) ([]coolerRow, error) {
 	reply, err := h.Wire(ctx, "coolers-after", "observations_list_buildings", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "defNames": []string{"Cooler"}, "statuses": []string{"built"}, "page": map[string]any{"limit": 64},
+		"scope": map[string]any{"expectedIdentity": identity}, "defNames": []string{"Cooler"}, "statuses": []string{"built"},
 	})
 	if err != nil {
 		return nil, err

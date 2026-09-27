@@ -72,7 +72,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// caravan, mirroring bridge.ReadSettlementGiftTarget's own extraction.
 	journey := func(label string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "observations_read_world_progression", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "includeStorage": false, "page": map[string]any{"limit": 64},
+			"scope": map[string]any{"expectedIdentity": identity}, "includeStorage": false,
 		})
 		if err != nil {
 			return nil, err
@@ -100,7 +100,6 @@ func run(ctx context.Context, s cases.Session) error {
 	settlement := func(label string, tile float64) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "observations_read_world", map[string]any{
 			"scope": map[string]any{"expectedIdentity": identity}, "tile": tile, "settlementRadius": 0,
-			"page": map[string]any{"limit": 256},
 		})
 		if err != nil {
 			return nil, err

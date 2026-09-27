@@ -19,7 +19,7 @@ type zoneWriteEnvironment struct {
 func (n *zoneWriteEnvironment) InspectZoneWrite(_ context.Context, target Target) (ZoneWriteInspection, error) {
 	n.inspected++
 	now := n.clock.Now()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true)})
 	return ZoneWriteInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: now, ObservedAt: now, Action: target.Action, SnapshotToken: n.token, Accepted: true, Emergency: emergency}, nil
 }
 func (n *zoneWriteEnvironment) ApplyZoneWrite(_ context.Context, d ZoneWriteDispatch) (Receipt, error) {

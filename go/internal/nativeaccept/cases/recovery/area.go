@@ -135,7 +135,6 @@ func runArea(ctx context.Context, s cases.Session) error {
 			"scope":   map[string]any{"expectedIdentity": identity},
 			"filter":  map[string]any{"ids": []string{pawnID}},
 			"details": map[string]any{"settings": false, "work": true},
-			"page":    map[string]any{"limit": 1},
 		})
 		if err != nil {
 			return "", "", err

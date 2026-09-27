@@ -37,7 +37,7 @@ func rangedRequest(t *testing.T) RangedDefenseRequest {
 		t.Fatal(err)
 	}
 	p, _ := domain.NewProgress(plan, a.ID())
-	e, err := NewEmergencySnapshot(s, 13, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}, Threats: []EmergencyThreat{{ID: "target", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}})
+	e, err := NewEmergencySnapshot(s, 13, EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}, Threats: []EmergencyThreat{{ID: "target", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestRangedDefenseHolds(t *testing.T) {
 		{"target downed", func(r *RangedDefenseRequest) { r.Facts.Target.Downed = domain.Known(true) }},
 		{"target neutral", func(r *RangedDefenseRequest) { r.Facts.Target.Hostile = domain.Known(false) }},
 		{"preview refusal", func(r *RangedDefenseRequest) { r.Facts.NativeCanTry = domain.Known(false) }},
-		{"census incomplete", func(r *RangedDefenseRequest) { r.Facts.Emergency.facts.ThreatsComplete = domain.Known(false) }},
+		{"census incomplete", func(r *RangedDefenseRequest) { r.Facts.Emergency.facts.ColonistsComplete = domain.Known(false) }},
 		{"no opponent", func(r *RangedDefenseRequest) { r.Facts.Emergency.facts.Threats = nil }},
 	}
 	for _, c := range cases {

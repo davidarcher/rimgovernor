@@ -259,7 +259,7 @@ func indexRows(reply map[string]any) map[string]map[string]any {
 // carries the exact fuel/battery/network facts the decision was made on.
 func readPowerFacts(ctx context.Context, h *na.Harness, identity map[string]any, label string) (map[string]any, error) {
 	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
 	})
 	if err != nil {
 		return nil, err

@@ -28,7 +28,7 @@ func (m *rangedFake) InspectRanged(_ context.Context, target Target, claim domai
 	}
 	now := m.f.clock.Now()
 	tick := domain.Tick(101 + m.inspections)
-	emergency, err := policy.NewEmergencySnapshot(target.Snapshot, tick+1, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}, Threats: []policy.EmergencyThreat{{ID: "hostile", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}})
+	emergency, err := policy.NewEmergencySnapshot(target.Snapshot, tick+1, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}, Threats: []policy.EmergencyThreat{{ID: "hostile", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}})
 	if err != nil {
 		return RangedInspection{}, err
 	}

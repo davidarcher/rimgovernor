@@ -93,7 +93,6 @@ func run(ctx context.Context, s cases.Session) error {
 		request := map[string]any{
 			"scope":  map[string]any{"expectedIdentity": identity},
 			"filter": map[string]any{"defNames": defNames, "ownership": "all", "includeHeld": includeHeld},
-			"page":   map[string]any{"limit": 16},
 		}
 		reply, err := h.Wire(ctx, label+"-typed-census", "observations_list_supplies", request)
 		if err != nil {
@@ -159,7 +158,6 @@ func run(ctx context.Context, s cases.Session) error {
 		request map[string]any
 	}{
 		{"bad-category", map[string]any{"filter": map[string]any{"category": "unknown"}}},
-		{"bad-page", map[string]any{"page": map[string]any{"limit": 257}}},
 	}
 	for _, c := range invalidCases {
 		request := na.Merge(c.request, map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
@@ -337,7 +335,6 @@ func checkWeaponClasses(ctx context.Context, h *na.Harness, identity map[string]
 	request := map[string]any{
 		"scope":  map[string]any{"expectedIdentity": identity},
 		"filter": map[string]any{"category": "weapons", "ownership": "all", "includeHeld": true},
-		"page":   map[string]any{"limit": 256},
 	}
 	reply, err := h.Wire(ctx, "weapons-census", "observations_list_supplies", request)
 	if err != nil {

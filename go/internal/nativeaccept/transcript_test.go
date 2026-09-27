@@ -98,7 +98,7 @@ func TestReplayRefusalReachesTheHarness(t *testing.T) {
 	h, replay := replayHarness(t, "refused.jsonl")
 	identity := map[string]any{"colonyId": "e8e3bf970585487baec750084f138753", "loadToken": "8de1a627d4a64722a24156436f4fca81", "mapId": 0}
 	_, err := h.Wire(context.Background(), "colony-facts-poll", "observations_read_colony_facts", map[string]any{
-		"page": map[string]any{"limit": 256}, "planning": false, "scope": map[string]any{"expectedIdentity": identity},
+		"planning": false, "scope": map[string]any{"expectedIdentity": identity},
 	})
 	if !errors.Is(err, bridge.ErrRefused) {
 		t.Fatalf("expected the recorded refusal: %v", err)

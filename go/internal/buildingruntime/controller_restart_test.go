@@ -85,7 +85,7 @@ func (n *scriptedBuildingNative) ReadMapBounds(_ context.Context, identity *c.Id
 func (n *scriptedBuildingNative) ReadEmergency(_ context.Context, identity *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	return bridge.EmergencyObservation{Context: n.context(identity), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}, bridge.Result{}, nil
+	return bridge.EmergencyObservation{Context: n.context(identity), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}}, bridge.Result{}, nil
 }
 
 // PreviewBuilding is the sleeping fixture's preview at the native tick the

@@ -31,7 +31,7 @@ func (n *mineAcquisitionEnvironment) InspectAcquisition(_ context.Context, targe
 		n.onInspect()
 	}
 	acquisition, _ := target.Action.MineAcquisition()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	return AcquisitionInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Acquisition: acquisition, SnapshotToken: "mine-token", Accepted: true, Emergency: emergency}, nil
 }
 func (n *mineAcquisitionEnvironment) Acquire(_ context.Context, request AcquisitionDispatch) (Receipt, error) {

@@ -137,7 +137,7 @@ func runJoiner(ctx context.Context, s cases.Session) error {
 	// offer with its root script name, exactly as bridge.QuestOffer decodes
 	// it (observations_read_world_progression's quests page).
 	reply, err := h.Wire(ctx, "census-before", "observations_read_world_progression", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "includeStorage": false, "page": map[string]any{"limit": 64},
+		"scope": map[string]any{"expectedIdentity": identity}, "includeStorage": false,
 	})
 	if err != nil {
 		return err

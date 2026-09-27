@@ -116,7 +116,7 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 			identity := s.Identity()
 			reply, err := h.Wire(ctx, "pawn", "observations_list_pawns", map[string]any{
 				"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"ids": []string{string(move.Pawn())}},
-				"details": map[string]any{}, "page": map[string]any{"limit": 1},
+				"details": map[string]any{},
 			})
 			if err != nil {
 				return err

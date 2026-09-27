@@ -82,7 +82,6 @@ func run(ctx context.Context, s cases.Session) error {
 			"scope":   map[string]any{"expectedIdentity": identity},
 			"filter":  map[string]any{"ids": []string{pawnID}, "includeDead": true},
 			"details": map[string]any{"needs": true, "schedule": true},
-			"page":    map[string]any{"limit": 1},
 		})
 		if err != nil {
 			return nil, err

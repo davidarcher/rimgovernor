@@ -33,7 +33,7 @@ func (n *deconstructionEnvironment) InspectDeconstruction(_ context.Context, tar
 		return DeconstructionInspection{}, ErrDeconstructionAbsent
 	}
 	value, _ := target.Action.Deconstruction()
-	facts := policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)}
+	facts := policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)}
 	if n.threat {
 		facts.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: domain.Known(150.0)}}
 	}

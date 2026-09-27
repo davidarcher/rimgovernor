@@ -88,7 +88,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 			report["filth_postmortem_error"] = err.Error()
 		}
 		if reply, err := ph.Wire(stopCtx, "threats-postmortem", "observations_read_status", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "colonists": false, "threats": true, "colonistDetail": false, "page": map[string]any{"limit": 256},
+			"scope": map[string]any{"expectedIdentity": identity}, "colonists": false, "threats": true, "colonistDetail": false,
 		}); err == nil {
 			if _, observed, err := na.Outcome(reply, "observed"); err == nil {
 				report["threats_postmortem"] = observed["threats"]
@@ -102,7 +102,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	// definitions; record its section sizes so an oversized read on an
 	// unlucky map is diagnosable from the report.
 	if reply, err := h.Wire(ctx, "colony-facts-typed", "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": true, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "planning": true,
 	}); err == nil {
 		if _, observed, err := na.Outcome(reply, "observed"); err == nil {
 			sizes := map[string]int{}
@@ -405,7 +405,7 @@ func (c roomCensus) key(id string) string {
 // each proper room's role, cells and Cleanliness stat when measured.
 func readRooms(ctx context.Context, h *na.Harness, identity map[string]any, label string) (roomCensus, error) {
 	reply, err := h.Wire(ctx, label, "observations_list_rooms", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "includeOutdoors": false, "includeBoundary": false, "includeCells": true, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "includeOutdoors": false, "includeBoundary": false, "includeCells": true,
 	})
 	if err != nil {
 		return nil, err
@@ -473,7 +473,7 @@ func readFilth(ctx context.Context, h *na.Harness, identity map[string]any, labe
 
 func readColonyFacts(ctx context.Context, h *na.Harness, identity map[string]any, label string) (map[string]any, error) {
 	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
 	})
 	if err != nil {
 		return nil, err

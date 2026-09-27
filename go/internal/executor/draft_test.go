@@ -22,7 +22,7 @@ type draftFake struct {
 func (d *draftFake) InspectDraft(_ context.Context, t Target) (DraftInspection, error) {
 	d.inspections++
 	now := d.f.clock.Now()
-	emergency, err := policy.NewEmergencySnapshot(t.Snapshot, 101, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}})
+	emergency, err := policy.NewEmergencySnapshot(t.Snapshot, 101, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}})
 	if err != nil {
 		return DraftInspection{}, err
 	}
@@ -124,7 +124,7 @@ func TestDraftSecondInspectionHoldsWithoutDispatch(t *testing.T) {
 func TestDraftEmergencyBlocksDispatchAndPersistsHold(t *testing.T) {
 	f, d := newDraftFixture(t)
 	d.inspect = func(v *DraftInspection) {
-		v.Emergency, _ = policy.NewEmergencySnapshot(v.Current, v.Tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(true), Bleeding: domain.Known(true), NeedsTend: domain.Known(true)}}})
+		v.Emergency, _ = policy.NewEmergencySnapshot(v.Current, v.Tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(true), Bleeding: domain.Known(true), NeedsTend: domain.Known(true)}}})
 	}
 	r, err := f.run()
 	if !errors.Is(err, ErrHeld) || d.calls != 0 {
@@ -145,9 +145,9 @@ func TestDraftIgnoresUnrelatedThreatForHealthyPawn(t *testing.T) {
 	f, d := newDraftFixture(t)
 	d.inspect = func(v *DraftInspection) {
 		v.Emergency, _ = policy.NewEmergencySnapshot(v.Current, v.Tick, policy.EmergencyFacts{
-			ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
-			Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}},
-			Threats:   []policy.EmergencyThreat{{ID: "hostile", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}},
+			ColonistsComplete: domain.Known(true),
+			Colonists:         []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}},
+			Threats:           []policy.EmergencyThreat{{ID: "hostile", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}},
 		})
 	}
 	r, err := f.run()

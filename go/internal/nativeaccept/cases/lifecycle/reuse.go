@@ -270,7 +270,7 @@ func draftColonist(ctx context.Context, h *na.Harness, identity map[string]any, 
 			filter["ids"] = ids
 		}
 		reply, err := h.Wire(ctx, label+"-"+step, "observations_list_pawns", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "filter": filter, "page": map[string]any{"limit": 64},
+			"scope": map[string]any{"expectedIdentity": identity}, "filter": filter,
 		})
 		if err != nil {
 			return nil, err

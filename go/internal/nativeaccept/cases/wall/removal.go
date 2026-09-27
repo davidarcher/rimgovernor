@@ -113,7 +113,7 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	scope := map[string]any{"expectedIdentity": identity}
 
 	census := func(label, target string) ([]any, error) {
-		request := map[string]any{"scope": scope, "page": map[string]any{"limit": 256}}
+		request := map[string]any{"scope": scope}
 		if target != "" {
 			request["targetId"] = target
 		}

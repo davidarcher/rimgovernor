@@ -24,7 +24,7 @@ func idleDraftWorkOpen(plan store.PlanState) bool {
 // idleDrafts observes only candidates for adoption. Hands still previews and
 // dispatches SetDrafted with its ordinary generation, pawn CAS and claim checks.
 func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, tick domain.Tick, emergency policy.EmergencyFacts, observed *n.PawnSnapshot, plans []store.PlanState) ([]domain.PawnID, error) {
-	if emergency.ColonistsComplete != domain.Known(true) || emergency.ThreatsComplete != domain.Known(true) || len(emergency.Colonists) == 0 {
+	if emergency.ColonistsComplete != domain.Known(true) || len(emergency.Colonists) == 0 {
 		return nil, nil
 	}
 	for _, threat := range emergency.Threats {

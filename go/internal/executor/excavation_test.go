@@ -33,7 +33,7 @@ func (n *excavationEnvironment) InspectExcavation(_ context.Context, target Targ
 		n.onInspect()
 	}
 	excavation, _ := target.Action.Excavation()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	facts := policy.ExcavationFacts{Snapshot: target.Snapshot, ObservationTick: n.tick, Fogged: domain.Known(n.fogged), Support: policy.ExcavationSupportSupported, WorkerAvailable: domain.Known(!n.noWorker), AccessReachable: domain.Known(true)}
 	if !n.fogged {
 		facts.Definition, facts.Eligible = domain.Known(excavation.Definition()), domain.Known(true)

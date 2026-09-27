@@ -32,7 +32,7 @@ func (n *acquisitionEnvironment) InspectAcquisition(_ context.Context, target Ta
 		return AcquisitionInspection{Tick: n.tick}, n.inspectErr
 	}
 	acquisition, _ := target.Action.Acquisition()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	return AcquisitionInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Acquisition: acquisition, SnapshotToken: "acquisition-token", Accepted: true, Emergency: emergency}, nil
 }
 func (n *acquisitionEnvironment) Acquire(_ context.Context, request AcquisitionDispatch) (Receipt, error) {

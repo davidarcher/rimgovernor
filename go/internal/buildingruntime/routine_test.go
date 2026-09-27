@@ -158,7 +158,7 @@ func (n *routineNative) ReadRoutinePopulation(ctx context.Context, _ *c.Identity
 }
 
 func (n *routineNative) ReadEmergency(ctx context.Context, _ *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
-	return bridge.EmergencyObservation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}, bridge.Result{}, ctx.Err()
+	return bridge.EmergencyObservation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}}, bridge.Result{}, ctx.Err()
 }
 
 func (n *routineNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {

@@ -160,7 +160,7 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 	}
 	report["colonist_walls"] = len(walls)
 
-	cleanupReply, err := h.Wire(ctx, "cleanup-census", "observations_list_wall_upgrade_sites", map[string]any{"scope": scope, "page": map[string]any{"limit": 256}})
+	cleanupReply, err := h.Wire(ctx, "cleanup-census", "observations_list_wall_upgrade_sites", map[string]any{"scope": scope})
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 		if success, _ := na.AsBool(legacy["success"]); !success {
 			return fmt.Errorf("legacy home/wall_upgrade_sites refused %s", wall)
 		}
-		typedReply, err := h.Wire(ctx, "typed-"+wall, "observations_list_wall_upgrade_sites", map[string]any{"scope": scope, "targetId": wall, "page": map[string]any{"limit": 64}})
+		typedReply, err := h.Wire(ctx, "typed-"+wall, "observations_list_wall_upgrade_sites", map[string]any{"scope": scope, "targetId": wall})
 		if err != nil {
 			return err
 		}
@@ -221,7 +221,6 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 		request map[string]any
 		code    string
 	}{
-		{"bad-page", map[string]any{"scope": scope, "page": map[string]any{"limit": 257}}, "FAILURE_CODE_INVALID_REQUEST"},
 		{"blank-target", map[string]any{"scope": scope, "targetId": " "}, "FAILURE_CODE_INVALID_REQUEST"},
 		{"unknown-target", map[string]any{"scope": scope, "targetId": "Thing_NoSuchWall0"}, "FAILURE_CODE_NOT_FOUND"},
 	} {

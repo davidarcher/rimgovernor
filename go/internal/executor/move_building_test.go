@@ -23,7 +23,7 @@ func (n *moveBuildingEnvironment) InspectMoveBuilding(_ context.Context, target 
 		return MoveBuildingInspection{}, ErrMoveBuildingAbsent
 	}
 	move, _ := target.Action.MoveBuilding()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	return MoveBuildingInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Move: move, Accepted: true, Emergency: emergency}, nil
 }
 func (n *moveBuildingEnvironment) ApplyMoveBuilding(_ context.Context, request MoveBuildingDispatch) (Receipt, error) {

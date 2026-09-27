@@ -171,37 +171,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("no populated bounded unlock collection was verified")
 	}
 
-	invalidCases := []struct {
-		label  string
-		change map[string]any
-	}{
-		{"limit", map[string]any{"page": map[string]any{"limit": 257}}},
-	}
-	for _, c := range invalidCases {
-		reply, err := h.Wire(ctx, c.label, "observations_read_research", na.Merge(scope, c.change))
-		if err != nil {
-			return err
-		}
-		if code, ok := na.FailureCode(reply); !ok || code != "FAILURE_CODE_INVALID_REQUEST" {
-			return fmt.Errorf("%s: expected FAILURE_CODE_INVALID_REQUEST, got %q", c.label, code)
-		}
-	}
-	// A short-but-undecodable cursor passes Validate (NativeResearchObservationTools.cs
-	// Validate only rejects cursor length>4096 as invalid) and instead fails
-	// NativeObservationSnapshot.Cursor.TryDecode inside the handler, which reports
-	// UNAVAILABLE_REASON_LIMIT_EXCEEDED rather than a Failure. Assert the outcome
-	// the tool actually produces instead of an invalid-request failure.
-	staleCursorReply, err := h.Wire(ctx, "cursor", "observations_read_research", na.Merge(scope, map[string]any{"page": map[string]any{"cursor": "stale"}}))
-	if err != nil {
-		return err
-	}
-	if _, observedPresent, _ := na.Outcome(staleCursorReply, "observed"); observedPresent != nil {
-		return fmt.Errorf("cursor: expected a stale/undecodable cursor to be refused, got observed")
-	}
-	if reason, ok := na.UnavailableReason(staleCursorReply); !ok || reason != "UNAVAILABLE_REASON_LIMIT_EXCEEDED" {
-		return fmt.Errorf("cursor: expected UNAVAILABLE_REASON_LIMIT_EXCEEDED, got %q", reason)
-	}
-
 	fingerprintAfter, err := h.Call(ctx, "fingerprint-after", "test/research_observation_fingerprint", nil)
 	if err != nil {
 		return err

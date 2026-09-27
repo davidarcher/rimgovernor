@@ -328,7 +328,7 @@ func (s routesSummary) evidence() map[string]any {
 // projection does, keeping the fixture facility's row and the traffic census.
 func readRoutes(ctx context.Context, h *na.Harness, identity map[string]any, label, facility string) (routesSummary, error) {
 	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
 	})
 	if err != nil {
 		return routesSummary{}, err

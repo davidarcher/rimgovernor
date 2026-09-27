@@ -146,7 +146,7 @@ func tidyFurniture(ctx context.Context, s cases.Session) error {
 			}
 			report["bed_after"] = fmt.Sprintf("%+v", after)
 			reply, err := h.Wire(ctx, "rooms", "observations_list_rooms", map[string]any{
-				"scope": map[string]any{"expectedIdentity": s.Identity()}, "includeOutdoors": false, "includeBoundary": false, "includeCells": true, "page": map[string]any{"limit": 256},
+				"scope": map[string]any{"expectedIdentity": s.Identity()}, "includeOutdoors": false, "includeBoundary": false, "includeCells": true,
 			})
 			if err != nil {
 				return err

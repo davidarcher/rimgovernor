@@ -130,7 +130,6 @@ func run(ctx context.Context, s cases.Session) error {
 			"scope":   map[string]any{"expectedIdentity": identity},
 			"filter":  map[string]any{"ids": []string{pawnID}},
 			"details": map[string]any{},
-			"page":    map[string]any{"limit": 1},
 		})
 		if err != nil {
 			return "", err
@@ -167,7 +166,6 @@ func run(ctx context.Context, s cases.Session) error {
 			"scope":      map[string]any{"expectedIdentity": identity},
 			"exactCells": map[string]any{"cells": cells},
 			"fields":     map[string]any{"terrain": false, "roof": false, "visibility": false, "traversal": false, "things": true},
-			"page":       map[string]any{"limit": len(cells)},
 		})
 		if err != nil {
 			return nil, err

@@ -15,7 +15,7 @@ func healthyPawn(id PawnID) EmergencyPawn {
 	return EmergencyPawn{ID: id, Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}
 }
 func completeEmergency() EmergencyFacts {
-	return EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}
+	return EmergencyFacts{ColonistsComplete: domain.Known(true)}
 }
 func evaluateEmergency(t *testing.T, facts EmergencyFacts) EmergencyDecision {
 	t.Helper()
@@ -39,12 +39,10 @@ func TestEmergencyKnownAndMedicalFacts(t *testing.T) {
 	}
 	for _, complete := range []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)} {
 		f := completeEmergency()
-		f.ThreatsComplete = complete
+		f.ColonistsComplete = complete
 		if !hasEmergencyHold(evaluateEmergency(t, f), EmergencyUnknownFacts, "") {
 			t.Fatal("partial cleared")
 		}
-		f = completeEmergency()
-		f.ColonistsComplete = complete
 		if evaluateEmergency(t, f).Clear {
 			t.Fatal("partial people cleared")
 		}
@@ -230,7 +228,7 @@ func TestEmergencyImmutableAndDeterministic(t *testing.T) {
 	}
 	first := EvaluateEmergency(s, emergencyScope(), 10)
 	f.Colonists[0] = healthyPawn("changed")
-	f.ThreatsComplete = domain.Known(false)
+	f.ColonistsComplete = domain.Known(false)
 	if !reflect.DeepEqual(first, EvaluateEmergency(s, emergencyScope(), 10)) {
 		t.Fatal("input alias")
 	}

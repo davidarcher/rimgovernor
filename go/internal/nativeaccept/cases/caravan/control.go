@@ -63,7 +63,7 @@ func runControl(ctx context.Context, s cases.Session) error {
 	// from this call.
 	target := func(label string) (caravanRow map[string]any, err error) {
 		reply, err := h.Wire(ctx, label, "observations_read_world_progression", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "includeStorage": false, "page": map[string]any{"limit": 64},
+			"scope": map[string]any{"expectedIdentity": identity}, "includeStorage": false,
 		})
 		if err != nil {
 			return nil, err

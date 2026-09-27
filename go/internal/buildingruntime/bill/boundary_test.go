@@ -86,7 +86,7 @@ func newBillBoundaryFixture(t *testing.T) (*BillBoundary, *billBoundaryFixture, 
 		preview: &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{
 			Context: proto.Clone(ctx).(*c.ObservationContext), Accepted: proto.Bool(true),
 		}}},
-		emergency: bridge.EmergencyObservation{Context: proto.Clone(ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}},
+		emergency: bridge.EmergencyObservation{Context: proto.Clone(ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}},
 	}
 	bb := &BillBoundary{Boundary: base, bill: BillCapabilities{Native: f, Writer: f}}
 	return bb, f, target, placement, bill

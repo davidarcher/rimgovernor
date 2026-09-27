@@ -66,7 +66,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["legacy_bench_count"] = len(legacyBenches)
 
-	billsReply, err := h.Wire(ctx, "typed-bills", "observations_read_bills", map[string]any{"scope": scope, "page": map[string]any{"limit": 256}})
+	billsReply, err := h.Wire(ctx, "typed-bills", "observations_read_bills", map[string]any{"scope": scope})
 	if err != nil {
 		return err
 	}
@@ -142,7 +142,7 @@ func run(ctx context.Context, s cases.Session) error {
 				return fmt.Errorf("bench %s bill %d: suspended fact missing", id, index)
 			}
 		}
-		recipesReply, err := h.Wire(ctx, "typed-recipes-"+id, "observations_read_recipes", map[string]any{"scope": scope, "benchId": id, "page": map[string]any{"limit": 256}})
+		recipesReply, err := h.Wire(ctx, "typed-recipes-"+id, "observations_read_recipes", map[string]any{"scope": scope, "benchId": id})
 		if err != nil {
 			return err
 		}
@@ -188,7 +188,6 @@ func run(ctx context.Context, s cases.Session) error {
 		label   string
 		request map[string]any
 	}{
-		{"bad-page", map[string]any{"scope": scope, "page": map[string]any{"limit": 257}}},
 		{"blank-bench", map[string]any{"scope": scope, "benchId": " "}},
 	} {
 		reply, err := h.Wire(ctx, c.label, "observations_read_bills", c.request)

@@ -122,9 +122,9 @@ func ThreatHolds(t EmergencyThreat) bool {
 }
 
 type EmergencyFacts struct {
-	ColonistsComplete, ThreatsComplete domain.Fact[bool]
-	Colonists                          []EmergencyPawn
-	Threats                            []EmergencyThreat
+	ColonistsComplete domain.Fact[bool]
+	Colonists         []EmergencyPawn
+	Threats           []EmergencyThreat
 }
 
 // EmergencySnapshot owns its inputs and carries no mutation or authority API.
@@ -205,10 +205,8 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 	}
 	holds := map[EmergencyHold]bool{}
 	hold := func(reason EmergencyReason, pawn PawnID) { holds[EmergencyHold{reason, pawn}] = true }
-	for _, complete := range []domain.Fact[bool]{snapshot.facts.ColonistsComplete, snapshot.facts.ThreatsComplete} {
-		if yes, known := complete.Value(); !known || !yes {
-			hold(EmergencyUnknownFacts, "")
-		}
+	if yes, known := snapshot.facts.ColonistsComplete.Value(); !known || !yes {
+		hold(EmergencyUnknownFacts, "")
 	}
 	// A pawn may occur in several native categories; disagreeing known status is
 	// uncertainty, not permission to choose whichever category appears safest.

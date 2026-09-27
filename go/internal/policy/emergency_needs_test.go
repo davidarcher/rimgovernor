@@ -7,7 +7,7 @@ import (
 
 func TestEmergencyNeedsCountPatientsAndThreatsWithoutDoubleCounting(t *testing.T) {
 	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Plan: "plan"}
-	facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
+	facts := EmergencyFacts{ColonistsComplete: domain.Known(true),
 		Colonists: []EmergencyPawn{{ID: "patient", Dead: domain.Known(false), Downed: domain.Known(true), Bleeding: domain.Known(true), NeedsTend: domain.Known(true)}},
 		Threats:   []EmergencyThreat{{ID: "threat", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}, {ID: "threat", Kind: HuntingPredator, Dead: domain.Known(false), Downed: domain.Known(false)}}}
 	snapshot, err := NewEmergencySnapshot(current, 7, facts)
@@ -60,7 +60,7 @@ func TestUrgentPatientsCountsBleedingOrDownedUntendedOnly(t *testing.T) {
 	pawn := func(id PawnID, downed, bleeding, needsTend bool) EmergencyPawn {
 		return EmergencyPawn{ID: id, Dead: domain.Known(false), Downed: domain.Known(downed), Bleeding: domain.Known(bleeding), NeedsTend: domain.Known(needsTend)}
 	}
-	facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
+	facts := EmergencyFacts{ColonistsComplete: domain.Known(true),
 		Colonists: []EmergencyPawn{pawn("chronic", false, false, true), pawn("starved", true, false, false), pawn("downed", true, false, true), pawn("bleeding", false, true, true), pawn("well", false, false, false)}}
 	snapshot, err := NewEmergencySnapshot(current, 7, facts)
 	if err != nil {

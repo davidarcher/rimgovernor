@@ -154,7 +154,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// budget covers building the shell (up to 4 days) and marker as well. ---
 	animalRow := func(label, id string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "page": map[string]any{"limit": 256},
+			"scope": map[string]any{"expectedIdentity": identity},
 		})
 		if err != nil {
 			return nil, err

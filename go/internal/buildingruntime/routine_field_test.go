@@ -212,7 +212,7 @@ type fieldExecutorTest struct {
 
 func (n *fieldExecutorTest) InspectZone(ctx context.Context, target executor.Target) (executor.ZoneInspection, error) {
 	zone, _ := target.Action.ZoneCreate()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true)})
 	return executor.ZoneInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Zone: zone, SnapshotToken: "fresh-map", Accepted: true, Emergency: emergency}, nil
 }
 func (n *fieldExecutorTest) CreateZone(ctx context.Context, d executor.ZoneDispatch) (executor.Receipt, error) {

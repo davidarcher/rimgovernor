@@ -32,7 +32,7 @@ func (n *billEnvironment) InspectBill(_ context.Context, target Target) (BillIns
 	}
 	bill, _ := target.Action.ProductionBill()
 	tick := domain.Tick(100 + int64(n.inspected))
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	return BillInspection{Current: target.Snapshot, Tick: tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Bill: bill, SnapshotToken: bill.BeforeToken(), Accepted: true, Emergency: emergency}, nil
 }
 func (n *billEnvironment) AddBill(_ context.Context, request BillDispatch) (Receipt, error) {

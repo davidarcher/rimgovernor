@@ -281,8 +281,7 @@ type combatInputs struct {
 func combatFrameInputs(combat bridge.Combat) (combatInputs, RoutineBuildingReason, error) {
 	facts := combat.Emergency.Facts
 	colonistsComplete, ck := facts.ColonistsComplete.Value()
-	threatsComplete, tk := facts.ThreatsComplete.Value()
-	if !ck || !colonistsComplete || !tk || !threatsComplete {
+	if !ck || !colonistsComplete {
 		return combatInputs{}, BuildingMethodUsed, nil
 	}
 	var in combatInputs

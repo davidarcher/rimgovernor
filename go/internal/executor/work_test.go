@@ -27,7 +27,7 @@ func (n *workEnvironment) InspectWork(_ context.Context, target Target) (WorkIns
 		n.onInspect()
 	}
 	work, _ := target.Action.WorkAssignment()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	return WorkInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Work: work, SnapshotToken: "work-token", Accepted: true, Emergency: emergency}, nil
 }
 func (n *workEnvironment) AssignWork(_ context.Context, request WorkDispatch) (Receipt, error) {

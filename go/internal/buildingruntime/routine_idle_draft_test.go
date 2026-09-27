@@ -30,7 +30,7 @@ func (n *idleDraftNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) 
 
 func TestIdleDraftObservationGuards(t *testing.T) {
 	t.Parallel()
-	for _, scenario := range []string{"idle", "owned", "unknown-claim", "undrafted", "downed", "mental", "forced", "queued", "unknown-job", "hostile", "unknown-threats", "held", "stale-generation", "stale-world", "bad-token"} {
+	for _, scenario := range []string{"idle", "owned", "unknown-claim", "undrafted", "downed", "mental", "forced", "queued", "unknown-job", "hostile", "held", "stale-generation", "stale-world", "bad-token"} {
 		t.Run(scenario, func(t *testing.T) {
 			r, db, session, _, native := routineFixture(t)
 			ctx := context.Background()
@@ -42,7 +42,7 @@ func TestIdleDraftObservationGuards(t *testing.T) {
 				Job:        &n.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0)},
 				Issues:     []*n.ReadIssue{{Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}}
 			native.pawnReply = &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: context, Pawns: []*n.PawnState{row}, Completeness: &n.Completeness{}}}}
-			emergency := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn"}}}
+			emergency := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn"}}}
 			var plans []store.PlanState
 			wantErr := false
 			tick := domain.Tick(7)
@@ -65,8 +65,6 @@ func TestIdleDraftObservationGuards(t *testing.T) {
 				row.Job = nil
 			case "hostile":
 				emergency.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile}}
-			case "unknown-threats":
-				emergency.ThreatsComplete = domain.Unknown[bool]()
 			case "held":
 				draft, _ := domain.NewOwnedDraft("pawn")
 				action, _ := domain.NewOwnedDraftAction("hold-draft", draft)

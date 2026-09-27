@@ -13,7 +13,7 @@ func clockWindowFixture(t *testing.T) (ClockWindowFacts, ClockWindowLimits) {
 	t.Helper()
 	now := time.Unix(100, 0)
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
-	emergency, err := NewEmergencySnapshot(snapshot, 10, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}})
+	emergency, err := NewEmergencySnapshot(snapshot, 10, EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestClockWindowCombatPlanWatchesLiveHostiles(t *testing.T) {
 	threats := func(rows ...EmergencyThreat) {
 		t.Helper()
 		var err error
-		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Threats: rows})
+		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, EmergencyFacts{ColonistsComplete: domain.Known(true), Threats: rows})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -123,7 +123,7 @@ func TestClockWindowAcknowledgesKnownDownedColonists(t *testing.T) {
 	census := func(colonists []EmergencyPawn, threats ...EmergencyThreat) {
 		t.Helper()
 		var err error
-		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: colonists, Threats: threats})
+		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: colonists, Threats: threats})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -234,7 +234,7 @@ func TestClockWindowEmergencyAndTickBudgetBoundaries(t *testing.T) {
 	for _, kind := range []string{"threat", "stale"} {
 		t.Run(kind, func(t *testing.T) {
 			f := f
-			facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}
+			facts := EmergencyFacts{ColonistsComplete: domain.Known(true)}
 			tick := f.Tick
 			switch kind {
 			case "threat":
@@ -259,7 +259,7 @@ func TestClockWindowEmergencyAndTickBudgetBoundaries(t *testing.T) {
 	}
 	t.Run("medical", func(t *testing.T) {
 		f := f
-		facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
+		facts := EmergencyFacts{ColonistsComplete: domain.Known(true),
 			Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(true)}}}
 		var err error
 		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, facts)
@@ -276,7 +276,7 @@ func TestClockWindowEmergencyAndTickBudgetBoundaries(t *testing.T) {
 		f.Tick = domain.Tick(math.MaxInt64 - int64(budget))
 		f.Status.Tick = f.Tick
 		var err error
-		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)})
+		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, EmergencyFacts{ColonistsComplete: domain.Known(true)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -305,7 +305,7 @@ func TestClockWindowDistantAnimalThreatAdmitsColonyWindow(t *testing.T) {
 		{"raider far", threat(Hostile, false, 200), false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}, Threats: []EmergencyThreat{c.threat}}
+			facts := EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}, Threats: []EmergencyThreat{c.threat}}
 			emergency, err := NewEmergencySnapshot(f.Current, 10, facts)
 			if err != nil {
 				t.Fatal(err)

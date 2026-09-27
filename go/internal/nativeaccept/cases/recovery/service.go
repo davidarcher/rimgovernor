@@ -111,7 +111,6 @@ func runService(ctx context.Context, s cases.Session) error {
 			"scope":   map[string]any{"expectedIdentity": identity},
 			"filter":  map[string]any{"ids": []string{pawnID}},
 			"details": map[string]any{},
-			"page":    map[string]any{"limit": 1},
 		})
 		if err != nil {
 			return "", err
@@ -146,7 +145,6 @@ func runService(ctx context.Context, s cases.Session) error {
 		reply, err := h.Wire(ctx, label, "observations_list_buildings", map[string]any{
 			"scope": map[string]any{"expectedIdentity": identity}, "ids": []string{wallID},
 			"statuses": []string{"built"}, "category": "artificial", "playerOnly": true,
-			"page": map[string]any{"limit": 1},
 		})
 		if err != nil {
 			return 0, 0, err

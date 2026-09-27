@@ -95,7 +95,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// facts used below are exactly what policy.SelectHusbandryMethod and
 	// executor.runHusbandry would themselves see.
 	herdRowScoped := func(label, animalID string, includeWild bool) (map[string]any, error) {
-		request := map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "page": map[string]any{"limit": 64}}
+		request := map[string]any{"scope": map[string]any{"expectedIdentity": identity}}
 		if includeWild {
 			request["includeWild"] = true
 		}
@@ -445,7 +445,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("wild-before: %w", err)
 	}
 	factsReply, err := h.Wire(ctx, "colony-facts-wild", "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity},
 	})
 	if err != nil {
 		return err

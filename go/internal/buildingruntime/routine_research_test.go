@@ -26,7 +26,7 @@ type researchNative struct {
 func (n *researchNative) ids() []string { return []string{"scholar-a", "scholar-b", "scholar-c"} }
 
 func (n *researchNative) ReadEmergency(ctx context.Context, _ *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
-	facts := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}
+	facts := policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}
 	for _, id := range n.ids() {
 		facts.Colonists = append(facts.Colonists, policy.EmergencyPawn{ID: policy.PawnID(id), Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)})
 	}

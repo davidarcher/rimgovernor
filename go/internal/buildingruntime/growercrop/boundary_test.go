@@ -60,7 +60,7 @@ func newGrowerFixture(t *testing.T) (*Boundary, *growerFixture, executor.Target)
 		preview: &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{
 			Context: proto.Clone(ctx).(*c.ObservationContext), Accepted: proto.Bool(true),
 		}}},
-		emergency: bridge.EmergencyObservation{Context: proto.Clone(ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}},
+		emergency: bridge.EmergencyObservation{Context: proto.Clone(ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}},
 	}
 	return NewBoundary(base, Capabilities{Native: f, Writer: f}), f, executor.Target{Action: action, Snapshot: snapshot}
 }

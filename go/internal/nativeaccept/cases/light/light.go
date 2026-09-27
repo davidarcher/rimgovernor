@@ -367,7 +367,7 @@ func (s lightingSummary) evidence() map[string]any {
 // projection does: work cells keyed by bench ID, lamps keyed by building ID.
 func readLighting(ctx context.Context, h *na.Harness, identity map[string]any, label string) (lightingSummary, error) {
 	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
 	})
 	if err != nil {
 		return lightingSummary{}, err

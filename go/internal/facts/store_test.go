@@ -10,7 +10,7 @@ func TestStorePutGet(t *testing.T) {
 	s := NewStore()
 	scope := Scope{Load: "load-1", Generation: 3}
 	Put(s, scope, Research, Held[[]string]{Value: []string{"Electricity"}, AsOf: 1000, Complete: true, Source: "rimgovernor/observations_read_research"})
-	Put(s, scope, Emergency, Held[int]{Value: 2, AsOf: 1000, Complete: true, Source: "rimgovernor/observations_read_bundle"})
+	Put(s, scope, Emergency, Held[int]{Value: 2, AsOf: 1000, Complete: true, Source: "rimgovernor/snapshot_frame_routine"})
 	held, ok := Get[[]string](s, Research)
 	if !ok || held.AsOf != 1000 || !held.Complete || len(held.Value) != 1 || held.Source != "rimgovernor/observations_read_research" {
 		t.Fatalf("research = %+v ok=%v", held, ok)

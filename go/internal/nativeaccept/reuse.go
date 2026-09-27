@@ -445,7 +445,6 @@ func ObserveReset(ctx context.Context, h *Harness, label string) (ResetState, ma
 
 	pawnsReply, err := h.Wire(ctx, label+"-pawns", "observations_list_pawns", map[string]any{
 		"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"colonist": true},
-		"page": map[string]any{"limit": 256},
 	})
 	if err != nil {
 		return state, nil, err
@@ -468,7 +467,7 @@ func ObserveReset(ctx context.Context, h *Harness, label string) (ResetState, ma
 	// counts come from a supplies read scoped to those definitions and are
 	// skipped (-1) when native declines that read as too large as well.
 	factsReply, err := h.Wire(ctx, label+"-stock", "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
 	})
 	if err != nil {
 		return state, nil, err
@@ -494,7 +493,6 @@ func ObserveReset(ctx context.Context, h *Harness, label string) (ResetState, ma
 	suppliesReply, err := h.Wire(ctx, label+"-forbidden", "observations_list_supplies", map[string]any{
 		"scope":  map[string]any{"expectedIdentity": identity},
 		"filter": map[string]any{"defNames": defNames, "ownership": "all"},
-		"page":   map[string]any{"limit": 256},
 	})
 	if err != nil {
 		return state, nil, err

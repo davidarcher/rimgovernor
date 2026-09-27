@@ -93,7 +93,7 @@ const regulatedRatio = 8
 
 func newSpeedNative(snapshot domain.GenerationSnapshot, tickEvery time.Duration) *speedNative {
 	status := &k.Status{Context: &c.ObservationContext{Identity: boundary.Identity(snapshot), Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)}, State: &k.Status_NeverStarted{NeverStarted: &k.NeverStarted{}}, ActualPaused: proto.Bool(true), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum(), NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true), NewestCursor: proto.Int64(0)}
-	return &speedNative{status: status, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}, tickEvery: tickEvery, changed: make(chan struct{})}
+	return &speedNative{status: status, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}, tickEvery: tickEvery, changed: make(chan struct{})}
 }
 
 // advance moves the running window's tick to now and stops it on its

@@ -22,7 +22,7 @@ type tendEnvironment struct {
 func (n *tendEnvironment) tendFacts(target Target) policy.TendFacts {
 	tend, _ := target.Action.Tend()
 	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{
-		ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true),
+		ColonistsComplete: domain.Known(!n.unsafe),
 		Colonists: []policy.EmergencyPawn{
 			{ID: policy.PawnID(tend.Doctor()), Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)},
 			{ID: policy.PawnID(tend.Patient()), Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(true), NeedsTend: domain.Known(true)},

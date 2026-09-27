@@ -232,7 +232,6 @@ func run(ctx context.Context, s cases.Session) error {
 		label  string
 		change map[string]any
 	}{
-		{"zero-limit", map[string]any{"page": map[string]any{"limit": 0}}},
 		{"duplicate-id", map[string]any{"filter": map[string]any{"ids": []any{target, target}}}},
 		{"negative-distance", map[string]any{"filter": map[string]any{"withinColonistDistance": -1}}},
 	}
@@ -245,22 +244,6 @@ func run(ctx context.Context, s cases.Session) error {
 		if !ok || code != "FAILURE_CODE_INVALID_REQUEST" {
 			return fmt.Errorf("%s: expected FAILURE_CODE_INVALID_REQUEST, got %q", c.label, code)
 		}
-	}
-	// A short-but-undecodable cursor passes Validate (only length>4096 is rejected
-	// as invalid there, NativePawnObservationTools.cs Validate) and instead fails
-	// NativeObservationSnapshot.Cursor.TryDecode inside the handler, which reports
-	// UNAVAILABLE_REASON_LIMIT_EXCEEDED ("Pawn cursor is stale or does not match
-	// this query") rather than a Failure. Assert the outcome the tool actually
-	// produces instead of an invalid-request failure.
-	staleCursorReply, err := h.Wire(ctx, "cursor", "observations_list_pawns", nativeaccept.Merge(scope, map[string]any{"page": map[string]any{"cursor": "old"}}))
-	if err != nil {
-		return err
-	}
-	if _, observedPresent, _ := nativeaccept.Outcome(staleCursorReply, "observed"); observedPresent != nil {
-		return fmt.Errorf("cursor: expected a stale/undecodable cursor to be refused, got observed")
-	}
-	if reason, ok := nativeaccept.UnavailableReason(staleCursorReply); !ok || reason != "UNAVAILABLE_REASON_LIMIT_EXCEEDED" {
-		return fmt.Errorf("cursor: expected UNAVAILABLE_REASON_LIMIT_EXCEEDED, got %q", reason)
 	}
 	staleScope := map[string]any{"scope": map[string]any{"expectedIdentity": nativeaccept.Merge(identity, map[string]any{"loadToken": "stale-load"})}}
 	staleReply, err := h.Wire(ctx, "stale-identity", "observations_list_pawns", staleScope)

@@ -31,7 +31,7 @@ func (n *supplyEnvironment) InspectSupply(_ context.Context, target Target) (Sup
 		return SupplyInspection{}, ErrSupplyAbsent
 	}
 	supply, _ := target.Action.SupplyAllow()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	return SupplyInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Supply: supply, SnapshotToken: "supply-token", Accepted: true, Emergency: emergency}, nil
 }
 func (n *supplyEnvironment) AllowSupply(_ context.Context, request SupplyDispatch) (Receipt, error) {

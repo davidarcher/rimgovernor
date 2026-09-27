@@ -47,10 +47,8 @@ func TestEmergencyReadExactRequestAndOwnedFacts(t *testing.T) {
 	if e != nil || result.Context.NativeGeneration != nil {
 		t.Fatal(result, e)
 	}
-	for _, v := range []bool{func() bool { x, k := result.Facts.ColonistsComplete.Value(); return x && k }(), func() bool { x, k := result.Facts.ThreatsComplete.Value(); return x && k }()} {
-		if !v {
-			t.Fatal("empty complete lost")
-		}
+	if x, k := result.Facts.ColonistsComplete.Value(); !x || !k {
+		t.Fatal("empty complete lost")
 	}
 	original.Context.Identity.LoadToken = proto.String("changed")
 	if result.Context.Identity.GetLoadToken() != "load" {
@@ -126,7 +124,7 @@ func TestEmergencyUnavailableAndRefusal(t *testing.T) {
 		if e == nil {
 			t.Fatal("unavailable cleared")
 		}
-		if _, known := got.Facts.ThreatsComplete.Value(); known {
+		if _, known := got.Facts.ColonistsComplete.Value(); known {
 			t.Fatal("unavailable fabricated")
 		}
 		if refused && !errors.Is(e, ErrRefused) {

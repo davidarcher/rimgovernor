@@ -60,7 +60,7 @@ func newZoneBoundaryFixture(t *testing.T) (*ZoneBoundary, *zoneBoundaryFixture, 
 		preview: &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{
 			Context: proto.Clone(ctx).(*c.ObservationContext), Accepted: proto.Bool(true),
 		}}},
-		emergency: bridge.EmergencyObservation{Context: proto.Clone(ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}},
+		emergency: bridge.EmergencyObservation{Context: proto.Clone(ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}},
 	}
 	zb := &ZoneBoundary{Boundary: base, zone: ZoneCapabilities{Native: f, Writer: f}}
 	return zb, f, executor.Target{Action: action, Snapshot: snapshot}

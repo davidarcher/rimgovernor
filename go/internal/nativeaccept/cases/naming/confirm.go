@@ -95,7 +95,7 @@ func (d *staged) open(ctx context.Context, h *na.Harness, names []string, identi
 	// The typed census must already expose the dialog exactly as the
 	// service's own review and planner will read it.
 	reply, err := h.Wire(ctx, "colony-facts-naming", "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity},
 	})
 	if err != nil {
 		return err

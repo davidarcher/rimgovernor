@@ -98,7 +98,7 @@ func clockWindowFixture(t *testing.T) (*ClockCoordinator, *store.Store, *clockCo
 		t.Fatal(err)
 	}
 	intent.Window = &store.ClockWindowAdmission{Profile: profile, Snapshot: intent.Snapshot, Tick: 12, MaxTicks: intent.Command.Start.MaxTicks}
-	emergency, err := policy.NewEmergencySnapshot(intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)})
+	emergency, err := policy.NewEmergencySnapshot(intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
 		t.Helper()
 		q, db, f, _, request := clockWindowFixture(t)
 		var err error
-		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Threats: []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}})
+		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Threats: []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -274,7 +274,7 @@ func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
 	t.Run("building alone", func(t *testing.T) {
 		q, _, f, request := combat(t)
 		var err error
-		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Threats: []policy.EmergencyThreat{{ID: "hive", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}}})
+		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Threats: []policy.EmergencyThreat{{ID: "hive", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -298,7 +298,7 @@ func TestClockWindowDownedPolicyMustMatchDecision(t *testing.T) {
 		t.Helper()
 		q, db, f, _, request := clockWindowFixture(t)
 		var err error
-		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "casualty", Dead: domain.Known(false), Downed: domain.Known(true), Bleeding: domain.Known(false), NeedsTend: domain.Known(true)}}})
+		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "casualty", Dead: domain.Known(false), Downed: domain.Known(true), Bleeding: domain.Known(false), NeedsTend: domain.Known(true)}}})
 		if err != nil {
 			t.Fatal(err)
 		}

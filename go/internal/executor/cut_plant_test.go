@@ -31,7 +31,7 @@ func (n *cutPlantEnvironment) InspectCutPlant(_ context.Context, target Target) 
 		return CutPlantInspection{}, ErrCutPlantAbsent
 	}
 	plant, _ := target.Action.CutPlant()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	return CutPlantInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Plant: plant, SnapshotToken: "cut-token", Accepted: true, Emergency: emergency}, nil
 }
 func (n *cutPlantEnvironment) DesignateCutPlant(_ context.Context, request CutPlantDispatch) (Receipt, error) {

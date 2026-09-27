@@ -22,7 +22,7 @@ type captureEnvironment struct {
 func (n *captureEnvironment) captureFacts(target Target) policy.CaptureFacts {
 	capture, _ := target.Action.Capture()
 	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{
-		ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true),
+		ColonistsComplete: domain.Known(!n.unsafe),
 		Colonists: []policy.EmergencyPawn{
 			{ID: policy.PawnID(capture.Capturer()), Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)},
 		},

@@ -98,7 +98,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// boundary read bridge.ReadZoneTarget issues for CreateZone.
 	mapSnapshotToken := func(label string) (string, error) {
 		reply, err := h.Wire(ctx, label, "observations_list_zones", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "page": map[string]any{"limit": 16},
+			"scope": map[string]any{"expectedIdentity": identity},
 		})
 		if err != nil {
 			return "", err
@@ -120,7 +120,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// means the zone genuinely is not listed.
 	zoneRow := func(label, zoneID string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "observations_list_zones", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "ids": []string{zoneID}, "includeFilter": true, "page": map[string]any{"limit": 1},
+			"scope": map[string]any{"expectedIdentity": identity}, "ids": []string{zoneID}, "includeFilter": true,
 		})
 		if err != nil {
 			return nil, err

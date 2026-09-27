@@ -34,7 +34,6 @@ func plagueReadback(ctx context.Context, s cases.Session) error {
 		"scope":   map[string]any{"expectedIdentity": identity},
 		"filter":  map[string]any{"colonist": true, "humanlike": true, "animal": false},
 		"details": map[string]any{"health": true, "needs": false, "equipment": false, "biography": false, "settings": false, "social": false, "animals": false},
-		"page":    map[string]any{"limit": 256},
 	})
 	if err != nil {
 		return err

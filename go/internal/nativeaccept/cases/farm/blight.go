@@ -349,7 +349,7 @@ func sortedKeys[V any](m map[string]V) []string {
 // way the Go projection does.
 func readBlightCensus(ctx context.Context, h *na.Harness, identity map[string]any, label string) (blightSummary, error) {
 	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
 	})
 	if err != nil {
 		return blightSummary{}, err

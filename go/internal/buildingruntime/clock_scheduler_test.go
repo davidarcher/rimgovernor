@@ -65,7 +65,7 @@ func schedulerFixtureJournal(t *testing.T, db *store.Store, extra []domain.Actio
 	if _, err = s.Acquire(context.Background(), intent.Snapshot); err != nil {
 		t.Fatal(err)
 	}
-	native := &schedulerNative{clockCoreFake: f, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
+	native := &schedulerNative{clockCoreFake: f, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}}
 	scheduler, err := NewClockScheduler(p, s, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)

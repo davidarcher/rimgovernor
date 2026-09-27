@@ -31,7 +31,7 @@ func (n *coverClearanceEnvironment) InspectCoverClearance(_ context.Context, tar
 		return CoverClearanceInspection{}, ErrCoverClearanceAbsent
 	}
 	clearance, _ := target.Action.CoverClearance()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	return CoverClearanceInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Clearance: clearance, SnapshotToken: "cover-token", Accepted: true, Emergency: emergency}, nil
 }
 func (n *coverClearanceEnvironment) DesignateCoverClearance(_ context.Context, request CoverClearanceDispatch) (Receipt, error) {

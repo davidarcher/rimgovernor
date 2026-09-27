@@ -21,7 +21,7 @@ func (n *zoneEnvironment) InspectZone(_ context.Context, target Target) (ZoneIns
 	n.inspected++
 	zone, _ := target.Action.ZoneCreate()
 	tick := domain.Tick(100 + int64(n.inspected))
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe)})
 	return ZoneInspection{Current: target.Snapshot, Tick: tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Zone: zone, SnapshotToken: "zone-token", Accepted: true, Emergency: emergency}, nil
 }
 func (n *zoneEnvironment) CreateZone(_ context.Context, request ZoneDispatch) (Receipt, error) {

@@ -192,7 +192,6 @@ func run(ctx context.Context, s cases.Session) error {
 		label  string
 		change map[string]any
 	}{
-		{"invalid-page", map[string]any{"page": map[string]any{"limit": 257}}},
 		{"duplicate-id", map[string]any{"roomIds": []any{targetID, targetID}}},
 		{"unknown-write", map[string]any{"set": true}},
 	}
@@ -204,22 +203,6 @@ func run(ctx context.Context, s cases.Session) error {
 		if code, ok := na.FailureCode(reply); !ok || code != "FAILURE_CODE_INVALID_REQUEST" {
 			return fmt.Errorf("%s: expected FAILURE_CODE_INVALID_REQUEST, got %q", c.label, code)
 		}
-	}
-	// A short-but-undecodable cursor passes Validate (NativeRoomObservationTools.cs
-	// Validate only rejects cursor length>4096 as invalid) and instead fails
-	// NativeObservationSnapshot.Cursor.TryDecode inside the handler, which reports
-	// UNAVAILABLE_REASON_LIMIT_EXCEEDED ("Room cursor is stale or does not match
-	// this query") rather than a Failure. Assert the outcome the tool actually
-	// produces instead of an invalid-request failure.
-	staleCursorReply, err := h.Wire(ctx, "cursor", "observations_list_rooms", na.Merge(scope, map[string]any{"page": map[string]any{"cursor": "stale"}}))
-	if err != nil {
-		return err
-	}
-	if _, observedPresent, _ := na.Outcome(staleCursorReply, "observed"); observedPresent != nil {
-		return fmt.Errorf("cursor: expected a stale/undecodable cursor to be refused, got observed")
-	}
-	if reason, ok := na.UnavailableReason(staleCursorReply); !ok || reason != "UNAVAILABLE_REASON_LIMIT_EXCEEDED" {
-		return fmt.Errorf("cursor: expected UNAVAILABLE_REASON_LIMIT_EXCEEDED, got %q", reason)
 	}
 	identityAfterReply, err := h.Wire(ctx, "identity-after", "lifecycle_read_identity", map[string]any{})
 	if err != nil {

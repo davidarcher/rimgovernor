@@ -22,7 +22,7 @@ type rescueEnvironment struct {
 func (n *rescueEnvironment) rescueFacts(target Target) policy.RescueFacts {
 	rescue, _ := target.Action.Rescue()
 	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{
-		ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true),
+		ColonistsComplete: domain.Known(!n.unsafe),
 		Colonists: []policy.EmergencyPawn{
 			{ID: policy.PawnID(rescue.Rescuer()), Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)},
 			{ID: policy.PawnID(rescue.Patient()), Dead: domain.Known(false), Downed: domain.Known(true), Bleeding: domain.Known(true), NeedsTend: domain.Known(true)},

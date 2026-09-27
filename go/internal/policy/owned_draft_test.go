@@ -24,7 +24,7 @@ func draftPolicyRequest(t *testing.T) DraftRequest {
 		t.Fatal(err)
 	}
 	current := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 1}
-	emergency, err := NewEmergencySnapshot(current, 11, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}})
+	emergency, err := NewEmergencySnapshot(current, 11, EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,9 +104,6 @@ func TestOwnedDraftRefusesUnknownUnsafeOrStaleFacts(t *testing.T) {
 		}},
 		{"unknown threat", UnknownFacts, func(r *DraftRequest) {
 			replaceDraftEmergency(t, r, func(f *EmergencyFacts) { f.Threats = []EmergencyThreat{{ID: "raider", Kind: Hostile}} })
-		}},
-		{"incomplete census", UnknownFacts, func(r *DraftRequest) {
-			replaceDraftEmergency(t, r, func(f *EmergencyFacts) { f.ThreatsComplete = domain.Known(false) })
 		}},
 		{"missing census", UnknownFacts, func(r *DraftRequest) {
 			replaceDraftEmergency(t, r, func(f *EmergencyFacts) { f.ColonistsComplete = domain.Unknown[bool]() })

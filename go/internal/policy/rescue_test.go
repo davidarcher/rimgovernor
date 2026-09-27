@@ -17,7 +17,7 @@ func rescueRequest(t *testing.T) RescueRequest {
 	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	e, err := NewEmergencySnapshot(s, 13, EmergencyFacts{
-		ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
+		ColonistsComplete: domain.Known(true),
 		Colonists: []EmergencyPawn{
 			{ID: "rescuer", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)},
 			{ID: "patient", Dead: domain.Known(false), Downed: domain.Known(true), Bleeding: domain.Known(true), NeedsTend: domain.Known(true)},

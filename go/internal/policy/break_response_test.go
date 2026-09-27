@@ -17,7 +17,7 @@ func TestBreakResponseStateKinds(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pawn := breakingPawn(tc.name, tc.aggro)
 			current := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 1}
-			facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}, pawn}}
+			facts := EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}, pawn}}
 			snapshot, err := NewEmergencySnapshot(current, 13, facts)
 			if err != nil {
 				t.Fatal(err)

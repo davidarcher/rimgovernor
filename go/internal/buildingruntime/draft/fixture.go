@@ -78,7 +78,7 @@ func (f *Fixture) ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyO
 	if f.EmergencyTick != nil {
 		ctx.Tick = proto.Int64(*f.EmergencyTick)
 	}
-	return bridge.EmergencyObservation{Context: ctx, Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}, bridge.Result{}, f.ReadErr
+	return bridge.EmergencyObservation{Context: ctx, Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}}, bridge.Result{}, f.ReadErr
 }
 func (f *Fixture) PreviewDraft(_ context.Context, _ *c.Identity, pawn *o.EntityPrecondition) (*o.PreviewReply, bridge.Result, error) {
 	f.LastPawn = proto.Clone(pawn).(*o.EntityPrecondition)

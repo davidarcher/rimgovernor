@@ -314,7 +314,7 @@ func (s flooringSummary) evidence() map[string]any {
 // each of its interior cells joined to its terrain's census stats.
 func readFlooring(ctx context.Context, h *na.Harness, identity map[string]any, label string, interior cellRect) (flooringSummary, error) {
 	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "planning": false, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "planning": false,
 	})
 	if err != nil {
 		return flooringSummary{}, err
