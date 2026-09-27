@@ -21,6 +21,7 @@ namespace HomeBridge.BridgeTools
     internal static class MainThreadWatchdog
     {
         internal const double StallSeconds = 2.0;
+        internal const double SlowMillis = 100.0;
         private const string Prefix = "[RimGovernor] main-thread hop ";
 
         internal sealed class Hop
@@ -60,8 +61,17 @@ namespace HomeBridge.BridgeTools
         {
             Hop? hop;
             lock (Gate) { if (Live.TryGetValue(id, out hop)) Live.Remove(id); }
-            if (hop == null || !hop.Reported) return;
+            if (hop == null) return;
             var now = Stopwatch.GetTimestamp();
+            if (!hop.Reported)
+            {
+                // A hop over the live-play frame budget (#984) but under the
+                // stall line still names itself, so a choppy session shows
+                // which op held the game thread.
+                var executeMs = Millis(hop.Started == 0 ? 0 : now - hop.Started);
+                if (executeMs >= SlowMillis) Log.Warning(Prefix + "slow: " + hop.Describe() + " executeMs=" + executeMs);
+                return;
+            }
             Log.Warning(Prefix + "recovered: " + hop.Describe() + " queuedMs=" + Millis((hop.Started == 0 ? now : hop.Started) - hop.Queued)
                 + " executeMs=" + Millis(hop.Started == 0 ? 0 : now - hop.Started));
         }
