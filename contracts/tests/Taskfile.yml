@@ -8,6 +8,7 @@ version: '3'
 vars:
   REPO: '{{.TASKFILE_DIR}}/../..'
   EVIDENCE: '{{.REPO}}/.rimgovernor/task/probes'
+  HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
   RIMBRIDGE_SDK_DIR: '{{.RIMBRIDGE_SDK_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies"}}'
 
 tasks:
@@ -15,6 +16,13 @@ tasks:
     desc: NativeContractProbes (ungated set) with warnings as errors and a locked restore
     cmds:
       - dotnet build NativeContractProbes.csproj -c Release -v minimal -nologo -p:RestoreLockedMode=true "-p:OutputPath={{.EVIDENCE}}/bin/" "-p:BaseIntermediateOutputPath={{.EVIDENCE}}/obj/"
+      # NativeConstructionHookSet needs real Harmony (#935); skipped when it is not installed.
+      - |
+        if [ ! -f "{{.HARMONY_ASSEMBLY}}" ]; then
+          echo "native-hook-set: unavailable (missing {{.HARMONY_ASSEMBLY}})"
+          exit 0
+        fi
+        dotnet build NativeHookSetProbe/NativeHookSetProbe.csproj -c Release -v minimal -nologo "-p:HarmonyAssembly={{.HARMONY_ASSEMBLY}}" "-p:OutputPath={{.EVIDENCE}}/hookset/bin/" "-p:BaseIntermediateOutputPath={{.EVIDENCE}}/hookset/obj/"
 
   test:
     desc: Pure geometry and phase-accounting checks; game-dependent probes run through native acceptance
@@ -36,3 +44,9 @@ tasks:
           exit 0
         fi
         {{if ne OS "windows"}}mono {{end}}"{{.EVIDENCE}}/bin/NativeContractProbes.exe" native-proto-boundary "$server"
+      - |
+        if [ ! -f "{{.EVIDENCE}}/hookset/bin/NativeHookSetProbe.exe" ]; then
+          echo "native-hook-set: unavailable (not built; Harmony missing)"
+          exit 0
+        fi
+        {{if ne OS "windows"}}mono {{end}}"{{.EVIDENCE}}/hookset/bin/NativeHookSetProbe.exe"

@@ -155,7 +155,6 @@
     <Compile Include="$(NativeSourceRoot)/Runtime/Control/NativeAuthorityHooks.cs" Link="Production/NativeAuthorityHooks.cs" />
     <Compile Include="NativeContractProbes/native-authority-hooks/NativeStub.cs" />
     <Compile Include="NativeContractProbes/native-authority-hooks/Program.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeConstructionHookSet.cs" Link="Production/NativeConstructionHookSet.cs" />
   </ItemGroup>
 
   <!-- native-explosive-causality + native-ranged-causality: real Harmony AND real RimWorld
