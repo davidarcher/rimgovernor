@@ -1190,6 +1190,9 @@ message BundleSnapshot {
   // The map's standing proper rooms (#897), while combat pawns are
   // captured: at most 64 rooms of at most 1024 cells each.
   repeated rimgovernor.mirror.v1.CombatRoom combat_rooms = 24;
+  // Every damaged spawned player door (#900), with combat_detail, at most
+  // 64: the doors a fight may send a gunner to repair.
+  repeated rimgovernor.mirror.v1.CombatDoorRow combat_doors = 25;
 }
 message ObservationBatchSnapshot {
   rimgovernor.common.v1.ObservationContext start_context = 1; rimgovernor.common.v1.ObservationContext end_context = 2;

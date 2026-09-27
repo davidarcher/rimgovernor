@@ -17,6 +17,12 @@ const (
 	doorGunners = 2
 )
 
+// OrderRepair sends a drafted pawn to repair a damaged door (#900).
+const OrderRepair CombatOrderKind = "repair"
+
+// ReasonRepair is a door repair order (#900).
+const ReasonRepair CombatOrderReason = "repair"
+
 // manhunterDoor is the manhunter tactic's hit-and-run from a door (#900).
 // On a formation without blockers, the planned-room door nearest the pack
 // becomes the potshot door: the doorGunners gunners nearest it take the
@@ -47,6 +53,10 @@ func manhunterDoor(view CombatView, formed bool, m *CombatMemory) {
 	if mode != door.Mode {
 		door.Mode, door.Sent = mode, false
 	}
+	door.Repairer = ""
+	if near > doorOpenRange*doorOpenRange && slices.Contains(view.DamagedDoors, door.Cell) {
+		door.Repairer = doorRepairer(view, m.Roles, door.Cell)
+	}
 	if door.Mode == DoorClose {
 		for i := range m.Roles {
 			if m.Roles[i].Duty == DutyDoorway {
@@ -54,6 +64,23 @@ func manhunterDoor(view CombatView, formed bool, m *CombatMemory) {
 			}
 		}
 	}
+}
+
+// doorRepairer is the door gunner nearest the door with a known cell,
+// or none.
+func doorRepairer(view CombatView, roles []CombatRole, door domain.Cell) domain.PawnID {
+	var best domain.PawnID
+	var bestD int64
+	for _, p := range view.Pawns {
+		c, ok := p.Cell.Value()
+		if !ok || !slices.ContainsFunc(roles, func(r CombatRole) bool { return r.Pawn == p.ID && r.Duty == DutyDoorway }) {
+			continue
+		}
+		if d := distance2(c, door); best == "" || d < bestD {
+			best, bestD = p.ID, d
+		}
+	}
+	return best
 }
 
 // potshotDoor picks the door and posts the door gunners, or nil: a

@@ -30,13 +30,16 @@ const (
 	// Rescue refusals (#867): the rescue eligibility or bed search failed.
 	CombatRefusalCannotRescue = "cannot_rescue"
 	CombatRefusalNoBed        = "no_bed"
+	// Repair refusal (#900): no damaged player building on the cell, or
+	// the pawn cannot construct.
+	CombatRefusalCannotRepair = "cannot_repair"
 )
 
 var combatRefusals = map[string]bool{
 	CombatRefusalDraftOwnership: true, CombatRefusalStaleSnapshot: true, CombatRefusalNotFound: true,
 	CombatRefusalUnreachable: true, CombatRefusalCannotHit: true, CombatRefusalNoGroundVerb: true,
 	CombatRefusalNotADoor: true, CombatRefusalNativeRefused: true,
-	CombatRefusalCannotRescue: true, CombatRefusalNoBed: true,
+	CombatRefusalCannotRescue: true, CombatRefusalNoBed: true, CombatRefusalCannotRepair: true,
 }
 
 // CombatOrderResult is one order's outcome, in request order.
@@ -145,6 +148,10 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 			}
 			if v.Rescue.Dest != nil && movementCell(v.Rescue.Dest) != nil {
 				return contract("combat order %d rescue dest invalid", i)
+			}
+		case *o.CombatOrder_Repair:
+			if v.Repair == nil || movementCell(v.Repair.Cell) != nil {
+				return contract("combat order %d repair cell missing or invalid", i)
 			}
 		case *o.CombatOrder_HoldPosition:
 			if v.HoldPosition == nil {

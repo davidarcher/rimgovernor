@@ -43,6 +43,7 @@ namespace HomeBridge.BridgeTools
                     case Operations.CombatOrder.OrderOneofCase.Rescue:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(order.Rescue.Downed) || order.Rescue.Downed.EntityId == order.Pawn!.EntityId
                             || order.Rescue.Dest != null && !ValidCell(order.Rescue.Dest)) return false; break;
+                    case Operations.CombatOrder.OrderOneofCase.Repair: if (!ValidCell(order.Repair.Cell)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.HoldPosition:
                     case Operations.CombatOrder.OrderOneofCase.Stop: break;
                     default: return false;
@@ -199,6 +200,18 @@ namespace HomeBridge.BridgeTools
                     var made = JobMaker.MakeJob(JobDefOf.Rescue, patient, bed);
                     made.count = 1;
                     return Take(pawn, made, out job);
+                }
+                case Operations.CombatOrder.OrderOneofCase.Repair:
+                {
+                    // The vanilla Repair job on a damaged player building
+                    // (#900); the pawn stays drafted under the fight.
+                    var cell = new IntVec3(order.Repair.Cell.X, 0, order.Repair.Cell.Z);
+                    var building = cell.InBounds(map) ? cell.GetEdifice(map) : null;
+                    if (building == null || building.Faction != Faction.OfPlayerSilentFail || !building.def.useHitPoints
+                        || building.HitPoints >= building.MaxHitPoints || building.IsBurning()
+                        || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) return "cannot_repair";
+                    if (!pawn.CanReserveAndReach(building, PathEndMode.Touch, Danger.Deadly)) return "unreachable";
+                    return Take(pawn, JobMaker.MakeJob(JobDefOf.Repair, building), out job);
                 }
                 case Operations.CombatOrder.OrderOneofCase.Stop:
                     pawn.jobs.ClearQueuedJobs();

@@ -94,6 +94,9 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			continue
 		}
 		want, ok := role.want(state[role.Pawn])
+		if d := next.ManhunterDoor; d != nil && d.Repairer == role.Pawn {
+			want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderRepair, Cell: d.Cell, Reason: ReasonRepair}, true
+		}
 		if !ok || next.doing(want, state[role.Pawn]) {
 			continue
 		}
@@ -191,6 +194,8 @@ type CombatView struct {
 	// standing rectangular rooms from the frame (#897).
 	Pods  domain.Fact[PodArrival]
 	Rooms []CombatRoom
+	// DamagedDoors are the frame's player doors below max hit points (#900).
+	DamagedDoors []domain.Cell `json:",omitempty"`
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -417,6 +422,10 @@ func (m CombatMemory) doing(want CombatOrder, s CombatPawnState) bool {
 		}
 	case OrderMove:
 		if at, ok := s.Cell.Value(); ok && at == want.Cell {
+			return true
+		}
+	case OrderRepair:
+		if s.Job == "Repair" {
 			return true
 		}
 	}

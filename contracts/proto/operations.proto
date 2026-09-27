@@ -159,6 +159,11 @@ enum CombatDoorMode { COMBAT_DOOR_MODE_UNSPECIFIED = 0; COMBAT_DOOR_MODE_HOLD_OP
 // dest, when set, is the bed's cell; absent, the vanilla bed search picks.
 // Refusals: cannot_rescue, no_bed, unreachable.
 message CombatRescue { EntityPrecondition downed = 1; rimgovernor.common.v1.Cell dest = 2; }
+// Repair (#900): the drafted pawn repairs the damaged player building on
+// cell (a door the fight uses) by the vanilla Repair job, staying drafted.
+// Refusals: cannot_repair (no damaged player building there, or the pawn
+// cannot construct), unreachable.
+message CombatRepair { rimgovernor.common.v1.Cell cell = 1; }
 message CombatDoor { rimgovernor.common.v1.Cell cell = 1; optional CombatDoorMode mode = 2; }
 message CombatOrder {
   EntityPrecondition pawn = 1;
@@ -173,6 +178,7 @@ message CombatOrder {
     CombatDoor door = 7;
     Clear stop = 8;
     CombatRescue rescue = 9;
+    CombatRepair repair = 10;
   }
 }
 message CombatOrders { repeated CombatOrder orders = 1; }

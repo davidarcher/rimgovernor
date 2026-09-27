@@ -516,6 +516,8 @@ type Combat struct {
 	Lines  []LineOfFire
 	// Rooms are the map's standing rectangular rooms (#897).
 	Rooms []policy.CombatRoom
+	// Doors are the damaged player doors (#900).
+	Doors []*mp.CombatDoorRow
 	Frame *o.BundleSnapshot
 }
 
@@ -538,7 +540,7 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 
 // combatFrame is the part of frame v a combat read answers.
 func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
-	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms}
+	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms, CombatDoors: v.CombatDoors}
 }
 
 // DecodeCombat validates and decodes a frame's combat part (ReadCombat,
@@ -550,7 +552,7 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 	if err := validateCombat(v); err != nil {
 		return Combat{}, err
 	}
-	out := Combat{Context: v.Context, Pawns: v.CombatPawns, Events: v.CombatEvents, Frame: v}
+	out := Combat{Context: v.Context, Pawns: v.CombatPawns, Events: v.CombatEvents, Doors: v.CombatDoors, Frame: v}
 	identity := v.Context.Identity
 	if v.Emergency != nil {
 		emergency, err := DecodeEmergencyStatus(v.Emergency, identity)
@@ -625,6 +627,11 @@ func combatRoom(row *mp.CombatRoom) (policy.CombatRoom, bool) {
 
 // validateCombat checks a frame's combat rows (#851).
 func validateCombat(v *o.BundleSnapshot) error {
+	for _, row := range v.CombatDoors {
+		if validID(row.GetId()) != nil || movementCell(row.Cell) != nil || row.HitPoints == nil || row.MaxHitPoints == nil || row.GetHitPoints() < 0 || row.GetHitPoints() > row.GetMaxHitPoints() {
+			return contract("combat door without id, cell or hit points")
+		}
+	}
 	for _, row := range v.CombatPawns {
 		if validID(row.GetId()) != nil || row.GetSide() == mp.CombatSide_COMBAT_SIDE_UNSPECIFIED || row.Cell == nil {
 			return contract("combat pawn without id, side or cell")

@@ -112,6 +112,14 @@ namespace HomeBridge.BridgeTools
             pawns.Filter.Ids.AddRange(ids);
             if (!NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) return;
             observed.CombatDetail = detail;
+            // The damaged player doors (#900), for a fight's door repair.
+            foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
+            {
+                if (observed.CombatDoors.Count >= 64) break;
+                if (!door.Spawned || !door.def.useHitPoints || door.HitPoints >= door.MaxHitPoints) continue;
+                observed.CombatDoors.Add(new RimGovernor.Protocol.Mirror.CombatDoorRow { Id = door.GetUniqueLoadID(),
+                    Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HitPoints = door.HitPoints, MaxHitPoints = door.MaxHitPoints });
+            }
             var colonistIds = new HashSet<string>(colonists.Select(p => p.Pawn?.Id ?? ""));
             var firing = new List<IntVec3>();
             foreach (var row in detail.Pawns)

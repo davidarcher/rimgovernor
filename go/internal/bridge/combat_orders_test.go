@@ -231,3 +231,33 @@ func TestValidateCombatRescueAndDoorModes(t *testing.T) {
 		t.Fatalf("rescue refusals: %v", err)
 	}
 }
+
+// TestValidateCombatRepair covers the #900 repair order.
+func TestValidateCombatRepair(t *testing.T) {
+	repair := func() *o.CombatOrders {
+		return &o.CombatOrders{Orders: []*o.CombatOrder{
+			{Pawn: combatPawn("p0"), Order: &o.CombatOrder_Repair{Repair: &o.CombatRepair{Cell: combatCell(3, 4)}}},
+		}}
+	}
+	if err := ValidateCombatOrders(repair()); err != nil {
+		t.Fatal(err)
+	}
+	for name, edit := range map[string]func(*o.CombatOrders){
+		"repair nil":      func(v *o.CombatOrders) { v.Orders[0].Order = &o.CombatOrder_Repair{} },
+		"repair no cell":  func(v *o.CombatOrders) { v.Orders[0].GetRepair().Cell = nil },
+		"repair bad cell": func(v *o.CombatOrders) { v.Orders[0].GetRepair().Cell = combatCell(-1, 4) },
+		"repair no pawn":  func(v *o.CombatOrders) { v.Orders[0].Pawn = nil },
+	} {
+		v := repair()
+		edit(v)
+		if err := ValidateCombatOrders(v); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", false, CombatRefusalCannotRepair, "")}, false), repair()); err != nil {
+		t.Fatalf("repair refusal: %v", err)
+	}
+	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", true, "", "Repair")}, true), repair()); err != nil {
+		t.Fatalf("repair applied: %v", err)
+	}
+}

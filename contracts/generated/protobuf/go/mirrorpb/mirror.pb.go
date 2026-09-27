@@ -500,6 +500,76 @@ func (x *CombatPawn) GetMedicalSkill() int32 {
 	return 0
 }
 
+// A damaged player door (BundleSnapshot.combat_doors, #900): hit points
+// below max.
+type CombatDoorRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"` // load id
+	Cell          *commonpb.Cell         `protobuf:"bytes,2,opt,name=cell,proto3" json:"cell,omitempty"`
+	HitPoints     *int32                 `protobuf:"varint,3,opt,name=hit_points,json=hitPoints,proto3,oneof" json:"hit_points,omitempty"`
+	MaxHitPoints  *int32                 `protobuf:"varint,4,opt,name=max_hit_points,json=maxHitPoints,proto3,oneof" json:"max_hit_points,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CombatDoorRow) Reset() {
+	*x = CombatDoorRow{}
+	mi := &file_mirror_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CombatDoorRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CombatDoorRow) ProtoMessage() {}
+
+func (x *CombatDoorRow) ProtoReflect() protoreflect.Message {
+	mi := &file_mirror_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CombatDoorRow.ProtoReflect.Descriptor instead.
+func (*CombatDoorRow) Descriptor() ([]byte, []int) {
+	return file_mirror_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CombatDoorRow) GetId() string {
+	if x != nil && x.Id != nil {
+		return *x.Id
+	}
+	return ""
+}
+
+func (x *CombatDoorRow) GetCell() *commonpb.Cell {
+	if x != nil {
+		return x.Cell
+	}
+	return nil
+}
+
+func (x *CombatDoorRow) GetHitPoints() int32 {
+	if x != nil && x.HitPoints != nil {
+		return *x.HitPoints
+	}
+	return 0
+}
+
+func (x *CombatDoorRow) GetMaxHitPoints() int32 {
+	if x != nil && x.MaxHitPoints != nil {
+		return *x.MaxHitPoints
+	}
+	return 0
+}
+
 // One combat event row (BundleSnapshot.combat_events).
 type CombatEventRow struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -525,7 +595,7 @@ type CombatEventRow struct {
 
 func (x *CombatEventRow) Reset() {
 	*x = CombatEventRow{}
-	mi := &file_mirror_proto_msgTypes[1]
+	mi := &file_mirror_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -537,7 +607,7 @@ func (x *CombatEventRow) String() string {
 func (*CombatEventRow) ProtoMessage() {}
 
 func (x *CombatEventRow) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[1]
+	mi := &file_mirror_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -550,7 +620,7 @@ func (x *CombatEventRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatEventRow.ProtoReflect.Descriptor instead.
 func (*CombatEventRow) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{1}
+	return file_mirror_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CombatEventRow) GetAt() *Watermark {
@@ -646,7 +716,7 @@ type CombatRoom struct {
 
 func (x *CombatRoom) Reset() {
 	*x = CombatRoom{}
-	mi := &file_mirror_proto_msgTypes[2]
+	mi := &file_mirror_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -658,7 +728,7 @@ func (x *CombatRoom) String() string {
 func (*CombatRoom) ProtoMessage() {}
 
 func (x *CombatRoom) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[2]
+	mi := &file_mirror_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -671,7 +741,7 @@ func (x *CombatRoom) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatRoom.ProtoReflect.Descriptor instead.
 func (*CombatRoom) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{2}
+	return file_mirror_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CombatRoom) GetRoomId() string {
@@ -733,7 +803,7 @@ type CombatGeometryRequest struct {
 
 func (x *CombatGeometryRequest) Reset() {
 	*x = CombatGeometryRequest{}
-	mi := &file_mirror_proto_msgTypes[3]
+	mi := &file_mirror_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -745,7 +815,7 @@ func (x *CombatGeometryRequest) String() string {
 func (*CombatGeometryRequest) ProtoMessage() {}
 
 func (x *CombatGeometryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[3]
+	mi := &file_mirror_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -758,7 +828,7 @@ func (x *CombatGeometryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatGeometryRequest.ProtoReflect.Descriptor instead.
 func (*CombatGeometryRequest) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{3}
+	return file_mirror_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CombatGeometryRequest) GetIdentity() *commonpb.Identity {
@@ -815,7 +885,7 @@ type CombatGeometryPropose struct {
 
 func (x *CombatGeometryPropose) Reset() {
 	*x = CombatGeometryPropose{}
-	mi := &file_mirror_proto_msgTypes[4]
+	mi := &file_mirror_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -827,7 +897,7 @@ func (x *CombatGeometryPropose) String() string {
 func (*CombatGeometryPropose) ProtoMessage() {}
 
 func (x *CombatGeometryPropose) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[4]
+	mi := &file_mirror_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -840,7 +910,7 @@ func (x *CombatGeometryPropose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatGeometryPropose.ProtoReflect.Descriptor instead.
 func (*CombatGeometryPropose) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{4}
+	return file_mirror_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CombatGeometryPropose) GetRole() isCombatGeometryPropose_Role {
@@ -929,7 +999,7 @@ type CombatRescuePath struct {
 
 func (x *CombatRescuePath) Reset() {
 	*x = CombatRescuePath{}
-	mi := &file_mirror_proto_msgTypes[5]
+	mi := &file_mirror_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +1011,7 @@ func (x *CombatRescuePath) String() string {
 func (*CombatRescuePath) ProtoMessage() {}
 
 func (x *CombatRescuePath) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[5]
+	mi := &file_mirror_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +1024,7 @@ func (x *CombatRescuePath) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatRescuePath.ProtoReflect.Descriptor instead.
 func (*CombatRescuePath) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{5}
+	return file_mirror_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CombatRescuePath) GetTo() *commonpb.Cell {
@@ -976,7 +1046,7 @@ type CombatCoverBehindLine struct {
 
 func (x *CombatCoverBehindLine) Reset() {
 	*x = CombatCoverBehindLine{}
-	mi := &file_mirror_proto_msgTypes[6]
+	mi := &file_mirror_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -988,7 +1058,7 @@ func (x *CombatCoverBehindLine) String() string {
 func (*CombatCoverBehindLine) ProtoMessage() {}
 
 func (x *CombatCoverBehindLine) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[6]
+	mi := &file_mirror_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1001,7 +1071,7 @@ func (x *CombatCoverBehindLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatCoverBehindLine.ProtoReflect.Descriptor instead.
 func (*CombatCoverBehindLine) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{6}
+	return file_mirror_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CombatCoverBehindLine) GetLine() []*commonpb.Cell {
@@ -1023,7 +1093,7 @@ type CombatAdjacentToChoke struct {
 
 func (x *CombatAdjacentToChoke) Reset() {
 	*x = CombatAdjacentToChoke{}
-	mi := &file_mirror_proto_msgTypes[7]
+	mi := &file_mirror_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1035,7 +1105,7 @@ func (x *CombatAdjacentToChoke) String() string {
 func (*CombatAdjacentToChoke) ProtoMessage() {}
 
 func (x *CombatAdjacentToChoke) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[7]
+	mi := &file_mirror_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1048,7 +1118,7 @@ func (x *CombatAdjacentToChoke) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatAdjacentToChoke.ProtoReflect.Descriptor instead.
 func (*CombatAdjacentToChoke) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{7}
+	return file_mirror_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CombatAdjacentToChoke) GetChoke() *commonpb.Cell {
@@ -1079,7 +1149,7 @@ type CombatFiringCells struct {
 
 func (x *CombatFiringCells) Reset() {
 	*x = CombatFiringCells{}
-	mi := &file_mirror_proto_msgTypes[8]
+	mi := &file_mirror_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1091,7 +1161,7 @@ func (x *CombatFiringCells) String() string {
 func (*CombatFiringCells) ProtoMessage() {}
 
 func (x *CombatFiringCells) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[8]
+	mi := &file_mirror_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1104,7 +1174,7 @@ func (x *CombatFiringCells) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatFiringCells.ProtoReflect.Descriptor instead.
 func (*CombatFiringCells) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{8}
+	return file_mirror_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CombatFiringCells) GetTargets() []*commonpb.Cell {
@@ -1149,7 +1219,7 @@ type CombatSightLine struct {
 
 func (x *CombatSightLine) Reset() {
 	*x = CombatSightLine{}
-	mi := &file_mirror_proto_msgTypes[9]
+	mi := &file_mirror_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1161,7 +1231,7 @@ func (x *CombatSightLine) String() string {
 func (*CombatSightLine) ProtoMessage() {}
 
 func (x *CombatSightLine) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[9]
+	mi := &file_mirror_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1174,7 +1244,7 @@ func (x *CombatSightLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatSightLine.ProtoReflect.Descriptor instead.
 func (*CombatSightLine) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{9}
+	return file_mirror_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CombatSightLine) GetHostileId() string {
@@ -1229,7 +1299,7 @@ type CombatGeometryCell struct {
 
 func (x *CombatGeometryCell) Reset() {
 	*x = CombatGeometryCell{}
-	mi := &file_mirror_proto_msgTypes[10]
+	mi := &file_mirror_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1241,7 +1311,7 @@ func (x *CombatGeometryCell) String() string {
 func (*CombatGeometryCell) ProtoMessage() {}
 
 func (x *CombatGeometryCell) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[10]
+	mi := &file_mirror_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1254,7 +1324,7 @@ func (x *CombatGeometryCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatGeometryCell.ProtoReflect.Descriptor instead.
 func (*CombatGeometryCell) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{10}
+	return file_mirror_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CombatGeometryCell) GetCell() *commonpb.Cell {
@@ -1313,7 +1383,7 @@ type CombatGeometry struct {
 
 func (x *CombatGeometry) Reset() {
 	*x = CombatGeometry{}
-	mi := &file_mirror_proto_msgTypes[11]
+	mi := &file_mirror_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1325,7 +1395,7 @@ func (x *CombatGeometry) String() string {
 func (*CombatGeometry) ProtoMessage() {}
 
 func (x *CombatGeometry) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[11]
+	mi := &file_mirror_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1338,7 +1408,7 @@ func (x *CombatGeometry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatGeometry.ProtoReflect.Descriptor instead.
 func (*CombatGeometry) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{11}
+	return file_mirror_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CombatGeometry) GetContext() *commonpb.ObservationContext {
@@ -1382,7 +1452,7 @@ type CombatGeometryReply struct {
 
 func (x *CombatGeometryReply) Reset() {
 	*x = CombatGeometryReply{}
-	mi := &file_mirror_proto_msgTypes[12]
+	mi := &file_mirror_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1394,7 +1464,7 @@ func (x *CombatGeometryReply) String() string {
 func (*CombatGeometryReply) ProtoMessage() {}
 
 func (x *CombatGeometryReply) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[12]
+	mi := &file_mirror_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1407,7 +1477,7 @@ func (x *CombatGeometryReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatGeometryReply.ProtoReflect.Descriptor instead.
 func (*CombatGeometryReply) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{12}
+	return file_mirror_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CombatGeometryReply) GetOutcome() isCombatGeometryReply_Outcome {
@@ -1462,7 +1532,7 @@ type Watermark struct {
 
 func (x *Watermark) Reset() {
 	*x = Watermark{}
-	mi := &file_mirror_proto_msgTypes[13]
+	mi := &file_mirror_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1474,7 +1544,7 @@ func (x *Watermark) String() string {
 func (*Watermark) ProtoMessage() {}
 
 func (x *Watermark) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[13]
+	mi := &file_mirror_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1487,7 +1557,7 @@ func (x *Watermark) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Watermark.ProtoReflect.Descriptor instead.
 func (*Watermark) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{13}
+	return file_mirror_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Watermark) GetTick() int64 {
@@ -1516,7 +1586,7 @@ type CellRect struct {
 
 func (x *CellRect) Reset() {
 	*x = CellRect{}
-	mi := &file_mirror_proto_msgTypes[14]
+	mi := &file_mirror_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1528,7 +1598,7 @@ func (x *CellRect) String() string {
 func (*CellRect) ProtoMessage() {}
 
 func (x *CellRect) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[14]
+	mi := &file_mirror_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1541,7 +1611,7 @@ func (x *CellRect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellRect.ProtoReflect.Descriptor instead.
 func (*CellRect) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{14}
+	return file_mirror_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CellRect) GetX() int32 {
@@ -1592,7 +1662,7 @@ type FieldArray struct {
 
 func (x *FieldArray) Reset() {
 	*x = FieldArray{}
-	mi := &file_mirror_proto_msgTypes[15]
+	mi := &file_mirror_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1604,7 +1674,7 @@ func (x *FieldArray) String() string {
 func (*FieldArray) ProtoMessage() {}
 
 func (x *FieldArray) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[15]
+	mi := &file_mirror_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1617,7 +1687,7 @@ func (x *FieldArray) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FieldArray.ProtoReflect.Descriptor instead.
 func (*FieldArray) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{15}
+	return file_mirror_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *FieldArray) GetForm() isFieldArray_Form {
@@ -1700,7 +1770,7 @@ type PackedUint32 struct {
 
 func (x *PackedUint32) Reset() {
 	*x = PackedUint32{}
-	mi := &file_mirror_proto_msgTypes[16]
+	mi := &file_mirror_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1712,7 +1782,7 @@ func (x *PackedUint32) String() string {
 func (*PackedUint32) ProtoMessage() {}
 
 func (x *PackedUint32) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[16]
+	mi := &file_mirror_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1725,7 +1795,7 @@ func (x *PackedUint32) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackedUint32.ProtoReflect.Descriptor instead.
 func (*PackedUint32) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{16}
+	return file_mirror_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PackedUint32) GetValues() []uint32 {
@@ -1744,7 +1814,7 @@ type PackedDouble struct {
 
 func (x *PackedDouble) Reset() {
 	*x = PackedDouble{}
-	mi := &file_mirror_proto_msgTypes[17]
+	mi := &file_mirror_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1756,7 +1826,7 @@ func (x *PackedDouble) String() string {
 func (*PackedDouble) ProtoMessage() {}
 
 func (x *PackedDouble) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[17]
+	mi := &file_mirror_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1769,7 +1839,7 @@ func (x *PackedDouble) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackedDouble.ProtoReflect.Descriptor instead.
 func (*PackedDouble) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{17}
+	return file_mirror_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *PackedDouble) GetValues() []float64 {
@@ -1792,7 +1862,7 @@ type SparseArray struct {
 
 func (x *SparseArray) Reset() {
 	*x = SparseArray{}
-	mi := &file_mirror_proto_msgTypes[18]
+	mi := &file_mirror_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1804,7 +1874,7 @@ func (x *SparseArray) String() string {
 func (*SparseArray) ProtoMessage() {}
 
 func (x *SparseArray) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[18]
+	mi := &file_mirror_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1817,7 +1887,7 @@ func (x *SparseArray) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SparseArray.ProtoReflect.Descriptor instead.
 func (*SparseArray) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{18}
+	return file_mirror_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SparseArray) GetIndex() []uint32 {
@@ -1882,7 +1952,7 @@ type CellGrid struct {
 
 func (x *CellGrid) Reset() {
 	*x = CellGrid{}
-	mi := &file_mirror_proto_msgTypes[19]
+	mi := &file_mirror_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1894,7 +1964,7 @@ func (x *CellGrid) String() string {
 func (*CellGrid) ProtoMessage() {}
 
 func (x *CellGrid) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[19]
+	mi := &file_mirror_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1907,7 +1977,7 @@ func (x *CellGrid) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellGrid.ProtoReflect.Descriptor instead.
 func (*CellGrid) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{19}
+	return file_mirror_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CellGrid) GetRect() *CellRect {
@@ -2129,7 +2199,16 @@ const file_mirror_proto_rawDesc = "" +
 	"\r_weapon_meleeB\b\n" +
 	"\x06_armorB\x0e\n" +
 	"\f_shield_beltB\x10\n" +
-	"\x0e_medical_skill\"\xe0\x04\n" +
+	"\x0e_medical_skill\"\xcd\x01\n" +
+	"\rCombatDoorRow\x12\x13\n" +
+	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12/\n" +
+	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\"\n" +
+	"\n" +
+	"hit_points\x18\x03 \x01(\x05H\x01R\thitPoints\x88\x01\x01\x12)\n" +
+	"\x0emax_hit_points\x18\x04 \x01(\x05H\x02R\fmaxHitPoints\x88\x01\x01B\x05\n" +
+	"\x03_idB\r\n" +
+	"\v_hit_pointsB\x11\n" +
+	"\x0f_max_hit_points\"\xe0\x04\n" +
 	"\x0eCombatEventRow\x120\n" +
 	"\x02at\x18\x01 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x02at\x12=\n" +
 	"\x04kind\x18\x02 \x01(\x0e2$.rimgovernor.mirror.v1.CombatLogKindH\x00R\x04kind\x88\x01\x01\x12:\n" +
@@ -2325,98 +2404,100 @@ func file_mirror_proto_rawDescGZIP() []byte {
 }
 
 var file_mirror_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_mirror_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_mirror_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_mirror_proto_goTypes = []any{
 	(CombatSide)(0),                     // 0: rimgovernor.mirror.v1.CombatSide
 	(CombatStance)(0),                   // 1: rimgovernor.mirror.v1.CombatStance
 	(CombatLogKind)(0),                  // 2: rimgovernor.mirror.v1.CombatLogKind
 	(*CombatPawn)(nil),                  // 3: rimgovernor.mirror.v1.CombatPawn
-	(*CombatEventRow)(nil),              // 4: rimgovernor.mirror.v1.CombatEventRow
-	(*CombatRoom)(nil),                  // 5: rimgovernor.mirror.v1.CombatRoom
-	(*CombatGeometryRequest)(nil),       // 6: rimgovernor.mirror.v1.CombatGeometryRequest
-	(*CombatGeometryPropose)(nil),       // 7: rimgovernor.mirror.v1.CombatGeometryPropose
-	(*CombatRescuePath)(nil),            // 8: rimgovernor.mirror.v1.CombatRescuePath
-	(*CombatCoverBehindLine)(nil),       // 9: rimgovernor.mirror.v1.CombatCoverBehindLine
-	(*CombatAdjacentToChoke)(nil),       // 10: rimgovernor.mirror.v1.CombatAdjacentToChoke
-	(*CombatFiringCells)(nil),           // 11: rimgovernor.mirror.v1.CombatFiringCells
-	(*CombatSightLine)(nil),             // 12: rimgovernor.mirror.v1.CombatSightLine
-	(*CombatGeometryCell)(nil),          // 13: rimgovernor.mirror.v1.CombatGeometryCell
-	(*CombatGeometry)(nil),              // 14: rimgovernor.mirror.v1.CombatGeometry
-	(*CombatGeometryReply)(nil),         // 15: rimgovernor.mirror.v1.CombatGeometryReply
-	(*Watermark)(nil),                   // 16: rimgovernor.mirror.v1.Watermark
-	(*CellRect)(nil),                    // 17: rimgovernor.mirror.v1.CellRect
-	(*FieldArray)(nil),                  // 18: rimgovernor.mirror.v1.FieldArray
-	(*PackedUint32)(nil),                // 19: rimgovernor.mirror.v1.PackedUint32
-	(*PackedDouble)(nil),                // 20: rimgovernor.mirror.v1.PackedDouble
-	(*SparseArray)(nil),                 // 21: rimgovernor.mirror.v1.SparseArray
-	(*CellGrid)(nil),                    // 22: rimgovernor.mirror.v1.CellGrid
-	(*commonpb.Cell)(nil),               // 23: rimgovernor.common.v1.Cell
-	(clockpb.CombatEvent)(0),            // 24: rimgovernor.clock.v1.CombatEvent
-	(*commonpb.Identity)(nil),           // 25: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil), // 26: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Failure)(nil),            // 27: rimgovernor.common.v1.Failure
+	(*CombatDoorRow)(nil),               // 4: rimgovernor.mirror.v1.CombatDoorRow
+	(*CombatEventRow)(nil),              // 5: rimgovernor.mirror.v1.CombatEventRow
+	(*CombatRoom)(nil),                  // 6: rimgovernor.mirror.v1.CombatRoom
+	(*CombatGeometryRequest)(nil),       // 7: rimgovernor.mirror.v1.CombatGeometryRequest
+	(*CombatGeometryPropose)(nil),       // 8: rimgovernor.mirror.v1.CombatGeometryPropose
+	(*CombatRescuePath)(nil),            // 9: rimgovernor.mirror.v1.CombatRescuePath
+	(*CombatCoverBehindLine)(nil),       // 10: rimgovernor.mirror.v1.CombatCoverBehindLine
+	(*CombatAdjacentToChoke)(nil),       // 11: rimgovernor.mirror.v1.CombatAdjacentToChoke
+	(*CombatFiringCells)(nil),           // 12: rimgovernor.mirror.v1.CombatFiringCells
+	(*CombatSightLine)(nil),             // 13: rimgovernor.mirror.v1.CombatSightLine
+	(*CombatGeometryCell)(nil),          // 14: rimgovernor.mirror.v1.CombatGeometryCell
+	(*CombatGeometry)(nil),              // 15: rimgovernor.mirror.v1.CombatGeometry
+	(*CombatGeometryReply)(nil),         // 16: rimgovernor.mirror.v1.CombatGeometryReply
+	(*Watermark)(nil),                   // 17: rimgovernor.mirror.v1.Watermark
+	(*CellRect)(nil),                    // 18: rimgovernor.mirror.v1.CellRect
+	(*FieldArray)(nil),                  // 19: rimgovernor.mirror.v1.FieldArray
+	(*PackedUint32)(nil),                // 20: rimgovernor.mirror.v1.PackedUint32
+	(*PackedDouble)(nil),                // 21: rimgovernor.mirror.v1.PackedDouble
+	(*SparseArray)(nil),                 // 22: rimgovernor.mirror.v1.SparseArray
+	(*CellGrid)(nil),                    // 23: rimgovernor.mirror.v1.CellGrid
+	(*commonpb.Cell)(nil),               // 24: rimgovernor.common.v1.Cell
+	(clockpb.CombatEvent)(0),            // 25: rimgovernor.clock.v1.CombatEvent
+	(*commonpb.Identity)(nil),           // 26: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil), // 27: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Failure)(nil),            // 28: rimgovernor.common.v1.Failure
 }
 var file_mirror_proto_depIdxs = []int32{
 	0,  // 0: rimgovernor.mirror.v1.CombatPawn.side:type_name -> rimgovernor.mirror.v1.CombatSide
-	23, // 1: rimgovernor.mirror.v1.CombatPawn.cell:type_name -> rimgovernor.common.v1.Cell
+	24, // 1: rimgovernor.mirror.v1.CombatPawn.cell:type_name -> rimgovernor.common.v1.Cell
 	1,  // 2: rimgovernor.mirror.v1.CombatPawn.stance:type_name -> rimgovernor.mirror.v1.CombatStance
-	16, // 3: rimgovernor.mirror.v1.CombatPawn.changed:type_name -> rimgovernor.mirror.v1.Watermark
-	16, // 4: rimgovernor.mirror.v1.CombatEventRow.at:type_name -> rimgovernor.mirror.v1.Watermark
-	2,  // 5: rimgovernor.mirror.v1.CombatEventRow.kind:type_name -> rimgovernor.mirror.v1.CombatLogKind
-	24, // 6: rimgovernor.mirror.v1.CombatEventRow.stop:type_name -> rimgovernor.clock.v1.CombatEvent
-	23, // 7: rimgovernor.mirror.v1.CombatEventRow.cell:type_name -> rimgovernor.common.v1.Cell
-	23, // 8: rimgovernor.mirror.v1.CombatEventRow.landing_cells:type_name -> rimgovernor.common.v1.Cell
-	23, // 9: rimgovernor.mirror.v1.CombatRoom.min:type_name -> rimgovernor.common.v1.Cell
-	23, // 10: rimgovernor.mirror.v1.CombatRoom.max:type_name -> rimgovernor.common.v1.Cell
-	23, // 11: rimgovernor.mirror.v1.CombatRoom.doors:type_name -> rimgovernor.common.v1.Cell
-	25, // 12: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	23, // 13: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
-	7,  // 14: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
-	9,  // 15: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
-	10, // 16: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
-	11, // 17: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
-	8,  // 18: rimgovernor.mirror.v1.CombatGeometryPropose.rescue_path:type_name -> rimgovernor.mirror.v1.CombatRescuePath
-	23, // 19: rimgovernor.mirror.v1.CombatRescuePath.to:type_name -> rimgovernor.common.v1.Cell
-	23, // 20: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
-	23, // 21: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
-	23, // 22: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
-	23, // 23: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
-	23, // 24: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
-	23, // 25: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
-	12, // 26: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
-	26, // 27: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
-	13, // 28: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	13, // 29: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	14, // 30: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
-	27, // 31: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	19, // 32: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
-	20, // 33: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
-	21, // 34: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
-	17, // 35: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
-	18, // 36: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 37: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 38: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 39: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 40: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 41: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 42: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 43: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 44: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 45: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 46: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 47: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 48: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 49: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 50: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 51: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 52: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 53: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	18, // 54: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
-	55, // [55:55] is the sub-list for method output_type
-	55, // [55:55] is the sub-list for method input_type
-	55, // [55:55] is the sub-list for extension type_name
-	55, // [55:55] is the sub-list for extension extendee
-	0,  // [0:55] is the sub-list for field type_name
+	17, // 3: rimgovernor.mirror.v1.CombatPawn.changed:type_name -> rimgovernor.mirror.v1.Watermark
+	24, // 4: rimgovernor.mirror.v1.CombatDoorRow.cell:type_name -> rimgovernor.common.v1.Cell
+	17, // 5: rimgovernor.mirror.v1.CombatEventRow.at:type_name -> rimgovernor.mirror.v1.Watermark
+	2,  // 6: rimgovernor.mirror.v1.CombatEventRow.kind:type_name -> rimgovernor.mirror.v1.CombatLogKind
+	25, // 7: rimgovernor.mirror.v1.CombatEventRow.stop:type_name -> rimgovernor.clock.v1.CombatEvent
+	24, // 8: rimgovernor.mirror.v1.CombatEventRow.cell:type_name -> rimgovernor.common.v1.Cell
+	24, // 9: rimgovernor.mirror.v1.CombatEventRow.landing_cells:type_name -> rimgovernor.common.v1.Cell
+	24, // 10: rimgovernor.mirror.v1.CombatRoom.min:type_name -> rimgovernor.common.v1.Cell
+	24, // 11: rimgovernor.mirror.v1.CombatRoom.max:type_name -> rimgovernor.common.v1.Cell
+	24, // 12: rimgovernor.mirror.v1.CombatRoom.doors:type_name -> rimgovernor.common.v1.Cell
+	26, // 13: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	24, // 14: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
+	8,  // 15: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
+	10, // 16: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
+	11, // 17: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
+	12, // 18: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
+	9,  // 19: rimgovernor.mirror.v1.CombatGeometryPropose.rescue_path:type_name -> rimgovernor.mirror.v1.CombatRescuePath
+	24, // 20: rimgovernor.mirror.v1.CombatRescuePath.to:type_name -> rimgovernor.common.v1.Cell
+	24, // 21: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
+	24, // 22: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
+	24, // 23: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
+	24, // 24: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
+	24, // 25: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
+	24, // 26: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
+	13, // 27: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
+	27, // 28: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
+	14, // 29: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	14, // 30: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	15, // 31: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
+	28, // 32: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
+	20, // 33: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
+	21, // 34: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
+	22, // 35: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
+	18, // 36: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
+	19, // 37: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 38: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 39: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 40: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 41: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 42: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 43: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 44: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 45: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 46: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 47: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 48: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 49: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 50: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 51: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 52: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 53: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 54: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 55: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
+	56, // [56:56] is the sub-list for method output_type
+	56, // [56:56] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_mirror_proto_init() }
@@ -2428,23 +2509,24 @@ func file_mirror_proto_init() {
 	file_mirror_proto_msgTypes[1].OneofWrappers = []any{}
 	file_mirror_proto_msgTypes[2].OneofWrappers = []any{}
 	file_mirror_proto_msgTypes[3].OneofWrappers = []any{}
-	file_mirror_proto_msgTypes[4].OneofWrappers = []any{
+	file_mirror_proto_msgTypes[4].OneofWrappers = []any{}
+	file_mirror_proto_msgTypes[5].OneofWrappers = []any{
 		(*CombatGeometryPropose_CoverBehindLine)(nil),
 		(*CombatGeometryPropose_AdjacentToChoke)(nil),
 		(*CombatGeometryPropose_FiringCells)(nil),
 		(*CombatGeometryPropose_RescuePath)(nil),
 	}
-	file_mirror_proto_msgTypes[8].OneofWrappers = []any{}
 	file_mirror_proto_msgTypes[9].OneofWrappers = []any{}
 	file_mirror_proto_msgTypes[10].OneofWrappers = []any{}
 	file_mirror_proto_msgTypes[11].OneofWrappers = []any{}
-	file_mirror_proto_msgTypes[12].OneofWrappers = []any{
+	file_mirror_proto_msgTypes[12].OneofWrappers = []any{}
+	file_mirror_proto_msgTypes[13].OneofWrappers = []any{
 		(*CombatGeometryReply_Observed)(nil),
 		(*CombatGeometryReply_Failure)(nil),
 	}
-	file_mirror_proto_msgTypes[13].OneofWrappers = []any{}
 	file_mirror_proto_msgTypes[14].OneofWrappers = []any{}
-	file_mirror_proto_msgTypes[15].OneofWrappers = []any{
+	file_mirror_proto_msgTypes[15].OneofWrappers = []any{}
+	file_mirror_proto_msgTypes[16].OneofWrappers = []any{
 		(*FieldArray_Codes)(nil),
 		(*FieldArray_Indexes)(nil),
 		(*FieldArray_Numbers)(nil),
@@ -2456,7 +2538,7 @@ func file_mirror_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mirror_proto_rawDesc), len(file_mirror_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   20,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

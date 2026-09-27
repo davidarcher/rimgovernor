@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -87,5 +88,58 @@ func TestDecideCombatManhunterDoorReopens(t *testing.T) {
 	orders, _ = decideStop(t, view, StopEvent{}, m)
 	if d, ok := doorOrder(orders); !ok || d.Door != DoorHoldOpen {
 		t.Fatalf("%+v", orders)
+	}
+}
+
+func repairOrder(orders []CombatOrder) (CombatOrder, bool) {
+	for _, o := range orders {
+		if o.Kind == OrderRepair {
+			return o, true
+		}
+	}
+	return CombatOrder{}, false
+}
+
+// {potshot door damaged, pack beyond 6 cells} -> the nearest door gunner
+// repairs it, once; a gunner already on the Repair job gets nothing.
+func TestDecideCombatManhunterDoorRepairs(t *testing.T) {
+	_, m := decideStop(t, doorView(5), StopEvent{}, CombatMemory{})
+	view := doorView(5)
+	view.Tick = 160
+	view.DamagedDoors = []domain.Cell{{X: 15, Z: 19}}
+	orders, next := decideStop(t, view, StopEvent{}, m)
+	o, ok := repairOrder(orders)
+	if !ok || o.Cell != (domain.Cell{X: 15, Z: 19}) || o.Reason != ReasonRepair {
+		t.Fatalf("%+v", orders)
+	}
+	if !slices.ContainsFunc(next.Roles, func(r CombatRole) bool { return r.Pawn == o.Pawn && r.Duty == DutyDoorway }) {
+		t.Fatalf("repairer %s is not a door gunner: %+v", o.Pawn, next.Roles)
+	}
+	for _, other := range orders {
+		if other.Pawn == o.Pawn && other.Kind != OrderRepair {
+			t.Fatalf("repairer also ordered: %+v", orders)
+		}
+	}
+	for i := range view.Pawns {
+		if view.Pawns[i].ID == o.Pawn {
+			view.Pawns[i].Job = "Repair"
+		}
+	}
+	view.Tick = 220
+	orders, _ = decideStop(t, view, StopEvent{}, next)
+	if _, ok := repairOrder(orders); ok {
+		t.Fatalf("repair repeated: %+v", orders)
+	}
+}
+
+// {potshot door damaged, an animal within 6 cells} -> no repair.
+func TestDecideCombatManhunterDoorNoRepairUnderThreat(t *testing.T) {
+	_, m := decideStop(t, doorView(5), StopEvent{}, CombatMemory{})
+	view := doorView(14)
+	view.Tick = 160
+	view.DamagedDoors = []domain.Cell{{X: 15, Z: 19}}
+	orders, next := decideStop(t, view, StopEvent{}, m)
+	if _, ok := repairOrder(orders); ok || next.ManhunterDoor.Repairer != "" {
+		t.Fatalf("repair with a wolf at 5 cells: %+v", orders)
 	}
 }

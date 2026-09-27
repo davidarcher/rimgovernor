@@ -104,6 +104,8 @@ func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state Co
 			wire.Order = &op.CombatOrder_Attack{Attack: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
 		case policy.OrderRescue:
 			wire.Order = &op.CombatOrder_Rescue{Rescue: &op.CombatRescue{Downed: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}}
+		case policy.OrderRepair:
+			wire.Order = &op.CombatOrder_Repair{Repair: &op.CombatRepair{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}}
 		case policy.OrderDoor:
 			mode := op.CombatDoorMode_COMBAT_DOOR_MODE_FORBID
 			switch order.Door {

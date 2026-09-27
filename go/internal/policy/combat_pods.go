@@ -131,6 +131,9 @@ type PodDoor struct {
 	Cell domain.Cell
 	Mode DoorMode
 	Sent bool `json:",omitempty"`
+	// Repairer is the door gunner sent to repair the manhunter potshot
+	// door (#900), while it is damaged and no animal is near.
+	Repairer domain.PawnID `json:",omitempty"`
 }
 
 // closeRange ranks the armed for the doorway slots (#892): melee-only

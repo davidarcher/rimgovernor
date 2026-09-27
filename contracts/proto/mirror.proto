@@ -66,6 +66,15 @@ message CombatPawn {
   optional int32 medical_skill = 28;
 }
 
+// A damaged player door (BundleSnapshot.combat_doors, #900): hit points
+// below max.
+message CombatDoorRow {
+  optional string id = 1; // load id
+  rimgovernor.common.v1.Cell cell = 2;
+  optional int32 hit_points = 3;
+  optional int32 max_hit_points = 4;
+}
+
 // What a combat event row records. The #849 stop kinds and the non-stops.
 enum CombatLogKind {
   COMBAT_LOG_KIND_UNSPECIFIED = 0;
