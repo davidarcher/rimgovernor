@@ -47,11 +47,9 @@ map revision. Legacy saved Home exclusions are ignored; the retained
 `excluded_cells` wire field is zero. A method is identified by target, batch
 shape and observed Home revision, so a later removal can admit fresh work.
 
-Typed `ExtendHome` and legacy `home/upkeep_home` re-derive the batch and require
-the observed shape and revision before writing. Receipts/progress inspect the
-admitted cells, not the next batch; they must still belong to the connected
-facility and actually be Home. A missing cell or disconnected admitted
-geometry makes the outcome unsuccessful. Uncertain writes are not replayed.
+`HomeIntent` on Actions/Apply re-derives the batch live and sets its missing
+Home cells; an applied result is terminal and the next review reads the
+census again. A lost reply is resent under a new key.
 See [apply-time checks](action-contracts.md#apply-time-preconditions-and-refusal-reasons).
 
 `upkeep/home-coverage` builds two owned beds in connected chambers, checks

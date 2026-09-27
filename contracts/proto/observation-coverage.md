@@ -296,7 +296,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |
 | CreateZone.expected_map_snapshot_token (optional; the planner's siting census) | GetCells.map_snapshot, bound to exact inspected map/geometry query |
 | DeleteZoneIntent/ZoneCellsIntent.zone_id, StockpileIntent.target_id | ListZones.zone.id; ListBuildings storage row id |
-| ExtendHome.target/shape/revision | ReadColonyFacts.upkeep.home_coverage.target.snapshot/shape_token and revision |
+| HomeIntent.target_id | ReadColonyFacts.upkeep.home_coverage.target.id |
 | BedAssignIntent.pawn_id/bed_id/expected_previous_bed | ListPawns.pawn and owned bed; ListBuildings.building |
 | RemoveWall.wall/expected_site_snapshot_token | ListWallUpgradeSites.target.snapshot and site.snapshot, exact geometry below |
 | RecoverService.target/pawn | ReadRecovery.building.snapshot; ListPawns.pawn.snapshot |

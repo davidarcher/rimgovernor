@@ -227,9 +227,9 @@ Sources: [saved map state](../integrations/rimgovernor-native/src/Runtime/Persis
 | --- | --- | --- |
 | `Revision/rimgovernorHomeRevision` | Native per-map freshness token | Its value need not survive if load identity invalidates every old request. |
 
-Native Home remains game-owned. Autonomous `ExtendHome` adds missing cells
-within the observed batch of an owned facility's connected enclosed rooms
-or an exact owned stockpile, subject to the observed shape and Home revision.
+Native Home remains game-owned. Autonomous `HomeIntent` adds missing cells
+within the live batch of an owned facility's connected enclosed rooms
+or an exact owned stockpile.
 Set, Clear and Invert advance that revision. Removing Home during Manual
 becomes restoration work after Auto resumes, under the
 [Manual control contract](../docs/developers/architecture/control-loop.md#manual-control).

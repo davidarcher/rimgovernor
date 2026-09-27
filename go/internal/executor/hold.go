@@ -35,8 +35,6 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.EquipPawnUnavailable:           domain.HeldEquipPawnUnavailable,
 	policy.FilthIneligible:                domain.HeldFilthIneligible,
 	policy.GearReplacePawnUnavailable:     domain.HeldGearReplacePawnUnavailable,
-	policy.HomeCoverageExcluded:           domain.HeldHomeCoverageExcluded,
-	policy.HomeCoverageGeometryChanged:    domain.HeldHomeCoverageGeometryChanged,
 	policy.NativeIneligible:               domain.HeldNativeIneligible,
 	policy.PatientIneligible:              domain.HeldPatientIneligible,
 	policy.PlayerOrder:                    domain.HeldPlayerOrder,

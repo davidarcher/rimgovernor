@@ -20,7 +20,7 @@ discovered/mapped, not as live source links.
 | `home/colony_identity` | Lifecycle.ReadIdentity | Typed | `controller/rimgovernor/bridge.py:108` |
 | `games_status` | Go controller gamehost process adapter | External host | `controller/rimgovernor/bridge.py:54` |
 | `rimworld/load_game_ready` | Lifecycle.Load / ReadLoad | Typed | `controller/rimgovernor/bridge.py:153` |
-| `home/upkeep_home` | Operations.Preview / Execute: ExtendHome | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/upkeep_home` | Actions.Apply HomeIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/upkeep_wall` | Operations.Preview / Execute: RemoveWall | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/upkeep_bed` | Actions.Apply BedAssignIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/recover_service` | Operations.Preview / Execute: RecoverService | Typed | `controller/rimgovernor/bridge_game.py:15` |

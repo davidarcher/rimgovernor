@@ -101,8 +101,6 @@ const (
 	HeldEquipPawnUnavailable           HeldReason = "equip_pawn_unavailable"
 	HeldFilthIneligible                HeldReason = "filth_ineligible"
 	HeldGearReplacePawnUnavailable     HeldReason = "gear_replace_pawn_unavailable"
-	HeldHomeCoverageExcluded           HeldReason = "home_coverage_excluded"
-	HeldHomeCoverageGeometryChanged    HeldReason = "home_coverage_geometry_changed"
 	HeldNativeIneligible               HeldReason = "native_ineligible"
 	HeldPatientIneligible              HeldReason = "patient_ineligible"
 	HeldPlayerOrder                    HeldReason = "player_order"
@@ -133,8 +131,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldInvalidHeld, HeldArithmeticOverflow,
 	HeldCleanerUnavailable,
 	HeldDoctorUnavailable, HeldDraftOwnership, HeldEquipPawnUnavailable, HeldFilthIneligible,
-	HeldGearReplacePawnUnavailable, HeldHomeCoverageExcluded,
-	HeldHomeCoverageGeometryChanged,
+	HeldGearReplacePawnUnavailable,
 	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder,
 	HeldRecoveryServicePawnUnavailable,
 	HeldRepairerUnavailable, HeldRescuerUnavailable,

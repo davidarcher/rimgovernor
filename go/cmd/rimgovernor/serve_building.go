@@ -138,7 +138,6 @@ type buildingServiceBridge struct {
 	growerCrop          *growercrop.Capabilities
 	claimBuilding       *claimbuilding.Capabilities
 	openCasket          *buildingruntime.OpenCasketCapabilities
-	homeCoverage        *buildingruntime.HomeCoverageCapabilities
 	wallRemoval         *buildingruntime.WallRemovalCapabilities
 	presentationMedia   *bridge.PresentationMedia
 	lifecycle           lifecycleCapability
@@ -258,10 +257,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	homeCoverageWriter, err := bridge.NewHomeCoverageWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	wallRemovalWriter, err := bridge.NewWallRemovalWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -309,7 +304,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		claimBuilding:       &claimbuilding.Capabilities{Native: client, Writer: claimBuildingControl},
 		openCasket:          &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
-		homeCoverage:        &buildingruntime.HomeCoverageCapabilities{Native: client, Writer: homeCoverageWriter},
 		wallRemoval:         &buildingruntime.WallRemovalCapabilities{Native: client, Writer: wallRemovalWriter},
 		presentationMedia:   presentationMedia,
 		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
@@ -645,16 +639,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		openCasketCapabilities = client.openCasket
 	}
-	// The home-coverage family extends Home through the shared executor
-	// (typed ExtendHome, #292); without the capability its plans never leave
-	// pending.
-	var homeCoverageCapabilities *buildingruntime.HomeCoverageCapabilities
-	if config.routineHomeCoveragePlans {
-		if client.homeCoverage == nil {
-			return errors.New("home coverage plans require typed capabilities")
-		}
-		homeCoverageCapabilities = client.homeCoverage
-	}
 	// The stone-shell family demolishes the flammable wall each bundle
 	// replaces through the shared executor (typed RemoveWall, #293); without
 	// the capability the bundle's demolition step never leaves pending.
@@ -698,7 +682,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		GrowerCrop:          growerCropCapabilities,
 		ClaimBuilding:       claimBuildingCapabilities,
 		OpenCasket:          openCasketCapabilities,
-		HomeCoverage:        homeCoverageCapabilities,
 		WallRemoval:         wallRemovalCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {

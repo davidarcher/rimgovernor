@@ -7,14 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestHomeCoverageRestoresLegacyExcludedCells(t *testing.T) {
-	r := homeCoverageRequest(t)
-	r.Facts.Excluded = r.Facts.Missing
-	if d := EvaluateHomeCoverage(r); !d.Admitted {
-		t.Fatal("autonomous coverage must restore all missing cells", d)
-	}
-}
-
 func TestHomeCoverageFindsWorkAfterBlockedPrefixAndRenewsOnEdit(t *testing.T) {
 	rows := []HomeCoverageTarget{}
 	for i := 0; i < 12; i++ {

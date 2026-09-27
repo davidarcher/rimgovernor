@@ -132,8 +132,6 @@ type Executor struct {
 	claimBuildingJournal       ClaimBuildingJournal
 	trade                      TradeBoundary
 	tradeJournal               TradeJournal
-	homeCoverage               HomeCoverageBoundary
-	homeCoverageJournal        HomeCoverageJournal
 	wallRemoval                WallRemovalBoundary
 	wallRemovalJournal         WallRemovalJournal
 	mineAcquisition            AcquisitionBoundary
@@ -394,9 +392,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.HomeCoverageAction && e.homeCoverage != nil {
-		return e.runHomeCoverage(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.WallRemovalAction && e.wallRemoval != nil {
 		return e.runWallRemoval(ctx, action, progress, authority, generation)

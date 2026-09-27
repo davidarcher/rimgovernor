@@ -68,6 +68,9 @@ message Operation {
   reserved "set_animal_training", "slaughter_animal", "tame_animal", "release_animal", "set_animal_area", "set_animal_master", "set_animal_following";
   reserved 15, 16, 18;
   reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
+  // Designations and construction-adjacent orders moved to Actions/Apply (#940).
+  reserved 20;
+  reserved "extend_home";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -86,7 +89,6 @@ message Operation {
     // Preview only: the siting read planners run per candidate; zones are
     // created through the create_zone Action arm.
     CreateZone create_zone = 14;
-    ExtendHome extend_home = 20;
     RemoveWall remove_wall = 22;
     RecoverService recover_service = 25;
     ManageWaste manage_waste = 26;
@@ -285,7 +287,6 @@ message ZoneCellsIntent { optional string zone_id = 1; optional CellEdit edit = 
 // storable definitions when it applies; settings that already hold apply
 // again.
 message StockpileIntent { optional string target_id = 1; StockpileSettings settings = 2; }
-message ExtendHome { EntityPrecondition target = 1; optional string shape_token = 2; optional int64 revision = 3; }
 // Exact non-colony occupant; no snapshot token. Native repeats eligibility and roof safety at apply.
 message Deconstruct { EntityPrecondition target = 1; }
 message ReleaseDeconstructions {}
@@ -411,8 +412,14 @@ message Action {
     ZoneCellsIntent zone_cells = 28;
     StockpileIntent stockpile = 29;
     RemoveFoundationIntent remove_foundation = 30;
+    HomeIntent home = 31;
   }
 }
+// Extend Home over the missing cells of one facility's bounded batch (a
+// colonist building plus its connected enclosed roofed rooms, or a
+// stockpile's cells), recomputed live when native applies it. A batch
+// already all Home applies again. Home is never removed.
+message HomeIntent { optional string target_id = 1; }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree): window_id plus the exact observed option index
 // and label stand in for an entity precondition, and native refuses on any drift.

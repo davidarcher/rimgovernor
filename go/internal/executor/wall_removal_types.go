@@ -39,7 +39,7 @@ type WallRemovalEvidence struct {
 	Target                string
 }
 
-// WallRemovalBoundary is optionally composed, like HomeCoverageBoundary: the
+// WallRemovalBoundary is optionally composed: the
 // planner has already selected the original/backup identity and site
 // geometry from a fresh ReviewStoneShell selection, so this family attaches
 // without a hard NewWith constructor.
@@ -49,9 +49,8 @@ type WallRemovalBoundary interface {
 	ObserveWallRemoval(context.Context, WallRemovalDispatch, domain.GenerationSnapshot) (WallRemovalEvidence, error)
 }
 
-// EnableWallRemoval activates the wall-removal capability; see
-// EnableHomeCoverage for why capabilities are wired this way instead of
-// inferred from a composed Boundary.
+// EnableWallRemoval activates the wall-removal capability explicitly rather
+// than inferring it from a composed Boundary.
 func (e *Executor) EnableWallRemoval(wallRemoval WallRemovalBoundary) error {
 	if wallRemoval == nil {
 		return errors.New("wall removal boundary required")
