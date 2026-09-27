@@ -22,7 +22,7 @@ import (
 // renderer; it builds nothing, so it is outside the outcome comparison.
 // "viewer" is uncapped with one dashboard client streaming video at the
 // default cadence beside the governor, the viewing overhead. "player" (#627)
-// is Ultrafast under player acceleration (--clock-pacing player): no test
+// is Ultrafast under player acceleration (any Ultrafast without test acceleration, #875): no test
 // acceleration, native paces ticks per frame against its frame budget and
 // the controller backs off before its evidence goes stale, the mode a
 // player launch runs.
@@ -99,9 +99,6 @@ func (c SpeedCase) ServeArgs() []string {
 	}
 	if c.BlindTicks > 0 {
 		args = append(args, "--clock-blind-ticks", strconv.FormatUint(uint64(c.BlindTicks), 10))
-	}
-	if c.Player {
-		args = append(args, "--clock-pacing", "player")
 	}
 	return args
 }

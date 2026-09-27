@@ -111,7 +111,6 @@ type serveConfig struct {
 	clockSpeed                      string
 	clockTestAcceleration           bool
 	clockBlindTicks                 uint
-	clockPacing                     string
 	chat                            bool
 	resume                          bool
 	pprof                           bool
@@ -153,7 +152,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast, Superfast or Ultrafast")
 	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
 	c.refresh = serveRefresh
-	flags.StringVar(&c.clockPacing, "clock-pacing", "fixed", "how an Ultrafast window paces its ticks: fixed (the speed's own rate) or player (issue #627: native raises ticks per frame toward the boosted rate while the frame's tick work stays inside native's frame budget, and the controller lowers the rate before its critical evidence goes stale); player needs --clock-speed Ultrafast and no --clock-test-acceleration")
 	flags.UintVar(&c.clockBlindTicks, "clock-blind-ticks", 0, fmt.Sprintf("arm the native blind-tick regulator (issue #583): past this many game ticks since the controller's last read or oldest unread clock event, native throttles the window toward Normal and ramps back once the controller catches up, without ending the window (1..%d; 0 leaves windows unregulated)", maxClockBlindTicks))
 	flags.BoolVar(&c.debug, "debug", false, "log debug records too: the clock trace (which step branch ran, what each planner decided, what a routine refused and why) and refused pawn orders; stderr only, never flight rows")
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
@@ -184,7 +182,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-pacing", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "chat-model", "chat-base-url", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "chat-model", "chat-base-url", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -208,15 +206,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.clockTestAcceleration && c.clockSpeed != "Ultrafast" {
 		return c, errors.New("--clock-test-acceleration requires --clock-speed Ultrafast")
-	}
-	switch c.clockPacing {
-	case "fixed":
-	case "player":
-		if c.clockSpeed != "Ultrafast" || c.clockTestAcceleration {
-			return c, errors.New("--clock-pacing player requires --clock-speed Ultrafast without --clock-test-acceleration")
-		}
-	default:
-		return c, errors.New("--clock-pacing must be fixed or player")
 	}
 	if c.clockBlindTicks > maxClockBlindTicks {
 		return c, fmt.Errorf("--clock-blind-ticks must be 0 through %d", maxClockBlindTicks)

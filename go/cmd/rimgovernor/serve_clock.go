@@ -263,7 +263,8 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	shrine := sc.routineShrinePlans
 	tidy := sc.routineTidyPlans
 	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
-	config.Start.PlayerAccelerated = sc.clockPacing == "player"
+	// Ultrafast without the dev tick boost always runs player pacing (#627, #875).
+	config.Start.PlayerAccelerated = config.Start.Speed == k.Speed_SPEED_ULTRAFAST && !config.Start.TestAcceleration
 	config.PaceHorizonTicks = domain.Tick(sc.clockBlindTicks)
 	if sc.resourceTargetsConfigured() {
 		// The native digest appends a colony row when a stock crosses one
