@@ -1,0 +1,18 @@
+{
+  "fixture": "lab-open",
+  "ticks": 4250,
+  "colonistDamage": 219.1,
+  "colonistDowns": 3,
+  "colonistDeaths": 0,
+  "enemyDowns": 0,
+  "enemyDeaths": 0,
+  "enemyFled": 0,
+  "firstContactTick": 923,
+  "resolvedTick": 4276,
+  "contactToResolutionTicks": 3353,
+  "winner": "hostile",
+  "friendlyFireHits": 0,
+  "ordersIssued": 0,
+  "ordersRefused": 0,
+  "stepLatencyP95Ms": -1
+}

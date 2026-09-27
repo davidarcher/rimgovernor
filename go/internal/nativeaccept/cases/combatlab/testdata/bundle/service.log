@@ -1,0 +1,4 @@
+2026-09-26T10:00:00Z tick=1100 INFO [clock] combat_stop event=entered_range resume_latency_ms=40
+2026-09-26T10:00:01Z tick=1120 INFO [clock] combat_stop event=downed resume_latency_ms=400
+2026-09-26T10:00:01Z tick=1121 INFO [combat] combat_order kind=move outcome=issued
+2026-09-26T10:00:01Z tick=1122 INFO [combat] combat_order kind=move outcome=refused

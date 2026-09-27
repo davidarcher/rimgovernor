@@ -1,0 +1,18 @@
+{
+  "fixture": "lab-choke",
+  "ticks": 4500,
+  "colonistDamage": 354,
+  "colonistDowns": 5,
+  "colonistDeaths": 0,
+  "enemyDowns": 0,
+  "enemyDeaths": 0,
+  "enemyFled": 0,
+  "firstContactTick": 326,
+  "resolvedTick": 4535,
+  "contactToResolutionTicks": 4209,
+  "winner": "hostile",
+  "friendlyFireHits": 0,
+  "ordersIssued": 0,
+  "ordersRefused": 0,
+  "stepLatencyP95Ms": -1
+}

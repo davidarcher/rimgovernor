@@ -457,6 +457,41 @@ namespace HomeBridge.BridgeTools
         }
     }
 
+    // Every hit on a pawn since the last lab staging (#855): the same
+    // Thing.TakeDamage edge CombatInjuryHook and NativeCombatCausality patch,
+    // attributed by DamageInfo.Instigator's side. A colonist hitting a
+    // colonist is friendly fire. Patched by the first staging; bounded.
+    public static class LabDamageLedger
+    {
+        private const int Cap = 4096;
+        private static readonly List<object> rows = new List<object>();
+        private static bool patched;
+        public static int Dropped { get; private set; }
+
+        public static void Reset()
+        {
+            rows.Clear();
+            Dropped = 0;
+            if (patched) return;
+            new Harmony("rimgovernor.fixture.lab-damage").Patch(AccessTools.Method(typeof(Thing), nameof(Thing.TakeDamage), new[] { typeof(DamageInfo) }),
+                postfix: new HarmonyMethod(typeof(LabDamageLedger), nameof(Postfix)));
+            patched = true;
+        }
+
+        public static List<object> Rows() => rows.ToList();
+
+        private static string Side(Thing t) => t == null ? "" : t.Faction == Faction.OfPlayer ? "colonist" : t.HostileTo(Faction.OfPlayer) ? "hostile" : "other";
+
+        public static void Postfix(Thing __instance, DamageInfo dinfo, DamageWorker.DamageResult __result)
+        {
+            if (!(__instance is Pawn victim) || float.IsNaN(AcceptanceWorld.Lab)) return;
+            if (rows.Count >= Cap) { Dropped++; return; }
+            var by = dinfo.Instigator;
+            rows.Add(new { tick = Find.TickManager.TicksGame, victim = victim.GetUniqueLoadID(), victimSide = Side(victim), instigator = by?.GetUniqueLoadID() ?? "",
+                instigatorSide = Side(by), weapon = dinfo.Weapon?.defName ?? "", dealt = __result?.totalDamageDealt ?? 0f, downed = victim.Downed, dead = victim.Dead });
+        }
+    }
+
     public sealed class LabStageFixture
     {
         // A tick call holds the main thread; 2000 ticks of a lab skirmish is
@@ -481,8 +516,11 @@ namespace HomeBridge.BridgeTools
                 }
                 if (action == "read")
                     return new { success = true, tick = Find.TickManager.TicksGame, pawns = map.mapPawns.AllPawns.Where(p => p.Spawned || p.Corpse?.Spawned == true).Select(p => new {
-                        id = p.GetUniqueLoadID(), side = p.Faction == Faction.OfPlayer ? "colonist" : "hostile", x = p.PositionHeld.x, z = p.PositionHeld.z, downed = p.Downed, dead = p.Dead }).ToList() };
+                        id = p.GetUniqueLoadID(), side = p.Faction == Faction.OfPlayer ? "colonist" : "hostile", x = p.PositionHeld.x, z = p.PositionHeld.z, downed = p.Downed, dead = p.Dead,
+                        fleeing = !p.Dead && (p.MentalStateDef == MentalStateDefOf.PanicFlee || p.CurJobDef == JobDefOf.Flee || p.CurJobDef == JobDefOf.FleeAndCower) }).ToList(),
+                        damage = LabDamageLedger.Rows(), damageDropped = LabDamageLedger.Dropped };
                 if (action != "stage") throw new ArgumentException("Unknown action.");
+                LabDamageLedger.Reset();
                 return LabStage.Stage(map, JObject.Parse(spec ?? "{}"));
             }, cancellationToken).ConfigureAwait(false);
         }
