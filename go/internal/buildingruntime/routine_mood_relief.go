@@ -4,39 +4,24 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
-
-// RoutineMoodReliefSource reuses the generic bridge.ReadPawns, the same
-// call MoodReliefBoundary's dispatch-time inspection uses: its PawnState
-// rows carry the Job and Settings/Schedule fields moodReliefDispatchFacts
-// decodes into the ExpectedJob/ExpectedScheduleDef commit-time fencing
-// values EnsureMood-* relief needs, unlike RoutineWasteSource's narrower
-// ReadTendPawns.
-type RoutineMoodReliefSource interface {
-	ReadPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
-}
 
 type RoutineMoodReliefPlanner struct {
 	reviewer *RoutineReviewer
-	native   RoutineMoodReliefSource
 }
 type RoutineMoodReliefResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
 }
 
-func NewRoutineMoodReliefPlanner(reviewer *RoutineReviewer, native RoutineMoodReliefSource) (*RoutineMoodReliefPlanner, error) {
-	if reviewer == nil || native == nil {
-		return nil, fmt.Errorf("%w: NewRoutineMoodReliefPlanner: reviewer == nil || native == nil", ErrControl)
+func NewRoutineMoodReliefPlanner(reviewer *RoutineReviewer) (*RoutineMoodReliefPlanner, error) {
+	if reviewer == nil {
+		return nil, fmt.Errorf("%w: NewRoutineMoodReliefPlanner: reviewer == nil", ErrControl)
 	}
-	return &RoutineMoodReliefPlanner{reviewer, native}, nil
+	return &RoutineMoodReliefPlanner{reviewer}, nil
 }
 
 // moodReliefValue mirrors store's unexported moodFact/moodValue lift for
@@ -110,13 +95,6 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 	if review.Mood == nil || len(review.Mood.States) == 0 {
 		return RoutineMoodReliefResult{Reason: BuildingMethodUsed}, nil
 	}
-	longitude, longitudeKnown := r.reviewer.longitude.Value()
-	if !longitudeKnown {
-		// The map-local-hour ingredient EnsureMood-* fencing needs is
-		// unknown; never guess a fencing value, so no relief can be
-		// proposed this Step.
-		return RoutineMoodReliefResult{Reason: BuildingMethodUsed}, nil
-	}
 	statesByGoal := map[domain.GoalID]store.RoutineMoodState{}
 	for _, s := range review.Mood.States {
 		statesByGoal[policy.MoodGoal(s.Pawn.ID)] = s
@@ -135,7 +113,6 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		activeOwner[binding.Need] = goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit
 	}
 	started := r.reviewer.clock.Now()
-	identity := boundary.Identity(sessionState.Snapshot)
 	for _, binding := range review.Goals {
 		if !policy.IsMoodGoal(binding.Need) {
 			continue
@@ -193,37 +170,10 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		if attempt >= maxMedicalAttemptsPerPatient {
 			continue
 		}
-		reply, _, err := r.native.ReadPawns(call, identity, []string{string(moodState.Pawn.ID)})
-		if err != nil {
-			return RoutineMoodReliefResult{}, err
-		}
-		observed := reply.GetObserved()
-		if observed == nil {
-			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
-		}
-		if _, err = boundary.Context(observed.Context, sessionState.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
-		}
-		if len(observed.Pawns) != 1 {
-			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != 1", ErrControl)
-		}
-		row := observed.Pawns[0]
-		if row == nil || row.Pawn == nil || row.Pawn.GetId() != string(moodState.Pawn.ID) {
-			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || row.Pawn.GetId() != string(moodState.Pawn.ID)", ErrControl)
-		}
-		job, def, ok := moodReliefDispatchFacts(row, observed.Context.GetTick(), longitude)
-		if !ok {
-			// Never guess a fencing value; try the next mood goal instead.
-			continue
-		}
-		domainJob, ok := moodReliefJobDomain(job)
-		if !ok {
-			continue
-		}
 		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(moodState.Pawn.ID)}) {
 			continue
 		}
-		relief, err := domain.NewMoodRelief(domain.PawnID(moodState.Pawn.ID), need, domainJob, def)
+		relief, err := domain.NewMoodRelief(domain.PawnID(moodState.Pawn.ID), need)
 		if err != nil {
 			return RoutineMoodReliefResult{}, err
 		}

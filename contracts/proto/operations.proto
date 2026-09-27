@@ -85,12 +85,14 @@ message Operation {
   // subdue is a MeleeIntent (#939).
   reserved 36, 57;
   reserved "pawn_target_order", "arrest";
+  // Need relief moved to Actions/Apply NeedReliefIntent (#939).
+  reserved 27;
+  reserved "relieve_need";
   oneof command {
     AcquireResource acquire_resource = 4;
     // Preview only: the siting read planners run per candidate; zones are
     // created through the create_zone Action arm.
     CreateZone create_zone = 14;
-    RelieveNeed relieve_need = 27;
     ImproveGear improve_gear = 28;
     SetDrafted set_drafted = 33;
     AttackTarget attack_target = 35;
@@ -262,8 +264,6 @@ enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; 
 // produce it ahead of time: an unconstrained preview (this field omitted)
 // establishes the baseline.
 enum Need { NEED_UNSPECIFIED = 0; NEED_FOOD = 1; NEED_REST = 2; NEED_JOY = 3; }
-message ExpectedJob { oneof state { int32 job_id = 1; Clear idle = 2; } }
-message RelieveNeed { EntityPrecondition pawn = 1; optional Need need = 2; ExpectedJob expected_job = 3; optional string expected_schedule_def = 4; }
 message ImproveGear { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional string expected_loadout_token = 3; }
 // Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
 // Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
@@ -378,6 +378,7 @@ message Action {
     BuildingPatchIntent building_patch = 39;
     RemoveWallIntent remove_wall = 40;
     PawnOrderIntent pawn_order = 41;
+    NeedReliefIntent need_relief = 42;
   }
 }
 // Order one pawn onto one target with the job the game's own work giver or
@@ -388,6 +389,12 @@ message Action {
 // ARREST alone names bed_id, the exact prisoner bed; it needs an armed arrester
 // with an owned draft and a target in an arrestable mental state.
 message PawnOrderIntent { optional string pawn_id = 1; optional string target_id = 2; optional PawnOrderKind kind = 3; optional string bed_id = 4; }
+// Offer one undrafted colonist the ordinary native job for one deficient
+// need (food, rest or recreation), the job its own need giver issues.
+// Native checks the pawn, its current job, timetable and the need live; a
+// pawn already running the need's job applies again. Applied means the job
+// was started; the next census reads the need.
+message NeedReliefIntent { optional string pawn_id = 1; optional Need need = 2; }
 // Extend Home over the missing cells of one facility's bounded batch (a
 // colonist building plus its connected enclosed roofed rooms, or a
 // stockpile's cells), recomputed live when native applies it. A batch

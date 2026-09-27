@@ -496,11 +496,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if moodRelief {
-			moodReliefNative, ok := reads.(buildingruntime.RoutineMoodReliefSource)
-			if !ok {
-				return nil, errors.New("mood plans require typed colony observations")
-			}
-			config.MoodRelief, err = buildingruntime.NewRoutineMoodReliefPlanner(reviewer, moodReliefNative)
+			config.MoodRelief, err = buildingruntime.NewRoutineMoodReliefPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}

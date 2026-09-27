@@ -87,7 +87,7 @@ func run(ctx context.Context, s cases.Session) error {
 	plantCell, rockCell, preyCell, buildCell := cellOf("plantCell"), cellOf("rockCell"), cellOf("preyCell"), cellOf("buildCell")
 	tokens := map[string]string{}
 	for _, key := range []string{"zoneId", "wallId", "wallToken", "itemId", "itemToken", "haulItemId", "haulItemToken",
-		"pawnId", "pawnWorkToken", "plantId", "plantToken", "plantResource", "rockId", "rockToken", "rockResource", "rockDef",
+		"pawnId", "plantId", "plantToken", "plantResource", "rockId", "rockToken", "rockResource", "rockDef",
 		"benchId", "benchToken", "preyId", "preyResource", "tameId", "growerId", "growerCrop"} {
 		if tokens[key], err = str(key); err != nil {
 			return err

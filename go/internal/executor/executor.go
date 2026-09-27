@@ -93,8 +93,6 @@ type Executor struct {
 	haulJournal            HaulJournal
 	gearReplace            GearReplaceBoundary
 	gearReplaceJournal     GearReplaceJournal
-	moodRelief             MoodReliefBoundary
-	moodReliefJournal      MoodReliefJournal
 	trade                  TradeBoundary
 	tradeJournal           TradeJournal
 	mineAcquisition        AcquisitionBoundary
@@ -293,9 +291,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.GearReplaceAction && e.gearReplace != nil {
 		return e.runGearReplace(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.MoodReliefAction && e.moodRelief != nil {
-		return e.runMoodRelief(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)

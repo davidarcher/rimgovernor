@@ -29,7 +29,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 148
+const schemaVersion = 149
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -55,7 +55,6 @@ type PlanState struct {
 	AcquisitionAdmissions     []ActionAcquisitionAdmission
 	RangedAdmissions          []ActionRangedAdmission
 	GearReplaceAdmissions     []ActionGearReplaceAdmission
-	MoodReliefAdmissions      []ActionMoodReliefAdmission
 	MineAcquisitionAdmissions []ActionMineAcquisitionAdmission
 }
 
@@ -257,7 +256,6 @@ CREATE TABLE bill_claims(colony TEXT NOT NULL,load_token TEXT NOT NULL,map_id IN
 CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE ranged_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE gear_replace_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE mood_relief_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mine_acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
 CREATE TABLE clock_epochs(start_request_id TEXT PRIMARY KEY REFERENCES clock_attempts(request_id), stage TEXT NOT NULL CHECK(stage IN ('required','pausing','uncertain','paused','retired','superseded')), sequence TEXT NOT NULL, context BLOB, status BLOB) STRICT;
@@ -614,16 +612,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		}
 		if gearReplacePresent {
 			state.GearReplaceAdmissions = append(state.GearReplaceAdmissions, ActionGearReplaceAdmission{Action: a.ID(), Admission: gearReplaceAdmission})
-		}
-		moodReliefAdmission, moodReliefPresent, e := loadMoodReliefAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.MoodReliefAction && !moodReliefPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("mood relief progress lacks admission")
-		}
-		if moodReliefPresent {
-			state.MoodReliefAdmissions = append(state.MoodReliefAdmissions, ActionMoodReliefAdmission{Action: a.ID(), Admission: moodReliefAdmission})
 		}
 	}
 	for _, record := range state.RangedAdmissions {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"time"
 
@@ -21,13 +20,12 @@ import (
 // RoutineReviewer observes and journals needs under Player's existing gate.
 // It neither acquires authority nor creates methods or game orders.
 type RoutineReviewer struct {
-	methods   domain.Fact[[]policy.GoalID]
-	player    *Player
-	native    observation.RoutineSource
-	clock     observation.Clock
-	policy    policy.RoutinePolicy
-	maxAge    time.Duration
-	longitude domain.Fact[float64]
+	methods domain.Fact[[]policy.GoalID]
+	player  *Player
+	native  observation.RoutineSource
+	clock   observation.Clock
+	policy  policy.RoutinePolicy
+	maxAge  time.Duration
 	// census retains the latest review reading for the planners of the same
 	// tick; see routineCensus.
 	census routineCensusStore
@@ -159,18 +157,8 @@ func (r *RoutineReviewer) publishFrame(expected observation.Identity, frame brid
 
 // RoutineCapabilities is the runtime's complete configured method set. Omitting
 // it leaves availability unspecified for callers that compose methods themselves.
-//
-// Longitude is the colony's home map-tile longitude (bridge.WorldRead.Longitude),
-// the map-local-hour ingredient boundary.HourOfDay/ExpectedScheduleDef need to
-// fence EnsureMood-* relief dispatch against a pawn's current timetable
-// assignment. It is resolved once by the caller (the colony's map tile never
-// moves within a session) rather than re-read on every Step, unlike every
-// other RoutineSource fact which is re-derived fresh each tick because it can
-// genuinely change; Longitude cannot, so caching it here avoids two wasted
-// native round trips (map lookup, then world-tile lookup) every review.
 type RoutineCapabilities struct {
-	Methods   []policy.GoalID
-	Longitude domain.Fact[float64]
+	Methods []policy.GoalID
 	// LayoutOverlay draws the layout plan as a native overlay layer
 	// (#726, serve --layout-overlay).
 	LayoutOverlay bool
@@ -181,7 +169,6 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 		return nil, fmt.Errorf("%w: NewRoutineReviewer: player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > t", ErrControl)
 	}
 	methods := domain.Unknown[[]policy.GoalID]()
-	longitude := domain.Unknown[float64]()
 	reviewerOverlay := false
 	if len(capabilities) > 1 {
 		return nil, fmt.Errorf("%w: NewRoutineReviewer: len(capabilities) > 1", ErrControl)
@@ -192,14 +179,8 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 		if _, err := policy.DetectRoutine(policy.RoutineFacts{AvailableMethods: methods}, policy.RoutineLatches{}, thresholds); err != nil {
 			return nil, err
 		}
-		if lon, known := capabilities[0].Longitude.Value(); known {
-			if math.IsNaN(lon) || math.IsInf(lon, 0) || lon < -180 || lon > 180 {
-				return nil, fmt.Errorf("%w: NewRoutineReviewer: math.IsNaN(lon) || math.IsInf(lon, 0) || lon < -180 || lon > 180", ErrControl)
-			}
-			longitude = capabilities[0].Longitude
-		}
 	}
-	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, longitude: longitude, layoutOverlay: reviewerOverlay}
+	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, layoutOverlay: reviewerOverlay}
 	return reviewer, nil
 }
 

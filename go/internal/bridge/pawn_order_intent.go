@@ -84,3 +84,27 @@ func captureAction(action domain.Action) (*o.Action, error) {
 	}
 	return out, err
 }
+
+// moodReliefAction is the NeedReliefIntent: native offers the pawn the job
+// its own need giver issues, checked live.
+func moodReliefAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.MoodRelief()
+	if !ok {
+		return nil, contract("not a mood relief action")
+	}
+	var need o.Need
+	switch v.Need() {
+	case domain.MoodReliefFood:
+		need = o.Need_NEED_FOOD
+	case domain.MoodReliefRest:
+		need = o.Need_NEED_REST
+	case domain.MoodReliefJoy:
+		need = o.Need_NEED_JOY
+	default:
+		return nil, contract("invalid mood relief need")
+	}
+	if validID(string(v.Pawn())) != nil {
+		return nil, contract("mood relief intent requires a valid pawn")
+	}
+	return &o.Action{Intent: &o.Action_NeedRelief{NeedRelief: &o.NeedReliefIntent{PawnId: proto.String(string(v.Pawn())), Need: need.Enum()}}}, nil
+}

@@ -162,8 +162,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'bed_assign',?,?,?)", a.ID(), plan, ordinal, assign.Pawn(), assign.Bed(), def)
 	} else if relief, ok := a.MoodRelief(); ok {
-		job := relief.ExpectedJob()
-		data, encodeErr := json.Marshal(moodReliefPayload{relief.Need(), job.Idle, job.JobID, relief.ExpectedScheduleDef()})
+		data, encodeErr := json.Marshal(moodReliefPayload{relief.Need()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -401,7 +400,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if !bytes.Equal(canonical, moodReliefBlob) {
 			return domain.Action{}, 0, errors.New("noncanonical mood relief payload")
 		}
-		relief, err := domain.NewMoodRelief(domain.PawnID(pawn.String), payload.Need, domain.MoodReliefJob{Idle: payload.JobIdle, JobID: payload.JobID}, payload.ScheduleDef)
+		relief, err := domain.NewMoodRelief(domain.PawnID(pawn.String), payload.Need)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -920,10 +919,7 @@ type tradePayload struct {
 	ReceiveQuest          bool
 }
 type moodReliefPayload struct {
-	Need        domain.MoodReliefNeed
-	JobIdle     bool
-	JobID       int32
-	ScheduleDef string
+	Need domain.MoodReliefNeed
 }
 
 func subdueMarker(m domain.MeleeAttack) sql.NullString {

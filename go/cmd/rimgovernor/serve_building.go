@@ -29,63 +29,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
-
-// moodReliefWorldSource is the narrow slice of *bridge.Client that
-// readMoodReliefLongitude needs to find the colony's home tile and read its
-// longitude: the world-progression census (for the home map's Tile) and
-// ReadWorld itself (for WorldTile.longitude). It exists only so
-// readMoodReliefLongitude can be exercised against a test fake without
-// pulling in the rest of bridge.Client's surface.
-type moodReliefWorldSource interface {
-	ReadWorldProgression(ctx context.Context, identity *c.Identity, includeStorage bool) (bridge.WorldProgressionRead, bridge.Result, error)
-	ReadWorld(ctx context.Context, identity *c.Identity, tile int32, settlementRadius float64) (bridge.WorldRead, bridge.Result, error)
-}
-
-// readMoodReliefLongitude reads the colony's home-tile longitude once, at
-// session startup: bridge.WorldRead.Longitude's doc comment calls it
-// "effectively a session constant" since the colony's map tile does not
-// move, so one read here is enough -- MoodRelief's boundary never issues a
-// per-tick WorldRead for it. It never aborts the CLI session: a missing
-// identity or world source, a failed identity/world-progression/world read,
-// or no map marked Home in the census all degrade to Unknown -- the same
-// "log/ignore and fall back" degradation every other optional startup
-// capability in this file uses, and never a guessed or defaulted longitude.
-func readMoodReliefLongitude(ctx context.Context, identitySource observation.Source, worldSource moodReliefWorldSource) domain.Fact[float64] {
-	unknown := domain.Unknown[float64]()
-	if identitySource == nil || worldSource == nil {
-		return unknown
-	}
-	reply, _, err := identitySource.Tick(ctx)
-	if err != nil {
-		return unknown
-	}
-	identity, err := observation.DecodeTick(reply)
-	if err != nil {
-		return unknown
-	}
-	wireIdentity := boundary.Identity(domain.GenerationSnapshot{Colony: identity.Colony, Load: identity.Load, Map: identity.Map})
-	progression, _, err := worldSource.ReadWorldProgression(ctx, wireIdentity, false)
-	if err != nil {
-		return unknown
-	}
-	homeTile, found := int32(-1), false
-	for _, m := range progression.Maps {
-		if m.Home {
-			homeTile, found = m.Tile, true
-			break
-		}
-	}
-	if !found {
-		return unknown
-	}
-	world, _, err := worldSource.ReadWorld(ctx, wireIdentity, homeTile, 0)
-	if err != nil {
-		return unknown
-	}
-	return world.Longitude
-}
 
 type buildingServiceBridge struct {
 	reads             serviceBridge
@@ -101,8 +45,6 @@ type buildingServiceBridge struct {
 	ranged            *ranged.RangedCapabilities
 	movement          *buildingruntime.MovementCapabilities
 	haul              *haul.HaulCapabilities
-	moodRelief        *buildingruntime.MoodReliefCapabilities
-	moodReliefWorld   moodReliefWorldSource
 	gearReplace       *buildingruntime.GearReplaceCapabilities
 	trade             *buildingruntime.TradeCapabilities
 	presentationMedia *bridge.PresentationMedia
@@ -163,10 +105,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	moodReliefWriter, err := bridge.NewMoodReliefWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	actionsWriter, err := bridge.NewActionsWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -183,7 +121,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: actionsWriter, moodReliefWorld: client,
+	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: actionsWriter,
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
@@ -192,7 +130,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		ranged:            &ranged.RangedCapabilities{Native: client, Writer: attack},
 		movement:          &buildingruntime.MovementCapabilities{Writer: actionsWriter},
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
-		moodRelief:        &buildingruntime.MoodReliefCapabilities{Native: client, Writer: moodReliefWriter},
 		gearReplace:       &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		presentationMedia: presentationMedia,
@@ -354,14 +291,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		haulCapabilities = client.haul
 	}
-	var moodReliefCapabilities *buildingruntime.MoodReliefCapabilities
-	if config.routineMoodPlans {
-		if client.moodRelief == nil {
-			return errors.New("mood plans require typed mood relief capabilities")
-		}
-		moodReliefCapabilities = client.moodRelief
-		moodReliefCapabilities.Longitude = readMoodReliefLongitude(lifetime, client.reads, client.moodReliefWorld)
-	}
 	var gearReplaceCapabilities *buildingruntime.GearReplaceCapabilities
 	if config.routineGearPlans {
 		if client.gearReplace == nil {
@@ -387,7 +316,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Ranged:          rangedCapabilities,
 		Movement:        movementCapabilities,
 		Haul:            haulCapabilities,
-		MoodRelief:      moodReliefCapabilities,
 		GearReplace:     gearReplaceCapabilities,
 		Trade:           tradeCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})

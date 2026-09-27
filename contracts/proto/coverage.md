@@ -25,7 +25,7 @@ discovered/mapped, not as live source links.
 | `home/upkeep_bed` | Actions.Apply BedAssignIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/recover_service` | Actions.Apply: RecoverIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/husbandry_config` | Actions.Apply HusbandryIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/relieve_need` | Operations.Preview / Execute: RelieveNeed | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/relieve_need` | Actions.Apply: NeedReliefIntent (#939) | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/medical_operations` | Observations.ReadMedicalCatalog | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/caravan` | Actions.Apply: FormCaravanIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/manage_waste` | Actions.Apply: WasteIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |

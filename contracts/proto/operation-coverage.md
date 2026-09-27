@@ -74,7 +74,7 @@ Source files below are under `integrations/rimgovernor-native/src/Bridge`. Read-
 | NativeRecoveryOperations.cs | Actions.Apply RecoverIntent | Ordinary repair/breakdown/refuel workgiver. Observe real service recovery. |
 | NativeArrestOperations.cs | PawnOrderIntent ARREST (Actions.Apply) | Arrester, target and prisoner bed_id checked live; owned draft required. Native armed/violence/manipulation/arrest/bed/reach checks; normal targets and hostile Berserk are refused. Uses vanilla Arrest including resistance and prisoner conversion; a running arrest applies again. Covered by `mood/arrest`. |
 | NativeWasteOperations.cs | Actions.Apply WasteIntent | Safe exact-item hauling/burial; preserve protected items/corpses/graves, avoid merged-stack false attribution. |
-| NeedReliefTool.cs | RelieveNeed | Expected job or idle + schedule; preview admission only; ordinary AI job and later need recovery. |
+| NativeMoodReliefOperations.cs | NeedReliefIntent (Actions/Apply, #939) | Validated live at apply; ordinary AI need job and later need recovery. |
 | GearUpkeepTool.cs | ImproveGear | Expected loadout, ordinary equip/wear job; observe actual equipped/apparel ID. |
 | HusbandryTool.cs | Actions.Apply HusbandryIntent | Animal ID and one order (train, slaughter, tame, release, allowed area, master, follow drafted/fieldwork, cancel slaughter/release), validated live; an order that already holds applies again. Applied evidence is the animal's read-back settings; handler labor is a later animal outcome. |
 | PopulationTool.cs | Actions.Apply PrisonerInteractionIntent | AttemptRecruit/MaintainOnly/ReduceResistance/Release, plus Enslave/Convert with Ideology; no instant recruitment. Validated against live custody at apply. |

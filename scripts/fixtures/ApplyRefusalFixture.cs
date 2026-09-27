@@ -244,8 +244,6 @@ namespace HomeBridge.BridgeTools
                 var crop = DefDatabase<ThingDef>.AllDefs.FirstOrDefault(d => NativeGrowerCrop.Sowable(d, grower) && d != grower.GetPlantDefToGrow());
                 if (crop == null) return Refuse("No sowable crop for the fixture plant pot.");
 
-                var work = NativeWorkSettings.Snapshot(pawn, context);
-                if (work == null) return Refuse("Fixture colonist has no work snapshot.");
 
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {
@@ -259,7 +257,7 @@ namespace HomeBridge.BridgeTools
                     itemId = item.GetUniqueLoadID(), itemToken = itemSnapshot.Token,
                     haulItemId = haulItem.GetUniqueLoadID(), haulItemToken = haulSnapshot.Token,
                     buildCell = new { x = buildCell.x, z = buildCell.z },
-                    pawnId = pawn.GetUniqueLoadID(), pawnWorkToken = work.Token,
+                    pawnId = pawn.GetUniqueLoadID(),
                     plantId = plant.GetUniqueLoadID(), plantToken = NativePlantAcquisition.Snapshot(plant, context).Token,
                     plantResource = plant.def.plant.harvestedThingDef.defName, plantCell = new { x = plant.Position.x, z = plant.Position.z },
                     rockId = rock.GetUniqueLoadID(), rockToken = NativeMineAcquisition.Snapshot(rock, context).Token,

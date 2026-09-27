@@ -31,7 +31,6 @@ type SessionConfig struct {
 	Ranged          *ranged.RangedCapabilities
 	Movement        *MovementCapabilities
 	GearReplace     *GearReplaceCapabilities
-	MoodRelief      *MoodReliefCapabilities
 	Trade           *TradeCapabilities
 	MineAcquisition *mineacquisition.MineAcquisitionCapabilities
 }
@@ -254,9 +253,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil)", ErrControl))
 	}
-	if config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil)", ErrControl))
-	}
 	if config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil)", ErrControl))
 	}
@@ -323,20 +319,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableGearReplace(gearReplaceBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.MoodRelief != nil {
-		// Longitude comes from the CLI's one-time startup ReadWorld call (see
-		// serve_building.go's readMoodReliefLongitude); it stays Unknown when
-		// no source was wired or that read failed, and is never guessed here
-		// -- InspectMoodRelief/EvaluateMoodRelief correctly refuse dispatch
-		// whenever it is unknown.
-		moodReliefBoundary, err := NewMoodReliefBoundary(config.MoodRelief.Native, config.MoodRelief.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace), config.MoodRelief.Longitude)
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableMoodRelief(moodReliefBoundary); err != nil {
 			return cleanup(err)
 		}
 	}
