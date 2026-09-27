@@ -10,7 +10,7 @@ func TestMiningFollowsTheLayoutPlanTiers(t *testing.T) {
 	plan := LayoutPlan{
 		Rooms: []LayoutRoom{{Role: ModuleReserve, Interior: Rectangle{X: 10, Z: 10, Width: 5, Height: 5}, Dug: true}},
 		Zones: []LayoutZone{
-			{Kind: ZoneMining, Runs: []RowRun{{Z: 1, X: 0, Length: 2}}},
+			{Kind: ZoneMining, Runs: []RowRun{{Z: 1, X: 0, Length: 2}}, Ore: true},
 			{Kind: ZoneMining, Runs: []RowRun{{Z: 9, X: 9, Length: 7}, {Z: 2, X: 2, Length: 3}}},
 		},
 	}
@@ -20,6 +20,10 @@ func TestMiningFollowsTheLayoutPlanTiers(t *testing.T) {
 		if got := plan.MineTier(cell); got != want {
 			t.Errorf("%v: tier %d, want %d", cell, got, want)
 		}
+	}
+	lone := LayoutPlan{Zones: plan.Zones[:1]}
+	if got := lone.MineTier(domain.Cell{X: 1, Z: 1}); got != MineTierOre {
+		t.Errorf("lone ore zone: tier %d, want ore", got)
 	}
 	src := func(id string, d float64, cell domain.Cell) ResourceSource {
 		return ResourceSource{ThingID: id, Yield: 10, Distance: d, Method: ResourceSourceMine, Safety: "open_surface", Cell: cell, Reachable: domain.Known(true)}

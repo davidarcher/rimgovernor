@@ -67,6 +67,11 @@ func Zone(s MapSurvey) []LayoutZone {
 			zones = append(zones, LayoutZone{Kind: kind, Runs: runs})
 		}
 	}
+	addOre := func(in func(int32) bool) {
+		if runs := zoneRuns(w, h, in); len(runs) > 0 {
+			zones = append(zones, LayoutZone{Kind: ZoneMining, Runs: runs, Ore: true})
+		}
+	}
 	add(ZoneCore, has(func(c *SurveyCell) bool { return c.Rock || c.Walkable }))
 	for _, f := range fields {
 		if len(f) < zoneFieldMin {
@@ -84,7 +89,7 @@ func Zone(s MapSurvey) []LayoutZone {
 	add(ZonePasture, has(func(c *SurveyCell) bool {
 		return !c.Rock && c.Walkable && c.Fertility > 0 && !inField[c.Cell.Z*w+c.Cell.X]
 	}))
-	add(ZoneMining, has(func(c *SurveyCell) bool { return c.Rock && c.Ore }))
+	addOre(has(func(c *SurveyCell) bool { return c.Rock && c.Ore }))
 	add(ZoneMining, has(func(c *SurveyCell) bool { return c.Rock && !c.Ore }))
 	add(ZoneWood, has(func(c *SurveyCell) bool { return c.Tree }))
 	add(ZoneNoGo, func(i int32) bool { return cells[i] != nil && noGo(i) })

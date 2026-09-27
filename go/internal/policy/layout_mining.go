@@ -12,18 +12,13 @@ const (
 	MineTierStone = 2
 )
 
-// MineTier ranks cell under plan. Zoning emits the ore mining zone before the
-// plain-rock one, so the first of two mining zones is ore; a lone mining zone
-// is ambiguous and ranks as stone.
+// MineTier ranks cell under plan; a cell in the zone zoning marked Ore ranks
+// first.
 func (p LayoutPlan) MineTier(cell domain.Cell) int {
-	var mining []LayoutZone
 	for _, z := range p.Zones {
-		if z.Kind == ZoneMining {
-			mining = append(mining, z)
+		if z.Kind == ZoneMining && z.Ore && zoneHas(z, cell) {
+			return MineTierOre
 		}
-	}
-	if len(mining) == 2 && zoneHas(mining[0], cell) {
-		return MineTierOre
 	}
 	for _, r := range p.Rooms {
 		in := r.Interior

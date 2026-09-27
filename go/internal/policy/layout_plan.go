@@ -50,6 +50,8 @@ type RowRun struct {
 type LayoutZone struct {
 	Kind ZoneKind
 	Runs []RowRun
+	// Ore marks the mining zone over ore-bearing rock (#837).
+	Ore bool
 }
 
 // ReservationKind is an infrastructure site the plan holds.
