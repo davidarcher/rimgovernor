@@ -66,6 +66,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		// A pods fight waiting behind closed doors engages no one (#893).
 		next.Roles = focusFire(view, next.Roles, memory.Roles)
 	}
+	next.Roles = dropMissingTargets(view, next.Roles)
 	manhunterKite(view, &next)
 	manhunterDoor(view, formed, &next)
 	orderable := map[domain.PawnID]bool{}
@@ -461,6 +462,24 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 		return squadTargetDown(view, m)
 	}
 	return false
+}
+
+// dropMissingTargets clears a role's target that is gone from the view's
+// threats (fled, despawned): native refuses an attack on it as not_found,
+// and re-ordering it every stop only gets refused again (#904). The pawn
+// keeps its cell and picks its own target on fire-at-will.
+func dropMissingTargets(view CombatView, roles []CombatRole) []CombatRole {
+	present := map[domain.PawnID]bool{}
+	for _, t := range view.Threats {
+		present[domain.PawnID(t.ID)] = true
+	}
+	out := slices.Clone(roles)
+	for i := range out {
+		if !present[out[i].Target] {
+			out[i].Target = ""
+		}
+	}
+	return out
 }
 
 // squadTargetDown reports a role whose target is dead or downed.

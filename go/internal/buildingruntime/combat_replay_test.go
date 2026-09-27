@@ -119,6 +119,19 @@ func firstStop(s combatReplayStop) bool { return s.Index == 0 }
 
 func withOrders(s combatReplayStop) bool { return len(s.Orders) > 0 }
 
+// attacksOnPresentHostiles: no attack names a hostile gone from the view's
+// threats, the order native refuses as not_found (#904).
+func attacksOnPresentHostiles() combatAssertion {
+	return combatAssertion{name: "attacks name present hostiles", check: func(s combatReplayStop) error {
+		for _, o := range s.Orders {
+			if o.Kind == policy.OrderAttack && !slices.ContainsFunc(s.View.Threats, func(t policy.SquadThreatFacts) bool { return domain.PawnID(t.ID) == o.Target }) {
+				return fmt.Errorf("%s ordered to attack missing %s", o.Pawn, o.Target)
+			}
+		}
+		return nil
+	}}
+}
+
 // noAimInterrupt: no order interrupts a pawn in aim warmup or cooldown
 // unless the reason is retreat or rescue.
 func noAimInterrupt() combatAssertion {
@@ -374,6 +387,7 @@ func TestCombatReplayLabChoke(t *testing.T) {
 		}},
 		ordersOwnedDrafts(),
 		changesOnly(),
+		attacksOnPresentHostiles(),
 		noAimInterrupt(),
 		// Hold fire holds while the raider fights our blocker between
 		// swings (#903): no fire-at-will at stops 2 and 5.

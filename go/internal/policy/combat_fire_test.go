@@ -77,6 +77,24 @@ func TestDecideCombatNoAttackThroughColonist(t *testing.T) {
 	}
 }
 
+// A squad role whose target left the view (fled, despawned) gets no
+// attack: native refuses it as not_found every stop (#904).
+func TestDecideCombatNoAttackOnMissingTarget(t *testing.T) {
+	view := threatView()
+	memory := CombatMemory{Tactic: TacticSquad, Formed: 50, Roles: []CombatRole{
+		{Pawn: "a", Target: "gone"},
+	}}
+	orders, memory := decideStop(t, view, StopEvent{}, memory)
+	for _, o := range orders {
+		if o.Kind == OrderAttack && o.Target == "gone" {
+			t.Fatalf("%+v", orders)
+		}
+	}
+	if memory.Roles[0].Target != "" {
+		t.Fatalf("role kept missing target: %+v", memory.Roles)
+	}
+}
+
 // A gunner whose target is in melee with our blocker gets stop and
 // hold-fire; it holds while the melee lasts and gets fire-at-will back
 // when it ends, then its attack.
