@@ -76,6 +76,9 @@ type EmergencyThreat struct {
 	// ruin hive makes jelly but neither spreads nor spawns; it is left
 	// alone, never held for or attacked. Unknown counts as engaging.
 	Passive domain.Fact[bool]
+	// Position is a pawn threat's cell, when the census row carried one;
+	// the safety overlay (#824) draws its reach around it.
+	Position domain.Fact[domain.Cell]
 }
 
 // Engaging reports a threat that is not known passive.

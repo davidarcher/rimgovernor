@@ -222,6 +222,9 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 			if row.Pawn.NearestColonistDistance != nil {
 				threat.Distance = domain.Known(row.Pawn.GetNearestColonistDistance())
 			}
+			if at := row.Pawn.GetPawn().GetPosition(); at != nil && at.X != nil && at.Z != nil {
+				threat.Position = domain.Known(domain.Cell{X: at.GetX(), Z: at.GetZ()})
+			}
 			result.Facts.Threats = append(result.Facts.Threats, threat)
 		}
 	}

@@ -70,6 +70,8 @@ type RoutineReviewer struct {
 	heatCleared    bool
 	// strip is the last status strip sent (#823); see drawStatusStrip.
 	strip statusStripState
+	// safety is the last safety layer sent (#824); see drawSafetyOverlay.
+	safety statusStripState
 	// pause is who stopped the clock the scheduler's step read (#847),
 	// set before the review; see clockPause.
 	pause policy.ClockPause
@@ -500,6 +502,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		r.logColonyStage(ctx, result.Review)
 		recordRoutineSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
 		r.drawStatusStrip(ctx, state.Snapshot, &reading.Projection, result)
+		r.drawSafetyOverlay(ctx, state.Snapshot, &reading.Projection, reading.Emergency)
 	}
 	return result, err
 }
