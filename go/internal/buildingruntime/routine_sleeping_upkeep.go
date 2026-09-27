@@ -328,6 +328,9 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 				if upgrade, due := beautyUpgrade(facts); due {
 					return r.upgradeBedroom(call, epoch, state, review, goal, reading, upgrade)
 				}
+				if result, due, err := r.sculptBedroom(call, epoch, state, goal, reading); due || err != nil {
+					return result, err
+				}
 				return RoutineBuildingResult{Reason: BuildingSleepingUseNeeded}, nil
 			}
 			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: swap.Pawn, Bed: swap.Bed, PreviousBed: swap.PreviousBed}

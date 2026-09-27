@@ -27,16 +27,6 @@ const maxBeautyFloorCells = 24
 // false when none. A floor upgrade carries its cells in Cells (Def placed
 // at each, North); a plant pot is one piece at Anchor.
 func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, available func(string) bool, flooring domain.Fact[FlooringObservation], floors FlooringFacts) (RoomUpgrade, bool) {
-	census, ok := obs.Rooms.Value()
-	if !ok {
-		return RoomUpgrade{}, false
-	}
-	quality := map[string]RoomQuality{}
-	for _, r := range census {
-		if q, ok := r.Quality.Value(); ok {
-			quality[r.ID] = q
-		}
-	}
 	furniture := map[string]TidyRoom{}
 	for _, r := range rooms {
 		furniture[r.ID] = r
@@ -48,16 +38,9 @@ func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, r
 			floorRooms[r.ID] = r
 		}
 	}
-	ids := make([]string, 0, len(targets))
-	for id := range targets {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	for _, id := range ids {
-		t := targets[id]
-		q, qk := quality[id]
+	for _, id := range beautyRooms(obs, targets) {
 		room, rk := furniture[id]
-		if !qk || !rk || t.NeverUpgrade || t.Min <= 0 || q.Impressiveness >= t.Min || (t.Max > 0 && q.Impressiveness >= t.Max) || WeakestRoomStat(q) != RoomStatBeauty {
+		if !rk {
 			continue
 		}
 		pot := false
@@ -76,6 +59,91 @@ func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, r
 		}
 	}
 	return RoomUpgrade{}, false
+}
+
+// The sculpture lever (#830), after pots and floors: one small sculpture
+// bill at an art bench, then the finished packed sculpture installed on
+// free floor in the room.
+const (
+	SculptureDefinition       = "SculptureSmall"
+	SculptureRecipe           = "Make_SculptureSmall"
+	PackedSculptureDefinition = "MinifiedSculpture"
+)
+
+type SculptureKind string
+
+const (
+	SculptureBill    SculptureKind = "bill"
+	SculptureInstall SculptureKind = "install"
+)
+
+// SculptureStep is one change: a bill on Bench, or Packed (a packed item's
+// id) installed at Anchor, North.
+type SculptureStep struct {
+	Kind   SculptureKind
+	Room   string
+	Bench  string
+	Packed string
+	Anchor domain.Cell
+}
+
+// NextSculpture returns the sculpture step due for the first (by room id)
+// bedroom below target whose weakest stat is beauty and that has a free
+// cell; the caller asks only once NextBeautyUpgrade has nothing. A packed
+// sculpture in stock goes first; otherwise one bill, none while any bench
+// already carries one.
+func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, benches []GearBench, packed []string) (SculptureStep, bool) {
+	for _, id := range beautyRooms(obs, targets) {
+		for _, room := range rooms {
+			if room.ID != id {
+				continue
+			}
+			cell, _, ok := freeSpot(room, domain.Cell{X: 1, Z: 1})
+			if !ok {
+				continue
+			}
+			if len(packed) > 0 {
+				return SculptureStep{Kind: SculptureInstall, Room: id, Packed: packed[0], Anchor: cell}, true
+			}
+			for _, b := range benches {
+				bills, _ := b.Bills.Value()
+				for _, bill := range bills {
+					if bill.Recipe == SculptureRecipe {
+						return SculptureStep{}, false
+					}
+				}
+			}
+			for _, b := range benches {
+				recipes, _ := b.Recipes.Value()
+				for _, r := range recipes {
+					if avail, ok := r.Available.Value(); r.Definition == SculptureRecipe && ok && avail {
+						return SculptureStep{Kind: SculptureBill, Room: id, Bench: b.ID}, true
+					}
+				}
+			}
+			return SculptureStep{}, false
+		}
+	}
+	return SculptureStep{}, false
+}
+
+// beautyRooms are the target rooms (by id) below target whose weakest
+// stat is beauty.
+func beautyRooms(obs SleepingObservation, targets map[string]RoomTarget) []string {
+	census, ok := obs.Rooms.Value()
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, r := range census {
+		t, tk := targets[r.ID]
+		q, qk := r.Quality.Value()
+		if tk && qk && !t.NeverUpgrade && t.Min > 0 && q.Impressiveness < t.Min && (t.Max <= 0 || q.Impressiveness < t.Max) && WeakestRoomStat(q) == RoomStatBeauty {
+			out = append(out, r.ID)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // floorUpgrade picks the most beautiful affordable floor and the room's

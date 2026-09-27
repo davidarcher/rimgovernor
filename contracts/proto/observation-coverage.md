@@ -149,7 +149,6 @@ Sources in this table are under
 | OrderTool.cs / order resolve | ResolveTarget; exact typed target or explicit ambiguity | hands, target resolution, player inspections |
 | TradeTool.cs / list_traders, sheet, status | ListTraders / ReadTradeSheet / ReadTradeStatus; TradeLine absolute index, session snapshot token, validated native food nutrition/class/preparation/perishability/crop facts | trade_policy, trade_outcome, player inspections |
 | CaravanTool.cs / caravan catalog | ReadCaravanCatalog; PawnEligibility, stock/routes/return storage, scoped token | expedition_policy, caravan outcomes |
-| InstallTool.cs / install without coordinates | ReadInstallStatus; PackedFurnitureState preserving inner identity | install outcome and player inspections |
 | GearUpkeepTool.cs / gear_upkeep inspection | ReadGear; GearLoadout, GearCandidate, snapshot token | gear_upkeep, colony_facts planning |
 | MedicalOperationsTool.cs / medical_operations catalog | ReadMedicalCatalog; MedicalCatalog, MedicalRecipe, exact body-part/medicine/practitioner facts | medical_operations, medical_outcome |
 
@@ -299,7 +298,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | Operations precondition | Read path |
 |---|---|
 | CancelConstruction.target | ListBuildings.building.snapshot or GetCells.thing.snapshot |
-| InstallBuilding.packed_or_inner | ReadInstallStatus.packed_snapshot or inner_snapshot, matched to selected ID |
+| InstallBuilding.packed_or_inner | none: the exact inner building or packed item (ColonyFacts ids) is re-resolved and every rule re-evaluated at apply |
 | AcquireResource.source | ListResourceSources.source.snapshot |
 | ExcavateCell.expected_snapshot_token | ReadExcavationSite.cells[].snapshot (cell + rock def + hit points + designation; never a Mineable ThingID) |
 | DesignateThing.target | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |

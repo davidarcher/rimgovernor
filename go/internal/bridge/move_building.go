@@ -16,7 +16,8 @@ import (
 // on one exact installed building places the game's reinstall blueprint at
 // the destination (GenConstruct.PlaceBlueprintForReinstall, the Reinstall
 // gizmo's own write); ordinary construction work uninstalls and installs
-// the piece. The InstallationEffect names the same inner building, its
+// the piece. A packed item's inner id installs it instead (#830; see
+// ResolvePackedInstall). The InstallationEffect names the same inner building, its
 // definition, the destination and the stage: QUEUED while the blueprint
 // stands, INSTALLED once the building stands at the destination. Native
 // re-evaluates every rule at apply, so no snapshot token is sent.

@@ -20,8 +20,10 @@ namespace HomeBridge.BridgeTools
     // InstallJob) then uninstalls and carries the piece; it needs CanReserve
     // on the piece, so a pawn sleeping in a bed or working a bench is never
     // interrupted and the move waits. The piece keeps its identity, quality
-    // and hit points. Only installed buildings are handled; a packed
-    // (minified) item is refused.
+    // and hit points. A packed (minified) item named by its own id or its
+    // inner building's (#830) gets the game's install blueprint instead
+    // (GenConstruct.PlaceBlueprintForInstall); the effect always names the
+    // inner building, so observation is the same for both.
     internal static class NativeMoveBuilding
     {
         internal const string Kind = "Move building";
@@ -36,23 +38,56 @@ namespace HomeBridge.BridgeTools
         private static Building? Find(Map map, string id) => map.listerThings.AllThings.OfType<Building>()
             .FirstOrDefault(b => b.GetUniqueLoadID() == id);
 
+        // Packed: the exact spawned MinifiedThing named by its own id or its
+        // inner building's (#830; the packed half ported from the retired
+        // home/install tool).
+        private static MinifiedThing? FindPacked(Map map, string id) => map.listerThings.AllThings.OfType<MinifiedThing>()
+            .FirstOrDefault(t => t.GetUniqueLoadID() == id || t.InnerThing?.GetUniqueLoadID() == id);
+
         // Mover: someone with construction enabled must be able to reach
         // the piece now; whether it is free is the game's reservation, later.
-        private static bool Mover(Pawn p, Building building) => p.workSettings?.Initialized == true
+        private static bool Mover(Pawn p, Thing piece) => p.workSettings?.Initialized == true
             && p.workSettings.GetPriority(WorkTypeDefOf.Construction) > 0 && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
             && !p.Downed && !p.InMentalState && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
-            && p.CanReach(building, PathEndMode.ClosestTouch, Danger.None);
+            && p.CanReach(piece, PathEndMode.ClosestTouch, Danger.None);
+
+        private static bool PreparePacked(Operations.InstallBuilding command, Map map, MinifiedThing mini, out Common.Failure failure)
+        {
+            var cell = new IntVec3(command.Destination.X, 0, command.Destination.Z);
+            var rotation = Rotation(command);
+            var inner = mini.InnerThing as Building;
+            var rules = new ApplyPreconditions(Kind)
+                .Present(() => inner != null && !mini.Destroyed && mini.Spawned && ProtoBoundary.IsLoaded(mini.Map), "the exact packed building is not on this map")
+                .Require(() => inner!.Faction == null || inner.Faction == Faction.OfPlayer, "the packed building is not the player's")
+                .Require(() => !mini.Position.Fogged(map) && !mini.IsForbidden(Faction.OfPlayer), "the packed building is fogged or forbidden")
+                .Require(() => inner!.def.rotatable || rotation == Rot4.North, "the building is not rotatable; only north is valid")
+                .Require(() => InstallBlueprintUtility.ExistingBlueprintFor(mini) == null, "the packed building already has an install blueprint")
+                .Require(() => cell.InBounds(map) && !cell.Fogged(map), "the destination is out of bounds or fogged")
+                .Require(() => GenConstruct.CanPlaceBlueprintAt(inner!.def, cell, rotation, map, false, mini, inner).Accepted, "the game refuses an install blueprint at the destination")
+                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Mover(p, mini)), "no free colonist with construction enabled can reach the packed building");
+            failure = rules.Holds ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "") : rules.Failure();
+            return rules.Holds;
+        }
 
         // Prepare is the apply-time precondition list for InstallBuilding
         // (action-contracts.md), one rule at a time so a refusal names the
-        // fact that moved.
-        private static bool Prepare(Operations.InstallBuilding command, Common.ObservationContext context, out Building? building, out Common.Failure failure)
+        // fact that moved. piece is the packed item for a packed install,
+        // null for a move of a standing building.
+        private static bool Prepare(Operations.InstallBuilding command, Common.ObservationContext context, out Thing? piece, out Building? building, out Common.Failure failure)
         {
+            piece = null;
             building = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "InstallBuilding requires an exact building, a destination cell and a cardinal rotation.");
             if (!Valid(command)) return false;
             var map = ProtoBoundary.LoadedMap(context);
             var found = Find(map, command.PackedOrInner.EntityId);
+            if (found == null && FindPacked(map, command.PackedOrInner.EntityId) is MinifiedThing mini)
+            {
+                if (!PreparePacked(command, map, mini, out failure)) return false;
+                piece = mini;
+                building = (Building)mini.InnerThing;
+                return true;
+            }
             var cell = new IntVec3(command.Destination.X, 0, command.Destination.Z);
             var rotation = Rotation(command);
             var rules = new ApplyPreconditions(Kind)
@@ -82,7 +117,7 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                if (!Prepare(command, context, out var building, out var failure)) return new Operations.PreviewReply { Failure = failure };
+                if (!Prepare(command, context, out var piece, out var building, out var failure)) return new Operations.PreviewReply { Failure = failure };
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = true,
                     Projected = new Receipts.EffectEvidence { Installation = Effect(building!, command, Receipts.InstallationStage.Placeable, null) } } });
@@ -98,7 +133,7 @@ namespace HomeBridge.BridgeTools
             var command = request.Operation.InstallBuilding;
             try
             {
-                if (!Prepare(command, context, out var building, out var failure)) return new Operations.ExecuteReply { Failure = failure };
+                if (!Prepare(command, context, out var piece, out var building, out var failure)) return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
                 var guard = authority.Check(pre.ExpectedGeneration);
@@ -110,12 +145,16 @@ namespace HomeBridge.BridgeTools
                 using (authority.Owned())
                 {
                     var current = authority.Check(pre.ExpectedGeneration);
-                    if (!current.Success || !Prepare(command, context, out var checkedBuilding, out failure)
-                        || !ReferenceEquals(checkedBuilding, building)) throw new InvalidOperationException("Move building admission changed before effect.");
-                    var blueprint = GenConstruct.PlaceBlueprintForReinstall(building!, new IntVec3(command.Destination.X, 0, command.Destination.Z),
-                        building!.Map, Rotation(command), Faction.OfPlayer);
-                    if (blueprint == null || !blueprint.Spawned) throw new InvalidOperationException("Native reinstall blueprint was not observed.");
-                    evidence = new Receipts.EffectEvidence { Installation = Effect(building, command, Receipts.InstallationStage.Queued, blueprint.GetUniqueLoadID()) };
+                    if (!current.Success || !Prepare(command, context, out var checkedPiece, out var checkedBuilding, out failure)
+                        || !ReferenceEquals(checkedBuilding, building) || !ReferenceEquals(checkedPiece, piece)) throw new InvalidOperationException("Move building admission changed before effect.");
+                    var cell = new IntVec3(command.Destination.X, 0, command.Destination.Z);
+                    // Packed: Designator_Install's placement without its
+                    // WipeExistingThings (a blocked cell was a refusal above).
+                    Blueprint_Install? blueprint = piece is MinifiedThing mini
+                        ? GenConstruct.PlaceBlueprintForInstall(mini, cell, mini.Map, Rotation(command), Faction.OfPlayer)
+                        : GenConstruct.PlaceBlueprintForReinstall(building!, cell, building!.Map, Rotation(command), Faction.OfPlayer);
+                    if (blueprint == null || !blueprint.Spawned) throw new InvalidOperationException("Native install blueprint was not observed.");
+                    evidence = new Receipts.EffectEvidence { Installation = Effect(building!, command, Receipts.InstallationStage.Queued, blueprint.GetUniqueLoadID()) };
                     state.Moves.Add(pre.Attempt.Clone(), evidence.Installation.Clone());
                 }
                 return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
