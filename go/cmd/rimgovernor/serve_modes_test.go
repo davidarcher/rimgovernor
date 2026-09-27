@@ -104,7 +104,7 @@ func TestServeObserveTakesNoControlOptions(t *testing.T) {
 	if err != nil || c.playerControl || c.clockControl || c.routineReviews || c.routineMethods || c.profile != "" || len(c.activeRoutineFamilies()) != 0 {
 		t.Fatalf("observe configuration: %+v %v", c, err)
 	}
-	for _, extra := range [][]string{{"--profile", dir}, {"--resource-rule", "WoodLog:stop:10"}, {"--routine-project-limit", "2"}, {"--chat-model", "m"}, {"--resume"}, {"--clock-speed", "Fast"}, {"--clock-speed", "Ultrafast", "--clock-test-acceleration"}, {"--world-evaluation-food-margin-days", "1"}, {"unexpected"}} {
+	for _, extra := range [][]string{{"--profile", dir}, {"--routine-project-limit", "2"}, {"--chat-model", "m"}, {"--resume"}, {"--clock-speed", "Fast"}, {"--clock-speed", "Ultrafast", "--clock-test-acceleration"}, {"--world-evaluation-food-margin-days", "1"}, {"unexpected"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--observe"), extra...), io.Discard); err == nil {
 			t.Fatalf("observe accepted %v", extra)
 		}

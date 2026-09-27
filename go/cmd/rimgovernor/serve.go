@@ -116,7 +116,6 @@ type serveConfig struct {
 	caravanJourneyTracking          bool
 	worldEvaluation                 bool
 	worldEvaluationFoodMarginDays   float64
-	resourceRules                   resourceRuleFlags
 	refresh                         time.Duration
 	clockSpeed                      string
 	clockTestAcceleration           bool
@@ -188,7 +187,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd removes surplus toward, only once --routine-allow-release or --routine-allow-slaughter is also set")
 	flags.Var(&c.routineHerdPopulationMin, "routine-herd-population-min", "repeatable RACE:MIN native animal definition population floor MaintainHerd designates tameable wild animals toward")
 	flags.Float64Var(&c.routinePrisonerReleaseAfterDays, "routine-prisoner-release-after-days", 0, "days in custody after which MaintainPopulation proposes releasing a prisoner whose recruit resistance is unbroken (or who was never recruitable) while the colony food runway is below its routine target; 0 (the default) never releases")
-	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
 	flags.Float64Var(&c.worldEvaluationFoodMarginDays, "world-evaluation-food-margin-days", 0.5, "days of caravan food required beyond its home route's estimated travel time before it is reported as needing recovery")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
 	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server; enables POST /api/chat")
@@ -204,7 +202,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-pacing", "clock-frame-budget-ms", "clock-window-ticks", "routine-project-limit", "routine-dialog-prefer", "routine-research-target", "routine-research-ladder", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-pacing", "clock-frame-budget-ms", "clock-window-ticks", "routine-project-limit", "routine-dialog-prefer", "routine-research-target", "routine-research-ladder", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
