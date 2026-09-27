@@ -517,7 +517,7 @@ message ZoneState {
   reserved 25; reserved 26; repeated ReadIssue issues = 27;
   FarmFacts farm = 28; optional bool food_storage = 29;
 }
-message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ZoneState zones = 2; Completeness completeness = 3; SnapshotRef map_snapshot = 7; reserved 4, 5, 6; }
+message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ZoneState zones = 2; Completeness completeness = 3; reserved 4, 5, 6, 7; reserved "map_snapshot"; }
 message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optional string name_contains = 3; Rectangle region = 4; optional bool include_cells = 5; optional bool include_contents = 6; optional bool include_filter = 7; reserved 8, 9; }
 message ListZonesReply { oneof outcome { ZonesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message DesignationState { optional string def_name = 1; TargetRef target = 2; }
@@ -906,7 +906,7 @@ message PlantGrower { EntityRef building = 1; optional string room_id = 2; optio
 message GrowRoom { optional string room_id = 1; optional double temperature_c = 2; optional uint32 cell_count = 3; optional uint32 open_roof_count = 4; optional bool proper_room = 5; optional bool psychologically_outdoors = 6; optional uint32 lit_cells = 7; }
 message PowerHeadroom { optional string id = 1; optional double generation_w = 2; optional double solar_w = 3; optional double wind_w = 4; optional double consumption_w = 5; optional double stored_watt_days = 6; optional double capacity_watt_days = 7; optional bool has_active_source = 8; }
 message ControlledEnvironment { repeated GrowLight lights = 1; repeated PlantGrower growers = 2; repeated GrowRoom rooms = 3; repeated PowerHeadroom networks = 4; optional double outdoor_temperature_c = 5; optional bool daylight = 6; reserved 7; repeated ReadIssue issues = 8; }
-message PlanningFacts { repeated PlanningDefinition definitions = 1; CellsSnapshot cells = 2; GearSnapshot gear = 3; reserved 4; repeated ReadIssue issues = 5; SnapshotRef zone_map_snapshot = 6; ControlledEnvironment environment = 7; }
+message PlanningFacts { repeated PlanningDefinition definitions = 1; CellsSnapshot cells = 2; GearSnapshot gear = 3; reserved 4; repeated ReadIssue issues = 5; reserved 6; reserved "zone_map_snapshot"; ControlledEnvironment environment = 7; }
 message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; optional double nutrition = 4; optional double nutrition_demand_per_day = 5; optional double rot_days = 6; optional bool perishable = 7; }
 message FoodProduction { optional string recipe = 1; optional bool available = 2; repeated FoodProduct products = 3; }
 message CookingFacts { EntityRef bench = 1; optional bool usable = 2; repeated RecipeState recipes = 3; repeated BillState bills = 4; repeated FoodProduction production = 5; optional string room_id = 6; }

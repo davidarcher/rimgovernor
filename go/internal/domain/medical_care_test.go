@@ -4,7 +4,7 @@ import "testing"
 
 func TestMedicalCareAssignmentCeiling(t *testing.T) {
 	for _, care := range []string{"NoMeds", "HerbalOrWorse", "NormalOrWorse"} {
-		w, err := NewMedicalCareAssignment("p", "before", care)
+		w, err := NewMedicalCareAssignment("p", care)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -17,7 +17,7 @@ func TestMedicalCareAssignmentCeiling(t *testing.T) {
 		}
 	}
 	for _, care := range []string{"", "Best", "NoCare", "unknown"} {
-		if _, err := NewMedicalCareAssignment("p", "before", care); err == nil {
+		if _, err := NewMedicalCareAssignment("p", care); err == nil {
 			t.Fatal(care)
 		}
 	}

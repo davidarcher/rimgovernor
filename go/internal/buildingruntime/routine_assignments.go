@@ -186,13 +186,13 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	var work []domain.WorkAssignment
 	for _, assignment := range decision.Assignments {
 		pawn := byID[assignment.Pawn]
-		token, tk := pawn.SnapshotToken.Value()
+		_, tk := pawn.SnapshotToken.Value()
 		manual, mk := pawn.Manual.Value()
 		if _, ck := pawn.Work.Value(); !tk || !mk || !ck {
 			continue
 		}
 		if defs := policy.FoodPolicyChanges(pawn); len(defs) > 0 {
-			w, err := domain.NewFoodAssignment(domain.PawnID(pawn.ID), token, defs)
+			w, err := domain.NewFoodAssignment(domain.PawnID(pawn.ID), defs)
 			if err != nil {
 				return RoutineWorkResult{}, err
 			}
@@ -201,7 +201,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		changed, ok := policy.WorkChanges(pawn, assignment)
 		if policy.DrugPolicyChange(pawn) {
-			w, err := domain.NewDrugPolicyAssignment(domain.PawnID(pawn.ID), token, policy.SocialDrugPolicyName)
+			w, err := domain.NewDrugPolicyAssignment(domain.PawnID(pawn.ID), policy.SocialDrugPolicyName)
 			if err != nil {
 				return RoutineWorkResult{}, err
 			}
@@ -217,9 +217,9 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		var w domain.WorkAssignment
 		if len(schedule) == 0 {
-			w, err = domain.NewWorkAssignment(domain.PawnID(assignment.Pawn), token, manual, changed)
+			w, err = domain.NewWorkAssignment(domain.PawnID(assignment.Pawn), manual, changed)
 		} else {
-			w, err = domain.NewScheduleAssignment(domain.PawnID(assignment.Pawn), token, manual, changed, schedule)
+			w, err = domain.NewScheduleAssignment(domain.PawnID(assignment.Pawn), manual, changed, schedule)
 		}
 		if err != nil {
 			return RoutineWorkResult{}, err
@@ -244,14 +244,14 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if len(work) > 8 {
 		work = work[:8]
 	}
-	// The before-token is part of the identity: the same settings against a
-	// pawn whose settings moved under a cancelled plan is a fresh method,
-	// not the retired one.
+	// The goal epoch is part of the identity: the same edit in a new epoch
+	// is a fresh method, not the used one.
 	hash := sha256.New()
+	fmt.Fprintf(hash, "epoch:%d\n", goal.Goal.Epoch)
 	for _, w := range work {
 		data, _ := json.Marshal(w.Settings())
 		fmt.Fprintf(hash, "drug:%s\n", w.DrugPolicy())
-		fmt.Fprintf(hash, "%s/%s/%t/%s\n", w.Pawn(), w.BeforeToken(), w.Manual(), data)
+		fmt.Fprintf(hash, "%s/%t/%s\n", w.Pawn(), w.Manual(), data)
 		if defs := w.FoodAllow(); len(defs) > 0 {
 			// An identical Manual edit after a completed repair needs another
 			// method even when the settings token returns to its old value.

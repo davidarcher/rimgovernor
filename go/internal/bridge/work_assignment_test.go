@@ -24,27 +24,27 @@ func workTestIntent(t *testing.T, w domain.WorkAssignment, err error) *op.WorkSe
 }
 
 func TestWorkSettingsIntent(t *testing.T) {
-	w, err := domain.NewWorkAssignment("pawn", "before", true, []domain.WorkSetting{{Definition: "Cooking", Priority: 1}})
+	w, err := domain.NewWorkAssignment("pawn", true, []domain.WorkSetting{{Definition: "Cooking", Priority: 1}})
 	if v := workTestIntent(t, w, err); len(v.Work) != 1 || v.Work[0].GetWorkTypeDef() != "Cooking" || v.Work[0].GetPriority() != 1 || v.MedicalCare != nil || v.DrugPolicy != nil {
 		t.Fatal(v)
 	}
-	w, err = domain.NewMedicalCareAssignment("pawn", "before", "HerbalOrWorse")
+	w, err = domain.NewMedicalCareAssignment("pawn", "HerbalOrWorse")
 	if v := workTestIntent(t, w, err); v.GetMedicalCare() != op.MedicalCare_MEDICAL_CARE_HERBAL_OR_WORSE || len(v.Work) != 0 {
 		t.Fatal(v)
 	}
-	w, err = domain.NewDrugPolicyAssignment("pawn", "before", "social")
+	w, err = domain.NewDrugPolicyAssignment("pawn", "social")
 	if v := workTestIntent(t, w, err); v.GetDrugPolicy() != "social" || v.MedicalCare != nil || len(v.Work) != 0 {
 		t.Fatal(v)
 	}
-	w, err = domain.NewFoodAssignment("pawn", "before", []string{"MealSimple"})
+	w, err = domain.NewFoodAssignment("pawn", []string{"MealSimple"})
 	if v := workTestIntent(t, w, err); len(v.GetFoodAllow().GetDefs()) != 1 || v.GetFoodAllow().Defs[0] != "MealSimple" {
 		t.Fatal(v)
 	}
-	w, err = domain.NewAreaAssignment("pawn", "before", true, "")
+	w, err = domain.NewAreaAssignment("pawn", true, "")
 	if v := workTestIntent(t, w, err); v.GetAllowedArea().GetClear() == nil {
 		t.Fatal(v)
 	}
-	w, err = domain.NewAreaAssignment("pawn", "before", false, "Area_7")
+	w, err = domain.NewAreaAssignment("pawn", false, "Area_7")
 	if v := workTestIntent(t, w, err); v.GetAllowedArea().GetEntityId() != "Area_7" {
 		t.Fatal(v)
 	}

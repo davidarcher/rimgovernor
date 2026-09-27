@@ -66,7 +66,7 @@ func TestAreaPlannerFreshRestriction(t *testing.T) {
 		t.Fatal(err)
 	}
 	w, ok := plan.Spec.Actions()[0].WorkAssignment()
-	if !ok || !w.AreaClear() || w.BeforeToken() != "before-work" {
+	if !ok || !w.AreaClear() {
 		t.Fatal(w)
 	}
 }

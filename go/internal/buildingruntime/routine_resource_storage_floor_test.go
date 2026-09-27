@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -64,7 +63,7 @@ func resourceStorageFloor(t *testing.T, advance int64) {
 	v := sleeping.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)
-	v.Planning.GetObserved().ZoneMapSnapshot = &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String(fmt.Sprintf("map-%d", v.Context.Identity.GetMapId())), Token: proto.String("zone-map")}
+	zonesAvailable(v)
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}

@@ -43,8 +43,7 @@ namespace HomeBridge.BridgeTools
                 var source = map.zoneManager.AllZones.Where(z => z != null && z.Cells.Count != 0).ToList();
                 var matched = source.Where(z => Matches(z, parsed)).OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
                 var filtered = source.Count - matched.Count;
-                var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(matched.Count, filtered),
-                    MapSnapshot = NativeZoneCreation.MapSnapshot(map, context) };
+                var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(matched.Count, filtered) };
                 foreach (var zone in matched) snapshot.Zones.Add(Project(zone, map, context, parsed));
                 return new Obs.ListZonesReply { Observed = snapshot };
             }

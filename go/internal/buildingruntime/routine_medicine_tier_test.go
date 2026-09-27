@@ -46,7 +46,7 @@ func TestMedicineTierAutonomousAdmissionAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	w, ok := plan.Spec.Actions()[0].WorkAssignment()
-	if !ok || w.Pawn() != "patient" || w.BeforeToken() != "care-before" || w.MedicalCare() != "HerbalOrWorse" {
+	if !ok || w.Pawn() != "patient" || w.MedicalCare() != "HerbalOrWorse" {
 		t.Fatal(w, ok)
 	}
 	arbiter := newStepArbiter()

@@ -57,7 +57,7 @@ func TestWorkPlannerAppliesSavedOverrideAndInvalidatesOnPreferenceChange(t *test
 		t.Fatal(plan, err)
 	}
 	work, ok := plan.Spec.Actions()[0].WorkAssignment()
-	if !ok || work.Pawn() != "patient" || work.BeforeToken() != "before-work" || len(work.Settings()) != 1 || work.Settings()[0].Definition != "Construction" || work.Settings()[0].Priority != 0 {
+	if !ok || work.Pawn() != "patient" || len(work.Settings()) != 1 || work.Settings()[0].Definition != "Construction" || work.Settings()[0].Priority != 0 {
 		t.Fatal(work)
 	}
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
@@ -154,7 +154,7 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	settings := func(id domain.PlanID) (string, map[string]int32) {
+	settings := func(id domain.PlanID) map[string]int32 {
 		t.Helper()
 		plan, err := db.LoadPlan(ctx, id)
 		if err != nil || len(plan.Progress) != 1 {
@@ -168,7 +168,7 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 		for _, setting := range work.Settings() {
 			values[setting.Definition] = setting.Priority
 		}
-		return work.BeforeToken(), values
+		return values
 	}
 	stage := func(id domain.PlanID) domain.Stage {
 		t.Helper()
@@ -185,8 +185,8 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 	if err != nil || first.Reason != BuildingMethodAdmitted {
 		t.Fatal(first, err)
 	}
-	if token, values := settings(first.Plan); token != "before-work" || len(values) != 2 || values["Construction"] == 0 || values["Hunting"] == 0 {
-		t.Fatal(token, values)
+	if values := settings(first.Plan); len(values) != 2 || values["Construction"] == 0 || values["Hunting"] == 0 {
+		t.Fatal(values)
 	}
 	// Nothing moved: the proposal stays open and gates a second plan.
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
@@ -206,8 +206,8 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 	if stage(first.Plan) != domain.Cancelled {
 		t.Fatal(stage(first.Plan))
 	}
-	if token, values := settings(second.Plan); token != "before-work" || len(values) != 1 || values["Construction"] == 0 {
-		t.Fatal(token, values)
+	if values := settings(second.Plan); len(values) != 1 || values["Construction"] == 0 {
+		t.Fatal(values)
 	}
 	// Re-armed: the fresh decision still agrees with the pending
 	// Construction write, so it stays open rather than churning.

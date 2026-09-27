@@ -16,25 +16,6 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeZoneCreation
     {
-        private static string Hash(byte[] data) { using (var hash = SHA256.Create()) return "zone-" + BitConverter.ToString(hash.ComputeHash(data)).Replace("-", "").ToLowerInvariant(); }
-        // Whole-map zone census token: identity plus every zone's id and
-        // cells, never the tick. The colony facts zone section carries it and
-        // a CreateZone preview that sends it is refused once the census moved.
-        internal static Obs.SnapshotRef MapSnapshot(Map map, Common.ObservationContext context)
-        {
-            using (var stream = new MemoryStream()) {
-                using (var writer = new BinaryWriter(stream, Encoding.UTF8, true)) {
-                    writer.Write(context.Identity.ColonyId); writer.Write(context.Identity.LoadToken); writer.Write(map.uniqueID);
-                    if (map.zoneManager.AllZones.Count > 256 || map.zoneManager.AllZones.Sum(z => (long)z.Cells.Count) > 65536) throw new InvalidOperationException("Zone census exceeds bound.");
-                    foreach (var zone in map.zoneManager.AllZones.OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal)) {
-                        writer.Write(zone.GetUniqueLoadID()); writer.Write(zone.Cells.Count);
-                        if (zone is Zone_Fishing fishing) { writer.Write(fishing.label); writer.Write(fishing.Allowed); writer.Write((int)fishing.repeatMode); writer.Write(fishing.targetPopulationPct); }
-                        foreach (var cell in zone.Cells.OrderBy(c => c.x).ThenBy(c => c.z)) { writer.Write(cell.x); writer.Write(cell.z); }
-                    }
-                }
-                return new Obs.SnapshotRef { Context = context.Clone(), EntityId = "map-" + map.uniqueID, Token = Hash(stream.ToArray()) };
-            }
-        }
         // RimWorld.StoragePriority is a plain int enum (Unstored=0, Low..Critical);
         // the wire enum mirrors it one-for-one except Unstored has no wire member.
         internal static RimWorld.StoragePriority? ToNativePriority(Operations.StoragePriority priority)

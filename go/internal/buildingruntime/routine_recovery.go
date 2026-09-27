@@ -161,22 +161,21 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		if !wk {
 			return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !wk", ErrControl)
 		}
-		var token string
 		found := false
 		for _, w := range workers {
 			if w.ID == chosen.Pawn {
-				t, tk := w.SnapshotToken.Value()
+				_, tk := w.SnapshotToken.Value()
 				if !tk {
 					return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !tk", ErrControl)
 				}
-				token, found = t, true
+				found = true
 				break
 			}
 		}
 		if !found {
 			return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !found", ErrControl)
 		}
-		assignment, err := domain.NewAreaAssignment(domain.PawnID(chosen.Pawn), token, false, chosen.Area)
+		assignment, err := domain.NewAreaAssignment(domain.PawnID(chosen.Pawn), false, chosen.Area)
 		if err != nil {
 			return RoutineRecoveryResult{}, err
 		}

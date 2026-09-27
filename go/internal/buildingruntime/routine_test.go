@@ -36,12 +36,23 @@ type routineNative struct {
 	built map[domain.ActionID]*o.BuildingState
 }
 
+// zonesAvailable drops the fixture's farms issue so the zone census reads.
+func zonesAvailable(v *o.ColonyFactsSnapshot) {
+	var issues []*o.ReadIssue
+	for _, i := range v.Issues {
+		if i.GetField() != "farms" {
+			issues = append(issues, i)
+		}
+	}
+	v.Issues = issues
+}
+
 // Translate the legacy colony fixture's zone data at the new list boundary.
 func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity) (bridge.ZonesRead, bridge.Result, error) {
 	v := n.reply.GetObserved()
-	out := bridge.ZonesRead{Context: v.Context, AsOf: v.Context.GetTick(), MapSnapshot: v.GetPlanning().GetObserved().GetZoneMapSnapshot()}
+	out := bridge.ZonesRead{Context: v.Context, AsOf: v.Context.GetTick()}
 	for _, issue := range v.Issues {
-		if issue.GetField() == "farms" && out.MapSnapshot == nil {
+		if issue.GetField() == "farms" {
 			return out, bridge.Result{}, bridge.ErrUnavailable
 		}
 	}

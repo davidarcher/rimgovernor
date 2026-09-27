@@ -51,7 +51,7 @@ func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, a
 			return RoutineRecoveryResult{Reason: BuildingMethodUnknown}, nil
 		}
 		var assignment domain.WorkAssignment
-		assignment, err = domain.NewAreaAssignment(domain.PawnID(change.Pawn), token, change.Area == "", change.Area)
+		assignment, err = domain.NewAreaAssignment(domain.PawnID(change.Pawn), change.Area == "", change.Area)
 		if err == nil {
 			action, err = domain.NewWorkAssignmentAction(actionID, assignment)
 		}

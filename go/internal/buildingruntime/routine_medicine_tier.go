@@ -109,7 +109,7 @@ func medicineTierAssignments(f policy.RoutineFacts) []domain.WorkAssignment {
 	for _, pawn := range pawns {
 		dead, dk := pawn.Dead.Value()
 		care, ck := pawn.Care.Value()
-		token, tk := pawn.SettingsToken.Value()
+		_, tk := pawn.SettingsToken.Value()
 		if !dk || dead || !ck || !tk {
 			continue
 		}
@@ -117,7 +117,7 @@ func medicineTierAssignments(f policy.RoutineFacts) []domain.WorkAssignment {
 		if !known || string(tier) == care {
 			continue
 		}
-		w, err := domain.NewMedicalCareAssignment(domain.PawnID(pawn.ID), token, string(tier))
+		w, err := domain.NewMedicalCareAssignment(domain.PawnID(pawn.ID), string(tier))
 		if err == nil {
 			work = append(work, w)
 		}

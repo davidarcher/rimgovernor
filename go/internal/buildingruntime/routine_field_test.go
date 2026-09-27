@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -40,7 +39,6 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	}
 	v.Issues = issues
 	planning := v.Planning.GetObserved()
-	planning.ZoneMapSnapshot = &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String(fmt.Sprintf("map-%d", v.Context.Identity.GetMapId())), Token: proto.String("zone-map")}
 	planning.Definitions = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("Plant_Rice")}, Available: proto.Bool(true), Edible: proto.Bool(true), GrowDays: proto.Float64(3), FertilityMin: proto.Float64(.7), FertilitySensitivity: proto.Float64(1), HarvestNutrition: proto.Float64(1), NutritionDemandPerDay: proto.Float64(5)}}
 	for _, cell := range planning.Cells.Cells {
 		cell.Roof = nil

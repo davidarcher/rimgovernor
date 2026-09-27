@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"context"
-	"fmt"
 	"math"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -232,11 +231,6 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 	}
 	if err := pawnsIssues(p.Issues, p.ProtoReflect()); err != nil {
 		return err
-	}
-	if snapshot := p.ZoneMapSnapshot; snapshot != nil {
-		if !proto.Equal(snapshot.Context, ctx) || snapshot.GetEntityId() != fmt.Sprintf("map-%d", ctx.Identity.GetMapId()) || validID(snapshot.GetToken()) != nil {
-			return contract("zone map snapshot mismatch")
-		}
 	}
 	if p.Gear != nil {
 		if err := validateColonyGear(p.Gear, ctx, size); err != nil {

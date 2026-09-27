@@ -12,10 +12,9 @@ import (
 // ZonesRead is the complete zone census, rows in id order. Rows are
 // immutable after publication to the facts store.
 type ZonesRead struct {
-	Context     *c.ObservationContext
-	Rows        []*o.ZoneState
-	AsOf        int64
-	MapSnapshot *o.SnapshotRef
+	Context *c.ObservationContext
+	Rows    []*o.ZoneState
+	AsOf    int64
 }
 
 // zoneSectionRequest is the zone census read, shared with the bundle's zones
@@ -53,7 +52,7 @@ func decodeZones(v *o.ZonesSnapshot, identity *c.Identity) (ZonesRead, error) {
 	if err := validateZonePage(v, identity); err != nil {
 		return ZonesRead{}, err
 	}
-	out := ZonesRead{Context: v.Context, AsOf: v.Context.GetTick(), MapSnapshot: v.MapSnapshot}
+	out := ZonesRead{Context: v.Context, AsOf: v.Context.GetTick()}
 	seen := map[string]bool{}
 	for _, row := range v.Zones {
 		if seen[row.GetId()] {
@@ -75,9 +74,6 @@ func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity) error {
 	}
 	if !sameIdentity(v.Context.Identity, identity) {
 		return contract("zone identity mismatch")
-	}
-	if snapshot := v.MapSnapshot; snapshot != nil && (!proto.Equal(snapshot.Context, v.Context) || snapshot.GetEntityId() == "" || validID(snapshot.GetToken()) != nil) {
-		return contract("invalid zone map snapshot")
 	}
 	for _, row := range v.Zones {
 		if row == nil || validID(row.GetId()) != nil || row.FoodStorage == nil {

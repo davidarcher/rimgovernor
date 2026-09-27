@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // Row-level CAS token: same shape as NativeWorkSettings.Token/NativeZoneCreation.MapSnapshot,
+        // Row-level CAS token: same shape as NativeWorkSettings.Token,
         // generalized. `write` must serialize exactly the fields this row's current read exposes.
         internal static Obs.SnapshotRef Snapshot(string prefix, Common.ObservationContext context, string entityId, Action<BinaryWriter> write)
             => new Obs.SnapshotRef { Context = context.Clone(), EntityId = entityId,

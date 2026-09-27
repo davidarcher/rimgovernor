@@ -48,7 +48,7 @@ func TestRoutineDrugPolicyUsesDurableWorkAction(t *testing.T) {
 	if !ok || w.DrugPolicy() != "RimGovernor social drugs" {
 		t.Fatal(w)
 	}
-	replacement, err := domain.NewDrugPolicyAssignment(w.Pawn(), w.BeforeToken(), "updated-social")
+	replacement, err := domain.NewDrugPolicyAssignment(w.Pawn(), "updated-social")
 	if err != nil {
 		t.Fatal(err)
 	}
