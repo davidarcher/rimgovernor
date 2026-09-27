@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -10,59 +11,91 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// ZoneDeleteJournal is the building-patch admission journal: a zone
-// deletion (#611) records the same exact-thing/CAS-token admission a
-// temperature, bed medical or claim building patch does, the thing being
-// the zone.
-type ZoneDeleteJournal interface {
+// ZoneWriteJournal is the building-patch admission journal: every zone
+// write (a zone deletion #611, a zone cell edit, a stockpile patch) records
+// the same exact-thing/CAS-token admission a temperature, bed medical or
+// claim building patch does, the thing being the zone or storage target.
+type ZoneWriteJournal interface {
 	Journal
 	PrepareBuildingTemperature(context.Context, domain.PlanID, domain.ActionID, store.BuildingTemperatureAdmission) (domain.Progress, error)
 }
-type ZoneDeleteInspection struct {
+
+// ZoneWriteInspection, Dispatch and Evidence carry any zone write kind
+// (zone_delete, zone_cell_edit, stockpile_patch) through one one-shot CAS
+// settings-write path; Action is the exact action inspected or observed.
+type ZoneWriteInspection struct {
 	Current               domain.GenerationSnapshot
 	Tick                  domain.Tick
 	StartedAt, ObservedAt time.Time
-	Delete                domain.ZoneDelete
+	Action                domain.Action
 	SnapshotToken         string
 	Accepted              bool
 	Emergency             policy.EmergencySnapshot
 }
-type ZoneDeleteDispatch struct {
+type ZoneWriteDispatch struct {
 	Attempt       Placement
 	SnapshotToken string
 }
-type ZoneDeleteEvidence struct {
+type ZoneWriteEvidence struct {
 	Observation           domain.Observation
 	StartedAt, ObservedAt time.Time
 	Complete              bool
-	Delete                domain.ZoneDelete
+	Action                domain.Action
 	Matches               domain.Fact[bool]
 }
-type ZoneDeleteBoundary interface {
-	InspectZoneDelete(context.Context, Target) (ZoneDeleteInspection, error)
-	ApplyZoneDelete(context.Context, ZoneDeleteDispatch) (Receipt, error)
-	ObserveZoneDelete(context.Context, Placement, domain.GenerationSnapshot) (ZoneDeleteEvidence, error)
+type ZoneWriteBoundary interface {
+	InspectZoneWrite(context.Context, Target) (ZoneWriteInspection, error)
+	ApplyZoneWrite(context.Context, ZoneWriteDispatch) (Receipt, error)
+	ObserveZoneWrite(context.Context, Placement, domain.GenerationSnapshot) (ZoneWriteEvidence, error)
 }
 
-// EnableZoneDelete activates the zone deletion capability, the one-shot
-// CAS deletion of one managed zone the layout tidy re-sited (#611); it
-// shares the building-patch admission record with EnableBuildingTemperature.
-func (e *Executor) EnableZoneDelete(del ZoneDeleteBoundary) error {
-	if del == nil {
-		return errors.New("zone delete boundary required")
+// zoneWriteTarget is the admitted thing and CAS before-token a zone write
+// names.
+func zoneWriteTarget(action domain.Action) (thing, token string, ok bool) {
+	if d, ok := action.ZoneDelete(); ok {
+		return d.Zone(), d.BeforeToken(), true
 	}
-	j, ok := e.journal.(ZoneDeleteJournal)
+	if e, ok := action.ZoneCellEdit(); ok {
+		return e.Zone(), e.BeforeToken(), true
+	}
+	if p, ok := action.StockpilePatch(); ok {
+		return p.Target(), p.BeforeToken(), true
+	}
+	return "", "", false
+}
+
+// EnableZoneWrite activates a zone write boundary for the given kinds
+// (zone_delete, zone_cell_edit, stockpile_patch); every kind shares the
+// building-patch admission record with EnableBuildingTemperature.
+func (e *Executor) EnableZoneWrite(w ZoneWriteBoundary, kinds ...domain.ActionKind) error {
+	if w == nil {
+		return errors.New("zone write boundary required")
+	}
+	j, ok := e.journal.(ZoneWriteJournal)
 	if !ok {
-		return errors.New("zone delete boundary requires typed journal")
+		return errors.New("zone write boundary requires typed journal")
 	}
-	e.zoneDelete, e.zoneDeleteJournal = del, j
+	for _, kind := range kinds {
+		switch kind {
+		case domain.ZoneDeleteAction, domain.ZoneCellEditAction, domain.StockpilePatchAction:
+		default:
+			return fmt.Errorf("zone write boundary cannot run %s", kind)
+		}
+	}
+	if e.zoneWrite == nil {
+		e.zoneWrite = map[domain.ActionKind]ZoneWriteBoundary{}
+	}
+	for _, kind := range kinds {
+		e.zoneWrite[kind] = w
+	}
+	e.zoneWriteJournal = j
 	return nil
 }
 
-func (e *Executor) runZoneDelete(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
+func (e *Executor) runZoneWrite(ctx context.Context, w ZoneWriteBoundary, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: p}
 	v := p.View()
-	del, ok := action.ZoneDelete()
+	thing, token, ok := zoneWriteTarget(action)
 	if !ok || p.Action() != action {
 		return result, ErrEvidence
 	}
@@ -71,7 +104,7 @@ func (e *Executor) runZoneDelete(ctx context.Context, action domain.Action, p do
 		if current.Validate() != nil || current.Colony != v.Snapshot.Colony || current.Map != v.Snapshot.Map || current.Load != v.Snapshot.Load {
 			return result, ErrAuthority
 		}
-		evidence, err := e.zoneDelete.ObserveZoneDelete(ctx, Placement{action, v.Attempt, v.Snapshot, v.Tick}, current)
+		evidence, err := w.ObserveZoneWrite(ctx, Placement{action, v.Attempt, v.Snapshot, v.Tick}, current)
 		if err != nil {
 			return result, err
 		}
@@ -88,12 +121,12 @@ func (e *Executor) runZoneDelete(ctx context.Context, action domain.Action, p do
 		switch o.Effect {
 		case domain.EffectCompleted:
 			allowed, known := evidence.Matches.Value()
-			if !evidence.Complete || evidence.Delete != del || !known || !allowed {
+			if !evidence.Complete || evidence.Action != action || !known || !allowed {
 				return result, ErrEvidence
 			}
 		case domain.EffectUnsuccessful:
 			allowed, known := evidence.Matches.Value()
-			if !evidence.Complete || evidence.Delete != del || !known || allowed || o.UnsuccessfulReason != domain.OutcomeNotAchieved {
+			if !evidence.Complete || evidence.Action != action || !known || allowed || o.UnsuccessfulReason != domain.OutcomeNotAchieved {
 				return result, ErrEvidence
 			}
 		case domain.EffectAbsent:
@@ -129,23 +162,23 @@ func (e *Executor) runZoneDelete(ctx context.Context, action domain.Action, p do
 		}
 		expected.Plan, expected.Revision = v.Plan, v.Revision
 	}
-	var inspection ZoneDeleteInspection
+	var inspection ZoneWriteInspection
 	for range 2 {
 		if err := e.guard(ctx, expected, generation); err != nil {
 			return result, err
 		}
 		var err error
-		inspection, err = e.zoneDelete.InspectZoneDelete(ctx, Target{action, expected})
+		inspection, err = w.InspectZoneWrite(ctx, Target{action, expected})
 		if err != nil {
 			return result, err
 		}
 		if err = e.guard(ctx, expected, generation); err != nil {
 			return result, err
 		}
-		if inspection.Current != expected || inspection.Delete != del || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) || !policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick).Clear {
+		if inspection.Current != expected || inspection.Action != action || inspection.SnapshotToken != token || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) || !policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick).Clear {
 			return result, ErrHeld
 		}
-		next, err := e.zoneDeleteJournal.PrepareBuildingTemperature(ctx, v.Plan, v.Action, store.BuildingTemperatureAdmission{Snapshot: expected, Tick: inspection.Tick, Thing: del.Zone(), SnapshotToken: inspection.SnapshotToken})
+		next, err := e.zoneWriteJournal.PrepareBuildingTemperature(ctx, v.Plan, v.Action, store.BuildingTemperatureAdmission{Snapshot: expected, Tick: inspection.Tick, Thing: thing, SnapshotToken: inspection.SnapshotToken})
 		if err != nil {
 			return result, err
 		}
@@ -170,7 +203,7 @@ func (e *Executor) runZoneDelete(ctx context.Context, action domain.Action, p do
 		return e.record(result, v.Plan, attempt, domain.ReceiptUnknown, ErrHeld)
 	}
 	result.NativeCalled = true
-	receipt, err := e.zoneDelete.ApplyZoneDelete(ctx, ZoneDeleteDispatch{attempt, inspection.SnapshotToken})
+	receipt, err := w.ApplyZoneWrite(ctx, ZoneWriteDispatch{attempt, inspection.SnapshotToken})
 	kind := receipt.Kind
 	if err != nil {
 		kind = receiptAfterCallError(err)

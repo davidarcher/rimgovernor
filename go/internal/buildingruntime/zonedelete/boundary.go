@@ -57,8 +57,8 @@ func (b *Boundary) readTarget(ctx context.Context, t domain.ZoneDelete, s domain
 	}
 	return target, domain.Tick(target.Context.GetTick()), nil
 }
-func (b *Boundary) InspectZoneDelete(ctx context.Context, t executor.Target) (executor.ZoneDeleteInspection, error) {
-	out := executor.ZoneDeleteInspection{StartedAt: b.Clock.Now()}
+func (b *Boundary) InspectZoneWrite(ctx context.Context, t executor.Target) (executor.ZoneWriteInspection, error) {
+	out := executor.ZoneWriteInspection{StartedAt: b.Clock.Now()}
 	del, ok := t.Action.ZoneDelete()
 	if !ok {
 		return out, executor.ErrEvidence
@@ -97,7 +97,7 @@ func (b *Boundary) InspectZoneDelete(ctx context.Context, t executor.Target) (ex
 		return out, executor.ErrHeld
 	}
 	tick = domain.Tick(v.Context.GetTick())
-	out.Current, out.Tick, out.Delete, out.SnapshotToken, out.Accepted = t.Snapshot, tick, del, del.BeforeToken(), true
+	out.Current, out.Tick, out.Action, out.SnapshotToken, out.Accepted = t.Snapshot, tick, t.Action, del.BeforeToken(), true
 	out.Emergency, err = policy.NewEmergencySnapshot(t.Snapshot, tick, emergency.Facts)
 	out.ObservedAt = b.Clock.Now()
 	return out, err
@@ -106,7 +106,7 @@ func (b *Boundary) attempt(p executor.Placement) bridge.ZoneDeleteAttempt {
 	t, _ := p.Action.ZoneDelete()
 	return bridge.ZoneDeleteAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Delete: t}
 }
-func (b *Boundary) ApplyZoneDelete(ctx context.Context, d executor.ZoneDeleteDispatch) (executor.Receipt, error) {
+func (b *Boundary) ApplyZoneWrite(ctx context.Context, d executor.ZoneWriteDispatch) (executor.Receipt, error) {
 	p := d.Attempt
 	t, ok := p.Action.ZoneDelete()
 	return b.DispatchWrite(ctx, p,
@@ -121,8 +121,8 @@ func (b *Boundary) ApplyZoneDelete(ctx context.Context, d executor.ZoneDeleteDis
 		},
 	)
 }
-func (b *Boundary) ObserveZoneDelete(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.ZoneDeleteEvidence, error) {
-	out := executor.ZoneDeleteEvidence{StartedAt: b.Clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
+func (b *Boundary) ObserveZoneWrite(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.ZoneWriteEvidence, error) {
+	out := executor.ZoneWriteEvidence{StartedAt: b.Clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
 	if !boundary.World(current, p.Snapshot) {
 		return out, executor.ErrAuthority
 	}
@@ -158,7 +158,7 @@ func (b *Boundary) ObserveZoneDelete(ctx context.Context, p executor.Placement, 
 		return out, executor.ErrEvidence
 	}
 	out.Observation.Tick, out.Observation.Causality = domain.Tick(v.Context.GetTick()), domain.AfterDispatch
-	out.Delete = wanted.Delete
+	out.Action = p.Action
 	if v.GetUnknown() != nil {
 		out.ObservedAt = b.Clock.Now()
 		return out, nil
@@ -191,4 +191,4 @@ func (b *Boundary) ObserveZoneDelete(ctx context.Context, p executor.Placement, 
 	return out, nil
 }
 
-var _ executor.ZoneDeleteBoundary = (*Boundary)(nil)
+var _ executor.ZoneWriteBoundary = (*Boundary)(nil)

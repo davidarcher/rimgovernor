@@ -518,12 +518,12 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	if config.ZoneDelete != nil {
-		if err := worker.EnableZoneDelete(zonedelete.NewBoundary(place, *config.ZoneDelete)); err != nil {
+		if err := worker.EnableZoneWrite(zonedelete.NewBoundary(place, *config.ZoneDelete), domain.ZoneDeleteAction); err != nil {
 			return cleanup(err)
 		}
 	}
 	if config.StockpileWrite != nil {
-		if err := worker.EnableStockpileWrite(stockpilewrite.NewBoundary(place, *config.StockpileWrite)); err != nil {
+		if err := worker.EnableZoneWrite(stockpilewrite.NewBoundary(place, *config.StockpileWrite), domain.ZoneCellEditAction, domain.StockpilePatchAction); err != nil {
 			return cleanup(err)
 		}
 	}

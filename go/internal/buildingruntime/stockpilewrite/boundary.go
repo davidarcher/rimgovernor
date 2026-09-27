@@ -79,8 +79,8 @@ func (b *Boundary) readToken(ctx context.Context, action domain.Action, s domain
 	return present, token, domain.Tick(context.GetTick()), nil
 }
 
-func (b *Boundary) InspectStockpileWrite(ctx context.Context, t executor.Target) (executor.StockpileWriteInspection, error) {
-	out := executor.StockpileWriteInspection{StartedAt: b.Clock.Now()}
+func (b *Boundary) InspectZoneWrite(ctx context.Context, t executor.Target) (executor.ZoneWriteInspection, error) {
+	out := executor.ZoneWriteInspection{StartedAt: b.Clock.Now()}
 	_, before, ok := bridge.StockpileWriteTarget(t.Action)
 	if !ok {
 		return out, executor.ErrEvidence
@@ -126,7 +126,7 @@ func (b *Boundary) attempt(p executor.Placement) bridge.StockpileWriteAttempt {
 	return bridge.StockpileWriteAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Action: p.Action}
 }
 
-func (b *Boundary) ApplyStockpileWrite(ctx context.Context, d executor.StockpileWriteDispatch) (executor.Receipt, error) {
+func (b *Boundary) ApplyZoneWrite(ctx context.Context, d executor.ZoneWriteDispatch) (executor.Receipt, error) {
 	p := d.Attempt
 	_, before, ok := bridge.StockpileWriteTarget(p.Action)
 	return b.DispatchWrite(ctx, p,
@@ -142,8 +142,8 @@ func (b *Boundary) ApplyStockpileWrite(ctx context.Context, d executor.Stockpile
 	)
 }
 
-func (b *Boundary) ObserveStockpileWrite(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.StockpileWriteEvidence, error) {
-	out := executor.StockpileWriteEvidence{StartedAt: b.Clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
+func (b *Boundary) ObserveZoneWrite(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.ZoneWriteEvidence, error) {
+	out := executor.ZoneWriteEvidence{StartedAt: b.Clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
 	if !boundary.World(current, p.Snapshot) {
 		return out, executor.ErrAuthority
 	}
@@ -201,4 +201,4 @@ func (b *Boundary) ObserveStockpileWrite(ctx context.Context, p executor.Placeme
 	return out, nil
 }
 
-var _ executor.StockpileWriteBoundary = (*Boundary)(nil)
+var _ executor.ZoneWriteBoundary = (*Boundary)(nil)

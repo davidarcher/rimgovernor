@@ -128,10 +128,8 @@ type Executor struct {
 	growerCropJournal          GrowerCropJournal
 	claimBuilding              ClaimBuildingBoundary
 	claimBuildingJournal       ClaimBuildingJournal
-	zoneDelete                 ZoneDeleteBoundary
-	zoneDeleteJournal          ZoneDeleteJournal
-	stockpileWrite             StockpileWriteBoundary
-	stockpileWriteJournal      ZoneDeleteJournal
+	zoneWrite                  map[domain.ActionKind]ZoneWriteBoundary
+	zoneWriteJournal           ZoneWriteJournal
 	bedAssign                  BedAssignBoundary
 	bedAssignJournal           BedAssignJournal
 	researchSelect             ResearchSelectBoundary
@@ -418,11 +416,8 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.ClaimBuildingAction && e.claimBuilding != nil {
 		return e.runClaimBuilding(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.ZoneDeleteAction && e.zoneDelete != nil {
-		return e.runZoneDelete(ctx, action, progress, authority, generation)
-	}
-	if (action.Kind() == domain.ZoneCellEditAction || action.Kind() == domain.StockpilePatchAction) && e.stockpileWrite != nil {
-		return e.runStockpileWrite(ctx, action, progress, authority, generation)
+	if w := e.zoneWrite[action.Kind()]; w != nil {
+		return e.runZoneWrite(ctx, w, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.BedAssignAction && e.bedAssign != nil {
 		return e.runBedAssign(ctx, action, progress, authority, generation)
