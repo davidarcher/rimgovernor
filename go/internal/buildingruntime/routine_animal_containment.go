@@ -199,7 +199,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineAnimalContainmentResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	selected := false

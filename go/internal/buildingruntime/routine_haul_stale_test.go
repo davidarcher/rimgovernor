@@ -21,7 +21,7 @@ func staleHaulGoal(t *testing.T, journal *store.Store, thing string) store.GoalS
 	if err = journal.CreateGoal(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	state, err := journal.ReviewGoal(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit, false)
+	state, err := journal.ReviewGoal(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit)
 	if err != nil {
 		t.Fatal(err)
 	}

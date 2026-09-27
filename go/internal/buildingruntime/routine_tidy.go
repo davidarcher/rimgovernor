@@ -83,7 +83,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive {
+	if !found || goal.Goal.Status != domain.GoalActive || review.Veto(goal.Goal) != "" {
 		return RoutineTidyResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)

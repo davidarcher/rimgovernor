@@ -41,7 +41,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 	}
 	r.Enabled = false
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, id).Goal.Status != domain.GoalSuspended || !out.Review.Mood.States[0].Active {
+	if out.Review.Veto(routineGoal(t, out, id).Goal) == "" || !out.Review.Mood.States[0].Active {
 		t.Fatal(out)
 	}
 	s.Close()
@@ -179,7 +179,7 @@ func TestRoutineMentalBreakDoesNotSuspendOtherGoals(t *testing.T) {
 	if g := routineGoal(t, out, policy.MoodGoal(p.ID)); g.Goal.Priority != 1 || g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	if g := routineGoal(t, out, policy.MaintainResource); g.Goal.Status == domain.GoalSuspended {
+	if g := routineGoal(t, out, policy.MaintainResource); out.Review.Veto(g.Goal) != "" {
 		t.Fatal(g)
 	}
 }

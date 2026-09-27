@@ -121,7 +121,8 @@ func validateRoutineRecovery(r RoutineReview) error {
 	return nil
 }
 
-func routineRecovery(ctx context.Context, tx *sql.Tx, f policy.RoutineFacts, h *policy.DisasterHistory, bindings []RoutineGoal, goals []GoalState, tick domain.Tick) (*RoutineRecovery, error) {
+func routineRecovery(ctx context.Context, tx *sql.Tx, f policy.RoutineFacts, h *policy.DisasterHistory, review RoutineReview, goals []GoalState, tick domain.Tick) (*RoutineRecovery, error) {
+	bindings := review.Goals
 	if h == nil {
 		return nil, nil
 	}
@@ -137,7 +138,7 @@ func routineRecovery(ctx context.Context, tx *sql.Tx, f policy.RoutineFacts, h *
 			goal = &goals[i]
 		}
 	}
-	if goal == nil || goal.Goal.Status != domain.GoalActive {
+	if goal == nil || goal.Goal.Status != domain.GoalActive || review.Veto(goal.Goal) != "" {
 		return nil, nil
 	}
 	r := recoveryRecord(policy.RecoveryPlanning{Safety: f.RecoverySafety, Workers: f.RecoveryWorkers, Buildings: f.RecoveryBuildings})

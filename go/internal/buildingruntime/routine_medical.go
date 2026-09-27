@@ -160,7 +160,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoutineMedicalResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || !review.Latches.Medical.Restocks() {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || !review.Latches.Medical.Restocks() || review.Veto(goal.Goal) != "" {
 		return RoutineMedicalResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	stalledSources := map[string]bool{}

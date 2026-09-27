@@ -76,7 +76,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineRecoveryResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineRecoveryResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	var open []store.PlanState

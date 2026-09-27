@@ -83,7 +83,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	selected := false

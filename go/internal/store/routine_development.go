@@ -271,9 +271,6 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, pla
 	if err != nil {
 		return err
 	}
-	if !review.Enabled {
-		return fmt.Errorf("%w: routine review disabled", ErrNotAdmitted)
-	}
 	if review.Snapshot != g.Snapshot {
 		return fmt.Errorf("%w: goal %s reviewed under snapshot %+v, current review is %+v", ErrNotAdmitted, g.ID, g.Snapshot, review.Snapshot)
 	}

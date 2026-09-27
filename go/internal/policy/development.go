@@ -220,7 +220,7 @@ type DevelopmentRequest struct {
 	// Weights zero value uses DefaultDevelopmentWeights.
 	Weights DevelopmentWeights
 	Goals   []DevelopmentGoal
-	// Assessments are the review's routine needs; any EmergencyRule holds
+	// Assessments are the review's routine needs; any EmergencyNeed holds
 	// freezes development, exactly as it suspends the review.
 	Assessments []RoutineAssessment
 	Commitments []Commitment
@@ -370,7 +370,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		seen[g.ID] = true
 	}
 	for _, a := range r.Assessments {
-		emergency = emergency || EmergencyRule(a)
+		emergency = emergency || EmergencyNeed(a)
 	}
 	if len(r.Dependencies) > MaxDevelopmentDependencies {
 		return DevelopmentState{}, errors.New("invalid development dependencies")

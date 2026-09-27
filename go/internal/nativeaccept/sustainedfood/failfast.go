@@ -172,7 +172,7 @@ func (f *failFastState) noMethod(sample map[string]any) (Verdict, bool) {
 	}
 	// An emergency (a dialog pause, an injury) holds every development row
 	// idle without handing any planner the slot; those reviews are neutral
-	// too, and a goal it suspends is the park verdict's.
+	// too, and a goal its Rule vetoes is the park verdict's.
 	if reason == string(policy.DevelopmentEmergency) {
 		return Verdict{}, false
 	}
@@ -206,19 +206,19 @@ func (f *failFastState) refusal(step na.SchedulerStep) (Verdict, bool) {
 	}, true
 }
 
-// emergencyPark counts consecutive samples in which the watched goal is
-// suspended, the review's development rows hold goals back for an
-// emergency (sample["emergency"] lists them), and the live tick is where the
-// previous sample left it. Any of the three changing resets the count: a
-// moving tick means something is serving the emergency, and a goal back
-// to active or a review with no emergency means it was served.
+// emergencyPark counts consecutive samples in which the Rules veto the
+// watched goal, the review names emergency needs (sample["emergency"]), and
+// the live tick is where the previous sample left it. Any of the three
+// changing resets the count: a moving tick means something is serving the
+// emergency, and a goal no longer vetoed or a review with no emergency
+// means it was served.
 func (f *failFastState) emergencyPark(sample map[string]any) (Verdict, bool) {
 	tick, hasTick := sample["tick"].(uint64)
 	emergency, _ := sample["emergency"].([]string)
-	suspended := asString(sample["status"]) == string(domain.GoalSuspended)
-	if !hasTick || !suspended || len(emergency) == 0 || tick != f.parkTick {
+	vetoed, _ := sample["vetoed"].(bool)
+	if !hasTick || !vetoed || len(emergency) == 0 || tick != f.parkTick {
 		f.parkTick, f.parkSamples = tick, 0
-		if !hasTick || !suspended || len(emergency) == 0 {
+		if !hasTick || !vetoed || len(emergency) == 0 {
 			return Verdict{}, false
 		}
 	}
@@ -228,7 +228,7 @@ func (f *failFastState) emergencyPark(sample map[string]any) (Verdict, bool) {
 	}
 	return Verdict{
 		Shape:    "emergency_park",
-		Reason:   fmt.Sprintf("goal %s stayed suspended while an emergency held back %v with the live tick parked at %d for %d samples: nothing serves the emergency and the clock admits no work", f.goal, emergency, tick, f.parkSamples),
+		Reason:   fmt.Sprintf("goal %s stayed vetoed while emergency %v with the live tick parked at %d for %d samples: nothing serves the emergency and the clock admits no work", f.goal, emergency, tick, f.parkSamples),
 		Evidence: map[string]any{"tick": tick, "emergency": emergency, "review_revision": sample["review_revision"], "development": sample["development"]},
 	}, true
 }

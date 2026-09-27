@@ -122,8 +122,8 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t 
 				t.Fatal(err)
 			}
 			if change == "manual" {
-				// Manual suspends: dispatched work stays open for the resumed goal.
-				if p.Progress[0].View().Stage != domain.Dispatched || old.Goal.Status != domain.GoalSuspended {
+				// Manual vetoes new work: dispatched work stays open for the resumed goal.
+				if p.Progress[0].View().Stage != domain.Dispatched || old.Goal.Status != domain.GoalActive {
 					t.Fatal(p.Progress[0].View().Stage, old.Goal.Status)
 				}
 				if _, err := s.Prepare(ctx, "p", "a", scope(), 10); err == nil {
@@ -193,7 +193,7 @@ func TestRoutineEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
 	}
 	r.Facts.Hostiles = domain.Unknown[int64]()
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainResource).Goal.Status != domain.GoalSuspended {
+	if out.Review.Veto(routineGoal(t, out, policy.MaintainResource).Goal) == "" {
 		t.Fatal(out)
 	}
 	if _, err := s.Prepare(ctx, "p", "a", scope(), r.Tick); err == nil {

@@ -37,7 +37,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	if active != 44 || history != 44*33 {
 		t.Fatal(active, history)
 	}
-	if _, err = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, r.Current, r.Tick, domain.NeedDeficit, false); err == nil {
+	if _, err = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, r.Current, r.Tick, domain.NeedDeficit); err == nil {
 		t.Fatal("retired goal reviewed")
 	}
 	if _, err = s.CancelGoal(ctx, g.Goal.ID, g.Revision); err == nil {

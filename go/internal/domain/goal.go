@@ -16,7 +16,6 @@ type GoalStatus string
 const (
 	GoalActive      GoalStatus = "active"
 	GoalSatisfied   GoalStatus = "satisfied"
-	GoalSuspended   GoalStatus = "suspended"
 	GoalCancelled   GoalStatus = "cancelled"
 	GoalInvalidated GoalStatus = "invalidated"
 )
@@ -57,7 +56,7 @@ func (g Goal) Validate() error {
 		return errors.New("invalid goal source")
 	}
 	switch g.Status {
-	case GoalActive, GoalSatisfied, GoalSuspended, GoalCancelled, GoalInvalidated:
+	case GoalActive, GoalSatisfied, GoalCancelled, GoalInvalidated:
 	default:
 		return errors.New("invalid goal status")
 	}
@@ -79,8 +78,9 @@ func (g Goal) Validate() error {
 // either the recovery was observed as satisfaction, or the previous review
 // measured it while a plan's effects were still unresolved and the world has
 // regressed since (a lamp removed behind a lit bench), so the settled
-// epoch's methods may be proposed again.
-func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, emergency, openWork bool) (Goal, error) {
+// epoch's methods may be proposed again. Priority orders work only: an
+// emergency or a pause vetoes proposals through the policy Rules (#1017).
+func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Goal, error) {
 	original := g
 	if err := g.Validate(); err != nil {
 		return g, err
@@ -121,8 +121,6 @@ func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, e
 	if need == NeedRecovered && !openWork {
 		g.Status = GoalSatisfied
 		g.RecoveryObserved = true
-	} else if emergency && g.Priority >= 2 {
-		g.Status = GoalSuspended
 	} else {
 		g.Status = GoalActive
 	}

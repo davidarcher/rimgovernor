@@ -30,6 +30,9 @@ type ReserveSupply struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
+	// Emergency names the assessed needs policy.EmergencyNeed found in this
+	// enabled review; the EmergencyRule vetoes other work from them (#1017).
+	Emergency       []policy.GoalID         `json:",omitempty"`
 	BrewingFinished bool                    `json:",omitempty"`
 	ResourceRunways []ResourceRunwayRecord  `json:",omitempty"`
 	ReserveSupplies []ReserveSupply         `json:",omitempty"`
@@ -120,8 +123,8 @@ type RoutineReviewResult struct {
 	Review RoutineReview
 	Needs  policy.RoutineNeeds
 	Goals  []GoalState
-	// Emergency names the assessed needs that suspended every priority>=2
-	// goal in this review (a home fire, live hostiles, a critical patient);
+	// Emergency names the assessed needs whose EmergencyRule vetoes every
+	// priority>=2 proposal in this review (a home fire, live hostiles, a critical patient);
 	// empty when nothing did. The development rows only say "emergency", so
 	// this is the log's answer to which need held the colony (#221).
 	Emergency []policy.GoalID
@@ -553,16 +556,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 					return RoutineReviewResult{}, err
 				}
 			}
-		} else if !request.Enabled && g.Goal.Status == domain.GoalActive {
-			// Paused control admits no new work; native designations already
-			// issued keep progressing and the resumed goal adopts the result.
-			next := g.Goal
-			next.Status = domain.GoalSuspended
-			g, err = saveGoal(ctx, tx, g, next)
-			if err != nil {
-				return RoutineReviewResult{}, err
-			}
 		}
+		// Paused control keeps its goals active: the PauseRule vetoes new
+		// work, native designations already issued keep progressing and the
+		// resumed goal adopts the result.
 		old[binding.Need] = g
 	}
 	// Keep disabled bindings available for review. An enabled review replaces
@@ -674,16 +671,14 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			result.Goals = append(result.Goals, old[binding.Need])
 		}
 	} else {
-		// A mental break (a priority-1 mood goal) is not an emergency: it
-		// clears only as ticks pass, so suspending every other goal would
-		// leave the clock with no work and never let the break end.
-		emergency := false
+		// The review records the emergency needs; the EmergencyRule vetoes
+		// other work from them at admission and dispatch (#1017).
 		for _, n := range needs.Assessments {
-			if policy.EmergencyRule(n) {
-				emergency = true
-				result.Emergency = append(result.Emergency, n.ID)
+			if policy.EmergencyNeed(n) {
+				r.Emergency = append(r.Emergency, n.ID)
 			}
 		}
+		result.Emergency = r.Emergency
 		for _, n := range needs.Assessments {
 			g, exists := old[n.ID]
 			if !exists || g.Goal.Status == domain.GoalInvalidated {
@@ -711,7 +706,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			}
 			next := g.Goal
 			next.Priority = n.Priority
-			next, err = domain.ReviewGoal(next, b, request.Tick, n.Need, emergency, open)
+			next, err = domain.ReviewGoal(next, b, request.Tick, n.Need, open)
 			if err != nil {
 				return RoutineReviewResult{}, err
 			}
@@ -747,7 +742,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.Progress = policy.HoldProgress(r.Progress, development.Rows, policy.WithheldLabor(r.Progress), unavailable)
 		r.Development = developmentRecord(development)
 		r.ReadyWork = &ready
-		r.Recovery, err = routineRecovery(ctx, tx, request.Facts, disaster, r.Goals, result.Goals, request.Tick)
+		r.Recovery, err = routineRecovery(ctx, tx, request.Facts, disaster, r, result.Goals, request.Tick)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}

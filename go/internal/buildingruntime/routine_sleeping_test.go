@@ -235,7 +235,7 @@ func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	if err = db.CreateGoal(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	goal, err := db.ReviewGoal(ctx, g.ID, 0, snapshot, 7, domain.NeedDeficit, false)
+	goal, err := db.ReviewGoal(ctx, g.ID, 0, snapshot, 7, domain.NeedDeficit)
 	if err != nil {
 		t.Fatal(err)
 	}

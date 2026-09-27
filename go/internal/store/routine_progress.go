@@ -44,7 +44,7 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	var out []policy.GoalProgress
 	for i, n := range needs.Assessments {
 		g := states[i]
-		if g.Goal.Status != domain.GoalActive && g.Goal.Status != domain.GoalSuspended {
+		if g.Goal.Status != domain.GoalActive {
 			continue
 		}
 		last := old[n.ID]

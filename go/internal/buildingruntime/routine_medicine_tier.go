@@ -23,7 +23,7 @@ func (r *RoutineMedicalPlanner) planMedicineTier(call, epoch context.Context, st
 			break
 		}
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Medical != policy.MedicalCare {
+	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Medical != policy.MedicalCare || review.Veto(goal.Goal) != "" {
 		return RoutineMedicalResult{}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)

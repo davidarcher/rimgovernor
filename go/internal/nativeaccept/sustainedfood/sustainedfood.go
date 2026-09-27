@@ -387,13 +387,10 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	sample["review_revision"] = review.Revision
 	sample["review_tick"] = uint64(review.Tick)
 	sample["latch_food"] = review.Latches.Food
-	// The persisted review does not name the emergency need; its
-	// development rows say which priority>=2 goals it held back.
+	// The emergency needs whose EmergencyRule vetoes other work (#1017).
 	emergency := []string{}
-	for _, row := range review.Development.Rows {
-		if row.Reason == policy.DevelopmentEmergency {
-			emergency = append(emergency, string(row.Goal))
-		}
+	for _, id := range review.Emergency {
+		emergency = append(emergency, string(id))
 	}
 	sample["emergency"] = emergency
 	var goalID domain.GoalID
@@ -435,6 +432,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	sample["status"] = string(goal.Goal.Status)
 	sample["need"] = string(goal.Goal.Need)
 	sample["priority"] = goal.Goal.Priority
+	sample["vetoed"] = review.Veto(goal.Goal) != ""
 	sample["epoch"] = goal.Goal.Epoch
 	sample["method_count"] = len(goal.Methods)
 	describe := func(method domain.GoalMethod) map[string]any {

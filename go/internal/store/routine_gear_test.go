@@ -106,9 +106,9 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 		t.Fatal(g, err)
 	}
 	r.Enabled = false
-	reviewRoutine(t, db, &r)
+	paused := reviewRoutine(t, db, &r)
 	suspended, err := db.LoadGoal(context.Background(), g.Goal.ID)
-	if err != nil || suspended.Goal.Status != domain.GoalSuspended {
+	if err != nil || suspended.Goal.Status != domain.GoalActive || paused.Review.Veto(suspended.Goal) == "" {
 		t.Fatal("Manual left the equipment need active", suspended, err)
 	}
 	db.Close()

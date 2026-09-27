@@ -45,7 +45,7 @@ func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 	}
 	r.Enabled = false
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainMedicalReserves).Goal.Status != domain.GoalSuspended || len(out.Review.MedicalCare.Unknown) != 1 {
+	if out.Review.Veto(routineGoal(t, out, policy.MaintainMedicalReserves).Goal) == "" || len(out.Review.MedicalCare.Unknown) != 1 {
 		t.Fatal(out)
 	}
 	r.Enabled = true

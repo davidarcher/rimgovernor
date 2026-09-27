@@ -37,7 +37,7 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	if err = f.store.CreateGoal(ctx, goal); err != nil {
 		t.Fatal(err)
 	}
-	g, err := f.store.ReviewGoal(ctx, goal.ID, 0, scope, 100, domain.NeedDeficit, false)
+	g, err := f.store.ReviewGoal(ctx, goal.ID, 0, scope, 100, domain.NeedDeficit)
 	if err != nil {
 		t.Fatal(err)
 	}

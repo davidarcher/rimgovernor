@@ -47,7 +47,7 @@ func anotherGoal(t *testing.T, s *Store, id domain.GoalID) GoalState {
 	if e = s.CreateGoal(ctx, g); e != nil {
 		t.Fatal(e)
 	}
-	v, e := s.ReviewGoal(ctx, id, 0, scope(), 10, domain.NeedDeficit, false)
+	v, e := s.ReviewGoal(ctx, id, 0, scope(), 10, domain.NeedDeficit)
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -181,7 +181,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Housing != policy.HousingSleeping {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Housing != policy.HousingSleeping || review.Veto(goal.Goal) != "" {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, m := range goal.Methods {

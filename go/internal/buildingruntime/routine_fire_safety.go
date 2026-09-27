@@ -80,7 +80,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	if err != nil {
 		return RoutineFireSafetyResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineFireSafetyResult{Reason: BuildingMethodNoDeficit, Outcome: policy.FireSafetyRecovered}, nil
 	}
 	identity, _, err := r.native.Identity(call)

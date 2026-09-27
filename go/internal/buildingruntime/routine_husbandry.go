@@ -79,7 +79,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineHusbandryResult{Reason: BuildingMethodNoDeficit, NativeWorkTicks: wait}, nil
 	}
 	for _, method := range goal.Methods {

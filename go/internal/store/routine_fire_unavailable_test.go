@@ -58,8 +58,8 @@ func TestRoutineUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		err = s.AuthorizeRoutinePlan(ctx, r.Current, target)
 		power := routineGoal(t, out, policy.EnsureBasicPower)
 		if declared {
-			if len(out.Emergency) != 1 || power.Goal.Status != domain.GoalSuspended || err == nil {
-				t.Fatal("declared fire method did not suspend", out.Emergency, power, err)
+			if len(out.Emergency) != 1 || out.Review.Veto(power.Goal) == "" || err == nil {
+				t.Fatal("declared fire method did not veto", out.Emergency, power, err)
 			}
 			continue
 		}

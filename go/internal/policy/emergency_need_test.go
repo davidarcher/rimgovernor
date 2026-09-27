@@ -6,9 +6,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// One EmergencyRule answers both the review's suspension and the
+// One EmergencyNeed answers both the EmergencyRule veto and the
 // development freeze, so the two agree for every exclusion (#1014).
-func TestEmergencyRuleExclusionsAgreeWithDevelopmentFreeze(t *testing.T) {
+func TestEmergencyNeedExclusionsAgreeWithDevelopmentFreeze(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		a    RoutineAssessment
@@ -24,8 +24,8 @@ func TestEmergencyRuleExclusionsAgreeWithDevelopmentFreeze(t *testing.T) {
 		{"method unavailable", RoutineAssessment{ID: ActiveCombat, Priority: 0, Need: domain.NeedDeficit, MethodUnavailable: true}, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if got := EmergencyRule(c.a); got != c.want {
-				t.Fatalf("EmergencyRule = %v, want %v", got, c.want)
+			if got := EmergencyNeed(c.a); got != c.want {
+				t.Fatalf("EmergencyNeed = %v, want %v", got, c.want)
 			}
 			r := developmentFixture()
 			r.Assessments = []RoutineAssessment{c.a}

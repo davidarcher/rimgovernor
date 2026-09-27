@@ -67,7 +67,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if err != nil {
 		return RoutineBlightResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineBlightResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// RemoveBlight competes for the bounded development capacity like waste

@@ -168,7 +168,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
-	deficit := found && goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit
+	deficit := found && goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit && review.Veto(goal.Goal) == ""
 	if deficit {
 		for _, method := range goal.Methods {
 			plan, err := p.journal.LoadPlan(call, method.Plan)

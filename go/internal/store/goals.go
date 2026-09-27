@@ -232,7 +232,7 @@ func goalOpenWork(ctx context.Context, tx *sql.Tx, state GoalState) (bool, error
 	return open, nil
 }
 
-func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState, emergency bool) (GoalState, error) {
+func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (GoalState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return GoalState{}, err
@@ -249,7 +249,7 @@ func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint6
 	if err != nil {
 		return GoalState{}, err
 	}
-	g, err := domain.ReviewGoal(state.Goal, current, tick, need, emergency, open)
+	g, err := domain.ReviewGoal(state.Goal, current, tick, need, open)
 	if err != nil {
 		return GoalState{}, err
 	}
@@ -310,6 +310,9 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 	g := state.Goal
 	if g.Status != domain.GoalActive || g.Need != domain.NeedDeficit {
 		return GoalState{}, errors.New("goal does not admit a method")
+	}
+	if err = admitRoutineRules(ctx, tx, g); err != nil {
+		return GoalState{}, err
 	}
 	if err = admitRoutineDevelopment(ctx, tx, g, plan); err != nil {
 		return GoalState{}, err
@@ -543,5 +546,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current 
 		s.Colony != current.Colony || s.Map != current.Map || s.Load != current.Load || tick < g.Tick {
 		return errors.New("maintained goal does not admit current work")
 	}
-	return nil
+	// A prepared plan does not prepare or dispatch while a Rule vetoes its
+	// goal (#1017).
+	return admitRoutineRules(ctx, tx, g)
 }

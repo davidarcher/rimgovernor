@@ -121,7 +121,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		if err != nil {
 			return RoutineMoodReliefResult{}, err
 		}
-		if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+		if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 			continue
 		}
 		open := false

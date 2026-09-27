@@ -71,7 +71,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 		if err != nil {
 			t.Fatal(err)
 		}
-		if g, err = db.ReviewGoal(ctx, goal.ID, g.Revision, current, 7, domain.NeedDeficit, false); err != nil {
+		if g, err = db.ReviewGoal(ctx, goal.ID, g.Revision, current, 7, domain.NeedDeficit); err != nil {
 			t.Fatal(err)
 		}
 		wall, err := domain.NewBuilding("Wall", domain.Cell{X: 4, Z: 4}, domain.North, "WoodLog")

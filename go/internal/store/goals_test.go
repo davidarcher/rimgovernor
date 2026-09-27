@@ -22,7 +22,7 @@ func goalFixture(t *testing.T) (*Store, string, GoalState) {
 	if e = s.CreateGoal(ctx, g); e != nil {
 		t.Fatal(e)
 	}
-	state, e := s.ReviewGoal(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit, false)
+	state, e := s.ReviewGoal(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -52,7 +52,7 @@ func TestGoalMethodAtomicCommitReopenAndDuplicate(t *testing.T) {
 	if _, e = s.LoadPlan(ctx, "orphan"); !errors.Is(e, ErrNotFound) {
 		t.Fatal("failed method left a plan", e)
 	}
-	if _, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision-1, scope(), 11, domain.NeedRecovered, false); !errors.Is(e, ErrConflict) {
+	if _, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision-1, scope(), 11, domain.NeedRecovered); !errors.Is(e, ErrConflict) {
 		t.Fatal("stale review accepted", e)
 	}
 }
@@ -89,32 +89,6 @@ func TestGoalCancellationRetainsIssuedUncertainty(t *testing.T) {
 		t.Fatal("cancelled work could not reconcile", e)
 	}
 }
-func TestGoalSuspensionGuardsPreparedDispatchAndCanResume(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s, _, g := goalFixture(t)
-	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
-	if e != nil {
-		t.Fatal(e)
-	}
-	if _, e = s.Prepare(ctx, "p", "a", scope(), 10); e != nil {
-		t.Fatal(e)
-	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedDeficit, true)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if _, e = s.Dispatch(ctx, "p", "a", scope(), 11); e == nil {
-		t.Fatal("suspended goal dispatched")
-	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 12, domain.NeedDeficit, false)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if _, e = s.Dispatch(ctx, "p", "a", scope(), 12); e != nil {
-		t.Fatal(e)
-	}
-}
 func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -129,7 +103,7 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	if _, e = s.Dispatch(ctx, "p", "a", scope(), 10); e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedRecovered, false)
+	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedRecovered)
 	if e != nil || g.Goal.Status == domain.GoalSatisfied {
 		t.Fatal(g, e)
 	}
@@ -138,15 +112,15 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	if _, e = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptRefused); e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 12, domain.NeedRecovered, false)
+	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 12, domain.NeedRecovered)
 	if e != nil || g.Goal.Status != domain.GoalSatisfied {
 		t.Fatal(g, e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 13, domain.NeedUnknown, false)
+	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 13, domain.NeedUnknown)
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 14, domain.NeedDeficit, false)
+	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 14, domain.NeedDeficit)
 	if e != nil || g.Goal.Epoch != 1 {
 		t.Fatal(g, e)
 	}
@@ -169,7 +143,7 @@ func TestGoalWorldInvalidationCancelsPendingPlan(t *testing.T) {
 	}
 	changed := scope()
 	changed.Load = "other"
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, changed, 11, domain.NeedDeficit, false)
+	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, changed, 11, domain.NeedDeficit)
 	if e != nil || g.Goal.Status != domain.GoalInvalidated {
 		t.Fatal(g, e)
 	}
@@ -255,7 +229,7 @@ func TestGoalUnknownReviewGuardsEveryPreparationPath(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedUnknown, false)
+	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedUnknown)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -279,7 +253,7 @@ func TestGoalRecoveredNeedFinishesAcceptedMethodWithoutStartingAnother(t *testin
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedRecovered, false)
+	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedRecovered)
 	if e != nil || g.Goal.Status == domain.GoalSatisfied {
 		t.Fatal(g, e)
 	}

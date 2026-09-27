@@ -29,12 +29,9 @@ var goalDomains = map[GoalID]Domain{
 	MaintainAnimalContainment: DomainPeople,
 	RemoveBlight:              DomainFood,
 
-	EnsureInitialShelter:    DomainShelter,
-	EnsureBasicComfort:      DomainShelter,
 	EnsureComfort:           DomainShelter,
+	MaintainHousing:         DomainShelter,
 	EnsureTemperatureSafety: DomainShelter,
-	EnsureExpansion:         DomainShelter,
-	MaintainSleeping:        DomainShelter,
 	MaintainStoneShell:      DomainShelter,
 	MaintainLighting:        DomainShelter,
 	MaintainFlooring:        DomainShelter,
@@ -52,7 +49,6 @@ var goalDomains = map[GoalID]Domain{
 	MaintainEquipment:     DomainMilitary,
 
 	CriticalMedicine:        DomainMedical,
-	MaintainMedicalCare:     DomainMedical,
 	MaintainMedicalReserves: DomainMedical,
 
 	RestoreWorkers:        DomainPeople,

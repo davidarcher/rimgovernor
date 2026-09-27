@@ -303,7 +303,7 @@ func colonyCoreNative(t *testing.T) *routineNative {
 	return n
 }
 
-func TestRoutineReviewerPersistsNeedsAndManualSuspendsWithoutRead(t *testing.T) {
+func TestRoutineReviewerPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	t.Parallel()
 	r, db, session, request, n := routineFixture(t)
 	got, err := r.Step(context.Background())
@@ -333,7 +333,7 @@ func TestRoutineReviewerPersistsNeedsAndManualSuspendsWithoutRead(t *testing.T) 
 	}
 	for _, binding := range stored.Goals {
 		g, err := db.LoadGoal(context.Background(), binding.Goal)
-		if err != nil || g.Goal.Status == domain.GoalActive || g.Goal.Status == domain.GoalInvalidated {
+		if err != nil || g.Goal.Status == domain.GoalInvalidated || stored.Veto(g.Goal) != "control paused" {
 			t.Fatal(g, err)
 		}
 	}

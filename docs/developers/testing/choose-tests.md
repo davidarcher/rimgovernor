@@ -1021,8 +1021,8 @@ development row's `Idle` flag -- a goal the review never selects, such as
 `EnsureComfort` under `startup_survival`, is waiting, not refused); or the
 service's latest `scheduler_step` line carrying the same native refusal in
 `planner_failures` for six consecutive samples (#219's shape); or the
-watched goal `suspended` while the review's development rows hold goals
-back for an `emergency` and the live tick has not moved for twelve
+watched goal vetoed by a Rule while the review names emergency needs
+(`RoutineReview.Emergency`) and the live tick has not moved for twelve
 consecutive samples (#319's park: a downed colonist no kept family can
 tend, the clock refusing every window as `no_work`). The verdict
 is the case's error and `result.json`'s `fail_fast` row, quoting the

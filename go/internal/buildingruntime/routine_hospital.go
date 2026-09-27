@@ -137,7 +137,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Medical != policy.MedicalCare {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Medical != policy.MedicalCare || review.Veto(goal.Goal) != "" {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, m := range goal.Methods {

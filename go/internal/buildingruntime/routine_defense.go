@@ -96,7 +96,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		}
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// One ActiveCombat plan owns the fight (#852): its combat method whose

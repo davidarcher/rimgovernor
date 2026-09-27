@@ -20,7 +20,7 @@ func completedFacility(t *testing.T, source domain.GoalSource, proof, cancelFirs
 		if err = s.CreateGoal(ctx, goal); err != nil {
 			t.Fatal(err)
 		}
-		g, err = s.ReviewGoal(ctx, goal.ID, 0, scope(), 10, domain.NeedDeficit, false)
+		g, err = s.ReviewGoal(ctx, goal.ID, 0, scope(), 10, domain.NeedDeficit)
 		if err != nil {
 			t.Fatal(err)
 		}

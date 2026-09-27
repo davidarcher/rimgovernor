@@ -70,7 +70,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineClearanceResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	selected := false

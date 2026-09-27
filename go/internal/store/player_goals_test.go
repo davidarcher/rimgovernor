@@ -96,7 +96,7 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recovered, err := s.ReviewGoal(ctx, first.Goal, first.State.Revision, scope(), 11, domain.NeedRecovered, false)
+	recovered, err := s.ReviewGoal(ctx, first.Goal, first.State.Revision, scope(), 11, domain.NeedRecovered)
 	if err != nil || recovered.Goal.Status != domain.GoalSatisfied || !recovered.Goal.RecoveryObserved {
 		t.Fatal(recovered, err)
 	}
@@ -181,7 +181,7 @@ func TestCancelPlayerGoalCancelsAutopilotGoalInSameWorld(t *testing.T) {
 	if err = s.CreateGoal(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	state, err := s.ReviewGoal(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit, false)
+	state, err := s.ReviewGoal(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
 	if err != nil {
 		t.Fatal(err)
 	}

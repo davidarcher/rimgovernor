@@ -70,7 +70,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineBillResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	if goal.Goal.Priority >= 3 {

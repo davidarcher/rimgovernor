@@ -78,7 +78,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 			return RoutineRepairResult{}, err
 		}
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineRepairResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// MaintainEssentialRepairs competes for the same bounded concurrent-project

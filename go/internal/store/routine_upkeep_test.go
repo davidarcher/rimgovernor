@@ -23,12 +23,12 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 	if g.Goal.Priority != 1 || g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	// The review names the need behind the emergency: a home fire suspends
+	// The review names the need behind the emergency: a home fire vetoes
 	// every development goal, and the rows alone only say so (#221).
 	if len(out.Emergency) != 1 || out.Emergency[0] != policy.MaintainFireSafety {
 		t.Fatal("emergency source not reported", out.Emergency)
 	}
-	if g := routineGoal(t, out, policy.MaintainResource); g.Goal.Status != domain.GoalSuspended {
+	if g := routineGoal(t, out, policy.MaintainResource); out.Review.Veto(g.Goal) == "" {
 		t.Fatal("fire emergency left a priority-3 goal active", g)
 	}
 	r.Enabled = false

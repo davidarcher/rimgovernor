@@ -30,7 +30,7 @@ func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
 	}
 	r.Enabled = false
 	out = reviewRoutine(t, s, &r)
-	if !reflect.DeepEqual(out.Review.Disaster, first) || routineGoal(t, out, policy.RecoverDisasterServices).Goal.Status != domain.GoalSuspended {
+	if !reflect.DeepEqual(out.Review.Disaster, first) || out.Review.Veto(routineGoal(t, out, policy.RecoverDisasterServices).Goal) != "control paused" {
 		t.Fatal(out)
 	}
 	s.Close()

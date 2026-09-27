@@ -69,7 +69,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineCleanResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineCleanResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// MaintainCleanFacilities competes for the same bounded concurrent-project
