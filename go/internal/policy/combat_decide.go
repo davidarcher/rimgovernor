@@ -88,7 +88,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	siegeHold(&next)
 	mechLure(view, &next)
 	siegeSnipe(view, &next)
-	manhunterKite(view, &next)
+	kite(view, &next)
 	sapperIntercept(view, &next)
 	sapperRush(view, stop, &next)
 	manhunterDoor(view, formed, &next)
