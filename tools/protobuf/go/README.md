@@ -24,10 +24,9 @@ vets the generated module, and verifies downloaded module checksums. It does not
 interpret schemas or emit Go source. Generation owns only `*.pb.go` beneath the
 wire module; module metadata remains explicitly maintained. `--check` compares the
 complete owned file set without changing it, allowing checkout line-ending differences.
-Network access to Go module distribution is required for a fresh private cache;
-`--modcache <directory>` points the private cache at a reusable directory
-(`task protobuf:build` keeps one under `.rimgovernor/task/protobuf/gomodcache`) so
-repeated local runs do not download the pinned modules again.
+The plugin install uses the user's module cache (`go env GOMODCACHE`), so the
+pinned modules download once per machine and nothing read-only lands inside the
+worktree; network access is needed only while that cache lacks them.
 
 The wire module is `github.com/davidarcher/RimGovernor/go/internal/wire`, located at
 `contracts/generated/protobuf/go`. This matches existing schema `go_package`

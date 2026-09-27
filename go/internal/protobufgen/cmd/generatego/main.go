@@ -43,7 +43,6 @@ type options struct {
 	output    string
 	check     bool
 	goTool    string
-	modCache  string
 }
 
 // evidence is result.json; keys appear in the order the run produces them.
@@ -74,7 +73,6 @@ func main() {
 	flag.StringVar(&opts.output, "output", "", "fresh private artifact directory (required)")
 	flag.BoolVar(&opts.check, "check", false, "fail on generated drift without changing checked-in files")
 	flag.StringVar(&opts.goTool, "go", "go", "pinned repository Go executable")
-	flag.StringVar(&opts.modCache, "modcache", "", "reusable GOMODCACHE for the plugin install (default: private to this run)")
 	flag.Parse()
 	if opts.protoc == "" || opts.output == "" {
 		fmt.Fprintln(os.Stderr, "-protoc and -output are required")
@@ -167,13 +165,7 @@ func run(opts options) (err error) {
 	if err := os.MkdirAll(output, 0o755); err != nil {
 		return err
 	}
-	modCache := opts.modCache
-	if modCache == "" {
-		modCache = filepath.Join(output, "modcache")
-	} else if modCache, err = filepath.Abs(modCache); err != nil {
-		return err
-	}
-	r := &runner{env: privateEnv(output, modCache), evidence: &evidence{PluginVersion: pluginVersion, Commands: []commandRecord{}}}
+	r := &runner{env: privateEnv(output), evidence: &evidence{PluginVersion: pluginVersion, Commands: []commandRecord{}}}
 	defer func() {
 		if writeErr := writeEvidence(filepath.Join(output, "result.json"), r.evidence); writeErr != nil && err == nil {
 			err = writeErr
@@ -182,10 +174,10 @@ func run(opts options) (err error) {
 	return r.generate(protoc, protoRoot, output, opts)
 }
 
-// privateEnv keeps the plugin install inside the run and preserves the shared
-// Go build cache. The module cache is private unless the caller supplies a
-// reusable one (go.sum still verifies its contents).
-func privateEnv(output, modCache string) []string {
+// privateEnv keeps the plugin binary inside the run and preserves the user's
+// build and module caches (go.sum verifies the modules). A run-local module
+// cache is read-only on disk and blocks git worktree remove on Windows (#907).
+func privateEnv(output string) []string {
 	env := os.Environ()
 	set := func(key, value string) {
 		prefix := key + "="
@@ -202,7 +194,6 @@ func privateEnv(output, modCache string) []string {
 	}
 	set("GOWORK", "off")
 	set("GOBIN", filepath.Join(output, "bin"))
-	set("GOMODCACHE", modCache)
 	return env
 }
 

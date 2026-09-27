@@ -51,8 +51,9 @@ func TestRelativeFilesMissingDirIsEmpty(t *testing.T) {
 
 func TestPrivateEnvPreservesBuildCache(t *testing.T) {
 	t.Setenv("GOCACHE", "/inherited")
+	t.Setenv("GOMODCACHE", "/shared")
 	t.Setenv("GOTOOLCHAIN", "")
-	env := privateEnv(filepath.FromSlash("/run"), filepath.FromSlash("/run/modcache"))
+	env := privateEnv(filepath.FromSlash("/run"))
 	seen := map[string]int{}
 	for _, entry := range env {
 		key, value, _ := strings.Cut(entry, "=")
@@ -67,7 +68,7 @@ func TestPrivateEnvPreservesBuildCache(t *testing.T) {
 				t.Errorf("GOBIN = %q", value)
 			}
 		case "GOMODCACHE":
-			if value != filepath.FromSlash("/run/modcache") {
+			if value != "/shared" {
 				t.Errorf("GOMODCACHE = %q", value)
 			}
 		case "GOTOOLCHAIN":

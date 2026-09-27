@@ -20,7 +20,7 @@ tasks:
       - rm -rf {{.EVIDENCE}}/csharp-check {{.EVIDENCE}}/go-check
       - mkdir -p {{.EVIDENCE}}
       - '{{.GENERATE}}/generatecsharp --check --output {{.EVIDENCE}}/csharp-check'
-      - '{{.GENERATE}}/generatego --protoc "{{.PROTOC}}" --check --output {{.EVIDENCE}}/go-check --modcache {{.EVIDENCE}}/gomodcache'
+      - '{{.GENERATE}}/generatego --protoc "{{.PROTOC}}" --check --output {{.EVIDENCE}}/go-check'
 
   test:
     desc: C#→Go→C# exchange of every generated message shape; skipped while its inputs are unchanged

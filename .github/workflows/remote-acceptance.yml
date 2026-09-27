@@ -140,8 +140,7 @@ jobs:
             --output ../.rimgovernor/task/protobuf/csharp-check
           go run ./internal/protobufgen/cmd/generatego --check \
             --protoc "$HOME/.nuget/packages/grpc.tools/2.72.0/tools/linux_x64/protoc" \
-            --output ../.rimgovernor/task/protobuf/go-check \
-            --modcache ../.rimgovernor/task/protobuf/gomodcache
+            --output ../.rimgovernor/task/protobuf/go-check
       - name: Protobuf proof module tests
         working-directory: tools/protobuf/go
         shell: bash
