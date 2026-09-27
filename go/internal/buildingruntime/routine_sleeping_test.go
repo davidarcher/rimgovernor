@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -169,7 +170,11 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 	}
 }
 
-func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T) {
+// Spots placed and then lost (converted to medical beds, which native
+// indoor sleeping capacity excludes, or cancelled) leave the same owed
+// count under the same epoch: the spent method yields to a numbered
+// successor instead of holding the shelter gate at method_already_used.
+func TestRoutineSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := sleepingFixture(t)
 	first, err := r.Step(context.Background())
@@ -186,22 +191,33 @@ func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodUsed {
-		t.Fatal(next, err)
+	// No census shows the spots gone: they may stand uncounted (an open
+	// roof), so the method stays used.
+	if held, err := r.Step(context.Background()); err != nil || held.Reason != BuildingMethodUsed {
+		t.Fatal(held, err)
 	}
-	n.reply.GetObserved().IndoorSleepingCapacity = proto.Uint32(3)
-	n.reply.GetObserved().BedCapacity = proto.Uint32(3)
-	if _, err = r.reviewer.Step(context.Background()); err != nil {
-		t.Fatal(err)
+	// Three colonists, three spots, two of them converted to medical beds.
+	var beds []*o.UpkeepBed
+	for i, medical := range []bool{false, true, true} {
+		ref := &o.EntityRef{Id: proto.String(fmt.Sprintf("spot%d", i)), DefName: proto.String("SleepingSpot"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(int32(i)), Z: proto.Int32(0)}}
+		beds = append(beds, &o.UpkeepBed{Bed: ref, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(medical), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(20)})
 	}
-	n.reply.GetObserved().IndoorSleepingCapacity = proto.Uint32(1)
-	n.reply.GetObserved().BedCapacity = proto.Uint32(2)
+	n.reply.GetObserved().Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{Beds: beds,
+		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}
 	if _, err = r.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	next, err := r.Step(context.Background())
-	if err != nil || next.Reason != BuildingMethodAdmitted || next.Decision.Goal.Goal.Epoch != g.Goal.Epoch+1 || next.Decision.Goal.Methods[0].Plan == p.Spec.ID() {
+	if err != nil || next.Reason != BuildingMethodAdmitted || next.Decision.Goal.Goal.Epoch != g.Goal.Epoch {
 		t.Fatal(next, err)
+	}
+	methods := next.Decision.Goal.Methods
+	if last := methods[len(methods)-1]; last.Method != g.Methods[0].Method+"-1" || last.Plan == p.Spec.ID() {
+		t.Fatal(methods)
+	}
+	// The successor still open is the method in use.
+	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
+		t.Fatal(again, err)
 	}
 }
 

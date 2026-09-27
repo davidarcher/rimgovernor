@@ -84,6 +84,40 @@ func TestSelectHospitalBedConvertPrefersSpareThenPatientOwned(t *testing.T) {
 	}
 }
 
+func TestSelectHospitalBedRefusesConversionAtShelterCapacity(t *testing.T) {
+	// Five colonists, five indoor spots: converting one would drop indoor
+	// capacity to four and fail the shelter gate, so a new spot is staged.
+	var rows []SleepingBed
+	var ids []string
+	for _, id := range []string{"s1", "s2", "s3", "s4", "s5"} {
+		rows = append(rows, hospitalBed(id, false))
+		ids = append(ids, id)
+	}
+	beds := domain.Known(SleepingObservation{Colonists: 5, Beds: rows})
+	spot := []BenchDefinition{{Name: "Bed", Available: domain.Known(false)}, {Name: "SleepingSpot", Available: domain.Known(true)}}
+	req := HospitalRequest{Patients: hospitalPatients("a"), Sleeping: beds, Rooms: hospitalRooms(RoomRoleBarracks, ids...), Definitions: spot,
+		Colonists: domain.Known[int64](5), HousingTarget: domain.Known[int64](5), BedCapacity: domain.Known[int64](5), IndoorCapacity: domain.Known[int64](5), Doctors: domain.Known(1)}
+	choice, err := SelectHospitalBed(req)
+	if err != nil || choice.Method != HospitalBuild || choice.Definition != "SleepingSpot" {
+		t.Fatal(choice, err)
+	}
+	// The staged sixth spot leaves a surplus of one: now it converts.
+	req.BedCapacity, req.IndoorCapacity = domain.Known[int64](6), domain.Known[int64](6)
+	if choice, err = SelectHospitalBed(req); err != nil || choice.Method != HospitalConvert {
+		t.Fatal(choice, err)
+	}
+	// A housing target above the colonists holds the surplus too.
+	req.HousingTarget = domain.Known[int64](6)
+	if choice, err = SelectHospitalBed(req); err != nil || choice.Method != HospitalBuild {
+		t.Fatal(choice, err)
+	}
+	// Nobody can doctor: no hospital work at all.
+	req.Doctors = domain.Known(0)
+	if choice, err = SelectHospitalBed(req); err != nil || choice.Method != HospitalUnavailable {
+		t.Fatal(choice, err)
+	}
+}
+
 func TestSelectHospitalBedUnknownFacts(t *testing.T) {
 	choice, err := SelectHospitalBed(HospitalRequest{})
 	if err != nil || choice.Method != HospitalUnknown {

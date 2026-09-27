@@ -65,6 +65,9 @@ func hospitalFixture(t *testing.T) (*RoutineHospitalPlanner, *store.Store, *hosp
 	native := &hospitalNative{sleepingNative: sleeping}
 	v := native.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(1), proto.Uint32(1)
+	// A spare sleeping place beyond the colonist: converting one bed keeps
+	// bed and indoor capacity at the colony size.
+	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2)
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}

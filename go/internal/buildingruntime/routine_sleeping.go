@@ -606,7 +606,12 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// A campfire the pawns let burn out leaves the cooking census empty
 		// again in the same epoch; the completed method yields to a numbered
 		// successor the same way a staged bed's does (#217).
-		if r.goal == policy.MaintainSleeping || r.goal == policy.EnsureCooking {
+		// Indoor shelter spots do too once the census shows fewer regular
+		// beds than the colony needs: a spot converted to medical (which
+		// native indoor capacity excludes) or lost must not leave a spent
+		// method holding the shelter gate failed. Spots that stand but are
+		// not yet counted (an open roof) keep the method used.
+		if r.goal == policy.MaintainSleeping || r.goal == policy.EnsureCooking || r.goal == policy.EnsureInitialShelter && regularBedsShort(facts.Facts) {
 			if method, err = r.nextSleepingBedMethod(call, goal, method, facts.Facts.CurrentConstruction); err != nil {
 				return RoutineBuildingResult{}, err
 			}
@@ -1393,4 +1398,28 @@ func cellsBox(cells map[domain.Cell]bool) policy.Rectangle {
 		minX, minZ, maxX, maxZ = min(minX, c.X), min(minZ, c.Z), max(maxX, c.X), max(maxZ, c.Z)
 	}
 	return policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}
+}
+
+// regularBedsShort reports whether the sleeping census holds fewer regular
+// (humanlike, non-medical, non-prisoner) beds than max(colonists, housing
+// target): the shelter's spots were lost or converted, not merely uncounted.
+func regularBedsShort(f policy.RoutineFacts) bool {
+	sleeping, known := f.Sleeping.Value()
+	count, ck := f.Colonists.Value()
+	if !known || !ck {
+		return false
+	}
+	if target, known := f.HousingTarget.Value(); known {
+		count = max(count, target)
+	}
+	regular := int64(0)
+	for _, bed := range sleeping.Beds {
+		humanlike, hk := bed.Humanlike.Value()
+		medical, mk := bed.Medical.Value()
+		prisoners, pk := bed.Prisoners.Value()
+		if hk && mk && pk && humanlike && !medical && !prisoners {
+			regular++
+		}
+	}
+	return regular < count
 }

@@ -31,16 +31,18 @@ func loadPlannerStep(t *testing.T, name string, goal policy.GoalID) snapshot.Pla
 
 // facility/hospital: two seeded flu patients and the startup hut's
 // furnished bunks. The hospital step's own room census has no hosted
-// medical bed, so it converts an existing bed rather than building one.
-func TestSnapshotHospitalConvertsExistingBed(t *testing.T) {
+// medical bed, but the bunks exactly house the colony: converting one would
+// drop indoor sleeping capacity (which excludes medical beds) under the
+// colonists and fail the shelter gate, so it stages a new spot instead.
+func TestSnapshotHospitalStagesBedAtShelterCapacity(t *testing.T) {
 	t.Parallel()
 	step := loadStep(t, "hospital-step-convert", policy.MaintainMedicalCare)
 	if _, known := step.Projection.Rooms.Value(); !known {
 		t.Fatal("hospital step read holds no room census")
 	}
 	choice, err := policy.SelectHospitalBed(hospitalRequest(step.Projection))
-	if err != nil || choice.Method != policy.HospitalConvert || choice.Bed == "" {
-		t.Fatalf("hospital: choice %+v err %v, want a bed conversion", choice, err)
+	if err != nil || choice.Method != policy.HospitalBuild || choice.Definition == "" {
+		t.Fatalf("hospital: choice %+v err %v, want a staged bed", choice, err)
 	}
 }
 

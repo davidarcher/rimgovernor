@@ -39,6 +39,14 @@ type HospitalRequest struct {
 	Sleeping    domain.Fact[SleepingObservation]
 	Rooms       domain.Fact[RoomObservation]
 	Definitions []BenchDefinition
+	// Colonists, HousingTarget, BedCapacity and IndoorCapacity are the
+	// routine counts a conversion must not drop below: the native indoor
+	// sleeping capacity excludes medical beds, so converting a needed
+	// shelter spot fails the shelter gate.
+	Colonists, HousingTarget, BedCapacity, IndoorCapacity domain.Fact[int64]
+	// Doctors is the count of Doctor-capable colonists; a known zero means
+	// nobody could treat a patient in the ward, so no hospital work runs.
+	Doctors domain.Fact[int]
 }
 
 type HospitalChoice struct {
@@ -89,6 +97,10 @@ func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
 	choice := HospitalChoice{Needed: len(ill)}
 	if choice.Needed == 0 {
 		choice.Method = HospitalNoDemand
+		return choice, nil
+	}
+	if doctors, known := r.Doctors.Value(); known && doctors <= 0 {
+		choice.Method = HospitalUnavailable
 		return choice, nil
 	}
 	facility, err := Facility(RoomRoleHospital)
@@ -153,6 +165,9 @@ func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
 		choice.Method = HospitalExisting
 		return choice, nil
 	}
+	if !hospitalConversionSpare(r, sleeping) {
+		spare, owned = nil, nil
+	}
 	for _, candidates := range [][]SleepingBed{spare, owned} {
 		if len(candidates) == 0 {
 			continue
@@ -184,4 +199,39 @@ func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
 	}
 	choice.Method = HospitalUnavailable
 	return choice, nil
+}
+
+// hospitalConversionSpare reports whether one regular bed can turn medical
+// without dropping bed or indoor sleeping capacity below
+// max(colonists, housing target). Native IndoorSleepingCapacity excludes
+// medical beds, so converting a needed shelter spot deadlocks the shelter
+// gate; a new bed is staged instead (and converted once it stands, when the
+// surplus it adds allows).
+func hospitalConversionSpare(r HospitalRequest, sleeping SleepingObservation) bool {
+	required := int64(sleeping.Colonists)
+	for _, f := range []domain.Fact[int64]{r.Colonists, r.HousingTarget} {
+		if v, known := f.Value(); known {
+			required = max(required, v)
+		}
+	}
+	capacity, measured := int64(0), false
+	for _, f := range []domain.Fact[int64]{r.BedCapacity, r.IndoorCapacity} {
+		if v, known := f.Value(); known {
+			if !measured || v < capacity {
+				capacity = v
+			}
+			measured = true
+		}
+	}
+	if !measured {
+		for _, bed := range sleeping.Beds {
+			humanlike, _ := bed.Humanlike.Value()
+			medical, mk := bed.Medical.Value()
+			prisoners, _ := bed.Prisoners.Value()
+			if humanlike && mk && !medical && !prisoners {
+				capacity++
+			}
+		}
+	}
+	return capacity-1 >= required
 }

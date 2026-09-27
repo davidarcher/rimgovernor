@@ -110,28 +110,35 @@ func TestGoalProgressCooldownLiftsWhenConditionChanges(t *testing.T) {
 
 func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T) {
 	gates := FootholdGates{Food: domain.Known(true), Cooking: domain.Known(false), Storage: domain.Known(true)}
-	c, prerequisite, observed := FoodProgress(gates, RoutineFacts{FoodDays: domain.Known(3.5)}, DefaultRoutinePolicy())
+	c, prerequisite, observed := FoodProgress(gates, RoutineFacts{FoodDays: domain.Known(3.5)}, DefaultRoutinePolicy(), false)
 	if v, known := observed.Value(); c.Method != "cook" || prerequisite != EnsureCooking || !known || v != 0.5 {
 		t.Fatalf("cook rung %+v %s %v", c, prerequisite, observed)
 	}
 	gates.Food = domain.Known(false)
-	c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy())
+	c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), false)
 	if c.Method != "acquire" || prerequisite != EnsureCooking {
 		t.Fatalf("acquire rung keeps the bench prerequisite %+v %s", c, prerequisite)
 	}
 	gates.Food, gates.Cooking, gates.Storage = domain.Known(true), domain.Known(true), domain.Known(false)
-	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy()); c.Method != "store" || prerequisite != EnsureFoodStorage {
+	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), true); c.Method != "store" || prerequisite != EnsureFoodStorage {
 		t.Fatalf("store rung %+v %s", c, prerequisite)
 	}
+	// Storage owed but no storage method open: the ladder falls to grow.
+	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), false); c.Method != "grow" || prerequisite != "" {
+		t.Fatalf("store rung without a method %+v %s", c, prerequisite)
+	}
 	gates.Storage = domain.Known(true)
-	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy()); c.Method != "grow" || prerequisite != "" {
+	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), false); c.Method != "grow" || prerequisite != "" {
 		t.Fatalf("grow rung %+v %s", c, prerequisite)
 	}
 	food := ReviewGoalProgress(GoalProgress{}, EnsureFoodSupply, ProgressContract{Method: "cook", Deadline: 10}, ProgressEvidence{Prerequisite: EnsureCooking}, 5)
 	if food.Blocked != BlockedPrerequisite(EnsureCooking) || food.Blocked.Prerequisite() != EnsureCooking {
 		t.Fatalf("prerequisite not surfaced: %+v", food)
 	}
-	withheld := WithheldLabor([]GoalProgress{food, {Goal: MaintainResource}})
+	if withheld := WithheldLabor([]GoalProgress{food, {Goal: EnsureCooking}}); len(withheld) != 0 {
+		t.Fatalf("prerequisite with no open method withheld %v", withheld)
+	}
+	withheld := WithheldLabor([]GoalProgress{food, {Goal: MaintainResource}, {Goal: EnsureCooking, Open: true}})
 	if len(withheld) != 1 || withheld[0] != WorkConstruction {
 		t.Fatalf("withheld %v", withheld)
 	}

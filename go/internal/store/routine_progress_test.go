@@ -20,8 +20,10 @@ func progressRecord(t *testing.T, r RoutineReview, id domain.GoalID) policy.Goal
 }
 
 // The food goal's record surfaces a known-missing cooking bench as its
-// prerequisite and withholds the one builder from optional development
-// until it stands (#629); the record persists with the review.
+// prerequisite (#629); the record persists with the review. With no
+// cooking method in flight nobody is building the bench, so the one builder
+// is not withheld from optional development (a withheld builder waiting on
+// work nobody proposed deadlocked Foothold).
 func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -41,9 +43,8 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+policy.DevelopmentStallTicks/4 || food.Expected == "" {
 		t.Fatalf("food record %+v", food)
 	}
-	expansion := developmentRow(t, first.Review, policy.EnsureExpansion)
-	if expansion.Selected || expansion.Reason != policy.DevelopmentLabor || expansion.Bottleneck != policy.WorkConstruction {
-		t.Fatalf("builder diverted while the bench is owed: %+v", expansion)
+	if expansion := developmentRow(t, first.Review, policy.EnsureExpansion); !expansion.Selected {
+		t.Fatalf("builder withheld for a bench nobody proposed: %+v", expansion)
 	}
 	if !developmentRow(t, first.Review, policy.MaintainResource).Selected {
 		t.Fatal(first.Review.Development.Rows)

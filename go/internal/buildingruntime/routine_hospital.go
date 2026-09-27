@@ -64,7 +64,13 @@ func hospitalRequest(facts observation.ColonyProjection) policy.HospitalRequest 
 	for _, d := range facts.Definitions {
 		definitions = append(definitions, policy.BenchDefinition{Name: d.Name, Available: d.Available, NeedsPower: d.NeedsPower, ConstructionSkill: d.ConstructionSkill})
 	}
-	return policy.HospitalRequest{Patients: facts.Facts.MedicalPawns, Sleeping: facts.Facts.Sleeping, Rooms: facts.Rooms, Definitions: definitions}
+	f := facts.Facts
+	doctors := domain.Unknown[int]()
+	if census, known := f.Labor.Value(); known {
+		doctors = domain.Known(census[policy.WorkDoctor])
+	}
+	return policy.HospitalRequest{Patients: f.MedicalPawns, Sleeping: f.Sleeping, Rooms: facts.Rooms, Definitions: definitions,
+		Colonists: f.Colonists, HousingTarget: f.HousingTarget, BedCapacity: f.BedCapacity, IndoorCapacity: f.IndoorCapacity, Doctors: doctors}
 }
 
 // selectHospital resolves the building ladder's definition from the same

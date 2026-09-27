@@ -41,6 +41,9 @@ type GoalProgress struct {
 	// A record with no method reads it as BlockedPlanner, so "no_method"
 	// only means no planner has said why.
 	Planner string `json:",omitempty"`
+	// Open: the goal has a method with unsettled work in flight, the
+	// evidence a prerequisite is being worked rather than merely owed.
+	Open bool `json:",omitempty"`
 }
 
 // BlockedReason says why a goal's expected observable is not advancing. A
@@ -248,6 +251,7 @@ func ReviewGoalProgress(previous GoalProgress, goal GoalID, c ProgressContract, 
 	if p.Blocked == BlockedNoMethod && p.Planner != "" {
 		p.Blocked = BlockedPlanner(p.Planner)
 	}
+	p.Open = e.Open
 	p.NextReview = 0
 	if c.Deadline > 0 {
 		p.NextReview = p.LastProgress + c.Deadline
@@ -385,7 +389,7 @@ func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
 // unknown gate is no evidence of a missing bench and blocks nothing. The
 // observable is the food runway's shortfall against FoodTargetDays, so a
 // day of food gained reads as progress whichever rung is current.
-func FoodProgress(g FootholdGates, f RoutineFacts, p RoutinePolicy) (ProgressContract, GoalID, domain.Fact[float64]) {
+func FoodProgress(g FootholdGates, f RoutineFacts, p RoutinePolicy, storageOpen bool) (ProgressContract, GoalID, domain.Fact[float64]) {
 	owed := func(v domain.Fact[bool]) bool { b, k := v.Value(); return k && !b }
 	observed := domain.Unknown[float64]()
 	if days, known := fallback(f.PopulationFoodDays, f.FoodDays).Value(); known && p.FoodTargetDays > 0 {
@@ -401,7 +405,7 @@ func FoodProgress(g FootholdGates, f RoutineFacts, p RoutinePolicy) (ProgressCon
 		return ProgressContract{Method: "acquire", Expected: "food days rise toward the target", Deadline: deadline}, prerequisite, observed
 	case owed(g.Cooking):
 		return ProgressContract{Method: "cook", Expected: "meals cooked at a bench", Deadline: deadline}, prerequisite, observed
-	case owed(g.Storage):
+	case owed(g.Storage) && storageOpen:
 		return ProgressContract{Method: "store", Expected: "raw food stored under a roof", Deadline: deadline}, EnsureFoodStorage, observed
 	default:
 		return ProgressContract{Method: "grow", Expected: "growing zone planted to the field target", Deadline: deadline}, prerequisite, observed
@@ -423,13 +427,20 @@ func GoalProgressContract(method string, p RoutinePolicy) ProgressContract {
 // development: while a goal's record is blocked on a prerequisite goal
 // that a builder places, construction is withheld from the ranked queue
 // so the builder is not diverted before the bench stands.
+// A prerequisite with no open method (its planner proposed nothing)
+// withholds nothing: holding the builder for work nobody placed would
+// idle construction forever.
 func WithheldLabor(progress []GoalProgress) LaborProfile {
 	var withheld LaborProfile
 	seen := map[WorkType]bool{}
+	open := map[GoalID]bool{}
 	for _, p := range progress {
-		switch p.Blocked.Prerequisite() {
+		open[p.Goal] = open[p.Goal] || p.Open
+	}
+	for _, p := range progress {
+		switch pre := p.Blocked.Prerequisite(); pre {
 		case EnsureCooking, EnsureFoodStorage, EnsureInitialShelter:
-			if !seen[WorkConstruction] {
+			if open[pre] && !seen[WorkConstruction] {
 				seen[WorkConstruction] = true
 				withheld = append(withheld, WorkConstruction)
 			}
