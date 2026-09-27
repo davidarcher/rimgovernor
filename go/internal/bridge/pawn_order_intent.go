@@ -40,3 +40,11 @@ func openCasketAction(action domain.Action) (*o.Action, error) {
 	}
 	return pawnOrderIntent(v.Pawn(), v.Casket(), o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET)
 }
+
+func tendAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.Tend()
+	if !ok {
+		return nil, contract("not a tend action")
+	}
+	return pawnOrderIntent(v.Doctor(), string(v.Patient()), o.PawnOrderKind_PAWN_ORDER_KIND_TEND)
+}

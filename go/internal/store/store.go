@@ -29,7 +29,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store/gearreplace"
 	"github.com/davidarcher/RimGovernor/go/internal/store/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
-	"github.com/davidarcher/RimGovernor/go/internal/store/tend"
 	"modernc.org/sqlite"
 )
 
@@ -57,7 +56,6 @@ type PlanState struct {
 	Admissions                []ActionAdmission
 	DraftAdmissions           []ActionDraftAdmission
 	AcquisitionAdmissions     []ActionAcquisitionAdmission
-	TendAdmissions            []ActionTendAdmission
 	RescueAdmissions          []ActionRescueAdmission
 	CaptureAdmissions         []ActionCaptureAdmission
 	RangedAdmissions          []ActionRangedAdmission
@@ -263,7 +261,6 @@ CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), paylo
 CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE bill_claims(colony TEXT NOT NULL,load_token TEXT NOT NULL,map_id INTEGER NOT NULL,bench TEXT NOT NULL,recipe TEXT NOT NULL,PRIMARY KEY(colony,load_token,map_id,bench,recipe)) STRICT;
 CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE tend_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE rescue_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE capture_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE ranged_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -338,7 +335,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("%w: %d/%d", ErrIncompatible, app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -607,16 +604,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if present {
 			state.Admissions = append(state.Admissions, ActionAdmission{Action: a.ID(), Admission: admission})
 		}
-		tendAdmission, tendPresent, e := tend.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.TendAction && !tendPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("tend progress lacks admission")
-		}
-		if tendPresent {
-			state.TendAdmissions = append(state.TendAdmissions, ActionTendAdmission{Action: a.ID(), Admission: tendAdmission})
-		}
 		rescueAdmission, rescuePresent, e := rescue.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
@@ -842,14 +829,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		}
 		if !accounted {
 			return domain.Progress{}, errors.New("zone requires shared footprint admission")
-		}
-	}
-	if current.Action().Kind() == domain.TendAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("tend requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !tend.GuardDispatch(state.TendAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("tend dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.RescueAction {

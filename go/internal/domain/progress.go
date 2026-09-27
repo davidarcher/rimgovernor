@@ -95,7 +95,6 @@ const (
 	HeldInvalidHeld        HeldReason = "held_reservation_unverifiable"
 	HeldArithmeticOverflow HeldReason = "arithmetic_overflow"
 
-	HeldDoctorUnavailable          HeldReason = "doctor_unavailable"
 	HeldDraftOwnership             HeldReason = "draft_ownership"
 	HeldEquipPawnUnavailable       HeldReason = "equip_pawn_unavailable"
 	HeldGearReplacePawnUnavailable HeldReason = "gear_replace_pawn_unavailable"
@@ -123,7 +122,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldNotReady, HeldAlreadyReserved, HeldUnsafePlacement, HeldMaterialRequired,
 	HeldDependencyBlocked, HeldGeometryBlocked, HeldSpendingBlocked, HeldInsufficientStock,
 	HeldInvalidHeld, HeldArithmeticOverflow,
-	HeldDoctorUnavailable, HeldDraftOwnership, HeldEquipPawnUnavailable, HeldGearReplacePawnUnavailable,
+	HeldDraftOwnership, HeldEquipPawnUnavailable, HeldGearReplacePawnUnavailable,
 	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder,
 	HeldRescuerUnavailable,
 	HeldUnsuitableEquipment,

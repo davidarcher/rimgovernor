@@ -162,11 +162,11 @@ func TestDevelopmentPlayerPreferenceAgeAndReset(t *testing.T) {
 func developmentProgress(t *testing.T) domain.Progress {
 	t.Helper()
 	// An observed (non-intent) kind: commitments follow per-attempt effects.
-	cut, e := domain.NewTend("doctor", "patient")
+	cut, e := domain.NewAcquisition("plant", "WoodLog", domain.Cell{X: 1, Z: 2})
 	if e != nil {
 		t.Fatal(e)
 	}
-	a, e := domain.NewTendAction("action", cut)
+	a, e := domain.NewAcquisitionAction("action", cut)
 	if e != nil {
 		t.Fatal(e)
 	}

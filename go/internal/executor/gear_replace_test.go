@@ -170,3 +170,11 @@ func TestGearReplaceReconcileRejectsForeignThing(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+func causalityFor(effect domain.Effect) domain.ObservationCausality {
+	switch effect {
+	case domain.EffectCompleted, domain.EffectAbsent, domain.EffectUnsuccessful:
+		return domain.AfterDispatch
+	default:
+		return ""
+	}
+}

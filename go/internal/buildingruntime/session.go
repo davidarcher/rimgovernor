@@ -17,7 +17,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -34,7 +33,6 @@ type SessionConfig struct {
 	Haul            *haul.HaulCapabilities
 	Ranged          *ranged.RangedCapabilities
 	Movement        *MovementCapabilities
-	Tend            *tend.TendCapabilities
 	Rescue          *rescue.RescueCapabilities
 	Capture         *capture.CaptureCapabilities
 	Equip           *equip.EquipCapabilities
@@ -259,9 +257,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil)", ErrControl))
 	}
-	if config.Tend != nil && (config.Tend.Native == nil || config.Tend.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.Tend != nil && (config.Tend.Native == nil || config.Tend.Writer == nil)", ErrControl))
-	}
 	if config.Rescue != nil && (config.Rescue.Native == nil || config.Rescue.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Rescue != nil && (config.Rescue.Native == nil || config.Rescue.Writer == nil)", ErrControl))
 	}
@@ -331,15 +326,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableHaul(haulBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Tend != nil {
-		tendBoundary, err := tend.NewTendBoundary(config.Tend.Native, config.Tend.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableTend(tendBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

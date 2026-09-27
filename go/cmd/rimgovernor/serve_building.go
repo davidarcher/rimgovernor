@@ -22,7 +22,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
@@ -104,7 +103,6 @@ type buildingServiceBridge struct {
 	melee             *melee.MeleeCapabilities
 	ranged            *ranged.RangedCapabilities
 	movement          *buildingruntime.MovementCapabilities
-	tend              *tend.TendCapabilities
 	rescue            *rescue.RescueCapabilities
 	capture           *capture.CaptureCapabilities
 	equip             *equip.EquipCapabilities
@@ -203,7 +201,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		melee:             &melee.MeleeCapabilities{Writer: actionsWriter},
 		ranged:            &ranged.RangedCapabilities{Native: client, Writer: attack},
 		movement:          &buildingruntime.MovementCapabilities{Writer: actionsWriter},
-		tend:              &tend.TendCapabilities{Native: client, Writer: pawnOrder},
 		rescue:            &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
 		capture:           &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
 		equip:             &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
@@ -363,13 +360,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		meleeCapabilities, rangedCapabilities, movementCapabilities = client.melee, client.ranged, client.movement
 	}
-	var tendCapabilities *tend.TendCapabilities
-	if config.routineTendPlans {
-		if client.tend == nil {
-			return errors.New("tend plans require typed capabilities")
-		}
-		tendCapabilities = client.tend
-	}
 	var rescueCapabilities *rescue.RescueCapabilities
 	if config.routineRescuePlans || config.routinePopulationCustodyPlans {
 		if client.rescue == nil {
@@ -430,7 +420,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Melee:           meleeCapabilities,
 		Ranged:          rangedCapabilities,
 		Movement:        movementCapabilities,
-		Tend:            tendCapabilities,
 		Rescue:          rescueCapabilities,
 		Capture:         captureCapabilities,
 		Equip:           equipCapabilities,

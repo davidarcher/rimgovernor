@@ -36,11 +36,11 @@ func newDevelopmentSim(t *testing.T, limit int, goals ...DevelopmentGoal) *devel
 func (s *developmentSim) commitment(goal GoalID, source GoalSource, priority int, dispatched bool) Commitment {
 	s.t.Helper()
 	// An observed (non-intent) kind: commitments follow per-attempt effects.
-	cut, err := domain.NewTend("doctor", "patient")
+	cut, err := domain.NewAcquisition("plant", "WoodLog", domain.Cell{X: 1, Z: 2})
 	if err != nil {
 		s.t.Fatal(err)
 	}
-	a, err := domain.NewTendAction(domain.ActionID(string(goal)+"-action"), cut)
+	a, err := domain.NewAcquisitionAction(domain.ActionID(string(goal)+"-action"), cut)
 	if err != nil {
 		s.t.Fatal(err)
 	}

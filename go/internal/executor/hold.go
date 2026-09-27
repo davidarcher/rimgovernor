@@ -29,7 +29,6 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.GeometryBlocked:   domain.HeldGeometryBlocked,
 	policy.InvalidHeld:       domain.HeldInvalidHeld,
 
-	policy.DoctorUnavailable:          domain.HeldDoctorUnavailable,
 	policy.DraftOwnership:             domain.HeldDraftOwnership,
 	policy.EquipPawnUnavailable:       domain.HeldEquipPawnUnavailable,
 	policy.GearReplacePawnUnavailable: domain.HeldGearReplacePawnUnavailable,

@@ -6,140 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func tendRequest(t *testing.T) TendRequest {
-	t.Helper()
-	tend, _ := domain.NewTend("doctor", "patient")
-	a, _ := domain.NewTendAction("tend", tend)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
-	p, _ := domain.NewProgress(plan, a.ID())
-	e, err := NewEmergencySnapshot(s, 13, EmergencyFacts{
-		ColonistsComplete: domain.Known(true),
-		Colonists: []EmergencyPawn{
-			{ID: "doctor", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)},
-			{ID: "patient", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(true), NeedsTend: domain.Known(true)},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	doctor := TendDoctorFacts{Pawn: "doctor", SnapshotToken: "doctor-cas", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(int32(8)), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false), ControlEligible: domain.Known(true), TendCapacities: domain.Known(true), ReachesPatient: domain.Known(true)}
-	patient := TendPatientFacts{Pawn: "patient", SnapshotToken: "patient-cas", Dead: domain.Known(false), Downed: domain.Known(false), InBed: domain.Known(true), NeedsTend: domain.Known(true), NoCare: domain.Known(false), Bleeding: domain.Known(true), LifeThreatening: domain.Known(false), HoursUntilDeathFromBloodLoss: domain.Known(6.0), ExistingJobDef: domain.Known("")}
-	return TendRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: TendFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Doctor: doctor, Patient: patient}}
-}
-
-func TestTendAdmission(t *testing.T) {
-	r := tendRequest(t)
-	original := r.Progress
-	for _, prepared := range []bool{false, true} {
-		if prepared {
-			var err error
-			r.Progress, err = r.Progress.Prepare(r.Current, 11)
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-		if d := EvaluateTend(r); !d.Admitted || len(d.Refused) != 0 {
-			t.Fatal(d)
-		}
-	}
-	if original.View().Stage != domain.Pending {
-		t.Fatal("mutated progress")
-	}
-}
-
-func TestTendDefenseHolds(t *testing.T) {
-	cases := []struct {
-		name   string
-		change func(*TendRequest)
-	}{
-		{"zero action", func(r *TendRequest) { r.Action = domain.Action{} }},
-		{"zero progress", func(r *TendRequest) { r.Progress = domain.Progress{} }},
-		{"cancelled", func(r *TendRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *TendRequest) { r.MinimumTick = 14 }},
-		{"negative minimum", func(r *TendRequest) { r.MinimumTick = -1 }},
-		{"prepared past preview", func(r *TendRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
-		{"old emergency", func(r *TendRequest) { r.Facts.Emergency.tick = 12 }},
-		{"zero generation", func(r *TendRequest) { r.Current.Native = 0 }},
-		{"native", func(r *TendRequest) { r.Current.Native++ }},
-		{"colony", func(r *TendRequest) { r.Current.Colony = "other" }},
-		{"load", func(r *TendRequest) { r.Current.Load = "other" }},
-		{"map", func(r *TendRequest) { r.Current.Map++ }},
-		{"plan", func(r *TendRequest) { r.Current.Plan = "other" }},
-		{"revision", func(r *TendRequest) { r.Current.Revision++ }},
-		{"doctor CAS", func(r *TendRequest) { r.Facts.Doctor.SnapshotToken = "" }},
-		{"patient CAS", func(r *TendRequest) { r.Facts.Patient.SnapshotToken = "" }},
-		{"wrong doctor", func(r *TendRequest) { r.Facts.Doctor.Pawn = "other" }},
-		{"wrong patient", func(r *TendRequest) { r.Facts.Patient.Pawn = "other" }},
-		{"doctor dead", func(r *TendRequest) { r.Facts.Doctor.Dead = domain.Known(true) }},
-		{"doctor downed", func(r *TendRequest) { r.Facts.Doctor.Downed = domain.Known(true) }},
-		{"doctor drafted unknown", func(r *TendRequest) { r.Facts.Doctor.Drafted = domain.Unknown[bool]() }},
-		{"doctor mental state", func(r *TendRequest) { r.Facts.Doctor.MentalState = domain.Known(true) }},
-		{"doctor already tending", func(r *TendRequest) { r.Facts.Doctor.ExistingJobDef = domain.Known("TendPatient") }},
-		{"doctor unknown skill", func(r *TendRequest) { r.Facts.Doctor.MedicineSkill = domain.Unknown[int32]() }},
-		{"doctor skill disabled", func(r *TendRequest) { r.Facts.Doctor.MedicineSkillDisabled = domain.Known(true) }},
-		{"doctor work disabled", func(r *TendRequest) { r.Facts.Doctor.DoctorWorkEnabled = domain.Known(false) }},
-		{"doctor work override zero", func(r *TendRequest) { r.Facts.Doctor.DoctorWorkOverrideDisabled = domain.Known(true) }},
-		{"patient dead", func(r *TendRequest) { r.Facts.Patient.Dead = domain.Known(true) }},
-		{"patient recovered", func(r *TendRequest) { r.Facts.Patient.NeedsTend = domain.Known(false) }},
-		{"patient unknown needs tend", func(r *TendRequest) { r.Facts.Patient.NeedsTend = domain.Unknown[bool]() }},
-		{"patient no care", func(r *TendRequest) { r.Facts.Patient.NoCare = domain.Known(true) }},
-		{"patient already tended", func(r *TendRequest) { r.Facts.Patient.ExistingJobDef = domain.Known("TendPatient") }},
-		{"preview refusal", func(r *TendRequest) { r.Facts.NativeCanTry = domain.Known(false) }},
-		{"census incomplete", func(r *TendRequest) { r.Facts.Emergency.facts.ColonistsComplete = domain.Known(false) }},
-		{"unsafe threat", func(r *TendRequest) {
-			r.Facts.Emergency.facts.Threats = append(r.Facts.Emergency.facts.Threats, EmergencyThreat{ID: "raider", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)})
-		}},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			r := tendRequest(t)
-			c.change(&r)
-			d := EvaluateTend(r)
-			if d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason == "" {
-				t.Fatal(d)
-			}
-		})
-	}
-}
-
-// The patient's own untended/bleeding state must never refuse its own tend
-// action; that is precisely the emergency this action resolves.
-func TestTendIgnoresItsOwnCriticalMedicalHold(t *testing.T) {
-	r := tendRequest(t)
-	if d := EvaluateTend(r); !d.Admitted {
-		t.Fatal("tend refused by the emergency it exists to clear", d)
-	}
-}
-
-// A drafted doctor is the controller's own fallback for the deadlock the
-// issue describes: every doctor drafted (e.g. for defense) while a hostile
-// remains anywhere on the map. Native's own job-acceptance check (NativeCanTry)
-// stays the live safety authority; RimGovernor's colony-wide hostile gate does
-// not block this doctor the way it still blocks an undrafted one.
-func TestTendAdmitsDraftedDoctorDespiteHostile(t *testing.T) {
-	r := tendRequest(t)
-	r.Facts.Doctor.Drafted = domain.Known(true)
-	r.Facts.Emergency.facts.Threats = append(r.Facts.Emergency.facts.Threats, EmergencyThreat{ID: "raider", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)})
-	if d := EvaluateTend(r); !d.Admitted {
-		t.Fatal("drafted doctor refused despite controller-owned fallback", d)
-	}
-}
-
-// An undrafted doctor still cannot tend while a hostile remains -- only the
-// drafted fallback exempts the colony-wide hostile gate.
-func TestTendStillBlocksUndraftedDoctorDuringHostile(t *testing.T) {
-	r := tendRequest(t)
-	r.Facts.Emergency.facts.Threats = append(r.Facts.Emergency.facts.Threats, EmergencyThreat{ID: "raider", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)})
-	d := EvaluateTend(r)
-	if d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != UnsupportedThreat {
-		t.Fatal(d)
-	}
-}
-
 func tendDoctor(id domain.PawnID, skill int32) TendDoctorFacts {
 	return TendDoctorFacts{Pawn: id, Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(skill), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false), ControlEligible: domain.Known(true), TendCapacities: domain.Known(true)}
 }
@@ -225,24 +91,6 @@ func TestSelectTendNeverPicksAPatientAsItsOwnDoctor(t *testing.T) {
 	}
 }
 
-// TestTendAdmitsCachedPawnRowBehindPreparedTick is the #306 shape (#323):
-// the executor's second inspection under a running window is served the
-// pawn row the first read (tick 12) cached, while the first preview (tick
-// 13) prepared the action and raised the minimum; the second preview (tick
-// 15) anchors the admission, so the older row is fresh evidence.
-func TestTendAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
-	r := tendRequest(t)
-	var err error
-	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
-		t.Fatal(err)
-	}
-	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
-	r.Facts.Emergency.tick = r.Facts.PreviewTick
-	if d := EvaluateTend(r); !d.Admitted || len(d.Refused) != 0 {
-		t.Fatal(d)
-	}
-}
-
 func TestSelectTendUsesForcedAndQueuedDoctorAsFallback(t *testing.T) {
 	forced, idle := tendDoctor("a", 12), tendDoctor("z", 8)
 	forced.PlayerForced, forced.QueuedJobs = domain.Known(true), domain.Known(uint32(2))
@@ -275,19 +123,6 @@ func TestTendSkipsUpPatientOutOfBed(t *testing.T) {
 	}
 	if _, _, ok := selectTend([]TendDoctorFacts{tendDoctor("doc", 5)}, []TendPatientFacts{up}); ok {
 		t.Fatal("selected an up patient out of bed")
-	}
-	r := tendRequest(t)
-	r.Facts.Patient.InBed = domain.Known(false)
-	if d := EvaluateTend(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != PatientIneligible {
-		t.Fatal(d)
-	}
-	r.Facts.Patient.Downed = domain.Known(true)
-	if d := EvaluateTend(r); !d.Admitted {
-		t.Fatal(d)
-	}
-	r.Facts.Patient.Downed, r.Facts.Patient.InBed = domain.Known(false), domain.Unknown[bool]()
-	if d := EvaluateTend(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != UnknownFacts {
-		t.Fatal(d)
 	}
 }
 
@@ -356,29 +191,5 @@ func TestSelectTendFallsBackToDraftedWhenUndraftedCannotReach(t *testing.T) {
 	doctor, patient, ok := SelectTend([]TendDoctorFacts{walled, drafted}, patients, reach)
 	if !ok || doctor != "drafted" || patient != "patient" {
 		t.Fatal(doctor, patient, ok)
-	}
-}
-
-func TestTendAdmissionRefusesNativeDoctorGates(t *testing.T) {
-	for _, c := range []struct {
-		name   string
-		change func(*TendDoctorFacts)
-		reason Reason
-	}{
-		{"control ineligible", func(d *TendDoctorFacts) { d.ControlEligible = domain.Known(false) }, DoctorUnavailable},
-		{"control unknown", func(d *TendDoctorFacts) { d.ControlEligible = domain.Unknown[bool]() }, UnknownFacts},
-		{"capacity missing", func(d *TendDoctorFacts) { d.TendCapacities = domain.Known(false) }, DoctorUnavailable},
-		{"capacity unknown", func(d *TendDoctorFacts) { d.TendCapacities = domain.Unknown[bool]() }, UnknownFacts},
-		{"unreachable", func(d *TendDoctorFacts) { d.ReachesPatient = domain.Known(false) }, DoctorUnavailable},
-		{"reachability unknown", func(d *TendDoctorFacts) { d.ReachesPatient = domain.Unknown[bool]() }, UnknownFacts},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			r := tendRequest(t)
-			c.change(&r.Facts.Doctor)
-			d := EvaluateTend(r)
-			if d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != c.reason {
-				t.Fatal(d)
-			}
-		})
 	}
 }
