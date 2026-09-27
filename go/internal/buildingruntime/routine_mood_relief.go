@@ -164,7 +164,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 			continue
 		}
 		policyState := moodReliefPolicyState(moodState)
-		used := moodReliefUsedNeeds(goal.Methods, goal.Goal.Epoch, moodState.Pawn.ID)
+		used := moodReliefUsedNeeds(goal.History, goal.Goal.Epoch, moodState.Pawn.ID)
 		proposal, err := policy.SelectMoodMethod(policyState, used)
 		if err != nil {
 			return RoutineMoodReliefResult{}, err
@@ -190,7 +190,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineMoodReliefResult{}, ErrControl
 		}
 		prefix := fmt.Sprintf("mood-%s-%s-", proposal.Need, moodState.Pawn.ID)
-		attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			continue
 		}

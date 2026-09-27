@@ -33,6 +33,7 @@ type FishableRegion struct {
 	ProposedCells                                     []domain.Cell
 	PawnFishWorkCapacity                              domain.Fact[float64]
 	ConcurrentFishers                                 domain.Fact[uint32]
+	DistanceSquared                                   domain.Fact[float64]
 }
 type GatherableAnimal struct {
 	PawnID, Race                          string
@@ -81,6 +82,7 @@ func colonyFoodChannels(section *o.FoodChannelsSection) domain.Fact[FoodChannels
 			last := &w.Regions[len(w.Regions)-1]
 			last.Frozen, last.Delivering = optional(row.Frozen), optional(row.Delivering)
 			last.PawnFishWorkCapacity, last.ConcurrentFishers = optional(row.PawnFishWorkCapacity), optional(row.ConcurrentFishers)
+			last.DistanceSquared = optional(row.NearestDistanceSquared)
 			last.NutritionPerFish, last.FishPerBatch, last.WorkTicksPerBatch = optional(row.NutritionPerFish), optional(row.FishPerBatch), optional(row.WorkTicksPerBatch)
 			for _, cell := range row.ProposedCells {
 				last.ProposedCells = append(last.ProposedCells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})

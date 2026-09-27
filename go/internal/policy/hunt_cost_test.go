@@ -36,6 +36,27 @@ func TestHuntSelectionCosts(t *testing.T) {
 	}
 }
 
+// A standing animal likely to go manhunter on harm (the moose of the live
+// report) is never designated; the same animal downed is, and a safe deer
+// is taken in its place.
+func TestHuntSelectionSkipsRetaliatingPrey(t *testing.T) {
+	moose := AcquisitionSource{ID: "moose", Resource: "Corpse_Moose", Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 40, RevengeChance: 0.5, HerdSize: 1}
+	deer := AcquisitionSource{ID: "deer", Resource: "Corpse_Deer", Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 10, RevengeChance: 0.05, HerdSize: 1}
+	got, err := SelectAcquisition(domain.Known([]AcquisitionSource{moose}), domain.Known(1.0), domain.Known(0.0), true, nil, domain.Known(2))
+	if err != nil || len(got) != 0 {
+		t.Fatalf("hunted a retaliating moose: %v, %v", got, err)
+	}
+	got, err = SelectAcquisition(domain.Known([]AcquisitionSource{moose, deer}), domain.Known(1.0), domain.Known(0.0), true, nil, domain.Known(1))
+	if err != nil || len(got) != 1 || got[0].ID != "deer" {
+		t.Fatalf("got %v, %v; want deer", got, err)
+	}
+	moose.Downed = true
+	got, err = SelectAcquisition(domain.Known([]AcquisitionSource{moose}), domain.Known(1.0), domain.Known(0.0), true, nil, domain.Known(1))
+	if err != nil || len(got) != 1 {
+		t.Fatalf("skipped a downed moose: %v, %v", got, err)
+	}
+}
+
 func TestHuntChannelsExposeRiskAndPursuitWork(t *testing.T) {
 	sources := []AcquisitionSource{
 		{ID: "melee", Hunt: true, Food: true, NutritionYield: 10, MeleeOnly: true, HerdSize: 1},

@@ -147,6 +147,43 @@ func TestAutoResumeRetriesBoundedlyWithFreshRequestIDs(t *testing.T) {
 	}
 }
 
+// TestAutoResumeBoundsLossCycles: a world whose grant keeps being revoked
+// (as replayed backlog revocations did on serve --resume) is re-acquired a
+// bounded number of times, with growing waits, then left to the dashboard.
+func TestAutoResumeBoundsLossCycles(t *testing.T) {
+	snapshots := &resumeSnapshots{snapshot: resumeObserved("load-1")}
+	player := newResumePlayer()
+	var out bytes.Buffer
+	r, err := newAutoResumer(snapshots, player, player, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	r.step(ctx)
+	steps := 0
+	for range 1000 {
+		r.step(ctx) // observed running
+		player.state.Enabled = false
+		steps++
+		for i := 0; i < 64 && !player.state.Enabled; i++ {
+			r.step(ctx)
+			steps++
+		}
+		if !player.state.Enabled {
+			break
+		}
+	}
+	if len(player.requests) != 1+autoResumeCycles {
+		t.Fatal(len(player.requests))
+	}
+	if !strings.Contains(out.String(), "leaving it to the dashboard") {
+		t.Fatal(out.String())
+	}
+	if steps < 2*autoResumeCycles+1+2+4+8+16+32 {
+		t.Fatal("re-acquired without backing off", steps)
+	}
+}
+
 // TestAutoResumeReacquiresAfterNonPlayerLoss is the #87 controller side: a
 // world running under a Resume record that loses authority for any reason
 // other than the player's Pause (native DISCONNECT after a GABP drop, a

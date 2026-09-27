@@ -190,10 +190,13 @@ namespace HomeBridge.BridgeTools
             return !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item);
         }
 
+        // Vanilla's rule (Designator_ZoneAdd_Fishing.CanDesignateCell): any
+        // passable cell of a fish-bearing water body (marsh included); zone
+        // placement itself is IsZoneableCell below.
         internal static bool FishableCell(IntVec3 c, Map map, WaterBody? body)
         {
             return ModsConfig.OdysseyActive && body != null && body.HasFish && c.InBounds(map) && !c.Fogged(map)
-                && c.GetWaterBody(map) == body && c.GetTerrain(map).IsWater && c.Standable(map)
+                && c.GetWaterBody(map) == body && c.GetTerrain(map).passability != Traversability.Impassable
                 && Designator_ZoneAdd.IsZoneableCell(c, map).Accepted && map.zoneManager.ZoneAt(c) == null
                 && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c));
         }

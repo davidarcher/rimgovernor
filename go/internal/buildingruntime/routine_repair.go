@@ -216,7 +216,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	// Keyed by structure and attempt count, not pawn: a fresh attempt after an
 	// interrupted or refused try picks whichever repairer is currently best.
 	prefix := fmt.Sprintf("repair-%s-", structure.ID)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineRepairResult{Reason: BuildingMethodExhausted}, nil
 	}

@@ -97,7 +97,7 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 		if row.Designated || held[row.ID] {
 			continue
 		}
-		if row.Hunt && slots == 0 {
+		if row.Hunt && (slots == 0 || row.Retaliates()) {
 			continue
 		}
 		amount, ok := accept(row)
@@ -111,6 +111,18 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 		remaining -= amount
 	}
 	return selected, nil
+}
+
+// MaxHuntRevengeChance is the highest manhunter-on-harm chance a standing
+// animal may carry and still be hunted. Above it (moose, boar, elk...) one
+// wounding shot risks a revenge charge the colony's one or two hunters
+// cannot absorb. Downed prey cannot retaliate.
+const MaxHuntRevengeChance = 0.2
+
+// Retaliates reports a standing hunt whose revenge chance exceeds
+// MaxHuntRevengeChance: selection never designates it.
+func (s AcquisitionSource) Retaliates() bool {
+	return s.Hunt && !s.Downed && s.RevengeChance > MaxHuntRevengeChance
 }
 
 // HuntRevengeCost is expected retaliation exposure, before the channel risk cap.

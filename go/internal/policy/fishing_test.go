@@ -93,6 +93,35 @@ func TestFishingRateLimitedByPawnCapacity(t *testing.T) {
 	}
 }
 
+// A near body (marsh beside the base) outranks a far lake whose ID sorts
+// first and whose yield is slightly cheaper; unknown distance ranks last.
+func TestFishingNearestRegionFirst(t *testing.T) {
+	r := fishingRequest()
+	far, near, unknown := r.Regions[0], r.Regions[0], r.Regions[0]
+	far.ID, far.DistanceSquared, far.FishPerBatch = "water-1-1", domain.Known(9000.0), domain.Known(7.0)
+	near.ID, near.DistanceSquared = "water-90-90", domain.Known(25.0)
+	unknown.ID = "water-0-0"
+	r.Regions = []FishingRegion{unknown, far, near}
+	rows, err := FishingChannels(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := PlanFood(foodPlanRequest(rows...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var order []string
+	for _, e := range plan.Portfolio {
+		order = append(order, e.Channel.ID)
+	}
+	if strings.Join(order, ",") != "water-90-90,water-1-1,water-0-0" {
+		t.Fatalf("order %v: %s", order, plan.Explain())
+	}
+	if plan.Portfolio[0].Decision != FoodPlanOpen {
+		t.Fatalf("nearest region not opened: %s", plan.Explain())
+	}
+}
+
 func TestFishingResearchAdmission(t *testing.T) {
 	r := fishingRequest()
 	r.Researched, r.ResearchLeadDays = domain.Known(false), domain.Known(2.0)

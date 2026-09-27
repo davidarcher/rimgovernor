@@ -105,6 +105,7 @@ func TestPaceBackoffLowersBeforeHorizonAndNeverReleasesWhileStale(t *testing.T) 
 	for range 12 {
 		_, readAt := native.read()
 		finish := backoff.Watch(ctx, readAt)
+		backoff.changedAt = time.Time{} // step past the hysteresis interval
 		finish(5*time.Millisecond, true)
 	}
 	requests = native.log()
@@ -136,5 +137,57 @@ func TestPaceBackoffLowersToTheRateAWaveFits(t *testing.T) {
 	backoff.fresh(context.Background(), time.Second)
 	if requests := native.log(); len(requests) != 1 {
 		t.Fatalf("an unchanged target reissued the ceiling: %+v", requests)
+	}
+}
+
+// The live sawtooth: an ordinary 2 s wave under a ~600 tick/s ceiling
+// spans less than the default horizon, so its watch never drops the
+// ceiling to Normal.
+func TestPaceBackoffOrdinaryWaveDoesNotCollapseToFloor(t *testing.T) {
+	native := &paceNative{at: time.Now()}
+	backoff := newPaceBackoff(0, time.Now, native.change)
+	backoff.fresh(context.Background(), 2*time.Second)
+	want := uint32(float64(DefaultPaceHorizonTicks) * paceMargin / 2)
+	if got := backoff.Ceiling(); got != want {
+		t.Fatalf("ceiling %d, want %d", got, want)
+	}
+	_, readAt := native.read()
+	done := backoff.Watch(context.Background(), readAt)
+	time.Sleep(100 * time.Millisecond)
+	done(2*time.Second, true)
+	for _, r := range native.log() {
+		if r.ceiling == PaceFloorTicksPerSecond {
+			t.Fatalf("ordinary wave parked the window at Normal: %+v", native.log())
+		}
+	}
+}
+
+// Hysteresis: a fresh target under 25% away keeps the ceiling, and a real
+// change waits out the interval since the last one.
+func TestPaceBackoffHysteresis(t *testing.T) {
+	now := time.Unix(1000, 0)
+	clock := func() time.Time { return now }
+	native := &paceNative{at: time.Now()}
+	backoff := newPaceBackoff(300, clock, native.change)
+	ctx := context.Background()
+	backoff.fresh(ctx, time.Second) // 150
+	now = now.Add(time.Minute)
+	backoff.fresh(ctx, 1100*time.Millisecond) // 136: under 25%
+	if got := backoff.Ceiling(); got != 150 {
+		t.Fatalf("small change moved the ceiling to %d", got)
+	}
+	backoff.fresh(ctx, 1500*time.Millisecond) // 100: a real change
+	if got := backoff.Ceiling(); got != 100 {
+		t.Fatalf("ceiling %d, want 100", got)
+	}
+	now = now.Add(2 * time.Second)
+	backoff.fresh(ctx, 500*time.Millisecond) // 300 target, inside the interval
+	if got := backoff.Ceiling(); got != 100 {
+		t.Fatalf("change inside the interval moved the ceiling to %d", got)
+	}
+	now = now.Add(4 * time.Second)
+	backoff.fresh(ctx, 500*time.Millisecond)
+	if got := backoff.Ceiling(); got != 200 {
+		t.Fatalf("ceiling %d, want 200 (doubling)", got)
 	}
 }

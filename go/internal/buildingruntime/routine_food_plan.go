@@ -67,7 +67,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 			request := policy.FishingRequest{Researched: water.FishingResearched, ResearchLeadDays: water.ResearchLeadDays}
 			for _, region := range water.Regions {
 				request.Regions = append(request.Regions, policy.FishingRegion{ID: policy.FishingRegionID(region.Root), Population: region.Population, MaxPopulation: region.MaxPopulation,
-					NutritionPerFish: region.NutritionPerFish, FishPerBatch: region.FishPerBatch, WorkTicksPerBatch: region.WorkTicksPerBatch, PawnFishWorkCapacity: region.PawnFishWorkCapacity, Reachable: region.Reachable, Frozen: region.Frozen, Open: region.Delivering})
+					NutritionPerFish: region.NutritionPerFish, FishPerBatch: region.FishPerBatch, WorkTicksPerBatch: region.WorkTicksPerBatch, PawnFishWorkCapacity: region.PawnFishWorkCapacity, Reachable: region.Reachable, Frozen: region.Frozen, Open: region.Delivering, DistanceSquared: region.DistanceSquared})
 			}
 			fishing, err := policy.FishingChannels(request)
 			if err != nil {

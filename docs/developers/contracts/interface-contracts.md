@@ -83,9 +83,11 @@ lowers the rate at once, one under 75% of it climbs 25% per 250 ms; the
 game's forced slowdown is kept. Every tick of such an epoch runs the full
 safety check, so hazard bounds stay tick-bounded however many ticks a frame
 carries. The controller watches each critical planner wave and lowers the
-epoch's `max_ticks_per_second` before that wave's evidence can age past half
-the safe horizon (`--clock-blind-ticks`, default 300), parks at Normal while
-evidence is stale, climbs back at most doubling per fresh wave, and never
+epoch's `max_ticks_per_second` so a wave fits in half the safe horizon
+(`--clock-blind-ticks`, default 2500 when unset), with hysteresis (changes
+under 25% ignored, at most one fresh change per 5 s); it parks at Normal only
+when a wave's evidence nears the whole horizon (stale), climbs back at most
+doubling per fresh wave, and never
 releases to full speed while any evidence is stale; a new window starts at
 the earned ceiling. `Epoch.pacing_reason`/`paced_ticks_per_second` and
 `Status.effective_ticks_per_second` feed the clock_step row and the

@@ -126,7 +126,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	// collides with, or is exhausted by, a slaughter attempt on the same
 	// animal (or vice versa) -- they are independent write kinds.
 	prefix := fmt.Sprintf("%s-%s-", choice.Method, choice.Animal)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineHusbandryResult{Reason: BuildingMethodExhausted}, nil
 	}

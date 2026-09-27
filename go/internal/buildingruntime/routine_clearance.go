@@ -131,7 +131,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	target := selection.Targets[0]
 	prefix := fmt.Sprintf("deconstruct-%s-", target.EntityID)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineClearanceResult{Reason: BuildingMethodExhausted}, nil
 	}

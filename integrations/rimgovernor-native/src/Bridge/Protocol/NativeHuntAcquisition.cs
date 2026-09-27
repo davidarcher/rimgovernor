@@ -75,8 +75,16 @@ namespace HomeBridge.BridgeTools
         public Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
         {
             var evidence = Evidence();
-            if (withdrawn && !evidence.LaborFinished && !evidence.Designated)
-                return Unsuccessful(attempt, context, evidence, "Owned hunt was withdrawn before an observed kill.");
+            // A designation gone without a kill is terminal whoever removed
+            // it (we withdrew it, the animal fled or was eaten, the game
+            // cleared it): left Unknown, the open plan blocks every new food
+            // method.
+            if (!evidence.LaborFinished && !evidence.Designated)
+                return Unsuccessful(attempt, context, evidence, withdrawn ? "Owned hunt was withdrawn before an observed kill." : "Hunt designation is gone without an observed kill.");
+            // Food prey dead but its corpse gone (eaten, hauled off map,
+            // destroyed) before it was observed: nothing will ever show.
+            if (!pest && prey.Dead && !evidence.LaborFinished)
+                return Unsuccessful(attempt, context, evidence, "Prey died but its corpse is gone.");
             // A pest that left the map, or whose corpse was gone before any
             // observation, is finished without a kill to show for it; the
             // census, not the receipt, says whether the pack is cleared.

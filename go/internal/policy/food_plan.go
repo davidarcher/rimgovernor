@@ -53,6 +53,9 @@ type FoodChannel struct {
 	Risk                                  []FoodRisk
 	Open                                  domain.Fact[bool]
 	Terms                                 []FoodPlanTerm
+	// DistanceSquared is the nearest source cell to the colony centre;
+	// fishing regions of equal lead rank nearest-first on it.
+	DistanceSquared domain.Fact[float64]
 }
 
 type FoodPlanRequest struct {
@@ -209,6 +212,16 @@ func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
 		a, b := candidates[i], candidates[j]
 		if a.lead != b.lead {
 			return a.lead < b.lead
+		}
+		if a.entry.Channel.Kind == FoodFishing && b.entry.Channel.Kind == FoodFishing {
+			da, ak := a.entry.Channel.DistanceSquared.Value()
+			db, bk := b.entry.Channel.DistanceSquared.Value()
+			if ak != bk {
+				return ak
+			}
+			if da != db {
+				return da < db
+			}
 		}
 		if cost(a) != cost(b) {
 			return cost(a) < cost(b)

@@ -251,7 +251,7 @@ func (r RoutineShrineResult) pass(shrine, reason string) RoutineShrineResult {
 func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlState, goal store.GoalState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, started time.Time) (RoutineShrineResult, error) {
 	p := r.reviewer.player
 	prefix := fmt.Sprintf("claim-%s-", shrine.ID)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
 	}
@@ -316,7 +316,7 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 	}
 	positions := policy.ShrineBreachPositions(wall, drafted, report.Standing, report.Traps)
 	prefix := fmt.Sprintf("breach-%s-%s-", shrine.ID, wall.EntityID)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
 	}
@@ -403,7 +403,7 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 		return RoutineShrineResult{Reason: BuildingMethodUsed}, nil
 	}
 	prefix := fmt.Sprintf("open-%s-", shrine.ID)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
 	}

@@ -29597,23 +29597,24 @@ func (*LootSection_Unavailable) isLootSection_Outcome() {}
 // is shared by that body, not multiplied by its shallow cells. FishableWater
 // is absent without Odyssey. Pollution uses the clipped center +/-22 window.
 type FishableRegion struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Root                 *commonpb.Cell         `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
-	Population           *float64               `protobuf:"fixed64,2,opt,name=population,proto3,oneof" json:"population,omitempty"`
-	MaxPopulation        *float64               `protobuf:"fixed64,3,opt,name=max_population,json=maxPopulation,proto3,oneof" json:"max_population,omitempty"`
-	Zoned                *bool                  `protobuf:"varint,4,opt,name=zoned,proto3,oneof" json:"zoned,omitempty"`
-	CellCount            *uint32                `protobuf:"varint,5,opt,name=cell_count,json=cellCount,proto3,oneof" json:"cell_count,omitempty"`
-	Reachable            *bool                  `protobuf:"varint,6,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"`
-	Frozen               *bool                  `protobuf:"varint,7,opt,name=frozen,proto3,oneof" json:"frozen,omitempty"`
-	NutritionPerFish     *float64               `protobuf:"fixed64,8,opt,name=nutrition_per_fish,json=nutritionPerFish,proto3,oneof" json:"nutrition_per_fish,omitempty"`
-	FishPerBatch         *float64               `protobuf:"fixed64,9,opt,name=fish_per_batch,json=fishPerBatch,proto3,oneof" json:"fish_per_batch,omitempty"`
-	WorkTicksPerBatch    *float64               `protobuf:"fixed64,10,opt,name=work_ticks_per_batch,json=workTicksPerBatch,proto3,oneof" json:"work_ticks_per_batch,omitempty"`
-	ProposedCells        []*commonpb.Cell       `protobuf:"bytes,11,rep,name=proposed_cells,json=proposedCells,proto3" json:"proposed_cells,omitempty"`
-	Delivering           *bool                  `protobuf:"varint,12,opt,name=delivering,proto3,oneof" json:"delivering,omitempty"`
-	PawnFishWorkCapacity *float64               `protobuf:"fixed64,13,opt,name=pawn_fish_work_capacity,json=pawnFishWorkCapacity,proto3,oneof" json:"pawn_fish_work_capacity,omitempty"`
-	ConcurrentFishers    *uint32                `protobuf:"varint,14,opt,name=concurrent_fishers,json=concurrentFishers,proto3,oneof" json:"concurrent_fishers,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Root                   *commonpb.Cell         `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
+	Population             *float64               `protobuf:"fixed64,2,opt,name=population,proto3,oneof" json:"population,omitempty"`
+	MaxPopulation          *float64               `protobuf:"fixed64,3,opt,name=max_population,json=maxPopulation,proto3,oneof" json:"max_population,omitempty"`
+	Zoned                  *bool                  `protobuf:"varint,4,opt,name=zoned,proto3,oneof" json:"zoned,omitempty"`
+	CellCount              *uint32                `protobuf:"varint,5,opt,name=cell_count,json=cellCount,proto3,oneof" json:"cell_count,omitempty"`
+	Reachable              *bool                  `protobuf:"varint,6,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"`
+	Frozen                 *bool                  `protobuf:"varint,7,opt,name=frozen,proto3,oneof" json:"frozen,omitempty"`
+	NutritionPerFish       *float64               `protobuf:"fixed64,8,opt,name=nutrition_per_fish,json=nutritionPerFish,proto3,oneof" json:"nutrition_per_fish,omitempty"`
+	FishPerBatch           *float64               `protobuf:"fixed64,9,opt,name=fish_per_batch,json=fishPerBatch,proto3,oneof" json:"fish_per_batch,omitempty"`
+	WorkTicksPerBatch      *float64               `protobuf:"fixed64,10,opt,name=work_ticks_per_batch,json=workTicksPerBatch,proto3,oneof" json:"work_ticks_per_batch,omitempty"`
+	ProposedCells          []*commonpb.Cell       `protobuf:"bytes,11,rep,name=proposed_cells,json=proposedCells,proto3" json:"proposed_cells,omitempty"`
+	Delivering             *bool                  `protobuf:"varint,12,opt,name=delivering,proto3,oneof" json:"delivering,omitempty"`
+	PawnFishWorkCapacity   *float64               `protobuf:"fixed64,13,opt,name=pawn_fish_work_capacity,json=pawnFishWorkCapacity,proto3,oneof" json:"pawn_fish_work_capacity,omitempty"`
+	ConcurrentFishers      *uint32                `protobuf:"varint,14,opt,name=concurrent_fishers,json=concurrentFishers,proto3,oneof" json:"concurrent_fishers,omitempty"`
+	NearestDistanceSquared *float64               `protobuf:"fixed64,15,opt,name=nearest_distance_squared,json=nearestDistanceSquared,proto3,oneof" json:"nearest_distance_squared,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *FishableRegion) Reset() {
@@ -29740,6 +29741,13 @@ func (x *FishableRegion) GetPawnFishWorkCapacity() float64 {
 func (x *FishableRegion) GetConcurrentFishers() uint32 {
 	if x != nil && x.ConcurrentFishers != nil {
 		return *x.ConcurrentFishers
+	}
+	return 0
+}
+
+func (x *FishableRegion) GetNearestDistanceSquared() float64 {
+	if x != nil && x.NearestDistanceSquared != nil {
+		return *x.NearestDistanceSquared
 	}
 	return 0
 }
@@ -37879,7 +37887,7 @@ const file_observations_proto_rawDesc = "" +
 	"\vLootSection\x12E\n" +
 	"\bobserved\x18\x01 \x01(\v2'.rimgovernor.observations.v1.LootCensusH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xd7\x06\n" +
+	"\aoutcome\"\xb3\a\n" +
 	"\x0eFishableRegion\x12/\n" +
 	"\x04root\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04root\x12#\n" +
 	"\n" +
@@ -37901,7 +37909,8 @@ const file_observations_proto_rawDesc = "" +
 	"delivering\x88\x01\x01\x12:\n" +
 	"\x17pawn_fish_work_capacity\x18\r \x01(\x01H\n" +
 	"R\x14pawnFishWorkCapacity\x88\x01\x01\x122\n" +
-	"\x12concurrent_fishers\x18\x0e \x01(\rH\vR\x11concurrentFishers\x88\x01\x01B\r\n" +
+	"\x12concurrent_fishers\x18\x0e \x01(\rH\vR\x11concurrentFishers\x88\x01\x01\x12=\n" +
+	"\x18nearest_distance_squared\x18\x0f \x01(\x01H\fR\x16nearestDistanceSquared\x88\x01\x01B\r\n" +
 	"\v_populationB\x11\n" +
 	"\x0f_max_populationB\b\n" +
 	"\x06_zonedB\r\n" +
@@ -37914,7 +37923,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x15_work_ticks_per_batchB\r\n" +
 	"\v_deliveringB\x1a\n" +
 	"\x18_pawn_fish_work_capacityB\x15\n" +
-	"\x13_concurrent_fishers\"\xeb\x01\n" +
+	"\x13_concurrent_fishersB\x1b\n" +
+	"\x19_nearest_distance_squared\"\xeb\x01\n" +
 	"\rFishableWater\x12E\n" +
 	"\aregions\x18\x01 \x03(\v2+.rimgovernor.observations.v1.FishableRegionR\aregions\x122\n" +
 	"\x12fishing_researched\x18\x02 \x01(\bH\x00R\x11fishingResearched\x88\x01\x01\x121\n" +

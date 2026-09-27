@@ -338,3 +338,30 @@ func TestWorkAssignmentCoverageAndStability(t *testing.T) {
 		previous = next
 	}
 }
+
+// A passionate constructor one level under the floor apprentices at the
+// lowest rank while builds wait; sub-floor pawns without passion stay off.
+func TestWorkAssignmentConstructionApprentice(t *testing.T) {
+	team := []WorkPawn{
+		testWorkPawn("a", true, false, []WorkSkill{{Name: "Construction", Level: 2}}),
+		testWorkPawn("b", true, false, []WorkSkill{{Name: "Construction", Level: 1}}),
+		testWorkPawn("c", true, false, []WorkSkill{{Name: "Construction", Level: 4, Passion: "Major"}}),
+		testWorkPawn("d", true, false, []WorkSkill{{Name: "Construction", Level: 7, Passion: "Minor"}}),
+		testWorkPawn("e", true, false, []WorkSkill{{Name: "Construction", Level: 3, Passion: "Minor"}}),
+		testWorkPawn("f", true, false, []WorkSkill{{Name: "Construction", Level: 2, Passion: "Major"}}),
+	}
+	decision, err := PlanWork(team, nil, nil, WorkDemand{Construction: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if workValue(t, decision, "e", WorkConstruction) != 4 || workValue(t, decision, "a", WorkConstruction) != 0 || workValue(t, decision, "f", WorkConstruction) != 0 {
+		t.Fatal(decision)
+	}
+	idle, err := PlanWork(team, nil, nil, WorkDemand{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if workValue(t, idle, "e", WorkConstruction) != 0 {
+		t.Fatal(idle)
+	}
+}

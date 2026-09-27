@@ -294,44 +294,17 @@ func (client *Client) ReadSupplyStock(ctx context.Context, identity *c.Identity,
 		}
 		names[n] = true
 	}
-	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{DefNames: append([]string(nil), defNames...), Ownership: proto.String("ours")}}
-	reply := &o.ListSuppliesReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
-	if err != nil {
-		return nil, raw, err
-	}
-	if err = buildingUnknown(reply); err != nil {
-		return nil, raw, err
-	}
-	var snapshot *o.SuppliesSnapshot
-	switch v := reply.Outcome.(type) {
-	case *o.ListSuppliesReply_Observed:
-		snapshot = v.Observed
-	case *o.ListSuppliesReply_Unavailable:
-		return nil, raw, unavailable(v.Unavailable, raw)
-	case *o.ListSuppliesReply_Failure:
-		return nil, raw, failure(v.Failure, raw)
-	default:
-		return nil, raw, contract("missing supplies outcome")
-	}
-	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
-		return nil, raw, contract("invalid supplies context")
-	}
-	if len(snapshot.Stocks) > len(defNames) {
-		return nil, raw, contract("incomplete supplies census")
-	}
 	seenOut := map[string]bool{}
 	out := make([]policy.Stock, 0, len(defNames))
-	for _, row := range snapshot.Stocks {
-		if row == nil || row.Definition == nil || validID(row.Definition.GetDefName()) != nil || !names[row.Definition.GetDefName()] || seenOut[row.Definition.GetDefName()] {
-			return nil, raw, contract("invalid resource stock row")
+	var raw Result
+	// Native refuses a filter of more than maxStockFilterDefNames names
+	// (NativeSuppliesObservationTools), so a long recipe list reads in chunks.
+	for start := 0; start < len(defNames); start += maxStockFilterDefNames {
+		chunk := defNames[start:min(start+maxStockFilterDefNames, len(defNames))]
+		var err error
+		if raw, err = client.readSupplyStockChunk(ctx, identity, chunk, seenOut, &out); err != nil {
+			return nil, raw, err
 		}
-		seenOut[row.Definition.GetDefName()] = true
-		stock := policy.Stock{Resource: policy.Resource(row.Definition.GetDefName())}
-		if row.OursUnforbidden != nil && row.GetOursUnforbidden() >= 0 {
-			stock.Available = domain.Known(row.GetOursUnforbidden())
-		}
-		out = append(out, stock)
 	}
 	// A complete page groups the things present: a requested definition
 	// with no row is a known zero, not an unobserved stock.
@@ -341,4 +314,52 @@ func (client *Client) ReadSupplyStock(ctx context.Context, identity *c.Identity,
 		}
 	}
 	return out, raw, nil
+}
+
+// maxStockFilterDefNames is native ListSupplies' StockFilter.DefNames cap.
+const maxStockFilterDefNames = 256
+
+func (client *Client) readSupplyStockChunk(ctx context.Context, identity *c.Identity, defNames []string, seenOut map[string]bool, out *[]policy.Stock) (Result, error) {
+	names := map[string]bool{}
+	for _, n := range defNames {
+		names[n] = true
+	}
+	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{DefNames: append([]string(nil), defNames...), Ownership: proto.String("ours")}}
+	reply := &o.ListSuppliesReply{}
+	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
+	if err != nil {
+		return raw, err
+	}
+	if err = buildingUnknown(reply); err != nil {
+		return raw, err
+	}
+	var snapshot *o.SuppliesSnapshot
+	switch v := reply.Outcome.(type) {
+	case *o.ListSuppliesReply_Observed:
+		snapshot = v.Observed
+	case *o.ListSuppliesReply_Unavailable:
+		return raw, unavailable(v.Unavailable, raw)
+	case *o.ListSuppliesReply_Failure:
+		return raw, failure(v.Failure, raw)
+	default:
+		return raw, contract("missing supplies outcome")
+	}
+	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
+		return raw, contract("invalid supplies context")
+	}
+	if len(snapshot.Stocks) > len(defNames) {
+		return raw, contract("incomplete supplies census")
+	}
+	for _, row := range snapshot.Stocks {
+		if row == nil || row.Definition == nil || validID(row.Definition.GetDefName()) != nil || !names[row.Definition.GetDefName()] || seenOut[row.Definition.GetDefName()] {
+			return raw, contract("invalid resource stock row")
+		}
+		seenOut[row.Definition.GetDefName()] = true
+		stock := policy.Stock{Resource: policy.Resource(row.Definition.GetDefName())}
+		if row.OursUnforbidden != nil && row.GetOursUnforbidden() >= 0 {
+			stock.Available = domain.Known(row.GetOursUnforbidden())
+		}
+		*out = append(*out, stock)
+	}
+	return raw, nil
 }

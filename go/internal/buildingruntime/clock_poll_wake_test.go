@@ -193,3 +193,52 @@ func TestClockPollBacklogWhileDisabledKeepsAcquireEpoch(t *testing.T) {
 		t.Fatal("a stop past the watermark left the control epoch in place")
 	}
 }
+
+// Under a standing authority (serve --resume's auto-resume grant lands before
+// the backlog is read) a backlog of earlier sessions' stops at or before the
+// watermark is history: it neither disables authority nor replaces the epoch.
+// A stop past the watermark still interrupts.
+func TestClockPollBacklogWhileEnabledKeepsAuthority(t *testing.T) {
+	t.Parallel()
+	s, f, _ := clockPollFixture(t)
+	ctx := context.Background()
+	stop := func(cursor int64) *k.Event {
+		return &k.Event{Cursor: proto.Int64(cursor), Owner: &k.EpochOwner{ControllerSessionId: proto.String("session"), Epoch: proto.Int64(1)}, Context: proto.Clone(f.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_EXTERNAL_PAUSE.Enum(), Evidence: &k.StopEvent_Pause{Pause: &k.PauseEvidence{}}}}}
+	}
+	snapshot := s.session.State().Snapshot
+	if err := s.session.Disable(); err != nil {
+		t.Fatal(err)
+	}
+	var epoch context.Context
+	capture := func() {
+		s.session.control.mu.Lock()
+		epoch = s.session.control.epoch
+		s.session.control.mu.Unlock()
+	}
+	poll := func(after int64, newest int64, events ...*k.Event) (ClockPollResult, error) {
+		page := clockPollPage(f, after, "empty")
+		page.Events = events
+		page.NextCursor, page.NewestCursor = proto.Int64(events[len(events)-1].GetCursor()), proto.Int64(newest)
+		return s.PollEvents(ctx, &clockPollNative{core: f.clockCoreFake, page: page, before: capture}, 128, 0)
+	}
+	// The first page, read before any authority, fixes the watermark at 3.
+	if _, err := poll(0, 3, stop(1), stop(2)); !errors.Is(err, executor.ErrHeld) {
+		t.Fatal(err)
+	}
+	// Auto-resume acquires under a generation the backlog never names.
+	granted, err := s.session.Acquire(ctx, snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.status.Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
+	if _, err = poll(2, 3, stop(3)); err != nil && !errors.Is(err, executor.ErrHeld) {
+		t.Fatal(err)
+	}
+	if epoch.Err() != nil || !s.session.State().Enabled {
+		t.Fatal("the backlog revoked standing authority", s.session.State())
+	}
+	result, _ := poll(3, 4, stop(4))
+	if !result.Interrupted || epoch.Err() == nil || s.session.State().Enabled {
+		t.Fatal("a stop past the watermark did not interrupt", result, s.session.State())
+	}
+}

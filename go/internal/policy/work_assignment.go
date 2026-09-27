@@ -568,6 +568,20 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 		}
 		result.Help = &rec
 	}
+	if demand.Construction {
+		// Apprentices: a passionate pawn one level under the floor builds
+		// at the lowest rank while builds wait, so the passion trains it
+		// past the floor instead of leaving two owners to build alone.
+		for _, w := range workers {
+			_, overridden := custom[overrideKey{w.pawn.ID, WorkConstruction}]
+			if w.owns[WorkConstruction] != 0 || overridden || able(w, WorkConstruction) {
+				continue
+			}
+			if s := w.profile.Skill("Construction"); s.Passion != "" && ableAt(w, WorkConstruction, floorOf(WorkConstruction)-1) {
+				w.owns[WorkConstruction] = 4
+			}
+		}
+	}
 	// Decay: a skill above 10 no owner or secondary slot exercises; a pawn
 	// owning nothing keeps it exercised at 2.
 	for _, w := range workers {

@@ -32,12 +32,12 @@ func TestReserveExcludedUntilReleased(t *testing.T) {
 	}
 }
 
-func TestReserveReleaseRequiresShortRunwayAndNoTimelyChannel(t *testing.T) {
+func TestReserveReleasesBelowMinimumEmergencyNeedsNoTimelyChannel(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		nutrition float64
 		leads     domain.Fact[[]float64]
-		release   bool
+		emergency bool
 	}{
 		{"at threshold", 9, domain.Known([]float64{}), false},
 		{"below threshold", 8, domain.Known([]float64{}), true},
@@ -49,7 +49,9 @@ func TestReserveReleaseRequiresShortRunwayAndNoTimelyChannel(t *testing.T) {
 			s := reserveFixture()
 			s.Stocks[0].Nutrition = domain.Known(tc.nutrition)
 			r, err := ReviewFoodReserve(s, nil, 5, 3, tc.leads)
-			if err != nil || r.Emergency != tc.release || (len(r.Release) > 0) != tc.release {
+			// Any runway under the minimum releases the reserve to eat; only
+			// the emergency flag still waits on timely channels.
+			if err != nil || r.Emergency != tc.emergency || (len(r.Release) > 0) != (tc.nutrition < 9) {
 				t.Fatal(r, err)
 			}
 		})
@@ -97,5 +99,26 @@ func TestReleasedReserveDoesNotImmediatelyBecomeHeld(t *testing.T) {
 	r, err = ReviewFoodReserve(s, nil, 5, 3, domain.Known([]float64{}))
 	if err != nil || r.Emergency || !reflect.DeepEqual(r.Hold, []string{"reserve"}) {
 		t.Fatal(r, err)
+	}
+}
+
+func TestDropReserveHeldKeepsSuppliesOffReserveFood(t *testing.T) {
+	rows := []StartingSupply{
+		{Thing: "held", Definition: "Pemmican"},
+		{Thing: "hold-next", Definition: "Steel"},
+		{Thing: "released", Definition: "Pemmican"},
+		{Thing: "steel", Definition: "Steel"},
+		{Thing: "unsafe", Definition: "Pemmican", Forbid: true},
+	}
+	if got := DropReserveHeld(rows, domain.Unknown[FoodReserveReview]()); len(got) != len(rows) {
+		t.Fatalf("unknown reserve dropped rows: %v", got)
+	}
+	got := DropReserveHeld(rows, domain.Known(FoodReserveReview{Hold: []string{"hold-next"}, Release: []string{"released"}}))
+	var things []string
+	for _, row := range got {
+		things = append(things, row.Thing)
+	}
+	if want := []string{"released", "steel", "unsafe"}; !reflect.DeepEqual(things, want) {
+		t.Fatalf("kept %v, want %v", things, want)
 	}
 }

@@ -109,7 +109,7 @@ func TestClockPollNotesManualBumps(t *testing.T) {
 	t.Parallel()
 	manual := &k.EventsPage{Events: []*k.Event{{Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Reason: proto.String("Manual"), Active: proto.Bool(false)}}}}}
 	other := &k.EventsPage{Events: []*k.Event{{Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Reason: proto.String("None"), Active: proto.Bool(true)}}}}}
-	if !clockPollManual(manual) || clockPollManual(other) || clockPollManual(&k.EventsPage{}) {
+	if !clockPollManual(manual, -1) || clockPollManual(other, -1) || clockPollManual(&k.EventsPage{}, -1) || clockPollManual(manual, 1<<62) {
 		t.Fatal("manual detection")
 	}
 }

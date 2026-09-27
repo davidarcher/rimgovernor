@@ -143,13 +143,24 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	// acquisition in flight (#322). The events are still captured and
 	// their holds still stand until acknowledged.
 	if !s.history.known {
-		s.history = clockHistory{cursor: page.GetNewestCursor(), known: true}
+		s.history = clockHistory{cursor: page.GetNewestCursor(), known: true, unowned: !state.Enabled}
 	}
-	if !state.Enabled && clockPollLastCursor(page) <= s.history.cursor {
+	// The grant the page carries is remembered first (see answered below).
+	if generation, cursor, ok := clockPollGrant(page); ok {
+		s.grant = clockGrant{generation: generation, cursor: cursor, known: true}
+	}
+	// The watermark holds whatever authority stands unless the grant of the
+	// generation it holds was seen (that grant's cursor then decides): on
+	// serve --resume the auto-resume grant lands before the backlog is read
+	// under a generation the backlog never names, and replaying earlier
+	// sessions' revocations against it dropped authority page by page into a
+	// lost/re-acquire loop.
+	history := !page.GetGap() && clockPollLastCursor(page) <= s.history.cursor && (!state.Enabled || s.history.unowned && s.grant.cursorFor(state) < 0)
+	if history {
 		fresh = false
 	}
 	latest := s.session.State()
-	if !clockPollMatchesAuthority(page.Context, latest) {
+	if !history && !clockPollMatchesAuthority(page.Context, latest) {
 		if latest != state && !out.Interrupted && !page.GetGap() && !clockPollInterrupts(page) {
 			return out, executor.ErrAuthority
 		}
@@ -173,10 +184,12 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	// and the poll reports it held without disabling. The grant is
 	// remembered, so a hold that stands from an earlier page (the stop
 	// and the grant read by different polls) is answered too.
-	if generation, cursor, ok := clockPollGrant(page); ok {
-		s.grant = clockGrant{generation: generation, cursor: cursor, known: true}
-	}
 	granted := s.grant.cursorFor(latest)
+	// Events at or before the watermark are history: under a standing
+	// authority whose grant went unseen they interrupt nothing it holds.
+	if granted < 0 && s.history.unowned && latest.Enabled && latest.ObservationKnown {
+		granted = s.history.cursor
+	}
 	answered := !page.GetGap() && !clockPollInterruptsAfter(page, granted)
 	if standing && !s.grant.answers(latest, review.Holds, granted) {
 		if err = invalidate(); err != nil {
@@ -201,7 +214,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	if out.Captured {
 		telemetry.ObserveTick(page.Context.GetTick())
 		clockPollEvents(call, page)
-		if clockPollManual(page) {
+		if clockPollManual(page, s.history.floor()) {
 			s.noteManual(s.clock.Now())
 		}
 		if clockPollStopped(page) {
@@ -397,9 +410,21 @@ func clockPollGrant(page *k.EventsPage) (generation uint64, cursor int64, ok boo
 
 // clockHistory is native's newest event cursor when this process first read
 // events: the watermark below which events are history, not interruptions.
+// unowned records that no authority stood when it was fixed: only then is
+// everything at or before it known to predate any grant this process holds.
 type clockHistory struct {
-	cursor int64
-	known  bool
+	cursor  int64
+	known   bool
+	unowned bool
+}
+
+// floor is the cursor at or below which events are history for reactions
+// such as noteManual, -1 when the watermark was fixed under authority.
+func (h clockHistory) floor() int64 {
+	if !h.known || !h.unowned {
+		return -1
+	}
+	return h.cursor
 }
 
 // clockGrant is the latest grant a committed page carried.
@@ -440,8 +465,11 @@ func (g clockGrant) answers(state ControlState, holds []clock.Hold, granted int6
 // clockPollManual reports whether the page carries a Manual authority
 // change: the player pressed a speed key, which revokes authority before
 // the service re-acquires it (#601).
-func clockPollManual(page *k.EventsPage) bool {
+func clockPollManual(page *k.EventsPage, after int64) bool {
 	for _, event := range page.GetEvents() {
+		if event.GetCursor() <= after {
+			continue
+		}
 		if v, ok := event.Event.(*k.Event_AuthorityChanged); ok && v.AuthorityChanged.GetReason() == "Manual" {
 			return true
 		}

@@ -69,7 +69,6 @@ namespace HomeBridge.BridgeTools
             new HazardClass("hostile", ProbeIntervalTicks, true),
             new HazardClass("colonist_downed", HookedBoundTicks, true),
             new HazardClass("predator_hunt", ProbeIntervalTicks, false),
-            new HazardClass("hunting_route_unsafe", ProbeIntervalTicks, false),
             new HazardClass("colonist_injury", ProbeIntervalTicks, false),
             new HazardClass("colonist_health", ProbeIntervalTicks, false),
             new HazardClass("medical_rest_changed", ProbeIntervalTicks, false),

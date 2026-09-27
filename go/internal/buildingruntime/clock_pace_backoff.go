@@ -25,14 +25,21 @@ import (
 //
 // Each critical wave under a running window is watched: the wave's
 // evidence was read at a known wall time, and at the window's worst-case
-// rate (its ceiling, or the boosted rate without one) it ages past half the
-// horizon after horizon*paceMargin/rate seconds. If the wave has not
-// completed by then the evidence is stale, and the backoff lowers the
-// ceiling to Normal at once. A completed wave is fresh evidence: its wall
-// time sets the rate at which the next wave fits inside the margin, and the
-// ceiling moves toward it, down at once, up at most doubling per wave, and
+// rate (its ceiling, or the boosted rate without one) it ages past the
+// horizon after horizon/rate seconds (the watch fires at paceStaleShare of
+// that). If the wave has not completed by then
+// the evidence is actually stale, and the backoff lowers the ceiling to
+// Normal at once. (Before the live choppiness fix the watch fired at half
+// the horizon, so every ordinary 1.5-2.5 s wave under a 300-tick horizon
+// collapsed the ceiling to Normal and the rate sawtoothed 60<->100 about
+// once a second.) A completed wave is fresh evidence: its wall time sets
+// the rate at which the next wave fits inside the margin (half the
+// horizon), and the ceiling moves toward it with hysteresis: a change under
+// paceHysteresisShare of the current ceiling is ignored, and fresh changes
+// come at most once per paceHysteresisInterval; up at most doubling, and
 // released (full speed) only when the target reaches the boosted rate. A
-// full-speed request is never issued while a wave's evidence is stale.
+// full-speed request is never issued while a wave's evidence is stale, and
+// a stale wave's drop to Normal bypasses the hysteresis.
 const (
 	// PaceFullTicksPerSecond is the boosted rate native's player pacing
 	// climbs to (150 x Normal); a ceiling at or above it is full speed.
@@ -45,10 +52,26 @@ const (
 	PaceReleaseTicksPerSecond uint32 = 60000
 	// paceMargin is the share of the horizon a critical wave may span.
 	paceMargin = 0.5
+	// paceStaleShare is the share of the horizon a watched wave's evidence
+	// may age before it counts as stale: short of the whole horizon so the
+	// Normal ceiling lands (one native round trip) before it is crossed.
+	paceStaleShare = 0.8
 	// DefaultPaceHorizonTicks is the safe horizon without a configured
-	// one: the pawn/emergency fact tolerance planning already holds
-	// (#583's blind-tick budget).
-	DefaultPaceHorizonTicks domain.Tick = 300
+	// one (live play runs without --clock-blind-ticks). When
+	// --clock-blind-ticks arms #583's native regulator, that budget is the
+	// horizon instead, since native throttles past it anyway. Without it
+	// the hazard bounds are native's every-tick safety check (#627: every
+	// tick of an accelerated epoch runs it), not planner evidence age, so
+	// the default only has to keep planning roughly current: ~40 game
+	// seconds. 300 made every ordinary wave outrun the margin at 60-100
+	// ticks/s.
+	DefaultPaceHorizonTicks domain.Tick = 2500
+	// paceHysteresisShare is the smallest relative ceiling change a fresh
+	// wave issues; smaller targets keep the current ceiling.
+	paceHysteresisShare = 0.25
+	// paceHysteresisInterval is the least wall time between fresh-wave
+	// ceiling changes; stale drops ignore it.
+	paceHysteresisInterval = 5 * time.Second
 )
 
 // paceBackoff is one scheduler's ceiling state. request issues an owned
@@ -67,6 +90,8 @@ type paceBackoff struct {
 	stale bool
 	// requests counts issued changes; stale ones those issued while stale.
 	requests, released int
+	// changedAt is the wall time of the last recorded change.
+	changedAt time.Time
 }
 
 func newPaceBackoff(horizon domain.Tick, now func() time.Time, request func(context.Context, uint32) error) *paceBackoff {
@@ -101,7 +126,7 @@ func (b *paceBackoff) Watch(ctx context.Context, readAt time.Time) (done func(wa
 	b.mu.Lock()
 	rate := b.worstRate()
 	b.mu.Unlock()
-	budget := time.Duration(float64(b.horizon) * paceMargin / float64(rate) * float64(time.Second))
+	budget := time.Duration(float64(b.horizon) * paceStaleShare / float64(rate) * float64(time.Second))
 	fire := budget - b.now().Sub(readAt)
 	var once sync.Once
 	stop := make(chan struct{})
@@ -148,10 +173,21 @@ func (b *paceBackoff) fresh(ctx context.Context, wave time.Duration) {
 	b.mu.Lock()
 	b.stale = false
 	current := b.ceiling
+	// Hysteresis (b): leaving Normal after a stale drop is exempt, so a
+	// recovered wave does not park the window for the whole interval.
+	wait := current > PaceFloorTicksPerSecond && !b.changedAt.IsZero() && b.now().Sub(b.changedAt) < paceHysteresisInterval
 	b.mu.Unlock()
+	if wait {
+		return
+	}
 	wave = max(wave, time.Millisecond)
 	target := uint32(min(float64(PaceReleaseTicksPerSecond), float64(b.horizon)*paceMargin/wave.Seconds()))
 	target = max(target, PaceFloorTicksPerSecond)
+	if current != 0 && target != PaceFloorTicksPerSecond && target < PaceFullTicksPerSecond {
+		if diff := float64(target) - float64(current); diff > -paceHysteresisShare*float64(current) && diff < paceHysteresisShare*float64(current) {
+			return
+		}
+	}
 	switch {
 	case current == 0:
 		if target < PaceFullTicksPerSecond {
@@ -193,6 +229,7 @@ func (b *paceBackoff) set(ctx context.Context, ceiling uint32, why string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.ceiling = ceiling
+	b.changedAt = b.now()
 	b.requests++
 	if ceiling == 0 {
 		b.released++

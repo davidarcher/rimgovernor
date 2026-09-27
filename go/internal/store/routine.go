@@ -466,6 +466,16 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		loot.Held = held
+		// The food reserve owns the forbid state of reserve food; drop its
+		// stacks from both supply cohorts so the planners cannot flip them.
+		supplies.Pending = policy.DropReserveHeld(supplies.Pending, request.Facts.FoodReserve)
+		loot.Pending = policy.DropReserveHeld(loot.Pending, request.Facts.FoodReserve)
+		if _, known := request.Facts.ForbiddenSupplies.Value(); known {
+			request.Facts.ForbiddenSupplies = domain.Known(len(supplies.Pending) > 0)
+		}
+		if _, known := request.Facts.EventLootPending.Value(); known {
+			request.Facts.EventLootPending = domain.Known(len(loot.Pending) > 0)
+		}
 		if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
 			remote, err := policy.SalvageContext(request.Policy, request.Facts)
 			if err != nil {

@@ -99,7 +99,7 @@ func (r *RoutineResourcePlanner) removeExhaustedDrill(call, epoch context.Contex
 	}
 	for _, drill := range exhaustedDrills(deep) {
 		prefix := fmt.Sprintf("deconstruct-drill-%s-", drill.ID)
-		attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			continue
 		}

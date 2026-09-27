@@ -83,6 +83,11 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	if err != nil || !after.Retired || len(after.Methods) != 0 {
 		t.Fatal(after, err)
 	}
+	// Attempt-numbering planners count History; losing the retired method
+	// here re-mints its plan ID and fails plans.id's unique constraint.
+	if len(after.History) != 1 || after.History[0].Method != "wood" || after.History[0].Plan != "p" || after.History[0].Epoch != g.Goal.Epoch {
+		t.Fatal("retired method missing from history", after.History)
+	}
 	if method, err := s.LoadGoalMethod(ctx, g.Goal.ID, g.Goal.Epoch, "wood"); err != nil || method.Plan != "p" {
 		t.Fatal(method, err)
 	}

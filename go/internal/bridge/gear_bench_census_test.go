@@ -3,8 +3,11 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -123,6 +126,55 @@ func TestReadSupplyStockReportsKnownAvailability(t *testing.T) {
 	// A complete census with no row for a requested definition holds none of it.
 	if none, known := stock[1].Available.Value(); !known || none != 0 {
 		t.Fatal(stock[1])
+	}
+}
+
+// Native refuses more than 256 filter names, so a long list reads in chunks.
+func TestReadSupplyStockChunksLongDefinitionLists(t *testing.T) {
+	names := make([]string, 600)
+	for i := range names {
+		names[i] = fmt.Sprintf("Def%d", i)
+	}
+	calls := 0
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
+		var outer struct {
+			Request string `json:"request"`
+		}
+		if err := json.Unmarshal(arg.Arguments, &outer); err != nil {
+			t.Fatal(err)
+		}
+		q := &o.ListSuppliesRequest{}
+		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
+			t.Fatal(err)
+		}
+		calls++
+		got := q.GetFilter().GetDefNames()
+		if len(got) == 0 || len(got) > 256 {
+			t.Fatal("chunk size", len(got))
+		}
+		return pbResult(&o.ListSuppliesReply{Outcome: &o.ListSuppliesReply_Observed{Observed: &o.SuppliesSnapshot{
+			Context:      gearBenchContext(),
+			Stocks:       []*o.ResourceStock{{Definition: &o.DefinitionRef{DefName: proto.String(got[0])}, OursUnforbidden: proto.Int64(7)}},
+			Completeness: &o.Completeness{},
+		}}}), nil
+	}}, time.Second)
+	stock, _, err := client.ReadSupplyStock(context.Background(), pbIdentity(), names)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 3 || len(stock) != 600 {
+		t.Fatal(calls, len(stock))
+	}
+	for _, i := range []int{0, 256, 512} {
+		found := false
+		for _, s := range stock {
+			if v, known := s.Available.Value(); s.Resource == policy.Resource(names[i]) && known && v == 7 {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("missing chunk row", names[i])
+		}
 	}
 }
 

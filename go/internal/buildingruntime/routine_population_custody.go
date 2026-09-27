@@ -179,7 +179,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{}, err
 		}
 		prefix = fmt.Sprintf("population-rescue-%s-", target)
-		attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
 		}
@@ -208,7 +208,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{}, err
 		}
 		prefix = fmt.Sprintf("population-capture-%s-", target)
-		attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
 		}

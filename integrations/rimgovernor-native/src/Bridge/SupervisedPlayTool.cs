@@ -873,9 +873,19 @@ namespace HomeBridge.BridgeTools
                     if (p.CurJobDef == JobDefOf.Hunt)
                     {
                         var prey = p.CurJob.targetA.Thing as Pawn;
-                        if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey))
-                            return PawnHit("hunting_route_unsafe", p,
-                                "Prey has an unsafe death effect, or the hunter's route is unavailable or near a predator", JobStartTick(p));
+                        // An unsafe hunt is withdrawn, not a stopped clock:
+                        // a stop left the job and designation in place, so
+                        // every window re-fired it until the player forced
+                        // speed and the hunter shot anyway. The vanished
+                        // designation settles the controller's hunt action
+                        // and the invalidated colony facts replan at once.
+                        if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey)
+                            && HuntingSafety.Withdraw(p, prey))
+                            Add("observation_invalidated", "Observed facts changed: unsafe hunt of "
+                                + HomePlayUntilEventTools.SafeName(prey) + " withdrawn.", s,
+                                new Dictionary<string, object?> {
+                                    { "families", new List<string> { "colony", "pawns" } },
+                                    { "reason", "hunting route unsafe; hunt of " + prey.thingIDNumber + " by " + p.thingIDNumber + " withdrawn" } });
                     }
                     var after = InjurySnapshot.Capture(p);
                     InjurySnapshot before;

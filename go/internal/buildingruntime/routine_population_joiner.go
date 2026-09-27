@@ -112,7 +112,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	// RoutinePrisonerInteractionPlanner's method key: a fresh attempt after
 	// an interrupted or failed try re-selects whichever offer is current.
 	prefix := fmt.Sprintf("joiner-%s-", choice.Quest)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil
 	}
@@ -147,7 +147,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context, state ControlState, goal store.GoalState, letter policy.JoinerLetterOffer, started time.Time) (RoutinePopulationJoinerResult, error) {
 	p := r.reviewer.player
 	prefix := fmt.Sprintf("joiner-letter-%d-", letter.ID)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil
 	}

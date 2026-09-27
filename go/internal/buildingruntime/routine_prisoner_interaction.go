@@ -112,7 +112,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	// interrupted or failed try re-selects whichever prisoner and write is
 	// currently best.
 	prefix := fmt.Sprintf("%s-%s-", choice.Interaction, choice.Pawn)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePrisonerInteractionResult{Reason: BuildingMethodExhausted}, nil
 	}

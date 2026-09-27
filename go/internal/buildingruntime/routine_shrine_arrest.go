@@ -37,7 +37,7 @@ func (r *RoutinePopulationCustodyPlanner) commitArrest(call, epoch context.Conte
 		return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
 	}
 	prefix := fmt.Sprintf("population-arrest-%s-", target)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
 	}

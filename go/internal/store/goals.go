@@ -22,7 +22,12 @@ type GoalState struct {
 	// plans included: a monotonic salt for method identities that must not
 	// collide with a retired plan's row (#214).
 	Admitted int
-	Retired  bool
+	// History lists the current epoch's methods, retired plans included.
+	// Planners that number attempts count it, not Methods: a retired plan
+	// drops out of Methods, and re-deriving its ID fails plans.id's unique
+	// constraint.
+	History []domain.GoalMethod
+	Retired bool
 }
 
 const maxActiveGoals = 512
@@ -124,6 +129,23 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, err
 	}
 	out.Revision = n
 	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM goal_methods WHERE goal_id=?", id).Scan(&out.Admitted); err != nil {
+		return GoalState{}, err
+	}
+	history, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE goal_id=? AND epoch=? ORDER BY method_id", id, strconv.FormatUint(out.Goal.Epoch, 10))
+	if err != nil {
+		return GoalState{}, err
+	}
+	for history.Next() {
+		m := domain.GoalMethod{Goal: id, Epoch: out.Goal.Epoch}
+		if err = history.Scan(&m.Method, &m.Plan); err != nil {
+			history.Close()
+			return GoalState{}, err
+		}
+		out.History = append(out.History, m)
+	}
+	err = history.Err()
+	history.Close()
+	if err != nil {
 		return GoalState{}, err
 	}
 	rows, err := tx.QueryContext(ctx, "SELECT m.epoch,m.method_id,m.plan_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.goal_id=? ORDER BY length(m.epoch),m.epoch,m.method_id", id)

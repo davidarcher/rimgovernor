@@ -140,7 +140,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	// an interrupted or failed try picks whichever rescuer is currently best,
 	// which is how rescuer replacement happens across cycles.
 	prefix := fmt.Sprintf("rescue-%s-", patient)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		// The attempts are spent and the deficit stays visible; the
 		// clock must still advance under it (#636).

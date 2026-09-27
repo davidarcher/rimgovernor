@@ -13,6 +13,34 @@ func ReserveFoodDefinition(def Resource) bool {
 	return def == "MealSurvivalPack" || def == "Pemmican"
 }
 
+// DropReserveHeld removes supply rows the food reserve owns, so the supplies
+// planner never re-allows reserve food MaintainFoodStorage forbade: a stack
+// the reserve is about to hold, or a forbidden reserve-food stack it keeps
+// (anything outside Release). Without it both planners flipped the same
+// Pemmican stack forever, each ending "no longer has the requested forbid
+// state".
+func DropReserveHeld(rows []StartingSupply, reserve domain.Fact[FoodReserveReview]) []StartingSupply {
+	review, known := reserve.Value()
+	if !known {
+		return rows
+	}
+	hold, release := map[string]bool{}, map[string]bool{}
+	for _, id := range review.Hold {
+		hold[id] = true
+	}
+	for _, id := range review.Release {
+		release[id] = true
+	}
+	var out []StartingSupply
+	for _, row := range rows {
+		if hold[row.Thing] || !row.Forbid && !release[row.Thing] && ReserveFoodDefinition(Resource(row.Definition)) {
+			continue
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
 // FoodReserveReview proposes stock IDs for the shared supply-action planner.
 // A proposal is not a forbid write or evidence that food has been produced.
 type FoodReserveReview struct {
@@ -76,7 +104,9 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 		if !hk || holder != "" {
 			continue
 		}
-		if r.Emergency {
+		// The reserve is surplus insurance: below the seasonal minimum
+		// (reserve food excluded) every held stack is released to eat.
+		if r.Emergency || known && days < minimumDays {
 			if stock.Reserve {
 				r.Release = append(r.Release, stock.ID)
 			}
@@ -109,7 +139,7 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 		}
 		r.StockNutrition += amount
 		r.ByDefinition[stock.DefName] += amount
-		if !stock.Reserve && (days >= minimumDays || complete && arriving) {
+		if !stock.Reserve && known && days >= minimumDays {
 			r.Hold = append(r.Hold, stock.ID)
 		}
 	}

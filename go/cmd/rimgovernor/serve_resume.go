@@ -18,6 +18,16 @@ import (
 // startup resume before the controller leaves it to the dashboard.
 const autoResumeAttempts = 20
 
+// autoResumeCycles bounds how often one world that lost authority under a
+// resume intent is re-acquired in a process; past it the loss is left to the
+// dashboard. From the third cycle each re-acquire first waits a doubling
+// number of steps (capped at autoResumeBackoffMax), so a loop that keeps
+// revoking the grant cannot churn authority unbounded.
+const (
+	autoResumeCycles     = 8
+	autoResumeBackoffMax = 32
+)
+
 type autoResumePlayer interface {
 	State() buildingruntime.ControlState
 	Resume(context.Context, store.ControlRequest) (store.ControlRecord, error)
@@ -59,6 +69,8 @@ type autoResumer struct {
 	// against a world native keeps refusing.
 	running map[store.World]bool
 	cycles  map[store.World]int
+	// backoff counts the steps a lost world still waits before re-acquiring.
+	backoff map[store.World]int
 }
 
 func newAutoResumer(snapshots httpapi.SnapshotProvider, player autoResumePlayer, controls autoResumeControls, out io.Writer) (*autoResumer, error) {
@@ -69,7 +81,7 @@ func newAutoResumer(snapshots httpapi.SnapshotProvider, player autoResumePlayer,
 	if _, err := rand.Read(entropy[:]); err != nil {
 		return nil, err
 	}
-	return &autoResumer{snapshots: snapshots, player: player, controls: controls, out: out, process: hex.EncodeToString(entropy[:]), attempts: map[store.World]int{}, settled: map[store.World]bool{}, running: map[store.World]bool{}, cycles: map[store.World]int{}}, nil
+	return &autoResumer{snapshots: snapshots, player: player, controls: controls, out: out, process: hex.EncodeToString(entropy[:]), attempts: map[store.World]int{}, settled: map[store.World]bool{}, running: map[store.World]bool{}, cycles: map[store.World]int{}, backoff: map[store.World]int{}}, nil
 }
 
 func (a *autoResumer) run(ctx context.Context, interval time.Duration) {
@@ -106,6 +118,21 @@ func (a *autoResumer) step(ctx context.Context) bool {
 		}
 		if !a.running[world] || !a.resumeIntended(ctx, world) {
 			return false
+		}
+		if a.cycles[world] >= autoResumeCycles {
+			a.running[world] = false
+			fmt.Fprintf(a.out, "auto resume: authority for %s/%s/%d lost %d times; leaving it to the dashboard's Resume\n", world.Colony, world.Load, world.Map, autoResumeCycles)
+			return false
+		}
+		if a.cycles[world] >= 2 {
+			if _, waiting := a.backoff[world]; !waiting {
+				a.backoff[world] = min(1<<(a.cycles[world]-2), autoResumeBackoffMax)
+			}
+			if a.backoff[world] > 0 {
+				a.backoff[world]--
+				return false
+			}
+			delete(a.backoff, world)
 		}
 		a.running[world] = false
 		a.settled[world] = false

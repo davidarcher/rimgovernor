@@ -20,6 +20,7 @@ type FishingRegion struct {
 	NutritionPerFish, FishPerBatch, WorkTicksPerBatch domain.Fact[float64]
 	PawnFishWorkCapacity                              domain.Fact[float64] // raw nutrition/day
 	Reachable, Frozen, Open                           domain.Fact[bool]
+	DistanceSquared                                   domain.Fact[float64] // nearest cell to the colony centre
 }
 
 type FishingRequest struct {
@@ -60,7 +61,7 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 		if pk && mk && population > maximum || nk && nutrition == 0 || bk && batch == 0 || wk && work == 0 {
 			return nil, ErrFoodPlanFacts
 		}
-		channel := FoodChannel{Kind: FoodFishing, ID: region.ID, Open: region.Open}
+		channel := FoodChannel{Kind: FoodFishing, ID: region.ID, Open: region.Open, DistanceSquared: region.DistanceSquared}
 		channel.Terms = []FoodPlanTerm{{Name: "fish_regeneration_fraction", Value: FishingRegenerationPerDay}}
 		if researched, known := r.Researched.Value(); known {
 			channel.LeadDays = r.ResearchLeadDays

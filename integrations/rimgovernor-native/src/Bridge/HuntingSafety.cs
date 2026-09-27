@@ -9,9 +9,29 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    /// Native route evidence and supervised hunting checks. No game orders.
+    /// Native route evidence and supervised hunting checks. The only game
+    /// order is Withdraw, the supervisor's reaction to an unsafe hunt.
     internal static class HuntingSafety
     {
+        /// Cancels an unsafe hunt: removes the prey's Hunt designation and
+        /// ends the hunter's job so nobody re-takes it. True when anything
+        /// was withdrawn.
+        internal static bool Withdraw(Pawn hunter, Pawn prey)
+        {
+            var withdrawn = false;
+            if (prey.Spawned)
+            {
+                var designation = prey.Map.designationManager.DesignationOn(prey, DesignationDefOf.Hunt);
+                if (designation != null) { prey.Map.designationManager.RemoveDesignation(designation); withdrawn = true; }
+            }
+            if (hunter.CurJobDef == JobDefOf.Hunt && hunter.jobs != null)
+            {
+                hunter.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                withdrawn = true;
+            }
+            return withdrawn;
+        }
+
         internal static bool RouteSafe(Pawn hunter, Pawn prey)
         {
             if (hunter == null || prey == null || !hunter.Spawned || !prey.Spawned

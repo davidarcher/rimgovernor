@@ -156,6 +156,7 @@ namespace HomeBridge.BridgeTools
                         var fish = body.CommonFishIncludingExtras.Concat(body.UncommonFish).Distinct().ToList();
                         if (fish.Count > 0 && fish.All(humanFood)) row.NutritionPerFish = Finite(fish.Min(d => d.GetStatValueAbstract(StatDefOf.Nutrition)));
                         row.ConcurrentFishers = (uint)fishers.Count;
+                        row.NearestDistanceSquared = cells.Min(c => c.DistanceToSquared(center));
                         if (fishers.Count > 0)
                         {
                             row.FishPerBatch = Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population) * fishers.Min(p => p.GetStatValue(StatDefOf.FishingYield))));
