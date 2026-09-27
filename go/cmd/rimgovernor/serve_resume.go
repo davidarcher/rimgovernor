@@ -26,6 +26,13 @@ const autoResumeAttempts = 20
 const (
 	autoResumeCycles     = 8
 	autoResumeBackoffMax = 32
+	// autoResumeHealthySteps is how many consecutive steps a world must
+	// hold live authority before its loss count is forgiven. Without it the
+	// cycles accumulated over a whole process: eight losses spread over
+	// hours of healthy play (a hostile stop, a planning-window refusal)
+	// left the colony unowned for good, and a force-pausing naming dialog
+	// that opened next was never answered.
+	autoResumeHealthySteps = 100
 )
 
 type autoResumePlayer interface {
@@ -71,6 +78,8 @@ type autoResumer struct {
 	cycles  map[store.World]int
 	// backoff counts the steps a lost world still waits before re-acquiring.
 	backoff map[store.World]int
+	// healthy counts consecutive live steps since the last loss.
+	healthy map[store.World]int
 }
 
 func newAutoResumer(snapshots httpapi.SnapshotProvider, player autoResumePlayer, controls autoResumeControls, out io.Writer) (*autoResumer, error) {
@@ -81,7 +90,7 @@ func newAutoResumer(snapshots httpapi.SnapshotProvider, player autoResumePlayer,
 	if _, err := rand.Read(entropy[:]); err != nil {
 		return nil, err
 	}
-	return &autoResumer{snapshots: snapshots, player: player, controls: controls, out: out, process: hex.EncodeToString(entropy[:]), attempts: map[store.World]int{}, settled: map[store.World]bool{}, running: map[store.World]bool{}, cycles: map[store.World]int{}, backoff: map[store.World]int{}}, nil
+	return &autoResumer{snapshots: snapshots, player: player, controls: controls, out: out, process: hex.EncodeToString(entropy[:]), attempts: map[store.World]int{}, settled: map[store.World]bool{}, running: map[store.World]bool{}, cycles: map[store.World]int{}, backoff: map[store.World]int{}, healthy: map[store.World]int{}}, nil
 }
 
 func (a *autoResumer) run(ctx context.Context, interval time.Duration) {
@@ -114,8 +123,13 @@ func (a *autoResumer) step(ctx context.Context) bool {
 	if a.settled[world] {
 		if live {
 			a.running[world] = true
+			if a.healthy[world]++; a.healthy[world] >= autoResumeHealthySteps {
+				a.cycles[world] = 0
+				delete(a.backoff, world)
+			}
 			return false
 		}
+		a.healthy[world] = 0
 		if !a.running[world] || !a.resumeIntended(ctx, world) {
 			return false
 		}

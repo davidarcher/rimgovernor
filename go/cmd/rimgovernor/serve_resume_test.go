@@ -184,6 +184,37 @@ func TestAutoResumeBoundsLossCycles(t *testing.T) {
 	}
 }
 
+// TestAutoResumeForgivesLossesAfterHealthyPlay is the live stall behind an
+// unanswered naming dialog: losses spread over hours of healthy play must not
+// add up to the give-up bound. A world that holds authority for
+// autoResumeHealthySteps steps between losses is re-acquired every time.
+func TestAutoResumeForgivesLossesAfterHealthyPlay(t *testing.T) {
+	snapshots := &resumeSnapshots{snapshot: resumeObserved("load-1")}
+	player := newResumePlayer()
+	var out bytes.Buffer
+	r, err := newAutoResumer(snapshots, player, player, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	r.step(ctx)
+	for loss := range 3 * autoResumeCycles {
+		for range autoResumeHealthySteps {
+			r.step(ctx)
+		}
+		player.state.Enabled = false
+		for i := 0; i < 64 && !player.state.Enabled; i++ {
+			r.step(ctx)
+		}
+		if !player.state.Enabled {
+			t.Fatalf("loss %d not re-acquired: %s", loss, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "leaving it to the dashboard") {
+		t.Fatal(out.String())
+	}
+}
+
 // TestAutoResumeReacquiresAfterNonPlayerLoss is the #87 controller side: a
 // world running under a Resume record that loses authority for any reason
 // other than the player's Pause (native DISCONNECT after a GABP drop, a

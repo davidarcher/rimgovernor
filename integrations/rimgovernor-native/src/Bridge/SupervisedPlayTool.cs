@@ -424,10 +424,34 @@ namespace HomeBridge.BridgeTools
             s.LastDigestTick = tm.TicksGame;
             var digestBegan = System.Diagnostics.Stopwatch.GetTimestamp();
             PublishFactChanges(s);
+            DismissProcessedLetters(s, tm);
             var took = System.Diagnostics.Stopwatch.GetTimestamp() - digestBegan;
             s.Timing.DigestElapsed += took; s.Timing.Digests++;
             ClockProbeAccounting.Digested(took);
         }
+
+        /// Plain informational letters never leave the stack by themselves in
+        /// vanilla (only a LetterWithTimeout with an active timeout does), so
+        /// an autopiloted colony piled them up on the right edge. A letter is
+        /// processed once this epoch's census published it (s.Letters) and a
+        /// full in-game day has passed: its pause, if any, stopped a window
+        /// the controller reviewed. Only exact StandardLetter is removed --
+        /// choice letters (quests, joiners, ransoms) keep their own handling
+        /// or run out through the game's timeout.
+        internal const int ProcessedLetterAgeTicks = 60000;
+        private static void DismissProcessedLetters(State s, TickManager tm)
+        {
+            var stack = Find.LetterStack;
+            if (stack == null) return;
+            foreach (var l in HomePlayUntilEventTools.Letters())
+            {
+                if (!DismissibleLetter(l.GetType() == typeof(StandardLetter), s.Letters.Contains(HomePlayUntilEventTools.SafeLetterId(l)),
+                    tm.TicksGame, SafeArrivalTick(l))) continue;
+                stack.RemoveLetter(l);
+            }
+        }
+        internal static bool DismissibleLetter(bool plain, bool published, int now, int arrival) =>
+            plain && published && arrival >= 0 && now - arrival >= ProcessedLetterAgeTicks;
 
         /// A force pause with NO force-pausing window is a long event (the
         /// daily autosave is the common one) or a one-frame transient, and it

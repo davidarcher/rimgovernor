@@ -16,9 +16,13 @@ namespace HomeBridge.BridgeTools
     {
         internal static Dialog_NamePlayerFactionAndSettlement? Pending()
         {
-            var windows = Find.WindowStack?.Windows.Where(w => w.forcePause).ToList();
-            return windows != null && windows.Count == 1
-                ? windows[0] as Dialog_NamePlayerFactionAndSettlement : null;
+            // The topmost force-pausing window, not the only one: in live play
+            // the naming prompt can open over (or under) another modal, and
+            // an exact-one rule left it unobserved, classified as a generic
+            // force pause nothing answers. A dialog stacked above it is
+            // answered first through its own path, then this one is on top.
+            var top = Find.WindowStack?.Windows.LastOrDefault(w => w != null && w.forcePause);
+            return top as Dialog_NamePlayerFactionAndSettlement;
         }
 
         internal static string? Name(Dialog_GiveName dialog, string field) =>
