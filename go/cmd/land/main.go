@@ -10,8 +10,9 @@
 //  1. takes the repository-wide landing lock (one landing at a time);
 //  2. merges main into the branch's worktree, which must be clean; a
 //     conflict aborts the merge and leaves the resolution to the caller,
-//     and a merged tree that puts a path main changed since the branch
-//     forked back to its base content is refused, naming the paths (#889);
+//     and a merged tree that puts a path back to its content before one
+//     of main's recent landings is refused, naming the paths and the
+//     landings (#889, #946);
 //  3. with -test, runs the Go tests the branch affects as cmd/test does
 //     (off by default: the branch runs cmd/test before landing, and the
 //     lane does not repeat it); with -results <dir>, reads the acceptance
@@ -46,6 +47,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -420,31 +422,95 @@ func forkPoint(worktree string) (string, error) {
 	return git(worktree, "rev-parse", oldest+"^")
 }
 
-// refuseReverts refuses a merged branch that puts a path main changed
-// since base back to its base content (deleting a path main added
-// counts), which is how a squash from a stale tree silently undid landed
-// work twice (#889).
+// revertWindow is how many main landings refuseReverts looks back through.
+const revertWindow = 300
+
+const nullBlob = "0000000000000000000000000000000000000000"
+
+var hashToken = regexp.MustCompile(`\b[0-9a-f]{7,40}\b`)
+
+// refuseReverts refuses a merged branch that puts a path back to the
+// content it had before one of main's last revertWindow landings touched
+// it: a stale tree committed over a newer main. The fork point alone
+// cannot see this, since a stale tree re-parented onto main (git reset
+// --soft main, then commit) forks at main itself; that is how 6cbe9d337
+// undid 981ab0b9a (#946) after the fork-point check of #889 passed.
+// Deleting a file counts only for files main added since base, so the
+// branch's own deletions of old files land. A branch commit message
+// naming the reverted commit's hash marks the revert as intended.
 func refuseReverts(worktree, base string) error {
-	onMain, err := git(worktree, "diff", "--no-renames", "--name-only", base, "main")
-	if err != nil || onMain == "" {
+	changed, err := git(worktree, "diff", "--raw", "--no-abbrev", "--no-renames", "main", "HEAD")
+	if err != nil || changed == "" {
 		return err
 	}
-	onBranch, err := git(worktree, "diff", "--no-renames", "--name-only", base, "HEAD")
+	branchBlob := map[string]string{}
+	for _, line := range strings.Split(changed, "\n") {
+		if _, blob, path, ok := rawEntry(line); ok {
+			branchBlob[path] = blob
+		}
+	}
+	history, err := git(worktree, "log", "--first-parent", "--diff-merges=first-parent", "-n", strconv.Itoa(revertWindow),
+		"--raw", "--no-abbrev", "--no-renames", "--format=@%H %s", "main")
 	if err != nil {
 		return err
 	}
-	kept := map[string]bool{}
-	for _, p := range strings.Split(onBranch, "\n") {
-		kept[p] = true
-	}
-	var reverted []string
-	for _, p := range strings.Split(onMain, "\n") {
-		if !kept[p] {
-			reverted = append(reverted, p)
+	sinceBase := map[string]bool{}
+	if list, err := git(worktree, "rev-list", "--first-parent", base+"..main"); err != nil {
+		return err
+	} else if list != "" {
+		for _, c := range strings.Split(list, "\n") {
+			sinceBase[c] = true
 		}
+	}
+	messages, err := git(worktree, "log", "--format=%B", "main..HEAD")
+	if err != nil {
+		return err
+	}
+	named := hashToken.FindAllString(messages, -1)
+	intended := func(commit string) bool {
+		for _, token := range named {
+			if strings.HasPrefix(commit, token) {
+				return true
+			}
+		}
+		return false
+	}
+
+	reverted := map[string]string{}
+	var commit, subject string
+	for _, line := range strings.Split(history, "\n") {
+		if header, ok := strings.CutPrefix(line, "@"); ok {
+			commit, subject, _ = strings.Cut(header, " ")
+			continue
+		}
+		before, _, path, ok := rawEntry(line)
+		blob, onBranch := branchBlob[path]
+		if !ok || !onBranch || reverted[path] != "" || blob != before {
+			continue
+		}
+		if (blob == nullBlob && !sinceBase[commit]) || intended(commit) {
+			continue
+		}
+		reverted[path] = fmt.Sprintf("%s (undoes %.9s %s)", path, commit, subject)
 	}
 	if len(reverted) == 0 {
 		return nil
 	}
-	return fmt.Errorf("the merged branch reverts work landed on main since %.9s:\n  %s\nrestore main's version (git checkout main -- <path>), commit, and run land again", base, strings.Join(reverted, "\n  "))
+	lines := make([]string, 0, len(reverted))
+	for _, line := range reverted {
+		lines = append(lines, line)
+	}
+	sort.Strings(lines)
+	return fmt.Errorf("the merged branch puts back content main replaced:\n  %s\nrestore main's version (git checkout main -- <path>) and commit, or name the commit's hash in a commit message if the revert is intended; then run land again", strings.Join(lines, "\n  "))
+}
+
+// rawEntry parses one `--raw --no-abbrev` line into the blob before, the
+// blob after and the path.
+func rawEntry(line string) (before, after, path string, ok bool) {
+	meta, path, found := strings.Cut(line, "\t")
+	fields := strings.Fields(meta)
+	if !found || !strings.HasPrefix(meta, ":") || len(fields) < 5 {
+		return "", "", "", false
+	}
+	return fields[2], fields[3], path, true
 }

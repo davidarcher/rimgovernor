@@ -212,3 +212,56 @@ func TestLandRefusesABranchThatRevertsMainWork(t *testing.T) {
 		t.Fatalf("main moved to %s", after)
 	}
 }
+
+// The #946 shape: the branch merged main, main then landed a whole-file
+// CRLF rewrite of a.txt (981ab0b9a), and the branch re-parented its stale
+// tree onto the new main (git reset --soft main; commit), so its fork
+// point is main itself and nothing main landed looks newer than it.
+func TestLandRefusesAStaleTreeReparentedOntoMain(t *testing.T) {
+	root, wt := newRepo(t)
+	write(t, filepath.Join(wt, "b.txt"), "b\n")
+	mustGit(t, wt, "add", ".")
+	mustGit(t, wt, "commit", "-qm", "feat: b")
+	mustGit(t, wt, "merge", "-q", "--no-edit", "main")
+	write(t, filepath.Join(root, "a.txt"), "a\r\nbounded by the live map\r\n")
+	mustGit(t, root, "commit", "-qam", "peer: bound by the live map")
+	landed := mustGit(t, root, "rev-parse", "HEAD")
+	mustGit(t, wt, "reset", "-q", "--soft", "main")
+	mustGit(t, wt, "commit", "-qm", "feat: b, squashed")
+	if fork, err := forkPoint(wt); err != nil || fork != landed {
+		t.Fatalf("forkPoint = %s, %v; want main %s", fork, err, landed)
+	}
+
+	t.Chdir(wt)
+	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "a.txt (undoes "+landed[:9]) {
+		t.Fatalf("err = %v, want a refusal naming a.txt and %.9s", err, landed)
+	}
+	if after := mustGit(t, root, "rev-parse", "HEAD"); after != landed {
+		t.Fatalf("main moved to %s", after)
+	}
+}
+
+// A revert that names the reverted commit lands, and so does deleting a
+// file main added before the branch forked.
+func TestLandTakesANamedRevertAndOldDeletions(t *testing.T) {
+	root, wt := newRepo(t)
+	write(t, filepath.Join(root, "old.txt"), "old\n")
+	mustGit(t, root, "add", ".")
+	mustGit(t, root, "commit", "-qm", "peer: old")
+	write(t, filepath.Join(root, "a.txt"), "changed\n")
+	mustGit(t, root, "commit", "-qam", "peer: change a")
+	changed := mustGit(t, root, "rev-parse", "--short=10", "HEAD")
+	mustGit(t, wt, "merge", "-q", "--ff-only", "main")
+	write(t, filepath.Join(wt, "a.txt"), "a\n")
+	mustGit(t, wt, "rm", "-q", "old.txt")
+	mustGit(t, wt, "commit", "-qam", "Revert "+changed+" and delete old.txt")
+
+	t.Chdir(wt)
+	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(root, "a.txt")); strings.TrimSpace(string(data)) != "a" {
+		t.Errorf("main a.txt = %q", data)
+	}
+}
