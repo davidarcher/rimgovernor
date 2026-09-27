@@ -14701,9 +14701,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-17C19E123EC09611A613B3D27C682299EC390CED9FD5E0DD3D2AF184944AA01F"
      }
     },
     {
@@ -14740,9 +14737,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-A611DB6507E02658BEA6377534EB566A419D3C6F05AE04875DBA42F9FEF26519"
      }
     },
     {
@@ -14767,9 +14761,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-12ABDBAF0DD679AACDB8097C433D7017631D03C02ABE51F6ECD09458D15FA641"
      }
     }
    ]
@@ -20201,16 +20192,16 @@
     "Flammability": 3,
     "PathCost": 1
    },
+   "MaterialTicksPerUnit": 30,
    "MaxCellsPerPlan": 24,
+   "PaybackDays": 15,
    "Traffic": {
     "Beauty": 1,
     "Cleanliness": 1,
     "Cost": 0.5,
     "Flammability": 1,
     "PathCost": 5
-   },
-   "MaterialTicksPerUnit": 30,
-   "PaybackDays": 15
+   }
   },
   "FoodMinDays": 3,
   "FoodReserveDays": 5,

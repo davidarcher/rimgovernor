@@ -30835,9 +30835,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-F74CEF0BA2BC84B3B85ED27C139499A1159DD916970E6515C20BC12E10F1F3EC"
      }
     }
    ]
@@ -36076,16 +36073,16 @@
     "Flammability": 3,
     "PathCost": 1
    },
+   "MaterialTicksPerUnit": 30,
    "MaxCellsPerPlan": 24,
+   "PaybackDays": 15,
    "Traffic": {
     "Beauty": 1,
     "Cleanliness": 1,
     "Cost": 0.5,
     "Flammability": 1,
     "PathCost": 5
-   },
-   "MaterialTicksPerUnit": 30,
-   "PaybackDays": 15
+   }
   },
   "FoodMinDays": 3,
   "FoodReserveDays": 5,

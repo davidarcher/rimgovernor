@@ -89,11 +89,6 @@ namespace HomeBridge.BridgeTools
             foreach (var item in page) {
                 if (raidArmor.HasValue) item.Value.RaidArmor = raidArmor.Value;
                 NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details, context);
-                if (item.Value.Settings != null) {
-                    item.Value.Settings.Snapshot = NativeWorkSettings.Snapshot(item.Key, context);
-                    if (item.Value.Settings.Snapshot != null)
-                        foreach (var issue in item.Value.Settings.Issues.Where(i => i.Field == "snapshot").ToArray()) item.Value.Settings.Issues.Remove(issue);
-                }
                 item.Value.Snapshot = PawnSnapshotToken(item.Key, item.Value, context);
                 result.Pawns.Add(item.Value);
             }

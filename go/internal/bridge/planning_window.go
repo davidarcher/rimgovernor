@@ -145,14 +145,6 @@ func (client *Client) readCellsBand(ctx context.Context, identity *c.Identity, b
 		if err := validatePlanningCells(snapshot, snapshot.Context, snapshot.MapSize); err != nil {
 			return nil, raw, err
 		}
-		if ref := snapshot.MapSnapshot; ref != nil {
-			if err := ValidateContext(ref.Context); err != nil {
-				return nil, raw, err
-			}
-			if !proto.Equal(ref.Context, snapshot.Context) || validID(ref.GetEntityId()) != nil || validID(ref.GetToken()) != nil {
-				return nil, raw, contract("map snapshot mismatch")
-			}
-		}
 		return snapshot, raw, nil
 	default:
 		return nil, raw, contract("missing planning window outcome")

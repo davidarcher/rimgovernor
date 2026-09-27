@@ -448,9 +448,6 @@
     }
    ]
   },
-  "SnapshotToken": {
-   "v": "drug-06FC5614900F751A1982131164861C3BCF744112909226DF41C0F855F5A155D2"
-  },
   "Traits": {
    "v": [
     {
@@ -999,9 +996,6 @@
     }
    ]
   },
-  "SnapshotToken": {
-   "v": "drug-A452EB2AE27C8888F2547CEFA9BE917449867CDCD493D47686DAAE7E4ED03079"
-  },
   "Traits": {
    "v": [
     {
@@ -1547,9 +1541,6 @@
      "Stored": 4
     }
    ]
-  },
-  "SnapshotToken": {
-   "v": "drug-330582D5E4B1BB8917B7AF2E47FAE1E6708CA52BE19048DA2A26D754B1E5E159"
   },
   "Traits": {
    "v": []

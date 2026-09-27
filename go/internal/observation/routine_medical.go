@@ -30,9 +30,6 @@ func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFac
 		p := policy.CarePawn{ID: pawn.ID, Dead: domain.Known(dead)}
 		if settings := row.Settings; settings != nil {
 			p.Care = optional(settings.MedicalCare)
-			if settings.Snapshot != nil {
-				p.SettingsToken = optional(settings.Snapshot.Token)
-			}
 		}
 		if h := row.Health; h != nil && !hasIssue(row.Issues, "health") {
 			p.LifeThreatening = optional(h.LifeThreatening)

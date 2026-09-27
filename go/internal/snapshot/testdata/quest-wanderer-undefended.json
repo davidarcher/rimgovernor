@@ -10238,9 +10238,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-9EFE999BFFD161D1B8C941D3B4F5AC7288A6B0BCBD0C6CBB611631EF7695FA1E"
      }
     },
     {
@@ -10299,9 +10296,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-2B5F8E10AA61150EEE00A473550E735BB9DDE6F4999A8A97119F955A5F60799B"
      }
     },
     {
@@ -10326,9 +10320,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-439F7F9149E7379AB52AE1F56C877F04A40A92D8EB8979F8D770EE5974AA856D"
      }
     },
     {
@@ -10365,9 +10356,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-70F33C79AB155FC7D9A9D111AFD086347151C3E7F19BD58F2F6B09CB38E2E69B"
      }
     },
     {
@@ -10404,9 +10392,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-15EE518CC2E0071E107EE6921A05A2B1D458739B7216A2F990EDE135B5D02985"
      }
     },
     {
@@ -10465,9 +10450,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-4CC53FF12CF43AA1B5E203545B41FC28D69679A2F8560FD4935B6162545B04E1"
      }
     },
     {
@@ -10492,9 +10474,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-5D2C6C53B536B9478BD3E106695D4A40FBD7CD05D1AA70CE4280896B82CD7E74"
      }
     },
     {
@@ -10531,9 +10510,6 @@
      },
      "NeedsTend": {
       "v": false
-     },
-     "SettingsToken": {
-      "v": "drug-D08225666DC7BC03A3379A516E66235AAF2EEE845CEE676815492874220576EB"
      }
     }
    ]
@@ -14598,16 +14574,16 @@
     "Flammability": 3,
     "PathCost": 1
    },
+   "MaterialTicksPerUnit": 30,
    "MaxCellsPerPlan": 24,
+   "PaybackDays": 15,
    "Traffic": {
     "Beauty": 1,
     "Cleanliness": 1,
     "Cost": 0.5,
     "Flammability": 1,
     "PathCost": 5
-   },
-   "MaterialTicksPerUnit": 30,
-   "PaybackDays": 15
+   }
   },
   "FoodMinDays": 3,
   "FoodReserveDays": 5,

@@ -34,7 +34,6 @@ func TestWorkPlannerAppliesSavedOverrideAndInvalidatesOnPreferenceChange(t *test
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 
 	ctx := context.Background()
-	row.Settings.Snapshot = &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String("patient"), Token: proto.String("before-work")}
 	snapshot := r.player.State().Snapshot
 	saved, err := r.player.SetWorkPreferences(ctx, store.WorkPreferenceRequest{RequestID: "disable-builder", Plan: snapshot.Plan, World: playerWorld(snapshot), ExpectedRevision: 0, Overrides: []policy.WorkOverride{{Pawn: "patient", Work: "Construction", Priority: 0}}})
 	if err != nil {
@@ -95,7 +94,6 @@ func TestWorkPlannerCollapsesRanksInCheckboxMode(t *testing.T) {
 	}
 	// Construction is unchecked although the pawn is the only builder.
 	row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String("Construction"), Priority: proto.Int32(0), Disabled: proto.Bool(false)})
-	row.Settings.Snapshot = &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String("patient"), Token: proto.String("before-work")}
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 
 	ctx := context.Background()
@@ -146,7 +144,6 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 	for _, work := range []string{"Construction", "Hunting"} {
 		row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String(work), Priority: proto.Int32(0), Disabled: proto.Bool(false)})
 	}
-	row.Settings.Snapshot = &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String("patient"), Token: proto.String("before-work")}
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 
 	ctx := context.Background()

@@ -133,9 +133,6 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 			}
 		}
 		if row.Settings != nil {
-			if ref := row.Settings.Snapshot; ref != nil && (ref.GetEntityId() != row.Pawn.GetId() || !proto.Equal(ref.Context, v.Context)) {
-				return contract("settings snapshot scope mismatch")
-			}
 			if err := validateSettings(row.Settings, work, care, schedule); err != nil {
 				return err
 			}

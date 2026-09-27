@@ -44,12 +44,6 @@ namespace HomeBridge.BridgeTools
                     return "food-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
             }
         }
-        internal static string SettingsToken(string work, Pawn pawn) => Hash(w => { w.Write(work); w.Write(Configuration(pawn)); });
-        private static string Configuration(Pawn pawn) => Hash(w => {
-            var policy = Current(pawn);
-            w.Write(policy?.GetUniqueLoadID() ?? "");
-            if (policy != null) WriteFilter(w, policy.filter);
-        });
         private static void WriteFilter(BinaryWriter w, ThingFilter filter)
         {
             NativeStockpileSettings.WriteSignature(w, filter);

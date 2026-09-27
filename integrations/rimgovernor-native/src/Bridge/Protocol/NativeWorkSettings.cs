@@ -20,49 +20,7 @@ namespace HomeBridge.BridgeTools
     {
         internal const int ScheduleHours = 24;
 
-        private static bool Eligible(Pawn pawn) => pawn != null && !pawn.Destroyed && pawn.Spawned && ProtoBoundary.IsLoaded(pawn.Map)
-            && pawn.IsFreeColonist && !pawn.Dead && !pawn.Drafted && !pawn.InMentalState
-            && pawn.workSettings?.Initialized == true && pawn.workSettings.EverWork;
-
-        // area is the pawn's actual current restriction identity (empty
-        // string when unrestricted), always the real GetUniqueLoadID()
-        // value published elsewhere for this same pawn field
-        // (NativePawnDetails' allowed_area_id). schedule is the pawn's
-        // current timetable def names hour 0 first (empty when the pawn has
-        // no timetable tracker).
-        internal static string Token(Common.Identity identity, string pawn, bool manual, Obs.WorkSetting[] work, string area, string[] schedule, string care = "")
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                {
-                    writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId);
-                    writer.Write(pawn); writer.Write(manual); writer.Write(area); writer.Write(care);
-                    foreach (var row in work.OrderBy(w => w.DefName, StringComparer.Ordinal))
-                    { writer.Write(row.DefName); writer.Write(row.Priority); writer.Write(row.Disabled); }
-                    writer.Write(schedule.Length);
-                    foreach (var slot in schedule) writer.Write(slot);
-                }
-                using (var hash = SHA256.Create())
-                    return "work-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
-
-        private static string CurrentAreaId(Pawn pawn) => pawn.playerSettings?.AreaRestrictionInPawnCurrentMap?.GetUniqueLoadID() ?? "";
-
         internal static string[] CurrentSchedule(Pawn pawn) => pawn.timetable?.times?.Select(t => t?.defName ?? "").ToArray() ?? new string[0];
-
-        internal static Obs.SnapshotRef? Snapshot(Pawn pawn, Common.ObservationContext context)
-        {
-            NativeDrugPolicy.Install();
-            if (!Eligible(pawn)) return null;
-            var manual = PawnSettingsRead.ManualPriorities();
-            var defs = DefDatabase<WorkTypeDef>.AllDefsListForReading;
-            if (!manual.HasValue || defs.Count == 0 || defs.Count > 256) return null;
-            var rows = defs.Select(d => new Obs.WorkSetting { DefName = d.defName, Priority = pawn.workSettings.GetPriority(d), Disabled = pawn.WorkTypeIsDisabled(d) }).ToArray();
-            return new Obs.SnapshotRef { Context = context.Clone(), EntityId = pawn.GetUniqueLoadID(),
-                Token = NativeDrugPolicy.Token(NativeFoodPolicy.SettingsToken(Token(context.Identity, pawn.GetUniqueLoadID(), manual.Value, rows, CurrentAreaId(pawn), CurrentSchedule(pawn), pawn.playerSettings?.medCare.ToString() ?? ""), pawn), pawn) };
-        }
 
         // Resolves a requested area identifier tolerantly against either the
         // GetUniqueLoadID() scheme published by observations_list_pawns'

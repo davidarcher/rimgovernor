@@ -109,8 +109,7 @@ func medicineTierAssignments(f policy.RoutineFacts) []domain.WorkAssignment {
 	for _, pawn := range pawns {
 		dead, dk := pawn.Dead.Value()
 		care, ck := pawn.Care.Value()
-		_, tk := pawn.SettingsToken.Value()
-		if !dk || dead || !ck || !tk {
+		if !dk || dead || !ck {
 			continue
 		}
 		tier, known := policy.SelectMedicineTier(pawn.Conditions, pawn.LifeThreatening, f.Resources).Value()

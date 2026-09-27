@@ -83,19 +83,5 @@ func validateMapBounds(snapshot *o.CellsSnapshot, identity *c.Identity, anchor *
 	if len(snapshot.Cells) != 1 || !proto.Equal(snapshot.Cells[0], &o.CellState{Cell: anchor}) {
 		return MapBounds{}, contract("map bounds cell differs or contains unrequested facts")
 	}
-	if ref := snapshot.MapSnapshot; ref != nil {
-		if err := ValidateContext(ref.Context); err != nil {
-			return MapBounds{}, err
-		}
-		if !proto.Equal(ref.Context, snapshot.Context) {
-			return MapBounds{}, contract("map snapshot context mismatch")
-		}
-		if err := validID(ref.GetEntityId()); err != nil {
-			return MapBounds{}, err
-		}
-		if err := validID(ref.GetToken()); err != nil {
-			return MapBounds{}, err
-		}
-	}
 	return MapBounds{Context: proto.Clone(snapshot.Context).(*c.ObservationContext), Bounds: bounds}, nil
 }

@@ -164,10 +164,6 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		found := false
 		for _, w := range workers {
 			if w.ID == chosen.Pawn {
-				_, tk := w.SnapshotToken.Value()
-				if !tk {
-					return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !tk", ErrControl)
-				}
 				found = true
 				break
 			}

@@ -255,7 +255,7 @@ message Thought { optional string def_name = 1; optional string label = 2; optio
 message Relation { EntityRef other = 1; optional string relation_def_name = 2; optional int32 opinion = 3; optional bool opinion_reconstructed = 4; }
 message PawnSocial { optional bool high_expectations = 6; repeated Thought memories = 1; repeated Thought situational = 2; repeated Relation relations = 3; optional bool situational_cache_stale = 4; repeated ReadIssue issues = 5; }
 message PawnSettings {
-  SnapshotRef snapshot = 1; optional string medical_care = 2; optional bool self_tend = 3; optional string hostility_response = 4;
+  reserved 1; reserved "snapshot"; optional string medical_care = 2; optional bool self_tend = 3; optional string hostility_response = 4;
   optional string allowed_area_id = 5; optional string master_id = 6; optional bool follow_drafted = 7; optional bool follow_fieldwork = 8;
   repeated WorkSetting work = 9; repeated TimetableSlot schedule = 10; repeated DefinitionRef allowed_areas = 11;
   repeated string medical_care_options = 12; repeated string hostility_response_options = 13; repeated ReadIssue issues = 14;
@@ -544,7 +544,7 @@ message CellState {
   optional bool dries = 31; // Foundation field: a moisture pump dries the terrain to firm ground (TerrainDef.driesTo) (#949).
 }
 message CellFields { optional bool terrain = 1; optional bool roof = 2; optional bool visibility = 3; optional bool traversal = 4; optional bool zone = 5; optional bool areas = 6; optional bool things = 7; optional bool designations = 8; optional bool room = 9; optional bool growth = 10; optional bool foundation = 11; }
-message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; reserved 5; CellFields applied_fields = 6; SnapshotRef map_snapshot = 7; CompactCells compact = 10; reserved 8, 9; }
+message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; reserved 5; CellFields applied_fields = 6; reserved 7; reserved "map_snapshot"; CompactCells compact = 10; reserved 8, 9; }
 message GetCellsRequest { ReadScope scope = 1; oneof selection { Rectangle rectangle = 2; CellSelection exact_cells = 3; } CellFields fields = 4; optional bool compact = 7; reserved 5, 6; }
 // Planning fields only. One byte string per region z, x ascending. Each cell
 // starts with little-endian uint16 flags: unchanged, fogged, walkable, passable,

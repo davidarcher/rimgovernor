@@ -186,9 +186,8 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	var work []domain.WorkAssignment
 	for _, assignment := range decision.Assignments {
 		pawn := byID[assignment.Pawn]
-		_, tk := pawn.SnapshotToken.Value()
 		manual, mk := pawn.Manual.Value()
-		if _, ck := pawn.Work.Value(); !tk || !mk || !ck {
+		if _, ck := pawn.Work.Value(); !mk || !ck {
 			continue
 		}
 		if defs := policy.FoodPolicyChanges(pawn); len(defs) > 0 {

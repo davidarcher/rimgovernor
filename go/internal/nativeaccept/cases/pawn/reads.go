@@ -296,9 +296,8 @@ func run(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
-// draftControl validates a pawn row's draft claim/snapshot invariants. Health and
-// settings sections now carry their own populated CAS snapshots (contracts/proto/
-// observations.proto PawnHealth.snapshot=19, PawnSettings.snapshot=1), and social is
+// draftControl validates a pawn row's draft claim/snapshot invariants. The health
+// section carries its own populated CAS snapshot (PawnHealth.snapshot=19), and social is
 // now a populated PawnSocial block: earlier acceptance runs predated both and
 // asserted their absence, which this port corrects rather than preserves.
 func draftControl(row map[string]any, context any) error {
@@ -358,11 +357,9 @@ func draftControl(row map[string]any, context any) error {
 			return fmt.Errorf("draft claim is neither owned nor unowned: %#v", claim)
 		}
 	}
-	// Both "health" and "settings" carry populated CAS snapshots: PawnSettings.Snapshot
-	// is populated unconditionally by ListPawns (NativePawnObservationTools.cs:61-63,
-	// NativeWorkSettings.Snapshot), and PawnHealth.Snapshot is now populated by
-	// NativePawnDetails.Health via NativeObservationSnapshot.Snapshot (NativePawnDetails.cs).
-	for _, section := range []string{"health", "settings"} {
+	// "health" carries a populated CAS snapshot: NativePawnDetails.Health via
+	// NativeObservationSnapshot.Snapshot.
+	for _, section := range []string{"health"} {
 		sectionValue, present := row[section]
 		if !present {
 			continue
@@ -443,10 +440,6 @@ func compareDetails(typed []any, legacy []any) error {
 		oldHealth, _ := nativeaccept.AsMap(old["health"])
 		if err := RequireSnapshotStrict(health["snapshot"]); err != nil {
 			return fmt.Errorf("health section missing populated snapshot for %s: %w", pawn["id"], err)
-		}
-		settings, _ := nativeaccept.AsMap(row["settings"])
-		if err := RequireSnapshotStrict(settings["snapshot"]); err != nil {
-			return fmt.Errorf("settings section missing populated snapshot for %s: %w", pawn["id"], err)
 		}
 		if needsTend, _ := nativeaccept.AsBool(health["needsTend"]); needsTend != mustBool(oldHealth["needsTend"]) {
 			return fmt.Errorf("needsTend mismatch for %s", pawn["id"])

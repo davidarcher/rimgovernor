@@ -32,7 +32,7 @@ func ValidateRoutinePawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids [
 // timetable slots under schedule. Any subset may be set; unrequested fields
 // are refused.
 func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
-	allowed := &o.PawnSettings{Snapshot: s.Snapshot, Issues: s.Issues}
+	allowed := &o.PawnSettings{Issues: s.Issues}
 	if work {
 		allowed.FoodRestriction = s.FoodRestriction
 		allowed.DrugPolicyWritable, allowed.DrugPolicyName = s.DrugPolicyWritable, s.DrugPolicyName
@@ -49,9 +49,6 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	}
 	if !proto.Equal(s, allowed) || len(s.Schedule) > 24 {
 		return contract("unrequested settings detail")
-	}
-	if s.Snapshot != nil && (validID(s.Snapshot.GetEntityId()) != nil || validID(s.Snapshot.GetToken()) != nil) {
-		return contract("invalid work snapshot")
 	}
 	if food := s.FoodRestriction; food != nil {
 		if validID(food.GetPolicyId()) != nil {

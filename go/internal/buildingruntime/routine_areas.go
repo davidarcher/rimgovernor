@@ -41,13 +41,11 @@ func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, a
 			action, err = domain.NewHusbandryAction(actionID, husbandry)
 		}
 	} else {
-		var token string
+		found := false
 		for _, worker := range workers {
-			if worker.ID == change.Pawn {
-				token, _ = worker.SnapshotToken.Value()
-			}
+			found = found || worker.ID == change.Pawn
 		}
-		if token == "" {
+		if !found {
 			return RoutineRecoveryResult{Reason: BuildingMethodUnknown}, nil
 		}
 		var assignment domain.WorkAssignment

@@ -55,10 +55,6 @@ func TestMapBoundsRequiresExactCompleteKnownFacts(t *testing.T) {
 		"region": func(s *o.CellsSnapshot) {
 			s.Region = &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(4), Z: proto.Int32(0)}, Maximum: &c.Cell{X: proto.Int32(19), Z: proto.Int32(29)}}
 		},
-		"stale map snapshot": func(s *o.CellsSnapshot) {
-			s.MapSnapshot = &o.SnapshotRef{Context: pbContext(), EntityId: proto.String("map"), Token: proto.String("token")}
-			s.MapSnapshot.Context.Tick = proto.Int64(1)
-		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			s := boundsSnapshot()

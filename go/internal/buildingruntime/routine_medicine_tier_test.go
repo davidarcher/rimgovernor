@@ -6,7 +6,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -16,7 +15,6 @@ func TestMedicineTierAutonomousAdmissionAndPersistence(t *testing.T) {
 	ctx := context.Background()
 	row := native.pawnReply.GetObserved().Pawns[0]
 	row.Settings.MedicalCare = proto.String("Best")
-	row.Settings.Snapshot = &o.SnapshotRef{Context: proto.Clone(native.reply.GetObserved().Context).(*c.ObservationContext), EntityId: proto.String("patient"), Token: proto.String("care-before")}
 	row.Health.LifeThreatening = proto.Bool(false)
 	row.Health.Hediffs = []*o.Hediff{{Definition: &o.DefinitionRef{DefName: proto.String("Flu")}, Bad: proto.Bool(true), Severity: proto.Float64(.1), Immunity: proto.Float64(.1), SeverityPerDay: proto.Float64(.1), ImmunityPerDay: proto.Float64(.2)}}
 	row.Health.HediffCompleteness = hospitalCount(1)
@@ -60,7 +58,7 @@ func TestMedicineTierAutonomousAdmissionAndPersistence(t *testing.T) {
 }
 
 func TestMedicineTierReassessesCare(t *testing.T) {
-	pawn := policy.CarePawn{ID: "p", Dead: domain.Known(false), Care: domain.Known("NoCare"), SettingsToken: domain.Known("current"), LifeThreatening: domain.Known(false), Conditions: domain.Known([]policy.CareCondition{{DefName: domain.Known("Plague"), Severity: domain.Known(.1), Immunity: domain.Known(.1), SeverityPerDay: domain.Known(.1), ImmunityPerDay: domain.Known(.2)}})}
+	pawn := policy.CarePawn{ID: "p", Dead: domain.Known(false), Care: domain.Known("NoCare"), LifeThreatening: domain.Known(false), Conditions: domain.Known([]policy.CareCondition{{DefName: domain.Known("Plague"), Severity: domain.Known(.1), Immunity: domain.Known(.1), SeverityPerDay: domain.Known(.1), ImmunityPerDay: domain.Known(.2)}})}
 	facts := policy.RoutineFacts{MedicalPawns: domain.Known([]policy.CarePawn{pawn}), Resources: domain.Known([]policy.Amount{{Resource: "MedicineIndustrial", Count: 2}})}
 	work := medicineTierAssignments(facts)
 	if len(work) != 1 || work[0].MedicalCare() != "NormalOrWorse" {
