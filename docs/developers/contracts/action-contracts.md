@@ -93,18 +93,23 @@ yet and follows the Allow list when it lands.
 
 Map trades dispatch under a running clock like every routine kind (#244);
 accept revalidates each staged thing at apply time. Opening requires a reachable, eligible
-negotiator: an adjacent one opens the session at once; otherwise native walks
-it to the trader with a goto that tracks the trader and opens the session on
-arrival, and the open stays pending during the walk (a walk that ends without
-arriving, or an arrival that cannot open, is an interrupted open). Sheet reads,
-line staging, accept and cancel need only the session's participants present
-and tradeable. Native sessions bind the exact deal, participants, map and
-colony load.
-Set/cancel/accept requests carry the session ID; acceptance also carries the preview
-signature covering exact rows, counts, stock identities and prices. Native acceptance
-rechecks stock eligibility, both silver balances and trader availability after any
-viewing delay. A lost receipt retains the shared Hands uncertain-write marker across
-restore and cannot replay. Bought map goods appear at the carrying trader/pack
+negotiator: an adjacent one opens the session at once; otherwise native orders
+vanilla's TradeWithPawn job, which follows the trader, and opens the session
+(never the dialog) where that job would open `Dialog_Trade`. An interrupted
+walk is not reissued. Sheet reads, line staging, accept and cancel need only the session's
+participants present and tradeable. Native sessions bind the exact deal,
+participants, map and colony load.
+Every trade operation is an idempotent intent naming the session's trader and
+negotiator; accept also carries the preview signature covering exact rows,
+counts, stock identities and prices. Native acceptance rechecks stock
+eligibility, both silver balances and trader availability after any viewing
+delay. Trade is an intent-mode kind (`domain.ActionKind.IntentMode`): an
+applied receipt completes the action with no observation phase, a refused
+one fails it, and a lost receipt sends the intent again. Dispatch does not
+gate on a preview: native judges the intent against live state when it
+applies. The routine replans from live state: the trade-session read
+(`ReadTradeSession`) names the negotiator walking to or trading with a
+trader, and reads issue no orders. Bought map goods appear at the carrying trader/pack
 animal's native delivery location. The caravan lord prevents its own pawns from
 retrieving them; this does not forbid the colony from using them. Exchange
 completion does not certify storage.

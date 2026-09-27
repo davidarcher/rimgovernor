@@ -19,7 +19,8 @@ import (
 )
 
 // RoutineTradeSource is the native census RoutineTradePlanner reads between
-// phases: the trader census for the caravan and negotiator to open with, a
+// phases: the trader census for the caravan and negotiator to open with, the
+// trade-session read for the walk or session native holds, a
 // fresh colony facts read for the medicine and resource stock the need is
 // re-measured from, the session-scoped sheet each decision is made from,
 // and native's own previews of the session phases (acceptance, not
@@ -28,9 +29,9 @@ type RoutineTradeSource interface {
 	ReadConstructionDeficits(context.Context, *c.Identity) (bridge.ConstructionDeficitRead, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 	ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
-	ReadTradeSheet(context.Context, *c.Identity, string) (bridge.TradeSheetRead, bridge.Result, error)
-	PreviewSetTradeLines(context.Context, *c.Identity, string, string, []bridge.TradeLineInput, bool) (*op.PreviewReply, bridge.Result, error)
-	PreviewEndTrade(context.Context, *c.Identity, string, string, op.EndTradeKind, bool) (*op.PreviewReply, bridge.Result, error)
+	ReadTradeSession(context.Context, *c.Identity) (bridge.TradeSessionRead, bridge.Result, error)
+	ReadTradeSheet(context.Context, *c.Identity) (bridge.TradeSheetRead, bridge.Result, error)
+	PreviewTrade(context.Context, *c.Identity, *op.Operation) (*op.PreviewReply, bridge.Result, error)
 }
 
 // RoutineTradePlanner drives TradeWithCaravan (#234) one phase edge per
@@ -38,20 +39,24 @@ type RoutineTradeSource interface {
 // SetTradeLines action carries do not exist until Open has run, and the
 // deal signature Accept requires does not exist until the lines are staged.
 // A committed plan is immutable, so each phase is its own goal method --
-// open, then set lines or cancel, then accept or cancel -- bound to the
-// Open action's recorded session through store.CommitTradeGoalMethod. Per
-// caravan and goal epoch the method ids are fixed, so the phase a caravan
-// is in is read back from the goal's own methods and a restart resumes
+// open, then set lines or cancel, then accept or cancel -- each an intent
+// naming the session's trader and negotiator, which native checks. Trade
+// is an intent-mode kind (domain.ActionKind.IntentMode): a phase's applied
+// receipt completes its method and a refused one fails it, and what followed
+// is read from live state: the trade-session read (who is walking to or
+// trading with whom) and the session sheet. Per
+// caravan and goal epoch the method ids are fixed, so a restart resumes
 // where it left off. A caravan whose session reached accept or cancel, or
-// whose open failed, is settled for the epoch and never reopened: the
-// goal recovers when the caravan leaves or the next review measures
-// nothing left to trade.
+// whose last open attempt ended without a session, is settled for the
+// epoch and never reopened: the goal recovers when the caravan leaves or
+// the next review measures nothing left to trade.
 //
-// Adjacency is native's: OpenTrade walks the negotiator to the trader (a
-// Goto that tracks the trader's wandering) and opens the session the tick
-// it arrives, so the open plan is the trade action alone and stays pending
-// for the walk. Once open, the session binds its participants and the
-// remaining phases need no escort.
+// Adjacency is native's: OpenTrade orders vanilla's TradeWithPawn job, which
+// walks the negotiator after the trader, and native opens the session where
+// that job would open its dialog. While the session read shows the walk, the
+// routine lends the clock a short window; a walk the game interrupted reads
+// as neither walk nor session, and the open is sent again. Once open, the
+// session binds its participants and the remaining phases need no escort.
 type RoutineTradePlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineTradeSource
@@ -70,6 +75,10 @@ type RoutineTradeResult struct {
 // tradeArrivalTicks is the window lent while a caravan walks in or a
 // settled one lingers: one game hour, after which the census is read again.
 const tradeArrivalTicks = 2500
+
+// tradeWalkTicks is the window lent while a negotiator walks to open a
+// session, after which the session is read again.
+const tradeWalkTicks = 250
 
 func NewRoutineTradePlanner(reviewer *RoutineReviewer, native RoutineTradeSource) (*RoutineTradePlanner, error) {
 	if reviewer == nil || native == nil {
@@ -93,9 +102,10 @@ func tradeMethod(kind domain.TradeOperationKind, trader string, attempt int) dom
 }
 
 // tradeAttempts bounds how often a phase is retried after a failure. An
-// open fails on the world moving under the walk -- the trader wandering
-// off as the negotiator arrives, a path that could not complete -- and is
-// worth another walk; a refused line staging, accept or end is not.
+// open ends without a session when the world moves under the walk -- the
+// trader wandering off as the negotiator arrives, a path that could not
+// complete -- and is worth another walk; a refused line staging, accept or
+// end is not.
 func tradeAttempts(kind domain.TradeOperationKind) int {
 	if kind == domain.TradeOpen {
 		return 3
@@ -104,13 +114,11 @@ func tradeAttempts(kind domain.TradeOperationKind) int {
 }
 
 // tradePhase is one caravan's latest recorded attempt at a phase and the
-// settled stage of its trade action: open reports in-flight work, a
-// terminal stage other than Completed is a failure of the attempt, and
-// retry reports a further attempt is allowed.
+// settled stage of its trade action: open reports in-flight work, and a
+// terminal stage other than Completed is a failure of the attempt.
 type tradePhase struct {
-	found, open, completed, retry bool
-	attempt                       int
-	action                        domain.ActionID
+	found, open, completed bool
+	attempt                int
 }
 
 func (r *RoutineTradePlanner) failed(p tradePhase) bool { return p.found && !p.open && !p.completed }
@@ -132,8 +140,7 @@ func (r *RoutineTradePlanner) phase(ctx context.Context, goal store.GoalState, k
 		found := false
 		for _, progress := range plan.Progress {
 			if _, ok := progress.Action().Trade(); ok {
-				view := progress.View()
-				out = tradePhase{found: true, open: domain.GoalWorkOpen(plan.Progress), completed: view.Stage == domain.Completed, attempt: attempt, action: progress.Action().ID()}
+				out = tradePhase{found: true, open: domain.GoalWorkOpen(plan.Progress), completed: progress.View().Stage == domain.Completed, attempt: attempt}
 				found = true
 			}
 		}
@@ -141,19 +148,19 @@ func (r *RoutineTradePlanner) phase(ctx context.Context, goal store.GoalState, k
 			return tradePhase{}, ErrControl
 		}
 	}
-	out.retry = r.failed(out) && out.attempt+1 < tradeAttempts(kind)
 	return out, nil
 }
 
 // tradeSettled reports whether the caravan's session is over for this epoch:
-// its open failed for the last time, its accept completed, or an end phase
-// exists and is no longer open.
-func (r *RoutineTradePlanner) tradeSettled(ctx context.Context, goal store.GoalState, trader string) (bool, error) {
+// its last open attempt ended with no session or walk left, its accept
+// completed, or an end phase exists and is no longer open.
+// engaged is whether native holds a walk or session with the trader.
+func (r *RoutineTradePlanner) tradeSettled(ctx context.Context, goal store.GoalState, trader string, engaged bool) (bool, error) {
 	open, err := r.phase(ctx, goal, domain.TradeOpen, trader)
 	if err != nil {
 		return false, err
 	}
-	if r.failed(open) && !open.retry {
+	if tradeOpenSpent(open, engaged) && open.attempt+1 >= tradeAttempts(domain.TradeOpen) {
 		return true, nil
 	}
 	accept, err := r.phase(ctx, goal, domain.TradeAccept, trader)
@@ -168,6 +175,12 @@ func (r *RoutineTradePlanner) tradeSettled(ctx context.Context, goal store.GoalS
 		return false, err
 	}
 	return end.found && !end.open, nil
+}
+
+// tradeOpenSpent reports an open attempt that is over without a session
+// or walk to show for it: refused, or applied and since ended.
+func tradeOpenSpent(open tradePhase, engaged bool) bool {
+	return open.found && !open.open && (!open.completed || !engaged)
 }
 
 func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineTradeResult, error) {
@@ -219,32 +232,40 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if _, err = boundary.Context(census.Context, state.Snapshot); err != nil || census.Context.GetTick() < int64(review.Tick) {
 		return RoutineTradeResult{}, ErrControl
 	}
-	// A caravan with an open session this epoch is driven first, tradeable
-	// or not: a session native still holds must be settled, never left.
+	session, _, err := r.native.ReadTradeSession(call, identity)
+	if err != nil {
+		return RoutineTradeResult{}, err
+	}
+	if _, err = boundary.Context(session.Context, state.Snapshot); err != nil || session.Context.GetTick() < int64(review.Tick) {
+		return RoutineTradeResult{}, ErrControl
+	}
+	// A caravan native holds a session or walk with is driven first,
+	// tradeable or not: a session native still holds must be settled, never
+	// left, and a walk only game time finishes.
 	traders := make([]policy.TraderFacts, 0, len(census.Traders))
 	arriving := false
 	for _, row := range census.Traders {
 		arriving = arriving || row.Travelling
 		traders = append(traders, policy.TraderFacts{ID: row.ID, Kind: row.Kind, Faction: row.Faction, CanTrade: row.CanTrade, Travelling: row.Travelling, GoodsStacks: int64(row.GoodsStacks)})
-		open, err := r.phase(call, goal, domain.TradeOpen, row.ID)
-		if err != nil {
-			return RoutineTradeResult{}, err
-		}
-		if !open.found || !open.completed {
+		if row.ID != session.Trader {
 			continue
 		}
-		settled, err := r.tradeSettled(call, goal, row.ID)
+		settled, err := r.tradeSettled(call, goal, row.ID, true)
 		if err != nil {
 			return RoutineTradeResult{}, err
 		}
-		if !settled {
-			return r.drive(call, epoch, state, goal, review, census, row.ID, open.action, started)
+		if settled {
+			continue
 		}
+		if !session.Open {
+			return RoutineTradeResult{Reason: BuildingMethodExistingWork, Trader: row.ID, Phase: domain.TradeOpen, NativeWorkTicks: tradeWalkTicks}, nil
+		}
+		return r.drive(call, epoch, state, goal, review, row.ID, domain.PawnID(session.Negotiator), started)
 	}
 	settled := map[string]bool{}
 	waiting := arriving
-	for _, row := range traders {
-		if settled[row.ID], err = r.tradeSettled(call, goal, row.ID); err != nil {
+	for _, row := range census.Traders {
+		if settled[row.ID], err = r.tradeSettled(call, goal, row.ID, row.ID == session.Trader); err != nil {
 			return RoutineTradeResult{}, err
 		}
 		// A settled caravan is waited out: the goal recovers when it
@@ -349,22 +370,12 @@ func (r *RoutineTradePlanner) open(call, epoch context.Context, state ControlSta
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
-	return r.commit(call, epoch, state, goal, domain.TradeOpen, attempt, trader, value, "", started)
+	return r.commit(call, epoch, state, goal, domain.TradeOpen, attempt, trader, value, started)
 }
 
 // drive advances one caravan's open session: stage the selected lines from
 // its sheet, confirm and accept them, or cancel.
-func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlState, goal store.GoalState, review store.RoutineReview, census bridge.TradersRead, trader string, openAction domain.ActionID, started time.Time) (RoutineTradeResult, error) {
-	p := r.reviewer.player
-	session, resolved, err := p.journal.LookupTradeSession(call, openAction)
-	if err != nil {
-		return RoutineTradeResult{}, err
-	}
-	if !resolved {
-		// Open completed but its session is not yet recorded; wait rather
-		// than guess which session is open.
-		return RoutineTradeResult{Reason: BuildingMethodExistingWork, Trader: trader}, nil
-	}
+func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlState, goal store.GoalState, review store.RoutineReview, trader string, negotiator domain.PawnID, started time.Time) (RoutineTradeResult, error) {
 	lines, err := r.phase(call, goal, domain.TradeSetLines, trader)
 	if err != nil {
 		return RoutineTradeResult{}, err
@@ -383,22 +394,22 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
-	if r.failed(accept) && !accept.retry {
-		return r.cancel(call, epoch, state, goal, trader, openAction, session, started)
+	if r.failed(accept) {
+		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 	}
 	identity := boundary.Identity(state.Snapshot)
-	sheet, _, err := r.native.ReadTradeSheet(call, identity, session.SessionID)
+	sheet, _, err := r.native.ReadTradeSheet(call, identity)
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
 	if _, err = boundary.Context(sheet.Context, state.Snapshot); err != nil {
 		return RoutineTradeResult{}, ErrControl
 	}
-	if sheet.SessionID != session.SessionID || sheet.Trader != trader || sheet.GiftMode || !sheet.CanTradeNow {
-		return r.cancel(call, epoch, state, goal, trader, openAction, session, started)
+	if sheet.Trader != trader || sheet.Negotiator != string(negotiator) || sheet.GiftMode || !sheet.CanTradeNow {
+		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 	}
 	if lines.found && !lines.completed {
-		return r.cancel(call, epoch, state, goal, trader, openAction, session, started)
+		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 	}
 	economic, facts, err := r.selection(call, state, review, sheet)
 	if err != nil {
@@ -408,38 +419,36 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	r.bid(state, trader, selection, facts.Rows, review.Tick)
 	if !lines.found {
 		if len(economic.Targets) == 0 || selection.Refused || len(selection.Selected) == 0 {
-			return r.cancel(call, epoch, state, goal, trader, openAction, session, started)
+			return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 		}
-		staged := tradeLinesOf(selection)
-		preview, _, err := r.native.PreviewSetTradeLines(call, identity, session.SessionID, session.SessionToken, tradeLinesWire(staged), false)
+		value, err := domain.NewTradeSetLines(trader, negotiator, tradeLinesOf(selection), false)
 		if err != nil {
 			return RoutineTradeResult{}, err
 		}
-		if evaluated := preview.GetEvaluated(); evaluated == nil || !evaluated.GetAccepted() {
-			return r.cancel(call, epoch, state, goal, trader, openAction, session, started)
+		if accepted, err := r.previewed(call, state, value); err != nil || !accepted {
+			if err != nil {
+				return RoutineTradeResult{}, err
+			}
+			return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 		}
-		value, err := domain.NewTradeSetLines(staged, false)
-		if err != nil {
-			return RoutineTradeResult{}, err
-		}
-		return r.commit(call, epoch, state, goal, domain.TradeSetLines, 0, trader, value, openAction, started)
+		return r.commit(call, epoch, state, goal, domain.TradeSetLines, 0, trader, value, started)
 	}
 	// Lines are staged: re-run the same selection over the live sheet and
 	// require an exact match, then native's affordability and the silver
 	// reserve, before accepting. Any drift cancels.
 	staged := tradeStagedLines(sheet)
 	if selection.Refused || !sameTradeLines(tradeLinesOf(selection), staged) || !sheet.BalanceKnown || !sheet.ColonyCanAfford || !sheet.TraderHasSilver || sheet.DealSignature == "" {
-		return r.cancel(call, epoch, state, goal, trader, openAction, session, started)
+		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 	}
 	if float64(facts.ColonySilver)+sheet.Balance < float64(selection.SilverReserve) {
-		return r.cancel(call, epoch, state, goal, trader, openAction, session, started)
+		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 	}
 	floors := tradeAcceptFloors(economic, selection)
-	value, err := domain.NewTradeAccept(sheet.DealSignature, floors, false, false)
+	value, err := domain.NewTradeAccept(trader, negotiator, sheet.DealSignature, floors, false, false)
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
-	return r.commit(call, epoch, state, goal, domain.TradeAccept, 0, trader, value, openAction, started)
+	return r.commit(call, epoch, state, goal, domain.TradeAccept, 0, trader, value, started)
 }
 
 // selection re-measures the need from a fresh colony read and turns it,
@@ -504,24 +513,43 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	return economic, facts, nil
 }
 
-func (r *RoutineTradePlanner) cancel(call, epoch context.Context, state ControlState, goal store.GoalState, trader string, openAction domain.ActionID, session store.TradeSession, started time.Time) (RoutineTradeResult, error) {
-	preview, _, err := r.native.PreviewEndTrade(call, boundary.Identity(state.Snapshot), session.SessionID, session.SessionToken, op.EndTradeKind_END_TRADE_KIND_CANCEL, false)
+// previewed asks native whether the intent would apply to the live session
+// now (acceptance, not authority; the executor re-previews at dispatch).
+func (r *RoutineTradePlanner) previewed(call context.Context, state ControlState, value domain.Trade) (bool, error) {
+	action, err := domain.NewTradeAction("routine-trade-preview", value)
+	if err != nil {
+		return false, err
+	}
+	intent, err := tradeIntent(action)
+	if err != nil {
+		return false, err
+	}
+	preview, _, err := r.native.PreviewTrade(call, boundary.Identity(state.Snapshot), intent)
+	if err != nil {
+		return false, err
+	}
+	evaluated := preview.GetEvaluated()
+	return evaluated != nil && evaluated.GetAccepted(), nil
+}
+
+func (r *RoutineTradePlanner) cancel(call, epoch context.Context, state ControlState, goal store.GoalState, trader string, negotiator domain.PawnID, started time.Time) (RoutineTradeResult, error) {
+	value, err := domain.NewTradeEnd(trader, negotiator, domain.TradeEndCancel, false)
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
-	if evaluated := preview.GetEvaluated(); evaluated == nil || !evaluated.GetAccepted() {
+	accepted, err := r.previewed(call, state, value)
+	if err != nil {
+		return RoutineTradeResult{}, err
+	}
+	if !accepted {
 		return RoutineTradeResult{Reason: BuildingMethodRefused, Trader: trader, Phase: domain.TradeEnd}, nil
 	}
-	value, err := domain.NewTradeEnd(domain.TradeEndCancel, false)
-	if err != nil {
-		return RoutineTradeResult{}, err
-	}
-	return r.commit(call, epoch, state, goal, domain.TradeEnd, 0, trader, value, openAction, started)
+	return r.commit(call, epoch, state, goal, domain.TradeEnd, 0, trader, value, started)
 }
 
 // commit records one phase as the caravan's fixed goal method: a plan of
 // the trade action alone.
-func (r *RoutineTradePlanner) commit(call, epoch context.Context, state ControlState, goal store.GoalState, kind domain.TradeOperationKind, attempt int, trader string, value domain.Trade, openAction domain.ActionID, started time.Time) (RoutineTradeResult, error) {
+func (r *RoutineTradePlanner) commit(call, epoch context.Context, state ControlState, goal store.GoalState, kind domain.TradeOperationKind, attempt int, trader string, value domain.Trade, started time.Time) (RoutineTradeResult, error) {
 	p := r.reviewer.player
 	method := tradeMethod(kind, trader, attempt)
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
@@ -542,12 +570,7 @@ func (r *RoutineTradePlanner) commit(call, epoch context.Context, state ControlS
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineTradeResult{}, ErrControl
 	}
-	if kind == domain.TradeOpen {
-		_, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan)
-	} else {
-		_, err = p.journal.CommitTradeGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan, openAction)
-	}
-	if err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineTradeResult{}, err
 	}
 	return RoutineTradeResult{Reason: BuildingMethodAdmitted, Plan: id, Trader: trader, Phase: kind}, nil

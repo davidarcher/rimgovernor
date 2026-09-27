@@ -77,7 +77,7 @@ func TestReadTradeSheetFollowsPaginationToCompletion(t *testing.T) {
 	second := tradeSheetFixture([]*o.TradeLine{tradeSheetLine("line-3", "Silver", 900, 400)}, true, "")
 	client, seen := tradeSheetClient(t, []*o.TradeSheet{first, second})
 
-	out, raw, err := client.ReadTradeSheet(context.Background(), pbIdentity(), "session-1")
+	out, raw, err := client.ReadTradeSheet(context.Background(), pbIdentity())
 	if err != nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestReadTradeSheetFollowsPaginationToCompletion(t *testing.T) {
 	// Every page must ask for the complete unfiltered sheet, and only the
 	// second may carry a cursor.
 	for i, q := range *seen {
-		if !q.GetIncludeUntradeable() || q.GetOnlyChanged() || q.GetSessionId() != "session-1" || q.Page.GetLimit() != tradeSheetPageLimit {
+		if !q.GetIncludeUntradeable() || q.GetOnlyChanged() || q.Page.GetLimit() != tradeSheetPageLimit {
 			t.Fatalf("request %d asked for a narrowed sheet: %v", i, q)
 		}
 	}
@@ -97,7 +97,7 @@ func TestReadTradeSheetFollowsPaginationToCompletion(t *testing.T) {
 	if len(out.Rows) != 3 || out.Rows[0].LineID != "line-1" || out.Rows[2].DefName != "Silver" {
 		t.Fatalf("rows %+v, want all three pages' rows in order", out.Rows)
 	}
-	if out.SessionID != "session-1" || out.SessionToken != "sheet-token" || out.DealSignature != "deal-1" ||
+	if out.SessionID != "session-1" || out.DealSignature != "deal-1" ||
 		out.Trader != "settlement-1" || out.Negotiator != "pawn-1" || !out.CanTradeNow ||
 		out.Balance != -40 || !out.BalanceKnown || !out.ColonyCanAfford || !out.TraderHasSilver {
 		t.Fatalf("header %+v is not the first page's header", out)
@@ -116,7 +116,7 @@ func TestReadTradeSheetCarriesAbsentFieldsAsUnknown(t *testing.T) {
 	sheet.Balance = nil
 	client, _ := tradeSheetClient(t, []*o.TradeSheet{sheet})
 
-	out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity(), "session-1")
+	out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,8 +139,6 @@ func TestReadTradeSheetRefusesIncompleteSheets(t *testing.T) {
 		"completeness missing":  func(v *o.TradeSheet) { v.Completeness = nil },
 		"page missing":          func(v *o.TradeSheet) { v.Completeness.Page = nil },
 		"not complete, no next": func(v *o.TradeSheet) { v.Completeness.Page.Complete = proto.Bool(false) },
-		"other session":         func(v *o.TradeSheet) { v.SessionId = proto.String("session-2") },
-		"missing token":         func(v *o.TradeSheet) { v.Snapshot.Token = nil },
 		"other world":           func(v *o.TradeSheet) { v.Snapshot.Context.Identity.LoadToken = proto.String("other") },
 		"duplicate line id":     func(v *o.TradeSheet) { v.Lines = append(v.Lines, v.Lines[0]) },
 		"negative colony count": func(v *o.TradeSheet) { v.Lines[0].ColonyCount = proto.Int64(-1) },
@@ -151,7 +149,7 @@ func TestReadTradeSheetRefusesIncompleteSheets(t *testing.T) {
 			sheet := tradeSheetFixture([]*o.TradeLine{tradeSheetLine("line-1", "Steel", 100, 200)}, true, "")
 			edit(sheet)
 			client, _ := tradeSheetClient(t, []*o.TradeSheet{sheet})
-			if out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity(), "session-1"); err == nil {
+			if out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity()); err == nil {
 				t.Fatalf("got %+v, want a refusal rather than a partial sheet", out)
 			}
 		})
@@ -164,7 +162,7 @@ func TestReadTradeSheetRefusesIncompleteSheets(t *testing.T) {
 func TestReadTradeSheetRefusesSheetsThatMoveMidPagination(t *testing.T) {
 	for name, edit := range map[string]func(*o.TradeSheet){
 		"deal signature": func(v *o.TradeSheet) { v.DealSignature = proto.String("deal-2") },
-		"session token":  func(v *o.TradeSheet) { v.Snapshot.Token = proto.String("other-token") },
+		"session":        func(v *o.TradeSheet) { v.SessionId = proto.String("session-2") },
 		"trader":         func(v *o.TradeSheet) { v.Trader = &o.EntityRef{Id: proto.String("settlement-2")} },
 		"negotiator":     func(v *o.TradeSheet) { v.Negotiator = &o.EntityRef{Id: proto.String("pawn-2")} },
 	} {
@@ -173,7 +171,7 @@ func TestReadTradeSheetRefusesSheetsThatMoveMidPagination(t *testing.T) {
 			second := tradeSheetFixture([]*o.TradeLine{tradeSheetLine("line-2", "Gold", 1, 1)}, true, "")
 			edit(second)
 			client, _ := tradeSheetClient(t, []*o.TradeSheet{first, second})
-			if out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity(), "session-1"); err == nil {
+			if out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity()); err == nil {
 				t.Fatalf("got %+v, want a refusal when the sheet moved mid-pagination", out)
 			}
 		})
@@ -188,7 +186,7 @@ func TestReadTradeSheetRefusesUnboundedPagination(t *testing.T) {
 		pages = append(pages, tradeSheetFixture([]*o.TradeLine{tradeSheetLine(fmt.Sprintf("line-%d", i), "Steel", 1, 1)}, false, "cursor-next"))
 	}
 	client, seen := tradeSheetClient(t, pages)
-	if _, _, err := client.ReadTradeSheet(context.Background(), pbIdentity(), "session-1"); err == nil {
+	if _, _, err := client.ReadTradeSheet(context.Background(), pbIdentity()); err == nil {
 		t.Fatal("expected a refusal once the pagination bound is exceeded")
 	}
 	if len(*seen) != tradeSheetMaximumPages {
@@ -201,10 +199,7 @@ func TestReadTradeSheetRejectsInvalidInputs(t *testing.T) {
 		t.Fatal("invalid request dispatched")
 		return nil, nil
 	}}, time.Second)
-	if _, _, err := client.ReadTradeSheet(context.Background(), pbIdentity(), ""); err == nil {
-		t.Fatal("expected rejection of an empty session identity")
-	}
-	if _, _, err := client.ReadTradeSheet(context.Background(), nil, "session-1"); err == nil {
+	if _, _, err := client.ReadTradeSheet(context.Background(), nil); err == nil {
 		t.Fatal("expected rejection of a missing identity")
 	}
 }

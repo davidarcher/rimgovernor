@@ -24,9 +24,8 @@ namespace HomeBridge.BridgeTools
     // WorldTile terrain facts remain unimplemented (a distinct, unrelated
     // follow-up, not needed by any current consumer).
     //
-    // Settlement/faction tokens are self-computed, the same known pattern
-    // NativeTradeOperations documents for its own session/trader/negotiator
-    // tokens: no other observation exposes a per-settlement CAS snapshot yet.
+    // Settlement/faction tokens are self-computed: no other observation
+    // exposes a per-settlement CAS snapshot yet.
     // Go's settlement-gift boundary is this handler's first consumer, reading
     // the settlement at an already-known caravan tile (from
     // ReadWorldProgression) to learn whether -- and to which faction -- that

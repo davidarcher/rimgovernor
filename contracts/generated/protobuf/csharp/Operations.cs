@@ -495,162 +495,163 @@ namespace RimGovernor.Protocol.Operations {
             "LnYxLkVudGl0eVByZWNvbmRpdGlvbhI7CgRraW5kGAMgASgOMigucmltZ292",
             "ZXJub3Iub3BlcmF0aW9ucy52MS5QYXduT3JkZXJLaW5kSACIAQESIQoUcmVx",
             "dWlyZV9zYWZlX3N0b3JhZ2UYBCABKAhIAYgBAUIHCgVfa2luZEIXChVfcmVx",
-            "dWlyZV9zYWZlX3N0b3JhZ2UiswEKCU9wZW5UcmFkZRI9CgZ0cmFkZXIYASAB",
-            "KAsyLS5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkVudGl0eVByZWNvbmRp",
-            "dGlvbhJBCgpuZWdvdGlhdG9yGAIgASgLMi0ucmltZ292ZXJub3Iub3BlcmF0",
-            "aW9ucy52MS5FbnRpdHlQcmVjb25kaXRpb24SFgoJZ2lmdF9tb2RlGAMgASgI",
-            "SACIAQFCDAoKX2dpZnRfbW9kZSJdCglUcmFkZUxpbmUSFAoHbGluZV9pZBgB",
-            "IAEoCUgAiAEBEhsKDmFic29sdXRlX2NvdW50GAIgASgFSAGIAQFCCgoIX2xp",
-            "bmVfaWRCEQoPX2Fic29sdXRlX2NvdW50Iq4BCg1TZXRUcmFkZUxpbmVzEj4K",
-            "B3Nlc3Npb24YASABKAsyLS5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkVu",
-            "dGl0eVByZWNvbmRpdGlvbhIzCgVsaW5lcxgCIAMoCzIkLnJpbWdvdmVybm9y",
-            "Lm9wZXJhdGlvbnMudjEuVHJhZGVMaW5lEhgKC2FsbG93X3Bhd25zGAMgASgI",
-            "SACIAQFCDgoMX2FsbG93X3Bhd25zIqUCCgtBY2NlcHRUcmFkZRI+CgdzZXNz",
-            "aW9uGAEgASgLMi0ucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5FbnRpdHlQ",
-            "cmVjb25kaXRpb24SJAoXZXhwZWN0ZWRfZGVhbF9zaWduYXR1cmUYAiABKAlI",
-            "AIgBARI8Cg9lY29ub21pY19mbG9vcnMYAyADKAsyIy5yaW1nb3Zlcm5vci5v",
-            "cGVyYXRpb25zLnYxLkRlZkNvdW50EhgKC2FsbG93X2VtcHR5GAQgASgISAGI",
-            "AQESGgoNcmVjZWl2ZV9xdWVzdBgFIAEoCEgCiAEBQhoKGF9leHBlY3RlZF9k",
-            "ZWFsX3NpZ25hdHVyZUIOCgxfYWxsb3dfZW1wdHlCEAoOX3JlY2VpdmVfcXVl",
-            "c3QivQEKCEVuZFRyYWRlEj4KB3Nlc3Npb24YASABKAsyLS5yaW1nb3Zlcm5v",
-            "ci5vcGVyYXRpb25zLnYxLkVudGl0eVByZWNvbmRpdGlvbhI6CgRraW5kGAIg",
-            "ASgOMicucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5FbmRUcmFkZUtpbmRI",
-            "AIgBARIaCg1yZWNlaXZlX3F1ZXN0GAMgASgISAGIAQFCBwoFX2tpbmRCEAoO",
-            "X3JlY2VpdmVfcXVlc3QiUgoOQ2FyZ29TZWxlY3Rpb24SFQoIZ3JvdXBfaWQY",
-            "ASABKAlIAIgBARISCgVjb3VudBgCIAEoBUgBiAEBQgsKCV9ncm91cF9pZEII",
-            "CgZfY291bnQizQEKC0Zvcm1DYXJhdmFuEiMKFmV4cGVjdGVkX2NhdGFsb2df",
-            "dG9rZW4YASABKAlIAIgBARIQCghwYXduX2lkcxgCIAMoCRI4CgVjYXJnbxgD",
-            "IAMoCzIpLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuQ2FyZ29TZWxlY3Rp",
-            "b24SHQoQZGVzdGluYXRpb25fdGlsZRgEIAEoBUgBiAEBQhkKF19leHBlY3Rl",
-            "ZF9jYXRhbG9nX3Rva2VuQhMKEV9kZXN0aW5hdGlvbl90aWxlIsYBCg1UcmF2",
-            "ZWxDYXJhdmFuEj4KB2NhcmF2YW4YASABKAsyLS5yaW1nb3Zlcm5vci5vcGVy",
-            "YXRpb25zLnYxLkVudGl0eVByZWNvbmRpdGlvbhI4CgRraW5kGAIgASgOMiUu",
-            "cmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5UcmF2ZWxLaW5kSACIAQESHQoQ",
-            "ZGVzdGluYXRpb25fdGlsZRgDIAEoBUgBiAEBQgcKBV9raW5kQhMKEV9kZXN0",
-            "aW5hdGlvbl90aWxlIs4BChFHaWZ0Q2FyYXZhblNpbHZlchI+CgdjYXJhdmFu",
-            "GAEgASgLMi0ucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5FbnRpdHlQcmVj",
-            "b25kaXRpb24SPgoHZmFjdGlvbhgCIAEoCzItLnJpbWdvdmVybm9yLm9wZXJh",
-            "dGlvbnMudjEuRW50aXR5UHJlY29uZGl0aW9uEhkKEWV4cGVjdGVkX3Bhd25f",
-            "aWRzGAMgAygJEhMKBnNpbHZlchgEIAEoBUgAiAEBQgkKB19zaWx2ZXIirQEK",
-            "C0FjY2VwdFF1ZXN0EjwKBXF1ZXN0GAEgASgLMi0ucmltZ292ZXJub3Iub3Bl",
-            "cmF0aW9ucy52MS5FbnRpdHlQcmVjb25kaXRpb24SHQoQYWNjZXB0ZXJfcGF3",
-            "bl9pZBgCIAEoCUgAiAEBEhoKDXJld2FyZF9jaG9pY2UYAyABKAVIAYgBAUIT",
-            "ChFfYWNjZXB0ZXJfcGF3bl9pZEIQCg5fcmV3YXJkX2Nob2ljZSKnAQoMRnVs",
-            "ZmlsbFF1ZXN0EjwKBXF1ZXN0GAEgASgLMi0ucmltZ292ZXJub3Iub3BlcmF0",
-            "aW9ucy52MS5FbnRpdHlQcmVjb25kaXRpb24SPgoHY2FyYXZhbhgCIAEoCzIt",
-            "LnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuRW50aXR5UHJlY29uZGl0aW9u",
-            "EhkKEWV4cGVjdGVkX3Bhd25faWRzGAMgAygJIpgBChJDb25maXJtQ29sb255",
-            "TmFtZXMSFgoJd2luZG93X2lkGAEgASgFSACIAQESGQoMZmFjdGlvbl9uYW1l",
-            "GAIgASgJSAGIAQESHAoPc2V0dGxlbWVudF9uYW1lGAMgASgJSAKIAQFCDAoK",
-            "X3dpbmRvd19pZEIPCg1fZmFjdGlvbl9uYW1lQhIKEF9zZXR0bGVtZW50X25h",
-            "bWUixgEKDEFuc3dlckRpYWxvZxIWCgl3aW5kb3dfaWQYASABKAVIAIgBARIZ",
-            "CgxvcHRpb25faW5kZXgYAiABKAVIAYgBARIZCgxvcHRpb25fbGFiZWwYAyAB",
-            "KAlIAogBARIgChNqb2luZXJfbGV0dGVyX3Rva2VuGAQgASgJSAOIAQFCDAoK",
-            "X3dpbmRvd19pZEIPCg1fb3B0aW9uX2luZGV4Qg8KDV9vcHRpb25fbGFiZWxC",
-            "FgoUX2pvaW5lcl9sZXR0ZXJfdG9rZW4i1gEKGFJlbGVhc2VPd25lZERyYWZ0",
-            "UmVxdWVzdBIxCghpZGVudGl0eRgBIAEoCzIfLnJpbWdvdmVybm9yLmNvbW1v",
-            "bi52MS5JZGVudGl0eRI7CgRwYXduGAIgASgLMi0ucmltZ292ZXJub3Iub3Bl",
-            "cmF0aW9ucy52MS5FbnRpdHlQcmVjb25kaXRpb24SHgoRZXhwZWN0ZWRfY2xh",
-            "aW1faWQYAyABKAlIAIgBAUIUChJfZXhwZWN0ZWRfY2xhaW1faWRKBAgEEAVS",
-            "Dm9yaWdpbmFsX293bmVyIsYBCgxEcmFmdFJlbGVhc2USRAoHcmVxdWVzdBgB",
-            "IAEoCzIzLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuUmVsZWFzZU93bmVk",
-            "RHJhZnRSZXF1ZXN0EjoKB2NvbnRleHQYAiABKAsyKS5yaW1nb3Zlcm5vci5j",
-            "b21tb24udjEuT2JzZXJ2YXRpb25Db250ZXh0EjQKCG9ic2VydmVkGAMgASgL",
-            "MiIucmltZ292ZXJub3IucmVjZWlwdHMudjEuSm9iRWZmZWN0IrkBChVEcmFm",
-            "dFJlbGVhc2VVbmNlcnRhaW4SRAoHcmVxdWVzdBgBIAEoCzIzLnJpbWdvdmVy",
-            "bm9yLm9wZXJhdGlvbnMudjEuUmVsZWFzZU93bmVkRHJhZnRSZXF1ZXN0EjoK",
-            "B2NvbnRleHQYAiABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24udjEuT2JzZXJ2",
-            "YXRpb25Db250ZXh0EhMKBmRldGFpbBgDIAEoCUgAiAEBQgkKB19kZXRhaWwi",
-            "nwIKFlJlbGVhc2VPd25lZERyYWZ0UmVwbHkSOwoIcmVsZWFzZWQYASABKAsy",
-            "Jy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkRyYWZ0UmVsZWFzZUgAEkMK",
-            "EGFscmVhZHlfcmVsZWFzZWQYAiABKAsyJy5yaW1nb3Zlcm5vci5vcGVyYXRp",
-            "b25zLnYxLkRyYWZ0UmVsZWFzZUgAEkUKCXVuY2VydGFpbhgDIAEoCzIwLnJp",
-            "bWdvdmVybm9yLm9wZXJhdGlvbnMudjEuRHJhZnRSZWxlYXNlVW5jZXJ0YWlu",
-            "SAASMQoHZmFpbHVyZRgEIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5G",
-            "YWlsdXJlSABCCQoHb3V0Y29tZSK1AgoQU2V0QXBwYXJlbFBvbGljeRI7CgRw",
-            "YXduGAEgASgLMi0ucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5FbnRpdHlQ",
-            "cmVjb25kaXRpb24SEQoEbmFtZRgCIAEoCUgAiAEBEhQKDGFsbG93ZWRfZGVm",
-            "cxgDIAMoCRIbCg5taW5faGl0X3BvaW50cxgEIAEoAkgBiAEBEhsKDm1heF9o",
-            "aXRfcG9pbnRzGAUgASgCSAKIAQESGAoLbWluX3F1YWxpdHkYBiABKAVIA4gB",
-            "ARIYCgttYXhfcXVhbGl0eRgHIAEoBUgEiAEBQgcKBV9uYW1lQhEKD19taW5f",
-            "aGl0X3BvaW50c0IRCg9fbWF4X2hpdF9wb2ludHNCDgoMX21pbl9xdWFsaXR5",
-            "Qg4KDF9tYXhfcXVhbGl0eSprCg5Db21iYXRGaXJlTW9kZRIgChxDT01CQVRf",
-            "RklSRV9NT0RFX1VOU1BFQ0lGSUVEEAASHAoYQ09NQkFUX0ZJUkVfTU9ERV9B",
-            "VF9XSUxMEAESGQoVQ09NQkFUX0ZJUkVfTU9ERV9IT0xEEAIqbgoOQ29tYmF0",
-            "RG9vck1vZGUSIAocQ09NQkFUX0RPT1JfTU9ERV9VTlNQRUNJRklFRBAAEh4K",
-            "GkNPTUJBVF9ET09SX01PREVfSE9MRF9PUEVOEAESGgoWQ09NQkFUX0RPT1Jf",
-            "TU9ERV9DTE9TRRACKvUBChBUaGluZ0Rlc2lnbmF0aW9uEiEKHVRISU5HX0RF",
-            "U0lHTkFUSU9OX1VOU1BFQ0lGSUVEEAASGwoXVEhJTkdfREVTSUdOQVRJT05f",
-            "QUxMT1cQARIcChhUSElOR19ERVNJR05BVElPTl9GT1JCSUQQAhIaChZUSElO",
-            "R19ERVNJR05BVElPTl9IVU5UEAMSIwofVEhJTkdfREVTSUdOQVRJT05fSEFS",
-            "VkVTVF9QTEFOVBAEEiEKHVRISU5HX0RFU0lHTkFUSU9OX0RFQ09OU1RSVUNU",
-            "EAUSHwobVEhJTkdfREVTSUdOQVRJT05fQ1VUX1BMQU5UEAYqWgoMUG93ZXJT",
-            "ZXR0aW5nEh0KGVBPV0VSX1NFVFRJTkdfVU5TUEVDSUZJRUQQABIUChBQT1dF",
-            "Ul9TRVRUSU5HX09OEAESFQoRUE9XRVJfU0VUVElOR19PRkYQAiq+AQoLTWVk",
-            "aWNhbENhcmUSHAoYTUVESUNBTF9DQVJFX1VOU1BFQ0lGSUVEEAASGAoUTUVE",
-            "SUNBTF9DQVJFX05PX0NBUkUQARIcChhNRURJQ0FMX0NBUkVfTk9fTUVESUNJ",
-            "TkUQAhIgChxNRURJQ0FMX0NBUkVfSEVSQkFMX09SX1dPUlNFEAMSIAocTUVE",
-            "SUNBTF9DQVJFX05PUk1BTF9PUl9XT1JTRRAEEhUKEU1FRElDQUxfQ0FSRV9C",
-            "RVNUEAUqkgEKEUhvc3RpbGl0eVJlc3BvbnNlEiIKHkhPU1RJTElUWV9SRVNQ",
-            "T05TRV9VTlNQRUNJRklFRBAAEh0KGUhPU1RJTElUWV9SRVNQT05TRV9JR05P",
-            "UkUQARIdChlIT1NUSUxJVFlfUkVTUE9OU0VfQVRUQUNLEAISGwoXSE9TVElM",
-            "SVRZX1JFU1BPTlNFX0ZMRUUQAypxCgpSZXBlYXRNb2RlEhsKF1JFUEVBVF9N",
-            "T0RFX1VOU1BFQ0lGSUVEEAASFwoTUkVQRUFUX01PREVfRk9SRVZFUhABEhUK",
-            "EVJFUEVBVF9NT0RFX0NPVU5UEAISFgoSUkVQRUFUX01PREVfVEFSR0VUEAMq",
-            "ZAoJU3RvcmVNb2RlEhoKFlNUT1JFX01PREVfVU5TUEVDSUZJRUQQABIdChlT",
-            "VE9SRV9NT0RFX0JFU1RfU1RPQ0tQSUxFEAESHAoYU1RPUkVfTU9ERV9EUk9Q",
-            "X09OX0ZMT09SEAIqgwEKCFpvbmVUeXBlEhkKFVpPTkVfVFlQRV9VTlNQRUNJ",
-            "RklFRBAAEhcKE1pPTkVfVFlQRV9TVE9DS1BJTEUQARIVChFaT05FX1RZUEVf",
-            "RFVNUElORxACEhUKEVpPTkVfVFlQRV9HUk9XSU5HEAMSFQoRWk9ORV9UWVBF",
-            "X0ZJU0hJTkcQBCrJAQoPU3RvcmFnZVByaW9yaXR5EiAKHFNUT1JBR0VfUFJJ",
-            "T1JJVFlfVU5TUEVDSUZJRUQQABIYChRTVE9SQUdFX1BSSU9SSVRZX0xPVxAB",
-            "EhsKF1NUT1JBR0VfUFJJT1JJVFlfTk9STUFMEAISHgoaU1RPUkFHRV9QUklP",
-            "UklUWV9QUkVGRVJSRUQQAxIeChpTVE9SQUdFX1BSSU9SSVRZX0lNUE9SVEFO",
-            "VBAEEh0KGVNUT1JBR0VfUFJJT1JJVFlfQ1JJVElDQUwQBSrfAQoMRmlsdGVy",
-            "UHJlc2V0Eh0KGUZJTFRFUl9QUkVTRVRfVU5TUEVDSUZJRUQQABIcChhGSUxU",
-            "RVJfUFJFU0VUX0VWRVJZVEhJTkcQARIZChVGSUxURVJfUFJFU0VUX05PVEhJ",
-            "TkcQAhIWChJGSUxURVJfUFJFU0VUX0ZPT0QQAxIdChlGSUxURVJfUFJFU0VU",
-            "X1BFUklTSEFCTEVTEAQSIAocRklMVEVSX1BSRVNFVF9OT05QRVJJU0hBQkxF",
-            "UxAFEh4KGkZJTFRFUl9QUkVTRVRfT1VURE9PUl9TQUZFEAYqTgoIQ2VsbEVk",
-            "aXQSGQoVQ0VMTF9FRElUX1VOU1BFQ0lGSUVEEAASEQoNQ0VMTF9FRElUX0FE",
-            "RBABEhQKEENFTExfRURJVF9SRU1PVkUQAiqDAQoNU2VydmljZU1ldGhvZBIe",
-            "ChpTRVJWSUNFX01FVEhPRF9VTlNQRUNJRklFRBAAEhkKFVNFUlZJQ0VfTUVU",
-            "SE9EX1JFUEFJUhABEhwKGFNFUlZJQ0VfTUVUSE9EX0JSRUFLRE9XThACEhkK",
-            "FVNFUlZJQ0VfTUVUSE9EX1JFRlVFTBADKkgKBE5lZWQSFAoQTkVFRF9VTlNQ",
-            "RUNJRklFRBAAEg0KCU5FRURfRk9PRBABEg0KCU5FRURfUkVTVBACEgwKCE5F",
-            "RURfSk9ZEAMqnwIKE1ByaXNvbmVySW50ZXJhY3Rpb24SJAogUFJJU09ORVJf",
-            "SU5URVJBQ1RJT05fVU5TUEVDSUZJRUQQABIoCiRQUklTT05FUl9JTlRFUkFD",
-            "VElPTl9BVFRFTVBUX1JFQ1JVSVQQARImCiJQUklTT05FUl9JTlRFUkFDVElP",
-            "Tl9NQUlOVEFJTl9PTkxZEAISKgomUFJJU09ORVJfSU5URVJBQ1RJT05fUkVE",
-            "VUNFX1JFU0lTVEFOQ0UQAxIgChxQUklTT05FUl9JTlRFUkFDVElPTl9SRUxF",
-            "QVNFEAQSIAocUFJJU09ORVJfSU5URVJBQ1RJT05fRU5TTEFWRRAFEiAKHFBS",
-            "SVNPTkVSX0lOVEVSQUNUSU9OX0NPTlZFUlQQBipuCgpBdHRhY2tNb2RlEhsK",
-            "F0FUVEFDS19NT0RFX1VOU1BFQ0lGSUVEEAASFAoQQVRUQUNLX01PREVfQVVU",
-            "TxABEhUKEUFUVEFDS19NT0RFX01FTEVFEAISFgoSQVRUQUNLX01PREVfUkFO",
-            "R0VEEAMq7AIKDVBhd25PcmRlcktpbmQSHwobUEFXTl9PUkRFUl9LSU5EX1VO",
-            "U1BFQ0lGSUVEEAASGQoVUEFXTl9PUkRFUl9LSU5EX0VRVUlQEAESGgoWUEFX",
-            "Tl9PUkRFUl9LSU5EX1JFU0NVRRACEhsKF1BBV05fT1JERVJfS0lORF9DQVBU",
-            "VVJFEAMSGAoUUEFXTl9PUkRFUl9LSU5EX1RFTkQQBBIYChRQQVdOX09SREVS",
-            "X0tJTkRfSEFVTBAFEhgKFFBBV05fT1JERVJfS0lORF9XT1JLEAYSGgoWUEFX",
-            "Tl9PUkRFUl9LSU5EX1JFUEFJUhAHEhkKFVBBV05fT1JERVJfS0lORF9DTEVB",
-            "ThAIEh8KG1BBV05fT1JERVJfS0lORF9PUEVOX0NBU0tFVBAJEhoKFlBBV05f",
-            "T1JERVJfS0lORF9TVUJEVUUQChIkCiBQQVdOX09SREVSX0tJTkRfT1BFTl9D",
-            "QVNLRVRfSEVBVBALKmoKDEVuZFRyYWRlS2luZBIeChpFTkRfVFJBREVfS0lO",
-            "RF9VTlNQRUNJRklFRBAAEhkKFUVORF9UUkFERV9LSU5EX0NBTkNFTBABEh8K",
-            "G0VORF9UUkFERV9LSU5EX0NMT1NFX0RJQUxPRxACKokBCgpUcmF2ZWxLaW5k",
-            "EhsKF1RSQVZFTF9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQVFJBVkVMX0tJTkRf",
-            "TU9WRRABEhUKEVRSQVZFTF9LSU5EX1ZJU0lUEAISGwoXVFJBVkVMX0tJTkRf",
-            "UkVUVVJOX0hPTUUQAxIUChBUUkFWRUxfS0lORF9TVE9QEAQyxwIKCk9wZXJh",
-            "dGlvbnMSXQoHUHJldmlldxIpLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEu",
-            "UHJldmlld1JlcXVlc3QaJy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLlBy",
-            "ZXZpZXdSZXBseRJdCgdFeGVjdXRlEikucmltZ292ZXJub3Iub3BlcmF0aW9u",
-            "cy52MS5FeGVjdXRlUmVxdWVzdBonLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMu",
-            "djEuRXhlY3V0ZVJlcGx5EnsKEVJlbGVhc2VPd25lZERyYWZ0EjMucmltZ292",
-            "ZXJub3Iub3BlcmF0aW9ucy52MS5SZWxlYXNlT3duZWREcmFmdFJlcXVlc3Qa",
-            "MS5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLlJlbGVhc2VPd25lZERyYWZ0",
-            "UmVwbHlCcVpNZ2l0aHViLmNvbS9kYXZpZGFyY2hlci9SaW1Hb3Zlcm5vci9n",
-            "by9pbnRlcm5hbC93aXJlL29wZXJhdGlvbnNwYjtvcGVyYXRpb25zcGKqAh9S",
-            "aW1Hb3Zlcm5vci5Qcm90b2NvbC5PcGVyYXRpb25zYgZwcm90bzM="));
+            "dWlyZV9zYWZlX3N0b3JhZ2UikQEKCU9wZW5UcmFkZRIWCglnaWZ0X21vZGUY",
+            "AyABKAhIAIgBARIWCgl0cmFkZXJfaWQYBCABKAlIAYgBARIaCg1uZWdvdGlh",
+            "dG9yX2lkGAUgASgJSAKIAQFCDAoKX2dpZnRfbW9kZUIMCgpfdHJhZGVyX2lk",
+            "QhAKDl9uZWdvdGlhdG9yX2lkSgQIARACSgQIAhADIl0KCVRyYWRlTGluZRIU",
+            "CgdsaW5lX2lkGAEgASgJSACIAQESGwoOYWJzb2x1dGVfY291bnQYAiABKAVI",
+            "AYgBAUIKCghfbGluZV9pZEIRCg9fYWJzb2x1dGVfY291bnQiyAEKDVNldFRy",
+            "YWRlTGluZXMSMwoFbGluZXMYAiADKAsyJC5yaW1nb3Zlcm5vci5vcGVyYXRp",
+            "b25zLnYxLlRyYWRlTGluZRIYCgthbGxvd19wYXducxgDIAEoCEgAiAEBEhYK",
+            "CXRyYWRlcl9pZBgEIAEoCUgBiAEBEhoKDW5lZ290aWF0b3JfaWQYBSABKAlI",
+            "AogBAUIOCgxfYWxsb3dfcGF3bnNCDAoKX3RyYWRlcl9pZEIQCg5fbmVnb3Rp",
+            "YXRvcl9pZEoECAEQAiK/AgoLQWNjZXB0VHJhZGUSJAoXZXhwZWN0ZWRfZGVh",
+            "bF9zaWduYXR1cmUYAiABKAlIAIgBARI8Cg9lY29ub21pY19mbG9vcnMYAyAD",
+            "KAsyIy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkRlZkNvdW50EhgKC2Fs",
+            "bG93X2VtcHR5GAQgASgISAGIAQESGgoNcmVjZWl2ZV9xdWVzdBgFIAEoCEgC",
+            "iAEBEhYKCXRyYWRlcl9pZBgGIAEoCUgDiAEBEhoKDW5lZ290aWF0b3JfaWQY",
+            "ByABKAlIBIgBAUIaChhfZXhwZWN0ZWRfZGVhbF9zaWduYXR1cmVCDgoMX2Fs",
+            "bG93X2VtcHR5QhAKDl9yZWNlaXZlX3F1ZXN0QgwKCl90cmFkZXJfaWRCEAoO",
+            "X25lZ290aWF0b3JfaWRKBAgBEAIi1wEKCEVuZFRyYWRlEjoKBGtpbmQYAiAB",
+            "KA4yJy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkVuZFRyYWRlS2luZEgA",
+            "iAEBEhoKDXJlY2VpdmVfcXVlc3QYAyABKAhIAYgBARIWCgl0cmFkZXJfaWQY",
+            "BCABKAlIAogBARIaCg1uZWdvdGlhdG9yX2lkGAUgASgJSAOIAQFCBwoFX2tp",
+            "bmRCEAoOX3JlY2VpdmVfcXVlc3RCDAoKX3RyYWRlcl9pZEIQCg5fbmVnb3Rp",
+            "YXRvcl9pZEoECAEQAiJSCg5DYXJnb1NlbGVjdGlvbhIVCghncm91cF9pZBgB",
+            "IAEoCUgAiAEBEhIKBWNvdW50GAIgASgFSAGIAQFCCwoJX2dyb3VwX2lkQggK",
+            "Bl9jb3VudCLNAQoLRm9ybUNhcmF2YW4SIwoWZXhwZWN0ZWRfY2F0YWxvZ190",
+            "b2tlbhgBIAEoCUgAiAEBEhAKCHBhd25faWRzGAIgAygJEjgKBWNhcmdvGAMg",
+            "AygLMikucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5DYXJnb1NlbGVjdGlv",
+            "bhIdChBkZXN0aW5hdGlvbl90aWxlGAQgASgFSAGIAQFCGQoXX2V4cGVjdGVk",
+            "X2NhdGFsb2dfdG9rZW5CEwoRX2Rlc3RpbmF0aW9uX3RpbGUixgEKDVRyYXZl",
+            "bENhcmF2YW4SPgoHY2FyYXZhbhgBIAEoCzItLnJpbWdvdmVybm9yLm9wZXJh",
+            "dGlvbnMudjEuRW50aXR5UHJlY29uZGl0aW9uEjgKBGtpbmQYAiABKA4yJS5y",
+            "aW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLlRyYXZlbEtpbmRIAIgBARIdChBk",
+            "ZXN0aW5hdGlvbl90aWxlGAMgASgFSAGIAQFCBwoFX2tpbmRCEwoRX2Rlc3Rp",
+            "bmF0aW9uX3RpbGUizgEKEUdpZnRDYXJhdmFuU2lsdmVyEj4KB2NhcmF2YW4Y",
+            "ASABKAsyLS5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkVudGl0eVByZWNv",
+            "bmRpdGlvbhI+CgdmYWN0aW9uGAIgASgLMi0ucmltZ292ZXJub3Iub3BlcmF0",
+            "aW9ucy52MS5FbnRpdHlQcmVjb25kaXRpb24SGQoRZXhwZWN0ZWRfcGF3bl9p",
+            "ZHMYAyADKAkSEwoGc2lsdmVyGAQgASgFSACIAQFCCQoHX3NpbHZlciKtAQoL",
+            "QWNjZXB0UXVlc3QSPAoFcXVlc3QYASABKAsyLS5yaW1nb3Zlcm5vci5vcGVy",
+            "YXRpb25zLnYxLkVudGl0eVByZWNvbmRpdGlvbhIdChBhY2NlcHRlcl9wYXdu",
+            "X2lkGAIgASgJSACIAQESGgoNcmV3YXJkX2Nob2ljZRgDIAEoBUgBiAEBQhMK",
+            "EV9hY2NlcHRlcl9wYXduX2lkQhAKDl9yZXdhcmRfY2hvaWNlIqcBCgxGdWxm",
+            "aWxsUXVlc3QSPAoFcXVlc3QYASABKAsyLS5yaW1nb3Zlcm5vci5vcGVyYXRp",
+            "b25zLnYxLkVudGl0eVByZWNvbmRpdGlvbhI+CgdjYXJhdmFuGAIgASgLMi0u",
+            "cmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5FbnRpdHlQcmVjb25kaXRpb24S",
+            "GQoRZXhwZWN0ZWRfcGF3bl9pZHMYAyADKAkimAEKEkNvbmZpcm1Db2xvbnlO",
+            "YW1lcxIWCgl3aW5kb3dfaWQYASABKAVIAIgBARIZCgxmYWN0aW9uX25hbWUY",
+            "AiABKAlIAYgBARIcCg9zZXR0bGVtZW50X25hbWUYAyABKAlIAogBAUIMCgpf",
+            "d2luZG93X2lkQg8KDV9mYWN0aW9uX25hbWVCEgoQX3NldHRsZW1lbnRfbmFt",
+            "ZSLGAQoMQW5zd2VyRGlhbG9nEhYKCXdpbmRvd19pZBgBIAEoBUgAiAEBEhkK",
+            "DG9wdGlvbl9pbmRleBgCIAEoBUgBiAEBEhkKDG9wdGlvbl9sYWJlbBgDIAEo",
+            "CUgCiAEBEiAKE2pvaW5lcl9sZXR0ZXJfdG9rZW4YBCABKAlIA4gBAUIMCgpf",
+            "d2luZG93X2lkQg8KDV9vcHRpb25faW5kZXhCDwoNX29wdGlvbl9sYWJlbEIW",
+            "ChRfam9pbmVyX2xldHRlcl90b2tlbiLWAQoYUmVsZWFzZU93bmVkRHJhZnRS",
+            "ZXF1ZXN0EjEKCGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJub3IuY29tbW9u",
+            "LnYxLklkZW50aXR5EjsKBHBhd24YAiABKAsyLS5yaW1nb3Zlcm5vci5vcGVy",
+            "YXRpb25zLnYxLkVudGl0eVByZWNvbmRpdGlvbhIeChFleHBlY3RlZF9jbGFp",
+            "bV9pZBgDIAEoCUgAiAEBQhQKEl9leHBlY3RlZF9jbGFpbV9pZEoECAQQBVIO",
+            "b3JpZ2luYWxfb3duZXIixgEKDERyYWZ0UmVsZWFzZRJECgdyZXF1ZXN0GAEg",
+            "ASgLMjMucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5SZWxlYXNlT3duZWRE",
+            "cmFmdFJlcXVlc3QSOgoHY29udGV4dBgCIAEoCzIpLnJpbWdvdmVybm9yLmNv",
+            "bW1vbi52MS5PYnNlcnZhdGlvbkNvbnRleHQSNAoIb2JzZXJ2ZWQYAyABKAsy",
+            "Ii5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5Kb2JFZmZlY3QiuQEKFURyYWZ0",
+            "UmVsZWFzZVVuY2VydGFpbhJECgdyZXF1ZXN0GAEgASgLMjMucmltZ292ZXJu",
+            "b3Iub3BlcmF0aW9ucy52MS5SZWxlYXNlT3duZWREcmFmdFJlcXVlc3QSOgoH",
+            "Y29udGV4dBgCIAEoCzIpLnJpbWdvdmVybm9yLmNvbW1vbi52MS5PYnNlcnZh",
+            "dGlvbkNvbnRleHQSEwoGZGV0YWlsGAMgASgJSACIAQFCCQoHX2RldGFpbCKf",
+            "AgoWUmVsZWFzZU93bmVkRHJhZnRSZXBseRI7CghyZWxlYXNlZBgBIAEoCzIn",
+            "LnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuRHJhZnRSZWxlYXNlSAASQwoQ",
+            "YWxyZWFkeV9yZWxlYXNlZBgCIAEoCzInLnJpbWdvdmVybm9yLm9wZXJhdGlv",
+            "bnMudjEuRHJhZnRSZWxlYXNlSAASRQoJdW5jZXJ0YWluGAMgASgLMjAucmlt",
+            "Z292ZXJub3Iub3BlcmF0aW9ucy52MS5EcmFmdFJlbGVhc2VVbmNlcnRhaW5I",
+            "ABIxCgdmYWlsdXJlGAQgASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZh",
+            "aWx1cmVIAEIJCgdvdXRjb21lIrUCChBTZXRBcHBhcmVsUG9saWN5EjsKBHBh",
+            "d24YASABKAsyLS5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkVudGl0eVBy",
+            "ZWNvbmRpdGlvbhIRCgRuYW1lGAIgASgJSACIAQESFAoMYWxsb3dlZF9kZWZz",
+            "GAMgAygJEhsKDm1pbl9oaXRfcG9pbnRzGAQgASgCSAGIAQESGwoObWF4X2hp",
+            "dF9wb2ludHMYBSABKAJIAogBARIYCgttaW5fcXVhbGl0eRgGIAEoBUgDiAEB",
+            "EhgKC21heF9xdWFsaXR5GAcgASgFSASIAQFCBwoFX25hbWVCEQoPX21pbl9o",
+            "aXRfcG9pbnRzQhEKD19tYXhfaGl0X3BvaW50c0IOCgxfbWluX3F1YWxpdHlC",
+            "DgoMX21heF9xdWFsaXR5KmsKDkNvbWJhdEZpcmVNb2RlEiAKHENPTUJBVF9G",
+            "SVJFX01PREVfVU5TUEVDSUZJRUQQABIcChhDT01CQVRfRklSRV9NT0RFX0FU",
+            "X1dJTEwQARIZChVDT01CQVRfRklSRV9NT0RFX0hPTEQQAipuCg5Db21iYXRE",
+            "b29yTW9kZRIgChxDT01CQVRfRE9PUl9NT0RFX1VOU1BFQ0lGSUVEEAASHgoa",
+            "Q09NQkFUX0RPT1JfTU9ERV9IT0xEX09QRU4QARIaChZDT01CQVRfRE9PUl9N",
+            "T0RFX0NMT1NFEAIq9QEKEFRoaW5nRGVzaWduYXRpb24SIQodVEhJTkdfREVT",
+            "SUdOQVRJT05fVU5TUEVDSUZJRUQQABIbChdUSElOR19ERVNJR05BVElPTl9B",
+            "TExPVxABEhwKGFRISU5HX0RFU0lHTkFUSU9OX0ZPUkJJRBACEhoKFlRISU5H",
+            "X0RFU0lHTkFUSU9OX0hVTlQQAxIjCh9USElOR19ERVNJR05BVElPTl9IQVJW",
+            "RVNUX1BMQU5UEAQSIQodVEhJTkdfREVTSUdOQVRJT05fREVDT05TVFJVQ1QQ",
+            "BRIfChtUSElOR19ERVNJR05BVElPTl9DVVRfUExBTlQQBipaCgxQb3dlclNl",
+            "dHRpbmcSHQoZUE9XRVJfU0VUVElOR19VTlNQRUNJRklFRBAAEhQKEFBPV0VS",
+            "X1NFVFRJTkdfT04QARIVChFQT1dFUl9TRVRUSU5HX09GRhACKr4BCgtNZWRp",
+            "Y2FsQ2FyZRIcChhNRURJQ0FMX0NBUkVfVU5TUEVDSUZJRUQQABIYChRNRURJ",
+            "Q0FMX0NBUkVfTk9fQ0FSRRABEhwKGE1FRElDQUxfQ0FSRV9OT19NRURJQ0lO",
+            "RRACEiAKHE1FRElDQUxfQ0FSRV9IRVJCQUxfT1JfV09SU0UQAxIgChxNRURJ",
+            "Q0FMX0NBUkVfTk9STUFMX09SX1dPUlNFEAQSFQoRTUVESUNBTF9DQVJFX0JF",
+            "U1QQBSqSAQoRSG9zdGlsaXR5UmVzcG9uc2USIgoeSE9TVElMSVRZX1JFU1BP",
+            "TlNFX1VOU1BFQ0lGSUVEEAASHQoZSE9TVElMSVRZX1JFU1BPTlNFX0lHTk9S",
+            "RRABEh0KGUhPU1RJTElUWV9SRVNQT05TRV9BVFRBQ0sQAhIbChdIT1NUSUxJ",
+            "VFlfUkVTUE9OU0VfRkxFRRADKnEKClJlcGVhdE1vZGUSGwoXUkVQRUFUX01P",
+            "REVfVU5TUEVDSUZJRUQQABIXChNSRVBFQVRfTU9ERV9GT1JFVkVSEAESFQoR",
+            "UkVQRUFUX01PREVfQ09VTlQQAhIWChJSRVBFQVRfTU9ERV9UQVJHRVQQAypk",
+            "CglTdG9yZU1vZGUSGgoWU1RPUkVfTU9ERV9VTlNQRUNJRklFRBAAEh0KGVNU",
+            "T1JFX01PREVfQkVTVF9TVE9DS1BJTEUQARIcChhTVE9SRV9NT0RFX0RST1Bf",
+            "T05fRkxPT1IQAiqDAQoIWm9uZVR5cGUSGQoVWk9ORV9UWVBFX1VOU1BFQ0lG",
+            "SUVEEAASFwoTWk9ORV9UWVBFX1NUT0NLUElMRRABEhUKEVpPTkVfVFlQRV9E",
+            "VU1QSU5HEAISFQoRWk9ORV9UWVBFX0dST1dJTkcQAxIVChFaT05FX1RZUEVf",
+            "RklTSElORxAEKskBCg9TdG9yYWdlUHJpb3JpdHkSIAocU1RPUkFHRV9QUklP",
+            "UklUWV9VTlNQRUNJRklFRBAAEhgKFFNUT1JBR0VfUFJJT1JJVFlfTE9XEAES",
+            "GwoXU1RPUkFHRV9QUklPUklUWV9OT1JNQUwQAhIeChpTVE9SQUdFX1BSSU9S",
+            "SVRZX1BSRUZFUlJFRBADEh4KGlNUT1JBR0VfUFJJT1JJVFlfSU1QT1JUQU5U",
+            "EAQSHQoZU1RPUkFHRV9QUklPUklUWV9DUklUSUNBTBAFKt8BCgxGaWx0ZXJQ",
+            "cmVzZXQSHQoZRklMVEVSX1BSRVNFVF9VTlNQRUNJRklFRBAAEhwKGEZJTFRF",
+            "Ul9QUkVTRVRfRVZFUllUSElORxABEhkKFUZJTFRFUl9QUkVTRVRfTk9USElO",
+            "RxACEhYKEkZJTFRFUl9QUkVTRVRfRk9PRBADEh0KGUZJTFRFUl9QUkVTRVRf",
+            "UEVSSVNIQUJMRVMQBBIgChxGSUxURVJfUFJFU0VUX05PTlBFUklTSEFCTEVT",
+            "EAUSHgoaRklMVEVSX1BSRVNFVF9PVVRET09SX1NBRkUQBipOCghDZWxsRWRp",
+            "dBIZChVDRUxMX0VESVRfVU5TUEVDSUZJRUQQABIRCg1DRUxMX0VESVRfQURE",
+            "EAESFAoQQ0VMTF9FRElUX1JFTU9WRRACKoMBCg1TZXJ2aWNlTWV0aG9kEh4K",
+            "GlNFUlZJQ0VfTUVUSE9EX1VOU1BFQ0lGSUVEEAASGQoVU0VSVklDRV9NRVRI",
+            "T0RfUkVQQUlSEAESHAoYU0VSVklDRV9NRVRIT0RfQlJFQUtET1dOEAISGQoV",
+            "U0VSVklDRV9NRVRIT0RfUkVGVUVMEAMqSAoETmVlZBIUChBORUVEX1VOU1BF",
+            "Q0lGSUVEEAASDQoJTkVFRF9GT09EEAESDQoJTkVFRF9SRVNUEAISDAoITkVF",
+            "RF9KT1kQAyqfAgoTUHJpc29uZXJJbnRlcmFjdGlvbhIkCiBQUklTT05FUl9J",
+            "TlRFUkFDVElPTl9VTlNQRUNJRklFRBAAEigKJFBSSVNPTkVSX0lOVEVSQUNU",
+            "SU9OX0FUVEVNUFRfUkVDUlVJVBABEiYKIlBSSVNPTkVSX0lOVEVSQUNUSU9O",
+            "X01BSU5UQUlOX09OTFkQAhIqCiZQUklTT05FUl9JTlRFUkFDVElPTl9SRURV",
+            "Q0VfUkVTSVNUQU5DRRADEiAKHFBSSVNPTkVSX0lOVEVSQUNUSU9OX1JFTEVB",
+            "U0UQBBIgChxQUklTT05FUl9JTlRFUkFDVElPTl9FTlNMQVZFEAUSIAocUFJJ",
+            "U09ORVJfSU5URVJBQ1RJT05fQ09OVkVSVBAGKm4KCkF0dGFja01vZGUSGwoX",
+            "QVRUQUNLX01PREVfVU5TUEVDSUZJRUQQABIUChBBVFRBQ0tfTU9ERV9BVVRP",
+            "EAESFQoRQVRUQUNLX01PREVfTUVMRUUQAhIWChJBVFRBQ0tfTU9ERV9SQU5H",
+            "RUQQAyrsAgoNUGF3bk9yZGVyS2luZBIfChtQQVdOX09SREVSX0tJTkRfVU5T",
+            "UEVDSUZJRUQQABIZChVQQVdOX09SREVSX0tJTkRfRVFVSVAQARIaChZQQVdO",
+            "X09SREVSX0tJTkRfUkVTQ1VFEAISGwoXUEFXTl9PUkRFUl9LSU5EX0NBUFRV",
+            "UkUQAxIYChRQQVdOX09SREVSX0tJTkRfVEVORBAEEhgKFFBBV05fT1JERVJf",
+            "S0lORF9IQVVMEAUSGAoUUEFXTl9PUkRFUl9LSU5EX1dPUksQBhIaChZQQVdO",
+            "X09SREVSX0tJTkRfUkVQQUlSEAcSGQoVUEFXTl9PUkRFUl9LSU5EX0NMRUFO",
+            "EAgSHwobUEFXTl9PUkRFUl9LSU5EX09QRU5fQ0FTS0VUEAkSGgoWUEFXTl9P",
+            "UkRFUl9LSU5EX1NVQkRVRRAKEiQKIFBBV05fT1JERVJfS0lORF9PUEVOX0NB",
+            "U0tFVF9IRUFUEAsqagoMRW5kVHJhZGVLaW5kEh4KGkVORF9UUkFERV9LSU5E",
+            "X1VOU1BFQ0lGSUVEEAASGQoVRU5EX1RSQURFX0tJTkRfQ0FOQ0VMEAESHwob",
+            "RU5EX1RSQURFX0tJTkRfQ0xPU0VfRElBTE9HEAIqiQEKClRyYXZlbEtpbmQS",
+            "GwoXVFJBVkVMX0tJTkRfVU5TUEVDSUZJRUQQABIUChBUUkFWRUxfS0lORF9N",
+            "T1ZFEAESFQoRVFJBVkVMX0tJTkRfVklTSVQQAhIbChdUUkFWRUxfS0lORF9S",
+            "RVRVUk5fSE9NRRADEhQKEFRSQVZFTF9LSU5EX1NUT1AQBDLHAgoKT3BlcmF0",
+            "aW9ucxJdCgdQcmV2aWV3EikucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5Q",
+            "cmV2aWV3UmVxdWVzdBonLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuUHJl",
+            "dmlld1JlcGx5El0KB0V4ZWN1dGUSKS5yaW1nb3Zlcm5vci5vcGVyYXRpb25z",
+            "LnYxLkV4ZWN1dGVSZXF1ZXN0GicucmltZ292ZXJub3Iub3BlcmF0aW9ucy52",
+            "MS5FeGVjdXRlUmVwbHkSewoRUmVsZWFzZU93bmVkRHJhZnQSMy5yaW1nb3Zl",
+            "cm5vci5vcGVyYXRpb25zLnYxLlJlbGVhc2VPd25lZERyYWZ0UmVxdWVzdBox",
+            "LnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuUmVsZWFzZU93bmVkRHJhZnRS",
+            "ZXBseUJxWk1naXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVybm9yL2dv",
+            "L2ludGVybmFsL3dpcmUvb3BlcmF0aW9uc3BiO29wZXJhdGlvbnNwYqoCH1Jp",
+            "bUdvdmVybm9yLlByb3RvY29sLk9wZXJhdGlvbnNiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor, global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor, global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Operations.CombatFireMode), typeof(global::RimGovernor.Protocol.Operations.CombatDoorMode), typeof(global::RimGovernor.Protocol.Operations.ThingDesignation), typeof(global::RimGovernor.Protocol.Operations.PowerSetting), typeof(global::RimGovernor.Protocol.Operations.MedicalCare), typeof(global::RimGovernor.Protocol.Operations.HostilityResponse), typeof(global::RimGovernor.Protocol.Operations.RepeatMode), typeof(global::RimGovernor.Protocol.Operations.StoreMode), typeof(global::RimGovernor.Protocol.Operations.ZoneType), typeof(global::RimGovernor.Protocol.Operations.StoragePriority), typeof(global::RimGovernor.Protocol.Operations.FilterPreset), typeof(global::RimGovernor.Protocol.Operations.CellEdit), typeof(global::RimGovernor.Protocol.Operations.ServiceMethod), typeof(global::RimGovernor.Protocol.Operations.Need), typeof(global::RimGovernor.Protocol.Operations.PrisonerInteraction), typeof(global::RimGovernor.Protocol.Operations.AttackMode), typeof(global::RimGovernor.Protocol.Operations.PawnOrderKind), typeof(global::RimGovernor.Protocol.Operations.EndTradeKind), typeof(global::RimGovernor.Protocol.Operations.TravelKind), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -741,11 +742,11 @@ namespace RimGovernor.Protocol.Operations {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.MovePawn), global::RimGovernor.Protocol.Operations.MovePawn.Parser, new[]{ "Pawn", "Destination" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.AttackTarget), global::RimGovernor.Protocol.Operations.AttackTarget.Parser, new[]{ "Pawn", "Target", "Mode", "RequireHostile", "RequireStanding", "RequireCombatHealth" }, new[]{ "Mode", "RequireHostile", "RequireStanding", "RequireCombatHealth" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PawnTargetOrder), global::RimGovernor.Protocol.Operations.PawnTargetOrder.Parser, new[]{ "Pawn", "Target", "Kind", "RequireSafeStorage" }, new[]{ "Kind", "RequireSafeStorage" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.OpenTrade), global::RimGovernor.Protocol.Operations.OpenTrade.Parser, new[]{ "Trader", "Negotiator", "GiftMode" }, new[]{ "GiftMode" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.OpenTrade), global::RimGovernor.Protocol.Operations.OpenTrade.Parser, new[]{ "GiftMode", "TraderId", "NegotiatorId" }, new[]{ "GiftMode", "TraderId", "NegotiatorId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.TradeLine), global::RimGovernor.Protocol.Operations.TradeLine.Parser, new[]{ "LineId", "AbsoluteCount" }, new[]{ "LineId", "AbsoluteCount" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.SetTradeLines), global::RimGovernor.Protocol.Operations.SetTradeLines.Parser, new[]{ "Session", "Lines", "AllowPawns" }, new[]{ "AllowPawns" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.AcceptTrade), global::RimGovernor.Protocol.Operations.AcceptTrade.Parser, new[]{ "Session", "ExpectedDealSignature", "EconomicFloors", "AllowEmpty", "ReceiveQuest" }, new[]{ "ExpectedDealSignature", "AllowEmpty", "ReceiveQuest" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.EndTrade), global::RimGovernor.Protocol.Operations.EndTrade.Parser, new[]{ "Session", "Kind", "ReceiveQuest" }, new[]{ "Kind", "ReceiveQuest" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.SetTradeLines), global::RimGovernor.Protocol.Operations.SetTradeLines.Parser, new[]{ "Lines", "AllowPawns", "TraderId", "NegotiatorId" }, new[]{ "AllowPawns", "TraderId", "NegotiatorId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.AcceptTrade), global::RimGovernor.Protocol.Operations.AcceptTrade.Parser, new[]{ "ExpectedDealSignature", "EconomicFloors", "AllowEmpty", "ReceiveQuest", "TraderId", "NegotiatorId" }, new[]{ "ExpectedDealSignature", "AllowEmpty", "ReceiveQuest", "TraderId", "NegotiatorId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.EndTrade), global::RimGovernor.Protocol.Operations.EndTrade.Parser, new[]{ "Kind", "ReceiveQuest", "TraderId", "NegotiatorId" }, new[]{ "Kind", "ReceiveQuest", "TraderId", "NegotiatorId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.CargoSelection), global::RimGovernor.Protocol.Operations.CargoSelection.Parser, new[]{ "GroupId", "Count" }, new[]{ "GroupId", "Count" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.FormCaravan), global::RimGovernor.Protocol.Operations.FormCaravan.Parser, new[]{ "ExpectedCatalogToken", "PawnIds", "Cargo", "DestinationTile" }, new[]{ "ExpectedCatalogToken", "DestinationTile" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.TravelCaravan), global::RimGovernor.Protocol.Operations.TravelCaravan.Parser, new[]{ "Caravan", "Kind", "DestinationTile" }, new[]{ "Kind", "DestinationTile" }, null, null, null),
@@ -32391,6 +32392,12 @@ namespace RimGovernor.Protocol.Operations {
 
   }
 
+  /// <summary>
+  /// Trade intents act on RimWorld's one live trade session. Native validates
+  /// each against live state when it applies and refuses with a reason when the
+  /// session is gone or held by a different trader or negotiator; repeating an
+  /// intent is harmless. OpenTrade reuses a matching open session or walk.
+  /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class OpenTrade : pb::IMessage<OpenTrade>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -32428,9 +32435,9 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public OpenTrade(OpenTrade other) : this() {
       _hasBits0 = other._hasBits0;
-      trader_ = other.trader_ != null ? other.trader_.Clone() : null;
-      negotiator_ = other.negotiator_ != null ? other.negotiator_.Clone() : null;
       giftMode_ = other.giftMode_;
+      traderId_ = other.traderId_;
+      negotiatorId_ = other.negotiatorId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -32438,30 +32445,6 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public OpenTrade Clone() {
       return new OpenTrade(this);
-    }
-
-    /// <summary>Field number for the "trader" field.</summary>
-    public const int TraderFieldNumber = 1;
-    private global::RimGovernor.Protocol.Operations.EntityPrecondition trader_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Operations.EntityPrecondition Trader {
-      get { return trader_; }
-      set {
-        trader_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "negotiator" field.</summary>
-    public const int NegotiatorFieldNumber = 2;
-    private global::RimGovernor.Protocol.Operations.EntityPrecondition negotiator_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Operations.EntityPrecondition Negotiator {
-      get { return negotiator_; }
-      set {
-        negotiator_ = value;
-      }
     }
 
     /// <summary>Field number for the "gift_mode" field.</summary>
@@ -32491,6 +32474,58 @@ namespace RimGovernor.Protocol.Operations {
       _hasBits0 &= ~1;
     }
 
+    /// <summary>Field number for the "trader_id" field.</summary>
+    public const int TraderIdFieldNumber = 4;
+    private readonly static string TraderIdDefaultValue = "";
+
+    private string traderId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string TraderId {
+      get { return traderId_ ?? TraderIdDefaultValue; }
+      set {
+        traderId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "trader_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasTraderId {
+      get { return traderId_ != null; }
+    }
+    /// <summary>Clears the value of the "trader_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearTraderId() {
+      traderId_ = null;
+    }
+
+    /// <summary>Field number for the "negotiator_id" field.</summary>
+    public const int NegotiatorIdFieldNumber = 5;
+    private readonly static string NegotiatorIdDefaultValue = "";
+
+    private string negotiatorId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string NegotiatorId {
+      get { return negotiatorId_ ?? NegotiatorIdDefaultValue; }
+      set {
+        negotiatorId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "negotiator_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasNegotiatorId {
+      get { return negotiatorId_ != null; }
+    }
+    /// <summary>Clears the value of the "negotiator_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearNegotiatorId() {
+      negotiatorId_ = null;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -32506,9 +32541,9 @@ namespace RimGovernor.Protocol.Operations {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (!object.Equals(Trader, other.Trader)) return false;
-      if (!object.Equals(Negotiator, other.Negotiator)) return false;
       if (GiftMode != other.GiftMode) return false;
+      if (TraderId != other.TraderId) return false;
+      if (NegotiatorId != other.NegotiatorId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -32516,9 +32551,9 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (trader_ != null) hash ^= Trader.GetHashCode();
-      if (negotiator_ != null) hash ^= Negotiator.GetHashCode();
       if (HasGiftMode) hash ^= GiftMode.GetHashCode();
+      if (HasTraderId) hash ^= TraderId.GetHashCode();
+      if (HasNegotiatorId) hash ^= NegotiatorId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -32537,17 +32572,17 @@ namespace RimGovernor.Protocol.Operations {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (trader_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Trader);
-      }
-      if (negotiator_ != null) {
-        output.WriteRawTag(18);
-        output.WriteMessage(Negotiator);
-      }
       if (HasGiftMode) {
         output.WriteRawTag(24);
         output.WriteBool(GiftMode);
+      }
+      if (HasTraderId) {
+        output.WriteRawTag(34);
+        output.WriteString(TraderId);
+      }
+      if (HasNegotiatorId) {
+        output.WriteRawTag(42);
+        output.WriteString(NegotiatorId);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -32559,17 +32594,17 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (trader_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Trader);
-      }
-      if (negotiator_ != null) {
-        output.WriteRawTag(18);
-        output.WriteMessage(Negotiator);
-      }
       if (HasGiftMode) {
         output.WriteRawTag(24);
         output.WriteBool(GiftMode);
+      }
+      if (HasTraderId) {
+        output.WriteRawTag(34);
+        output.WriteString(TraderId);
+      }
+      if (HasNegotiatorId) {
+        output.WriteRawTag(42);
+        output.WriteString(NegotiatorId);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -32581,14 +32616,14 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (trader_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Trader);
-      }
-      if (negotiator_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Negotiator);
-      }
       if (HasGiftMode) {
         size += 1 + 1;
+      }
+      if (HasTraderId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TraderId);
+      }
+      if (HasNegotiatorId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(NegotiatorId);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -32602,20 +32637,14 @@ namespace RimGovernor.Protocol.Operations {
       if (other == null) {
         return;
       }
-      if (other.trader_ != null) {
-        if (trader_ == null) {
-          Trader = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-        }
-        Trader.MergeFrom(other.Trader);
-      }
-      if (other.negotiator_ != null) {
-        if (negotiator_ == null) {
-          Negotiator = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-        }
-        Negotiator.MergeFrom(other.Negotiator);
-      }
       if (other.HasGiftMode) {
         GiftMode = other.GiftMode;
+      }
+      if (other.HasTraderId) {
+        TraderId = other.TraderId;
+      }
+      if (other.HasNegotiatorId) {
+        NegotiatorId = other.NegotiatorId;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -32636,22 +32665,16 @@ namespace RimGovernor.Protocol.Operations {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 10: {
-            if (trader_ == null) {
-              Trader = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Trader);
-            break;
-          }
-          case 18: {
-            if (negotiator_ == null) {
-              Negotiator = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Negotiator);
-            break;
-          }
           case 24: {
             GiftMode = input.ReadBool();
+            break;
+          }
+          case 34: {
+            TraderId = input.ReadString();
+            break;
+          }
+          case 42: {
+            NegotiatorId = input.ReadString();
             break;
           }
         }
@@ -32673,22 +32696,16 @@ namespace RimGovernor.Protocol.Operations {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
-          case 10: {
-            if (trader_ == null) {
-              Trader = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Trader);
-            break;
-          }
-          case 18: {
-            if (negotiator_ == null) {
-              Negotiator = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Negotiator);
-            break;
-          }
           case 24: {
             GiftMode = input.ReadBool();
+            break;
+          }
+          case 34: {
+            TraderId = input.ReadString();
+            break;
+          }
+          case 42: {
+            NegotiatorId = input.ReadString();
             break;
           }
         }
@@ -33001,9 +33018,10 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public SetTradeLines(SetTradeLines other) : this() {
       _hasBits0 = other._hasBits0;
-      session_ = other.session_ != null ? other.session_.Clone() : null;
       lines_ = other.lines_.Clone();
       allowPawns_ = other.allowPawns_;
+      traderId_ = other.traderId_;
+      negotiatorId_ = other.negotiatorId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -33011,18 +33029,6 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public SetTradeLines Clone() {
       return new SetTradeLines(this);
-    }
-
-    /// <summary>Field number for the "session" field.</summary>
-    public const int SessionFieldNumber = 1;
-    private global::RimGovernor.Protocol.Operations.EntityPrecondition session_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Operations.EntityPrecondition Session {
-      get { return session_; }
-      set {
-        session_ = value;
-      }
     }
 
     /// <summary>Field number for the "lines" field.</summary>
@@ -33063,6 +33069,58 @@ namespace RimGovernor.Protocol.Operations {
       _hasBits0 &= ~1;
     }
 
+    /// <summary>Field number for the "trader_id" field.</summary>
+    public const int TraderIdFieldNumber = 4;
+    private readonly static string TraderIdDefaultValue = "";
+
+    private string traderId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string TraderId {
+      get { return traderId_ ?? TraderIdDefaultValue; }
+      set {
+        traderId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "trader_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasTraderId {
+      get { return traderId_ != null; }
+    }
+    /// <summary>Clears the value of the "trader_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearTraderId() {
+      traderId_ = null;
+    }
+
+    /// <summary>Field number for the "negotiator_id" field.</summary>
+    public const int NegotiatorIdFieldNumber = 5;
+    private readonly static string NegotiatorIdDefaultValue = "";
+
+    private string negotiatorId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string NegotiatorId {
+      get { return negotiatorId_ ?? NegotiatorIdDefaultValue; }
+      set {
+        negotiatorId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "negotiator_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasNegotiatorId {
+      get { return negotiatorId_ != null; }
+    }
+    /// <summary>Clears the value of the "negotiator_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearNegotiatorId() {
+      negotiatorId_ = null;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -33078,9 +33136,10 @@ namespace RimGovernor.Protocol.Operations {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (!object.Equals(Session, other.Session)) return false;
       if(!lines_.Equals(other.lines_)) return false;
       if (AllowPawns != other.AllowPawns) return false;
+      if (TraderId != other.TraderId) return false;
+      if (NegotiatorId != other.NegotiatorId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -33088,9 +33147,10 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (session_ != null) hash ^= Session.GetHashCode();
       hash ^= lines_.GetHashCode();
       if (HasAllowPawns) hash ^= AllowPawns.GetHashCode();
+      if (HasTraderId) hash ^= TraderId.GetHashCode();
+      if (HasNegotiatorId) hash ^= NegotiatorId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -33109,14 +33169,18 @@ namespace RimGovernor.Protocol.Operations {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (session_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Session);
-      }
       lines_.WriteTo(output, _repeated_lines_codec);
       if (HasAllowPawns) {
         output.WriteRawTag(24);
         output.WriteBool(AllowPawns);
+      }
+      if (HasTraderId) {
+        output.WriteRawTag(34);
+        output.WriteString(TraderId);
+      }
+      if (HasNegotiatorId) {
+        output.WriteRawTag(42);
+        output.WriteString(NegotiatorId);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -33128,14 +33192,18 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (session_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Session);
-      }
       lines_.WriteTo(ref output, _repeated_lines_codec);
       if (HasAllowPawns) {
         output.WriteRawTag(24);
         output.WriteBool(AllowPawns);
+      }
+      if (HasTraderId) {
+        output.WriteRawTag(34);
+        output.WriteString(TraderId);
+      }
+      if (HasNegotiatorId) {
+        output.WriteRawTag(42);
+        output.WriteString(NegotiatorId);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -33147,12 +33215,15 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (session_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Session);
-      }
       size += lines_.CalculateSize(_repeated_lines_codec);
       if (HasAllowPawns) {
         size += 1 + 1;
+      }
+      if (HasTraderId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TraderId);
+      }
+      if (HasNegotiatorId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(NegotiatorId);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -33166,15 +33237,15 @@ namespace RimGovernor.Protocol.Operations {
       if (other == null) {
         return;
       }
-      if (other.session_ != null) {
-        if (session_ == null) {
-          Session = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-        }
-        Session.MergeFrom(other.Session);
-      }
       lines_.Add(other.lines_);
       if (other.HasAllowPawns) {
         AllowPawns = other.AllowPawns;
+      }
+      if (other.HasTraderId) {
+        TraderId = other.TraderId;
+      }
+      if (other.HasNegotiatorId) {
+        NegotiatorId = other.NegotiatorId;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -33195,19 +33266,20 @@ namespace RimGovernor.Protocol.Operations {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 10: {
-            if (session_ == null) {
-              Session = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Session);
-            break;
-          }
           case 18: {
             lines_.AddEntriesFrom(input, _repeated_lines_codec);
             break;
           }
           case 24: {
             AllowPawns = input.ReadBool();
+            break;
+          }
+          case 34: {
+            TraderId = input.ReadString();
+            break;
+          }
+          case 42: {
+            NegotiatorId = input.ReadString();
             break;
           }
         }
@@ -33229,19 +33301,20 @@ namespace RimGovernor.Protocol.Operations {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
-          case 10: {
-            if (session_ == null) {
-              Session = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Session);
-            break;
-          }
           case 18: {
             lines_.AddEntriesFrom(ref input, _repeated_lines_codec);
             break;
           }
           case 24: {
             AllowPawns = input.ReadBool();
+            break;
+          }
+          case 34: {
+            TraderId = input.ReadString();
+            break;
+          }
+          case 42: {
+            NegotiatorId = input.ReadString();
             break;
           }
         }
@@ -33288,11 +33361,12 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public AcceptTrade(AcceptTrade other) : this() {
       _hasBits0 = other._hasBits0;
-      session_ = other.session_ != null ? other.session_.Clone() : null;
       expectedDealSignature_ = other.expectedDealSignature_;
       economicFloors_ = other.economicFloors_.Clone();
       allowEmpty_ = other.allowEmpty_;
       receiveQuest_ = other.receiveQuest_;
+      traderId_ = other.traderId_;
+      negotiatorId_ = other.negotiatorId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -33300,18 +33374,6 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public AcceptTrade Clone() {
       return new AcceptTrade(this);
-    }
-
-    /// <summary>Field number for the "session" field.</summary>
-    public const int SessionFieldNumber = 1;
-    private global::RimGovernor.Protocol.Operations.EntityPrecondition session_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Operations.EntityPrecondition Session {
-      get { return session_; }
-      set {
-        session_ = value;
-      }
     }
 
     /// <summary>Field number for the "expected_deal_signature" field.</summary>
@@ -33405,6 +33467,58 @@ namespace RimGovernor.Protocol.Operations {
       _hasBits0 &= ~2;
     }
 
+    /// <summary>Field number for the "trader_id" field.</summary>
+    public const int TraderIdFieldNumber = 6;
+    private readonly static string TraderIdDefaultValue = "";
+
+    private string traderId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string TraderId {
+      get { return traderId_ ?? TraderIdDefaultValue; }
+      set {
+        traderId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "trader_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasTraderId {
+      get { return traderId_ != null; }
+    }
+    /// <summary>Clears the value of the "trader_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearTraderId() {
+      traderId_ = null;
+    }
+
+    /// <summary>Field number for the "negotiator_id" field.</summary>
+    public const int NegotiatorIdFieldNumber = 7;
+    private readonly static string NegotiatorIdDefaultValue = "";
+
+    private string negotiatorId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string NegotiatorId {
+      get { return negotiatorId_ ?? NegotiatorIdDefaultValue; }
+      set {
+        negotiatorId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "negotiator_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasNegotiatorId {
+      get { return negotiatorId_ != null; }
+    }
+    /// <summary>Clears the value of the "negotiator_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearNegotiatorId() {
+      negotiatorId_ = null;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -33420,11 +33534,12 @@ namespace RimGovernor.Protocol.Operations {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (!object.Equals(Session, other.Session)) return false;
       if (ExpectedDealSignature != other.ExpectedDealSignature) return false;
       if(!economicFloors_.Equals(other.economicFloors_)) return false;
       if (AllowEmpty != other.AllowEmpty) return false;
       if (ReceiveQuest != other.ReceiveQuest) return false;
+      if (TraderId != other.TraderId) return false;
+      if (NegotiatorId != other.NegotiatorId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -33432,11 +33547,12 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (session_ != null) hash ^= Session.GetHashCode();
       if (HasExpectedDealSignature) hash ^= ExpectedDealSignature.GetHashCode();
       hash ^= economicFloors_.GetHashCode();
       if (HasAllowEmpty) hash ^= AllowEmpty.GetHashCode();
       if (HasReceiveQuest) hash ^= ReceiveQuest.GetHashCode();
+      if (HasTraderId) hash ^= TraderId.GetHashCode();
+      if (HasNegotiatorId) hash ^= NegotiatorId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -33455,10 +33571,6 @@ namespace RimGovernor.Protocol.Operations {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (session_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Session);
-      }
       if (HasExpectedDealSignature) {
         output.WriteRawTag(18);
         output.WriteString(ExpectedDealSignature);
@@ -33472,6 +33584,14 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(40);
         output.WriteBool(ReceiveQuest);
       }
+      if (HasTraderId) {
+        output.WriteRawTag(50);
+        output.WriteString(TraderId);
+      }
+      if (HasNegotiatorId) {
+        output.WriteRawTag(58);
+        output.WriteString(NegotiatorId);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -33482,10 +33602,6 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (session_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Session);
-      }
       if (HasExpectedDealSignature) {
         output.WriteRawTag(18);
         output.WriteString(ExpectedDealSignature);
@@ -33499,6 +33615,14 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(40);
         output.WriteBool(ReceiveQuest);
       }
+      if (HasTraderId) {
+        output.WriteRawTag(50);
+        output.WriteString(TraderId);
+      }
+      if (HasNegotiatorId) {
+        output.WriteRawTag(58);
+        output.WriteString(NegotiatorId);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -33509,9 +33633,6 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (session_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Session);
-      }
       if (HasExpectedDealSignature) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(ExpectedDealSignature);
       }
@@ -33521,6 +33642,12 @@ namespace RimGovernor.Protocol.Operations {
       }
       if (HasReceiveQuest) {
         size += 1 + 1;
+      }
+      if (HasTraderId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TraderId);
+      }
+      if (HasNegotiatorId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(NegotiatorId);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -33534,12 +33661,6 @@ namespace RimGovernor.Protocol.Operations {
       if (other == null) {
         return;
       }
-      if (other.session_ != null) {
-        if (session_ == null) {
-          Session = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-        }
-        Session.MergeFrom(other.Session);
-      }
       if (other.HasExpectedDealSignature) {
         ExpectedDealSignature = other.ExpectedDealSignature;
       }
@@ -33549,6 +33670,12 @@ namespace RimGovernor.Protocol.Operations {
       }
       if (other.HasReceiveQuest) {
         ReceiveQuest = other.ReceiveQuest;
+      }
+      if (other.HasTraderId) {
+        TraderId = other.TraderId;
+      }
+      if (other.HasNegotiatorId) {
+        NegotiatorId = other.NegotiatorId;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -33569,13 +33696,6 @@ namespace RimGovernor.Protocol.Operations {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 10: {
-            if (session_ == null) {
-              Session = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Session);
-            break;
-          }
           case 18: {
             ExpectedDealSignature = input.ReadString();
             break;
@@ -33590,6 +33710,14 @@ namespace RimGovernor.Protocol.Operations {
           }
           case 40: {
             ReceiveQuest = input.ReadBool();
+            break;
+          }
+          case 50: {
+            TraderId = input.ReadString();
+            break;
+          }
+          case 58: {
+            NegotiatorId = input.ReadString();
             break;
           }
         }
@@ -33611,13 +33739,6 @@ namespace RimGovernor.Protocol.Operations {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
-          case 10: {
-            if (session_ == null) {
-              Session = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Session);
-            break;
-          }
           case 18: {
             ExpectedDealSignature = input.ReadString();
             break;
@@ -33634,6 +33755,14 @@ namespace RimGovernor.Protocol.Operations {
             ReceiveQuest = input.ReadBool();
             break;
           }
+          case 50: {
+            TraderId = input.ReadString();
+            break;
+          }
+          case 58: {
+            NegotiatorId = input.ReadString();
+            break;
+          }
         }
       }
     }
@@ -33641,6 +33770,9 @@ namespace RimGovernor.Protocol.Operations {
 
   }
 
+  /// <summary>
+  /// A cancel with no live session is a no-op, not a refusal.
+  /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class EndTrade : pb::IMessage<EndTrade>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -33678,9 +33810,10 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public EndTrade(EndTrade other) : this() {
       _hasBits0 = other._hasBits0;
-      session_ = other.session_ != null ? other.session_.Clone() : null;
       kind_ = other.kind_;
       receiveQuest_ = other.receiveQuest_;
+      traderId_ = other.traderId_;
+      negotiatorId_ = other.negotiatorId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -33688,18 +33821,6 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public EndTrade Clone() {
       return new EndTrade(this);
-    }
-
-    /// <summary>Field number for the "session" field.</summary>
-    public const int SessionFieldNumber = 1;
-    private global::RimGovernor.Protocol.Operations.EntityPrecondition session_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Operations.EntityPrecondition Session {
-      get { return session_; }
-      set {
-        session_ = value;
-      }
     }
 
     /// <summary>Field number for the "kind" field.</summary>
@@ -33756,6 +33877,58 @@ namespace RimGovernor.Protocol.Operations {
       _hasBits0 &= ~2;
     }
 
+    /// <summary>Field number for the "trader_id" field.</summary>
+    public const int TraderIdFieldNumber = 4;
+    private readonly static string TraderIdDefaultValue = "";
+
+    private string traderId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string TraderId {
+      get { return traderId_ ?? TraderIdDefaultValue; }
+      set {
+        traderId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "trader_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasTraderId {
+      get { return traderId_ != null; }
+    }
+    /// <summary>Clears the value of the "trader_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearTraderId() {
+      traderId_ = null;
+    }
+
+    /// <summary>Field number for the "negotiator_id" field.</summary>
+    public const int NegotiatorIdFieldNumber = 5;
+    private readonly static string NegotiatorIdDefaultValue = "";
+
+    private string negotiatorId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string NegotiatorId {
+      get { return negotiatorId_ ?? NegotiatorIdDefaultValue; }
+      set {
+        negotiatorId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "negotiator_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasNegotiatorId {
+      get { return negotiatorId_ != null; }
+    }
+    /// <summary>Clears the value of the "negotiator_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearNegotiatorId() {
+      negotiatorId_ = null;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -33771,9 +33944,10 @@ namespace RimGovernor.Protocol.Operations {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (!object.Equals(Session, other.Session)) return false;
       if (Kind != other.Kind) return false;
       if (ReceiveQuest != other.ReceiveQuest) return false;
+      if (TraderId != other.TraderId) return false;
+      if (NegotiatorId != other.NegotiatorId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -33781,9 +33955,10 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (session_ != null) hash ^= Session.GetHashCode();
       if (HasKind) hash ^= Kind.GetHashCode();
       if (HasReceiveQuest) hash ^= ReceiveQuest.GetHashCode();
+      if (HasTraderId) hash ^= TraderId.GetHashCode();
+      if (HasNegotiatorId) hash ^= NegotiatorId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -33802,10 +33977,6 @@ namespace RimGovernor.Protocol.Operations {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (session_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Session);
-      }
       if (HasKind) {
         output.WriteRawTag(16);
         output.WriteEnum((int) Kind);
@@ -33813,6 +33984,14 @@ namespace RimGovernor.Protocol.Operations {
       if (HasReceiveQuest) {
         output.WriteRawTag(24);
         output.WriteBool(ReceiveQuest);
+      }
+      if (HasTraderId) {
+        output.WriteRawTag(34);
+        output.WriteString(TraderId);
+      }
+      if (HasNegotiatorId) {
+        output.WriteRawTag(42);
+        output.WriteString(NegotiatorId);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -33824,10 +34003,6 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (session_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Session);
-      }
       if (HasKind) {
         output.WriteRawTag(16);
         output.WriteEnum((int) Kind);
@@ -33835,6 +34010,14 @@ namespace RimGovernor.Protocol.Operations {
       if (HasReceiveQuest) {
         output.WriteRawTag(24);
         output.WriteBool(ReceiveQuest);
+      }
+      if (HasTraderId) {
+        output.WriteRawTag(34);
+        output.WriteString(TraderId);
+      }
+      if (HasNegotiatorId) {
+        output.WriteRawTag(42);
+        output.WriteString(NegotiatorId);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -33846,14 +34029,17 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (session_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Session);
-      }
       if (HasKind) {
         size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Kind);
       }
       if (HasReceiveQuest) {
         size += 1 + 1;
+      }
+      if (HasTraderId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TraderId);
+      }
+      if (HasNegotiatorId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(NegotiatorId);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -33867,17 +34053,17 @@ namespace RimGovernor.Protocol.Operations {
       if (other == null) {
         return;
       }
-      if (other.session_ != null) {
-        if (session_ == null) {
-          Session = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-        }
-        Session.MergeFrom(other.Session);
-      }
       if (other.HasKind) {
         Kind = other.Kind;
       }
       if (other.HasReceiveQuest) {
         ReceiveQuest = other.ReceiveQuest;
+      }
+      if (other.HasTraderId) {
+        TraderId = other.TraderId;
+      }
+      if (other.HasNegotiatorId) {
+        NegotiatorId = other.NegotiatorId;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -33898,19 +34084,20 @@ namespace RimGovernor.Protocol.Operations {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 10: {
-            if (session_ == null) {
-              Session = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Session);
-            break;
-          }
           case 16: {
             Kind = (global::RimGovernor.Protocol.Operations.EndTradeKind) input.ReadEnum();
             break;
           }
           case 24: {
             ReceiveQuest = input.ReadBool();
+            break;
+          }
+          case 34: {
+            TraderId = input.ReadString();
+            break;
+          }
+          case 42: {
+            NegotiatorId = input.ReadString();
             break;
           }
         }
@@ -33932,19 +34119,20 @@ namespace RimGovernor.Protocol.Operations {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
-          case 10: {
-            if (session_ == null) {
-              Session = new global::RimGovernor.Protocol.Operations.EntityPrecondition();
-            }
-            input.ReadMessage(Session);
-            break;
-          }
           case 16: {
             Kind = (global::RimGovernor.Protocol.Operations.EndTradeKind) input.ReadEnum();
             break;
           }
           case 24: {
             ReceiveQuest = input.ReadBool();
+            break;
+          }
+          case 34: {
+            TraderId = input.ReadString();
+            break;
+          }
+          case 42: {
+            NegotiatorId = input.ReadString();
             break;
           }
         }

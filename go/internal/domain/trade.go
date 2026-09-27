@@ -13,8 +13,8 @@ import (
 // deal, or ending the session. Trade is RimWorld's single global session
 // (only one TradeSession can be open at a time -- see bridge/trade.go's
 // package doc), so unlike CaravanDeparture/TravelCaravan this action never
-// carries a caller-chosen session id: every operation after Open addresses
-// "the" currently open session, exactly the way the native writer does.
+// carries a session id: every operation names the trader and negotiator of
+// "the" live session and native refuses when they no longer hold it.
 type TradeOperationKind string
 
 const (
@@ -130,23 +130,25 @@ func canonicalTradeFloors(floors []TradeEconomicFloor) (string, error) {
 }
 
 func newTrade(kind TradeOperationKind, trader, negotiator string, giftMode bool, lines []TradeLine, allowPawns bool, expectedDealSignature string, floors []TradeEconomicFloor, allowEmpty bool, endKind TradeEndKind, receiveQuest bool) (Trade, error) {
+	// Every intent names the session's pair; native refuses when the live
+	// session is held by another pair or none is open.
+	if !validID(trader) || !validID(negotiator) || trader == negotiator {
+		return Trade{}, errors.New("trade requires a distinct valid trader and negotiator")
+	}
 	switch kind {
 	case TradeOpen:
-		if !validID(trader) || !validID(negotiator) || trader == negotiator {
-			return Trade{}, errors.New("open trade requires a distinct valid trader and negotiator")
-		}
 		if len(lines) != 0 || allowPawns || expectedDealSignature != "" || len(floors) != 0 || allowEmpty || endKind != "" || receiveQuest {
 			return Trade{}, errors.New("open trade carries no other operation's fields")
 		}
 	case TradeSetLines:
-		if trader != "" || negotiator != "" || giftMode || expectedDealSignature != "" || len(floors) != 0 || allowEmpty || endKind != "" || receiveQuest {
+		if giftMode || expectedDealSignature != "" || len(floors) != 0 || allowEmpty || endKind != "" || receiveQuest {
 			return Trade{}, errors.New("set trade lines carries no other operation's fields")
 		}
 		if len(lines) == 0 || len(lines) > 256 {
 			return Trade{}, errors.New("set trade lines requires a nonempty bounded line list")
 		}
 	case TradeAccept:
-		if trader != "" || negotiator != "" || giftMode || len(lines) != 0 || allowPawns || endKind != "" {
+		if giftMode || len(lines) != 0 || allowPawns || endKind != "" {
 			return Trade{}, errors.New("accept trade carries no other operation's fields")
 		}
 		if !validID(expectedDealSignature) {
@@ -156,7 +158,7 @@ func newTrade(kind TradeOperationKind, trader, negotiator string, giftMode bool,
 			return Trade{}, errors.New("accept trade economic floors exceed bound")
 		}
 	case TradeEnd:
-		if trader != "" || negotiator != "" || giftMode || len(lines) != 0 || allowPawns || expectedDealSignature != "" || len(floors) != 0 || allowEmpty {
+		if giftMode || len(lines) != 0 || allowPawns || expectedDealSignature != "" || len(floors) != 0 || allowEmpty {
 			return Trade{}, errors.New("end trade carries no other operation's fields")
 		}
 		if endKind != TradeEndCancel && endKind != TradeEndCloseDialog {
@@ -183,23 +185,23 @@ func NewTradeOpen(trader string, negotiator PawnID, giftMode bool) (Trade, error
 }
 
 // NewTradeSetLines requests staging an already-computed set of absolute line
-// adjustments against the currently open session.
-func NewTradeSetLines(lines []TradeLine, allowPawns bool) (Trade, error) {
-	return newTrade(TradeSetLines, "", "", false, lines, allowPawns, "", nil, false, "", false)
+// adjustments against the live session held by trader and negotiator.
+func NewTradeSetLines(trader string, negotiator PawnID, lines []TradeLine, allowPawns bool) (Trade, error) {
+	return newTrade(TradeSetLines, trader, string(negotiator), false, lines, allowPawns, "", nil, false, "", false)
 }
 
 // NewTradeAccept requests accepting the currently open session's deal,
 // exactly matching an already-observed deal signature and never selling
 // below the given economic floors.
-func NewTradeAccept(expectedDealSignature string, floors []TradeEconomicFloor, allowEmpty, receiveQuest bool) (Trade, error) {
-	return newTrade(TradeAccept, "", "", false, nil, false, expectedDealSignature, floors, allowEmpty, "", receiveQuest)
+func NewTradeAccept(trader string, negotiator PawnID, expectedDealSignature string, floors []TradeEconomicFloor, allowEmpty, receiveQuest bool) (Trade, error) {
+	return newTrade(TradeAccept, trader, string(negotiator), false, nil, false, expectedDealSignature, floors, allowEmpty, "", receiveQuest)
 }
 
 // NewTradeEnd requests ending the currently open session, either abandoning
 // the deal (cancel) or sweeping a stale/foreign dialog with no goodwill
 // effect (close_dialog).
-func NewTradeEnd(kind TradeEndKind, receiveQuest bool) (Trade, error) {
-	return newTrade(TradeEnd, "", "", false, nil, false, "", nil, false, kind, receiveQuest)
+func NewTradeEnd(trader string, negotiator PawnID, kind TradeEndKind, receiveQuest bool) (Trade, error) {
+	return newTrade(TradeEnd, trader, string(negotiator), false, nil, false, "", nil, false, kind, receiveQuest)
 }
 
 func (t Trade) Kind() TradeOperationKind { return t.kind }

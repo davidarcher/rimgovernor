@@ -7885,11 +7885,15 @@ func (x *PawnTargetOrder) GetRequireSafeStorage() bool {
 	return false
 }
 
+// Trade intents act on RimWorld's one live trade session. Native validates
+// each against live state when it applies and refuses with a reason when the
+// session is gone or held by a different trader or negotiator; repeating an
+// intent is harmless. OpenTrade reuses a matching open session or walk.
 type OpenTrade struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Trader        *EntityPrecondition    `protobuf:"bytes,1,opt,name=trader,proto3" json:"trader,omitempty"`
-	Negotiator    *EntityPrecondition    `protobuf:"bytes,2,opt,name=negotiator,proto3" json:"negotiator,omitempty"`
 	GiftMode      *bool                  `protobuf:"varint,3,opt,name=gift_mode,json=giftMode,proto3,oneof" json:"gift_mode,omitempty"`
+	TraderId      *string                `protobuf:"bytes,4,opt,name=trader_id,json=traderId,proto3,oneof" json:"trader_id,omitempty"`
+	NegotiatorId  *string                `protobuf:"bytes,5,opt,name=negotiator_id,json=negotiatorId,proto3,oneof" json:"negotiator_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7924,25 +7928,25 @@ func (*OpenTrade) Descriptor() ([]byte, []int) {
 	return file_operations_proto_rawDescGZIP(), []int{87}
 }
 
-func (x *OpenTrade) GetTrader() *EntityPrecondition {
-	if x != nil {
-		return x.Trader
-	}
-	return nil
-}
-
-func (x *OpenTrade) GetNegotiator() *EntityPrecondition {
-	if x != nil {
-		return x.Negotiator
-	}
-	return nil
-}
-
 func (x *OpenTrade) GetGiftMode() bool {
 	if x != nil && x.GiftMode != nil {
 		return *x.GiftMode
 	}
 	return false
+}
+
+func (x *OpenTrade) GetTraderId() string {
+	if x != nil && x.TraderId != nil {
+		return *x.TraderId
+	}
+	return ""
+}
+
+func (x *OpenTrade) GetNegotiatorId() string {
+	if x != nil && x.NegotiatorId != nil {
+		return *x.NegotiatorId
+	}
+	return ""
 }
 
 type TradeLine struct {
@@ -7999,9 +8003,10 @@ func (x *TradeLine) GetAbsoluteCount() int32 {
 
 type SetTradeLines struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Session       *EntityPrecondition    `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
 	Lines         []*TradeLine           `protobuf:"bytes,2,rep,name=lines,proto3" json:"lines,omitempty"`
 	AllowPawns    *bool                  `protobuf:"varint,3,opt,name=allow_pawns,json=allowPawns,proto3,oneof" json:"allow_pawns,omitempty"`
+	TraderId      *string                `protobuf:"bytes,4,opt,name=trader_id,json=traderId,proto3,oneof" json:"trader_id,omitempty"`
+	NegotiatorId  *string                `protobuf:"bytes,5,opt,name=negotiator_id,json=negotiatorId,proto3,oneof" json:"negotiator_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8036,13 +8041,6 @@ func (*SetTradeLines) Descriptor() ([]byte, []int) {
 	return file_operations_proto_rawDescGZIP(), []int{89}
 }
 
-func (x *SetTradeLines) GetSession() *EntityPrecondition {
-	if x != nil {
-		return x.Session
-	}
-	return nil
-}
-
 func (x *SetTradeLines) GetLines() []*TradeLine {
 	if x != nil {
 		return x.Lines
@@ -8057,13 +8055,28 @@ func (x *SetTradeLines) GetAllowPawns() bool {
 	return false
 }
 
+func (x *SetTradeLines) GetTraderId() string {
+	if x != nil && x.TraderId != nil {
+		return *x.TraderId
+	}
+	return ""
+}
+
+func (x *SetTradeLines) GetNegotiatorId() string {
+	if x != nil && x.NegotiatorId != nil {
+		return *x.NegotiatorId
+	}
+	return ""
+}
+
 type AcceptTrade struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
-	Session               *EntityPrecondition    `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
 	ExpectedDealSignature *string                `protobuf:"bytes,2,opt,name=expected_deal_signature,json=expectedDealSignature,proto3,oneof" json:"expected_deal_signature,omitempty"`
 	EconomicFloors        []*DefCount            `protobuf:"bytes,3,rep,name=economic_floors,json=economicFloors,proto3" json:"economic_floors,omitempty"`
 	AllowEmpty            *bool                  `protobuf:"varint,4,opt,name=allow_empty,json=allowEmpty,proto3,oneof" json:"allow_empty,omitempty"`
 	ReceiveQuest          *bool                  `protobuf:"varint,5,opt,name=receive_quest,json=receiveQuest,proto3,oneof" json:"receive_quest,omitempty"`
+	TraderId              *string                `protobuf:"bytes,6,opt,name=trader_id,json=traderId,proto3,oneof" json:"trader_id,omitempty"`
+	NegotiatorId          *string                `protobuf:"bytes,7,opt,name=negotiator_id,json=negotiatorId,proto3,oneof" json:"negotiator_id,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -8098,13 +8111,6 @@ func (*AcceptTrade) Descriptor() ([]byte, []int) {
 	return file_operations_proto_rawDescGZIP(), []int{90}
 }
 
-func (x *AcceptTrade) GetSession() *EntityPrecondition {
-	if x != nil {
-		return x.Session
-	}
-	return nil
-}
-
 func (x *AcceptTrade) GetExpectedDealSignature() string {
 	if x != nil && x.ExpectedDealSignature != nil {
 		return *x.ExpectedDealSignature
@@ -8133,11 +8139,27 @@ func (x *AcceptTrade) GetReceiveQuest() bool {
 	return false
 }
 
+func (x *AcceptTrade) GetTraderId() string {
+	if x != nil && x.TraderId != nil {
+		return *x.TraderId
+	}
+	return ""
+}
+
+func (x *AcceptTrade) GetNegotiatorId() string {
+	if x != nil && x.NegotiatorId != nil {
+		return *x.NegotiatorId
+	}
+	return ""
+}
+
+// A cancel with no live session is a no-op, not a refusal.
 type EndTrade struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Session       *EntityPrecondition    `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
 	Kind          *EndTradeKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=rimgovernor.operations.v1.EndTradeKind,oneof" json:"kind,omitempty"`
 	ReceiveQuest  *bool                  `protobuf:"varint,3,opt,name=receive_quest,json=receiveQuest,proto3,oneof" json:"receive_quest,omitempty"`
+	TraderId      *string                `protobuf:"bytes,4,opt,name=trader_id,json=traderId,proto3,oneof" json:"trader_id,omitempty"`
+	NegotiatorId  *string                `protobuf:"bytes,5,opt,name=negotiator_id,json=negotiatorId,proto3,oneof" json:"negotiator_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8172,13 +8194,6 @@ func (*EndTrade) Descriptor() ([]byte, []int) {
 	return file_operations_proto_rawDescGZIP(), []int{91}
 }
 
-func (x *EndTrade) GetSession() *EntityPrecondition {
-	if x != nil {
-		return x.Session
-	}
-	return nil
-}
-
 func (x *EndTrade) GetKind() EndTradeKind {
 	if x != nil && x.Kind != nil {
 		return *x.Kind
@@ -8191,6 +8206,20 @@ func (x *EndTrade) GetReceiveQuest() bool {
 		return *x.ReceiveQuest
 	}
 	return false
+}
+
+func (x *EndTrade) GetTraderId() string {
+	if x != nil && x.TraderId != nil {
+		return *x.TraderId
+	}
+	return ""
+}
+
+func (x *EndTrade) GetNegotiatorId() string {
+	if x != nil && x.NegotiatorId != nil {
+		return *x.NegotiatorId
+	}
+	return ""
 }
 
 type CargoSelection struct {
@@ -9742,43 +9771,56 @@ const file_operations_proto_rawDesc = "" +
 	"\x04kind\x18\x03 \x01(\x0e2(.rimgovernor.operations.v1.PawnOrderKindH\x00R\x04kind\x88\x01\x01\x125\n" +
 	"\x14require_safe_storage\x18\x04 \x01(\bH\x01R\x12requireSafeStorage\x88\x01\x01B\a\n" +
 	"\x05_kindB\x17\n" +
-	"\x15_require_safe_storage\"\xd1\x01\n" +
-	"\tOpenTrade\x12E\n" +
-	"\x06trader\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06trader\x12M\n" +
+	"\x15_require_safe_storage\"\xb3\x01\n" +
+	"\tOpenTrade\x12 \n" +
+	"\tgift_mode\x18\x03 \x01(\bH\x00R\bgiftMode\x88\x01\x01\x12 \n" +
+	"\ttrader_id\x18\x04 \x01(\tH\x01R\btraderId\x88\x01\x01\x12(\n" +
+	"\rnegotiator_id\x18\x05 \x01(\tH\x02R\fnegotiatorId\x88\x01\x01B\f\n" +
 	"\n" +
-	"negotiator\x18\x02 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\n" +
-	"negotiator\x12 \n" +
-	"\tgift_mode\x18\x03 \x01(\bH\x00R\bgiftMode\x88\x01\x01B\f\n" +
+	"_gift_modeB\f\n" +
 	"\n" +
-	"_gift_mode\"t\n" +
+	"_trader_idB\x10\n" +
+	"\x0e_negotiator_idJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03\"t\n" +
 	"\tTradeLine\x12\x1c\n" +
 	"\aline_id\x18\x01 \x01(\tH\x00R\x06lineId\x88\x01\x01\x12*\n" +
 	"\x0eabsolute_count\x18\x02 \x01(\x05H\x01R\rabsoluteCount\x88\x01\x01B\n" +
 	"\n" +
 	"\b_line_idB\x11\n" +
-	"\x0f_absolute_count\"\xca\x01\n" +
-	"\rSetTradeLines\x12G\n" +
-	"\asession\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\asession\x12:\n" +
+	"\x0f_absolute_count\"\xf3\x01\n" +
+	"\rSetTradeLines\x12:\n" +
 	"\x05lines\x18\x02 \x03(\v2$.rimgovernor.operations.v1.TradeLineR\x05lines\x12$\n" +
 	"\vallow_pawns\x18\x03 \x01(\bH\x00R\n" +
-	"allowPawns\x88\x01\x01B\x0e\n" +
-	"\f_allow_pawns\"\xef\x02\n" +
-	"\vAcceptTrade\x12G\n" +
-	"\asession\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\asession\x12;\n" +
+	"allowPawns\x88\x01\x01\x12 \n" +
+	"\ttrader_id\x18\x04 \x01(\tH\x01R\btraderId\x88\x01\x01\x12(\n" +
+	"\rnegotiator_id\x18\x05 \x01(\tH\x02R\fnegotiatorId\x88\x01\x01B\x0e\n" +
+	"\f_allow_pawnsB\f\n" +
+	"\n" +
+	"_trader_idB\x10\n" +
+	"\x0e_negotiator_idJ\x04\b\x01\x10\x02\"\x98\x03\n" +
+	"\vAcceptTrade\x12;\n" +
 	"\x17expected_deal_signature\x18\x02 \x01(\tH\x00R\x15expectedDealSignature\x88\x01\x01\x12L\n" +
 	"\x0feconomic_floors\x18\x03 \x03(\v2#.rimgovernor.operations.v1.DefCountR\x0eeconomicFloors\x12$\n" +
 	"\vallow_empty\x18\x04 \x01(\bH\x01R\n" +
 	"allowEmpty\x88\x01\x01\x12(\n" +
-	"\rreceive_quest\x18\x05 \x01(\bH\x02R\freceiveQuest\x88\x01\x01B\x1a\n" +
+	"\rreceive_quest\x18\x05 \x01(\bH\x02R\freceiveQuest\x88\x01\x01\x12 \n" +
+	"\ttrader_id\x18\x06 \x01(\tH\x03R\btraderId\x88\x01\x01\x12(\n" +
+	"\rnegotiator_id\x18\a \x01(\tH\x04R\fnegotiatorId\x88\x01\x01B\x1a\n" +
 	"\x18_expected_deal_signatureB\x0e\n" +
 	"\f_allow_emptyB\x10\n" +
-	"\x0e_receive_quest\"\xda\x01\n" +
-	"\bEndTrade\x12G\n" +
-	"\asession\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\asession\x12@\n" +
+	"\x0e_receive_questB\f\n" +
+	"\n" +
+	"_trader_idB\x10\n" +
+	"\x0e_negotiator_idJ\x04\b\x01\x10\x02\"\x83\x02\n" +
+	"\bEndTrade\x12@\n" +
 	"\x04kind\x18\x02 \x01(\x0e2'.rimgovernor.operations.v1.EndTradeKindH\x00R\x04kind\x88\x01\x01\x12(\n" +
-	"\rreceive_quest\x18\x03 \x01(\bH\x01R\freceiveQuest\x88\x01\x01B\a\n" +
+	"\rreceive_quest\x18\x03 \x01(\bH\x01R\freceiveQuest\x88\x01\x01\x12 \n" +
+	"\ttrader_id\x18\x04 \x01(\tH\x02R\btraderId\x88\x01\x01\x12(\n" +
+	"\rnegotiator_id\x18\x05 \x01(\tH\x03R\fnegotiatorId\x88\x01\x01B\a\n" +
 	"\x05_kindB\x10\n" +
-	"\x0e_receive_quest\"b\n" +
+	"\x0e_receive_questB\f\n" +
+	"\n" +
+	"_trader_idB\x10\n" +
+	"\x0e_negotiator_idJ\x04\b\x01\x10\x02\"b\n" +
 	"\x0eCargoSelection\x12\x1e\n" +
 	"\bgroup_id\x18\x01 \x01(\tH\x00R\agroupId\x88\x01\x01\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x05H\x01R\x05count\x88\x01\x01B\v\n" +
@@ -10352,45 +10394,40 @@ var file_operations_proto_depIdxs = []int32{
 	30,  // 208: rimgovernor.operations.v1.PawnTargetOrder.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	30,  // 209: rimgovernor.operations.v1.PawnTargetOrder.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	16,  // 210: rimgovernor.operations.v1.PawnTargetOrder.kind:type_name -> rimgovernor.operations.v1.PawnOrderKind
-	30,  // 211: rimgovernor.operations.v1.OpenTrade.trader:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	30,  // 212: rimgovernor.operations.v1.OpenTrade.negotiator:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	30,  // 213: rimgovernor.operations.v1.SetTradeLines.session:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	107, // 214: rimgovernor.operations.v1.SetTradeLines.lines:type_name -> rimgovernor.operations.v1.TradeLine
-	30,  // 215: rimgovernor.operations.v1.AcceptTrade.session:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	34,  // 216: rimgovernor.operations.v1.AcceptTrade.economic_floors:type_name -> rimgovernor.operations.v1.DefCount
-	30,  // 217: rimgovernor.operations.v1.EndTrade.session:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	17,  // 218: rimgovernor.operations.v1.EndTrade.kind:type_name -> rimgovernor.operations.v1.EndTradeKind
-	111, // 219: rimgovernor.operations.v1.FormCaravan.cargo:type_name -> rimgovernor.operations.v1.CargoSelection
-	30,  // 220: rimgovernor.operations.v1.TravelCaravan.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	18,  // 221: rimgovernor.operations.v1.TravelCaravan.kind:type_name -> rimgovernor.operations.v1.TravelKind
-	30,  // 222: rimgovernor.operations.v1.GiftCaravanSilver.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	30,  // 223: rimgovernor.operations.v1.GiftCaravanSilver.faction:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	30,  // 224: rimgovernor.operations.v1.AcceptQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	30,  // 225: rimgovernor.operations.v1.FulfillQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	30,  // 226: rimgovernor.operations.v1.FulfillQuest.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	127, // 227: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	30,  // 228: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	119, // 229: rimgovernor.operations.v1.DraftRelease.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	128, // 230: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
-	135, // 231: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
-	119, // 232: rimgovernor.operations.v1.DraftReleaseUncertain.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	128, // 233: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
-	120, // 234: rimgovernor.operations.v1.ReleaseOwnedDraftReply.released:type_name -> rimgovernor.operations.v1.DraftRelease
-	120, // 235: rimgovernor.operations.v1.ReleaseOwnedDraftReply.already_released:type_name -> rimgovernor.operations.v1.DraftRelease
-	121, // 236: rimgovernor.operations.v1.ReleaseOwnedDraftReply.uncertain:type_name -> rimgovernor.operations.v1.DraftReleaseUncertain
-	126, // 237: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
-	30,  // 238: rimgovernor.operations.v1.SetApparelPolicy.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	21,  // 239: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
-	19,  // 240: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
-	119, // 241: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	22,  // 242: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
-	20,  // 243: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
-	122, // 244: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
-	242, // [242:245] is the sub-list for method output_type
-	239, // [239:242] is the sub-list for method input_type
-	239, // [239:239] is the sub-list for extension type_name
-	239, // [239:239] is the sub-list for extension extendee
-	0,   // [0:239] is the sub-list for field type_name
+	107, // 211: rimgovernor.operations.v1.SetTradeLines.lines:type_name -> rimgovernor.operations.v1.TradeLine
+	34,  // 212: rimgovernor.operations.v1.AcceptTrade.economic_floors:type_name -> rimgovernor.operations.v1.DefCount
+	17,  // 213: rimgovernor.operations.v1.EndTrade.kind:type_name -> rimgovernor.operations.v1.EndTradeKind
+	111, // 214: rimgovernor.operations.v1.FormCaravan.cargo:type_name -> rimgovernor.operations.v1.CargoSelection
+	30,  // 215: rimgovernor.operations.v1.TravelCaravan.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	18,  // 216: rimgovernor.operations.v1.TravelCaravan.kind:type_name -> rimgovernor.operations.v1.TravelKind
+	30,  // 217: rimgovernor.operations.v1.GiftCaravanSilver.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	30,  // 218: rimgovernor.operations.v1.GiftCaravanSilver.faction:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	30,  // 219: rimgovernor.operations.v1.AcceptQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	30,  // 220: rimgovernor.operations.v1.FulfillQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	30,  // 221: rimgovernor.operations.v1.FulfillQuest.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	127, // 222: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	30,  // 223: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	119, // 224: rimgovernor.operations.v1.DraftRelease.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	128, // 225: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
+	135, // 226: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
+	119, // 227: rimgovernor.operations.v1.DraftReleaseUncertain.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	128, // 228: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
+	120, // 229: rimgovernor.operations.v1.ReleaseOwnedDraftReply.released:type_name -> rimgovernor.operations.v1.DraftRelease
+	120, // 230: rimgovernor.operations.v1.ReleaseOwnedDraftReply.already_released:type_name -> rimgovernor.operations.v1.DraftRelease
+	121, // 231: rimgovernor.operations.v1.ReleaseOwnedDraftReply.uncertain:type_name -> rimgovernor.operations.v1.DraftReleaseUncertain
+	126, // 232: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
+	30,  // 233: rimgovernor.operations.v1.SetApparelPolicy.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	21,  // 234: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
+	19,  // 235: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
+	119, // 236: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	22,  // 237: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
+	20,  // 238: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
+	122, // 239: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
+	237, // [237:240] is the sub-list for method output_type
+	234, // [234:237] is the sub-list for method input_type
+	234, // [234:234] is the sub-list for extension type_name
+	234, // [234:234] is the sub-list for extension extendee
+	0,   // [0:234] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }

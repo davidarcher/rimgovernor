@@ -359,6 +359,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 			break
 		}
 	}
+	if action.Kind().IntentMode() && progress.View().Unresolved {
+		return e.settleIntent(progress)
+	}
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)
 	}
@@ -717,6 +720,15 @@ func (e *Executor) record(result Result, plan domain.PlanID, placement Placement
 	}
 	return result, errors.Join(cause, err)
 }
+
+// settleIntent closes an intent-mode attempt dispatched without a recorded
+// receipt: nothing is observed, the outcome is recorded unknown and the
+// idempotent intent is dispatched again.
+func (e *Executor) settleIntent(progress domain.Progress) (Result, error) {
+	v := progress.View()
+	return e.record(Result{Progress: progress}, v.Plan, Placement{Action: progress.Action(), Attempt: v.Attempt, Snapshot: v.Snapshot, Tick: v.Tick}, domain.ReceiptUnknown, nil)
+}
+
 func (e *Executor) reconcile(ctx context.Context, action domain.Action, progress domain.Progress, generation context.Context) (Result, error) {
 	result := Result{Progress: progress}
 	view := progress.View()

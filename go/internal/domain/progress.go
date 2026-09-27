@@ -374,6 +374,15 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	}
 	return p, nil
 }
+
+// IntentMode reports an action kind whose actions are idempotent intents
+// (#856): native validates each against live state when it applies, so the
+// receipt is terminal (applied completes, refused fails, unknown is sent
+// again), with no observation phase, and the routine owning the
+// kind reads its next phase from live facts rather than per-attempt
+// progress. A kind opts in here.
+func (k ActionKind) IntentMode() bool { return k == TradeAction }
+
 func (p Progress) RecordReceipt(attempt AttemptID, receipt Receipt) (Progress, error) {
 	if p.action.kind == OwnedDraftAction {
 		return p, errors.New("draft receipt requires typed claim transition")
@@ -397,6 +406,23 @@ func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 	}
 	p.view.Receipt = Known(receipt)
 	p.view.HeldReason = Unknown[HoldEvidence]()
+	if p.action.kind.IntentMode() && receipt != ReceiptUnsent {
+		// The receipt settles an intent's attempt: applied is done, refused
+		// is over (the owning routine replans from live state), and an
+		// unknown outcome is sent again, which an idempotent intent allows.
+		p.view.Unresolved = false
+		stage := Pending
+		switch receipt {
+		case ReceiptAccepted:
+			p.view.Effect, stage = Known(EffectCompleted), Completed
+		case ReceiptRefused:
+			p.view.Effect, stage = Known(EffectAbsent), Unsuccessful
+		}
+		if p.view.Stage != Cancelled {
+			p.view.Stage = stage
+		}
+		return p, nil
+	}
 	if receipt == ReceiptRefused || receipt == ReceiptUnsent {
 		p.view.Unresolved = false
 		p.view.Effect = Known(EffectAbsent)
@@ -454,6 +480,9 @@ func (p Progress) Cancel() (Progress, error) {
 func (p Progress) Observe(observation Observation, current GenerationSnapshot) (Progress, error) {
 	if p.action.kind == OwnedDraftAction {
 		return p, errors.New("draft observation requires typed claim transition")
+	}
+	if p.action.kind.IntentMode() {
+		return p, errors.New("an intent's receipt is terminal; there is nothing to observe")
 	}
 	return p.observe(observation, current)
 }

@@ -55,7 +55,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeTendRecord> Tends = new Dictionary<Common.AttemptKey, NativeTendRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRepairRecord> Repairs = new Dictionary<Common.AttemptKey, NativeRepairRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeOpenCasketRecord> OpenCaskets = new Dictionary<Common.AttemptKey, NativeOpenCasketRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeTradeRecord> Trade = new Dictionary<Common.AttemptKey, NativeTradeRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanRecord> Caravans = new Dictionary<Common.AttemptKey, NativeCaravanRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeQuestRecord> Quests = new Dictionary<Common.AttemptKey, NativeQuestRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeSettlementGiftRecord> SettlementGifts = new Dictionary<Common.AttemptKey, NativeSettlementGiftRecord>();
@@ -542,9 +541,6 @@ namespace HomeBridge.BridgeTools
                     NativeTendRecord tend;
                     if (state.Tends.TryGetValue(parsed.Attempt, out tend))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = tend.Observe(parsed.Attempt, context) }));
-                    NativeTradeRecord trade;
-                    if (state.Trade.TryGetValue(parsed.Attempt, out trade))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = trade.Observe(parsed.Attempt, context) }));
                     NativeCaravanRecord caravan;
                     if (state.Caravans.TryGetValue(parsed.Attempt, out caravan))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeCaravanOperations.Observe(parsed.Attempt, context, caravan) }));

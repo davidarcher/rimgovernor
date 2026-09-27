@@ -418,11 +418,11 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		case domain.TradeOpen:
 			value, valueErr = domain.NewTradeOpen(payload.Trader, payload.Negotiator, payload.GiftMode)
 		case domain.TradeSetLines:
-			value, valueErr = domain.NewTradeSetLines(payload.Lines, payload.AllowPawns)
+			value, valueErr = domain.NewTradeSetLines(payload.Trader, payload.Negotiator, payload.Lines, payload.AllowPawns)
 		case domain.TradeAccept:
-			value, valueErr = domain.NewTradeAccept(payload.ExpectedDealSignature, payload.EconomicFloors, payload.AllowEmpty, payload.ReceiveQuest)
+			value, valueErr = domain.NewTradeAccept(payload.Trader, payload.Negotiator, payload.ExpectedDealSignature, payload.EconomicFloors, payload.AllowEmpty, payload.ReceiveQuest)
 		case domain.TradeEnd:
-			value, valueErr = domain.NewTradeEnd(payload.EndKind, payload.ReceiveQuest)
+			value, valueErr = domain.NewTradeEnd(payload.Trader, payload.Negotiator, payload.EndKind, payload.ReceiveQuest)
 		default:
 			valueErr = errors.New("unsupported trade operation kind")
 		}

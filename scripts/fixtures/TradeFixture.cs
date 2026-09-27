@@ -176,10 +176,8 @@ namespace HomeBridge.BridgeTools
                     negotiatorPawn.Notify_Teleported();
                     return new { success = true, x = cell.x, y = cell.y, z = cell.z };
                 }
-                // Read back the exact raw fields NativeTradeOperations.TraderToken/
-                // NegotiatorToken hash, so an acceptance harness can self-compute
-                // those tokens client side without guessing at RimWorld's
-                // IntVec3.ToString() format or its pawn altitude-layer constant.
+                // Read back the trader's and negotiator's raw eligibility fields
+                // for acceptance diagnostics.
                 if (action == "state")
                 {
                     var traderPawn = map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == traderId);

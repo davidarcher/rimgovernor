@@ -345,12 +345,17 @@ enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE
 message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
 enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_HAUL = 5; PAWN_ORDER_KIND_WORK = 6; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_SUBDUE = 10; PAWN_ORDER_KIND_OPEN_CASKET_HEAT = 11; }
 message PawnTargetOrder { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional PawnOrderKind kind = 3; optional bool require_safe_storage = 4; }
-message OpenTrade { EntityPrecondition trader = 1; EntityPrecondition negotiator = 2; optional bool gift_mode = 3; }
+// Trade intents act on RimWorld's one live trade session. Native validates
+// each against live state when it applies and refuses with a reason when the
+// session is gone or held by a different trader or negotiator; repeating an
+// intent is harmless. OpenTrade reuses a matching open session or walk.
+message OpenTrade { reserved 1, 2; optional bool gift_mode = 3; optional string trader_id = 4; optional string negotiator_id = 5; }
 message TradeLine { optional string line_id = 1; optional int32 absolute_count = 2; }
-message SetTradeLines { EntityPrecondition session = 1; repeated TradeLine lines = 2; optional bool allow_pawns = 3; }
-message AcceptTrade { EntityPrecondition session = 1; optional string expected_deal_signature = 2; repeated DefCount economic_floors = 3; optional bool allow_empty = 4; optional bool receive_quest = 5; }
+message SetTradeLines { reserved 1; repeated TradeLine lines = 2; optional bool allow_pawns = 3; optional string trader_id = 4; optional string negotiator_id = 5; }
+message AcceptTrade { reserved 1; optional string expected_deal_signature = 2; repeated DefCount economic_floors = 3; optional bool allow_empty = 4; optional bool receive_quest = 5; optional string trader_id = 6; optional string negotiator_id = 7; }
 enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; END_TRADE_KIND_CLOSE_DIALOG = 2; }
-message EndTrade { EntityPrecondition session = 1; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
+// A cancel with no live session is a no-op, not a refusal.
+message EndTrade { reserved 1; optional EndTradeKind kind = 2; optional bool receive_quest = 3; optional string trader_id = 4; optional string negotiator_id = 5; }
 message CargoSelection { optional string group_id = 1; optional int32 count = 2; }
 message FormCaravan { optional string expected_catalog_token = 1; repeated string pawn_ids = 2; repeated CargoSelection cargo = 3; optional int32 destination_tile = 4; }
 enum TravelKind { TRAVEL_KIND_UNSPECIFIED = 0; TRAVEL_KIND_MOVE = 1; TRAVEL_KIND_VISIT = 2; TRAVEL_KIND_RETURN_HOME = 3; TRAVEL_KIND_STOP = 4; }

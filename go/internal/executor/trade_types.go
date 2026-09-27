@@ -7,35 +7,14 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// TradeJournal extends Journal with Trade's own admission and session
-// persistence. RecordTradeSession/LookupTradeSession are the durable store
-// this vertical adds: see store.TradeSession's doc comment for why no
-// existing mechanism captures a native-assigned session id for a later
-// same-plan action to consume.
+// TradeJournal is Journal plus the untyped Prepare: a trade intent names
+// its trader and negotiator itself and native re-validates it against the
+// one live session, so there is no trade admission row to persist.
 type TradeJournal interface {
 	Journal
-	PrepareTrade(context.Context, domain.PlanID, domain.ActionID, store.TradeAdmission) (domain.Progress, error)
-	RecordTradeSession(context.Context, domain.ActionID, store.TradeSession) error
-	LookupTradeSession(context.Context, domain.ActionID) (store.TradeSession, bool, error)
-	// LookupTradeSessionReference resolves the cross-plan binding a
-	// multi-phase negotiation records for each successor phase; see
-	// resolveTradeDependency and store/trade_session_reference.go.
-	LookupTradeSessionReference(context.Context, domain.ActionID) (domain.ActionID, bool, error)
-}
-
-// TradeDependency carries the resolved identity of a set_lines/accept/end
-// action's dependency Open action, and (once recorded) its persisted
-// session. The executor resolves this once per attempt from the plan's own
-// domain.ActionDependency plus the journal's session record, never by
-// re-deriving or guessing which session is open. It is the zero value for
-// TradeOpen actions, which carry no dependency.
-type TradeDependency struct {
-	OpenAction domain.ActionID
-	Session    store.TradeSession
-	Resolved   bool
+	Prepare(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 }
 
 type TradeInspection struct {
@@ -43,31 +22,13 @@ type TradeInspection struct {
 	Facts                 policy.TradeAdmissionFacts
 }
 
-type TradeDispatch struct {
-	Attempt    Placement
-	Admission  store.TradeAdmission
-	Dependency TradeDependency
-}
-
-// TradeEvidence's SessionID/SessionToken are populated only when Observe
-// reports a completed TradeOpen: that is the one and only evidence carrying
-// the native-assigned session identity, which the executor then persists via
-// TradeJournal.RecordTradeSession for later same-plan actions to consume.
-type TradeEvidence struct {
-	Observation             domain.Observation
-	StartedAt, ObservedAt   time.Time
-	Complete                bool
-	SessionID, SessionToken string
-}
-
 // TradeBoundary is optionally composed, like SettlementGiftBoundary/
-// QuestFulfillBoundary: the planner (or direct player command) upstream has
-// already selected the trader/negotiator/lines/floors, so this family
-// attaches without a hard NewWith constructor.
+// QuestFulfillBoundary: the routine upstream has already selected the
+// trader/negotiator/lines/floors, so this family attaches without a hard
+// NewWith constructor.
 type TradeBoundary interface {
-	InspectTrade(context.Context, Target, TradeDependency) (TradeInspection, error)
-	WriteTrade(context.Context, TradeDispatch) (Receipt, error)
-	ObserveTrade(context.Context, TradeDispatch, domain.GenerationSnapshot) (TradeEvidence, error)
+	InspectTrade(context.Context, Target) (TradeInspection, error)
+	WriteTrade(context.Context, Placement) (Receipt, error)
 }
 
 // EnableTrade activates the trade capability; see EnableQuestFulfill for why

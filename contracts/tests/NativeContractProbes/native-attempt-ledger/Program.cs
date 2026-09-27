@@ -123,7 +123,7 @@ internal static class NativeAttemptLedgerProbe
         var ledger=new NativeAttemptLedger(Identity());
         var request=Request();
         request.Operation=new Operations.Operation { SetTradeLines=new Operations.SetTradeLines
-            { Session=new Operations.EntityPrecondition { EntityId="trade",ExpectedSnapshotToken="snapshot" },AllowPawns=false } };
+            { TraderId="trader",NegotiatorId="negotiator",AllowPawns=false } };
         request.Operation.SetTradeLines.Lines.Add(new Operations.TradeLine { LineId="a",AbsoluteCount=0 });
         request.Operation.SetTradeLines.Lines.Add(new Operations.TradeLine { LineId="b",AbsoluteCount=1 });
         ledger.Admit(Method,request,Context());
@@ -132,8 +132,8 @@ internal static class NativeAttemptLedgerProbe
         Check(ledger.Inspect(Method,reordered).Kind==Kind.InFlight,"field wire order does not alter typed identity");
         var changed=request.Clone(); changed.Operation.SetTradeLines.ClearAllowPawns();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"false versus absent conflicts");
-        changed=request.Clone(); changed.Operation.SetTradeLines.Session.ClearExpectedSnapshotToken();
-        Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"original entity snapshot precondition preserved");
+        changed=request.Clone(); changed.Operation.SetTradeLines.ClearNegotiatorId();
+        Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"original participant precondition preserved");
         changed=request.Clone(); changed.Operation.SetTradeLines.Lines[0].ClearAbsoluteCount();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"repeated nested zero presence preserved");
         changed=request.Clone();

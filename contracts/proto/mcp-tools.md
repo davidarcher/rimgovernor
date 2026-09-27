@@ -96,7 +96,7 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/observations_read_spatial_access` | `rimgovernor.observations.v1.Observations/ReadSpatialAccess` | `rimgovernor.observations.v1.SpatialAccessRequest` | `rimgovernor.observations.v1.SpatialAccessReply` |
 | `rimgovernor/observations_read_status` | `rimgovernor.observations.v1.Observations/ReadStatus` | `rimgovernor.observations.v1.StatusRequest` | `rimgovernor.observations.v1.StatusReply` |
 | `rimgovernor/observations_read_trade_sheet` | `rimgovernor.observations.v1.Observations/ReadTradeSheet` | `rimgovernor.observations.v1.TradeSheetRequest` | `rimgovernor.observations.v1.TradeSheetReply` |
-| `rimgovernor/observations_read_trade_status` | `rimgovernor.observations.v1.Observations/ReadTradeStatus` | `rimgovernor.observations.v1.TradeStatusRequest` | `rimgovernor.observations.v1.TradeStatusReply` |
+| `rimgovernor/observations_read_trade_session` | `rimgovernor.observations.v1.Observations/ReadTradeSession` | `rimgovernor.observations.v1.TradeSessionRequest` | `rimgovernor.observations.v1.TradeSessionReply` |
 | `rimgovernor/observations_read_waste` | `rimgovernor.observations.v1.Observations/ReadWaste` | `rimgovernor.observations.v1.WasteRequest` | `rimgovernor.observations.v1.WasteReply` |
 | `rimgovernor/observations_read_world` | `rimgovernor.observations.v1.Observations/ReadWorld` | `rimgovernor.observations.v1.WorldRequest` | `rimgovernor.observations.v1.WorldReply` |
 | `rimgovernor/observations_read_world_progression` | `rimgovernor.observations.v1.Observations/ReadWorldProgression` | `rimgovernor.observations.v1.WorldProgressionRequest` | `rimgovernor.observations.v1.WorldProgressionReply` |

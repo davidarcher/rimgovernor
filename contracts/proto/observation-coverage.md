@@ -147,7 +147,7 @@ Sources in this table are under
 | BuildingConfigTool.cs / building_config read | ReadBuildingSettings; BuildingSettings, scoped token; gizmos in presentation | building_config, thermal_control, player inspections |
 | PawnConfigTool.cs / pawn_config read | ReadPawnSettings; PawnSettings, scoped token | pawn_config, medical/work/settings readers |
 | OrderTool.cs / order resolve | ResolveTarget; exact typed target or explicit ambiguity | hands, target resolution, player inspections |
-| TradeTool.cs / list_traders, sheet, status | ListTraders / ReadTradeSheet / ReadTradeStatus; TradeLine absolute index, session snapshot token, validated native food nutrition/class/preparation/perishability/crop facts | trade_policy, trade_outcome, player inspections |
+| TradeTool.cs / list_traders, sheet, status | ListTraders / ReadTradeSheet / ReadTradeSession; TradeLine absolute index, session snapshot token, validated native food nutrition/class/preparation/perishability/crop facts | trade_policy, trade_outcome, player inspections |
 | CaravanTool.cs / caravan catalog | ReadCaravanCatalog; PawnEligibility, stock/routes/return storage, scoped token | expedition_policy, caravan outcomes |
 | GearUpkeepTool.cs / gear_upkeep inspection | ReadGear; GearLoadout, GearCandidate, snapshot token | gear_upkeep, colony_facts planning |
 | MedicalOperationsTool.cs / medical_operations catalog | ReadMedicalCatalog; MedicalCatalog, MedicalRecipe, exact body-part/medicine/practitioner facts | medical_operations, medical_outcome |
@@ -323,7 +323,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | SetPrisonerInteraction.pawn | ReadPopulation.pawn.snapshot and current interaction |
 | SetDrafted/MovePawn/AttackTarget/PawnTargetOrder | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |
 | OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |
-| SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.snapshot or ReadTradeStatus.snapshot; exact session ID |
+| SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.snapshot; trader and negotiator from ReadTradeSession |
 | SetTradeLines.line_id | ReadTradeSheet.lines.line_id, scoped to frozen sheet; not an inferred DefName/index |
 | FormCaravan.catalog/pawns/cargo | ReadCaravanCatalog.snapshot; pawn IDs; cargo_groups.group_id |
 | TravelCaravan/GiftCaravanSilver/FulfillQuest.caravan | ReadWorldProgression.caravan.snapshot |
