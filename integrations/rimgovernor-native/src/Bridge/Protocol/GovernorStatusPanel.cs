@@ -26,6 +26,18 @@ namespace HomeBridge.BridgeTools
         }
     }
 
+    public readonly struct PanelButton
+    {
+        public readonly string Id;
+        public readonly string Label;
+        public readonly string Tip;
+
+        public PanelButton(string id, string label, string tip)
+        {
+            Id = id; Label = label; Tip = tip;
+        }
+    }
+
     /// <summary>
     /// The controller's in-game status panel (#951, replacing the #823 top
     /// strip): a small box in the top-right corner, which vanilla leaves
@@ -33,7 +45,8 @@ namespace HomeBridge.BridgeTools
     /// body is the native control and clock lines, the controller's headline
     /// rows, then its per-goal rows. Text wraps; a body taller than the free
     /// column scrolls. Session-only static state bound to one map; starts
-    /// expanded. A future button row (#957) goes between header and body.
+    /// expanded. The controller's buttons (#957) sit in a row between header
+    /// and body; pressing one publishes a clock PlayerRequest event.
     /// </summary>
     [StaticConstructorOnStartup]
     public static class GovernorStatusPanel
@@ -43,6 +56,8 @@ namespace HomeBridge.BridgeTools
         private const float Pad = 6f;
         private const float HeaderHeight = 24f;
         private const float RowGap = 2f;
+        private const float ButtonHeight = 24f;
+        private const float ButtonGap = 4f;
 
         // Vanilla's top-right neighbours (Assembly-CSharp 1.6): the colonist
         // bar is at most UI.screenWidth - 520 wide and centred, so it leaves
@@ -56,6 +71,7 @@ namespace HomeBridge.BridgeTools
         private static readonly AccessTools.FieldRef<DebugWindowsOpener, float> DevRowWidth = AccessTools.FieldRefAccess<DebugWindowsOpener, float>("widgetRowFinalX");
 
         private static List<StatusStripRow> rows = new List<StatusStripRow>();
+        private static List<PanelButton> buttons = new List<PanelButton>();
         private static Map? map;
         private static bool expanded = true;
         private static Vector2 scroll;
@@ -79,15 +95,17 @@ namespace HomeBridge.BridgeTools
         public static int Count => rows.Count;
 
         // Call only on the game thread. Every call replaces every row.
-        public static void Replace(Map target, List<StatusStripRow> next)
+        public static void Replace(Map target, List<StatusStripRow> next, List<PanelButton> nextButtons)
         {
             map = target;
             rows = next;
+            buttons = nextButtons;
         }
 
         public static void Clear()
         {
             rows = new List<StatusStripRow>();
+            buttons = new List<PanelButton>();
             map = null;
         }
 
@@ -127,7 +145,8 @@ namespace HomeBridge.BridgeTools
                 var inner = Width - 2 * Pad;
                 var heights = lines.Select(l => Text.CalcHeight(l.Text, inner)).ToList();
                 var bodyHeight = lines.Count == 0 ? 0f : heights.Sum() + RowGap * (lines.Count - 1) + Pad;
-                var panel = new Rect(x, top, Width, Mathf.Min(HeaderHeight + bodyHeight, bottom - top));
+                var buttonHeight = expanded && buttons.Count > 0 ? ButtonHeight + ButtonGap : 0f;
+                var panel = new Rect(x, top, Width, Mathf.Min(HeaderHeight + buttonHeight + bodyHeight, bottom - top));
                 Widgets.DrawBoxSolid(panel, new Color(0f, 0f, 0f, 0.6f));
 
                 var header = new Rect(panel.x + Pad, panel.y, panel.width - 2 * Pad, HeaderHeight);
@@ -137,10 +156,13 @@ namespace HomeBridge.BridgeTools
                 Widgets.DrawHighlightIfMouseover(header);
                 TooltipHandler.TipRegion(header, expanded ? "Collapse the RimGovernor status." : control + "\n\nClick to show the RimGovernor status.");
                 if (Widgets.ButtonInvisible(header)) expanded = !expanded;
+                if (buttonHeight > 0f && panel.height >= HeaderHeight + buttonHeight)
+                    DrawButtons(new Rect(panel.x + Pad, header.yMax, panel.width - 2 * Pad, ButtonHeight));
                 if (lines.Count == 0) return;
 
-                var outer = new Rect(panel.x, header.yMax, panel.width, panel.height - HeaderHeight);
-                var scrolls = HeaderHeight + bodyHeight > bottom - top;
+                var outer = new Rect(panel.x, header.yMax + buttonHeight, panel.width, panel.height - HeaderHeight - buttonHeight);
+                if (outer.height <= 0f) return;
+                var scrolls = HeaderHeight + buttonHeight + bodyHeight > bottom - top;
                 var width = scrolls ? inner - 16f : inner;
                 if (scrolls) heights = lines.Select(l => Text.CalcHeight(l.Text, width)).ToList();
                 var view = new Rect(0f, 0f, width + Pad, heights.Sum() + RowGap * (lines.Count - 1) + Pad);
@@ -157,6 +179,27 @@ namespace HomeBridge.BridgeTools
             {
                 GUI.color = Color.white;
                 Text.Font = font;
+            }
+        }
+
+        // One row of equal buttons; a press publishes the request, which the
+        // controller answers at its next review with new rows and buttons.
+        private static void DrawButtons(Rect row)
+        {
+            var width = (row.width - ButtonGap * (buttons.Count - 1)) / buttons.Count;
+            for (var i = 0; i < buttons.Count; i++)
+            {
+                var button = buttons[i];
+                var rect = new Rect(row.x + i * (width + ButtonGap), row.y, width, row.height);
+                if (!string.IsNullOrEmpty(button.Tip)) TooltipHandler.TipRegion(rect, button.Tip);
+                // Drawn by hand: Widgets.ButtonText needs the text-rendering
+                // module the build does not reference.
+                Widgets.DrawBoxSolid(rect, new Color(0.25f, 0.25f, 0.25f, 0.9f));
+                Widgets.DrawBox(rect);
+                Widgets.DrawHighlightIfMouseover(rect);
+                var size = Text.CalcSize(button.Label);
+                Widgets.Label(new Rect(rect.x + Mathf.Max(0f, (rect.width - size.x) / 2f), rect.y + (rect.height - size.y) / 2f, Mathf.Min(size.x, rect.width), size.y), button.Label);
+                if (Widgets.ButtonInvisible(rect)) Supervisor.PublishPlayerRequest(button.Id);
             }
         }
 

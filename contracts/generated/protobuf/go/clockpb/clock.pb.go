@@ -3851,6 +3851,62 @@ func (x *AuthorityChanged) GetActive() bool {
 	return false
 }
 
+// The player pressed a button on the in-game RimGovernor panel (#957):
+// action is the PanelAction id the controller offered, request_id is unique
+// per press. Observed with or without an epoch, so like AuthorityChanged its
+// Event.owner may be absent. Both are identifiers (printable ASCII).
+type PlayerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Action        *string                `protobuf:"bytes,1,opt,name=action,proto3,oneof" json:"action,omitempty"`
+	RequestId     *string                `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3,oneof" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayerRequest) Reset() {
+	*x = PlayerRequest{}
+	mi := &file_clock_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayerRequest) ProtoMessage() {}
+
+func (x *PlayerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_clock_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayerRequest.ProtoReflect.Descriptor instead.
+func (*PlayerRequest) Descriptor() ([]byte, []int) {
+	return file_clock_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *PlayerRequest) GetAction() string {
+	if x != nil && x.Action != nil {
+		return *x.Action
+	}
+	return ""
+}
+
+func (x *PlayerRequest) GetRequestId() string {
+	if x != nil && x.RequestId != nil {
+		return *x.RequestId
+	}
+	return ""
+}
+
 type WatchLatched struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Outcome       *OperationOutcome      `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"`
@@ -3861,7 +3917,7 @@ type WatchLatched struct {
 
 func (x *WatchLatched) Reset() {
 	*x = WatchLatched{}
-	mi := &file_clock_proto_msgTypes[39]
+	mi := &file_clock_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3873,7 +3929,7 @@ func (x *WatchLatched) String() string {
 func (*WatchLatched) ProtoMessage() {}
 
 func (x *WatchLatched) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[39]
+	mi := &file_clock_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3886,7 +3942,7 @@ func (x *WatchLatched) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchLatched.ProtoReflect.Descriptor instead.
 func (*WatchLatched) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{39}
+	return file_clock_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *WatchLatched) GetOutcome() *OperationOutcome {
@@ -3930,7 +3986,7 @@ type StopEvent struct {
 
 func (x *StopEvent) Reset() {
 	*x = StopEvent{}
-	mi := &file_clock_proto_msgTypes[40]
+	mi := &file_clock_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3942,7 +3998,7 @@ func (x *StopEvent) String() string {
 func (*StopEvent) ProtoMessage() {}
 
 func (x *StopEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[40]
+	mi := &file_clock_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3955,7 +4011,7 @@ func (x *StopEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopEvent.ProtoReflect.Descriptor instead.
 func (*StopEvent) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{40}
+	return file_clock_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *StopEvent) GetReason() StopReason {
@@ -4139,7 +4195,7 @@ type CombatEventStop struct {
 
 func (x *CombatEventStop) Reset() {
 	*x = CombatEventStop{}
-	mi := &file_clock_proto_msgTypes[41]
+	mi := &file_clock_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4151,7 +4207,7 @@ func (x *CombatEventStop) String() string {
 func (*CombatEventStop) ProtoMessage() {}
 
 func (x *CombatEventStop) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[41]
+	mi := &file_clock_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4164,7 +4220,7 @@ func (x *CombatEventStop) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatEventStop.ProtoReflect.Descriptor instead.
 func (*CombatEventStop) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{41}
+	return file_clock_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *CombatEventStop) GetEvent() CombatEvent {
@@ -4197,7 +4253,7 @@ type EpochStarted struct {
 
 func (x *EpochStarted) Reset() {
 	*x = EpochStarted{}
-	mi := &file_clock_proto_msgTypes[42]
+	mi := &file_clock_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4209,7 +4265,7 @@ func (x *EpochStarted) String() string {
 func (*EpochStarted) ProtoMessage() {}
 
 func (x *EpochStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[42]
+	mi := &file_clock_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4222,7 +4278,7 @@ func (x *EpochStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpochStarted.ProtoReflect.Descriptor instead.
 func (*EpochStarted) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{42}
+	return file_clock_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *EpochStarted) GetEpoch() *Epoch {
@@ -4252,7 +4308,7 @@ type ObservationInvalidated struct {
 
 func (x *ObservationInvalidated) Reset() {
 	*x = ObservationInvalidated{}
-	mi := &file_clock_proto_msgTypes[43]
+	mi := &file_clock_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4264,7 +4320,7 @@ func (x *ObservationInvalidated) String() string {
 func (*ObservationInvalidated) ProtoMessage() {}
 
 func (x *ObservationInvalidated) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[43]
+	mi := &file_clock_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4277,7 +4333,7 @@ func (x *ObservationInvalidated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationInvalidated.ProtoReflect.Descriptor instead.
 func (*ObservationInvalidated) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{43}
+	return file_clock_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ObservationInvalidated) GetFamilies() []FactFamily {
@@ -4319,7 +4375,7 @@ type Rectangle struct {
 
 func (x *Rectangle) Reset() {
 	*x = Rectangle{}
-	mi := &file_clock_proto_msgTypes[44]
+	mi := &file_clock_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4331,7 +4387,7 @@ func (x *Rectangle) String() string {
 func (*Rectangle) ProtoMessage() {}
 
 func (x *Rectangle) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[44]
+	mi := &file_clock_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4344,7 +4400,7 @@ func (x *Rectangle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Rectangle.ProtoReflect.Descriptor instead.
 func (*Rectangle) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{44}
+	return file_clock_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *Rectangle) GetMinimum() *commonpb.Cell {
@@ -4377,7 +4433,7 @@ type SpeedChanged struct {
 
 func (x *SpeedChanged) Reset() {
 	*x = SpeedChanged{}
-	mi := &file_clock_proto_msgTypes[45]
+	mi := &file_clock_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4389,7 +4445,7 @@ func (x *SpeedChanged) String() string {
 func (*SpeedChanged) ProtoMessage() {}
 
 func (x *SpeedChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[45]
+	mi := &file_clock_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4402,7 +4458,7 @@ func (x *SpeedChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpeedChanged.ProtoReflect.Descriptor instead.
 func (*SpeedChanged) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{45}
+	return file_clock_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *SpeedChanged) GetSpeed() Speed {
@@ -4442,7 +4498,7 @@ type PauseFailed struct {
 
 func (x *PauseFailed) Reset() {
 	*x = PauseFailed{}
-	mi := &file_clock_proto_msgTypes[46]
+	mi := &file_clock_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4454,7 +4510,7 @@ func (x *PauseFailed) String() string {
 func (*PauseFailed) ProtoMessage() {}
 
 func (x *PauseFailed) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[46]
+	mi := &file_clock_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4467,7 +4523,7 @@ func (x *PauseFailed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseFailed.ProtoReflect.Descriptor instead.
 func (*PauseFailed) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{46}
+	return file_clock_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *PauseFailed) GetPending() *StopEvent {
@@ -4488,7 +4544,7 @@ type ForcePauseWaiting struct {
 
 func (x *ForcePauseWaiting) Reset() {
 	*x = ForcePauseWaiting{}
-	mi := &file_clock_proto_msgTypes[47]
+	mi := &file_clock_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4500,7 +4556,7 @@ func (x *ForcePauseWaiting) String() string {
 func (*ForcePauseWaiting) ProtoMessage() {}
 
 func (x *ForcePauseWaiting) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[47]
+	mi := &file_clock_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4513,7 +4569,7 @@ func (x *ForcePauseWaiting) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForcePauseWaiting.ProtoReflect.Descriptor instead.
 func (*ForcePauseWaiting) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{47}
+	return file_clock_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ForcePauseWaiting) GetPause() *PauseEvidence {
@@ -4548,7 +4604,7 @@ type ForcePauseCleared struct {
 
 func (x *ForcePauseCleared) Reset() {
 	*x = ForcePauseCleared{}
-	mi := &file_clock_proto_msgTypes[48]
+	mi := &file_clock_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4560,7 +4616,7 @@ func (x *ForcePauseCleared) String() string {
 func (*ForcePauseCleared) ProtoMessage() {}
 
 func (x *ForcePauseCleared) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[48]
+	mi := &file_clock_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4573,7 +4629,7 @@ func (x *ForcePauseCleared) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForcePauseCleared.ProtoReflect.Descriptor instead.
 func (*ForcePauseCleared) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{48}
+	return file_clock_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ForcePauseCleared) GetWaitedMs() uint64 {
@@ -4600,7 +4656,8 @@ func (x *ForcePauseCleared) GetSpeedRestored() bool {
 type Event struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Cursor *int64                 `protobuf:"varint,1,opt,name=cursor,proto3,oneof" json:"cursor,omitempty"`
-	// Absent only for an AuthorityChanged event observed outside any epoch.
+	// Absent only for an AuthorityChanged event observed outside any epoch
+	// and a PlayerRequest.
 	Owner            *EpochOwner                  `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
 	Context          *commonpb.ObservationContext `protobuf:"bytes,3,opt,name=context,proto3" json:"context,omitempty"`
 	ObservedAtUnixMs *int64                       `protobuf:"varint,4,opt,name=observed_at_unix_ms,json=observedAtUnixMs,proto3,oneof" json:"observed_at_unix_ms,omitempty"`
@@ -4620,6 +4677,7 @@ type Event struct {
 	//	*Event_OperationOutcome
 	//	*Event_AuthorityChanged
 	//	*Event_ObservationInvalidated
+	//	*Event_PlayerRequest
 	Event isEvent_Event `protobuf_oneof:"event"`
 	// How long ago, on native's own clock, this event was observed when the
 	// page carrying it was composed: the unobserved time a stop sat in native
@@ -4631,7 +4689,7 @@ type Event struct {
 
 func (x *Event) Reset() {
 	*x = Event{}
-	mi := &file_clock_proto_msgTypes[49]
+	mi := &file_clock_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4643,7 +4701,7 @@ func (x *Event) String() string {
 func (*Event) ProtoMessage() {}
 
 func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[49]
+	mi := &file_clock_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4656,7 +4714,7 @@ func (x *Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Event.ProtoReflect.Descriptor instead.
 func (*Event) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{49}
+	return file_clock_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *Event) GetCursor() int64 {
@@ -4818,6 +4876,15 @@ func (x *Event) GetObservationInvalidated() *ObservationInvalidated {
 	return nil
 }
 
+func (x *Event) GetPlayerRequest() *PlayerRequest {
+	if x != nil {
+		if x, ok := x.Event.(*Event_PlayerRequest); ok {
+			return x.PlayerRequest
+		}
+	}
+	return nil
+}
+
 func (x *Event) GetAgeAtReplyMs() uint64 {
 	if x != nil && x.AgeAtReplyMs != nil {
 		return *x.AgeAtReplyMs
@@ -4881,6 +4948,10 @@ type Event_ObservationInvalidated struct {
 	ObservationInvalidated *ObservationInvalidated `protobuf:"bytes,18,opt,name=observation_invalidated,json=observationInvalidated,proto3,oneof"`
 }
 
+type Event_PlayerRequest struct {
+	PlayerRequest *PlayerRequest `protobuf:"bytes,20,opt,name=player_request,json=playerRequest,proto3,oneof"`
+}
+
 func (*Event_Started) isEvent_Event() {}
 
 func (*Event_SpeedChanged) isEvent_Event() {}
@@ -4907,6 +4978,8 @@ func (*Event_AuthorityChanged) isEvent_Event() {}
 
 func (*Event_ObservationInvalidated) isEvent_Event() {}
 
+func (*Event_PlayerRequest) isEvent_Event() {}
+
 type EventsRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Identity    *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
@@ -4922,7 +4995,7 @@ type EventsRequest struct {
 
 func (x *EventsRequest) Reset() {
 	*x = EventsRequest{}
-	mi := &file_clock_proto_msgTypes[50]
+	mi := &file_clock_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4934,7 +5007,7 @@ func (x *EventsRequest) String() string {
 func (*EventsRequest) ProtoMessage() {}
 
 func (x *EventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[50]
+	mi := &file_clock_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4947,7 +5020,7 @@ func (x *EventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventsRequest.ProtoReflect.Descriptor instead.
 func (*EventsRequest) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{50}
+	return file_clock_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *EventsRequest) GetIdentity() *commonpb.Identity {
@@ -4993,7 +5066,7 @@ type EventsPage struct {
 
 func (x *EventsPage) Reset() {
 	*x = EventsPage{}
-	mi := &file_clock_proto_msgTypes[51]
+	mi := &file_clock_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5005,7 +5078,7 @@ func (x *EventsPage) String() string {
 func (*EventsPage) ProtoMessage() {}
 
 func (x *EventsPage) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[51]
+	mi := &file_clock_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5018,7 +5091,7 @@ func (x *EventsPage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventsPage.ProtoReflect.Descriptor instead.
 func (*EventsPage) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{51}
+	return file_clock_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *EventsPage) GetContext() *commonpb.ObservationContext {
@@ -5083,7 +5156,7 @@ type EventsReply struct {
 
 func (x *EventsReply) Reset() {
 	*x = EventsReply{}
-	mi := &file_clock_proto_msgTypes[52]
+	mi := &file_clock_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5095,7 +5168,7 @@ func (x *EventsReply) String() string {
 func (*EventsReply) ProtoMessage() {}
 
 func (x *EventsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_clock_proto_msgTypes[52]
+	mi := &file_clock_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5108,7 +5181,7 @@ func (x *EventsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventsReply.ProtoReflect.Descriptor instead.
 func (*EventsReply) Descriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{52}
+	return file_clock_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *EventsReply) GetOutcome() isEventsReply_Outcome {
@@ -5526,7 +5599,13 @@ const file_clock_proto_rawDesc = "" +
 	"\v_generationB\x16\n" +
 	"\x14_previous_generationB\t\n" +
 	"\a_reasonB\t\n" +
-	"\a_active\"\x8c\x01\n" +
+	"\a_active\"j\n" +
+	"\rPlayerRequest\x12\x1b\n" +
+	"\x06action\x18\x01 \x01(\tH\x00R\x06action\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tH\x01R\trequestId\x88\x01\x01B\t\n" +
+	"\a_actionB\r\n" +
+	"\v_request_id\"\x8c\x01\n" +
 	"\fWatchLatched\x12@\n" +
 	"\aoutcome\x18\x01 \x01(\v2&.rimgovernor.clock.v1.OperationOutcomeR\aoutcome\x12(\n" +
 	"\rtick_deadline\x18\x02 \x01(\x03H\x00R\ftickDeadline\x88\x01\x01B\x10\n" +
@@ -5595,8 +5674,7 @@ const file_clock_proto_rawDesc = "" +
 	"\n" +
 	"_waited_msB\x13\n" +
 	"\x11_force_pause_kindB\x11\n" +
-	"\x0f_speed_restored\"\xe2\n" +
-	"\n" +
+	"\x0f_speed_restored\"\xb0\v\n" +
 	"\x05Event\x12\x1b\n" +
 	"\x06cursor\x18\x01 \x01(\x03H\x01R\x06cursor\x88\x01\x01\x126\n" +
 	"\x05owner\x18\x02 \x01(\v2 .rimgovernor.clock.v1.EpochOwnerR\x05owner\x12C\n" +
@@ -5616,7 +5694,8 @@ const file_clock_proto_rawDesc = "" +
 	"\x13force_pause_cleared\x18\x0f \x01(\v2'.rimgovernor.clock.v1.ForcePauseClearedH\x00R\x11forcePauseCleared\x12U\n" +
 	"\x11operation_outcome\x18\x10 \x01(\v2&.rimgovernor.clock.v1.OperationOutcomeH\x00R\x10operationOutcome\x12U\n" +
 	"\x11authority_changed\x18\x11 \x01(\v2&.rimgovernor.clock.v1.AuthorityChangedH\x00R\x10authorityChanged\x12g\n" +
-	"\x17observation_invalidated\x18\x12 \x01(\v2,.rimgovernor.clock.v1.ObservationInvalidatedH\x00R\x16observationInvalidated\x12*\n" +
+	"\x17observation_invalidated\x18\x12 \x01(\v2,.rimgovernor.clock.v1.ObservationInvalidatedH\x00R\x16observationInvalidated\x12L\n" +
+	"\x0eplayer_request\x18\x14 \x01(\v2#.rimgovernor.clock.v1.PlayerRequestH\x00R\rplayerRequest\x12*\n" +
 	"\x0fage_at_reply_ms\x18\x13 \x01(\x04H\x04R\fageAtReplyMs\x88\x01\x01B\a\n" +
 	"\x05eventB\t\n" +
 	"\a_cursorB\x16\n" +
@@ -5763,7 +5842,7 @@ func file_clock_proto_rawDescGZIP() []byte {
 }
 
 var file_clock_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_clock_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_clock_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_clock_proto_goTypes = []any{
 	(Speed)(0),                            // 0: rimgovernor.clock.v1.Speed
 	(ObservedSpeed)(0),                    // 1: rimgovernor.clock.v1.ObservedSpeed
@@ -5813,50 +5892,51 @@ var file_clock_proto_goTypes = []any{
 	(*DialogPause)(nil),                   // 45: rimgovernor.clock.v1.DialogPause
 	(*OperationOutcome)(nil),              // 46: rimgovernor.clock.v1.OperationOutcome
 	(*AuthorityChanged)(nil),              // 47: rimgovernor.clock.v1.AuthorityChanged
-	(*WatchLatched)(nil),                  // 48: rimgovernor.clock.v1.WatchLatched
-	(*StopEvent)(nil),                     // 49: rimgovernor.clock.v1.StopEvent
-	(*CombatEventStop)(nil),               // 50: rimgovernor.clock.v1.CombatEventStop
-	(*EpochStarted)(nil),                  // 51: rimgovernor.clock.v1.EpochStarted
-	(*ObservationInvalidated)(nil),        // 52: rimgovernor.clock.v1.ObservationInvalidated
-	(*Rectangle)(nil),                     // 53: rimgovernor.clock.v1.Rectangle
-	(*SpeedChanged)(nil),                  // 54: rimgovernor.clock.v1.SpeedChanged
-	(*PauseFailed)(nil),                   // 55: rimgovernor.clock.v1.PauseFailed
-	(*ForcePauseWaiting)(nil),             // 56: rimgovernor.clock.v1.ForcePauseWaiting
-	(*ForcePauseCleared)(nil),             // 57: rimgovernor.clock.v1.ForcePauseCleared
-	(*Event)(nil),                         // 58: rimgovernor.clock.v1.Event
-	(*EventsRequest)(nil),                 // 59: rimgovernor.clock.v1.EventsRequest
-	(*EventsPage)(nil),                    // 60: rimgovernor.clock.v1.EventsPage
-	(*EventsReply)(nil),                   // 61: rimgovernor.clock.v1.EventsReply
-	(*authoritypb.WritePrecondition)(nil), // 62: rimgovernor.authority.v1.WritePrecondition
-	(*commonpb.Identity)(nil),             // 63: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil),   // 64: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Unavailable)(nil),          // 65: rimgovernor.common.v1.Unavailable
-	(*commonpb.Failure)(nil),              // 66: rimgovernor.common.v1.Failure
-	(*commonpb.AttemptKey)(nil),           // 67: rimgovernor.common.v1.AttemptKey
-	(*commonpb.Cell)(nil),                 // 68: rimgovernor.common.v1.Cell
-	(*receiptspb.CompletedEffect)(nil),    // 69: rimgovernor.receipts.v1.CompletedEffect
-	(*receiptspb.UnsuccessfulEffect)(nil), // 70: rimgovernor.receipts.v1.UnsuccessfulEffect
-	(*receiptspb.AbsentEffect)(nil),       // 71: rimgovernor.receipts.v1.AbsentEffect
-	(*receiptspb.UnknownEffect)(nil),      // 72: rimgovernor.receipts.v1.UnknownEffect
+	(*PlayerRequest)(nil),                 // 48: rimgovernor.clock.v1.PlayerRequest
+	(*WatchLatched)(nil),                  // 49: rimgovernor.clock.v1.WatchLatched
+	(*StopEvent)(nil),                     // 50: rimgovernor.clock.v1.StopEvent
+	(*CombatEventStop)(nil),               // 51: rimgovernor.clock.v1.CombatEventStop
+	(*EpochStarted)(nil),                  // 52: rimgovernor.clock.v1.EpochStarted
+	(*ObservationInvalidated)(nil),        // 53: rimgovernor.clock.v1.ObservationInvalidated
+	(*Rectangle)(nil),                     // 54: rimgovernor.clock.v1.Rectangle
+	(*SpeedChanged)(nil),                  // 55: rimgovernor.clock.v1.SpeedChanged
+	(*PauseFailed)(nil),                   // 56: rimgovernor.clock.v1.PauseFailed
+	(*ForcePauseWaiting)(nil),             // 57: rimgovernor.clock.v1.ForcePauseWaiting
+	(*ForcePauseCleared)(nil),             // 58: rimgovernor.clock.v1.ForcePauseCleared
+	(*Event)(nil),                         // 59: rimgovernor.clock.v1.Event
+	(*EventsRequest)(nil),                 // 60: rimgovernor.clock.v1.EventsRequest
+	(*EventsPage)(nil),                    // 61: rimgovernor.clock.v1.EventsPage
+	(*EventsReply)(nil),                   // 62: rimgovernor.clock.v1.EventsReply
+	(*authoritypb.WritePrecondition)(nil), // 63: rimgovernor.authority.v1.WritePrecondition
+	(*commonpb.Identity)(nil),             // 64: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil),   // 65: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Unavailable)(nil),          // 66: rimgovernor.common.v1.Unavailable
+	(*commonpb.Failure)(nil),              // 67: rimgovernor.common.v1.Failure
+	(*commonpb.AttemptKey)(nil),           // 68: rimgovernor.common.v1.AttemptKey
+	(*commonpb.Cell)(nil),                 // 69: rimgovernor.common.v1.Cell
+	(*receiptspb.CompletedEffect)(nil),    // 70: rimgovernor.receipts.v1.CompletedEffect
+	(*receiptspb.UnsuccessfulEffect)(nil), // 71: rimgovernor.receipts.v1.UnsuccessfulEffect
+	(*receiptspb.AbsentEffect)(nil),       // 72: rimgovernor.receipts.v1.AbsentEffect
+	(*receiptspb.UnknownEffect)(nil),      // 73: rimgovernor.receipts.v1.UnknownEffect
 }
 var file_clock_proto_depIdxs = []int32{
 	4,   // 0: rimgovernor.clock.v1.WatchPolicy.mode:type_name -> rimgovernor.clock.v1.WatchMode
 	10,  // 1: rimgovernor.clock.v1.WatchPolicy.resource_thresholds:type_name -> rimgovernor.clock.v1.ResourceThreshold
 	6,   // 2: rimgovernor.clock.v1.WatchPolicy.combat_stop_events:type_name -> rimgovernor.clock.v1.CombatEvent
-	62,  // 3: rimgovernor.clock.v1.StartRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
+	63,  // 3: rimgovernor.clock.v1.StartRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
 	0,   // 4: rimgovernor.clock.v1.StartRequest.speed:type_name -> rimgovernor.clock.v1.Speed
 	9,   // 5: rimgovernor.clock.v1.StartRequest.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
 	2,   // 6: rimgovernor.clock.v1.StartRequest.pacing:type_name -> rimgovernor.clock.v1.Pacing
-	63,  // 7: rimgovernor.clock.v1.OwnedRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	64,  // 7: rimgovernor.clock.v1.OwnedRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	11,  // 8: rimgovernor.clock.v1.OwnedRequest.owner:type_name -> rimgovernor.clock.v1.EpochOwner
 	13,  // 9: rimgovernor.clock.v1.RenewRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
-	62,  // 10: rimgovernor.clock.v1.RenewRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
+	63,  // 10: rimgovernor.clock.v1.RenewRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
 	13,  // 11: rimgovernor.clock.v1.SpeedRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
-	62,  // 12: rimgovernor.clock.v1.SpeedRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
+	63,  // 12: rimgovernor.clock.v1.SpeedRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
 	0,   // 13: rimgovernor.clock.v1.SpeedRequest.speed:type_name -> rimgovernor.clock.v1.Speed
-	63,  // 14: rimgovernor.clock.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	64,  // 14: rimgovernor.clock.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	11,  // 15: rimgovernor.clock.v1.Epoch.owner:type_name -> rimgovernor.clock.v1.EpochOwner
-	64,  // 16: rimgovernor.clock.v1.Epoch.origin:type_name -> rimgovernor.common.v1.ObservationContext
+	65,  // 16: rimgovernor.clock.v1.Epoch.origin:type_name -> rimgovernor.common.v1.ObservationContext
 	0,   // 17: rimgovernor.clock.v1.Epoch.requested_speed:type_name -> rimgovernor.clock.v1.Speed
 	9,   // 18: rimgovernor.clock.v1.Epoch.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
 	2,   // 19: rimgovernor.clock.v1.Epoch.pacing:type_name -> rimgovernor.clock.v1.Pacing
@@ -5867,38 +5947,38 @@ var file_clock_proto_depIdxs = []int32{
 	17,  // 24: rimgovernor.clock.v1.Stopped.epoch:type_name -> rimgovernor.clock.v1.Epoch
 	5,   // 25: rimgovernor.clock.v1.Stopped.reason:type_name -> rimgovernor.clock.v1.StopReason
 	6,   // 26: rimgovernor.clock.v1.Stopped.combat_event:type_name -> rimgovernor.clock.v1.CombatEvent
-	64,  // 27: rimgovernor.clock.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
+	65,  // 27: rimgovernor.clock.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
 	18,  // 28: rimgovernor.clock.v1.Status.running:type_name -> rimgovernor.clock.v1.Running
 	19,  // 29: rimgovernor.clock.v1.Status.stopping:type_name -> rimgovernor.clock.v1.Stopping
 	20,  // 30: rimgovernor.clock.v1.Status.stopped:type_name -> rimgovernor.clock.v1.Stopped
 	21,  // 31: rimgovernor.clock.v1.Status.never_started:type_name -> rimgovernor.clock.v1.NeverStarted
-	65,  // 32: rimgovernor.clock.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	66,  // 32: rimgovernor.clock.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	37,  // 33: rimgovernor.clock.v1.Status.baseline_alerts:type_name -> rimgovernor.clock.v1.Alert
 	40,  // 34: rimgovernor.clock.v1.Status.suppressed_injuries:type_name -> rimgovernor.clock.v1.Injury
 	1,   // 35: rimgovernor.clock.v1.Status.observed_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
 	23,  // 36: rimgovernor.clock.v1.Status.hazard_gaps:type_name -> rimgovernor.clock.v1.HazardGap
 	0,   // 37: rimgovernor.clock.v1.Status.player_speed:type_name -> rimgovernor.clock.v1.Speed
 	22,  // 38: rimgovernor.clock.v1.StatusReply.status:type_name -> rimgovernor.clock.v1.Status
-	66,  // 39: rimgovernor.clock.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	67,  // 39: rimgovernor.clock.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
 	22,  // 40: rimgovernor.clock.v1.AppliedControl.status:type_name -> rimgovernor.clock.v1.Status
 	22,  // 41: rimgovernor.clock.v1.UncertainControl.last_observed:type_name -> rimgovernor.clock.v1.Status
-	67,  // 42: rimgovernor.clock.v1.ControlReceipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	64,  // 43: rimgovernor.clock.v1.ControlReceipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
+	68,  // 42: rimgovernor.clock.v1.ControlReceipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	65,  // 43: rimgovernor.clock.v1.ControlReceipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
 	26,  // 44: rimgovernor.clock.v1.ControlReceipt.applied:type_name -> rimgovernor.clock.v1.AppliedControl
 	27,  // 45: rimgovernor.clock.v1.ControlReceipt.uncertain:type_name -> rimgovernor.clock.v1.UncertainControl
 	28,  // 46: rimgovernor.clock.v1.ControlReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
-	66,  // 47: rimgovernor.clock.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
+	67,  // 47: rimgovernor.clock.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
 	25,  // 48: rimgovernor.clock.v1.ControlReply.long_event_pending:type_name -> rimgovernor.clock.v1.LongEventPending
-	63,  // 49: rimgovernor.clock.v1.AttemptRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	67,  // 50: rimgovernor.clock.v1.AttemptRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	64,  // 49: rimgovernor.clock.v1.AttemptRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	68,  // 50: rimgovernor.clock.v1.AttemptRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
 	28,  // 51: rimgovernor.clock.v1.AttemptReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
 	31,  // 52: rimgovernor.clock.v1.AttemptReply.unknown:type_name -> rimgovernor.clock.v1.AttemptUnknown
-	66,  // 53: rimgovernor.clock.v1.AttemptReply.failure:type_name -> rimgovernor.common.v1.Failure
+	67,  // 53: rimgovernor.clock.v1.AttemptReply.failure:type_name -> rimgovernor.common.v1.Failure
 	33,  // 54: rimgovernor.clock.v1.Notification.letter:type_name -> rimgovernor.clock.v1.Letter
 	34,  // 55: rimgovernor.clock.v1.Notification.message:type_name -> rimgovernor.clock.v1.TransientMessage
 	33,  // 56: rimgovernor.clock.v1.NotificationBatch.letters:type_name -> rimgovernor.clock.v1.Letter
 	34,  // 57: rimgovernor.clock.v1.NotificationBatch.messages:type_name -> rimgovernor.clock.v1.TransientMessage
-	68,  // 58: rimgovernor.clock.v1.PawnEvent.position:type_name -> rimgovernor.common.v1.Cell
+	69,  // 58: rimgovernor.clock.v1.PawnEvent.position:type_name -> rimgovernor.common.v1.Cell
 	38,  // 59: rimgovernor.clock.v1.Injury.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
 	39,  // 60: rimgovernor.clock.v1.Injury.before:type_name -> rimgovernor.clock.v1.Health
 	39,  // 61: rimgovernor.clock.v1.Injury.after:type_name -> rimgovernor.clock.v1.Health
@@ -5910,11 +5990,11 @@ var file_clock_proto_depIdxs = []int32{
 	0,   // 67: rimgovernor.clock.v1.PauseEvidence.requested_speed:type_name -> rimgovernor.clock.v1.Speed
 	1,   // 68: rimgovernor.clock.v1.PauseEvidence.actual_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
 	45,  // 69: rimgovernor.clock.v1.PauseEvidence.dialog:type_name -> rimgovernor.clock.v1.DialogPause
-	67,  // 70: rimgovernor.clock.v1.OperationOutcome.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	69,  // 71: rimgovernor.clock.v1.OperationOutcome.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
-	70,  // 72: rimgovernor.clock.v1.OperationOutcome.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
-	71,  // 73: rimgovernor.clock.v1.OperationOutcome.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
-	72,  // 74: rimgovernor.clock.v1.OperationOutcome.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
+	68,  // 70: rimgovernor.clock.v1.OperationOutcome.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	70,  // 71: rimgovernor.clock.v1.OperationOutcome.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
+	71,  // 72: rimgovernor.clock.v1.OperationOutcome.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
+	72,  // 73: rimgovernor.clock.v1.OperationOutcome.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
+	73,  // 74: rimgovernor.clock.v1.OperationOutcome.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
 	46,  // 75: rimgovernor.clock.v1.WatchLatched.outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
 	5,   // 76: rimgovernor.clock.v1.StopEvent.reason:type_name -> rimgovernor.clock.v1.StopReason
 	36,  // 77: rimgovernor.clock.v1.StopEvent.notifications:type_name -> rimgovernor.clock.v1.NotificationBatch
@@ -5923,57 +6003,58 @@ var file_clock_proto_depIdxs = []int32{
 	41,  // 80: rimgovernor.clock.v1.StopEvent.health:type_name -> rimgovernor.clock.v1.HealthThreshold
 	43,  // 81: rimgovernor.clock.v1.StopEvent.budget:type_name -> rimgovernor.clock.v1.BudgetReached
 	44,  // 82: rimgovernor.clock.v1.StopEvent.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
-	65,  // 83: rimgovernor.clock.v1.StopEvent.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	48,  // 84: rimgovernor.clock.v1.StopEvent.watch:type_name -> rimgovernor.clock.v1.WatchLatched
-	50,  // 85: rimgovernor.clock.v1.StopEvent.combat:type_name -> rimgovernor.clock.v1.CombatEventStop
+	66,  // 83: rimgovernor.clock.v1.StopEvent.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	49,  // 84: rimgovernor.clock.v1.StopEvent.watch:type_name -> rimgovernor.clock.v1.WatchLatched
+	51,  // 85: rimgovernor.clock.v1.StopEvent.combat:type_name -> rimgovernor.clock.v1.CombatEventStop
 	6,   // 86: rimgovernor.clock.v1.CombatEventStop.event:type_name -> rimgovernor.clock.v1.CombatEvent
 	17,  // 87: rimgovernor.clock.v1.EpochStarted.epoch:type_name -> rimgovernor.clock.v1.Epoch
 	8,   // 88: rimgovernor.clock.v1.ObservationInvalidated.families:type_name -> rimgovernor.clock.v1.FactFamily
-	53,  // 89: rimgovernor.clock.v1.ObservationInvalidated.cells:type_name -> rimgovernor.clock.v1.Rectangle
-	68,  // 90: rimgovernor.clock.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
-	68,  // 91: rimgovernor.clock.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
+	54,  // 89: rimgovernor.clock.v1.ObservationInvalidated.cells:type_name -> rimgovernor.clock.v1.Rectangle
+	69,  // 90: rimgovernor.clock.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
+	69,  // 91: rimgovernor.clock.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
 	0,   // 92: rimgovernor.clock.v1.SpeedChanged.speed:type_name -> rimgovernor.clock.v1.Speed
-	49,  // 93: rimgovernor.clock.v1.PauseFailed.pending:type_name -> rimgovernor.clock.v1.StopEvent
+	50,  // 93: rimgovernor.clock.v1.PauseFailed.pending:type_name -> rimgovernor.clock.v1.StopEvent
 	44,  // 94: rimgovernor.clock.v1.ForcePauseWaiting.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
 	11,  // 95: rimgovernor.clock.v1.Event.owner:type_name -> rimgovernor.clock.v1.EpochOwner
-	64,  // 96: rimgovernor.clock.v1.Event.context:type_name -> rimgovernor.common.v1.ObservationContext
-	51,  // 97: rimgovernor.clock.v1.Event.started:type_name -> rimgovernor.clock.v1.EpochStarted
-	54,  // 98: rimgovernor.clock.v1.Event.speed_changed:type_name -> rimgovernor.clock.v1.SpeedChanged
-	49,  // 99: rimgovernor.clock.v1.Event.stopped:type_name -> rimgovernor.clock.v1.StopEvent
+	65,  // 96: rimgovernor.clock.v1.Event.context:type_name -> rimgovernor.common.v1.ObservationContext
+	52,  // 97: rimgovernor.clock.v1.Event.started:type_name -> rimgovernor.clock.v1.EpochStarted
+	55,  // 98: rimgovernor.clock.v1.Event.speed_changed:type_name -> rimgovernor.clock.v1.SpeedChanged
+	50,  // 99: rimgovernor.clock.v1.Event.stopped:type_name -> rimgovernor.clock.v1.StopEvent
 	35,  // 100: rimgovernor.clock.v1.Event.notification:type_name -> rimgovernor.clock.v1.Notification
 	37,  // 101: rimgovernor.clock.v1.Event.alert:type_name -> rimgovernor.clock.v1.Alert
 	40,  // 102: rimgovernor.clock.v1.Event.injury_observed:type_name -> rimgovernor.clock.v1.Injury
 	42,  // 103: rimgovernor.clock.v1.Event.hostiles_cleared:type_name -> rimgovernor.clock.v1.HostilesCleared
-	55,  // 104: rimgovernor.clock.v1.Event.pause_failed:type_name -> rimgovernor.clock.v1.PauseFailed
-	56,  // 105: rimgovernor.clock.v1.Event.force_pause_waiting:type_name -> rimgovernor.clock.v1.ForcePauseWaiting
-	57,  // 106: rimgovernor.clock.v1.Event.force_pause_cleared:type_name -> rimgovernor.clock.v1.ForcePauseCleared
+	56,  // 104: rimgovernor.clock.v1.Event.pause_failed:type_name -> rimgovernor.clock.v1.PauseFailed
+	57,  // 105: rimgovernor.clock.v1.Event.force_pause_waiting:type_name -> rimgovernor.clock.v1.ForcePauseWaiting
+	58,  // 106: rimgovernor.clock.v1.Event.force_pause_cleared:type_name -> rimgovernor.clock.v1.ForcePauseCleared
 	46,  // 107: rimgovernor.clock.v1.Event.operation_outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
 	47,  // 108: rimgovernor.clock.v1.Event.authority_changed:type_name -> rimgovernor.clock.v1.AuthorityChanged
-	52,  // 109: rimgovernor.clock.v1.Event.observation_invalidated:type_name -> rimgovernor.clock.v1.ObservationInvalidated
-	63,  // 110: rimgovernor.clock.v1.EventsRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	64,  // 111: rimgovernor.clock.v1.EventsPage.context:type_name -> rimgovernor.common.v1.ObservationContext
-	58,  // 112: rimgovernor.clock.v1.EventsPage.events:type_name -> rimgovernor.clock.v1.Event
-	60,  // 113: rimgovernor.clock.v1.EventsReply.page:type_name -> rimgovernor.clock.v1.EventsPage
-	66,  // 114: rimgovernor.clock.v1.EventsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	16,  // 115: rimgovernor.clock.v1.Clock.ReadStatus:input_type -> rimgovernor.clock.v1.StatusRequest
-	59,  // 116: rimgovernor.clock.v1.Clock.ReadEvents:input_type -> rimgovernor.clock.v1.EventsRequest
-	30,  // 117: rimgovernor.clock.v1.Clock.ReadAttempt:input_type -> rimgovernor.clock.v1.AttemptRequest
-	12,  // 118: rimgovernor.clock.v1.Clock.Start:input_type -> rimgovernor.clock.v1.StartRequest
-	13,  // 119: rimgovernor.clock.v1.Clock.Pause:input_type -> rimgovernor.clock.v1.OwnedRequest
-	14,  // 120: rimgovernor.clock.v1.Clock.Renew:input_type -> rimgovernor.clock.v1.RenewRequest
-	15,  // 121: rimgovernor.clock.v1.Clock.ChangeSpeed:input_type -> rimgovernor.clock.v1.SpeedRequest
-	24,  // 122: rimgovernor.clock.v1.Clock.ReadStatus:output_type -> rimgovernor.clock.v1.StatusReply
-	61,  // 123: rimgovernor.clock.v1.Clock.ReadEvents:output_type -> rimgovernor.clock.v1.EventsReply
-	32,  // 124: rimgovernor.clock.v1.Clock.ReadAttempt:output_type -> rimgovernor.clock.v1.AttemptReply
-	29,  // 125: rimgovernor.clock.v1.Clock.Start:output_type -> rimgovernor.clock.v1.ControlReply
-	24,  // 126: rimgovernor.clock.v1.Clock.Pause:output_type -> rimgovernor.clock.v1.StatusReply
-	29,  // 127: rimgovernor.clock.v1.Clock.Renew:output_type -> rimgovernor.clock.v1.ControlReply
-	29,  // 128: rimgovernor.clock.v1.Clock.ChangeSpeed:output_type -> rimgovernor.clock.v1.ControlReply
-	122, // [122:129] is the sub-list for method output_type
-	115, // [115:122] is the sub-list for method input_type
-	115, // [115:115] is the sub-list for extension type_name
-	115, // [115:115] is the sub-list for extension extendee
-	0,   // [0:115] is the sub-list for field type_name
+	53,  // 109: rimgovernor.clock.v1.Event.observation_invalidated:type_name -> rimgovernor.clock.v1.ObservationInvalidated
+	48,  // 110: rimgovernor.clock.v1.Event.player_request:type_name -> rimgovernor.clock.v1.PlayerRequest
+	64,  // 111: rimgovernor.clock.v1.EventsRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	65,  // 112: rimgovernor.clock.v1.EventsPage.context:type_name -> rimgovernor.common.v1.ObservationContext
+	59,  // 113: rimgovernor.clock.v1.EventsPage.events:type_name -> rimgovernor.clock.v1.Event
+	61,  // 114: rimgovernor.clock.v1.EventsReply.page:type_name -> rimgovernor.clock.v1.EventsPage
+	67,  // 115: rimgovernor.clock.v1.EventsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	16,  // 116: rimgovernor.clock.v1.Clock.ReadStatus:input_type -> rimgovernor.clock.v1.StatusRequest
+	60,  // 117: rimgovernor.clock.v1.Clock.ReadEvents:input_type -> rimgovernor.clock.v1.EventsRequest
+	30,  // 118: rimgovernor.clock.v1.Clock.ReadAttempt:input_type -> rimgovernor.clock.v1.AttemptRequest
+	12,  // 119: rimgovernor.clock.v1.Clock.Start:input_type -> rimgovernor.clock.v1.StartRequest
+	13,  // 120: rimgovernor.clock.v1.Clock.Pause:input_type -> rimgovernor.clock.v1.OwnedRequest
+	14,  // 121: rimgovernor.clock.v1.Clock.Renew:input_type -> rimgovernor.clock.v1.RenewRequest
+	15,  // 122: rimgovernor.clock.v1.Clock.ChangeSpeed:input_type -> rimgovernor.clock.v1.SpeedRequest
+	24,  // 123: rimgovernor.clock.v1.Clock.ReadStatus:output_type -> rimgovernor.clock.v1.StatusReply
+	62,  // 124: rimgovernor.clock.v1.Clock.ReadEvents:output_type -> rimgovernor.clock.v1.EventsReply
+	32,  // 125: rimgovernor.clock.v1.Clock.ReadAttempt:output_type -> rimgovernor.clock.v1.AttemptReply
+	29,  // 126: rimgovernor.clock.v1.Clock.Start:output_type -> rimgovernor.clock.v1.ControlReply
+	24,  // 127: rimgovernor.clock.v1.Clock.Pause:output_type -> rimgovernor.clock.v1.StatusReply
+	29,  // 128: rimgovernor.clock.v1.Clock.Renew:output_type -> rimgovernor.clock.v1.ControlReply
+	29,  // 129: rimgovernor.clock.v1.Clock.ChangeSpeed:output_type -> rimgovernor.clock.v1.ControlReply
+	123, // [123:130] is the sub-list for method output_type
+	116, // [116:123] is the sub-list for method input_type
+	116, // [116:116] is the sub-list for extension type_name
+	116, // [116:116] is the sub-list for extension extendee
+	0,   // [0:116] is the sub-list for field type_name
 }
 
 func init() { file_clock_proto_init() }
@@ -6040,7 +6121,8 @@ func file_clock_proto_init() {
 	}
 	file_clock_proto_msgTypes[38].OneofWrappers = []any{}
 	file_clock_proto_msgTypes[39].OneofWrappers = []any{}
-	file_clock_proto_msgTypes[40].OneofWrappers = []any{
+	file_clock_proto_msgTypes[40].OneofWrappers = []any{}
+	file_clock_proto_msgTypes[41].OneofWrappers = []any{
 		(*StopEvent_Notifications)(nil),
 		(*StopEvent_Pawn)(nil),
 		(*StopEvent_Injury)(nil),
@@ -6051,12 +6133,12 @@ func file_clock_proto_init() {
 		(*StopEvent_Watch)(nil),
 		(*StopEvent_Combat)(nil),
 	}
-	file_clock_proto_msgTypes[41].OneofWrappers = []any{}
-	file_clock_proto_msgTypes[43].OneofWrappers = []any{}
-	file_clock_proto_msgTypes[45].OneofWrappers = []any{}
-	file_clock_proto_msgTypes[47].OneofWrappers = []any{}
+	file_clock_proto_msgTypes[42].OneofWrappers = []any{}
+	file_clock_proto_msgTypes[44].OneofWrappers = []any{}
+	file_clock_proto_msgTypes[46].OneofWrappers = []any{}
 	file_clock_proto_msgTypes[48].OneofWrappers = []any{}
-	file_clock_proto_msgTypes[49].OneofWrappers = []any{
+	file_clock_proto_msgTypes[49].OneofWrappers = []any{}
+	file_clock_proto_msgTypes[50].OneofWrappers = []any{
 		(*Event_Started)(nil),
 		(*Event_SpeedChanged)(nil),
 		(*Event_Stopped)(nil),
@@ -6070,10 +6152,11 @@ func file_clock_proto_init() {
 		(*Event_OperationOutcome)(nil),
 		(*Event_AuthorityChanged)(nil),
 		(*Event_ObservationInvalidated)(nil),
+		(*Event_PlayerRequest)(nil),
 	}
-	file_clock_proto_msgTypes[50].OneofWrappers = []any{}
 	file_clock_proto_msgTypes[51].OneofWrappers = []any{}
-	file_clock_proto_msgTypes[52].OneofWrappers = []any{
+	file_clock_proto_msgTypes[52].OneofWrappers = []any{}
+	file_clock_proto_msgTypes[53].OneofWrappers = []any{
 		(*EventsReply_Page)(nil),
 		(*EventsReply_Failure)(nil),
 	}
@@ -6083,7 +6166,7 @@ func file_clock_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clock_proto_rawDesc), len(file_clock_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   53,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -27,6 +27,13 @@ type StatusRow struct {
 	Detail   bool
 }
 
+// PanelAction is one button on the in-game status panel (#957): pressing it
+// sends the controller a player request naming ID. ID is 1-64 printable
+// ASCII characters; Label and Tip are short ASCII text.
+type PanelAction struct {
+	ID, Label, Tip string
+}
+
 // StatusInput is what the routine review already knows when it pushes the
 // strip.
 type StatusInput struct {

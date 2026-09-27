@@ -163,7 +163,12 @@ ignoring `wait_ms`) falls back to that cadence instead of spinning.
 
 `Event.owner` is required for every event except an `AuthorityChanged` observed
 outside an epoch, which the native supervisor publishes from the authority
-generation seam with `epoch = 0` and no owner. `OperationOutcome` rows carry an
+generation seam with `epoch = 0` and no owner, and a `PlayerRequest` (#957),
+published when the player presses a status-panel button: an action id the
+controller offered on its status strip and a fresh request id, both 1-64
+printable ASCII characters. The poll hands requests past the history watermark
+from the current world to the routine reviewer, which answers at its next
+review; a press under Manual authority waits for Auto. `OperationOutcome` rows carry an
 attempt key, the latching tick and exactly one receipts effect; an
 `OperationOutcome` immediately precedes its `STOP_REASON_WATCH_LATCHED` stop on
 the same tick, and the stop's `WatchLatched` evidence repeats the outcome with

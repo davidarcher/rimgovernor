@@ -133,11 +133,13 @@ func BenignStopEvent(stop *k.StopEvent) bool {
 // known wound worsening, a situation resolved), so holding on it disabled
 // the session under an admitted combat plan and re-planned the squad for
 // an announcement that carried no threat (#325); a letter class that
-// stops arrives as its own LETTER_PAUSE or NOTIFICATION_BATCH stop. It is
+// stops arrives as its own LETTER_PAUSE or NOTIFICATION_BATCH stop. A
+// player request from the in-game panel (#957) is the reviewer's to act
+// on, never a hold. It is
 // shared with the poll loop so both classifications cannot drift.
 func EventInterrupts(event *k.Event) bool {
 	switch e := event.Event.(type) {
-	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated, *k.Event_Alert, *k.Event_InjuryObserved, *k.Event_Notification:
+	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated, *k.Event_Alert, *k.Event_InjuryObserved, *k.Event_Notification, *k.Event_PlayerRequest:
 		return false
 	case *k.Event_Stopped:
 		return !BenignStopEvent(e.Stopped)

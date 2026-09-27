@@ -25,7 +25,7 @@ const refusalLayer = "refusals"
 // StatusStripNative draws the in-game status strip (#823,
 // bridge.Client.DrawStatusStrip).
 type StatusStripNative interface {
-	DrawStatusStrip(context.Context, *c.Identity, []policy.StatusRow, bool) (*p.StatusStripApplied, bridge.Result, error)
+	DrawStatusStrip(context.Context, *c.Identity, []policy.StatusRow, []policy.PanelAction, bool) (*p.StatusStripApplied, bridge.Result, error)
 }
 
 // statusStripState is the last strip and refusal layer sent.
@@ -35,8 +35,8 @@ type statusStripState struct {
 	cleared bool
 }
 
-// drawStatusStrip pushes the status strip and the refusal markers (#823)
-// after a review, gated by the layout overlay flag: only when the rows
+// drawStatusStrip pushes the status strip, the panel's buttons (#957) and
+// the refusal markers (#823) after a review, gated by the layout overlay flag: only when the rows
 // changed or an hour passed; with the flag off it hides both once. Output
 // only: a failure is logged, never fatal.
 func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, result store.RoutineReviewResult) {
@@ -48,7 +48,7 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 	identity := controlIdentity(snapshot)
 	if !r.layoutOverlay {
 		if !r.strip.cleared {
-			if _, _, err := strip.DrawStatusStrip(ctx, identity, nil, false); err != nil {
+			if _, _, err := strip.DrawStatusStrip(ctx, identity, nil, nil, false); err != nil {
 				clockSchedulerLog("status strip not cleared: %v", err)
 				return
 			}
@@ -68,11 +68,13 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 	medicine, _ := policy.ReviewMedicalReserve(f.MedicalReserve, false, r.policy.MedicalReserve)
 	target, _ := medicine.Target.Value()
 	rows := policy.StatusRows(policy.StatusInput{Stage: result.Review.Stage, Progress: result.Review.Progress, Colonists: f.Colonists, FoodDays: f.FoodDays, Wood: f.Wood, WoodFloor: result.Review.WoodFloor, Emergency: result.Emergency, Refusals: refusals, Pause: r.pause, Medicine: medicine.Stock, MedicineTarget: target, GoalCells: cells})
-	key := fmt.Sprint(rows, refusals)
+	layoutRows, actions := r.layoutPanel(projection)
+	rows = append(rows, layoutRows...)
+	key := fmt.Sprint(rows, refusals, actions)
 	if key == r.strip.key && tick >= r.strip.drawn && tick-r.strip.drawn < statusRedrawEvery {
 		return
 	}
-	if _, _, err := strip.DrawStatusStrip(ctx, identity, rows, true); err != nil {
+	if _, _, err := strip.DrawStatusStrip(ctx, identity, rows, actions, true); err != nil {
 		clockSchedulerLog("status strip not drawn: %v", err)
 		return
 	}

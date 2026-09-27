@@ -550,6 +550,16 @@ message StatusStripRequest {
   rimgovernor.common.v1.Identity identity = 1;
   optional bool enabled = 2; // false hides the strip.
   repeated StatusRow rows = 3;
+  // The panel's buttons (#957), in order. Pressing one publishes a clock
+  // PlayerRequest naming its id; the controller offers what applies now.
+  repeated PanelAction actions = 4;
+}
+// One panel button: id is 1-32 printable ASCII characters, label and tip
+// short ASCII text.
+message PanelAction {
+  optional string id = 1;
+  optional string label = 2;
+  optional string tip = 3;
 }
 message StatusStripApplied { rimgovernor.common.v1.ObservationContext context = 1; optional uint32 rows = 2; }
 message StatusStripReply { oneof outcome { StatusStripApplied applied = 1; rimgovernor.common.v1.Failure failure = 2; } }

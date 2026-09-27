@@ -10,14 +10,18 @@ using Presentation = RimGovernor.Protocol.Presentation;
 
 namespace HomeBridge.BridgeTools
 {
-    // The controller's in-game status rows (#823), drawn by the #951
-    // GovernorStatusPanel. Output only; nothing reads it back.
+    // The controller's in-game status rows (#823) and panel buttons (#957),
+    // drawn by the #951 GovernorStatusPanel. A button press comes back as a
+    // clock PlayerRequest event, never through this tool.
     public sealed class ProtoStatusStripTools
     {
         private const string ToolName = "rimgovernor/presentation_status_strip";
         private const int MaxRows = 64;
         private const int MaxKey = 32;
         private const int MaxText = 120;
+        private const int MaxActions = 4;
+        private const int MaxLabel = 40;
+        private const int MaxTip = 200;
 
         [Tool(ToolName, Title = "Set the status strip",
             Description = "Replace every status strip row. enabled=false clears the strip.")]
@@ -63,7 +67,18 @@ namespace HomeBridge.BridgeTools
                 };
                 rows.Add(new StatusStripRow(key, text, severity, target, row.Detail));
             }
-            GovernorStatusPanel.Replace(map, rows);
+            if (request.Actions.Count > MaxActions) return Invalid($"More than {MaxActions} panel actions.");
+            var actions = new List<PanelButton>(request.Actions.Count);
+            foreach (var action in request.Actions)
+            {
+                var id = action.HasId ? action.Id : "";
+                if (!NativeClockEventProjection.IsPanelId(id)) return Invalid("Panel action id must be 1-64 printable ASCII characters.");
+                var label = action.HasLabel ? action.Label : "";
+                var tip = action.HasTip ? action.Tip : "";
+                if (label.Length == 0 || label.Length > MaxLabel || tip.Length > MaxTip) return Invalid($"Panel action {id} needs a label of 1-{MaxLabel} and a tip of at most {MaxTip} characters.");
+                actions.Add(new PanelButton(id, label, tip));
+            }
+            GovernorStatusPanel.Replace(map, rows, actions);
             return Applied(context);
         }
 

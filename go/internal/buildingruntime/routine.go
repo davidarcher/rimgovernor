@@ -77,6 +77,14 @@ type RoutineReviewer struct {
 	// pause is who stopped the clock the scheduler's step read (#847),
 	// set before the review; see clockPause.
 	pause policy.ClockPause
+	// requests are the panel's player requests the poll handed over
+	// (#957); proposal is the layout replan awaiting Apply or Discard,
+	// note the last layout request's outcome and proposalDrawn the
+	// proposal layer last drawn. See servePlayerRequests.
+	requests      playerRequests
+	proposal      *layoutProposal
+	note          layoutNote
+	proposalDrawn string
 }
 
 // staged is the configured policy with its goal budgets set by the colony
