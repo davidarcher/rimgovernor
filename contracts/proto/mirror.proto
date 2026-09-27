@@ -77,6 +77,14 @@ message CombatDoorRow {
   optional int32 max_hit_points = 4;
 }
 
+// A player mortar (BundleSnapshot.combat_mortars, #931) and its range.
+message CombatMortarRow {
+  optional string id = 1; // load id
+  rimgovernor.common.v1.Cell cell = 2;
+  optional float min_range = 3;
+  optional float max_range = 4;
+}
+
 // What a combat event row records. The #849 stop kinds and the non-stops.
 enum CombatLogKind {
   COMBAT_LOG_KIND_UNSPECIFIED = 0;

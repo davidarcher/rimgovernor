@@ -36,6 +36,8 @@ const (
 	// Draft refusal (#910): the pawn is not eligible, or the claim could not
 	// be certified. A pawn another claim holds refuses draft_ownership.
 	CombatRefusalCannotDraft = "cannot_draft"
+	// Mortar refusal (#931): no unroofed player mortar on the cell.
+	CombatRefusalNotAMortar = "not_a_mortar"
 )
 
 var combatRefusals = map[string]bool{
@@ -43,7 +45,7 @@ var combatRefusals = map[string]bool{
 	CombatRefusalUnreachable: true, CombatRefusalCannotHit: true, CombatRefusalNoGroundVerb: true,
 	CombatRefusalNotADoor: true, CombatRefusalNativeRefused: true,
 	CombatRefusalCannotRescue: true, CombatRefusalNoBed: true, CombatRefusalCannotRepair: true,
-	CombatRefusalCannotDraft: true,
+	CombatRefusalCannotDraft: true, CombatRefusalNotAMortar: true,
 }
 
 // CombatOrderResult is one order's outcome, in request order.
@@ -150,6 +152,10 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 		case *o.CombatOrder_Repair:
 			if v.Repair == nil || movementCell(v.Repair.Cell) != nil {
 				return contract("combat order %d repair cell missing or invalid", i)
+			}
+		case *o.CombatOrder_Mortar:
+			if v.Mortar == nil || movementCell(v.Mortar.Mortar) != nil || movementCell(v.Mortar.Target) != nil {
+				return contract("combat order %d mortar or target cell missing or invalid", i)
 			}
 		case *o.CombatOrder_HoldPosition:
 			if v.HoldPosition == nil {

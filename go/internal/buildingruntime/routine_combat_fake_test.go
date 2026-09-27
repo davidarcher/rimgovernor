@@ -96,6 +96,9 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 	if m, ok := f.legacyDefense.(interface{ combatMirror() []*mp.CombatPawn }); ok {
 		frame.CombatPawns = m.combatMirror()
 	}
+	if m, ok := f.legacyDefense.(interface{ combatMortars() []*mp.CombatMortarRow }); ok {
+		frame.CombatMortars = m.combatMortars()
+	}
 	hostiles, _, buildings := defenseTargets(emergency.Facts.Threats)
 	var ids []string
 	seen := map[string]bool{}

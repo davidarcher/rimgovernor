@@ -20,6 +20,8 @@ type Thing struct {
 	Stuff string `json:"stuff,omitempty"`
 	X     int    `json:"x"`
 	Z     int    `json:"z"`
+	// Hostile stages a building under the lab hostiles' faction (#930).
+	Hostile bool `json:"hostile,omitempty"`
 }
 
 // Pawn is one staged combatant. A colonist is the lab's Index-th colonist

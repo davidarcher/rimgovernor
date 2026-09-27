@@ -221,6 +221,8 @@ func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state Cont
 			wire.Order = &op.CombatOrder_Attack{Attack: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
 		case policy.OrderRescue:
 			wire.Order = &op.CombatOrder_Rescue{Rescue: &op.CombatRescue{Downed: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}}
+		case policy.OrderMortar:
+			wire.Order = &op.CombatOrder_Mortar{Mortar: &op.CombatMortar{Mortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Target: &c.Cell{X: proto.Int32(order.Aim.X), Z: proto.Int32(order.Aim.Z)}}}
 		case policy.OrderRepair:
 			wire.Order = &op.CombatOrder_Repair{Repair: &op.CombatRepair{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}}
 		case policy.OrderDoor:

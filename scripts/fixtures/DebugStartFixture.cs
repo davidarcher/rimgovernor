@@ -351,6 +351,7 @@ namespace HomeBridge.BridgeTools
             Rand.PushState(Seed);
             try
             {
+                var faction = HostileFaction();
                 foreach (JObject t in spec["things"] as JArray ?? new JArray())
                 {
                     var def = DefDatabase<ThingDef>.GetNamedSilentFail((string)t["def"]) ?? throw new ArgumentException($"No ThingDef {t["def"]}.");
@@ -358,12 +359,12 @@ namespace HomeBridge.BridgeTools
                     var stuff = def.MadeFromStuff ? (stuffName == "" ? GenStuff.DefaultStuffFor(def) : DefDatabase<ThingDef>.GetNamedSilentFail(stuffName) ?? throw new ArgumentException($"No stuff {stuffName}.")) : null;
                     var cell = Cell(map, t);
                     var thing = ThingMaker.MakeThing(def, stuff);
-                    if (def.category == ThingCategory.Building) thing.SetFaction(Faction.OfPlayer);
+                    // hostile (#930): the lab hostiles' faction, e.g. a ship part to attack.
+                    if (def.category == ThingCategory.Building) thing.SetFaction((bool?)t["hostile"] == true ? faction : Faction.OfPlayer);
                     GenSpawn.Spawn(thing, cell, map, new Rot4((int?)t["rotation"] ?? 0));
-                    things.Add(new { def = def.defName, x = cell.x, z = cell.z });
+                    things.Add(new { id = thing.GetUniqueLoadID(), def = def.defName, x = cell.x, z = cell.z });
                 }
                 var colonists = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-                var faction = HostileFaction();
                 // An arrival mode (#870) drops the hostiles in by the game's
                 // own PawnsArrivalModeWorker, landing around the first
                 // hostile's cell, instead of spawning each at its cell.
@@ -509,7 +510,7 @@ namespace HomeBridge.BridgeTools
         // well under the call ceiling.
         private const int MaxTicks = 2000;
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation}], pawns:[{side:colonist|hostile, index (colonist), kind (hostile PawnKindDef), x, z, weapon, weaponStuff, downed}]}. Hostiles get fixed skills, no apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile, index (colonist), kind (hostile PawnKindDef), x, z, weapon, weaponStuff, downed}]}. Hostiles get fixed skills, no apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
             [ToolParameter(Description = "stage (default), read, or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",

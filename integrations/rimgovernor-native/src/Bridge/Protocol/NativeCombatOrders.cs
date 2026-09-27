@@ -46,6 +46,7 @@ namespace HomeBridge.BridgeTools
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(order.Rescue.Downed) || order.Rescue.Downed.EntityId == order.Pawn!.EntityId
                             || order.Rescue.Dest != null && !ValidCell(order.Rescue.Dest)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.Repair: if (!ValidCell(order.Repair.Cell)) return false; break;
+                    case Operations.CombatOrder.OrderOneofCase.Mortar: if (!ValidCell(order.Mortar.Mortar) || !ValidCell(order.Mortar.Target)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.HoldPosition:
                     case Operations.CombatOrder.OrderOneofCase.Stop:
                     case Operations.CombatOrder.OrderOneofCase.Draft: break;
@@ -188,7 +189,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var player = Faction.OfPlayerSilentFail;
                     Thing? target = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == order.Attack.EntityId)
-                        ?? (player == null ? null : NativeObservationTools.HostileBuildings(map, player).SingleOrDefault(t => t.GetUniqueLoadID() == order.Attack.EntityId));
+                        ?? (player == null ? null : NativeObservationTools.HostileBuildingThing(map, player, order.Attack.EntityId));
                     if (target == null) return "not_found";
                     if (NativeDraftProtocol.TokenSent(order.Attack))
                     {
@@ -254,6 +255,23 @@ namespace HomeBridge.BridgeTools
                         || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) return "cannot_repair";
                     if (!pawn.CanReserveAndReach(building, PathEndMode.Touch, Danger.Deadly)) return "unreachable";
                     return Take(pawn, JobMaker.MakeJob(JobDefOf.Repair, building), out job);
+                }
+                case Operations.CombatOrder.OrderOneofCase.Mortar:
+                {
+                    // The vanilla mortar (#931): a manning pawn (ManTurret,
+                    // which loads shells) and the attack gizmo's forced target.
+                    var cell = new IntVec3(order.Mortar.Mortar.X, 0, order.Mortar.Mortar.Z);
+                    var target = new IntVec3(order.Mortar.Target.X, 0, order.Mortar.Target.Z);
+                    var mortar = cell.InBounds(map) ? cell.GetEdifice(map) as Building_TurretGun : null;
+                    if (mortar == null || mortar.Faction != Faction.OfPlayerSilentFail || mortar.def.building?.IsMortar != true
+                        || mortar.GetComp<CompMannable>() == null || map.roofGrid.Roofed(mortar.Position)) return "not_a_mortar";
+                    var verb = mortar.AttackVerb;
+                    var distance = (target - mortar.Position).LengthHorizontal;
+                    if (!target.InBounds(map) || verb == null || distance < verb.verbProps.EffectiveMinRange(target, mortar) || distance > verb.EffectiveRange) return "cannot_hit";
+                    if (!pawn.CanReserveAndReach(mortar, PathEndMode.InteractionCell, Danger.Deadly)) return "unreachable";
+                    var refusal = mortar.GetComp<CompMannable>().ManningPawn == pawn ? "" : Take(pawn, JobMaker.MakeJob(JobDefOf.ManTurret, mortar), out job);
+                    if (refusal.Length == 0) { mortar.OrderAttack(target); job ??= JobDefOf.ManTurret.defName; }
+                    return refusal;
                 }
                 case Operations.CombatOrder.OrderOneofCase.Stop:
                     pawn.jobs.ClearQueuedJobs();

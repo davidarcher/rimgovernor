@@ -153,12 +153,20 @@ message CombatRescue { EntityPrecondition downed = 1; rimgovernor.common.v1.Cell
 // Refusals: cannot_repair (no damaged player building there, or the pawn
 // cannot construct), unreachable.
 message CombatRepair { rimgovernor.common.v1.Cell cell = 1; }
+// Mortar (#931): the drafted pawn mans the unroofed player mortar on
+// mortar (vanilla ManTurret, which loads shells from stock) and the mortar
+// force-targets target, as the vanilla attack gizmo (OrderAttack). Refusals:
+// not_a_mortar, cannot_hit (inside the minimum or past the maximum range),
+// unreachable.
+message CombatMortar { rimgovernor.common.v1.Cell mortar = 1; rimgovernor.common.v1.Cell target = 2; }
 message CombatDoor { rimgovernor.common.v1.Cell cell = 1; optional CombatDoorMode mode = 2; }
 message CombatOrder {
   EntityPrecondition pawn = 1;
   oneof order {
     rimgovernor.common.v1.Cell move = 2;
-    // A spawned pawn or census-listed hostile building; mode Auto.
+    // A spawned pawn or a hostile building thing (#930): any spawned
+    // hostile-faction building or frame with hit points (a crashed ship
+    // part, its cluster buildings, a siege mortar or its frame); mode Auto.
     EntityPrecondition attack = 3;
     // Force-fire a ground-targetable verb (grenades, launchers) at a cell.
     rimgovernor.common.v1.Cell attack_ground = 4;
@@ -175,6 +183,7 @@ message CombatOrder {
     // cannot_draft (not eligible, or the claim could not be certified),
     // draft_ownership (another claim holds it).
     Clear draft = 11;
+    CombatMortar mortar = 12;
   }
 }
 message CombatOrders { repeated CombatOrder orders = 1; }

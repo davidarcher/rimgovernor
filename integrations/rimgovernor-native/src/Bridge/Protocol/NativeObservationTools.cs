@@ -300,11 +300,20 @@ namespace HomeBridge.BridgeTools
         // A hostile building is a combat target in its own right: an insect
         // hive (RimWorld.Hive is a ThingWithComps, so it is read by def, not
         // from the building lister) or any hostile-faction building with hit
-        // points and combat power (crashed ship parts, mech-cluster pieces).
-        // Walls and other inert hostile edifices are not threats.
-        internal static bool HostileBuilding(Thing thing, Faction player) => thing.Spawned && !thing.Destroyed && thing.def.useHitPoints
-            && thing.Faction != null && thing.Faction != player && thing.Faction.HostileTo(player)
-            && (thing is Hive || thing.def.building != null && thing.def.building.combatPower > 0);
+        // points and combat power (crashed ship parts, mech-cluster pieces),
+        // or a mortar (a siege's, #931). Walls and other inert hostile
+        // edifices are not threats.
+        internal static bool HostileBuilding(Thing thing, Faction player) => HostileThing(thing, player)
+            && (thing is Hive || thing.def.building != null && (thing.def.building.combatPower > 0 || thing.def.building.IsMortar));
+        private static bool HostileThing(Thing thing, Faction player) => thing.Spawned && !thing.Destroyed && thing.def.useHitPoints
+            && thing.Faction != null && thing.Faction != player && thing.Faction.HostileTo(player);
+        // A hostile building thing by load id (#930), what an attack order
+        // may target beside a pawn: a census building, or any other spawned
+        // hostile-faction building or frame with hit points (a ship part's
+        // cluster walls, a siege's sandbag or mortar frame).
+        internal static Thing? HostileBuildingThing(Map map, Faction player, string id) =>
+            map.listerThings.ThingsOfDef(ThingDefOf.Hive).Concat(map.listerBuildings.allBuildingsNonColonist)
+                .FirstOrDefault(t => t.GetUniqueLoadID() == id && HostileThing(t, player));
         internal static List<Thing> HostileBuildings(Map map, Faction player)
         {
             var found = new List<Thing>();

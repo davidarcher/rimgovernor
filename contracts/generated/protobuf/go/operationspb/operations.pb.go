@@ -2784,6 +2784,63 @@ func (x *CombatRepair) GetCell() *commonpb.Cell {
 	return nil
 }
 
+// Mortar (#931): the drafted pawn mans the unroofed player mortar on
+// mortar (vanilla ManTurret, which loads shells from stock) and the mortar
+// force-targets target, as the vanilla attack gizmo (OrderAttack). Refusals:
+// not_a_mortar, cannot_hit (inside the minimum or past the maximum range),
+// unreachable.
+type CombatMortar struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mortar        *commonpb.Cell         `protobuf:"bytes,1,opt,name=mortar,proto3" json:"mortar,omitempty"`
+	Target        *commonpb.Cell         `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CombatMortar) Reset() {
+	*x = CombatMortar{}
+	mi := &file_operations_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CombatMortar) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CombatMortar) ProtoMessage() {}
+
+func (x *CombatMortar) ProtoReflect() protoreflect.Message {
+	mi := &file_operations_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CombatMortar.ProtoReflect.Descriptor instead.
+func (*CombatMortar) Descriptor() ([]byte, []int) {
+	return file_operations_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CombatMortar) GetMortar() *commonpb.Cell {
+	if x != nil {
+		return x.Mortar
+	}
+	return nil
+}
+
+func (x *CombatMortar) GetTarget() *commonpb.Cell {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
 type CombatDoor struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cell          *commonpb.Cell         `protobuf:"bytes,1,opt,name=cell,proto3" json:"cell,omitempty"`
@@ -2794,7 +2851,7 @@ type CombatDoor struct {
 
 func (x *CombatDoor) Reset() {
 	*x = CombatDoor{}
-	mi := &file_operations_proto_msgTypes[21]
+	mi := &file_operations_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2806,7 +2863,7 @@ func (x *CombatDoor) String() string {
 func (*CombatDoor) ProtoMessage() {}
 
 func (x *CombatDoor) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[21]
+	mi := &file_operations_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2819,7 +2876,7 @@ func (x *CombatDoor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatDoor.ProtoReflect.Descriptor instead.
 func (*CombatDoor) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{21}
+	return file_operations_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CombatDoor) GetCell() *commonpb.Cell {
@@ -2851,6 +2908,7 @@ type CombatOrder struct {
 	//	*CombatOrder_Rescue
 	//	*CombatOrder_Repair
 	//	*CombatOrder_Draft
+	//	*CombatOrder_Mortar
 	Order         isCombatOrder_Order `protobuf_oneof:"order"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2858,7 +2916,7 @@ type CombatOrder struct {
 
 func (x *CombatOrder) Reset() {
 	*x = CombatOrder{}
-	mi := &file_operations_proto_msgTypes[22]
+	mi := &file_operations_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2870,7 +2928,7 @@ func (x *CombatOrder) String() string {
 func (*CombatOrder) ProtoMessage() {}
 
 func (x *CombatOrder) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[22]
+	mi := &file_operations_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2883,7 +2941,7 @@ func (x *CombatOrder) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatOrder.ProtoReflect.Descriptor instead.
 func (*CombatOrder) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{22}
+	return file_operations_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CombatOrder) GetPawn() *EntityPrecondition {
@@ -2990,6 +3048,15 @@ func (x *CombatOrder) GetDraft() *Clear {
 	return nil
 }
 
+func (x *CombatOrder) GetMortar() *CombatMortar {
+	if x != nil {
+		if x, ok := x.Order.(*CombatOrder_Mortar); ok {
+			return x.Mortar
+		}
+	}
+	return nil
+}
+
 type isCombatOrder_Order interface {
 	isCombatOrder_Order()
 }
@@ -2999,7 +3066,9 @@ type CombatOrder_Move struct {
 }
 
 type CombatOrder_Attack struct {
-	// A spawned pawn or census-listed hostile building; mode Auto.
+	// A spawned pawn or a hostile building thing (#930): any spawned
+	// hostile-faction building or frame with hit points (a crashed ship
+	// part, its cluster buildings, a siege mortar or its frame); mode Auto.
 	Attack *EntityPrecondition `protobuf:"bytes,3,opt,name=attack,proto3,oneof"`
 }
 
@@ -3042,6 +3111,10 @@ type CombatOrder_Draft struct {
 	Draft *Clear `protobuf:"bytes,11,opt,name=draft,proto3,oneof"`
 }
 
+type CombatOrder_Mortar struct {
+	Mortar *CombatMortar `protobuf:"bytes,12,opt,name=mortar,proto3,oneof"`
+}
+
 func (*CombatOrder_Move) isCombatOrder_Order() {}
 
 func (*CombatOrder_Attack) isCombatOrder_Order() {}
@@ -3062,6 +3135,8 @@ func (*CombatOrder_Repair) isCombatOrder_Order() {}
 
 func (*CombatOrder_Draft) isCombatOrder_Order() {}
 
+func (*CombatOrder_Mortar) isCombatOrder_Order() {}
+
 type CombatOrders struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Orders        []*CombatOrder         `protobuf:"bytes,1,rep,name=orders,proto3" json:"orders,omitempty"`
@@ -3071,7 +3146,7 @@ type CombatOrders struct {
 
 func (x *CombatOrders) Reset() {
 	*x = CombatOrders{}
-	mi := &file_operations_proto_msgTypes[23]
+	mi := &file_operations_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3083,7 +3158,7 @@ func (x *CombatOrders) String() string {
 func (*CombatOrders) ProtoMessage() {}
 
 func (x *CombatOrders) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[23]
+	mi := &file_operations_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3096,7 +3171,7 @@ func (x *CombatOrders) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombatOrders.ProtoReflect.Descriptor instead.
 func (*CombatOrders) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{23}
+	return file_operations_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CombatOrders) GetOrders() []*CombatOrder {
@@ -3117,7 +3192,7 @@ type AcquireResource struct {
 
 func (x *AcquireResource) Reset() {
 	*x = AcquireResource{}
-	mi := &file_operations_proto_msgTypes[24]
+	mi := &file_operations_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3129,7 +3204,7 @@ func (x *AcquireResource) String() string {
 func (*AcquireResource) ProtoMessage() {}
 
 func (x *AcquireResource) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[24]
+	mi := &file_operations_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3142,7 +3217,7 @@ func (x *AcquireResource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcquireResource.ProtoReflect.Descriptor instead.
 func (*AcquireResource) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{24}
+	return file_operations_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *AcquireResource) GetSource() *EntityPrecondition {
@@ -3182,7 +3257,7 @@ type CancelAcquisition struct {
 
 func (x *CancelAcquisition) Reset() {
 	*x = CancelAcquisition{}
-	mi := &file_operations_proto_msgTypes[25]
+	mi := &file_operations_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3194,7 +3269,7 @@ func (x *CancelAcquisition) String() string {
 func (*CancelAcquisition) ProtoMessage() {}
 
 func (x *CancelAcquisition) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[25]
+	mi := &file_operations_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3207,7 +3282,7 @@ func (x *CancelAcquisition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelAcquisition.ProtoReflect.Descriptor instead.
 func (*CancelAcquisition) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{25}
+	return file_operations_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *CancelAcquisition) GetSource() *EntityPrecondition {
@@ -3241,7 +3316,7 @@ type DesignateThing struct {
 
 func (x *DesignateThing) Reset() {
 	*x = DesignateThing{}
-	mi := &file_operations_proto_msgTypes[26]
+	mi := &file_operations_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3253,7 +3328,7 @@ func (x *DesignateThing) String() string {
 func (*DesignateThing) ProtoMessage() {}
 
 func (x *DesignateThing) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[26]
+	mi := &file_operations_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3266,7 +3341,7 @@ func (x *DesignateThing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesignateThing.ProtoReflect.Descriptor instead.
 func (*DesignateThing) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{26}
+	return file_operations_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *DesignateThing) GetTarget() *EntityPrecondition {
@@ -3305,7 +3380,7 @@ type PatchBuilding struct {
 
 func (x *PatchBuilding) Reset() {
 	*x = PatchBuilding{}
-	mi := &file_operations_proto_msgTypes[27]
+	mi := &file_operations_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3317,7 +3392,7 @@ func (x *PatchBuilding) String() string {
 func (*PatchBuilding) ProtoMessage() {}
 
 func (x *PatchBuilding) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[27]
+	mi := &file_operations_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3330,7 +3405,7 @@ func (x *PatchBuilding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PatchBuilding.ProtoReflect.Descriptor instead.
 func (*PatchBuilding) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{27}
+	return file_operations_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PatchBuilding) GetBuilding() *EntityPrecondition {
@@ -3406,7 +3481,7 @@ type WorkPriority struct {
 
 func (x *WorkPriority) Reset() {
 	*x = WorkPriority{}
-	mi := &file_operations_proto_msgTypes[28]
+	mi := &file_operations_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3418,7 +3493,7 @@ func (x *WorkPriority) String() string {
 func (*WorkPriority) ProtoMessage() {}
 
 func (x *WorkPriority) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[28]
+	mi := &file_operations_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3431,7 +3506,7 @@ func (x *WorkPriority) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkPriority.ProtoReflect.Descriptor instead.
 func (*WorkPriority) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{28}
+	return file_operations_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *WorkPriority) GetWorkTypeDef() string {
@@ -3457,7 +3532,7 @@ type Schedule struct {
 
 func (x *Schedule) Reset() {
 	*x = Schedule{}
-	mi := &file_operations_proto_msgTypes[29]
+	mi := &file_operations_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3469,7 +3544,7 @@ func (x *Schedule) String() string {
 func (*Schedule) ProtoMessage() {}
 
 func (x *Schedule) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[29]
+	mi := &file_operations_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3482,7 +3557,7 @@ func (x *Schedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Schedule.ProtoReflect.Descriptor instead.
 func (*Schedule) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{29}
+	return file_operations_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *Schedule) GetAssignmentDefs() []string {
@@ -3506,7 +3581,7 @@ type FilterSelector struct {
 
 func (x *FilterSelector) Reset() {
 	*x = FilterSelector{}
-	mi := &file_operations_proto_msgTypes[30]
+	mi := &file_operations_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3518,7 +3593,7 @@ func (x *FilterSelector) String() string {
 func (*FilterSelector) ProtoMessage() {}
 
 func (x *FilterSelector) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[30]
+	mi := &file_operations_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3531,7 +3606,7 @@ func (x *FilterSelector) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterSelector.ProtoReflect.Descriptor instead.
 func (*FilterSelector) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{30}
+	return file_operations_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *FilterSelector) GetDefinition() isFilterSelector_Definition {
@@ -3599,7 +3674,7 @@ type SelectorList struct {
 
 func (x *SelectorList) Reset() {
 	*x = SelectorList{}
-	mi := &file_operations_proto_msgTypes[31]
+	mi := &file_operations_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3611,7 +3686,7 @@ func (x *SelectorList) String() string {
 func (*SelectorList) ProtoMessage() {}
 
 func (x *SelectorList) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[31]
+	mi := &file_operations_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3624,7 +3699,7 @@ func (x *SelectorList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectorList.ProtoReflect.Descriptor instead.
 func (*SelectorList) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{31}
+	return file_operations_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *SelectorList) GetSelectors() []*FilterSelector {
@@ -3653,7 +3728,7 @@ type FilterPatch struct {
 
 func (x *FilterPatch) Reset() {
 	*x = FilterPatch{}
-	mi := &file_operations_proto_msgTypes[32]
+	mi := &file_operations_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3665,7 +3740,7 @@ func (x *FilterPatch) String() string {
 func (*FilterPatch) ProtoMessage() {}
 
 func (x *FilterPatch) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[32]
+	mi := &file_operations_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3678,7 +3753,7 @@ func (x *FilterPatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilterPatch.ProtoReflect.Descriptor instead.
 func (*FilterPatch) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{32}
+	return file_operations_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *FilterPatch) GetReplace() *SelectorList {
@@ -3743,7 +3818,7 @@ type BillStore struct {
 
 func (x *BillStore) Reset() {
 	*x = BillStore{}
-	mi := &file_operations_proto_msgTypes[33]
+	mi := &file_operations_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3755,7 +3830,7 @@ func (x *BillStore) String() string {
 func (*BillStore) ProtoMessage() {}
 
 func (x *BillStore) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[33]
+	mi := &file_operations_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3768,7 +3843,7 @@ func (x *BillStore) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BillStore.ProtoReflect.Descriptor instead.
 func (*BillStore) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{33}
+	return file_operations_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *BillStore) GetDestination() isBillStore_Destination {
@@ -3838,7 +3913,7 @@ type BillSettings struct {
 
 func (x *BillSettings) Reset() {
 	*x = BillSettings{}
-	mi := &file_operations_proto_msgTypes[34]
+	mi := &file_operations_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3850,7 +3925,7 @@ func (x *BillSettings) String() string {
 func (*BillSettings) ProtoMessage() {}
 
 func (x *BillSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[34]
+	mi := &file_operations_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3863,7 +3938,7 @@ func (x *BillSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BillSettings.ProtoReflect.Descriptor instead.
 func (*BillSettings) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{34}
+	return file_operations_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *BillSettings) GetRepeatMode() RepeatMode {
@@ -3973,7 +4048,7 @@ type DefinitionList struct {
 
 func (x *DefinitionList) Reset() {
 	*x = DefinitionList{}
-	mi := &file_operations_proto_msgTypes[35]
+	mi := &file_operations_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3985,7 +4060,7 @@ func (x *DefinitionList) String() string {
 func (*DefinitionList) ProtoMessage() {}
 
 func (x *DefinitionList) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[35]
+	mi := &file_operations_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3998,7 +4073,7 @@ func (x *DefinitionList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefinitionList.ProtoReflect.Descriptor instead.
 func (*DefinitionList) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{35}
+	return file_operations_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *DefinitionList) GetDefs() []string {
@@ -4019,7 +4094,7 @@ type StockpileSettings struct {
 
 func (x *StockpileSettings) Reset() {
 	*x = StockpileSettings{}
-	mi := &file_operations_proto_msgTypes[36]
+	mi := &file_operations_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4031,7 +4106,7 @@ func (x *StockpileSettings) String() string {
 func (*StockpileSettings) ProtoMessage() {}
 
 func (x *StockpileSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[36]
+	mi := &file_operations_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4044,7 +4119,7 @@ func (x *StockpileSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StockpileSettings.ProtoReflect.Descriptor instead.
 func (*StockpileSettings) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{36}
+	return file_operations_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *StockpileSettings) GetPriority() StoragePriority {
@@ -4079,7 +4154,7 @@ type GrowingSettings struct {
 
 func (x *GrowingSettings) Reset() {
 	*x = GrowingSettings{}
-	mi := &file_operations_proto_msgTypes[37]
+	mi := &file_operations_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4091,7 +4166,7 @@ func (x *GrowingSettings) String() string {
 func (*GrowingSettings) ProtoMessage() {}
 
 func (x *GrowingSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[37]
+	mi := &file_operations_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4104,7 +4179,7 @@ func (x *GrowingSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrowingSettings.ProtoReflect.Descriptor instead.
 func (*GrowingSettings) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{37}
+	return file_operations_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GrowingSettings) GetPlantDef() string {
@@ -4137,7 +4212,7 @@ type FishingSettings struct {
 
 func (x *FishingSettings) Reset() {
 	*x = FishingSettings{}
-	mi := &file_operations_proto_msgTypes[38]
+	mi := &file_operations_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4149,7 +4224,7 @@ func (x *FishingSettings) String() string {
 func (*FishingSettings) ProtoMessage() {}
 
 func (x *FishingSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[38]
+	mi := &file_operations_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4162,7 +4237,7 @@ func (x *FishingSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FishingSettings.ProtoReflect.Descriptor instead.
 func (*FishingSettings) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{38}
+	return file_operations_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *FishingSettings) GetPopulationFloor() float64 {
@@ -4189,7 +4264,7 @@ type CreateZone struct {
 
 func (x *CreateZone) Reset() {
 	*x = CreateZone{}
-	mi := &file_operations_proto_msgTypes[39]
+	mi := &file_operations_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4201,7 +4276,7 @@ func (x *CreateZone) String() string {
 func (*CreateZone) ProtoMessage() {}
 
 func (x *CreateZone) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[39]
+	mi := &file_operations_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4214,7 +4289,7 @@ func (x *CreateZone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateZone.ProtoReflect.Descriptor instead.
 func (*CreateZone) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{39}
+	return file_operations_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *CreateZone) GetExpectedMapSnapshotToken() string {
@@ -4292,7 +4367,7 @@ type DeleteZoneIntent struct {
 
 func (x *DeleteZoneIntent) Reset() {
 	*x = DeleteZoneIntent{}
-	mi := &file_operations_proto_msgTypes[40]
+	mi := &file_operations_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4304,7 +4379,7 @@ func (x *DeleteZoneIntent) String() string {
 func (*DeleteZoneIntent) ProtoMessage() {}
 
 func (x *DeleteZoneIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[40]
+	mi := &file_operations_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4317,7 +4392,7 @@ func (x *DeleteZoneIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteZoneIntent.ProtoReflect.Descriptor instead.
 func (*DeleteZoneIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{40}
+	return file_operations_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *DeleteZoneIntent) GetZoneId() string {
@@ -4340,7 +4415,7 @@ type RemoveFoundationIntent struct {
 
 func (x *RemoveFoundationIntent) Reset() {
 	*x = RemoveFoundationIntent{}
-	mi := &file_operations_proto_msgTypes[41]
+	mi := &file_operations_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4352,7 +4427,7 @@ func (x *RemoveFoundationIntent) String() string {
 func (*RemoveFoundationIntent) ProtoMessage() {}
 
 func (x *RemoveFoundationIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[41]
+	mi := &file_operations_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4365,7 +4440,7 @@ func (x *RemoveFoundationIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveFoundationIntent.ProtoReflect.Descriptor instead.
 func (*RemoveFoundationIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{41}
+	return file_operations_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *RemoveFoundationIntent) GetCell() *commonpb.Cell {
@@ -4396,7 +4471,7 @@ type ZoneCellsIntent struct {
 
 func (x *ZoneCellsIntent) Reset() {
 	*x = ZoneCellsIntent{}
-	mi := &file_operations_proto_msgTypes[42]
+	mi := &file_operations_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4408,7 +4483,7 @@ func (x *ZoneCellsIntent) String() string {
 func (*ZoneCellsIntent) ProtoMessage() {}
 
 func (x *ZoneCellsIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[42]
+	mi := &file_operations_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4421,7 +4496,7 @@ func (x *ZoneCellsIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZoneCellsIntent.ProtoReflect.Descriptor instead.
 func (*ZoneCellsIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{42}
+	return file_operations_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ZoneCellsIntent) GetZoneId() string {
@@ -4459,7 +4534,7 @@ type StockpileIntent struct {
 
 func (x *StockpileIntent) Reset() {
 	*x = StockpileIntent{}
-	mi := &file_operations_proto_msgTypes[43]
+	mi := &file_operations_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4471,7 +4546,7 @@ func (x *StockpileIntent) String() string {
 func (*StockpileIntent) ProtoMessage() {}
 
 func (x *StockpileIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[43]
+	mi := &file_operations_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4484,7 +4559,7 @@ func (x *StockpileIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StockpileIntent.ProtoReflect.Descriptor instead.
 func (*StockpileIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{43}
+	return file_operations_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *StockpileIntent) GetTargetId() string {
@@ -4511,7 +4586,7 @@ type Deconstruct struct {
 
 func (x *Deconstruct) Reset() {
 	*x = Deconstruct{}
-	mi := &file_operations_proto_msgTypes[44]
+	mi := &file_operations_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4523,7 +4598,7 @@ func (x *Deconstruct) String() string {
 func (*Deconstruct) ProtoMessage() {}
 
 func (x *Deconstruct) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[44]
+	mi := &file_operations_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4536,7 +4611,7 @@ func (x *Deconstruct) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Deconstruct.ProtoReflect.Descriptor instead.
 func (*Deconstruct) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{44}
+	return file_operations_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *Deconstruct) GetTarget() *EntityPrecondition {
@@ -4554,7 +4629,7 @@ type ReleaseDeconstructions struct {
 
 func (x *ReleaseDeconstructions) Reset() {
 	*x = ReleaseDeconstructions{}
-	mi := &file_operations_proto_msgTypes[45]
+	mi := &file_operations_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4566,7 +4641,7 @@ func (x *ReleaseDeconstructions) String() string {
 func (*ReleaseDeconstructions) ProtoMessage() {}
 
 func (x *ReleaseDeconstructions) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[45]
+	mi := &file_operations_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4579,7 +4654,7 @@ func (x *ReleaseDeconstructions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseDeconstructions.ProtoReflect.Descriptor instead.
 func (*ReleaseDeconstructions) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{45}
+	return file_operations_proto_rawDescGZIP(), []int{46}
 }
 
 type RemoveWall struct {
@@ -4592,7 +4667,7 @@ type RemoveWall struct {
 
 func (x *RemoveWall) Reset() {
 	*x = RemoveWall{}
-	mi := &file_operations_proto_msgTypes[46]
+	mi := &file_operations_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4604,7 +4679,7 @@ func (x *RemoveWall) String() string {
 func (*RemoveWall) ProtoMessage() {}
 
 func (x *RemoveWall) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[46]
+	mi := &file_operations_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4617,7 +4692,7 @@ func (x *RemoveWall) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveWall.ProtoReflect.Descriptor instead.
 func (*RemoveWall) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{46}
+	return file_operations_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *RemoveWall) GetWall() *EntityPrecondition {
@@ -4648,7 +4723,7 @@ type Arrest struct {
 
 func (x *Arrest) Reset() {
 	*x = Arrest{}
-	mi := &file_operations_proto_msgTypes[47]
+	mi := &file_operations_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4660,7 +4735,7 @@ func (x *Arrest) String() string {
 func (*Arrest) ProtoMessage() {}
 
 func (x *Arrest) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[47]
+	mi := &file_operations_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4673,7 +4748,7 @@ func (x *Arrest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Arrest.ProtoReflect.Descriptor instead.
 func (*Arrest) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{47}
+	return file_operations_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *Arrest) GetPawn() *EntityPrecondition {
@@ -4715,7 +4790,7 @@ type RecoverService struct {
 
 func (x *RecoverService) Reset() {
 	*x = RecoverService{}
-	mi := &file_operations_proto_msgTypes[48]
+	mi := &file_operations_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4727,7 +4802,7 @@ func (x *RecoverService) String() string {
 func (*RecoverService) ProtoMessage() {}
 
 func (x *RecoverService) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[48]
+	mi := &file_operations_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4740,7 +4815,7 @@ func (x *RecoverService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoverService.ProtoReflect.Descriptor instead.
 func (*RecoverService) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{48}
+	return file_operations_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *RecoverService) GetTarget() *EntityPrecondition {
@@ -4783,7 +4858,7 @@ type ManageWaste struct {
 
 func (x *ManageWaste) Reset() {
 	*x = ManageWaste{}
-	mi := &file_operations_proto_msgTypes[49]
+	mi := &file_operations_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4795,7 +4870,7 @@ func (x *ManageWaste) String() string {
 func (*ManageWaste) ProtoMessage() {}
 
 func (x *ManageWaste) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[49]
+	mi := &file_operations_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4808,7 +4883,7 @@ func (x *ManageWaste) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManageWaste.ProtoReflect.Descriptor instead.
 func (*ManageWaste) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{49}
+	return file_operations_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ManageWaste) GetTarget() *EntityPrecondition {
@@ -4852,7 +4927,7 @@ type ExpectedJob struct {
 
 func (x *ExpectedJob) Reset() {
 	*x = ExpectedJob{}
-	mi := &file_operations_proto_msgTypes[50]
+	mi := &file_operations_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4864,7 +4939,7 @@ func (x *ExpectedJob) String() string {
 func (*ExpectedJob) ProtoMessage() {}
 
 func (x *ExpectedJob) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[50]
+	mi := &file_operations_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4877,7 +4952,7 @@ func (x *ExpectedJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExpectedJob.ProtoReflect.Descriptor instead.
 func (*ExpectedJob) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{50}
+	return file_operations_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ExpectedJob) GetState() isExpectedJob_State {
@@ -4933,7 +5008,7 @@ type RelieveNeed struct {
 
 func (x *RelieveNeed) Reset() {
 	*x = RelieveNeed{}
-	mi := &file_operations_proto_msgTypes[51]
+	mi := &file_operations_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4945,7 +5020,7 @@ func (x *RelieveNeed) String() string {
 func (*RelieveNeed) ProtoMessage() {}
 
 func (x *RelieveNeed) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[51]
+	mi := &file_operations_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4958,7 +5033,7 @@ func (x *RelieveNeed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelieveNeed.ProtoReflect.Descriptor instead.
 func (*RelieveNeed) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{51}
+	return file_operations_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *RelieveNeed) GetPawn() *EntityPrecondition {
@@ -5000,7 +5075,7 @@ type ImproveGear struct {
 
 func (x *ImproveGear) Reset() {
 	*x = ImproveGear{}
-	mi := &file_operations_proto_msgTypes[52]
+	mi := &file_operations_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5012,7 +5087,7 @@ func (x *ImproveGear) String() string {
 func (*ImproveGear) ProtoMessage() {}
 
 func (x *ImproveGear) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[52]
+	mi := &file_operations_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5025,7 +5100,7 @@ func (x *ImproveGear) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImproveGear.ProtoReflect.Descriptor instead.
 func (*ImproveGear) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{52}
+	return file_operations_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ImproveGear) GetPawn() *EntityPrecondition {
@@ -5061,7 +5136,7 @@ type SetDrafted struct {
 
 func (x *SetDrafted) Reset() {
 	*x = SetDrafted{}
-	mi := &file_operations_proto_msgTypes[53]
+	mi := &file_operations_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5073,7 +5148,7 @@ func (x *SetDrafted) String() string {
 func (*SetDrafted) ProtoMessage() {}
 
 func (x *SetDrafted) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[53]
+	mi := &file_operations_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5086,7 +5161,7 @@ func (x *SetDrafted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetDrafted.ProtoReflect.Descriptor instead.
 func (*SetDrafted) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{53}
+	return file_operations_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *SetDrafted) GetPawn() *EntityPrecondition {
@@ -5131,7 +5206,7 @@ type AttackTarget struct {
 
 func (x *AttackTarget) Reset() {
 	*x = AttackTarget{}
-	mi := &file_operations_proto_msgTypes[54]
+	mi := &file_operations_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5143,7 +5218,7 @@ func (x *AttackTarget) String() string {
 func (*AttackTarget) ProtoMessage() {}
 
 func (x *AttackTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[54]
+	mi := &file_operations_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5156,7 +5231,7 @@ func (x *AttackTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttackTarget.ProtoReflect.Descriptor instead.
 func (*AttackTarget) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{54}
+	return file_operations_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *AttackTarget) GetPawn() *EntityPrecondition {
@@ -5212,7 +5287,7 @@ type PawnTargetOrder struct {
 
 func (x *PawnTargetOrder) Reset() {
 	*x = PawnTargetOrder{}
-	mi := &file_operations_proto_msgTypes[55]
+	mi := &file_operations_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5224,7 +5299,7 @@ func (x *PawnTargetOrder) String() string {
 func (*PawnTargetOrder) ProtoMessage() {}
 
 func (x *PawnTargetOrder) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[55]
+	mi := &file_operations_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5237,7 +5312,7 @@ func (x *PawnTargetOrder) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PawnTargetOrder.ProtoReflect.Descriptor instead.
 func (*PawnTargetOrder) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{55}
+	return file_operations_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *PawnTargetOrder) GetPawn() *EntityPrecondition {
@@ -5275,7 +5350,7 @@ type OpenTrade struct {
 
 func (x *OpenTrade) Reset() {
 	*x = OpenTrade{}
-	mi := &file_operations_proto_msgTypes[56]
+	mi := &file_operations_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5287,7 +5362,7 @@ func (x *OpenTrade) String() string {
 func (*OpenTrade) ProtoMessage() {}
 
 func (x *OpenTrade) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[56]
+	mi := &file_operations_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5300,7 +5375,7 @@ func (x *OpenTrade) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenTrade.ProtoReflect.Descriptor instead.
 func (*OpenTrade) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{56}
+	return file_operations_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *OpenTrade) GetGiftMode() bool {
@@ -5320,7 +5395,7 @@ type TradeLine struct {
 
 func (x *TradeLine) Reset() {
 	*x = TradeLine{}
-	mi := &file_operations_proto_msgTypes[57]
+	mi := &file_operations_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5332,7 +5407,7 @@ func (x *TradeLine) String() string {
 func (*TradeLine) ProtoMessage() {}
 
 func (x *TradeLine) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[57]
+	mi := &file_operations_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5345,7 +5420,7 @@ func (x *TradeLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeLine.ProtoReflect.Descriptor instead.
 func (*TradeLine) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{57}
+	return file_operations_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *TradeLine) GetLineId() string {
@@ -5372,7 +5447,7 @@ type SetTradeLines struct {
 
 func (x *SetTradeLines) Reset() {
 	*x = SetTradeLines{}
-	mi := &file_operations_proto_msgTypes[58]
+	mi := &file_operations_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5384,7 +5459,7 @@ func (x *SetTradeLines) String() string {
 func (*SetTradeLines) ProtoMessage() {}
 
 func (x *SetTradeLines) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[58]
+	mi := &file_operations_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5397,7 +5472,7 @@ func (x *SetTradeLines) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetTradeLines.ProtoReflect.Descriptor instead.
 func (*SetTradeLines) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{58}
+	return file_operations_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *SetTradeLines) GetLines() []*TradeLine {
@@ -5426,7 +5501,7 @@ type AcceptTrade struct {
 
 func (x *AcceptTrade) Reset() {
 	*x = AcceptTrade{}
-	mi := &file_operations_proto_msgTypes[59]
+	mi := &file_operations_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5438,7 +5513,7 @@ func (x *AcceptTrade) String() string {
 func (*AcceptTrade) ProtoMessage() {}
 
 func (x *AcceptTrade) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[59]
+	mi := &file_operations_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5451,7 +5526,7 @@ func (x *AcceptTrade) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptTrade.ProtoReflect.Descriptor instead.
 func (*AcceptTrade) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{59}
+	return file_operations_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *AcceptTrade) GetExpectedDealSignature() string {
@@ -5493,7 +5568,7 @@ type EndTrade struct {
 
 func (x *EndTrade) Reset() {
 	*x = EndTrade{}
-	mi := &file_operations_proto_msgTypes[60]
+	mi := &file_operations_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5505,7 +5580,7 @@ func (x *EndTrade) String() string {
 func (*EndTrade) ProtoMessage() {}
 
 func (x *EndTrade) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[60]
+	mi := &file_operations_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5518,7 +5593,7 @@ func (x *EndTrade) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EndTrade.ProtoReflect.Descriptor instead.
 func (*EndTrade) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{60}
+	return file_operations_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *EndTrade) GetKind() EndTradeKind {
@@ -5551,7 +5626,7 @@ type ReleaseOwnedDraftRequest struct {
 
 func (x *ReleaseOwnedDraftRequest) Reset() {
 	*x = ReleaseOwnedDraftRequest{}
-	mi := &file_operations_proto_msgTypes[61]
+	mi := &file_operations_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5563,7 +5638,7 @@ func (x *ReleaseOwnedDraftRequest) String() string {
 func (*ReleaseOwnedDraftRequest) ProtoMessage() {}
 
 func (x *ReleaseOwnedDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[61]
+	mi := &file_operations_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5576,7 +5651,7 @@ func (x *ReleaseOwnedDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseOwnedDraftRequest.ProtoReflect.Descriptor instead.
 func (*ReleaseOwnedDraftRequest) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{61}
+	return file_operations_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ReleaseOwnedDraftRequest) GetIdentity() *commonpb.Identity {
@@ -5611,7 +5686,7 @@ type DraftRelease struct {
 
 func (x *DraftRelease) Reset() {
 	*x = DraftRelease{}
-	mi := &file_operations_proto_msgTypes[62]
+	mi := &file_operations_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5623,7 +5698,7 @@ func (x *DraftRelease) String() string {
 func (*DraftRelease) ProtoMessage() {}
 
 func (x *DraftRelease) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[62]
+	mi := &file_operations_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5636,7 +5711,7 @@ func (x *DraftRelease) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DraftRelease.ProtoReflect.Descriptor instead.
 func (*DraftRelease) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{62}
+	return file_operations_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *DraftRelease) GetRequest() *ReleaseOwnedDraftRequest {
@@ -5671,7 +5746,7 @@ type DraftReleaseUncertain struct {
 
 func (x *DraftReleaseUncertain) Reset() {
 	*x = DraftReleaseUncertain{}
-	mi := &file_operations_proto_msgTypes[63]
+	mi := &file_operations_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5683,7 +5758,7 @@ func (x *DraftReleaseUncertain) String() string {
 func (*DraftReleaseUncertain) ProtoMessage() {}
 
 func (x *DraftReleaseUncertain) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[63]
+	mi := &file_operations_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5696,7 +5771,7 @@ func (x *DraftReleaseUncertain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DraftReleaseUncertain.ProtoReflect.Descriptor instead.
 func (*DraftReleaseUncertain) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{63}
+	return file_operations_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *DraftReleaseUncertain) GetRequest() *ReleaseOwnedDraftRequest {
@@ -5735,7 +5810,7 @@ type ReleaseOwnedDraftReply struct {
 
 func (x *ReleaseOwnedDraftReply) Reset() {
 	*x = ReleaseOwnedDraftReply{}
-	mi := &file_operations_proto_msgTypes[64]
+	mi := &file_operations_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5747,7 +5822,7 @@ func (x *ReleaseOwnedDraftReply) String() string {
 func (*ReleaseOwnedDraftReply) ProtoMessage() {}
 
 func (x *ReleaseOwnedDraftReply) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[64]
+	mi := &file_operations_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5760,7 +5835,7 @@ func (x *ReleaseOwnedDraftReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseOwnedDraftReply.ProtoReflect.Descriptor instead.
 func (*ReleaseOwnedDraftReply) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{64}
+	return file_operations_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *ReleaseOwnedDraftReply) GetOutcome() isReleaseOwnedDraftReply_Outcome {
@@ -5844,7 +5919,7 @@ type ApplyRequest struct {
 
 func (x *ApplyRequest) Reset() {
 	*x = ApplyRequest{}
-	mi := &file_operations_proto_msgTypes[65]
+	mi := &file_operations_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5856,7 +5931,7 @@ func (x *ApplyRequest) String() string {
 func (*ApplyRequest) ProtoMessage() {}
 
 func (x *ApplyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[65]
+	mi := &file_operations_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5869,7 +5944,7 @@ func (x *ApplyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyRequest.ProtoReflect.Descriptor instead.
 func (*ApplyRequest) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{65}
+	return file_operations_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *ApplyRequest) GetIdentity() *commonpb.Identity {
@@ -5922,7 +5997,7 @@ type Action struct {
 
 func (x *Action) Reset() {
 	*x = Action{}
-	mi := &file_operations_proto_msgTypes[66]
+	mi := &file_operations_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5934,7 +6009,7 @@ func (x *Action) String() string {
 func (*Action) ProtoMessage() {}
 
 func (x *Action) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[66]
+	mi := &file_operations_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5947,7 +6022,7 @@ func (x *Action) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Action.ProtoReflect.Descriptor instead.
 func (*Action) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{66}
+	return file_operations_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *Action) GetKey() string {
@@ -6330,7 +6405,7 @@ type HomeIntent struct {
 
 func (x *HomeIntent) Reset() {
 	*x = HomeIntent{}
-	mi := &file_operations_proto_msgTypes[67]
+	mi := &file_operations_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6342,7 +6417,7 @@ func (x *HomeIntent) String() string {
 func (*HomeIntent) ProtoMessage() {}
 
 func (x *HomeIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[67]
+	mi := &file_operations_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6355,7 +6430,7 @@ func (x *HomeIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HomeIntent.ProtoReflect.Descriptor instead.
 func (*HomeIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{67}
+	return file_operations_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *HomeIntent) GetTargetId() string {
@@ -6380,7 +6455,7 @@ type CoverIntent struct {
 
 func (x *CoverIntent) Reset() {
 	*x = CoverIntent{}
-	mi := &file_operations_proto_msgTypes[68]
+	mi := &file_operations_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6392,7 +6467,7 @@ func (x *CoverIntent) String() string {
 func (*CoverIntent) ProtoMessage() {}
 
 func (x *CoverIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[68]
+	mi := &file_operations_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6405,7 +6480,7 @@ func (x *CoverIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverIntent.ProtoReflect.Descriptor instead.
 func (*CoverIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{68}
+	return file_operations_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *CoverIntent) GetThingId() string {
@@ -6442,7 +6517,7 @@ type HusbandryIntent struct {
 
 func (x *HusbandryIntent) Reset() {
 	*x = HusbandryIntent{}
-	mi := &file_operations_proto_msgTypes[69]
+	mi := &file_operations_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6454,7 +6529,7 @@ func (x *HusbandryIntent) String() string {
 func (*HusbandryIntent) ProtoMessage() {}
 
 func (x *HusbandryIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[69]
+	mi := &file_operations_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6467,7 +6542,7 @@ func (x *HusbandryIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HusbandryIntent.ProtoReflect.Descriptor instead.
 func (*HusbandryIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{69}
+	return file_operations_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *HusbandryIntent) GetAnimalId() string {
@@ -6523,7 +6598,7 @@ type ProductionBillIntent struct {
 
 func (x *ProductionBillIntent) Reset() {
 	*x = ProductionBillIntent{}
-	mi := &file_operations_proto_msgTypes[70]
+	mi := &file_operations_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6535,7 +6610,7 @@ func (x *ProductionBillIntent) String() string {
 func (*ProductionBillIntent) ProtoMessage() {}
 
 func (x *ProductionBillIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[70]
+	mi := &file_operations_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6548,7 +6623,7 @@ func (x *ProductionBillIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProductionBillIntent.ProtoReflect.Descriptor instead.
 func (*ProductionBillIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{70}
+	return file_operations_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *ProductionBillIntent) GetBenchId() string {
@@ -6600,7 +6675,7 @@ type WorkSettingsIntent struct {
 
 func (x *WorkSettingsIntent) Reset() {
 	*x = WorkSettingsIntent{}
-	mi := &file_operations_proto_msgTypes[71]
+	mi := &file_operations_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6612,7 +6687,7 @@ func (x *WorkSettingsIntent) String() string {
 func (*WorkSettingsIntent) ProtoMessage() {}
 
 func (x *WorkSettingsIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[71]
+	mi := &file_operations_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6625,7 +6700,7 @@ func (x *WorkSettingsIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkSettingsIntent.ProtoReflect.Descriptor instead.
 func (*WorkSettingsIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{71}
+	return file_operations_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *WorkSettingsIntent) GetPawnId() string {
@@ -6692,7 +6767,7 @@ type BedAssignIntent struct {
 
 func (x *BedAssignIntent) Reset() {
 	*x = BedAssignIntent{}
-	mi := &file_operations_proto_msgTypes[72]
+	mi := &file_operations_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6704,7 +6779,7 @@ func (x *BedAssignIntent) String() string {
 func (*BedAssignIntent) ProtoMessage() {}
 
 func (x *BedAssignIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[72]
+	mi := &file_operations_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6717,7 +6792,7 @@ func (x *BedAssignIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BedAssignIntent.ProtoReflect.Descriptor instead.
 func (*BedAssignIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{72}
+	return file_operations_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *BedAssignIntent) GetPawnId() string {
@@ -6754,7 +6829,7 @@ type PrisonerInteractionIntent struct {
 
 func (x *PrisonerInteractionIntent) Reset() {
 	*x = PrisonerInteractionIntent{}
-	mi := &file_operations_proto_msgTypes[73]
+	mi := &file_operations_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6766,7 +6841,7 @@ func (x *PrisonerInteractionIntent) String() string {
 func (*PrisonerInteractionIntent) ProtoMessage() {}
 
 func (x *PrisonerInteractionIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[73]
+	mi := &file_operations_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6779,7 +6854,7 @@ func (x *PrisonerInteractionIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrisonerInteractionIntent.ProtoReflect.Descriptor instead.
 func (*PrisonerInteractionIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{73}
+	return file_operations_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *PrisonerInteractionIntent) GetPawnId() string {
@@ -6808,7 +6883,7 @@ type DialogIntent struct {
 
 func (x *DialogIntent) Reset() {
 	*x = DialogIntent{}
-	mi := &file_operations_proto_msgTypes[74]
+	mi := &file_operations_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6820,7 +6895,7 @@ func (x *DialogIntent) String() string {
 func (*DialogIntent) ProtoMessage() {}
 
 func (x *DialogIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[74]
+	mi := &file_operations_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6833,7 +6908,7 @@ func (x *DialogIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DialogIntent.ProtoReflect.Descriptor instead.
 func (*DialogIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{74}
+	return file_operations_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *DialogIntent) GetWindowId() int32 {
@@ -6880,7 +6955,7 @@ type NamingIntent struct {
 
 func (x *NamingIntent) Reset() {
 	*x = NamingIntent{}
-	mi := &file_operations_proto_msgTypes[75]
+	mi := &file_operations_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6892,7 +6967,7 @@ func (x *NamingIntent) String() string {
 func (*NamingIntent) ProtoMessage() {}
 
 func (x *NamingIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[75]
+	mi := &file_operations_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6905,7 +6980,7 @@ func (x *NamingIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NamingIntent.ProtoReflect.Descriptor instead.
 func (*NamingIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{75}
+	return file_operations_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *NamingIntent) GetWindowId() int32 {
@@ -6941,7 +7016,7 @@ type ResearchIntent struct {
 
 func (x *ResearchIntent) Reset() {
 	*x = ResearchIntent{}
-	mi := &file_operations_proto_msgTypes[76]
+	mi := &file_operations_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6953,7 +7028,7 @@ func (x *ResearchIntent) String() string {
 func (*ResearchIntent) ProtoMessage() {}
 
 func (x *ResearchIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[76]
+	mi := &file_operations_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6966,7 +7041,7 @@ func (x *ResearchIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchIntent.ProtoReflect.Descriptor instead.
 func (*ResearchIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{76}
+	return file_operations_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *ResearchIntent) GetProjectDef() string {
@@ -6994,7 +7069,7 @@ type ApparelPolicyIntent struct {
 
 func (x *ApparelPolicyIntent) Reset() {
 	*x = ApparelPolicyIntent{}
-	mi := &file_operations_proto_msgTypes[77]
+	mi := &file_operations_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7006,7 +7081,7 @@ func (x *ApparelPolicyIntent) String() string {
 func (*ApparelPolicyIntent) ProtoMessage() {}
 
 func (x *ApparelPolicyIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[77]
+	mi := &file_operations_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7019,7 +7094,7 @@ func (x *ApparelPolicyIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApparelPolicyIntent.ProtoReflect.Descriptor instead.
 func (*ApparelPolicyIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{77}
+	return file_operations_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *ApparelPolicyIntent) GetPawnId() string {
@@ -7090,7 +7165,7 @@ type FormCaravanIntent struct {
 
 func (x *FormCaravanIntent) Reset() {
 	*x = FormCaravanIntent{}
-	mi := &file_operations_proto_msgTypes[78]
+	mi := &file_operations_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7102,7 +7177,7 @@ func (x *FormCaravanIntent) String() string {
 func (*FormCaravanIntent) ProtoMessage() {}
 
 func (x *FormCaravanIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[78]
+	mi := &file_operations_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7115,7 +7190,7 @@ func (x *FormCaravanIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FormCaravanIntent.ProtoReflect.Descriptor instead.
 func (*FormCaravanIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{78}
+	return file_operations_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *FormCaravanIntent) GetPawnIds() []string {
@@ -7154,7 +7229,7 @@ type AcceptQuestIntent struct {
 
 func (x *AcceptQuestIntent) Reset() {
 	*x = AcceptQuestIntent{}
-	mi := &file_operations_proto_msgTypes[79]
+	mi := &file_operations_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7166,7 +7241,7 @@ func (x *AcceptQuestIntent) String() string {
 func (*AcceptQuestIntent) ProtoMessage() {}
 
 func (x *AcceptQuestIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[79]
+	mi := &file_operations_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7179,7 +7254,7 @@ func (x *AcceptQuestIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptQuestIntent.ProtoReflect.Descriptor instead.
 func (*AcceptQuestIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{79}
+	return file_operations_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *AcceptQuestIntent) GetQuestId() string {
@@ -7218,7 +7293,7 @@ type MeleeIntent struct {
 
 func (x *MeleeIntent) Reset() {
 	*x = MeleeIntent{}
-	mi := &file_operations_proto_msgTypes[80]
+	mi := &file_operations_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7230,7 +7305,7 @@ func (x *MeleeIntent) String() string {
 func (*MeleeIntent) ProtoMessage() {}
 
 func (x *MeleeIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[80]
+	mi := &file_operations_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7243,7 +7318,7 @@ func (x *MeleeIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MeleeIntent.ProtoReflect.Descriptor instead.
 func (*MeleeIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{80}
+	return file_operations_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *MeleeIntent) GetPawnId() string {
@@ -7280,7 +7355,7 @@ type MoveIntent struct {
 
 func (x *MoveIntent) Reset() {
 	*x = MoveIntent{}
-	mi := &file_operations_proto_msgTypes[81]
+	mi := &file_operations_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7292,7 +7367,7 @@ func (x *MoveIntent) String() string {
 func (*MoveIntent) ProtoMessage() {}
 
 func (x *MoveIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[81]
+	mi := &file_operations_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7305,7 +7380,7 @@ func (x *MoveIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveIntent.ProtoReflect.Descriptor instead.
 func (*MoveIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{81}
+	return file_operations_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *MoveIntent) GetPawnId() string {
@@ -7335,7 +7410,7 @@ type HaulIntent struct {
 
 func (x *HaulIntent) Reset() {
 	*x = HaulIntent{}
-	mi := &file_operations_proto_msgTypes[82]
+	mi := &file_operations_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7347,7 +7422,7 @@ func (x *HaulIntent) String() string {
 func (*HaulIntent) ProtoMessage() {}
 
 func (x *HaulIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[82]
+	mi := &file_operations_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7360,7 +7435,7 @@ func (x *HaulIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaulIntent.ProtoReflect.Descriptor instead.
 func (*HaulIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{82}
+	return file_operations_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *HaulIntent) GetPawnId() string {
@@ -7392,7 +7467,7 @@ type BuildingIntent struct {
 
 func (x *BuildingIntent) Reset() {
 	*x = BuildingIntent{}
-	mi := &file_operations_proto_msgTypes[83]
+	mi := &file_operations_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7404,7 +7479,7 @@ func (x *BuildingIntent) String() string {
 func (*BuildingIntent) ProtoMessage() {}
 
 func (x *BuildingIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[83]
+	mi := &file_operations_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7417,7 +7492,7 @@ func (x *BuildingIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildingIntent.ProtoReflect.Descriptor instead.
 func (*BuildingIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{83}
+	return file_operations_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *BuildingIntent) GetPlacement() *placementpb.PlacementCandidate {
@@ -7446,7 +7521,7 @@ type TradeIntent struct {
 
 func (x *TradeIntent) Reset() {
 	*x = TradeIntent{}
-	mi := &file_operations_proto_msgTypes[84]
+	mi := &file_operations_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7458,7 +7533,7 @@ func (x *TradeIntent) String() string {
 func (*TradeIntent) ProtoMessage() {}
 
 func (x *TradeIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[84]
+	mi := &file_operations_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7471,7 +7546,7 @@ func (x *TradeIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeIntent.ProtoReflect.Descriptor instead.
 func (*TradeIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{84}
+	return file_operations_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *TradeIntent) GetTraderId() string {
@@ -7569,7 +7644,7 @@ type Refusal struct {
 
 func (x *Refusal) Reset() {
 	*x = Refusal{}
-	mi := &file_operations_proto_msgTypes[85]
+	mi := &file_operations_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7581,7 +7656,7 @@ func (x *Refusal) String() string {
 func (*Refusal) ProtoMessage() {}
 
 func (x *Refusal) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[85]
+	mi := &file_operations_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7594,7 +7669,7 @@ func (x *Refusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Refusal.ProtoReflect.Descriptor instead.
 func (*Refusal) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{85}
+	return file_operations_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *Refusal) GetCode() commonpb.FailureCode {
@@ -7626,7 +7701,7 @@ type ActionResult struct {
 
 func (x *ActionResult) Reset() {
 	*x = ActionResult{}
-	mi := &file_operations_proto_msgTypes[86]
+	mi := &file_operations_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7638,7 +7713,7 @@ func (x *ActionResult) String() string {
 func (*ActionResult) ProtoMessage() {}
 
 func (x *ActionResult) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[86]
+	mi := &file_operations_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7651,7 +7726,7 @@ func (x *ActionResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionResult.ProtoReflect.Descriptor instead.
 func (*ActionResult) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{86}
+	return file_operations_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *ActionResult) GetKey() string {
@@ -7728,7 +7803,7 @@ type ApplyReply struct {
 
 func (x *ApplyReply) Reset() {
 	*x = ApplyReply{}
-	mi := &file_operations_proto_msgTypes[87]
+	mi := &file_operations_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7740,7 +7815,7 @@ func (x *ApplyReply) String() string {
 func (*ApplyReply) ProtoMessage() {}
 
 func (x *ApplyReply) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[87]
+	mi := &file_operations_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7753,7 +7828,7 @@ func (x *ApplyReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyReply.ProtoReflect.Descriptor instead.
 func (*ApplyReply) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{87}
+	return file_operations_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *ApplyReply) GetResults() []*ActionResult {
@@ -7922,12 +7997,15 @@ const file_operations_proto_rawDesc = "" +
 	"\x06downed\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06downed\x12/\n" +
 	"\x04dest\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04dest\"?\n" +
 	"\fCombatRepair\x12/\n" +
-	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\"\x8a\x01\n" +
+	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\"x\n" +
+	"\fCombatMortar\x123\n" +
+	"\x06mortar\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x06mortar\x123\n" +
+	"\x06target\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x06target\"\x8a\x01\n" +
 	"\n" +
 	"CombatDoor\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12B\n" +
 	"\x04mode\x18\x02 \x01(\x0e2).rimgovernor.operations.v1.CombatDoorModeH\x00R\x04mode\x88\x01\x01B\a\n" +
-	"\x05_mode\"\xe1\x05\n" +
+	"\x05_mode\"\xa4\x06\n" +
 	"\vCombatOrder\x12A\n" +
 	"\x04pawn\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x04pawn\x121\n" +
 	"\x04move\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x00R\x04move\x12G\n" +
@@ -7940,7 +8018,8 @@ const file_operations_proto_rawDesc = "" +
 	"\x06rescue\x18\t \x01(\v2'.rimgovernor.operations.v1.CombatRescueH\x00R\x06rescue\x12A\n" +
 	"\x06repair\x18\n" +
 	" \x01(\v2'.rimgovernor.operations.v1.CombatRepairH\x00R\x06repair\x128\n" +
-	"\x05draft\x18\v \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\x05draftB\a\n" +
+	"\x05draft\x18\v \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\x05draft\x12A\n" +
+	"\x06mortar\x18\f \x01(\v2'.rimgovernor.operations.v1.CombatMortarH\x00R\x06mortarB\a\n" +
 	"\x05order\"N\n" +
 	"\fCombatOrders\x12>\n" +
 	"\x06orders\x18\x01 \x03(\v2&.rimgovernor.operations.v1.CombatOrderR\x06orders\"\xd0\x01\n" +
@@ -8550,7 +8629,7 @@ func file_operations_proto_rawDescGZIP() []byte {
 }
 
 var file_operations_proto_enumTypes = make([]protoimpl.EnumInfo, 18)
-var file_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 88)
+var file_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 89)
 var file_operations_proto_goTypes = []any{
 	(CombatFireMode)(0),                    // 0: rimgovernor.operations.v1.CombatFireMode
 	(CombatDoorMode)(0),                    // 1: rimgovernor.operations.v1.CombatDoorMode
@@ -8591,280 +8670,284 @@ var file_operations_proto_goTypes = []any{
 	(*Uninstall)(nil),                      // 36: rimgovernor.operations.v1.Uninstall
 	(*CombatRescue)(nil),                   // 37: rimgovernor.operations.v1.CombatRescue
 	(*CombatRepair)(nil),                   // 38: rimgovernor.operations.v1.CombatRepair
-	(*CombatDoor)(nil),                     // 39: rimgovernor.operations.v1.CombatDoor
-	(*CombatOrder)(nil),                    // 40: rimgovernor.operations.v1.CombatOrder
-	(*CombatOrders)(nil),                   // 41: rimgovernor.operations.v1.CombatOrders
-	(*AcquireResource)(nil),                // 42: rimgovernor.operations.v1.AcquireResource
-	(*CancelAcquisition)(nil),              // 43: rimgovernor.operations.v1.CancelAcquisition
-	(*DesignateThing)(nil),                 // 44: rimgovernor.operations.v1.DesignateThing
-	(*PatchBuilding)(nil),                  // 45: rimgovernor.operations.v1.PatchBuilding
-	(*WorkPriority)(nil),                   // 46: rimgovernor.operations.v1.WorkPriority
-	(*Schedule)(nil),                       // 47: rimgovernor.operations.v1.Schedule
-	(*FilterSelector)(nil),                 // 48: rimgovernor.operations.v1.FilterSelector
-	(*SelectorList)(nil),                   // 49: rimgovernor.operations.v1.SelectorList
-	(*FilterPatch)(nil),                    // 50: rimgovernor.operations.v1.FilterPatch
-	(*BillStore)(nil),                      // 51: rimgovernor.operations.v1.BillStore
-	(*BillSettings)(nil),                   // 52: rimgovernor.operations.v1.BillSettings
-	(*DefinitionList)(nil),                 // 53: rimgovernor.operations.v1.DefinitionList
-	(*StockpileSettings)(nil),              // 54: rimgovernor.operations.v1.StockpileSettings
-	(*GrowingSettings)(nil),                // 55: rimgovernor.operations.v1.GrowingSettings
-	(*FishingSettings)(nil),                // 56: rimgovernor.operations.v1.FishingSettings
-	(*CreateZone)(nil),                     // 57: rimgovernor.operations.v1.CreateZone
-	(*DeleteZoneIntent)(nil),               // 58: rimgovernor.operations.v1.DeleteZoneIntent
-	(*RemoveFoundationIntent)(nil),         // 59: rimgovernor.operations.v1.RemoveFoundationIntent
-	(*ZoneCellsIntent)(nil),                // 60: rimgovernor.operations.v1.ZoneCellsIntent
-	(*StockpileIntent)(nil),                // 61: rimgovernor.operations.v1.StockpileIntent
-	(*Deconstruct)(nil),                    // 62: rimgovernor.operations.v1.Deconstruct
-	(*ReleaseDeconstructions)(nil),         // 63: rimgovernor.operations.v1.ReleaseDeconstructions
-	(*RemoveWall)(nil),                     // 64: rimgovernor.operations.v1.RemoveWall
-	(*Arrest)(nil),                         // 65: rimgovernor.operations.v1.Arrest
-	(*RecoverService)(nil),                 // 66: rimgovernor.operations.v1.RecoverService
-	(*ManageWaste)(nil),                    // 67: rimgovernor.operations.v1.ManageWaste
-	(*ExpectedJob)(nil),                    // 68: rimgovernor.operations.v1.ExpectedJob
-	(*RelieveNeed)(nil),                    // 69: rimgovernor.operations.v1.RelieveNeed
-	(*ImproveGear)(nil),                    // 70: rimgovernor.operations.v1.ImproveGear
-	(*SetDrafted)(nil),                     // 71: rimgovernor.operations.v1.SetDrafted
-	(*AttackTarget)(nil),                   // 72: rimgovernor.operations.v1.AttackTarget
-	(*PawnTargetOrder)(nil),                // 73: rimgovernor.operations.v1.PawnTargetOrder
-	(*OpenTrade)(nil),                      // 74: rimgovernor.operations.v1.OpenTrade
-	(*TradeLine)(nil),                      // 75: rimgovernor.operations.v1.TradeLine
-	(*SetTradeLines)(nil),                  // 76: rimgovernor.operations.v1.SetTradeLines
-	(*AcceptTrade)(nil),                    // 77: rimgovernor.operations.v1.AcceptTrade
-	(*EndTrade)(nil),                       // 78: rimgovernor.operations.v1.EndTrade
-	(*ReleaseOwnedDraftRequest)(nil),       // 79: rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	(*DraftRelease)(nil),                   // 80: rimgovernor.operations.v1.DraftRelease
-	(*DraftReleaseUncertain)(nil),          // 81: rimgovernor.operations.v1.DraftReleaseUncertain
-	(*ReleaseOwnedDraftReply)(nil),         // 82: rimgovernor.operations.v1.ReleaseOwnedDraftReply
-	(*ApplyRequest)(nil),                   // 83: rimgovernor.operations.v1.ApplyRequest
-	(*Action)(nil),                         // 84: rimgovernor.operations.v1.Action
-	(*HomeIntent)(nil),                     // 85: rimgovernor.operations.v1.HomeIntent
-	(*CoverIntent)(nil),                    // 86: rimgovernor.operations.v1.CoverIntent
-	(*HusbandryIntent)(nil),                // 87: rimgovernor.operations.v1.HusbandryIntent
-	(*ProductionBillIntent)(nil),           // 88: rimgovernor.operations.v1.ProductionBillIntent
-	(*WorkSettingsIntent)(nil),             // 89: rimgovernor.operations.v1.WorkSettingsIntent
-	(*BedAssignIntent)(nil),                // 90: rimgovernor.operations.v1.BedAssignIntent
-	(*PrisonerInteractionIntent)(nil),      // 91: rimgovernor.operations.v1.PrisonerInteractionIntent
-	(*DialogIntent)(nil),                   // 92: rimgovernor.operations.v1.DialogIntent
-	(*NamingIntent)(nil),                   // 93: rimgovernor.operations.v1.NamingIntent
-	(*ResearchIntent)(nil),                 // 94: rimgovernor.operations.v1.ResearchIntent
-	(*ApparelPolicyIntent)(nil),            // 95: rimgovernor.operations.v1.ApparelPolicyIntent
-	(*FormCaravanIntent)(nil),              // 96: rimgovernor.operations.v1.FormCaravanIntent
-	(*AcceptQuestIntent)(nil),              // 97: rimgovernor.operations.v1.AcceptQuestIntent
-	(*MeleeIntent)(nil),                    // 98: rimgovernor.operations.v1.MeleeIntent
-	(*MoveIntent)(nil),                     // 99: rimgovernor.operations.v1.MoveIntent
-	(*HaulIntent)(nil),                     // 100: rimgovernor.operations.v1.HaulIntent
-	(*BuildingIntent)(nil),                 // 101: rimgovernor.operations.v1.BuildingIntent
-	(*TradeIntent)(nil),                    // 102: rimgovernor.operations.v1.TradeIntent
-	(*Refusal)(nil),                        // 103: rimgovernor.operations.v1.Refusal
-	(*ActionResult)(nil),                   // 104: rimgovernor.operations.v1.ActionResult
-	(*ApplyReply)(nil),                     // 105: rimgovernor.operations.v1.ApplyReply
-	(*authoritypb.WritePrecondition)(nil),  // 106: rimgovernor.authority.v1.WritePrecondition
-	(*receiptspb.Receipt)(nil),             // 107: rimgovernor.receipts.v1.Receipt
-	(*commonpb.Failure)(nil),               // 108: rimgovernor.common.v1.Failure
-	(*commonpb.Identity)(nil),              // 109: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil),    // 110: rimgovernor.common.v1.ObservationContext
-	(*receiptspb.EffectEvidence)(nil),      // 111: rimgovernor.receipts.v1.EffectEvidence
-	(*placementpb.PlacementEvaluated)(nil), // 112: rimgovernor.placement.v1.PlacementEvaluated
-	(*commonpb.Cell)(nil),                  // 113: rimgovernor.common.v1.Cell
-	(placementpb.Rotation)(0),              // 114: rimgovernor.placement.v1.Rotation
-	(commonpb.CorpseClass)(0),              // 115: rimgovernor.common.v1.CorpseClass
-	(*receiptspb.JobEffect)(nil),           // 116: rimgovernor.receipts.v1.JobEffect
-	(*placementpb.PlacementCandidate)(nil), // 117: rimgovernor.placement.v1.PlacementCandidate
-	(commonpb.FailureCode)(0),              // 118: rimgovernor.common.v1.FailureCode
+	(*CombatMortar)(nil),                   // 39: rimgovernor.operations.v1.CombatMortar
+	(*CombatDoor)(nil),                     // 40: rimgovernor.operations.v1.CombatDoor
+	(*CombatOrder)(nil),                    // 41: rimgovernor.operations.v1.CombatOrder
+	(*CombatOrders)(nil),                   // 42: rimgovernor.operations.v1.CombatOrders
+	(*AcquireResource)(nil),                // 43: rimgovernor.operations.v1.AcquireResource
+	(*CancelAcquisition)(nil),              // 44: rimgovernor.operations.v1.CancelAcquisition
+	(*DesignateThing)(nil),                 // 45: rimgovernor.operations.v1.DesignateThing
+	(*PatchBuilding)(nil),                  // 46: rimgovernor.operations.v1.PatchBuilding
+	(*WorkPriority)(nil),                   // 47: rimgovernor.operations.v1.WorkPriority
+	(*Schedule)(nil),                       // 48: rimgovernor.operations.v1.Schedule
+	(*FilterSelector)(nil),                 // 49: rimgovernor.operations.v1.FilterSelector
+	(*SelectorList)(nil),                   // 50: rimgovernor.operations.v1.SelectorList
+	(*FilterPatch)(nil),                    // 51: rimgovernor.operations.v1.FilterPatch
+	(*BillStore)(nil),                      // 52: rimgovernor.operations.v1.BillStore
+	(*BillSettings)(nil),                   // 53: rimgovernor.operations.v1.BillSettings
+	(*DefinitionList)(nil),                 // 54: rimgovernor.operations.v1.DefinitionList
+	(*StockpileSettings)(nil),              // 55: rimgovernor.operations.v1.StockpileSettings
+	(*GrowingSettings)(nil),                // 56: rimgovernor.operations.v1.GrowingSettings
+	(*FishingSettings)(nil),                // 57: rimgovernor.operations.v1.FishingSettings
+	(*CreateZone)(nil),                     // 58: rimgovernor.operations.v1.CreateZone
+	(*DeleteZoneIntent)(nil),               // 59: rimgovernor.operations.v1.DeleteZoneIntent
+	(*RemoveFoundationIntent)(nil),         // 60: rimgovernor.operations.v1.RemoveFoundationIntent
+	(*ZoneCellsIntent)(nil),                // 61: rimgovernor.operations.v1.ZoneCellsIntent
+	(*StockpileIntent)(nil),                // 62: rimgovernor.operations.v1.StockpileIntent
+	(*Deconstruct)(nil),                    // 63: rimgovernor.operations.v1.Deconstruct
+	(*ReleaseDeconstructions)(nil),         // 64: rimgovernor.operations.v1.ReleaseDeconstructions
+	(*RemoveWall)(nil),                     // 65: rimgovernor.operations.v1.RemoveWall
+	(*Arrest)(nil),                         // 66: rimgovernor.operations.v1.Arrest
+	(*RecoverService)(nil),                 // 67: rimgovernor.operations.v1.RecoverService
+	(*ManageWaste)(nil),                    // 68: rimgovernor.operations.v1.ManageWaste
+	(*ExpectedJob)(nil),                    // 69: rimgovernor.operations.v1.ExpectedJob
+	(*RelieveNeed)(nil),                    // 70: rimgovernor.operations.v1.RelieveNeed
+	(*ImproveGear)(nil),                    // 71: rimgovernor.operations.v1.ImproveGear
+	(*SetDrafted)(nil),                     // 72: rimgovernor.operations.v1.SetDrafted
+	(*AttackTarget)(nil),                   // 73: rimgovernor.operations.v1.AttackTarget
+	(*PawnTargetOrder)(nil),                // 74: rimgovernor.operations.v1.PawnTargetOrder
+	(*OpenTrade)(nil),                      // 75: rimgovernor.operations.v1.OpenTrade
+	(*TradeLine)(nil),                      // 76: rimgovernor.operations.v1.TradeLine
+	(*SetTradeLines)(nil),                  // 77: rimgovernor.operations.v1.SetTradeLines
+	(*AcceptTrade)(nil),                    // 78: rimgovernor.operations.v1.AcceptTrade
+	(*EndTrade)(nil),                       // 79: rimgovernor.operations.v1.EndTrade
+	(*ReleaseOwnedDraftRequest)(nil),       // 80: rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	(*DraftRelease)(nil),                   // 81: rimgovernor.operations.v1.DraftRelease
+	(*DraftReleaseUncertain)(nil),          // 82: rimgovernor.operations.v1.DraftReleaseUncertain
+	(*ReleaseOwnedDraftReply)(nil),         // 83: rimgovernor.operations.v1.ReleaseOwnedDraftReply
+	(*ApplyRequest)(nil),                   // 84: rimgovernor.operations.v1.ApplyRequest
+	(*Action)(nil),                         // 85: rimgovernor.operations.v1.Action
+	(*HomeIntent)(nil),                     // 86: rimgovernor.operations.v1.HomeIntent
+	(*CoverIntent)(nil),                    // 87: rimgovernor.operations.v1.CoverIntent
+	(*HusbandryIntent)(nil),                // 88: rimgovernor.operations.v1.HusbandryIntent
+	(*ProductionBillIntent)(nil),           // 89: rimgovernor.operations.v1.ProductionBillIntent
+	(*WorkSettingsIntent)(nil),             // 90: rimgovernor.operations.v1.WorkSettingsIntent
+	(*BedAssignIntent)(nil),                // 91: rimgovernor.operations.v1.BedAssignIntent
+	(*PrisonerInteractionIntent)(nil),      // 92: rimgovernor.operations.v1.PrisonerInteractionIntent
+	(*DialogIntent)(nil),                   // 93: rimgovernor.operations.v1.DialogIntent
+	(*NamingIntent)(nil),                   // 94: rimgovernor.operations.v1.NamingIntent
+	(*ResearchIntent)(nil),                 // 95: rimgovernor.operations.v1.ResearchIntent
+	(*ApparelPolicyIntent)(nil),            // 96: rimgovernor.operations.v1.ApparelPolicyIntent
+	(*FormCaravanIntent)(nil),              // 97: rimgovernor.operations.v1.FormCaravanIntent
+	(*AcceptQuestIntent)(nil),              // 98: rimgovernor.operations.v1.AcceptQuestIntent
+	(*MeleeIntent)(nil),                    // 99: rimgovernor.operations.v1.MeleeIntent
+	(*MoveIntent)(nil),                     // 100: rimgovernor.operations.v1.MoveIntent
+	(*HaulIntent)(nil),                     // 101: rimgovernor.operations.v1.HaulIntent
+	(*BuildingIntent)(nil),                 // 102: rimgovernor.operations.v1.BuildingIntent
+	(*TradeIntent)(nil),                    // 103: rimgovernor.operations.v1.TradeIntent
+	(*Refusal)(nil),                        // 104: rimgovernor.operations.v1.Refusal
+	(*ActionResult)(nil),                   // 105: rimgovernor.operations.v1.ActionResult
+	(*ApplyReply)(nil),                     // 106: rimgovernor.operations.v1.ApplyReply
+	(*authoritypb.WritePrecondition)(nil),  // 107: rimgovernor.authority.v1.WritePrecondition
+	(*receiptspb.Receipt)(nil),             // 108: rimgovernor.receipts.v1.Receipt
+	(*commonpb.Failure)(nil),               // 109: rimgovernor.common.v1.Failure
+	(*commonpb.Identity)(nil),              // 110: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil),    // 111: rimgovernor.common.v1.ObservationContext
+	(*receiptspb.EffectEvidence)(nil),      // 112: rimgovernor.receipts.v1.EffectEvidence
+	(*placementpb.PlacementEvaluated)(nil), // 113: rimgovernor.placement.v1.PlacementEvaluated
+	(*commonpb.Cell)(nil),                  // 114: rimgovernor.common.v1.Cell
+	(placementpb.Rotation)(0),              // 115: rimgovernor.placement.v1.Rotation
+	(commonpb.CorpseClass)(0),              // 116: rimgovernor.common.v1.CorpseClass
+	(*receiptspb.JobEffect)(nil),           // 117: rimgovernor.receipts.v1.JobEffect
+	(*placementpb.PlacementCandidate)(nil), // 118: rimgovernor.placement.v1.PlacementCandidate
+	(commonpb.FailureCode)(0),              // 119: rimgovernor.common.v1.FailureCode
 }
 var file_operations_proto_depIdxs = []int32{
-	106, // 0: rimgovernor.operations.v1.ExecuteRequest.precondition:type_name -> rimgovernor.authority.v1.WritePrecondition
+	107, // 0: rimgovernor.operations.v1.ExecuteRequest.precondition:type_name -> rimgovernor.authority.v1.WritePrecondition
 	26,  // 1: rimgovernor.operations.v1.ExecuteRequest.operation:type_name -> rimgovernor.operations.v1.Operation
-	107, // 2: rimgovernor.operations.v1.ExecuteReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
-	108, // 3: rimgovernor.operations.v1.ExecuteReply.failure:type_name -> rimgovernor.common.v1.Failure
-	109, // 4: rimgovernor.operations.v1.PreviewRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	108, // 2: rimgovernor.operations.v1.ExecuteReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
+	109, // 3: rimgovernor.operations.v1.ExecuteReply.failure:type_name -> rimgovernor.common.v1.Failure
+	110, // 4: rimgovernor.operations.v1.PreviewRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	26,  // 5: rimgovernor.operations.v1.PreviewRequest.operation:type_name -> rimgovernor.operations.v1.Operation
 	22,  // 6: rimgovernor.operations.v1.PreviewReply.evaluated:type_name -> rimgovernor.operations.v1.PreviewEvaluation
-	108, // 7: rimgovernor.operations.v1.PreviewReply.failure:type_name -> rimgovernor.common.v1.Failure
-	110, // 8: rimgovernor.operations.v1.PreviewEvaluation.context:type_name -> rimgovernor.common.v1.ObservationContext
-	111, // 9: rimgovernor.operations.v1.PreviewEvaluation.projected:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	109, // 7: rimgovernor.operations.v1.PreviewReply.failure:type_name -> rimgovernor.common.v1.Failure
+	111, // 8: rimgovernor.operations.v1.PreviewEvaluation.context:type_name -> rimgovernor.common.v1.ObservationContext
+	112, // 9: rimgovernor.operations.v1.PreviewEvaluation.projected:type_name -> rimgovernor.receipts.v1.EffectEvidence
 	25,  // 10: rimgovernor.operations.v1.PreviewEvaluation.caravan:type_name -> rimgovernor.operations.v1.CaravanPreparation
-	112, // 11: rimgovernor.operations.v1.PreviewEvaluation.placement:type_name -> rimgovernor.placement.v1.PlacementEvaluated
+	113, // 11: rimgovernor.operations.v1.PreviewEvaluation.placement:type_name -> rimgovernor.placement.v1.PlacementEvaluated
 	30,  // 12: rimgovernor.operations.v1.CaravanPreparation.selected_cargo:type_name -> rimgovernor.operations.v1.DefCount
 	30,  // 13: rimgovernor.operations.v1.CaravanPreparation.carried_cargo:type_name -> rimgovernor.operations.v1.DefCount
 	23,  // 14: rimgovernor.operations.v1.CaravanPreparation.materials:type_name -> rimgovernor.operations.v1.StockAvailability
 	24,  // 15: rimgovernor.operations.v1.CaravanPreparation.route:type_name -> rimgovernor.operations.v1.RoutePreparation
 	35,  // 16: rimgovernor.operations.v1.Operation.install_building:type_name -> rimgovernor.operations.v1.InstallBuilding
-	42,  // 17: rimgovernor.operations.v1.Operation.acquire_resource:type_name -> rimgovernor.operations.v1.AcquireResource
-	44,  // 18: rimgovernor.operations.v1.Operation.designate_thing:type_name -> rimgovernor.operations.v1.DesignateThing
-	45,  // 19: rimgovernor.operations.v1.Operation.patch_building:type_name -> rimgovernor.operations.v1.PatchBuilding
-	57,  // 20: rimgovernor.operations.v1.Operation.create_zone:type_name -> rimgovernor.operations.v1.CreateZone
-	64,  // 21: rimgovernor.operations.v1.Operation.remove_wall:type_name -> rimgovernor.operations.v1.RemoveWall
-	66,  // 22: rimgovernor.operations.v1.Operation.recover_service:type_name -> rimgovernor.operations.v1.RecoverService
-	67,  // 23: rimgovernor.operations.v1.Operation.manage_waste:type_name -> rimgovernor.operations.v1.ManageWaste
-	69,  // 24: rimgovernor.operations.v1.Operation.relieve_need:type_name -> rimgovernor.operations.v1.RelieveNeed
-	70,  // 25: rimgovernor.operations.v1.Operation.improve_gear:type_name -> rimgovernor.operations.v1.ImproveGear
-	71,  // 26: rimgovernor.operations.v1.Operation.set_drafted:type_name -> rimgovernor.operations.v1.SetDrafted
-	72,  // 27: rimgovernor.operations.v1.Operation.attack_target:type_name -> rimgovernor.operations.v1.AttackTarget
-	73,  // 28: rimgovernor.operations.v1.Operation.pawn_target_order:type_name -> rimgovernor.operations.v1.PawnTargetOrder
+	43,  // 17: rimgovernor.operations.v1.Operation.acquire_resource:type_name -> rimgovernor.operations.v1.AcquireResource
+	45,  // 18: rimgovernor.operations.v1.Operation.designate_thing:type_name -> rimgovernor.operations.v1.DesignateThing
+	46,  // 19: rimgovernor.operations.v1.Operation.patch_building:type_name -> rimgovernor.operations.v1.PatchBuilding
+	58,  // 20: rimgovernor.operations.v1.Operation.create_zone:type_name -> rimgovernor.operations.v1.CreateZone
+	65,  // 21: rimgovernor.operations.v1.Operation.remove_wall:type_name -> rimgovernor.operations.v1.RemoveWall
+	67,  // 22: rimgovernor.operations.v1.Operation.recover_service:type_name -> rimgovernor.operations.v1.RecoverService
+	68,  // 23: rimgovernor.operations.v1.Operation.manage_waste:type_name -> rimgovernor.operations.v1.ManageWaste
+	70,  // 24: rimgovernor.operations.v1.Operation.relieve_need:type_name -> rimgovernor.operations.v1.RelieveNeed
+	71,  // 25: rimgovernor.operations.v1.Operation.improve_gear:type_name -> rimgovernor.operations.v1.ImproveGear
+	72,  // 26: rimgovernor.operations.v1.Operation.set_drafted:type_name -> rimgovernor.operations.v1.SetDrafted
+	73,  // 27: rimgovernor.operations.v1.Operation.attack_target:type_name -> rimgovernor.operations.v1.AttackTarget
+	74,  // 28: rimgovernor.operations.v1.Operation.pawn_target_order:type_name -> rimgovernor.operations.v1.PawnTargetOrder
 	34,  // 29: rimgovernor.operations.v1.Operation.excavate_cell:type_name -> rimgovernor.operations.v1.ExcavateCell
-	43,  // 30: rimgovernor.operations.v1.Operation.cancel_acquisition:type_name -> rimgovernor.operations.v1.CancelAcquisition
-	62,  // 31: rimgovernor.operations.v1.Operation.deconstruct:type_name -> rimgovernor.operations.v1.Deconstruct
-	63,  // 32: rimgovernor.operations.v1.Operation.release_deconstructions:type_name -> rimgovernor.operations.v1.ReleaseDeconstructions
-	65,  // 33: rimgovernor.operations.v1.Operation.arrest:type_name -> rimgovernor.operations.v1.Arrest
+	44,  // 30: rimgovernor.operations.v1.Operation.cancel_acquisition:type_name -> rimgovernor.operations.v1.CancelAcquisition
+	63,  // 31: rimgovernor.operations.v1.Operation.deconstruct:type_name -> rimgovernor.operations.v1.Deconstruct
+	64,  // 32: rimgovernor.operations.v1.Operation.release_deconstructions:type_name -> rimgovernor.operations.v1.ReleaseDeconstructions
+	66,  // 33: rimgovernor.operations.v1.Operation.arrest:type_name -> rimgovernor.operations.v1.Arrest
 	36,  // 34: rimgovernor.operations.v1.Operation.uninstall:type_name -> rimgovernor.operations.v1.Uninstall
-	41,  // 35: rimgovernor.operations.v1.Operation.combat_orders:type_name -> rimgovernor.operations.v1.CombatOrders
+	42,  // 35: rimgovernor.operations.v1.Operation.combat_orders:type_name -> rimgovernor.operations.v1.CombatOrders
 	28,  // 36: rimgovernor.operations.v1.Assignment.clear:type_name -> rimgovernor.operations.v1.Clear
-	113, // 37: rimgovernor.operations.v1.CellList.cells:type_name -> rimgovernor.common.v1.Cell
-	113, // 38: rimgovernor.operations.v1.Rectangle.origin:type_name -> rimgovernor.common.v1.Cell
+	114, // 37: rimgovernor.operations.v1.CellList.cells:type_name -> rimgovernor.common.v1.Cell
+	114, // 38: rimgovernor.operations.v1.Rectangle.origin:type_name -> rimgovernor.common.v1.Cell
 	31,  // 39: rimgovernor.operations.v1.Cells.explicit_cells:type_name -> rimgovernor.operations.v1.CellList
 	32,  // 40: rimgovernor.operations.v1.Cells.rectangle:type_name -> rimgovernor.operations.v1.Rectangle
-	113, // 41: rimgovernor.operations.v1.ExcavateCell.cell:type_name -> rimgovernor.common.v1.Cell
+	114, // 41: rimgovernor.operations.v1.ExcavateCell.cell:type_name -> rimgovernor.common.v1.Cell
 	27,  // 42: rimgovernor.operations.v1.InstallBuilding.packed_or_inner:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	113, // 43: rimgovernor.operations.v1.InstallBuilding.destination:type_name -> rimgovernor.common.v1.Cell
-	114, // 44: rimgovernor.operations.v1.InstallBuilding.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	114, // 43: rimgovernor.operations.v1.InstallBuilding.destination:type_name -> rimgovernor.common.v1.Cell
+	115, // 44: rimgovernor.operations.v1.InstallBuilding.rotation:type_name -> rimgovernor.placement.v1.Rotation
 	27,  // 45: rimgovernor.operations.v1.Uninstall.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	27,  // 46: rimgovernor.operations.v1.CombatRescue.downed:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	113, // 47: rimgovernor.operations.v1.CombatRescue.dest:type_name -> rimgovernor.common.v1.Cell
-	113, // 48: rimgovernor.operations.v1.CombatRepair.cell:type_name -> rimgovernor.common.v1.Cell
-	113, // 49: rimgovernor.operations.v1.CombatDoor.cell:type_name -> rimgovernor.common.v1.Cell
-	1,   // 50: rimgovernor.operations.v1.CombatDoor.mode:type_name -> rimgovernor.operations.v1.CombatDoorMode
-	27,  // 51: rimgovernor.operations.v1.CombatOrder.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	113, // 52: rimgovernor.operations.v1.CombatOrder.move:type_name -> rimgovernor.common.v1.Cell
-	27,  // 53: rimgovernor.operations.v1.CombatOrder.attack:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	113, // 54: rimgovernor.operations.v1.CombatOrder.attack_ground:type_name -> rimgovernor.common.v1.Cell
-	0,   // 55: rimgovernor.operations.v1.CombatOrder.fire_mode:type_name -> rimgovernor.operations.v1.CombatFireMode
-	28,  // 56: rimgovernor.operations.v1.CombatOrder.hold_position:type_name -> rimgovernor.operations.v1.Clear
-	39,  // 57: rimgovernor.operations.v1.CombatOrder.door:type_name -> rimgovernor.operations.v1.CombatDoor
-	28,  // 58: rimgovernor.operations.v1.CombatOrder.stop:type_name -> rimgovernor.operations.v1.Clear
-	37,  // 59: rimgovernor.operations.v1.CombatOrder.rescue:type_name -> rimgovernor.operations.v1.CombatRescue
-	38,  // 60: rimgovernor.operations.v1.CombatOrder.repair:type_name -> rimgovernor.operations.v1.CombatRepair
-	28,  // 61: rimgovernor.operations.v1.CombatOrder.draft:type_name -> rimgovernor.operations.v1.Clear
-	40,  // 62: rimgovernor.operations.v1.CombatOrders.orders:type_name -> rimgovernor.operations.v1.CombatOrder
-	27,  // 63: rimgovernor.operations.v1.AcquireResource.source:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	113, // 64: rimgovernor.operations.v1.AcquireResource.cell:type_name -> rimgovernor.common.v1.Cell
-	27,  // 65: rimgovernor.operations.v1.CancelAcquisition.source:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	113, // 66: rimgovernor.operations.v1.CancelAcquisition.cell:type_name -> rimgovernor.common.v1.Cell
-	27,  // 67: rimgovernor.operations.v1.DesignateThing.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	2,   // 68: rimgovernor.operations.v1.DesignateThing.designation:type_name -> rimgovernor.operations.v1.ThingDesignation
-	27,  // 69: rimgovernor.operations.v1.PatchBuilding.building:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	3,   // 70: rimgovernor.operations.v1.PatchBuilding.power:type_name -> rimgovernor.operations.v1.PowerSetting
-	29,  // 71: rimgovernor.operations.v1.PatchBuilding.owner:type_name -> rimgovernor.operations.v1.Assignment
-	48,  // 72: rimgovernor.operations.v1.SelectorList.selectors:type_name -> rimgovernor.operations.v1.FilterSelector
-	49,  // 73: rimgovernor.operations.v1.FilterPatch.replace:type_name -> rimgovernor.operations.v1.SelectorList
-	48,  // 74: rimgovernor.operations.v1.FilterPatch.allow:type_name -> rimgovernor.operations.v1.FilterSelector
-	48,  // 75: rimgovernor.operations.v1.FilterPatch.disallow:type_name -> rimgovernor.operations.v1.FilterSelector
-	6,   // 76: rimgovernor.operations.v1.BillStore.mode:type_name -> rimgovernor.operations.v1.StoreMode
-	5,   // 77: rimgovernor.operations.v1.BillSettings.repeat_mode:type_name -> rimgovernor.operations.v1.RepeatMode
-	29,  // 78: rimgovernor.operations.v1.BillSettings.worker:type_name -> rimgovernor.operations.v1.Assignment
-	51,  // 79: rimgovernor.operations.v1.BillSettings.store:type_name -> rimgovernor.operations.v1.BillStore
-	50,  // 80: rimgovernor.operations.v1.BillSettings.ingredients:type_name -> rimgovernor.operations.v1.FilterPatch
-	115, // 81: rimgovernor.operations.v1.BillSettings.corpse_class:type_name -> rimgovernor.common.v1.CorpseClass
-	8,   // 82: rimgovernor.operations.v1.StockpileSettings.priority:type_name -> rimgovernor.operations.v1.StoragePriority
-	9,   // 83: rimgovernor.operations.v1.StockpileSettings.preset:type_name -> rimgovernor.operations.v1.FilterPreset
-	50,  // 84: rimgovernor.operations.v1.StockpileSettings.filter:type_name -> rimgovernor.operations.v1.FilterPatch
-	7,   // 85: rimgovernor.operations.v1.CreateZone.type:type_name -> rimgovernor.operations.v1.ZoneType
-	33,  // 86: rimgovernor.operations.v1.CreateZone.cells:type_name -> rimgovernor.operations.v1.Cells
-	54,  // 87: rimgovernor.operations.v1.CreateZone.stockpile:type_name -> rimgovernor.operations.v1.StockpileSettings
-	55,  // 88: rimgovernor.operations.v1.CreateZone.growing:type_name -> rimgovernor.operations.v1.GrowingSettings
-	56,  // 89: rimgovernor.operations.v1.CreateZone.fishing:type_name -> rimgovernor.operations.v1.FishingSettings
-	113, // 90: rimgovernor.operations.v1.RemoveFoundationIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	10,  // 91: rimgovernor.operations.v1.ZoneCellsIntent.edit:type_name -> rimgovernor.operations.v1.CellEdit
-	33,  // 92: rimgovernor.operations.v1.ZoneCellsIntent.cells:type_name -> rimgovernor.operations.v1.Cells
-	54,  // 93: rimgovernor.operations.v1.StockpileIntent.settings:type_name -> rimgovernor.operations.v1.StockpileSettings
-	27,  // 94: rimgovernor.operations.v1.Deconstruct.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 95: rimgovernor.operations.v1.RemoveWall.wall:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 96: rimgovernor.operations.v1.Arrest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 97: rimgovernor.operations.v1.Arrest.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 98: rimgovernor.operations.v1.Arrest.bed:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 99: rimgovernor.operations.v1.RecoverService.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 100: rimgovernor.operations.v1.RecoverService.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	11,  // 101: rimgovernor.operations.v1.RecoverService.method:type_name -> rimgovernor.operations.v1.ServiceMethod
-	27,  // 102: rimgovernor.operations.v1.ManageWaste.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 103: rimgovernor.operations.v1.ManageWaste.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 104: rimgovernor.operations.v1.ExpectedJob.idle:type_name -> rimgovernor.operations.v1.Clear
-	27,  // 105: rimgovernor.operations.v1.RelieveNeed.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	12,  // 106: rimgovernor.operations.v1.RelieveNeed.need:type_name -> rimgovernor.operations.v1.Need
-	68,  // 107: rimgovernor.operations.v1.RelieveNeed.expected_job:type_name -> rimgovernor.operations.v1.ExpectedJob
-	27,  // 108: rimgovernor.operations.v1.ImproveGear.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 109: rimgovernor.operations.v1.ImproveGear.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 110: rimgovernor.operations.v1.SetDrafted.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 111: rimgovernor.operations.v1.AttackTarget.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 112: rimgovernor.operations.v1.AttackTarget.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	14,  // 113: rimgovernor.operations.v1.AttackTarget.mode:type_name -> rimgovernor.operations.v1.AttackMode
-	27,  // 114: rimgovernor.operations.v1.PawnTargetOrder.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	27,  // 115: rimgovernor.operations.v1.PawnTargetOrder.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	15,  // 116: rimgovernor.operations.v1.PawnTargetOrder.kind:type_name -> rimgovernor.operations.v1.PawnOrderKind
-	75,  // 117: rimgovernor.operations.v1.SetTradeLines.lines:type_name -> rimgovernor.operations.v1.TradeLine
-	30,  // 118: rimgovernor.operations.v1.AcceptTrade.economic_floors:type_name -> rimgovernor.operations.v1.DefCount
-	16,  // 119: rimgovernor.operations.v1.EndTrade.kind:type_name -> rimgovernor.operations.v1.EndTradeKind
-	109, // 120: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	27,  // 121: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	79,  // 122: rimgovernor.operations.v1.DraftRelease.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	110, // 123: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
-	116, // 124: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
-	79,  // 125: rimgovernor.operations.v1.DraftReleaseUncertain.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	110, // 126: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
-	80,  // 127: rimgovernor.operations.v1.ReleaseOwnedDraftReply.released:type_name -> rimgovernor.operations.v1.DraftRelease
-	80,  // 128: rimgovernor.operations.v1.ReleaseOwnedDraftReply.already_released:type_name -> rimgovernor.operations.v1.DraftRelease
-	81,  // 129: rimgovernor.operations.v1.ReleaseOwnedDraftReply.uncertain:type_name -> rimgovernor.operations.v1.DraftReleaseUncertain
-	108, // 130: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
-	109, // 131: rimgovernor.operations.v1.ApplyRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	84,  // 132: rimgovernor.operations.v1.ApplyRequest.actions:type_name -> rimgovernor.operations.v1.Action
-	102, // 133: rimgovernor.operations.v1.Action.trade:type_name -> rimgovernor.operations.v1.TradeIntent
-	101, // 134: rimgovernor.operations.v1.Action.building:type_name -> rimgovernor.operations.v1.BuildingIntent
-	99,  // 135: rimgovernor.operations.v1.Action.move:type_name -> rimgovernor.operations.v1.MoveIntent
-	100, // 136: rimgovernor.operations.v1.Action.haul:type_name -> rimgovernor.operations.v1.HaulIntent
-	98,  // 137: rimgovernor.operations.v1.Action.melee:type_name -> rimgovernor.operations.v1.MeleeIntent
-	95,  // 138: rimgovernor.operations.v1.Action.apparel_policy:type_name -> rimgovernor.operations.v1.ApparelPolicyIntent
-	94,  // 139: rimgovernor.operations.v1.Action.research:type_name -> rimgovernor.operations.v1.ResearchIntent
-	93,  // 140: rimgovernor.operations.v1.Action.naming:type_name -> rimgovernor.operations.v1.NamingIntent
-	92,  // 141: rimgovernor.operations.v1.Action.dialog:type_name -> rimgovernor.operations.v1.DialogIntent
-	91,  // 142: rimgovernor.operations.v1.Action.prisoner:type_name -> rimgovernor.operations.v1.PrisonerInteractionIntent
-	97,  // 143: rimgovernor.operations.v1.Action.accept_quest:type_name -> rimgovernor.operations.v1.AcceptQuestIntent
-	96,  // 144: rimgovernor.operations.v1.Action.form_caravan:type_name -> rimgovernor.operations.v1.FormCaravanIntent
-	90,  // 145: rimgovernor.operations.v1.Action.bed_assign:type_name -> rimgovernor.operations.v1.BedAssignIntent
-	89,  // 146: rimgovernor.operations.v1.Action.work_settings:type_name -> rimgovernor.operations.v1.WorkSettingsIntent
-	88,  // 147: rimgovernor.operations.v1.Action.production_bill:type_name -> rimgovernor.operations.v1.ProductionBillIntent
-	87,  // 148: rimgovernor.operations.v1.Action.husbandry:type_name -> rimgovernor.operations.v1.HusbandryIntent
-	57,  // 149: rimgovernor.operations.v1.Action.create_zone:type_name -> rimgovernor.operations.v1.CreateZone
-	58,  // 150: rimgovernor.operations.v1.Action.delete_zone:type_name -> rimgovernor.operations.v1.DeleteZoneIntent
-	60,  // 151: rimgovernor.operations.v1.Action.zone_cells:type_name -> rimgovernor.operations.v1.ZoneCellsIntent
-	61,  // 152: rimgovernor.operations.v1.Action.stockpile:type_name -> rimgovernor.operations.v1.StockpileIntent
-	59,  // 153: rimgovernor.operations.v1.Action.remove_foundation:type_name -> rimgovernor.operations.v1.RemoveFoundationIntent
-	85,  // 154: rimgovernor.operations.v1.Action.home:type_name -> rimgovernor.operations.v1.HomeIntent
-	86,  // 155: rimgovernor.operations.v1.Action.cover:type_name -> rimgovernor.operations.v1.CoverIntent
-	113, // 156: rimgovernor.operations.v1.CoverIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	17,  // 157: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
-	52,  // 158: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
-	46,  // 159: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
-	29,  // 160: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
-	47,  // 161: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
-	4,   // 162: rimgovernor.operations.v1.WorkSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
-	53,  // 163: rimgovernor.operations.v1.WorkSettingsIntent.food_allow:type_name -> rimgovernor.operations.v1.DefinitionList
-	29,  // 164: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
-	13,  // 165: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
-	30,  // 166: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
-	113, // 167: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
-	117, // 168: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
-	74,  // 169: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
-	76,  // 170: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
-	77,  // 171: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
-	78,  // 172: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
-	118, // 173: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
-	107, // 174: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
-	103, // 175: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
-	108, // 176: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
-	104, // 177: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
-	108, // 178: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
-	20,  // 179: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
-	18,  // 180: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
-	79,  // 181: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	83,  // 182: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
-	21,  // 183: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
-	19,  // 184: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
-	82,  // 185: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
-	105, // 186: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
-	183, // [183:187] is the sub-list for method output_type
-	179, // [179:183] is the sub-list for method input_type
-	179, // [179:179] is the sub-list for extension type_name
-	179, // [179:179] is the sub-list for extension extendee
-	0,   // [0:179] is the sub-list for field type_name
+	114, // 47: rimgovernor.operations.v1.CombatRescue.dest:type_name -> rimgovernor.common.v1.Cell
+	114, // 48: rimgovernor.operations.v1.CombatRepair.cell:type_name -> rimgovernor.common.v1.Cell
+	114, // 49: rimgovernor.operations.v1.CombatMortar.mortar:type_name -> rimgovernor.common.v1.Cell
+	114, // 50: rimgovernor.operations.v1.CombatMortar.target:type_name -> rimgovernor.common.v1.Cell
+	114, // 51: rimgovernor.operations.v1.CombatDoor.cell:type_name -> rimgovernor.common.v1.Cell
+	1,   // 52: rimgovernor.operations.v1.CombatDoor.mode:type_name -> rimgovernor.operations.v1.CombatDoorMode
+	27,  // 53: rimgovernor.operations.v1.CombatOrder.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	114, // 54: rimgovernor.operations.v1.CombatOrder.move:type_name -> rimgovernor.common.v1.Cell
+	27,  // 55: rimgovernor.operations.v1.CombatOrder.attack:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	114, // 56: rimgovernor.operations.v1.CombatOrder.attack_ground:type_name -> rimgovernor.common.v1.Cell
+	0,   // 57: rimgovernor.operations.v1.CombatOrder.fire_mode:type_name -> rimgovernor.operations.v1.CombatFireMode
+	28,  // 58: rimgovernor.operations.v1.CombatOrder.hold_position:type_name -> rimgovernor.operations.v1.Clear
+	40,  // 59: rimgovernor.operations.v1.CombatOrder.door:type_name -> rimgovernor.operations.v1.CombatDoor
+	28,  // 60: rimgovernor.operations.v1.CombatOrder.stop:type_name -> rimgovernor.operations.v1.Clear
+	37,  // 61: rimgovernor.operations.v1.CombatOrder.rescue:type_name -> rimgovernor.operations.v1.CombatRescue
+	38,  // 62: rimgovernor.operations.v1.CombatOrder.repair:type_name -> rimgovernor.operations.v1.CombatRepair
+	28,  // 63: rimgovernor.operations.v1.CombatOrder.draft:type_name -> rimgovernor.operations.v1.Clear
+	39,  // 64: rimgovernor.operations.v1.CombatOrder.mortar:type_name -> rimgovernor.operations.v1.CombatMortar
+	41,  // 65: rimgovernor.operations.v1.CombatOrders.orders:type_name -> rimgovernor.operations.v1.CombatOrder
+	27,  // 66: rimgovernor.operations.v1.AcquireResource.source:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	114, // 67: rimgovernor.operations.v1.AcquireResource.cell:type_name -> rimgovernor.common.v1.Cell
+	27,  // 68: rimgovernor.operations.v1.CancelAcquisition.source:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	114, // 69: rimgovernor.operations.v1.CancelAcquisition.cell:type_name -> rimgovernor.common.v1.Cell
+	27,  // 70: rimgovernor.operations.v1.DesignateThing.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	2,   // 71: rimgovernor.operations.v1.DesignateThing.designation:type_name -> rimgovernor.operations.v1.ThingDesignation
+	27,  // 72: rimgovernor.operations.v1.PatchBuilding.building:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	3,   // 73: rimgovernor.operations.v1.PatchBuilding.power:type_name -> rimgovernor.operations.v1.PowerSetting
+	29,  // 74: rimgovernor.operations.v1.PatchBuilding.owner:type_name -> rimgovernor.operations.v1.Assignment
+	49,  // 75: rimgovernor.operations.v1.SelectorList.selectors:type_name -> rimgovernor.operations.v1.FilterSelector
+	50,  // 76: rimgovernor.operations.v1.FilterPatch.replace:type_name -> rimgovernor.operations.v1.SelectorList
+	49,  // 77: rimgovernor.operations.v1.FilterPatch.allow:type_name -> rimgovernor.operations.v1.FilterSelector
+	49,  // 78: rimgovernor.operations.v1.FilterPatch.disallow:type_name -> rimgovernor.operations.v1.FilterSelector
+	6,   // 79: rimgovernor.operations.v1.BillStore.mode:type_name -> rimgovernor.operations.v1.StoreMode
+	5,   // 80: rimgovernor.operations.v1.BillSettings.repeat_mode:type_name -> rimgovernor.operations.v1.RepeatMode
+	29,  // 81: rimgovernor.operations.v1.BillSettings.worker:type_name -> rimgovernor.operations.v1.Assignment
+	52,  // 82: rimgovernor.operations.v1.BillSettings.store:type_name -> rimgovernor.operations.v1.BillStore
+	51,  // 83: rimgovernor.operations.v1.BillSettings.ingredients:type_name -> rimgovernor.operations.v1.FilterPatch
+	116, // 84: rimgovernor.operations.v1.BillSettings.corpse_class:type_name -> rimgovernor.common.v1.CorpseClass
+	8,   // 85: rimgovernor.operations.v1.StockpileSettings.priority:type_name -> rimgovernor.operations.v1.StoragePriority
+	9,   // 86: rimgovernor.operations.v1.StockpileSettings.preset:type_name -> rimgovernor.operations.v1.FilterPreset
+	51,  // 87: rimgovernor.operations.v1.StockpileSettings.filter:type_name -> rimgovernor.operations.v1.FilterPatch
+	7,   // 88: rimgovernor.operations.v1.CreateZone.type:type_name -> rimgovernor.operations.v1.ZoneType
+	33,  // 89: rimgovernor.operations.v1.CreateZone.cells:type_name -> rimgovernor.operations.v1.Cells
+	55,  // 90: rimgovernor.operations.v1.CreateZone.stockpile:type_name -> rimgovernor.operations.v1.StockpileSettings
+	56,  // 91: rimgovernor.operations.v1.CreateZone.growing:type_name -> rimgovernor.operations.v1.GrowingSettings
+	57,  // 92: rimgovernor.operations.v1.CreateZone.fishing:type_name -> rimgovernor.operations.v1.FishingSettings
+	114, // 93: rimgovernor.operations.v1.RemoveFoundationIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	10,  // 94: rimgovernor.operations.v1.ZoneCellsIntent.edit:type_name -> rimgovernor.operations.v1.CellEdit
+	33,  // 95: rimgovernor.operations.v1.ZoneCellsIntent.cells:type_name -> rimgovernor.operations.v1.Cells
+	55,  // 96: rimgovernor.operations.v1.StockpileIntent.settings:type_name -> rimgovernor.operations.v1.StockpileSettings
+	27,  // 97: rimgovernor.operations.v1.Deconstruct.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 98: rimgovernor.operations.v1.RemoveWall.wall:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 99: rimgovernor.operations.v1.Arrest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 100: rimgovernor.operations.v1.Arrest.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 101: rimgovernor.operations.v1.Arrest.bed:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 102: rimgovernor.operations.v1.RecoverService.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 103: rimgovernor.operations.v1.RecoverService.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	11,  // 104: rimgovernor.operations.v1.RecoverService.method:type_name -> rimgovernor.operations.v1.ServiceMethod
+	27,  // 105: rimgovernor.operations.v1.ManageWaste.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 106: rimgovernor.operations.v1.ManageWaste.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 107: rimgovernor.operations.v1.ExpectedJob.idle:type_name -> rimgovernor.operations.v1.Clear
+	27,  // 108: rimgovernor.operations.v1.RelieveNeed.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	12,  // 109: rimgovernor.operations.v1.RelieveNeed.need:type_name -> rimgovernor.operations.v1.Need
+	69,  // 110: rimgovernor.operations.v1.RelieveNeed.expected_job:type_name -> rimgovernor.operations.v1.ExpectedJob
+	27,  // 111: rimgovernor.operations.v1.ImproveGear.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 112: rimgovernor.operations.v1.ImproveGear.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 113: rimgovernor.operations.v1.SetDrafted.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 114: rimgovernor.operations.v1.AttackTarget.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 115: rimgovernor.operations.v1.AttackTarget.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	14,  // 116: rimgovernor.operations.v1.AttackTarget.mode:type_name -> rimgovernor.operations.v1.AttackMode
+	27,  // 117: rimgovernor.operations.v1.PawnTargetOrder.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	27,  // 118: rimgovernor.operations.v1.PawnTargetOrder.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	15,  // 119: rimgovernor.operations.v1.PawnTargetOrder.kind:type_name -> rimgovernor.operations.v1.PawnOrderKind
+	76,  // 120: rimgovernor.operations.v1.SetTradeLines.lines:type_name -> rimgovernor.operations.v1.TradeLine
+	30,  // 121: rimgovernor.operations.v1.AcceptTrade.economic_floors:type_name -> rimgovernor.operations.v1.DefCount
+	16,  // 122: rimgovernor.operations.v1.EndTrade.kind:type_name -> rimgovernor.operations.v1.EndTradeKind
+	110, // 123: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	27,  // 124: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	80,  // 125: rimgovernor.operations.v1.DraftRelease.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	111, // 126: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
+	117, // 127: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
+	80,  // 128: rimgovernor.operations.v1.DraftReleaseUncertain.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	111, // 129: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
+	81,  // 130: rimgovernor.operations.v1.ReleaseOwnedDraftReply.released:type_name -> rimgovernor.operations.v1.DraftRelease
+	81,  // 131: rimgovernor.operations.v1.ReleaseOwnedDraftReply.already_released:type_name -> rimgovernor.operations.v1.DraftRelease
+	82,  // 132: rimgovernor.operations.v1.ReleaseOwnedDraftReply.uncertain:type_name -> rimgovernor.operations.v1.DraftReleaseUncertain
+	109, // 133: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
+	110, // 134: rimgovernor.operations.v1.ApplyRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	85,  // 135: rimgovernor.operations.v1.ApplyRequest.actions:type_name -> rimgovernor.operations.v1.Action
+	103, // 136: rimgovernor.operations.v1.Action.trade:type_name -> rimgovernor.operations.v1.TradeIntent
+	102, // 137: rimgovernor.operations.v1.Action.building:type_name -> rimgovernor.operations.v1.BuildingIntent
+	100, // 138: rimgovernor.operations.v1.Action.move:type_name -> rimgovernor.operations.v1.MoveIntent
+	101, // 139: rimgovernor.operations.v1.Action.haul:type_name -> rimgovernor.operations.v1.HaulIntent
+	99,  // 140: rimgovernor.operations.v1.Action.melee:type_name -> rimgovernor.operations.v1.MeleeIntent
+	96,  // 141: rimgovernor.operations.v1.Action.apparel_policy:type_name -> rimgovernor.operations.v1.ApparelPolicyIntent
+	95,  // 142: rimgovernor.operations.v1.Action.research:type_name -> rimgovernor.operations.v1.ResearchIntent
+	94,  // 143: rimgovernor.operations.v1.Action.naming:type_name -> rimgovernor.operations.v1.NamingIntent
+	93,  // 144: rimgovernor.operations.v1.Action.dialog:type_name -> rimgovernor.operations.v1.DialogIntent
+	92,  // 145: rimgovernor.operations.v1.Action.prisoner:type_name -> rimgovernor.operations.v1.PrisonerInteractionIntent
+	98,  // 146: rimgovernor.operations.v1.Action.accept_quest:type_name -> rimgovernor.operations.v1.AcceptQuestIntent
+	97,  // 147: rimgovernor.operations.v1.Action.form_caravan:type_name -> rimgovernor.operations.v1.FormCaravanIntent
+	91,  // 148: rimgovernor.operations.v1.Action.bed_assign:type_name -> rimgovernor.operations.v1.BedAssignIntent
+	90,  // 149: rimgovernor.operations.v1.Action.work_settings:type_name -> rimgovernor.operations.v1.WorkSettingsIntent
+	89,  // 150: rimgovernor.operations.v1.Action.production_bill:type_name -> rimgovernor.operations.v1.ProductionBillIntent
+	88,  // 151: rimgovernor.operations.v1.Action.husbandry:type_name -> rimgovernor.operations.v1.HusbandryIntent
+	58,  // 152: rimgovernor.operations.v1.Action.create_zone:type_name -> rimgovernor.operations.v1.CreateZone
+	59,  // 153: rimgovernor.operations.v1.Action.delete_zone:type_name -> rimgovernor.operations.v1.DeleteZoneIntent
+	61,  // 154: rimgovernor.operations.v1.Action.zone_cells:type_name -> rimgovernor.operations.v1.ZoneCellsIntent
+	62,  // 155: rimgovernor.operations.v1.Action.stockpile:type_name -> rimgovernor.operations.v1.StockpileIntent
+	60,  // 156: rimgovernor.operations.v1.Action.remove_foundation:type_name -> rimgovernor.operations.v1.RemoveFoundationIntent
+	86,  // 157: rimgovernor.operations.v1.Action.home:type_name -> rimgovernor.operations.v1.HomeIntent
+	87,  // 158: rimgovernor.operations.v1.Action.cover:type_name -> rimgovernor.operations.v1.CoverIntent
+	114, // 159: rimgovernor.operations.v1.CoverIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	17,  // 160: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
+	53,  // 161: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
+	47,  // 162: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
+	29,  // 163: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
+	48,  // 164: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
+	4,   // 165: rimgovernor.operations.v1.WorkSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	54,  // 166: rimgovernor.operations.v1.WorkSettingsIntent.food_allow:type_name -> rimgovernor.operations.v1.DefinitionList
+	29,  // 167: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
+	13,  // 168: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
+	30,  // 169: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
+	114, // 170: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
+	118, // 171: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
+	75,  // 172: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
+	77,  // 173: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
+	78,  // 174: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
+	79,  // 175: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
+	119, // 176: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
+	108, // 177: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
+	104, // 178: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
+	109, // 179: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
+	105, // 180: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
+	109, // 181: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
+	20,  // 182: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
+	18,  // 183: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
+	80,  // 184: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	84,  // 185: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
+	21,  // 186: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
+	19,  // 187: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
+	83,  // 188: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
+	106, // 189: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
+	186, // [186:190] is the sub-list for method output_type
+	182, // [182:186] is the sub-list for method input_type
+	182, // [182:182] is the sub-list for extension type_name
+	182, // [182:182] is the sub-list for extension extendee
+	0,   // [0:182] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }
@@ -8922,8 +9005,8 @@ func file_operations_proto_init() {
 	}
 	file_operations_proto_msgTypes[16].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[17].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[21].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[22].OneofWrappers = []any{
+	file_operations_proto_msgTypes[22].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[23].OneofWrappers = []any{
 		(*CombatOrder_Move)(nil),
 		(*CombatOrder_Attack)(nil),
 		(*CombatOrder_AttackGround)(nil),
@@ -8934,24 +9017,24 @@ func file_operations_proto_init() {
 		(*CombatOrder_Rescue)(nil),
 		(*CombatOrder_Repair)(nil),
 		(*CombatOrder_Draft)(nil),
+		(*CombatOrder_Mortar)(nil),
 	}
-	file_operations_proto_msgTypes[24].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[25].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[26].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[27].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[28].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[30].OneofWrappers = []any{
+	file_operations_proto_msgTypes[29].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[31].OneofWrappers = []any{
 		(*FilterSelector_ThingDef)(nil),
 		(*FilterSelector_CategoryDef)(nil),
 		(*FilterSelector_SpecialFilterDef)(nil),
 	}
-	file_operations_proto_msgTypes[32].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[33].OneofWrappers = []any{
+	file_operations_proto_msgTypes[33].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[34].OneofWrappers = []any{
 		(*BillStore_Mode)(nil),
 		(*BillStore_ZoneId)(nil),
 	}
-	file_operations_proto_msgTypes[34].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[36].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[35].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[37].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[38].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[39].OneofWrappers = []any{}
@@ -8959,13 +9042,13 @@ func file_operations_proto_init() {
 	file_operations_proto_msgTypes[41].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[42].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[43].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[46].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[48].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[50].OneofWrappers = []any{
+	file_operations_proto_msgTypes[44].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[47].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[49].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[51].OneofWrappers = []any{
 		(*ExpectedJob_JobId)(nil),
 		(*ExpectedJob_Idle)(nil),
 	}
-	file_operations_proto_msgTypes[51].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[52].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[53].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[54].OneofWrappers = []any{}
@@ -8976,14 +9059,15 @@ func file_operations_proto_init() {
 	file_operations_proto_msgTypes[59].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[60].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[61].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[63].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[64].OneofWrappers = []any{
+	file_operations_proto_msgTypes[62].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[64].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[65].OneofWrappers = []any{
 		(*ReleaseOwnedDraftReply_Released)(nil),
 		(*ReleaseOwnedDraftReply_AlreadyReleased)(nil),
 		(*ReleaseOwnedDraftReply_Uncertain)(nil),
 		(*ReleaseOwnedDraftReply_Failure)(nil),
 	}
-	file_operations_proto_msgTypes[66].OneofWrappers = []any{
+	file_operations_proto_msgTypes[67].OneofWrappers = []any{
 		(*Action_Trade)(nil),
 		(*Action_Building)(nil),
 		(*Action_Move)(nil),
@@ -9008,7 +9092,6 @@ func file_operations_proto_init() {
 		(*Action_Home)(nil),
 		(*Action_Cover)(nil),
 	}
-	file_operations_proto_msgTypes[67].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[68].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[69].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[70].OneofWrappers = []any{}
@@ -9024,14 +9107,15 @@ func file_operations_proto_init() {
 	file_operations_proto_msgTypes[80].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[81].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[82].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[84].OneofWrappers = []any{
+	file_operations_proto_msgTypes[83].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[85].OneofWrappers = []any{
 		(*TradeIntent_Open)(nil),
 		(*TradeIntent_SetLines)(nil),
 		(*TradeIntent_Accept)(nil),
 		(*TradeIntent_End)(nil),
 	}
-	file_operations_proto_msgTypes[85].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[86].OneofWrappers = []any{
+	file_operations_proto_msgTypes[86].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[87].OneofWrappers = []any{
 		(*ActionResult_Applied)(nil),
 		(*ActionResult_Refused)(nil),
 		(*ActionResult_Failed)(nil),
@@ -9042,7 +9126,7 @@ func file_operations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_operations_proto_rawDesc), len(file_operations_proto_rawDesc)),
 			NumEnums:      18,
-			NumMessages:   88,
+			NumMessages:   89,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

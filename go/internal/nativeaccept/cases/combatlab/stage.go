@@ -13,6 +13,8 @@ import (
 type Staged struct {
 	Fixture Fixture
 	Pawns   []map[string]any
+	// Things are the staged things' load ids, spec order.
+	Things  []string
 	Digest  string
 	Rows    []string
 	Faction string
@@ -86,8 +88,13 @@ func Stage(ctx context.Context, h *na.Harness, name string, edits ...func(f *Fix
 		}
 		out.Pawns = append(out.Pawns, row)
 	}
-	if things := na.AsSlice(reply["things"]); len(things) != len(f.Things) {
+	things := na.AsSlice(reply["things"])
+	if len(things) != len(f.Things) {
 		return Staged{}, fmt.Errorf("%s %s: %d things staged, want %d", StageTool, name, len(things), len(f.Things))
+	}
+	for _, t := range things {
+		row, _ := na.AsMap(t)
+		out.Things = append(out.Things, na.AsString(row["id"]))
 	}
 	return out, nil
 }

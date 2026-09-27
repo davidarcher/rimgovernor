@@ -663,7 +663,9 @@ type Combat struct {
 	Rooms []policy.CombatRoom
 	// Doors are the damaged player doors (#900).
 	Doors []*mp.CombatDoorRow
-	Frame *o.BundleSnapshot
+	// Mortars are the unroofed player mortars (#931).
+	Mortars []policy.CombatMortar
+	Frame   *o.BundleSnapshot
 }
 
 // ReadCombat reads the combat state from the newest frame past this
@@ -685,7 +687,7 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 
 // combatFrame is the part of frame v a combat read answers.
 func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
-	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms, CombatDoors: v.CombatDoors}
+	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars}
 }
 
 // DecodeCombat validates and decodes a frame's combat part (ReadCombat,
@@ -741,6 +743,10 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 		}
 		out.Lines = lines
 	}
+	for _, row := range v.CombatMortars {
+		c, _ := protoCell(row.GetCell())
+		out.Mortars = append(out.Mortars, policy.CombatMortar{ID: row.GetId(), Cell: c, MinRange: float64(row.GetMinRange()), MaxRange: float64(row.GetMaxRange())})
+	}
 	for _, row := range v.CombatRooms {
 		if room, ok := combatRoom(row); ok {
 			out.Rooms = append(out.Rooms, room)
@@ -773,6 +779,11 @@ func combatRoom(row *mp.CombatRoom) (policy.CombatRoom, bool) {
 
 // validateCombat checks a frame's combat rows (#851).
 func validateCombat(v *o.BundleSnapshot) error {
+	for _, row := range v.CombatMortars {
+		if validID(row.GetId()) != nil || movementCell(row.Cell) != nil || row.MinRange == nil || row.MaxRange == nil || row.GetMinRange() < 0 || row.GetMaxRange() < row.GetMinRange() {
+			return contract("combat mortar without id, cell or range")
+		}
+	}
 	for _, row := range v.CombatDoors {
 		if validID(row.GetId()) != nil || movementCell(row.Cell) != nil || row.HitPoints == nil || row.MaxHitPoints == nil || row.GetHitPoints() < 0 || row.GetHitPoints() > row.GetMaxHitPoints() {
 			return contract("combat door without id, cell or hit points")

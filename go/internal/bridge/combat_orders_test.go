@@ -276,3 +276,30 @@ func TestValidateCombatRepair(t *testing.T) {
 		t.Fatalf("repair applied: %v", err)
 	}
 }
+
+// TestValidateCombatMortar covers the #931 mortar order.
+func TestValidateCombatMortar(t *testing.T) {
+	mortar := func() *o.CombatOrders {
+		return &o.CombatOrders{Orders: []*o.CombatOrder{
+			{Pawn: combatPawn("p0"), Order: &o.CombatOrder_Mortar{Mortar: &o.CombatMortar{Mortar: combatCell(3, 4), Target: combatCell(3, 50)}}},
+		}}
+	}
+	if err := ValidateCombatOrders(mortar()); err != nil {
+		t.Fatal(err)
+	}
+	for name, edit := range map[string]func(*o.CombatOrders){
+		"nil":       func(v *o.CombatOrders) { v.Orders[0].Order = &o.CombatOrder_Mortar{} },
+		"no target": func(v *o.CombatOrders) { v.Orders[0].GetMortar().Target = nil },
+		"bad cell":  func(v *o.CombatOrders) { v.Orders[0].GetMortar().Mortar = combatCell(-1, 4) },
+		"no pawn":   func(v *o.CombatOrders) { v.Orders[0].Pawn = nil },
+	} {
+		v := mortar()
+		edit(v)
+		if err := ValidateCombatOrders(v); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", false, CombatRefusalNotAMortar, "")}, false), mortar()); err != nil {
+		t.Fatalf("mortar refusal: %v", err)
+	}
+}

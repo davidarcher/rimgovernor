@@ -85,6 +85,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		next.Roles = focusFire(view, next.Roles, memory.Roles)
 	}
 	next.Roles = dropMissingTargets(view, next.Roles)
+	fromRange(view, &next)
 	siegeHold(&next)
 	mechLure(view, &next)
 	siegeSnipe(view, &next)
@@ -94,6 +95,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	sapperRush(view, stop, &next)
 	manhunterDoor(view, formed, &next)
 	manhunterShelter(view, &next)
+	counterBattery(view, &next)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
 		orderable[id] = true
@@ -214,6 +216,10 @@ type CombatView struct {
 	Rooms []CombatRoom
 	// DamagedDoors are the frame's player doors below max hit points (#900).
 	DamagedDoors []domain.Cell `json:",omitempty"`
+	// Mortars are the colony's unroofed mortars (#931); Structures the
+	// census's standing hostile buildings (#930).
+	Mortars    []CombatMortar     `json:",omitempty"`
+	Structures []HostileStructure `json:",omitempty"`
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -314,6 +320,10 @@ type CombatRole struct {
 	// Home is a checked standby cell (#881): where a peeler waits between
 	// targets, or where a tank pulls back to when its shield breaks.
 	Home *domain.Cell `json:",omitempty"`
+	// Mortar is the colony mortar the pawn crews and Aim the cell it fires
+	// at (#931); set, they win over Cell and Target.
+	Mortar *domain.Cell `json:",omitempty"`
+	Aim    *domain.Cell `json:",omitempty"`
 }
 
 // CombatOrderKind is the combat.orders order an order becomes.
@@ -350,6 +360,8 @@ type CombatOrder struct {
 	Reason   CombatOrderReason
 	// Door is a door order's mode (#867); a door order names no pawn.
 	Door DoorMode `json:",omitempty"`
+	// Aim is a mortar order's target cell (#931); Cell is the mortar's.
+	Aim domain.Cell `json:",omitzero"`
 }
 
 // IssuedOrder is the last order a pawn was given and the tick it went out.
@@ -518,6 +530,10 @@ func (m CombatMemory) doing(want CombatOrder, s CombatPawnState) bool {
 		if s.Job == "Repair" {
 			return true
 		}
+	case OrderMortar:
+		// Manning the same mortar at the same aim; the stance of a crew
+		// waiting on its gun says nothing.
+		return s.Job == "ManTurret" && slices.ContainsFunc(m.Issued, func(o IssuedOrder) bool { return o.Pawn == want.Pawn && o.CombatOrder == want })
 	}
 	for _, o := range m.Issued {
 		if o.Pawn == want.Pawn && o.CombatOrder == want {
@@ -531,6 +547,9 @@ func (m CombatMemory) doing(want CombatOrder, s CombatPawnState) bool {
 
 // want is the order the role asks of a pawn in state s.
 func (r CombatRole) want(s CombatPawnState) (CombatOrder, bool) {
+	if r.Mortar != nil && r.Aim != nil {
+		return CombatOrder{Pawn: r.Pawn, Kind: OrderMortar, Cell: *r.Mortar, Aim: *r.Aim, Reason: ReasonCounterBattery}, true
+	}
 	if r.Cell != nil {
 		if at, known := s.Cell.Value(); !known || at != *r.Cell {
 			reason := ReasonFormation

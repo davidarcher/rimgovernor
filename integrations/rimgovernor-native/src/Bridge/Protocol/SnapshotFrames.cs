@@ -120,6 +120,15 @@ namespace HomeBridge.BridgeTools
                 observed.CombatDoors.Add(new RimGovernor.Protocol.Mirror.CombatDoorRow { Id = door.GetUniqueLoadID(),
                     Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HitPoints = door.HitPoints, MaxHitPoints = door.MaxHitPoints });
             }
+            // The unroofed player mortars (#931), for counter-battery.
+            foreach (var mortar in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_TurretGun>())
+            {
+                if (observed.CombatMortars.Count >= 16) break;
+                if (!mortar.Spawned || mortar.def.building?.IsMortar != true || mortar.AttackVerb == null || map.roofGrid.Roofed(mortar.Position)) continue;
+                observed.CombatMortars.Add(new RimGovernor.Protocol.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
+                    Cell = new Common.Cell { X = mortar.Position.x, Z = mortar.Position.z },
+                    MinRange = mortar.AttackVerb.verbProps.minRange, MaxRange = mortar.AttackVerb.verbProps.range });
+            }
             var colonistIds = new HashSet<string>(colonists.Select(p => p.Pawn?.Id ?? ""));
             var firing = new List<IntVec3>();
             foreach (var row in detail.Pawns)

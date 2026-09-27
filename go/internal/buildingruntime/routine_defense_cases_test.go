@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -83,13 +84,13 @@ func meleeStep(t *testing.T, foe float64) (snapshot.Defense, []*mp.CombatPawn) {
 func TestDefenseSnapshotMeleeEngagesOnlyABeatableRaider(t *testing.T) {
 	t.Parallel()
 	step, mirror := meleeStep(t, 8)
-	results, methods, db := replayDefenseSteps(t, mirror, step)
+	results, methods, db := replayDefenseSteps(t, replayFrame{mirror: mirror}, step)
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[0].Plan); len(melee) == 0 || len(ranged) != 0 {
 		t.Fatal("no melee on a raider the pair beats", melee, ranged)
 	}
 	step, mirror = meleeStep(t, 12)
-	results, methods, db = replayDefenseSteps(t, mirror, step)
+	results, methods, db = replayDefenseSteps(t, replayFrame{mirror: mirror}, step)
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticShelter)
 	fight, _, _ := db.LoadCombatFight(context.Background(), results[0].Plan)
 	for _, role := range fight.Memory.Roles {
@@ -132,7 +133,7 @@ func TestDefenseSnapshotMechWithoutLayoutIsSquadDefense(t *testing.T) {
 	if step.CombatPawns, err = protojson.Marshal(reply); err != nil {
 		t.Fatal(err)
 	}
-	results, methods, db := replayDefenseSteps(t, nil, step)
+	results, methods, db := replayDefenseSteps(t, replayFrame{}, step)
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Human53013"]+ranged["Thing_Human53013"] == 0 {
 		t.Fatal("squad defense does not engage the mech")
@@ -191,9 +192,43 @@ func TestDefenseReplayShipPartIsShotFromALineOfFire(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/shippart-rifles.json.gz")
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
-	if _, ranged := squadAttacks(t, db, results[0].Plan); ranged["Thing_DefoliatorShipPart53021"] == 0 {
+	melee, ranged := squadAttacks(t, db, results[0].Plan)
+	if ranged["Thing_DefoliatorShipPart53021"] == 0 {
 		t.Fatal("no ranged attack on the ship part")
 	}
+	// Destroyed from range (#930): nobody walks up to the part in melee.
+	if melee["Thing_DefoliatorShipPart53021"] != 0 {
+		t.Fatal("a melee attack on the ship part")
+	}
+}
+
+// defense/shippart with a colony mortar 35 cells from the part: the
+// mortar is crewed and aimed at the part (#930, #931).
+func TestDefenseSnapshotMortarShellsTheShipPart(t *testing.T) {
+	t.Parallel()
+	step, err := snapshot.LoadDefense("testdata/defense/shippart-rifles.json.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var part domain.Cell
+	for _, threat := range step.Emergency.Threats {
+		if threat.ID == "Thing_DefoliatorShipPart53021" && len(threat.Cells) > 0 {
+			part = threat.Cells[0]
+		}
+	}
+	gun := domain.Cell{X: part.X, Z: part.Z + 35}
+	if part.Z >= 35 {
+		gun.Z = part.Z - 35
+	}
+	mortar := &mp.CombatMortarRow{Id: proto.String("Thing_Turret_Mortar1"), Cell: &c.Cell{X: proto.Int32(gun.X), Z: proto.Int32(gun.Z)}, MinRange: proto.Float32(29.9), MaxRange: proto.Float32(500)}
+	results, _, db := replayDefenseSteps(t, replayFrame{mortars: []*mp.CombatMortarRow{mortar}}, step)
+	fight, _, _ := db.LoadCombatFight(context.Background(), results[0].Plan)
+	for _, role := range fight.Memory.Roles {
+		if role.Mortar != nil && *role.Mortar == gun && role.Aim != nil && *role.Aim == part {
+			return
+		}
+	}
+	t.Fatalf("no crew aims the mortar at the part %v: %+v", part, fight.Memory.Roles)
 }
 
 // defense/raid-breach: an edge assault is held from the firing line; once
