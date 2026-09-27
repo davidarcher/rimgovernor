@@ -817,6 +817,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	superviseDone := make(chan struct{})
 	defer func() { <-superviseDone }()
 	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out) }()
+	if native, ok := client.reads.(governorStateNative); ok {
+		shadowDone := make(chan struct{})
+		defer func() { <-shadowDone }()
+		go func() { defer close(shadowDone); shadowGovernorState(lifetime, native, database, config.refresh, out) }()
+	}
 	if config.resume {
 		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, database, out)
 		if err != nil {
