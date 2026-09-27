@@ -77,7 +77,6 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        internal static Obs.Completeness Complete(int count) => new Obs.Completeness();
     }
 
     public sealed class NativeWorldObservationTools
@@ -106,7 +105,6 @@ namespace HomeBridge.BridgeTools
                             .Select(s => NativeWorldObservation.SettlementRow(context, s, tile)).ToList();
                         snapshot.Settlements.Add(rows);
                     }
-                    snapshot.Completeness = NativeWorldObservation.Complete(snapshot.Settlements.Count);
                     var reply = new Obs.WorldReply { Observed = snapshot };
                     return ProtoBoundary.Encode(reply);
                 }

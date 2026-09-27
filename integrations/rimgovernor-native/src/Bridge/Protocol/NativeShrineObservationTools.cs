@@ -106,7 +106,6 @@ namespace HomeBridge.BridgeTools
                         snapshot.Shrines.Add(row);
                     }
                     var count = (ulong)snapshot.Shrines.Count;
-                    snapshot.Completeness = new Obs.Completeness();
                     var reply = new Obs.AncientShrinesReply { Observed = snapshot };
                     return ProtoBoundary.Encode(reply);
                 }

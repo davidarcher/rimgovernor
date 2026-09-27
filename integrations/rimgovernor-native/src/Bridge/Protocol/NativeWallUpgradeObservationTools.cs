@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
                             foreach (var normal in WallUpgradeSafety.Directions.Where(n => !WallUpgradeSafety.Corner(n)))
                                 if (Cleanup(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
                     }
-                    var snapshot = new Obs.WallUpgradeSnapshot { Context = context, Completeness = Complete(rows.Count) };
+                    var snapshot = new Obs.WallUpgradeSnapshot { Context = context};
                     snapshot.Sites.AddRange(rows);
                     return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Observed = snapshot });
                 }
@@ -200,6 +200,5 @@ namespace HomeBridge.BridgeTools
 
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
     }
 }

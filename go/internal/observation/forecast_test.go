@@ -34,7 +34,7 @@ func forecastFixture(t *testing.T) (*o.ColonyFactsReply, Identity) {
 	combined.Consumers = append(combined.Consumers, &o.FoodConsumer{PawnId: proto.String("animal"), NutritionPerDay: proto.Float64(1)})
 	combined.Stocks[0].EaterIds = append(combined.Stocks[0].EaterIds, "animal")
 	r.GetObserved().FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: human}}
-	r.GetObserved().Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: combined, AnimalIds: []string{"animal"}, Patients: []*o.PatientForecast{{PawnId: proto.String("a")}, {PawnId: proto.String("b")}}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
+	r.GetObserved().Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: combined, AnimalIds: []string{"animal"}, Patients: []*o.PatientForecast{{PawnId: proto.String("a")}, {PawnId: proto.String("b")}}}}}
 	return r, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 }
 func TestCombinedFoodForecastReachesRoutineFacts(t *testing.T) {
@@ -61,7 +61,6 @@ func TestCombinedFoodForecastRejectsContradictoryCensus(t *testing.T) {
 		func(v *o.ForecastFacts) { v.AnimalIds = []string{"missing"} },
 		func(v *o.ForecastFacts) { v.CombinedFoodSupply.Consumers[0].NutritionPerDay = proto.Float64(8) },
 		func(v *o.ForecastFacts) { v.Patients[0].PawnId = proto.String("animal") },
-		func(v *o.ForecastFacts) { v.Completeness.Filtered = proto.Uint64(1) },
 		func(v *o.ForecastFacts) { v.Patients[0].BleedRatePerDay = proto.Float64(-1) },
 	} {
 		r, identity := forecastFixture(t)

@@ -162,14 +162,13 @@ func (client *Client) readCellsBand(ctx context.Context, identity *c.Identity, b
 // validatePlanningCells bounds one planning-cell snapshot, the colony
 // facts' planning.cells or a planning window page: a region on the map of
 // at most planningWindowPage cells, every listed cell unique and inside it,
-// listed plus filtered cells covering the region exactly, and only the
-// planning fields on each row.
+// one row per region cell, and only the planning fields on each row.
 func validatePlanningCells(v *o.CellsSnapshot, ctx *c.ObservationContext, size *o.MapSize) error {
 	if v == nil || !proto.Equal(v.Context, ctx) || !proto.Equal(v.MapSize, size) || v.Region == nil || !colonyCell(v.Region.Minimum, size) || !colonyCell(v.Region.Maximum, size) || v.Region.Minimum.GetX() > v.Region.Maximum.GetX() || v.Region.Minimum.GetZ() > v.Region.Maximum.GetZ() {
 		return contract("invalid planning cell scope")
 	}
 	area := uint64(v.Region.Maximum.GetX()-v.Region.Minimum.GetX()+1) * uint64(v.Region.Maximum.GetZ()-v.Region.Minimum.GetZ()+1)
-	if area > planningWindowPage || uint64(len(v.Cells))+v.Completeness.GetFiltered() != area {
+	if area > planningWindowPage || uint64(len(v.Cells)) != area {
 		return contract("planning region coverage mismatch")
 	}
 	seenCells := map[[2]int32]bool{}
@@ -198,14 +197,13 @@ func validatePlanningCells(v *o.CellsSnapshot, ctx *c.ObservationContext, size *
 }
 
 // PlanningCells decodes a validated planning-cell snapshot into site cells
-// and the count of cells it omits: fogged rows are skipped, since a fogged
-// cell is not evidence that a site is safe, and an emitter that filters
-// them out of the listing says so in Completeness.filtered. Roof and zone
+// and the count of fogged rows it skips, since a fogged cell is not
+// evidence that a site is safe. Roof and zone
 // presence follow the applied fields: a declared field with no value is a
 // known absence.
 func PlanningCells(v *o.CellsSnapshot) ([]policy.SiteCell, uint64) {
 	applied := v.GetAppliedFields()
-	filtered := v.GetCompleteness().GetFiltered()
+	var filtered uint64
 	cells := make([]policy.SiteCell, 0, len(v.GetCells()))
 	for _, row := range v.GetCells() {
 		if row.GetFogged() {

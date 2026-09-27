@@ -26,7 +26,6 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 				{Id: proto.String("bill1"), Recipe: &o.DefinitionRef{DefName: proto.String("MakeParka")}, Suspended: proto.Bool(false), Finished: proto.Bool(false)},
 			},
 		}},
-		Completeness: &o.Completeness{},
 	}}}
 	recipes := &o.RecipesReply{Outcome: &o.RecipesReply_Observed{Observed: &o.RecipesSnapshot{
 		Context:  gearBenchContext(),
@@ -41,7 +40,6 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 			Skills:           []*o.SkillRequirement{{DefName: proto.String("Crafting"), Minimum: proto.Int32(4)}},
 			Ingredients:      []*o.IngredientRequirement{{AllowedDefNames: []string{"Synthread"}, Required: proto.Float64(4), Complete: proto.Bool(true)}},
 		}},
-		Completeness: &o.Completeness{},
 	}}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		var outer struct {
@@ -152,7 +150,6 @@ func TestReadRecipeCatalogListsHostingBenchDefinitions(t *testing.T) {
 			Ingredients: []*o.IngredientRequirement{{AllowedDefNames: []string{"WoodLog"}, Required: proto.Float64(40), Complete: proto.Bool(true),
 				Alternatives: []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(40)}}}},
 		}},
-		Completeness: &o.Completeness{},
 	}}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		var outer struct {

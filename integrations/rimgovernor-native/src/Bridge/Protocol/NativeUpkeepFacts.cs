@@ -117,7 +117,6 @@ namespace HomeBridge.BridgeTools
                     }
                     facts.Targets.Add(row);
                 }
-                facts.Completeness = Complete(facts.Targets.Count);
                 result.HomeCoverage = new Obs.HomeCoverageSection { Observed = facts };
             });
             Read("lighting", result, () => {
@@ -161,7 +160,6 @@ namespace HomeBridge.BridgeTools
                     if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     facts.Lamps.Add(row);
                 }
-                facts.Completeness = Complete(benches.Count + lamps.Count);
                 result.Lighting = new Obs.LightingSection { Observed = facts };
             });
             Read("flooring", result, () => {
@@ -201,7 +199,6 @@ namespace HomeBridge.BridgeTools
                     facts.Terrains.Add(new Obs.FloorTerrain { DefName = Id(terrain.defName), Natural = terrain.natural, PathCost = terrain.pathCost,
                         Cleanliness = Number(terrain.GetStatValueAbstract(StatDefOf.Cleanliness)), Beauty = Number(terrain.GetStatValueAbstract(StatDefOf.Beauty)),
                         Flammability = Number(terrain.GetStatValueAbstract(StatDefOf.Flammability)) });
-                facts.Completeness = Complete(rooms.Count);
                 result.Flooring = new Obs.FlooringSection { Observed = facts };
             });
             Read("routes", result, () => {
@@ -338,7 +335,6 @@ namespace HomeBridge.BridgeTools
                             facts.Traffic.Add(cell);
                         }
                 }
-                facts.Completeness = Complete(facts.Facilities.Count);
                 result.Routes = new Obs.RoutesSection { Observed = facts };
             });
             Read("people", result, () => {
@@ -390,7 +386,6 @@ namespace HomeBridge.BridgeTools
                     row.BedIds.AddRange(beds);
                     facts.Rooms.Add(row);
                 }
-                facts.Completeness = Complete(rooms.Count);
                 result.Rooms = new Obs.UpkeepRoomsSection { Observed = facts };
             });
             Read("animals", result, () => {

@@ -18,7 +18,6 @@ func TestEquipCensusBiocodeIdentity(t *testing.T) {
 		second.Snapshot.EntityId = second.Id
 		stock.Items = append(stock.Items, second)
 		stock.Units = proto.Int64(2)
-		stock.ItemsCompleteness = emergencyCounts(2)
 		// Reverse order: ownership must join by ID, not definition or index.
 		stock.WeaponItems = []*o.GearItem{
 			{Thing: proto.Clone(second).(*o.EntityRef), Biocoded: proto.Bool(false)},
@@ -56,7 +55,7 @@ func equipTestRead() *o.ListSuppliesReply {
 	ctx := buildingAdmission().AdmittedContext
 	stock := func(def, id string, byTrade, ranged, melee bool) *o.ResourceStock {
 		item := &o.EntityRef{Id: proto.String(id), DefName: proto.String(def), MapId: pbIdentity().MapId, Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String(id), Token: proto.String("snapshot-" + id)}}
-		return &o.ResourceStock{Definition: &o.DefinitionRef{DefName: proto.String(def)}, Units: proto.Int64(1), Items: []*o.EntityRef{item}, ItemsCompleteness: emergencyCounts(1), WeaponByTrade: proto.Bool(byTrade), Ranged: proto.Bool(ranged), Melee: proto.Bool(melee)}
+		return &o.ResourceStock{Definition: &o.DefinitionRef{DefName: proto.String(def)}, Units: proto.Int64(1), Items: []*o.EntityRef{item}, WeaponByTrade: proto.Bool(byTrade), Ranged: proto.Bool(ranged), Melee: proto.Bool(melee)}
 	}
 	return &o.ListSuppliesReply{Outcome: &o.ListSuppliesReply_Observed{Observed: &o.SuppliesSnapshot{Context: ctx, Completeness: emergencyCounts(3), Stocks: []*o.ResourceStock{stock("Modded_Sling", "sling", true, true, false), stock("MeleeWeapon_Club", "club", true, false, true), stock("WoodLog", "log", false, false, true)}}}}
 }

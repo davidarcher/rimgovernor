@@ -17,7 +17,7 @@ func shrineSnapshot() *o.AncientShrinesSnapshot {
 	shrine := &o.AncientShrine{ShrineId: proto.String("ancientTempleApproached-1"), Room: &o.Rectangle{Minimum: cell(10, 10), Maximum: cell(20, 18)}, Sealed: proto.Bool(true), InHome: proto.Bool(false), GuardsKnown: proto.Bool(false),
 		Caskets:     []*o.ShrineCasket{{EntityId: proto.String("AncientCryptosleepCasket1"), Cell: cell(12, 12), InteractionCell: cell(13, 12), HitPoints: proto.Uint32(250), MaxHitPoints: proto.Uint32(250), HasContents: proto.Bool(true), PlayerClaimed: proto.Bool(false)}},
 		BreachWalls: []*o.ShrineBreachWall{{EntityId: proto.String("Wall7"), Cell: cell(10, 14), Outside: cell(9, 14)}}}
-	return &o.AncientShrinesSnapshot{Context: pbContext(), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}, Shrines: []*o.AncientShrine{shrine}}
+	return &o.AncientShrinesSnapshot{Context: pbContext(), Shrines: []*o.AncientShrine{shrine}}
 }
 
 func TestShrinesReadAndUnavailableStub(t *testing.T) {

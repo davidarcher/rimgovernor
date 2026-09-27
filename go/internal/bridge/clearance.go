@@ -61,10 +61,6 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 		}
 		sites[[2]int32{cell.GetX(), cell.GetZ()}] = true
 	}
-	p := v.Completeness
-	if p.GetFiltered() != 0 {
-		return contract("incomplete clearance census")
-	}
 	seen := map[string]bool{}
 	for _, row := range v.Targets {
 		if row == nil || validID(row.GetEntityId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetEntityId()] || row.Deconstructible == nil || !row.GetDeconstructible() || row.InHome == nil || row.AncientDanger == nil || row.Designated == nil {

@@ -65,9 +65,6 @@ func decodeEquipWeapons(reply *o.ListSuppliesReply, identity *c.Identity, minimu
 		if stock.WeaponByTrade == nil || stock.Ranged == nil || stock.Melee == nil || (stock.GetRanged() && stock.GetMelee()) {
 			return EquipRead{}, contract("equip stock lacks weapon class")
 		}
-		if yes, known := emergencyCompleteness(stock.ItemsCompleteness).Value(); !known || !yes {
-			return EquipRead{}, contract("incomplete equip items")
-		}
 		owners := map[string]*o.GearItem{}
 		for _, weapon := range stock.WeaponItems {
 			if weapon == nil || validID(weapon.GetThing().GetId()) != nil || owners[weapon.GetThing().GetId()] != nil || !validBiocode(weapon) {

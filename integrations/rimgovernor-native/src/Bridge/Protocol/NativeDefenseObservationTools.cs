@@ -135,7 +135,6 @@ namespace HomeBridge.BridgeTools
                 row.EdgeReachable = row.Passable && map.reachability.CanReachMapEdge(cell, raider);
                 snapshot.Cells.Add(row);
             }
-            snapshot.Completeness = Complete(snapshot.Cells.Count);
             // CoverUtility grants a block chance to any positive fill, so the
             // floor is zero: nothing on the map is cover below it.
             snapshot.CoverThreshold = 0;
@@ -162,7 +161,6 @@ namespace HomeBridge.BridgeTools
                 row.ShooterCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(from), to, map));
                 snapshot.Lines.Add(row);
             }
-            snapshot.Completeness = Complete(snapshot.Lines.Count);
             return snapshot;
         }
 
@@ -170,6 +168,5 @@ namespace HomeBridge.BridgeTools
         private static double Finite(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
     }
 }

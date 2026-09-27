@@ -110,7 +110,6 @@ namespace HomeBridge.BridgeTools
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
                 FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp),
-                Completeness = Complete(1),
                 FoodSupply = new Obs.FoodSupplySection { Observed = Food(FoodSupplyFacts.Read(people,
                     things.Where(FoodSupplyFacts.SharedFood).ToList())) },
                 Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) },
@@ -200,7 +199,7 @@ namespace HomeBridge.BridgeTools
                     RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
                     AdaptationFactor = Finite(Find.StoryWatcher.watcherAdaptation.TotalThreatPointsFactor),
                     DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
-                    ColonistCount = checked((uint)colonists), Completeness = Complete(1),
+                    ColonistCount = checked((uint)colonists),
                 };
                 return new Obs.ThreatSection { Observed = facts };
             }
@@ -209,7 +208,7 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.UpkeepSection ReadComfort(Map map)
         {
-            var result = new Obs.UpkeepFacts { Completeness = Complete(1) };
+            var result = new Obs.UpkeepFacts { };
             try { result.Comfort = new Obs.ComfortSection { Observed = ComfortFacts.ReadProtocol(map) }; }
             catch (Exception) { result.Comfort = new Obs.ComfortSection { Unavailable = Unsupported("Complete comfort facts are unavailable.") }; }
             NativeUpkeepFacts.Populate(map, result);
@@ -232,7 +231,7 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(b => b.thingIDNumber).ToList();
             var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
             var geysers = map.listerThings.ThingsOfDef(ThingDefOf.SteamGeyser).OfType<Building_SteamGeyser>().OrderBy(g => g.thingIDNumber).ToList();
-            var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + batteries.Count + conduits.Count) };
+            var result = new Obs.DevelopmentFacts { };
             // Archived letters survive dismissal and saves. Use the game's own
             // translated label rather than matching English message prose.
             var shortLabel = "LetterLabelShortCircuit".Translate().CapitalizeFirst().ToString();
@@ -275,7 +274,7 @@ namespace HomeBridge.BridgeTools
                     CapacityWattDays = Finite(net.batteryComps.Sum(b => (double)b.Props.storedEnergyMax)),
                     HasSource = net.powerComps.Any(p => p.Props.PowerConsumption < 0),
                     HasActiveSource = net.powerComps.Any(p => p.PowerOn && p.PowerOutput > 0),
-                    Completeness = Complete(net.powerComps.Count + net.batteryComps.Count) });
+                    });
             }
             foreach (var geyser in geysers) {
                 // A geyser is free for a geothermal generator only while no
@@ -357,7 +356,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
             var names = request.RequestedDefinitionNames.Count == 0 ? StarterDefinitions : request.RequestedDefinitionNames.ToArray();
-            var result = new Obs.PlanningFacts { Completeness = Complete(names.Length) };
+            var result = new Obs.PlanningFacts { };
             try { result.Gear = NativeGearFacts.Read(map, context); }
             catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
@@ -525,7 +524,6 @@ namespace HomeBridge.BridgeTools
                 row.StoredWattDays = Finite(net.CurrentStoredEnergy()); row.CapacityWattDays = capacity;
                 result.Networks.Add(row);
             }
-            result.Completeness = Complete(result.Lights.Count + result.Growers.Count + result.Rooms.Count + result.Networks.Count);
             return result;
         }
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
@@ -534,7 +532,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source)
         {
             var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply),
-                Completeness = Complete(1 + source.animalIds.Count + source.crops.Count + source.patients.Count) };
+                };
             result.AnimalIds.Add(source.animalIds);
             foreach (var crop in source.crops) {
                 var row = new Obs.CropForecast { ZoneId = crop.id.ToString(System.Globalization.CultureInfo.InvariantCulture) };
@@ -562,7 +560,7 @@ namespace HomeBridge.BridgeTools
         }
         private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
         {
-            var result = new Obs.FoodSupplyFacts { Completeness = Complete(source.consumers.Count + source.stocks.Count) };
+            var result = new Obs.FoodSupplyFacts { };
             if (source.larder != null) {
                 result.Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition) };
                 foreach (var corpse in source.larder.Corpses) {
@@ -593,7 +591,6 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
-        private static Obs.Completeness Complete(int count, int filtered = 0) => new Obs.Completeness { Filtered = (ulong)filtered };
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Common.Unavailable Unsupported(string detail) => Unavailable(Common.UnavailableReason.Unsupported, detail);
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };

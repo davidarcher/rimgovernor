@@ -44,10 +44,6 @@ func ValidateAncientShrines(v *o.AncientShrinesSnapshot, identity *c.Identity) e
 	if v == nil || buildingUnknown(v) != nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
 		return contract("invalid shrine context")
 	}
-	p := v.Completeness
-	if p.GetFiltered() != 0 {
-		return contract("incomplete shrine census")
-	}
 	seen := map[string]bool{}
 	for _, row := range v.Shrines {
 		if row == nil || validID(row.GetShrineId()) != nil || seen[row.GetShrineId()] || row.Sealed == nil || row.InHome == nil || row.GuardsKnown == nil || row.GetSealed() && row.GetGuardsKnown() {

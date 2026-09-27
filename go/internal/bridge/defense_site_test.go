@@ -16,9 +16,6 @@ import (
 func defenseRegion() CellRect {
 	return CellRect{Min: domain.Cell{X: 4, Z: 6}, Max: domain.Cell{X: 5, Z: 6}}
 }
-func defenseComplete(n int) *o.Completeness {
-	return &o.Completeness{Filtered: proto.Uint64(0)}
-}
 func defenseSiteFixture() *o.DefenseSiteSnapshot {
 	open := &o.DefenseCell{Cell: &c.Cell{X: proto.Int32(4), Z: proto.Int32(6)}, Fogged: proto.Bool(false), Terrain: proto.String("Soil"), Walkable: proto.Bool(true), Passable: proto.Bool(true),
 		CoverFill: proto.Float64(0), BlocksSight: proto.Bool(false), PlayerOwned: proto.Bool(false), NaturalRock: proto.Bool(false), Door: proto.Bool(false), EdgeReachable: proto.Bool(true), HomeArea: proto.Bool(false)}
@@ -26,7 +23,7 @@ func defenseSiteFixture() *o.DefenseSiteSnapshot {
 		CoverFill: proto.Float64(0.57), BlocksSight: proto.Bool(false), EdificeDefName: proto.String("Sandbags"), PlayerOwned: proto.Bool(true), NaturalRock: proto.Bool(false), Door: proto.Bool(false), EdgeReachable: proto.Bool(true), HomeArea: proto.Bool(true)}
 	return &o.DefenseSiteSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(250), Height: proto.Uint32(250)},
 		Region: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(4), Z: proto.Int32(6)}, Maximum: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}},
-		Cells:  []*o.DefenseCell{open, sandbag}, Completeness: defenseComplete(2), CoverThreshold: proto.Float64(0),
+		Cells:  []*o.DefenseCell{open, sandbag}, CoverThreshold: proto.Float64(0),
 		Raids: []*o.RaidTrack{{LordId: proto.String("lord-7"), FactionDef: proto.String("TribeRough"), SpawnTick: proto.Int64(100), LastTick: proto.Int64(400), Ground: proto.Bool(true),
 			Spawn: &c.Cell{X: proto.Int32(0), Z: proto.Int32(120)}, Trail: []*c.Cell{{X: proto.Int32(0), Z: proto.Int32(120)}, {X: proto.Int32(3), Z: proto.Int32(118)}}}}}
 }
@@ -165,7 +162,7 @@ func linesFixture() *o.LinesOfFireSnapshot {
 	line := func(fx, tx int32, los bool, target, shooter float64) *o.LineOfFire {
 		return &o.LineOfFire{From: &c.Cell{X: proto.Int32(fx), Z: proto.Int32(0)}, To: &c.Cell{X: proto.Int32(tx), Z: proto.Int32(3)}, LineOfSight: proto.Bool(los), TargetCover: proto.Float64(target), ShooterCover: proto.Float64(shooter), Distance: proto.Float64(3.2)}
 	}
-	return &o.LinesOfFireSnapshot{Context: pbContext(), Lines: []*o.LineOfFire{line(0, 10, true, 0, 0.57), line(0, 11, false, 0.75, 0.57), line(1, 10, true, 0, 0), line(1, 11, true, 0.75, 0)}, Completeness: defenseComplete(4)}
+	return &o.LinesOfFireSnapshot{Context: pbContext(), Lines: []*o.LineOfFire{line(0, 10, true, 0, 0.57), line(0, 11, false, 0.75, 0.57), line(1, 10, true, 0, 0), line(1, 11, true, 0.75, 0)}}
 }
 func TestLinesOfFireReadsEveryPair(t *testing.T) {
 	firing := []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}}
@@ -207,7 +204,7 @@ func TestLinesOfFireRejectsMalformed(t *testing.T) {
 	firing := []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}}
 	approach := []domain.Cell{{X: 10, Z: 3}, {X: 11, Z: 3}}
 	edits := map[string]func(*o.LinesOfFireSnapshot){
-		"missing pair":   func(s *o.LinesOfFireSnapshot) { s.Lines = s.Lines[:3]; s.Completeness = defenseComplete(3) },
+		"missing pair":   func(s *o.LinesOfFireSnapshot) { s.Lines = s.Lines[:3] },
 		"duplicate pair": func(s *o.LinesOfFireSnapshot) { s.Lines[3] = s.Lines[2] },
 		"foreign pair":   func(s *o.LinesOfFireSnapshot) { s.Lines[3].To.X = proto.Int32(12) },
 		"cover nan":      func(s *o.LinesOfFireSnapshot) { s.Lines[0].TargetCover = proto.Float64(math.NaN()) },

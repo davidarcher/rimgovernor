@@ -13,8 +13,7 @@ import (
 
 func caravanCatalogFixture() *o.CaravanCatalog {
 	return &o.CaravanCatalog{
-		Snapshot:     &o.SnapshotRef{Context: pbContext(), Token: proto.String("catalog-token")},
-		Completeness: &o.Completeness{},
+		Snapshot: &o.SnapshotRef{Context: pbContext(), Token: proto.String("catalog-token")},
 		CargoGroups: []*o.CargoGroup{
 			{GroupId: proto.String("group-1"), DefName: proto.String("Steel"), Count: proto.Int64(50)},
 			{GroupId: proto.String("group-2"), DefName: proto.String("Pemmican"), Count: proto.Int64(20), Nutrition: proto.Float64(0.05), Perishable: proto.Bool(true), RotDays: proto.Float64(60), Reserve: proto.Bool(true), EaterIds: []string{"pawn-1", "pawn-2"}},

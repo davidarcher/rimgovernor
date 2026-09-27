@@ -88,7 +88,9 @@ a depleted drill through Hands.
   are signed (negative sells). Ratios and all measurements are finite. Units are named
   on facts; a percentage/fraction conversion is an adapter responsibility.
 - Replies carry every matching row; there is no paging or per-list cap.
-  `Completeness.filtered` counts the rows the query's filters excluded.
+  `Completeness.filtered` counts the rows the query's filters excluded; only
+  the filterable reads carry it (pawns, supplies, buildings, zones, rooms,
+  research, resource sources, and visible-only hediffs).
 - `SnapshotRef` binds context, exact entity ID, and an opaque token for settings
   CAS. Tokens never mean permission or completed effects. Bill-stack tokens bind
   the bench and ordered stack, not only a bill index; trade tokens bind the session

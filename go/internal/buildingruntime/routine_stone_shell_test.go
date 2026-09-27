@@ -105,9 +105,8 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 	entity := &o.EntityRef{Id: proto.String("wall-1"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: cell}
 	n.buildings = &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(1), Buildings: []*o.BuildingState{{Building: entity, OccupiedCells: []*c.Cell{cell}, Status: proto.String("built"), Rotation: proto.String("North"), Stuff: proto.String("WoodLog")}}}}}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
-		Structures:   []*o.UpkeepStructure{{Building: &o.BuildingState{Building: entity}, Flammability: proto.Float64(1)}},
-		Completeness: count(1),
-		Comfort:      &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
+		Structures: []*o.UpkeepStructure{{Building: &o.BuildingState{Building: entity}, Flammability: proto.Float64(1)}},
+		Comfort:    &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	n.sites = bridge.WallUpgradeSites{Context: proto.Clone(v.Context).(*c.ObservationContext), Sites: []bridge.WallUpgradeSite{{
 		TargetID: "wall-1", TargetPresent: true, X: 4, Z: 4, NX: 0, NZ: 1, LeftSupport: true, RightSupport: true,
@@ -214,9 +213,8 @@ func TestRoutineHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
 	stone, db, native := stoneShellFixtureHistory(t, false)
 	v := native.reply.GetObserved()
 	v.Upkeep.GetObserved().HomeCoverage = &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: &o.HomeCoverageFacts{
-		Revision:     proto.Int64(1),
-		Targets:      []*o.HomeCoverageTarget{{Id: proto.String("wall-1"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(0), Cells: []*c.Cell{{X: proto.Int32(4), Z: proto.Int32(4)}}}},
-		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
+		Revision: proto.Int64(1),
+		Targets:  []*o.HomeCoverageTarget{{Id: proto.String("wall-1"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(0), Cells: []*c.Cell{{X: proto.Int32(4), Z: proto.Int32(4)}}}},
 	}}}
 	stone.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainHomeCoverage})
 	if _, err := stone.reviewer.Step(context.Background()); err != nil {

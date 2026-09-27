@@ -8,10 +8,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func roomComplete(n uint64) *o.Completeness {
-	return &o.Completeness{Filtered: proto.Uint64(0)}
-}
-
 func roomQualityWire() *o.UpkeepFacts {
 	v := sleepingWire()
 	v.People[0].PartnerIds = []string{"lover"}
@@ -20,8 +16,7 @@ func roomQualityWire() *o.UpkeepFacts {
 	v.Beds[0].RoomId = proto.String("7")
 	v.Beds[0].Quality = proto.String("Good")
 	v.Rooms = &o.UpkeepRoomsSection{Outcome: &o.UpkeepRoomsSection_Observed{Observed: &o.UpkeepRoomsFacts{
-		Rooms:        []*o.UpkeepRoom{{RoomId: proto.String("7"), Role: proto.String("Bedroom"), Impressiveness: proto.Float64(35), Wealth: proto.Float64(900), Beauty: proto.Float64(-0.5), Space: proto.Float64(20), Cleanliness: proto.Float64(-0.1), CellCount: proto.Uint32(16), BedIds: []string{"bed"}}},
-		Completeness: roomComplete(1),
+		Rooms: []*o.UpkeepRoom{{RoomId: proto.String("7"), Role: proto.String("Bedroom"), Impressiveness: proto.Float64(35), Wealth: proto.Float64(900), Beauty: proto.Float64(-0.5), Space: proto.Float64(20), Cleanliness: proto.Float64(-0.1), CellCount: proto.Uint32(16), BedIds: []string{"bed"}}},
 	}}}
 	return v
 }
@@ -46,7 +41,6 @@ func TestRoomQualityBoundary(t *testing.T) {
 		"duplicate room": func(v *o.UpkeepFacts) {
 			f := v.Rooms.GetObserved()
 			f.Rooms = append(f.Rooms, f.Rooms[0])
-			f.Completeness = roomComplete(2)
 		},
 		"NaN stat":           func(v *o.UpkeepFacts) { room(v).Beauty = proto.Float64(math.NaN()) },
 		"negative wealth":    func(v *o.UpkeepFacts) { room(v).Wealth = proto.Float64(-1) },

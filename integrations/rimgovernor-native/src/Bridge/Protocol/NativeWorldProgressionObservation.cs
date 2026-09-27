@@ -30,7 +30,6 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_read_world_progression";
 
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
 
         private static Obs.EntityRef PawnEntity(Pawn pawn, int? mapId) => new Obs.EntityRef
         { Id = pawn.GetUniqueLoadID(), DefName = pawn.def.defName, Label = pawn.LabelShort, MapId = mapId ?? -1 };
@@ -51,7 +50,6 @@ namespace HomeBridge.BridgeTools
                         .GroupBy(t => t.def).Select(StoredItemRow);
                     row.StoredItems.Add(stored);
                 }
-                row.Completeness = Complete(row.Pawns.Count + row.StoredItems.Count);
                 rows.Add(row);
             }
             return rows;
@@ -115,7 +113,6 @@ namespace HomeBridge.BridgeTools
                 row.Pawns.Add(c.PawnsListForReading.Select(p => NativeObservationTools.PawnRow(p, false, context)));
                 row.HomeRoutes.Add(HomeRoutes(c));
                 row.Inventory.Add(Inventory(c));
-                row.Completeness = Complete(row.Pawns.Count);
                 rows.Add(row);
             }
             return rows;
@@ -215,7 +212,6 @@ namespace HomeBridge.BridgeTools
             var snapshot = new Obs.WorldProgressionSnapshot
             {
                 Context = context.Clone(),
-                Completeness = Complete(maps.Count + factions.Count + caravans.Count + assemblies.Count + quests.Count),
             };
             snapshot.Maps.Add(maps);
             snapshot.Factions.Add(factions);

@@ -243,7 +243,7 @@ func validateUpkeepRooms(section *o.UpkeepRoomsSection) error {
 	if f == nil {
 		return validateUnavailable(section.GetUnavailable())
 	}
-	if !proto.Equal(f, &o.UpkeepRoomsFacts{Rooms: f.Rooms, Completeness: f.Completeness}) {
+	if !proto.Equal(f, &o.UpkeepRoomsFacts{Rooms: f.Rooms}) {
 		return contract("invalid room quality census")
 	}
 	rooms := map[string]bool{}
@@ -284,7 +284,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, enti
 	if len(f.PawnIds) > 32 || len(f.Traffic) > 5*128 { // the busiest 128 cells per traffic layer (#817)
 		return contract("invalid routes census")
 	}
-	if !proto.Equal(f, &o.RoutesFacts{Facilities: f.Facilities, PawnIds: f.PawnIds, Traffic: f.Traffic, TrafficSamples: f.TrafficSamples, TrafficSinceTick: f.TrafficSinceTick, Completeness: f.Completeness}) || f.TrafficSinceTick != nil && f.GetTrafficSinceTick() < 0 {
+	if !proto.Equal(f, &o.RoutesFacts{Facilities: f.Facilities, PawnIds: f.PawnIds, Traffic: f.Traffic, TrafficSamples: f.TrafficSamples, TrafficSinceTick: f.TrafficSinceTick}) || f.TrafficSinceTick != nil && f.GetTrafficSinceTick() < 0 {
 		return contract("invalid routes facts")
 	}
 	pawns := map[string]bool{}

@@ -58,10 +58,6 @@ func validateWasteTarget(snapshot *o.CellsSnapshot, identity *c.Identity, cell *
 	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
 		return WasteTarget{}, contract("invalid waste target cells context")
 	}
-	completeness := snapshot.Completeness
-	if completeness.GetFiltered() != 0 {
-		return WasteTarget{}, contract("incomplete waste target cells observation")
-	}
 	if !proto.Equal(snapshot.AppliedFields, wasteTargetFields()) {
 		return WasteTarget{}, contract("waste target cells applied fields differ")
 	}

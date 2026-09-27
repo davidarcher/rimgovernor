@@ -91,12 +91,10 @@ namespace HomeBridge.BridgeTools
                 var def = DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
                 if (def != null) snapshot.SupportedInteractions.Add(new Obs.DefinitionRef { DefName = NativePawnObservationTools.Id(def.defName), Label = NativePawnObservationTools.Text(def.label) });
             }
-            snapshot.Completeness = Complete(snapshot.Persons.Count);
             return snapshot;
         }
 
         private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
     }
 }

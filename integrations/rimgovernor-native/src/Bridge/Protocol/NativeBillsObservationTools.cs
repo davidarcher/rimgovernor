@@ -51,7 +51,6 @@ namespace HomeBridge.BridgeTools
                 var benches = Benches(map, parsed.AllFactions);
                 if (parsed.HasBenchId) benches = benches.Where(b => b.GetUniqueLoadID() == parsed.BenchId).ToList();
                 var snapshot = new Obs.BillsSnapshot { Context = context };
-                snapshot.Completeness = Complete(benches.Count);
                 foreach (var bench in benches) snapshot.Benches.Add(Stack(bench, map, context));
                 return new Obs.BillsReply { Observed = snapshot };
             }
@@ -77,7 +76,7 @@ namespace HomeBridge.BridgeTools
                         var catalog = DefDatabase<RecipeDef>.AllDefsListForReading
                             .Where(r => r.products != null && r.products.Count > 0 && (!parsed.HasProductDef || r.products.Any(p => p.thingDef?.defName == parsed.ProductDef)))
                             .Where(r => Hosts(r).Count > 0).OrderBy(r => r.defName, StringComparer.Ordinal).ToList();
-                        var definitions = new Obs.RecipesSnapshot { Context = context, Snapshot = new Obs.SnapshotRef { Context = context.Clone() }, Completeness = Complete(catalog.Count) };
+                        var definitions = new Obs.RecipesSnapshot { Context = context, Snapshot = new Obs.SnapshotRef { Context = context.Clone() }};
                         foreach (var recipe in catalog)
                         {
                             var hosts = Hosts(recipe);
@@ -91,7 +90,7 @@ namespace HomeBridge.BridgeTools
                     if (bench == null)
                         return ProtoBoundary.Encode(new Obs.RecipesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned bench with that id is on the current map.") });
                     var recipes = (bench.def.AllRecipes ?? new List<RecipeDef>()).Where(r => r != null).OrderBy(r => r.defName, StringComparer.Ordinal).ToList();
-                    var snapshot = new Obs.RecipesSnapshot { Context = context, Snapshot = NativeProductionBills.Snapshot(bench, (IBillGiver)bench, context), Completeness = Complete(recipes.Count) };
+                    var snapshot = new Obs.RecipesSnapshot { Context = context, Snapshot = NativeProductionBills.Snapshot(bench, (IBillGiver)bench, context)};
                     foreach (var recipe in recipes) snapshot.Recipes.Add(Recipe(bench.def, bench, recipe));
                     return ProtoBoundary.Encode(new Obs.RecipesReply { Observed = snapshot });
                 }
@@ -128,7 +127,7 @@ namespace HomeBridge.BridgeTools
             var giver = (IBillGiver)bench;
             var stack = giver.BillStack ?? throw new InvalidOperationException("Bench bill stack unavailable.");
             var row = new Obs.BillStack { Snapshot = NativeProductionBills.Snapshot(bench, giver, context), Bench = Entity(bench, map),
-                Usable = NativeProductionBills.Usable(bench), Capacity = 15, Completeness = Complete(stack.Count) };
+                Usable = NativeProductionBills.Usable(bench), Capacity = 15};
             if (!row.Usable) row.UnusableReason = bench.Faction != Faction.OfPlayer ? "not player owned"
                 : bench.IsForbidden(Faction.OfPlayer) ? "forbidden" : bench.IsBurning() ? "burning" : !giver.CurrentlyUsableForBills() ? "not currently usable for bills" : "unusable";
             for (var index = 0; index < stack.Count; index++) row.Bills.Add(NativeProductionBills.BillRow(stack.Bills[index], index));
@@ -212,7 +211,6 @@ namespace HomeBridge.BridgeTools
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
         // The detail names the failure so a controller log is diagnosable
         // without the game log; the full trace still goes to the game log.
         private static string Failed(string what, Exception e)

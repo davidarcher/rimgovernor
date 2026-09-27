@@ -31,7 +31,7 @@ func TestFoodChannelsPresenceThroughColonyDecode(t *testing.T) {
 	if _, known := decode().FoodChannels.Value(); known {
 		t.Fatal("missing section became known")
 	}
-	f := &o.FoodChannelsFacts{Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
+	f := &o.FoodChannelsFacts{
 		Grazing:        []*o.PenGrazing{{PenId: proto.String("pen"), DemandPerDay: proto.Float64(2), PasturePerDay: proto.Float64(0), StoredNutrition: proto.Float64(0)}},
 		Gatherable:     []*o.GatherableAnimal{{PawnId: proto.String("cow"), Race: proto.String("Cow"), Fullness: proto.Float64(0), Resource: proto.String("Milk"), HandlerReachable: proto.Bool(false), NutritionPerDay: proto.Float64(.9), WorkPerDay: proto.Float64(400), LeadDays: proto.Float64(1), Active: proto.Bool(true)}, {PawnId: proto.String("dog"), Race: proto.String("LabradorRetriever")}},
 		EggLayer:       []*o.EggLayerAnimal{{PawnId: proto.String("hen"), Race: proto.String("Chicken"), CanLayNow: proto.Bool(false), Progress: proto.Float64(0)}, {PawnId: proto.String("cow"), Race: proto.String("Cow")}},

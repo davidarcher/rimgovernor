@@ -166,7 +166,8 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 	for _, group := range categories {
 		count += len(group.rows)
 	}
-	result.Facts.ThreatsComplete = emergencyCompleteness(v.Threats.Completeness)
+	// The threats census has no filter: it is whole whenever it is read.
+	result.Facts.ThreatsComplete = domain.Known(true)
 	statuses := map[policy.PawnID]policy.EmergencyPawn{}
 	observe := func(pawn policy.EmergencyPawn) error {
 		if prior, ok := statuses[pawn.ID]; ok {

@@ -71,9 +71,8 @@ An identity change invalidates pending reads, pages and commands. Page cursors a
 opaque and scoped to the producing observation, never coordinate reservations.
 
 The current native colony adapter projects `DevelopmentFacts.power`, conduit
-`furniture` and per-network `networks`. Its completeness describes the
-power-trader and conduit census; omitted research remains unported, not observed
-empty. Power rows carry refuelable service facts (`fuel`, `target_fuel`,
+`furniture` and per-network `networks`; omitted research remains unported,
+not observed empty. Power rows carry refuelable service facts (`fuel`, `target_fuel`,
 `out_of_fuel`, `allowed_fuel_defs`, `broken_down`) when the building has the
 matching component, and batteries appear as `base_w = 0` rows with
 `stored_watt_days`/`capacity_watt_days`. `networks` summarises each native

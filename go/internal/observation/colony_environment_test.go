@@ -19,7 +19,6 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 		Growers:  []*o.PlantGrower{{Building: &o.EntityRef{Id: proto.String("basin-1"), DefName: proto.String("HydroponicsBasin"), Position: &c.Cell{X: proto.Int32(20), Z: proto.Int32(10)}}, Fertility: proto.Float64(2.8), SowTag: proto.String("Hydroponic"), CanSow: proto.Bool(true), PowerNetId: proto.String("net-a"), PlantCells: []*c.Cell{{X: proto.Int32(20), Z: proto.Int32(10)}, {X: proto.Int32(20), Z: proto.Int32(11)}, {X: proto.Int32(20), Z: proto.Int32(12)}, {X: proto.Int32(20), Z: proto.Int32(13)}}}},
 		Rooms:    []*o.GrowRoom{{RoomId: proto.String("7"), TemperatureC: proto.Float64(21), CellCount: proto.Uint32(36), OpenRoofCount: proto.Uint32(0), ProperRoom: proto.Bool(true), PsychologicallyOutdoors: proto.Bool(false), LitCells: proto.Uint32(30)}},
 		Networks: []*o.PowerHeadroom{{Id: proto.String("net-a"), GenerationW: proto.Float64(3000), SolarW: proto.Float64(1700), WindW: proto.Float64(300), ConsumptionW: proto.Float64(600), StoredWattDays: proto.Float64(400), CapacityWattDays: proto.Float64(600), HasActiveSource: proto.Bool(true)}}}
-	env.Completeness = &o.Completeness{Filtered: proto.Uint64(0)}
 	definitions := []*o.PlanningDefinition{
 		{Definition: &o.DefinitionRef{DefName: proto.String("Plant_Rice")}, GrowDays: proto.Float64(3), GrowMinGlow: proto.Float64(0.3), SowTags: []string{"Ground", "Hydroponic"}, HarvestWork: proto.Float64(200), RawPreferred: proto.Bool(false), DietAllowed: proto.Bool(true), RequiresPollution: proto.Bool(false), RequiresCleanSoil: proto.Bool(true)},
 		{Definition: &o.DefinitionRef{DefName: proto.String("SunLamp")}, PowerW: proto.Float64(2900), GlowRadius: proto.Float64(14)},
@@ -36,7 +35,6 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 	planning := reply.GetObserved().Planning.GetObserved()
 	planning.Environment = env
 	planning.Definitions = definitions
-	planning.Completeness = &o.Completeness{Filtered: proto.Uint64(0)}
 	if err = bridge.ValidateColonyFacts(reply.GetObserved(), reply.GetObserved().Context.Identity); err != nil {
 		t.Fatal(err)
 	}

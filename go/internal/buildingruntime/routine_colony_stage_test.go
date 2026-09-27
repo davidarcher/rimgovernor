@@ -85,13 +85,10 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 	// that climbs one stage until Development.
 	v.IndoorSleepingCapacity = indoor
 	v.Resources = []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(400)}, {DefName: proto.String("MedicineHerbal"), Units: proto.Int64(10)}}
-	count := func(n uint64) *o.Completeness {
-		return &o.Completeness{Filtered: proto.Uint64(0)}
-	}
 	food := &o.FoodSupplyFacts{Consumers: []*o.FoodConsumer{{PawnId: proto.String("builder"), NutritionPerDay: proto.Float64(1)}},
-		Stocks: []*o.FoodStock{{Item: &o.EntityRef{Id: proto.String("pemmican"), DefName: proto.String("Pemmican")}, Count: proto.Int64(60), Nutrition: proto.Float64(30), Perishable: proto.Bool(false), EaterIds: []string{"builder"}}}, Completeness: count(2)}
+		Stocks: []*o.FoodStock{{Item: &o.EntityRef{Id: proto.String("pemmican"), DefName: proto.String("Pemmican")}, Count: proto.Int64(60), Nutrition: proto.Float64(30), Perishable: proto.Bool(false), EaterIds: []string{"builder"}}}}
 	v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: food}}
-	v.Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: proto.Clone(food).(*o.FoodSupplyFacts), Patients: []*o.PatientForecast{{PawnId: proto.String("builder")}}, Completeness: count(2)}}}
+	v.Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: proto.Clone(food).(*o.FoodSupplyFacts), Patients: []*o.PatientForecast{{PawnId: proto.String("builder")}}}}}
 	p.reviewer.policy.Stage = policy.ColonyStagePolicy{StableTicks: 1, StableExitTicks: 1, DevelopmentTicks: 1}
 	for _, want := range []policy.ColonyStage{policy.StageReserves, policy.StageStable, policy.StageDevelopment} {
 		tick := v.Context.GetTick() + 1

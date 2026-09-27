@@ -43,16 +43,15 @@ func TestPlanningCellsPollutionAndGlowPresence(t *testing.T) {
 }
 
 // windowSnapshot answers a planning window band request the way the native
-// get_cells serves it: one row per cell of the band, fogged rows filtered
-// into the completeness count.
+// get_cells serves it: one row per cell of the band, a fogged row carrying
+// only its fog.
 func windowSnapshot(request *o.GetCellsRequest, fogged func(x, z int32) bool) *o.CellsSnapshot {
 	rect := request.GetRectangle()
 	s := &o.CellsSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(1000), Height: proto.Uint32(1000)}, Region: proto.Clone(rect).(*o.Rectangle), AppliedFields: planningWindowFields()}
-	filtered := uint64(0)
 	for z := rect.Minimum.GetZ(); z <= rect.Maximum.GetZ(); z++ {
 		for x := rect.Minimum.GetX(); x <= rect.Maximum.GetX(); x++ {
 			if fogged != nil && fogged(x, z) {
-				filtered++
+				s.Cells = append(s.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Fogged: proto.Bool(true)})
 				continue
 			}
 			row := &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(true), Indoors: proto.Bool(false), Doorway: proto.Bool(false), StorageEmpty: proto.Bool(true)}
@@ -66,7 +65,6 @@ func windowSnapshot(request *o.GetCellsRequest, fogged func(x, z int32) bool) *o
 			s.Cells = append(s.Cells, row)
 		}
 	}
-	s.Completeness = &o.Completeness{Filtered: proto.Uint64(filtered)}
 	return s
 }
 

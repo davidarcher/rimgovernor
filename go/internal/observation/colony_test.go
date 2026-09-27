@@ -26,7 +26,7 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 		t.Fatal(err)
 	}
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
-	r.GetObserved().Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(120.5), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
+	r.GetObserved().Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(120.5)}}}
 	p, err := DecodeColony(r, expected)
 	if err != nil {
 		t.Fatal(err)

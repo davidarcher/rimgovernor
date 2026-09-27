@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
             var play = buildings.Where(b => b.def.building.joyKind != null && !b.IsBurning()
                 && (b.TryGetComp<CompPowerTrader>() == null || b.TryGetComp<CompPowerTrader>().PowerOn)).ToList();
             var surfaces = buildings.Where(b => b.def.surfaceType == SurfaceType.Eat && Indoors(b)).ToList();
-            var result = new Obs.ComfortFacts { Completeness = Complete(people.Count) };
+            var result = new Obs.ComfortFacts { };
             result.People.Add(people.Select(p => Id(p.GetUniqueLoadID())));
             foreach (var b in surfaces) {
                 var adjacent = b.OccupiedRect().SelectMany(c => GenAdj.CardinalDirections.Select(d => c+d)).Distinct()

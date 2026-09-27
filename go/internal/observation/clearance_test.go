@@ -25,7 +25,7 @@ func TestClearanceUnknownEmptyAndChanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := &o.ClearanceTargetsSnapshot{Context: native, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
+	snapshot := &o.ClearanceTargetsSnapshot{Context: native}
 	complete := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: snapshot}}
 	stub := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}
 	for _, source := range []clearanceSource{{reply: stub}, {err: bridge.ErrUnavailable}} {

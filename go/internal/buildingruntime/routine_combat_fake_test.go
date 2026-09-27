@@ -150,7 +150,6 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 			}
 			snapshot.Lines = append(snapshot.Lines, row)
 		}
-		snapshot.Completeness = &o.Completeness{Filtered: proto.Uint64(0)}
 		frame.CombatLinesOfFire = snapshot
 	}
 	return bridge.DecodeCombat(frame)

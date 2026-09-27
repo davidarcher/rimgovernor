@@ -8,7 +8,7 @@ import (
 )
 
 func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.MapSize) error {
-	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Furniture: v.Furniture, Completeness: v.Completeness, Networks: v.Networks, ShortCircuitTick: v.ShortCircuitTick, Geysers: v.Geysers}) {
+	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Furniture: v.Furniture, Networks: v.Networks, ShortCircuitTick: v.ShortCircuitTick, Geysers: v.Geysers}) {
 		return contract("unsupported development facts")
 	}
 	if v.ShortCircuitTick != nil && v.GetShortCircuitTick() < 0 {
@@ -70,7 +70,7 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 	}
 	networks := map[string]bool{}
 	for _, net := range v.Networks {
-		if net == nil || validID(net.GetId()) != nil || networks[net.GetId()] || !proto.Equal(net, &o.PowerNetwork{Id: net.Id, Producers: net.Producers, Consumers: net.Consumers, Batteries: net.Batteries, Transmitters: net.Transmitters, Connectors: net.Connectors, GenerationW: net.GenerationW, ConsumptionW: net.ConsumptionW, NetW: net.NetW, StoredWattDays: net.StoredWattDays, CapacityWattDays: net.CapacityWattDays, HasSource: net.HasSource, HasActiveSource: net.HasActiveSource, Completeness: net.Completeness}) {
+		if net == nil || validID(net.GetId()) != nil || networks[net.GetId()] || !proto.Equal(net, &o.PowerNetwork{Id: net.Id, Producers: net.Producers, Consumers: net.Consumers, Batteries: net.Batteries, Transmitters: net.Transmitters, Connectors: net.Connectors, GenerationW: net.GenerationW, ConsumptionW: net.ConsumptionW, NetW: net.NetW, StoredWattDays: net.StoredWattDays, CapacityWattDays: net.CapacityWattDays, HasSource: net.HasSource, HasActiveSource: net.HasActiveSource}) {
 			return contract("invalid power network")
 		}
 		networks[net.GetId()] = true

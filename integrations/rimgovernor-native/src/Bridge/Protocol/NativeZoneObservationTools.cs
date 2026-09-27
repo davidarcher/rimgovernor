@@ -126,7 +126,6 @@ namespace HomeBridge.BridgeTools
             {
                 foreach (var cell in ordered) row.ListedCells.Add(new Common.Cell { X = cell.x, Z = cell.z });
                 foreach (var cell in gridCells) row.GridCells.Add(new Common.Cell { X = cell.x, Z = cell.z });
-                row.CellsCompleteness = new Obs.Completeness();
             }
             else row.Issues.Add(Issue("listed_cells", Common.UnavailableReason.NotRequested, "Cell lists are not requested."));
 

@@ -42,11 +42,8 @@ func TestRecreationCensusBoundary(t *testing.T) {
 }
 
 func comfortWire() *o.UpkeepFacts {
-	complete := func(n uint64) *o.Completeness {
-		return &o.Completeness{Filtered: proto.Uint64(0)}
-	}
-	return &o.UpkeepFacts{Completeness: complete(1), Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Observed{Observed: &o.ComfortFacts{
-		Completeness: complete(1), People: []string{"p"}, Surfaces: []*o.ComfortSurface{{Id: proto.String("table"), Adjacent: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}}},
+	return &o.UpkeepFacts{Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Observed{Observed: &o.ComfortFacts{
+		People: []string{"p"}, Surfaces: []*o.ComfortSurface{{Id: proto.String("table"), Adjacent: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}}},
 		Dining:     []*o.ComfortFacility{{Id: proto.String("chair"), AccessibleTo: []string{"p"}, Users: []string{"p"}}},
 		Recreation: []*o.ComfortFacility{{Id: proto.String("hoop"), Kind: proto.String("Dexterity"), AccessibleTo: []string{"p"}}},
 	}}}}

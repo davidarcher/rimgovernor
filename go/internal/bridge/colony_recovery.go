@@ -20,7 +20,7 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 		return validateUnavailable(reply.GetUnavailable())
 	}
 	v := reply.GetObserved()
-	if v == nil || !proto.Equal(v.Context, colony.Context) || !proto.Equal(v, &o.RecoverySnapshot{Context: v.Context, RoofHazard: v.RoofHazard, Areas: v.Areas, Restrictions: v.Restrictions, Buildings: v.Buildings, Completeness: v.Completeness}) {
+	if v == nil || !proto.Equal(v.Context, colony.Context) || !proto.Equal(v, &o.RecoverySnapshot{Context: v.Context, RoofHazard: v.RoofHazard, Areas: v.Areas, Restrictions: v.Restrictions, Buildings: v.Buildings}) {
 		return contract("invalid recovery context or outcome")
 	}
 	seen := map[string]bool{}
@@ -63,7 +63,7 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 	}
 	seen = map[string]bool{}
 	for _, a := range v.Areas {
-		if a == nil || validID(a.GetId()) != nil || seen[a.GetId()] || !a.GetRoofed() || !proto.Equal(a, &o.RecoveryArea{Id: a.Id, Roofed: a.Roofed, Cells: a.Cells, Completeness: a.Completeness}) || len(a.Cells) == 0 {
+		if a == nil || validID(a.GetId()) != nil || seen[a.GetId()] || !a.GetRoofed() || !proto.Equal(a, &o.RecoveryArea{Id: a.Id, Roofed: a.Roofed, Cells: a.Cells}) || len(a.Cells) == 0 {
 			return contract("invalid recovery area")
 		}
 		seen[a.GetId()] = true

@@ -54,7 +54,6 @@ func TestRoutineWastePlannerSelectsAndCommitsMethod(t *testing.T) {
 			State:    o.WasteLocation_WASTE_LOCATION_EXPOSED.Enum(),
 			Eligible: proto.Bool(true),
 		}},
-		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 	}}}
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}

@@ -104,7 +104,6 @@ func excavationSiteReply(rows ...*o.ExcavationCell) *o.ExcavationSiteReply {
 		Context: excavationSiteContext(), Cells: rows,
 		SupportAfterRemoval: o.ExcavationSupport_EXCAVATION_SUPPORT_SUPPORTED, RoofCellsChecked: proto.Uint32(12),
 		CollapsePending: proto.Bool(false), WorkerAvailable: proto.Bool(true), WorkerIds: []string{"Human1"}, AccessReachable: proto.Bool(true),
-		Completeness: &o.Completeness{},
 	}}}
 }
 func readExcavationSite(t *testing.T, reply *o.ExcavationSiteReply, cells []domain.Cell) (ExcavationSite, error) {

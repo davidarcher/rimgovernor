@@ -138,17 +138,15 @@ func temperatureFixture(t *testing.T, hot bool) (*RoutineBuildingPlanner, *store
 	if hot {
 		temp = 36
 	}
-	room := &o.RoomState{Id: proto.String("42"), ProperRoom: proto.Bool(true), Doorway: proto.Bool(false), Outdoors: proto.Bool(false), PsychologicallyOutdoors: proto.Bool(false), TouchesMapEdge: proto.Bool(false), OpenRoofCount: proto.Uint32(0), CellCount: proto.Uint32(4), TemperatureC: proto.Float64(temp), Center: cell(0, 0), Extents: &o.Rectangle{Minimum: cell(0, 0), Maximum: cell(1, 1)}, Cells: []*c.Cell{cell(0, 0), cell(0, 1), cell(1, 0), cell(1, 1)}, CellsCompleteness: count(4), Contents: []*o.Quantity{{DefName: proto.String("SleepingSpot"), Units: proto.Int64(1)}}, ContentsCompleteness: count(1), Beds: []*o.BuildingState{{Building: bed, Status: proto.String("built")}}}
+	room := &o.RoomState{Id: proto.String("42"), ProperRoom: proto.Bool(true), Doorway: proto.Bool(false), Outdoors: proto.Bool(false), PsychologicallyOutdoors: proto.Bool(false), TouchesMapEdge: proto.Bool(false), OpenRoofCount: proto.Uint32(0), CellCount: proto.Uint32(4), TemperatureC: proto.Float64(temp), Center: cell(0, 0), Extents: &o.Rectangle{Minimum: cell(0, 0), Maximum: cell(1, 1)}, Cells: []*c.Cell{cell(0, 0), cell(0, 1), cell(1, 0), cell(1, 1)}, Contents: []*o.Quantity{{DefName: proto.String("SleepingSpot"), Units: proto.Int64(1)}}, Beds: []*o.BuildingState{{Building: bed, Status: proto.String("built")}}}
 	n.rooms = &o.ListRoomsReply{Outcome: &o.ListRoomsReply_Observed{Observed: &o.RoomsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(1), Rooms: []*o.RoomState{room}}}}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{Beds: []*o.UpkeepBed{{Bed: bed, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(temp)}}}}}
-	v.Upkeep.GetObserved().Completeness = count(1)
 	v.Upkeep.GetObserved().Comfort = &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}
 	// Safe reachable bed temperature can disappear while the actual room persists.
 	v.SleepingTemperatureMinC, v.SleepingTemperatureMaxC = nil, nil
 	for _, name := range []string{"Campfire", "PassiveCooler"} {
 		v.Planning.GetObserved().Definitions = append(v.Planning.GetObserved().Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
-	v.Planning.GetObserved().Completeness = count(uint64(len(v.Planning.GetObserved().Definitions)))
 	base.reviewer.native = n
 	base.reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureTemperatureSafety})
 	if _, err := base.reviewer.Step(context.Background()); err != nil {

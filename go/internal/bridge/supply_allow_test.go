@@ -31,7 +31,7 @@ func supplyTestReceipt() *r.Receipt {
 func supplyTestRead() *o.ListSuppliesReply {
 	ctx := buildingAdmission().AdmittedContext
 	item := &o.EntityRef{Id: proto.String("steel"), DefName: proto.String("Steel"), MapId: pbIdentity().MapId, Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("steel"), Token: proto.String("snapshot")}}
-	return &o.ListSuppliesReply{Outcome: &o.ListSuppliesReply_Observed{Observed: &o.SuppliesSnapshot{Context: ctx, Completeness: emergencyCounts(1), Stocks: []*o.ResourceStock{{Definition: &o.DefinitionRef{DefName: proto.String("Steel")}, Units: proto.Int64(20), Forbidden: proto.Int64(20), Items: []*o.EntityRef{item}, ItemsCompleteness: emergencyCounts(1)}}}}}
+	return &o.ListSuppliesReply{Outcome: &o.ListSuppliesReply_Observed{Observed: &o.SuppliesSnapshot{Context: ctx, Completeness: emergencyCounts(1), Stocks: []*o.ResourceStock{{Definition: &o.DefinitionRef{DefName: proto.String("Steel")}, Units: proto.Int64(20), Forbidden: proto.Int64(20), Items: []*o.EntityRef{item}}}}}}
 }
 
 func TestReserveSupplyCensusLocatesFoodAndRetainsScopeChecks(t *testing.T) {
@@ -63,7 +63,6 @@ func TestSupplyCensusRequiresCompleteExactScopedItems(t *testing.T) {
 		"allowed": func(v *o.SuppliesSnapshot) { v.Stocks[0].Forbidden = proto.Int64(19) },
 		"duplicate": func(v *o.SuppliesSnapshot) {
 			v.Stocks[0].Items = append(v.Stocks[0].Items, proto.Clone(v.Stocks[0].Items[0]).(*o.EntityRef))
-			v.Stocks[0].ItemsCompleteness = emergencyCounts(2)
 		},
 		"cell":     func(v *o.SuppliesSnapshot) { v.Stocks[0].Items[0].Position.X = proto.Int32(3) },
 		"snapshot": func(v *o.SuppliesSnapshot) { v.Stocks[0].Items[0].Snapshot.EntityId = proto.String("foreign") },

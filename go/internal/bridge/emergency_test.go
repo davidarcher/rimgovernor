@@ -18,7 +18,7 @@ func emergencyCounts(n uint64) *o.Completeness {
 	return &o.Completeness{Filtered: proto.Uint64(0)}
 }
 func emergencyFixture() *o.StatusSnapshot {
-	return &o.StatusSnapshot{Context: pbContext(), Colonists: &o.PawnSnapshot{Context: pbContext(), Completeness: emergencyCounts(0)}, Threats: &o.ThreatsSnapshot{Completeness: emergencyCounts(0)}}
+	return &o.StatusSnapshot{Context: pbContext(), Colonists: &o.PawnSnapshot{Context: pbContext(), Completeness: emergencyCounts(0)}, Threats: &o.ThreatsSnapshot{}}
 }
 func emergencyRow(id string) *o.PawnState {
 	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Dead: proto.Bool(false), Downed: proto.Bool(false), InBed: proto.Bool(true), Health: &o.PawnHealth{Bleeding: proto.Bool(false), NeedsTend: proto.Bool(false)}}
@@ -68,17 +68,12 @@ func TestEmergencyPartialMedicalAndCategories(t *testing.T) {
 	v.Threats.IgnoredHunters = []*o.ThreatPawn{{Pawn: emergencyRow("i")}}
 	v.Threats.WildPredatorsNear = []*o.ThreatPawn{{Pawn: emergencyRow("same")}}
 	v.Threats.DownedNear = []*o.ThreatPawn{{Pawn: emergencyRow("same")}}
-	v.Threats.Completeness = emergencyCounts(5)
-	v.Threats.Completeness.Filtered = proto.Uint64(1)
 	got, e := emergencyStatus(v, pbIdentity())
 	if e != nil || len(got.Facts.Threats) != 5 {
 		t.Fatal(got, e)
 	}
 	if _, known := got.Facts.Colonists[0].Bleeding.Value(); known {
 		t.Fatal("missing health fabricated")
-	}
-	if complete, known := got.Facts.ThreatsComplete.Value(); !known || complete {
-		t.Fatal("partial lost")
 	}
 	if got.Facts.Threats[4].Kind != policy.NearbyDowned {
 		t.Fatal("category lost")
@@ -99,13 +94,11 @@ func TestEmergencyContradictoryMalformedFacts(t *testing.T) {
 			v.Colonists.Completeness = emergencyCounts(2)
 		}, "categoryduplicate": func(v *o.StatusSnapshot) {
 			v.Threats.Hostiles = []*o.ThreatPawn{{Pawn: emergencyRow("x")}, {Pawn: emergencyRow("x")}}
-			v.Threats.Completeness = emergencyCounts(2)
 		}, "conflicting": func(v *o.StatusSnapshot) {
 			a, b := emergencyRow("x"), emergencyRow("x")
 			b.Downed = proto.Bool(true)
 			v.Threats.Hostiles = []*o.ThreatPawn{{Pawn: a}}
 			v.Threats.DownedNear = []*o.ThreatPawn{{Pawn: b}}
-			v.Threats.Completeness = emergencyCounts(2)
 		}, "issueContradiction": func(v *o.StatusSnapshot) {
 			v.Issues = []*o.ReadIssue{{Field: proto.String("colonists"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}
 		},
@@ -154,7 +147,6 @@ func TestEmergencyThreatCarriesRaceAndDistance(t *testing.T) {
 	far.Animal = proto.Bool(true)
 	far.NearestColonistDistance = proto.Float64(120)
 	v.Threats.Hostiles = []*o.ThreatPawn{{Pawn: far}, {Pawn: emergencyRow("bare")}}
-	v.Threats.Completeness = emergencyCounts(2)
 	got, e := emergencyStatus(v, pbIdentity())
 	if e != nil || len(got.Facts.Threats) != 2 {
 		t.Fatal(got, e)

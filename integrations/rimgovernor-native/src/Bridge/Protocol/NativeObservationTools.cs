@@ -124,7 +124,6 @@ namespace HomeBridge.BridgeTools
                     }
                     snapshot.Cells.Add(row);
                 }
-                snapshot.Completeness = Complete(snapshot.Cells.Count);
                 // Sparse deltas are smaller as ordinary rows than a full flag grid.
                 if (parsed.Compact && snapshot.Cells.Count * 20L >= cells.Count) CompactCellEncoding.Encode(snapshot);
                 return new Obs.GetCellsReply { Observed = snapshot };
@@ -252,8 +251,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var cell in building.OccupiedRect()) row.OccupiedCells.Add(Cell(cell.x, cell.z));
                 threats.HostileBuildings.Add(row);
             }
-            var count = threats.Hostiles.Count+threats.HuntingPredators.Count+threats.IgnoredHunters.Count+threats.DownedNear.Count+threats.WildPredatorsNear.Count+threats.HostileBuildings.Count;
-            threats.Completeness=Complete(count); result.Threats=threats; return result;
+            result.Threats=threats; return result;
         }
 
         // The cheap facts the threat classifier branches on (#646); the full

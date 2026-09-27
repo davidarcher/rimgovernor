@@ -218,7 +218,6 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        internal static Obs.Completeness Complete(int count) => new Obs.Completeness();
     }
 
     public sealed class NativeCaravanObservationTools
@@ -248,7 +247,6 @@ namespace HomeBridge.BridgeTools
                     var catalog = new Obs.CaravanCatalog
                     {
                         Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = "caravan-catalog-" + map.uniqueID, Token = token },
-                        Completeness = NativeCaravanCatalog.Complete(pawns.Count + cargo.Count),
                     };
                     catalog.Pawns.Add(pawns);
                     catalog.CargoGroups.Add(cargo);

@@ -13,7 +13,7 @@ func TestColonyPowerRejectsPartialOrAmbiguousCensus(t *testing.T) {
 	for _, phase := range []string{"valid", "unknown", "duplicate", "foreign-map", "infinite", "extra-detail", "disconnected-network"} {
 		t.Run(phase, func(t *testing.T) {
 			row := &o.DevelopmentPower{BaseW: proto.Float64(-200), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("building"), MapId: proto.Int32(0)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), PowerOutputW: proto.Float64(-200), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net")}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}
-			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
+			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{row}}
 			switch phase {
 			case "unknown":
 				row.BaseW = nil
@@ -43,7 +43,7 @@ func TestColonyPowerGeometryAndConduitCensus(t *testing.T) {
 			cell := &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
 			row := &o.DevelopmentFurniture{Building: &o.EntityRef{Id: proto.String("conduit"), DefName: proto.String("PowerConduit"), MapId: proto.Int32(0), Position: cell}}
 			b := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), MapId: proto.Int32(0), Position: cell}, OccupiedCells: []*c.Cell{cell}, Service: &o.BuildingServiceState{}, Settings: &o.BuildingSettings{}}
-			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{{Building: b}}, Furniture: []*o.DevelopmentFurniture{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
+			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{{Building: b}}, Furniture: []*o.DevelopmentFurniture{row}}
 			switch phase {
 			case "hidden":
 				row.Building.DefName = proto.String("HiddenConduit")
@@ -115,8 +115,8 @@ func TestColonyPowerAcceptsFuelBatteryAndNetworkFacts(t *testing.T) {
 		t.Run(phase, func(t *testing.T) {
 			generator := &o.DevelopmentPower{BaseW: proto.Float64(1000), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("generator"), MapId: proto.Int32(0)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net"), Fuel: proto.Float64(0), TargetFuel: proto.Float64(30), OutOfFuel: proto.Bool(true), BrokenDown: proto.Bool(false), AllowedFuelDefs: []string{"WoodLog"}}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}
 			battery := &o.DevelopmentPower{BaseW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("battery"), MapId: proto.Int32(0)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net"), BrokenDown: proto.Bool(false)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}
-			net := &o.PowerNetwork{Id: proto.String("net"), Producers: proto.Uint32(1), Consumers: proto.Uint32(0), Batteries: proto.Uint32(1), Transmitters: proto.Uint32(3), Connectors: proto.Uint32(0), GenerationW: proto.Float64(0), ConsumptionW: proto.Float64(0), NetW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), HasSource: proto.Bool(true), HasActiveSource: proto.Bool(false), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
-			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{generator, battery}, Networks: []*o.PowerNetwork{net}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
+			net := &o.PowerNetwork{Id: proto.String("net"), Producers: proto.Uint32(1), Consumers: proto.Uint32(0), Batteries: proto.Uint32(1), Transmitters: proto.Uint32(3), Connectors: proto.Uint32(0), GenerationW: proto.Float64(0), ConsumptionW: proto.Float64(0), NetW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), HasSource: proto.Bool(true), HasActiveSource: proto.Bool(false)}
+			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{generator, battery}, Networks: []*o.PowerNetwork{net}}
 			switch phase {
 			case "negative-fuel":
 				generator.Building.Service.Fuel = proto.Float64(-1)

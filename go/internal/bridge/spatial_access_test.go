@@ -23,14 +23,14 @@ var (
 func spatialFixture() *o.SpatialAccessSnapshot {
 	row := func(id string, x, z int32) *o.PawnAccess {
 		return &o.PawnAccess{Pawn: &o.EntityRef{Id: proto.String(id), Position: pbCell(x, z)}, CurrentCells: proto.Uint32(400), ProjectedCells: proto.Uint32(398),
-			LostCellCount: proto.Uint32(0), ProjectedOrigin: pbCell(x, z), EgressSteps: proto.Uint32(0), Completeness: defenseComplete(2),
+			LostCellCount: proto.Uint32(0), ProjectedOrigin: pbCell(x, z), EgressSteps: proto.Uint32(0),
 			Targets: []*o.AccessTarget{
 				{Cell: pbCell(9, 14), NativeReachable: proto.Bool(true), ProjectedReachable: proto.Bool(true), ProjectedSteps: proto.Uint32(13)},
 				{Cell: pbCell(9, 0), NativeReachable: proto.Bool(true), ProjectedReachable: proto.Bool(true), ProjectedSteps: proto.Uint32(27)},
 			}}
 	}
 	return &o.SpatialAccessSnapshot{Context: pbContext(), MapCells: proto.Uint32(62500), ObservedWalkableCells: proto.Uint32(40000),
-		Pawns: []*o.PawnAccess{row("Human1", 9, 27), row("Human2", 8, 27)}, Completeness: defenseComplete(2)}
+		Pawns: []*o.PawnAccess{row("Human1", 9, 27), row("Human2", 8, 27)}}
 }
 func spatialClient(t *testing.T, fixture *o.SpatialAccessSnapshot) *Client {
 	t.Helper()

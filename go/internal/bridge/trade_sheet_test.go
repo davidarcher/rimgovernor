@@ -31,9 +31,6 @@ func tradeSheetFixture(lines []*o.TradeLine) *o.TradeSheet {
 		Balance: proto.Float64(-40), ColonyCanAfford: proto.Bool(true), TraderHasEnoughSilver: proto.Bool(true),
 		DealSignature: proto.String("deal-1"),
 		Lines:         lines,
-		Completeness: &o.Completeness{
-			Filtered: proto.Uint64(0),
-		},
 	}
 }
 
@@ -112,7 +109,6 @@ func TestReadTradeSheetCarriesAbsentFieldsAsUnknown(t *testing.T) {
 
 func TestReadTradeSheetRefusesIncompleteSheets(t *testing.T) {
 	for name, edit := range map[string]func(*o.TradeSheet){
-		"filtered rows":         func(v *o.TradeSheet) { v.Completeness.Filtered = proto.Uint64(3) },
 		"other world":           func(v *o.TradeSheet) { v.Snapshot.Context.Identity.LoadToken = proto.String("other") },
 		"duplicate line id":     func(v *o.TradeSheet) { v.Lines = append(v.Lines, v.Lines[0]) },
 		"negative colony count": func(v *o.TradeSheet) { v.Lines[0].ColonyCount = proto.Int64(-1) },

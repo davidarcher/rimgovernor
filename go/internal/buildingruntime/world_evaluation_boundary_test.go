@@ -53,11 +53,10 @@ func (f *worldEvaluationNativeFake) ReadColonyFacts(ctx context.Context, id *c.I
 
 func worldEvaluationColonyFixture(context *c.ObservationContext, resources []*o.Quantity) *o.ColonyFactsReply {
 	return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: &o.ColonyFactsSnapshot{
-		Context:      proto.Clone(context).(*c.ObservationContext),
-		MapSize:      &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)},
-		Center:       &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)},
-		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
-		Resources:    resources,
+		Context:   proto.Clone(context).(*c.ObservationContext),
+		MapSize:   &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)},
+		Center:    &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)},
+		Resources: resources,
 	}}}
 }
 

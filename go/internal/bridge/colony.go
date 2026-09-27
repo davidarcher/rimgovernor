@@ -96,9 +96,6 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if err := buildingUnknown(v); err != nil {
 		return err
 	}
-	if v.Completeness.GetFiltered() != 0 {
-		return contract("filtered colony core")
-	}
 	if err := pawnsIssues(v.Issues, v.ProtoReflect()); err != nil {
 		return err
 	}

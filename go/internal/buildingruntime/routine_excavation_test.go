@@ -80,7 +80,7 @@ func excavationFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *ex
 			x.rock[domain.Cell{X: gx, Z: z}] = "Granite"
 		}
 	}
-	planning.Cells.Completeness.Filtered = proto.Uint64(501)
+	fogRest(planning.Cells)
 	for gx := int32(11); gx < 30; gx++ {
 		for z := int32(0); z < 20; z++ {
 			x.fogged[domain.Cell{X: gx, Z: z}] = true
@@ -277,7 +277,6 @@ func TestRoutineExcavationPrefersNearerShell(t *testing.T) {
 	x.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(40)}
 	planning := x.reply.GetObserved().Planning.GetObserved()
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(29), Z: proto.Int32(50)}
-	planning.Cells.Completeness.Filtered = proto.Uint64(1350)
 	for gx := int32(0); gx < 9; gx++ {
 		for z := int32(36); z < 45; z++ {
 			planning.Cells.Cells = append(planning.Cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(gx), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(true), Issues: []*o.ReadIssue{
@@ -286,6 +285,7 @@ func TestRoutineExcavationPrefersNearerShell(t *testing.T) {
 			}})
 		}
 	}
+	fogRest(planning.Cells)
 	// The surface site takes the bunks first, then the ring around them.
 	stageShelterBunks(t, r, db, x.sleepingNative)
 	result, err := r.Step(context.Background())
@@ -448,7 +448,7 @@ func TestRoutineExcavationResumesProjectOutsideColonyWindow(t *testing.T) {
 	planning.Cells.Region.Minimum = &c.Cell{X: proto.Int32(40), Z: proto.Int32(40)}
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(60), Z: proto.Int32(59)}
 	planning.Cells.Cells = nil
-	planning.Cells.Completeness.Filtered = proto.Uint64(420)
+	fogRest(planning.Cells)
 	observed.Center = &c.Cell{X: proto.Int32(50), Z: proto.Int32(50)}
 	if _, err := r.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -926,4 +926,20 @@ func finishShelterBunks(t *testing.T, r *RoutineBuildingPlanner, db *store.Store
 		}
 	}
 	return result
+}
+
+// fogRest lists every region cell the fixture left out as fogged, as the
+// native lists every cell of a planning window.
+func fogRest(cells *o.CellsSnapshot) {
+	listed := map[[2]int32]bool{}
+	for _, row := range cells.Cells {
+		listed[[2]int32{row.GetCell().GetX(), row.GetCell().GetZ()}] = true
+	}
+	for x := cells.Region.Minimum.GetX(); x <= cells.Region.Maximum.GetX(); x++ {
+		for z := cells.Region.Minimum.GetZ(); z <= cells.Region.Maximum.GetZ(); z++ {
+			if !listed[[2]int32{x, z}] {
+				cells.Cells = append(cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Fogged: proto.Bool(true)})
+			}
+		}
+	}
 }

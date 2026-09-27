@@ -42,7 +42,7 @@ func (client *Client) ReadZones(ctx context.Context, identity *c.Identity) (Enti
 					}
 					ids[i] = row.GetId()
 				}
-				return entityPageReply[*o.ZoneState]{context: s.Context, completeness: s.Completeness, rows: s.Zones, ids: ids}, nil
+				return entityPageReply[*o.ZoneState]{context: s.Context, rows: s.Zones, ids: ids}, nil
 			}
 			return entityPageReply[*o.ZoneState]{}, contract("missing zones outcome")
 		})
@@ -72,7 +72,7 @@ func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity) (
 					}
 					ids[i] = row.Building.GetId()
 				}
-				return entityPageReply[*o.BuildingState]{context: s.Context, completeness: s.Completeness, rows: s.Buildings, ids: ids}, nil
+				return entityPageReply[*o.BuildingState]{context: s.Context, rows: s.Buildings, ids: ids}, nil
 			}
 			return entityPageReply[*o.BuildingState]{}, contract("missing buildings outcome")
 		})
@@ -102,7 +102,7 @@ func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity) 
 					}
 					ids[i] = row.Bench.GetId()
 				}
-				return entityPageReply[*o.BillStack]{context: s.Context, completeness: s.Completeness, rows: s.Benches, ids: ids}, nil
+				return entityPageReply[*o.BillStack]{context: s.Context, rows: s.Benches, ids: ids}, nil
 			}
 			return entityPageReply[*o.BillStack]{}, contract("missing bills outcome")
 		})
@@ -125,12 +125,11 @@ func billsListRequest(identity *c.Identity) *o.BillsRequest {
 // entityPageReply is one list reply as the family's decoder hands it to
 // readEntities: the outcome, or the rows with their ids in row order.
 type entityPageReply[T proto.Message] struct {
-	failure      *c.Failure
-	unavailable  *c.Unavailable
-	context      *c.ObservationContext
-	completeness *o.Completeness
-	rows         []T
-	ids          []string
+	failure     *c.Failure
+	unavailable *c.Unavailable
+	context     *c.ObservationContext
+	rows        []T
+	ids         []string
 }
 
 // readEntities reads one complete entity list and folds it into EntityRows.

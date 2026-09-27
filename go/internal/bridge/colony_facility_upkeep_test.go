@@ -13,7 +13,7 @@ func TestFacilityUpkeepWirePresenceGeometryAndCompleteness(t *testing.T) {
 	makeFacts := func() *o.UpkeepFacts {
 		v := upkeepWire()
 		v.Structures[0].Flammability = proto.Float64(1)
-		v.HomeCoverage = &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: &o.HomeCoverageFacts{Revision: proto.Int64(2), Targets: []*o.HomeCoverageTarget{{Id: proto.String("wall"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(1), Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}}}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
+		v.HomeCoverage = &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: &o.HomeCoverageFacts{Revision: proto.Int64(2), Targets: []*o.HomeCoverageTarget{{Id: proto.String("wall"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(1), Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}}}}}}
 		return v
 	}
 	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}

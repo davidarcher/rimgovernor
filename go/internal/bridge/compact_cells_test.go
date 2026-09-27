@@ -12,7 +12,6 @@ func compactFixture() *o.CellsSnapshot {
 	return &o.CellsSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(250), Height: proto.Uint32(250)},
 		Region:        &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(7), Z: proto.Int32(8)}, Maximum: &c.Cell{X: proto.Int32(9), Z: proto.Int32(8)}},
 		AppliedFields: planningWindowFields(),
-		Completeness:  &o.Completeness{Filtered: proto.Uint64(0)},
 		Compact:       &o.CompactCells{Rows: [][]byte{{0xfc, 0x7f, 0, 1, 2, 0, 2, 0, 2, 0}}, Strings: []string{"RoofConstructed", "7", "9"}, Glow: []float64{.123456789}, Fertility: []float64{1.23456789}}}
 }
 
@@ -65,7 +64,6 @@ func TestCompactCellsRejectsMalformedCoverage(t *testing.T) {
 		"excess fertility":  func(s *o.CellsSnapshot) { s.Compact.Fertility = append(s.Compact.Fertility, 1) },
 		"zero fertility":    func(s *o.CellsSnapshot) { s.Compact.Fertility[0] = 0 },
 		"glow bounds":       func(s *o.CellsSnapshot) { s.Compact.Glow[0] = 2 },
-		"filtered":          func(s *o.CellsSnapshot) { s.Completeness.Filtered = proto.Uint64(1) },
 		"fields":            func(s *o.CellsSnapshot) { s.AppliedFields.Growth = proto.Bool(false) },
 	} {
 		t.Run(name, func(t *testing.T) {

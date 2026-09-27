@@ -36,12 +36,9 @@ func TestFoodPlanIncludesAnimalRatesLaborAndDerivedFloor(t *testing.T) {
 // Food method fixtures now provide the complete competing-consumer census
 // required by the ledger; their existing method/admission assertions stay intact.
 func foodPlanFixture(v *o.ColonyFactsSnapshot) {
-	count := func(n uint64) *o.Completeness {
-		return &o.Completeness{Filtered: proto.Uint64(0)}
-	}
-	food := &o.FoodSupplyFacts{Consumers: []*o.FoodConsumer{{PawnId: proto.String("food-pawn"), NutritionPerDay: proto.Float64(1)}}, Completeness: count(1)}
+	food := &o.FoodSupplyFacts{Consumers: []*o.FoodConsumer{{PawnId: proto.String("food-pawn"), NutritionPerDay: proto.Float64(1)}}}
 	v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: food}}
-	v.Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: proto.Clone(food).(*o.FoodSupplyFacts), Patients: []*o.PatientForecast{{PawnId: proto.String("food-pawn")}}, Completeness: count(2)}}}
+	v.Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: proto.Clone(food).(*o.FoodSupplyFacts), Patients: []*o.PatientForecast{{PawnId: proto.String("food-pawn")}}}}}
 	v.WorkerCount = proto.Uint32(1)
 	issues := v.Issues[:0]
 	for _, issue := range v.Issues {

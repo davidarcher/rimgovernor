@@ -97,10 +97,6 @@ func decodeTraders(snapshot *o.TradersSnapshot, identity *c.Identity) (TradersRe
 	if !sameIdentity(snapshot.Context.Identity, identity) {
 		return TradersRead{}, contract("traders world mismatch")
 	}
-	counts := snapshot.Completeness
-	if counts.GetFiltered() != 0 {
-		return TradersRead{}, contract("traders census omitted rows")
-	}
 	if len(snapshot.Traders)+len(snapshot.Negotiators) > tradersMaximumRows {
 		return TradersRead{}, contract("traders census exceeds bound")
 	}

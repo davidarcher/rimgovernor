@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.GearSnapshot Read(Map map, Common.ObservationContext context)
         {
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-            var result = new Obs.GearSnapshot { Context = context.Clone(), Completeness = Complete(people.Count) };
+            var result = new Obs.GearSnapshot { Context = context.Clone()};
             ReadClimate(map, result);
             var stored = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()
                 .Where(a => a.IsInValidStorage() && !a.IsForbidden(Faction.OfPlayer) && !a.WornByCorpse
@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
                     Quality = a.TryGetQuality(out var q) ? (int)q : 2,
                     Band = a.def.useHitPoints ? Math.Min(9, (int)(10f * a.HitPoints / a.MaxHitPoints)) : 9 })
                 .OrderBy(g => g.Key.Def).ThenBy(g => g.Key.Stuff).ThenBy(g => g.Key.Quality).ThenBy(g => g.Key.Band).ToList();
-            result.StoredApparel = new Obs.GearStorage { Completeness = Complete(stored.Count) };
+            result.StoredApparel = new Obs.GearStorage { };
             foreach (var group in stored)
                 result.StoredApparel.Rows.Add(new Obs.GearStock { DefName = group.Key.Def, Stuff = group.Key.Stuff,
                     Quality = group.Key.Quality, HpBand = group.Key.Band, Count = group.Sum(a => a.stackCount) });
@@ -69,7 +69,6 @@ namespace HomeBridge.BridgeTools
                     if (need.stuff != null) replacement.Stuff = Id(need.stuff);
                     row.ReplacementNeeds.Add(replacement);
                 }
-                row.Completeness = Complete(row.Candidates.Count);
                 result.Pawns.Add(row);
             }
             return result;

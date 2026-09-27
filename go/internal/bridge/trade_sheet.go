@@ -126,12 +126,6 @@ func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool,
 	if !diagnostic(v.DealSignature) {
 		return TradeSheetRead{}, contract("trade sheet deal signature invalid")
 	}
-	counts := v.Completeness
-	// Python treats any filtered-away or unreadable row as making the whole
-	// sheet unusable for an economic decision; so does this.
-	if counts.GetFiltered() != 0 {
-		return TradeSheetRead{}, contract("trade sheet omitted rows")
-	}
 	header := TradeSheetRead{
 		Context: v.Snapshot.Context, SessionID: v.GetSessionId(),
 		Trader: v.GetTrader().GetId(), Negotiator: v.GetNegotiator().GetId(), GiftMode: v.GetGiftMode(),

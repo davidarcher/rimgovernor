@@ -13,8 +13,7 @@ import (
 
 func worldProgressionFixture() *o.WorldProgressionSnapshot {
 	return &o.WorldProgressionSnapshot{
-		Context:      pbContext(),
-		Completeness: &o.Completeness{},
+		Context: pbContext(),
 		Maps: []*o.WorldMap{
 			{Id: proto.Int32(1), Tile: proto.Int32(7), Home: proto.Bool(true), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}}}},
 			{Id: proto.Int32(2), Tile: proto.Int32(9), Home: proto.Bool(false), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-2")}}}},

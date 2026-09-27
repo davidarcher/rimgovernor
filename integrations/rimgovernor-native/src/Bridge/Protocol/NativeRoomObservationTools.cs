@@ -122,7 +122,7 @@ namespace HomeBridge.BridgeTools
             row.Center = Cell(Center(cells));
             if (request.IncludeCells)
             {
-                row.Cells.Add(cells.OrderBy(c => c.z).ThenBy(c => c.x).Select(Cell)); row.CellsCompleteness = Complete(cells.Count, 0);
+                row.Cells.Add(cells.OrderBy(c => c.z).ThenBy(c => c.x).Select(Cell));
             }
             else
             {
@@ -137,7 +137,6 @@ namespace HomeBridge.BridgeTools
                 var membership = new Obs.StockpileMembership { ZoneId = Name(stockpile.GetUniqueLoadID()) };
                 var grouped = stockpileContents.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
                 foreach (var group in grouped) membership.Contents.Add(new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = group.Key }, Units = group.Sum(t => (long)t.stackCount) });
-                membership.ContentsCompleteness = Complete(grouped.Count, 0);
                 row.StockpileMemberships.Add(membership);
             }
             foreach (var pawn in pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) row.Pawns.Add(Entity(pawn));
@@ -156,7 +155,6 @@ namespace HomeBridge.BridgeTools
             }
             var contents = buildings.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
             foreach (var group in contents) row.Contents.Add(new Obs.Quantity { DefName = group.Key, Units = group.LongCount() });
-            row.ContentsCompleteness = Complete(contents.Count, 0);
             foreach (var definition in new[] { RoomStatDefOf.Cleanliness, RoomStatDefOf.Wealth, RoomStatDefOf.Space, RoomStatDefOf.Beauty, RoomStatDefOf.Impressiveness })
             {
                 if (definition == null) { row.Issues.Add(Issue("stats", Common.UnavailableReason.NativeComponentMissing, "A standard native room stat definition is unavailable.")); continue; }

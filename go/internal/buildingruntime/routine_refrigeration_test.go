@@ -58,17 +58,14 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 	room.TemperatureC = proto.Float64(25)
 	n.rooms.GetObserved().Rooms[0].Beds[0].Building.Position = cell(1, 1)
 	v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: &o.FoodSupplyFacts{
-		Consumers:    []*o.FoodConsumer{{PawnId: proto.String("builder"), NutritionPerDay: proto.Float64(1.6)}},
-		Stocks:       []*o.FoodStock{{Item: &o.EntityRef{Id: proto.String("meat"), DefName: proto.String("Meat_Muffalo")}, Count: proto.Int64(400), Nutrition: proto.Float64(20), EaterIds: []string{"builder"}, Perishable: proto.Bool(true), RotTicks: proto.Int64(2 * 60000), TemperatureC: proto.Float64(25), Roofed: proto.Bool(true), RoomId: proto.String("42")}},
-		Completeness: count(2)}}}
+		Consumers: []*o.FoodConsumer{{PawnId: proto.String("builder"), NutritionPerDay: proto.Float64(1.6)}},
+		Stocks:    []*o.FoodStock{{Item: &o.EntityRef{Id: proto.String("meat"), DefName: proto.String("Meat_Muffalo")}, Count: proto.Int64(400), Nutrition: proto.Float64(20), EaterIds: []string{"builder"}, Perishable: proto.Bool(true), RotTicks: proto.Int64(2 * 60000), TemperatureC: proto.Float64(25), Roofed: proto.Bool(true), RoomId: proto.String("42")}}}}}
 	v.Planning.GetObserved().Definitions = append(v.Planning.GetObserved().Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Cooler")}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
-	v.Planning.GetObserved().Completeness = count(uint64(len(v.Planning.GetObserved().Definitions)))
 	n.buildings = &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(0)}}}
 	if cooler {
 		development := v.Development.GetObserved()
 		position := cell(3, 1)
 		development.Power = append(development.Power, &o.DevelopmentPower{BaseW: proto.Float64(-200), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("cooler"), DefName: proto.String("Cooler"), MapId: proto.Int32(0), Position: position}, OccupiedCells: []*c.Cell{position}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), PowerOutputW: proto.Float64(-200), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}})
-		development.Completeness = count(uint64(len(development.Power)))
 		snapshot := n.buildings.GetObserved()
 		snapshot.Buildings = []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("cooler"), DefName: proto.String("Cooler"), MapId: proto.Int32(0), Position: position}, Status: proto.String("built"), Rotation: proto.String("East"), Settings: &o.BuildingSettings{TargetTemperatureC: proto.Float64(21), Snapshot: &o.SnapshotRef{EntityId: proto.String("cooler"), Token: proto.String("tok-1")}}}}
 		snapshot.Completeness = count(1)

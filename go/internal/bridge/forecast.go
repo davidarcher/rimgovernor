@@ -9,9 +9,6 @@ func ValidateForecast(v *o.ForecastFacts, human *o.FoodSupplyFacts) error {
 	if err := buildingUnknown(v); err != nil {
 		return err
 	}
-	if v.Completeness.GetFiltered() != 0 {
-		return contract("filtered forecast")
-	}
 	if err := ValidateFoodSupply(v.CombinedFoodSupply); err != nil {
 		return err
 	}

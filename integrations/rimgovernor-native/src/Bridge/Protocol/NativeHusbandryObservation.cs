@@ -66,7 +66,6 @@ namespace HomeBridge.BridgeTools
                 row.CensusSnapshot = new Obs.SnapshotRef { Context = context, EntityId = pawnRow.Pawn.Id, Token = NativeHusbandryOperations.Census(a) };
                 snapshot.Animals.Add(row);
             }
-            snapshot.Completeness = Complete(snapshot.Animals.Count);
             return snapshot;
         }
 
@@ -112,6 +111,5 @@ namespace HomeBridge.BridgeTools
 
         private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? 0 : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
     }
 }

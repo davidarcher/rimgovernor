@@ -129,7 +129,7 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 			return bad()
 		}
 	}
-	if fertility != len(p.Fertility) || v.GetCompleteness().GetFiltered() != 0 {
+	if fertility != len(p.Fertility) {
 		return bad()
 	}
 	v.Cells = cells

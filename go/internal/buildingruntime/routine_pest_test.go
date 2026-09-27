@@ -165,8 +165,7 @@ func pestFixture(t *testing.T) (*RoutineAcquisitionPlanner, *RoutineReviewer, *s
 	v.ColonistCount, v.WorkerCount = proto.Uint32(1), proto.Uint32(1)
 	v.PendingHunts = proto.Uint32(0)
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
-		Completeness: hospitalCount(1),
-		Comfort:      &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
+		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	addPest(v, "beaver-1", 7, 7)
 	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearPests})

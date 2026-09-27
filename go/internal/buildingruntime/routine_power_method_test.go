@@ -39,17 +39,15 @@ func powerFixture(t *testing.T, conduit bool) (*RoutineBuildingPlanner, *store.S
 		cell := &c.Cell{X: proto.Int32(x), Z: proto.Int32(2)}
 		return &o.DevelopmentPower{BaseW: proto.Float64(base), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String(id), DefName: proto.String(def), MapId: proto.Int32(0), Position: cell}, OccupiedCells: []*c.Cell{cell}, Service: &o.BuildingServiceState{Connected: proto.Bool(false), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}
 	}
-	development := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{row("lamp", "StandingLamp", 1, -200)}, Completeness: count(1)}
+	development := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{row("lamp", "StandingLamp", 1, -200)}}
 	if conduit {
 		development.Power = append(development.Power, row("generator", "WoodFiredGenerator", 4, 1000))
-		development.Completeness = count(2)
 	}
 	v.Development = &o.DevelopmentSection{Outcome: &o.DevelopmentSection_Observed{Observed: development}}
 	v.Planning.GetObserved().Definitions = nil
 	for _, name := range []string{"HiddenConduit", "WoodFiredGenerator"} {
 		v.Planning.GetObserved().Definitions = append(v.Planning.GetObserved().Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
-	v.Planning.GetObserved().Completeness = count(2)
 	pawn := policy.WorkPawn{ID: "builder", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(true), Ranged: domain.Known(false)}
 	var skills []policy.WorkSkill
 	for _, name := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {

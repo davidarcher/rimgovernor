@@ -6,18 +6,15 @@ import "testing"
 // with known-zero/false facts throughout, to prove those legitimate falsy values are
 // never confused with an absent field.
 func roomSample() (map[string]any, map[string]any) {
-	complete := map[string]any{}
 	row := map[string]any{
 		"role": "None", "properRoom": true, "outdoors": false, "psychologicallyOutdoors": false,
 		"touchesMapEdge": false, "fogged": false, "openRoofCount": 0.0, "cellCount": 1.0,
 		"id": "0", "doorway": false, "temperatureC": 0.0, "label": "Room", "contents": []any{},
-		"contentsCompleteness": copyRoomAny(complete),
-		"beds":                 []any{}, "pawns": []any{}, "stockpileZoneIds": []any{}, "stats": []any{},
+		"beds": []any{}, "pawns": []any{}, "stockpileZoneIds": []any{}, "stats": []any{},
 		"cells": []any{map[string]any{"x": 1.0, "z": 1.0}}, "center": map[string]any{"x": 1.0, "z": 1.0},
-		"extents":           map[string]any{"minimum": map[string]any{"x": 1.0, "z": 1.0}, "maximum": map[string]any{"x": 1.0, "z": 1.0}},
-		"cellsCompleteness": map[string]any{},
-		"snapshot":          map[string]any{"context": map[string]any{}, "entityId": "Room_0", "token": "tok"},
-		"issues":            []any{},
+		"extents":  map[string]any{"minimum": map[string]any{"x": 1.0, "z": 1.0}, "maximum": map[string]any{"x": 1.0, "z": 1.0}},
+		"snapshot": map[string]any{"context": map[string]any{}, "entityId": "Room_0", "token": "tok"},
+		"issues":   []any{},
 	}
 	native := map[string]any{
 		"role": "None", "properRoom": true, "outdoors": false, "psychologicallyOutdoors": false,

@@ -80,7 +80,7 @@ func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
 			case "numbers":
 				r.WorkerCount = proto.Uint32(100)
 			case "environment-cell":
-				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Lights: []*o.GrowLight{{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("SunLamp"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, GrowthCells: []*c.Cell{{X: proto.Int32(-1), Z: proto.Int32(0)}}}}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
+				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Lights: []*o.GrowLight{{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("SunLamp"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, GrowthCells: []*c.Cell{{X: proto.Int32(-1), Z: proto.Int32(0)}}}}}
 			case "floor-cleanliness":
 				r.Planning.GetObserved().Definitions[0].Cleanliness = proto.Float64(math.NaN())
 			case "floor-flammability":
@@ -96,7 +96,7 @@ func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
 			case "calendar-non-growing":
 				r.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(-1), SowingNow: proto.Bool(true)}
 			case "environment-room":
-				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Rooms: []*o.GrowRoom{{RoomId: proto.String("7"), CellCount: proto.Uint32(4), LitCells: proto.Uint32(5)}}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
+				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Rooms: []*o.GrowRoom{{RoomId: proto.String("7"), CellCount: proto.Uint32(4), LitCells: proto.Uint32(5)}}}
 			}
 			if err := ValidateColonyFacts(r, id); err == nil {
 				t.Fatal("malformed facts accepted")

@@ -33,9 +33,8 @@ func fireSafetyFixture(t *testing.T, size float64, firefighting bool) (*RoutineF
 	v := native.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(1), proto.Uint32(1)
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
-		Fires:        []*o.FireState{{Fire: &o.EntityRef{Id: proto.String("fire-1"), DefName: proto.String("Fire"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(3)}}, Size: proto.Float64(size), Home: proto.Bool(true)}},
-		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
-		Comfort:      &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
+		Fires:   []*o.FireState{{Fire: &o.EntityRef{Id: proto.String("fire-1"), DefName: proto.String("Fire"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(3)}}, Size: proto.Float64(size), Home: proto.Bool(true)}},
+		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}

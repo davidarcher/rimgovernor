@@ -18,11 +18,8 @@ func suppliesSamples() (map[string]any, map[string]any) {
 			map[string]any{"id": "wood1", "mapId": 0.0, "snapshot": map[string]any{"context": map[string]any{}, "entityId": "wood1", "token": "tok1"}},
 			map[string]any{"id": "wood2", "mapId": 0.0, "snapshot": map[string]any{"context": map[string]any{}, "entityId": "wood2", "token": "tok2"}},
 		},
-		"holders":             []any{map[string]any{"holder": map[string]any{"id": "muffalo1"}, "units": "3"}},
-		"itemsCompleteness":   map[string]any{},
-		"holdersCompleteness": map[string]any{},
-		"corpsesCompleteness": map[string]any{},
-		"issues":              []any{},
+		"holders": []any{map[string]any{"holder": map[string]any{"id": "muffalo1"}, "units": "3"}},
+		"issues":  []any{},
 	}
 	return row, legacy
 }
@@ -80,8 +77,6 @@ func TestCheckStockExcludedHeldScopeCannotClaimKnownEmpty(t *testing.T) {
 	items := row["items"].([]any)
 	row["items"] = items[:1]
 	row["holders"] = []any{}
-	row["itemsCompleteness"] = map[string]any{}
-	row["holdersCompleteness"] = map[string]any{}
 	issues := []any{}
 	for _, field := range []string{"carried", "in_container", "trader_stock"} {
 		issues = append(issues, map[string]any{"field": field, "unavailable": map[string]any{"reason": "UNAVAILABLE_REASON_NOT_REQUESTED"}})

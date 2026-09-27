@@ -31,7 +31,6 @@ namespace HomeBridge.BridgeTools
         private static float SafeFloat(Func<float> f) { try { return f(); } catch { return 0f; } }
         private static string SafeText(Func<string?> f) { try { return f() ?? ""; } catch { return ""; } }
 
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
 
         private static Obs.EntityRef PawnRef(Pawn pawn, Common.ObservationContext context) => new Obs.EntityRef
         {
@@ -83,7 +82,6 @@ namespace HomeBridge.BridgeTools
                 return c != 0 ? c : string.CompareOrdinal(x.GetUniqueLoadID(), y.GetUniqueLoadID());
             });
             snapshot.Negotiators.Add(negotiators.Select(p => PawnRef(p, context)));
-            snapshot.Completeness = Complete(traders.Count + negotiators.Count);
             return snapshot;
         }
 
@@ -162,7 +160,6 @@ namespace HomeBridge.BridgeTools
                 sheet.ColonyCanAfford = SafeInt(() => currency.CountPostDealFor(Transactor.Colony)) >= 0;
             }
             for (var i = 0; i < all.Count; i++) if (all[i] != null) sheet.Lines.Add(Line(all[i], i));
-            sheet.Completeness = Complete(sheet.Lines.Count);
             return true;
         }
     }

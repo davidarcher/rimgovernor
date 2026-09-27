@@ -11,7 +11,7 @@ func movementCells() map[string]any {
 	for _, x := range []float64{0, 2, 3, 6} {
 		rows = append(rows, map[string]any{"cell": map[string]any{"x": x, "z": 0.0}, "terrain": "Soil", "walkable": true, "passable": true, "fogged": false})
 	}
-	return map[string]any{"cells": rows, "completeness": map[string]any{}}
+	return map[string]any{"cells": rows}
 }
 
 func TestCandidatesBoundedAndObservedTraversalRequired(t *testing.T) {

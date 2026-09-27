@@ -13,11 +13,8 @@ import (
 func gearColonyFixture(t *testing.T) *o.ColonyFactsSnapshot {
 	v := colonyFixture(t).GetObserved()
 	ctx := v.Context
-	complete := func(count uint64) *o.Completeness {
-		return &o.Completeness{Filtered: proto.Uint64(0)}
-	}
-	p := &o.GearLoadout{Pawn: &o.EntityRef{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Deficit: proto.Bool(true), Completeness: complete(1), Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &o.EntityRef{Id: proto.String("parka"), DefName: proto.String("Parka"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, Apparel: proto.Bool(true), Weapon: proto.Bool(false)}}}, ReplacementNeeds: []*o.GearReplacementNeed{{DefName: proto.String("Parka"), Stuff: proto.String("Cloth"), Reason: proto.String("wear")}}}
-	v.GetPlanning().GetObserved().Gear = &o.GearSnapshot{Context: proto.Clone(ctx).(*c.ObservationContext), Pawns: []*o.GearLoadout{p}, Completeness: complete(1)}
+	p := &o.GearLoadout{Pawn: &o.EntityRef{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Deficit: proto.Bool(true), Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &o.EntityRef{Id: proto.String("parka"), DefName: proto.String("Parka"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, Apparel: proto.Bool(true), Weapon: proto.Bool(false)}}}, ReplacementNeeds: []*o.GearReplacementNeed{{DefName: proto.String("Parka"), Stuff: proto.String("Cloth"), Reason: proto.String("wear")}}}
+	v.GetPlanning().GetObserved().Gear = &o.GearSnapshot{Context: proto.Clone(ctx).(*c.ObservationContext), Pawns: []*o.GearLoadout{p}}
 	return v
 }
 
@@ -27,16 +24,14 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, change := range map[string]func(*o.GearSnapshot){
-		"stale census":        func(g *o.GearSnapshot) { g.Context.Tick = proto.Int64(g.Context.GetTick() - 1) },
-		"stale loadout":       func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.Context.Tick = proto.Int64(g.Context.GetTick() - 1) },
-		"changed generation":  func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.Context.NativeGeneration = proto.Uint64(99) },
-		"other pawn token":    func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.EntityId = proto.String("other") },
-		"partial":             func(g *o.GearSnapshot) { g.Completeness.Filtered = proto.Uint64(1) },
-		"filtered candidates": func(g *o.GearSnapshot) { g.Pawns[0].Completeness.Filtered = proto.Uint64(1) },
-		"blocked eligible":    func(g *o.GearSnapshot) { g.Pawns[0].Blocker = proto.String("player job") },
-		"nan gain":            func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Gain = proto.Float64(math.NaN()) },
-		"outside map":         func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Thing.Position.X = proto.Int32(4096) },
-		"unknown kind":        func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Apparel = nil },
+		"stale census":       func(g *o.GearSnapshot) { g.Context.Tick = proto.Int64(g.Context.GetTick() - 1) },
+		"stale loadout":      func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.Context.Tick = proto.Int64(g.Context.GetTick() - 1) },
+		"changed generation": func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.Context.NativeGeneration = proto.Uint64(99) },
+		"other pawn token":   func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.EntityId = proto.String("other") },
+		"blocked eligible":   func(g *o.GearSnapshot) { g.Pawns[0].Blocker = proto.String("player job") },
+		"nan gain":           func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Gain = proto.Float64(math.NaN()) },
+		"outside map":        func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Thing.Position.X = proto.Int32(4096) },
+		"unknown kind":       func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Apparel = nil },
 		"duplicate need": func(g *o.GearSnapshot) {
 			g.Pawns[0].ReplacementNeeds = append(g.Pawns[0].ReplacementNeeds, g.Pawns[0].ReplacementNeeds[0])
 		},
@@ -74,11 +69,11 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 }
 
 func TestGearStorageCensusValidation(t *testing.T) {
-	for _, bad := range []string{"", "count", "quality", "band", "duplicate", "partial"} {
+	for _, bad := range []string{"", "count", "quality", "band", "duplicate"} {
 		v := gearColonyFixture(t)
 		g := v.GetPlanning().GetObserved().Gear
 		row := &o.GearStock{DefName: proto.String("Parka"), Stuff: proto.String("Cloth"), Quality: proto.Int32(2), HpBand: proto.Int32(9), Count: proto.Int32(3)}
-		g.StoredApparel = &o.GearStorage{Rows: []*o.GearStock{row}, Completeness: proto.Clone(g.Completeness).(*o.Completeness)}
+		g.StoredApparel = &o.GearStorage{Rows: []*o.GearStock{row}}
 		switch bad {
 		case "count":
 			row.Count = nil
@@ -88,8 +83,6 @@ func TestGearStorageCensusValidation(t *testing.T) {
 			row.HpBand = proto.Int32(10)
 		case "duplicate":
 			g.StoredApparel.Rows = append(g.StoredApparel.Rows, row)
-		case "partial":
-			g.StoredApparel.Completeness.Filtered = proto.Uint64(1)
 		}
 		err := ValidateColonyFacts(v, v.Context.Identity)
 		if (err != nil) != (bad != "") {

@@ -99,9 +99,6 @@ func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *
 		if stock == nil || stock.Units == nil || stock.Forbidden == nil || stock.GetUnits() < 0 || stock.GetForbidden() < 0 || stock.GetForbidden() > stock.GetUnits() || !forbid && stock.GetForbidden() != stock.GetUnits() {
 			return SupplyRead{}, contract("invalid forbidden supply stock")
 		}
-		if yes, known := emergencyCompleteness(stock.ItemsCompleteness).Value(); !known || !yes {
-			return SupplyRead{}, contract("incomplete supply items")
-		}
 		for _, item := range stock.Items {
 			if item == nil || validID(item.GetId()) != nil || seen[item.GetId()] || item.MapId == nil || item.GetMapId() != identity.GetMapId() || item.Position == nil || item.Position.X == nil || item.Position.Z == nil || item.Position.GetX() < 0 || item.Position.GetZ() < 0 || item.GetDefName() != stock.GetDefinition().GetDefName() {
 				return SupplyRead{}, contract("supply entity mismatch")

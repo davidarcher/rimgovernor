@@ -140,7 +140,6 @@ namespace HomeBridge.BridgeTools
                         if (unlocked.label != null) item.Label = PlacementPreviewOperation.Diagnostic(unlocked.label);
                         row.Unlocks.Add(item);
                     }
-                    row.UnlocksCompleteness = Complete(unlocks.Count, 0);
                 }
                 built.Add(row);
             }

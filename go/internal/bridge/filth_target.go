@@ -55,10 +55,6 @@ func validateFilthTarget(snapshot *o.CellsSnapshot, identity *c.Identity, cell *
 	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
 		return FilthTarget{}, contract("invalid filth cells context")
 	}
-	completeness := snapshot.Completeness
-	if completeness.GetFiltered() != 0 {
-		return FilthTarget{}, contract("incomplete filth cells observation")
-	}
 	if !proto.Equal(snapshot.AppliedFields, filthFields()) {
 		return FilthTarget{}, contract("filth cells applied fields differ")
 	}

@@ -312,10 +312,9 @@ internal static class NativeProtoSuppliesProbe
         }
         var overflowRow = RunProject(overflowEntries, true);
         var overflowItems = (IList)Get(overflowRow, "Items");
-        var overflowCompleteness = Get(overflowRow, "ItemsCompleteness");
         Check((long)Get(overflowRow, "Units") == 600 && (long)Get(overflowRow, "Stacks") == 300 && (long)Get(overflowRow, "OursUnforbidden") == 600,
             "300 stacks of one definition: units and ownership counts cover every entry");
-        Check(overflowItems.Count == 300 && (ulong)Get(overflowCompleteness, "Filtered") == 0,
+        Check(overflowItems.Count == 300,
             "300 stacks of one definition: items list every entry");
 
         Console.WriteLine(checks + " compiled supplies boundary assertions passed + fixtures; no gameplay assertions.");

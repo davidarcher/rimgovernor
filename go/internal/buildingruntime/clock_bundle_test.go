@@ -98,7 +98,7 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 		}
 		colonists.Pawns = append(colonists.Pawns, row)
 	}
-	threats := &o.ThreatsSnapshot{Completeness: completeness(facts.ThreatsComplete)}
+	threats := &o.ThreatsSnapshot{}
 	for _, threat := range facts.Threats {
 		row := &o.ThreatPawn{Pawn: &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(string(threat.ID))}, Dead: known(threat.Dead), Downed: known(threat.Downed), Animal: known(threat.Animal)}}
 		if distance, ok := threat.Distance.Value(); ok {

@@ -14,7 +14,6 @@ func threatFacts() *o.ThreatFacts {
 		WealthItems: proto.Float64(1200), WealthBuildings: proto.Float64(800), WealthPawns: proto.Float64(5400), WealthTotal: proto.Float64(7400),
 		StorytellerWealth: proto.Float64(6200), RaidPoints: proto.Float64(120.5), AdaptationFactor: proto.Float64(1), DifficultyThreatScale: proto.Float64(1),
 		ColonistCount: proto.Uint32(3),
-		Completeness:  &o.Completeness{Filtered: proto.Uint64(0)},
 	}
 }
 

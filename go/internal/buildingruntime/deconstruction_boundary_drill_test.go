@@ -23,7 +23,7 @@ import (
 type drillBoundaryNative struct{ *resourceNative }
 
 func (d *drillBoundaryNative) ReadClearanceTargets(context.Context, *c.Identity) (*n.ClearanceTargetsReply, bridge.Result, error) {
-	return &n.ClearanceTargetsReply{Outcome: &n.ClearanceTargetsReply_Observed{Observed: &n.ClearanceTargetsSnapshot{Context: d.reply.GetObserved().Context, Completeness: &n.Completeness{Filtered: proto.Uint64(0)}}}}, bridge.Result{}, nil
+	return &n.ClearanceTargetsReply{Outcome: &n.ClearanceTargetsReply_Observed{Observed: &n.ClearanceTargetsSnapshot{Context: d.reply.GetObserved().Context}}}, bridge.Result{}, nil
 }
 func (d *drillBoundaryNative) ReadAncientShrines(context.Context, *c.Identity) (*n.AncientShrinesReply, bridge.Result, error) {
 	return nil, bridge.Result{}, errors.New("unused")

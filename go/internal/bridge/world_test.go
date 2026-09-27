@@ -14,8 +14,7 @@ import (
 
 func worldFixture() *o.WorldSnapshot {
 	return &o.WorldSnapshot{
-		Context:      pbContext(),
-		Completeness: &o.Completeness{},
+		Context: pbContext(),
 		Settlements: []*o.Settlement{{
 			Id: proto.String("settlement-1"), Label: proto.String("Outpost"), Tile: proto.Int32(42), Player: proto.Bool(false),
 			FactionId: proto.String("faction-1"), FactionDefName: proto.String("Tribe"), Relation: proto.String("Neutral"), Goodwill: proto.Int32(10),

@@ -71,7 +71,6 @@ internal static class NativeProtoBuildingsProbe
         var row = ((IList)Get(snapshot, "Buildings"))[0]!;
         Check((bool)Get(row, "HasBurning") && !(bool)Get(row, "Burning"), "Known false burning retained");
         Check(Get(Get(row, "Building"), "Snapshot") == null, "No fabricated CAS snapshot");
-        Check(Get(snapshot, "NetworksCompleteness") == null, "Unread networks carry no census record");
         Console.WriteLine(checks + " compiled building boundary assertions passed; no gameplay assertions.");
         return 0;
     }

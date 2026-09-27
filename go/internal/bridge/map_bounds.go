@@ -75,10 +75,6 @@ func validateMapBounds(snapshot *o.CellsSnapshot, identity *c.Identity, anchor *
 			return MapBounds{}, contract("invalid bounds region")
 		}
 	}
-	completeness := snapshot.Completeness
-	if completeness.GetFiltered() != 0 {
-		return MapBounds{}, contract("incomplete map bounds observation")
-	}
 	if !proto.Equal(snapshot.AppliedFields, mapBoundsFields()) {
 		return MapBounds{}, contract("map bounds applied fields differ")
 	}

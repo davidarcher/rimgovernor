@@ -12,7 +12,7 @@ import (
 )
 
 func clearanceSnapshot() *o.ClearanceTargetsSnapshot {
-	return &o.ClearanceTargetsSnapshot{Context: pbContext(), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}, Targets: []*o.ClearanceTarget{{EntityId: proto.String("Wall1"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Maximum: &c.Cell{X: proto.Int32(2), Z: proto.Int32(3)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(false), AncientDanger: proto.Bool(true), RoofBlocker: proto.String("Unsupported roof"), Designated: proto.Bool(true)}}}
+	return &o.ClearanceTargetsSnapshot{Context: pbContext(), Targets: []*o.ClearanceTarget{{EntityId: proto.String("Wall1"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Maximum: &c.Cell{X: proto.Int32(2), Z: proto.Int32(3)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(false), AncientDanger: proto.Bool(true), RoofBlocker: proto.String("Unsupported roof"), Designated: proto.Bool(true)}}}
 }
 
 func TestClearanceReadAndUnavailableStub(t *testing.T) {

@@ -51,7 +51,6 @@ func TestAreaPlannerFreshRestrictionAndStaleCASAfterRestart(t *testing.T) {
 	v.Recovery = &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{
 		Context: v.Context, RoofHazard: proto.Bool(false),
 		Restrictions: []*o.RecoveryRestriction{{Pawn: entity, AreaId: proto.String("manual")}},
-		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 	}}}
 	ctx := context.Background()
 	if _, err := r.Step(ctx); err != nil {

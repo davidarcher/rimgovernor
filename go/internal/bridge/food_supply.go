@@ -11,9 +11,6 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 	if err := buildingUnknown(v); err != nil {
 		return err
 	}
-	if v.Completeness.GetFiltered() != 0 {
-		return contract("filtered food census")
-	}
 	consumers := map[string]bool{}
 	for _, row := range v.Consumers {
 		if row == nil || validID(row.GetPawnId()) != nil || consumers[row.GetPawnId()] || !combatNumber(row.NutritionPerDay, true) {

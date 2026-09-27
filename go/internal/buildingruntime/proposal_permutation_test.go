@@ -66,9 +66,8 @@ func haulPairFixture(t *testing.T) (*RoutineReviewer, *routineNative) {
 			Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false), BaseDeteriorationRate: proto.Float64(deterioration), Medicine: proto.Bool(false), Count: proto.Int64(10)}
 	}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
-		Items:        []*o.UpkeepItem{item("supply-1", "MealSimple", 2), item("stack-1", "Steel", 0)},
-		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
-		Comfort:      &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
+		Items:   []*o.UpkeepItem{item("supply-1", "MealSimple", 2), item("stack-1", "Steel", 0)},
+		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}

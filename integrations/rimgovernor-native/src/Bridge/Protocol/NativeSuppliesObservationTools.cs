@@ -238,9 +238,6 @@ namespace HomeBridge.BridgeTools
                     row.Corpses.Add(detail);
                 }
             }
-            row.ItemsCompleteness = Complete(row.Items.Count);
-            row.HoldersCompleteness = includeHeld ? Complete(row.Holders.Count) : null;
-            row.CorpsesCompleteness = Complete(row.Corpses.Count);
             row.Issues.Add(Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow."));
             return row;
         }

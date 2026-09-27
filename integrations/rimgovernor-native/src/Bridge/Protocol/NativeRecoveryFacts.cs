@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
                     && a.ActiveCells.All(c => c.Roofed(map) && !c.Fogged(map))).OrderBy(a => a.ID).ToList();
                 var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
                 var result = new Obs.RecoverySnapshot { Context = context, RoofHazard = conditions.Any(c => c is GameCondition_ToxicFallout),
-                    Completeness = Complete(buildings.Count + areas.Count + pawns.Count) };
+                    };
                 foreach (var building in buildings) {
                     var service = new Obs.BuildingServiceState { BrokenDown = building.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false };
                     var fuel = building.TryGetComp<CompRefuelable>();
@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
                     // allowed_area_id publishes, so a RecoveryAreaProposal
                     // naming a refuge from this census round-trips through
                     // native admission and native readback consistently.
-                    var row = new Obs.RecoveryArea { Id = area.GetUniqueLoadID(), Roofed = true, Completeness = Complete(cells.Count) };
+                    var row = new Obs.RecoveryArea { Id = area.GetUniqueLoadID(), Roofed = true};
                     foreach (var cell in cells) row.Cells.Add(Cell(cell));
                     result.Areas.Add(row);
                 }
@@ -66,6 +66,5 @@ namespace HomeBridge.BridgeTools
         private static double Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid service quantity."); return value; }
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
         private static Obs.EntityRef Entity(Thing t) => new Obs.EntityRef { Id = t.GetUniqueLoadID(), DefName = t.def.defName, MapId = t.Map.uniqueID, Position = Cell(t.Position) };
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
     }
 }

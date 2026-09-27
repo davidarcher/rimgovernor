@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
             }
             if (pawns.Count == 0 || pawns.Count > MaximumPawns) throw new ReadLimit("Require one through 32 mobile native colonists.");
             var terrain = map.AllCells.Where(c => !c.Fogged(map) && c.Walkable(map)).ToList();
-            var result = new Obs.SpatialAccessSnapshot { Context = context, MapCells = (uint)(map.Size.x * map.Size.z), ObservedWalkableCells = (uint)terrain.Count, Completeness = Complete(pawns.Count) };
+            var result = new Obs.SpatialAccessSnapshot { Context = context, MapCells = (uint)(map.Size.x * map.Size.z), ObservedWalkableCells = (uint)terrain.Count};
             foreach (var pawn in pawns)
             {
                 var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
@@ -126,7 +126,6 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.PawnAccess {
                     Pawn = new Obs.EntityRef { Id = pawn.GetUniqueLoadID(), DefName = pawn.def.defName, MapId = map.uniqueID, Position = Cell(pawn.Position) },
                     CurrentCells = (uint)before.Count, ProjectedCells = (uint)after.Count, LostCellCount = (uint)lost.Count, EgressSteps = (uint)egressSteps,
-                    Completeness = Complete(targets.Count),
                 };
                 if (origin.IsValid) row.ProjectedOrigin = Cell(origin);
                 foreach (var c in lost) row.LostCells.Add(Cell(c));
@@ -145,7 +144,6 @@ namespace HomeBridge.BridgeTools
         private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
     }
 }

@@ -105,7 +105,6 @@ namespace HomeBridge.BridgeTools
             var workers = snapshot.AccessReachable ? ExcavationTools.Workers(map, stand) : new List<Pawn>();
             snapshot.WorkerAvailable = workers.Count > 0;
             foreach (var worker in workers.Take(32)) snapshot.WorkerIds.Add(worker.GetUniqueLoadID());
-            snapshot.Completeness = new Obs.Completeness();
             return snapshot;
         }
     }

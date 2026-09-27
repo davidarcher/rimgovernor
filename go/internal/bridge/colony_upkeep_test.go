@@ -44,9 +44,8 @@ func lightingWire() *o.LightingSection {
 		return &o.EntityRef{Id: proto.String(id), DefName: proto.String("Thing"), MapId: proto.Int32(3), Position: cell(x, z)}
 	}
 	return &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: &o.LightingFacts{
-		WorkCells:    []*o.WorkLightCell{{Bench: entity("stove", 10, 10), Cell: cell(10, 11), Glow: proto.Float64(0.2), Roofed: proto.Bool(true), RoomId: proto.String("7")}},
-		Lamps:        []*o.LampState{{Building: &o.BuildingState{Building: entity("lamp", 12, 12), Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), SwitchedOn: proto.Bool(true), BrokenDown: proto.Bool(false), Fuel: proto.Float64(1), TargetFuel: proto.Float64(2), OutOfFuel: proto.Bool(false), AllowedFuelDefs: []string{"WoodLog"}}}, GlowRadius: proto.Float64(10), Lit: proto.Bool(true), RoomId: proto.String("7")}},
-		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
+		WorkCells: []*o.WorkLightCell{{Bench: entity("stove", 10, 10), Cell: cell(10, 11), Glow: proto.Float64(0.2), Roofed: proto.Bool(true), RoomId: proto.String("7")}},
+		Lamps:     []*o.LampState{{Building: &o.BuildingState{Building: entity("lamp", 12, 12), Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), SwitchedOn: proto.Bool(true), BrokenDown: proto.Bool(false), Fuel: proto.Float64(1), TargetFuel: proto.Float64(2), OutOfFuel: proto.Bool(false), AllowedFuelDefs: []string{"WoodLog"}}}, GlowRadius: proto.Float64(10), Lit: proto.Bool(true), RoomId: proto.String("7")}},
 	}}}
 }
 
@@ -60,8 +59,7 @@ func flooringWire() *o.FlooringSection {
 			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
 		}}},
-		Terrains:     []*o.FloorTerrain{terrain("Soil", -1, true), terrain("WoodPlankFloor", 0, false)},
-		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
+		Terrains: []*o.FloorTerrain{terrain("Soil", -1, true), terrain("WoodPlankFloor", 0, false)},
 	}}}
 }
 
@@ -162,7 +160,6 @@ func routesWire() *o.RoutesSection {
 		Traffic:          []*o.TrafficCell{{Cell: cell(5, 5), Samples: proto.Uint32(30), Terrain: proto.String("Soil"), Home: proto.Bool(true), Layer: o.TrafficLayer_TRAFFIC_LAYER_COLONIST}},
 		TrafficSamples:   proto.Uint32(200),
 		TrafficSinceTick: proto.Int32(400),
-		Completeness:     &o.Completeness{Filtered: proto.Uint64(0)},
 	}}}
 }
 

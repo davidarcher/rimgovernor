@@ -11,9 +11,8 @@ import (
 
 func recoveryCensus() *o.ColonyFactsSnapshot {
 	context := &c.ObservationContext{Identity: &c.Identity{MapId: proto.Int32(0)}, Tick: proto.Int64(10)}
-	counts := &o.Completeness{Filtered: proto.Uint64(0)}
 	b := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("wall"), MapId: proto.Int32(0)}, UsesHitPoints: proto.Bool(true), HitPoints: proto.Int32(50), MaxHitPoints: proto.Int32(100), Burning: proto.Bool(false), Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}, Service: &o.BuildingServiceState{BrokenDown: proto.Bool(false), Fuel: proto.Float64(0), TargetFuel: proto.Float64(10)}}
-	return &o.ColonyFactsSnapshot{Context: context, MapSize: &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)}, Recovery: &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{Context: proto.Clone(context).(*c.ObservationContext), Buildings: []*o.BuildingState{b}, Completeness: counts}}}}
+	return &o.ColonyFactsSnapshot{Context: context, MapSize: &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)}, Recovery: &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{Context: proto.Clone(context).(*c.ObservationContext), Buildings: []*o.BuildingState{b}}}}}
 }
 func TestColonyRecoveryBoundary(t *testing.T) {
 	for _, name := range []string{"valid", "unknown", "stale", "duplicate", "foreign", "hp", "nonfinite", "extra", "conflict"} {

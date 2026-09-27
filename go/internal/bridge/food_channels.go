@@ -11,7 +11,7 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 		return validateUnavailable(s.Unavailable)
 	case *o.FoodChannelsSection_Observed:
 		f := s.Observed
-		if f == nil || f.Completeness.GetFiltered() != 0 {
+		if f == nil {
 			return contract("incomplete food channels")
 		}
 		width := min(v.Center.GetX()+22, int32(v.MapSize.GetWidth())-1) - max(v.Center.GetX()-22, 0) + 1
