@@ -9,7 +9,9 @@
 //
 //  1. takes the repository-wide landing lock (one landing at a time);
 //  2. merges main into the branch's worktree, which must be clean; a
-//     conflict aborts the merge and leaves the resolution to the caller;
+//     conflict aborts the merge and leaves the resolution to the caller,
+//     and a merged tree that puts a path main changed since the branch
+//     forked back to its base content is refused, naming the paths (#889);
 //  3. with -test, runs the Go tests the branch affects as cmd/test does
 //     (off by default: the branch runs cmd/test before landing, and the
 //     lane does not repeat it); with -results <dir>, reads the acceptance
@@ -25,7 +27,8 @@
 //  4. squash-merges the branch into the main checkout, which must be clean,
 //     with a message built from the branch's commits (-m or -F overrides
 //     the subject and body) carrying the branch's Co-Authored-By
-//     trailers;
+//     trailers, and refuses a squash whose tree is not the merged
+//     branch's;
 //  5. resets the branch to the new main when its tree is identical, so
 //     the next task starts from main rather than re-landing the same diff;
 //  6. closes the GitHub issue the branch is for (the number in a branch
@@ -126,9 +129,16 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if err := gate.prepare(worktree); err != nil {
 		return err
 	}
+	base, err := forkPoint(worktree)
+	if err != nil {
+		return err
+	}
 	if _, err := git(worktree, "merge", "--no-edit", "main"); err != nil {
 		_, _ = git(worktree, "merge", "--abort")
 		return fmt.Errorf("merging main into %s: %w\nresolve the conflict on the branch (git merge main), commit, and run land again", branch, err)
+	}
+	if err := refuseReverts(worktree, base); err != nil {
+		return err
 	}
 	if _, err := git(worktree, "diff", "--quiet", "main"); err == nil {
 		fmt.Printf("%s has nothing to land: its tree matches main\n", branch)
@@ -160,6 +170,10 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if _, err := git(mainCheckout, "merge", "--squash", head); err != nil {
 		_, _ = git(mainCheckout, "reset", "--hard", "HEAD")
 		return fmt.Errorf("squash-merging %s into main: %w", branch, err)
+	}
+	if _, err := git(mainCheckout, "diff", "--cached", "--quiet", head); err != nil {
+		_, _ = git(mainCheckout, "reset", "--hard", "HEAD")
+		return fmt.Errorf("the squash of %s staged on main differs from the merged branch (%.9s); nothing landed", branch, head)
 	}
 	messagePath := filepath.Join(os.TempDir(), fmt.Sprintf("land-%d.txt", os.Getpid()))
 	if err := os.WriteFile(messagePath, []byte(body), 0o644); err != nil {
@@ -368,4 +382,46 @@ func output(dir, name string, args ...string) (string, error) {
 		return "", fmt.Errorf("%s %s: %w: %s", name, strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
 	return string(out), nil
+}
+
+// forkPoint is where the branch first left main: the parent of its oldest
+// first-parent commit not on main, or main itself when there is none.
+// Earlier merges of main do not move it, so a revert committed after
+// such a merge still shows against it.
+func forkPoint(worktree string) (string, error) {
+	list, err := git(worktree, "rev-list", "--first-parent", "--reverse", "HEAD", "^main")
+	if err != nil || list == "" {
+		return "main", err
+	}
+	oldest, _, _ := strings.Cut(list, "\n")
+	return git(worktree, "rev-parse", oldest+"^")
+}
+
+// refuseReverts refuses a merged branch that puts a path main changed
+// since base back to its base content (deleting a path main added
+// counts), which is how a squash from a stale tree silently undid landed
+// work twice (#889).
+func refuseReverts(worktree, base string) error {
+	onMain, err := git(worktree, "diff", "--no-renames", "--name-only", base, "main")
+	if err != nil || onMain == "" {
+		return err
+	}
+	onBranch, err := git(worktree, "diff", "--no-renames", "--name-only", base, "HEAD")
+	if err != nil {
+		return err
+	}
+	kept := map[string]bool{}
+	for _, p := range strings.Split(onBranch, "\n") {
+		kept[p] = true
+	}
+	var reverted []string
+	for _, p := range strings.Split(onMain, "\n") {
+		if !kept[p] {
+			reverted = append(reverted, p)
+		}
+	}
+	if len(reverted) == 0 {
+		return nil
+	}
+	return fmt.Errorf("the merged branch reverts work landed on main since %.9s:\n  %s\nrestore main's version (git checkout main -- <path>), commit, and run land again", base, strings.Join(reverted, "\n  "))
 }

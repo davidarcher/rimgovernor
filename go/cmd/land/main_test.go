@@ -146,3 +146,32 @@ func TestCloseIssueReadsTheBranchName(t *testing.T) {
 		t.Error("-no-close should disable closing")
 	}
 }
+
+func TestLandRefusesABranchThatRevertsMainWork(t *testing.T) {
+	root, wt := newRepo(t)
+	write(t, filepath.Join(wt, "b.txt"), "b\n")
+	mustGit(t, wt, "add", ".")
+	mustGit(t, wt, "commit", "-qm", "feat: b")
+	// main lands a change to a.txt and a new file after the branch forked.
+	write(t, filepath.Join(root, "a.txt"), "landed\n")
+	write(t, filepath.Join(root, "new.txt"), "new\n")
+	mustGit(t, root, "add", ".")
+	mustGit(t, root, "commit", "-qm", "peer: landed work")
+	// The branch merges main, then a stale-tree commit puts both back.
+	mustGit(t, wt, "merge", "-q", "--no-edit", "main")
+	write(t, filepath.Join(wt, "a.txt"), "a\n")
+	mustGit(t, wt, "rm", "-q", "new.txt")
+	write(t, filepath.Join(wt, "b.txt"), "bb\n")
+	mustGit(t, wt, "add", ".")
+	mustGit(t, wt, "commit", "-qm", "feat: b from a stale tree")
+	before := mustGit(t, root, "rev-parse", "HEAD")
+
+	t.Chdir(wt)
+	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "a.txt") || !strings.Contains(err.Error(), "new.txt") {
+		t.Fatalf("err = %v, want a refusal naming a.txt and new.txt", err)
+	}
+	if after := mustGit(t, root, "rev-parse", "HEAD"); after != before {
+		t.Fatalf("main moved to %s", after)
+	}
+}
