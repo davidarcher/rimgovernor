@@ -15,7 +15,7 @@ import (
 // The orthogonal boundary alone would already enclose (RimWorld regions are
 // 4-connected and a pawn may not cut a corner between two touching walls), but
 // filling the diagonal cells gives the same solid ring a rectangle's corners
-// have, so a rectangle, an oval and a grown irregular room all expand by one
+// have, so a rectangle, a concave template and a grown irregular room all expand by one
 // rule. The largest interior is 3844 cells, the same bound RoomAdoption
 // enforces.
 //
@@ -312,37 +312,10 @@ func (o EllipseOrientation) Validate() error {
 	return errors.New("unsupported ellipse orientation")
 }
 
-// EllipseFootprint generates a circular or oval hut interior from integer
-// arithmetic alone, so the same request yields the same cells on every run.
-// A cell belongs to the interior when its centre lies on or inside the
-// ellipse: axis-aligned, dx²·rz² + dz²·rx² ≤ rx²·rz²; diagonal, with u the
-// offset across the radiusZ diagonal and v the offset along it,
-// u²·rz² + v²·rx² ≤ 2·rx²·rz². Radii are 2..30 cells and measure the
-// Euclidean half-axes, so a north-east oval with radiusZ 5 reaches about
-// 3.5 cells along x and z together. The door is the entrance-side wall cell
-// nearest the centre axis with clear ground outside.
-func EllipseFootprint(center Cell, radiusX, radiusZ int32, orientation EllipseOrientation, entrance Rotation) (RoomFootprint, error) {
-	if err := orientation.Validate(); err != nil {
-		return RoomFootprint{}, err
-	}
-	if radiusX < 2 || radiusX > 30 || radiusZ < 2 || radiusZ > 30 {
-		return RoomFootprint{}, errors.New("ellipse radii must be 2..30 cells")
-	}
-	interior := EllipseInterior(center, radiusX, radiusZ, orientation)
-	footprint, err := NewRoomFootprint(interior, ellipseDoor(center, interior, entrance), entrance)
-	if err != nil {
-		return RoomFootprint{}, err
-	}
-	if !footprint.RoofSupported() {
-		return RoomFootprint{}, errors.New("ellipse interior exceeds roof support")
-	}
-	return footprint, nil
-}
-
-// EllipseInterior is the cell set of EllipseFootprint without its wall ring
-// or door: the cells whose centres lie on or inside the ellipse, in z-outer,
+// EllipseInterior is an ellipse's interior cell set, generated from integer
+// arithmetic alone: the cells whose centres lie on or inside the ellipse, in z-outer,
 // x-inner order. Radii below one, above 30 or an unknown orientation yield
-// nil. Excavation reuses it to carve round rooms out of rock, where the
+// nil. Excavation uses it to carve round rooms out of rock, where the
 // surrounding rock is the wall.
 func EllipseInterior(center Cell, radiusX, radiusZ int32, orientation EllipseOrientation) []Cell {
 	if orientation.Validate() != nil || radiusX < 1 || radiusX > 30 || radiusZ < 1 || radiusZ > 30 {
@@ -373,48 +346,6 @@ func EllipseInterior(center Cell, radiusX, radiusZ int32, orientation EllipseOri
 		}
 	}
 	return interior
-}
-
-// ellipseDoor picks the entrance-side wall cell nearest the centre axis that
-// has interior directly inside and open ground directly outside. On a
-// diagonal oval the ring is two cells thick where the slope crosses the axis,
-// so the cell straight out from the centre may be backed by another wall; the
-// nearest cell along the side whose outward neighbour is clear is taken
-// instead, ties resolved toward the smaller coordinate.
-func ellipseDoor(center Cell, interior []Cell, entrance Rotation) Cell {
-	inside := make(map[Cell]bool, len(interior))
-	for _, c := range interior {
-		inside[c] = true
-	}
-	wall := map[Cell]bool{}
-	for c := range inside {
-		for _, next := range neighbours8(c) {
-			if !inside[next] {
-				wall[next] = true
-			}
-		}
-	}
-	step := entrance.outward()
-	var door Cell
-	best := int64(-1)
-	for w := range wall {
-		in := Cell{X: w.X - step.X, Z: w.Z - step.Z}
-		out := Cell{X: w.X + step.X, Z: w.Z + step.Z}
-		if !inside[in] || inside[out] || wall[out] {
-			continue
-		}
-		off := int64(w.X - center.X)
-		if step.X != 0 {
-			off = int64(w.Z - center.Z)
-		}
-		if off < 0 {
-			off = -off
-		}
-		if best < 0 || off < best || off == best && cellBefore(w, door) {
-			best, door = off, w
-		}
-	}
-	return door
 }
 
 // GrowFootprint carves a connected interior over constrained terrain: a

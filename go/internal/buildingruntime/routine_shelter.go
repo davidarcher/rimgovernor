@@ -38,17 +38,13 @@ func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildin
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.EnsureExpansion, definition: "Wall", shelter: true}, nil
 }
 
-// shelterStyle maps the build tier and the player faction's native tech
-// level to a shell shape (#609): from Masonry up every room is a module of
-// the colony grid; at Camp a neolithic colony raises circular and oval
-// huts and everyone else the rectangle. An unknown tier or tech level keeps
-// the Camp rectangle.
+// shelterStyle maps the build tier
+// to a shell shape (#609): from Masonry up every room is a module of the
+// colony grid; at Camp every colony raises the rectangle, as does an unknown
+// tier.
 func shelterStyle(facts observation.ColonyProjection) policy.ShelterStyle {
 	if tier, known := facts.BuildTier.Value(); known && tier >= policy.BuildTierMasonry {
 		return policy.ShelterModule
-	}
-	if level, known := facts.PlayerTechLevel.Value(); known && level == "Neolithic" {
-		return policy.ShelterHut
 	}
 	return policy.ShelterRectangle
 }
@@ -93,7 +89,7 @@ func shellShapesAtDoor(facts observation.ColonyProjection, door domain.Cell, sty
 			shells = policy.ModuleShapesAtDoor(g, door, family)
 		}
 	}
-	return append(shells, policy.ShellShapesAtDoor(door, style)...)
+	return append(shells, policy.ShellShapesAtDoor(door)...)
 }
 
 // plannedShells is the v2 layout plan's rooms for role (#787): at Masonry

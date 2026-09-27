@@ -16,7 +16,7 @@ import (
 
 // The shell helpers shelter/bunks-first runs on: the durable shell plan's
 // geometry and lineage, the service starts, the furnished bed and the
-// native room checks. The hut-* cases that staged a ring over them are
+// native room checks. The staged-ring shelter cases are
 // snapshot tests since #745 (buildingruntime.TestShelterSitingSnapshots).
 const (
 	// families: the work family is left out because its planner refuses
@@ -262,7 +262,7 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 }
 
 // classify recovers the interior as the cells the wall ring encloses and
-// names the shape: one of the shell templates (hut or concave), or an
+// names the shape: one of the concave shell templates, or an
 // irregular grown shell.
 func classify(plan store.PlanState) (*shell, error) {
 	actions := plan.Spec.Actions()
@@ -316,7 +316,7 @@ func classify(plan store.PlanState) (*shell, error) {
 	b := footprint.Bounds()
 	for x := b.X; x < b.X+b.Width; x++ {
 		for z := b.Z; z < b.Z+b.Height; z++ {
-			for _, t := range policy.ShellTemplates(policy.ShelterHut) {
+			for _, t := range policy.ShellTemplates() {
 				if shell, err := t.Shape(domain.Cell{X: x, Z: z}); err == nil && domain.SameRoomFootprint(shell, footprint) {
 					sh.shape = t.Name
 					return sh, nil

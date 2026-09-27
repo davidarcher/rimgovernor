@@ -51,7 +51,7 @@ func shellSites() []shellSite {
 		// A player exclusion straight over the anchor: the shell must give
 		// way to it rather than build over it.
 		{name: "protected anchor", bounds: Bounds{40, 40}, anchor: domain.Cell{X: 20, Z: 20}, protected: rectCells(Rectangle{18, 18, 5, 5}), minInterior: 25},
-		// Nine lit columns: no circle fits, an oval or a grown footprint does.
+		// Nine lit columns: the rectangle, a concave template or a grown footprint fits.
 		{name: "nine-wide strip", bounds: Bounds{40, 40}, anchor: domain.Cell{X: 20, Z: 20}, open: strip(16, 24), minInterior: 20},
 		// Five lit columns: no template at all fits and the shell is grown.
 		{name: "five-wide strip", bounds: Bounds{40, 40}, anchor: domain.Cell{X: 20, Z: 20}, open: strip(18, 22), minInterior: starterInterior, layouts: 1},
@@ -77,10 +77,10 @@ func (s shellSite) request(style ShelterStyle) StarterRequest {
 	return r
 }
 
-func TestStarterShellInvariantsAcrossSitesAndStyles(t *testing.T) {
+func TestStarterShellInvariantsAcrossSites(t *testing.T) {
 	t.Parallel()
 	for _, site := range shellSites() {
-		for _, style := range []ShelterStyle{ShelterHut, ShelterRectangle} {
+		for _, style := range []ShelterStyle{ShelterRectangle} {
 			t.Run(fmt.Sprintf("%s/%s", site.name, style), func(t *testing.T) {
 				t.Parallel()
 				request := site.request(style)

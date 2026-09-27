@@ -21,9 +21,8 @@ you explicitly resume automation. Direct pointer and keyboard input is available
 in supported rendered Docker sessions; desktop sessions offer camera and
 colonist selection controls.
 
-Under automation, a tribal colony's first shelter is a circular or oval hut;
-other colonies get a rectangular room, and cramped terrain gets an irregular
-room that fits the ground.
+Under automation, every colony's first shelter is a rectangular room; cramped
+terrain gets an L-shaped, two-chamber or irregular room that fits the ground.
 
 Headless sessions have no game images.
 Viewing a colony does not take control of it.

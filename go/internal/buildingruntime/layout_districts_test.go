@@ -8,16 +8,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func TestShelterStylePicksByTierAndFaction(t *testing.T) {
+func TestShelterStylePicksByTier(t *testing.T) {
 	cases := []struct {
 		name  string
 		tier  domain.Fact[policy.BuildTier]
 		level domain.Fact[string]
 		want  policy.ShelterStyle
 	}{
-		{"camp neolithic", domain.Known(policy.BuildTierCamp), domain.Known("Neolithic"), policy.ShelterHut},
 		{"camp medieval", domain.Known(policy.BuildTierCamp), domain.Known("Medieval"), policy.ShelterRectangle},
-		{"unknown tier neolithic", domain.Unknown[policy.BuildTier](), domain.Known("Neolithic"), policy.ShelterHut},
 		{"unknown everything", domain.Unknown[policy.BuildTier](), domain.Unknown[string](), policy.ShelterRectangle},
 		{"masonry neolithic", domain.Known(policy.BuildTierMasonry), domain.Known("Neolithic"), policy.ShelterModule},
 		{"powered", domain.Known(policy.BuildTierMasonry + 1), domain.Known("Industrial"), policy.ShelterModule},

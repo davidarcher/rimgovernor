@@ -211,8 +211,8 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 // exist, StarterLayouts' own site-legality scan would no longer treat that
 // ground as free, so the built room can only be identified by what is there.
 // A plan's Wall/Door cells are matched against every starter shell shape
-// whose south door stands on the plan's door, hut templates and the 9x9
-// rectangle alike, so a neolithic colony's hut is a room too (#196).
+// whose south door stands on the plan's door: the 9x9 rectangle and the
+// concave templates.
 func starterRoom(claims domain.Fact[[]policy.ConstructionClaim]) (policy.Rectangle, bool) {
 	rows, known := claims.Value()
 	if !known {
@@ -246,7 +246,7 @@ func starterRoom(claims domain.Fact[[]policy.ConstructionClaim]) (policy.Rectang
 	for _, id := range plans {
 		r := byPlan[id]
 		for _, door := range r.doors {
-			for _, shell := range policy.ShellShapesAtDoor(door, policy.ShelterHut) {
+			for _, shell := range policy.ShellShapesAtDoor(door) {
 				walls := shell.Walls()
 				if len(walls) != len(r.cells) {
 					continue

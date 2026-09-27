@@ -134,44 +134,8 @@ func TestStarterUnknownGeometryAndCrop(t *testing.T) {
 	}
 }
 
-func TestStarterHutStylePrefersOvalTemplates(t *testing.T) {
+func TestStarterRectangleShellMatchesItsBounds(t *testing.T) {
 	r := starterFixture()
-	r.Shelter = ShelterHut
-	layouts, err := StarterLayouts(r)
-	if err != nil || len(layouts) == 0 {
-		t.Fatal(layouts, err)
-	}
-	want, _ := domain.EllipseFootprint(domain.Cell{X: 20, Z: 20}, 4, 4, domain.EllipseNorthSouth, domain.South)
-	first := layouts[0]
-	if !domain.SameRoomFootprint(first.Shell, want) {
-		t.Fatalf("first hut %+v, want circle at the anchor", first.Shell.Bounds())
-	}
-	if first.Room != (Rectangle{15, 15, 11, 11}) {
-		t.Fatalf("hut bounds %v", first.Room)
-	}
-	inside := map[domain.Cell]bool{}
-	for _, c := range first.Shell.Interior() {
-		inside[c] = true
-	}
-	for _, p := range rectCells(first.Storage) {
-		if !inside[p] {
-			t.Fatalf("storage cell %v outside the hut", p)
-		}
-	}
-	for _, l := range layouts {
-		if !l.Shell.RoofSupported() || l.Shell.Entrance() != domain.South {
-			t.Fatal("hut must roof itself and face south", l.Shell.Bounds())
-		}
-		for _, patch := range l.Farms {
-			for _, p := range rectCells(patch) {
-				if inside[p] {
-					t.Fatal("farm inside hut", p)
-				}
-			}
-		}
-	}
-	// Rectangle style is untouched by the new field.
-	r.Shelter = ShelterRectangle
 	plain, err := StarterLayouts(r)
 	if err != nil || plain[0].Room != (Rectangle{16, 16, 9, 9}) {
 		t.Fatal(plain, err)
@@ -182,31 +146,15 @@ func TestStarterHutStylePrefersOvalTemplates(t *testing.T) {
 	}
 }
 
-func TestStarterHutNarrowsThenGrowsFootprint(t *testing.T) {
-	// Only a nine-wide strip of light-supporting ground: the circle of radius
-	// four fails and the narrow north-south oval is taken.
+func TestStarterGrowsFootprintInANarrowStrip(t *testing.T) {
+	// A five-wide corridor fits no template: grow an irregular footprint.
 	r := starterFixture()
-	r.Shelter = ShelterHut
-	for i := range r.Cells {
-		if r.Cells[i].Cell.X < 15 || r.Cells[i].Cell.X > 23 {
-			r.Cells[i].SupportsLight = domain.Known(false)
-		}
-	}
-	layouts, err := StarterLayouts(r)
-	if err != nil || len(layouts) == 0 {
-		t.Fatal(layouts, err)
-	}
-	narrow, _ := domain.EllipseFootprint(domain.Cell{X: 19, Z: 20}, 3, 5, domain.EllipseNorthSouth, domain.South)
-	if !domain.SameRoomFootprint(layouts[0].Shell, narrow) {
-		t.Fatalf("expected the narrow oval, got %v", layouts[0].Room)
-	}
-	// A five-wide corridor fits neither template: grow an irregular footprint.
 	for i := range r.Cells {
 		if r.Cells[i].Cell.X < 15 || r.Cells[i].Cell.X > 19 {
 			r.Cells[i].SupportsLight = domain.Known(false)
 		}
 	}
-	layouts, err = StarterLayouts(r)
+	layouts, err := StarterLayouts(r)
 	if err != nil || len(layouts) != 1 {
 		t.Fatal(layouts, err)
 	}
@@ -233,30 +181,11 @@ func TestStarterHutNarrowsThenGrowsFootprint(t *testing.T) {
 
 func TestShellShapesAtDoorReproduceStarterShells(t *testing.T) {
 	center := domain.Cell{X: 40, Z: 40}
-	huts := HutTemplateShells(center)
-	if len(huts) != len(hutTemplates) {
-		t.Fatalf("templates %d", len(huts))
-	}
-	for i, hut := range huts {
-		shapes := ShellShapesAtDoor(hut.Door(), ShelterHut)
-		found := false
-		for _, s := range shapes {
-			found = found || domain.SameRoomFootprint(s, hut)
-		}
-		if !found {
-			t.Fatalf("template %d not reproduced from its door %v", i, hut.Door())
-		}
-		for _, s := range shapes {
-			if s.Door() != hut.Door() {
-				t.Fatalf("shape door %v want %v", s.Door(), hut.Door())
-			}
-		}
-	}
 	rect, err := domain.RectangleFootprint(domain.RoomBounds{X: 16, Z: 16, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)
 	}
-	shapes := ShellShapesAtDoor(rect.Door(), ShelterRectangle)
+	shapes := ShellShapesAtDoor(rect.Door())
 	if len(shapes) != 1+len(concaveTemplates) || !domain.SameRoomFootprint(shapes[0], rect) {
 		t.Fatalf("rectangle style shapes %d", len(shapes))
 	}
@@ -266,26 +195,25 @@ func TestShellShapesAtDoorReproduceStarterShells(t *testing.T) {
 			t.Fatal(template.Name, err)
 		}
 		found := false
-		for _, s := range ShellShapesAtDoor(shell.Door(), ShelterRectangle) {
+		for _, s := range ShellShapesAtDoor(shell.Door()) {
 			found = found || domain.SameRoomFootprint(s, shell)
 		}
 		if !found {
 			t.Fatalf("%s not reproduced from its door %v", template.Name, shell.Door())
 		}
 	}
-	if shapes := ShellShapesAtDoor(domain.Cell{X: 1, Z: 0}, ShelterHut); len(shapes) != 0 {
+	if shapes := ShellShapesAtDoor(domain.Cell{X: 1, Z: 0}); len(shapes) != 0 {
 		t.Fatalf("map-edge door produced %d shapes", len(shapes))
 	}
 }
 
-func TestStarterHutGrowsAlongCorridorTerrainRows(t *testing.T) {
+func TestStarterGrowsAlongCorridorTerrainRows(t *testing.T) {
 	// Corridor terrain (the retired corridor fixture, #745):
 	// granite rows every sixth cell, each pierced by a walkway every twelfth
-	// cell, adjacent rows offset by six. Five-cell strips fit no hut template
+	// cell, adjacent rows offset by six. Five-cell strips fit no template
 	// and no 9x9 rectangle, so the only shell is a grown one confined to a
 	// strip; the walkways must not let a seven-row template through.
 	r := starterFixture()
-	r.Shelter = ShelterHut
 	rock := func(c domain.Cell) bool {
 		if (c.Z-20)%6 != 0 {
 			return false
@@ -320,63 +248,11 @@ func TestStarterHutGrowsAlongCorridorTerrainRows(t *testing.T) {
 	}
 }
 
-func TestStarterTemplatesOpenOntoFreeGround(t *testing.T) {
-	// A nine-cell strip of lit ground running east-west: the circle (eleven
-	// tall) fails, the east-west oval (nine tall) fits only with its south
-	// door against the blocked row, so the low east-west oval (seven tall)
-	// is the hut.
-	r := starterFixture()
-	r.Shelter = ShelterHut
-	block := func(low, high int32) {
-		for i := range r.Cells {
-			if r.Cells[i].Cell.Z < low || r.Cells[i].Cell.Z > high {
-				r.Cells[i].SupportsLight = domain.Known(false)
-				r.Cells[i].Walkable = domain.Known(false)
-			}
-		}
-	}
-	block(15, 23)
-	layouts, err := StarterLayouts(r)
-	if err != nil || len(layouts) == 0 {
-		t.Fatal(layouts, err)
-	}
-	low, _ := domain.EllipseFootprint(domain.Cell{X: 20, Z: 20}, 2, 6, domain.EllipseEastWest, domain.South)
-	if !domain.SameRoomFootprint(layouts[0].Shell, low) {
-		t.Fatalf("expected the low east-west oval, got %v door %v", layouts[0].Room, layouts[0].Shell.Door())
-	}
-	for _, l := range layouts {
-		if !free(r, l.Shell.Threshold()) {
-			t.Fatalf("shell %v opens onto blocked ground at %v", l.Room, l.Shell.Threshold())
-		}
-	}
-	// One row wider and the medium east-west oval has a threshold.
-	r = starterFixture()
-	r.Shelter = ShelterHut
-	block(15, 24)
-	layouts, err = StarterLayouts(r)
-	if err != nil || len(layouts) == 0 {
-		t.Fatal(layouts, err)
-	}
-	medium, _ := domain.EllipseFootprint(domain.Cell{X: 20, Z: 20}, 3, 5, domain.EllipseEastWest, domain.South)
-	if !domain.SameRoomFootprint(layouts[0].Shell, medium) {
-		t.Fatalf("expected the medium east-west oval, got %v", layouts[0].Room)
-	}
-}
-
-func free(r StarterRequest, c domain.Cell) bool {
-	for _, cell := range r.Cells {
-		if cell.Cell == c {
-			return positive(cell.Walkable)
-		}
-	}
-	return false
-}
-
 func TestStarterConcaveTemplatesWrapAnObstacle(t *testing.T) {
-	// Lit ground only inside an L-shaped clearing around the anchor: no hut
-	// and no 9x9 rectangle fits, so the L template with the matching notch
-	// is sited before any footprint is grown, for either style.
-	for _, style := range []ShelterStyle{ShelterHut, ShelterRectangle} {
+	// Lit ground only inside an L-shaped clearing around the anchor: no 9x9
+	// rectangle fits, so the L template with the matching notch is sited
+	// before any footprint is grown.
+	for _, style := range []ShelterStyle{ShelterRectangle} {
 		r := starterFixture()
 		r.Shelter = style
 		want, _ := concaveTemplates[1].Shape(domain.Cell{X: 20, Z: 20})
@@ -409,7 +285,6 @@ func TestStarterConcaveTemplatesWrapAnObstacle(t *testing.T) {
 	}
 	// Two 4x4 clearings a cell apart take the connector room.
 	r := starterFixture()
-	r.Shelter = ShelterHut
 	want, _ := concaveTemplates[4].Shape(domain.Cell{X: 20, Z: 20})
 	clearing := map[domain.Cell]bool{}
 	for _, c := range want.Cells() {

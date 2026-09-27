@@ -33,7 +33,7 @@ import (
 // credit and the run's own stages dig only the columns left standing.
 //
 // The debug quick-start (Industrial) digs the 7x7 rectangle (#64). The
-// round room a Neolithic colony digs, and the hazard, reroute and breach
+// round fallback room, and the hazard, reroute and breach
 // variants, are snapshot tests in buildingruntime (#745).
 func init() {
 	register := func(name, colony string, start cases.Start, shape excavationShape, stall time.Duration) {

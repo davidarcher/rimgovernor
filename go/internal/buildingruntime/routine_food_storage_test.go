@@ -48,11 +48,14 @@ func TestStarterRoomRecoversNineByNineFromThirtyTwoCellPerimeter(t *testing.T) {
 	}
 }
 
-// hutClaims builds the Wall/Door claims of the hut template centred on c
-// that the neolithic starter shell raises (#196).
-func hutClaims(t *testing.T, plan domain.PlanID, c domain.Cell) ([]policy.ConstructionClaim, domain.RoomFootprint) {
+// concaveClaims builds the Wall/Door claims of the east-west connector shell
+// template centred on c.
+func concaveClaims(t *testing.T, plan domain.PlanID, c domain.Cell) ([]policy.ConstructionClaim, domain.RoomFootprint) {
 	t.Helper()
-	shell := policy.HutTemplateShells(c)[0]
+	shell, err := policy.ShellTemplates()[4].Shape(c)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var claims []policy.ConstructionClaim
 	for _, cell := range shell.Walls() {
 		def := "Wall"
@@ -68,10 +71,10 @@ func hutClaims(t *testing.T, plan domain.PlanID, c domain.Cell) ([]policy.Constr
 	return claims, shell
 }
 
-func TestStarterRoomRecoversHutShellBounds(t *testing.T) {
-	claims, shell := hutClaims(t, "starter-shell", domain.Cell{X: 40, Z: 40})
+func TestStarterRoomRecoversConcaveShellBounds(t *testing.T) {
+	claims, shell := concaveClaims(t, "starter-shell", domain.Cell{X: 40, Z: 40})
 	if len(claims) == 32 {
-		t.Fatal("hut template is not distinguishable from the rectangle")
+		t.Fatal("concave template is not distinguishable from the rectangle")
 	}
 	room, known := starterRoom(domain.Known(claims))
 	b := shell.Bounds()
@@ -79,7 +82,7 @@ func TestStarterRoomRecoversHutShellBounds(t *testing.T) {
 		t.Fatal(room, known, b)
 	}
 	if _, known := starterRoom(domain.Known(claims[:len(claims)-1])); known {
-		t.Fatal("incomplete hut recognized as a room")
+		t.Fatal("incomplete concave shell recognized as a room")
 	}
 }
 
@@ -231,7 +234,7 @@ func TestFoodStorageCellsRequiresEachSitePredicate(t *testing.T) {
 }
 
 func TestShellInteriorsCoverThePlannedRingsFloor(t *testing.T) {
-	claims, shell := hutClaims(t, "starter-shell", domain.Cell{X: 40, Z: 40})
+	claims, shell := concaveClaims(t, "starter-shell", domain.Cell{X: 40, Z: 40})
 	var actions []domain.Action
 	for i, claim := range claims {
 		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("starter-shell-%d", i)), claim.Building)

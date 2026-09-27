@@ -38,22 +38,19 @@ const (
 	excavationStallTicks   = 2500
 	excavationCandidates   = 4
 	excavationInteriorSize = 7
-	// excavationRoundRadius sizes the round room a neolithic colony digs:
+	// excavationRoundRadius sizes the round fallback room:
 	// 49 cells like the 7×7 rectangle, within the roof support radius.
 	excavationRoundRadius = 4
 )
 
-// excavationShapes follows shelterStyle: a neolithic colony digs a round
-// room first and falls back to the rectangle where the circle is blocked;
-// everyone else prefers the rectangle with the circle as fallback. Either
-// way the shapes are tried at every face in this order.
-func excavationShapes(facts observation.ColonyProjection) []policy.ExcavationShape {
-	rectangle := policy.RectangleShape(excavationInteriorSize, excavationInteriorSize)
-	round := policy.EllipseShape(excavationRoundRadius, excavationRoundRadius, domain.EllipseNorthSouth)
-	if shelterStyle(facts) == policy.ShelterHut {
-		return []policy.ExcavationShape{round, rectangle}
+// excavationShapes prefers the 7x7 rectangle and falls back to a round
+// room where the rectangle is blocked; the shapes are tried at every face in
+// this order.
+func excavationShapes() []policy.ExcavationShape {
+	return []policy.ExcavationShape{
+		policy.RectangleShape(excavationInteriorSize, excavationInteriorSize),
+		policy.EllipseShape(excavationRoundRadius, excavationRoundRadius, domain.EllipseNorthSouth),
 	}
-	return []policy.ExcavationShape{rectangle, round}
 }
 
 func excavationStageMethod(stage int) domain.MethodID {
@@ -167,7 +164,7 @@ func (r *RoutineBuildingPlanner) excavationCandidate(call context.Context, snaps
 			return previous, nil
 		}
 	}
-	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Shapes: excavationShapes(facts), MinCorridor: 2, MaxCorridor: 4}
+	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Shapes: excavationShapes(), MinCorridor: 2, MaxCorridor: 4}
 	snap.NoteExcavation(call, request)
 	targets, err := policy.ExcavationSites(request)
 	if err != nil {

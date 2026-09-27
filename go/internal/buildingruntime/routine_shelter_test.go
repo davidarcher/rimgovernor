@@ -510,10 +510,9 @@ func shellCells(t *testing.T, plan store.PlanState) (domain.Building, map[domain
 	return door, cells
 }
 
-func TestRoutineShelterRaisesOvalHutForNeolithicColony(t *testing.T) {
+func TestRoutineShelterRaisesTheStarterRectangle(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
-	n.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(n, 21, func(int32, int32) bool { return true })
 	result, err := r.Step(context.Background())
@@ -524,7 +523,7 @@ func TestRoutineShelterRaisesOvalHutForNeolithicColony(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := domain.EllipseFootprint(domain.Cell{X: 10, Z: 10}, 4, 4, domain.EllipseNorthSouth, domain.South)
+	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,7 +533,7 @@ func TestRoutineShelterRaisesOvalHutForNeolithicColony(t *testing.T) {
 	}
 	for _, w := range want.Walls() {
 		if !cells[w] {
-			t.Fatal("missing hut wall", w)
+			t.Fatal("missing shell wall", w)
 		}
 	}
 	if len(plan.Progress) != len(cells) || len(plan.Spec.Dependencies()) != 0 {
@@ -557,41 +556,18 @@ func TestRoutineShelterRaisesOvalHutForNeolithicColony(t *testing.T) {
 		plan.Progress[i] = p
 	}
 	if got := shelterNativeWorkTicks(plan, current, 100); got != 10000 {
-		t.Fatal("hut completion granted no roofing budget", got)
+		t.Fatal("shell completion granted no roofing budget", got)
 	}
 	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
 		t.Fatal(again, err)
 	}
 }
 
-func TestRoutineShelterKeepsRectangleWithoutNeolithicTechLevel(t *testing.T) {
-	t.Parallel()
-	for _, level := range []*string{nil, proto.String("Industrial")} {
-		r, db, n := shelterFixture(t)
-		n.reply.GetObserved().PlayerTechLevel = level
-		n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-		hutCells(n, 21, func(int32, int32) bool { return true })
-		result, err := r.Step(context.Background())
-		if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 32 {
-			t.Fatal(result, err, n.previews)
-		}
-		plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
-		if err != nil {
-			t.Fatal(err)
-		}
-		door, cells := shellCells(t, plan)
-		if len(cells) != 32 || door.Cell() != (domain.Cell{X: 10, Z: 6}) {
-			t.Fatal(door, len(cells))
-		}
-	}
-}
-
 func TestRoutineShelterGrowsIrregularShellOverConstrainedTerrain(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
-	n.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	// An L-shaped lit strip five cells wide: no oval or rectangle template
+	// An L-shaped lit strip five cells wide: no rectangle or concave template
 	// fits, so a concave connected footprint is grown and admitted whole.
 	lit := func(x, z int32) bool { return x >= 8 && x <= 12 && z >= 1 || z >= 8 && z <= 12 && x >= 8 }
 	hutCells(n, 21, lit)
@@ -660,10 +636,9 @@ func (n *adoptingNative) PreviewBuildings(ctx context.Context, actions []domain.
 func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
-	want, err := domain.EllipseFootprint(domain.Cell{X: 10, Z: 10}, 4, 4, domain.EllipseNorthSouth, domain.South)
+	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -735,7 +710,6 @@ func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T)
 func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	// An interrupted shell's blueprints and frames are cancelled natively;
@@ -755,7 +729,7 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := policy.ShellShapesAtDoor(door, policy.ShelterHut)[0]
+	want := policy.ShellShapesAtDoor(door)[0]
 	got := map[domain.Cell]bool{}
 	for _, action := range plan.Spec.Actions() {
 		b, ok := action.Building()
@@ -780,11 +754,10 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	door := domain.Cell{X: 4, Z: 3}
-	shapes := policy.ShellShapesAtDoor(door, policy.ShelterHut)
+	shapes := policy.ShellShapesAtDoor(door)
 	first, second := map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for _, w := range shapes[0].Walls() {
 		first[w] = true
@@ -792,7 +765,7 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	for _, w := range shapes[1].Walls() {
 		second[w] = true
 	}
-	// The hut's lower courses are shared by the first two shapes at the door;
+	// The ring's lower courses are shared by the first two shapes at the door;
 	// one wall above them belongs to the first shape only, and one of its
 	// missing cells is briefly blocked (a cancelled frame still clearing).
 	var own []domain.Cell
@@ -883,7 +856,7 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 	if !ok {
 		t.Fatal("no grown shell over the strip")
 	}
-	if len(policy.ShellShapesAtDoor(shell.Door(), policy.ShelterHut)) == 0 {
+	if len(policy.ShellShapesAtDoor(shell.Door())) == 0 {
 		t.Fatal("fixture door has no template shapes to be confused with")
 	}
 	ring := map[domain.Cell]domain.Building{}
@@ -909,12 +882,11 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	// An earlier controller grew a concave shell over constrained terrain,
 	// which no template describes, and a restart left its door and all but
-	// three walls standing. The terrain is open now: every hut template at the
+	// three walls standing. The terrain is open now: every template at the
 	// door is placeable, so only the journal tells the true ring apart.
 	shell, ring := earlierGrownShell(t, db, "routine-shell-earlier")
 	n := &adoptingNative{sleepingNative: base}
@@ -964,7 +936,6 @@ func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 func TestRoutineShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	// The player cancelled the door of an earlier shell whose walls stand;
@@ -1013,7 +984,6 @@ func TestRoutineShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 func TestRoutineShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	// A shell plan whose every cell was cancelled before anything was built
@@ -1129,10 +1099,9 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	t.Parallel()
 	r, _, base := shelterFixture(t)
-	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
-	ring, err := domain.EllipseFootprint(domain.Cell{X: 10, Z: 10}, 4, 4, domain.EllipseNorthSouth, domain.South)
+	ring, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1166,7 +1135,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 			planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: n, goal: test.goal, definition: "Wall", shelter: true}
 			facts := facts
 			facts.Rooms = test.rooms
-			selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, facts, nil, policy.ShelterHut, func() error { return nil })
+			selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, facts, nil, policy.ShelterRectangle, func() error { return nil })
 			if err != nil || len(selected) != 0 || adopted != test.adopted {
 				t.Fatal(selected, reason, adopted, err)
 			}
@@ -1187,7 +1156,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 		adopted bool
 	}{{policy.EnsureInitialShelter, true}, {policy.MaintainResource, false}} {
 		planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: gap, goal: test.goal, definition: "Wall", shelter: true}
-		selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, roomed, nil, policy.ShelterHut, func() error { return nil })
+		selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, roomed, nil, policy.ShelterRectangle, func() error { return nil })
 		if err != nil || reason != "" || adopted != test.adopted || (len(selected) == 1) != test.adopted {
 			t.Fatal(test.goal, selected, reason, adopted, err)
 		}

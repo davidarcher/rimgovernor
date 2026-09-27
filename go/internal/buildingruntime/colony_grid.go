@@ -126,7 +126,7 @@ func rockBackedFootprint(perimeter []domain.Building, rock map[domain.Cell]bool)
 			door = b.Cell()
 		}
 	}
-	for _, shell := range policy.ShellShapesAtDoor(door, policy.ShelterHut) {
+	for _, shell := range policy.ShellShapesAtDoor(door) {
 		walls := shell.Walls()
 		covered := 0
 		fits := shell.Door() == door

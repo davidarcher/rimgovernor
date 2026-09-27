@@ -180,9 +180,7 @@ A sleeping spot is never suitable and never staged here; neither the
 assignment nor the construction receipt clears the deficit, only the
 colonist's observed sleep in the owned bed does.
 
-The first shelter's shape is chosen from the native player-faction tech level:
-Neolithic colonies raise a circular or oval hut (eight templates down to a
-low 2x6 oval), others a 9x9 rectangle; when neither fits, a concave L or a
+Every colony's first shelter is a 9x9 rectangle; when it does not fit, a concave L or a
 two-chamber connector template wraps the obstacle, and only then does
 constrained terrain grow a connected irregular footprint
 (see the room footprint contract in [spatial contracts](../contracts/spatial-contracts.md)).

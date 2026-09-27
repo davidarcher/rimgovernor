@@ -396,8 +396,8 @@ func TestExcavationSitesReadoptsPartlyDugTarget(t *testing.T) {
 }
 
 func TestExcavationSitesRoundInterior(t *testing.T) {
-	// Shapes are tried in preference order at every face: a neolithic
-	// colony asks for the circle first and gets a 49-cell round room whose
+	// Shapes are tried in preference order at every face: a request
+	// asking for the circle first and gets a 49-cell round room whose
 	// bounding box sits where the 9×9 rectangle would.
 	r := mountainSite()
 	r.Interior = Bounds{}

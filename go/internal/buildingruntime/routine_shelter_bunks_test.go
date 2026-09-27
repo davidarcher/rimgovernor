@@ -135,10 +135,9 @@ func TestRoutineShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 func TestRoutineShelterAdoptionSkipsBunks(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterSiteFixture(t)
-	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
-	want, err := domain.EllipseFootprint(domain.Cell{X: 10, Z: 10}, 4, 4, domain.EllipseNorthSouth, domain.South)
+	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)
 	}

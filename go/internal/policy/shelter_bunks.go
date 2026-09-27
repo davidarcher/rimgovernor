@@ -30,8 +30,7 @@ func BunkFootprint(c domain.Cell) [2]domain.Cell {
 
 // ShellCornerCells returns the interior cells beside a corner of the ring:
 // a wall cell that touches the interior only diagonally, which a rectangle
-// has four of. A rounded ring's diagonal courses have them too, though far
-// fewer, so an oval leaves more of its floor to beds.
+// has four of. A concave ring has more.
 func ShellCornerCells(shell domain.RoomFootprint) []domain.Cell {
 	interior := map[domain.Cell]bool{}
 	for _, c := range shell.Interior() {

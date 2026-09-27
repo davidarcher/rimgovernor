@@ -100,21 +100,6 @@ func TestPlanShelterBunksHonoursBlockedCells(t *testing.T) {
 	}
 }
 
-func TestPlanShelterBunksHutHoldsEightBeds(t *testing.T) {
-	for i, shell := range HutTemplateShells(domain.Cell{X: 40, Z: 40}) {
-		layout := bunkLayout(t, shell, nil)
-		bunks := PlanShelterBunks(layout, 8, 8, nil)
-		// The circle and the medium ovals house the tribal eight; the
-		// small circle and the low ovals house what fits.
-		if i < 5 && len(bunks.Beds) != 8 {
-			t.Fatalf("hut template %d: beds %v", i, bunks.Beds)
-		}
-		if len(bunks.Beds) == 0 {
-			t.Fatalf("hut template %d: no bed fits", i)
-		}
-	}
-}
-
 func TestBunkLayoutPrefersTheShellAroundTheBunks(t *testing.T) {
 	near, err := domain.RectangleFootprint(domain.RoomBounds{X: 10, Z: 10, Width: 9, Height: 9}, domain.South)
 	far, err2 := domain.RectangleFootprint(domain.RoomBounds{X: 30, Z: 30, Width: 9, Height: 9}, domain.South)

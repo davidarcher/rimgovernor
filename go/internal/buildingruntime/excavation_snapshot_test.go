@@ -41,7 +41,7 @@ func siteRead(t *testing.T, p snapshot.Planner, purpose string) snapshot.Excavat
 	return snapshot.ExcavationRead{}
 }
 
-// A neolithic colony beside rock digs a round room, and chooses the dig
+// The recorded colony beside rock digs a round room, and chooses the dig
 // over the open-site shell.
 func TestExcavationSnapshotDigsARoundRoom(t *testing.T) {
 	t.Parallel()

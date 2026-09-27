@@ -24,8 +24,6 @@ type shellVariant struct {
 	name string
 	// side is the square census the fixture observes; 0 keeps the 9x9 site.
 	side int32
-	// tech is the player faction's tech level, which picks the style.
-	tech string
 	// lit reports the cells that support light; nil means all of them.
 	lit func(x, z int32) bool
 	// center is the colony centre the search anchors on when side is set.
@@ -36,9 +34,8 @@ func TestRoutineShelterShellInvariantsAcrossSites(t *testing.T) {
 	t.Parallel()
 	variants := []shellVariant{
 		{name: "9x9 rectangle site"},
-		{name: "neolithic hut", side: 21, tech: "Neolithic", center: domain.Cell{X: 10, Z: 10}},
-		{name: "industrial rectangle", side: 21, tech: "Industrial", center: domain.Cell{X: 10, Z: 10}},
-		{name: "grown shell on constrained terrain", side: 21, tech: "Neolithic", center: domain.Cell{X: 10, Z: 10},
+		{name: "open rectangle", side: 21, center: domain.Cell{X: 10, Z: 10}},
+		{name: "grown shell on constrained terrain", side: 21, center: domain.Cell{X: 10, Z: 10},
 			lit: func(x, z int32) bool { return x >= 8 && x <= 12 && z >= 1 || z >= 8 && z <= 12 && x >= 8 }},
 	}
 	for _, variant := range variants {
@@ -46,9 +43,6 @@ func TestRoutineShelterShellInvariantsAcrossSites(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
 			planner, db, n := shelterSiteFixture(t)
-			if variant.tech != "" {
-				n.reply.GetObserved().PlayerTechLevel = proto.String(variant.tech)
-			}
 			if variant.side > 0 {
 				n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(variant.center.X), Z: proto.Int32(variant.center.Z)}
 				lit := variant.lit
@@ -229,7 +223,6 @@ func TestRoutineShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, n := shelterSiteFixture(t)
-	n.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(n, 25, func(int32, int32) bool { return true })
 	bunks := map[domain.Cell]bool{}

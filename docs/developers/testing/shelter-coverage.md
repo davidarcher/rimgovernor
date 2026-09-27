@@ -10,9 +10,9 @@ boundary, one honest end-to-end path, and staged fixtures for recovery.
 
 | Claim | Check |
 | --- | --- |
-| Style selection by build tier and faction tech level, unknowns included | `buildingruntime.TestShelterStylePicksByTierAndFaction` |
-| Template shape per terrain (circle, ovals, low ovals, concave L, connector, grown footprint), deterministic and input-order independent | `policy` `starter_layout_test.go` |
-| Shape-blind properties of every sited shell over a table of sites and both styles: distinct in-bounds cells on offered ground, one door, a connected enclosed interior, roof support, a threshold on free ground, protected cells preserved | `policy.TestStarterShellInvariantsAcrossSitesAndStyles` |
+| Style selection by build tier, unknowns included | `buildingruntime.TestShelterStylePicksByTier` |
+| Template shape per terrain (rectangle, concave L, connector, grown footprint), deterministic and input-order independent | `policy` `starter_layout_test.go` |
+| Shape-blind properties of every sited shell over a table of sites: distinct in-bounds cells on offered ground, one door, a connected enclosed interior, roof support, a threshold on free ground, protected cells preserved | `policy.TestStarterShellInvariantsAcrossSites` |
 | Shape-blind properties of every admitted ring: census-offered ground only, previewed whole, encloses the staged beds with an aisle to spare, opens south off its own shell | `buildingruntime.TestRoutineShelterShellInvariantsAcrossSites` |
 | Bunk rungs before the ring; refused beds fall through to the shell | `buildingruntime` `routine_shelter_bunks_test.go` |
 | Whole-ring admission in one wave, no stock gate, spending rules and reserves | `buildingruntime.TestRoutineShelterAdmitsWholeShellInOneWave`, `…AdmitsShellWithoutStockCheck` |
@@ -34,7 +34,7 @@ documented radius in the test itself.
 | --- | --- | --- |
 | `shelter/bunks-first` | The complete path: an unhoused colony, the controller discovers the deficit, places spots, builds beds, raises the whole ring by ordinary pawn work, the game roofs it, and the native census then holds one bed per colonist inside. The precondition is asserted not to satisfy the outcome. | nothing |
 
-The hut variants, `shelter/excavation-{breach,hazard,reroute,round}` and the
+The staged-shell variants, `shelter/excavation-{breach,hazard,reroute,round}` and the
 `startup/composed-*` cases were converted to colony snapshot tests (#745):
 `buildingruntime.TestShelterSitingSnapshots` replays each terrain's recorded
 starter search, the `TestExcavationSnapshot*` tests replay the round dig's
