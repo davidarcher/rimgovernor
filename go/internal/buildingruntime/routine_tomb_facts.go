@@ -86,3 +86,9 @@ func corpsesOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	}
 	return domain.Unknown[bool]()
 }
+
+// warmTombs is the review's TombsWarm fact (#840): warm tombs holding a
+// colonist, once the colony can build coolers.
+func warmTombs(facts observation.ColonyProjection) domain.Fact[[]string] {
+	return policy.WarmTombs(facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
+}

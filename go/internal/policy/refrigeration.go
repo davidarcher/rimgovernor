@@ -28,6 +28,9 @@ type RefrigerationReview struct {
 	// Rooms are the distinct native room IDs holding warm at-risk stock,
 	// sorted, and only meaningful while WarmNutrition is known.
 	Rooms []string
+	// Tombs are the warm tombs holding a colonist (#840, WithTombs), also
+	// listed in Rooms.
+	Tombs []string
 }
 
 // warmAtRisk reports a stock's contribution to the review: known perishable,

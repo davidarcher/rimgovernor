@@ -52,6 +52,7 @@ func (r *RoutineBuildingPlanner) selectRefrigeration(call context.Context, facts
 	if err != nil {
 		return nil, "", err
 	}
+	review = review.WithTombs(warmTombs(facts))
 	if !review.Active {
 		if clockDebug() {
 			clockSchedulerLog("refrigeration: inactive review=%+v storage=%+v", review, facts.Facts.FoodStorageUpkeep)

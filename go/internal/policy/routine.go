@@ -370,7 +370,10 @@ type RoutineFacts struct {
 	BedroomsOwed domain.Fact[bool]
 	// CorpsesOwed: a tomb (#832) or cremation (#833) step is due; it keeps
 	// MaintainWaste open while a corpse waits on either.
-	CorpsesOwed       domain.Fact[bool]
+	CorpsesOwed domain.Fact[bool]
+	// TombsWarm: the warm tombs holding a colonist (#840, WarmTombs); they
+	// join MaintainRefrigeration's rooms.
+	TombsWarm         domain.Fact[[]string]
 	AnimalUpkeep      AnimalUpkeepObservation
 	FoodStorageUpkeep FoodStorageObservation
 	MedicalReserve    MedicalReserveObservation
@@ -673,6 +676,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
+	refrigeration = refrigeration.WithTombs(f.TombsWarm)
 	upkeep, err := ReviewUpkeepWith(f.Upkeep, previous.Upkeep, f.UpkeepIssued, p.Cleanliness)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -1157,6 +1161,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// warm stock is cooked ahead on a bench that still works (#408).
 		if nutrition, known := refrigeration.WarmNutrition.Value(); known && p.FoodStorage.AtRiskNutritionThreshold > 0 {
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(min(1, nutrition/p.FoodStorage.AtRiskNutritionThreshold))
+		}
+		if len(refrigeration.Tombs) > 0 {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 		}
 	}
 	// Lighting is a ranked development project: a dark bench costs work
