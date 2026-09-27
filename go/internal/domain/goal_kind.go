@@ -29,7 +29,7 @@ type GoalKind string
 const (
 	EnsureFoodSupplyGoal        GoalKind = "EnsureFoodSupply"
 	EnsureInitialShelterGoal    GoalKind = "EnsureInitialShelter"
-	EnsureFoodStorageGoal       GoalKind = "EnsureFoodStorage"
+	MaintainFoodStorageGoal     GoalKind = "MaintainFoodStorage"
 	EnsureCookingGoal           GoalKind = "EnsureCooking"
 	EnsureTemperatureSafetyGoal GoalKind = "EnsureTemperatureSafety"
 	EnsureBasicPowerGoal        GoalKind = "EnsureBasicPower"
@@ -43,7 +43,7 @@ const (
 // Callers must not retain or mutate the returned slice's backing
 // array; it is freshly allocated per call.
 func GoalKinds() []GoalKind {
-	return []GoalKind{EnsureFoodSupplyGoal, EnsureInitialShelterGoal, EnsureFoodStorageGoal, EnsureCookingGoal,
+	return []GoalKind{EnsureFoodSupplyGoal, EnsureInitialShelterGoal, MaintainFoodStorageGoal, EnsureCookingGoal,
 		EnsureTemperatureSafetyGoal, EnsureBasicPowerGoal, EnsureBasicDefenseGoal, MaintainResourceGoal, MaintainWasteGoal, EnsureDefensiveLayoutGoal}
 }
 

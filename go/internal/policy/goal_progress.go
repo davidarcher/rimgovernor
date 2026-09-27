@@ -382,7 +382,7 @@ func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
 // FoodLadder is EnsureFoodSupply's rung order: acquire food, cook it, store
 // it, grow it. FoodProgress names the rung the gates leave owed, what
 // advancing it looks like and the goal a rung waits on: cooking needs
-// EnsureCooking's bench, storing needs EnsureFoodStorage's zone. The
+// EnsureCooking's bench, storing needs MaintainFoodStorage's zone. The
 // cooking prerequisite is surfaced whenever the bench is known missing,
 // whichever rung is current, because the ladder cannot pass "cook" without
 // it and the builder placing it is the colony's scarce worker (#629). An
@@ -406,7 +406,7 @@ func FoodProgress(g FootholdGates, f RoutineFacts, p RoutinePolicy, storageOpen 
 	case owed(g.Cooking):
 		return ProgressContract{Method: "cook", Expected: "meals cooked at a bench", Deadline: deadline}, prerequisite, observed
 	case owed(g.Storage) && storageOpen:
-		return ProgressContract{Method: "store", Expected: "raw food stored under a roof", Deadline: deadline}, EnsureFoodStorage, observed
+		return ProgressContract{Method: "store", Expected: "raw food stored under a roof", Deadline: deadline}, MaintainFoodStorage, observed
 	default:
 		return ProgressContract{Method: "grow", Expected: "growing zone planted to the field target", Deadline: deadline}, prerequisite, observed
 	}
@@ -439,7 +439,7 @@ func WithheldLabor(progress []GoalProgress) LaborProfile {
 	}
 	for _, p := range progress {
 		switch pre := p.Blocked.Prerequisite(); pre {
-		case EnsureCooking, EnsureFoodStorage, EnsureInitialShelter:
+		case EnsureCooking, MaintainFoodStorage, EnsureInitialShelter:
 			if open[pre] && !seen[WorkConstruction] {
 				seen[WorkConstruction] = true
 				withheld = append(withheld, WorkConstruction)

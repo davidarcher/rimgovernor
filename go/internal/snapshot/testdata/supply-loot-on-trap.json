@@ -6914,10 +6914,6 @@
     "Need": "EnsureBasicPower"
    },
    {
-    "Goal": "routine-02166dbc97454acb-EnsureFoodStorage",
-    "Need": "EnsureFoodStorage"
-   },
-   {
     "Goal": "routine-02166dbc97454acb-EnsureBasicDefense",
     "Need": "EnsureBasicDefense"
    },
@@ -7135,14 +7131,6 @@
     "Blocked": "no_method",
     "Expected": "deficit shrinks or the method's work settles",
     "Goal": "EnsureCooking",
-    "LastProgress": 21,
-    "Method": "assess",
-    "NextReview": 2521
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureFoodStorage",
     "LastProgress": 21,
     "Method": "assess",
     "NextReview": 2521

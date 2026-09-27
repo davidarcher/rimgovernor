@@ -12,7 +12,7 @@ import (
 // its refusal reason is filed on (GoalProgress.Planner). Planners serving
 // several goals or none are left out.
 var plannerGoals = map[string]policy.GoalID{
-	"foodStorage": policy.EnsureFoodStorage, "foodAcquisition": policy.EnsureFoodSupply, "pestAcquisition": policy.ClearPests,
+	"foodStorage": policy.MaintainFoodStorage, "foodAcquisition": policy.EnsureFoodSupply, "pestAcquisition": policy.ClearPests,
 	"resourceAcquisition": policy.MaintainResource, "resource": policy.MaintainResource, "power": policy.EnsureBasicPower,
 	"temperature": policy.EnsureTemperatureSafety, "refrigeration": policy.MaintainRefrigeration, "lighting": policy.MaintainLighting,
 	"flooring": policy.MaintainFlooring, "routes": policy.MaintainRoutes, "cooking": policy.EnsureCooking,

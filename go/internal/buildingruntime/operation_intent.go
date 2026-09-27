@@ -17,8 +17,7 @@ import (
 // reads poorly; every other kind falls back to its words (#822).
 var goalLabels = map[policy.GoalID]string{
 	policy.EnsureFoodSupply:         "Food supply",
-	policy.MaintainFoodStorage:      "Food reserve",
-	policy.EnsureFoodStorage:        "Food storage",
+	policy.MaintainFoodStorage:      "Food storage",
 	policy.MaintainResource:         "Resource",
 	policy.MaintainFlooring:         "Flooring",
 	policy.MaintainSleeping:         "Bedroom",

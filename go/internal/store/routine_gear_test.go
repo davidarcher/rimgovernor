@@ -12,6 +12,7 @@ func TestGearParallelAdmissionBoundsAndClaims(t *testing.T) {
 	db := open(t, memoryPath(t))
 	defer db.Close()
 	r := routineRequest()
+	r.Policy.Stage.Floor = policy.StageDevelopment
 	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", Loadout: "loadout", Deficit: domain.Known(true), Candidates: domain.Known([]policy.GearCandidate{})}}})
 	g := routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
 	admit := func(index int, pawn domain.PawnID, item string) error {
@@ -55,6 +56,7 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	path := memoryPath(t)
 	db := open(t, path)
 	r := routineRequest()
+	r.Policy.Stage.Floor = policy.StageDevelopment
 	gear := policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "pawn", Loadout: "loadout", Deficit: domain.Known(true), Candidates: domain.Known([]policy.GearCandidate{})}}}
 	r.Facts.Gear = domain.Known(gear)
 	out := reviewRoutine(t, db, &r)

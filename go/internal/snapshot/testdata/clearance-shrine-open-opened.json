@@ -12110,7 +12110,9 @@
     }
    },
    "ShrinePolicy": {
-    "Opening": {"AncientShrineGroup_9460": "open"}
+    "Opening": {
+     "AncientShrineGroup_9460": "open"
+    }
    },
    "Shrines": {
     "v": [
@@ -14172,10 +14174,6 @@
     "Need": "EnsureBasicPower"
    },
    {
-    "Goal": "routine-1bf97f76353844d2-EnsureFoodStorage",
-    "Need": "EnsureFoodStorage"
-   },
-   {
     "Goal": "routine-1bf97f76353844d2-EnsureBasicDefense",
     "Need": "EnsureBasicDefense"
    },
@@ -14433,20 +14431,6 @@
     ],
     "Expected": "deficit shrinks or the method's work settles",
     "Goal": "EnsureCooking",
-    "LastProgress": 17246,
-    "Method": "assess",
-    "NextReview": 19746
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 19746
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureFoodStorage",
     "LastProgress": 17246,
     "Method": "assess",
     "NextReview": 19746

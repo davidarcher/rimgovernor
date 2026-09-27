@@ -30,6 +30,7 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
+	r.Policy.Stage.Floor = policy.StageReserves
 	r.Facts.Workers = domain.Known(3)
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkPlantCutting: 1})
 	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(2)), domain.Known(int64(3))
@@ -37,10 +38,9 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	r.Facts.Cooking = domain.Known(false)
 	first := reviewRoutine(t, s, &r)
 	food := progressRecord(t, first.Review, policy.EnsureFoodSupply)
-	// A fresh colony reviews at Foothold, where StageGoalStallScale cuts the
-	// deadline to six in-game hours so a stuck rung rotates quickly, not
-	// after a full day.
-	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+policy.DevelopmentStallTicks/4 || food.Expected == "" {
+	// The Reserves floor raises expansion and the resource floors and keeps
+	// the full-day stall deadline (StageGoalStallScale cuts only Foothold's).
+	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+policy.DevelopmentStallTicks || food.Expected == "" {
 		t.Fatalf("food record %+v", food)
 	}
 	if expansion := developmentRow(t, first.Review, policy.EnsureExpansion); !expansion.Selected {

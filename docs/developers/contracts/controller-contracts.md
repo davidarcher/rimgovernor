@@ -168,7 +168,7 @@ method or target: the acquisition planner records the source a stall cancelled u
 the review's revision (`Store.RecordProgressCooldown`) and passes it over until the
 cooldown lifts. The food goal walks acquire -> cook -> store -> grow and names
 `prerequisite:EnsureCooking` while the cooking gate is known missing (a known-missing
-storage gate names `EnsureFoodStorage` on the store rung); a record blocked on a
+storage gate names `MaintainFoodStorage` on the store rung); a record blocked on a
 foothold prerequisite withholds Construction from the same review's development ranking
 (`DevelopmentRequest.Withheld`), so optional projects read `labor_unavailable` instead
 of diverting the builder. `GET /api/routines` returns the records under `progress` and
@@ -178,18 +178,29 @@ The review also derives the colony stage (`policy.ColonyStage`, #630), one order
 of what the colony has achieved by outcome: Foothold, Reserves, Stable, Development.
 It is a pure function of colony facts and the progress records (`ReviewColonyStage`),
 never of research: `policy.BuildTier` (#604) is what the colony can build, the stage is
-what it has. Reserves needs shelter for everyone, the food runway at
-`FoodTargetDays`, the wood latch clear and the resource floors met; Stable needs the
-production goals (food ladder, cooking, storage, wood, resources) unblocked on native
-evidence for `StableTicks` (two days); Development needs Stable held for
-`DevelopmentTicks` (three days) with the runway at twice the target. Every transition
-has a laxer exit than entry (`ColonyStagePolicy`: Reserves drops only under
-`FootholdFoodDays`, Development only under the target, Stable only after a production
-goal stays blocked `StableExitTicks`), the stage climbs one step per review and drops
-cascade, and unknown facts neither advance nor drop it, so a colony oscillating around
-a threshold keeps its stage. The record (`ColonyStageRecord`: stage, since, the first
-unmet condition of the next stage as blocker + reason, held) persists on the review
-(`RoutineReview.Stage`) and sets the next review's budgets
+what it has. Each stage has explicit exit criteria, all read from the review's one gate
+set (`FootholdGates`) through `StageColonyFacts`: Foothold exits with roofed sleeping for
+every colonist, an active meal bill, a food stockpile, the runway at `FootholdFoodDays`
+and two armed fighters; Reserves with the runway at `FoodTargetDays`, the growing field
+sown, the wood latch clear, a research bench built and no production goal blocked;
+Stable with power online, the season's climate answered (no perishables latched warm in
+spring and summer, sleeping rooms warm in fall and winter), a doctor-capable pawn, the
+production goals (food ladder, cooking, storage, resources) unblocked on native evidence
+for `StableTicks` (two days), Stable held `DevelopmentTicks` (three days) and the runway
+at twice the target. Every transition has a laxer exit than entry (`ColonyStagePolicy`:
+every stage above Foothold drops only under two thirds of `FootholdFoodDays`,
+Development only under the target, Stable only after a production goal stays blocked
+`StableExitTicks`), the stage climbs one step per review and drops cascade, and unknown
+facts neither advance nor drop it, so a colony oscillating around a threshold keeps its
+stage. The stage also decides which goals the review raises at all
+(`policy.StageGoalAllowed`): expansion, research and non-emergency resource floors from
+Reserves; the defensive layout, stone shell (with Stonecutting), equipment,
+refrigeration (earlier for a full spoiling emergency), cleaning, hospital beds and, with
+a tame animal, the animal goals from Stable; comfort, flooring and lighting at
+Development. Emergencies and cross-stage monitors (tending, mood, fire, raids) are
+raised at every stage. The record (`ColonyStageRecord`: stage, since, the first unmet
+exit criterion as blocker + reason, held) persists on the review
+(`RoutineReview.Stage`) and sets the next review's budgets and goals
 (`policy.StageRoutinePolicy`): Development adds one to the development-project limit,
 the research ladder walks two rungs at Foothold, five at Reserves, eight at Stable and
 all at Development, and the food reserve and wood targets scale 1.5x at Stable and 2x

@@ -32,7 +32,7 @@ func ringClaims(t *testing.T, plan domain.PlanID, x0, z0, w, h int32) []policy.C
 }
 
 // The live 11x11 layout-plan shelter (door (119,128), bounds 114..124 x
-// 128..138) matched no starter template, so EnsureFoodStorage never found a
+// 128..138) matched no starter template, so MaintainFoodStorage never found a
 // room and the colony had no food stockpile while fish rotted outside.
 func TestStarterRoomRecoversLayoutPlanRectangle(t *testing.T) {
 	claims := ringClaims(t, "routine-shell-x", 114, 128, 11, 11)

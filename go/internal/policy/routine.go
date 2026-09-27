@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"math"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -21,7 +22,6 @@ const (
 	EnsureTemperatureSafety GoalID = "EnsureTemperatureSafety"
 	EnsureCooking           GoalID = "EnsureCooking"
 	EnsureBasicPower        GoalID = "EnsureBasicPower"
-	EnsureFoodStorage       GoalID = "EnsureFoodStorage"
 	EnsureBasicDefense      GoalID = "EnsureBasicDefense"
 	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
 	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
@@ -141,13 +141,18 @@ type RoutinePolicy struct {
 	// Stage holds the colony stage thresholds (#630); zero fields take the
 	// defaults RoutinePolicy.Stages derives from the food thresholds.
 	Stage ColonyStagePolicy
+	// ColonyStage is the stage the last review left (StageRoutinePolicy):
+	// DetectRoutine raises only the goals the stage allows
+	// (StageGoalAllowed). DefaultRoutinePolicy stands at Development, so a
+	// policy nobody staged raises every goal.
+	ColonyStage ColonyStage `json:",omitempty"`
 }
 
 // DefaultRoutinePolicy admits development automatically (#655): slots
 // bound planner cost only and distinct observed workers decide admission.
 func DefaultRoutinePolicy() RoutinePolicy {
 	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder()}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
 }
 
 func (p RoutinePolicy) Validate() error {
@@ -419,17 +424,12 @@ type RoutineFacts struct {
 	ShortCircuitTick                                                     domain.Fact[domain.Tick]
 }
 
+// FootholdGates is the review's one gate set: the foothold goals open on
+// them and the colony stage's exit criteria read them (StageColonyFacts).
+// Armed is two armed fighters (every colonist when fewer); Defense adds no
+// hostiles on the map.
 type FootholdGates struct {
-	Sleeping, Shelter, Food, Production, Storage, Cooking, Temperature, Power, Medical, Defense, Work domain.Fact[bool]
-}
-
-func (g FootholdGates) Stable() bool {
-	for _, v := range []domain.Fact[bool]{g.Sleeping, g.Shelter, g.Food, g.Production, g.Storage, g.Cooking, g.Temperature, g.Power, g.Medical, g.Defense, g.Work} {
-		if !positive(v) {
-			return false
-		}
-	}
-	return true
+	Sleeping, Shelter, Food, Production, Storage, Cooking, Temperature, Power, Medical, Armed, Defense, Work domain.Fact[bool]
 }
 
 type RoutineLatches struct {
@@ -651,6 +651,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if n, k := count.Value(); k {
 		armed = measured(f.Armed, func(v int64) bool { return v >= min(2, n) })
 	}
+	g.Armed = armed
 	g.Defense = allFacts(armed, measured(f.Hostiles, func(v int64) bool { return v == 0 }))
 	wood := domain.Unknown[float64]()
 	if n, k := f.Wood.Value(); k {
@@ -734,9 +735,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(g.Power) {
 		addGoal(EnsureBasicPower, 2)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = flare
-	}
-	if !positive(g.Storage) {
-		addGoal(EnsureFoodStorage, 2)
 	}
 	defense := basicDefenseRecovered(g.Defense, f.Unarmed)
 	if !positive(defense) {
@@ -830,7 +828,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureTemperatureSafety, 2, allFacts(g.Temperature, latchRecovered(l.Cold, fallback(f.SleepingMin, f.OutdoorTemperature)), latchRecovered(l.Hot, fallback(f.SleepingMax, f.OutdoorTemperature))))
 	addAssessment(EnsureCooking, 2, g.Cooking)
 	addAssessment(EnsureBasicPower, 2, g.Power)
-	addAssessment(EnsureFoodStorage, 2, g.Storage)
 	addAssessment(EnsureBasicDefense, 3, defense)
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
 	addAssessment(EnsureBasicComfort, basicComfort.Priority(), basicComfort.Recovered())
@@ -1021,27 +1018,33 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	reserve, reserveKnown := f.FoodReserve.Value()
 	reserveAccess := reserveKnown && (len(reserve.Hold) > 0 || len(reserve.Release) > 0)
 	reserveRefill := reserveKnown && !reserve.Emergency && reserve.DeficitNutrition > 0
+	// MaintainFoodStorage is the one food storage goal: the foothold food
+	// stockpile (the storage gate) first, then the larder, the reserve and
+	// the stored-food upkeep.
+	stockpileOwed := !positive(g.Storage)
 	foodStorageActive := foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage] || reserveAccess || reserveRefill
 	foodStorageRecovered := domain.Unknown[bool]()
 	foodStoragePriority := foodStorageUpkeepPriority
 	larder, _ := SelectCorpseLarder(f.FoodStorageUpkeep)
-	// Releasing cooking inputs and preserving fresh corpses must not wait
-	// behind development projects, just as refrigeration must not.
-	if larder.Kind != "" || reserveAccess {
+	// The stockpile, releasing cooking inputs and preserving fresh corpses
+	// must not wait behind development projects, just as refrigeration
+	// must not.
+	if larder.Kind != "" || reserveAccess || stockpileOwed {
 		foodStoragePriority = 2
 	}
 	if _, known := foodStorage.StoredNutrition.Value(); known {
 		foodStorageRecovered = domain.Known(!foodStorageActive)
-	} else if !foodStorageActive {
+	} else if !foodStorageActive && !stockpileOwed {
 		foodStoragePriority = 4
 	}
 	if reserveAccess || reserveRefill {
 		foodStorageRecovered = domain.Known(false)
 	}
+	foodStorageRecovered = allFacts(g.Storage, foodStorageRecovered)
 	addAssessment(MaintainFoodStorage, foodStoragePriority, foodStorageRecovered)
 	if !positive(foodStorageRecovered) {
 		addGoal(MaintainFoodStorage, foodStoragePriority)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = larder.Kind == "" && !reserveAccess && !reserveRefill
+		r.Goals[len(r.Goals)-1].MethodUnavailable = !stockpileOwed && larder.Kind == "" && !reserveAccess && !reserveRefill
 	}
 	// Refrigeration answers the same at-risk perishable nutrition as
 	// MaintainFoodStorage by cooling the room the food already sits in. It
@@ -1310,6 +1313,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Assessments[i].Priority = r.Disaster.Promote(r.Assessments[i].ID, r.Assessments[i].Priority)
 		}
 	}
+	r.Goals = raisedAtStage(r.Goals, f, p, l)
 	if methods, known := f.AvailableMethods.Value(); known {
 		available := map[GoalID]bool{}
 		recognized := map[GoalID]bool{}
@@ -1368,4 +1372,41 @@ func criticalMedicinePriority(f RoutineFacts) int {
 		return 2
 	}
 	return 1
+}
+
+// raisedAtStage drops the goals the colony stage does not raise yet
+// (StageGoalAllowed), with the stage's exceptions: MaintainResource opens
+// early for the wood floor or a construction dependency, MaintainRefrigeration
+// for a full spoiling emergency, the stone shell waits for stone blocks
+// (a known unfinished Stonecutting) and the animal goals for a tame animal (a census that knows of none
+// raises none).
+func raisedAtStage(goals []DevelopmentGoal, f RoutineFacts, p RoutinePolicy, l RoutineLatches) []DevelopmentGoal {
+	stage := p.ColonyStage
+	kept := goals[:0]
+	for _, g := range goals {
+		allowed := StageGoalAllowed(g.ID, stage)
+		switch g.ID {
+		case MaintainResource:
+			allowed = allowed || l.Wood || len(DependencyResourceNeeds(f.Dependencies)) > 0
+		case MaintainRefrigeration:
+			d, known := g.Deficit.Value()
+			allowed = allowed || known && d >= 1
+		case MaintainStoneShell:
+			allowed = allowed && !stonecuttingUnfinished(f.Research)
+		case MaintainAnimalContainment, MaintainAnimalFeed, MaintainHerd:
+			animals, known := f.AnimalUpkeep.Animals.Value()
+			allowed = allowed && !(known && len(animals) == 0)
+		}
+		if allowed {
+			kept = append(kept, g)
+		}
+	}
+	return kept
+}
+
+// stonecuttingUnfinished: the research census is known and has not
+// finished Stonecutting, so no stone block can be cut for a shell.
+func stonecuttingUnfinished(research domain.Fact[ResearchFacts]) bool {
+	r, known := research.Value()
+	return known && !slices.Contains(r.Finished, "Stonecutting")
 }

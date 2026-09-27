@@ -58,7 +58,7 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 // native read. RecoverDisasterServices is only assessed once a disaster
 // history exists, so it needs an explicit recognition.
 func TestRoutineComposedCapabilitiesValidateOnEmptyFacts(t *testing.T) {
-	all := []GoalID{EnsureFoodSupply, EnsureFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, EnsureExpansion, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainStorage, MaintainWaste, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainAnimalFeed, RemoveBlight}
+	all := []GoalID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, EnsureExpansion, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainStorage, MaintainWaste, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainAnimalFeed, RemoveBlight}
 	if _, err := DetectRoutine(RoutineFacts{AvailableMethods: domain.Known(all)}, RoutineLatches{}, DefaultRoutinePolicy()); err != nil {
 		t.Fatal(err)
 	}
@@ -101,6 +101,9 @@ func TestRoutineSleepingMethodFollowsDeclaredCapability(t *testing.T) {
 // slot; undeclared, they stay MethodUnavailable without erasing the need.
 func TestRoutineAnimalNeedsRankWhenTheirMethodIsDeclared(t *testing.T) {
 	f := stableRoutine()
+	// A census that knows of no tame animal raises no animal goal; this one
+	// does not know.
+	f.AnimalUpkeep.Animals = domain.Unknown[[]UpkeepAnimal]()
 	f.UpkeepIssued = map[GoalID]bool{MaintainAnimalFeed: true, MaintainAnimalContainment: true}
 	for _, declared := range []bool{true, false} {
 		f.AvailableMethods = domain.Known([]GoalID{})

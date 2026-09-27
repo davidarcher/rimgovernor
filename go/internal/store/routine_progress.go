@@ -32,7 +32,7 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	storageOpen := false
 	for i, n := range needs.Assessments {
-		if n.ID != policy.EnsureFoodStorage || states[i].Goal.Status != domain.GoalActive {
+		if n.ID != policy.MaintainFoodStorage || states[i].Goal.Status != domain.GoalActive {
 			continue
 		}
 		open, err := goalOpenWork(ctx, tx, states[i])

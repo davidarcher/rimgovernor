@@ -120,7 +120,7 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 		t.Fatalf("acquire rung keeps the bench prerequisite %+v %s", c, prerequisite)
 	}
 	gates.Food, gates.Cooking, gates.Storage = domain.Known(true), domain.Known(true), domain.Known(false)
-	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), true); c.Method != "store" || prerequisite != EnsureFoodStorage {
+	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), true); c.Method != "store" || prerequisite != MaintainFoodStorage {
 		t.Fatalf("store rung %+v %s", c, prerequisite)
 	}
 	// Storage owed but no storage method open: the ladder falls to grow.

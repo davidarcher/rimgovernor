@@ -54,7 +54,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
-		if binding.Need == policy.EnsureFoodStorage {
+		if binding.Need == policy.MaintainFoodStorage {
 			goal, err = p.journal.LoadGoal(call, binding.Goal)
 			found = true
 			break
@@ -69,7 +69,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	if goal.Goal.Priority >= 3 {
 		selected := false
 		for _, row := range review.Development.Rows {
-			selected = selected || row.Goal == policy.EnsureFoodStorage && row.Selected
+			selected = selected || row.Goal == policy.MaintainFoodStorage && row.Selected
 		}
 		if !selected {
 			return RoutineFoodStorageResult{Reason: BuildingMethodRefused}, nil
@@ -101,6 +101,11 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineFoodStorageResult{}, err
 	}
 	projection := read.Projection
+	// MaintainFoodStorage also stands open for the larder and reserve; this
+	// planner places only the food stockpile a colony without one needs.
+	if storage, known := projection.Facts.FoodStorage.Value(); known && storage {
+		return RoutineFoodStorageResult{Reason: BuildingMethodNoDeficit}, nil
+	}
 	token, known := projection.ZoneMapToken.Value()
 	if !known {
 		return RoutineFoodStorageResult{Reason: BuildingMethodUnknown}, nil

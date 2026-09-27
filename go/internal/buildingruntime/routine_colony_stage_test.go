@@ -8,7 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -34,9 +33,11 @@ func stampContextTicks(m protoreflect.Message, tick int64) {
 	})
 }
 
-// The colony stage no longer gates a development proposal: at Foothold with
-// the shelter unmet the stone shell is still selected, and once the colony
-// climbs to Development on the same fake native its proposal is admitted.
+// The colony stage decides whether the stone shell is raised at all: at
+// Foothold with the shelter unmet the review raises no MaintainStoneShell
+// goal, and at Stable (a floor here; the ladder's climb is
+// policy.TestColonyStageTransitions) the goal ranks and its proposal is
+// admitted on the same fake native.
 func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -50,7 +51,7 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 		}
 		return *review.Stage
 	}
-	row := func() store.RoutineDevelopmentRow {
+	row := func() (store.RoutineDevelopmentRow, bool) {
 		t.Helper()
 		review, err := db.LoadRoutineReview(ctx)
 		if err != nil {
@@ -58,39 +59,13 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 		}
 		for _, row := range review.Development.Rows {
 			if row.Goal == policy.MaintainStoneShell {
-				return row
+				return row, true
 			}
 		}
-		t.Fatal("stone shell not ranked", review.Development.Rows)
-		return store.RoutineDevelopmentRow{}
+		return store.RoutineDevelopmentRow{}, false
 	}
-	// No indoor sleeping slot for the one colonist: the shelter gate is
-	// unmet and the colony sits at Foothold.
-	indoor := v.IndoorSleepingCapacity
-	v.IndoorSleepingCapacity = proto.Uint32(0)
-	if _, err := p.reviewer.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if s := stage(); s.Stage != policy.StageFoothold || !s.Held || s.Blocker != policy.StageBlockerShelter {
-		t.Fatalf("foothold stage %+v", s)
-	}
-	// The stage no longer holds development: the stone shell has work and a
-	// builder, so it is selected even at Foothold.
-	if r := row(); !r.Selected || r.Reason != "" {
-		t.Fatalf("stone shell row %+v", r)
-	}
-	// The colony climbs: shelter for everyone, a thirty-day food runway,
-	// a wood stock over the floor and the medicine reserve take it to
-	// Reserves; with the settling times cut to one tick each review after
-	// that climbs one stage until Development.
-	v.IndoorSleepingCapacity = indoor
-	v.Resources = []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(400)}, {DefName: proto.String("MedicineHerbal"), Units: proto.Int64(10)}}
-	food := &o.FoodSupplyFacts{Consumers: []*o.FoodConsumer{{PawnId: proto.String("builder"), NutritionPerDay: proto.Float64(1)}},
-		Stocks: []*o.FoodStock{{Item: &o.EntityRef{Id: proto.String("pemmican"), DefName: proto.String("Pemmican")}, Count: proto.Int64(60), Nutrition: proto.Float64(30), Perishable: proto.Bool(false), EaterIds: []string{"builder"}}}}
-	v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: food}}
-	v.Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: proto.Clone(food).(*o.FoodSupplyFacts), Patients: []*o.PatientForecast{{PawnId: proto.String("builder")}}}}}
-	p.reviewer.policy.Stage = policy.ColonyStagePolicy{StableTicks: 1, StableExitTicks: 1, DevelopmentTicks: 1}
-	for _, want := range []policy.ColonyStage{policy.StageReserves, policy.StageStable, policy.StageDevelopment} {
+	step := func() {
+		t.Helper()
 		tick := v.Context.GetTick() + 1
 		for _, m := range []proto.Message{n.reply, n.pawnReply, n.buildings, n.sites.Context} {
 			stampContextTicks(m.ProtoReflect(), tick)
@@ -98,15 +73,24 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 		if _, err := p.reviewer.Step(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if s := stage(); s.Stage != want || s.Held {
-			t.Fatalf("expected %s, got %+v", want, s)
-		}
 	}
-	if s := stage(); s.Blocker != "" || s.Reason != "" {
-		t.Fatalf("development stage %+v", s)
+	// No indoor sleeping slot for the one colonist: the shelter gate is
+	// unmet and the colony sits at Foothold.
+	indoor := v.IndoorSleepingCapacity
+	v.IndoorSleepingCapacity = proto.Uint32(0)
+	p.reviewer.policy.Stage.Floor = policy.StageFoothold
+	step()
+	if s := stage(); s.Stage != policy.StageFoothold || !s.Held || s.Blocker != policy.StageBlockerShelter {
+		t.Fatalf("foothold stage %+v", s)
 	}
-	if r := row(); !r.Selected || r.Reason != "" {
-		t.Fatalf("stone shell row at Development %+v", r)
+	if r, ok := row(); ok {
+		t.Fatalf("stone shell raised at Foothold: %+v", r)
+	}
+	v.IndoorSleepingCapacity = indoor
+	p.reviewer.policy.Stage.Floor = policy.StageStable
+	step()
+	if r, ok := row(); !ok || !r.Selected || r.Reason != "" {
+		t.Fatalf("stone shell row at Stable %+v", r)
 	}
 	result, err := p.Step(ctx)
 	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 1 {

@@ -58,7 +58,7 @@ func TestCommitStockpileZoneMethodBindsToFoodStorageGoal(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureFoodStorage)
+	g := routineGoal(t, out, policy.MaintainFoodStorage)
 	if g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
@@ -70,7 +70,7 @@ func TestCommitStockpileZoneMethodBindsToFoodStorageGoal(t *testing.T) {
 
 // SecureSupplies' covered-storage fallback (routine_secure_supplies.go) is
 // the other stockpile-zone method: a goal bound to SecureSupplies commits an
-// allow-list stockpile plan exactly as EnsureFoodStorage does.
+// allow-list stockpile plan exactly as MaintainFoodStorage does.
 func TestCommitStockpileZoneMethodBindsToSecureSuppliesGoal(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
@@ -174,14 +174,14 @@ func TestCommitStockpileZoneMethodCappedAtOneAction(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureFoodStorage)
+	g := routineGoal(t, out, policy.MaintainFoodStorage)
 	plan := stockpilePlan(t, "storage-plan", []domain.Cell{{X: 4, Z: 6}}, []domain.Cell{{X: 8, Z: 6}})
 	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "food-storage", plan); err == nil {
 		t.Fatal("expected rejection of multi-action stockpile plan")
 	}
 }
 
-// A goal bound only to EnsureFoodStorage must not admit a growing-zone plan:
+// A goal bound only to MaintainFoodStorage must not admit a growing-zone plan:
 // admitZoneMethod requires the plan's own zone kind to match the need the
 // goal was actually bound under, not just any zone-create action family.
 func TestCommitZoneMethodRejectsKindGoalMismatch(t *testing.T) {
@@ -189,7 +189,7 @@ func TestCommitZoneMethodRejectsKindGoalMismatch(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureFoodStorage)
+	g := routineGoal(t, out, policy.MaintainFoodStorage)
 	plan := growingPlan(t, "fields-plan", []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
 	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "fields", plan); err == nil {
 		t.Fatal("expected rejection of growing zone bound to food storage goal")
@@ -205,7 +205,7 @@ func TestCommitAllowListStockpileZoneMethodRoundTrips(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureFoodStorage)
+	g := routineGoal(t, out, policy.MaintainFoodStorage)
 	zone, err := allowListZone(domain.ImportantPriority, []string{"MealSimple", "MealFine"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}, {X: 6, Z: 6}, {X: 4, Z: 7}})
 	if err != nil {
 		t.Fatal(err)
@@ -239,7 +239,7 @@ func TestCommitStockpileZoneMethodRejectsOverlappingCells(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureFoodStorage)
+	g := routineGoal(t, out, policy.MaintainFoodStorage)
 	zone1, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 4, Z: 6}})
 	if err != nil {
 		t.Fatal(err)

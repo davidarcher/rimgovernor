@@ -53,7 +53,7 @@ func hasNeed(r RoutineNeeds, id GoalID) bool {
 func TestRoutineStableAndRenewedDeficits(t *testing.T) {
 	f := stableRoutine()
 	r := needs(t, f, RoutineLatches{})
-	if !r.Gates.Stable() || len(r.Goals) != 0 {
+	if len(r.Goals) != 0 {
 		t.Fatal(r)
 	}
 	f.FoodDays = domain.Known(2.0)
@@ -63,7 +63,7 @@ func TestRoutineStableAndRenewedDeficits(t *testing.T) {
 	}
 	f.FoodDays = domain.Known(5.0)
 	r = needs(t, f, r.Latches)
-	if !r.Gates.Stable() || !hasNeed(r, EnsureFoodSupply) {
+	if !positive(r.Gates.Food) || !hasNeed(r, EnsureFoodSupply) {
 		t.Fatal("foothold gate must not erase recovery target", r)
 	}
 	f.FoodDays = domain.Known(7.0)
@@ -84,7 +84,7 @@ func TestRoutineStableAndRenewedDeficits(t *testing.T) {
 }
 func TestRoutineUnknownNeverRecovers(t *testing.T) {
 	r := needs(t, RoutineFacts{}, RoutineLatches{Food: true, Wood: true, Cold: true, Hot: true})
-	if r.Gates.Stable() || !r.Latches.Food || !r.Latches.Wood || !r.Latches.Cold || !r.Latches.Hot {
+	if positive(r.Gates.Food) || !r.Latches.Food || !r.Latches.Wood || !r.Latches.Cold || !r.Latches.Hot {
 		t.Fatal(r)
 	}
 	if !hasNeed(r, ActiveCombat) || !hasNeed(r, CriticalMedicine) {

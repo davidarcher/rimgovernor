@@ -17,7 +17,7 @@ func TestStockpilePatchesListTheLatestCompletedPatch(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "patches.db"))
 	defer s.Close()
 	r := foodStorageDeficitRoutineRequest()
-	g := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureFoodStorage)
+	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainFoodStorage)
 	zonePatch, _ := domain.NewStockpilePatch(domain.StorageZoneTarget, "Zone_7", domain.FoodFilter(), domain.ImportantPriority, "kitchen")
 	shelfPatch, _ := domain.NewStockpilePatch(domain.StorageBuildingTarget, "Shelf_1", domain.FoodFilter(), domain.ImportantPriority, "")
 	za, _ := domain.NewStockpilePatchAction("patch-zone", zonePatch)

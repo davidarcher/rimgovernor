@@ -16,7 +16,7 @@ func TestOperationIntentLabelsGoalMethod(t *testing.T) {
 		reason string
 		want   string
 	}{
-		{"routine-0123456789abcdef-MaintainFoodStorage", "hunt-0123456789abcdef0123456789abcdef", "", "Food reserve: hunt"},
+		{"routine-0123456789abcdef-MaintainFoodStorage", "hunt-0123456789abcdef0123456789abcdef", "", "Food storage: hunt"},
 		{"routine-0123456789abcdef-MaintainFlooring", "floor-2", "", "Flooring: floor 2"},
 		{"player-ab-MaintainSleeping", "comfort-Bed", "", "Bedroom: comfort Bed"},
 		{"routine-01-MaintainFireSafety", "fire", "", "Fire safety: fire"},

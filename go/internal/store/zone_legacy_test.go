@@ -38,7 +38,7 @@ func TestLegacyPresetZoneRowsLoad(t *testing.T) {
 		s := open(t, memoryPath(t))
 		r := foodStorageDeficitRoutineRequest()
 		out := reviewRoutine(t, s, &r)
-		g := routineGoal(t, out, policy.EnsureFoodStorage)
+		g := routineGoal(t, out, policy.MaintainFoodStorage)
 		action, _ := domain.NewZoneCreateAction("storage-plan-a", food)
 		plan, _ := domain.NewPlan("storage-plan", 1, []domain.Action{action})
 		if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "food-storage", plan); err != nil {

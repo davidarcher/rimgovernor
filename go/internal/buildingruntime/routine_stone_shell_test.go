@@ -132,6 +132,8 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: count(1)}}}
 	base.reviewer.native = n
 	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainStoneShell})
+	// The stone shell is a Stable goal; the fixture has not climbed there.
+	base.reviewer.policy.Stage.Floor = policy.StageStable
 	if _, err = base.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

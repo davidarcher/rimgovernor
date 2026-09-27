@@ -65,7 +65,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	}
 	// A stockpile zone is created one per method in this slice, unlike the
 	// bounded batches of growing-field zones EnsureFoodSupply may dispatch.
-	// EnsureFoodStorage places the colony's food stockpile; SecureSupplies
+	// MaintainFoodStorage places the colony's food stockpile; SecureSupplies
 	// places its covered-storage fallback (routine_secure_supplies.go);
 	// MaintainResource places the production ladder's ingredient stockpile
 	// beside the bench (routine_ingredient_storage.go, #155: the rung was
@@ -80,13 +80,12 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	needs := []policy.GoalID{policy.EnsureFoodSupply, policy.MaintainResource, policy.TidyLayout}
 	if stockpile {
 		limit = 1
-		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.EnsureFoodStorage, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.MaintainFoodStorage, policy.ClearHomeObstructions, policy.TidyLayout}
+		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.MaintainFoodStorage, policy.ClearHomeObstructions, policy.TidyLayout}
 	}
 	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > limit {
 		return ErrConflict
 	}
 	bound := false
-	larder := false
 	social := false
 	for _, binding := range review.Goals {
 		if binding.Goal != goal.Goal.ID {
@@ -95,7 +94,6 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 		for _, need := range needs {
 			bound = bound || binding.Need == need
 		}
-		larder = binding.Need == policy.MaintainFoodStorage
 		social = binding.Need == policy.MaintainResource && !stockpile
 	}
 	if !bound {
@@ -116,9 +114,6 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 			if cropCells[zone.Crop()] > 9 {
 				return ErrConflict
 			}
-		}
-		if larder && zone.Filter() != domain.CorpseLarderFilter() {
-			return ErrConflict
 		}
 		for _, cell := range zone.Cells() {
 			if cells[cell] {

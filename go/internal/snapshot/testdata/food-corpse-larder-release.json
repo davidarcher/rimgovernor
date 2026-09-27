@@ -21056,10 +21056,6 @@
     "Need": "EnsureBasicPower"
    },
    {
-    "Goal": "routine-9745523394465785-EnsureFoodStorage",
-    "Need": "EnsureFoodStorage"
-   },
-   {
     "Goal": "routine-9745523394465785-EnsureBasicDefense",
     "Need": "EnsureBasicDefense"
    },

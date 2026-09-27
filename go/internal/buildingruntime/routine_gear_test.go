@@ -129,6 +129,7 @@ func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 	t.Parallel()
 	{
 		reviewer, db, session, _, native := routineFixture(t)
+		reviewer.policy.Stage.Floor = policy.StageDevelopment
 		setGearProductionNeed(native.reply.GetObserved())
 		gear := native.reply.GetObserved().GetPlanning().GetObserved().Gear
 		gear.Pawns[1].Deficit = proto.Bool(true)
@@ -200,6 +201,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, _, _, native := routineFixture(t)
+	reviewer.policy.Stage.Floor = policy.StageDevelopment
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)
@@ -309,6 +311,7 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 func TestGearPlannerPlansPastFilteredWeaponCensus(t *testing.T) {
 	t.Parallel()
 	reviewer, db, _, _, native := routineFixture(t)
+	reviewer.policy.Stage.Floor = policy.StageDevelopment
 	setGearProductionNeed(native.reply.GetObserved())
 	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}, filtered: 4}}}
 	reviewer.native = n

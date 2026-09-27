@@ -62,6 +62,7 @@ func (n *researchNative) ReadResearch(ctx context.Context, _ *c.Identity) (bridg
 func TestRoutineResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 	t.Parallel()
 	reviewer, db, _, _, base := routineFixture(t)
+	reviewer.policy.Stage.Floor = policy.StageDevelopment
 	n := &researchNative{routineNative: base, finished: []string{"Stonecutting"}}
 	v := base.reply.GetObserved()
 	// Three research- and construction-capable colonists: a development slot is bounded by
@@ -121,6 +122,7 @@ func TestRoutineResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 func TestRoutineResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 	t.Parallel()
 	reviewer, db, _, _, base := routineFixture(t)
+	reviewer.policy.Stage.Floor = policy.StageDevelopment
 	n := &researchNative{routineNative: base, finished: []string{"Stonecutting"}, benchMissing: true}
 	v := base.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(3), proto.Uint32(3)

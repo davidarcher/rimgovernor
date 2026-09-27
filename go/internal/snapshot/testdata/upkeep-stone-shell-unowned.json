@@ -8460,10 +8460,6 @@
     "Need": "EnsureBasicPower"
    },
    {
-    "Goal": "routine-aa21352b1aef3b39-EnsureFoodStorage",
-    "Need": "EnsureFoodStorage"
-   },
-   {
     "Goal": "routine-aa21352b1aef3b39-EnsureBasicDefense",
     "Need": "EnsureBasicDefense"
    },
@@ -8677,14 +8673,6 @@
     "Goal": "EnsureBasicPower",
     "LastProgress": 29,
     "Method": "shelter",
-    "NextReview": 2529
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureFoodStorage",
-    "LastProgress": 29,
-    "Method": "assess",
     "NextReview": 2529
    },
    {

@@ -21,6 +21,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
+	r.Policy.Stage.Floor = policy.StageDevelopment
 	r.Policy.ResearchLadder = []string{"Stonecutting"}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Workers = domain.Known(4)

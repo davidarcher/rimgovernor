@@ -20281,10 +20281,6 @@
     "Need": "EnsureBasicPower"
    },
    {
-    "Goal": "routine-8c1f5757b5f0e2f5-EnsureFoodStorage",
-    "Need": "EnsureFoodStorage"
-   },
-   {
     "Goal": "routine-8c1f5757b5f0e2f5-EnsureBasicDefense",
     "Need": "EnsureBasicDefense"
    },
@@ -20486,10 +20482,10 @@
     "NextReview": 11500
    },
    {
-    "Blocked": "prerequisite:EnsureFoodStorage",
+    "Blocked": "prerequisite:MaintainFoodStorage",
     "Cooldowns": [
      {
-      "Key": "store/prerequisite:EnsureFoodStorage",
+      "Key": "store/prerequisite:MaintainFoodStorage",
       "Until": 11500
      }
     ],
@@ -20524,20 +20520,6 @@
     ],
     "Expected": "deficit shrinks or the method's work settles",
     "Goal": "EnsureTemperatureSafety",
-    "LastProgress": 9000,
-    "Method": "assess",
-    "NextReview": 11500
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 11500
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureFoodStorage",
     "LastProgress": 9000,
     "Method": "assess",
     "NextReview": 11500

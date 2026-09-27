@@ -16,7 +16,7 @@ const (
 	// MaintainStorage is the ordinary (non-decaying) counterpart to
 	// SecureSupplies: loose items sitting outside storage with zero
 	// deterioration -- typically fresh production output waiting to reach
-	// EnsureFoodStorage's stockpile -- rather than items already at risk.
+	// MaintainFoodStorage's stockpile -- rather than items already at risk.
 	// Its own UpkeepItem selection is deliberately disjoint from
 	// SecureSupplies' (Deterioration == 0 here, > 0 there), so the two never
 	// compete over the same real-world item.

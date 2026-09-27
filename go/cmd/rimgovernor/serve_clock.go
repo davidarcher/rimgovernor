@@ -843,16 +843,13 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	if sc.routineAcquisitionPlans || sc.routineFieldPlans || sc.routineBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
 	}
-	if sc.routineFoodStoragePlans {
-		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodStorage)
-	}
 	if sc.routineAcquisitionPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource, policy.ClearPests)
 	}
 	if sc.routineBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking)
 	}
-	if sc.routineBillPlans || sc.routineFoodStorageUpkeepPlans {
+	if sc.routineFoodStoragePlans || sc.routineBillPlans || sc.routineFoodStorageUpkeepPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFoodStorage)
 	}
 	if sc.routineTemperaturePlans {

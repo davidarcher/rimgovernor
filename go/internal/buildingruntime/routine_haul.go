@@ -22,7 +22,7 @@ import (
 // drafted/mental state, health, existing job and the Hauling work setting.
 // No new native call is introduced for this slice. This is exactly
 // RoutineSecureSuppliesSource minus PreviewZone: MaintainStorage only
-// delivers into storage SecureSupplies/EnsureFoodStorage already made legal
+// delivers into storage SecureSupplies/MaintainFoodStorage already made legal
 // (native haul picks the destination cell); it never
 // proposes a new zone.
 type RoutineHaulSource interface {
