@@ -276,7 +276,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		// The native digest appends a colony row when a stock crosses one
 		// of these levels (#670), so MaintainResource reviews under the
 		// running window instead of waiting for the budget stop.
-		config.Start.Policy.ResourceThresholds = clockResourceThresholds(sc.resourceTargets())
+		config.Start.Policy.ResourceThresholds = clockResourceThresholds(sc.routineResourceTargets.Map())
 	}
 	config.Store = sections
 	config.Worker = true
@@ -974,16 +974,12 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureResearch)
 	}
 	if sc.resourceTargetsConfigured() {
-		thresholds.ResourceTargets = sc.resourceTargets()
+		thresholds.ResourceTargets = sc.routineResourceTargets.Map()
 		thresholds.StoneBlockTarget = sc.routineStoneBlockTarget
 		// Acquisition already declares it (the wood floor, #728).
 		if !slices.Contains(capabilities.Methods, policy.MaintainResource) {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
 		}
-	} else {
-		// No resource family: no floors, so trade and the workshop do not
-		// chase targets nothing produces.
-		thresholds.ResourceTargets, thresholds.StoneBlockTarget = nil, 0
 	}
 	if sc.routineAnimalFeedPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalFeed)

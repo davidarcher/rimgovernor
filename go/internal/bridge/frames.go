@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshotshm"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -344,7 +343,7 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 	if band, ok := frameBand(window); ok && v.PlanningWindow != nil {
 		seed("rimgovernor/observations_get_cells", planningBandRequest(identity, band), &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: v.PlanningWindow}})
 	}
-	seed(combatFrameMethod, nil, combatFrame(v))
+	seed(combatFrameMethod, nil, &o.BundleSnapshot{Context: v.Context, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents})
 }
 
 // BundleEmergency decodes a step snapshot's emergency section into the
@@ -499,22 +498,13 @@ func (s *frameStream) close() {
 // frames-only read with no GABP method behind it.
 const combatFrameMethod = "rimgovernor/snapshot_frame_combat"
 
-// Combat is a frame's combat state (#851) and the defense planner's other
-// inputs from the same frame (#853): every colonist, hostile and colony
-// animal while combat is active, the native's retained event ring on the
-// map, oldest first, the emergency census, the combat pawn detail rows for
-// its colonists, hostiles and hunting predators, and the lines of fire
-// from ranged colonists to hostile buildings. Context is the frame's; Frame
-// is the frame's combat part as read, which a combat recording keeps.
+// Combat is a frame's combat state (#851): every colonist, hostile and
+// colony animal while combat is active, and the native's retained event
+// ring on the map, oldest first. Context is the frame's.
 type Combat struct {
-	Context   *c.ObservationContext
-	Pawns     []*mp.CombatPawn
-	Events    []*mp.CombatEventRow
-	Emergency EmergencyObservation
-	// Detail is keyed by pawn id; nil when the frame carries none.
-	Detail map[string]*o.PawnState
-	Lines  []LineOfFire
-	Frame  *o.BundleSnapshot
+	Context *c.ObservationContext
+	Pawns   []*mp.CombatPawn
+	Events  []*mp.CombatEventRow
 }
 
 // ReadCombat reads the combat state from the newest frame past this
@@ -531,67 +521,10 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 	if _, err := caller.frameReadKey(ctx, combatFrameMethod, readCacheKey{method: combatFrameMethod}, identity, true, reply); err != nil {
 		return Combat{}, err
 	}
-	return DecodeCombat(reply)
-}
-
-// combatFrame is the part of frame v a combat read answers.
-func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
-	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire}
-}
-
-// DecodeCombat validates and decodes a frame's combat part (ReadCombat,
-// and a combat recording's replay).
-func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
-	if v == nil || ValidateContext(v.Context) != nil {
-		return Combat{}, contract("combat frame without a context")
-	}
-	if err := validateCombat(v); err != nil {
+	if err := validateCombat(reply); err != nil {
 		return Combat{}, err
 	}
-	out := Combat{Context: v.Context, Pawns: v.CombatPawns, Events: v.CombatEvents, Frame: v}
-	identity := v.Context.Identity
-	if v.Emergency != nil {
-		emergency, err := DecodeEmergencyStatus(v.Emergency, identity)
-		if err != nil {
-			return Combat{}, err
-		}
-		out.Emergency = emergency
-	}
-	if v.CombatDetail != nil {
-		ids := map[string]bool{}
-		for _, row := range v.CombatDetail.Pawns {
-			ids[row.GetPawn().GetId()] = true
-		}
-		if err := pawnsSnapshotSelected(v.CombatDetail, identity, ids, pawnDetails{Combat: true}); err != nil {
-			return Combat{}, err
-		}
-		out.Detail = make(map[string]*o.PawnState, len(v.CombatDetail.Pawns))
-		for _, row := range v.CombatDetail.Pawns {
-			out.Detail[row.Pawn.GetId()] = row
-		}
-	}
-	if v.CombatLinesOfFire != nil {
-		var firing, approach []domain.Cell
-		seen := map[domain.Cell]int{}
-		for _, row := range v.CombatLinesOfFire.Lines {
-			from, _ := protoCell(row.GetFrom())
-			to, _ := protoCell(row.GetTo())
-			if seen[from]&1 == 0 {
-				seen[from] |= 1
-				firing = append(firing, from)
-			}
-			if seen[to]&2 == 0 {
-				seen[to] |= 2
-				approach = append(approach, to)
-			}
-		}
-		lines, err := validateLinesOfFire(v.CombatLinesOfFire, identity, firing, approach)
-		if err != nil {
-			return Combat{}, err
-		}
-		out.Lines = lines
-	}
-	return out, nil
+	return Combat{Context: reply.Context, Pawns: reply.CombatPawns, Events: reply.CombatEvents}, nil
 }
 
 // validateCombat checks a frame's combat rows (#851).

@@ -111,16 +111,3 @@ func (p RoutinePolicy) EffectiveResourceTargets(stock domain.Fact[[]Amount], nee
 	}
 	return ResourceGoalTargets(targets, needs), nil
 }
-
-// DefaultStoneBlockTarget is the stone-block floor every colony keeps
-// (#875): enough cut blocks for the next stone wall run or shell repair.
-const DefaultStoneBlockTarget int64 = 150
-
-// DefaultResourceTargets is the MaintainResource floor map a serve keeps
-// without operator configuration (#875): steel and components for
-// construction and repair. Goal-derived needs (ResourceNeeds, medicine,
-// dependencies, the wood floor) still raise these through
-// EffectiveResourceTargets.
-func DefaultResourceTargets() map[Resource]int64 {
-	return map[Resource]int64{"Steel": 200, ComponentResource: 10}
-}

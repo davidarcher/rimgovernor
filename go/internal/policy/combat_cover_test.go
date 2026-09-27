@@ -63,10 +63,8 @@ func TestDecideCombatPicksBestCoverCells(t *testing.T) {
 	orders, _, memory := DecideCombat(view, reply, StopEvent{}, CombatMemory{})
 	want := []CombatOrder{
 		{Pawn: "a", Kind: OrderMove, Cell: domain.Cell{X: 11, Z: 24}, Reason: ReasonFormation},
-		// Spacing (#861) outranks cover: (10,23) is a tile from the corner,
-		// so the spaced (8,23) comes before it.
-		{Pawn: "b", Kind: OrderMove, Cell: domain.Cell{X: 8, Z: 23}, Reason: ReasonFormation},
-		{Pawn: "c", Kind: OrderMove, Cell: domain.Cell{X: 10, Z: 23}, Reason: ReasonFormation},
+		{Pawn: "b", Kind: OrderMove, Cell: domain.Cell{X: 10, Z: 23}, Reason: ReasonFormation},
+		{Pawn: "c", Kind: OrderMove, Cell: domain.Cell{X: 8, Z: 23}, Reason: ReasonFormation},
 	}
 	if memory.Tactic != TacticHold || !reflect.DeepEqual(orders, want) {
 		t.Fatalf("%+v %+v", orders, memory)

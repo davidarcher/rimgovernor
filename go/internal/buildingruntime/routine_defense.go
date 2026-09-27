@@ -14,7 +14,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
@@ -25,11 +24,13 @@ import (
 )
 
 type RoutineDefenseSource interface {
+	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
+	ReadCombatPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
+	ReadLinesOfFire(context.Context, *c.Identity, []domain.Cell, []domain.Cell) (bridge.LinesOfFire, bridge.Result, error)
 	// CombatOrders sends a stop's changed orders (#850, #852).
 	CombatOrders(context.Context, *a.WritePrecondition, *op.CombatOrders) ([]bridge.CombatOrderResult, *op.ExecuteReply, bridge.Result, error)
 	CombatGeometry(context.Context, *mirrorpb.CombatGeometryRequest) (*mirrorpb.CombatGeometry, bridge.Result, error)
-	// ReadCombat is the newest snapshot frame's combat state and the
-	// fight's other inputs (#851, #853, #858).
+	// ReadCombat is the newest snapshot frame's combat state (#851, #858).
 	ReadCombat(context.Context, *c.Identity) (bridge.Combat, error)
 }
 type RoutineDefensePlanner struct {
@@ -125,21 +126,58 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
-	// The fight decides from one frame (#853): the census, the combat
-	// detail rows, the building lines of fire and the combat pawns and
-	// events are all as of its tick.
-	combat, err := r.native.ReadCombat(call, identity)
+	emergency, _, err := r.native.ReadEmergency(call, identity)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	if _, err = boundary.Context(combat.Context, state.Snapshot); err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick) {
+	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
 		return RoutineDefenseResult{}, ErrControl
 	}
-	in, reason, err := combatFrameInputs(combat)
-	if err != nil || reason != "" {
-		return RoutineDefenseResult{Reason: reason}, err
+	colonistsComplete, ck := emergency.Facts.ColonistsComplete.Value()
+	threatsComplete, tk := emergency.Facts.ThreatsComplete.Value()
+	if !ck || !colonistsComplete || !tk || !threatsComplete {
+		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
-	emergency, rows := combat.Emergency, in.rows
+	hostileIDs, hunting, buildings := defenseTargets(emergency.Facts.Threats)
+	if len(emergency.Facts.Colonists) == 0 || len(hostileIDs)+len(buildings) == 0 && !hasAggressiveBreak(emergency.Facts) {
+		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
+	}
+	ids := make([]string, 0, len(emergency.Facts.Colonists)+len(hostileIDs))
+	seenID := map[string]bool{}
+	for _, pawn := range emergency.Facts.Colonists {
+		if !seenID[string(pawn.ID)] {
+			seenID[string(pawn.ID)] = true
+			ids = append(ids, string(pawn.ID))
+		}
+	}
+	for _, id := range hostileIDs {
+		if !seenID[id] {
+			seenID[id] = true
+			ids = append(ids, id)
+		}
+	}
+	reply, _, err := r.native.ReadCombatPawns(call, identity, ids)
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	observed := reply.GetObserved()
+	if observed == nil {
+		return RoutineDefenseResult{}, ErrControl
+	}
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
+		return RoutineDefenseResult{}, ErrControl
+	}
+	counts := observed.Completeness
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(ids)) || len(observed.Pawns) != len(ids) {
+		return RoutineDefenseResult{}, ErrControl
+	}
+	rows := map[string]*n.PawnState{}
+	for _, row := range observed.Pawns {
+		if row == nil || row.Pawn == nil || rows[row.Pawn.GetId()] != nil {
+			return RoutineDefenseResult{}, ErrControl
+		}
+		rows[row.Pawn.GetId()] = row
+	}
 	if result, err := r.planBreak(call, epoch, goal, state, started, arbiter, emergency.Facts, rows); err != nil || result.Reason != "" {
 		return result, err
 	}
@@ -164,6 +202,57 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		memory = record.Memory
 		orderable = policy.CombatOrderable(fight.Progress)
 	}
+	owned := map[domain.PawnID]bool{}
+	for _, id := range orderable {
+		owned[id] = true
+	}
+	var defenders []policy.SquadDefenderFacts
+	var profiles []policy.PawnProfile
+	for _, pawn := range emergency.Facts.Colonists {
+		row := rows[string(pawn.ID)]
+		if row == nil {
+			return RoutineDefenseResult{}, ErrControl
+		}
+		d := squadDefenderFacts(row)
+		if owned[d.ID] {
+			// The fight's own drafts are its defenders, not work elsewhere.
+			d.DraftOwned = domain.Known(false)
+		}
+		defenders = append(defenders, d)
+		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
+	}
+	// The combat read carries the biography, so the line split comes from
+	// the same rows: holders take melee opponents, shooters ranged ones
+	// and the firing cells.
+	front, _ := policy.FrontLine(profiles)
+	holds := map[domain.PawnID]bool{}
+	for _, id := range front {
+		holds[domain.PawnID(id)] = true
+	}
+	for i := range defenders {
+		defenders[i].FrontLine = holds[defenders[i].ID]
+	}
+	var threats []policy.SquadThreatFacts
+	positional := make([]policy.DefensiveThreatFacts, 0, len(hostileIDs))
+	for _, id := range hostileIDs {
+		row := rows[id]
+		if row == nil {
+			return RoutineDefenseResult{}, ErrControl
+		}
+		facts := squadThreatFacts(row)
+		facts.Hunting = domain.Known(hunting[id])
+		threats = append(threats, facts)
+		positional = append(positional, defensiveThreatFacts(row))
+	}
+	if len(buildings) > 0 {
+		lines, err := r.buildingLinesOfFire(call, identity, buildings, defenders, rows)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		for _, building := range buildings {
+			threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true, LinesOfFire: lines[building.ID]})
+		}
+	}
 	// A complete record from an earlier load of this colony still holds:
 	// its geometry is on the map and its completion was census-verified
 	// when written. Combat cannot wait for the layout review to adopt it
@@ -173,7 +262,10 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	var held domain.Fact[policy.CombatLayout]
+	// No frame yet (or no stream) leaves the combat read's rows and no stop.
+	combat, _ := r.native.ReadCombat(call, identity)
+	tick := domain.Tick(emergency.Context.GetTick())
+	view := policy.CombatView{Tick: tick, Pawns: combatPawnStates(combat, rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable}
 	if ok && layout.Complete {
 		combatLayout := policy.CombatLayout{Firing: layout.Firing, Retreat: layout.Retreat, Toward: layout.Toward}
 		if n := len(layout.SafeLane); n > 0 {
@@ -181,35 +273,21 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 			// corridor's mouth on our side, where blockers hold (#864).
 			combatLayout.Choke = domain.Known(layout.SafeLane[n-1])
 		}
-		held = domain.Known(combatLayout)
+		view.Layout = domain.Known(combatLayout)
 	}
-	view := combatView(combat, in, orderable, held)
-	tick := view.Tick
 	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
-	recorded := snap.CombatStop{Tick: tick, Stop: stop, Orderable: orderable, Ask: ask, MemoryIn: memory}
-	if l, known := held.Value(); known {
-		recorded.Layout = &l
-	}
 	if ask != nil {
-		recorded.Reply = r.answerGeometry(call, boundary.Identity(state.Snapshot), ask)
-		orders, _, next = policy.DecideCombat(view, recorded.Reply, stop, memory)
+		orders, _, next = policy.DecideCombat(view, r.answerGeometry(call, boundary.Identity(state.Snapshot), ask), stop, memory)
 	}
-	recorded.MemoryOut = next
 	if next.Formed == tick && next.Refusal != "" && next.Tactic != policy.TacticHold {
 		// Squad defense follows; say which gate refused the hold (#714).
 		slog.Default().InfoContext(call, "hold refused: "+next.Refusal, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "hold_refused", "goal", string(goal.Goal.ID))
 	}
 	if fight == nil {
-		result, err := r.admitFight(call, epoch, goal, state, started, arbiter, next)
-		if err == nil && result.Reason == BuildingMethodAdmitted {
-			recorded.Plan = result.Plan
-			recordCombatStop(call, combat, recorded)
-		}
-		return result, err
+		return r.admitFight(call, epoch, goal, state, started, arbiter, next)
 	}
 	id := fight.Spec.ID()
-	recorded.Plan = id
 	if len(orders) == 0 {
 		// A stop that changes nothing writes nothing; a re-formation that
 		// could order no one yet keeps its roles for the next stop.
@@ -217,7 +295,6 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 			if err = p.journal.SaveCombatMemory(call, id, next); err != nil {
 				return RoutineDefenseResult{}, err
 			}
-			recordCombatStop(call, combat, recorded)
 			if memory.Tactic == policy.TacticHold && next.Tactic != policy.TacticHold {
 				return RoutineDefenseResult{Reason: BuildingMethodHoldFallback, Plan: id}, nil
 			}
@@ -235,110 +312,21 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if err = p.journal.RecordCombatStop(call, id, record, next); err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	// MemoryOut stays DecideCombat's: the refused orders' Forget is the
-	// caller's, read from the evidence.
-	recorded.Evidence = true
-	recordCombatStop(call, combat, recorded)
 	return RoutineDefenseResult{Reason: BuildingMethodCombatOrders, Plan: id}, nil
 }
 
-// combatInputs is what the fight reads from one frame beside the view:
-// the hostiles and hunting predators it answers, the standing hostile
-// buildings, and every census colonist's and those threats' detail rows.
-type combatInputs struct {
-	hostileIDs []string
-	hunting    map[string]bool
-	buildings  []policy.EmergencyThreat
-	rows       map[string]*n.PawnState
-}
-
-// combatFrameInputs is the fight's inputs from the frame; a reason means
-// there is no fight to decide (an incomplete census, no threat).
-func combatFrameInputs(combat bridge.Combat) (combatInputs, RoutineBuildingReason, error) {
-	facts := combat.Emergency.Facts
-	colonistsComplete, ck := facts.ColonistsComplete.Value()
-	threatsComplete, tk := facts.ThreatsComplete.Value()
-	if !ck || !colonistsComplete || !tk || !threatsComplete {
-		return combatInputs{}, BuildingMethodUsed, nil
-	}
-	var in combatInputs
-	in.hostileIDs, in.hunting, in.buildings = defenseTargets(facts.Threats)
-	if len(facts.Colonists) == 0 || len(in.hostileIDs)+len(in.buildings) == 0 && !hasAggressiveBreak(facts) {
-		return combatInputs{}, BuildingMethodUsed, nil
-	}
-	in.rows = map[string]*n.PawnState{}
-	for _, pawn := range facts.Colonists {
-		in.rows[string(pawn.ID)] = combat.Detail[string(pawn.ID)]
-	}
-	for _, id := range in.hostileIDs {
-		in.rows[id] = combat.Detail[id]
-	}
-	for _, row := range in.rows {
-		if row == nil {
-			// The frame's detail misses a pawn its census lists.
-			return combatInputs{}, "", ErrControl
-		}
-	}
-	return in, "", nil
-}
-
-// combatView is DecideCombat's view of the frame: the census colonists as
-// defenders (the fight's own drafts not work elsewhere) split into the
-// front line and shooters, the threats with their positions and the
-// building lines of fire, the live pawn state and the stored layout.
-func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID, layout domain.Fact[policy.CombatLayout]) policy.CombatView {
-	owned := map[domain.PawnID]bool{}
-	for _, id := range orderable {
-		owned[id] = true
-	}
-	var defenders []policy.SquadDefenderFacts
-	var profiles []policy.PawnProfile
-	for _, pawn := range combat.Emergency.Facts.Colonists {
-		row := in.rows[string(pawn.ID)]
-		d := squadDefenderFacts(row)
-		if owned[d.ID] {
-			d.DraftOwned = domain.Known(false)
-		}
-		defenders = append(defenders, d)
-		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
-	}
-	// The combat detail carries the biography, so the line split comes
-	// from the same rows: holders take melee opponents, shooters ranged
-	// ones and the firing cells.
-	front, _ := policy.FrontLine(profiles)
-	holds := map[domain.PawnID]bool{}
-	for _, id := range front {
-		holds[domain.PawnID(id)] = true
-	}
-	for i := range defenders {
-		defenders[i].FrontLine = holds[defenders[i].ID]
-	}
-	var threats []policy.SquadThreatFacts
-	positional := make([]policy.DefensiveThreatFacts, 0, len(in.hostileIDs))
-	for _, id := range in.hostileIDs {
-		row := in.rows[id]
-		facts := squadThreatFacts(row)
-		facts.Hunting = domain.Known(in.hunting[id])
-		threats = append(threats, facts)
-		positional = append(positional, defensiveThreatFacts(row))
-	}
-	lines := buildingLinesOfFire(combat.Lines, in.buildings, defenders, in.rows)
-	for _, building := range in.buildings {
-		threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true, LinesOfFire: lines[building.ID]})
-	}
-	return policy.CombatView{Tick: domain.Tick(combat.Context.GetTick()), Pawns: combatPawnStates(combat, in.rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout}
-}
-
-// buildingLinesOfFire is, for every standing hostile building, which
+// buildingLinesOfFire reads, for every standing hostile building, which
 // eligible ranged-equipped defenders can fire on it from where they stand:
-// the frame's native line of sight from the defender's cell to one of the
-// building's occupied cells no further than the defender's weapon range.
-// The native attack preview decides the shot itself; this only keeps a
-// defender who could not shoot from being planned as a shooter (#327).
-// The frame carries at most 64 cells a side; a defender or building cell
-// it leaves out has no line, and that defender walks in.
-func buildingLinesOfFire(read []bridge.LineOfFire, buildings []policy.EmergencyThreat, defenders []policy.SquadDefenderFacts, rows map[string]*n.PawnState) map[policy.PawnID]map[domain.PawnID]bool {
+// a native line of sight from the defender's cell to one of the building's
+// occupied cells no further than the defender's weapon range. The native
+// attack preview decides the shot itself; this only keeps a defender who
+// could not shoot from being planned as a shooter (#327). The read takes
+// at most 64 cells a side; further defenders or building cells are left
+// out and those defenders walk in.
+func (r *RoutineDefensePlanner) buildingLinesOfFire(call context.Context, identity *c.Identity, buildings []policy.EmergencyThreat, defenders []policy.SquadDefenderFacts, rows map[string]*n.PawnState) (map[policy.PawnID]map[domain.PawnID]bool, error) {
+	const maxCells = 64
 	lines := map[policy.PawnID]map[domain.PawnID]bool{}
+	var firing []domain.Cell
 	shooters := map[domain.Cell][]domain.PawnID{}
 	weaponRange := map[domain.PawnID]float64{}
 	for _, d := range defenders {
@@ -352,10 +340,33 @@ func buildingLinesOfFire(read []bridge.LineOfFire, buildings []policy.EmergencyT
 			continue
 		}
 		at := domain.Cell{X: row.Pawn.Position.GetX(), Z: row.Pawn.Position.GetZ()}
+		if _, seen := shooters[at]; !seen {
+			if len(firing) == maxCells {
+				continue
+			}
+			firing = append(firing, at)
+		}
 		shooters[at] = append(shooters[at], d.ID)
 		weaponRange[d.ID] = reach
 	}
-	for _, line := range read {
+	var approach []domain.Cell
+	cells := map[domain.Cell]bool{}
+	for _, b := range buildings {
+		for _, cell := range b.Cells {
+			if !cells[cell] && len(approach) < maxCells {
+				cells[cell] = true
+				approach = append(approach, cell)
+			}
+		}
+	}
+	if len(firing) == 0 || len(approach) == 0 {
+		return lines, nil
+	}
+	read, _, err := r.native.ReadLinesOfFire(call, identity, firing, approach)
+	if err != nil {
+		return nil, err
+	}
+	for _, line := range read.Lines {
 		if !line.Known || !line.LineOfSight {
 			continue
 		}
@@ -375,7 +386,7 @@ func buildingLinesOfFire(read []bridge.LineOfFire, buildings []policy.EmergencyT
 			}
 		}
 	}
-	return lines
+	return lines, nil
 }
 
 // primaryRange is the range of the pawn's primary ranged weapon in cells;

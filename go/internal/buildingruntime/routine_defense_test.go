@@ -203,7 +203,7 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 	t.Parallel()
 	r, db, session, _, n := routineFixture(t)
 	ctx := context.Background()
-	planner, err := NewRoutineDefensePlanner(r, framed{&equipTestNative{routineNative: n}})
+	planner, err := NewRoutineDefensePlanner(r, &equipTestNative{routineNative: n})
 	if err != nil {
 		t.Fatal(err)
 	}

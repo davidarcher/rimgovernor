@@ -43,13 +43,6 @@ func newBreakNative(base *routineNative) *breakNative {
 			p.MentalState = proto.String("Berserk")
 			p.MentalStateIsAggro = proto.Bool(true)
 			p.MentalStateTicks = proto.Int32(30)
-			var issues []*n.ReadIssue
-			for _, issue := range p.Issues {
-				if issue.GetField() != "mental_state" {
-					issues = append(issues, issue)
-				}
-			}
-			p.Issues = issues
 			p.Downed = proto.Bool(b.downed)
 		}
 		p.Pawn.Position = &c.Cell{X: proto.Int32(x), Z: proto.Int32(10)}
@@ -61,7 +54,7 @@ func TestBreakResponsePlannerDraftsSubduesThenOffersRescue(t *testing.T) {
 	ctx := context.Background()
 	reviewer, db, session, _, base := routineFixture(t)
 	native := newBreakNative(base)
-	planner, _ := NewRoutineDefensePlanner(reviewer, framed{native})
+	planner, _ := NewRoutineDefensePlanner(reviewer, native)
 	current := session.State().Snapshot
 	review := func(hostiles, patients int64) {
 		t.Helper()

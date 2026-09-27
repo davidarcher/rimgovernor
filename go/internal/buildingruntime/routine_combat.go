@@ -5,9 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
-	"os"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -15,7 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
@@ -102,14 +99,6 @@ func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state Co
 			wire.Order = &op.CombatOrder_Move{Move: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
 		case policy.OrderAttack:
 			wire.Order = &op.CombatOrder_Attack{Attack: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
-		case policy.OrderStop:
-			wire.Order = &op.CombatOrder_Stop{Stop: &op.Clear{}}
-		case policy.OrderFireMode:
-			mode := op.CombatFireMode_COMBAT_FIRE_MODE_AT_WILL
-			if order.FireMode == policy.HoldFire {
-				mode = op.CombatFireMode_COMBAT_FIRE_MODE_HOLD
-			}
-			wire.Order = &op.CombatOrder_FireMode{FireMode: mode}
 		default:
 			return store.CombatStopRecord{}, memory, ErrControl
 		}
@@ -140,10 +129,9 @@ func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state Co
 }
 
 // answerGeometry answers DecideCombat's geometry ask with one
-// combat.geometry read: the ask's named cells scored (#861) and cells
-// proposed for its role (#871). A failed or refused read is an answer with
-// no proposals and no lines: Formation keeps the layout's firing line and
-// attacks go out unchecked.
+// combat.geometry read proposing cells for the ask's role (#871). A failed
+// or refused read is an answer with no proposals: Formation keeps the
+// layout's firing line.
 func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.Identity, ask *policy.GeometryRequest) policy.GeometryReply {
 	reply := policy.GeometryReply{Answered: true}
 	if ask == nil || len(ask.Hostiles) == 0 {
@@ -163,36 +151,17 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 		propose = &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_CoverBehindLine{CoverBehindLine: &mp.CombatCoverBehindLine{Line: line}}}
 	case policy.RoleAdjacentToChoke:
 		propose = &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_AdjacentToChoke{AdjacentToChoke: &mp.CombatAdjacentToChoke{Choke: wire(ask.Choke), OurSide: wire(ask.OurSide)}}}
-	}
-	// The line is named, so its cells carry the game's cover and Formation
-	// ranks line and proposals alike (#862); so are the shooters' cells, so
-	// their attacks carry lines of fire (#861).
-	named := slices.Clone(ask.Line)
-	for _, cell := range ask.Cells {
-		if !slices.Contains(named, cell) {
-			named = append(named, cell)
-		}
-	}
-	limit := bridge.CombatGeometryMaxCells
-	if propose != nil {
-		limit--
-	}
-	if len(named) > limit {
-		named = named[:limit]
-	}
-	if propose == nil && len(named) == 0 {
+	default:
 		return reply
-	}
-	cells := make([]*c.Cell, 0, len(named))
-	for _, cell := range named {
-		cells = append(cells, wire(cell))
 	}
 	hostiles := make([]string, 0, len(ask.Hostiles))
 	for _, h := range ask.Hostiles {
 		hostiles = append(hostiles, string(h))
 	}
-	request := bridge.CombatGeometryAsk(identity, cells, hostiles, "")
-	request.Propose = propose
+	// The line is named too, so its cells carry the game's cover and
+	// Formation ranks line and proposals alike (#862).
+	request := bridge.CombatGeometryProposeAsk(identity, propose, hostiles, "")
+	request.Cells = line
 	geometry, _, err := r.native.CombatGeometry(ctx, request)
 	if err != nil {
 		slog.Default().InfoContext(ctx, "combat geometry: "+err.Error(), telemetry.ComponentKey, "routine-defense")
@@ -206,9 +175,7 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 	for _, row := range append(slices.Clone(geometry.GetCells()), geometry.GetProposed()...) {
 		scored := policy.ScoredCell{Cell: domain.Cell{X: row.GetCell().GetX(), Z: row.GetCell().GetZ()}}
 		for _, l := range row.GetLines() {
-			hostile := domain.PawnID(l.GetHostileId())
-			scored.Lines = append(scored.Lines, policy.CoverLine{Hostile: hostile, Cover: l.GetCover(), HostileCover: l.GetHostileCover(), LineOfFire: l.GetLineOfFire()})
-			reply.Lines = append(reply.Lines, policy.SightLine{Cell: scored.Cell, Hostile: hostile, LineOfFire: l.GetLineOfFire(), ColonistInPath: l.GetColonistInPath()})
+			scored.Lines = append(scored.Lines, policy.CoverLine{Hostile: domain.PawnID(l.GetHostileId()), Cover: l.GetCover(), HostileCover: l.GetHostileCover(), LineOfFire: l.GetLineOfFire()})
 		}
 		reply.Scored = append(reply.Scored, scored)
 	}
@@ -216,31 +183,22 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 }
 
 // combatPawnStates is the fight's live state: the frame's combat pawns
-// (#851, #858) when the frame carries them, else the detail rows
+// (#851, #858) when a frame carries them, else the combat read's rows
 // (position, downed, dead; no stance or target).
 func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []policy.CombatPawnState {
 	var out []policy.CombatPawnState
 	if len(combat.Pawns) > 0 {
 		for _, row := range combat.Pawns {
 			s := policy.CombatPawnState{ID: domain.PawnID(row.GetId()), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance()),
-				Weapon: row.GetWeapon(), WeaponRange: row.GetWeaponRange(), FireMode: row.GetFireMode()}
+				Weapon: row.GetWeapon(), WeaponRange: row.GetWeaponRange()}
 			if cell := row.GetCell(); cell != nil && cell.X != nil && cell.Z != nil {
 				s.Cell = domain.Known(domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
-			}
-			if row.ShieldEnergy != nil {
-				s.Shield = domain.Known(row.GetShieldEnergy())
 			}
 			out = append(out, threatFacts(s, rows[row.GetId()]))
 		}
 		return out
 	}
-	ids := make([]string, 0, len(rows))
-	for id := range rows {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	for _, id := range ids {
-		row := rows[id]
+	for id, row := range rows {
 		s := policy.CombatPawnState{ID: domain.PawnID(id), Downed: row.GetDowned(), Dead: row.GetDead()}
 		if position := row.GetPawn().GetPosition(); position != nil && position.X != nil && position.Z != nil {
 			s.Cell = domain.Known(domain.Cell{X: position.GetX(), Z: position.GetZ()})
@@ -248,19 +206,6 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 		out = append(out, threatFacts(s, row))
 	}
 	return out
-}
-
-// recordCombatStop appends a stop that wrote to the fight's journal, and
-// the frame it decided from, to the serve's snapshot stream (#853) when
-// recording is on. A failed write is logged.
-func recordCombatStop(ctx context.Context, combat bridge.Combat, s snap.CombatStop) {
-	dir := os.Getenv(snap.DirEnv)
-	if dir == "" {
-		return
-	}
-	if err := snap.RecordCombatStop(dir, combat.Frame, s); err != nil {
-		clockEvent(ctx, "defense", "snapshot", "combat stop not recorded: "+err.Error())
-	}
 }
 
 // threatFacts adds the census row's threat facts (#863): the pawn kind,

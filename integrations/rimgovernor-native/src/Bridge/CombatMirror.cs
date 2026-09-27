@@ -210,7 +210,9 @@ namespace HomeBridge.BridgeTools
                 else continue;
                 pawns.Add((p, side));
             }
-            _active = hostile;
+            // Raiders still in their drop pods are not spawned: a pods
+            // arrival keeps combat active until its open tick (#876).
+            _active = hostile || Ring.Any(e => e.MapId == map.uniqueID && e.Row.OpenTick > now);
             _dirty = false;
             if (!Active)
             {

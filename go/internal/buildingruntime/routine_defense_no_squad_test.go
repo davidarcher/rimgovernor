@@ -41,7 +41,7 @@ func TestRoutineDefenseReportsNoSquadForAnUnanswerableBuilding(t *testing.T) {
 	r, db, session, _, n := routineFixture(t)
 	ctx := context.Background()
 	native := &hiveTestNative{&equipTestNative{routineNative: n, ids: []string{"a"}}}
-	planner, err := NewRoutineDefensePlanner(r, framed{native})
+	planner, err := NewRoutineDefensePlanner(r, native)
 	if err != nil {
 		t.Fatal(err)
 	}

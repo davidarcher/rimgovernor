@@ -38,8 +38,7 @@ func blockingChoke(view CombatView) (domain.Cell, domain.Cell, bool) {
 	}
 	choke, ok := layout.Choke.Value()
 	v, vok := towardVector(layout.Toward)
-	rest, _ := splitTanks(view)
-	if !ok || !vok || len(brawlers(rest)) == 0 {
+	if !ok || !vok || len(brawlers(view.Defenders)) == 0 {
 		return domain.Cell{}, domain.Cell{}, false
 	}
 	side := domain.Cell{X: choke.X + chokeAnchorSteps*v.X, Z: choke.Z + chokeAnchorSteps*v.Z}
@@ -58,12 +57,6 @@ func brawlers(defenders []SquadDefenderFacts) []SquadDefenderFacts {
 			out = append(out, d)
 		}
 	}
-	return byArmor(out)
-}
-
-// byArmor sorts defenders best armored first (unknown armor last), then
-// by id.
-func byArmor(out []SquadDefenderFacts) []SquadDefenderFacts {
 	sort.SliceStable(out, func(i, j int) bool {
 		ai, ik := out[i].Armor.Value()
 		aj, jk := out[j].Armor.Value()
@@ -85,8 +78,8 @@ func byArmor(out []SquadDefenderFacts) []SquadDefenderFacts {
 // always held back, so a hurt blocker can be relieved. The next brawler
 // after those is the peeler (#865), waiting at its home behind the
 // gunners.
-func brawlerRoles(view CombatView, defenders []SquadDefenderFacts, blocking bool, proposals []domain.Cell) []CombatRole {
-	pool := brawlers(defenders)
+func brawlerRoles(view CombatView, blocking bool, proposals []domain.Cell) []CombatRole {
+	pool := brawlers(view.Defenders)
 	n := 0
 	if blocking {
 		n = min(maxChokeBlockers, len(proposals), len(pool))

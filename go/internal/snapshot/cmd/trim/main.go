@@ -10,12 +10,6 @@
 //	go run ./internal/snapshot/cmd/trim -tick <t> <routine-stream-*.jsonl> <testdata/name.json.gz>
 //	go run ./internal/snapshot/cmd/trim -step <step-...> <routine-stream-*.jsonl> <testdata/name.json.gz>
 //	go run ./internal/snapshot/cmd/trim -list <routine-stream-*.jsonl>
-//
-// -combat <name> promotes one fight of a stream (the first, or -plan's)
-// into the combat replay testdata (#853), trimmed to its stops with the
-// combat sections keyed at its first; run it from go/:
-//
-//	go run ./internal/snapshot/cmd/trim -combat <name> [-plan <id>] <routine-stream-*.jsonl>
 package main
 
 import (
@@ -35,41 +29,21 @@ func main() {
 	seq := flag.Int("seq", 0, "the review's seq at -tick (default the last)")
 	step := flag.String("step", "", "a step read in a stream, step-<planner>-<goal>-<tick>-<seq>")
 	list := flag.Bool("list", false, "list a stream's reviews as <tick>-<seq>, then its step reads")
-	combat := flag.String("combat", "", "promote a stream's fight to "+combatDir+"/<name>.json.gz")
-	plan := flag.String("plan", "", "with -combat, the fight's plan (default the first fight)")
 	flag.Parse()
 	var err error
 	switch {
-	case *combat != "" && flag.NArg() == 1:
-		err = promoteCombat(flag.Arg(0), *combat, domain.PlanID(*plan))
 	case *list && flag.NArg() == 1:
 		err = listStream(flag.Arg(0))
 	case !*list && flag.NArg() == 2:
 		err = run(flag.Arg(0), flag.Arg(1), *keep, *tick, *seq, *step)
 	default:
-		fmt.Fprintln(os.Stderr, "usage: trim [-keep-cells] [-tick t [-seq s] | -step name] <recording> <out.json.gz> | trim -list <stream> | trim -combat name [-plan id] <stream>")
+		fmt.Fprintln(os.Stderr, "usage: trim [-keep-cells] [-tick t [-seq s] | -step name] <recording> <out.json.gz> | trim -list <stream>")
 		os.Exit(2)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-// combatDir is the combat replay testdata, relative to go/.
-const combatDir = "internal/buildingruntime/testdata/combat"
-
-func promoteCombat(in, name string, plan domain.PlanID) error {
-	data, err := snapshot.TrimCombat(in, plan)
-	if err != nil {
-		return err
-	}
-	if err = os.MkdirAll(combatDir, 0o755); err != nil {
-		return err
-	}
-	out := filepath.Join(combatDir, name+".json.gz")
-	fmt.Printf("%s: %d bytes\n", out, len(data))
-	return os.WriteFile(out, data, 0o644)
 }
 
 func listStream(path string) error {

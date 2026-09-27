@@ -110,18 +110,12 @@ func batchOrders(batch *op.CombatOrders) map[string]string {
 // intruder (#118 breach fallback) in the same plan.
 func TestRoutineDefenseAbandonsACrossedHoldForSquadDefense(t *testing.T) {
 	t.Parallel()
-	crossedHoldFight(t)
-}
-
-// crossedHoldFight plays the crossed-hold fight; the combat replay harness
-// records it (#853).
-func crossedHoldFight(t *testing.T) {
 	r, db, session, _, n := routineFixture(t)
 	ctx := context.Background()
 	// The corridor runs north: firing cells at z=23 behind sandbags at
 	// z=22, the raider walking in from the south.
 	native := &raidTestNative{equipTestNative: &equipTestNative{routineNative: n, ids: []string{"a", "b"}}, raider: domain.Cell{X: 9, Z: 5}, toil: "LordToil_AssaultColony"}
-	planner, err := NewRoutineDefensePlanner(r, framed{native})
+	planner, err := NewRoutineDefensePlanner(r, native)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +207,7 @@ func TestRoutineDefenseHoldFallbackNeedsProof(t *testing.T) {
 	r, db, session, _, n := routineFixture(t)
 	ctx := context.Background()
 	native := &raidTestNative{equipTestNative: &equipTestNative{routineNative: n, ids: []string{"a"}}, raider: domain.Cell{X: 9, Z: 5}, toil: "LordToil_AssaultColony"}
-	planner, err := NewRoutineDefensePlanner(r, framed{native})
+	planner, err := NewRoutineDefensePlanner(r, native)
 	if err != nil {
 		t.Fatal(err)
 	}

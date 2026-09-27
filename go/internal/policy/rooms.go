@@ -150,9 +150,7 @@ func FacilityCatalog() []FacilityRequirement {
 		// Barracks while the bench keeps working (issue #4 M2 runs 24-25).
 		{Role: RoomRoleWorkshop, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), Furniture: []string{"CraftingSpot", "TableStonecutter"}},
 		{Role: RoomRoleStoreroom, Status: FacilityPending},
-		// A kitchen is its own planned room (#835): EnsureCooking shells it
-		// at Masonry and above and holds the stove to its interior.
-		{Role: RoomRoleKitchen, Status: FacilityImplemented, Furniture: []string{"Campfire", KitchenStoveDefinition, "ElectricStove"}},
+		{Role: RoomRoleKitchen, Status: FacilityPending},
 		// A tomb is its own planned room (#832): MaintainWaste shells it and
 		// places a sarcophagus while a dead colonist has none waiting.
 		{Role: RoomRoleTomb, Status: FacilityImplemented, Furniture: []string{SarcophagusDefinition}},

@@ -74,7 +74,7 @@ func replayDefense(t *testing.T, paths ...string) ([]RoutineDefenseResult, []dom
 	current := session.State().Snapshot
 	world := store.World{Colony: current.Colony, Load: current.Load, Map: current.Map}
 	native := &defenseReplayNative{t: t, identity: boundary.Identity(current), native: uint64(current.Native)}
-	planner, err := NewRoutineDefensePlanner(r, framed{native})
+	planner, err := NewRoutineDefensePlanner(r, native)
 	if err != nil {
 		t.Fatal(err)
 	}

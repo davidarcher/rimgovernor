@@ -88,11 +88,7 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 	}
 	colonists := &o.PawnSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Completeness: completeness(facts.ColonistsComplete, len(facts.Colonists))}
 	for _, pawn := range facts.Colonists {
-		row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(string(pawn.ID))}, Dead: known(pawn.Dead), Downed: known(pawn.Downed), Health: &o.PawnHealth{Bleeding: known(pawn.Bleeding), NeedsTend: known(pawn.NeedsTend)}}
-		if mental, ok := pawn.MentalState.Value(); ok {
-			row.MentalState, row.MentalStateIsAggro, row.MentalStateTicks = proto.String(mental.DefName), proto.Bool(mental.IsAggro), proto.Int32(mental.TicksInState)
-		}
-		colonists.Pawns = append(colonists.Pawns, row)
+		colonists.Pawns = append(colonists.Pawns, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(string(pawn.ID))}, Dead: known(pawn.Dead), Downed: known(pawn.Downed), Health: &o.PawnHealth{Bleeding: known(pawn.Bleeding), NeedsTend: known(pawn.NeedsTend)}})
 	}
 	threats := &o.ThreatsSnapshot{Completeness: completeness(facts.ThreatsComplete, len(facts.Threats))}
 	for _, threat := range facts.Threats {
@@ -111,16 +107,6 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 			threats.WildPredatorsNear = append(threats.WildPredatorsNear, row)
 		case policy.NearbyDowned:
 			threats.DownedNear = append(threats.DownedNear, row)
-		case policy.HostileBuilding:
-			building := &o.ThreatBuilding{Building: &o.EntityRef{Id: proto.String(string(threat.ID)), DefName: proto.String(threat.Definition),
-				Snapshot: &o.SnapshotRef{Context: proto.Clone(context).(*c.ObservationContext), EntityId: proto.String(string(threat.ID)), Token: proto.String(threat.SnapshotToken)}}}
-			for _, cell := range threat.Cells {
-				building.OccupiedCells = append(building.OccupiedCells, &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)})
-			}
-			if distance, ok := threat.Distance.Value(); ok {
-				building.NearestColonistDistance = proto.Int32(int32(distance))
-			}
-			threats.HostileBuildings = append(threats.HostileBuildings, building)
 		}
 	}
 	return &o.StatusSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Colonists: colonists, Threats: threats}
