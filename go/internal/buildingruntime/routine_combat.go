@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -148,7 +149,11 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 		hostiles = append(hostiles, string(h))
 	}
 	propose := &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_CoverBehindLine{CoverBehindLine: &mp.CombatCoverBehindLine{Line: line}}}
-	geometry, _, err := r.native.CombatGeometry(ctx, bridge.CombatGeometryProposeAsk(identity, propose, hostiles, ""))
+	// The line is named too, so its cells carry the game's cover and
+	// Formation ranks line and proposals alike (#862).
+	request := bridge.CombatGeometryProposeAsk(identity, propose, hostiles, "")
+	request.Cells = line
+	geometry, _, err := r.native.CombatGeometry(ctx, request)
 	if err != nil {
 		slog.Default().InfoContext(ctx, "combat geometry: "+err.Error(), telemetry.ComponentKey, "routine-defense")
 		return reply
@@ -157,6 +162,13 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 		if cell := row.GetCell(); cell != nil {
 			reply.Proposals = append(reply.Proposals, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 		}
+	}
+	for _, row := range append(slices.Clone(geometry.GetCells()), geometry.GetProposed()...) {
+		scored := policy.ScoredCell{Cell: domain.Cell{X: row.GetCell().GetX(), Z: row.GetCell().GetZ()}}
+		for _, l := range row.GetLines() {
+			scored.Lines = append(scored.Lines, policy.CoverLine{Hostile: domain.PawnID(l.GetHostileId()), Cover: l.GetCover(), HostileCover: l.GetHostileCover(), LineOfFire: l.GetLineOfFire()})
+		}
+		reply.Scored = append(reply.Scored, scored)
 	}
 	return reply
 }

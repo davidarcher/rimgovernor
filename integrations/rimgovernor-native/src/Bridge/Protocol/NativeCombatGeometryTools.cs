@@ -188,6 +188,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var line = new Mirror.CombatSightLine { HostileId = CombatMirror.LoadId(h),
                         Cover = CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(cell), h.Position, map),
+                        HostileCover = CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(h.Position), cell, map),
                         LineOfFire = GenSight.LineOfSight(cell, h.Position, map, true) };
                     line.ColonistInPath = GenSight.PointsOnLineOfSight(cell, h.Position).Any(p => p != cell && p != h.Position && colonists.Contains(p));
                     row.Lines.Add(line);

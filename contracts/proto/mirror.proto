@@ -160,6 +160,10 @@ message CombatSightLine {
   optional bool line_of_fire = 3;
   // A colonist stands on the shoot line between them.
   optional bool colonist_in_path = 4;
+  // CoverUtility.CalculateOverallBlockChance at the hostile's cell against
+  // a shot from the cell, 0..1: the cover the hostile keeps against a
+  // shooter here (#862).
+  optional double hostile_cover = 5;
 }
 
 message CombatGeometryCell {

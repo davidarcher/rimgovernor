@@ -964,8 +964,12 @@ type CombatSightLine struct {
 	LineOfFire *bool `protobuf:"varint,3,opt,name=line_of_fire,json=lineOfFire,proto3,oneof" json:"line_of_fire,omitempty"`
 	// A colonist stands on the shoot line between them.
 	ColonistInPath *bool `protobuf:"varint,4,opt,name=colonist_in_path,json=colonistInPath,proto3,oneof" json:"colonist_in_path,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// CoverUtility.CalculateOverallBlockChance at the hostile's cell against
+	// a shot from the cell, 0..1: the cover the hostile keeps against a
+	// shooter here (#862).
+	HostileCover  *float64 `protobuf:"fixed64,5,opt,name=hostile_cover,json=hostileCover,proto3,oneof" json:"hostile_cover,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CombatSightLine) Reset() {
@@ -1024,6 +1028,13 @@ func (x *CombatSightLine) GetColonistInPath() bool {
 		return *x.ColonistInPath
 	}
 	return false
+}
+
+func (x *CombatSightLine) GetHostileCover() float64 {
+	if x != nil && x.HostileCover != nil {
+		return *x.HostileCover
+	}
+	return 0
 }
 
 type CombatGeometryCell struct {
@@ -1966,18 +1977,20 @@ const file_mirror_proto_rawDesc = "" +
 	"\atargets\x18\x01 \x03(\v2\x1b.rimgovernor.common.v1.CellR\atargets\x12/\n" +
 	"\x04from\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04from\x12\x1b\n" +
 	"\x06radius\x18\x03 \x01(\x05H\x00R\x06radius\x88\x01\x01B\t\n" +
-	"\a_radius\"\xe5\x01\n" +
+	"\a_radius\"\xa1\x02\n" +
 	"\x0fCombatSightLine\x12\"\n" +
 	"\n" +
 	"hostile_id\x18\x01 \x01(\tH\x00R\thostileId\x88\x01\x01\x12\x19\n" +
 	"\x05cover\x18\x02 \x01(\x01H\x01R\x05cover\x88\x01\x01\x12%\n" +
 	"\fline_of_fire\x18\x03 \x01(\bH\x02R\n" +
 	"lineOfFire\x88\x01\x01\x12-\n" +
-	"\x10colonist_in_path\x18\x04 \x01(\bH\x03R\x0ecolonistInPath\x88\x01\x01B\r\n" +
+	"\x10colonist_in_path\x18\x04 \x01(\bH\x03R\x0ecolonistInPath\x88\x01\x01\x12(\n" +
+	"\rhostile_cover\x18\x05 \x01(\x01H\x04R\fhostileCover\x88\x01\x01B\r\n" +
 	"\v_hostile_idB\b\n" +
 	"\x06_coverB\x0f\n" +
 	"\r_line_of_fireB\x13\n" +
-	"\x11_colonist_in_path\"\xe7\x01\n" +
+	"\x11_colonist_in_pathB\x10\n" +
+	"\x0e_hostile_cover\"\xe7\x01\n" +
 	"\x12CombatGeometryCell\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12<\n" +
 	"\x05lines\x18\x02 \x03(\v2&.rimgovernor.mirror.v1.CombatSightLineR\x05lines\x12\"\n" +

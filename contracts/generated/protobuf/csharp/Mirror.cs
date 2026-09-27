@@ -79,81 +79,82 @@ namespace RimGovernor.Protocol.Mirror {
             "b3IuY29tbW9uLnYxLkNlbGwijAEKEUNvbWJhdEZpcmluZ0NlbGxzEiwKB3Rh",
             "cmdldHMYASADKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbBIpCgRm",
             "cm9tGAIgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwSEwoGcmFk",
-            "aXVzGAMgASgFSACIAQFCCQoHX3JhZGl1cyK3AQoPQ29tYmF0U2lnaHRMaW5l",
+            "aXVzGAMgASgFSACIAQFCCQoHX3JhZGl1cyLlAQoPQ29tYmF0U2lnaHRMaW5l",
             "EhcKCmhvc3RpbGVfaWQYASABKAlIAIgBARISCgVjb3ZlchgCIAEoAUgBiAEB",
             "EhkKDGxpbmVfb2ZfZmlyZRgDIAEoCEgCiAEBEh0KEGNvbG9uaXN0X2luX3Bh",
-            "dGgYBCABKAhIA4gBAUINCgtfaG9zdGlsZV9pZEIICgZfY292ZXJCDwoNX2xp",
-            "bmVfb2ZfZmlyZUITChFfY29sb25pc3RfaW5fcGF0aCLEAQoSQ29tYmF0R2Vv",
-            "bWV0cnlDZWxsEikKBGNlbGwYASABKAsyGy5yaW1nb3Zlcm5vci5jb21tb24u",
-            "djEuQ2VsbBI1CgVsaW5lcxgCIAMoCzImLnJpbWdvdmVybm9yLm1pcnJvci52",
-            "MS5Db21iYXRTaWdodExpbmUSFwoKcGF0aF90aWNrcxgDIAEoBUgAiAEBEhYK",
-            "CXN0YW5kYWJsZRgEIAEoCEgBiAEBQg0KC19wYXRoX3RpY2tzQgwKCl9zdGFu",
-            "ZGFibGUi8wEKDkNvbWJhdEdlb21ldHJ5EjoKB2NvbnRleHQYASABKAsyKS5y",
-            "aW1nb3Zlcm5vci5jb21tb24udjEuT2JzZXJ2YXRpb25Db250ZXh0EjgKBWNl",
-            "bGxzGAIgAygLMikucmltZ292ZXJub3IubWlycm9yLnYxLkNvbWJhdEdlb21l",
-            "dHJ5Q2VsbBIbCg5tYWluX3RocmVhZF9tcxgDIAEoAUgAiAEBEjsKCHByb3Bv",
-            "c2VkGAQgAygLMikucmltZ292ZXJub3IubWlycm9yLnYxLkNvbWJhdEdlb21l",
-            "dHJ5Q2VsbEIRCg9fbWFpbl90aHJlYWRfbXMijgEKE0NvbWJhdEdlb21ldHJ5",
-            "UmVwbHkSOQoIb2JzZXJ2ZWQYASABKAsyJS5yaW1nb3Zlcm5vci5taXJyb3Iu",
-            "djEuQ29tYmF0R2VvbWV0cnlIABIxCgdmYWlsdXJlGAIgASgLMh4ucmltZ292",
-            "ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRjb21lIkEKCVdhdGVy",
-            "bWFyaxIRCgR0aWNrGAEgASgDSACIAQESEAoDc2VxGAIgASgNSAGIAQFCBwoF",
-            "X3RpY2tCBgoEX3NlcSJ0CghDZWxsUmVjdBIOCgF4GAEgASgFSACIAQESDgoB",
-            "ehgCIAEoBUgBiAEBEhIKBXdpZHRoGAMgASgFSAKIAQESEwoGaGVpZ2h0GAQg",
-            "ASgFSAOIAQFCBAoCX3hCBAoCX3pCCAoGX3dpZHRoQgkKB19oZWlnaHQiywEK",
-            "CkZpZWxkQXJyYXkSDwoFY29kZXMYASABKAxIABI2CgdpbmRleGVzGAIgASgL",
-            "MiMucmltZ292ZXJub3IubWlycm9yLnYxLlBhY2tlZFVpbnQzMkgAEjYKB251",
-            "bWJlcnMYAyABKAsyIy5yaW1nb3Zlcm5vci5taXJyb3IudjEuUGFja2VkRG91",
-            "YmxlSAASNAoGc3BhcnNlGAQgASgLMiIucmltZ292ZXJub3IubWlycm9yLnYx",
-            "LlNwYXJzZUFycmF5SABCBgoEZm9ybSIeCgxQYWNrZWRVaW50MzISDgoGdmFs",
-            "dWVzGAEgAygNIh4KDFBhY2tlZERvdWJsZRIOCgZ2YWx1ZXMYASADKAEiOgoL",
-            "U3BhcnNlQXJyYXkSDQoFaW5kZXgYASADKA0SDAoEY29kZRgCIAMoDRIOCgZu",
-            "dW1iZXIYAyADKAEivQgKCENlbGxHcmlkEi0KBHJlY3QYASABKAsyHy5yaW1n",
-            "b3Zlcm5vci5taXJyb3IudjEuQ2VsbFJlY3QSDwoHc3RyaW5ncxgCIAMoCRIv",
-            "CgRjZWxsGAMgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJy",
-            "YXkSMwoId2Fsa2FibGUYBCABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEu",
-            "RmllbGRBcnJheRIzCghvY2N1cGllZBgFIAEoCzIhLnJpbWdvdmVybm9yLm1p",
-            "cnJvci52MS5GaWVsZEFycmF5Ei8KBHpvbmUYBiABKAsyIS5yaW1nb3Zlcm5v",
-            "ci5taXJyb3IudjEuRmllbGRBcnJheRIxCgZyb29mZWQYByABKAsyIS5yaW1n",
-            "b3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIyCgdpbmRvb3JzGAggASgL",
-            "MiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSOQoOc3VwcG9y",
-            "dHNfbGlnaHQYCSABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRB",
-            "cnJheRI4Cg1zdG9yYWdlX2VtcHR5GAogASgLMiEucmltZ292ZXJub3IubWly",
-            "cm9yLnYxLkZpZWxkQXJyYXkSMgoHZG9vcndheRgLIAEoCzIhLnJpbWdvdmVy",
-            "bm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjQKCWZlcnRpbGl0eRgMIAEoCzIh",
-            "LnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjMKCHBvbGx1dGVk",
-            "GA0gASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSLwoE",
-            "Z2xvdxgOIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5",
-            "Ei8KBHJvb2YYDyABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRB",
-            "cnJheRIyCgd6b25lX2lkGBAgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYx",
-            "LkZpZWxkQXJyYXkSNwoMbmF0dXJhbF9yb2NrGBEgASgLMiEucmltZ292ZXJu",
-            "b3IubWlycm9yLnYxLkZpZWxkQXJyYXkSLwoEcnVpbhgSIAEoCzIhLnJpbWdv",
-            "dmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjkKDnBsYXllcl9lZGlmaWNl",
-            "GBMgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSOQoO",
-            "Y2xhaW1hYmxlX3J1aW4YFCABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEu",
-            "RmllbGRBcnJheRI0CglydWluX2hvbGQYFSABKAsyIS5yaW1nb3Zlcm5vci5t",
-            "aXJyb3IudjEuRmllbGRBcnJheSp7CgpDb21iYXRTaWRlEhsKF0NPTUJBVF9T",
-            "SURFX1VOU1BFQ0lGSUVEEAASGAoUQ09NQkFUX1NJREVfQ09MT05JU1QQARIX",
-            "ChNDT01CQVRfU0lERV9IT1NUSUxFEAISHQoZQ09NQkFUX1NJREVfQ09MT05Z",
-            "X0FOSU1BTBADKq4BCgxDb21iYXRTdGFuY2USHQoZQ09NQkFUX1NUQU5DRV9V",
-            "TlNQRUNJRklFRBAAEhYKEkNPTUJBVF9TVEFOQ0VfSURMRRABEhgKFENPTUJB",
-            "VF9TVEFOQ0VfV0FSTVVQEAISGgoWQ09NQkFUX1NUQU5DRV9DT09MRE9XThAD",
-            "EhgKFENPTUJBVF9TVEFOQ0VfTU9WSU5HEAQSFwoTQ09NQkFUX1NUQU5DRV9N",
-            "RUxFRRAFKoIECg1Db21iYXRMb2dLaW5kEh8KG0NPTUJBVF9MT0dfS0lORF9V",
-            "TlNQRUNJRklFRBAAEhoKFkNPTUJBVF9MT0dfS0lORF9ET1dORUQQARIaChZD",
-            "T01CQVRfTE9HX0tJTkRfS0lMTEVEEAISGwoXQ09NQkFUX0xPR19LSU5EX0RB",
-            "TUFHRUQQAxIhCh1DT01CQVRfTE9HX0tJTkRfU0hJRUxEX0JST0tFThAEEh4K",
-            "GkNPTUJBVF9MT0dfS0lORF9TSE9UX0ZJUkVEEAUSJwojQ09NQkFUX0xPR19L",
-            "SU5EX1BST0pFQ1RJTEVfTEFVTkNIRUQQBhIdChlDT01CQVRfTE9HX0tJTkRf",
-            "RVhQTE9TSU9OEAcSIAocQ09NQkFUX0xPR19LSU5EX0ZJUkVfU1RBUlRFRBAI",
-            "Eh8KG0NPTUJBVF9MT0dfS0lORF9ET09SX09QRU5FRBAJEh8KG0NPTUJBVF9M",
-            "T0dfS0lORF9ET09SX0NMT1NFRBAKEiYKIkNPTUJBVF9MT0dfS0lORF9CVUlM",
-            "RElOR19ERVNUUk9ZRUQQCxIdChlDT01CQVRfTE9HX0tJTkRfTE9SRF9UT0lM",
-            "EAwSIAocQ09NQkFUX0xPR19LSU5EX01FTlRBTF9TVEFURRANEiMKH0NPTUJB",
-            "VF9MT0dfS0lORF9IT1NUSUxFX0FSUklWRUQQDkJlWkVnaXRodWIuY29tL2Rh",
-            "dmlkYXJjaGVyL1JpbUdvdmVybm9yL2dvL2ludGVybmFsL3dpcmUvbWlycm9y",
-            "cGI7bWlycm9ycGKqAhtSaW1Hb3Zlcm5vci5Qcm90b2NvbC5NaXJyb3JiBnBy",
-            "b3RvMw=="));
+            "dGgYBCABKAhIA4gBARIaCg1ob3N0aWxlX2NvdmVyGAUgASgBSASIAQFCDQoL",
+            "X2hvc3RpbGVfaWRCCAoGX2NvdmVyQg8KDV9saW5lX29mX2ZpcmVCEwoRX2Nv",
+            "bG9uaXN0X2luX3BhdGhCEAoOX2hvc3RpbGVfY292ZXIixAEKEkNvbWJhdEdl",
+            "b21ldHJ5Q2VsbBIpCgRjZWxsGAEgASgLMhsucmltZ292ZXJub3IuY29tbW9u",
+            "LnYxLkNlbGwSNQoFbGluZXMYAiADKAsyJi5yaW1nb3Zlcm5vci5taXJyb3Iu",
+            "djEuQ29tYmF0U2lnaHRMaW5lEhcKCnBhdGhfdGlja3MYAyABKAVIAIgBARIW",
+            "CglzdGFuZGFibGUYBCABKAhIAYgBAUINCgtfcGF0aF90aWNrc0IMCgpfc3Rh",
+            "bmRhYmxlIvMBCg5Db21iYXRHZW9tZXRyeRI6Cgdjb250ZXh0GAEgASgLMiku",
+            "cmltZ292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBI4CgVj",
+            "ZWxscxgCIAMoCzIpLnJpbWdvdmVybm9yLm1pcnJvci52MS5Db21iYXRHZW9t",
+            "ZXRyeUNlbGwSGwoObWFpbl90aHJlYWRfbXMYAyABKAFIAIgBARI7Cghwcm9w",
+            "b3NlZBgEIAMoCzIpLnJpbWdvdmVybm9yLm1pcnJvci52MS5Db21iYXRHZW9t",
+            "ZXRyeUNlbGxCEQoPX21haW5fdGhyZWFkX21zIo4BChNDb21iYXRHZW9tZXRy",
+            "eVJlcGx5EjkKCG9ic2VydmVkGAEgASgLMiUucmltZ292ZXJub3IubWlycm9y",
+            "LnYxLkNvbWJhdEdlb21ldHJ5SAASMQoHZmFpbHVyZRgCIAEoCzIeLnJpbWdv",
+            "dmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABCCQoHb3V0Y29tZSJBCglXYXRl",
+            "cm1hcmsSEQoEdGljaxgBIAEoA0gAiAEBEhAKA3NlcRgCIAEoDUgBiAEBQgcK",
+            "BV90aWNrQgYKBF9zZXEidAoIQ2VsbFJlY3QSDgoBeBgBIAEoBUgAiAEBEg4K",
+            "AXoYAiABKAVIAYgBARISCgV3aWR0aBgDIAEoBUgCiAEBEhMKBmhlaWdodBgE",
+            "IAEoBUgDiAEBQgQKAl94QgQKAl96QggKBl93aWR0aEIJCgdfaGVpZ2h0IssB",
+            "CgpGaWVsZEFycmF5Eg8KBWNvZGVzGAEgASgMSAASNgoHaW5kZXhlcxgCIAEo",
+            "CzIjLnJpbWdvdmVybm9yLm1pcnJvci52MS5QYWNrZWRVaW50MzJIABI2Cgdu",
+            "dW1iZXJzGAMgASgLMiMucmltZ292ZXJub3IubWlycm9yLnYxLlBhY2tlZERv",
+            "dWJsZUgAEjQKBnNwYXJzZRgEIAEoCzIiLnJpbWdvdmVybm9yLm1pcnJvci52",
+            "MS5TcGFyc2VBcnJheUgAQgYKBGZvcm0iHgoMUGFja2VkVWludDMyEg4KBnZh",
+            "bHVlcxgBIAMoDSIeCgxQYWNrZWREb3VibGUSDgoGdmFsdWVzGAEgAygBIjoK",
+            "C1NwYXJzZUFycmF5Eg0KBWluZGV4GAEgAygNEgwKBGNvZGUYAiADKA0SDgoG",
+            "bnVtYmVyGAMgAygBIr0ICghDZWxsR3JpZBItCgRyZWN0GAEgASgLMh8ucmlt",
+            "Z292ZXJub3IubWlycm9yLnYxLkNlbGxSZWN0Eg8KB3N0cmluZ3MYAiADKAkS",
+            "LwoEY2VsbBgDIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFy",
+            "cmF5EjMKCHdhbGthYmxlGAQgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYx",
+            "LkZpZWxkQXJyYXkSMwoIb2NjdXBpZWQYBSABKAsyIS5yaW1nb3Zlcm5vci5t",
+            "aXJyb3IudjEuRmllbGRBcnJheRIvCgR6b25lGAYgASgLMiEucmltZ292ZXJu",
+            "b3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMQoGcm9vZmVkGAcgASgLMiEucmlt",
+            "Z292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMgoHaW5kb29ycxgIIAEo",
+            "CzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjkKDnN1cHBv",
+            "cnRzX2xpZ2h0GAkgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxk",
+            "QXJyYXkSOAoNc3RvcmFnZV9lbXB0eRgKIAEoCzIhLnJpbWdvdmVybm9yLm1p",
+            "cnJvci52MS5GaWVsZEFycmF5EjIKB2Rvb3J3YXkYCyABKAsyIS5yaW1nb3Zl",
+            "cm5vci5taXJyb3IudjEuRmllbGRBcnJheRI0CglmZXJ0aWxpdHkYDCABKAsy",
+            "IS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIzCghwb2xsdXRl",
+            "ZBgNIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8K",
+            "BGdsb3cYDiABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJh",
+            "eRIvCgRyb29mGA8gASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxk",
+            "QXJyYXkSMgoHem9uZV9pZBgQIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52",
+            "MS5GaWVsZEFycmF5EjcKDG5hdHVyYWxfcm9jaxgRIAEoCzIhLnJpbWdvdmVy",
+            "bm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8KBHJ1aW4YEiABKAsyIS5yaW1n",
+            "b3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRI5Cg5wbGF5ZXJfZWRpZmlj",
+            "ZRgTIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjkK",
+            "DmNsYWltYWJsZV9ydWluGBQgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYx",
+            "LkZpZWxkQXJyYXkSNAoJcnVpbl9ob2xkGBUgASgLMiEucmltZ292ZXJub3Iu",
+            "bWlycm9yLnYxLkZpZWxkQXJyYXkqewoKQ29tYmF0U2lkZRIbChdDT01CQVRf",
+            "U0lERV9VTlNQRUNJRklFRBAAEhgKFENPTUJBVF9TSURFX0NPTE9OSVNUEAES",
+            "FwoTQ09NQkFUX1NJREVfSE9TVElMRRACEh0KGUNPTUJBVF9TSURFX0NPTE9O",
+            "WV9BTklNQUwQAyquAQoMQ29tYmF0U3RhbmNlEh0KGUNPTUJBVF9TVEFOQ0Vf",
+            "VU5TUEVDSUZJRUQQABIWChJDT01CQVRfU1RBTkNFX0lETEUQARIYChRDT01C",
+            "QVRfU1RBTkNFX1dBUk1VUBACEhoKFkNPTUJBVF9TVEFOQ0VfQ09PTERPV04Q",
+            "AxIYChRDT01CQVRfU1RBTkNFX01PVklORxAEEhcKE0NPTUJBVF9TVEFOQ0Vf",
+            "TUVMRUUQBSqCBAoNQ29tYmF0TG9nS2luZBIfChtDT01CQVRfTE9HX0tJTkRf",
+            "VU5TUEVDSUZJRUQQABIaChZDT01CQVRfTE9HX0tJTkRfRE9XTkVEEAESGgoW",
+            "Q09NQkFUX0xPR19LSU5EX0tJTExFRBACEhsKF0NPTUJBVF9MT0dfS0lORF9E",
+            "QU1BR0VEEAMSIQodQ09NQkFUX0xPR19LSU5EX1NISUVMRF9CUk9LRU4QBBIe",
+            "ChpDT01CQVRfTE9HX0tJTkRfU0hPVF9GSVJFRBAFEicKI0NPTUJBVF9MT0df",
+            "S0lORF9QUk9KRUNUSUxFX0xBVU5DSEVEEAYSHQoZQ09NQkFUX0xPR19LSU5E",
+            "X0VYUExPU0lPThAHEiAKHENPTUJBVF9MT0dfS0lORF9GSVJFX1NUQVJURUQQ",
+            "CBIfChtDT01CQVRfTE9HX0tJTkRfRE9PUl9PUEVORUQQCRIfChtDT01CQVRf",
+            "TE9HX0tJTkRfRE9PUl9DTE9TRUQQChImCiJDT01CQVRfTE9HX0tJTkRfQlVJ",
+            "TERJTkdfREVTVFJPWUVEEAsSHQoZQ09NQkFUX0xPR19LSU5EX0xPUkRfVE9J",
+            "TBAMEiAKHENPTUJBVF9MT0dfS0lORF9NRU5UQUxfU1RBVEUQDRIjCh9DT01C",
+            "QVRfTE9HX0tJTkRfSE9TVElMRV9BUlJJVkVEEA5CZVpFZ2l0aHViLmNvbS9k",
+            "YXZpZGFyY2hlci9SaW1Hb3Zlcm5vci9nby9pbnRlcm5hbC93aXJlL21pcnJv",
+            "cnBiO21pcnJvcnBiqgIbUmltR292ZXJub3IuUHJvdG9jb2wuTWlycm9yYgZw",
+            "cm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Clock.ClockReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Mirror.CombatSide), typeof(global::RimGovernor.Protocol.Mirror.CombatStance), typeof(global::RimGovernor.Protocol.Mirror.CombatLogKind), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -164,7 +165,7 @@ namespace RimGovernor.Protocol.Mirror {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatCoverBehindLine), global::RimGovernor.Protocol.Mirror.CombatCoverBehindLine.Parser, new[]{ "Line" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatAdjacentToChoke), global::RimGovernor.Protocol.Mirror.CombatAdjacentToChoke.Parser, new[]{ "Choke", "OurSide" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatFiringCells), global::RimGovernor.Protocol.Mirror.CombatFiringCells.Parser, new[]{ "Targets", "From", "Radius" }, new[]{ "Radius" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatSightLine), global::RimGovernor.Protocol.Mirror.CombatSightLine.Parser, new[]{ "HostileId", "Cover", "LineOfFire", "ColonistInPath" }, new[]{ "HostileId", "Cover", "LineOfFire", "ColonistInPath" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatSightLine), global::RimGovernor.Protocol.Mirror.CombatSightLine.Parser, new[]{ "HostileId", "Cover", "LineOfFire", "ColonistInPath", "HostileCover" }, new[]{ "HostileId", "Cover", "LineOfFire", "ColonistInPath", "HostileCover" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatGeometryCell), global::RimGovernor.Protocol.Mirror.CombatGeometryCell.Parser, new[]{ "Cell", "Lines", "PathTicks", "Standable" }, new[]{ "PathTicks", "Standable" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatGeometry), global::RimGovernor.Protocol.Mirror.CombatGeometry.Parser, new[]{ "Context", "Cells", "MainThreadMs", "Proposed" }, new[]{ "MainThreadMs" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatGeometryReply), global::RimGovernor.Protocol.Mirror.CombatGeometryReply.Parser, new[]{ "Observed", "Failure" }, new[]{ "Outcome" }, null, null, null),
@@ -4035,6 +4036,7 @@ namespace RimGovernor.Protocol.Mirror {
       cover_ = other.cover_;
       lineOfFire_ = other.lineOfFire_;
       colonistInPath_ = other.colonistInPath_;
+      hostileCover_ = other.hostileCover_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4161,6 +4163,38 @@ namespace RimGovernor.Protocol.Mirror {
       _hasBits0 &= ~4;
     }
 
+    /// <summary>Field number for the "hostile_cover" field.</summary>
+    public const int HostileCoverFieldNumber = 5;
+    private readonly static double HostileCoverDefaultValue = 0D;
+
+    private double hostileCover_;
+    /// <summary>
+    /// CoverUtility.CalculateOverallBlockChance at the hostile's cell against
+    /// a shot from the cell, 0..1: the cover the hostile keeps against a
+    /// shooter here (#862).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double HostileCover {
+      get { if ((_hasBits0 & 8) != 0) { return hostileCover_; } else { return HostileCoverDefaultValue; } }
+      set {
+        _hasBits0 |= 8;
+        hostileCover_ = value;
+      }
+    }
+    /// <summary>Gets whether the "hostile_cover" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasHostileCover {
+      get { return (_hasBits0 & 8) != 0; }
+    }
+    /// <summary>Clears the value of the "hostile_cover" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearHostileCover() {
+      _hasBits0 &= ~8;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4180,6 +4214,7 @@ namespace RimGovernor.Protocol.Mirror {
       if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(Cover, other.Cover)) return false;
       if (LineOfFire != other.LineOfFire) return false;
       if (ColonistInPath != other.ColonistInPath) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(HostileCover, other.HostileCover)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4191,6 +4226,7 @@ namespace RimGovernor.Protocol.Mirror {
       if (HasCover) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(Cover);
       if (HasLineOfFire) hash ^= LineOfFire.GetHashCode();
       if (HasColonistInPath) hash ^= ColonistInPath.GetHashCode();
+      if (HasHostileCover) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(HostileCover);
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4225,6 +4261,10 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(32);
         output.WriteBool(ColonistInPath);
       }
+      if (HasHostileCover) {
+        output.WriteRawTag(41);
+        output.WriteDouble(HostileCover);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4251,6 +4291,10 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(32);
         output.WriteBool(ColonistInPath);
       }
+      if (HasHostileCover) {
+        output.WriteRawTag(41);
+        output.WriteDouble(HostileCover);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -4272,6 +4316,9 @@ namespace RimGovernor.Protocol.Mirror {
       }
       if (HasColonistInPath) {
         size += 1 + 1;
+      }
+      if (HasHostileCover) {
+        size += 1 + 8;
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -4296,6 +4343,9 @@ namespace RimGovernor.Protocol.Mirror {
       }
       if (other.HasColonistInPath) {
         ColonistInPath = other.ColonistInPath;
+      }
+      if (other.HasHostileCover) {
+        HostileCover = other.HostileCover;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -4332,6 +4382,10 @@ namespace RimGovernor.Protocol.Mirror {
             ColonistInPath = input.ReadBool();
             break;
           }
+          case 41: {
+            HostileCover = input.ReadDouble();
+            break;
+          }
         }
       }
     #endif
@@ -4365,6 +4419,10 @@ namespace RimGovernor.Protocol.Mirror {
           }
           case 32: {
             ColonistInPath = input.ReadBool();
+            break;
+          }
+          case 41: {
+            HostileCover = input.ReadDouble();
             break;
           }
         }

@@ -162,6 +162,9 @@ type GeometryRequest struct {
 type GeometryReply struct {
 	Answered  bool
 	Proposals []domain.Cell
+	// Scored is the game's cover for the line and proposed cells (#862);
+	// Formation ranks its candidate cells by it.
+	Scored []ScoredCell `json:",omitempty"`
 }
 
 // CombatTactic is the formation a fight runs.
@@ -366,6 +369,7 @@ func formation(view CombatView, geometry GeometryReply) (CombatTactic, []CombatR
 			}
 		}
 		var positions []DefensivePosition
+		cells = RankByCover(cells, geometry.Scored)
 		positions, refusal = ExplainDefensivePositions(cells, layout.Toward, view.Positional, view.Defenders)
 		if refusal == "" {
 			roles := make([]CombatRole, 0, len(positions))
