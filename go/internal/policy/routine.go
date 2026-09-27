@@ -460,6 +460,10 @@ type RoutineNeeds struct {
 	// WoodFloor is the WoodLog stock floor the wood latch asks of
 	// MaintainResource, 0 while the latch is off (#728).
 	WoodFloor int64
+	// ResourceTargets are the effective MaintainResource stock targets the
+	// review held the census to (configured, derived and the wood floor);
+	// the stock overlay (#825) tints stockpiles by them.
+	ResourceTargets map[Resource]int64 `json:",omitempty"`
 }
 
 // Assessments cover recovered and unknown needs as well as actionable deficits.
@@ -843,6 +847,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
+	r.ResourceTargets = resourceTargets
 	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, WoodStock(f.Resources, f.Wood, resourceTargets))
 	for _, runway := range f.ResourceRunways {
 		if _, known := runway.Deficit.Value(); !known && runway.WindowDays >= 1 && positive(resourceRecovered) {
