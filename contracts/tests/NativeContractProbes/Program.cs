@@ -43,14 +43,6 @@ internal static class NativeContractProbesDispatcher
                 case "native-attempt-ledger": NativeAttemptLedgerProbe.Invoke(); return 0;
                 case "native-construction-causality": NativeConstructionCausalityProbe.Invoke(); return 0;
 
-#if HAVE_HARMONY
-                case "native-authority-hooks": NativeAuthorityHooksProbe.Invoke(); return 0;
-#else
-                case "native-authority-hooks":
-                    Console.Error.WriteLine(probe + " requires $(HarmonyAssembly) to be supplied at build time; not available in this build.");
-                    return 1;
-#endif
-
                 // ---- Category 4: hybrid fake-Verse + real-DLL reflection ----
                 case "native-proto-boundary": NativeProtoBoundaryProbe.Invoke(rest); return 0;
 
@@ -109,7 +101,6 @@ internal static class NativeContractProbesDispatcher
             "native-authority", "native-authority-control", "native-authority-status", "native-clock",
             "native-attempt-ledger", "native-construction-causality", "native-observation-work",
             "native-threat-classifier", "native-reply-encoder", "native-acquisition-token",
-            "native-authority-hooks",
             "native-proto-boundary", "native-combat-causality",
             "native-combat-operations", "native-draft-operations", "native-movement-operations",
             "native-pawn-control-state", "native-pawn-observations", "native-proto-buildings",

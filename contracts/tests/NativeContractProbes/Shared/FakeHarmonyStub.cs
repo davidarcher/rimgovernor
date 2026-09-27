@@ -5,7 +5,7 @@ using System.Reflection;
 // (fake) hook patches are installed. This file is EXCLUDED from the build whenever a real
 // $(HarmonyAssembly) is referenced (see NativeContractProbes.csproj) to avoid a CS0104/CS0433
 // ambiguous-reference conflict between this fake HarmonyLib.Harmony and the real 0Harmony.dll's
-// HarmonyLib.Harmony needed by native-authority-hooks /
+// HarmonyLib.Harmony needed by
 // native-explosive-causality / native-ranged-causality.
 namespace HarmonyLib
 {
