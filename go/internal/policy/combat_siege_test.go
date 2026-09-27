@@ -66,13 +66,14 @@ func TestDecideCombatSiegeSortiesOnceCampIsSet(t *testing.T) {
 	}
 }
 
-// {stop past the window} -> hold again: no attack, riflemen to the line.
+// {stop past the window, no weapon ranges known} -> harass mode with no
+// harasser: no attack, riflemen to the line.
 func TestDecideCombatSiegeHoldsAfterSortieWindow(t *testing.T) {
 	view := siegeView(siegeCampToil)
 	_, m := decideStop(t, view, StopEvent{}, CombatMemory{})
 	view.Tick += siegeSortieWindow + 1
 	orders, m := decideStop(t, view, StopEvent{}, m)
-	if m.SiegeMode != SiegeHold {
+	if m.SiegeMode != SiegeHarass {
 		t.Fatalf("%+v", m)
 	}
 	if a := attacks(orders); len(a) != 0 {

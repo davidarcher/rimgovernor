@@ -17,6 +17,9 @@ const (
 	SiegeHold SiegeMode = "hold"
 	// SiegeSortie attacks the camp while it builds (#776).
 	SiegeSortie SiegeMode = "sortie"
+	// SiegeHarass sends the gunners that outrange the camp to shoot it
+	// once the sandbags are up, until the lord assaults (#920).
+	SiegeHarass SiegeMode = "harass"
 )
 
 // siegeSortieWindow is how long after the camp is first seen, in ticks,
@@ -65,13 +68,16 @@ func siegeTurn(view CombatView, m *CombatMemory) {
 
 // siegeMode is the siege tactic's mode at this stop, "" when no siege
 // lord is travelling or camped: hold before the camp is set, sortie for
-// siegeSortieWindow after it, then hold.
+// siegeSortieWindow after it, then harass.
 func siegeMode(view CombatView, m CombatMemory) SiegeMode {
 	if len(liveBesiegers(view)) == 0 {
 		return ""
 	}
-	if m.SiegeCamp == 0 || view.Tick-m.SiegeCamp > siegeSortieWindow {
+	switch {
+	case m.SiegeCamp == 0:
 		return SiegeHold
+	case view.Tick-m.SiegeCamp > siegeSortieWindow:
+		return SiegeHarass
 	}
 	return SiegeSortie
 }
@@ -113,6 +119,9 @@ func siegeFormation(view CombatView, mode SiegeMode) []CombatRole {
 		}
 		roles = append(roles, role)
 	}
+	if mode == SiegeHarass {
+		roles = harassRoles(view, roles)
+	}
 	return sortRoles(roles)
 }
 
@@ -124,13 +133,16 @@ func reformSiege(view CombatView, m CombatMemory) bool {
 	return m.Tactic != TacticSiege || mode != m.SiegeMode || squadTargetDown(view, m)
 }
 
-// siegeHold clears the targets focus fire gave a holding siege's gunners:
-// an attack order on a hostile at the camp walks the gunner out to it.
+// siegeHold clears the targets focus fire gave a siege's home gunners
+// (every role but a harasser, outside the sortie): an attack order on a
+// hostile at the camp walks the gunner out to it.
 func siegeHold(m *CombatMemory) {
-	if m.Tactic != TacticSiege || m.SiegeMode != SiegeHold {
+	if m.Tactic != TacticSiege || m.SiegeMode == SiegeSortie {
 		return
 	}
 	for i := range m.Roles {
-		m.Roles[i].Target = ""
+		if m.Roles[i].Duty != DutyHarasser {
+			m.Roles[i].Target = ""
+		}
 	}
 }

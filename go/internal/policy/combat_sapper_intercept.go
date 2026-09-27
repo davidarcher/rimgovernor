@@ -92,11 +92,17 @@ func sapperIntercept(view CombatView, m *CombatMemory) {
 // interceptReach of reach (interceptDefaultRange when unknown), or from
 // itself when it is already that close.
 func standOff(digger CombatPawnState, from domain.Cell, reach float64) domain.Cell {
-	d, _ := digger.Cell.Value()
 	want := interceptDefaultRange
 	if reach > 0 {
 		want = interceptReach * reach
 	}
+	return standOffAt(digger, from, want)
+}
+
+// standOffAt is the cell on the line from target toward from, want cells
+// from target, or from itself when it is already that close.
+func standOffAt(target CombatPawnState, from domain.Cell, want float64) domain.Cell {
+	d, _ := target.Cell.Value()
 	dx, dz := float64(from.X-d.X), float64(from.Z-d.Z)
 	dist := math.Hypot(dx, dz)
 	if dist <= want {
