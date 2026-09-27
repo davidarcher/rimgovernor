@@ -835,6 +835,9 @@ func (s *Session) TargetsWorld(world store.World) bool { return s.control.Target
 func (s *Session) Manual(ctx context.Context) error {
 	return s.control.Manual(ctx)
 }
+func (s *Session) ManualForResume(ctx context.Context) error {
+	return s.control.ManualForResume(ctx)
+}
 func (s *Session) Run(ctx context.Context, plan domain.PlanID, action domain.ActionID) (executor.Result, error) {
 	if s.journal != nil {
 		ctx = withPlanIntent(ctx, s.journal, plan)

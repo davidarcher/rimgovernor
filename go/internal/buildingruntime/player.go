@@ -21,6 +21,7 @@ type PlayerConfig struct {
 type playerSession interface {
 	Acquire(context.Context, domain.GenerationSnapshot) (domain.GenerationSnapshot, error)
 	Manual(context.Context) error
+	ManualForResume(context.Context) error
 	HoldsGrant(domain.GenerationSnapshot) bool
 	TargetsWorld(store.World) bool
 	Disable() error
@@ -273,8 +274,11 @@ func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (stor
 	// Manual also revokes a grant left standing by a failed status read
 	// (observation unknown, #328); the held-grant check answers that case
 	// by re-acquiring it in place instead.
+	// That Manual keeps the drafts a plan or an open fight still holds, as
+	// the Acquire drain does: a player pause and resume mid-raid must not
+	// undraft the defenders (#916).
 	if p.session.TargetsWorld(request.World) && !p.session.HoldsGrant(snapshot) {
-		if err = p.session.Manual(call); err != nil {
+		if err = p.session.ManualForResume(call); err != nil {
 			return p.uncertain(record, err)
 		}
 	}

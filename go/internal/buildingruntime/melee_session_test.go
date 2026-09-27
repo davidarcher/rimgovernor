@@ -287,6 +287,79 @@ func TestOpenFightDraftsSurviveTheResumeDrain(t *testing.T) {
 	}
 }
 
+// A player resume after an observed revocation revokes first (#916): that
+// Manual drains like the Acquire and keeps an open fight's drafts; a pause's
+// Manual, and the resume once the fight has closed, release them.
+func TestResumeManualKeepsAnOpenFightsDrafts(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	journal, err := store.Open(ctx, storetest.Path(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer journal.Close()
+	_, f, dispatch := melee.NewFixture(t)
+	id, err := journal.Identity(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pawnDraft, _ := domain.NewOwnedDraft("pawn")
+	d, _ := domain.NewOwnedDraftAction("action", pawnDraft)
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{d})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = journal.CreatePlan(ctx, plan); err != nil {
+		t.Fatal(err)
+	}
+	_, building := boundary.NewFixture(t)
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: t.TempDir(), CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, Draft: &draft.DraftCapabilities{Native: f.Fixture, Writer: f.Fixture, Cleanup: f.Fixture}, Melee: &melee.MeleeCapabilities{Writer: f}}
+	s, err := NewSession(ctx, config, journal, sessionNative{building}, &controlNative{generation: 1}, sessionNative{building}, boundary.FixedClock{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close(ctx)
+	snapshot, err := s.Acquire(ctx, dispatch.Snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = journal.PrepareDraft(ctx, plan.ID(), d.ID(), store.DraftAdmission{Snapshot: snapshot, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = journal.Dispatch(ctx, plan.ID(), d.ID(), snapshot, 10); err != nil {
+		t.Fatal(err)
+	}
+	claim := domain.DraftClaim{Action: d.ID(), Attempt: 1, Pawn: "pawn", Claim: "claim", Session: domain.ControllerSessionID(id), Origin: snapshot}
+	if _, err = journal.ObserveDraft(ctx, plan.ID(), domain.Observation{Action: d.ID(), Attempt: 1, Snapshot: snapshot, Tick: 10, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, snapshot, domain.Known(claim)); err != nil {
+		t.Fatal(err)
+	}
+	if err = journal.OpenCombatFight(ctx, plan.ID(), policy.CombatMemory{}); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.ManualForResume(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if f.Releases != 0 || s.State().Enabled {
+		t.Fatal("the resume's Manual released the open fight's draft", f.Releases)
+	}
+	if _, err = s.Acquire(ctx, dispatch.Snapshot); err != nil {
+		t.Fatal(err)
+	}
+	state, err := journal.LoadPlan(ctx, plan.ID())
+	if err != nil || f.Releases != 0 || len(policy.CombatOrderable(state.Progress)) != 1 {
+		t.Fatal("the fight lost its draft across the resume", f.Releases, err)
+	}
+	if err = journal.CloseCombatFight(ctx, plan.ID()); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.ManualForResume(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if f.Releases != 1 {
+		t.Fatal("the resume kept a closed fight's draft", f.Releases)
+	}
+}
+
 func TestMeleeSessionRejectsIncompleteCapabilitiesBeforeOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

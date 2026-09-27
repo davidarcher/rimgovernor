@@ -39,12 +39,12 @@ func (w *playerWorldSource) ReadWorld(ctx context.Context) (store.World, error) 
 }
 
 type playerFakeSession struct {
-	mu                                  sync.Mutex
-	state                               ControlState
-	granted                             bool
-	acquires, manuals, disables, closes atomic.Int32
-	acquire                             func(context.Context, domain.GenerationSnapshot) (domain.GenerationSnapshot, error)
-	close                               func(context.Context) error
+	mu                                                 sync.Mutex
+	state                                              ControlState
+	granted                                            bool
+	acquires, manuals, resumeManuals, disables, closes atomic.Int32
+	acquire                                            func(context.Context, domain.GenerationSnapshot) (domain.GenerationSnapshot, error)
+	close                                              func(context.Context) error
 }
 
 func (s *playerFakeSession) State() ControlState { s.mu.Lock(); defer s.mu.Unlock(); return s.state }
@@ -77,6 +77,10 @@ func (s *playerFakeSession) Manual(context.Context) error {
 	s.granted = false
 	s.mu.Unlock()
 	return s.Disable()
+}
+func (s *playerFakeSession) ManualForResume(ctx context.Context) error {
+	s.resumeManuals.Add(1)
+	return s.Manual(ctx)
 }
 func (s *playerFakeSession) HoldsGrant(scope domain.GenerationSnapshot) bool {
 	s.mu.Lock()
@@ -542,11 +546,15 @@ func TestPlayerResumeWithHeldGrantSkipsManual(t *testing.T) {
 		t.Fatal("resume from hold revoked first", err, session.manuals.Load(), session.acquires.Load())
 	}
 	// An observed revocation (Pause) is a mode switch: Manual first again.
-	if _, err := p.Pause(context.Background(), store.ControlRequest{RequestID: "pause", Kind: store.PauseControl, World: acquire.World}); err != nil || session.manuals.Load() != 1 {
+	if _, err := p.Pause(context.Background(), store.ControlRequest{RequestID: "pause", Kind: store.PauseControl, World: acquire.World}); err != nil || session.manuals.Load() != 1 || session.resumeManuals.Load() != 0 {
 		t.Fatal("pause", err, session.manuals.Load())
 	}
 	if _, err := p.Resume(context.Background(), store.ControlRequest{RequestID: "acquire-again", Kind: store.ResumeControl, World: acquire.World}); err != nil || session.manuals.Load() != 2 || session.acquires.Load() != 3 {
 		t.Fatal("resume after pause skipped Manual", err, session.manuals.Load(), session.acquires.Load())
+	}
+	// The resume's Manual keeps held drafts (#916); the pause's releases them.
+	if session.resumeManuals.Load() != 1 {
+		t.Fatal("resume after pause released held drafts", session.resumeManuals.Load())
 	}
 }
 

@@ -289,7 +289,14 @@ func (control *Control) Lease(snapshot domain.GenerationSnapshot) (string, error
 // Disable has nothing to protect here; tying the call to the epoch cancelled
 // the cleanup's clock read mid-flight and reported every player pause
 // uncertain under a held poll (#322).
-func (control *Control) Manual(ctx context.Context) error {
+func (control *Control) Manual(ctx context.Context) error { return control.manual(ctx, false) }
+
+// ManualForResume is the Manual a player resume runs after an observed
+// revocation, before it re-acquires: it drains like Acquire (ResumeWrites),
+// so the drafts a plan or an open fight still holds stay owned (#916).
+func (control *Control) ManualForResume(ctx context.Context) error { return control.manual(ctx, true) }
+
+func (control *Control) manual(ctx context.Context, resume bool) error {
 	control.mu.Lock()
 	if control.closing {
 		control.mu.Unlock()
@@ -303,7 +310,9 @@ func (control *Control) Manual(ctx context.Context) error {
 	}
 	defer done()
 	err = errors.Join(err, control.revoke(call, a.RevocationReason_REVOCATION_REASON_MANUAL))
-	if control.config.CleanupWrites != nil {
+	if drain := control.config.ResumeWrites; resume && drain != nil {
+		err = errors.Join(err, drain(call))
+	} else if control.config.CleanupWrites != nil {
 		err = errors.Join(err, control.config.CleanupWrites(call))
 	}
 	return err
