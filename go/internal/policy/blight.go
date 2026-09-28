@@ -10,7 +10,8 @@ import (
 // colony's growing zones (issue #245). The goal opens while the native
 // blighted-plant census (ColonyFactsSnapshot.blighted_plants) is non-empty
 // and settles when it is empty again: a cut designation is the method, not
-// the outcome, so a receipt never settles it.
+// the outcome, so a receipt never settles it. It is a Standard whose target
+// is no outstanding work (#1024).
 const RemoveBlight GoalID = "RemoveBlight"
 
 // BlightedPlant is one native census row: a blighted plant standing in a

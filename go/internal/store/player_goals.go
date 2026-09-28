@@ -153,7 +153,7 @@ func activatePlayerGoal(ctx context.Context, tx *sql.Tx, q GoalCreateSubmissionR
 			if err != nil {
 				return GoalState{}, err
 			}
-			g, err := domain.ReviewGoal(state.Goal, q.Snapshot, q.Tick, domain.NeedDeficit, open)
+			g, err := domain.ReviewGoal(state.Goal, q.Snapshot, q.Tick, domain.NeedDeficit, open, goalIsStandard(state.Goal.ID))
 			if err != nil {
 				return GoalState{}, err
 			}
@@ -185,7 +185,7 @@ func activatePlayerGoal(ctx context.Context, tx *sql.Tx, q GoalCreateSubmissionR
 	if err = createGoal(ctx, tx, goal); err != nil {
 		return GoalState{}, err
 	}
-	activated, err := domain.ReviewGoal(goal, q.Snapshot, q.Tick, domain.NeedDeficit, false)
+	activated, err := domain.ReviewGoal(goal, q.Snapshot, q.Tick, domain.NeedDeficit, false, goalIsStandard(goal.ID))
 	if err != nil {
 		return GoalState{}, err
 	}

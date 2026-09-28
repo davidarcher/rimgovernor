@@ -78,9 +78,11 @@ func (g Goal) Validate() error {
 // either the recovery was observed as satisfaction, or the previous review
 // measured it while a plan's effects were still unresolved and the world has
 // regressed since (a lamp removed behind a lit bench), so the settled
-// epoch's methods may be proposed again. Priority orders work only: an
-// emergency or a pause vetoes proposals through the policy Rules (#1017).
-func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Goal, error) {
+// epoch's methods may be proposed again. Only a Standard re-arms (#1024):
+// callers pass standard from policy.GoalConcept, and any other goal keeps its
+// epoch and simply reactivates. Priority orders work only: an emergency or a
+// pause vetoes proposals through the policy Rules (#1017).
+func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, openWork, standard bool) (Goal, error) {
 	original := g
 	if err := g.Validate(); err != nil {
 		return g, err
@@ -110,7 +112,7 @@ func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, o
 		g.Need = need
 		return g, nil
 	}
-	if need == NeedDeficit && (g.RecoveryObserved || g.Need == NeedRecovered) && !openWork {
+	if standard && need == NeedDeficit && (g.RecoveryObserved || g.Need == NeedRecovered) && !openWork {
 		if g.Epoch == ^uint64(0) {
 			return original, errors.New("goal epoch exhausted")
 		}
@@ -144,7 +146,7 @@ func ProjectRegressed(g Goal, need NeedState, openWork bool) bool {
 // ProjectRegressed first and open a new row instead.
 func ReviewProject(g Goal, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Goal, error) {
 	if !ProjectFinished(g) {
-		return ReviewGoal(g, current, tick, need, openWork)
+		return ReviewGoal(g, current, tick, need, openWork, false)
 	}
 	if ProjectRegressed(g, need, openWork) {
 		return g, errors.New("regressed project needs a new goal")

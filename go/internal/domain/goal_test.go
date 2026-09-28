@@ -30,19 +30,19 @@ func TestMaintainedGoalUnknownRenewalAndCancellation(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = ReviewGoal(g, scope, 11, NeedRecovered, false)
+	g, e = ReviewGoal(g, scope, 11, NeedRecovered, false, true)
 	if e != nil || g.Status != GoalSatisfied {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewGoal(g, scope, 12, NeedUnknown, false)
+	g, e = ReviewGoal(g, scope, 12, NeedUnknown, false, true)
 	if e != nil || g.Status == GoalSatisfied {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewGoal(g, scope, 13, NeedDeficit, false)
+	g, e = ReviewGoal(g, scope, 13, NeedDeficit, false, true)
 	if e != nil || g.Epoch != 1 || g.Status != GoalActive {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewGoal(g, scope, 15, NeedDeficit, false)
+	g, e = ReviewGoal(g, scope, 15, NeedDeficit, false, true)
 	if e != nil || g.Status != GoalActive || g.Epoch != 1 {
 		t.Fatal(g, e)
 	}
@@ -50,7 +50,7 @@ func TestMaintainedGoalUnknownRenewalAndCancellation(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	next, e := ReviewGoal(g, scope, 16, NeedDeficit, false)
+	next, e := ReviewGoal(g, scope, 16, NeedDeficit, false, true)
 	if e != nil || next != g {
 		t.Fatal(next, e)
 	}
@@ -66,25 +66,25 @@ func TestMaintainedGoalRecoveredWithOpenWorkThenDeficitRenewsEpoch(t *testing.T)
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = ReviewGoal(g, scope, 11, NeedRecovered, true)
+	g, e = ReviewGoal(g, scope, 11, NeedRecovered, true, true)
 	if e != nil || g.Status != GoalActive || g.Need != NeedRecovered || g.RecoveryObserved || g.Epoch != 0 {
 		t.Fatal(g, e)
 	}
 	// Still open: the epoch belongs to the working method.
-	g, e = ReviewGoal(g, scope, 12, NeedDeficit, true)
+	g, e = ReviewGoal(g, scope, 12, NeedDeficit, true, true)
 	if e != nil || g.Epoch != 0 || g.Status != GoalActive {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewGoal(g, scope, 13, NeedRecovered, true)
+	g, e = ReviewGoal(g, scope, 13, NeedRecovered, true, true)
 	if e != nil || g.Epoch != 0 || g.Need != NeedRecovered {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewGoal(g, scope, 14, NeedDeficit, false)
+	g, e = ReviewGoal(g, scope, 14, NeedDeficit, false, true)
 	if e != nil || g.Epoch != 1 || g.Status != GoalActive || g.RecoveryObserved {
 		t.Fatal(g, e)
 	}
 	// A deficit repeated within the epoch does not renew it again.
-	g, e = ReviewGoal(g, scope, 15, NeedDeficit, false)
+	g, e = ReviewGoal(g, scope, 15, NeedDeficit, false, true)
 	if e != nil || g.Epoch != 1 {
 		t.Fatal(g, e)
 	}
@@ -102,7 +102,7 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 	if e != nil || !GoalWorkOpen([]Progress{progress}) {
 		t.Fatal(e)
 	}
-	review, e := ReviewGoal(g, scope, 11, NeedRecovered, true)
+	review, e := ReviewGoal(g, scope, 11, NeedRecovered, true, true)
 	if e != nil || review.Status == GoalSatisfied {
 		t.Fatal(review, e)
 	}
@@ -116,7 +116,7 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 			case "rewind":
 				tick = 9
 			}
-			r, e := ReviewGoal(g, s, tick, NeedDeficit, false)
+			r, e := ReviewGoal(g, s, tick, NeedDeficit, false, true)
 			if e != nil || r.Status != GoalInvalidated {
 				t.Fatal(r, e)
 			}
@@ -124,7 +124,29 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 	}
 	loaded := scope
 	loaded.Load = "other"
-	if r, e := ReviewGoal(g, loaded, 11, NeedDeficit, false); e != nil || r.Status == GoalInvalidated {
+	if r, e := ReviewGoal(g, loaded, 11, NeedDeficit, false, true); e != nil || r.Status == GoalInvalidated {
 		t.Fatal("load change must keep the goal (#1082)", r, e)
+	}
+}
+
+// Only a Standard re-arms its epoch on regress (#1024): any other goal
+// reactivates on the same epoch.
+func TestNonStandardGoalNeverBumpsEpoch(t *testing.T) {
+	_, scope := fixture(t)
+	g, e := NewGoal("project", AutopilotGoal, 2, scope, 10)
+	if e != nil {
+		t.Fatal(e)
+	}
+	tick := Tick(10)
+	for _, need := range []NeedState{NeedRecovered, NeedDeficit, NeedRecovered, NeedDeficit} {
+		for _, open := range []bool{true, false} {
+			tick++
+			if g, e = ReviewGoal(g, scope, tick, need, open, false); e != nil || g.Epoch != 0 {
+				t.Fatal(g, e)
+			}
+		}
+	}
+	if g.Status != GoalActive {
+		t.Fatal(g)
 	}
 }

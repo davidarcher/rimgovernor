@@ -10,12 +10,28 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+func TestGoalIsStandardFollowsGoalConcept(t *testing.T) {
+	for id, want := range map[domain.GoalID]bool{
+		"routine-0000000000000000-MaintainWaste-3": true,
+		"routine-0000000000000000-EnsureCooking-0": false,
+		"player-00ff-MaintainHousing":              true,
+		"player-00ff-EnsureBasicPower":             false,
+		"routine-0000000000000000-MaintainWaste-x": false,
+		"shelter": false,
+	} {
+		if got := goalIsStandard(id); got != want {
+			t.Errorf("%s: got %v", id, got)
+		}
+	}
+}
+
 func goalFixture(t *testing.T) (*Store, string, GoalState) {
 	t.Helper()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "goals.db")
 	s := open(t, path)
-	g, e := domain.NewGoal("shelter", domain.AutopilotGoal, 2, scope(), 10)
+	// A Standard routine identity, so a regress re-arms its epoch (#1024).
+	g, e := domain.NewGoal("routine-0000000000000000-MaintainHousing-0", domain.AutopilotGoal, 2, scope(), 10)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -219,7 +235,7 @@ func TestGoalCorruptPayloadNeverAdmitsMethods(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
-	if _, e := s.db.ExecContext(ctx, "UPDATE goals SET payload=? WHERE id=?", []byte(`{"ID":"shelter"}`), g.Goal.ID); e != nil {
+	if _, e := s.db.ExecContext(ctx, "UPDATE goals SET payload=? WHERE id=?", []byte(`{"ID":"routine-0000000000000000-MaintainHousing-0"}`), g.Goal.ID); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := s.LoadGoal(ctx, g.Goal.ID); e == nil {

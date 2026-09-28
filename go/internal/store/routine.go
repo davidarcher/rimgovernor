@@ -744,7 +744,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			if project {
 				next, err = domain.ReviewProject(next, b, request.Tick, n.Need, open)
 			} else {
-				next, err = domain.ReviewGoal(next, b, request.Tick, n.Need, open)
+				next, err = domain.ReviewGoal(next, b, request.Tick, n.Need, open, policy.GoalConcept(n.ID) == policy.ConceptStandard)
 			}
 			if err != nil {
 				return RoutineReviewResult{}, err

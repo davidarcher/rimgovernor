@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // mintRoutineGoalID names a routine need's goal by world and need, so every
@@ -29,6 +30,24 @@ func mintRoutineGoalID(ctx context.Context, tx *sql.Tx, w World, need domain.Goa
 		}
 	}
 	return "", ErrCapacity
+}
+
+// goalIsStandard reports whether a player or routine goal identity names a
+// Standard kind (#1024), the only concept whose epoch re-arms on regress.
+func goalIsStandard(id domain.GoalID) bool {
+	if kind, ok := playerGoalKind(id); ok {
+		return policy.GoalConcept(domain.GoalID(kind)) == policy.ConceptStandard
+	}
+	rest, ok := strings.CutPrefix(string(id), "routine-")
+	if !ok || len(rest) < 17 || rest[16] != '-' {
+		return false
+	}
+	i := strings.LastIndexByte(rest[17:], '-')
+	if i < 0 {
+		return false
+	}
+	need := domain.GoalID(rest[17 : 17+i])
+	return routineGoalOwns(id, need) && policy.GoalConcept(need) == policy.ConceptStandard
 }
 
 // routineGoalOwns reports whether id has the routine-<world>-<need>-<gen> shape.

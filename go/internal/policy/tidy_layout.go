@@ -18,6 +18,8 @@ import (
 // never dissolves a room in use and treats every zone and shell as its own
 // (#719, player-made ones included); it holds one re-site in flight and never re-sites an item
 // already tidied. Stockpiles are MaintainStockpiles' (#725), never re-sited here.
+// It is a Standard whose target is no outstanding work: no untidied item
+// (#1024); the idle-only proposal gate stays.
 const TidyLayout GoalID = "TidyLayout"
 
 // tidyPriority ranks TidyLayout last: the lowest goal rank, with no deficit

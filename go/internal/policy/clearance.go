@@ -6,6 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// ClearHomeObstructions is a Standard whose target is no outstanding work
+// (#1024): no obstruction left standing on home ground.
 const ClearHomeObstructions GoalID = "ClearHomeObstructions"
 
 // ClearanceTarget is a complete native building observation. Admission remains

@@ -9,7 +9,8 @@ import (
 // MaintainWaste contains or buries
 // exposed, eligible native waste (filth, junk, corpses) that would otherwise
 // sit in the open, unlike MaintainCleanFacilities' upkeep filth or
-// MaintainAnimalContainment's herd containment.
+// MaintainAnimalContainment's herd containment. It is a Standard whose
+// target is no outstanding work: no exposed eligible waste (#1024).
 const MaintainWaste GoalID = "MaintainWaste"
 
 // WasteState mirrors the native WasteLocation the wire carries for one item:

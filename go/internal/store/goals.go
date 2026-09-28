@@ -244,7 +244,7 @@ func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint6
 	if err != nil {
 		return GoalState{}, err
 	}
-	g, err := domain.ReviewGoal(state.Goal, current, tick, need, open)
+	g, err := domain.ReviewGoal(state.Goal, current, tick, need, open, goalIsStandard(state.Goal.ID))
 	if err != nil {
 		return GoalState{}, err
 	}
