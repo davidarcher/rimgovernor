@@ -141,8 +141,17 @@ func TestGoalWorldInvalidationCancelsPendingPlan(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	loaded := scope()
+	loaded.Load = "other"
+	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, loaded, 11, domain.NeedDeficit)
+	if e != nil || g.Goal.Status == domain.GoalInvalidated {
+		t.Fatal("load change must keep the goal", g, e)
+	}
+	if p, e := s.LoadPlan(ctx, "p"); e != nil || p.Progress[0].View().Stage == domain.Cancelled {
+		t.Fatal(p, e)
+	}
 	changed := scope()
-	changed.Load = "other"
+	changed.Map++
 	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, changed, 11, domain.NeedDeficit)
 	if e != nil || g.Goal.Status != domain.GoalInvalidated {
 		t.Fatal(g, e)

@@ -106,13 +106,11 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 	if e != nil || review.Status == GoalSatisfied {
 		t.Fatal(review, e)
 	}
-	for _, change := range []string{"load", "map", "rewind"} {
+	for _, change := range []string{"map", "rewind"} {
 		t.Run(change, func(t *testing.T) {
 			s := scope
 			tick := Tick(11)
 			switch change {
-			case "load":
-				s.Load = "other"
 			case "map":
 				s.Map++
 			case "rewind":
@@ -123,5 +121,10 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 				t.Fatal(r, e)
 			}
 		})
+	}
+	loaded := scope
+	loaded.Load = "other"
+	if r, e := ReviewGoal(g, loaded, 11, NeedDeficit, false); e != nil || r.Status == GoalInvalidated {
+		t.Fatal("load change must keep the goal (#1082)", r, e)
 	}
 }

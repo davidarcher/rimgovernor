@@ -208,7 +208,7 @@ func buildingMethodHolds(ctx context.Context, tx *sql.Tx, current domain.Generat
 				return nil, errors.New("existing zone work lacks footprint evidence")
 			}
 			scope := admission.Snapshot
-			if scope.Colony != current.Colony || scope.Load != current.Load || scope.Map != current.Map {
+			if scope.Colony != current.Colony || scope.Map != current.Map {
 				continue
 			}
 			held = append(held, policy.Reservation{Action: progress.Action(), Progress: progress, Snapshot: scope, Costs: []policy.Amount{}, Footprint: admission.Footprint})

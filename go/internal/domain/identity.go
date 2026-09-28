@@ -74,6 +74,12 @@ func (s GenerationSnapshot) SameWorld(other GenerationSnapshot) bool { return s.
 func (s GenerationSnapshot) sameWorld(other GenerationSnapshot) bool {
 	return s.Colony == other.Colony && s.Map == other.Map && s.Load == other.Load
 }
+
+// sameColonyMap is the goal world check: goals belong to the save (#998), so
+// a load change keeps them (#1082).
+func (s GenerationSnapshot) sameColonyMap(other GenerationSnapshot) bool {
+	return s.Colony == other.Colony && s.Map == other.Map
+}
 func validID(s string) bool {
 	return utf8.ValidString(s) && strings.TrimSpace(s) != "" && len(s) <= 256 && !strings.ContainsRune(s, '\x00')
 }

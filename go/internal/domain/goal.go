@@ -96,7 +96,7 @@ func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, o
 	if g.Status == GoalCancelled || g.Status == GoalInvalidated {
 		return g, nil
 	}
-	if !g.Snapshot.sameWorld(current) || tick < g.Tick {
+	if !g.Snapshot.sameColonyMap(current) || tick < g.Tick {
 		g.Status = GoalInvalidated
 		return g, nil
 	}
@@ -155,7 +155,7 @@ func ReviewProject(g Goal, current GenerationSnapshot, tick Tick, need NeedState
 	if current.Validate() != nil || tick < 0 {
 		return g, errors.New("invalid goal review scope")
 	}
-	if !g.Snapshot.sameWorld(current) || tick < g.Tick {
+	if !g.Snapshot.sameColonyMap(current) || tick < g.Tick {
 		g.Status = GoalInvalidated
 		return g, nil
 	}
