@@ -69,7 +69,7 @@ type ResourceSource struct {
 	// Cell and Token are populated for a "mine" source only (see
 	// NativeResourceSourcesTool.Project / NativeMineAcquisition.Snapshot on
 	// the native side): the exact position and CAS snapshot token required
-	// to dispatch an AcquireResource operation against it. Harvest/hunt
+	// to dispatch an AcquireIntent against it. Harvest/hunt
 	// sources still carry neither -- they are reached only through the
 	// AcquisitionFacts census path's own token, not this one.
 	Cell      domain.Cell

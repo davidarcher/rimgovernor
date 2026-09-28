@@ -28,7 +28,7 @@ internal static class NativeAttemptLedgerProbe
     {
         Precondition=new Authority.WritePrecondition { Identity=Identity(map),ExpectedGeneration=3,Attempt=new Common.AttemptKey
             { ControllerSessionId="controller",ActionId="action",AttemptId=attempt } },
-        Operation=new Operations.Operation { CancelAcquisition=new Operations.CancelAcquisition { ResourceDefName="Wall",Cell=new Common.Cell { X=1,Z=2 } } }
+        Operation=new Operations.Operation { CreateZone=new Operations.CreateZone { Label="Wall" } }
     };
     private static Receipts.EffectEvidence Evidence() => new Receipts.EffectEvidence { Construction=new Receipts.ConstructionEffect
         { OriginThingId="blueprint",CurrentThingId="blueprint",DefName="Wall",Present=true,Stage=Receipts.ConstructionStage.Blueprint } };
@@ -55,13 +55,13 @@ internal static class NativeAttemptLedgerProbe
         Check(inFlight.Reply!.Receipt.Attempt.Equals(request.Precondition.Attempt) && inFlight.Reply.Receipt.AdmittedContext.Equals(Context()),"transient uncertainty correlated");
         Check(ledger.Admit(Method,request,Context()).Kind==Kind.InFlight && ledger.Count==1,"atomic admission repeats lookup");
         Check(ledger.Lookup(request.Precondition.Attempt,Context()).OutcomeCase==Receipts.LookupReply.OutcomeOneofCase.InFlight,"lookup records in-flight");
-        var changed=request.Clone(); changed.Operation.CancelAcquisition.ResourceDefName="Bed";
+        var changed=request.Clone(); changed.Operation.CreateZone.Label="Bed";
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"changed operation conflicts");
         changed=request.Clone(); changed.Precondition.ExpectedGeneration++;
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"changed original generation conflicts");
         changed=request.Clone(); changed.Precondition.ExpectedGeneration++;
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"changed original lease conflicts");
-        changed=request.Clone(); changed.Operation.CancelAcquisition.ClearResourceDefName();
+        changed=request.Clone(); changed.Operation.CreateZone.ClearLabel();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"zero versus absent conflicts");
         Check(ledger.Inspect(Method.ToLowerInvariant(),request).Reply!.Failure.Code==Common.FailureCode.AttemptConflict,"method equality is ordinal");
         var unknown=Operations.ExecuteRequest.Parser.ParseFrom(request.ToByteArray().Concat(new byte[]{0xf8,0x07,0x01}).ToArray());
@@ -82,7 +82,7 @@ internal static class NativeAttemptLedgerProbe
 
         var mutable=Request(2); var saved=mutable.Clone(); var admittedContext=Context();
         var pending=ledger.Admit(Method,mutable,admittedContext).Handle!;
-        mutable.Precondition.ExpectedGeneration=99; mutable.Operation.CancelAcquisition.ResourceDefName="mutated";
+        mutable.Precondition.ExpectedGeneration=99; mutable.Operation.CreateZone.Label="mutated";
         admittedContext.Tick=999;
         Check(ledger.Inspect(Method,saved).Kind==Kind.InFlight,"admission stores detached request");
         var uncertain=ledger.FinishUncertain(pending,null,string.Concat(Enumerable.Repeat("\ud83d\ude00",4097)));
@@ -142,7 +142,7 @@ internal static class NativeAttemptLedgerProbe
         cells[0]=cells[1];
         cells[1]=first;
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"repeated order preserved");
-        changed=request.Clone(); changed.Operation.AcquireResource=new Operations.AcquireResource();
+        changed=request.Clone(); changed.Operation.ClearCommand();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"different command oneof conflicts");
         changed=request.Clone(); changed.Precondition.Attempt.ActionId="another-action";
         Check(ledger.Inspect(Method,changed).Kind==Kind.New,"attempt namespace includes action id");

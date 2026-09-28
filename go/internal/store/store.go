@@ -20,13 +20,12 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/store/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	"github.com/davidarcher/RimGovernor/go/internal/store/core"
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 156
+const schemaVersion = 157
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -56,12 +55,10 @@ type PlanState struct {
 	// Method is the goal or incident method id the plan was admitted
 	// under (#987), empty for a plan no method binds. It outlives the
 	// goal_methods row, which RebuildGoals clears on a world's first round.
-	Method                    domain.MethodID
-	Spec                      domain.PlanSpec
-	Progress                  []domain.Progress
-	Admissions                []ActionAdmission
-	AcquisitionAdmissions     []ActionAcquisitionAdmission
-	MineAcquisitionAdmissions []ActionMineAcquisitionAdmission
+	Method     domain.MethodID
+	Spec       domain.PlanSpec
+	Progress   []domain.Progress
+	Admissions []ActionAdmission
 }
 
 // Open accepts a filesystem path, never a caller-supplied SQLite connection URI.
@@ -257,8 +254,6 @@ CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL R
 CREATE TABLE action_dependencies(plan_id TEXT NOT NULL REFERENCES plans(id), action_id TEXT NOT NULL REFERENCES actions(id), requires_id TEXT NOT NULL REFERENCES actions(id), coupled INTEGER NOT NULL DEFAULT 0 CHECK(coupled IN (0,1)), PRIMARY KEY(plan_id,action_id,requires_id)) STRICT;
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE bill_claims(colony TEXT NOT NULL,load_token TEXT NOT NULL,map_id INTEGER NOT NULL,bench TEXT NOT NULL,recipe TEXT NOT NULL,PRIMARY KEY(colony,load_token,map_id,bench,recipe)) STRICT;
-CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE mine_acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
 CREATE TABLE clock_epochs(start_request_id TEXT PRIMARY KEY REFERENCES clock_attempts(request_id), stage TEXT NOT NULL CHECK(stage IN ('required','pausing','uncertain','paused','retired','superseded')), sequence TEXT NOT NULL, context BLOB, status BLOB) STRICT;
 CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','research_select')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
@@ -324,7 +319,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("%w: %d/%d", ErrIncompatible, app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -548,21 +543,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 			return PlanState{}, fmt.Errorf("invalid action %q history: %w", a.ID(), e)
 		}
 		state.Progress = append(state.Progress, p)
-		acquisitionAdmission, acquisitionPresent, e := acquisition.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if acquisitionPresent {
-			state.AcquisitionAdmissions = append(state.AcquisitionAdmissions, ActionAcquisitionAdmission{Action: a.ID(), Admission: acquisitionAdmission})
-		}
-		mineAcquisitionAdmission, mineAcquisitionPresent, e := loadMineAcquisitionAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if mineAcquisitionPresent {
-			state.MineAcquisitionAdmissions = append(state.MineAcquisitionAdmissions, ActionMineAcquisitionAdmission{Action: a.ID(), Admission: mineAcquisitionAdmission})
-		}
-
 		admission, present, err := loadAdmission(ctx, tx, a, p)
 		if err != nil {
 			return PlanState{}, err

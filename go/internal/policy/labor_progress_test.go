@@ -28,9 +28,6 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 	supplies.Labor, supplies.Targets = GoalLabor(SecureSupplies), ActionWorkTargets(haulAction)
 	feed := s.commitment("feed", AutopilotGoal, 4, true)
 	feed.Labor, feed.Targets = GoalLabor(MaintainAnimalFeed), domain.Known(WorkTargets{Things: []string{"Thing_Stove1"}})
-	for _, c := range []*Commitment{&supplies, &feed} {
-		c.Dispatched = domain.Known(s.tick)
-	}
 	hauler := func(id PawnID, thing string) WorkPawn {
 		job := PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: thing, Cell: domain.Known(domain.Cell{X: 9, Z: 9})})}
 		return WorkPawn{ID: id, Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}, {Work: WorkCooking, Priority: 3}}), Job: domain.Known(job)}

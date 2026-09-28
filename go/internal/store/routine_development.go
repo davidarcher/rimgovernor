@@ -110,17 +110,13 @@ func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []routinePlan) ([]poli
 		if plan.source == domain.PlayerGoal && labor == nil {
 			labor = policy.LaborProfile{policy.WorkConstruction}
 		}
-		dispatched, err := dispatchTick(ctx, tx, open.View().Action)
-		if err != nil {
-			return nil, err
-		}
 		targets := domain.Unknown[policy.WorkTargets]()
 		for _, a := range plan.state.Spec.Actions() {
 			if a.ID() == open.View().Action {
 				targets = policy.ActionWorkTargets(a)
 			}
 		}
-		result = append(result, policy.Commitment{Goal: plan.goal, Source: plan.source, Priority: plan.priority, Progress: open, Labor: labor, Dispatched: dispatched, Targets: targets})
+		result = append(result, policy.Commitment{Goal: plan.goal, Source: plan.source, Priority: plan.priority, Progress: open, Labor: labor, Targets: targets})
 	}
 	return result, nil
 }
@@ -141,30 +137,6 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 		}
 	}
 	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved, Construction: r.Facts.CurrentConstruction})
-}
-
-// dispatchTick is the tick of the action's latest dispatch transition.
-func dispatchTick(ctx context.Context, tx *sql.Tx, action domain.ActionID) (domain.Fact[domain.Tick], error) {
-	rows, err := tx.QueryContext(ctx, "SELECT payload FROM transitions WHERE action_id=? ORDER BY sequence", action)
-	if err != nil {
-		return domain.Unknown[domain.Tick](), err
-	}
-	defer rows.Close()
-	result := domain.Unknown[domain.Tick]()
-	for rows.Next() {
-		var data []byte
-		if err := rows.Scan(&data); err != nil {
-			return domain.Unknown[domain.Tick](), err
-		}
-		var event transition
-		if err := decode(data, &event); err != nil {
-			return domain.Unknown[domain.Tick](), err
-		}
-		if event.Kind == "dispatch" {
-			result = domain.Known(event.Tick)
-		}
-	}
-	return result, rows.Err()
 }
 
 func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, []DependencyRecord, error) {

@@ -49,7 +49,6 @@ type RoutineResourceSource interface {
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
-	PreviewAcquisition(context.Context, *c.Identity, bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error)
 	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
 }
 type RoutineResourcePlanner struct {
@@ -77,8 +76,8 @@ type RoutineResourceResult struct {
 	// source is actually dispatched (dispatchMineSource) -- see Reason/Plan
 	// -- against the second, independently-registered mine-acquisition
 	// vertical; any other selected method is still surfaced here for
-	// observability only, since only mine sources carry the CAS evidence
-	// this vertical's AcquireResource dispatch needs. A native read failure
+	// observability only, since only mine sources carry the cell
+	// this vertical's AcquireIntent needs. A native read failure
 	// here is swallowed rather than propagated, since the bench/recipe
 	// outcome above already stands on its own.
 	Sources []policy.ResourceSource
@@ -489,7 +488,7 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 // half of the resource method (its bill-listing
 // fallback, which SelectResourceMethod above already covers, is only reached
 // once this source loop finds nothing to select). Neither this method nor
-// materialStorageZoneFallback dispatches AcquireResource itself --
+// materialStorageZoneFallback dispatches the mine itself --
 // dispatchMineSource is what actually acts on the selection once storage is
 // adequate -- so a native read failure here is deliberately swallowed
 // (ok=false) rather than surfaced, preserving the bench/recipe outcome the
@@ -746,8 +745,8 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 // independently-registered mine-acquisition vertical this planner's mine
 // dispatch needs, since a mined resource can never appear in the generic
 // vertical's AcquisitionFacts census. Only a mine
-// method source carries the Cell/Token bridge.ReadMineAcquisition/
-// AcquireResource need (policy.SelectResourceSources populates them for
+// method source carries the cell the
+// AcquireIntent needs (policy.SelectResourceSources populates them for
 // "mine" rows only); any other selected method is left to the caller's
 // observability-only Sources reporting. The caller only reaches this once
 // materialStorageZoneFallback reports handled=false, i.e. either no mine
@@ -774,18 +773,6 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/mine/%s/%d/%d", goal.Goal.ID, goal.Goal.Epoch, source.ThingID, source.Cell.X, source.Cell.Z)))
 	id := domain.MintPlanID()
 	methodID := domain.MethodID(fmt.Sprintf("resource-mine-%x", digest[:16]))
-	target := bridge.AcquisitionTarget{Acquisition: acquisitionValue, Token: source.Token}
-	preview, _, err := r.native.PreviewAcquisition(call, boundary.Identity(state.Snapshot), target)
-	if err != nil {
-		return RoutineResourceResult{}, false, err
-	}
-	evaluated := preview.GetEvaluated()
-	if evaluated == nil || !evaluated.GetAccepted() {
-		return RoutineResourceResult{Reason: BuildingMethodRefused}, true, nil
-	}
-	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineResourceResult{}, false, fmt.Errorf("%w: dispatchMineSource: err != nil", ErrControl)
-	}
 	action, err := domain.NewMineAcquisitionAction(domain.ActionID(fmt.Sprintf("%s-0", id)), acquisitionValue)
 	if err != nil {
 		return RoutineResourceResult{}, false, err

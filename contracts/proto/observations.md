@@ -195,7 +195,6 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 
 | Operations precondition | Read path |
 |---|---|
-| AcquireResource.source | ListResourceSources.source.snapshot |
 | DesignateIntent.thing_id | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
 | WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
 | ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |

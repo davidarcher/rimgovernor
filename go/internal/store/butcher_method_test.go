@@ -46,7 +46,7 @@ func TestCommitButcherSpotExemptFromFieldAndAcquisitionOpenWork(t *testing.T) {
 	}
 	target := r.Current
 	target.Plan, target.Revision = "acquire-plan-1", 1
-	if _, err = s.PrepareAcquisition(ctx, "acquire-plan-1", "acquire-plan-1-a", AcquisitionAdmission{Snapshot: target, Tick: tick, Thing: "acq-RawBerries", SnapshotToken: "acq-cas"}); err != nil {
+	if _, err = s.Prepare(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
@@ -111,7 +111,7 @@ func TestCommitHuntOverOpenForage(t *testing.T) {
 	}
 	target := r.Current
 	target.Plan, target.Revision = "acquire-plan-1", 1
-	if _, err = s.PrepareAcquisition(ctx, "acquire-plan-1", "acquire-plan-1-a", AcquisitionAdmission{Snapshot: target, Tick: tick, Thing: "acq-RawBerries", SnapshotToken: "acq-cas"}); err != nil {
+	if _, err = s.Prepare(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
@@ -127,7 +127,7 @@ func TestCommitHuntOverOpenForage(t *testing.T) {
 		t.Fatal("open forage blocked a hunt", err)
 	}
 	target.Plan = "hunt-plan-1"
-	if _, err = s.PrepareAcquisition(ctx, "hunt-plan-1", "hunt-plan-1-a", AcquisitionAdmission{Snapshot: target, Tick: tick, Thing: "acq-Corpse_Hare", SnapshotToken: "hunt-cas"}); err != nil {
+	if _, err = s.Prepare(ctx, "hunt-plan-1", "hunt-plan-1-a", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, "hunt-plan-1", "hunt-plan-1-a", target, tick); err != nil {

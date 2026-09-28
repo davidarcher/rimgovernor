@@ -15,7 +15,6 @@ func TestIdleLaborRecordsButKeepsCommitmentAcrossReviews(t *testing.T) {
 	s.tick = 5000
 	c := s.commitment("wood", AutopilotGoal, 4, true)
 	c.Labor = GoalLabor(MaintainResource)
-	c.Dispatched = domain.Known(s.tick)
 	idle := domain.Known(LaborUse{Busy: map[WorkType]int{WorkConstruction: 2}, Idle: map[WorkType]int{WorkPlantCutting: 2}})
 	busy := domain.Known(LaborUse{Busy: map[WorkType]int{WorkPlantCutting: 1, WorkConstruction: 1}, Idle: map[WorkType]int{WorkPlantCutting: 1}})
 	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: idle}

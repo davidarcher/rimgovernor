@@ -87,36 +87,28 @@ type Result struct {
 	Progress     domain.Progress
 	Refused      []policy.Refusal
 	NativeCalled bool
-	// Detail is native's free-text account of an unresolved effect, when
-	// the boundary carries one (an acquisition's pending reason, #291); it
-	// is evidence for the log, never a decision input.
-	Detail string
 }
 
 type Executor struct {
-	acquisition            AcquisitionBoundary
-	acquisitionJournal     AcquisitionJournal
-	haul                   HaulBoundary
-	haulJournal            HaulJournal
-	trade                  TradeBoundary
-	tradeJournal           TradeJournal
-	mineAcquisition        AcquisitionBoundary
-	mineAcquisitionJournal MineAcquisitionJournal
-	movement               MovementBoundary
-	movementJournal        MovementJournal
-	routineScope           RoutineScope
-	journal                Journal
-	boundary               Boundary
-	clock                  Clock
-	limits                 Limits
-	writer                 chan struct{}
-	mu                     sync.Mutex
-	authority              Authority
-	generation             context.Context
-	invalidate             context.CancelFunc
-	activeActions          []domain.ActionID
-	activeCancel           context.CancelFunc
-	stopped                bool
+	haul            HaulBoundary
+	haulJournal     HaulJournal
+	trade           TradeBoundary
+	tradeJournal    TradeJournal
+	movement        MovementBoundary
+	movementJournal MovementJournal
+	routineScope    RoutineScope
+	journal         Journal
+	boundary        Boundary
+	clock           Clock
+	limits          Limits
+	writer          chan struct{}
+	mu              sync.Mutex
+	authority       Authority
+	generation      context.Context
+	invalidate      context.CancelFunc
+	activeActions   []domain.ActionID
+	activeCancel    context.CancelFunc
+	stopped         bool
 }
 
 func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
@@ -279,9 +271,6 @@ func (e *Executor) runLoaded(ctx context.Context, state store.PlanState, actionI
 	if action.Kind().IntentMode() && progress.View().Unresolved {
 		return e.settleIntent(progress)
 	}
-	if action.Kind() == domain.AcquisitionAction && e.acquisition != nil {
-		return e.runAcquisition(ctx, action, progress, authority, generation)
-	}
 	if action.Kind() == domain.MovementAction && e.movement != nil {
 		return e.runMovement(ctx, action, progress, authority, generation)
 	}
@@ -291,43 +280,7 @@ func (e *Executor) runLoaded(ctx context.Context, state store.PlanState, actionI
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.MineAcquisitionAction && e.mineAcquisition != nil {
-		return e.runMineAcquisition(ctx, action, progress, authority, generation)
-	}
 	return Result{}, errors.New("missing or unsupported action")
-}
-
-// holdEmergency durably records an emergency-gated, not-yet-dispatched
-// action's hold reasons via journal.Hold, deduplicated the same way inspect's
-// building branch already does, so a caller polling e.g. /api/plan learns why
-// the action is stuck instead of only observing a bare ErrHeld. Shared by
-// every emergency-aware family (building, acquisition, bill, mine
-// acquisition, supply, work, zone), not just building. Best-effort: a
-// durable-write failure here must not mask the emergency hold itself -- the
-// action stays Pending/Prepared regardless, so the next inspection
-// recomputes and retries recording the reason.
-func (e *Executor) holdEmergency(ctx context.Context, plan domain.PlanID, actionID domain.ActionID, decision policy.EmergencyDecision, tick domain.Tick, progress domain.Progress) domain.Progress {
-	seen := map[domain.HeldReason]bool{}
-	var reasons []domain.HeldReason
-	for _, hold := range decision.Holds {
-		held := domain.HeldUnknownFacts
-		switch hold.Reason {
-		case policy.EmergencyUnsafeThreat:
-			held = domain.HeldUnsafeThreat
-		case policy.EmergencyCriticalMedical:
-			held = domain.HeldCriticalMedical
-		case policy.EmergencyStaleFacts:
-			held = domain.HeldStaleFacts
-		}
-		if !seen[held] {
-			seen[held] = true
-			reasons = append(reasons, held)
-		}
-	}
-	if next, err := e.journal.Hold(ctx, plan, actionID, reasons, tick); err == nil {
-		return next
-	}
-	return progress
 }
 
 // receiptAfterCallError classifies a failed native write: a failure the

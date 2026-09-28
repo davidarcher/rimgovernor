@@ -7,25 +7,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 type SessionConfig struct {
-	Acquisition     *acquisition.AcquisitionCapabilities
-	RoutineMethods  bool
-	Control         ControlConfig
-	Executor        executor.Limits
-	Clock           *ClockCapabilities
-	Haul            *haul.HaulCapabilities
-	Movement        *MovementCapabilities
-	Trade           *TradeCapabilities
-	MineAcquisition *mineacquisition.MineAcquisitionCapabilities
+	RoutineMethods bool
+	Control        ControlConfig
+	Executor       executor.Limits
+	Clock          *ClockCapabilities
+	Haul           *haul.HaulCapabilities
+	Movement       *MovementCapabilities
+	Trade          *TradeCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -172,18 +168,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		moves = &movementBoundary{Boundary: place, writer: config.Movement.Writer}
 	}
 	var worker *executor.Executor
-	if config.Acquisition != nil && (config.Acquisition.Native == nil || config.Acquisition.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.Acquisition != nil && (config.Acquisition.Native == nil || config.Acquisition.Writer == nil)", ErrControl))
-	}
 	if config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil)", ErrControl))
 	}
 	if config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil)", ErrControl))
-	}
-
-	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer ==", ErrControl))
 	}
 	routine := []executor.RoutineScope{planAuthorizer{journal, config.RoutineMethods}}
 	if moves != nil {
@@ -195,19 +184,8 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		return cleanup(err)
 	}
 	// Each optional capability is wired directly onto worker with its own
-	// typed boundary value, rather than composed into a single value for
-	// executor.New to discover by type assertion — see executor.EnableAcquisition
-	// for why the composed-value approach was unsafe.
-	if config.Acquisition != nil {
-		if err := worker.EnableAcquisition(acquisition.NewAcquisitionBoundary(place, *config.Acquisition)); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.MineAcquisition != nil {
-		if err := worker.EnableMineAcquisition(mineacquisition.NewMineAcquisitionBoundary(place, *config.MineAcquisition)); err != nil {
-			return cleanup(err)
-		}
-	}
+	// typed boundary value, never discovered by type assertion on a composed
+	// boundary.
 	if config.Trade != nil {
 		if err := worker.EnableTrade(&tradeBoundary{Boundary: place, trade: *config.Trade}); err != nil {
 			return cleanup(err)

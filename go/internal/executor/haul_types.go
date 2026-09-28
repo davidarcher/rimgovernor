@@ -31,8 +31,7 @@ type HaulBoundary interface {
 	WriteHaul(context.Context, Placement) (Receipt, error)
 }
 
-// EnableHaul activates the haul capability; see EnableAcquisition (in
-// acquisition.go) for why capabilities are wired this way instead of
+// EnableHaul activates the haul capability, wired explicitly rather than
 // inferred from a composed Boundary.
 func (e *Executor) EnableHaul(haul HaulBoundary) error {
 	if haul == nil {

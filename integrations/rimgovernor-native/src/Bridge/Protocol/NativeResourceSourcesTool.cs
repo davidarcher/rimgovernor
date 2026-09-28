@@ -138,11 +138,9 @@ namespace HomeBridge.BridgeTools
             var mineable = thing is Mineable;
             var entity = new Obs.EntityRef { Id = thing.GetUniqueLoadID(), DefName = thing.def.defName, MapId = map.uniqueID,
                 Position = new Common.Cell { X = thing.Position.x, Z = thing.Position.z } };
-            // Only mine sources carry a snapshot token: AcquireResource can now
-            // dispatch against a mined source (NativeMineAcquisition), but
-            // harvest/hunt sources are still reached only through the
-            // AcquisitionFacts census path, which already carries its own
-            // token.
+            // Only mine sources carry a snapshot token (the routine reads it as
+            // the source row's identity); harvest/hunt sources come from the
+            // AcquisitionFacts census, which carries its own.
             if (thing is Mineable rock) entity.Snapshot = NativeMineAcquisition.Snapshot(rock, context);
             var row = new Obs.ResourceSource
             {

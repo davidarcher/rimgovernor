@@ -80,9 +80,9 @@ func remoteOreStep(t *testing.T, steel int64) (RoutineResourceResult, *remoteOre
 // designation, whose yield it only reserves.
 func TestSteelDemandMinesTheRemoteLumpNotTheForeignDesignation(t *testing.T) {
 	t.Parallel()
-	result, native := remoteOreStep(t, 0)
-	if result.Reason != BuildingMethodAdmitted || len(native.acquisitions) != 1 || native.acquisitions[0].Token != "lump-cas" {
-		t.Fatal(result, native.acquisitions)
+	result, _ := remoteOreStep(t, 0)
+	if result.Reason != BuildingMethodAdmitted || !minedSource(result, "lump-cas") {
+		t.Fatal(result)
 	}
 }
 
@@ -90,8 +90,8 @@ func TestSteelDemandMinesTheRemoteLumpNotTheForeignDesignation(t *testing.T) {
 // foreign designation stays untouched.
 func TestDeliveredSteelPlansNoFurtherMining(t *testing.T) {
 	t.Parallel()
-	result, native := remoteOreStep(t, 200)
-	if result.Reason == BuildingMethodAdmitted || len(native.acquisitions) != 0 {
-		t.Fatal(result, native.acquisitions)
+	result, _ := remoteOreStep(t, 200)
+	if result.Reason == BuildingMethodAdmitted {
+		t.Fatal(result)
 	}
 }

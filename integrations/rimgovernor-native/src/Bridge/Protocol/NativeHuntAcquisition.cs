@@ -6,100 +6,28 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
 using Obs = RimGovernor.Protocol.Observations;
 using Operations = RimGovernor.Protocol.Operations;
-using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    internal sealed class NativeHuntRecord : INativeAcquisitionRecord
-    {
-        private readonly Pawn prey;
-        private readonly Map map;
-        // The admission cell is the controller's hint of where the animal
-        // was planned, echoed in the evidence; the animal itself is followed
-        // by identity (#321).
-        private readonly IntVec3 cell;
-        private readonly string source, resource;
-        private readonly bool pest;
-        private bool withdrawn;
-        // killed remembers a pest's corpse once observed: it may be hauled,
-        // eaten or rot before the next observation, and the kill still
-        // happened through this hunt.
-        private string? killed;
-        internal NativeHuntRecord(Pawn prey, IntVec3 cell)
-        { this.prey = prey; map = prey.Map; this.cell = cell; source = prey.GetUniqueLoadID(); resource = prey.RaceProps.corpseDef.defName; pest = NativeHuntAcquisition.Pest(prey); }
-        // Gone is the pest exit (#321): the animal is dead, or it left the
-        // map (a wild animal that exits is destroyed); either way it no
-        // longer threatens the trees and the hunt is finished.
-        private bool Gone => prey.Dead || prey.Destroyed || !prey.Spawned || prey.Map != map;
-        internal Receipts.AcquisitionEffect Evidence()
-        {
-            var corpse = prey.Corpse;
-            var exact = prey.Dead && corpse != null && ReferenceEquals(corpse.InnerPawn, prey) && corpse.def.defName == resource;
-            var onMap = exact && !corpse!.Destroyed && corpse.Spawned && corpse.Map == map;
-            // A food hunt yields a fresh, unforbidden corpse for the butcher;
-            // a pest hunt yields the kill, whatever state the corpse is in.
-            var observed = onMap && (pest || !corpse!.IsForbidden(Faction.OfPlayer) && !corpse!.Position.Fogged(map) && corpse!.GetRotStage() == RotStage.Fresh);
-            if (pest && observed) killed = corpse!.GetUniqueLoadID();
-            var finished = pest ? Gone : exact;
-            var produced = pest ? killed != null : exact;
-            var result = new Receipts.AcquisitionEffect { SourceId = source, ResourceDef = resource,
-                Cell = new Common.Cell { X = cell.x, Z = cell.z }, Designated = NativeHuntAcquisition.Designated(prey),
-                LaborFinished = finished, ProducedUnits = produced ? 1 : 0, OutputComplete = finished, OutputObserved = produced && (pest || observed) };
-            if (produced) result.Outputs.Add(new Receipts.AcquisitionOutput { ThingId = pest ? killed! : corpse!.GetUniqueLoadID(), Units = 1 });
-            return result;
-        }
-        internal bool Matches(Operations.CancelAcquisition command, Map current) => current == map
-            && command.Source.EntityId == source && command.ResourceDefName == resource
-            && command.Cell.X == cell.x && command.Cell.Z == cell.z;
-        internal void Withdraw()
-        {
-            if (prey.Spawned && prey.Map == map)
-            {
-                var designation = map.designationManager.DesignationOn(prey, DesignationDefOf.Hunt);
-                if (designation != null) map.designationManager.RemoveDesignation(designation);
-            }
-            // Removing a designation alone leaves an already-running Hunt job
-            // alive, and its unsafe route can stop every subsequent clock window.
-            foreach (var hunter in map.mapPawns.FreeColonistsSpawned.ToList())
-                if (hunter.CurJobDef == JobDefOf.Hunt && hunter.CurJob.targetA.Thing == prey)
-                    hunter.jobs.EndCurrentJob(JobCondition.InterruptForced);
-            withdrawn = true;
-        }
-        private static Receipts.Progress Unsuccessful(Common.AttemptKey attempt, Common.ObservationContext context, Receipts.AcquisitionEffect evidence, string detail) =>
-            new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true,
-                Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
-                    Evidence = new Receipts.EffectEvidence { Acquisition = evidence }, Detail = detail } };
-        public Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
-        {
-            var evidence = Evidence();
-            // A designation gone without a kill is terminal whoever removed
-            // it (we withdrew it, the animal fled or was eaten, the game
-            // cleared it): left Unknown, the open plan blocks every new food
-            // method.
-            if (!evidence.LaborFinished && !evidence.Designated)
-                return Unsuccessful(attempt, context, evidence, withdrawn ? "Owned hunt was withdrawn before an observed kill." : "Hunt designation is gone without an observed kill.");
-            // Food prey dead but its corpse gone (eaten, hauled off map,
-            // destroyed) before it was observed: nothing will ever show.
-            if (!pest && prey.Dead && !evidence.LaborFinished)
-                return Unsuccessful(attempt, context, evidence, "Prey died but its corpse is gone.");
-            // A pest that left the map, or whose corpse was gone before any
-            // observation, is finished without a kill to show for it; the
-            // census, not the receipt, says whether the pack is cleared.
-            if (pest && evidence.LaborFinished && evidence.ProducedUnits == 0)
-                return Unsuccessful(attempt, context, evidence, "Pest left the map or its corpse was never observed.");
-            return NativeAcquisitionRecord.Progress(attempt, context, evidence);
-        }
-    }
-
     // A corpse is acquired material. Only later ordinary butchering/cooking can
     // produce edible stock; expected meat nutrition never populates this receipt.
     internal static class NativeHuntAcquisition
     {
         internal static bool Designated(Pawn prey) => prey.Spawned && prey.Map.designationManager.DesignationOn(prey, DesignationDefOf.Hunt) != null;
-        internal static bool IsHunt(Operations.AcquireResource command, Common.ObservationContext context) => ProtoBoundary.ResolveMap(context)?.mapPawns.AllPawnsSpawned.Any(p => p.GetUniqueLoadID() == command.Source?.EntityId) == true;
+        // Withdraw removes the hunt designation and stops a hunter already
+        // on the prey: a designation removed alone leaves a running Hunt job
+        // alive, and its unsafe route can stop every later clock window.
+        internal static void Withdraw(Pawn prey)
+        {
+            var map = prey.Map;
+            var designation = map.designationManager.DesignationOn(prey, DesignationDefOf.Hunt);
+            if (designation != null) map.designationManager.RemoveDesignation(designation);
+            foreach (var hunter in map.mapPawns.FreeColonistsSpawned.ToList())
+                if (hunter.CurJobDef == JobDefOf.Hunt && hunter.CurJob.targetA.Thing == prey)
+                    hunter.jobs.EndCurrentJob(JobCondition.InterruptForced);
+        }
         private static int Pending(Map map) => map.mapPawns.AllPawnsSpawned.Count(Designated);
         private static bool OrdinaryWeapon(Pawn pawn)
         {
@@ -222,60 +150,17 @@ namespace HomeBridge.BridgeTools
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
         internal const string Kind = "Hunt";
-        // A withdrawal may only use this controller action's preceding hunt
-        // record. The admission cell is the controller's and stays valid
-        // after the prey moves.
-        internal static NativeHuntRecord? WithdrawalRecord(NativeOperationState state, Common.AttemptKey attempt)
-        {
-            if (attempt.AttemptId <= 1) return null;
-            var prior = attempt.Clone(); prior.AttemptId--;
-            return state.Acquisition.TryGetValue(prior, out var record) ? record as NativeHuntRecord : null;
-        }
-        internal static Operations.ExecuteReply Cancel(NativeOperationState state, Operations.ExecuteRequest request,
-            Common.ObservationContext context, NativeHuntRecord record)
-        {
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
-            var pre = request.Precondition; var command = request.Operation.CancelAcquisition;
-            try
-            {
-                if (!NativePlantAcquisition.ValidCancel(command) || !record.Matches(command, ProtoBoundary.LoadedMap(context)))
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cancellation requires the original hunt target.") };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                state.Acquisition.Add(pre.Attempt.Clone(), record);
-                using (authority.Owned())
-                {
-                    if (!authority.Check(pre.ExpectedGeneration).Success) throw new InvalidOperationException("Authority moved before hunt cancellation.");
-                    record.Withdraw();
-                    evidence = new Receipts.EffectEvidence { Acquisition = record.Evidence() };
-                    if (evidence.Acquisition.Designated) throw new InvalidOperationException("Hunt designation survived cancellation.");
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Hunt cancellation failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted hunt cancellation requires observation: " + error.GetType().Name) };
-            }
-        }
         // Prepare is the apply-time precondition list for hunt
         // (action-contracts.md): Eligible plus the request's resource and
         // designation rules, one rule at a time. The request's cell is where
         // the controller planned the animal, a hint only: the hunt follows
         // the animal by identity wherever it is on the map (#321), and the
         // hunter rule still bounds food prey to 100 cells.
-        internal static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
+        internal static bool Prepare(Operations.AcquireIntent command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
         {
             prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot, enabled hunter, butcher bill (food prey) and fewer than two outstanding hunts.");
-            if (!NativePlantAcquisition.Valid(command)) return false;
             var map = ProtoBoundary.LoadedMap(context);
-            var found = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
+            var found = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.SourceId);
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => Pending(map) < 2, "two hunts are already outstanding on this map")
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
@@ -287,48 +172,10 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !Designated(found!), "the animal is already designated for hunting")
                 .Require(() => new Designator_Hunt().CanDesignateThing(found!).Accepted, "the native hunt designator refuses the animal")
                 .Require(() => Pest(found!) || ButcherReady(found!), "no usable butcher bill with an assigned cook accepts the corpse")
-                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, found!)), "no free colonist with hunting enabled and an ordinary ranged weapon (or a melee weapon or bare hands against meleeable prey) has a safe route to the animal")
-                .Token(NativeDraftProtocol.TokenSent(command.Source), () => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the animal snapshot changed since it was read");
+                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, found!)), "no free colonist with hunting enabled and an ordinary ranged weapon (or a melee weapon or bare hands against meleeable prey) has a safe route to the animal");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             prey = found;
             return true;
-        }
-        internal static Operations.PreviewReply Preview(Operations.AcquireResource command, Common.ObservationContext context)
-        {
-            if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
-            return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
-        }
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
-        {
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
-            var pre = request.Precondition; var command = request.Operation.AcquireResource;
-            try
-            {
-                if (!Prepare(command, context, out var prey, out var failure)) return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                var record = new NativeHuntRecord(prey!, new IntVec3(command.Cell.X, 0, command.Cell.Z)); state.Acquisition.Add(pre.Attempt.Clone(), record);
-                using (authority.Owned())
-                {
-                    if (!authority.Check(pre.ExpectedGeneration).Success
-                        || !Prepare(command, context, out var checkedPrey, out failure) || !ReferenceEquals(prey, checkedPrey)) throw new InvalidOperationException("Hunting changed before designation.");
-                    new Designator_Hunt().DesignateThing(prey);
-                    evidence = new Receipts.EffectEvidence { Acquisition = record.Evidence() };
-                    if (!evidence.Acquisition.Designated) throw new InvalidOperationException("Hunt designation was not observed.");
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Hunting write interrupted: " + error.GetType().Name) };
-                return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Hunting failed: " + error.GetType().Name) };
-            }
         }
     }
 }

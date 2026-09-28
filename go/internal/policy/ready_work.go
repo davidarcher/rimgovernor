@@ -467,10 +467,6 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 	if !known || effect == domain.EffectUnknown {
 		return set(ReadyAwaiting, "effect_unknown"), true
 	}
-	if !migrated {
-		// Conservative: an open unmigrated action is assumed to occupy a worker.
-		return runnable(""), true
-	}
 	if st.work == "" {
 		return set(ReadyOpenEffect, "settings_write"), true
 	}

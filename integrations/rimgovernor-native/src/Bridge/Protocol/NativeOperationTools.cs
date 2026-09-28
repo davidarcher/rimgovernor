@@ -20,7 +20,6 @@ namespace HomeBridge.BridgeTools
         private readonly string colony;
         private readonly string load;
         internal readonly NativeAttemptLedger Ledger;
-        internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, [NotNullWhen(true)] out NativeOperationState? state)
@@ -39,9 +38,9 @@ namespace HomeBridge.BridgeTools
 
     public sealed class NativeOperationTools
     {
-        public NativeOperationTools() { NativeDrugPolicy.Install(); MiningGuard.Install(); HomeCoverage.Install(); NativeAcquisitionTracking.Install(); NativePawnControlState.Initialize(); }
+        public NativeOperationTools() { NativeDrugPolicy.Install(); MiningGuard.Install(); HomeCoverage.Install(); NativePawnControlState.Initialize(); }
 
-        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit an exact supply acquisition or its cancellation under current native authority. Exact retries return their original receipt.")]
+        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "No operation arm executes here any more; every write goes through Actions/Apply. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
         public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ExecuteRequest ProtoJSON string.")] object? request = null)
@@ -78,10 +77,6 @@ namespace HomeBridge.BridgeTools
             NativeDrugPolicy.Install();
             var prior = state.Ledger.Inspect("rimgovernor.operations.v1.Operations/Execute", request);
             if (prior.Kind != NativeAttemptLedger.DecisionKind.New) return prior.DecidedReply;
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AcquireResource)
-                return NativePlantAcquisition.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CancelAcquisition)
-                return NativePlantAcquisition.Cancel(state, request, context);
             return Refuse(Common.FailureCode.Unsupported, "This native adapter does not implement the " + request.Operation.CommandCase + " operation; buildings are placed through Actions/Apply.");
         }
 
@@ -97,8 +92,6 @@ namespace HomeBridge.BridgeTools
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.CreateZone) return ProtoBoundary.Encode(NativeZoneCreation.Preview(parsed.Operation.CreateZone, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AcquireResource)
-                    return ProtoBoundary.Encode(NativePlantAcquisition.Preview(parsed.Operation.AcquireResource, context));
                 return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview does not implement this operation; building placement previews through rimgovernor/placement_preview.") });
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -137,9 +130,6 @@ namespace HomeBridge.BridgeTools
                 {
                     var lookup = state.Ledger.Lookup(parsed.Attempt, context);
                     if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
-                    INativeAcquisitionRecord acquisition;
-                    if (state.Acquisition.TryGetValue(parsed.Attempt, out acquisition))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = acquisition.Observe(parsed.Attempt, context) });
                 }
                 var progress = new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
                     Unknown = new Receipts.UnknownEffect { Reason = "No tracked effect is available for this attempt." } };

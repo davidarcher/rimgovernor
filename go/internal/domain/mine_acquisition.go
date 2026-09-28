@@ -2,24 +2,11 @@ package domain
 
 import "errors"
 
-// MineAcquisitionAction is a second, independently-registered acquisition
-// vertical alongside AcquisitionAction: intent to dispatch AcquireResource
-// against one already-selected native mine source (policy.ResourceSource
-// with Method==ResourceSourceMine, populated by
-// bridge.ReadResourceSources/policy.SelectResourceSources), keyed by its own
-// ActionKind so it can be admitted, dispatched and reconciled through its own
-// store admission table and executor/buildingruntime boundary rather than
-// sharing AcquisitionAction's single global registration. AcquisitionAction's
-// own InspectAcquisition re-validates a target by re-reading the
-// AcquisitionFacts census (bridge.ReadAcquisition), which is structurally
-// scoped to tree/food/hunt sources only (see contracts/proto/
-// observations.proto) — a mined resource can never appear there, so it needs
-// this separate vertical's own read (bridge.ReadMineAcquisition, backed by
-// ReadResourceSources) instead. The payload shape is identical to
-// AcquisitionAction's (one native-approved source thing, its harvested
-// resource definition, and its cell), so it reuses the Acquisition value
-// type verbatim -- only the ActionKind, admission bookkeeping and native read
-// differ.
+// MineAcquisitionAction designates one already-selected native mine source
+// (policy.ResourceSource with Method==ResourceSourceMine) through the same
+// Actions/Apply AcquireIntent as AcquisitionAction (#1046). It keeps its own
+// kind because the resource planner, not the census acquisition planner,
+// owns it; the payload is the same Acquisition value.
 const MineAcquisitionAction ActionKind = "mine_acquisition"
 
 func NewMineAcquisitionAction(id ActionID, acquisition Acquisition) (Action, error) {

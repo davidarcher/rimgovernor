@@ -301,7 +301,7 @@ func TestCommitFieldMethodExemptFromAcquisitionOpenWork(t *testing.T) {
 	}
 	target := r.Current
 	target.Plan, target.Revision = "acquire-plan-1", 1
-	if _, err := s.PrepareAcquisition(ctx, "acquire-plan-1", "acquire-plan-1-a", AcquisitionAdmission{Snapshot: target, Tick: tick, Thing: "acq-WoodLog", SnapshotToken: "acq-cas"}); err != nil {
+	if _, err := s.Prepare(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Dispatch(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
@@ -338,7 +338,7 @@ func TestCommitFieldInfrastructureExemptFromAcquisitionOpenWork(t *testing.T) {
 	}
 	target := r.Current
 	target.Plan, target.Revision = "acquire-plan-1", 1
-	if _, err := s.PrepareAcquisition(ctx, "acquire-plan-1", "acquire-plan-1-a", AcquisitionAdmission{Snapshot: target, Tick: tick, Thing: "acq-WoodLog", SnapshotToken: "acq-cas"}); err != nil {
+	if _, err := s.Prepare(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Dispatch(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {

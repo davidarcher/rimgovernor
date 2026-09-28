@@ -77,17 +77,13 @@ type Commitment struct {
 	// Labor is the work the open commitment already occupies (GoalLabor for
 	// routine goals, construction for player building projects).
 	Labor LaborProfile
-	// Dispatched is the tick of the open action's latest dispatch, when the
-	// caller knows it; a pending effect older than DevelopmentStallTicks is
-	// a stalled commitment and holds no capacity or labor.
-	Dispatched domain.Fact[domain.Tick]
 	// Targets are the open action's work targets (ActionWorkTargets);
 	// unknown keeps the work-type labor evidence.
 	Targets domain.Fact[WorkTargets]
 }
 
-// DevelopmentStallTicks: one game day. colony-6 held a development slot for
-// two days on a wild healroot harvest nobody picked up.
+// DevelopmentStallTicks: one game day, the unit colony-stage dwell times
+// are counted in.
 const DevelopmentStallTicks domain.Tick = 60000
 
 // DevelopmentIdleTicks: one game hour. A commitment whose labor has idled
@@ -97,14 +93,6 @@ const DevelopmentStallTicks domain.Tick = 60000
 // held both slots for days on a wood cut and a herbal bill while the
 // colonists built and hauled).
 const DevelopmentIdleTicks domain.Tick = 2500
-
-// Stalled reports a dispatched commitment whose effect has stayed pending
-// past DevelopmentStallTicks at tick now.
-func (c Commitment) Stalled(now domain.Tick) bool {
-	since, known := c.Dispatched.Value()
-	effect, effectKnown := c.Progress.View().Effect.Value()
-	return known && effectKnown && effect == domain.EffectPending && now-since > DevelopmentStallTicks
-}
 
 type DevelopmentReason string
 
@@ -318,9 +306,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		// Unknown effects retain capacity even after cancellation. A terminal
 		// observed failure/absence releases it; a command receipt never does.
-		if c.Stalled(r.Tick) {
-			continue
-		}
 		if v.Unresolved || v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation {
 			// Idle labor is recorded (LaborIdleSince) but never releases
 			// the goal: work nobody has picked up yet is still the goal's

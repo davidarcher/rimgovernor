@@ -43,10 +43,6 @@ func (n *resourceNative) ReadResourceSources(context.Context, *c.Identity, strin
 	return nil, policy.ResourceStorage{}, bridge.Result{}, errors.New("no sources in this fixture")
 }
 
-func (n *resourceNative) PreviewAcquisition(context.Context, *c.Identity, bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error) {
-	return nil, bridge.Result{}, errors.New("no acquisition in this fixture")
-}
-
 func (n *resourceNative) PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
 	return nil, bridge.Result{}, errors.New("no zone in this fixture")
 }
@@ -217,8 +213,7 @@ func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
 // a reachable open-surface ore cell with storage already covering it.
 type starvingResourceNative struct {
 	*resourceNative
-	reads        []string
-	acquisitions []bridge.AcquisitionTarget
+	reads []string
 }
 
 func (n *starvingResourceNative) ReadResourceSources(_ context.Context, _ *c.Identity, resource string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error) {
@@ -233,9 +228,15 @@ func (n *starvingResourceNative) ReadResourceSources(_ context.Context, _ *c.Ide
 	return nil, storage, bridge.Result{}, nil
 }
 
-func (n *starvingResourceNative) PreviewAcquisition(_ context.Context, _ *c.Identity, target bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error) {
-	n.acquisitions = append(n.acquisitions, target)
-	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
+// minedSource reports a selected mine source
+// whose token is token (any source when token is empty).
+func minedSource(result RoutineResourceResult, token string) bool {
+	for _, s := range result.Sources {
+		if s.Method == policy.ResourceSourceMine && (token == "" || s.Token == token) {
+			return true
+		}
+	}
+	return false
 }
 
 // #595: with herbal medicine and steel tied on proportional deficit, the
@@ -293,8 +294,8 @@ func TestResourceStepFallsThroughAnUndispatchableTargetToTheNextDeficit(t *testi
 	if got := native.reads; len(got) < 2 || got[len(got)-2] != "MedicineHerbal" || got[len(got)-1] != "Steel" {
 		t.Fatal("source reads", got, result)
 	}
-	if result.Reason != BuildingMethodAdmitted || result.Plan == "" || len(native.acquisitions) != 1 || native.acquisitions[0].Token != "ore-cas" {
-		t.Fatal(result, native.acquisitions)
+	if result.Reason != BuildingMethodAdmitted || result.Plan == "" || !minedSource(result, "ore-cas") {
+		t.Fatal(result)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)
 	if err != nil || len(plan.Spec.Actions()) != 1 {

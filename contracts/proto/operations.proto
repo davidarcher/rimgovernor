@@ -95,12 +95,13 @@ message Operation {
   // Wear orders moved to Actions/Apply PawnOrderIntent WEAR (#939).
   reserved 28;
   reserved "improve_gear";
+  // Acquisition, mine and withdraw moved to Actions/Apply AcquireIntent (#1046, #1047).
+  reserved 4, 54;
+  reserved "acquire_resource", "cancel_acquisition";
   oneof command {
-    AcquireResource acquire_resource = 4;
     // Preview only: the siting read planners run per candidate; zones are
     // created through the create_zone Action arm.
     CreateZone create_zone = 14;
-    CancelAcquisition cancel_acquisition = 54;
   }
   // Why the controller issues this operation, one short ASCII line such as
   // "Hunting: food runway 3d" (#822). Native keeps it with the jobs the
@@ -188,13 +189,6 @@ message CombatOrder {
   }
 }
 message CombatOrders { repeated CombatOrder orders = 1; }
-message AcquireResource { EntityPrecondition source = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; }
-// Withdraws one exact plant-harvest designation this controller placed and
-// nobody took (#291): the source, resource and cell of the AcquireResource
-// it cancels, under a fresh attempt of the same action. Applied evidence is
-// the acquisition effect with designated=false; the record then observes
-// unsuccessful (designation gone before harvest).
-message CancelAcquisition { EntityPrecondition source = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; }
 enum ThingDesignation {
   THING_DESIGNATION_UNSPECIFIED = 0;
   THING_DESIGNATION_ALLOW = 1;

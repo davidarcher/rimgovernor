@@ -98,8 +98,6 @@ namespace HomeBridge.BridgeTools
             record.Finished = Find.TickManager.TicksGame;
             record.Cancelled = false;
             record.Recovered = Math.Max(0, Stock(__state.Map, record.Resource) - __state.Stock);
-            record.OnMined?.Invoke();
-            record.OnMined = null;
         }
     }
 }

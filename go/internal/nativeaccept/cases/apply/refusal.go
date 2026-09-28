@@ -25,10 +25,9 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "apply/refusal",
 		Scope: "Apply-time precondition refusals (#242, #252): for zone cell edit, stockpile patch, zone creation, " +
-			"Allow, haul, work settings, bills, build, hunt, tame, grower crop, plant and mine acquisition, " +
+			"Allow, haul, work settings, bills, build, tame and grower crop, " +
 			"a write whose token was valid when read is executed after the fixture moved the world and is refused " +
-			"with the documented reason naming the moved fact; the acquisition writes are refused the same way without a " +
-			"token, as live dispatch sends them (#243).",
+			"with the documented reason naming the moved fact.",
 		// clutter plants every bare cell around the colonist before the
 		// fixture stages its interior, so the initial map cannot supply
 		// one untouched and the fixture's own clearing is exercised
@@ -84,11 +83,9 @@ func run(ctx context.Context, s cases.Session) error {
 		cell, _ := na.AsMap(prepared[key])
 		return map[string]any{"x": cell["x"], "z": cell["z"]}
 	}
-	plantCell, rockCell, preyCell, buildCell := cellOf("plantCell"), cellOf("rockCell"), cellOf("preyCell"), cellOf("buildCell")
+	buildCell := cellOf("buildCell")
 	tokens := map[string]string{}
-	for _, key := range []string{"zoneId", "wallId", "wallToken", "itemId", "itemToken", "haulItemId", "haulItemToken",
-		"pawnId", "plantId", "plantToken", "plantResource", "rockId", "rockToken", "rockResource", "rockDef",
-		"benchId", "benchToken", "preyId", "preyResource", "tameId", "growerId", "growerCrop"} {
+	for _, key := range []string{"zoneId", "itemId", "itemToken", "haulItemId", "pawnId", "tameId", "growerId", "growerCrop"} {
 		if tokens[key], err = str(key); err != nil {
 			return err
 		}
@@ -298,26 +295,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// Hunt: the butcher bill was suspended, then the hare was designated,
-	// after the read. The order is sent as live dispatch sends it (#243),
-	// without the animal token the pawn listing does not report.
-	hunt := map[string]any{"acquireResource": map[string]any{
-		"source":          map[string]any{"entityId": tokens["preyId"]},
-		"resourceDefName": tokens["preyResource"], "cell": preyCell,
-	}}
-	if err := move("suspend-bills", map[string]any{"action": "suspend_bills", "id": tokens["benchId"]}); err != nil {
-		return err
-	}
-	if err := refused("hunt-unbutchered", hunt, "FAILURE_CODE_INVALID_REQUEST", "Hunt refused: no usable butcher bill with an assigned cook accepts the corpse"); err != nil {
-		return err
-	}
-	if err := move("designate-hunt", map[string]any{"action": "designate_hunt", "id": tokens["preyId"]}); err != nil {
-		return err
-	}
-	if err := refused("hunt", hunt, "FAILURE_CODE_INVALID_REQUEST", "Hunt refused: the animal is already designated for hunting"); err != nil {
-		return err
-	}
-
 	// Tame: the hare was designated for hunting after the read; the
 	// Actions/Apply husbandry intent (#941) is refused by native tame
 	// eligibility. (A tame designation would apply as it stands.)
@@ -335,40 +312,6 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	if err := intentRefused("grower-crop", map[string]any{"buildingPatch": map[string]any{"thingId": tokens["growerId"], "plantDef": tokens["growerCrop"]}},
 		"FAILURE_CODE_NOT_FOUND", "Exact plant grower is unavailable."); err != nil {
-		return err
-	}
-
-	// Plant and mine acquisition: each target was designated after the read.
-	if err := move("designate-plant", map[string]any{"action": "designate_plant", "id": tokens["plantId"]}); err != nil {
-		return err
-	}
-	if err := refused("plant", map[string]any{"acquireResource": map[string]any{
-		"source":          map[string]any{"entityId": tokens["plantId"], "expectedSnapshotToken": tokens["plantToken"]},
-		"resourceDefName": tokens["plantResource"], "cell": plantCell,
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Plant acquisition refused: the plant is already designated"); err != nil {
-		return err
-	}
-	if err := move("designate-rock", map[string]any{"action": "designate_rock", "id": tokens["rockId"]}); err != nil {
-		return err
-	}
-	if err := refused("mine", map[string]any{"acquireResource": map[string]any{
-		"source":          map[string]any{"entityId": tokens["rockId"], "expectedSnapshotToken": tokens["rockToken"]},
-		"resourceDefName": tokens["rockResource"], "cell": rockCell,
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Mine refused: the rock is already designated for mining"); err != nil {
-		return err
-	}
-	// Live dispatch (#243) omits the acquisition token: the rules alone
-	// refuse the moved world, with the same reason.
-	if err := refused("plant-untokened", map[string]any{"acquireResource": map[string]any{
-		"source":          map[string]any{"entityId": tokens["plantId"]},
-		"resourceDefName": tokens["plantResource"], "cell": plantCell,
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Plant acquisition refused: the plant is already designated"); err != nil {
-		return err
-	}
-	if err := refused("mine-untokened", map[string]any{"acquireResource": map[string]any{
-		"source":          map[string]any{"entityId": tokens["rockId"]},
-		"resourceDefName": tokens["rockResource"], "cell": rockCell,
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Mine refused: the rock is already designated for mining"); err != nil {
 		return err
 	}
 

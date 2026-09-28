@@ -197,7 +197,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	snapshot := reviewer.player.session.State().Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	tick := domain.Tick(v.Context.GetTick())
-	if _, err = db.PrepareAcquisition(ctx, first.Plan, action.ID(), store.AcquisitionAdmission{Snapshot: snapshot, Tick: tick, Thing: target.Thing(), SnapshotToken: "cas"}); err != nil {
+	if _, err = db.Prepare(ctx, first.Plan, action.ID(), snapshot, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = db.Dispatch(ctx, first.Plan, action.ID(), snapshot, tick); err != nil {

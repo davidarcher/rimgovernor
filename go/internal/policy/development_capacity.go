@@ -97,7 +97,7 @@ func CommitmentHolds(commitments []Commitment, now domain.Tick, released map[Goa
 	byGoal := map[GoalID]DevelopmentHold{}
 	for _, c := range commitments {
 		v := c.Progress.View()
-		if c.Stalled(now) || released[c.Goal] {
+		if released[c.Goal] {
 			continue
 		}
 		if !(v.Unresolved || v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation) {

@@ -13,10 +13,8 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
@@ -34,8 +32,6 @@ type buildingServiceBridge struct {
 	native            boundary.Native
 	authority         buildingruntime.NativeAuthority
 	writes            boundary.BuildingWriter
-	acquisition       *acquisition.AcquisitionCapabilities
-	mineAcquisition   *mineacquisition.MineAcquisitionCapabilities
 	clock             *buildingruntime.ClockCapabilities
 	clockReads        serviceClockReads
 	movement          *buildingruntime.MovementCapabilities
@@ -79,10 +75,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	acquisitionWriter, err := bridge.NewAcquisitionControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	actionsWriter, err := bridge.NewActionsWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -100,9 +92,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: actionsWriter,
-		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
-		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
-		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
+		clock: &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		movement:          &buildingruntime.MovementCapabilities{Writer: actionsWriter},
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
 		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
@@ -235,20 +225,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		clockCapabilities = client.clock
 	}
-	var acquisitionCapabilities *acquisition.AcquisitionCapabilities
-	if config.routineAcquisitionPlans {
-		if client.acquisition == nil {
-			return errors.New("acquisition plans require typed capabilities")
-		}
-		acquisitionCapabilities = client.acquisition
-	}
-	var mineAcquisitionCapabilities *mineacquisition.MineAcquisitionCapabilities
-	if config.routineResourcePlans || config.routineAnimalFeedPlans {
-		if client.mineAcquisition == nil {
-			return errors.New("resource and animal feed plans require typed mine acquisition capabilities")
-		}
-		mineAcquisitionCapabilities = client.mineAcquisition
-	}
 	var movementCapabilities *buildingruntime.MovementCapabilities
 	if config.routineDefensePlans {
 		if client.movement == nil {
@@ -271,14 +247,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		tradeCapabilities = client.trade
 	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
-		Control:         buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
-		Executor:        executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
-		Acquisition:     acquisitionCapabilities,
-		MineAcquisition: mineAcquisitionCapabilities,
-		Clock:           clockCapabilities,
-		Movement:        movementCapabilities,
-		Haul:            haulCapabilities,
-		Trade:           tradeCapabilities,
+		Control:  buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
+		Executor: executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
+		Clock:    clockCapabilities,
+		Movement: movementCapabilities,
+		Haul:     haulCapabilities,
+		Trade:    tradeCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err
