@@ -153,6 +153,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	noteEMPAdapted(view, &next)
 	grenade(view, &next)
 	hiveGrenade(view, &next)
+	heatHold(view, &next)
 	drillEvacuate(view, &next, orderable)
 	mechDisengage(view, &next)
 	// Contained raiders who will not bleed down are finished in melee (#1036).
@@ -303,6 +304,9 @@ type CombatView struct {
 	// OutdoorTemperatureC is the map outdoor temperature in degrees
 	// Celsius from the frame (#1077); extreme cold or heat waits indoors.
 	OutdoorTemperatureC domain.Fact[float64] `json:",omitzero"`
+	// HiveTemperatureC is the hottest live hive's temperature in degrees
+	// Celsius from the frame (#1073): the heat-stroke hold and entry check.
+	HiveTemperatureC domain.Fact[float64] `json:",omitzero"`
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -499,6 +503,10 @@ type CombatMemory struct {
 	// Wait is a manhunter fight or humanoid raid sheltering, outmatched,
 	// behind the doors WaitDoors closes and forbids (#902, #1065), since
 	// WaitSince.
+	// HeatAt is the last stop that read the hive at heat-stroke heat and
+	// HeatTicks the ticks held there (#1073).
+	HeatAt    domain.Tick `json:",omitempty"`
+	HeatTicks domain.Tick `json:",omitempty"`
 	Wait      bool        `json:",omitempty"`
 	WaitSince domain.Tick `json:",omitempty"`
 	WaitDoors []PodDoor   `json:",omitempty"`

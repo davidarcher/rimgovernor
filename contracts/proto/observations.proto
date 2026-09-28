@@ -1193,6 +1193,9 @@ message BundleSnapshot {
   // The map's outdoor temperature in degrees Celsius (#1077), with
   // combat_detail: in extreme cold or heat a fight shelters indoors.
   optional float combat_outdoor_temperature_c = 29;
+  // The hottest live hive's cell temperature in degrees Celsius (#1073),
+  // with combat_detail: an infestation's heat-stroke hold and entry check.
+  optional float combat_hive_temperature_c = 30;
 }
 message ObservationBatchSnapshot {
   rimgovernor.common.v1.ObservationContext start_context = 1; rimgovernor.common.v1.ObservationContext end_context = 2;

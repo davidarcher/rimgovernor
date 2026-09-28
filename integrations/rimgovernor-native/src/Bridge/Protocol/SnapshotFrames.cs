@@ -113,6 +113,13 @@ namespace HomeBridge.BridgeTools
             observed.CombatDetail = detail;
             // The outdoor temperature (#1077), for sheltering in extreme cold or heat.
             observed.CombatOutdoorTemperatureC = map.mapTemperature.OutdoorTemp;
+            // The hottest live hive's temperature (#1073), for the heat-stroke hold.
+            foreach (var hive in map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Hive))
+            {
+                if (!hive.Spawned || hive.Destroyed) continue;
+                var t = hive.Position.GetTemperature(map);
+                if (!observed.HasCombatHiveTemperatureC || t > observed.CombatHiveTemperatureC) observed.CombatHiveTemperatureC = t;
+            }
             // The damaged player doors (#900), for a fight's door repair.
             foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
             {

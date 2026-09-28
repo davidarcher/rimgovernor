@@ -126,6 +126,59 @@ func hiveGrenade(view CombatView, m *CombatMemory) {
 	}
 }
 
+// The heat-stroke method (#1073). Molotovs through the doorway hold the
+// hive at heatHoldMinC..heatHoldMaxC until the insects pass 60% heat
+// stroke; nobody walks in while the hive reads above heatEntryMaxC.
+const (
+	heatHoldMinC  = 150.0
+	heatHoldMaxC  = 200.0
+	heatEntryMaxC = 50.0
+	// heatStrokeTicks is the hold that takes an insect past 60% heat
+	// stroke at heatHoldMinC: HediffGiver_Heat adds
+	// curve(150-50)*6.45e-5 = 0.00387 per 60-tick interval above an
+	// insect's ~50 C safe maximum, so 0.6 takes 155 intervals.
+	heatStrokeTicks domain.Tick = 9300
+)
+
+// heatHold runs the heat-stroke method on an infestation fight: it counts
+// the ticks the hive has held heatHoldMinC, stops the molotovs above
+// heatHoldMaxC or once the insects are cooked, and while the hive reads
+// above heatEntryMaxC holds every melee fighter in place instead of
+// sending it at an insect or the hive. An unknown temperature changes
+// nothing.
+func heatHold(view CombatView, m *CombatMemory) {
+	temp, known := view.HiveTemperatureC.Value()
+	if m.Tactic != TacticInfestation || !known {
+		m.HeatAt = 0
+		return
+	}
+	if temp >= heatHoldMinC {
+		if m.HeatAt > 0 && view.Tick > m.HeatAt {
+			m.HeatTicks += view.Tick - m.HeatAt
+		}
+		m.HeatAt = view.Tick
+	} else {
+		m.HeatAt = 0
+	}
+	cooked := m.HeatTicks >= heatStrokeTicks
+	state := map[domain.PawnID]CombatPawnState{}
+	for _, p := range view.Pawns {
+		state[p.ID] = p
+	}
+	for i := range m.Roles {
+		r := &m.Roles[i]
+		if r.Ground != nil && state[r.Pawn].Weapon == "Weapon_GrenadeMolotov" && (temp >= heatHoldMaxC || cooked) {
+			r.Ground = nil
+		}
+		if temp > heatEntryMaxC && !r.Ranged && r.Cell == nil && r.Target != "" {
+			r.Target = ""
+			if c, ok := state[r.Pawn].Cell.Value(); ok {
+				r.Cell = &c
+			}
+		}
+	}
+}
+
 // deepDrillJob is a colonist's job while it works a deep drill.
 const deepDrillJob = "OperateDeepDrill"
 

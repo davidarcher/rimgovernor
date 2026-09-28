@@ -61,6 +61,34 @@ func TestDecodeCombatOutdoorTemperature(t *testing.T) {
 	}
 }
 
+// The frame's hive temperature (#1073) decodes as a known fact and
+// survives the combat read; absent it is unknown; NaN is a contract
+// failure.
+func TestDecodeCombatHiveTemperature(t *testing.T) {
+	frame := &o.BundleSnapshot{Context: authorityTestContext(7), CombatHiveTemperatureC: proto.Float32(175)}
+	combat, err := DecodeCombat(frame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := combat.HiveTemperatureC.Value(); !ok || got != 175 {
+		t.Fatalf("temperature %v %v", got, ok)
+	}
+	if combatFrame(frame).CombatHiveTemperatureC == nil {
+		t.Fatal("the combat read drops the frame's hive temperature")
+	}
+	combat, err = DecodeCombat(&o.BundleSnapshot{Context: authorityTestContext(7)})
+	if _, ok := combat.HiveTemperatureC.Value(); err != nil || ok {
+		t.Fatal("an absent temperature is not unknown")
+	}
+	nan := float32(0)
+	nan /= nan
+	for _, bad := range []float32{nan, 5000} {
+		if _, err := DecodeCombat(&o.BundleSnapshot{Context: authorityTestContext(7), CombatHiveTemperatureC: proto.Float32(bad)}); err == nil {
+			t.Fatalf("temperature %v accepted", bad)
+		}
+	}
+}
+
 // Named cells alone may be asked with no hostile: their standability
 // before drop pods open (#897); a propose still needs one.
 func TestCombatGeometryNamedCellsWithoutHostiles(t *testing.T) {
