@@ -107,6 +107,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	siegeSnipe(view, &next)
 	kite(view, &next)
 	pikemenCharge(view, &next)
+	explosivesCharge(view, &next)
 	sapperIntercept(view, &next)
 	sapperRush(view, stop, &next)
 	doorPotshot(view, formed, &next)
@@ -742,7 +743,13 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 			}
 		}
 		var positions []DefensivePosition
-		cells = spaceCells(RankByCover(cells, geometry.Scored), firingGap(view))
+		if explosive := explosiveHostiles(view); len(explosive) > 0 {
+			// Room to move over cover, out of the blasts' reach (#1054).
+			cells = explosiveCells(view, cells, explosive)
+		} else {
+			cells = RankByCover(cells, geometry.Scored)
+		}
+		cells = spaceCells(cells, firingGap(view))
 		defenders, tanks := splitTanks(view)
 		positions, refusal = explainDefensivePositions(cells, layout.Toward, chokeHeld(view, layout), markMechs(view), defenders)
 		if refusal == "" {
