@@ -9,27 +9,27 @@ namespace HomeBridge.BridgeTools
     // per cell per layer, saturating; each layer halves on its own
     // half-life, swept incrementally so no tick pays for a whole map.
     // Layer numbers are Obs.TrafficLayer's values minus one.
-    internal sealed class TrafficCounts
+    public sealed class TrafficCounts
     {
-        internal const int Colonist = 0, Crossing = 1, Animal = 2, Visitor = 3, Hostile = 4, Layers = 5;
+        public const int Colonist = 0, Crossing = 1, Animal = 2, Visitor = 3, Hostile = 4, Layers = 5;
 
         // Half-lives in ticks: colonist, crossing and animal ~2 days;
         // visits are occasional, ~5 days; raids are weeks apart, ~20 days.
-        internal static readonly int[] HalfLife = { 120000, 120000, 120000, 300000, 1200000 };
+        public static readonly int[] HalfLife = { 120000, 120000, 120000, 300000, 1200000 };
 
         private readonly ushort[][] counts;
         private readonly int[] cursor = new int[Layers];
         private readonly double[] owed = new double[Layers];
 
-        internal TrafficCounts(int cells)
+        public TrafficCounts(int cells)
         {
             counts = new ushort[Layers][];
             for (int l = 0; l < Layers; l++) counts[l] = new ushort[cells];
         }
 
-        internal int Cells => counts[0].Length;
+        public int Cells => counts[0].Length;
 
-        internal ushort this[int layer, int index] => counts[layer][index];
+        public ushort this[int layer, int index] => counts[layer][index];
 
         // Crossing is any pawn stepping from terrain that makes tracked
         // filth (TerrainDef.generatedFilth: soil, sand, gravel...) onto a
@@ -37,11 +37,11 @@ namespace HomeBridge.BridgeTools
         // straw matting). That is the step on which Pawn_FilthTracker can
         // drop terrain dirt on a floor; floor-to-floor and soil-to-soil
         // steps never count.
-        internal static bool IsCrossing(bool fromMakesFilth, bool toIsFloor) => fromMakesFilth && toIsFloor;
+        public static bool IsCrossing(bool fromMakesFilth, bool toIsFloor) => fromMakesFilth && toIsFloor;
 
         // Step counts one cell change onto index for the pawn's layer
         // (negative for none) and the crossing layer when it is one.
-        internal void Step(int layer, bool crossing, int index)
+        public void Step(int layer, bool crossing, int index)
         {
             if (index < 0 || index >= Cells) return;
             if (layer >= 0) Bump(counts[layer], index);
@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
         // Decay halves each layer once per half-life: elapsed ticks earn
         // each layer its share of a full sweep, and that many cells past its
         // cursor are halved now.
-        internal void Decay(int elapsedTicks)
+        public void Decay(int elapsedTicks)
         {
             if (elapsedTicks <= 0) return;
             for (int l = 0; l < Layers; l++)
@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Total is the layer's summed count.
-        internal uint Total(int layer)
+        public uint Total(int layer)
         {
             uint total = 0;
             foreach (var n in counts[layer]) total += n;
@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
 
         // Top is the layer's n busiest non-zero cells, busiest first, ties
         // by index so a read is deterministic.
-        internal List<int> Top(int layer, int n)
+        public List<int> Top(int layer, int n)
         {
             var source = counts[layer];
             var heap = new SortedSet<(ushort count, int negIndex)>();

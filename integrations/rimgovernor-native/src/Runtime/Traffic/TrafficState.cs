@@ -11,7 +11,10 @@ namespace HomeBridge.BridgeTools
     // layer when the step carries soil onto a floor. Counts are not saved
     // (no ExposeData state): a load starts from zero and SinceTick names the
     // window's start so a short window is not read as a quiet colony. The
-    // class keeps its old name so saves listing the component still load.
+    // class keeps its old name so saves listing the component still load,
+    // and lives in the Assemblies/ runtime (#1131): RimBridgeServer loads the
+    // BridgeTools assembly after a save can already be read, so the type
+    // database would not resolve it there.
     public sealed class TrafficState : MapComponent
     {
         private const int DecayInterval = 250;
@@ -20,7 +23,7 @@ namespace HomeBridge.BridgeTools
         private static TrafficState? last;
         private static readonly AccessTools.FieldRef<Pawn_PathFollower, Pawn> followerPawn = AccessTools.FieldRefAccess<Pawn_PathFollower, Pawn>("pawn");
 
-        internal readonly TrafficCounts Counts;
+        public readonly TrafficCounts Counts;
         public int SinceTick = -1;
 
         public TrafficState(Map map) : base(map)
