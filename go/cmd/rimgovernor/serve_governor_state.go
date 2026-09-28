@@ -93,10 +93,14 @@ type worldRebuild struct {
 }
 
 // ensure rebuilds the store for world unless it was the last one rebuilt.
+// The native generation is not a new world (#1141): authority toggles
+// (resume, Manual, a reason=None bump) raise it with the save unchanged,
+// and rebuilding on each one wiped every goal method and the review.
 func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native governorStateNative) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.count != 0 && r.world == world {
+	sameWorld := r.world.Colony == world.Colony && r.world.Map == world.Map && r.world.Load == world.Load
+	if r.count != 0 && sameWorld {
 		return nil
 	}
 	saved, err := native.GovernorState(ctx)

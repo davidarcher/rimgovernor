@@ -874,8 +874,12 @@ namespace HomeBridge.BridgeTools
             foreach (var p in pawns)
             {
                 string why;
+                // A hostile in fog is undiscovered, as the emergency view
+                // reads it (#659): a sealed shrine's dormant guard stopped
+                // every window at zero ticks, so the breach never ran (#1141).
                 if (!GameWatchReads.SafeIsColonist(p)
                     && !GameWatchReads.SafeDowned(p) && !GameWatchReads.SafeDead(p)
+                    && !BridgeCommon.Try(() => p.Spawned && p.Map != null && p.Position.Fogged(p.Map), false)
                     && GameWatchReads.IsHostile(p, out why)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= s.HostileWithin))

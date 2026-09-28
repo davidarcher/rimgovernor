@@ -247,6 +247,52 @@ func TestRoutineExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
 	}
 }
 
+// An authority toggle bumps the native generation with the world unchanged;
+// the reviewed method still authorizes under the bumped root, and a
+// different load does not (#1141).
+func TestRoutineExecutionAuthorizesAfterNativeGenerationBump(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Facts.ChoiceDialog = domain.Known(true)
+	out := reviewRoutine(t, s, &r)
+	b, ok := out.Review.Incident(policy.AnswerDialog)
+	if !ok {
+		t.Fatal(out.Review.Incidents)
+	}
+	answer, err := domain.NewDialogAnswer(3, 1, "OK")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewDialogAnswerAction("dialog", answer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("dialog-plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitIncidentMethod(ctx, b.Incident, "dialog", "", plan); err != nil {
+		t.Fatal(err)
+	}
+	bumped := r.Current
+	bumped.Native = 3
+	target := bumped
+	target.Plan, target.Revision = "dialog-plan", 1
+	if err = s.AuthorizeRoutinePlan(ctx, bumped, target); err != nil {
+		t.Fatal("generation bump refused the reviewed method:", err)
+	}
+	other := bumped
+	other.Load = "other-load"
+	target = other
+	target.Plan, target.Revision = "dialog-plan", 1
+	if err = s.AuthorizeRoutinePlan(ctx, other, target); err == nil {
+		t.Fatal("a different load authorized the reviewed method")
+	}
+}
+
 // A naming confirmation plan committed under the ConfirmColonyNames incident
 // persists through CreatePlan, reloads with its exact observed suggestions
 // and is a supported routine method the worker dispatches under the root

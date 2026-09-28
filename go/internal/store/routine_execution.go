@@ -11,6 +11,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// sameRoot compares the root a review, goal or incident recorded with the
+// root a worker authorizes under: same world and root plan revision. The
+// native generation is left out (#1141, as #259): authority toggles bump it
+// with the world unchanged, and the session refuses a disabled or changed
+// grant at dispatch on its own.
+func sameRoot(recorded, root domain.GenerationSnapshot) bool {
+	return recorded.SameWorld(root) && recorded.Plan == root.Plan && recorded.Revision == root.Revision
+}
+
 // AuthorizeRoutinePlan verifies a method under the existing player direction.
 // It grants no lease and never changes the selected player plan.
 func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.GenerationSnapshot) error {
@@ -31,7 +40,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != root {
+	if !review.Enabled || !sameRoot(review.Snapshot, root) {
 		return ErrConflict
 	}
 	var goalID, incidentID sql.NullString
@@ -62,7 +71,7 @@ func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review RoutineReview
 	if err != nil {
 		return err
 	}
-	if state.Incident.Closed || state.Incident.Snapshot != root {
+	if state.Incident.Closed || !sameRoot(state.Incident.Snapshot, root) {
 		return ErrConflict
 	}
 	if reason := review.VetoIncident(state.Incident); reason != "" {
@@ -89,7 +98,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, go
 	if err != nil {
 		return err
 	}
-	if g.Retired || g.Goal.Source != domain.AutopilotGoal || g.Goal.Status != domain.GoalActive || g.Goal.Need == domain.NeedUnknown || g.Goal.Snapshot != root {
+	if g.Retired || g.Goal.Source != domain.AutopilotGoal || g.Goal.Status != domain.GoalActive || g.Goal.Need == domain.NeedUnknown || !sameRoot(g.Goal.Snapshot, root) {
 		return ErrConflict
 	}
 	// A prepared plan does not dispatch while a Rule vetoes its goal.
