@@ -489,7 +489,7 @@ namespace HomeBridge.BridgeTools
             if (hostiles.Count > 0 && spec["siege"] is JObject siege)
                 LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_Siege(hostiles[0].Faction, Cell(map, siege), (float?)siege["points"] ?? 500f), map, hostiles);
             else if (hostiles.Count > 0)
-                LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, hostiles);
+                LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, sappers: (bool?)spec["sappers"] == true, canSteal: false), map, hostiles);
             if (insects.Count > 0)
                 LordMaker.MakeNewLord(Faction.OfInsects, new LordJob_AssaultColony(Faction.OfInsects, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, insects);
             if (mechs.Count > 0)
@@ -601,7 +601,7 @@ namespace HomeBridge.BridgeTools
         // well under the call ceiling.
         private const int MaxTicks = 2000;
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak}. Hostiles get fixed skills, only the named apparel and an assault lord. Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
             [ToolParameter(Description = "stage (default), read, or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",

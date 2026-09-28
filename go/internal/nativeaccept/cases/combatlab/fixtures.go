@@ -68,6 +68,9 @@ type Fixture struct {
 	// PrisonBreak starts a prison break by the first prisoner once staged
 	// (#1080).
 	PrisonBreak bool `json:"prisonBreak,omitempty"`
+	// Sappers stages the hostiles' assault lord as a sapper raid: it digs
+	// a path through the walls to the colony (#1149).
+	Sappers bool `json:"sappers,omitempty"`
 	// Layout, when set, is the complete defense layout record the metrics
 	// run stores before serving (#890), so the planner holds this
 	// fixture's line instead of refusing the hold for want of one.
@@ -130,13 +133,13 @@ const (
 	slasher   = "Mercenary_Slasher"
 )
 
-// Names are the fixtures in landing order; #854 lands the first three and
-// reserves lab-breach for the first #845 child
-// that needs it. lab-pods (#870) joins with its rooms (#897).
+// Names are the fixtures in landing order; #854 lands the first three,
+// lab-pods (#870) joins with its rooms (#897), lab-breach with its sapper
+// raid (#1149).
 // The metrics baselines run Names; lab-manhunter (#1057), lab-infestation
 // (#1071), lab-mech (#1118) and lab-siege
 // (#1051) build but have no metrics baseline yet.
-var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods"}
+var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
 func Build(name string, cx, cz int) (Fixture, error) {
@@ -159,6 +162,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return infestation(cx, cz), nil
 	case "lab-mech":
 		return mech(cx, cz), nil
+	case "lab-breach":
+		return breach(cx, cz), nil
 	}
 	return Fixture{}, fmt.Errorf("combatlab: no fixture %q", name)
 }
@@ -170,6 +175,33 @@ func mech(cx, cz int) Fixture {
 		{Side: Colonist, Index: 0, X: cx, Z: cz - 12, Weapon: rifle},
 		{Side: Mech, Kind: "Mech_Scyther", X: cx, Z: cz + 13, StunTicks: mechStunTicks},
 	}}
+}
+
+// Breach room (#1149): an 11x11 granite wall ring with no door around the
+// centre; the sappers wait breachRaid cells north of it.
+const (
+	breachHalf = 5
+	breachRaid = 15
+)
+
+// breach (#1149): three riflemen sealed in a doorless walled room and three
+// club slashers (a sapper-capable kind, mining 8) north of it under a
+// sapper assault lord: with no path in they mine through the north wall.
+// The staging is seeded, so the raid is the same every run.
+func breach(cx, cz int) Fixture {
+	f := Fixture{Name: "lab-breach", Colonists: 3, Sappers: true}
+	for x := cx - breachHalf; x <= cx+breachHalf; x++ {
+		for z := cz - breachHalf; z <= cz+breachHalf; z++ {
+			if x == cx-breachHalf || x == cx+breachHalf || z == cz-breachHalf || z == cz+breachHalf {
+				f.Things = append(f.Things, Thing{Def: "Wall", Stuff: "BlocksGranite", X: x, Z: z})
+			}
+		}
+	}
+	for i, dx := range []int{-2, 0, 2} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz - 2, Weapon: rifle})
+		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: slasher, X: cx + dx, Z: cz + breachHalf + breachRaid, Weapon: club, WeaponStuff: "WoodLog"})
+	}
+	return f
 }
 
 // mechStunTicks is lab-mech's staged stun.

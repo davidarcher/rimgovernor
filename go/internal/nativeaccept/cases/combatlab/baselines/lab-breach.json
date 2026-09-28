@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "fixture": "lab-breach",
+  "ticks": 3179,
+  "colonistDamage": 42.9,
+  "colonistDowns": 0,
+  "colonistDeaths": 0,
+  "enemyDowns": 0,
+  "enemyDeaths": 0,
+  "enemyFled": 3,
+  "firstContactTick": 1738,
+  "resolvedTick": 3209,
+  "contactToResolutionTicks": 1471,
+  "winner": "colonist",
+  "friendlyFireHits": 0,
+  "ordersIssued": 9,
+  "ordersRefused": 30,
+  "stepLatencyP95Ms": 939
+}
