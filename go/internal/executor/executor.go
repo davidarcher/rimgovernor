@@ -5,6 +5,7 @@ package executor
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"time"
 
@@ -30,6 +31,11 @@ type Journal interface {
 	Observe(context.Context, domain.PlanID, domain.Observation, domain.GenerationSnapshot) (domain.Progress, error)
 	Cancel(context.Context, domain.PlanID, domain.ActionID) (domain.Progress, error)
 	Hold(context.Context, domain.PlanID, domain.ActionID, []domain.HeldReason, domain.Tick) (domain.Progress, error)
+	// The batch forms advance many actions in one transaction (#1040);
+	// results are in input order, one per item.
+	PrepareBatch(context.Context, []store.BatchAttempt) ([]store.BatchResult, error)
+	DispatchBatch(context.Context, []store.BatchAttempt) ([]store.BatchResult, error)
+	RecordReceipts(context.Context, []store.BatchReceipt) ([]store.BatchResult, error)
 }
 type Clock interface{ Now() time.Time }
 type RoutineScope interface {
@@ -72,9 +78,10 @@ type ZoneJournal interface {
 
 type Boundary interface {
 	// InspectIntent anchors a building intent's dispatch to the current
-	// native tick; WriteIntent sends the intent through Actions/Apply.
+	// native tick; WriteIntents sends the intents of one world through one
+	// Actions/Apply call and returns their receipts in input order.
 	InspectIntent(context.Context, Target) (IntentInspection, error)
-	WriteIntent(context.Context, Placement) (Receipt, error)
+	WriteIntents(context.Context, []Placement) ([]Receipt, error)
 }
 type Result struct {
 	Progress     domain.Progress
@@ -113,7 +120,7 @@ type Executor struct {
 	authority              Authority
 	generation             context.Context
 	invalidate             context.CancelFunc
-	activeAction           domain.ActionID
+	activeActions          []domain.ActionID
 	activeCancel           context.CancelFunc
 	stopped                bool
 }
@@ -208,7 +215,7 @@ func (e *Executor) guard(ctx context.Context, expected domain.GenerationSnapshot
 
 func (e *Executor) Cancel(ctx context.Context, plan domain.PlanID, action domain.ActionID) (domain.Progress, error) {
 	e.mu.Lock()
-	if e.activeAction == action && e.activeCancel != nil {
+	if slices.Contains(e.activeActions, action) && e.activeCancel != nil {
 		e.activeCancel()
 	}
 	e.mu.Unlock()
@@ -219,12 +226,24 @@ func (e *Executor) Cancel(ctx context.Context, plan domain.PlanID, action domain
 // It never polls and never retries within the same call. Every invocation reloads
 // durable state, so restart and caller cancellation cannot erase uncertainty.
 func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.ActionID) (Result, error) {
+	var result Result
+	err := e.withPlan(ctx, plan, []domain.ActionID{actionID}, func(ctx context.Context, state store.PlanState, authority Authority, generation context.Context) error {
+		var err error
+		result, err = e.runLoaded(ctx, state, actionID, authority, generation)
+		return err
+	})
+	return result, err
+}
+
+// withPlan takes the writer slot for actions, reloads plan once and runs fn
+// under the run timeout, cancelled when authority changes.
+func (e *Executor) withPlan(ctx context.Context, plan domain.PlanID, actions []domain.ActionID, fn func(context.Context, store.PlanState, Authority, context.Context) error) error {
 	ctx, cancel := context.WithTimeout(ctx, e.limits.RunTimeout)
 	defer cancel()
 	e.mu.Lock()
 	if e.stopped {
 		e.mu.Unlock()
-		return Result{}, ErrStopped
+		return ErrStopped
 	}
 	generation := e.generation
 	authority := e.authority
@@ -235,23 +254,28 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	case e.writer <- struct{}{}:
 		defer func() { <-e.writer }()
 	case <-ctx.Done():
-		return Result{}, ctx.Err()
+		return ctx.Err()
 	}
 	if err := ctx.Err(); err != nil {
-		return Result{}, err
+		return err
 	}
 	e.mu.Lock()
-	e.activeAction = actionID
+	e.activeActions = actions
 	e.activeCancel = cancel
 	e.mu.Unlock()
-	defer func() { e.mu.Lock(); e.activeAction = ""; e.activeCancel = nil; e.mu.Unlock() }()
+	defer func() { e.mu.Lock(); e.activeActions = nil; e.activeCancel = nil; e.mu.Unlock() }()
 	if generation.Err() != nil {
-		return Result{}, ErrAuthority
+		return ErrAuthority
 	}
 	state, err := e.journal.LoadPlan(ctx, plan)
 	if err != nil {
-		return Result{}, err
+		return err
 	}
+	return fn(ctx, state, authority, generation)
+}
+
+// find returns the spec action and progress of actionID in state.
+func find(state store.PlanState, actionID domain.ActionID) (domain.Action, domain.Progress) {
 	var action domain.Action
 	var progress domain.Progress
 	for _, candidate := range state.Spec.Actions() {
@@ -266,11 +290,17 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 			break
 		}
 	}
+	return action, progress
+}
+
+func (e *Executor) runLoaded(ctx context.Context, state store.PlanState, actionID domain.ActionID, authority Authority, generation context.Context) (Result, error) {
+	action, progress := find(state, actionID)
 	if action.Kind().IntentMode() && progress.View().Unresolved {
 		return e.settleIntent(progress)
 	}
 	if plainIntents[action.Kind()] {
-		return e.runIntent(ctx, action, progress, authority, generation)
+		out := e.runIntents(ctx, []intentItem{{action: action, progress: progress}}, authority, generation)
+		return out[0].Result, out[0].Err
 	}
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)

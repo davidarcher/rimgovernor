@@ -94,6 +94,30 @@ func (j *schedulingJournal) Cancel(ctx context.Context, plan domain.PlanID, acti
 	}
 	return p, err
 }
+func (j *schedulingJournal) PrepareBatch(ctx context.Context, attempts []store.BatchAttempt) ([]store.BatchResult, error) {
+	return eachAttempt(attempts, func(a store.BatchAttempt) (domain.Progress, error) {
+		return j.Prepare(ctx, a.Plan, a.Action, a.Snapshot, a.Tick)
+	}), ctx.Err()
+}
+func (j *schedulingJournal) DispatchBatch(ctx context.Context, attempts []store.BatchAttempt) ([]store.BatchResult, error) {
+	return eachAttempt(attempts, func(a store.BatchAttempt) (domain.Progress, error) {
+		return j.Dispatch(ctx, a.Plan, a.Action, a.Snapshot, a.Tick)
+	}), ctx.Err()
+}
+func (j *schedulingJournal) RecordReceipts(ctx context.Context, receipts []store.BatchReceipt) ([]store.BatchResult, error) {
+	out := make([]store.BatchResult, len(receipts))
+	for i, r := range receipts {
+		out[i].Progress, out[i].Err = j.RecordReceipt(ctx, r.Plan, r.Action, r.Attempt, r.Receipt)
+	}
+	return out, ctx.Err()
+}
+func eachAttempt(attempts []store.BatchAttempt, fn func(store.BatchAttempt) (domain.Progress, error)) []store.BatchResult {
+	out := make([]store.BatchResult, len(attempts))
+	for i, a := range attempts {
+		out[i].Progress, out[i].Err = fn(a)
+	}
+	return out
+}
 func (j *schedulingJournal) Hold(ctx context.Context, plan domain.PlanID, action domain.ActionID, reasons []domain.HeldReason, tick domain.Tick) (domain.Progress, error) {
 	if err := j.check(ctx, plan, action); err != nil {
 		return domain.Progress{}, err

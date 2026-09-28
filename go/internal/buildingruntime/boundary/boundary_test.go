@@ -20,25 +20,30 @@ import (
 func TestWriteIntentReceiptKinds(t *testing.T) {
 	t.Parallel()
 	b, f := NewFixture(t)
-	out, err := b.WriteIntent(context.Background(), f.Placement)
+	out, err := writeOne(b, f.Placement)
 	if err != nil || out.Kind != domain.ReceiptAccepted || f.Places != 1 || len(f.LastKeys) != 1 || !strings.HasPrefix(f.LastKeys[0], string(f.Placement.Action.ID())+"/") {
 		t.Fatal("applied intent not accepted", err, out, f.LastKeys)
 	}
 	b, f = NewFixture(t)
 	f.Refuse = "cell blocked"
-	if out, err = b.WriteIntent(context.Background(), f.Placement); err != nil || out.Kind != domain.ReceiptRefused {
+	if out, err = writeOne(b, f.Placement); err != nil || out.Kind != domain.ReceiptRefused {
 		t.Fatal("native refusal not refused", err, out)
 	}
 	b, f = NewFixture(t)
 	f.LeaseErr = executor.ErrAuthority
-	if out, err = b.WriteIntent(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown || f.Places != 0 {
+	if out, err = writeOne(b, f.Placement); err == nil || out.Kind != domain.ReceiptUnknown || f.Places != 0 {
 		t.Fatal("lease error dispatched")
 	}
 	b, f = NewFixture(t)
 	f.PlaceErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT.Enum()}}
-	if out, err = b.WriteIntent(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown {
+	if out, err = writeOne(b, f.Placement); err == nil || out.Kind != domain.ReceiptUnknown {
 		t.Fatal("call failure released uncertainty", err, out)
 	}
+}
+
+func writeOne(b *Boundary, p executor.Placement) (executor.Receipt, error) {
+	out, err := b.WriteIntents(context.Background(), []executor.Placement{p})
+	return out[0], err
 }
 
 // An unknown ledger lookup is the trace of a dispatch that timed out before

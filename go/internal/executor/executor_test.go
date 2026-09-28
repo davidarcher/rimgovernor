@@ -20,8 +20,10 @@ type environment struct {
 	stock                   int64
 	tick                    domain.Tick
 	inspections, placements int
+	writes                  int
 	onInspect               func(int, IntentInspection) IntentInspection
 	onPlace                 func(context.Context, Placement) (Receipt, error)
+	onWrite                 func([]Placement) error
 }
 
 func (f *environment) InspectIntent(_ context.Context, target Target) (IntentInspection, error) {
@@ -36,14 +38,35 @@ func (f *environment) InspectIntent(_ context.Context, target Target) (IntentIns
 	}
 	return result, nil
 }
-func (f *environment) WriteIntent(ctx context.Context, placement Placement) (Receipt, error) {
+
+// WriteIntents is one Apply call; onWrite fails the whole call (a batch
+// failure or a lost reply), onPlace answers each placement.
+func (f *environment) WriteIntents(ctx context.Context, placements []Placement) ([]Receipt, error) {
 	f.mu.Lock()
-	f.placements++
+	f.writes++
+	f.placements += len(placements)
 	f.mu.Unlock()
-	if f.onPlace != nil {
-		return f.onPlace(ctx, placement)
+	out := make([]Receipt, len(placements))
+	for i, placement := range placements {
+		out[i] = Receipt{Action: placement.Action.ID(), Attempt: placement.Attempt, Snapshot: placement.Snapshot, Kind: domain.ReceiptUnknown}
 	}
-	return Receipt{Action: placement.Action.ID(), Attempt: placement.Attempt, Snapshot: placement.Snapshot, Kind: domain.ReceiptAccepted}, nil
+	if f.onWrite != nil {
+		if err := f.onWrite(placements); err != nil {
+			return out, err
+		}
+	}
+	for i, placement := range placements {
+		if f.onPlace == nil {
+			out[i].Kind = domain.ReceiptAccepted
+			continue
+		}
+		receipt, err := f.onPlace(ctx, placement)
+		if err != nil {
+			return out, err
+		}
+		out[i] = receipt
+	}
+	return out, nil
 }
 func (f *environment) counts() (int, int) {
 	f.mu.Lock()
@@ -120,11 +143,11 @@ type hookedJournal struct {
 	dispatchError error
 }
 
-func (j *hookedJournal) Dispatch(ctx context.Context, p domain.PlanID, a domain.ActionID, g domain.GenerationSnapshot, tick domain.Tick) (domain.Progress, error) {
+func (j *hookedJournal) DispatchBatch(ctx context.Context, attempts []store.BatchAttempt) ([]store.BatchResult, error) {
 	if j.dispatchError != nil {
-		return domain.Progress{}, j.dispatchError
+		return nil, j.dispatchError
 	}
-	progress, err := j.Journal.Dispatch(ctx, p, a, g, tick)
+	progress, err := j.Journal.DispatchBatch(ctx, attempts)
 	if err == nil && j.afterDispatch != nil {
 		j.afterDispatch()
 	}

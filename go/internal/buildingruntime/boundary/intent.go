@@ -26,11 +26,8 @@ func IntentKey(p executor.Placement) string {
 	return fmt.Sprintf("%s/%d", p.Action.ID(), p.Attempt)
 }
 
-// DispatchIntent sends one intent-mode action through Actions/Apply. Only
-// the identity is checked on the wire; native validates the intent against
-// live state. Applied is accepted; refused and failed are refused, except an
-// attempt conflict; a batch failure or a lost reply is unknown, which an
-// idempotent intent may resend.
+// DispatchIntent sends one intent-mode action through Actions/Apply: the
+// one-element case of DispatchIntents.
 func (b *Boundary) DispatchIntent(ctx context.Context, p executor.Placement, writer ActionsWriter) (executor.Receipt, error) {
 	return DispatchIntent(ctx, b.Leases, p, writer)
 }
@@ -38,33 +35,63 @@ func (b *Boundary) DispatchIntent(ctx context.Context, p executor.Placement, wri
 // DispatchIntent is Boundary.DispatchIntent for a family boundary that keeps
 // only a lease source.
 func DispatchIntent(ctx context.Context, leases LeaseSource, p executor.Placement, writer ActionsWriter) (executor.Receipt, error) {
-	out := executor.Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptUnknown}
-	lease, err := leases.Lease(p.Snapshot)
+	out, err := DispatchIntents(ctx, leases, []executor.Placement{p}, writer)
+	return out[0], err
+}
+
+// DispatchIntents sends intent-mode actions of one world in one
+// Actions/Apply call (#1041). Only the identity is checked on the wire;
+// native validates each intent against live state. Receipts are in input
+// order: applied is accepted; refused and failed are refused, except an
+// attempt conflict; a batch failure or a lost reply leaves every receipt
+// unknown, which an idempotent intent may resend.
+func DispatchIntents(ctx context.Context, leases LeaseSource, placements []executor.Placement, writer ActionsWriter) ([]executor.Receipt, error) {
+	out := make([]executor.Receipt, len(placements))
+	for i, p := range placements {
+		out[i] = executor.Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptUnknown}
+	}
+	if len(placements) == 0 {
+		return out, nil
+	}
+	snapshot := placements[0].Snapshot
+	actions := make([]*o.Action, len(placements))
+	for i, p := range placements {
+		if !World(p.Snapshot, snapshot) {
+			return out, executor.ErrAuthority
+		}
+		action, err := bridge.IntentAction(IntentKey(p), p.Action)
+		if err != nil {
+			return out, err
+		}
+		actions[i] = action
+	}
+	lease, err := leases.Lease(snapshot)
 	if err != nil {
 		return out, err
 	}
 	if !ValidID(lease) {
 		return out, executor.ErrAuthority
 	}
-	action, err := bridge.IntentAction(IntentKey(p), p.Action)
+	reply, _, err := writer.Apply(ctx, Identity(snapshot), actions)
 	if err != nil {
 		return out, err
 	}
-	reply, _, err := writer.Apply(ctx, Identity(p.Snapshot), []*o.Action{action})
-	if err != nil {
-		return out, err
+	results := reply.GetResults()
+	if len(results) != len(placements) {
+		return out, executor.ErrEvidence
 	}
-	result := reply.GetResults()[0]
-	switch {
-	case result.GetApplied().GetApplied() != nil:
-		out.Kind = domain.ReceiptAccepted
-		if p.Action.Kind() == domain.ZoneCreateAction {
-			out.Zone = result.GetApplied().GetApplied().GetObserved().GetZone().GetZoneId()
+	for i, result := range results {
+		switch {
+		case result.GetApplied().GetApplied() != nil:
+			out[i].Kind = domain.ReceiptAccepted
+			if placements[i].Action.Kind() == domain.ZoneCreateAction {
+				out[i].Zone = result.GetApplied().GetApplied().GetObserved().GetZone().GetZoneId()
+			}
+		case result.GetRefused() != nil:
+			out[i].Kind = domain.ReceiptRefused
+		case result.GetFailed() != nil && result.GetFailed().GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT:
+			out[i].Kind = domain.ReceiptRefused
 		}
-	case result.GetRefused() != nil:
-		out.Kind = domain.ReceiptRefused
-	case result.GetFailed() != nil && result.GetFailed().GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT:
-		out.Kind = domain.ReceiptRefused
 	}
 	return out, nil
 }

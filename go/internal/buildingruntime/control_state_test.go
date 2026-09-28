@@ -125,7 +125,7 @@ func (b stateBlockedInspection) InspectIntent(ctx context.Context, _ executor.Ta
 	<-ctx.Done()
 	return executor.IntentInspection{}, ctx.Err()
 }
-func (stateBlockedInspection) WriteIntent(context.Context, executor.Placement) (executor.Receipt, error) {
+func (stateBlockedInspection) WriteIntents(context.Context, []executor.Placement) ([]executor.Receipt, error) {
 	panic("disabled inspection must never dispatch")
 }
 

@@ -78,9 +78,9 @@ func (b *Boundary) InspectIntent(ctx context.Context, target executor.Target) (e
 	return out, ctx.Err()
 }
 
-// WriteIntent sends the intent through Actions/Apply.
-func (b *Boundary) WriteIntent(ctx context.Context, placement executor.Placement) (executor.Receipt, error) {
-	return b.DispatchIntent(ctx, placement, b.Writer)
+// WriteIntents sends the intents through one Actions/Apply call.
+func (b *Boundary) WriteIntents(ctx context.Context, placements []executor.Placement) ([]executor.Receipt, error) {
+	return DispatchIntents(ctx, b.Leases, placements, b.Writer)
 }
 
 // ValidID reports whether s is a well-formed opaque identifier: valid UTF-8,
