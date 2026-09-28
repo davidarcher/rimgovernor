@@ -22,11 +22,11 @@ type ColonyGridRecord struct {
 }
 
 func initializeColonyGrid(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `CREATE TABLE colony_grids(colony TEXT NOT NULL, map_id INTEGER NOT NULL, load_token TEXT NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation INTEGER NOT NULL, origin_x INTEGER NOT NULL, origin_z INTEGER NOT NULL, pitch INTEGER NOT NULL CHECK(pitch>0), axis0_x INTEGER NOT NULL, axis0_z INTEGER NOT NULL, axis1_x INTEGER NOT NULL, axis1_z INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(colony,map_id,load_token)) STRICT;`)
+	_, err := tx.ExecContext(ctx, `CREATE TABLE colony_grids(colony TEXT NOT NULL, map_id INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation INTEGER NOT NULL, origin_x INTEGER NOT NULL, origin_z INTEGER NOT NULL, pitch INTEGER NOT NULL CHECK(pitch>0), axis0_x INTEGER NOT NULL, axis0_z INTEGER NOT NULL, axis1_x INTEGER NOT NULL, axis1_z INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(colony,map_id)) STRICT;`)
 	return err
 }
 func checkColonyGridSchema(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, "SELECT colony,map_id,load_token,tick,native_generation,origin_x,origin_z,pitch,axis0_x,axis0_z,axis1_x,axis1_z,source FROM colony_grids LIMIT 0")
+	_, err := tx.ExecContext(ctx, "SELECT colony,map_id,tick,native_generation,origin_x,origin_z,pitch,axis0_x,axis0_z,axis1_x,axis1_z,source FROM colony_grids LIMIT 0")
 	return err
 }
 
@@ -41,12 +41,12 @@ func colonyGridValid(g policy.ColonyGrid) bool {
 	return false
 }
 
-// colonyGrid reads the load's grid established at or before tick.
+// colonyGrid reads the world's grid established at or before tick.
 func colonyGrid(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, tick domain.Tick) (ColonyGridRecord, bool, error) {
 	var r ColonyGridRecord
 	var generation domain.NativeGeneration
 	var source string
-	err := tx.QueryRowContext(ctx, "SELECT tick,native_generation,origin_x,origin_z,pitch,axis0_x,axis0_z,axis1_x,axis1_z,source FROM colony_grids WHERE colony=? AND map_id=? AND load_token=? AND tick<=?", s.Colony, s.Map, s.Load, tick).Scan(
+	err := tx.QueryRowContext(ctx, "SELECT tick,native_generation,origin_x,origin_z,pitch,axis0_x,axis0_z,axis1_x,axis1_z,source FROM colony_grids WHERE colony=? AND map_id=? AND tick<=?", s.Colony, s.Map, tick).Scan(
 		&r.Tick, &generation, &r.Grid.Origin.X, &r.Grid.Origin.Z, &r.Grid.Pitch, &r.Grid.Axes[0].X, &r.Grid.Axes[0].Z, &r.Grid.Axes[1].X, &r.Grid.Axes[1].Z, &source)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ColonyGridRecord{}, false, nil
@@ -62,7 +62,7 @@ func colonyGrid(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, ti
 	return r, true, nil
 }
 
-// EstablishColonyGrid records grid for the load at tick unless one is
+// EstablishColonyGrid records grid for the world at tick unless one is
 // already visible, in which case the visible grid is returned unchanged
 // and established reports false.
 func (s *Store) EstablishColonyGrid(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, grid policy.ColonyGrid) (ColonyGridRecord, bool, error) {
@@ -80,14 +80,14 @@ func (s *Store) EstablishColonyGrid(ctx context.Context, snapshot domain.Generat
 	if held, ok, err := colonyGrid(ctx, tx, snapshot, tick); err != nil || ok {
 		return held, false, err
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO colony_grids(colony,map_id,load_token,tick,native_generation,origin_x,origin_z,pitch,axis0_x,axis0_z,axis1_x,axis1_z,source) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-		snapshot.Colony, snapshot.Map, snapshot.Load, tick, snapshot.Native, grid.Origin.X, grid.Origin.Z, grid.Pitch, grid.Axes[0].X, grid.Axes[0].Z, grid.Axes[1].X, grid.Axes[1].Z, string(grid.Source)); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO colony_grids(colony,map_id,tick,native_generation,origin_x,origin_z,pitch,axis0_x,axis0_z,axis1_x,axis1_z,source) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+		snapshot.Colony, snapshot.Map, tick, snapshot.Native, grid.Origin.X, grid.Origin.Z, grid.Pitch, grid.Axes[0].X, grid.Axes[0].Z, grid.Axes[1].X, grid.Axes[1].Z, string(grid.Source)); err != nil {
 		return ColonyGridRecord{}, false, err
 	}
 	return ColonyGridRecord{Grid: grid, Snapshot: snapshot, Tick: tick}, true, tx.Commit()
 }
 
-// ColonyGrid returns the grid the load holds at tick, if any.
+// ColonyGrid returns the grid the world holds at tick, if any.
 func (s *Store) ColonyGrid(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) (ColonyGridRecord, bool, error) {
 	if err := extentScope(snapshot, tick); err != nil {
 		return ColonyGridRecord{}, false, err

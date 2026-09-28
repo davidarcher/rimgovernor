@@ -38,7 +38,7 @@ func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) er
 		return err
 	}
 	defer tx.Rollback()
-	for _, table := range []string{"colony_layout_plans", "layout_tidies", "defense_layout", "production_ladder"} {
+	for _, table := range []string{"colony_layout_plans", "layout_tidies", "defense_layout", "production_ladder", "colony_extent_events", "colony_grids"} {
 		if _, err = tx.ExecContext(ctx, "DELETE FROM "+table); err != nil {
 			return err
 		}

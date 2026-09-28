@@ -44,11 +44,11 @@ const (
 )
 
 func initializeColonyExtent(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `CREATE TABLE colony_extent_events(colony TEXT NOT NULL, map_id INTEGER NOT NULL, load_token TEXT NOT NULL, ordinal INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('established','expand','contract')), area_id TEXT, reason TEXT, payload BLOB, PRIMARY KEY(colony,map_id,load_token,ordinal), CHECK((kind='established' AND area_id IS NULL AND reason IS NULL AND payload IS NOT NULL) OR (kind='expand' AND area_id IS NOT NULL AND reason IS NOT NULL AND payload IS NOT NULL) OR (kind='contract' AND area_id IS NOT NULL AND reason IS NOT NULL AND payload IS NULL))) STRICT;`)
+	_, err := tx.ExecContext(ctx, `CREATE TABLE colony_extent_events(colony TEXT NOT NULL, map_id INTEGER NOT NULL, ordinal INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('established','expand','contract')), area_id TEXT, reason TEXT, payload BLOB, PRIMARY KEY(colony,map_id,ordinal), CHECK((kind='established' AND area_id IS NULL AND reason IS NULL AND payload IS NOT NULL) OR (kind='expand' AND area_id IS NOT NULL AND reason IS NOT NULL AND payload IS NOT NULL) OR (kind='contract' AND area_id IS NOT NULL AND reason IS NOT NULL AND payload IS NULL))) STRICT;`)
 	return err
 }
 func checkColonyExtentSchema(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, "SELECT colony,map_id,load_token,ordinal,tick,native_generation,kind,area_id,reason,payload FROM colony_extent_events LIMIT 0")
+	_, err := tx.ExecContext(ctx, "SELECT colony,map_id,ordinal,tick,native_generation,kind,area_id,reason,payload FROM colony_extent_events LIMIT 0")
 	return err
 }
 
@@ -143,7 +143,6 @@ func extentScope(s domain.GenerationSnapshot, tick domain.Tick) error {
 }
 
 type extentEvent struct {
-	load       domain.LoadID
 	tick       domain.Tick
 	generation domain.NativeGeneration
 	kind       string
@@ -152,16 +151,16 @@ type extentEvent struct {
 	payload    []byte
 }
 
-// extentEvents lists the load's journal at or before tick, oldest first.
+// extentEvents lists the world's journal at or before tick, oldest first.
 func extentEvents(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, tick domain.Tick) ([]extentEvent, error) {
-	rows, err := tx.QueryContext(ctx, "SELECT tick,native_generation,kind,area_id,reason,payload FROM colony_extent_events WHERE colony=? AND map_id=? AND load_token=? AND tick<=? ORDER BY ordinal", s.Colony, s.Map, s.Load, tick)
+	rows, err := tx.QueryContext(ctx, "SELECT tick,native_generation,kind,area_id,reason,payload FROM colony_extent_events WHERE colony=? AND map_id=? AND tick<=? ORDER BY ordinal", s.Colony, s.Map, tick)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []extentEvent
 	for rows.Next() {
-		e := extentEvent{load: s.Load}
+		var e extentEvent
 		var area, reason sql.NullString
 		if err = rows.Scan(&e.tick, &e.generation, &e.kind, &area, &reason, &e.payload); err != nil {
 			rows.Close()
@@ -175,16 +174,16 @@ func extentEvents(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, 
 
 func appendExtentEvent(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, e extentEvent) error {
 	var ordinal int64
-	if err := tx.QueryRowContext(ctx, "SELECT coalesce(max(ordinal),0)+1 FROM colony_extent_events WHERE colony=? AND map_id=? AND load_token=?", s.Colony, s.Map, s.Load).Scan(&ordinal); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT coalesce(max(ordinal),0)+1 FROM colony_extent_events WHERE colony=? AND map_id=?", s.Colony, s.Map).Scan(&ordinal); err != nil {
 		return err
 	}
-	_, err := tx.ExecContext(ctx, "INSERT INTO colony_extent_events(colony,map_id,load_token,ordinal,tick,native_generation,kind,area_id,reason,payload) VALUES(?,?,?,?,?,?,?,?,?,?)",
-		s.Colony, s.Map, s.Load, ordinal, e.tick, e.generation, e.kind, sql.NullString{String: e.area, Valid: e.area != ""}, sql.NullString{String: e.reason, Valid: e.reason != ""}, e.payload)
+	_, err := tx.ExecContext(ctx, "INSERT INTO colony_extent_events(colony,map_id,ordinal,tick,native_generation,kind,area_id,reason,payload) VALUES(?,?,?,?,?,?,?,?,?)",
+		s.Colony, s.Map, ordinal, e.tick, e.generation, e.kind, sql.NullString{String: e.area, Valid: e.area != ""}, sql.NullString{String: e.reason, Valid: e.reason != ""}, e.payload)
 	return err
 }
 
 // EstablishColonyExtent appends regions observed established at tick under
-// snapshot. A region already in the load's journal is not repeated; the
+// snapshot. A region already in the world's journal is not repeated; the
 // count returned is the number of new entries.
 func (s *Store) EstablishColonyExtent(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, regions []policy.ExtentRegion) (int, error) {
 	if err := extentScope(snapshot, tick); err != nil {
@@ -230,7 +229,7 @@ func (s *Store) EstablishColonyExtent(ctx context.Context, snapshot domain.Gener
 	return added, tx.Commit()
 }
 
-// EstablishedColonyExtent lists the load's established regions visible
+// EstablishedColonyExtent lists the world's established regions visible
 // at tick, oldest first, each with the generation that first observed it.
 func (s *Store) EstablishedColonyExtent(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) ([]EstablishedExtent, error) {
 	if err := extentScope(snapshot, tick); err != nil {
@@ -254,7 +253,7 @@ func (s *Store) EstablishedColonyExtent(ctx context.Context, snapshot domain.Gen
 		if err = extentDecode(e.payload, &payload); err != nil {
 			return nil, err
 		}
-		origin := domain.GenerationSnapshot{Colony: snapshot.Colony, Map: snapshot.Map, Load: e.load, Plan: snapshot.Plan, Revision: snapshot.Revision, Native: e.generation}
+		origin := domain.GenerationSnapshot{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load, Plan: snapshot.Plan, Revision: snapshot.Revision, Native: e.generation}
 		out = append(out, EstablishedExtent{Snapshot: origin, Tick: e.tick, Region: policy.ExtentRegion{Cells: payload.Cells}})
 	}
 	return out, nil
@@ -269,7 +268,7 @@ func extentAreas(events []extentEvent, s domain.GenerationSnapshot) (map[string]
 			if err := extentDecode(e.payload, &payload); err != nil {
 				return nil, err
 			}
-			origin := domain.GenerationSnapshot{Colony: s.Colony, Map: s.Map, Load: e.load, Plan: s.Plan, Revision: s.Revision, Native: e.generation}
+			origin := domain.GenerationSnapshot{Colony: s.Colony, Map: s.Map, Load: s.Load, Plan: s.Plan, Revision: s.Revision, Native: e.generation}
 			areas[e.area] = ExpansionArea{ID: e.area, Cells: payload.Cells, Reason: e.reason, Snapshot: origin, Tick: e.tick}
 		case extentKindContract:
 			delete(areas, e.area)
@@ -351,7 +350,7 @@ func (s *Store) RemoveExpansionArea(ctx context.Context, snapshot domain.Generat
 	return tx.Commit()
 }
 
-// ExpansionAreas lists the areas live in the load at tick, by ID.
+// ExpansionAreas lists the areas live in the world at tick, by ID.
 func (s *Store) ExpansionAreas(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) ([]ExpansionArea, error) {
 	if err := extentScope(snapshot, tick); err != nil {
 		return nil, err

@@ -118,9 +118,10 @@ func TestReviewColonyGridDerivesOnceAndServesThePersistedGrid(t *testing.T) {
 		t.Fatalf("grid moved: %+v known=%t", got, known)
 	}
 	// Without a standing shell plan the largest wall ring fixes the origin.
+	// Another map is its own world with no grid yet.
 	other := snapshot
-	other.Load = "other-load"
-	fresh := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: other.Load, Tick: 10}, Bounds: projection.Bounds}
+	other.Map++
+	fresh := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: other.Map, Load: other.Load, Tick: 10}, Bounds: projection.Bounds}
 	fresh.Facts.CurrentConstruction = domain.Known(moved)
 	if err = r.reviewColonyGrid(ctx, other, &fresh); err != nil {
 		t.Fatal(err)

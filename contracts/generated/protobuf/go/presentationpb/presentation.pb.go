@@ -5444,7 +5444,8 @@ func (x *InputLeaseGranted) GetState() *InputState {
 	return nil
 }
 
-// Pause/draft cleanup or native acquisition may have started before confirmation failed.
+// Pause or native acquisition may have started before confirmation failed;
+// drafted pawns stay drafted on handoff (#939).
 type InputLeaseUncertain struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Request       *InputLeaseRequest     `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`

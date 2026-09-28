@@ -117,7 +117,7 @@ func TestColonyExtentPersistsAcrossReopenWithProvenance(t *testing.T) {
 
 // A new load starts empty and re-establishes from the live world (#1009);
 // ticks past the read are not visible.
-func TestColonyExtentIsScopedToTheLoad(t *testing.T) {
+func TestColonyExtentIsEmptiedOnAWorldChange(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := open(t, memoryPath(t))
@@ -130,8 +130,11 @@ func TestColonyExtentIsScopedToTheLoad(t *testing.T) {
 	if got := extentRegions(t, db, first, 150); !reflect.DeepEqual(got, []string{"a"}) {
 		t.Fatal(got)
 	}
+	if err := db.RebuildFamilies(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
 	if got := extentRegions(t, db, extentWorld("colony", "load-2", 1), 300); len(got) != 0 {
-		t.Fatal("new load saw another load's extent", got)
+		t.Fatal("extent survived a world change", got)
 	}
 }
 

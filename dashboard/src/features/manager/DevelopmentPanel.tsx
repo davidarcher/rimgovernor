@@ -4,7 +4,7 @@ import {useRoutineStatus} from './useRoutineStatus';
 // Deferral reasons as the controller records them; the panel shows evidence,
 // not advice, so labels stay close to the contract vocabulary.
 export const reasonLabels: Record<DevelopmentReason, string> = {
-  '': 'Eligible', cancelled: 'Cancelled', adviser: 'Adviser hold', emergency: 'Emergency precedence', startup_survival: 'Startup survival precedence', blocked: 'Blocked',
+  '': 'Eligible', cancelled: 'Cancelled', emergency: 'Emergency precedence', startup_survival: 'Startup survival precedence', blocked: 'Blocked',
   existing_commitment: 'Already committed', labor_idle: 'Committed work idle: slot released', workers_unknown: 'Worker count unknown', no_workers: 'No workers', deficit_unknown: 'Deficit unknown',
   capacity_committed: 'Waiting for capacity', method_unavailable: 'No method available', labor_unavailable: 'Waiting for labor', risk_deferred: 'Deferred: outdoor risk', control_disabled: 'Controller not in control', stage_foothold: 'Held at Foothold: shelter unmet', workers_overcommitted: 'Paused: open work holds every worker',
 };

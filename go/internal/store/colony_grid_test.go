@@ -54,33 +54,27 @@ func TestColonyGridPersistsAcrossReopenAndNeverMoves(t *testing.T) {
 	}
 }
 
-func TestColonyGridIsScopedToTheLoad(t *testing.T) {
+func TestColonyGridIsEmptiedOnAWorldChange(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := open(t, memoryPath(t))
 	first := extentWorld("colony", "load-1", 1)
-	if _, err := db.EstablishColonyExtent(ctx, first, 100, []policy.ExtentRegion{extentRegion("a", domain.Cell{X: 0, Z: 0})}); err != nil {
-		t.Fatal(err)
-	}
 	if _, _, err := db.EstablishColonyGrid(ctx, first, 250, testGrid(40, 50)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.EstablishColonyExtent(ctx, first, 300, []policy.ExtentRegion{extentRegion("b", domain.Cell{X: 1, Z: 0})}); err != nil {
-		t.Fatal(err)
-	}
-	// Another load knows no grid and fixes its own from the live world
-	// (#1009); the first load keeps its grid.
-	early := extentWorld("colony", "load-2", 1)
-	if _, ok, err := db.ColonyGrid(ctx, early, 200); err != nil || ok {
-		t.Fatal("grid leaked into an earlier save", ok, err)
-	}
-	if _, established, err := db.EstablishColonyGrid(ctx, early, 220, testGrid(8, 8)); err != nil || !established {
-		t.Fatal(established, err)
-	}
-	if record, ok, err := db.ColonyGrid(ctx, first, 400); err != nil || !ok || record.Grid != testGrid(40, 50) {
-		t.Fatal(record, ok, err)
-	}
 	if _, ok, err := db.ColonyGrid(ctx, first, 240); err != nil || ok {
 		t.Fatal("grid visible before its tick", ok, err)
+	}
+	// A world change empties the session cache; the new session fixes its
+	// own grid from the live world (#1009, #976 U4b).
+	if err := db.RebuildFamilies(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	next := extentWorld("colony", "load-2", 1)
+	if _, ok, err := db.ColonyGrid(ctx, next, 400); err != nil || ok {
+		t.Fatal("grid survived a world change", ok, err)
+	}
+	if _, established, err := db.EstablishColonyGrid(ctx, next, 220, testGrid(8, 8)); err != nil || !established {
+		t.Fatal(established, err)
 	}
 }

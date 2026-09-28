@@ -30,18 +30,20 @@ paired backups, manifests or archive tables.
 - **Colony extent history.** Established extent regions (with their
   provenance and the tick and native generation that first observed them)
   and explicitly selected expansion areas (with the reason recorded on add
-  and on remove) are an append-only journal scoped to the world (colony,
-  map) and load (`store.EstablishColonyExtent`, `AddExpansionArea`,
-  `RemoveExpansionArea`). A read sees the load's entries at or before its
-  tick. A new load starts empty and re-establishes its extent from the live
-  world (#1009); another colony or map sees nothing.
+  and on remove) are an append-only session cache per world (colony, map)
+  (`store.EstablishColonyExtent`, `AddExpansionArea`,
+  `RemoveExpansionArea`). A read sees the world's entries at or before its
+  tick. A world change empties it and the new session re-establishes its
+  extent from the live world (#1009, #976 U4b); another colony or map sees
+  nothing.
   Historical Home exclusions are not recorded here: they are current
   restorable state, not player vetoes. Ownership and the consumer contract:
   [colony extent contract](colony-extent.md).
 
 - **Colony grid.** The layout grid (`store.EstablishColonyGrid`,
-  `ColonyGrid`) is one row per world and load, fixed from the live world
-  and visible at or after its tick; another load, colony or map sees none.
+  `ColonyGrid`) is one row per world (colony, map), a session cache fixed
+  from the live world and visible at or after its tick; a world change
+  empties it, and another colony or map sees none.
   A visible grid is never replaced: `EstablishColonyGrid` returns it and
   reports nothing established.
 - **Layout tidies.** The re-sites `TidyLayout` moved or is moving

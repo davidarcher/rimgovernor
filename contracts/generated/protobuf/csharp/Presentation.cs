@@ -26756,7 +26756,8 @@ namespace RimGovernor.Protocol.Presentation {
   }
 
   /// <summary>
-  /// Pause/draft cleanup or native acquisition may have started before confirmation failed.
+  /// Pause or native acquisition may have started before confirmation failed;
+  /// drafted pawns stay drafted on handoff (#939).
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class InputLeaseUncertain : pb::IMessage<InputLeaseUncertain>

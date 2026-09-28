@@ -279,7 +279,8 @@ message InputState {
   optional uint32 channel_capacity_bytes = 14;
 }
 message InputLeaseGranted { InputLeaseReference lease = 1; InputState state = 2; }
-// Pause/draft cleanup or native acquisition may have started before confirmation failed.
+// Pause or native acquisition may have started before confirmation failed;
+// drafted pawns stay drafted on handoff (#939).
 message InputLeaseUncertain {
   InputLeaseRequest request = 1; optional string detail = 2;
   InputState last_observed = 3; InputLeaseReference acquired_lease = 4;
