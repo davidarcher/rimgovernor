@@ -10,6 +10,62 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// TestRoutinePlanRetirementNoDoubleSpend replays the double-spend the deleted
+// retirement floor blocked (#1008): once a settled plan retires, stock observed
+// before its evidence must not buy a second method. The goal tick check refuses
+// it without the floor, and the same stock at a fresh tick still admits.
+func TestRoutinePlanRetirementNoDoubleSpend(t *testing.T) {
+	t.Parallel()
+	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
+		t.Run(string(effect), func(t *testing.T) {
+			ctx := context.Background()
+			path := memoryPath(t)
+			s := open(t, path)
+			r := routineRequest()
+			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
+			q := methodRequest(t, g, "old", 100)
+			d, err := s.AdmitBuildingMethod(ctx, q)
+			if err != nil || !d.Admitted {
+				t.Fatal(d, err)
+			}
+			action := q.Plan.Actions()[0].ID()
+			if _, err = s.Prepare(ctx, q.Plan.ID(), action, q.Current, q.Tick); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = s.Dispatch(ctx, q.Plan.ID(), action, q.Current, 15); err != nil {
+				t.Fatal(err)
+			}
+			receipt := domain.ReceiptAccepted
+			if effect == domain.EffectUnsuccessful {
+				receipt = domain.ReceiptRefused
+			}
+			if _, err = s.RecordReceipt(ctx, q.Plan.ID(), action, 1, receipt); err != nil {
+				t.Fatal(err)
+			}
+			built, _ := q.Plan.Actions()[0].Building()
+			r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: built, Cells: []domain.Cell{built.Cell()}, IntentKey: string(action) + "/1"}}})
+			r.Tick = 20
+			reviewRoutine(t, s, &r)
+			s.Close()
+			s = open(t, path)
+			p, err := s.LoadPlan(ctx, q.Plan.ID())
+			if err != nil || !p.Retired {
+				t.Fatal("plan not retired", p, err)
+			}
+			other := anotherGoal(t, s, "replacement")
+			next := methodRequest(t, other, "new", 100)
+			next.Tick, next.Stock.Tick, next.Previews[0].Tick = 14, 14, 14
+			if d, err = s.AdmitBuildingMethod(ctx, next); err == nil && d.Admitted {
+				t.Fatal("retirement made old stock spendable", d)
+			}
+			next.Tick, next.Stock.Tick, next.Previews[0].Tick = 20, 20, 20
+			if d, err = s.AdmitBuildingMethod(ctx, next); err != nil || !d.Admitted {
+				t.Fatal("fresh stock blocked", d, err)
+			}
+		})
+	}
+}
+
 func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

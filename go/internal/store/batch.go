@@ -74,6 +74,7 @@ func (s *Store) advanceBatch(ctx context.Context, n int, item func(int) (domain.
 			return nil, err
 		}
 		plan, action, event := item(i)
+		event.floors = s.floors
 		next, itemErr := advanceInTransaction(ctx, tx, plan, action, event)
 		if itemErr != nil {
 			if _, err = tx.ExecContext(ctx, "ROLLBACK TO batch_item"); err != nil {

@@ -491,7 +491,7 @@ func cancelGoalMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error
 	return nil
 }
 
-func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current domain.GenerationSnapshot, tick domain.Tick) error {
+func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, plan domain.PlanID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	var retired bool
 	if err := tx.QueryRowContext(ctx, "SELECT retired FROM plans WHERE id=?", plan).Scan(&retired); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -501,6 +501,9 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current 
 	}
 	if retired {
 		return errors.New("retired plan does not admit work")
+	}
+	if err := floors.guard(current, tick); err != nil {
+		return err
 	}
 	var id sql.NullString
 	var incident sql.NullString

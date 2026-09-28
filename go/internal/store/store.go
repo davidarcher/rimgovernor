@@ -43,7 +43,10 @@ var ErrNotAdmitted = core.ErrNotAdmitted
 var ErrActionVetoed = errors.New("action vetoed")
 var ErrNotFound = core.ErrNotFound
 
-type Store struct{ db *sql.DB }
+type Store struct {
+	db     *sql.DB
+	floors *retirementFloors
+}
 
 // ControllerSessionID identifies one persistent controller execution namespace.
 // It is independent of HTTP process sessions and survives controller restarts.
@@ -114,7 +117,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("journal mode %q, want %s", journal, want)
 	}
-	s := &Store{db: db}
+	s := &Store{db: db, floors: floorsFor(path)}
 	if err = s.initialize(ctx); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -612,6 +615,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 // transition is a private persistence boundary, not a second progress model.
 type transition struct {
 	Kind                   string
+	floors                 *retirementFloors // set by the Store for a prepare or dispatch
 	Snapshot               domain.GenerationSnapshot
 	Tick                   domain.Tick
 	Attempt                domain.AttemptID
@@ -682,6 +686,7 @@ func apply(p domain.Progress, e transition) (domain.Progress, error) {
 	}
 }
 func (s *Store) advance(ctx context.Context, plan domain.PlanID, action domain.ActionID, event transition) (domain.Progress, error) {
+	event.floors = s.floors
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return domain.Progress{}, err
@@ -699,7 +704,7 @@ func (s *Store) advance(ctx context.Context, plan domain.PlanID, action domain.A
 
 func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, action domain.ActionID, event transition) (domain.Progress, error) {
 	if event.Kind == "prepare" || event.Kind == "dispatch" {
-		if err := guardGoalWork(ctx, tx, plan, event.Snapshot, event.Tick); err != nil {
+		if err := guardGoalWork(ctx, tx, event.floors, plan, event.Snapshot, event.Tick); err != nil {
 			return domain.Progress{}, err
 		}
 	}

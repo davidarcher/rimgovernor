@@ -385,17 +385,19 @@ func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest)
 		return RoutineReviewResult{}, err
 	}
 	defer tx.Rollback()
-	result, err := reviewRoutineTx(ctx, tx, request)
+	settled := map[retirementWorld]domain.Tick{}
+	result, err := reviewRoutineTx(ctx, tx, request, settled)
 	if err != nil {
 		return RoutineReviewResult{}, err
 	}
 	if err = tx.Commit(); err != nil {
 		return RoutineReviewResult{}, err
 	}
+	s.floors.raise(settled)
 	return result, nil
 }
 
-func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewRequest) (RoutineReviewResult, error) {
+func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewRequest, settled map[retirementWorld]domain.Tick) (RoutineReviewResult, error) {
 	if request.Enabled {
 		preferences, err := loadWorkPreferences(ctx, tx, request.Current.Plan)
 		if err != nil && !errors.Is(err, ErrNotFound) {
@@ -547,7 +549,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		assessed[n.ID] = true
 	}
 	if request.Enabled {
-		if err = retireRoutinePlans(ctx, tx, request.Current, request.Tick, request.Facts.CurrentConstruction); err != nil {
+		if err = retireRoutinePlans(ctx, tx, request.Current, request.Tick, request.Facts.CurrentConstruction, settled); err != nil {
 			return RoutineReviewResult{}, err
 		}
 	}

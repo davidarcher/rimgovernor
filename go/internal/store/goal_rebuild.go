@@ -89,7 +89,11 @@ func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orpha
 			return err
 		}
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	s.floors.reset()
+	return nil
 }
 
 // goalMethodPlans loads every plan a goal method row binds.

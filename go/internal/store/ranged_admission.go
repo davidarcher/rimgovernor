@@ -55,7 +55,7 @@ func (s *Store) PrepareRangedAttack(ctx context.Context, plan domain.PlanID, act
 		return domain.Progress{}, err
 	}
 	defer tx.Rollback()
-	if err = guardGoalWork(ctx, tx, plan, v.Snapshot, v.Tick); err != nil {
+	if err = guardGoalWork(ctx, tx, s.floors, plan, v.Snapshot, v.Tick); err != nil {
 		return domain.Progress{}, err
 	}
 	state, err := load(ctx, tx, plan)

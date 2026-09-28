@@ -56,7 +56,7 @@ func (s *Store) PrepareMineAcquisition(ctx context.Context, plan domain.PlanID, 
 		return domain.Progress{}, err
 	}
 	defer tx.Rollback()
-	if err = guardGoalWork(ctx, tx, plan, admission.Snapshot, admission.Tick); err != nil {
+	if err = guardGoalWork(ctx, tx, s.floors, plan, admission.Snapshot, admission.Tick); err != nil {
 		return domain.Progress{}, err
 	}
 	state, err := load(ctx, tx, plan)

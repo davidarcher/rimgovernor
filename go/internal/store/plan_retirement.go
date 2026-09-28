@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strconv"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -36,7 +37,7 @@ func settledRetirementOutcome(progress domain.Progress) bool {
 
 // Only settled autopilot methods retire. The current root plan, unresolved effects,
 // cleanup and unsuccessful work keep their complete catalog entries.
-func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick, census domain.Fact[policy.CurrentConstruction]) error {
+func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick, census domain.Fact[policy.CurrentConstruction], floors map[retirementWorld]domain.Tick) error {
 	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id,m.incident_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257")
 	if err != nil {
 		return err
@@ -116,6 +117,12 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		}
 		if g.Revision == ^uint64(0) {
 			return ErrCapacity
+		}
+		for _, progress := range p.Progress {
+			if w := progress.View(); settledRetirementOutcome(progress) {
+				k := retirementWorld{w.Snapshot.Colony, w.Snapshot.Map}
+				floors[k] = max(floors[k], w.Tick)
+			}
 		}
 		if _, err = tx.ExecContext(ctx, "UPDATE plans SET retired=1 WHERE id=?", v.plan); err != nil {
 			return err
@@ -217,4 +224,60 @@ func (s *Store) LoadGoalMethods(ctx context.Context, goal domain.GoalID, epoch u
 		return nil, err
 	}
 	return result, nil
+}
+
+// retirementWorld keys a retirement floor: the load is not part of it (U4b).
+type retirementWorld struct {
+	colony domain.ColonyID
+	mapID  domain.MapID
+}
+
+// retirementFloors holds, per world, the newest tick of settled evidence a
+// retired plan carried (#1008 follow-up): stock observed before it was
+// already spent by that plan, so it does not buy a second method. It is
+// session-only, shared by every handle on one database path, and resets on a
+// goal rebuild (#998) and a process restart.
+type retirementFloors struct {
+	mu    sync.Mutex
+	ticks map[retirementWorld]domain.Tick
+}
+
+var retirementFloorRegistry sync.Map // database path -> *retirementFloors
+
+func floorsFor(path string) *retirementFloors {
+	f, _ := retirementFloorRegistry.LoadOrStore(path, &retirementFloors{})
+	return f.(*retirementFloors)
+}
+
+func (f *retirementFloors) raise(settled map[retirementWorld]domain.Tick) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for w, t := range settled {
+		if f.ticks == nil {
+			f.ticks = map[retirementWorld]domain.Tick{}
+		}
+		if t > f.ticks[w] {
+			f.ticks[w] = t
+		}
+	}
+}
+
+func (f *retirementFloors) reset() {
+	f.mu.Lock()
+	f.ticks = nil
+	f.mu.Unlock()
+}
+
+// guard refuses an observation older than its world's floor.
+func (f *retirementFloors) guard(current domain.GenerationSnapshot, tick domain.Tick) error {
+	if f == nil {
+		return nil
+	}
+	f.mu.Lock()
+	floor, ok := f.ticks[retirementWorld{current.Colony, current.Map}]
+	f.mu.Unlock()
+	if ok && tick < floor {
+		return errors.New("observation predates retired accounting evidence")
+	}
+	return nil
 }
