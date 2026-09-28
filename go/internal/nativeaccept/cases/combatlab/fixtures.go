@@ -87,10 +87,10 @@ const (
 )
 
 // Names are the fixtures in landing order; #854 lands the first three and
-// reserves lab-breach, lab-mech, lab-manhunter and lab-siege for the first
-// #845 child that needs each. lab-pods (#870) joins with its rooms (#897).
-// The metrics baselines run Names; lab-manhunter (#1057) builds but has
-// no metrics baseline yet.
+// reserves lab-breach, lab-mech and lab-manhunter for the first #845 child
+// that needs each. lab-pods (#870) joins with its rooms (#897).
+// The metrics baselines run Names; lab-manhunter (#1057) and lab-siege
+// (#1051) build but have no metrics baseline yet.
 var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
@@ -104,6 +104,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return ranged(cx, cz), nil
 	case "lab-pods":
 		return pods(cx, cz), nil
+	case "lab-siege":
+		return siege(cx, cz), nil
 	case "lab-manhunter":
 		return manhunter(cx, cz), nil
 	}
@@ -188,6 +190,30 @@ func pods(cx, cz int) Fixture {
 	f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: 4, X: cx + 4, Z: cz + podsDrop - 4})
 	for i := 0; i < 4; i++ {
 		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: gunner, X: cx, Z: cz + podsDrop, Weapon: rifle})
+	}
+	return f
+}
+
+// Siege offsets (#1051): our mortar 15 cells south of the centre, the
+// camp's mortar 20 north, 35 apart (past the vanilla mortar's 29.9-cell
+// minimum range).
+const (
+	siegeOurMortar  = -15
+	siegeCampMortar = 20
+)
+
+// siege: three riflemen by an unroofed player mortar with one HE and one
+// EMP shell beside it, and a hostile siege mortar at the camp. For the
+// counter-battery shell op (#1051).
+func siege(cx, cz int) Fixture {
+	f := Fixture{Name: "lab-siege", Colonists: 3}
+	f.Things = append(f.Things,
+		Thing{Def: "Turret_Mortar", X: cx, Z: cz + siegeOurMortar},
+		Thing{Def: "Shell_HighExplosive", X: cx + 2, Z: cz + siegeOurMortar - 1},
+		Thing{Def: "Shell_EMP", X: cx - 2, Z: cz + siegeOurMortar - 1},
+		Thing{Def: "Turret_Mortar", X: cx, Z: cz + siegeCampMortar, Hostile: true})
+	for i, dx := range []int{-2, 0, 2} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz + siegeOurMortar + 3, Weapon: rifle})
 	}
 	return f
 }

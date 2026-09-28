@@ -581,11 +581,13 @@ func (x *CombatDoorRow) GetMaxHitPoints() int32 {
 
 // A player mortar (BundleSnapshot.combat_mortars, #931) and its range.
 type CombatMortarRow struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"` // load id
-	Cell          *commonpb.Cell         `protobuf:"bytes,2,opt,name=cell,proto3" json:"cell,omitempty"`
-	MinRange      *float32               `protobuf:"fixed32,3,opt,name=min_range,json=minRange,proto3,oneof" json:"min_range,omitempty"`
-	MaxRange      *float32               `protobuf:"fixed32,4,opt,name=max_range,json=maxRange,proto3,oneof" json:"max_range,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Id       *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"` // load id
+	Cell     *commonpb.Cell         `protobuf:"bytes,2,opt,name=cell,proto3" json:"cell,omitempty"`
+	MinRange *float32               `protobuf:"fixed32,3,opt,name=min_range,json=minRange,proto3,oneof" json:"min_range,omitempty"`
+	MaxRange *float32               `protobuf:"fixed32,4,opt,name=max_range,json=maxRange,proto3,oneof" json:"max_range,omitempty"`
+	// The loaded shell's ThingDef (#1051); absent when unloaded.
+	LoadedShell   *string `protobuf:"bytes,5,opt,name=loaded_shell,json=loadedShell,proto3,oneof" json:"loaded_shell,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -646,6 +648,13 @@ func (x *CombatMortarRow) GetMaxRange() float32 {
 		return *x.MaxRange
 	}
 	return 0
+}
+
+func (x *CombatMortarRow) GetLoadedShell() string {
+	if x != nil && x.LoadedShell != nil {
+		return *x.LoadedShell
+	}
+	return ""
 }
 
 // One combat event row (BundleSnapshot.combat_events).
@@ -2297,17 +2306,19 @@ const file_mirror_proto_rawDesc = "" +
 	"\x0emax_hit_points\x18\x04 \x01(\x05H\x02R\fmaxHitPoints\x88\x01\x01B\x05\n" +
 	"\x03_idB\r\n" +
 	"\v_hit_pointsB\x11\n" +
-	"\x0f_max_hit_points\"\xbe\x01\n" +
+	"\x0f_max_hit_points\"\xf7\x01\n" +
 	"\x0fCombatMortarRow\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12 \n" +
 	"\tmin_range\x18\x03 \x01(\x02H\x01R\bminRange\x88\x01\x01\x12 \n" +
-	"\tmax_range\x18\x04 \x01(\x02H\x02R\bmaxRange\x88\x01\x01B\x05\n" +
+	"\tmax_range\x18\x04 \x01(\x02H\x02R\bmaxRange\x88\x01\x01\x12&\n" +
+	"\floaded_shell\x18\x05 \x01(\tH\x03R\vloadedShell\x88\x01\x01B\x05\n" +
 	"\x03_idB\f\n" +
 	"\n" +
 	"_min_rangeB\f\n" +
 	"\n" +
-	"_max_range\"\xe0\x04\n" +
+	"_max_rangeB\x0f\n" +
+	"\r_loaded_shell\"\xe0\x04\n" +
 	"\x0eCombatEventRow\x120\n" +
 	"\x02at\x18\x01 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x02at\x12=\n" +
 	"\x04kind\x18\x02 \x01(\x0e2$.rimgovernor.mirror.v1.CombatLogKindH\x00R\x04kind\x88\x01\x01\x12:\n" +

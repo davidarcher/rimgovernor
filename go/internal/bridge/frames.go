@@ -745,7 +745,7 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 	}
 	for _, row := range v.CombatMortars {
 		c, _ := protoCell(row.GetCell())
-		out.Mortars = append(out.Mortars, policy.CombatMortar{ID: row.GetId(), Cell: c, MinRange: float64(row.GetMinRange()), MaxRange: float64(row.GetMaxRange())})
+		out.Mortars = append(out.Mortars, policy.CombatMortar{ID: row.GetId(), Cell: c, MinRange: float64(row.GetMinRange()), MaxRange: float64(row.GetMaxRange()), Loaded: row.GetLoadedShell()})
 	}
 	for _, row := range v.CombatRooms {
 		if room, ok := combatRoom(row); ok {

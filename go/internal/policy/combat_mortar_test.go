@@ -34,7 +34,7 @@ func mortarOrders(orders []CombatOrder) []CombatOrder {
 func TestDecideCombatCounterBatteryCrewsTheMortar(t *testing.T) {
 	view := mortarView()
 	orders, m := decideStop(t, view, StopEvent{}, CombatMemory{})
-	want := CombatOrder{Pawn: "m", Kind: OrderMortar, Cell: domain.Cell{X: 5, Z: 30}, Aim: domain.Cell{X: 9, Z: -20}, Reason: ReasonCounterBattery}
+	want := CombatOrder{Pawn: "m", Kind: OrderMortar, Cell: domain.Cell{X: 5, Z: 30}, Aim: domain.Cell{X: 9, Z: -20}, Shell: ShellEMP, Reason: ReasonCounterBattery}
 	if got := mortarOrders(orders); len(got) != 1 || got[0] != want {
 		t.Fatalf("%+v", got)
 	}
@@ -49,12 +49,16 @@ func TestDecideCombatCounterBatteryCrewsTheMortar(t *testing.T) {
 	}
 }
 
-// {only the ship part in range} -> the mortar fires at the part (#930).
+// {only the ship part in range, no siege} -> the mortar fires HE at the
+// part (#930).
 func TestDecideCombatMortarShellsTheShipPart(t *testing.T) {
 	view := mortarView()
 	view.Structures = view.Structures[:1]
+	for i := range view.Positional {
+		view.Positional[i].LordJobClass = domain.Known("LordJob_AssaultColony")
+	}
 	orders, _ := decideStop(t, view, StopEvent{}, CombatMemory{})
-	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != (domain.Cell{X: 9, Z: -10}) {
+	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != (domain.Cell{X: 9, Z: -10}) || got[0].Shell != ShellHE {
 		t.Fatalf("%+v", got)
 	}
 }
@@ -63,6 +67,11 @@ func TestDecideCombatMortarShellsTheShipPart(t *testing.T) {
 func TestDecideCombatMortarHoldsInsideMinimumRange(t *testing.T) {
 	view := mortarView()
 	view.Structures = []HostileStructure{{ID: "Thing_Turret_Mortar3", Def: "Turret_Mortar", Cell: domain.Cell{X: 5, Z: 10}}}
+	for i := range view.Pawns {
+		if view.Pawns[i].ID == "r1" || view.Pawns[i].ID == "r2" {
+			view.Pawns[i].Cell = domain.Known(domain.Cell{X: 5, Z: 12})
+		}
+	}
 	if orders, _ := decideStop(t, view, StopEvent{}, CombatMemory{}); len(mortarOrders(orders)) != 0 {
 		t.Fatalf("%+v", orders)
 	}
@@ -84,5 +93,65 @@ func TestDecideCombatShipPartIsDestroyedFromRange(t *testing.T) {
 	a := attacks(orders)
 	if a["a"] != domain.PawnID(part.ID) || a["m"] != "" {
 		t.Fatalf("%+v", orders)
+	}
+}
+
+// TestMortarCounterBattery (#1051): {two mortars, the camped siege of r1
+// and r2, an enemy mortar} -> EMP on the enemy mortar, HE on the camp from
+// the other; {no enemy mortar} -> HE on the camp, then incendiary from the
+// second mortar; {HE refused no_shell} -> the loaded shell.
+func TestMortarCounterBattery(t *testing.T) {
+	two := func() CombatView {
+		view := withBrawlers(mortarView(), combatBrawler("n", 0.5))
+		view.Mortars = append(view.Mortars, CombatMortar{ID: "Thing_Turret_Mortar2", Cell: domain.Cell{X: 12, Z: 30}, MinRange: 29.9, MaxRange: 500, Loaded: ShellIncendiary})
+		view.Structures = view.Structures[1:]
+		view.Structures[0].Cell = domain.Cell{X: 30, Z: -20}
+		return view
+	}
+	shells := func(orders []CombatOrder) map[domain.Cell][2]any {
+		out := map[domain.Cell][2]any{}
+		for _, o := range mortarOrders(orders) {
+			out[o.Cell] = [2]any{o.Aim, o.Shell}
+		}
+		return out
+	}
+	m1, m2, camp := domain.Cell{X: 5, Z: 30}, domain.Cell{X: 12, Z: 30}, domain.Cell{X: 9, Z: -20}
+	orders, _ := decideStop(t, two(), StopEvent{}, CombatMemory{})
+	got := shells(orders)
+	if got[m1] != [2]any{domain.Cell{X: 30, Z: -20}, ShellEMP} || got[m2] != [2]any{domain.Cell{X: 30, Z: -20}, ShellEMP} {
+		t.Fatalf("enemy mortar: %+v", got)
+	}
+	view := two()
+	view.Structures = nil
+	orders, _ = decideStop(t, view, StopEvent{}, CombatMemory{})
+	if got := shells(orders); got[m1] != [2]any{camp, ShellHE} || got[m2] != [2]any{camp, ShellIncendiary} {
+		t.Fatalf("camp: %+v", got)
+	}
+	orders, _ = decideStop(t, view, StopEvent{}, CombatMemory{NoShells: []string{ShellHE}})
+	if got := shells(orders); got[m1] != [2]any{camp, ""} || got[m2] != [2]any{camp, ShellIncendiary} {
+		t.Fatalf("no HE: %+v", got)
+	}
+}
+
+// TestMortarHECentipede (#1051): {a centipede walking in 50 cells out, no
+// structure, no siege} -> HE on it; {the centipede within 10 cells of a
+// colonist} -> no mortar order.
+func TestMortarHECentipede(t *testing.T) {
+	view := holdView()
+	view = withBrawlers(view, combatBrawler("m", 0.5))
+	view.Mortars = []CombatMortar{{ID: "Thing_Turret_Mortar1", Cell: domain.Cell{X: 5, Z: 30}, MinRange: 29.9, MaxRange: 500}}
+	view.Pawns = append(view.Pawns, CombatPawnState{ID: "r1", Cell: domain.Known(domain.Cell{X: 9, Z: -20}), Kind: "Mech_Centipede"})
+	orders, _ := decideStop(t, view, StopEvent{}, CombatMemory{})
+	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != (domain.Cell{X: 9, Z: -20}) || got[0].Shell != ShellHE {
+		t.Fatalf("%+v", got)
+	}
+	view.Pawns[len(view.Pawns)-1].Cell = domain.Known(domain.Cell{X: 5, Z: -1})
+	for i, p := range view.Pawns {
+		if p.ID == "a" {
+			view.Pawns[i].Cell = domain.Known(domain.Cell{X: 5, Z: 5})
+		}
+	}
+	if orders, _ := decideStop(t, view, StopEvent{}, CombatMemory{}); len(mortarOrders(orders)) != 0 {
+		t.Fatalf("shelled a centipede at the line: %+v", mortarOrders(orders))
 	}
 }

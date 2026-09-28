@@ -83,6 +83,8 @@ message CombatMortarRow {
   rimgovernor.common.v1.Cell cell = 2;
   optional float min_range = 3;
   optional float max_range = 4;
+  // The loaded shell's ThingDef (#1051); absent when unloaded.
+  optional string loaded_shell = 5;
 }
 
 // What a combat event row records. The #849 stop kinds and the non-stops.

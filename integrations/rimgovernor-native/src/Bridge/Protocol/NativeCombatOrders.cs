@@ -284,7 +284,25 @@ namespace HomeBridge.BridgeTools
                     var distance = (target - mortar.Position).LengthHorizontal;
                     if (!target.InBounds(map) || verb == null || distance < verb.verbProps.EffectiveMinRange(target, mortar) || distance > verb.EffectiveRange) return "cannot_hit";
                     if (!pawn.CanReserveAndReach(mortar, PathEndMode.InteractionCell, Danger.Deadly)) return "unreachable";
-                    var refusal = mortar.GetComp<CompMannable>().ManningPawn == pawn ? "" : Take(pawn, JobMaker.MakeJob(JobDefOf.ManTurret, mortar), out job);
+                    var reload = false;
+                    if (order.Mortar.HasShell && order.Mortar.Shell.Length > 0)
+                    {
+                        // The requested shell (#1051): unload a different one
+                        // beside the mortar, allow only this one, and (re)take
+                        // ManTurret, whose ammo search honours the filter.
+                        var shells = mortar.gun?.TryGetComp<CompChangeableProjectile>();
+                        var shell = DefDatabase<ThingDef>.GetNamedSilentFail(order.Mortar.Shell);
+                        if (shells == null || shell == null || shells.GetParentStoreSettings()?.AllowedToAccept(shell) != true) return "unknown_shell";
+                        if (shells.LoadedShell != shell)
+                        {
+                            if (!map.listerThings.ThingsOfDef(shell).Any(t => t.Spawned && !t.IsForbidden(pawn) && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.Deadly))) return "no_shell";
+                            if (shells.Loaded) GenPlace.TryPlaceThing(shells.RemoveShell(), mortar.InteractionCell, map, ThingPlaceMode.Near);
+                            reload = true;
+                        }
+                        shells.allowedShellsSettings.filter.SetDisallowAll();
+                        shells.allowedShellsSettings.filter.SetAllow(shell, true);
+                    }
+                    var refusal = mortar.GetComp<CompMannable>().ManningPawn == pawn && !reload ? "" : Take(pawn, JobMaker.MakeJob(JobDefOf.ManTurret, mortar), out job);
                     if (refusal.Length == 0) { mortar.OrderAttack(target); job ??= JobDefOf.ManTurret.defName; }
                     return refusal;
                 }

@@ -2394,11 +2394,16 @@ func (x *CombatRepair) GetCell() *commonpb.Cell {
 // mortar (vanilla ManTurret, which loads shells from stock) and the mortar
 // force-targets target, as the vanilla attack gizmo (OrderAttack). Refusals:
 // not_a_mortar, cannot_hit (inside the minimum or past the maximum range),
-// unreachable.
+// unreachable. shell (#1051), when set, is the shell ThingDef to fire: a
+// different loaded shell is unloaded beside the mortar, the mortar's shell
+// filter allows only shell, and the crew (re)takes ManTurret to load it.
+// Refusals: unknown_shell (not a shell this mortar accepts), no_shell (no
+// unforbidden stack of it the pawn can reach).
 type CombatMortar struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Mortar        *commonpb.Cell         `protobuf:"bytes,1,opt,name=mortar,proto3" json:"mortar,omitempty"`
 	Target        *commonpb.Cell         `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Shell         *string                `protobuf:"bytes,3,opt,name=shell,proto3,oneof" json:"shell,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2445,6 +2450,13 @@ func (x *CombatMortar) GetTarget() *commonpb.Cell {
 		return x.Target
 	}
 	return nil
+}
+
+func (x *CombatMortar) GetShell() string {
+	if x != nil && x.Shell != nil {
+		return *x.Shell
+	}
+	return ""
 }
 
 // Animal orders (#1057) name a player-faction animal, not a drafted pawn:
@@ -7792,10 +7804,12 @@ const file_operations_proto_rawDesc = "" +
 	"\x06downed\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06downed\x12/\n" +
 	"\x04dest\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04dest\"?\n" +
 	"\fCombatRepair\x12/\n" +
-	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\"x\n" +
+	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\"\x9d\x01\n" +
 	"\fCombatMortar\x123\n" +
 	"\x06mortar\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x06mortar\x123\n" +
-	"\x06target\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x06target\"\x87\x01\n" +
+	"\x06target\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x06target\x12\x19\n" +
+	"\x05shell\x18\x03 \x01(\tH\x00R\x05shell\x88\x01\x01B\b\n" +
+	"\x06_shell\"\x87\x01\n" +
 	"\x10CombatAnimalArea\x121\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x00R\x04cell\x128\n" +
 	"\x05clear\x18\x02 \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\x05clearB\x06\n" +
@@ -8782,6 +8796,7 @@ func file_operations_proto_init() {
 		(*Cells_ExplicitCells)(nil),
 		(*Cells_Rectangle)(nil),
 	}
+	file_operations_proto_msgTypes[18].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[19].OneofWrappers = []any{
 		(*CombatAnimalArea_Cell)(nil),
 		(*CombatAnimalArea_Clear)(nil),

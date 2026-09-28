@@ -113,6 +113,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	doorPotshot(view, formed, &next)
 	manhunterShelter(view, &next)
 	counterBattery(view, &next)
+	rocketClumps(view, &next)
 	flank(view, &next)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
@@ -344,6 +345,11 @@ type CombatRole struct {
 	// at (#931); set, they win over Cell and Target.
 	Mortar *domain.Cell `json:",omitempty"`
 	Aim    *domain.Cell `json:",omitempty"`
+	// Shell is the shell the mortar fires (#1051), "" whatever is loaded.
+	Shell string `json:",omitempty"`
+	// Ground is the cell a rocket carrier fires at (#1051); set, it wins
+	// over Cell and Target.
+	Ground *domain.Cell `json:",omitempty"`
 }
 
 // CombatOrderKind is the combat.orders order an order becomes.
@@ -382,6 +388,8 @@ type CombatOrder struct {
 	Door DoorMode `json:",omitempty"`
 	// Aim is a mortar order's target cell (#931); Cell is the mortar's.
 	Aim domain.Cell `json:",omitzero"`
+	// Shell is a mortar order's shell def (#1051), "" whatever is loaded.
+	Shell string `json:",omitempty"`
 }
 
 // IssuedOrder is the last order a pawn was given and the tick it went out.
@@ -443,6 +451,19 @@ type CombatMemory struct {
 	CannotHit []HitRefusal `json:",omitempty"`
 	// Flank is the hold's flanking detachment (#1062).
 	Flank *CombatFlank `json:",omitempty"`
+	// NoShells are the shells native refused a mortar order for (#1051):
+	// none in reach, or not a shell the mortar takes.
+	NoShells []string `json:",omitempty"`
+}
+
+// RefuseShell is Forget for a mortar order native refused for its shell
+// (#1051): the shell is not asked for again this fight.
+func (m CombatMemory) RefuseShell(order CombatOrder) CombatMemory {
+	m = m.Forget(order.Pawn)
+	if order.Shell != "" && !slices.Contains(m.NoShells, order.Shell) {
+		m.NoShells = append(m.NoShells, order.Shell)
+	}
+	return m
 }
 
 // HitRefusal is an attack native refused cannot_hit: Pawn could not hit
@@ -514,6 +535,7 @@ func (m CombatMemory) clone() CombatMemory {
 	m.PodDoors = slices.Clone(m.PodDoors)
 	m.WaitDoors = slices.Clone(m.WaitDoors)
 	m.CannotHit = slices.Clone(m.CannotHit)
+	m.NoShells = slices.Clone(m.NoShells)
 	m.Flank = m.Flank.clone()
 	if m.SapperBreach != nil {
 		c := *m.SapperBreach
@@ -572,7 +594,10 @@ func (m CombatMemory) doing(want CombatOrder, s CombatPawnState) bool {
 // want is the order the role asks of a pawn in state s.
 func (r CombatRole) want(s CombatPawnState) (CombatOrder, bool) {
 	if r.Mortar != nil && r.Aim != nil {
-		return CombatOrder{Pawn: r.Pawn, Kind: OrderMortar, Cell: *r.Mortar, Aim: *r.Aim, Reason: ReasonCounterBattery}, true
+		return CombatOrder{Pawn: r.Pawn, Kind: OrderMortar, Cell: *r.Mortar, Aim: *r.Aim, Shell: r.Shell, Reason: ReasonCounterBattery}, true
+	}
+	if r.Ground != nil {
+		return CombatOrder{Pawn: r.Pawn, Kind: OrderAttackGround, Cell: *r.Ground, Reason: ReasonRocketClump}, true
 	}
 	if r.Cell != nil {
 		if at, known := s.Cell.Value(); !known || at != *r.Cell {

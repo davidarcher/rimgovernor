@@ -105,27 +105,37 @@ func openCombatFrames(ctx context.Context, h *na.Harness, identity *c.Identity) 
 // next is the combat state of the first frame published after the last
 // one read and captured at or past tick.
 func (f *combatFrames) next(ctx context.Context, tick int64) (bridge.Combat, error) {
+	v, err := f.snapshot(ctx, tick)
+	if err != nil {
+		return bridge.Combat{}, err
+	}
+	return bridge.Combat{Context: v.Context, Pawns: v.CombatPawns, Events: v.CombatEvents}, nil
+}
+
+// snapshot is the first frame published after the last one read and
+// captured at or past tick.
+func (f *combatFrames) snapshot(ctx context.Context, tick int64) (*o.BundleSnapshot, error) {
 	deadline := time.Now().Add(frameWait)
 	for {
 		frame, ok, err := f.reader.Latest()
 		if err != nil {
-			return bridge.Combat{}, err
+			return nil, err
 		}
 		if ok && frame.Number > f.last {
 			v := &o.BundleSnapshot{}
 			if err := proto.Unmarshal(frame.Payload, v); err != nil {
-				return bridge.Combat{}, err
+				return nil, err
 			}
 			if v.GetContext().GetTick() >= tick {
 				f.last = frame.Number
 				if !proto.Equal(v.GetContext().GetIdentity(), f.identity) {
-					return bridge.Combat{}, fmt.Errorf("frame %d describes another world: %v", frame.Number, v.GetContext().GetIdentity())
+					return nil, fmt.Errorf("frame %d describes another world: %v", frame.Number, v.GetContext().GetIdentity())
 				}
-				return bridge.Combat{Context: v.Context, Pawns: v.CombatPawns, Events: v.CombatEvents}, nil
+				return v, nil
 			}
 		}
 		if time.Now().After(deadline) {
-			return bridge.Combat{}, fmt.Errorf("no snapshot frame at or past tick %d within %s (last read %d)", tick, frameWait, f.last)
+			return nil, fmt.Errorf("no snapshot frame at or past tick %d within %s (last read %d)", tick, frameWait, f.last)
 		}
 		after := f.last
 		if ok {

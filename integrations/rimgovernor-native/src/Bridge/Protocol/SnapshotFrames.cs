@@ -127,6 +127,9 @@ namespace HomeBridge.BridgeTools
                 observed.CombatMortars.Add(new RimGovernor.Protocol.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
                     Cell = new Common.Cell { X = mortar.Position.x, Z = mortar.Position.z },
                     MinRange = mortar.AttackVerb.verbProps.minRange, MaxRange = mortar.AttackVerb.verbProps.range });
+                // The loaded shell (#1051), for the shell the fight asks for.
+                var loaded = mortar.gun?.TryGetComp<RimWorld.CompChangeableProjectile>()?.LoadedShell;
+                if (loaded != null) observed.CombatMortars[observed.CombatMortars.Count - 1].LoadedShell = loaded.defName;
             }
             var colonistIds = new HashSet<string>(colonists.Select(p => p.Pawn?.Id ?? ""));
             var firing = new List<IntVec3>();

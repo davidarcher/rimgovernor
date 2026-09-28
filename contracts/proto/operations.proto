@@ -142,8 +142,12 @@ message CombatRepair { rimgovernor.common.v1.Cell cell = 1; }
 // mortar (vanilla ManTurret, which loads shells from stock) and the mortar
 // force-targets target, as the vanilla attack gizmo (OrderAttack). Refusals:
 // not_a_mortar, cannot_hit (inside the minimum or past the maximum range),
-// unreachable.
-message CombatMortar { rimgovernor.common.v1.Cell mortar = 1; rimgovernor.common.v1.Cell target = 2; }
+// unreachable. shell (#1051), when set, is the shell ThingDef to fire: a
+// different loaded shell is unloaded beside the mortar, the mortar's shell
+// filter allows only shell, and the crew (re)takes ManTurret to load it.
+// Refusals: unknown_shell (not a shell this mortar accepts), no_shell (no
+// unforbidden stack of it the pawn can reach).
+message CombatMortar { rimgovernor.common.v1.Cell mortar = 1; rimgovernor.common.v1.Cell target = 2; optional string shell = 3; }
 // Animal orders (#1057) name a player-faction animal, not a drafted pawn:
 // no draft claim is needed, and the animal carries no snapshot token.
 // Refusals: not_ours (not a spawned player animal), untrained (release

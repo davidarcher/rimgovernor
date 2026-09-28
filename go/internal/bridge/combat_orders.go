@@ -35,6 +35,10 @@ const (
 	CombatRefusalCannotDraft = "cannot_draft"
 	// Mortar refusal (#931): no unroofed player mortar on the cell.
 	CombatRefusalNotAMortar = "not_a_mortar"
+	// Mortar shell refusals (#1051): the mortar does not accept the shell,
+	// or no unforbidden stack of it is in reach.
+	CombatRefusalUnknownShell = "unknown_shell"
+	CombatRefusalNoShell      = "no_shell"
 	// Animal order refusals (#1057): not a spawned player animal, or a
 	// release order to an animal without the Release training.
 	CombatRefusalNotOurs   = "not_ours"
@@ -47,6 +51,7 @@ var combatRefusals = map[string]bool{
 	CombatRefusalNotADoor: true, CombatRefusalNativeRefused: true,
 	CombatRefusalCannotRescue: true, CombatRefusalNoBed: true, CombatRefusalCannotRepair: true,
 	CombatRefusalCannotDraft: true, CombatRefusalNotAMortar: true,
+	CombatRefusalUnknownShell: true, CombatRefusalNoShell: true,
 	CombatRefusalNotOurs: true, CombatRefusalUntrained: true,
 }
 

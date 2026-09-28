@@ -204,6 +204,8 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 		if !row.Applied && results != nil && order.Pawn != "" {
 			if from, ok := cells[order.Pawn]; ok && row.Refusal == bridge.CombatRefusalCannotHit {
 				memory = memory.RefuseHit(order, from)
+			} else if row.Refusal == bridge.CombatRefusalNoShell || row.Refusal == bridge.CombatRefusalUnknownShell {
+				memory = memory.RefuseShell(order)
 			} else {
 				memory = memory.Forget(order.Pawn)
 			}
@@ -237,6 +239,11 @@ func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state Cont
 			wire.Order = &op.CombatOrder_Rescue{Rescue: &op.CombatRescue{Downed: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}}
 		case policy.OrderMortar:
 			wire.Order = &op.CombatOrder_Mortar{Mortar: &op.CombatMortar{Mortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Target: &c.Cell{X: proto.Int32(order.Aim.X), Z: proto.Int32(order.Aim.Z)}}}
+			if order.Shell != "" {
+				wire.GetMortar().Shell = proto.String(order.Shell)
+			}
+		case policy.OrderAttackGround:
+			wire.Order = &op.CombatOrder_AttackGround{AttackGround: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
 		case policy.OrderRepair:
 			wire.Order = &op.CombatOrder_Repair{Repair: &op.CombatRepair{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}}
 		case policy.OrderDoor:
