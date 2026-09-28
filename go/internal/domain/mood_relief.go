@@ -2,7 +2,7 @@ package domain
 
 import "errors"
 
-// MoodReliefNeed names EnsureMood-*'s three ordinary native need-relief jobs
+// MoodReliefNeed names EnsureMood's three ordinary native need-relief jobs
 // (food/rest/joy). Mirrors policy.MoodNeed's string values; domain cannot
 // import policy, so they are kept in sync by convention and converted at
 // the boundary.
@@ -15,7 +15,7 @@ const (
 )
 
 // MoodRelief is explicit intent to send one already-selected undrafted pawn
-// to one ordinary native need-relief job (EnsureMood-*). Native checks the
+// to one ordinary native need-relief job (EnsureMood). Native checks the
 // pawn's eligibility, current job, timetable and need live when it applies
 // the intent.
 type MoodRelief struct {

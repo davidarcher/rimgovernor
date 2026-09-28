@@ -52,6 +52,7 @@ var goalDomains = map[GoalID]Domain{
 	MaintainMedicalReserves: DomainMedical,
 
 	RestoreWorkers:        DomainPeople,
+	EnsureMood:            DomainPeople,
 	EnsureWorkAssignments: DomainPeople,
 	MaintainPopulation:    DomainPeople,
 
@@ -74,11 +75,5 @@ var goalDomains = map[GoalID]Domain{
 	ConfirmColonyNames: DomainSystem,
 }
 
-// GoalDomain tags id with its colony area. Mood goals (one per pawn) are
-// People; an unknown id is DomainUnknown.
-func GoalDomain(id GoalID) Domain {
-	if IsMoodGoal(id) {
-		return DomainPeople
-	}
-	return goalDomains[id]
-}
+// GoalDomain tags id with its colony area; an unknown id is DomainUnknown.
+func GoalDomain(id GoalID) Domain { return goalDomains[id] }

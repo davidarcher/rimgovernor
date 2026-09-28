@@ -133,16 +133,16 @@ func TestNativeRoutineMoodReplay(t *testing.T) {
 	}
 	for _, state := range h.States {
 		found := false
-		for i, binding := range out.Review.Goals {
-			if binding.Need == policy.MoodGoal(state.Pawn.ID) {
+		for i, binding := range out.Review.Incidents {
+			if binding.Kind == policy.EnsureMood && binding.Subject == domain.PawnID(state.Pawn.ID) {
 				found = true
-				if out.Goals[i].Goal.Need != domain.NeedDeficit || out.Goals[i].Goal.Priority != state.Priority() {
-					t.Fatal(out.Goals[i])
+				if binding.Need != domain.NeedDeficit || out.Incidents[i].Incident.Priority != state.Priority() {
+					t.Fatal(out.Incidents[i])
 				}
 			}
 		}
 		if !found {
-			t.Fatal("missing durable mood goal")
+			t.Fatal("missing durable mood incident")
 		}
 	}
 	r.Revision = out.Review.Revision

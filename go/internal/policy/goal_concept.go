@@ -20,6 +20,7 @@ var goalConcepts = map[GoalID]Concept{
 	ConfirmColonyNames:      ConceptResponse,
 	RecoverDisasterServices: ConceptResponse,
 	TradeWithCaravan:        ConceptResponse,
+	EnsureMood:              ConceptResponse,
 
 	AllowStartingSupplies: ConceptProject,
 	EnsureCooking:         ConceptProject,
@@ -64,22 +65,22 @@ var goalConcepts = map[GoalID]Concept{
 	MaintainStorage:           ConceptStandard,
 }
 
-// GoalConcept classifies id. Mood goals (one per pawn) are Responses. Rules
-// carry no GoalID, so no id maps to ConceptRule; an unknown id is
-// ConceptUnknown.
-func GoalConcept(id GoalID) Concept {
-	if IsMoodGoal(id) {
-		return ConceptResponse
-	}
-	return goalConcepts[id]
-}
+// GoalConcept classifies id. Rules carry no GoalID, so no id maps to
+// ConceptRule; an unknown id is ConceptUnknown.
+func GoalConcept(id GoalID) Concept { return goalConcepts[id] }
 
 // incidentKinds are the Responses whose occurrences live in the incidents
 // table instead of the goal table (#1020): the review opens and closes
 // their incidents and never files a goal row for them.
 var incidentKinds = map[GoalID]bool{
-	ActiveCombat:     true,
-	CriticalMedicine: true,
+	ActiveCombat:            true,
+	CriticalMedicine:        true,
+	RestoreWorkers:          true,
+	AnswerDialog:            true,
+	ConfirmColonyNames:      true,
+	EnsureMood:              true,
+	RecoverDisasterServices: true,
+	TradeWithCaravan:        true,
 }
 
 // IsIncidentKind reports whether id's occurrences are incidents (#1020).

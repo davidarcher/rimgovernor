@@ -24,11 +24,13 @@ type ChatFactsNative interface {
 }
 
 // ChatFactsJournal narrows *store.Store to the policy state chat reads: the
-// goals the routine reviewer and the player currently track, and every
+// goals the routine reviewer and the player currently track, the open
+// incidents the review binds, and every
 // policy input a guidance nudge may change.
 type ChatFactsJournal interface {
 	LoadRoutineReview(context.Context) (store.RoutineReview, error)
 	LoadGoal(context.Context, domain.GoalID) (store.GoalState, error)
+	LoadIncident(context.Context, domain.IncidentID) (store.IncidentState, error)
 	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]domain.GoalID, error)
 	PopulationDecisions(context.Context, store.World) ([]domain.PopulationDirective, error)
 }
@@ -154,6 +156,16 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 			if err = addGoal(binding.Goal, string(binding.Need)); err != nil {
 				return none, domain.GenerationSnapshot{}, err
 			}
+		}
+		for _, binding := range review.Incidents {
+			state, err := journal.LoadIncident(ctx, binding.Incident)
+			if err != nil {
+				return none, domain.GenerationSnapshot{}, err
+			}
+			if state.Incident.Closed {
+				continue
+			}
+			facts.Incidents = append(facts.Incidents, interpreter.Incident{Kind: binding.Kind, Subject: binding.Subject, Need: binding.Need, Priority: state.Incident.Priority, Started: state.Incident.Started})
 		}
 	}
 	playerGoals, err := journal.PlayerGoals(ctx, world)

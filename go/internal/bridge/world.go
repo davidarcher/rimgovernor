@@ -35,7 +35,7 @@ type WorldRead struct {
 	Settlements []SettlementFact
 	// Longitude is the requested tile's world-map longitude (WorldTile.longitude),
 	// the map-local-hour ingredient boundary.HourOfDay/ExpectedScheduleDef needs
-	// to fence EnsureMood-* relief dispatch against a pawn's current timetable
+	// to fence EnsureMood relief dispatch against a pawn's current timetable
 	// assignment. It is effectively a session constant: the colony's map tile
 	// does not move. Unknown when native omits WorldTile or reports it unavailable.
 	Longitude domain.Fact[float64]

@@ -23,6 +23,29 @@ func routineGoal(t *testing.T, r RoutineReviewResult, need domain.GoalID) GoalSt
 	t.Fatal("missing routine goal", need)
 	return GoalState{}
 }
+
+// routineIncident is the review's open colony-wide occurrence of kind.
+func routineIncident(t *testing.T, r RoutineReviewResult, kind domain.GoalID) IncidentState {
+	t.Helper()
+	for i, b := range r.Review.Incidents {
+		if b.Kind == kind && b.Subject == "" {
+			return r.Incidents[i]
+		}
+	}
+	t.Fatal("missing routine incident", kind)
+	return IncidentState{}
+}
+
+// routineIncidentNeed is the need the review bound kind's occurrence at.
+func routineIncidentNeed(t *testing.T, r RoutineReviewResult, kind domain.GoalID) domain.NeedState {
+	t.Helper()
+	b, ok := r.Review.Incident(kind)
+	if !ok {
+		t.Fatal("missing routine incident", kind)
+	}
+	return b.Need
+}
+
 func reviewRoutine(t *testing.T, s *Store, r *RoutineReviewRequest) RoutineReviewResult {
 	t.Helper()
 	out, err := s.ReviewRoutine(context.Background(), *r)

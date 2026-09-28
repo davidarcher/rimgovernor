@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -15,8 +14,9 @@ import (
 // Recovery retains the exact inputs for reproducible proposal readback. Nullable
 // values are storage boundaries, not known zero/false domain observations.
 type RoutineRecovery struct {
-	Goal      domain.GoalID
-	Epoch     uint64
+	// Incident is the RecoverDisasterServices occurrence the selection
+	// serves (#1078).
+	Incident  domain.IncidentID
 	Used      []domain.MethodID
 	Safety    *RoutineRecoverySafety
 	Workers   *[]RoutineRecoveryWorker
@@ -100,14 +100,8 @@ func validateRoutineRecovery(r RoutineReview) error {
 	if !r.Enabled || r.Disaster == nil || v.Selection.Tick != r.Tick || v.Selection.Validate() != nil {
 		return errors.New("invalid routine recovery selection")
 	}
-	found := false
-	for _, binding := range r.Goals {
-		if binding.Need == policy.RecoverDisasterServices && binding.Goal == v.Goal {
-			found = true
-		}
-	}
-	if !found {
-		return errors.New("recovery selection lost goal ownership")
+	if b, ok := r.incidentBinding(v.Incident); !ok || b.Kind != policy.RecoverDisasterServices {
+		return errors.New("recovery selection lost incident ownership")
 	}
 	selection, err := policy.SelectRecoveryMethods(v.planning(), r.Disaster, v.Used, r.Tick)
 	if err != nil {
@@ -121,29 +115,24 @@ func validateRoutineRecovery(r RoutineReview) error {
 	return nil
 }
 
-func routineRecovery(ctx context.Context, tx *sql.Tx, f policy.RoutineFacts, h *policy.DisasterHistory, review RoutineReview, goals []GoalState, tick domain.Tick) (*RoutineRecovery, error) {
-	bindings := review.Goals
+func routineRecovery(ctx context.Context, tx *sql.Tx, f policy.RoutineFacts, h *policy.DisasterHistory, review RoutineReview, tick domain.Tick) (*RoutineRecovery, error) {
 	if h == nil {
 		return nil, nil
 	}
-	if len(bindings) != len(goals) {
-		return nil, errors.New("recovery goal bindings differ")
+	binding, ok := review.Incident(policy.RecoverDisasterServices)
+	if !ok {
+		return nil, nil
 	}
-	var goal *GoalState
-	for i, binding := range bindings {
-		if binding.Need == policy.RecoverDisasterServices {
-			if binding.Goal != goals[i].Goal.ID {
-				return nil, errors.New("recovery goal ownership differs")
-			}
-			goal = &goals[i]
-		}
+	state, err := loadIncident(ctx, tx, binding.Incident)
+	if err != nil {
+		return nil, err
 	}
-	if goal == nil || goal.Goal.Status != domain.GoalActive || review.Veto(goal.Goal) != "" {
+	if review.VetoIncident(state.Incident) != "" {
 		return nil, nil
 	}
 	r := recoveryRecord(policy.RecoveryPlanning{Safety: f.RecoverySafety, Workers: f.RecoveryWorkers, Buildings: f.RecoveryBuildings})
-	r.Goal, r.Epoch = goal.Goal.ID, goal.Goal.Epoch
-	rows, err := tx.QueryContext(ctx, "SELECT method_id FROM goal_methods WHERE goal_id=? AND epoch=? ORDER BY method_id LIMIT 257", r.Goal, strconv.FormatUint(r.Epoch, 10))
+	r.Incident = binding.Incident
+	rows, err := tx.QueryContext(ctx, "SELECT method_id FROM goal_methods WHERE incident_id=? ORDER BY method_id LIMIT 257", r.Incident)
 	if err != nil {
 		return nil, err
 	}

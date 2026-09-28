@@ -298,7 +298,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			}
 		}
 	}
-	known, _ := policy.DetectRoutine(policy.RoutineFacts{Mood: r.moodHistory(), Disaster: r.Disaster, DisasterTick: r.Tick}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
+	known, _ := policy.DetectRoutine(policy.RoutineFacts{Disaster: r.Disaster, DisasterTick: r.Tick}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
 	allowed := map[domain.GoalID]bool{}
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
@@ -306,23 +306,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			continue
 		}
 		allowed[n.ID] = true
-		optional[n.ID] = n.Priority >= 3 || n.ID == policy.RecoverDisasterServices || n.ID == policy.EnsureComfort || n.ID == policy.MaintainHousing || n.ID == policy.MaintainMedicalReserves
-	}
-	// Area reconciliation may own recovery without a disaster history, including
-	// a restriction restored by loading a save or set during Manual.
-	for _, binding := range r.Goals {
-		if binding.Need == policy.RecoverDisasterServices {
-			allowed[binding.Need], optional[binding.Need] = true, true
-		}
-	}
-	// Manual may retain historical bindings after a world change reset their
-	// observation history. Enabled bindings must match the current pawn history.
-	if !r.Enabled {
-		for _, binding := range r.Goals {
-			if policy.IsMoodGoal(binding.Need) || binding.Need == policy.RecoverDisasterServices {
-				allowed[binding.Need] = true
-			}
-		}
+		optional[n.ID] = n.Priority >= 3 || n.ID == policy.EnsureComfort || n.ID == policy.MaintainHousing || n.ID == policy.MaintainMedicalReserves
 	}
 	for _, row := range r.Development.Rows {
 		if !optional[row.Goal] {
@@ -343,9 +327,6 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		g, err := loadGoal(ctx, tx, binding.Goal)
 		if err != nil {
 			return RoutineReview{}, err
-		}
-		if r.Recovery != nil && r.Recovery.Goal == g.Goal.ID && r.Recovery.Epoch > g.Goal.Epoch {
-			return RoutineReview{}, errors.New("future recovery method epoch")
 		}
 		if g.Goal.Source != domain.AutopilotGoal || !routineGoalOwns(binding.Goal, binding.Need) {
 			return RoutineReview{}, errors.New("routine goal ownership mismatch")
@@ -800,7 +781,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.Progress = policy.HoldProgress(r.Progress, development.Rows, policy.WithheldLabor(r.Progress), unavailable)
 		r.Development = developmentRecord(development)
 		r.ReadyWork = &ready
-		r.Recovery, err = routineRecovery(ctx, tx, request.Facts, disaster, r, result.Goals, request.Tick)
+		r.Recovery, err = routineRecovery(ctx, tx, request.Facts, disaster, r, request.Tick)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}

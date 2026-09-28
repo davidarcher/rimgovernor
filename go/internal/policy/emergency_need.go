@@ -7,9 +7,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // ask it, so they cannot drift (#1014). Only an unrecovered need below
 // priority 2 qualifies, and not when it:
 //   - is a colony-naming or choice dialog (answered by one native write),
-//   - is a mental break's mood goal (it ends only as ticks pass, so
-//     vetoing everything would leave the clock no work),
-//   - has no declared method to clear it (#435).
+//   - has no declared method to clear it (#435), or is optional relief
+//     (EnsureMood: a mental break ends only as ticks pass).
 func EmergencyNeed(a RoutineAssessment) bool {
-	return a.Priority < 2 && a.ID != ConfirmColonyNames && a.ID != AnswerDialog && !IsMoodGoal(a.ID) && a.Need != domain.NeedRecovered && !a.MethodUnavailable
+	return a.Priority < 2 && a.ID != ConfirmColonyNames && a.ID != AnswerDialog && a.Need != domain.NeedRecovered && !a.MethodUnavailable
 }

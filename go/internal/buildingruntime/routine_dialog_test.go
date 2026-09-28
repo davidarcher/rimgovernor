@@ -26,7 +26,7 @@ func choiceDialog(labels ...string) *o.ChoiceDialog {
 	return d
 }
 
-// The dialog goal opens while the census carries a dialog section, closes as
+// The dialog incident opens while the census carries a dialog section, closes as
 // recovered once it is gone, and the planner answers it with the preferred
 // selectable option exactly once per observed dialog.
 func TestRoutineDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
@@ -39,15 +39,9 @@ func TestRoutineDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var goal domain.GoalID
-	for _, binding := range out.Review.Goals {
-		if binding.Need == policy.AnswerDialog {
-			goal = binding.Goal
-		}
-	}
-	g, err := db.LoadGoal(ctx, goal)
-	if err != nil || g.Goal.Status != domain.GoalActive || g.Goal.Need != domain.NeedDeficit {
-		t.Fatal(g, err)
+	b, ok := out.Review.Incident(policy.AnswerDialog)
+	if !ok || b.Need != domain.NeedDeficit {
+		t.Fatal(out.Review.Incidents)
 	}
 	planner, err := NewRoutineDialogPlanner(r, n, policy.DialogAnswerPolicy{Prefer: policy.DefaultDialogAnswerPrefer})
 	if err != nil {
@@ -73,8 +67,8 @@ func TestRoutineDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
 	if _, err = r.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if g, err = db.LoadGoal(ctx, goal); err != nil || g.Goal.Need != domain.NeedRecovered {
-		t.Fatal("dialog goal did not recover once the dialog closed", g, err)
+	if i, err := db.LoadIncident(ctx, b.Incident); err != nil || !i.Incident.Closed {
+		t.Fatal("dialog incident did not close once the dialog closed", i.Incident, err)
 	}
 }
 

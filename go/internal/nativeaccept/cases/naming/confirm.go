@@ -44,7 +44,7 @@ func init() {
 		Name: "naming/confirm",
 		Scope: "Issue #178: the force-pausing faction/settlement naming dialog is read as the colony facts naming " +
 			"section, its exact observed suggestions confirmed through a NamingIntent on Actions/Apply under the " +
-			"ConfirmColonyNames routine goal (the plan persisted and dispatched by the store and worker), the names " +
+			"ConfirmColonyNames incident (the plan persisted and dispatched by the store and worker), the names " +
 			"applied natively and the native clock starting afterwards.",
 		Start: cases.LabStart(),
 		// The building families give the clock ordinary work to start on
@@ -119,47 +119,37 @@ func (d *staged) open(ctx context.Context, h *na.Harness, names []string, identi
 // plan whose action targets the window, with the suggestions it carries
 // and its stage.
 type confirmed struct {
-	Goal       domain.GoalID `json:"goal"`
-	Epoch      uint64        `json:"epoch"`
-	Plan       domain.PlanID `json:"plan"`
-	Faction    string        `json:"faction"`
-	Settlement string        `json:"settlement"`
-	Stage      string        `json:"stage"`
+	Incident   domain.IncidentID `json:"incident"`
+	Plan       domain.PlanID     `json:"plan"`
+	Faction    string            `json:"faction"`
+	Settlement string            `json:"settlement"`
+	Stage      string            `json:"stage"`
 }
 
-// confirmations lists every ConfirmColonyNames plan the goal has admitted,
-// across epochs, keyed by the targeted window.
+// confirmations lists every ConfirmColonyNames plan any occurrence admitted
+// (#1078), keyed by the targeted window.
 func confirmations(ctx context.Context, st *store.Store) (map[int32]confirmed, error) {
 	review, err := st.LoadRoutineReview(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := map[int32]confirmed{}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.ConfirmColonyNames {
-			continue
-		}
-		g, err := st.LoadGoal(ctx, binding.Goal)
-		if err != nil {
-			return nil, err
-		}
-		for epoch := uint64(0); epoch <= g.Goal.Epoch; epoch++ {
-			methods, err := st.LoadGoalMethods(ctx, binding.Goal, epoch)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
+	history, err := st.IncidentHistory(ctx, store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map}, policy.ConfirmColonyNames)
+	if err != nil {
+		return nil, err
+	}
+	for _, incident := range history {
+		for _, m := range incident.Methods {
+			plan, err := st.LoadPlan(ctx, m.Plan)
+			if err != nil {
 				return nil, err
 			}
-			for _, m := range methods {
-				plan, err := st.LoadPlan(ctx, m.Plan)
-				if err != nil {
-					return nil, err
+			for i, action := range plan.Spec.Actions() {
+				value, ok := action.NamingConfirmation()
+				if !ok {
+					continue
 				}
-				for i, action := range plan.Spec.Actions() {
-					value, ok := action.NamingConfirmation()
-					if !ok {
-						continue
-					}
-					out[value.WindowID()] = confirmed{Goal: binding.Goal, Epoch: epoch, Plan: m.Plan, Faction: value.FactionName(), Settlement: value.SettlementName(), Stage: string(plan.Progress[i].View().Stage)}
-				}
+				out[value.WindowID()] = confirmed{Incident: incident.Incident.ID, Plan: m.Plan, Faction: value.FactionName(), Settlement: value.SettlementName(), Stage: string(plan.Progress[i].View().Stage)}
 			}
 		}
 	}

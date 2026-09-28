@@ -211,7 +211,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 // developmentExemptMethod reports a method that is no development project:
 // every action is a QuestAccept or a joiner-letter answer (one native write
 // with no pawn work behind it; the quest's own parts walk the joiner in, so
-// MaintainPopulation answers it without a slot, the way TradeWithCaravan's
+// MaintainPopulation answers it without a slot, the way a trade's
 // configuration pushes are exempt by need), or an Equip of a weapon the
 // colony already owns (one pawn walks to a loose bow and picks it up, a
 // minute of forced work that builds nothing; #411: EnsureBasicDefense
@@ -261,7 +261,7 @@ func husbandrySettingsWrite(method domain.HusbandryMethod) bool {
 // Recheck current commitments inside method admission: a player project accepted
 // since the review may already have consumed its last optional slot. A
 // method that is a pure settings write (developmentExemptMethod) is
-// admitted without a slot, like a DevelopmentExempt need.
+// admitted without a slot.
 func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, plan domain.PlanSpec) error {
 	if g.Source != domain.AutopilotGoal || g.Priority < 3 || !strings.HasPrefix(string(g.ID), "routine-") || developmentExemptMethod(plan) {
 		return nil
@@ -279,9 +279,6 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, pla
 			need = b.Need
 			break
 		}
-	}
-	if policy.DevelopmentExempt(need) {
-		return nil
 	}
 	// The ranking's own accounting (policy.AdmitDevelopment) on the
 	// commitments as they stand now: a player project or another admission

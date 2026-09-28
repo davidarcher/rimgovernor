@@ -69,4 +69,14 @@ func TestAreaPlannerFreshRestriction(t *testing.T) {
 	if !ok || !w.AreaClear() {
 		t.Fatal(w)
 	}
+	// The correction is the RecoverDisasterServices incident's method (#1078).
+	review, err := journal.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, bound := review.Incident(policy.RecoverDisasterServices)
+	incident, err := journal.LoadIncident(ctx, b.Incident)
+	if !bound || err != nil || len(incident.Methods) != 1 || incident.Methods[0].Plan != first.Plan {
+		t.Fatal("area correction not bound to the recovery incident", incident, err)
+	}
 }

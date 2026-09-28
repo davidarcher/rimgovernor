@@ -45,7 +45,7 @@ func init() {
 		Name: "dialog/pause",
 		Scope: "Issue #156: a force-pausing Dialog_NodeTree the game opens by itself is read as the colony " +
 			"facts dialog section, answered with the policy-preferred option through a DialogIntent on Actions/Apply under the " +
-			"AnswerDialog routine goal, its STOP_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the " +
+			"AnswerDialog incident, its STOP_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the " +
 			"native clock runs again afterwards; both an already-open dialog at acquire and one opening mid-window.",
 		Start:       cases.LabStart(),
 		RequiredOps: []string{fixtureTool},
@@ -134,48 +134,37 @@ func (d *stagedDialogs) open(ctx context.Context, h *na.Harness, names []string,
 // answered is what the durable journal proves for one dialog: the
 // AnswerDialog plan whose action targets the window, completed.
 type answered struct {
-	Goal   domain.GoalID `json:"goal"`
-	Epoch  uint64        `json:"epoch"`
-	Plan   domain.PlanID `json:"plan"`
-	Option string        `json:"option"`
-	Index  int32         `json:"index"`
-	Stage  string        `json:"stage"`
+	Incident domain.IncidentID `json:"incident"`
+	Plan     domain.PlanID     `json:"plan"`
+	Option   string            `json:"option"`
+	Index    int32             `json:"index"`
+	Stage    string            `json:"stage"`
 }
 
-// dialogAnswers lists every AnswerDialog plan the goal has ever admitted,
-// across epochs (the goal recovers once a dialog closes and reopens for
-// the next one), keyed by the targeted window.
+// dialogAnswers lists every AnswerDialog plan any occurrence admitted (each
+// dialog is its own incident, #1078), keyed by the targeted window.
 func dialogAnswers(ctx context.Context, st *store.Store) (map[int32]answered, error) {
 	review, err := st.LoadRoutineReview(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := map[int32]answered{}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.AnswerDialog {
-			continue
-		}
-		g, err := st.LoadGoal(ctx, binding.Goal)
-		if err != nil {
-			return nil, err
-		}
-		for epoch := uint64(0); epoch <= g.Goal.Epoch; epoch++ {
-			methods, err := st.LoadGoalMethods(ctx, binding.Goal, epoch)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
+	history, err := st.IncidentHistory(ctx, store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map}, policy.AnswerDialog)
+	if err != nil {
+		return nil, err
+	}
+	for _, incident := range history {
+		for _, m := range incident.Methods {
+			plan, err := st.LoadPlan(ctx, m.Plan)
+			if err != nil {
 				return nil, err
 			}
-			for _, m := range methods {
-				plan, err := st.LoadPlan(ctx, m.Plan)
-				if err != nil {
-					return nil, err
+			for i, action := range plan.Spec.Actions() {
+				answer, ok := action.DialogAnswer()
+				if !ok {
+					continue
 				}
-				for i, action := range plan.Spec.Actions() {
-					answer, ok := action.DialogAnswer()
-					if !ok {
-						continue
-					}
-					out[answer.WindowID()] = answered{Goal: binding.Goal, Epoch: epoch, Plan: m.Plan, Option: answer.OptionLabel(), Index: answer.OptionIndex(), Stage: string(plan.Progress[i].View().Stage)}
-				}
+				out[answer.WindowID()] = answered{Incident: incident.Incident.ID, Plan: m.Plan, Option: answer.OptionLabel(), Index: answer.OptionIndex(), Stage: string(plan.Progress[i].View().Stage)}
 			}
 		}
 	}
@@ -297,7 +286,7 @@ func run(ctx context.Context, s cases.Session) error {
 
 	// Phase 2: the scheduled dialog opens while a window runs, stops the
 	// epoch with STOP_REASON_DIALOG_PAUSE naming its window, is answered
-	// under the re-raised goal, and a later epoch starts again.
+	// under a new occurrence, and a later epoch starts again.
 	_, trace2, err := waitFor("phase2", func(a map[int32]answered, t clockTrace) (bool, error) {
 		if len(t.DialogPauses) == 0 {
 			return false, nil

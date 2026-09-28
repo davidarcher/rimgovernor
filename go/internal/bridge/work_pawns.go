@@ -10,7 +10,7 @@ import (
 // ReadRoutinePawns also requests schedule (TimetableSlot) detail: the shared
 // routine census (ObserveRoutine, from the frame) feeds every routine
 // planner -- Work, Waste, Disaster, Mood and others -- from this one read, and
-// EnsureMood-* relief dispatch needs a pawn's current timetable assignment
+// EnsureMood relief dispatch needs a pawn's current timetable assignment
 // (boundary.ExpectedScheduleDef) to fence its native writes. Requesting it
 // here, once, for the whole shared census matches how Needs is already
 // requested unconditionally for the same reason rather than per-consumer.

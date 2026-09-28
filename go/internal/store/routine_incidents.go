@@ -32,6 +32,18 @@ func (r RoutineReview) Incident(kind domain.GoalID) (RoutineIncident, bool) {
 	return RoutineIncident{}, false
 }
 
+// SubjectIncidents are the review's bindings for kind's per-subject
+// occurrences (EnsureMood: one per pawn), in assessment order.
+func (r RoutineReview) SubjectIncidents(kind domain.GoalID) []RoutineIncident {
+	var out []RoutineIncident
+	for _, b := range r.Incidents {
+		if b.Kind == kind && b.Subject != "" {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
 // incidentBinding is the review's binding for an incident id.
 func (r RoutineReview) incidentBinding(id domain.IncidentID) (RoutineIncident, bool) {
 	for _, b := range r.Incidents {
@@ -75,7 +87,7 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Routi
 		if !policy.IsIncidentKind(n.ID) {
 			continue
 		}
-		id, open, err := openIncidentID(ctx, tx, current, n.ID, "")
+		id, open, err := openIncidentID(ctx, tx, current, n.ID, n.Subject)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -101,11 +113,11 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Routi
 				continue
 			}
 		}
-		state, err := openIncident(ctx, tx, IncidentAssessment{Kind: n.ID, Trigger: fmt.Sprintf("%s deficit", n.ID), Priority: n.Priority, Snapshot: current, Tick: tick})
+		state, err := openIncident(ctx, tx, IncidentAssessment{Kind: n.ID, Subject: n.Subject, Trigger: fmt.Sprintf("%s deficit", n.ID), Priority: n.Priority, Snapshot: current, Tick: tick})
 		if err != nil {
 			return nil, nil, err
 		}
-		bindings = append(bindings, RoutineIncident{Kind: n.ID, Incident: state.Incident.ID, Need: n.Need})
+		bindings = append(bindings, RoutineIncident{Kind: n.ID, Subject: n.Subject, Incident: state.Incident.ID, Need: n.Need})
 		states = append(states, state)
 	}
 	stale, err := openIncidentIDs(ctx, tx, World{Colony: current.Colony, Load: current.Load, Map: current.Map})
@@ -138,7 +150,7 @@ func abandonIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID, tick
 }
 
 func openIncidentIDs(ctx context.Context, tx *sql.Tx, world World) ([]domain.IncidentID, error) {
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM incidents WHERE colony=? AND load_token=? AND map_id=? AND ended_tick IS NULL ORDER BY started_tick,id LIMIT 257", world.Colony, world.Load, world.Map)
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM incidents WHERE colony=? AND load_token=? AND map_id=? AND ended_tick IS NULL ORDER BY started_tick,id LIMIT 513", world.Colony, world.Load, world.Map)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +163,7 @@ func openIncidentIDs(ctx context.Context, tx *sql.Tx, world World) ([]domain.Inc
 		}
 		ids = append(ids, id)
 	}
-	if len(ids) > 256 {
+	if len(ids) > 512 {
 		return nil, ErrCapacity
 	}
 	return ids, rows.Err()
@@ -176,8 +188,44 @@ func (s *Store) LatestIncident(ctx context.Context, world World, kind domain.Goa
 	return state, err == nil, err
 }
 
+// IncidentHistory is every occurrence of kind in world, open or closed,
+// oldest first.
+func (s *Store) IncidentHistory(ctx context.Context, world World, kind domain.GoalID) ([]IncidentState, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM incidents WHERE colony=? AND load_token=? AND map_id=? AND kind=? ORDER BY started_tick, rowid", world.Colony, world.Load, world.Map, kind)
+	if err != nil {
+		return nil, err
+	}
+	var ids []domain.IncidentID
+	for rows.Next() {
+		var id domain.IncidentID
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	out := make([]IncidentState, 0, len(ids))
+	for _, id := range ids {
+		state, err := loadIncident(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, state)
+	}
+	return out, nil
+}
+
 func validateRoutineIncidents(ctx context.Context, tx *sql.Tx, r RoutineReview) error {
-	if len(r.Incidents) > 256 {
+	if len(r.Incidents) > 512 {
 		return errors.New("invalid routine incident bindings")
 	}
 	seen := map[RoutineIncident]bool{}

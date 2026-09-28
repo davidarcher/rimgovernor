@@ -30,7 +30,7 @@ func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
 	}
 	r.Enabled = false
 	out = reviewRoutine(t, s, &r)
-	if !reflect.DeepEqual(out.Review.Disaster, first) || out.Review.Veto(routineGoal(t, out, policy.RecoverDisasterServices).Goal) != "control paused" {
+	if !reflect.DeepEqual(out.Review.Disaster, first) || out.Review.VetoIncident(routineIncident(t, out, policy.RecoverDisasterServices).Incident) != "control paused" {
 		t.Fatal(out)
 	}
 	s.Close()
@@ -43,7 +43,7 @@ func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
 	r.Current.Native++
 	r.Facts.DisasterConditions = domain.Unknown[[]policy.DisasterCondition]()
 	out = reviewRoutine(t, s, &r)
-	if out.Review.Disaster.Phase != policy.DisasterUnknown || routineGoal(t, out, policy.RecoverDisasterServices).Goal.Need != domain.NeedUnknown {
+	if out.Review.Disaster.Phase != policy.DisasterUnknown || routineIncidentNeed(t, out, policy.RecoverDisasterServices) != domain.NeedUnknown {
 		t.Fatal(out)
 	}
 	r.Current.Load = "replacement"

@@ -3,8 +3,8 @@ package buildingruntime
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -54,29 +54,15 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineNamingResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.ConfirmColonyNames {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	incident, found, err := incidentDeficit(call, p.journal, review, policy.ConfirmColonyNames)
 	if err != nil {
 		return RoutineNamingResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !found {
 		return RoutineNamingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineNamingResult{}, err
-		}
-		if store.PlanOpen(plan) {
-			return RoutineNamingResult{Reason: BuildingMethodExistingWork}, nil
-		}
+	if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
+		return RoutineNamingResult{Reason: BuildingMethodExistingWork}, err
 	}
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
@@ -97,10 +83,8 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	windowID, factionName, settlementName := naming.GetWindowId(), naming.GetFactionName(), naming.GetSettlementName()
 	digestNext := sha256.Sum256([]byte(fmt.Sprintf("%d/%s/%s", windowID, factionName, settlementName)))
 	method := domain.MethodID(fmt.Sprintf("naming-%x", digestNext[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if slices.ContainsFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == method }) {
 		return RoutineNamingResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineNamingResult{}, err
 	}
 	id := domain.MintPlanID("routine-naming")
 	value, err := domain.NewNamingConfirmation(windowID, factionName, settlementName)
@@ -121,7 +105,7 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if p.session.State() != state {
 		return RoutineNamingResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineNamingResult{}, err
 	}
 	return RoutineNamingResult{Reason: BuildingMethodAdmitted, Plan: id}, nil

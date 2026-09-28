@@ -50,6 +50,17 @@ func hasNeed(r RoutineNeeds, id GoalID) bool {
 	}
 	return false
 }
+
+// assessedDeficit reports an unrecovered assessment of id: a Response
+// (#1078) is assessed, never filed as a development goal.
+func assessedDeficit(r RoutineNeeds, id GoalID) bool {
+	for _, a := range r.Assessments {
+		if a.ID == id && a.Need != domain.NeedRecovered {
+			return true
+		}
+	}
+	return false
+}
 func TestRoutineStableAndRenewedDeficits(t *testing.T) {
 	f := stableRoutine()
 	r := needs(t, f, RoutineLatches{})

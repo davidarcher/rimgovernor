@@ -537,7 +537,10 @@ type RoutineNeeds struct {
 // Assessments cover recovered and unknown needs as well as actionable deficits.
 // Absence from the scheduling list is never evidence of recovery.
 type RoutineAssessment struct {
-	ID       GoalID
+	ID GoalID
+	// Subject is the pawn a per-pawn Response (EnsureMood) is assessed
+	// for; empty otherwise. (ID, Subject) keys its incident (#1019).
+	Subject  domain.PawnID `json:",omitempty"`
 	Priority int
 	Need     domain.NeedState
 	// MethodUnavailable marks an emergency-tier upkeep need (a home fire)
@@ -925,16 +928,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// EnsureDefensiveLayout is config-only like EnsureResearch above: opt-in
 	// activates the goal at priority 3 (after the storage gate) and the
 	// planner reports no work once every tier stands.
-	// TradeWithCaravan is config-only: it needs a
-	// negotiator's conversation, not a development slot, and recovers by
-	// itself when the caravan leaves or nothing is left worth trading.
+	// TradeWithCaravan is a Response (#1078): an incident per caravan
+	// visit, never a development goal. It needs a negotiator's
+	// conversation, not a development slot, and recovers by itself when
+	// the caravan leaves or nothing is left worth trading.
 	tradeRecovered := TradeRecovered(f.Traders, PopulationTradeNeed(ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), JoinerCapacity(f.JoinerCapacity())))
-	if !positive(tradeRecovered) {
-		addGoal(TradeWithCaravan, 3)
-		if _, known := tradeRecovered.Value(); known {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-		}
-	}
 	addAssessment(TradeWithCaravan, 3, tradeRecovered)
 	defensiveLayoutRecovered := domain.Known(!p.DefensiveLayout)
 	if !positive(defensiveLayoutRecovered) {
@@ -1299,17 +1297,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		return RoutineNeeds{}, err
 	}
 	for _, state := range f.Mood.States {
-		id, priority, need := MoodGoal(state.Pawn.ID), state.Priority(), state.Need()
-		r.Assessments = append(r.Assessments, RoutineAssessment{ID: id, Priority: priority, Need: need})
-		if state.Active {
-			addGoal(id, priority)
-			r.Goals[len(r.Goals)-1].MethodUnavailable = true
-		}
+		// A pawn's mood is an EnsureMood incident keyed by the pawn (#1078),
+		// never a development goal. Its relief is optional and a mental
+		// break ends only as ticks pass, so it never suspends other work.
+		r.Assessments = append(r.Assessments, RoutineAssessment{ID: EnsureMood, Subject: domain.PawnID(state.Pawn.ID), Priority: state.Priority(), Need: state.Need(), MethodUnavailable: true})
 	}
 	// Dominant environment thought pressure raises the owning upkeep goal's
 	// deficit to at least the fraction of pawns under it (#255): the goal's
 	// own census still decides whether it is active and what it builds, so a
-	// recovered owner is not re-raised, and the pawn's EnsureMood-* goal
+	// recovered owner is not re-raised, and the pawn's EnsureMood incident
 	// defers to it (MoodProvision) instead of dispatching need relief.
 	for i := range r.Goals {
 		pressure, ok := MoodProvisionDeficits(f.Mood)[r.Goals[i].ID]
@@ -1338,10 +1334,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			priority = 2
 		}
 		r.Assessments = append(r.Assessments, RoutineAssessment{ID: RecoverDisasterServices, Priority: priority, Need: need})
-		if need != domain.NeedRecovered {
-			addGoal(RecoverDisasterServices, priority)
-			r.Goals[len(r.Goals)-1].MethodUnavailable = true
-		}
 		for i := range r.Goals {
 			r.Goals[i].Priority = r.Disaster.Promote(r.Goals[i].ID, r.Goals[i].Priority)
 		}

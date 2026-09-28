@@ -64,23 +64,15 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineRecoveryResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.RecoverDisasterServices {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	incident, found, err := incidentDeficit(call, p.journal, review, policy.RecoverDisasterServices)
 	if err != nil {
 		return RoutineRecoveryResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !found {
 		return RoutineRecoveryResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	var open []store.PlanState
-	for _, method := range goal.Methods {
+	for _, method := range incident.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineRecoveryResult{}, err
@@ -123,11 +115,11 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	if len(changes) > 0 {
-		return r.commitAreaChange(call, epoch, arbiter, state.Snapshot, goal, changes, workers, started)
+		return r.commitAreaChange(call, epoch, arbiter, state.Snapshot, incident, changes, workers, started)
 	}
 	planning := policy.RecoveryPlanning{Safety: facts.RecoverySafety, Workers: facts.RecoveryWorkers, Buildings: facts.RecoveryBuildings}
-	seen := make([]domain.MethodID, 0, len(goal.Methods))
-	for _, method := range goal.Methods {
+	seen := make([]domain.MethodID, 0, len(incident.Methods))
+	for _, method := range incident.Methods {
 		seen = append(seen, method.Method)
 	}
 	selection, err := policy.SelectRecoveryMethods(planning, review.Disaster, seen, expected.Tick)
@@ -204,7 +196,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineRecoveryResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, chosen.ID, plan); err != nil {
+	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, chosen.ID, "", plan); err != nil {
 		return RoutineRecoveryResult{}, err
 	}
 	return RoutineRecoveryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil

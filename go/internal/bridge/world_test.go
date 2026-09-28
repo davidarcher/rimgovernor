@@ -25,7 +25,7 @@ func worldFixture() *o.WorldSnapshot {
 }
 
 // TestReadWorldDecodesLongitude covers the map-longitude wire-decode half of
-// the EnsureMood-* schedule-fencing gap: boundary.ExpectedScheduleDef needs
+// the EnsureMood schedule-fencing gap: boundary.ExpectedScheduleDef needs
 // (tick, longitude, schedule slots) and longitude lives on WorldTile, not yet
 // joined into the routine/mood census pipeline -- this only verifies the
 // bridge-level decode used to eventually supply that value.

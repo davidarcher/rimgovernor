@@ -19,7 +19,7 @@ func TestEmergencyNeedExclusionsAgreeWithDevelopmentFreeze(t *testing.T) {
 		{"priority 2", RoutineAssessment{ID: ActiveCombat, Priority: 2, Need: domain.NeedDeficit}, false},
 		{"colony naming", RoutineAssessment{ID: ConfirmColonyNames, Priority: 0, Need: domain.NeedDeficit}, false},
 		{"choice dialog", RoutineAssessment{ID: AnswerDialog, Priority: 0, Need: domain.NeedDeficit}, false},
-		{"mood goal", RoutineAssessment{ID: MoodGoal("pawn"), Priority: 1, Need: domain.NeedDeficit}, false},
+		{"mood relief", RoutineAssessment{ID: EnsureMood, Subject: "pawn", Priority: 1, Need: domain.NeedDeficit, MethodUnavailable: true}, false},
 		{"recovered", RoutineAssessment{ID: ActiveCombat, Priority: 0, Need: domain.NeedRecovered}, false},
 		{"method unavailable", RoutineAssessment{ID: ActiveCombat, Priority: 0, Need: domain.NeedDeficit, MethodUnavailable: true}, false},
 	} {

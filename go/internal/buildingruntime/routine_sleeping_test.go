@@ -301,15 +301,15 @@ func TestRoutineReviewDerivesCleanupFromSharedDraftJournal(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for i, b := range result.Review.Goals {
-			if b.Need == policy.RestoreWorkers {
-				if result.Goals[i].Goal.Need != want {
-					t.Fatal(result.Goals[i])
-				}
-				return
-			}
+		// RestoreWorkers is an incident (#1078): a recovered need with no
+		// open work has no open occurrence.
+		b, ok := result.Review.Incident(policy.RestoreWorkers)
+		if !ok && want == domain.NeedRecovered {
+			return
 		}
-		t.Fatal("missing cleanup need")
+		if !ok || b.Need != want {
+			t.Fatal("cleanup need", b, ok, want)
+		}
 	}
 	check(domain.NeedRecovered)
 	snapshot := session.State().Snapshot

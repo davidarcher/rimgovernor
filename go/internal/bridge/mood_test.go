@@ -43,7 +43,7 @@ func TestRoutineMoodNeedsValidationAndSelection(t *testing.T) {
 
 // TestRoutineScheduleDetailValidation covers the validateSettings schedule
 // gap: ReadRoutinePawns/ValidateRoutinePawnSnapshot must accept
-// PawnSettings.Schedule (EnsureMood-* relief dispatch needs a pawn's current
+// PawnSettings.Schedule (EnsureMood relief dispatch needs a pawn's current
 // timetable assignment to fence its native writes via
 // boundary.ExpectedScheduleDef), while selections that never requested
 // schedule detail (combat, tend) must keep refusing it as unrequested.

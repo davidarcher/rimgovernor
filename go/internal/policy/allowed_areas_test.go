@@ -30,14 +30,14 @@ func TestAllowedAreasHazardThenClearWithoutDisasterHistory(t *testing.T) {
 		if got := PlanAllowedAreas(f); !reflect.DeepEqual(got, want) {
 			t.Fatal(got)
 		}
-		if !hasNeed(needs(t, f, RoutineLatches{}), RecoverDisasterServices) {
-			t.Fatal("no correction goal without disaster history")
+		if !assessedDeficit(needs(t, f, RoutineLatches{}), RecoverDisasterServices) {
+			t.Fatal("no correction incident without disaster history")
 		}
 	}
 	if got := PlanAllowedAreas(areaFacts(false, "")); len(got) != 0 {
 		t.Fatal(got)
 	}
-	if hasNeed(needs(t, areaFacts(false, ""), RoutineLatches{}), RecoverDisasterServices) {
+	if assessedDeficit(needs(t, areaFacts(false, ""), RoutineLatches{}), RecoverDisasterServices) {
 		t.Fatal("corrected area remained deficient")
 	}
 }

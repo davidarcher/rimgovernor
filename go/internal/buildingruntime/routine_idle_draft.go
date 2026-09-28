@@ -116,24 +116,15 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return nil
 	}
-	var goal store.GoalState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.RestoreWorkers {
-			goal, err = p.journal.LoadGoal(ctx, binding.Goal)
-			if err != nil {
-				return err
-			}
-			break
-		}
-	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
-		return nil
+	incident, found, err := incidentDeficit(ctx, p.journal, review, policy.RestoreWorkers)
+	if err != nil || !found {
+		return err
 	}
 	plans, err := p.journal.LoadPlans(ctx, 256)
 	if err != nil {
 		return err
 	}
-	for _, method := range goal.Methods {
+	for _, method := range incident.Methods {
 		for _, plan := range plans {
 			if plan.Spec.ID() == method.Plan && store.PlanOpen(plan) {
 				return nil
@@ -157,7 +148,7 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 	}
 	hash := sha256.New()
 	fmt.Fprint(hash, pawns)
-	method, id := defenseMethodID("idle-draft", goal.Admitted, hash), domain.MintPlanID("routine-idle-draft")
+	method, id := defenseMethodID("idle-draft", len(incident.Methods), hash), domain.MintPlanID("routine-idle-draft")
 	var actions []domain.Action
 	for _, pawn := range pawns {
 		draft, err := domain.NewOwnedDraft(pawn)
@@ -181,6 +172,6 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 	if p.session.State() != state || elapsed < 0 || elapsed > r.maxAge {
 		return fmt.Errorf("%w: restoreIdleDrafts: p.session.State() != state || elapsed < 0 || elapsed > r.maxAge", ErrControl)
 	}
-	_, err = p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan)
+	_, err = p.journal.CommitIncidentMethod(ctx, incident.Incident.ID, method, "", plan)
 	return err
 }

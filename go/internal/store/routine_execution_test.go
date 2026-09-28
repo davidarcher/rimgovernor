@@ -210,7 +210,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.
 	}
 }
 
-// A dialog answer plan committed under the AnswerDialog goal is a supported
+// A dialog answer plan committed under the AnswerDialog incident is a supported
 // routine method: the worker dispatches it under the root authority like
 // any building family (#156).
 func TestRoutineExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
@@ -221,9 +221,9 @@ func TestRoutineExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
 	r.Current.Native = 2
 	r.Facts.ChoiceDialog = domain.Known(true)
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.AnswerDialog)
-	if g.Goal.Need != domain.NeedDeficit {
-		t.Fatal(g)
+	b, ok := out.Review.Incident(policy.AnswerDialog)
+	if !ok || b.Need != domain.NeedDeficit {
+		t.Fatal(out.Review.Incidents)
 	}
 	answer, err := domain.NewDialogAnswer(3, 1, "OK")
 	if err != nil {
@@ -237,7 +237,7 @@ func TestRoutineExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "dialog", plan); err != nil {
+	if _, err = s.CommitIncidentMethod(ctx, b.Incident, "dialog", "", plan); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -247,7 +247,7 @@ func TestRoutineExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
 	}
 }
 
-// A naming confirmation plan committed under the ConfirmColonyNames goal
+// A naming confirmation plan committed under the ConfirmColonyNames incident
 // persists through CreatePlan, reloads with its exact observed suggestions
 // and is a supported routine method the worker dispatches under the root
 // authority (#178).
@@ -259,9 +259,9 @@ func TestRoutineExecutionAuthorizesNamingConfirmationPlan(t *testing.T) {
 	r.Current.Native = 2
 	r.Facts.ColonyNaming = domain.Known(true)
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.ConfirmColonyNames)
-	if g.Goal.Need != domain.NeedDeficit {
-		t.Fatal(g)
+	b, ok := out.Review.Incident(policy.ConfirmColonyNames)
+	if !ok || b.Need != domain.NeedDeficit {
+		t.Fatal(out.Review.Incidents)
 	}
 	naming, err := domain.NewNamingConfirmation(7, "New Arrivals", "Hopeville")
 	if err != nil {
@@ -275,7 +275,7 @@ func TestRoutineExecutionAuthorizesNamingConfirmationPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "naming", plan); err != nil {
+	if _, err = s.CommitIncidentMethod(ctx, b.Incident, "naming", "", plan); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := s.LoadPlan(ctx, "naming-plan")

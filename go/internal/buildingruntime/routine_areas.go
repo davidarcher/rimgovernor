@@ -25,8 +25,8 @@ func nextAreaChange(changes []policy.AllowedAreaChange, admitted int) (policy.Al
 	return change, domain.MethodID(fmt.Sprintf("%s%d", areaMethodPrefix(change), admitted))
 }
 
-func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, arbiter *stepArbiter, snapshot domain.GenerationSnapshot, goal store.GoalState, changes []policy.AllowedAreaChange, workers []policy.WorkPawn, started time.Time) (RoutineRecoveryResult, error) {
-	change, method := nextAreaChange(changes, goal.Admitted)
+func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, arbiter *stepArbiter, snapshot domain.GenerationSnapshot, incident store.IncidentState, changes []policy.AllowedAreaChange, workers []policy.WorkPawn, started time.Time) (RoutineRecoveryResult, error) {
+	change, method := nextAreaChange(changes, len(incident.Methods))
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(change.Pawn)}) {
 		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
 	}
@@ -70,7 +70,7 @@ func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, a
 	if !state.Enabled || state.Snapshot != snapshot || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineRecoveryResult{}, fmt.Errorf("%w: commitAreaChange: !state.Enabled || state.Snapshot != snapshot || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineRecoveryResult{}, err
 	}
 	return RoutineRecoveryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil

@@ -60,16 +60,16 @@ func domainMoodReliefNeed(need policy.MoodNeed) (domain.MoodReliefNeed, bool) {
 }
 
 // moodReliefUsedNeeds reports needs whose prior committed attempts (this
-// goal, this epoch) already reached maxMedicalAttemptsPerPatient: passing
+// pawn's occurrence) already reached maxMedicalAttemptsPerPatient: passing
 // these to policy.SelectMoodMethod lets it move on to the pawn's next
 // measured cause instead of proposing an exhausted one again, mirroring how
 // RoutineHusbandryPlanner keys attempts by method to avoid cross-method
 // collisions (3a6b30b8).
-func moodReliefUsedNeeds(methods []domain.GoalMethod, epoch uint64, pawn policy.PawnID) []policy.MoodNeed {
+func moodReliefUsedNeeds(methods []store.IncidentMethod, pawn policy.PawnID) []policy.MoodNeed {
 	var used []policy.MoodNeed
 	for _, need := range []policy.MoodNeed{policy.MoodFood, policy.MoodRest, policy.MoodJoy} {
 		prefix := fmt.Sprintf("mood-%s-%s-", need, pawn)
-		if medicalAttemptCount(methods, epoch, prefix) >= maxMedicalAttemptsPerPatient {
+		if incidentAttemptCount(methods, prefix) >= maxMedicalAttemptsPerPatient {
 			used = append(used, need)
 		}
 	}
@@ -95,9 +95,9 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 	if review.Mood == nil || len(review.Mood.States) == 0 {
 		return RoutineMoodReliefResult{Reason: BuildingMethodUsed}, nil
 	}
-	statesByGoal := map[domain.GoalID]store.RoutineMoodState{}
+	statesByPawn := map[domain.PawnID]store.RoutineMoodState{}
 	for _, s := range review.Mood.States {
-		statesByGoal[policy.MoodGoal(s.Pawn.ID)] = s
+		statesByPawn[domain.PawnID(s.Pawn.ID)] = s
 	}
 	// Owner goals a provisioning proposal can defer to: bound by this review
 	// and still active with a deficit.
@@ -113,34 +113,26 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		activeOwner[binding.Need] = goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit
 	}
 	started := r.reviewer.clock.Now()
-	for _, binding := range review.Goals {
-		if !policy.IsMoodGoal(binding.Need) {
+	for _, binding := range review.SubjectIncidents(policy.EnsureMood) {
+		if binding.Need != domain.NeedDeficit {
 			continue
 		}
-		goal, err := p.journal.LoadGoal(call, binding.Goal)
+		incident, err := p.journal.LoadIncident(call, binding.Incident)
 		if err != nil {
 			return RoutineMoodReliefResult{}, err
 		}
-		if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+		if review.VetoIncident(incident.Incident) != "" {
 			continue
 		}
-		open := false
-		for _, method := range goal.Methods {
-			plan, err := p.journal.LoadPlan(call, method.Plan)
-			if err != nil {
-				return RoutineMoodReliefResult{}, err
-			}
-			open = open || store.PlanOpen(plan)
+		if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
+			return RoutineMoodReliefResult{Reason: BuildingMethodExistingWork}, err
 		}
-		if open {
-			return RoutineMoodReliefResult{Reason: BuildingMethodExistingWork}, nil
-		}
-		moodState, found := statesByGoal[binding.Need]
+		moodState, found := statesByPawn[binding.Subject]
 		if !found {
 			continue
 		}
 		policyState := moodReliefPolicyState(moodState)
-		used := moodReliefUsedNeeds(goal.History, goal.Goal.Epoch, moodState.Pawn.ID)
+		used := moodReliefUsedNeeds(incident.Methods, moodState.Pawn.ID)
 		proposal, err := policy.SelectMoodMethod(policyState, used)
 		if err != nil {
 			return RoutineMoodReliefResult{}, err
@@ -166,7 +158,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		prefix := fmt.Sprintf("mood-%s-%s-", proposal.Need, moodState.Pawn.ID)
-		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+		attempt := incidentAttemptCount(incident.Methods, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
 			continue
 		}
@@ -194,7 +186,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		if p.session.State() != sessionState || elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: p.session.State() != sessionState || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
-		if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 			return RoutineMoodReliefResult{}, err
 		}
 		return RoutineMoodReliefResult{Reason: BuildingMethodAdmitted, Plan: id}, nil

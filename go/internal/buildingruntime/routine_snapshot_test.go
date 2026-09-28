@@ -322,9 +322,9 @@ func TestSnapshotConditionResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened := map[policy.GoalID]bool{}
+	opened := map[domain.PawnID]bool{}
 	for _, a := range needs.Assessments {
-		opened[a.ID] = true
+		opened[a.Subject] = opened[a.Subject] || a.ID == policy.EnsureMood
 	}
 	pawns, _ := r.Facts.MoodPawns.Value()
 	var struck int
@@ -337,8 +337,8 @@ func TestSnapshotConditionResponse(t *testing.T) {
 		if drone {
 			struck++
 		}
-		if opened[policy.MoodGoal(p.ID)] != drone {
-			t.Errorf("pawn %s: drone %v, mood state opened %v", p.ID, drone, opened[policy.MoodGoal(p.ID)])
+		if opened[domain.PawnID(p.ID)] != drone {
+			t.Errorf("pawn %s: drone %v, mood state opened %v", p.ID, drone, opened[domain.PawnID(p.ID)])
 		}
 	}
 	if struck == 0 || struck == len(pawns) {

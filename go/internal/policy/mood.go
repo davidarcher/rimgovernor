@@ -1,13 +1,9 @@
 package policy
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"math"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -54,27 +50,9 @@ type MoodState struct {
 
 type MoodHistory struct{ States []MoodState }
 
-// Ordinary native IDs retain the shared semantic name. Oversized mod IDs use a
-// separate hashed namespace so the enclosing journal goal remains bounded.
-func MoodGoal(id PawnID) GoalID {
-	if len(id) <= 210 {
-		return GoalID("EnsureMood-" + string(id))
-	}
-	digest := sha256.Sum256([]byte(id))
-	return GoalID(fmt.Sprintf("EnsureMoodHash-%x", digest[:16]))
-}
-
-func IsMoodGoal(id GoalID) bool {
-	if s := strings.TrimPrefix(string(id), "EnsureMood-"); s != string(id) {
-		return len(s) <= 210 && foodID(s)
-	}
-	s := strings.TrimPrefix(string(id), "EnsureMoodHash-")
-	if s == string(id) || len(s) != 32 || strings.ToLower(s) != s {
-		return false
-	}
-	_, err := hex.DecodeString(s)
-	return err == nil
-}
+// EnsureMood is the per-pawn mood Response: one incident per pawn, keyed
+// by the pawn as its subject (#1078).
+const EnsureMood GoalID = "EnsureMood"
 
 func moodNumber(f domain.Fact[float64]) bool {
 	v, known := f.Value()

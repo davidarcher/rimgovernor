@@ -12,9 +12,9 @@ import (
 
 func TestRoutineNamingRecoveryUnknownAndRenewedDialog(t *testing.T) {
 	t.Parallel()
-	r, db, _, _, n := routineFixture(t)
+	r, _, _, _, n := routineFixture(t)
 	base := append([]*o.ReadIssue(nil), n.reply.GetObserved().Issues...)
-	var previous uint64
+	var previous domain.IncidentID
 	for _, phase := range []string{"absent", "present", "unknown", "absent", "renewed"} {
 		v := n.reply.GetObserved()
 		v.Naming = nil
@@ -33,28 +33,29 @@ func TestRoutineNamingRecoveryUnknownAndRenewedDialog(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		found := false
-		for _, binding := range out.Review.Goals {
-			if binding.Need != policy.ConfirmColonyNames {
-				continue
+		// ConfirmColonyNames is an incident (#1078): recovered closes it,
+		// unknown keeps the open one, a renewed dialog opens a new one.
+		b, found := out.Review.Incident(policy.ConfirmColonyNames)
+		if want == domain.NeedRecovered {
+			if found {
+				t.Fatal(phase, "recovered naming kept its occurrence", b)
 			}
-			found = true
-			g, err := db.LoadGoal(context.Background(), binding.Goal)
-			if err != nil || g.Goal.Need != want {
-				t.Fatal(phase, g, err)
-			}
-			if phase == "present" {
-				previous = g.Goal.Epoch
-			}
-			if phase == "unknown" && g.Goal.Epoch != previous {
-				t.Fatal("unknown reopened naming", g)
-			}
-			if phase == "renewed" && g.Goal.Epoch <= previous {
-				t.Fatal("renewed dialog did not reopen", g)
-			}
+			continue
 		}
-		if !found {
-			t.Fatal("naming goal missing")
+		if !found || b.Need != want {
+			t.Fatal(phase, b, found)
+		}
+		switch phase {
+		case "present":
+			previous = b.Incident
+		case "unknown":
+			if b.Incident != previous {
+				t.Fatal("unknown reopened naming", b)
+			}
+		case "renewed":
+			if b.Incident == previous {
+				t.Fatal("renewed dialog did not reopen", b)
+			}
 		}
 	}
 }

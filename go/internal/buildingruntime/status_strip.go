@@ -61,7 +61,7 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 		return
 	}
 	tick := projection.Identity.Tick
-	marked, cells := r.planMarks(ctx, result.Goals)
+	marked, cells := r.planMarks(ctx, result.Goals, result.Incidents)
 	refusals := policy.LiveRefusals(marked, tick)
 	f := projection.Facts
 	// An invalid reserve read leaves Stock unknown and drops the row.
@@ -86,17 +86,37 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 	r.strip = statusStripState{key: key, drawn: tick}
 }
 
-// planMarks reads the active goals' plans once for the strip: the
+// planMarks reads the active goals' and open incidents' (#1078) plans
+// once for the strip: the
 // still-pending actions native refused that name a cell (a refusal clears
 // when its plan retires or the action leaves Pending), and each goal's
 // target, the cell of its first open action that names one (#847). A plan
 // that does not load is skipped.
-func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState) ([]policy.RefusalMarker, map[policy.GoalID]domain.Cell) {
+func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState, incidents []store.IncidentState) ([]policy.RefusalMarker, map[policy.GoalID]domain.Cell) {
+	type owner struct {
+		id    policy.GoalID
+		plans []domain.PlanID
+	}
+	var owners []owner
+	for _, goal := range goals {
+		o := owner{id: policy.GoalID(goal.Goal.ID)}
+		for _, method := range goal.Methods {
+			o.plans = append(o.plans, method.Plan)
+		}
+		owners = append(owners, o)
+	}
+	for _, incident := range incidents {
+		o := owner{id: incident.Incident.Kind}
+		for _, method := range incident.Methods {
+			o.plans = append(o.plans, method.Plan)
+		}
+		owners = append(owners, o)
+	}
 	var out []policy.RefusalMarker
 	cells := map[policy.GoalID]domain.Cell{}
-	for _, goal := range goals {
-		for _, method := range goal.Methods {
-			plan, err := r.player.journal.LoadPlan(ctx, method.Plan)
+	for _, o := range owners {
+		for _, planID := range o.plans {
+			plan, err := r.player.journal.LoadPlan(ctx, planID)
 			if err != nil || plan.Retired {
 				continue
 			}
@@ -106,7 +126,7 @@ func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState
 				if !ok {
 					continue
 				}
-				id := policy.GoalID(goal.Goal.ID)
+				id := o.id
 				if _, marked := cells[id]; !marked && domain.GoalWorkOpen([]domain.Progress{progress}) {
 					cells[id] = cell
 				}

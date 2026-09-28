@@ -290,13 +290,6 @@ func ResourceTargetNeed(targets map[Resource]int64, stock domain.Fact[[]Amount])
 	return domain.Known(false), domain.Known(min(1.0, max(0.0, float64(target-have)/float64(target))))
 }
 
-// DevelopmentExempt reports routine needs whose methods are configuration
-// pushes rather than pawn work: they are assessed and admitted without a
-// development ranking row and consume no optional capacity slot.
-func DevelopmentExempt(need GoalID) bool {
-	return need == TradeWithCaravan
-}
-
 // outdoorHazards are native game conditions under which outdoor pawn work is
 // observed unsafe rather than merely uncomfortable.
 var outdoorHazards = map[string]bool{"ToxicFallout": true}

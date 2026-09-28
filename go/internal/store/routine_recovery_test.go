@@ -30,9 +30,8 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	if first == nil || first.Selection.Reason != policy.RecoveryAdmissionRequired || len(first.Selection.Candidates) != 1 {
 		t.Fatal(first)
 	}
-	g := routineGoal(t, out, policy.RecoverDisasterServices)
-	if g.Goal.Need != domain.NeedDeficit || g.Goal.Priority != 2 {
-		t.Fatal(g)
+	if i := routineIncident(t, out, policy.RecoverDisasterServices); routineIncidentNeed(t, out, policy.RecoverDisasterServices) != domain.NeedDeficit || i.Incident.Priority != 2 {
+		t.Fatal(i)
 	}
 	s.Close()
 	s = open(t, path)
@@ -55,17 +54,10 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	r.Enabled = true
 	r.Current.Native++
 	out = reviewRoutine(t, s, &r)
-	// A resume of the same world keeps the goal; the proposal binds to it again.
-	if out.Review.Recovery == nil || out.Review.Recovery.Goal != first.Goal {
-		t.Fatal("resume replaced the recovery goal", out.Review.Recovery)
-	}
-	g = routineGoal(t, out, policy.RecoverDisasterServices)
-	if _, err = s.CancelGoal(ctx, g.Goal.ID, g.Revision); err != nil {
-		t.Fatal(err)
-	}
-	out = reviewRoutine(t, s, &r)
-	if out.Review.Recovery != nil {
-		t.Fatal("cancelled goal proposed recovery", out.Review.Recovery)
+	// A resume of the same world keeps the occurrence; the proposal binds
+	// to it again.
+	if out.Review.Recovery == nil || out.Review.Recovery.Incident != first.Incident {
+		t.Fatal("resume replaced the recovery incident", out.Review.Recovery)
 	}
 	if _, err = s.LoadRoutineReview(ctx); err != nil {
 		t.Fatal(err)
@@ -100,7 +92,7 @@ func TestRoutineRecoveryUnknownWorkerDoesNotBecomeAvailableAfterRestart(t *testi
 }
 func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
 	t.Parallel()
-	for _, name := range []string{"target", "worker", "restriction", "epoch", "goal", "disabled", "used"} {
+	for _, name := range []string{"target", "worker", "restriction", "incident", "disabled", "used"} {
 		t.Run(name, func(t *testing.T) {
 			s := open(t, memoryPath(t))
 			defer s.Close()
@@ -116,10 +108,8 @@ func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
 			case "restriction":
 				value := "another"
 				v.Recovery.Safety.Restrictions[0].Area = &value
-			case "epoch":
-				v.Recovery.Epoch++
-			case "goal":
-				v.Recovery.Goal = "other"
+			case "incident":
+				v.Recovery.Incident = "other"
 			case "disabled":
 				v.Enabled = false
 			case "used":
@@ -147,8 +137,8 @@ func TestRoutineRecoverySkipsSharedGoalMethodHistory(t *testing.T) {
 	r := recoveryRequest()
 	out := reviewRoutine(t, s, &r)
 	candidate := out.Review.Recovery.Selection.Candidates[0]
-	g := routineGoal(t, out, policy.RecoverDisasterServices)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, candidate.ID, plan(t, "recovery-plan", "recovery-action")); err != nil {
+	i := routineIncident(t, out, policy.RecoverDisasterServices)
+	if _, err := s.CommitIncidentMethod(ctx, i.Incident.ID, candidate.ID, "", plan(t, "recovery-plan", "recovery-action")); err != nil {
 		t.Fatal(err)
 	}
 	out = reviewRoutine(t, s, &r)
@@ -167,7 +157,7 @@ func TestRoutineRecoveryEmergencyVetoesCandidatesUntilObservedClearance(t *testi
 	r := recoveryRequest()
 	r.Facts.Hostiles = domain.Known(int64(1))
 	out := reviewRoutine(t, s, &r)
-	if out.Review.Veto(routineGoal(t, out, policy.RecoverDisasterServices).Goal) == "" || out.Review.Recovery != nil {
+	if out.Review.VetoIncident(routineIncident(t, out, policy.RecoverDisasterServices).Incident) == "" || out.Review.Recovery != nil {
 		t.Fatal("emergency allowed recovery proposals", out.Review.Recovery)
 	}
 	r.Facts.Hostiles = domain.Known(int64(0))

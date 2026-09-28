@@ -522,7 +522,7 @@ proves the write was dropped before admission. That lookup is complete no-effect
 evidence at its own tick and the action returns to `Pending` for a fresh attempt,
 instead of holding forever (#71). An admitted entry still in flight keeps holding
 until its receipt is recorded.
-Need-recovery admission previews likewise retain native refusals on the mood goal
+Need-recovery admission previews likewise retain native refusals on the mood incident
 and can consider another measured need. Bridge errors retain the requested tool identity
 even when the native payload omits it. Dispatch failures remain subject to Hands'
 existing uncertainty and observed-recovery contracts.

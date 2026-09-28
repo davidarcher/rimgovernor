@@ -3,8 +3,8 @@ package buildingruntime
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -57,29 +57,15 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineDialogResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.AnswerDialog {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	incident, found, err := incidentDeficit(call, p.journal, review, policy.AnswerDialog)
 	if err != nil {
 		return RoutineDialogResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !found {
 		return RoutineDialogResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineDialogResult{}, err
-		}
-		if store.PlanOpen(plan) {
-			return RoutineDialogResult{Reason: BuildingMethodExistingWork}, nil
-		}
+	if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
+		return RoutineDialogResult{Reason: BuildingMethodExistingWork}, err
 	}
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
@@ -118,10 +104,8 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	windowID := dialog.GetWindowId()
 	digestNext := sha256.Sum256([]byte(fmt.Sprintf("%d/%d/%s", windowID, chosen.Index, chosen.Label)))
 	method := domain.MethodID(fmt.Sprintf("dialog-%x", digestNext[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if slices.ContainsFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == method }) {
 		return RoutineDialogResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineDialogResult{}, err
 	}
 	id := domain.MintPlanID("routine-dialog")
 	value, err := domain.NewDialogAnswer(windowID, chosen.Index, chosen.Label)
@@ -142,7 +126,7 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if p.session.State() != state {
 		return RoutineDialogResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineDialogResult{}, err
 	}
 	return RoutineDialogResult{Reason: BuildingMethodAdmitted, Plan: id, Option: chosen.Label}, nil

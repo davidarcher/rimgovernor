@@ -23,14 +23,14 @@ func TestRoutineTradeGoalConsumesSharedFoodPlan(t *testing.T) {
 	f.FoodDays = r.RunwayDays
 	f.Resources = domain.Known([]Amount{})
 	f.Traders = domain.Known([]TraderFacts{{ID: "trader", CanTrade: true}})
-	if got := needs(t, f, RoutineLatches{}); !hasNeed(got, TradeWithCaravan) {
+	if got := needs(t, f, RoutineLatches{}); !assessedDeficit(got, TradeWithCaravan) {
 		t.Fatal("food-only shortage did not activate trade", got)
 	}
 	p, _ := f.FoodPlan.Value()
 	p.Portfolio[0].Channel.Kind = FoodHunt
 	p.Portfolio[0].Channel.LeadDays = domain.Known(0.0)
 	f.FoodPlan = domain.Known(p)
-	if got := needs(t, f, RoutineLatches{}); hasNeed(got, TradeWithCaravan) {
+	if got := needs(t, f, RoutineLatches{}); assessedDeficit(got, TradeWithCaravan) {
 		t.Fatal("immediate hunt did not suppress food trade", got)
 	}
 }

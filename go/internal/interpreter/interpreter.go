@@ -46,6 +46,17 @@ type Goal struct {
 	Priority int               `json:"priority"`
 }
 
+// Incident is one open Response occurrence (#1078): combat, a critical
+// patient, a pawn's mood (Subject names the pawn), a dialog. It is not a
+// goal and cannot be cancelled.
+type Incident struct {
+	Kind     domain.GoalID    `json:"kind"`
+	Subject  domain.PawnID    `json:"subject,omitempty"`
+	Need     domain.NeedState `json:"need"`
+	Priority int              `json:"priority"`
+	Started  domain.Tick      `json:"started"`
+}
+
 type Resource struct {
 	DefName string `json:"defName"`
 	Units   int64  `json:"units"`
@@ -77,6 +88,7 @@ type Facts struct {
 	Colony              Colony                    `json:"colony"`
 	Pawns               []Pawn                    `json:"pawns"`
 	Goals               []Goal                    `json:"goals"`
+	Incidents           []Incident                `json:"incidents,omitempty"`
 	PopulationDecisions []PopulationDecision      `json:"populationDecisions"`
 }
 
@@ -173,6 +185,7 @@ func (i *Interpreter) Interpret(ctx context.Context, input Input) (Guidance, err
 	input.Context = append([]string(nil), input.Context...)
 	input.Facts.Pawns = append([]Pawn(nil), input.Facts.Pawns...)
 	input.Facts.Goals = append([]Goal(nil), input.Facts.Goals...)
+	input.Facts.Incidents = append([]Incident(nil), input.Facts.Incidents...)
 	input.Facts.Colony.Resources = append([]Resource(nil), input.Facts.Colony.Resources...)
 	input.Facts.PopulationDecisions = append([]PopulationDecision(nil), input.Facts.PopulationDecisions...)
 	budgeter := *i
@@ -287,7 +300,7 @@ func validateInput(input Input) error {
 		}
 	}
 	facts := input.Facts
-	if facts.Colony.Tick < 0 || len(facts.Pawns) > maxPawns || len(facts.Goals) > maxGoals || len(facts.Colony.Resources) > maxResources || len(facts.PopulationDecisions) > maxPawns {
+	if facts.Colony.Tick < 0 || len(facts.Pawns) > maxPawns || len(facts.Goals) > maxGoals || len(facts.Incidents) > maxGoals || len(facts.Colony.Resources) > maxResources || len(facts.PopulationDecisions) > maxPawns {
 		return fail(InvalidInput, "fact lists exceed bounds")
 	}
 	pawns := map[domain.PawnID]bool{}

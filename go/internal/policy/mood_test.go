@@ -3,7 +3,6 @@ package policy
 import (
 	"math"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -153,16 +152,6 @@ func TestMoodValidationAndBoundedIdentity(t *testing.T) {
 	for _, rows := range [][]MoodPawn{{p, p}, {MoodPawn{ID: ""}}, {func() MoodPawn { v := p; v.Target = domain.Known(math.NaN()); return v }()}} {
 		if _, err := ReviewMood(domain.Known(rows), MoodHistory{}); err == nil {
 			t.Fatal(rows)
-		}
-	}
-	long := PawnID(strings.Repeat("x", 256))
-	id := MoodGoal(long)
-	if !IsMoodGoal(id) || len(id) > 64 || id != MoodGoal(long) || id == MoodGoal("other") {
-		t.Fatal(id)
-	}
-	for _, id := range []GoalID{"EnsureMood-", "EnsureMood-\x00", "EnsureMoodHash-ABCDEF0123456789ABCDEF0123456789"} {
-		if IsMoodGoal(id) {
-			t.Fatal(id)
 		}
 	}
 	h := moodReview(t, p, MoodHistory{})

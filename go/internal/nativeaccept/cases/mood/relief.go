@@ -1,4 +1,4 @@
-// The mood/relief case exercises EnsureMood-* need relief (G01.07e) end to
+// The mood/relief case exercises EnsureMood need relief (G01.07e) end to
 // end against a live game: a disposable fixture pawn with a genuinely
 // deficient need, the NeedReliefIntent on Actions/Apply (#939, the intent
 // bridge's moodReliefAction sends) starting an actual JobGiver_GetJoy job,
@@ -21,7 +21,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "mood/relief",
-		Scope: "EnsureMood-* relief through the NeedReliefIntent on Actions/Apply: an actual JobGiver_GetJoy " +
+		Scope: "EnsureMood relief through the NeedReliefIntent on Actions/Apply: an actual JobGiver_GetJoy " +
 			"job started for a deficient pawn, a resend that applies again without a second job, relief admitted over a " +
 			"player-forced current job (#474), a refusal for a pawn in a mental break, and real need recovery observed via native ticks.",
 		Start:  cases.LabStart(),
