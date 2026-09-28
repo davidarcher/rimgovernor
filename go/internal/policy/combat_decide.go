@@ -74,9 +74,25 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			next.Rushing = false
 		} else {
 			next.SapperBreach = nil
-			next.Tactic, next.Roles, next.Refusal = formation(view, geometry, next.Relieved)
+			formGeometry := geometry
+			if geometry.Role == RoleFiringCells {
+				// A flank answer (#1062) holds no cover candidates.
+				formGeometry = GeometryReply{Answered: true, Lines: geometry.Lines}
+			}
+			next.Tactic, next.Roles, next.Refusal = formation(view, formGeometry, next.Relieved)
 		}
 		next.Formed = view.Tick
+		next.Flank = nil
+	}
+	if ask := flankAsk(view, next); ask != nil {
+		// The flank detachment's cells take a later stop's round trip (#1062).
+		if !geometry.Answered {
+			return nil, ask, memory
+		}
+		if geometry.Role == RoleFiringCells {
+			flankDetach(view, geometry, &next)
+			geometry.Role = ""
+		}
 	}
 	peel(view, stop, &next)
 	pullBackTank(stop, &next)
@@ -96,6 +112,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	manhunterDoor(view, formed, &next)
 	manhunterShelter(view, &next)
 	counterBattery(view, &next)
+	flank(view, &next)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
 		orderable[id] = true
@@ -108,7 +125,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	if ask != nil {
 		return nil, ask, memory
 	}
-	var orders []CombatOrder
+	orders := flankHoldFire(view, orderable, &next)
 	for _, role := range next.Roles {
 		if !orderable[role.Pawn] || next.Rescue.carrying(role.Pawn) {
 			continue
@@ -125,7 +142,9 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		}
 		orders = append(orders, want)
 	}
-	orders = holdFire(view, slices.DeleteFunc(slices.Clone(next.Roles), func(r CombatRole) bool { return next.Rescue.carrying(r.Pawn) }), orders, memory)
+	orders = holdFire(view, slices.DeleteFunc(slices.Clone(next.Roles), func(r CombatRole) bool {
+		return next.Rescue.carrying(r.Pawn) || next.Flank.waiting(r.Pawn)
+	}), orders, memory)
 	if !geometry.Answered {
 		// The attacks' lines of fire (#861) take the stop's geometry round
 		// trip when Formation did not.
@@ -420,6 +439,8 @@ type CombatMemory struct {
 	// while the shooter stands on the cell it was refused from, so the
 	// fight retargets or waits instead of re-sending them every stop.
 	CannotHit []HitRefusal `json:",omitempty"`
+	// Flank is the hold's flanking detachment (#1062).
+	Flank *CombatFlank `json:",omitempty"`
 }
 
 // HitRefusal is an attack native refused cannot_hit: Pawn could not hit
@@ -491,6 +512,7 @@ func (m CombatMemory) clone() CombatMemory {
 	m.PodDoors = slices.Clone(m.PodDoors)
 	m.WaitDoors = slices.Clone(m.WaitDoors)
 	m.CannotHit = slices.Clone(m.CannotHit)
+	m.Flank = m.Flank.clone()
 	if m.SapperBreach != nil {
 		c := *m.SapperBreach
 		m.SapperBreach = &c
