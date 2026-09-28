@@ -771,7 +771,7 @@ namespace RimGovernor.Protocol.Operations {
 
   #region Messages
   /// <summary>
-  /// Exactly one operation per attempt. See operation-coverage.md for semantic bounds.
+  /// Exactly one operation per attempt. See operations.md for semantic bounds.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ExecuteRequest : pb::IMessage<ExecuteRequest>

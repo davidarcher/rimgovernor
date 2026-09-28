@@ -7,7 +7,7 @@ import "authority.proto";
 import "placement.proto";
 import "receipts.proto";
 
-// Exactly one operation per attempt. See operation-coverage.md for semantic bounds.
+// Exactly one operation per attempt. See operations.md for semantic bounds.
 message ExecuteRequest {
   rimgovernor.authority.v1.WritePrecondition precondition = 1;
   Operation operation = 2;

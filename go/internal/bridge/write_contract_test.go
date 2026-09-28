@@ -16,10 +16,3 @@ func buildingEffect() *r.EffectEvidence {
 func buildingAdmission() *r.Receipt {
 	return &r.Receipt{Attempt: buildingPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: buildingEffect()}}}
 }
-func buildingDone() *r.Progress {
-	e := buildingEffect()
-	e.GetConstruction().Stage = r.ConstructionStage_CONSTRUCTION_STAGE_BUILDING.Enum()
-	e.GetConstruction().CurrentThingId = proto.String("building1")
-	e.GetConstruction().Started = proto.Bool(true)
-	return &r.Progress{Attempt: buildingPre().Attempt, Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(11), NativeGeneration: proto.Uint64(2)}, CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: e}}}
-}

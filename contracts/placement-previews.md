@@ -2,7 +2,7 @@
 
 The shared native request and reply types are defined in
 [placement.proto](proto/placement.proto), with semantic validation and collection
-bounds in [placement coverage](proto/placement-coverage.md). Use official generated
+bounds in [placement coverage](proto/placement.md). Use official generated
 messages and ProtoJSON as described in [schema generation](schema-generation.md).
 
 A preview reports native placement facts; it does not authorize a write or prove

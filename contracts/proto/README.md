@@ -20,17 +20,13 @@ is pairwise, so it is answered only for a query of at most 64 rows and carries a
 `reachable_pawn_ids` issue beyond that. A producer that omits the block leaves the
 gates unknown and the controller proposes no doctor, rather than failing the read.
 
-- [Boundary inventory](coverage.md): all97 current boundary rows and55 native exports.
 - [Fixed MCP tools](mcp-tools.md):78 descriptor methods, exact wrappers and capabilities.
 - [Validation](validation.md): shared presence, bounds and outcome requirements.
-- [Observations](observation-coverage.md), [operations/receipts](operation-coverage.md),
-  [clock/lifecycle](clock-lifecycle-coverage.md), [placement](placement-coverage.md)
-  and [presentation](presentation-coverage.md): source facts and owning contracts.
+- [Observations](observations.md), [operations/receipts](operations.md),
+  [clock/lifecycle](clock-lifecycle.md), [placement](placement.md)
+  and [presentation](presentation.md): per-family contract semantics.
 
-Complete the message families and source/consumer coverage before implementing
-the Go and native adapters. A compiled schema is not evidence of native behavior.
-The unfinished contract inventory and implementation gates remain in
-[N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22).
+A compiled schema is not evidence of native behavior.
 
 ## Wire and validation
 
@@ -117,17 +113,9 @@ Pre-admission failure guarantees no admitted effect. An admitted uncertain outco
 requires a correlated receipt and observation before any retry. A receipt proves
 neither completed pawn work nor a durable outcome after a changed native identity.
 
-## Handoff checks
+## Limits
 
-Before adapter implementation, verify every in-scope source/consumer field is
-represented or explicitly excluded, every schema compiles with the pinned official
-tools, and C#/Go exchange the same messages through both binary and ProtoJSON.
-Exercise zero versus missing, oneof variants, integer extremes, invalid inputs,
-known-empty versus unavailable observations and application-limit refusals.
-After the contract handoff, native adapters still require fresh-game acceptance,
-player-override and uncertain-write checks, and observed outcomes for each family.
-
-Shared [boundary validation](validation.md) and each family coverage document
+Shared [boundary validation](validation.md) and each family contract document
 define required presence and semantic constraints beyond official parsing.
 Control/observation replies carry no envelope size cap. Dedicated media replies permit
 up to32MiB of image bytes within a48MiB ProtoJSON envelope, as specified by the

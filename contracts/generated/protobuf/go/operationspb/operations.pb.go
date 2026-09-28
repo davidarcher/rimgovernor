@@ -1015,7 +1015,7 @@ func (HusbandryOrder) EnumDescriptor() ([]byte, []int) {
 	return file_operations_proto_rawDescGZIP(), []int{16}
 }
 
-// Exactly one operation per attempt. See operation-coverage.md for semantic bounds.
+// Exactly one operation per attempt. See operations.md for semantic bounds.
 type ExecuteRequest struct {
 	state         protoimpl.MessageState         `protogen:"open.v1"`
 	Precondition  *authoritypb.WritePrecondition `protobuf:"bytes,1,opt,name=precondition,proto3" json:"precondition,omitempty"`

@@ -124,41 +124,6 @@ func (s sessionBuildingLeases) Lease(target domain.GenerationSnapshot) (string, 
 	return s.control.Lease(root.Snapshot)
 }
 
-// lazyRoutineLeases mirrors sessionBuildingLeases, but reads Control lazily
-// through sink instead of holding a *Control directly. DraftBoundary must be
-// constructed before Control exists (Control's own world source can be the
-// draft boundary itself), so at construction time no *Control is available
-// yet; by the time Lease is actually called (during dispatch), sink.control
-// has been published.
-type lazyRoutineLeases struct {
-	sink    *sessionSink
-	journal *store.Store
-	routine bool
-	timeout time.Duration
-}
-
-func (l lazyRoutineLeases) Lease(target domain.GenerationSnapshot) (string, error) {
-	l.sink.mu.Lock()
-	control := l.sink.control
-	l.sink.mu.Unlock()
-	if control == nil {
-		return "", fmt.Errorf("%w: Lease: control == nil", ErrControl)
-	}
-	root := control.State()
-	if root.Snapshot == target {
-		return control.Lease(target)
-	}
-	if !root.Enabled || !root.ObservationKnown {
-		return "", fmt.Errorf("%w: Lease: !root.Enabled || !root.ObservationKnown", ErrControl)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), l.timeout)
-	defer cancel()
-	if err := (planAuthorizer{l.journal, l.routine}).AuthorizeRoutinePlan(ctx, root.Snapshot, target); err != nil {
-		return "", err
-	}
-	return control.Lease(root.Snapshot)
-}
-
 func NewSession(ctx context.Context, config SessionConfig, journal *store.Store, native boundary.Native, authority NativeAuthority, writer boundary.BuildingWriter, clock executor.Clock) (*Session, error) {
 	if journal == nil || native == nil || authority == nil || writer == nil || clock == nil {
 		return nil, errors.New("building session dependencies required")

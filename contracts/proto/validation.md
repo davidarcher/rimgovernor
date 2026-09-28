@@ -1,7 +1,7 @@
 # Boundary validation rules
 
 Official Protobuf parsing is the first step. Generated objects remain transport
-values until the owning adapter applies these rules and its family coverage
+values until the owning adapter applies these rules and its family contract
 document. These requirements are shared by both implementations; compiler
 roundtrip fixtures intentionally include shapes that are invalid game requests.
 
@@ -22,7 +22,7 @@ requires recursive unknown-field rejection. Current MCP uses ProtoJSON.
 | AttemptKey | controller_session_id, action_id and positive uint64 attempt_id. |
 | WritePrecondition | identity, positive expected_generation, nonblank lease_id and complete attempt. |
 | Cell | both coordinates, each within the relevant native map; no missing-to-zero conversion. |
-| Opaque ID/definition/token | valid nonblank Unicode, <=256 UTF-8 bytes, no NUL; exact case/content; narrower native input limits are documented in presentation coverage. |
+| Opaque ID/definition/token | valid nonblank Unicode, <=256 UTF-8 bytes, no NUL; exact case/content; narrower native input limits are documented in the [presentation contract](presentation.md). |
 | Failure/Unavailable | supported nonzero reason/code; bounded diagnostic if supplied; absence of observed context never fabricates a loaded identity. |
 | Diagnostic | <=4096 Unicode scalar values; only diagnostic text may be truncated at scalar boundaries. |
 | Collection | explicit known-complete versus partial/unavailable evidence; no silent truncation. Family limits and queries define completeness. |
@@ -39,14 +39,14 @@ required. Requested missing sections need explicit unavailability/read issues.
 | Family | Required request and reply checks |
 | --- | --- |
 | Authority | ReadStatus requires identity. Acquire requires identity, expected generation, Owner and duration; Renew requires identity/generation/session/lease/duration; Revoke requires identity/generation and an allowed external revocation reason. Duration1000–30000ms. Granted must be active for the requested owner; revoked must be inactive. Caller direction never authenticates itself. |
-| Placement | Exact identity, 1–16 candidates with def/x/z/rotation. Stuff optional/default. One ordered result per candidate, actual batch context, complete cost/footprint/blocker facts or candidate failure. Cardinal output rotations only. See placement coverage for bounds/material availability. |
+| Placement | Exact identity, 1–16 candidates with def/x/z/rotation. Stuff optional/default. One ordered result per candidate, actual batch context, complete cost/footprint/blocker facts or candidate failure. Cardinal output rotations only. See the [placement contract](placement.md) for bounds/material availability. |
 | Observation reads | Exact expected identity; optional query filters/details and pagination have family-defined defaults. Reply context is actual, allowing ticks/generation to advance. Each SnapshotRef includes context/entity/token. Complete page has no next cursor and no unreadable required facts. Unavailable nested sections do not poison independently known siblings. |
 | Guarded operations | Complete WritePrecondition and one command. Every EntityPrecondition requires exact entity ID and expected snapshot token; standalone expected_* tokens are required. Exact target/cell/definition references for the chosen command are required. Optional patch fields mean unchanged; provided assignments select set or clear. Empty patch is no-change, never an implicit reset. |
 | Policy/bills/zones | Policy replacement wrappers are all required; empty explicitly clears. Schedule, if supplied, has24 entries. Bill operations resolve exact bill under bench stack token. Zone rectangles have positive dimensions with checked expansion<=4096cells. Filters distinguish absent patch from present-empty replacement. |
 | Clock | Start requires complete authority, speed, policy, duration and positive bounded tick budget. Renew/speed require complete original epoch identity/owner and current authority. Pause requires exact identity/epoch owner and cannot target a replacement. Applied/uncertain receipts preserve attempt and admission context. ReadAttempt never acquires control. |
 | Receipt/progress | Complete attempt/admission context/original owner; selected outcome and family-correlated evidence. Read progress carries actual context and causal-after-dispatch inspection; complete/absent/unsuccessful require complete inspection. No fabricated effect IDs in previews. |
 | Lifecycle | Save requires exact player context, save name and expected tick with actual pause. Load requires instance/current direction/request ID/name/readiness/deadline and expected player context when replacing a map. ReadLoad/ReadSave require request ID and instance. Completion never means authority restoration. |
-| Player presentation/input | Current trusted player identity/lease and exact server-retained capture for commands. Sequence/frame/scene/selection/window checks apply before effect. Proven refusal and possible-effect uncertainty are distinct. Media has separately bounded bytes. See presentation coverage for exact native input limits. |
+| Player presentation/input | Current trusted player identity/lease and exact server-retained capture for commands. Sequence/frame/scene/selection/window checks apply before effect. Proven refusal and possible-effect uncertainty are distinct. Media has separately bounded bytes. See the [presentation contract](presentation.md) for exact native input limits. |
 
 Patch and optional-read defaults must be implemented deliberately: absent boolean
 patches do not mean false, absent available counts do not mean zero, omitted

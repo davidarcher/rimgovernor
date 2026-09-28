@@ -1,18 +1,15 @@
 # Clock and lifecycle contracts
 
-These are the shared adapter contract. Runtime migration and native acceptance
-remain in N01; schema compilation alone does not establish these behaviors.
-
-| Current boundary/source | Contract | Required behavior |
-| --- | --- | --- |
-| `start`, `pause`, `heartbeat`, `speed` in the same source | `Start`, `Pause`, `Renew`, `ChangeSpeed` | Exact epoch ownership, bounded native tick budget, no lease stealing or automatic reacquisition. |
-| `home/play_until_event` and consumed ordinary `rimworld/set_time_speed` calls | Migrate supervised consumers to `clock.Clock` | One supervised clock owner. Remove bypass calls from autonomous execution. `SPEED_ULTRAFAST` is an ordinary wire speed; the native tick boost behind it (`StartRequest.test_acceleration`) is admitted only by a game launched with `-rimgovernor-test-acceleration`, which `nativeaccept` adds to its acceptance profiles alone (headless and rendered) (`Status.test_acceleration_available`), and an accelerated epoch pauses rather than changing speed. |
-| `Supervisor.Add`, `ClockEventJournal.cs` | `clock.Event`, `EventsPage` | Immutable typed events, explicit gaps, journal failure holds play. |
-| New guarded clock admission and receipt lookup | `clock.ControlReceipt`, `ReadAttempt` | Shared attempt namespace and retained clock outcome; no retry inferred from missing receipt. |
-| `home/colony_identity`, Runtime `Persistence/ColonyIdentity.cs` | `lifecycle.Lifecycle.ReadIdentity` | Saved colony ID, fresh unsaved load token, current map/tick, explicit capability availability. Initialization belongs load hooks, not identity reads. |
-| `rimworld/save_game`, `session_checkpoint.py:create_checkpoint` | `lifecycle.Lifecycle.Save` | Explicit session action; completed save, unchanged identity/direction/tick and observed pause. |
-| `rimworld/load_game_ready`, `bridge_runtime.py` | `lifecycle.Lifecycle.Load` | Existing SDK lifecycle adapter; distinguish pending/map/visual readiness, reread fresh native context. |
-| `games_start`, `games_stop`, process attach/connect | Go controller gamehost process adapter | gamehost owns process lifetime. No second native process manager. Stop only owned instance; detach attached sessions. |
+| Contract | Required behavior |
+| --- | --- |
+| `Start`, `Pause`, `Renew`, `ChangeSpeed` | Exact epoch ownership, bounded native tick budget, no lease stealing or automatic reacquisition. |
+| `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` is an ordinary wire speed; the native tick boost behind it (`StartRequest.test_acceleration`) is admitted only by a game launched with `-rimgovernor-test-acceleration`, which `nativeaccept` adds to its acceptance profiles alone (headless and rendered) (`Status.test_acceleration_available`), and an accelerated epoch pauses rather than changing speed. |
+| `clock.Event`, `EventsPage` | Immutable typed events, explicit gaps, journal failure holds play. |
+| `clock.ControlReceipt`, `ReadAttempt` | Shared attempt namespace and retained clock outcome; no retry inferred from missing receipt. |
+| `lifecycle.Lifecycle.ReadIdentity` | Saved colony ID, fresh unsaved load token, current map/tick, explicit capability availability. Initialization belongs load hooks, not identity reads. |
+| `lifecycle.Lifecycle.Save` | Explicit session action; completed save, unchanged identity/direction/tick and observed pause. |
+| `lifecycle.Lifecycle.Load` | Distinguish pending/map/visual readiness, reread fresh native context. |
+| Go controller gamehost process adapter | gamehost owns process lifetime. No second native process manager. Stop only owned instance; detach attached sessions. |
 
 ## Clock validation
 
@@ -64,9 +61,7 @@ than reported as a running epoch's pause. Source numeric pawn IDs must resolve t
 canonical IDs, never suffix matching. Every event carries its original native
 context, not whichever map happens to be selected during later reads.
 
-Lease durations use a monotonic clock within the native process lifetime. Current
-`Supervisor.NowMs` reads UTC; the adapter/runtime migration must use a monotonic
-clock for lease expiry. Durable event/stop timestamps remain Unix milliseconds
+Lease durations use a monotonic clock within the native process lifetime. Durable event/stop timestamps remain Unix milliseconds
 for diagnostic chronology; wall-clock jumps never change lease expiry. Stop
 snapshots retain original epoch identity; observed current context makes identity
 replacement explicit.

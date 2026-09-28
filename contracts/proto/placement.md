@@ -1,7 +1,6 @@
 # Placement preview contract
 
-`placement.Placement.Preview` covers `home/placement_previews` and the construction
-candidate/site facts used by ordinary placement. `operations.Preview` supplies
+`placement.Placement.Preview` supplies the construction candidate/site facts used by ordinary placement. `operations.Preview` supplies
 other operation-specific preparations. Full player single-placement thermal
 inspection belongs the observation family; preview never changes camera, watches
 or native orders.
@@ -46,11 +45,3 @@ clamped to zero. It is not gross inventory. Go additionally reserves unissued or
 unverifiable shared work. A complete correlated pending-construction inspection
 lets stock from a later tick replace that action's historical material hold;
 its footprint remains reserved until outcome reconciliation permits release.
-
-Sources: `integrations/rimgovernor-native/src/Bridge/PlacementPreviewsTool.cs`,
-`PlaceBuildingTool.cs`, and the typed `PlacementPreviewOperation` workstream
-implementation; consumers are Go placement/domain transport and controller
-construction preview callers. Native adapters still need fresh valid/refused/
-invalid-definition acceptance, unchanged tick/identity/camera/order checks and
-truthful complete scans. Official Protobuf replaces the experimental JSON wire
-format; no parser-spelling or old-save parity is required.

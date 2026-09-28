@@ -42,7 +42,7 @@ Tool discovery is not authorization. Apply these restrictions before evaluating 
 | PlayerPresentation | Authenticated explicit player control only. Input ownership, verified pause/owned-draft cleanup, exact capture and direction checks apply. No adviser access or autonomous fallback to clicks. |
 | PresentationMedia | Authorized viewer/media capability: render-demand leases and screenshot capture with byte limits. Media access grants no simulation-write or input authority. |
 
-Use [shared rules](README.md) and the family coverage documents for exact validation and uncertainty behavior. A guarded receipt acknowledges only its observed effect; later pawn work requires correlated observation. Missing attempt records do not prove no effect. Returning a successful SDK envelope never overrides a typed refusal, unavailable result or admitted uncertainty.
+Use [shared rules](README.md) and the family contract documents for exact validation and uncertainty behavior. A guarded receipt acknowledges only its observed effect; later pawn work requires correlated observation. Missing attempt records do not prove no effect. Returning a successful SDK envelope never overrides a typed refusal, unavailable result or admitted uncertainty.
 
 ## Fixed tool descriptors
 

@@ -9,7 +9,7 @@ const NamingConfirmationAction ActionKind = "naming_confirmation"
 // dialog. WindowID plus the suggestions stand in for an EntityPrecondition or
 // snapshot token: the native ConfirmColonyNames operation refuses on any
 // drift from these exact observed values (see NativeColonyNamingOperations.cs
-// and presentation-coverage.md). It is only ever dispatched through the
+// and presentation.md). It is only ever dispatched through the
 // ordinary autopilot authority, never PlayerPresentation.Apply's own
 // explicit-player confirm_colony_names branch.
 type NamingConfirmation struct {
