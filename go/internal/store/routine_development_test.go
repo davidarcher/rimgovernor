@@ -129,6 +129,27 @@ func TestRoutineDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
 	}
 }
 
+// MaintainFoodStorage's priority depends on facts the reload does not have;
+// a row it ranked as development must still load on resume.
+func TestRoutineDevelopmentReloadsFoodStorageRow(t *testing.T) {
+	t.Parallel()
+	s := open(t, memoryPath(t))
+	defer s.Close()
+	r := routineRequest()
+	record := reviewRoutine(t, s, &r).Review
+	record.Development.Rows[0].Goal = policy.MaintainFoodStorage
+	payload, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.Exec("UPDATE routine_review SET payload=?", payload); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.LoadRoutineReview(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Configured research/resource targets rank with a measured deficit.
 func TestRoutineDevelopmentConfiguredTargets(t *testing.T) {
 	t.Parallel()

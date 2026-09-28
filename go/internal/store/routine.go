@@ -304,7 +304,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			continue
 		}
 		allowed[n.ID] = true
-		optional[n.ID] = n.Priority >= 3 || n.ID == policy.EnsureComfort || n.ID == policy.MaintainHousing || n.ID == policy.MaintainMedicalReserves
+		optional[n.ID] = n.Priority >= 3 || n.ID == policy.EnsureComfort || n.ID == policy.MaintainHousing || n.ID == policy.MaintainMedicalReserves || n.ID == policy.MaintainFoodStorage
 	}
 	for _, row := range r.Development.Rows {
 		if !optional[row.Goal] {
