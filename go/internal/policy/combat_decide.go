@@ -150,8 +150,10 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	rocketClumps(view, &next)
 	flank(view, &next)
 	groupSquads(view, &next)
+	noteEMPAdapted(view, &next)
 	grenade(view, &next)
 	hiveGrenade(view, &next)
+	mechDisengage(view, &next)
 	// Contained raiders who will not bleed down are finished in melee (#1036).
 	finishContained(view, &next)
 	rescue, ask := rescueStep(view, geometry, stop, &next, orderable, state)
@@ -251,6 +253,8 @@ type CombatPawnState struct {
 	// Health its summary health fraction.
 	Prisoner bool                 `json:",omitempty"`
 	Health   domain.Fact[float64] `json:",omitzero"`
+	// StunTicks is a stunned pawn's ticks left (#1050), 0 awake.
+	StunTicks int `json:",omitempty"`
 }
 
 // CombatLayout is the stored, complete defense layout's line.
@@ -529,6 +533,9 @@ type CombatMemory struct {
 	// NoShells are the shells native refused a mortar order for (#1051):
 	// none in reach, or not a shell the mortar takes.
 	NoShells []string `json:",omitempty"`
+	// EMPAdapted are the mechs seen stunned, each until its EMP adaptation
+	// ends (#1050), sorted by pawn.
+	EMPAdapted []EMPAdaptation `json:",omitempty"`
 }
 
 // RefuseShell is Forget for a mortar order native refused for its shell

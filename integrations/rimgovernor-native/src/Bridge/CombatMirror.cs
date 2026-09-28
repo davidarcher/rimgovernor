@@ -300,6 +300,7 @@ namespace HomeBridge.BridgeTools
                 try { row.Armor = Step(NativeGearFacts.PawnArmor(pawn), 0.05); }
                 catch { }
             }
+            try { var stun = pawn.stances?.stunner; if (stun != null && stun.Stunned) row.StunTicksLeft = (stun.StunTicksLeft + 29) / 30 * 30; } catch { }
             row.ShieldBelt = shield != null;
             try { var medicine = pawn.skills?.GetSkill(SkillDefOf.Medicine); if (medicine != null) row.MedicalSkill = medicine.Level; } catch { }
             var weapon = pawn.equipment?.Primary;

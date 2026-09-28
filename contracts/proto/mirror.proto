@@ -71,6 +71,9 @@ message CombatPawn {
   // the pain that would down it) and a LuciferiumAddiction hediff.
   optional bool go_juice_high = 31;
   optional bool luciferium_addicted = 32;
+  // EMP timing (#1050): the stun's ticks left, rounded up to 30, absent when
+  // not stunned.
+  optional int32 stun_ticks_left = 33;
 }
 
 // A damaged player door (BundleSnapshot.combat_doors, #900): hit points

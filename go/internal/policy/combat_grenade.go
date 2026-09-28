@@ -33,11 +33,8 @@ func GrenadeTarget(carrier CombatPawnState, hostiles []CombatPawnState, colonist
 	if !ok || !known {
 		return domain.Cell{}, false
 	}
-	reach := carrier.WeaponRange
-	if reach <= 0 {
-		reach = ProfileWeapon(EquipCandidateWeapon{Definition: carrier.Weapon}).Range
-	}
-	emp := isEMP(carrier.Weapon)
+	reach := grenadeReach(carrier)
+	emp, fire := isEMP(carrier.Weapon), incendiary(carrier.Weapon)
 	var cells []domain.Cell
 	var worth []domain.Cell
 	for _, h := range hostiles {
@@ -46,10 +43,25 @@ func GrenadeTarget(carrier CombatPawnState, hostiles []CombatPawnState, colonist
 			continue
 		}
 		cells = append(cells, c)
-		if !emp || empWorth(h) {
+		// Mechs are immune to fire (#1050): an incendiary never counts one.
+		if (!emp || empWorth(h)) && !(fire && isMech(h)) {
 			worth = append(worth, c)
 		}
 	}
+	return bestGround(from, reach, blast, cells, worth, colonists)
+}
+
+// grenadeReach is the carrier's range: its weapon range, else the profile's.
+func grenadeReach(carrier CombatPawnState) float64 {
+	if carrier.WeaponRange > 0 {
+		return carrier.WeaponRange
+	}
+	return ProfileWeapon(EquipCandidateWeapon{Definition: carrier.Weapon}).Range
+}
+
+// bestGround is the candidate cell in reach, clear of colonists, whose
+// blast covers the most worth cells: then the nearer, then the lower x, z.
+func bestGround(from domain.Cell, reach, blast float64, cells, worth, colonists []domain.Cell) (domain.Cell, bool) {
 	var best domain.Cell
 	bestHits, bestDist := 0, math.MaxFloat64
 	for _, c := range cells {
@@ -78,8 +90,16 @@ func empWorth(h CombatPawnState) bool {
 	if _, shielded := h.Shield.Value(); shielded {
 		return true
 	}
-	return strings.HasPrefix(h.Kind, "Mech_")
+	return isMech(h)
 }
+
+// incendiary is a primary that sets fires (Molotovs, incendiary launchers).
+func incendiary(def string) bool {
+	return strings.Contains(def, "Molotov") || strings.Contains(def, "Incendiary")
+}
+
+// isMech is a mechanoid pawn kind.
+func isMech(h CombatPawnState) bool { return strings.HasPrefix(h.Kind, "Mech_") }
 
 func nearColonist(c domain.Cell, colonists []domain.Cell) bool {
 	for _, p := range colonists {
@@ -130,7 +150,7 @@ func grenade(view CombatView, m *CombatMemory) {
 				continue
 			}
 		}
-		if c, ok := GrenadeTarget(carrier, hostiles, colonists); ok {
+		if c, ok := grenadeAim(view, *m, carrier, hostiles, colonists); ok {
 			r.Ground = &c
 		}
 	}

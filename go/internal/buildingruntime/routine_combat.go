@@ -444,7 +444,7 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 		for _, row := range combat.Pawns {
 			s := policy.CombatPawnState{ID: domain.PawnID(row.GetId()), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance()),
 				Weapon: row.GetWeapon(), WeaponRange: row.GetWeaponRange(), FireMode: row.GetFireMode(),
-				Job: row.GetJob(), ShieldBelt: row.GetShieldBelt(), MedicalSkill: int(row.GetMedicalSkill()), MoveSpeed: row.GetMoveSpeed(),
+				Job: row.GetJob(), ShieldBelt: row.GetShieldBelt(), MedicalSkill: int(row.GetMedicalSkill()), MoveSpeed: row.GetMoveSpeed(), StunTicks: int(row.GetStunTicksLeft()),
 				GoJuice: row.GetGoJuiceHigh(), Luciferium: row.GetLuciferiumAddicted(),
 				Animal: row.GetSide() == mp.CombatSide_COMBAT_SIDE_COLONY_ANIMAL}
 			if cell := row.GetCell(); cell != nil && cell.X != nil && cell.Z != nil {
