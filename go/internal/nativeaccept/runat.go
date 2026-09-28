@@ -243,6 +243,11 @@ func RunUntil(ctx context.Context, h *Harness, label string, ticks uint64, w Wai
 			first, haveFirst = latest, true
 		}
 		if paused {
+			// The awaited event may be what paused the game (a chased
+			// joiner arrives with its raid letter): a done probe wins.
+			if signature, done, err := probe(ctx); err != nil || done {
+				return Signature(latest, signature), done, err
+			}
 			if err := h.resolvePause(ctx, label, latest); err != nil {
 				return "", false, err
 			}

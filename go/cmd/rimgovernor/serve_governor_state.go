@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"sync"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -13,6 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
@@ -28,8 +30,8 @@ type governorStateNative interface {
 // generation re-reads the save) rebuilds the store's goals from the save
 // (#998) and logs family drift; the store stays authoritative for
 // families. A round with no current world skips.
-func shadowGovernorState(ctx context.Context, native governorStateNative, world func(context.Context) (governorWorld, bool), database *store.Store, orphans orphanNative, refresh time.Duration, out io.Writer) {
-	shadow := governorShadow{orphans: orphans}
+func shadowGovernorState(ctx context.Context, native governorStateNative, world func(context.Context) (governorWorld, bool), database *store.Store, rebuild *worldRebuild, refresh time.Duration, out io.Writer) {
+	shadow := governorShadow{rebuild: rebuild}
 	ticker := time.NewTicker(refresh)
 	defer ticker.Stop()
 	for {
@@ -76,24 +78,89 @@ func currentGovernorWorld(reads httpapi.SnapshotProvider) func(context.Context) 
 	}
 }
 
+// worldRebuild is the per-world rebuild (#998/#1005/#1011): the save's
+// goals and families replace the store's and routine_review empties. The
+// clock worker and the shadow writer both call ensure before they act in a
+// world, so it runs once per world ahead of the first review (#1123).
+// orphans, when set, is the native the #1000 orphan pass sweeps.
+type worldRebuild struct {
+	mu       sync.Mutex
+	world    governorWorld
+	count    uint64
+	database *store.Store
+	orphans  orphanNative
+	out      io.Writer
+}
+
+// ensure rebuilds the store for world unless it was the last one rebuilt.
+func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native governorStateNative) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.count != 0 && r.world == world {
+		return nil
+	}
+	saved, err := native.GovernorState(ctx)
+	if err != nil {
+		return err
+	}
+	var pass store.GoalOrphanPass
+	if r.orphans != nil {
+		pass = orphanSweep(r.orphans, world, r.out)
+	}
+	if err = r.database.RebuildGoals(ctx, saved, pass); err != nil {
+		return fmt.Errorf("rebuild goals: %w", err)
+	}
+	if err = r.database.RebuildFamilies(ctx, saved); err != nil {
+		return fmt.Errorf("rebuild families: %w", err)
+	}
+	if err = r.database.ResetRoutineReview(ctx); err != nil {
+		return fmt.Errorf("reset routine review: %w", err)
+	}
+	r.world = world
+	r.count++
+	return nil
+}
+
+// workerGate is the clock worker's WorldReady hook: it ensures the step's
+// world is rebuilt and reports whether any rebuild ran since the worker's
+// last step, so the step reviews again from the reset cache.
+func (r *worldRebuild) workerGate(native governorStateNative) func(context.Context, *c.ObservationContext) (bool, error) {
+	var seen uint64
+	return func(ctx context.Context, observed *c.ObservationContext) (bool, error) {
+		id := observed.GetIdentity()
+		world := governorWorld{domain.ColonyID(id.GetColonyId()), domain.MapID(id.GetMapId()), domain.LoadID(id.GetLoadToken()), domain.NativeGeneration(observed.GetNativeGeneration())}
+		if err := r.ensure(ctx, world, native); err != nil {
+			return false, err
+		}
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		reset := r.count != seen
+		seen = r.count
+		return reset, nil
+	}
+}
+
 // governorShadow is the per-world written cache; a world change drops it
 // so the next round re-reads the save and re-checks drift.
-// orphans, when set, is the native the #1000 orphan pass sweeps.
 type governorShadow struct {
 	world   governorWorld
 	written map[string]string
-	orphans orphanNative
+	rebuild *worldRebuild
 }
 
 func (s *governorShadow) round(ctx context.Context, world governorWorld, native governorStateNative, database *store.Store, out io.Writer) error {
 	if world != s.world {
 		s.world, s.written = world, nil
 	}
-	var pass store.GoalOrphanPass
-	if s.orphans != nil {
-		pass = orphanSweep(s.orphans, world, out)
+	if s.rebuild == nil {
+		s.rebuild = &worldRebuild{database: database, out: out}
 	}
-	return shadowGovernorStateOnce(ctx, native, database, &s.written, pass, out)
+	if s.written == nil {
+		if err := s.rebuild.ensure(ctx, world, native); err != nil {
+			return err
+		}
+	}
+	return shadowGovernorStateOnce(ctx, native, database, &s.written, out)
 }
 
 // orphanNative lists and cancels the Autopilot's native side effects
@@ -144,24 +211,15 @@ func orphanSweep(native orphanNative, world governorWorld, out io.Writer) store.
 	}
 }
 
-func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, database *store.Store, written *map[string]string, reconcileGoalOrphans store.GoalOrphanPass, out io.Writer) error {
+func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, database *store.Store, written *map[string]string, out io.Writer) error {
 	if *written == nil {
-		// First round in a world (#998): the save's goals replace the
-		// store's before the first write, so the writer seeds from them.
+		// First round in a world: the caller has rebuilt the store from
+		// the save, so the writer seeds from the save's keys (it owns
+		// every one) and puts only what changed since.
 		saved, err := native.GovernorState(ctx)
 		if err != nil {
 			return err
 		}
-		if err = database.RebuildGoals(ctx, saved, reconcileGoalOrphans); err != nil {
-			return fmt.Errorf("rebuild goals: %w", err)
-		}
-		if err = database.RebuildFamilies(ctx, saved); err != nil {
-			return fmt.Errorf("rebuild families: %w", err)
-		}
-		if err = database.ResetRoutineReview(ctx); err != nil {
-			return fmt.Errorf("reset routine review: %w", err)
-		}
-		// The shadow writer owns every saved key, so it seeds from all.
 		*written = maps.Clone(saved)
 		if *written == nil {
 			*written = map[string]string{}

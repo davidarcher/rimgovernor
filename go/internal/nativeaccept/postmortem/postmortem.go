@@ -526,7 +526,7 @@ func routineReview(ctx context.Context, db *sql.DB, note string) Section {
 	err := db.QueryRowContext(ctx, "SELECT payload FROM routine_review WHERE singleton=1").Scan(&payload)
 	switch {
 	case err == sql.ErrNoRows:
-		s.Note = "routine_review is empty: the service never reviewed"
+		s.Note = "routine_review is empty: the service never reviewed, or reset by a world rebuild"
 	case err != nil:
 		s.Note = "routine_review: " + err.Error()
 	default:

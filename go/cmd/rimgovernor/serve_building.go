@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"io"
 	"net"
 	"time"
@@ -305,9 +306,24 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	var advanced, windowRunning = func() {}, func() bool { return false }
 	var stepTrace func() telemetry.Trace
 	var validity func() (domain.ReadValidity, bool)
+	// The per-world store rebuild (#1123): the clock worker and the shadow
+	// writer share it, so it runs before either acts in a new world.
+	stateNative, shadowed := client.reads.(governorStateNative)
+	var rebuild *worldRebuild
+	var worldReady func(context.Context, *c.ObservationContext) (bool, error)
+	if shadowed {
+		rebuild = &worldRebuild{database: database, out: out}
+		if client.trade != nil && client.trade.Native != nil && client.trade.Writer != nil {
+			rebuild.orphans = struct {
+				buildingruntime.TradeNative
+				boundary.ActionsWriter
+			}{client.trade.Native, client.trade.Writer}
+		}
+		worldReady = rebuild.workerGate(stateNative)
+	}
 	if config.clockControl {
 		sections = factsstore.NewStore()
-		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, sections)
+		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, sections, worldReady)
 		if err != nil {
 			return err
 		}
@@ -395,19 +411,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	superviseDone := make(chan struct{})
 	defer func() { <-superviseDone }()
 	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out) }()
-	if native, ok := client.reads.(governorStateNative); ok {
-		var orphans orphanNative
-		if client.trade != nil && client.trade.Native != nil && client.trade.Writer != nil {
-			orphans = struct {
-				buildingruntime.TradeNative
-				boundary.ActionsWriter
-			}{client.trade.Native, client.trade.Writer}
-		}
+	if shadowed {
 		shadowDone := make(chan struct{})
 		defer func() { <-shadowDone }()
 		go func() {
 			defer close(shadowDone)
-			shadowGovernorState(lifetime, native, currentGovernorWorld(reads), database, orphans, config.refresh, out)
+			shadowGovernorState(lifetime, stateNative, currentGovernorWorld(reads), database, rebuild, config.refresh, out)
 		}()
 	}
 	if config.resume {

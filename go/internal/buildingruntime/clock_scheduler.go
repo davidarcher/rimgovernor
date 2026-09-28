@@ -139,6 +139,11 @@ type ClockSchedulerConfig struct {
 	Dialog              *RoutineDialogPlanner
 	Trade               *RoutineTradePlanner
 	RoutineMethods      bool
+	// WorldReady, when set, runs after the step's opening read and before
+	// any review: it rebuilds the store for the observed world if needed
+	// (#1123) and reports whether a rebuild reset the review cache since
+	// the last step, which makes this step review in full.
+	WorldReady func(context.Context, *c.ObservationContext) (bool, error)
 }
 type ClockSchedulerResult struct {
 	// Pacing is what the step's clock status said of the pace (#627).
@@ -881,6 +886,18 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		if err = bridge.ValidateContext(loaded.Context); err != nil {
 			return out, errors.Join(err, s.session.Disable())
+		}
+	}
+	if s.config.WorldReady != nil {
+		reset, e := s.config.WorldReady(call, loaded.Context)
+		if e != nil {
+			return out, fmt.Errorf("world rebuild: %w", e)
+		}
+		if reset && s.config.Routine != nil {
+			clockSchedulerLog("world rebuild reset the review cache at tick %d -> full review", loaded.Context.GetTick())
+			reason.Cause = StepFull
+			s.replanAfterFailure()
+			reviews = s.stepReviews(reason)
 		}
 	}
 	if window != nil {

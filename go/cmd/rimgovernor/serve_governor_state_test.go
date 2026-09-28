@@ -10,10 +10,12 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	rpb "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
+	"google.golang.org/protobuf/proto"
 )
 
 type fakeGovernorState struct {
@@ -45,14 +47,14 @@ func TestShadowGovernorStatePutsChanges(t *testing.T) {
 	native := &fakeGovernorState{blobs: map[string]string{"family/stale": "{}", "unrelated": "x"}}
 	var out bytes.Buffer
 	var written map[string]string
-	if err = shadowGovernorStateOnce(ctx, native, database, &written, nil, &out); err != nil {
+	if err = shadowGovernorStateOnce(ctx, native, database, &written, &out); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := native.blobs["family/stale"]; ok || native.blobs["unrelated"] != "" {
 		t.Fatal(out.String(), native.blobs)
 	}
 	puts := native.puts
-	if err = shadowGovernorStateOnce(ctx, native, database, &written, nil, &out); err != nil || native.puts != puts {
+	if err = shadowGovernorStateOnce(ctx, native, database, &written, &out); err != nil || native.puts != puts {
 		t.Fatal("unchanged store put again", err)
 	}
 }
@@ -240,8 +242,8 @@ func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
 	}
 	world := governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 1}
 	native := &fakeOrphanNative{session: bridge.TradeSessionRead{Trader: "trader", Negotiator: "negotiator", Open: true}}
-	shadow := governorShadow{orphans: native}
 	var out bytes.Buffer
+	shadow := governorShadow{rebuild: &worldRebuild{database: database, orphans: native, out: &out}}
 	if err = shadow.round(ctx, world, &fakeGovernorState{blobs: map[string]string{}}, database, &out); err != nil {
 		t.Fatal(err)
 	}
@@ -251,5 +253,45 @@ func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
 	idle := &fakeOrphanNative{}
 	if err = orphanSweep(idle, world, &out)(ctx, nil); err != nil || len(idle.applied) != 0 {
 		t.Fatal("no session still cancelled", err, idle.applied)
+	}
+}
+
+// The clock worker's first step in a world rebuilds before it reviews, so
+// the shadow's first round for that world leaves the review alone (#1123);
+// a rebuild after the review makes the worker's next step re-review.
+func TestWorldRebuildRunsBeforeTheWorkerReview(t *testing.T) {
+	ctx := context.Background()
+	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	var out bytes.Buffer
+	rebuild := &worldRebuild{database: database, out: &out}
+	native := &fakeGovernorState{blobs: map[string]string{}}
+	gate := rebuild.workerGate(native)
+	observed := &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("c"), LoadToken: proto.String("l"), MapId: proto.Int32(1)}, NativeGeneration: proto.Uint64(4)}
+	if reset, err := gate(ctx, observed); err != nil || !reset {
+		t.Fatal("first step did not rebuild", reset, err)
+	}
+	snapshot := domain.GenerationSnapshot{Colony: "c", Map: 1, Load: "l", Plan: "p"}
+	if _, err = database.ReviewRoutine(ctx, store.RoutineReviewRequest{Current: snapshot, Tick: 27, Enabled: true, Policy: policy.DefaultRoutinePolicy()}); err != nil {
+		t.Fatal(err)
+	}
+	shadow := governorShadow{rebuild: rebuild}
+	if err = shadow.round(ctx, governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 4}, native, database, &out); err != nil {
+		t.Fatal(err)
+	}
+	if review, err := database.LoadRoutineReview(ctx); err != nil || review.Revision == 0 {
+		t.Fatal("shadow round wiped the worker's review", review.Revision, err)
+	}
+	if reset, err := gate(ctx, observed); err != nil || reset {
+		t.Fatal("same world rebuilt again", reset, err)
+	}
+	if err = rebuild.ensure(ctx, governorWorld{Colony: "other", Map: 1, Load: "l", Generation: 5}, native); err != nil {
+		t.Fatal(err)
+	}
+	if reset, err := gate(ctx, observed); err != nil || !reset {
+		t.Fatal("a reset after the review did not force a re-review", reset, err)
 	}
 }
