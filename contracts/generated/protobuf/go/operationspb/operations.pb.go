@@ -3678,6 +3678,11 @@ func (x *ApplyRequest) GetActions() []*Action {
 type Action struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Key   *string                `protobuf:"bytes,1,opt,name=key,proto3,oneof" json:"key,omitempty"`
+	// Why the controller applies this action, one short ASCII line such as
+	// "Food supply: hunt, food runway 1.5d" (#822, #1129). Native keeps it with
+	// the jobs, blueprints and designations the apply places and the
+	// "activity" overlay shows it over the pawn; it never changes the apply.
+	Purpose *string `protobuf:"bytes,2,opt,name=purpose,proto3,oneof" json:"purpose,omitempty"`
 	// Types that are valid to be assigned to Intent:
 	//
 	//	*Action_Trade
@@ -3754,6 +3759,13 @@ func (*Action) Descriptor() ([]byte, []int) {
 func (x *Action) GetKey() string {
 	if x != nil && x.Key != nil {
 		return *x.Key
+	}
+	return ""
+}
+
+func (x *Action) GetPurpose() string {
+	if x != nil && x.Purpose != nil {
+		return *x.Purpose
 	}
 	return ""
 }
@@ -6849,9 +6861,10 @@ const file_operations_proto_rawDesc = "" +
 	"\aoutcome\"\x88\x01\n" +
 	"\fApplyRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12;\n" +
-	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\"\xd9\x15\n" +
+	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\"\x84\x16\n" +
 	"\x06Action\x12\x15\n" +
-	"\x03key\x18\x01 \x01(\tH\x01R\x03key\x88\x01\x01\x12>\n" +
+	"\x03key\x18\x01 \x01(\tH\x01R\x03key\x88\x01\x01\x12\x1d\n" +
+	"\apurpose\x18\x02 \x01(\tH\x02R\apurpose\x88\x01\x01\x12>\n" +
 	"\x05trade\x18\n" +
 	" \x01(\v2&.rimgovernor.operations.v1.TradeIntentH\x00R\x05trade\x12G\n" +
 	"\bbuilding\x18\v \x01(\v2).rimgovernor.operations.v1.BuildingIntentH\x00R\bbuilding\x12;\n" +
@@ -6897,7 +6910,9 @@ const file_operations_proto_rawDesc = "" +
 	"\rcombat_orders\x18- \x01(\v2'.rimgovernor.operations.v1.CombatOrdersH\x00R\fcombatOrders\x12D\n" +
 	"\aacquire\x18. \x01(\v2(.rimgovernor.operations.v1.AcquireIntentH\x00R\aacquireB\b\n" +
 	"\x06intentB\x06\n" +
-	"\x04_keyJ\x04\b\x0e\x10\x0fR\x05melee\"\xe5\x01\n" +
+	"\x04_keyB\n" +
+	"\n" +
+	"\b_purposeJ\x04\b\x0e\x10\x0fR\x05melee\"\xe5\x01\n" +
 	"\rAcquireIntent\x12 \n" +
 	"\tsource_id\x18\x01 \x01(\tH\x00R\bsourceId\x88\x01\x01\x12/\n" +
 	"\x11resource_def_name\x18\x02 \x01(\tH\x01R\x0fresourceDefName\x88\x01\x01\x12/\n" +

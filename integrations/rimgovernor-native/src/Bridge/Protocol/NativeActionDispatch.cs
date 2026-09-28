@@ -118,7 +118,8 @@ namespace HomeBridge.BridgeTools
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refused(action.Key, Common.FailureCode.AuthorityRequired, "Current native authority is required.");
                 Receipts.EffectEvidence evidence;
-                using (authority.Owned()) evidence = handler.Apply(action, context);
+                using (authority.Owned())
+                using (BridgeTools.OperationIntent.Scope(action.Purpose)) evidence = handler.Apply(action, context);
                 return new Operations.ActionResult { Key = action.Key, Applied = new Receipts.Receipt
                     { AdmittedContext = context, Applied = new Receipts.Applied { Observed = evidence } } };
             }

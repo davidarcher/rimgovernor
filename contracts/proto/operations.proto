@@ -230,6 +230,11 @@ message ApplyRequest {
 // One intent kind per arm.
 message Action {
   optional string key = 1;
+  // Why the controller applies this action, one short ASCII line such as
+  // "Food supply: hunt, food runway 1.5d" (#822, #1129). Native keeps it with
+  // the jobs, blueprints and designations the apply places and the
+  // "activity" overlay shows it over the pawn; it never changes the apply.
+  optional string purpose = 2;
   // Melee attacks are combat orders; subdue is PawnOrderIntent SUBDUE (#939).
   reserved 14; reserved "melee";
   oneof intent {

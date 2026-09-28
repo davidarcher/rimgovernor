@@ -12,8 +12,8 @@ using Verse.AI;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// Why the bot is doing what it does (#822). The operation dispatcher
-    /// sets the op's intent for the duration of the op; jobs ordered, and
+    /// Why the bot is doing what it does (#822). Actions/Apply
+    /// scopes each action's purpose around its apply (#1129); jobs ordered, and
     /// blueprints, frames and designations placed, in that scope remember it.
     /// A colonist whose current job is one of those, or targets one of those
     /// cells, is on bot work: the "activity" overlay group draws its lines
