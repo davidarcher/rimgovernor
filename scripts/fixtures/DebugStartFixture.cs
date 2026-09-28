@@ -483,7 +483,12 @@ namespace HomeBridge.BridgeTools
             {
                 Rand.PopState();
             }
-            if (hostiles.Count > 0)
+            // siege (#1147): the hostiles are a real siege lord camped at the
+            // spot; the game's own LordToil_Siege places the blueprints, drops
+            // the supplies and sets the builders to work on the frames.
+            if (hostiles.Count > 0 && spec["siege"] is JObject siege)
+                LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_Siege(hostiles[0].Faction, Cell(map, siege), (float?)siege["points"] ?? 500f), map, hostiles);
+            else if (hostiles.Count > 0)
                 LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, hostiles);
             if (insects.Count > 0)
                 LordMaker.MakeNewLord(Faction.OfInsects, new LordJob_AssaultColony(Faction.OfInsects, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, insects);
@@ -617,7 +622,7 @@ namespace HomeBridge.BridgeTools
                         id = p.GetUniqueLoadID(), side = p.Faction == Faction.OfPlayer ? "colonist" : "hostile", x = p.PositionHeld.x, z = p.PositionHeld.z, downed = p.Downed, dead = p.Dead,
                         fleeing = !p.Dead && (p.MentalStateDef == MentalStateDefOf.PanicFlee || p.CurJobDef == JobDefOf.Flee || p.CurJobDef == JobDefOf.FleeAndCower),
                         job = p.CurJobDef?.defName, playerForced = p.CurJob?.playerForced == true, jobCell = p.CurJob == null || p.CurJob.targetA.HasThing ? null : new { x = p.CurJob.targetA.Cell.x, z = p.CurJob.targetA.Cell.z },
-                        jobThing = p.CurJob?.targetA.Thing?.GetUniqueLoadID(), drafted = p.Drafted, fireAtWill = p.drafter?.FireAtWill,
+                        jobThing = p.CurJob?.targetA.Thing?.GetUniqueLoadID(), lordJob = p.GetLord()?.LordJob?.GetType().Name, lordToil = p.GetLord()?.CurLordToil?.GetType().Name, drafted = p.Drafted, fireAtWill = p.drafter?.FireAtWill,
                         shield = p.apparel?.WornApparel.Select(a => a.GetComp<CompShield>()).FirstOrDefault(c => c != null)?.Energy,
                         area = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.Label, areaCells = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.TrueCount ?? 0,
                         hediffs = p.health.hediffSet.hediffs.Select(h => h.def.defName).Distinct().ToList() }).ToList(),

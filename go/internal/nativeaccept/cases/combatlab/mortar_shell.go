@@ -15,7 +15,7 @@ const shellLoadTicks = 1800
 func init() {
 	cases.Register(cases.Case{
 		Name: "combatlab/mortar-shell",
-		Scope: "The combat.orders mortar shell op (#1051), a native op no snapshot can prove: on lab-siege, a crew ordered to fire HE at the camp's mortar " +
+		Scope: "The combat.orders mortar shell op (#1051), a native op no snapshot can prove: on lab-siege, a crew ordered to fire HE at the siege camp " +
 			"loads Shell_HighExplosive (the combat_mortars row's loaded_shell), a second order naming Steel refuses unknown_shell, and a re-order " +
 			"naming Shell_EMP unloads the HE (if still loaded) and loads the EMP shell.",
 		Start:       cases.Lab{Colonists: 3},

@@ -92,7 +92,11 @@ func Stage(ctx context.Context, h *na.Harness, name string, edits ...func(f *Fix
 	}
 	for i, want := range f.Pawns {
 		row, _ := na.AsMap(rows[i])
-		if err := checkPawn(want, row); err != nil {
+		lord := "LordJob_AssaultColony"
+		if f.Siege != nil {
+			lord = "LordJob_Siege"
+		}
+		if err := checkPawn(want, row, lord); err != nil {
 			return Staged{}, fmt.Errorf("%s pawn %d: %w", name, i, err)
 		}
 		out.Pawns = append(out.Pawns, row)
@@ -166,7 +170,7 @@ func Gap(pawns map[string]Position) int {
 	return best
 }
 
-func checkPawn(want Pawn, got map[string]any) error {
+func checkPawn(want Pawn, got map[string]any, lord string) error {
 	// A pod hostile (#870) lands where its arrival mode drops the pod.
 	if inPod, _ := na.AsBool(got["inPod"]); inPod {
 		want.X, want.Z = int(na.AsNumber(got["x"])), int(na.AsNumber(got["z"]))
@@ -184,8 +188,8 @@ func checkPawn(want Pawn, got map[string]any) error {
 		return fmt.Errorf("hostile %v for side %s", hostile, want.Side)
 	}
 	if want.Side == Hostile {
-		if na.AsString(got["lordJob"]) != "LordJob_AssaultColony" {
-			return fmt.Errorf("lord job %v, want LordJob_AssaultColony", got["lordJob"])
+		if na.AsString(got["lordJob"]) != lord {
+			return fmt.Errorf("lord job %v, want %s", got["lordJob"], lord)
 		}
 		if n := int(na.AsNumber(got["apparel"])); n != 0 {
 			return fmt.Errorf("hostile wears %d apparel, want none", n)

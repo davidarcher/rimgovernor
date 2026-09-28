@@ -61,6 +61,10 @@ type Fixture struct {
 	Arrival string `json:"arrival,omitempty"`
 	// Roof, when set, roofs a rectangle (#1071: overhead mountain).
 	Roof *Roof `json:"roof,omitempty"`
+	// Siege, when set, puts the hostiles under a real siege lord
+	// (LordJob_Siege) camped at its cell instead of an assault lord
+	// (#1147): the game places the camp's blueprints and drops its supplies.
+	Siege *Siege `json:"siege,omitempty"`
 	// PrisonBreak starts a prison break by the first prisoner once staged
 	// (#1080).
 	PrisonBreak bool `json:"prisonBreak,omitempty"`
@@ -89,6 +93,13 @@ type Roof struct {
 	MinZ int    `json:"minZ"`
 	MaxX int    `json:"maxX"`
 	MaxZ int    `json:"maxZ"`
+}
+
+// Siege is a siege lord's camp spot and blueprint points (#1147).
+type Siege struct {
+	X      int     `json:"x"`
+	Z      int     `json:"z"`
+	Points float64 `json:"points"`
 }
 
 // Cell is one map cell.
@@ -247,25 +258,33 @@ func pods(cx, cz int) Fixture {
 }
 
 // Siege offsets (#1051): our mortar 15 cells south of the centre, the
-// camp's mortar 20 north, 35 apart (past the vanilla mortar's 29.9-cell
+// siege camp spot 20 north, 35 apart (past the vanilla mortar's 29.9-cell
 // minimum range).
 const (
 	siegeOurMortar  = -15
 	siegeCampMortar = 20
+	// siegePoints is the camp's blueprint points, a mid-size vanilla
+	// siege (RaidStrategyWorker_Siege takes 20-30% of the raid's points).
+	siegePoints = 500
 )
 
 // siege: three riflemen by an unroofed player mortar with one HE and one
-// EMP shell beside it, and a hostile siege mortar at the camp. For the
-// counter-battery shell op (#1051).
+// EMP shell beside it, and four raiders under a real siege lord at the camp
+// spot 20 cells north (#1147): the game places the camp's blueprints,
+// drops its supplies, and the raiders build the frames. For the
+// counter-battery shell op (#1051) and the siege tactics.
 func siege(cx, cz int) Fixture {
 	f := Fixture{Name: "lab-siege", Colonists: 3}
 	f.Things = append(f.Things,
 		Thing{Def: "Turret_Mortar", X: cx, Z: cz + siegeOurMortar},
 		Thing{Def: "Shell_HighExplosive", X: cx + 2, Z: cz + siegeOurMortar - 1},
-		Thing{Def: "Shell_EMP", X: cx - 2, Z: cz + siegeOurMortar - 1},
-		Thing{Def: "Turret_Mortar", X: cx, Z: cz + siegeCampMortar, Hostile: true})
+		Thing{Def: "Shell_EMP", X: cx - 2, Z: cz + siegeOurMortar - 1})
+	f.Siege = &Siege{X: cx, Z: cz + siegeCampMortar, Points: siegePoints}
 	for i, dx := range []int{-2, 0, 2} {
 		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz + siegeOurMortar + 3, Weapon: rifle})
+	}
+	for _, dx := range []int{-3, -1, 1, 3} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: gunner, X: cx + dx, Z: cz + siegeCampMortar, Weapon: rifle})
 	}
 	return f
 }
