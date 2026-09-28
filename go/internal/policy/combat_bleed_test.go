@@ -33,6 +33,81 @@ func bleedView() CombatView {
 	}
 }
 
+// finishView is bleedView with r1 unwounded (so it will not bleed down)
+// and brawlers: unarmed u1 (power 2) and u2 (power 1), knife k (power 5),
+// and m, melee-armed, already fighting the charging r2.
+func finishView() (CombatView, CombatMemory) {
+	v := bleedView()
+	v.Pawns[4].BloodLoss, v.Pawns[4].BleedRatePerDay, v.Pawns[4].HoursUntilBleedDeath = domain.Unknown[float64](), domain.Unknown[float64](), domain.Unknown[float64]()
+	brawler := func(id domain.PawnID, power float64, armed bool) SquadDefenderFacts {
+		d := combatRifleman(id)
+		d.RangedEquipped, d.MeleeEquipped, d.Armed, d.MeleePower = domain.Known(false), domain.Known(armed), domain.Known(armed), domain.Known(power)
+		return d
+	}
+	v.Defenders = append(v.Defenders, brawler("u1", 2, false), brawler("u2", 1, false), brawler("k", 5, true), brawler("m", 3, true))
+	for _, id := range []domain.PawnID{"u1", "u2", "k", "m"} {
+		v.Pawns = append(v.Pawns, CombatPawnState{ID: id, Cell: domain.Known(domain.Cell{X: 5, Z: 30}), Stance: StanceIdle})
+		v.Orderable = append(v.Orderable, id)
+	}
+	m := CombatMemory{Tactic: TacticSquad, Formed: 50, Roles: []CombatRole{
+		{Pawn: "a", Target: "r2", Ranged: true}, {Pawn: "b", Target: "r1", Ranged: true},
+		{Pawn: "c", Target: "r2", Ranged: true}, {Pawn: "d", Target: "r2", Ranged: true},
+		{Pawn: "m", Target: "r2"},
+	}}
+	return v, m
+}
+
+func roleOf(m CombatMemory, id domain.PawnID) CombatRole {
+	for _, r := range m.Roles {
+		if r.Pawn == id {
+			return r
+		}
+	}
+	return CombatRole{}
+}
+
+func TestContainedRaiderGetsLowestDamageMelee(t *testing.T) {
+	v, mem := finishView()
+	orders, m := decideStop(t, v, StopEvent{}, mem)
+	for _, id := range []domain.PawnID{"u2", "u1", "k"} {
+		if r := roleOf(m, id); r.Target != "r1" || r.Ranged {
+			t.Fatalf("%s: %+v", id, m.Roles)
+		}
+	}
+	// Lowest melee damage first: u2's order leads u1's, u1's leads k's.
+	var seq []domain.PawnID
+	for _, o := range orders {
+		if o.Kind == OrderAttack && o.Target == "r1" {
+			seq = append(seq, o.Pawn)
+		}
+	}
+	if !slices.Equal(seq, []domain.PawnID{"u2", "u1", "k"}) {
+		t.Fatalf("%v %+v", seq, orders)
+	}
+	// The gunner on r1 drops it; m, needed on r2, stays there.
+	if roleOf(m, "b").Target == "r1" || roleOf(m, "m").Target != "r2" {
+		t.Fatalf("%+v", m.Roles)
+	}
+}
+
+func TestUncontainedRaiderGetsNoFinishers(t *testing.T) {
+	v, mem := finishView()
+	v.Pawns[4].Target = "b"
+	_, m := decideStop(t, v, StopEvent{}, mem)
+	if roleOf(m, "u1").Target == "r1" || roleOf(m, "b").Target != "r1" {
+		t.Fatalf("%+v", m.Roles)
+	}
+}
+
+func TestNoFinishersAtPopulationTarget(t *testing.T) {
+	v, mem := finishView()
+	v.Population = domain.Known(domain.PopulationTarget)
+	_, m := decideStop(t, v, StopEvent{}, mem)
+	if roleOf(m, "u1").Target == "r1" {
+		t.Fatalf("%+v", m.Roles)
+	}
+}
+
 func targeted(m CombatMemory, id domain.PawnID) bool {
 	return slices.ContainsFunc(m.Roles, func(r CombatRole) bool { return r.Target == id })
 }
