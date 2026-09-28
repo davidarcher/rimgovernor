@@ -85,10 +85,13 @@ func humanoidRaid(view CombatView, m CombatMemory) bool {
 // drops its roles so it re-forms to fight, and allows the doors it forbade.
 func waitTurn(view CombatView, m *CombatMemory) {
 	raid := humanoidRaid(view, *m)
-	if !ManhunterPack(view) && !raid {
+	insects := Infestation(view)
+	if !ManhunterPack(view) && !insects && !raid {
 		return
 	}
-	wait := outmatched(view) || extremeWeather(view)
+	// An outmatched infestation evacuates (#1076); insects under the
+	// mountain do not feel the weather.
+	wait := outmatched(view) || !insects && extremeWeather(view)
 	if wait && !m.Wait {
 		m.WaitSince = view.Tick
 	}

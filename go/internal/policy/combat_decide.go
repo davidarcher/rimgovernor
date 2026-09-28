@@ -153,6 +153,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	noteEMPAdapted(view, &next)
 	grenade(view, &next)
 	hiveGrenade(view, &next)
+	drillEvacuate(view, &next, orderable)
 	mechDisengage(view, &next)
 	// Contained raiders who will not bleed down are finished in melee (#1036).
 	finishContained(view, &next)
@@ -488,6 +489,9 @@ type CombatMemory struct {
 	// chaser past the line (#901).
 	Kiter   domain.PawnID `json:",omitempty"`
 	Leading bool          `json:",omitempty"`
+	// Driller is the colonist that worked the deep drill a deep-drill
+	// infestation tunnelled up by; it evacuates (#1076).
+	Driller domain.PawnID `json:",omitempty"`
 	// Wait is a manhunter fight or humanoid raid sheltering, outmatched,
 	// behind the doors WaitDoors closes and forbids (#902, #1065), since
 	// WaitSince.

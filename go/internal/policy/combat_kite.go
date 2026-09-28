@@ -103,11 +103,12 @@ func kiterEligible(r CombatRole, s CombatPawnState, armor domain.Fact[float64], 
 // kiteLead is the kiting step's lead cell and the MoveSpeed a kiter
 // needs, ok false when the fight is not kited. A manhunter pack of known
 // speeds is led to the inner-line cell farthest behind the firing line;
-// the kiter needs kiteSpeedRatio of the fastest animal, kiteFastRatio
+// the kiter needs kiteSpeedRatio of the fastest animal (an infestation's
+// insects are lured out and kited alike, #1076), kiteFastRatio
 // when any animal is at least a colonist's speed. A mech raid takes
 // mechKiteLead.
 func kiteLead(view CombatView, m CombatMemory) (domain.Cell, float64, bool) {
-	if m.Tactic != TacticManhunter {
+	if m.Tactic != TacticManhunter && m.Tactic != TacticInfestation {
 		return mechKiteLead(view, m)
 	}
 	lure, ok := rearmostRetreat(view)

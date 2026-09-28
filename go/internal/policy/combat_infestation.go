@@ -125,3 +125,62 @@ func hiveGrenade(view CombatView, m *CombatMemory) {
 		r.Ground = best
 	}
 }
+
+// deepDrillJob is a colonist's job while it works a deep drill.
+const deepDrillJob = "OperateDeepDrill"
+
+// drillEvacuate is the deep-drill spawn (#1076): insects tunnel up near a
+// working drill, with no hive. The colonist working the drill when the
+// fight starts is latched as the driller and evacuates: it drops its
+// target and duty and retreats to the rearmost inner-line cell, else
+// kiteLeadRange cells straight away from the nearest insect, while the
+// formation's brawlers melee-block. Later stops keep the latch although
+// the driller's job has changed.
+func drillEvacuate(view CombatView, m *CombatMemory, orderable map[domain.PawnID]bool) {
+	if m.Tactic != TacticInfestation || slices.ContainsFunc(view.Structures, HostileStructure.hive) {
+		m.Driller = ""
+		return
+	}
+	state := map[domain.PawnID]CombatPawnState{}
+	for _, p := range view.Pawns {
+		state[p.ID] = p
+	}
+	if m.Driller == "" {
+		for _, d := range view.Defenders {
+			if s := state[d.ID]; s.Job == deepDrillJob && !s.Dead && !s.Downed {
+				m.Driller = d.ID
+				break
+			}
+		}
+	}
+	s := state[m.Driller]
+	if m.Driller == "" || s.Dead || s.Downed {
+		return
+	}
+	to, ok := rearmostRetreat(view)
+	if !ok {
+		at, known := s.Cell.Value()
+		var near *domain.Cell
+		for _, h := range rankThreats(view) {
+			if c, ok := h.Cell.Value(); ok && known && (near == nil || distance2(c, at) < distance2(*near, at)) {
+				near = &c
+			}
+		}
+		if near == nil {
+			return
+		}
+		to = domain.Cell{X: at.X + kiteLeadRange*sign(at.X-near.X), Z: at.Z + kiteLeadRange*sign(at.Z-near.Z)}
+	}
+	if m.Kiter == m.Driller {
+		m.Kiter, m.Leading = "", false
+	}
+	i := slices.IndexFunc(m.Roles, func(r CombatRole) bool { return r.Pawn == m.Driller })
+	if i < 0 {
+		if !orderable[m.Driller] {
+			return
+		}
+		m.Roles = append(m.Roles, CombatRole{})
+		i = len(m.Roles) - 1
+	}
+	m.Roles[i] = CombatRole{Pawn: m.Driller, Cell: &to, Retreat: true}
+}
