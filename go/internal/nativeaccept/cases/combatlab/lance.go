@@ -16,7 +16,7 @@ func init() {
 		Name: "combatlab/shock-lance",
 		Scope: "UseItemIntent on Actions/Apply (#1038), a native op contract and vanilla hediff physics no snapshot can prove: on lab-open cut to one club raider, " +
 			"colonist 0 wears a psychic shock lance; one Actions/Apply use_item of the worn lance on the raider applies, the colonist takes the verb's " +
-			"UseVerbOnThing job on the raider, and within 1200 ticks the raider is down with PsychicShock and alive. The planner's choice of target " +
+			"UseVerbOnThingStatic job on the raider, and within 1200 ticks the raider is down with PsychicShock and alive. The planner's choice of target " +
 			"and wearer is the policy test (population_lance_test.go).",
 		Start:       cases.Lab{Colonists: 3},
 		RequiredOps: []string{na.LabStartTool, StageTool, "rimgovernor/operations_apply"},
@@ -92,8 +92,8 @@ func runShockLance(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if p := after.pawns[user]; na.AsString(p["jobThing"]) != raider || na.AsString(p["job"]) != "UseVerbOnThing" {
-		return fmt.Errorf("colonist 0 after use_item: want UseVerbOnThing on the raider, got %v", p)
+	if p := after.pawns[user]; na.AsString(p["jobThing"]) != raider || na.AsString(p["job"]) != "UseVerbOnThingStatic" {
+		return fmt.Errorf("colonist 0 after use_item: want UseVerbOnThingStatic on the raider, got %v", p)
 	}
 	for step := 0; step < 20; step++ {
 		pawns, tick, err := Tick(ctx, h, 60)

@@ -38,6 +38,21 @@ namespace HomeBridge.BridgeTools
             return verbs?.FirstOrDefault(v => v is Verb_CastTargetEffect);
         }
 
+        // Verb_CastBase.ValidateTarget reads Event.current.shift (ReloadableUtility
+        // .CanUseConsideringQueuedJobs), which is null outside OnGUI: give it a
+        // plain event (no shift = the charge check) for the call. The field, not
+        // the setter: the setter pushes a native event and refuses null.
+        private static readonly AccessTools.FieldRef<UnityEngine.Event> CurrentEvent = AccessTools.StaticFieldRefAccess<UnityEngine.Event>(AccessTools.Field(typeof(UnityEngine.Event), "s_Current"));
+        private static readonly UnityEngine.Event PlainEvent = new UnityEngine.Event();
+
+        private static bool ValidateOffGui(Verb verb, Pawn target)
+        {
+            if (CurrentEvent() != null) return verb.ValidateTarget(target, false);
+            CurrentEvent() = PlainEvent;
+            try { return verb.ValidateTarget(target, false); }
+            finally { CurrentEvent() = null!; }
+        }
+
         // The verb's job targets the pawn (targetA); CompUsable's use job
         // targets the item (targetA) and the extra target (targetB).
         private static bool Running(Pawn pawn, Thing item, Pawn target, Verb? verb)
@@ -69,7 +84,7 @@ namespace HomeBridge.BridgeTools
                     return Fail(Common.FailureCode.InvalidRequest, "Colonist is incapable of violence.");
                 if (verb.caster != pawn) verb.caster = pawn;
                 if (!verb.Available()) return Fail(Common.FailureCode.InvalidRequest, "Item verb has no charge or cannot be used here.");
-                if (!verb.verbProps.targetParams.CanTarget(target) || !verb.ValidateTarget(target, false))
+                if (!verb.verbProps.targetParams.CanTarget(target) || !ValidateOffGui(verb, target))
                     return Fail(Common.FailureCode.InvalidRequest, "Item verb refuses this target.");
                 return null;
             }
