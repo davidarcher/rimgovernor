@@ -193,7 +193,7 @@ internal static class Program
             @"{""pending"":{""requestId"":""load-request"",""saveName"":""save"",""processConnected"":true,""mapReady"":false,""visualReady"":false}}",
             "csharp-load-pending");
         Example(descriptors, "rimgovernor.operations.v1.ExecuteRequest",
-            @"{""precondition"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""expectedGeneration"":""1"",""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""}},""operation"":{""setDrafted"":{""pawn"":{""entityId"":""Thing_Pawn1"",""expectedSnapshotToken"":""snapshot""},""drafted"":true}}}",
+            @"{""precondition"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""expectedGeneration"":""1"",""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""}},""operation"":{""createZone"":{""type"":""ZONE_TYPE_STOCKPILE"",""label"":""Stockpile"",""cells"":{""rectangle"":{""origin"":{""x"":10,""z"":10},""width"":3,""height"":3}}}}}",
             "csharp-operation-present-false");
         Example(descriptors, "rimgovernor.receipts.v1.Receipt",
             @"{""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""},""admittedContext"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""tick"":""42"",""nativeGeneration"":""1""},""applied"":{""observed"":{""settings"":{""snapshot"":{""entityId"":""Thing_Pawn1"",""beforeToken"":""before"",""afterToken"":""after""}}}}}",
