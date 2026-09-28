@@ -227,9 +227,6 @@ func (s *Store) EnsureRootPlan(ctx context.Context, w World) (PlanState, error) 
 	if err = createPlan(ctx, tx, plan); err != nil {
 		return PlanState{}, err
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO root_plans(plan_id,colony,load_token,map_id) VALUES(?,?,?,?)", id, w.Colony, w.Load, w.Map); err != nil {
-		return PlanState{}, err
-	}
 	if state, err = load(ctx, tx, id); err != nil {
 		return PlanState{}, err
 	}

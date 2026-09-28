@@ -25,7 +25,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 158
+const schemaVersion = 159
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -297,9 +297,6 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 		}
 		var entropy [32]byte
 		if _, err = tx.ExecContext(ctx, `CREATE TABLE control_intents(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, phase TEXT NOT NULL, native_generation TEXT NOT NULL) STRICT`); err != nil {
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, `CREATE TABLE root_plans(plan_id TEXT PRIMARY KEY REFERENCES plans(id), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL) STRICT`); err != nil {
 			return err
 		}
 		if _, err = rand.Read(entropy[:]); err != nil {
