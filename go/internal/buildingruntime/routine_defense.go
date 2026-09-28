@@ -30,6 +30,8 @@ type RoutineDefenseSource interface {
 	// ReadCombat is the newest snapshot frame's combat state and the
 	// fight's other inputs (#851, #853, #858).
 	ReadCombat(context.Context, *c.Identity) (bridge.Combat, error)
+	// ReadDefenseSite censuses a burn-out's fuel (#1120).
+	burnFuelSource
 }
 type RoutineDefensePlanner struct {
 	reviewer *RoutineReviewer
@@ -167,7 +169,12 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		}
 		held = domain.Known(combatLayout)
 	}
+	fuel, err := combatBurnFuel(call, r.native, identity, memory, combat.Context.GetTick())
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
 	view := combatView(combat, in, orderable, held)
+	view.BurnFuel = fuel
 	tick := view.Tick
 	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
@@ -213,6 +220,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		recorded.Orderable = append(slices.Clone(orderable), drafts...)
 		slices.Sort(recorded.Orderable)
 		view = combatView(combat, in, recorded.Orderable, held)
+		view.BurnFuel = fuel
 		var more *policy.GeometryRequest
 		orders, more, next = policy.DecideCombat(view, recorded.Reply, stop, memory)
 		if more != nil && recorded.Ask == nil {

@@ -94,6 +94,11 @@ type legacyDefense interface {
 // combat pawns or events.
 type framed struct{ legacyDefense }
 
+// ReadDefenseSite serves an empty census: no burn-out fuel stands.
+func (f framed) ReadDefenseSite(context.Context, *c.Identity, bridge.CellRect) (bridge.DefenseSite, bridge.Result, error) {
+	return bridge.DefenseSite{}, bridge.Result{}, nil
+}
+
 func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Combat, error) {
 	emergency, _, err := f.ReadEmergency(ctx, identity)
 	if err != nil {

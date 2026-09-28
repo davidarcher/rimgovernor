@@ -154,6 +154,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	grenade(view, &next)
 	hiveGrenade(view, &next)
 	heatHold(view, &next)
+	burnOut(view, &next)
 	drillEvacuate(view, &next, orderable)
 	mechDisengage(view, &next)
 	// Contained raiders who will not bleed down are finished in melee (#1036).
@@ -307,6 +308,9 @@ type CombatView struct {
 	// HiveTemperatureC is the hottest live hive's temperature in degrees
 	// Celsius from the frame (#1073): the heat-stroke hold and entry check.
 	HiveTemperatureC domain.Fact[float64] `json:",omitzero"`
+	// BurnFuel is the fuel stools standing around a burn-out's hive, from
+	// the combat step's census while the burn waits on them (#1120).
+	BurnFuel domain.Fact[int] `json:",omitzero"`
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -552,6 +556,8 @@ type CombatMemory struct {
 	// EMPAdapted are the mechs seen stunned, each until its EMP adaptation
 	// ends (#1050), sorted by pawn.
 	EMPAdapted []EMPAdaptation `json:",omitempty"`
+	// Burn is an infestation's burn-out (#1120).
+	Burn *CombatBurn `json:",omitempty"`
 }
 
 // RefuseShell is Forget for a mortar order native refused for its shell
@@ -650,6 +656,10 @@ func (m CombatMemory) clone() CombatMemory {
 	if m.PotshotDoor != nil {
 		d := *m.PotshotDoor
 		m.PotshotDoor = &d
+	}
+	if m.Burn != nil {
+		b := *m.Burn
+		m.Burn = &b
 	}
 	if m.Pods != nil {
 		p := *m.Pods

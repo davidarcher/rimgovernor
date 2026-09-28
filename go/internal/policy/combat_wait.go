@@ -89,9 +89,10 @@ func waitTurn(view CombatView, m *CombatMemory) {
 	if !ManhunterPack(view) && !insects && !raid {
 		return
 	}
-	// An outmatched infestation evacuates (#1076); insects under the
-	// mountain do not feel the weather.
-	wait := outmatched(view) || !insects && extremeWeather(view)
+	// An outmatched infestation evacuates (#1076), a lit burn-out waits
+	// out its fire (#1120); insects under the mountain do not feel the
+	// weather.
+	wait := outmatched(view) || !insects && extremeWeather(view) || burnWaiting(*m)
 	if wait && !m.Wait {
 		m.WaitSince = view.Tick
 	}

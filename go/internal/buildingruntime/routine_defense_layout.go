@@ -190,7 +190,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		}
 	}
 	if wait != nil {
-		return r.harden(call, epoch, goal, state, *wait)
+		return r.fight(call, epoch, goal, state, *wait)
 	}
 	// EnsureDefensiveLayout competes for the bounded concurrent-project
 	// capacity with the other priority>=3 autopilot goals; admission would

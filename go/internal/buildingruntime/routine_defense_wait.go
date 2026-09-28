@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -15,14 +16,15 @@ import (
 const defenseWaitTier policy.DefenseTierName = "wait"
 
 // defenseWaitingFight is the memory of this world's open fight while it
-// waits behind its rooms' doors (#1065), nil otherwise.
+// waits behind its rooms' doors (#1065) or its burn-out waits on fuel
+// (#1120), nil otherwise.
 func defenseWaitingFight(ctx context.Context, journal *store.Store, world store.World) (*policy.CombatMemory, error) {
 	fights, err := journal.OpenCombatFights(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, f := range fights {
-		if f.Open && f.World == world && f.Memory.Wait && len(f.Memory.WaitRooms) > 0 {
+		if f.Open && f.World == world && (f.Memory.Wait && len(f.Memory.WaitRooms) > 0 || f.Memory.Burn.Fueling()) {
 			m := f.Memory
 			return &m, nil
 		}
@@ -43,43 +45,77 @@ func defenseWaitRegion(m policy.CombatMemory) bridge.CellRect {
 	return r
 }
 
-// harden admits the waiting fight's builds (#1065): plasteel over its
-// rooms' wooden doors, a wall behind each broken door. One method per
-// stop tick; the open-plan check upstream keeps one in flight.
-func (r *RoutineDefenseLayoutPlanner) harden(call, epoch context.Context, goal store.GoalState, state ControlState, m policy.CombatMemory) (RoutineDefenseLayoutResult, error) {
+// fight builds the waiting fight's needs: the burn-out's fuel (#1120)
+// while it waits on it, else the wait's hardening (#1065).
+func (r *RoutineDefenseLayoutPlanner) fight(call, epoch context.Context, goal store.GoalState, state ControlState, m policy.CombatMemory) (RoutineDefenseLayoutResult, error) {
+	if m.Burn.Fueling() {
+		return r.fuel(call, epoch, goal, state, *m.Burn)
+	}
+	return r.harden(call, epoch, goal, state, m)
+}
+
+// fightCensus reads the routine observation and the census of region at
+// the same tick, keyed by visible cell.
+func (r *RoutineDefenseLayoutPlanner) fightCensus(call context.Context, state ControlState, region bridge.CellRect) (observation.RoutineReading, map[domain.Cell]policy.WaitDoorCell, error) {
 	p := r.reviewer.player
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
-		return RoutineDefenseLayoutResult{}, err
+		return observation.RoutineReading{}, nil, err
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
-		return RoutineDefenseLayoutResult{}, err
+		return observation.RoutineReading{}, nil, err
 	}
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
 	if err != nil {
-		return RoutineDefenseLayoutResult{}, err
+		return observation.RoutineReading{}, nil, err
 	}
-	tick := read.Projection.Identity.Tick
-	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), defenseWaitRegion(m))
+	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), region)
 	if err != nil {
-		return RoutineDefenseLayoutResult{}, err
+		return observation.RoutineReading{}, nil, err
 	}
-	if err = r.sameTick(site.Context, state, tick); err != nil {
-		return RoutineDefenseLayoutResult{}, err
+	if err = r.sameTick(site.Context, state, read.Projection.Identity.Tick); err != nil {
+		return observation.RoutineReading{}, nil, err
 	}
+	return read, defenseFightCensus(site), nil
+}
+
+// defenseFightCensus is a census's visible cells by cell.
+func defenseFightCensus(site bridge.DefenseSite) map[domain.Cell]policy.WaitDoorCell {
 	census := map[domain.Cell]policy.WaitDoorCell{}
 	for _, c := range site.Cells {
 		if !c.Fogged {
 			census[c.Cell] = policy.WaitDoorCell{Edifice: c.EdificeDefName, Stuff: c.EdificeStuff, Walkable: c.Walkable}
 		}
 	}
+	return census
+}
+
+// harden admits the waiting fight's builds (#1065): plasteel over its
+// rooms' wooden doors, a wall behind each broken door. One method per
+// stop tick; the open-plan check upstream keeps one in flight.
+func (r *RoutineDefenseLayoutPlanner) harden(call, epoch context.Context, goal store.GoalState, state ControlState, m policy.CombatMemory) (RoutineDefenseLayoutResult, error) {
+	if len(m.WaitRooms) == 0 {
+		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit, Tier: defenseWaitTier}, nil
+	}
+	read, census, err := r.fightCensus(call, state, defenseWaitRegion(m))
+	if err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
 	stock, _ := read.Projection.Resources.Value()
 	buildings, err := policy.WaitHardening(m, census, stock[policy.Resource(policy.WaitDoorStuff)], defenseDefinitions.Door, defenseDefinitions.Wall, defenseDefinitions.WallStuff)
 	if err != nil || len(buildings) == 0 {
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit, Tier: defenseWaitTier}, err
 	}
-	id := domain.MintPlanID("routine-defense-wait")
+	return r.admitFightBuilds(call, epoch, goal, state, read, buildings, defenseWaitTier)
+}
+
+// admitFightBuilds previews a fight's builds and admits the placeable ones
+// as one method under the layout goal, named by tier and stop tick.
+func (r *RoutineDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, buildings []domain.Building, tier policy.DefenseTierName) (RoutineDefenseLayoutResult, error) {
+	p := r.reviewer.player
+	tick := read.Projection.Identity.Tick
+	id := domain.MintPlanID("routine-defense-" + string(tier))
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	var actions []domain.Action
@@ -95,7 +131,7 @@ func (r *RoutineDefenseLayoutPlanner) harden(call, epoch context.Context, goal s
 			return RoutineDefenseLayoutResult{}, err
 		}
 		if !ok {
-			clockSchedulerLog("defense-layout.wait: %s/%s at %v refused natively", b.Definition(), b.Stuff(), b.Cell())
+			clockSchedulerLog("defense-layout.%s: %s/%s at %v refused natively", tier, b.Definition(), b.Stuff(), b.Cell())
 			continue
 		}
 		actions = append(actions, action)
@@ -105,7 +141,7 @@ func (r *RoutineDefenseLayoutPlanner) harden(call, epoch context.Context, goal s
 		}
 	}
 	if len(actions) == 0 {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused, Tier: defenseWaitTier}, nil
+		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused, Tier: tier}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -121,15 +157,15 @@ func (r *RoutineDefenseLayoutPlanner) harden(call, epoch context.Context, goal s
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoutineDefenseLayoutResult{}, defenseControlErr(122)
 	}
-	method := domain.MethodID(fmt.Sprintf("defense-wait-%d", tick))
+	method := domain.MethodID(fmt.Sprintf("defense-%s-%d", tier, tick))
 	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(read.Projection.Bounds), Stock: stockSeen, Previews: previews, Purpose: policy.Defense})
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
 	if !decision.Admitted {
-		clockSchedulerLog("defense-layout.wait: refused=%+v", decision.Refused)
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused, Plan: id, Tier: defenseWaitTier}, nil
+		clockSchedulerLog("defense-layout.%s: refused=%+v", tier, decision.Refused)
+		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused, Plan: id, Tier: tier}, nil
 	}
-	clockSchedulerLog("defense-layout.wait: %d builds (%s)", len(actions), method)
-	return RoutineDefenseLayoutResult{Reason: BuildingMethodAdmitted, Plan: id, Tier: defenseWaitTier}, nil
+	clockSchedulerLog("defense-layout.%s: %d builds (%s)", tier, len(actions), method)
+	return RoutineDefenseLayoutResult{Reason: BuildingMethodAdmitted, Plan: id, Tier: tier}, nil
 }
