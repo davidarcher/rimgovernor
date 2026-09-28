@@ -101,6 +101,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		}
 		next.Formed, formed = view.Tick, true
 		next.Flank = nil
+		next.Groups = nil
 	}
 	if ask := flankAsk(view, next); ask != nil {
 		// The flank detachment's cells take a later stop's round trip (#1062).
@@ -109,6 +110,15 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		}
 		if geometry.Role == RoleFiringCells {
 			flankDetach(view, geometry, &next)
+			geometry.Role = ""
+		}
+	} else if ask := groupAsk(view, next); ask != nil {
+		// Each side group's squad cells take a stop's round trip (#1064).
+		if !geometry.Answered {
+			return nil, ask, memory
+		}
+		if geometry.Role == RoleFiringCells {
+			groupDetach(view, geometry, &next)
 			geometry.Role = ""
 		}
 	}
@@ -135,6 +145,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	counterBattery(view, &next)
 	rocketClumps(view, &next)
 	flank(view, &next)
+	groupSquads(view, &next)
 	grenade(view, &next)
 	// Contained raiders who will not bleed down are finished in melee (#1036).
 	finishContained(view, &next)
@@ -481,6 +492,8 @@ type CombatMemory struct {
 	CannotHit []HitRefusal `json:",omitempty"`
 	// Flank is the hold's flanking detachment (#1062).
 	Flank *CombatFlank `json:",omitempty"`
+	// Groups are the split raid's side-group squads (#1064).
+	Groups []CombatGroup `json:",omitempty"`
 	// NoShells are the shells native refused a mortar order for (#1051):
 	// none in reach, or not a shell the mortar takes.
 	NoShells []string `json:",omitempty"`
@@ -567,6 +580,11 @@ func (m CombatMemory) clone() CombatMemory {
 	m.CannotHit = slices.Clone(m.CannotHit)
 	m.NoShells = slices.Clone(m.NoShells)
 	m.Flank = m.Flank.clone()
+	m.Groups = slices.Clone(m.Groups)
+	for i := range m.Groups {
+		g := &m.Groups[i]
+		g.Hostiles, g.Pawns, g.Cells, g.Fallback = slices.Clone(g.Hostiles), slices.Clone(g.Pawns), slices.Clone(g.Cells), slices.Clone(g.Fallback)
+	}
 	if m.SapperBreach != nil {
 		c := *m.SapperBreach
 		m.SapperBreach = &c

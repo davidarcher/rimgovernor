@@ -101,7 +101,14 @@ func flankAsk(view CombatView, m CombatMemory) *GeometryRequest {
 	if !ok {
 		return nil
 	}
-	ask := &GeometryRequest{Propose: RoleFiringCells, From: from, Targets: []domain.Cell{choke}, Cells: shooterCells(view)}
+	return firingCellsAsk(view, from, choke)
+}
+
+// firingCellsAsk is a firing_cells ask for cells near from with a line to
+// target, naming the shooters and the top hostiles too, so the stop's
+// attacks still get their lines (#1062, #1064).
+func firingCellsAsk(view CombatView, from, target domain.Cell) *GeometryRequest {
+	ask := &GeometryRequest{Propose: RoleFiringCells, From: from, Targets: []domain.Cell{target}, Cells: shooterCells(view)}
 	if len(ask.Cells) > maxGeometryCells/2 {
 		ask.Cells = ask.Cells[:maxGeometryCells/2]
 	}
@@ -128,6 +135,16 @@ func flankDetach(view CombatView, geometry GeometryReply, m *CombatMemory) {
 			taken[*r.Cell] = true
 		}
 	}
+	cells := nearestFree(geometry, from, taken)
+	if len(cells) < len(gunners) {
+		return
+	}
+	m.Flank.Pawns, m.Flank.Cells = gunners, cells[:len(gunners)]
+}
+
+// nearestFree is the answered proposals not taken, nearest from first,
+// spaced a tile apart while they allow it.
+func nearestFree(geometry GeometryReply, from domain.Cell, taken map[domain.Cell]bool) []domain.Cell {
 	var cells []domain.Cell
 	for _, c := range geometry.Proposals {
 		if !taken[c] && !slices.Contains(cells, c) {
@@ -144,11 +161,7 @@ func flankDetach(view CombatView, geometry GeometryReply, m *CombatMemory) {
 		}
 		return 0
 	})
-	cells = spaceCells(cells, 1)
-	if len(cells) < len(gunners) {
-		return
-	}
-	m.Flank.Pawns, m.Flank.Cells = gunners, cells[:len(gunners)]
+	return spaceCells(cells, 1)
 }
 
 // flank moves the detachment to its cells each stop and keeps its targets
