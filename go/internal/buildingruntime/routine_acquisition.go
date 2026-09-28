@@ -96,26 +96,22 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{}, err
 	}
 	projection := read.Projection
-	huntSources := map[string]bool{}
-	if rows, known := projection.Acquisition.Value(); known {
-		for _, row := range rows {
-			if row.Hunt {
-				huntSources[row.ID] = true
-			}
-		}
-	}
 	pest := r.need == policy.ClearPests
 	stockGoal := r.need == policy.MaintainResource
 	food := r.need == policy.EnsureFoodSupply
 	huntOnly := false
 	pests := policy.PestCensus(projection.Facts.AnimalUpkeep.WildAnimals)
-	reloadPlans := false
 	stalledSources := map[string]bool{}
 	// A source a stall rotated away from stays keyed out for its contract's
 	// bounded cooldown (#629): the goal's progress record carries the key,
 	// and RecordProgressCooldown adds one under this review's revision.
 	progress, _ := review.GoalProgress(r.need)
 	cooled := map[string]bool{}
+	// undispatched holds the goal's admitted acquisitions native has not
+	// designated yet (Pending/Prepared): they block and hold their source
+	// like a designated census row until dispatch, when the census takes
+	// over (#1045). Without it the gap re-admits the same source.
+	undispatched := map[string]bool{}
 	cool := func(contract policy.ProgressContract, thing string) error {
 		key := policy.CooldownKey(contract.Method, thing)
 		cooled[thing] = true
@@ -142,7 +138,6 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				if _, err = p.journal.Cancel(call, method.Plan, action); err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
-				reloadPlans = true
 			}
 		}
 		// A pest hunt follows its animal (#321) and native settles it on
@@ -168,40 +163,58 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 					return RoutineAcquisitionResult{}, err
 				}
 				stalledSources[v.Thing] = true
-				reloadPlans = true
 			}
 		}
-		plan, err = p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
+		if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
 			return RoutineAcquisitionResult{}, err
 		}
-		// A stock goal works one plan at a time. ClearPests hunts every
-		// animal of the pack: a hunt already dispatched holds its own
-		// animal (held, below) and its designation counts against the
-		// two outstanding hunts (slots), but does not stop the next
-		// animal being planned. One hunt awaiting its kill blocked the
-		// other beaver for a day (run 9 of #247).
-		// EnsureFoodSupply's hunts are the exception (#260): a forage
-		// batch harvests one bush at a time for days while the hunt rows
-		// the butcher spot and bill were placed for wait behind it, so
-		// open plant harvests leave the hunt slots plannable and the
-		// hunt-only plan is admitted over them.
-		// MaintainResource shares its goal with the bill and mine planner:
-		// any open work of either holds the next method.
-		if stockGoal && store.PlanOpen(plan) {
-			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
-		}
-		if !pest && acquisitionBlockingWork(plan.Progress) {
-			if !food || !acquisitionHuntOnlyOpen(plan.Progress, huntSources) {
-				return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
-			}
-			huntOnly = true
+		for thing := range undispatchedAcquisitions(plan.Progress) {
+			undispatched[thing] = true
 		}
 	}
-	if reloadPlans {
-		if plans, err = p.journal.LoadPlans(call, 256); err != nil {
-			return RoutineAcquisitionResult{}, err
+	// Sources under a cooldown are passed over like held ones: the cooldown
+	// lifts by itself at its bound, never a permanent ban (#629).
+	held := map[string]bool{}
+	if rows, known := projection.Acquisition.Value(); known && !pest {
+		for _, row := range rows {
+			if cooled[row.ID] || progress.Cooled(policy.CooldownKey(r.reviewer.policy.HuntProgress().Method, row.ID), expected.Tick) || progress.Cooled(policy.CooldownKey(r.reviewer.policy.AcquisitionProgress().Method, row.ID), expected.Tick) {
+				held[row.ID] = true
+			}
 		}
+	}
+	// Blocking reads the census, not the journal (#1045): a designated row
+	// the goal would plan is its ExistingWork. A source this step cancelled
+	// or cooled still reads designated until native withdraws it, and never
+	// blocks. ClearPests is never blocked: a hunt already designated holds
+	// its own animal (held, below) and counts against the two outstanding
+	// hunts (slots), but does not stop the next animal being planned (run 9
+	// of #247). EnsureFoodSupply's hunts are the exception (#260): a forage
+	// batch harvests one bush at a time for days while the hunt rows the
+	// butcher spot and bill were placed for wait behind it, so designated
+	// plant harvests leave the hunt slots plannable and only hunts are
+	// admitted over them. MaintainResource skips a designated resource in
+	// resourceSelection instead; its other targets still plan.
+	if !pest && !stockGoal {
+		block, plants := censusBlocking(projection.Acquisition, food, held, undispatched)
+		if block {
+			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
+		}
+		huntOnly = plants
+	}
+	// A designated or undispatched source is held: it is not planned again
+	// (#1045). Its resource is busy for MaintainResource unless a cooldown
+	// held it.
+	busy := map[string]bool{}
+	if rows, known := projection.Acquisition.Value(); known {
+		for _, row := range rows {
+			if row.Designated || undispatched[row.ID] {
+				busy[row.Resource] = busy[row.Resource] || !held[row.ID]
+				held[row.ID] = true
+			}
+		}
+	}
+	for thing := range undispatched {
+		held[thing] = true
 	}
 	pending := withoutStalled(projection.PendingFoodNutrition, projection.Acquisition, stalledSources, food)
 	deficit := domain.Unknown[float64]()
@@ -214,23 +227,6 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		runway = plan.Forecast.RunwayDays
 		projection.Acquisition, deficit = foodPlanAcquisition(plan, projection.Acquisition)
 		clockSchedulerLog("Food acquisition: %s", plan.Explain())
-	}
-	held := map[string]bool{}
-	for _, plan := range plans {
-		for _, progress := range plan.Progress {
-			if acquisition, ok := progress.Action().Acquisition(); ok && domain.GoalWorkOpen([]domain.Progress{progress}) {
-				held[acquisition.Thing()] = true
-			}
-		}
-	}
-	// Sources under a cooldown are passed over like held ones: the cooldown
-	// lifts by itself at its bound, never a permanent ban (#629).
-	if rows, known := projection.Acquisition.Value(); known && !pest {
-		for _, row := range rows {
-			if cooled[row.ID] || progress.Cooled(policy.CooldownKey(r.reviewer.policy.HuntProgress().Method, row.ID), expected.Tick) || progress.Cooled(policy.CooldownKey(r.reviewer.policy.AcquisitionProgress().Method, row.ID), expected.Tick) {
-				held[row.ID] = true
-			}
-		}
 	}
 	slots := domain.Unknown[int]()
 	if n, known := projection.PendingHunts.Value(); known {
@@ -246,8 +242,9 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		}
 	}
 	var selected []policy.AcquisitionSource
+	existing := false
 	if stockGoal {
-		selected, err = r.resourceSelection(call, state.Snapshot, expected.Tick, projection, held, slots)
+		selected, existing, err = r.resourceSelection(call, state.Snapshot, expected.Tick, projection, held, busy, slots)
 	} else if pest {
 		selected, err = policy.SelectPestAcquisition(projection.Acquisition, pests, held, slots)
 	} else {
@@ -268,6 +265,9 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	}
 	if err != nil {
 		return RoutineAcquisitionResult{Reason: BuildingMethodUnknown}, nil
+	}
+	if len(selected) == 0 && existing {
+		return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
 	}
 	if len(selected) == 0 {
 		return RoutineAcquisitionResult{Reason: BuildingMethodUsed}, nil
@@ -326,39 +326,47 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 // resourceSelection is MaintainResource's census selection: the floors
 // worst-covered first, and for the first with chop, harvest or hunt
 // sources the bill and mine planner does not outbid,
-// policy.SelectCatalogAcquisition against its deficit.
-func (r *RoutineAcquisitionPlanner) resourceSelection(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, projection observation.ColonyProjection, held map[string]bool, slots domain.Fact[int]) ([]policy.AcquisitionSource, error) {
+// policy.SelectCatalogAcquisition against its deficit. existing reports a
+// target passed over for its designated work (busy).
+func (r *RoutineAcquisitionPlanner) resourceSelection(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, projection observation.ColonyProjection, held, busy map[string]bool, slots domain.Fact[int]) (_ []policy.AcquisitionSource, existing bool, err error) {
 	rows, known := projection.Acquisition.Value()
 	if !known {
-		return nil, errors.New("acquisition census unknown")
+		return nil, false, errors.New("acquisition census unknown")
 	}
 	stock := projection.Facts.Resources
 	targets, err := r.reviewer.resourceTargets(ctx, snapshot, stock)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	ranked, err := policy.RankResourceTargets(targets, stock)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	hunts, _ := slots.Value()
 	for _, row := range ranked {
-		selected, best, err := policy.SelectCatalogAcquisition(rows, row.Resource, row.Target-resourceCount(stock, row.Resource), projection.Center, held, hunts)
-		if err != nil {
-			return nil, err
+		// A designated resource is its own existing work; the goal's
+		// other targets still plan (#1045).
+		if busy[string(row.Resource)] {
+			clockSchedulerLog("%s: catalog %s designated, existing work", r.need, row.Resource)
+			existing = true
+			continue
 		}
-		clockSchedulerLog("%s: catalog %s target=%d selected=%d", r.need, row.Resource, row.Target, len(selected))
+		picked, best, err := policy.SelectCatalogAcquisition(rows, row.Resource, row.Target-resourceCount(stock, row.Resource), projection.Center, held, hunts)
+		if err != nil {
+			return nil, false, err
+		}
+		clockSchedulerLog("%s: catalog %s target=%d selected=%d", r.need, row.Resource, row.Target, len(picked))
 		// Joint ranking with the bill and mine planner (#728): a resource
 		// its fresh bid scores higher is left to it.
 		if rival, yield := r.reviewer.bids.bid(snapshot, row.Resource, bidAcquisition, best.Score, best.Kind, tick); yield {
 			clockSchedulerLog("%s: %s %s %.3f yields to %s %.3f", r.need, row.Resource, best.Kind, best.Score, rival.kind, rival.score)
 			continue
 		}
-		if len(selected) > 0 {
-			return selected, nil
+		if len(picked) > 0 {
+			return picked, false, nil
 		}
 	}
-	return nil, nil
+	return nil, existing, nil
 }
 
 // Only admitted sources can start new work. Pending designations retain their
@@ -409,22 +417,37 @@ func gonePestHunts(progress []domain.Progress, wild domain.Fact[[]policy.UpkeepA
 	return gone
 }
 
-// A queued production bill may be waiting for ingredients acquired by this method.
-// acquisitionHuntOnlyOpen reports open acquisition work made only of
-// non-hunt harvests: nothing else of the plan is open and no hunt is.
-func acquisitionHuntOnlyOpen(progress []domain.Progress, huntSources map[string]bool) bool {
-	open := false
-	for _, p := range progress {
-		if !domain.GoalWorkOpen([]domain.Progress{p}) {
+// censusBlocking reads the goal's designated census rows, and the rows of
+// its undispatched acquisitions, skipping held ones: block when a designated row is one the goal would plan, except that
+// for food a designated plant harvest only restricts the goal to hunts
+// (plants, #260). The wood goal counts designated trees yielding wood.
+func censusBlocking(sources domain.Fact[[]policy.AcquisitionSource], food bool, held, undispatched map[string]bool) (block, plants bool) {
+	rows, _ := sources.Value()
+	for _, row := range rows {
+		if !(row.Designated || undispatched[row.ID]) || held[row.ID] {
 			continue
 		}
-		acquisition, ok := p.Action().Acquisition()
-		if !ok || huntSources[acquisition.Thing()] {
-			return false
+		switch {
+		case food && row.Food && !row.Hunt:
+			plants = true
+		case food && row.Food, !food && row.Tree && row.Resource == "WoodLog":
+			return true, plants
 		}
-		open = true
 	}
-	return open
+	return false, plants
+}
+
+// undispatchedAcquisitions is the source things of the plan's acquisition
+// actions not yet dispatched (Pending or Prepared).
+func undispatchedAcquisitions(progress []domain.Progress) map[string]bool {
+	things := map[string]bool{}
+	for _, p := range progress {
+		acquisition, ok := p.Action().Acquisition()
+		if stage := p.View().Stage; ok && (stage == domain.Pending || stage == domain.Prepared) {
+			things[acquisition.Thing()] = true
+		}
+	}
+	return things
 }
 
 // huntRows keeps the census's hunt rows.
@@ -440,15 +463,6 @@ func huntRows(sources domain.Fact[[]policy.AcquisitionSource]) domain.Fact[[]pol
 		}
 	}
 	return domain.Known(hunts)
-}
-
-func acquisitionBlockingWork(progress []domain.Progress) bool {
-	for _, p := range progress {
-		if p.Action().Kind() != domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{p}) {
-			return true
-		}
-	}
-	return false
 }
 
 // stalledDesignation is a dispatched, still-designated harvest nobody has

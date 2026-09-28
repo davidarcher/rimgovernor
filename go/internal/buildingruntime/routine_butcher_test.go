@@ -69,47 +69,46 @@ func TestFieldBlockingWorkIgnoresButcherSpot(t *testing.T) {
 	}
 }
 
-// Open forage work leaves the hunt rows plannable (#260); an open hunt or
-// any other open action keeps the one-plan rule.
-func TestAcquisitionHuntOnlyOpen(t *testing.T) {
+// Blocking reads designated census rows (#1045): a designated forage row
+// leaves the hunt rows plannable (#260); a designated hunt, or for wood a
+// designated tree, is existing work; held (cooled) rows and undesignated
+// ones never block.
+func TestCensusBlocking(t *testing.T) {
 	t.Parallel()
-	berry, err := domain.NewAcquisition("bush", "RawBerries", domain.Cell{X: 1, Z: 1})
-	if err != nil {
-		t.Fatal(err)
+	bush := policy.AcquisitionSource{ID: "bush", Resource: "RawBerries", Food: true, NutritionYield: 1}
+	hare := policy.AcquisitionSource{ID: "hare", Resource: "Meat_Hare", Food: true, NutritionYield: 1, Hunt: true}
+	oak := policy.AcquisitionSource{ID: "oak", Resource: "WoodLog", Tree: true, Yield: 10}
+	designated := func(rows ...policy.AcquisitionSource) domain.Fact[[]policy.AcquisitionSource] {
+		for i := range rows {
+			rows[i].Designated = true
+		}
+		return domain.Known(rows)
 	}
-	hare, err := domain.NewAcquisition("hare", "Corpse_Hare", domain.Cell{X: 2, Z: 2})
-	if err != nil {
-		t.Fatal(err)
+	for _, c := range []struct {
+		name          string
+		rows          domain.Fact[[]policy.AcquisitionSource]
+		food          bool
+		held          map[string]bool
+		block, plants bool
+	}{
+		{"no rows", domain.Known([]policy.AcquisitionSource{bush, hare, oak}), true, nil, false, false},
+		{"unknown census", domain.Unknown[[]policy.AcquisitionSource](), true, nil, false, false},
+		{"forage hunt-only", designated(bush), true, nil, false, true},
+		{"designated hunt", designated(bush, hare), true, nil, true, true},
+		{"held hunt", designated(bush, hare), true, map[string]bool{"hare": true}, false, true},
+		{"wood tree", designated(oak), false, nil, true, false},
+		{"wood ignores food", designated(bush, hare), false, nil, false, false},
+		{"food ignores trees", designated(oak), true, nil, false, false},
+		{"held tree", designated(oak), false, map[string]bool{"oak": true}, false, false},
+	} {
+		block, plants := censusBlocking(c.rows, c.food, c.held, nil)
+		if block != c.block || (!block && plants != c.plants) {
+			t.Errorf("%s: block=%v plants=%v", c.name, block, plants)
+		}
 	}
-	forage, err := domain.NewAcquisitionAction("a-bush", berry)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hunt, err := domain.NewAcquisitionAction("a-hare", hare)
-	if err != nil {
-		t.Fatal(err)
-	}
-	plan, err := domain.NewPlan("p", 1, []domain.Action{forage, hunt})
-	if err != nil {
-		t.Fatal(err)
-	}
-	forageOpen, err := domain.NewProgress(plan, "a-bush")
-	if err != nil {
-		t.Fatal(err)
-	}
-	huntOpen, err := domain.NewProgress(plan, "a-hare")
-	if err != nil {
-		t.Fatal(err)
-	}
-	hunts := map[string]bool{"hare": true}
-	if !acquisitionHuntOnlyOpen([]domain.Progress{forageOpen}, hunts) {
-		t.Fatal("open forage did not leave hunts plannable")
-	}
-	if acquisitionHuntOnlyOpen([]domain.Progress{forageOpen, huntOpen}, hunts) {
-		t.Fatal("an open hunt left hunts plannable")
-	}
-	if acquisitionHuntOnlyOpen(nil, hunts) {
-		t.Fatal("no open work read as open forage")
+	// An undispatched admission blocks like its designated row (#1045).
+	if block, _ := censusBlocking(domain.Known([]policy.AcquisitionSource{oak}), false, nil, map[string]bool{"oak": true}); !block {
+		t.Error("undispatched tree does not block")
 	}
 	rows, _ := huntRows(domain.Known([]policy.AcquisitionSource{{ID: "bush"}, {ID: "hare", Hunt: true}})).Value()
 	if len(rows) != 1 || rows[0].ID != "hare" {

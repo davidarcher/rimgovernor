@@ -9,6 +9,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"strings"
 	"testing"
 )
 
@@ -163,6 +164,11 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 		cell.X = proto.Int32(cell.GetX() + int32(i))
 		v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Haygrass"), MapId: v.Context.Identity.MapId, Position: cell, Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("Hay"), Hunt: proto.Bool(false), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)})
 	}
+	// Berries have no target until the Hay method is admitted.
+	for i := 0; i < 3; i++ {
+		id := fmt.Sprint("bush", i)
+		v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("BerryPlant"), MapId: v.Context.Identity.MapId, Position: proto.Clone(v.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("RawBerries"), Hunt: proto.Bool(false), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)})
+	}
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -185,5 +191,39 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	}
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
 		t.Fatal(next, err)
+	}
+	// Once dispatched the census takes over (#1045): the grass reads
+	// designated and holds Hay with no open journal work behind it.
+	for _, row := range v.Acquisition {
+		row.Designated = proto.Bool(row.GetResource() == "Hay")
+		if row.GetDesignated() {
+			row.DesignatedTick = proto.Int64(0)
+		}
+	}
+	for _, p := range plan.Progress {
+		if _, err = db.Cancel(ctx, result.Plan, p.View().Action); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+		t.Fatal(next, err)
+	}
+	// A designated resource skips only itself: a second floor still
+	// plans, and never re-admits a held grass source.
+	reviewer.policy.ResourceTargets["RawBerries"] = 30
+	berries, err := planner.Step(ctx)
+	if err != nil || berries.Reason != BuildingMethodAdmitted {
+		t.Fatal(berries, err)
+	}
+	if plan, err = db.LoadPlan(ctx, berries.Plan); err != nil || len(plan.Progress) == 0 {
+		t.Fatal(plan, err)
+	}
+	for _, p := range plan.Progress {
+		if a, _ := p.Action().Acquisition(); !strings.HasPrefix(a.Thing(), "bush") {
+			t.Fatal("re-admitted a held source", a.Thing())
+		}
 	}
 }
