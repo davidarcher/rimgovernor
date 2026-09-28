@@ -281,7 +281,7 @@ func emergencyBuilding(row *o.ThreatBuilding, ctx *c.ObservationContext) (policy
 		cells = append(cells, at)
 	}
 	result = policy.EmergencyThreat{ID: policy.PawnID(row.Building.GetId()), Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false),
-		SnapshotToken: row.Building.Snapshot.GetToken(), Definition: row.Building.GetDefName(), Cells: cells, Passive: emergencyBool(row.Passive)}
+		SnapshotToken: row.Building.Snapshot.GetToken(), Definition: row.Building.GetDefName(), Cells: cells, Passive: emergencyBool(row.Passive), Mortar: row.GetMortar()}
 	if row.NearestColonistDistance != nil {
 		result.Distance = domain.Known(float64(row.GetNearestColonistDistance()))
 	}

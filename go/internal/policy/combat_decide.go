@@ -238,7 +238,10 @@ type CombatPawnState struct {
 	Sapper      bool
 	// Rescuer facts (#867): the current job def, a worn shield belt and
 	// the Medicine skill level.
-	Job          string
+	Job string
+	// TargetMortar is the native fact that the job target is a mortar, or
+	// a frame that will build one (#1148).
+	TargetMortar bool
 	ShieldBelt   bool
 	MedicalSkill int
 	// Shield is the worn shield's charge, a fraction of max (#866);

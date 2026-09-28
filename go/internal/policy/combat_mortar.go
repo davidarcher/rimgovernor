@@ -43,17 +43,17 @@ const centipedeSafeRadius = 10.0
 
 // HostileStructure is a standing hostile building in the census (#930,
 // #931): a crashed ship part, a mech-cluster piece, a siege or mech
-// mortar, a hive. Def is its ThingDef; Cell one occupied cell.
+// mortar, a hive. Def is its ThingDef; Cell one occupied cell; Mortar the
+// native def fact (#1148), a turret whose verb fires mortar shells (a
+// siege's or a mech cluster's).
 type HostileStructure struct {
-	ID   domain.PawnID
-	Def  string
-	Cell domain.Cell
+	ID     domain.PawnID
+	Def    string
+	Cell   domain.Cell
+	Mortar bool
 }
 
-// enemyMortar and hive classify a structure by def: Turret_Mortar (a
-// siege's) and Turret_AutoMortar (a mech cluster's) are mortars.
-func (s HostileStructure) enemyMortar() bool { return strings.Contains(s.Def, "Mortar") }
-func (s HostileStructure) hive() bool        { return s.Def == "Hive" }
+func (s HostileStructure) hive() bool { return s.Def == "Hive" }
 
 // fromRange drops a melee target on a hostile structure other than a hive
 // (#930): a crashed ship part and its cluster buildings are destroyed
@@ -173,7 +173,7 @@ func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, string, bool)
 	var enemy, other []domain.Cell
 	for _, s := range view.Structures {
 		switch {
-		case s.enemyMortar():
+		case s.Mortar:
 			enemy = append(enemy, s.Cell)
 		case !s.hive():
 			other = append(other, s.Cell)

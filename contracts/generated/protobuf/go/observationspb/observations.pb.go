@@ -31623,6 +31623,7 @@ func (x *ThreatPawn) GetPassive() bool {
 // nearest_colonist_distance is Chebyshev cells like a threat pawn's;
 // occupied_cells is the building's occupied rect, the cells a ranged
 // defender needs a line of fire to.
+// mortar (#1148) is a turret whose verb fires mortar shells.
 type ThreatBuilding struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	Building                *EntityRef             `protobuf:"bytes,1,opt,name=building,proto3" json:"building,omitempty"`
@@ -31632,6 +31633,7 @@ type ThreatBuilding struct {
 	NearestColonistDistance *int32                 `protobuf:"varint,5,opt,name=nearest_colonist_distance,json=nearestColonistDistance,proto3,oneof" json:"nearest_colonist_distance,omitempty"`
 	OccupiedCells           []*commonpb.Cell       `protobuf:"bytes,6,rep,name=occupied_cells,json=occupiedCells,proto3" json:"occupied_cells,omitempty"`
 	Passive                 *bool                  `protobuf:"varint,7,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
+	Mortar                  *bool                  `protobuf:"varint,8,opt,name=mortar,proto3,oneof" json:"mortar,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -31711,6 +31713,13 @@ func (x *ThreatBuilding) GetOccupiedCells() []*commonpb.Cell {
 func (x *ThreatBuilding) GetPassive() bool {
 	if x != nil && x.Passive != nil {
 		return *x.Passive
+	}
+	return false
+}
+
+func (x *ThreatBuilding) GetMortar() bool {
+	if x != nil && x.Mortar != nil {
+		return *x.Mortar
 	}
 	return false
 }
@@ -38236,7 +38245,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_predator_is_oursB\x11\n" +
 	"\x0f_ignored_reasonB\n" +
 	"\n" +
-	"\b_passive\"\xd2\x03\n" +
+	"\b_passive\"\xfa\x03\n" +
 	"\x0eThreatBuilding\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12*\n" +
 	"\x0ehostile_reason\x18\x02 \x01(\tH\x00R\rhostileReason\x88\x01\x01\x12\"\n" +
@@ -38245,13 +38254,15 @@ const file_observations_proto_rawDesc = "" +
 	"\x0emax_hit_points\x18\x04 \x01(\x05H\x02R\fmaxHitPoints\x88\x01\x01\x12?\n" +
 	"\x19nearest_colonist_distance\x18\x05 \x01(\x05H\x03R\x17nearestColonistDistance\x88\x01\x01\x12B\n" +
 	"\x0eoccupied_cells\x18\x06 \x03(\v2\x1b.rimgovernor.common.v1.CellR\roccupiedCells\x12\x1d\n" +
-	"\apassive\x18\a \x01(\bH\x04R\apassive\x88\x01\x01B\x11\n" +
+	"\apassive\x18\a \x01(\bH\x04R\apassive\x88\x01\x01\x12\x1b\n" +
+	"\x06mortar\x18\b \x01(\bH\x05R\x06mortar\x88\x01\x01B\x11\n" +
 	"\x0f_hostile_reasonB\r\n" +
 	"\v_hit_pointsB\x11\n" +
 	"\x0f_max_hit_pointsB\x1c\n" +
 	"\x1a_nearest_colonist_distanceB\n" +
 	"\n" +
-	"\b_passive\"\x81\x04\n" +
+	"\b_passiveB\t\n" +
+	"\a_mortar\"\x81\x04\n" +
 	"\x0fThreatsSnapshot\x12C\n" +
 	"\bhostiles\x18\x01 \x03(\v2'.rimgovernor.observations.v1.ThreatPawnR\bhostiles\x12T\n" +
 	"\x11hunting_predators\x18\x02 \x03(\v2'.rimgovernor.observations.v1.ThreatPawnR\x10huntingPredators\x12P\n" +

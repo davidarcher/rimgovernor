@@ -394,7 +394,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	var structures []policy.HostileStructure
 	for _, b := range in.buildings {
 		if dead, _ := b.Dead.Value(); !dead && len(b.Cells) > 0 {
-			structures = append(structures, policy.HostileStructure{ID: domain.PawnID(b.ID), Def: b.Definition, Cell: b.Cells[0]})
+			structures = append(structures, policy.HostileStructure{ID: domain.PawnID(b.ID), Def: b.Definition, Cell: b.Cells[0], Mortar: b.Mortar})
 		}
 	}
 	var damaged []domain.Cell

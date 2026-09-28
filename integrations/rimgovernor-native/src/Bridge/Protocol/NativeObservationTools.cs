@@ -260,6 +260,7 @@ namespace HomeBridge.BridgeTools
                 if (colonists.Count > 0) row.NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)));
                 foreach (var cell in building.OccupiedRect()) row.OccupiedCells.Add(Cell(cell.x, cell.z));
                 if (building is Hive) row.Passive = !HiveEngaging(building, colonists, spawned, player);
+                row.Mortar = building.def.building?.IsMortar == true;
                 threats.HostileBuildings.Add(row);
             }
             result.Threats=threats; return result;

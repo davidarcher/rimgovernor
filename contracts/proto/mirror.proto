@@ -75,6 +75,9 @@ message CombatPawn {
   // EMP timing (#1050): the stun's ticks left, rounded up to 30, absent when
   // not stunned.
   optional int32 stun_ticks_left = 33;
+  // The job target is a mortar, or a frame that will build one (#1148):
+  // a turret whose verb fires mortar shells.
+  optional bool target_mortar = 34;
 }
 
 // A damaged player door (BundleSnapshot.combat_doors, #900): hit points

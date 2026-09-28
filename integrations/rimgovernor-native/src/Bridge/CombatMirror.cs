@@ -273,7 +273,14 @@ namespace HomeBridge.BridgeTools
             if (job != null)
             {
                 row.Job = job.def.defName;
-                if (job.targetA.Thing != null) row.TargetId = LoadId(job.targetA.Thing);
+                var target = job.targetA.Thing;
+                if (target != null)
+                {
+                    row.TargetId = LoadId(target);
+                    // A frame builds its entity def (#1148).
+                    var built = target is Frame frame ? frame.def.entityDefToBuild as ThingDef : target.def;
+                    if (built?.building?.IsMortar == true) row.TargetMortar = true;
+                }
             }
             var stance = pawn.stances?.curStance;
             if (stance is Stance_Warmup warmup) { row.Stance = Mirror.CombatStance.Warmup; row.StanceTicksLeft = warmup.ticksLeft; }

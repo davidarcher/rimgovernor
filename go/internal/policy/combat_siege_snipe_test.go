@@ -19,9 +19,9 @@ func TestDecideCombatSiegeSnipesMortarFrames(t *testing.T) {
 	for i, p := range view.Pawns {
 		switch p.ID {
 		case "r1":
-			view.Pawns[i].Job, view.Pawns[i].Target = "FinishFrame", "Thing_Frame_Turret_Mortar7"
+			view.Pawns[i].Job, view.Pawns[i].Target, view.Pawns[i].TargetMortar = "FinishFrame", "Thing_Frame9", true
 		case "r2":
-			view.Pawns[i].Job, view.Pawns[i].Target = "FinishFrame", "Thing_Frame_Sandbags3"
+			view.Pawns[i].Job, view.Pawns[i].Target = "FinishFrame", "Thing_Frame3"
 		}
 	}
 	orders, m := decideStop(t, view, StopEvent{}, CombatMemory{})
@@ -30,7 +30,7 @@ func TestDecideCombatSiegeSnipesMortarFrames(t *testing.T) {
 	}
 	a := attacks(orders)
 	for _, id := range []domain.PawnID{"a", "b", "c"} {
-		if a[id] != "Thing_Frame_Turret_Mortar7" {
+		if a[id] != "Thing_Frame9" {
 			t.Errorf("%s attacks %q", id, a[id])
 		}
 	}

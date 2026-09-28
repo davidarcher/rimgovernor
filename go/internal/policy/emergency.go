@@ -79,6 +79,9 @@ type EmergencyThreat struct {
 	// Position is a pawn threat's cell, when the census row carried one;
 	// the safety overlay (#824) draws its reach around it.
 	Position domain.Fact[domain.Cell]
+	// Mortar is set on HostileBuilding rows only (#1148): the native def
+	// fact, a turret whose verb fires mortar shells.
+	Mortar bool
 }
 
 // Engaging reports a threat that is not known passive.

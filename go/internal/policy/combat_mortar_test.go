@@ -13,7 +13,7 @@ func mortarView() CombatView {
 	view.Mortars = []CombatMortar{{ID: "Thing_Turret_Mortar1", Cell: domain.Cell{X: 5, Z: 30}, MinRange: 29.9, MaxRange: 500}}
 	view.Structures = []HostileStructure{
 		{ID: "Thing_ShipPart2", Def: "DefoliatorShipPart", Cell: domain.Cell{X: 9, Z: -10}},
-		{ID: "Thing_Turret_Mortar3", Def: "Turret_Mortar", Cell: domain.Cell{X: 9, Z: -20}},
+		{ID: "Thing_Turret_Mortar3", Def: "Turret_Mortar", Cell: domain.Cell{X: 9, Z: -20}, Mortar: true},
 	}
 	return view
 }
@@ -66,7 +66,7 @@ func TestDecideCombatMortarShellsTheShipPart(t *testing.T) {
 // {the enemy mortar inside the minimum range, no other structure} -> no crew.
 func TestDecideCombatMortarHoldsInsideMinimumRange(t *testing.T) {
 	view := mortarView()
-	view.Structures = []HostileStructure{{ID: "Thing_Turret_Mortar3", Def: "Turret_Mortar", Cell: domain.Cell{X: 5, Z: 10}}}
+	view.Structures = []HostileStructure{{ID: "Thing_Turret_Mortar3", Def: "Turret_Mortar", Cell: domain.Cell{X: 5, Z: 10}, Mortar: true}}
 	for i := range view.Pawns {
 		if view.Pawns[i].ID == "r1" || view.Pawns[i].ID == "r2" {
 			view.Pawns[i].Cell = domain.Known(domain.Cell{X: 5, Z: 12})

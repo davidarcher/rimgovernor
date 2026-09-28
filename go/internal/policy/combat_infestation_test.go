@@ -99,7 +99,7 @@ func TestNoMortarUnderMountain(t *testing.T) {
 		}
 	}
 	view.Mortars = []CombatMortar{{ID: "Thing_Turret_Mortar1", Cell: domain.Cell{X: 5, Z: 30}, MinRange: 5, MaxRange: 500}}
-	view.Structures = append(view.Structures, HostileStructure{ID: "Thing_Turret_Mortar3", Def: "Turret_Mortar", Cell: domain.Cell{X: 9, Z: -20}})
+	view.Structures = append(view.Structures, HostileStructure{ID: "Thing_Turret_Mortar3", Def: "Turret_Mortar", Cell: domain.Cell{X: 9, Z: -20}, Mortar: true})
 	orders, m := decideStop(t, view, StopEvent{}, CombatMemory{})
 	if m.Tactic != TacticInfestation {
 		t.Fatalf("%+v", m)

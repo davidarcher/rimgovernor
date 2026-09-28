@@ -278,6 +278,9 @@ type CombatPawn struct {
 	// EMP timing (#1050): the stun's ticks left, rounded up to 30, absent when
 	// not stunned.
 	StunTicksLeft *int32 `protobuf:"varint,33,opt,name=stun_ticks_left,json=stunTicksLeft,proto3,oneof" json:"stun_ticks_left,omitempty"`
+	// The job target is a mortar, or a frame that will build one (#1148):
+	// a turret whose verb fires mortar shells.
+	TargetMortar  *bool `protobuf:"varint,34,opt,name=target_mortar,json=targetMortar,proto3,oneof" json:"target_mortar,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -541,6 +544,13 @@ func (x *CombatPawn) GetStunTicksLeft() int32 {
 		return *x.StunTicksLeft
 	}
 	return 0
+}
+
+func (x *CombatPawn) GetTargetMortar() bool {
+	if x != nil && x.TargetMortar != nil {
+		return *x.TargetMortar
+	}
+	return false
 }
 
 // A damaged player door (BundleSnapshot.combat_doors, #900): hit points
@@ -2260,7 +2270,7 @@ var File_mirror_proto protoreflect.FileDescriptor
 
 const file_mirror_proto_rawDesc = "" +
 	"\n" +
-	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xf1\r\n" +
+	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xad\x0e\n" +
 	"\n" +
 	"CombatPawn\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12:\n" +
@@ -2302,7 +2312,8 @@ const file_mirror_proto_rawDesc = "" +
 	"meleePower\x88\x01\x01\x12'\n" +
 	"\rgo_juice_high\x18\x1f \x01(\bH\x1cR\vgoJuiceHigh\x88\x01\x01\x124\n" +
 	"\x13luciferium_addicted\x18  \x01(\bH\x1dR\x12luciferiumAddicted\x88\x01\x01\x12+\n" +
-	"\x0fstun_ticks_left\x18! \x01(\x05H\x1eR\rstunTicksLeft\x88\x01\x01B\x05\n" +
+	"\x0fstun_ticks_left\x18! \x01(\x05H\x1eR\rstunTicksLeft\x88\x01\x01\x12(\n" +
+	"\rtarget_mortar\x18\" \x01(\bH\x1fR\ftargetMortar\x88\x01\x01B\x05\n" +
 	"\x03_idB\a\n" +
 	"\x05_sideB\r\n" +
 	"\v_faction_idB\n" +
@@ -2337,7 +2348,8 @@ const file_mirror_proto_rawDesc = "" +
 	"\f_melee_powerB\x10\n" +
 	"\x0e_go_juice_highB\x16\n" +
 	"\x14_luciferium_addictedB\x12\n" +
-	"\x10_stun_ticks_left\"\xcd\x01\n" +
+	"\x10_stun_ticks_leftB\x10\n" +
+	"\x0e_target_mortar\"\xcd\x01\n" +
 	"\rCombatDoorRow\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\"\n" +

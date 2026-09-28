@@ -2,24 +2,25 @@ package policy
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // siegeFrame is the frame a sortie's gunners shoot (#919): the job
-// target of a live besieger on a FinishFrame job, a mortar frame (its
-// load id names the def) first, then by id; "" with no builder.
+// target of a live besieger on a FinishFrame job, a mortar frame (the
+// native TargetMortar fact, #1148) first, then by id; "" with no builder.
 func siegeFrame(view CombatView) domain.PawnID {
 	besiegers := liveBesiegers(view)
 	var frames []domain.PawnID
+	mortar := map[domain.PawnID]bool{}
 	for _, p := range view.Pawns {
 		if _, ok := besiegers[p.ID]; ok && p.Job == "FinishFrame" && p.Target != "" {
 			frames = append(frames, p.Target)
+			mortar[p.Target] = mortar[p.Target] || p.TargetMortar
 		}
 	}
 	sort.SliceStable(frames, func(i, j int) bool {
-		mi, mj := strings.Contains(string(frames[i]), "Mortar"), strings.Contains(string(frames[j]), "Mortar")
+		mi, mj := mortar[frames[i]], mortar[frames[j]]
 		if mi != mj {
 			return mi
 		}
