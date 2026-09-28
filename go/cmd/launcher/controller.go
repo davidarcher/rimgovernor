@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
@@ -40,15 +40,21 @@ type Owner struct {
 	Path string
 }
 
+// winPath folds a Windows path for comparison on any GOOS: the nightly race
+// job runs on Linux, where filepath ignores backslashes (#1142).
+func winPath(p string) string {
+	return strings.ToLower(path.Clean(strings.ReplaceAll(p, `\`, "/")))
+}
+
 // PortOwners decides what Play does with the port's listeners: ours (an
 // exe under repo/.rimgovernor, or the recorded pid) are stopped, anything
 // else refuses. The .rimgovernor scope keeps a launcher in the main
 // checkout off controllers from worktrees nested under .claude/worktrees.
 func PortOwners(owners []Owner, repo string, recorded int) (stop []int, err error) {
-	prefix := strings.ToLower(filepath.Join(filepath.Clean(repo), ".rimgovernor")) + string(filepath.Separator)
+	prefix := winPath(repo) + "/.rimgovernor/"
 	for _, o := range owners {
 		mine := o.PID == recorded && recorded != 0
-		if o.Path != "" && strings.HasPrefix(strings.ToLower(filepath.Clean(o.Path)), prefix) {
+		if o.Path != "" && strings.HasPrefix(winPath(o.Path), prefix) {
 			mine = true
 		}
 		if !mine {
