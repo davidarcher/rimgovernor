@@ -19,9 +19,10 @@ type governorStateNative interface {
 
 // shadowGovernorState mirrors goals and family records into the save each
 // refresh (#974): only changed keys are put, a vanished key is deleted.
-// The first successful read in each world logs drift between the save and
-// the store (#994: a new world or native generation re-reads the save);
-// the store stays authoritative. A round with no current world skips.
+// The first successful read in each world (#994: a new world or native
+// generation re-reads the save) rebuilds the store's goals from the save
+// (#998) and logs family drift; the store stays authoritative for
+// families. A round with no current world skips.
 func shadowGovernorState(ctx context.Context, native governorStateNative, world func(context.Context) (governorWorld, bool), database *store.Store, refresh time.Duration, out io.Writer) {
 	var shadow governorShadow
 	ticker := time.NewTicker(refresh)
@@ -84,13 +85,22 @@ func (s *governorShadow) round(ctx context.Context, world governorWorld, native 
 	return shadowGovernorStateOnce(ctx, native, database, &s.written, out)
 }
 
+// reconcileGoalOrphans is where the #1000 orphan pass runs: a goal rebuild
+// hands it the old goal method plans before retiring them. Nil until then.
+var reconcileGoalOrphans store.GoalOrphanPass
+
 func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, database *store.Store, written *map[string]string, out io.Writer) error {
-	blobs, err := database.GovernorStateBlobs(ctx)
-	if err != nil {
-		return err
-	}
 	if *written == nil {
+		// First round in a world (#998): the save's goals replace the
+		// store's before the first write, so the writer seeds from them.
 		saved, err := native.GovernorState(ctx)
+		if err != nil {
+			return err
+		}
+		if err = database.RebuildGoals(ctx, saved, reconcileGoalOrphans); err != nil {
+			return fmt.Errorf("rebuild goals: %w", err)
+		}
+		blobs, err := database.GovernorStateBlobs(ctx)
 		if err != nil {
 			return err
 		}
@@ -103,6 +113,10 @@ func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, da
 				(*written)[key] = blob
 			}
 		}
+	}
+	blobs, err := database.GovernorStateBlobs(ctx)
+	if err != nil {
+		return err
 	}
 	for key, blob := range blobs {
 		if (*written)[key] == blob {
