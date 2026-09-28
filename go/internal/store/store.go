@@ -28,7 +28,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 154
+const schemaVersion = 155
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -46,6 +46,8 @@ var ErrNotFound = core.ErrNotFound
 type Store struct {
 	db     *sql.DB
 	floors *retirementFloors
+	// submissions is the session-only goal-create replay cache (#1011).
+	submissions goalCreateSubmissions
 }
 
 // ControllerSessionID identifies one persistent controller execution namespace.

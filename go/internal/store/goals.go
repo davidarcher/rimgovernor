@@ -32,7 +32,10 @@ type GoalState struct {
 
 const maxActiveGoals = 512
 
-// initializeGoals creates the goal lifecycle tables.
+// initializeGoals creates the goal lifecycle tables. goals and routine_review
+// are session caches (#1011): RebuildGoals refills goals from the save and
+// ResetRoutineReview empties routine_review on every world change, and the
+// next review recomputes it. Goal-create request replay is in memory only.
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_goals ON goals(id) WHERE retired=0;
@@ -43,8 +46,7 @@ CREATE UNIQUE INDEX goal_method_keys ON goal_methods(goal_id,epoch,method_id) WH
 CREATE UNIQUE INDEX incident_method_keys ON goal_methods(incident_id,method_id) WHERE incident_id IS NOT NULL;
 CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
-CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
-CREATE TABLE goal_create_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), payload BLOB NOT NULL) STRICT;`)
+CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;`)
 	return err
 }
 

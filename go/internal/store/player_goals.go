@@ -1,14 +1,13 @@
 package store
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -110,7 +109,9 @@ func (s *Store) SubmitGoalCreate(ctx context.Context, q GoalCreateSubmissionRequ
 		return GoalCreateSubmission{}, false, err
 	}
 	defer tx.Rollback()
-	old, err := lookupGoalCreateSubmission(ctx, tx, q.RequestID)
+	s.submissions.mu.Lock()
+	defer s.submissions.mu.Unlock()
+	old, err := s.lookupGoalCreateSubmission(ctx, tx, q.RequestID)
 	if err == nil {
 		if old.Request != q {
 			return GoalCreateSubmission{}, false, ErrConflict
@@ -127,19 +128,15 @@ func (s *Store) SubmitGoalCreate(ctx context.Context, q GoalCreateSubmissionRequ
 	if err != nil {
 		return GoalCreateSubmission{}, false, err
 	}
-	w := q.World()
-	payload, err := encodeGoalCreateRequest(q)
-	if err != nil {
-		return GoalCreateSubmission{}, false, err
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO goal_create_submissions(request_id,colony,load_token,map_id,kind,goal_id,payload) VALUES(?,?,?,?,?,?,?)",
-		q.RequestID, w.Colony, w.Load, w.Map, string(q.Kind), string(state.Goal.ID), payload); err != nil {
-		return GoalCreateSubmission{}, false, conflict(err)
-	}
 	if err = tx.Commit(); err != nil {
 		return GoalCreateSubmission{}, false, err
 	}
-	return GoalCreateSubmission{Request: q, Goal: state.Goal.ID, State: state}, true, nil
+	result := GoalCreateSubmission{Request: q, Goal: state.Goal.ID, State: state}
+	if s.submissions.entries == nil {
+		s.submissions.entries = map[string]GoalCreateSubmission{}
+	}
+	s.submissions.entries[q.RequestID] = result
+	return result, true, nil
 }
 
 // activatePlayerGoal reuses or creates the world's player goal for one kind and
@@ -324,7 +321,9 @@ func (s *Store) LookupGoalCreateSubmission(ctx context.Context, requestID string
 		return GoalCreateSubmission{}, err
 	}
 	defer tx.Rollback()
-	result, err := lookupGoalCreateSubmission(ctx, tx, requestID)
+	s.submissions.mu.Lock()
+	defer s.submissions.mu.Unlock()
+	result, err := s.lookupGoalCreateSubmission(ctx, tx, requestID)
 	if err != nil {
 		return GoalCreateSubmission{}, err
 	}
@@ -334,69 +333,27 @@ func (s *Store) LookupGoalCreateSubmission(ctx context.Context, requestID string
 	return result, nil
 }
 
-// goalCreateRequestWire is the stored JSON shape of one accepted request. The
-// requested snapshot must survive a round trip exactly: the goal's own snapshot
-// cannot stand in for it, because every later review advances the goal's
-// snapshot and tick while a replayed request ID must still report the request
-// the player actually made.
-type goalCreateRequestWire struct {
-	Kind     string                    `json:"kind"`
-	Snapshot domain.GenerationSnapshot `json:"snapshot"`
-	Tick     domain.Tick               `json:"tick"`
+// goalCreateSubmissions holds accepted requests by request ID in memory
+// (#1011): request replay is session-only (U2a), so a restart forgets them.
+// mu also serializes SubmitGoalCreate so lookup-then-activate cannot race.
+type goalCreateSubmissions struct {
+	mu      sync.Mutex
+	entries map[string]GoalCreateSubmission
 }
 
-func encodeGoalCreateRequest(q GoalCreateSubmissionRequest) ([]byte, error) {
-	return json.Marshal(goalCreateRequestWire{Kind: string(q.Kind), Snapshot: q.Snapshot, Tick: q.Tick})
-}
-
-func decodeGoalCreateRequest(id string, payload []byte) (GoalCreateSubmissionRequest, error) {
-	if len(payload) > 4096 {
-		return GoalCreateSubmissionRequest{}, errors.New("goal activation request exceeds bound")
-	}
-	var wire goalCreateRequestWire
-	if err := json.Unmarshal(payload, &wire); err != nil {
-		return GoalCreateSubmissionRequest{}, err
-	}
-	canonical, err := json.Marshal(wire)
-	if err != nil {
-		return GoalCreateSubmissionRequest{}, err
-	}
-	if !bytes.Equal(canonical, payload) {
-		return GoalCreateSubmissionRequest{}, errors.New("noncanonical goal activation request")
-	}
-	kind, err := domain.NewGoalKind(wire.Kind)
-	if err != nil {
-		return GoalCreateSubmissionRequest{}, err
-	}
-	q := GoalCreateSubmissionRequest{RequestID: id, Kind: kind, Snapshot: wire.Snapshot, Tick: wire.Tick}
-	return q, q.validate()
-}
-
-func lookupGoalCreateSubmission(ctx context.Context, tx *sql.Tx, id string) (GoalCreateSubmission, error) {
-	var w World
-	var kind, goalID string
-	var payload []byte
-	err := tx.QueryRowContext(ctx, "SELECT colony,load_token,map_id,kind,goal_id,payload FROM goal_create_submissions WHERE request_id=?", id).
-		Scan(&w.Colony, &w.Load, &w.Map, &kind, &goalID, &payload)
-	if errors.Is(err, sql.ErrNoRows) {
+// lookupGoalCreateSubmission rereads an accepted request's goal. The caller
+// holds s.submissions.mu.
+func (s *Store) lookupGoalCreateSubmission(ctx context.Context, tx *sql.Tx, id string) (GoalCreateSubmission, error) {
+	entry, ok := s.submissions.entries[id]
+	if !ok {
 		return GoalCreateSubmission{}, ErrNotFound
 	}
-	if err != nil {
-		return GoalCreateSubmission{}, err
-	}
-	request, err := decodeGoalCreateRequest(id, payload)
-	if err != nil {
-		return GoalCreateSubmission{}, err
-	}
-	if string(request.Kind) != kind || request.World() != w {
-		return GoalCreateSubmission{}, errors.New("goal activation names two kinds or worlds")
-	}
-	state, err := loadGoal(ctx, tx, domain.GoalID(goalID))
+	state, err := loadGoal(ctx, tx, entry.Goal)
 	if err != nil {
 		return GoalCreateSubmission{}, err
 	}
 	if state.Goal.Source != domain.PlayerGoal {
 		return GoalCreateSubmission{}, errors.New("goal activation did not produce a player goal")
 	}
-	return GoalCreateSubmission{Request: request, Goal: state.Goal.ID, State: state}, nil
+	return GoalCreateSubmission{Request: entry.Request, Goal: state.Goal.ID, State: state}, nil
 }

@@ -92,9 +92,9 @@ func TestGoalCreateActivatesPlayerSourcedGoalAndReplays(t *testing.T) {
 		t.Fatal(err)
 	}
 	s = open(t, path)
-	found, err := s.LookupGoalCreateSubmission(ctx, q.RequestID)
-	if err != nil || found.Request != q || found.Goal != first.Goal {
-		t.Fatal(found, err)
+	// Request replay is session-only (#1011): a reopened store forgets it.
+	if _, err := s.LookupGoalCreateSubmission(ctx, q.RequestID); !errors.Is(err, ErrNotFound) {
+		t.Fatal("replay survived a restart", err)
 	}
 	bindings, err := s.PlayerGoals(ctx, q.World())
 	if err != nil || len(bindings) != 1 || bindings[domain.EnsureFoodSupplyGoal] != first.Goal {

@@ -158,6 +158,9 @@ func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, da
 		if err = database.RebuildFamilies(ctx, saved); err != nil {
 			return fmt.Errorf("rebuild families: %w", err)
 		}
+		if err = database.ResetRoutineReview(ctx); err != nil {
+			return fmt.Errorf("reset routine review: %w", err)
+		}
 		// The shadow writer owns every saved key, so it seeds from all.
 		*written = maps.Clone(saved)
 		if *written == nil {

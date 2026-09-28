@@ -81,6 +81,13 @@ func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) er
 	return tx.Commit()
 }
 
+// ResetRoutineReview empties the routine_review session cache on a world
+// change (#1011); the next review recomputes it from revision zero.
+func (s *Store) ResetRoutineReview(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM routine_review")
+	return err
+}
+
 func rebuildLayoutPlan(ctx context.Context, tx *sql.Tx, b GovernorFamilyBlob) error {
 	var plan policy.LayoutPlan
 	if err := json.Unmarshal(b.Record, &plan); err != nil {

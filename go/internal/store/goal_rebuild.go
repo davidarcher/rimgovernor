@@ -74,10 +74,8 @@ func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orpha
 		if _, ok := goals[id]; ok {
 			continue
 		}
-		for _, statement := range []string{"DELETE FROM goal_create_submissions WHERE goal_id=?", "DELETE FROM goals WHERE id=?"} {
-			if _, err = tx.ExecContext(ctx, statement, id); err != nil {
-				return err
-			}
+		if _, err = tx.ExecContext(ctx, "DELETE FROM goals WHERE id=?", id); err != nil {
+			return err
 		}
 	}
 	for id, b := range goals {
