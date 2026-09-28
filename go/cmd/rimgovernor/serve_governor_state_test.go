@@ -9,8 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
+	rpb "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 )
 
 type fakeGovernorState struct {
@@ -42,14 +46,14 @@ func TestShadowGovernorStateLogsDriftAndPutsChanges(t *testing.T) {
 	native := &fakeGovernorState{blobs: map[string]string{"family/tidies": "{}", "unrelated": "x"}}
 	var out bytes.Buffer
 	var written map[string]string
-	if err = shadowGovernorStateOnce(ctx, native, database, &written, &out); err != nil {
+	if err = shadowGovernorStateOnce(ctx, native, database, &written, nil, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "family/tidies: extra") || native.blobs["family/tidies"] != "" || native.blobs["unrelated"] != "x" {
 		t.Fatal(out.String(), native.blobs)
 	}
 	puts := native.puts
-	if err = shadowGovernorStateOnce(ctx, native, database, &written, &out); err != nil || native.puts != puts {
+	if err = shadowGovernorStateOnce(ctx, native, database, &written, nil, &out); err != nil || native.puts != puts {
 		t.Fatal("unchanged store put again", err)
 	}
 }
@@ -147,5 +151,76 @@ func TestShadowGovernorStateEmptySaveStartsWithoutGoals(t *testing.T) {
 	}
 	if _, err := database.LoadGoal(ctx, "stale"); !errors.Is(err, store.ErrNotFound) || len(native.blobs) != 0 {
 		t.Fatal("empty save kept a goal", err, native.blobs)
+	}
+}
+
+type fakeOrphanNative struct {
+	session bridge.TradeSessionRead
+	applied []*o.Action
+}
+
+func (f *fakeOrphanNative) ReadTradeSession(context.Context, *c.Identity) (bridge.TradeSessionRead, bridge.Result, error) {
+	return f.session, bridge.Result{}, nil
+}
+
+func (f *fakeOrphanNative) Apply(_ context.Context, _ *c.Identity, actions []*o.Action) (*o.ApplyReply, bridge.Result, error) {
+	f.applied = append(f.applied, actions...)
+	reply := &o.ApplyReply{}
+	for _, a := range actions {
+		reply.Results = append(reply.Results, &o.ActionResult{Key: a.Key, Outcome: &o.ActionResult_Applied{Applied: &rpb.Receipt{}}})
+	}
+	return reply, bridge.Result{}, nil
+}
+
+// Loading a world with a committed goal method cancels the open trade
+// session no rebuilt goal owns (#1000, D3); with no session nothing is sent.
+func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
+	ctx := context.Background()
+	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	snapshot := domain.GenerationSnapshot{Colony: "c", Load: "l", Plan: "p"}
+	g, err := domain.NewGoal("trade", domain.AutopilotGoal, 1, snapshot, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = database.CreateGoal(ctx, g); err != nil {
+		t.Fatal(err)
+	}
+	state, err := database.ReviewGoal(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	end, err := domain.NewTradeEnd("trader", "negotiator", domain.TradeEndCancel, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := domain.MintPlanID("orphan-test")
+	action, err := domain.NewTradeAction(domain.ActionID(id+"-0"), end)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = database.CommitGoalMethod(ctx, g.ID, state.Revision, "trade", spec); err != nil {
+		t.Fatal(err)
+	}
+	world := governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 1}
+	native := &fakeOrphanNative{session: bridge.TradeSessionRead{Trader: "trader", Negotiator: "negotiator", Open: true}}
+	shadow := governorShadow{orphans: native}
+	var out bytes.Buffer
+	if err = shadow.round(ctx, world, &fakeGovernorState{blobs: map[string]string{}}, database, &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(native.applied) != 1 || native.applied[0].GetTrade().GetEnd().GetKind() != o.EndTradeKind_END_TRADE_KIND_CANCEL {
+		t.Fatal("orphan trade not cancelled", native.applied, out.String())
+	}
+	idle := &fakeOrphanNative{}
+	if err = orphanSweep(idle, world, &out)(ctx, nil); err != nil || len(idle.applied) != 0 {
+		t.Fatal("no session still cancelled", err, idle.applied)
 	}
 }

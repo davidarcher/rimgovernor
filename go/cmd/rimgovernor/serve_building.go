@@ -422,11 +422,18 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	defer func() { <-superviseDone }()
 	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out) }()
 	if native, ok := client.reads.(governorStateNative); ok {
+		var orphans orphanNative
+		if client.trade != nil && client.trade.Native != nil && client.trade.Writer != nil {
+			orphans = struct {
+				buildingruntime.TradeNative
+				boundary.ActionsWriter
+			}{client.trade.Native, client.trade.Writer}
+		}
 		shadowDone := make(chan struct{})
 		defer func() { <-shadowDone }()
 		go func() {
 			defer close(shadowDone)
-			shadowGovernorState(lifetime, native, currentGovernorWorld(reads), database, config.refresh, out)
+			shadowGovernorState(lifetime, native, currentGovernorWorld(reads), database, orphans, config.refresh, out)
 		}()
 	}
 	if config.resume {

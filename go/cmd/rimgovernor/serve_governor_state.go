@@ -6,9 +6,13 @@ import (
 	"io"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // governorStateNative is the save's governor state component (#882).
@@ -23,8 +27,8 @@ type governorStateNative interface {
 // generation re-reads the save) rebuilds the store's goals from the save
 // (#998) and logs family drift; the store stays authoritative for
 // families. A round with no current world skips.
-func shadowGovernorState(ctx context.Context, native governorStateNative, world func(context.Context) (governorWorld, bool), database *store.Store, refresh time.Duration, out io.Writer) {
-	var shadow governorShadow
+func shadowGovernorState(ctx context.Context, native governorStateNative, world func(context.Context) (governorWorld, bool), database *store.Store, orphans orphanNative, refresh time.Duration, out io.Writer) {
+	shadow := governorShadow{orphans: orphans}
 	ticker := time.NewTicker(refresh)
 	defer ticker.Stop()
 	for {
@@ -73,23 +77,73 @@ func currentGovernorWorld(reads httpapi.SnapshotProvider) func(context.Context) 
 
 // governorShadow is the per-world written cache; a world change drops it
 // so the next round re-reads the save and re-checks drift.
+// orphans, when set, is the native the #1000 orphan pass sweeps.
 type governorShadow struct {
 	world   governorWorld
 	written map[string]string
+	orphans orphanNative
 }
 
 func (s *governorShadow) round(ctx context.Context, world governorWorld, native governorStateNative, database *store.Store, out io.Writer) error {
 	if world != s.world {
 		s.world, s.written = world, nil
 	}
-	return shadowGovernorStateOnce(ctx, native, database, &s.written, out)
+	var pass store.GoalOrphanPass
+	if s.orphans != nil {
+		pass = orphanSweep(s.orphans, world, out)
+	}
+	return shadowGovernorStateOnce(ctx, native, database, &s.written, pass, out)
 }
 
-// reconcileGoalOrphans is where the #1000 orphan pass runs: a goal rebuild
-// hands it the old goal method plans before retiring them. Nil until then.
-var reconcileGoalOrphans store.GoalOrphanPass
+// orphanNative lists and cancels the Autopilot's native side effects
+// (#1000). Only the trade session has a "list mine" read today; every other
+// intent kind is a filed follow-up.
+type orphanNative interface {
+	buildingruntime.TradeNative
+	boundary.ActionsWriter
+}
 
-func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, database *store.Store, written *map[string]string, out io.Writer) error {
+// orphanSweep is the #1000 orphan pass for one world. A rebuild deletes
+// every goal method (#998), so no rebuilt goal owns a native side effect and
+// each one listed is cancelled (D3: the Autopilot has full control). A read
+// or transport error aborts the rebuild so the next round retries; a native
+// refusal is logged.
+func orphanSweep(native orphanNative, world governorWorld, out io.Writer) store.GoalOrphanPass {
+	return func(ctx context.Context, plans []store.PlanState) error {
+		identity := boundary.Identity(domain.GenerationSnapshot{Colony: world.Colony, Map: world.Map, Load: world.Load})
+		session, _, err := native.ReadTradeSession(ctx, identity)
+		if err != nil {
+			return fmt.Errorf("orphans: trade session: %w", err)
+		}
+		if session.Trader == "" {
+			return nil
+		}
+		end, err := domain.NewTradeEnd(session.Trader, domain.PawnID(session.Negotiator), domain.TradeEndCancel, false)
+		if err != nil {
+			return err
+		}
+		action, err := domain.NewTradeAction("orphan-trade-end", end)
+		if err != nil {
+			return err
+		}
+		wire, err := bridge.IntentAction("orphan-trade-end", action)
+		if err != nil {
+			return err
+		}
+		reply, _, err := native.Apply(ctx, identity, []*o.Action{wire})
+		if err != nil {
+			return fmt.Errorf("orphans: cancel trade: %w", err)
+		}
+		if result := reply.GetResults()[0]; result.GetApplied() == nil {
+			fmt.Fprintf(out, "governor state: orphan trade with %s not cancelled: %v\n", session.Trader, result)
+			return nil
+		}
+		fmt.Fprintf(out, "governor state: cancelled orphan trade with %s (%d old plans)\n", session.Trader, len(plans))
+		return nil
+	}
+}
+
+func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, database *store.Store, written *map[string]string, reconcileGoalOrphans store.GoalOrphanPass, out io.Writer) error {
 	if *written == nil {
 		// First round in a world (#998): the save's goals replace the
 		// store's before the first write, so the writer seeds from them.
