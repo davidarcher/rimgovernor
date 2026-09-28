@@ -18,9 +18,11 @@ namespace HomeBridge.BridgeTools
 
         // Counterfactual support for roofs near a set of removed holders,
         // following the installed RoofCollapseUtility's connected-roof/radius
-        // rule. Fogged cells are unknown: they can neither support nor be
-        // assumed safe. Pending collapse anywhere near the set blocks.
-        internal static Support Check(Map map, ICollection<IntVec3> removed, out int checkedRoofs, out string? blocker)
+        // rule. Fogged cells are unknown by default: they can neither support nor
+        // be assumed safe. With throughFog the true map is read under fog, as the
+        // game does for collapse: fogged rock or ore holds, a fogged open cell
+        // does not (#986). Pending collapse anywhere near the set blocks.
+        internal static Support Check(Map map, ICollection<IntVec3> removed, out int checkedRoofs, out string? blocker, bool throughFog = false)
         {
             checkedRoofs = 0; blocker = null;
             var radius = RoofCollapseUtility.RoofMaxSupportDistance;
@@ -31,7 +33,7 @@ namespace HomeBridge.BridgeTools
             // rock roof only while its own remaining rock holds it.
             foreach (var cell in removed)
                 foreach (var near in GenRadial.RadialCellsAround(cell, radius, true))
-                    if (near.InBounds(map) && !near.Fogged(map) && near.Roofed(map)) roots.Add(near);
+                    if (near.InBounds(map) && (throughFog || !near.Fogged(map)) && near.Roofed(map)) roots.Add(near);
             var result = Support.Supported;
             foreach (var root in roots.OrderBy(c => c.x).ThenBy(c => c.z)) {
                 checkedRoofs++;
@@ -45,7 +47,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var offset in GenAdj.CardinalDirectionsAndInside) {
                         var near = c + offset;
                         if (!near.InBounds(map) || !near.InHorDistOf(root, radius)) continue;
-                        if (near.Fogged(map)) { unknown = true; continue; }
+                        if (!throughFog && near.Fogged(map)) { unknown = true; continue; }
                         if (removedSet.Contains(near)) continue;
                         var holder = near.GetEdifice(map);
                         if (holder != null && holder.def.holdsRoof) { supported = true; break; }
@@ -53,7 +55,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var offset in GenAdj.CardinalDirections) {
                         var next = c + offset;
                         if (!next.InBounds(map) || !next.InHorDistOf(root, radius) || !next.Roofed(map)) continue;
-                        if (next.Fogged(map)) { unknown = true; continue; }
+                        if (!throughFog && next.Fogged(map)) { unknown = true; continue; }
                         if (seen.Add(next)) queue.Enqueue(next);
                     }
                 }
