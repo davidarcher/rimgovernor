@@ -1,19 +1,47 @@
 package policy
 
 import (
+	"math"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // DutyHarasser shoots a static target from range (hit-and-run): a siege
-// camp from beyond its guns (#920), a crashed ship part (#1061).
+// camp from beyond its guns (#920), a crashed ship part (#1061), tribal
+// archers from beyond their bows (#1055).
 const DutyHarasser CombatDuty = "harasser"
 
 // harassReach is the share of its weapon range a harasser stands off its
 // target; it harasses only when that stand-off still clears every
-// besieger's range.
+// hostile's range.
 const harassReach = 0.9
+
+// tribalBowRange is a tribal's reach when its weapon range is unknown:
+// a great bow's.
+const tribalBowRange = 30
+
+// harassTarget makes r a harasser of the target nearest at, standing off
+// it at harassReach of reach. With back, a gunner already closer than
+// that falls back along the same line to the stand-off.
+func harassTarget(r *CombatRole, at domain.Cell, reach float64, targets []CombatPawnState, back bool) {
+	target := targets[0]
+	for _, h := range targets[1:] {
+		c, _ := h.Cell.Value()
+		b, _ := target.Cell.Value()
+		if distance2(c, at) < distance2(b, at) {
+			target = h
+		}
+	}
+	want := harassReach * reach
+	cell := standOffAt(target, at, want)
+	if t, _ := target.Cell.Value(); back && cell == at && at != t {
+		dx, dz := float64(at.X-t.X), float64(at.Z-t.Z)
+		dist := math.Hypot(dx, dz)
+		cell = domain.Cell{X: t.X + int32(math.Round(dx/dist*want)), Z: t.Z + int32(math.Round(dz/dist*want))}
+	}
+	r.Duty, r.Target, r.Cell = DutyHarasser, target.ID, &cell
+}
 
 // harassRoles turns the siege gunners that outrange the camp into
 // harassers (#920): each moves to the cell on the line from its nearest
@@ -45,18 +73,51 @@ func harassRoles(view CombatView, roles []CombatRole) []CombatRole {
 		if !r.Ranged || !known || s.WeaponRange <= 0 || harassReach*s.WeaponRange <= theirs {
 			continue
 		}
-		target := camp[0]
-		for _, h := range camp[1:] {
-			c, _ := h.Cell.Value()
-			b, _ := target.Cell.Value()
-			if distance2(c, at) < distance2(b, at) {
-				target = h
-			}
-		}
-		cell := standOffAt(target, at, harassReach*s.WeaponRange)
-		r.Duty, r.Target, r.Cell = DutyHarasser, target.ID, &cell
+		harassTarget(r, at, s.WeaponRange, camp, false)
 	}
 	return roles
+}
+
+// tribalStandoff is the siege stand-off generalized to tribals (#1055):
+// while every live hostile with a known cell is a Tribal_ pawn, each free
+// gunner whose gun reaches loadoutTribalRange and, at harassReach, still
+// clears every tribal's range stands off its nearest tribal and shoots
+// it. A gunner that does not outrange the bows and pila keeps its
+// formation role.
+func tribalStandoff(view CombatView, m *CombatMemory) {
+	var tribals []CombatPawnState
+	theirs := 0.0
+	for _, h := range rankThreats(view) {
+		if _, known := h.Cell.Value(); !known {
+			continue
+		}
+		if !strings.HasPrefix(h.Kind, "Tribal_") {
+			return
+		}
+		tribals = append(tribals, h)
+		reach := h.WeaponRange
+		if reach <= 0 {
+			reach = tribalBowRange
+		}
+		theirs = max(theirs, reach)
+	}
+	if len(tribals) == 0 {
+		return
+	}
+	state := map[domain.PawnID]CombatPawnState{}
+	for _, p := range view.Pawns {
+		state[p.ID] = p
+	}
+	for i := range m.Roles {
+		r := &m.Roles[i]
+		s := state[r.Pawn]
+		at, known := s.Cell.Value()
+		if !r.Ranged || r.Duty != "" || r.Mortar != nil || !known || s.WeaponRange < loadoutTribalRange || harassReach*s.WeaponRange <= theirs {
+			continue
+		}
+		harassTarget(r, at, s.WeaponRange, tribals, true)
+		r.Retreat = false
+	}
 }
 
 // shipPartHitAndRun is hit-and-run on a crashed ship part (#1061): once
@@ -90,15 +151,7 @@ func shipPartHitAndRun(view CombatView, m *CombatMemory) {
 		if !r.Ranged || r.Duty != "" || r.Mortar != nil || !known || s.WeaponRange <= 0 {
 			continue
 		}
-		target := parts[0]
-		for _, p := range parts[1:] {
-			c, _ := p.Cell.Value()
-			b, _ := target.Cell.Value()
-			if distance2(c, at) < distance2(b, at) {
-				target = p
-			}
-		}
-		cell := standOffAt(target, at, harassReach*s.WeaponRange)
-		r.Duty, r.Target, r.Cell, r.Retreat = DutyHarasser, target.ID, &cell, false
+		harassTarget(r, at, s.WeaponRange, parts, false)
+		r.Retreat = false
 	}
 }

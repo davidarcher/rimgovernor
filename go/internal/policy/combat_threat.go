@@ -13,11 +13,15 @@ import (
 // anything in melee with a colonist, then sappers (a breaching termite
 // among them), then the other mechs (inferno-cannon centipede > scyther >
 // termite > the rest; a termite strips our cover, #927), then everyone
-// else.
+// else. Among tribals (#1055) a berserker, fast and melee, ranks ahead of
+// a pila thrower, whose volley hits hard at short range; both come after
+// sappers and ahead of the mechs they never raid with.
 const (
 	threatExplosive = iota
 	threatMeleeColonist
 	threatSapper
+	threatBerserker
+	threatPila
 	threatInfernoCentipede
 	threatScyther
 	threatTermite
@@ -42,6 +46,10 @@ func threatTier(h CombatPawnState, colonists map[domain.PawnID]bool) int {
 	switch {
 	case h.Sapper:
 		return threatSapper
+	case h.Kind == "Tribal_Berserker":
+		return threatBerserker
+	case h.Weapon == "Pila":
+		return threatPila
 	case strings.Contains(h.Kind, "CentipedeBurner") || h.Weapon == "Gun_InfernoCannon":
 		return threatInfernoCentipede
 	case strings.Contains(h.Kind, "Scyther"):
