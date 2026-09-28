@@ -25,7 +25,7 @@ it('rejects unknown reasons, bottlenecks without a labor deferral, and admission
   expect(() => readRoutineStatus(status({development: development({limiting: 'novel'})}))).toThrow();
 });
 it('reads automatic admission: held and unused workers, the limiting reason', () => {
-  const auto = readRoutineStatus(status({development: development({mode: 'auto', capacity: 3, heldWorkers: 1, unusedWorkers: 2, limiting: 'workers_overcommitted'})})).development;
+  const auto = readRoutineStatus(status({development: development({capacity: 3, heldWorkers: 1, unusedWorkers: 2, limiting: 'workers_overcommitted'})})).development;
   expect(auto).toMatchObject({heldWorkers: 1, unusedWorkers: 2, limiting: 'workers_overcommitted'});
 });
 it('reads goal progress records with their five fields and cooldowns', () => {

@@ -22,7 +22,7 @@ it("navigates the bundled player docs and renders controls and code examples", a
     .getByRole("link", { name: "Windows setup" }));
   await screen.findByRole("heading", { name: "Windows setup" });
   expect(screen.getByRole("article")).toHaveFocus();
-  expect(screen.getByText(/powershell -ExecutionPolicy Bypass/).closest("pre")).toBeTruthy();
+  expect(screen.getAllByText("RimGovernor.cmd")[0].closest("code")).toBeTruthy();
   await userEvent.click(screen.getByRole("link", { name: "Player guide" }));
   await screen.findByRole("heading", { name: "Player guide" });
   expect(screen.getByRole("link", { name: "backlog issues" })).toHaveAttribute("href",
