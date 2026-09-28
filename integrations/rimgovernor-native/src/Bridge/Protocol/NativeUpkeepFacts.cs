@@ -339,21 +339,25 @@ namespace HomeBridge.BridgeTools
             });
             Read("people", result, () => {
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
-                var values = people.Select(p => new Obs.UpkeepPerson {
+                Obs.UpkeepPerson Person(Pawn p) => new Obs.UpkeepPerson {
                     Pawn = new Obs.PawnState { Pawn = Ref(p) }, OwnedBedId = p.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
                     ComfortableMinC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMax)), TemperatureC = Number(p.AmbientTemperature)
-                }).ToList();
+                };
+                var values = people.Select(Person).ToList();
                 for (var i = 0; i < people.Count; i++) SleepingRelations(people[i], values[i]);
                 result.People.AddRange(values);
+                // Slaves of the colony (#1036): MaintainHousing gives each a
+                // bed set for slaves.
+                result.Slaves.AddRange(map.mapPawns.AllPawnsSpawned.Where(p => p.IsSlaveOfColony && !p.Dead).OrderBy(p => p.thingIDNumber).Select(Person));
             });
             Read("beds", result, () => {
                 var beds = things.OfType<Building_Bed>().Where(b => b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber).ToList();
-                var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
+                var people = map.mapPawns.AllPawnsSpawned.Where(p => (p.IsFreeColonist || p.IsSlaveOfColony) && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 var values = beds.Select(b => {
                     var row = new Obs.UpkeepBed { Bed = Ref(b), Slots = checked((uint)b.SleepingSlotsCount),
                         Humanlike = b.def.building.bed_humanlike, RestEffectiveness = Number(b.GetStatValue(StatDefOf.BedRestEffectiveness)),
-                        Medical = b.Medical, Prisoners = b.ForPrisoners, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
+                        Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
                         TemperatureC = Number(b.AmbientTemperature) };
                     var room = b.GetRoom();
                     if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);

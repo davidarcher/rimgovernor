@@ -705,8 +705,18 @@ message RecoveryArea { optional string id = 1; repeated rimgovernor.common.v1.Ce
 message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional bool roof_hazard = 2; repeated RecoveryArea areas = 3; repeated RecoveryRestriction restrictions = 4; repeated BuildingState buildings = 5; reserved 6; }
 message RecoveryRequest { ReadScope scope = 1; reserved 2; }
 message RecoveryReply { oneof outcome { RecoverySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; BuildingState owned_bed = 7; optional double nutrition_per_day = 8; optional int64 prisoner_ticks = 9; }
-message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; reserved 4; }
+message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; BuildingState owned_bed = 7; optional double nutrition_per_day = 8; optional int64 prisoner_ticks = 9;
+  // Prisoner prospect facts MaintainPopulation judges a prisoner's use by
+  // (#1036): Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
+  // id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
+  // colonists, the skill/trait/age biography and SummaryHealthPercent.
+  optional double will = 10; optional string ideo_id = 11; optional bool wild_man = 12;
+  PawnBiography biography = 13; optional double health_summary = 14; }
+message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; reserved 4;
+  // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
+  // primary ideoligion load id and the defName of its Slavery-issue precept
+  // (Slavery_Abhorrent .. Slavery_Honorable); absent without Ideology.
+  optional bool ideology_active = 5; optional bool classic_ideo_mode = 6; optional string colony_ideo_id = 7; optional string slavery_precept = 8; }
 message PopulationRequest { ReadScope scope = 1; reserved 2; }
 message PopulationReply { oneof outcome { PopulationSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message Settlement { optional string id = 1; optional string label = 2; optional string faction_id = 3; optional string faction_def_name = 4; optional string relation = 5; optional int32 goodwill = 6; optional int32 tile = 7; optional double distance_tiles = 8; optional bool player = 9; SnapshotRef snapshot = 10; SnapshotRef faction_snapshot = 11; }
@@ -835,7 +845,7 @@ message JoyBuildingMethod { string definition = 1; string kind = 2; double power
 message RecreationCensus { repeated string kinds = 1; repeated JoyTolerance pawns = 2; repeated JoyBuildingMethod methods = 3; }
 message ComfortFacts { repeated string people = 1; repeated ComfortSurface surfaces = 2; repeated ComfortFacility dining = 3; repeated ComfortFacility recreation = 4; reserved 5; RecreationCensus joy = 6; }
 message UpkeepItem { EntityRef item = 1; optional int64 count = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional bool roofed = 5; optional bool in_storage = 6; optional double deterioration_rate = 7; optional double base_deterioration_rate = 8; optional int64 rot_ticks = 9; optional bool perishable = 10; optional double temperature_c = 11; optional bool forbidden = 12; optional bool medicine = 13; optional bool nutrition_giving = 14; optional bool burning = 15; }
-message UpkeepBed { EntityRef bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated string owners = 7; repeated string users = 8; repeated string accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; optional string room_id = 12; optional string quality = 13; optional string stuff = 15; }
+message UpkeepBed { EntityRef bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated string owners = 7; repeated string users = 8; repeated string accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; optional string room_id = 12; optional string quality = 13; optional string stuff = 15; optional bool for_slaves = 16; }
 message StorageCell { rimgovernor.common.v1.Cell cell = 1; optional bool roofed = 2; optional bool occupied = 3; }
 message ItemStorageCapacity { optional string item_id = 1; optional int64 unreserved_covered_capacity = 2; optional uint32 accepting_cells = 3; }
 message UpkeepStructure { BuildingState building = 1; optional bool home = 2; optional bool holds_roof = 3; optional int32 repair_priority = 4; optional double flammability = 5; optional bool roofed = 6; }
@@ -1024,7 +1034,7 @@ message UpkeepFacts {
   repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11; repeated FeedDefinition feed_definitions = 12;
   repeated AnimalFeed animals = 13; reserved 14; repeated ReadIssue issues = 15;
   HaulingSection hauling = 16; WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
-  repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; UpkeepRoomsSection rooms = 23;
+  repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; UpkeepRoomsSection rooms = 23; repeated UpkeepPerson slaves = 24;
 }
 message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Threat facts (#395): the colony wealth the storyteller scales raids by

@@ -249,7 +249,7 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        private static Obs.PawnBiography Biography(Pawn pawn)
+        internal static Obs.PawnBiography Biography(Pawn pawn)
         {
             var row=new Obs.PawnBiography();
             if(pawn.ageTracker!=null) {row.BiologicalAgeYears=Number(pawn.ageTracker.AgeBiologicalYearsFloat);row.ChronologicalAgeYears=Number(pawn.ageTracker.AgeChronologicalYearsFloat);}

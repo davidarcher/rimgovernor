@@ -40,3 +40,14 @@ func TestBedUseAction(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBedSlavesIsItsOwnPatch(t *testing.T) {
+	b, err := NewBedSlaves("bed")
+	if err != nil || !b.Slaves() || b.Prisoners() || b.Medical() {
+		t.Fatal(b, err)
+	}
+	action, err := NewBedUseAction("a", b)
+	if got, ok := action.BedUse(); err != nil || !ok || got != b {
+		t.Fatal(got, err)
+	}
+}

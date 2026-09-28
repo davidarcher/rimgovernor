@@ -7,8 +7,8 @@ import "errors"
 // routine pair; ReduceResistance and Release are Core modes and Enslave and
 // Convert exist only while Ideology is active (native refuses them
 // otherwise). Execution and the non-exclusive toggles stay unsupported at
-// this boundary. Routine planning only ever proposes Recruit (see
-// policy.MaintainPopulation); the other modes are explicit orders.
+// this boundary. Routine planning chooses Recruit, Convert, Enslave or
+// Release per prisoner (see policy.MaintainPopulation).
 type PrisonerInteractionMode string
 
 const (

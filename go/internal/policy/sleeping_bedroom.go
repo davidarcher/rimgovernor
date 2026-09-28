@@ -97,7 +97,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		human, hk := b.Humanlike.Value()
 		medical, mk := b.Medical.Value()
 		prisoner, pk := b.Prisoners.Value()
-		if hk && human && mk && !medical && pk && !prisoner {
+		if hk && human && mk && !medical && pk && !prisoner && !b.Slaves {
 			vacant = append(vacant, id)
 		}
 	}

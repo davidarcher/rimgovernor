@@ -40,6 +40,8 @@ func bedUseAction(action domain.Action) (*o.Action, error) {
 	return buildingPatch(v.Thing(), func(i *o.BuildingPatchIntent) {
 		if v.Prisoners() {
 			i.Change = &o.BuildingPatchIntent_ForPrisoners{ForPrisoners: &o.Clear{}}
+		} else if v.Slaves() {
+			i.Change = &o.BuildingPatchIntent_ForSlaves{ForSlaves: &o.Clear{}}
 		} else {
 			i.Change = &o.BuildingPatchIntent_Medical{Medical: v.Medical()}
 		}

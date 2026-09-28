@@ -438,13 +438,13 @@ message DeconstructIntent { optional string target_id = 1; }
 // order applies again.
 message RelocateIntent { optional string thing_id = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; optional bool uninstall = 4; }
 // One settings change on one exact building: a CompTempControl target,
-// a humanlike bed's medical flag or prisoner use (for_prisoners drops every
-// owner; only setting it is meaningful), a grower's crop under the game's
+// a humanlike bed's medical flag, prisoner use or slave use (for_prisoners and
+// for_slaves drop every owner; only setting it is meaningful), a grower's crop under the game's
 // sow rules, or a claim of a claimable building. Native checks it live; an
 // already-applied change applies again.
 message BuildingPatchIntent {
   optional string thing_id = 1;
-  oneof change { float target_temperature = 2; bool medical = 3; Clear for_prisoners = 4; string plant_def = 5; Clear claim = 6; }
+  oneof change { float target_temperature = 2; bool medical = 3; Clear for_prisoners = 4; string plant_def = 5; Clear claim = 6; Clear for_slaves = 7; }
 }
 message RecoverIntent { optional string pawn_id = 1; optional string thing_id = 2; optional ServiceMethod method = 3; }
 message WasteIntent { optional string pawn_id = 1; optional string thing_id = 2; optional bool unwanted = 3; }

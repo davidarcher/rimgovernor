@@ -18,10 +18,8 @@ import (
 // census (RoutineFacts.Prisoners, sourced from the
 // rimgovernor/observations_read_population read) since, unlike husbandry,
 // no other per-cycle read already carries recruitable/interaction facts.
-// Disclosed narrowing: only the Recruit interaction, and Release once the
-// operator opts in with PrisonerReleaseAfterDays, are ever dispatched --
-// never execution or any other player-only order; see
-// policy.MaintainPopulation's doc comment for why.
+// It dispatches whichever use policy.MaintainPopulation chooses per
+// prisoner: Recruit, Convert, Enslave or Release; never execution.
 type RoutinePrisonerInteractionPlanner struct {
 	reviewer *RoutineReviewer
 	// building shells the planned jail while a prisoner is held (#835);
@@ -96,7 +94,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
-	choice := policy.SelectPrisonerInteractionMethod(read.Projection.Facts.Prisoners, read.Projection.Facts.FoodDays, r.reviewer.policy.Prisoners())
+	choice := policy.SelectPrisonerInteractionMethod(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, read.Projection.Facts.FoodDays, r.reviewer.policy.Prisoners())
 	switch choice.Reason {
 	case policy.PrisonerNoDeficit:
 		return RoutinePrisonerInteractionResult{Reason: BuildingMethodUsed}, nil

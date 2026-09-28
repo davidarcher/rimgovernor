@@ -330,6 +330,8 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		}
 	case policy.SleepingUnavailable:
 		return RoutineBuildingResult{Reason: BuildingSleepingUnavailable}, nil
+	case policy.SleepingMarkSlaves:
+		return r.markSlaveBed(call, epoch, state, goal, choice.Bed)
 	case policy.SleepingBuild:
 		// A stored bed is reinstalled before a new one is built (#843).
 		if result, due, err := r.reinstallStoredBed(call, epoch, state, goal, reading, choice); due || err != nil {
@@ -437,4 +439,39 @@ func sleepingAssignUnadmitted(progress []domain.Progress) bool {
 		}
 	}
 	return true
+}
+
+// markSlaveBed commits one patch setting bed for slaves (#1036), once per
+// bed per goal epoch; the next review assigns the waiting slave to it.
+func (r *RoutineSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context, state ControlState, goal store.GoalState, bed string) (RoutineBuildingResult, error) {
+	p := r.reviewer.player
+	method := domain.MethodID("sleeping-slave-bed-" + bed)
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineBuildingResult{}, err
+	}
+	patch, err := domain.NewBedSlaves(bed)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	id := domain.MintPlanID("routine-slave-bed")
+	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if p.session.State() != state {
+		return RoutineBuildingResult{}, fmt.Errorf("%w: markSlaveBed: p.session.State() != state", ErrControl)
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
 }

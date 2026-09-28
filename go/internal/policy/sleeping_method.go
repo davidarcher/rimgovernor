@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -25,6 +26,10 @@ const (
 	// temperature suits the colonists still waiting; the next review assigns
 	// it.
 	SleepingBuild SleepingMethod = "build"
+	// SleepingMarkSlaves: set Bed, a vacant colonist bed that would suit
+	// the waiting slave Pawn, for slaves (BuildingPatchIntent for_slaves);
+	// the next review assigns it.
+	SleepingMarkSlaves SleepingMethod = "mark_slaves"
 	// SleepingUnavailable: nobody can be assigned and no bed definition is
 	// buildable now.
 	SleepingUnavailable SleepingMethod = "unavailable"
@@ -168,11 +173,15 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		choice.Method = SleepingUnknown
 		return choice, nil
 	}
-	if len(sleeping.People) > 256 {
+	if len(sleeping.People) > 256 || len(sleeping.Slaves) > 256 {
 		return SleepingChoice{}, errors.New("sleeping census exceeds bound")
 	}
+	if pawn, bed, ok := slaveBedToMark(ordered, sleeping); ok {
+		choice.Method, choice.Pawn, choice.Bed = SleepingMarkSlaves, pawn, bed
+		return choice, nil
+	}
 	band := map[PawnID][2]float64{}
-	for _, p := range sleeping.People {
+	for _, p := range append(append([]SleepingPerson{}, sleeping.People...), sleeping.Slaves...) {
 		min, mk := p.ComfortableMin.Value()
 		max, xk := p.ComfortableMax.Value()
 		if mk && xk {
@@ -256,4 +265,42 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 	}
 	choice.Method = SleepingUnavailable
 	return choice, nil
+}
+
+// slaveBedToMark is the first waiting slave with nothing to be assigned and
+// the lowest-ID vacant colonist bed that would suit it set for slaves: a
+// standing bed no waiting colonist can take (assignment already ran), so
+// marking it costs no colonist a bed. None leaves the build path to stage
+// one more bed, which a later review marks.
+func slaveBedToMark(targets []SleepingTarget, sleeping SleepingObservation) (PawnID, string, bool) {
+	slaves := map[PawnID]SleepingPerson{}
+	for _, p := range sleeping.Slaves {
+		slaves[p.ID] = p
+	}
+	beds := append([]SleepingBed{}, sleeping.Beds...)
+	sort.Slice(beds, func(i, j int) bool { return beds[i].ID < beds[j].ID })
+	for _, t := range targets {
+		p, ok := slaves[t.Pawn]
+		if !ok || t.Kind == SleepingUseNeeded || len(t.Available) != 0 {
+			continue
+		}
+		lo, lk := p.ComfortableMin.Value()
+		hi, hk := p.ComfortableMax.Value()
+		if !lk || !hk {
+			continue
+		}
+		for _, b := range beds {
+			human, _ := b.Humanlike.Value()
+			medical, mk := b.Medical.Value()
+			prisoner, pk := b.Prisoners.Value()
+			roof, _ := b.Roofed.Value()
+			rest, _ := b.RestEffectiveness.Value()
+			temperature, tk := b.Temperature.Value()
+			if !human || !mk || medical || !pk || prisoner || b.Slaves || !roof || len(b.Owners) != 0 || b.Definition == "SleepingSpot" || rest <= 0 || !tk || temperature < lo || temperature > hi || !slices.Contains(b.AccessibleTo, p.ID) {
+				continue
+			}
+			return p.ID, b.ID, true
+		}
+	}
+	return "", "", false
 }

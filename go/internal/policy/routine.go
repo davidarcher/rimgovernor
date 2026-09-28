@@ -126,11 +126,11 @@ type RoutinePolicy struct {
 	StoneBlockTarget int64
 	// Trade is TradeWithCaravan's configuration (policy/trade_routine.go).
 	Trade RoutineTradePolicy
-	// PrisonerReleaseAfterDays lets MaintainPopulation propose
-	// releasing a prisoner the colony cannot turn (recruit resistance
-	// unbroken, or never recruitable) once held that many days while the
-	// food runway is below FoodTargetDays (default 15 days; zero keeps
-	// the recruit-only behaviour); see PrisonerPolicy.
+	// PrisonerReleaseAfterDays is how long MaintainPopulation feeds a
+	// prisoner it has no use for (not worth recruiting, not enslavable)
+	// while the food runway holds FoodTargetDays before releasing it
+	// (default 15 days); below the target it releases at once. See
+	// PrisonerPolicy.
 	PrisonerReleaseAfterDays float64
 	// DefensiveLayout is an operator-declared opt-in for EnsureDefensiveLayout
 	// (issue #5): the staged chokepoint/firing-line/funnel/trap-corridor
@@ -277,6 +277,9 @@ type RoutineFacts struct {
 	// a dedicated per-cycle RoutineSource read instead of ObserveColony's
 	// always-present projection.
 	Prisoners domain.Fact[[]PrisonerFacts]
+	// PrisonerColony is the same read's colony side of each prisoner's
+	// use: the free colonists' best skills and the Ideology facts.
+	PrisonerColony domain.Fact[PrisonerColony]
 	// Custody carries Population-*'s capture/rescue candidate census: every
 	// observed humanlike from the same dedicated population read Prisoners
 	// uses, broadened past prisoners alone so RoutinePopulationCustodyPlanner
@@ -1170,7 +1173,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// in either prisoner recruitment or custody, blocks recovery.
 	// joinerDeficit likewise needs the quest census (RoutinePopulationJoinerPlanner).
 	populationRecovered := domain.Unknown[bool]()
-	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.FoodDays, p.Prisoners()).Value()
+	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.PrisonerColony, f.FoodDays, p.Prisoners()).Value()
 	custodyDeficit, custodyDeficitKnown := CustodyDeficit(f.Custody).Value()
 	joinerDeficit, joinerDeficitKnown := JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity())).Value()
 	letterDeficit, letterKnown := JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).Value()

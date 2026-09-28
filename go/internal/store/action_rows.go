@@ -752,10 +752,12 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewGrowerCropAction(id, crop)
 		return a, ordinal, err
 	}
-	if kind == "bed_medical" && target.Valid && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && (def.String == "true" || def.String == "false" || def.String == bedPrisonersUse) {
+	if kind == "bed_medical" && target.Valid && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && (def.String == "true" || def.String == "false" || def.String == bedPrisonersUse || def.String == bedSlavesUse) {
 		medical, err := domain.NewBedMedical(target.String, def.String == "true")
 		if def.String == bedPrisonersUse {
 			medical, err = domain.NewBedPrisoners(target.String)
+		} else if def.String == bedSlavesUse {
+			medical, err = domain.NewBedSlaves(target.String)
 		}
 		if err != nil {
 			return domain.Action{}, 0, err
@@ -930,9 +932,15 @@ func subdueMarker(m domain.MeleeAttack) sql.NullString {
 // prisoners (#880); the medical rows keep "true" and "false".
 const bedPrisonersUse = "prisoners"
 
+// bedSlavesUse is a bed_medical row's definition for a bed set for slaves.
+const bedSlavesUse = "slaves"
+
 func bedUseDefinition(b domain.BedUse) string {
 	if b.Prisoners() {
 		return bedPrisonersUse
+	}
+	if b.Slaves() {
+		return bedSlavesUse
 	}
 	return strconv.FormatBool(b.Medical())
 }

@@ -26,15 +26,22 @@ and lists the installed exclusive interactions `PrisonerInteractionIntent` accep
 `Convert` while Ideology is active. Execution and non-exclusive toggles are player-only.
 The intent rides Actions/Apply: native requires a living current-map colony prisoner
 when it applies, its gates (recruitable, wild man, classic ideology mode) refuse
-ineligible modes, and a prisoner already set to the mode applies again. Routine planning (`MaintainPopulation`) proposes `AttemptRecruit`
-for any recruitable prisoner not already set to it and, with
-`RoutinePolicy.PrisonerReleaseAfterDays` = `N` (15 by default), `Release` for a prisoner held at least
-`N` days whom the colony cannot turn (recruit resistance still above zero, or never
-recruitable) while the colony food runway is below its routine target
-(`RoutinePolicy.FoodTargetDays`); a colony at or above its target keeps feeding the
-prisoner, and an unknown resistance, held-time or food fact never authorizes a
-release. Release takes precedence over recruit for the same prisoner. Every other
-mode is an explicit order. Native faction admission, resistance and recruitment
+ineligible modes, and a prisoner already set to the mode applies again. Routine planning (`MaintainPopulation`) chooses each prisoner's use itself, with no
+player-only exemption (`policy.prisonerUse`). The read also carries each prisoner's
+will, ideoligion, wild-man flag, biography (skills, passions, traits, incapable work
+types, age) and summary health, the free colonists' biographies, and the snapshot's
+`ideology_active`, `classic_ideo_mode`, `colony_ideo_id` and `slavery_precept`.
+A recruitable prisoner worth recruiting (`RecruitWorth` against the colonists' best
+skills, at least `RecruitThreshold` for the colony size) is converted first while
+Ideology is active outside classic mode and it holds another ideoligion, then
+recruited. Otherwise one able to labor, not a wild man, is enslaved when the
+colony's slavery precept is `Slavery_Acceptable` or `Slavery_Honorable` (every
+other precept costs mood). Otherwise it is released: at once while the food runway
+is below `RoutinePolicy.FoodTargetDays`, else after
+`RoutinePolicy.PrisonerReleaseAfterDays` (15 by default) in custody. A prisoner
+already being recruited with its resistance broken keeps recruiting, and an unknown
+fact never authorizes a write. MaintainHousing gives each slave a bed set for
+slaves (`BuildingPatchIntent.for_slaves`). Native faction admission, resistance and recruitment
 probability are never written.
 
 The `population-joiner` routine family (on in the autonomous default; selected by

@@ -160,7 +160,7 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 		humanlike, _ := bed.Humanlike.Value()
 		medical, _ := bed.Medical.Value()
 		prisoners, _ := bed.Prisoners.Value()
-		if ok && room != "" && humanlike && !medical && !prisoners {
+		if ok && room != "" && humanlike && !medical && !prisoners && !bed.Slaves {
 			inRoom[room] = append(inRoom[room], bed)
 		}
 	}

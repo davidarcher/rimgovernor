@@ -77,6 +77,16 @@ namespace HomeBridge.BridgeTools
                     // routine release path's "held N days with resistance
                     // unbroken" clock. Only a current prisoner carries it.
                     if (p.IsPrisoner && p.records != null) person.PrisonerTicks = (long)p.records.GetValue(RecordDefOf.TimeAsPrisoner);
+                    if (ModsConfig.IdeologyActive && p.IsPrisoner) person.Will = Number(p.guest.will);
+                }
+                if (p.Ideo != null) person.IdeoId = NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID());
+                // Prospect facts (#1036): MaintainPopulation weighs a prisoner's
+                // skills, traits, age and health against the free colonists'.
+                if (p.IsPrisonerOfColony || person.Admitted)
+                {
+                    person.WildMan = p.IsWildMan();
+                    person.Biography = NativePawnDetails.Biography(p);
+                    if (p.health?.summaryHealth != null) person.HealthSummary = Number(p.health.summaryHealth.SummaryHealthPercent);
                 }
                 if (p.ownership?.OwnedBed != null) person.OwnedBed = new Obs.BuildingState { Building = NativePawnObservationTools.Entity(p.ownership.OwnedBed) };
                 if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
@@ -84,6 +94,18 @@ namespace HomeBridge.BridgeTools
                 // (NativePrisonerInteractionOperations.Settings).
                 row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
                 snapshot.Persons.Add(person);
+            }
+            snapshot.IdeologyActive = ModsConfig.IdeologyActive;
+            if (ModsConfig.IdeologyActive)
+            {
+                snapshot.ClassicIdeoMode = Find.IdeoManager.classicMode;
+                var ideo = player.ideos?.PrimaryIdeo;
+                if (ideo != null)
+                {
+                    snapshot.ColonyIdeoId = NativePawnObservationTools.Id(ideo.GetUniqueLoadID());
+                    var slavery = ideo.PreceptsListForReading.FirstOrDefault(pr => pr.def.issue?.defName == "Slavery");
+                    if (slavery != null) snapshot.SlaveryPrecept = NativePawnObservationTools.Id(slavery.def.defName);
+                }
             }
             // The installed subset of the modes PrisonerInteractionIntent accepts.
             foreach (var name in new[] { "AttemptRecruit", "MaintainOnly", "ReduceResistance", "Release", "Enslave", "Convert" })

@@ -19,11 +19,17 @@ func colonySleeping(v *o.ColonyFactsSnapshot) domain.Fact[policy.SleepingObserva
 		}
 		return rows
 	}
+	person := func(p *o.UpkeepPerson) policy.SleepingPerson {
+		return policy.SleepingPerson{ID: policy.PawnID(p.Pawn.Pawn.GetId()), OwnedBed: optional(p.OwnedBedId), ComfortableMin: optional(p.ComfortableMinC), ComfortableMax: optional(p.ComfortableMaxC), Partners: ids(p.PartnerIds), BedSharingAllowed: optional(p.BedSharingAllowed), Title: royalTitle(p.Title)}
+	}
 	for _, p := range u.People {
-		r.People = append(r.People, policy.SleepingPerson{ID: policy.PawnID(p.Pawn.Pawn.GetId()), OwnedBed: optional(p.OwnedBedId), ComfortableMin: optional(p.ComfortableMinC), ComfortableMax: optional(p.ComfortableMaxC), Partners: ids(p.PartnerIds), BedSharingAllowed: optional(p.BedSharingAllowed), Title: royalTitle(p.Title)})
+		r.People = append(r.People, person(p))
+	}
+	for _, p := range u.Slaves {
+		r.Slaves = append(r.Slaves, person(p))
 	}
 	for _, b := range u.Beds {
-		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(b.Bed.GetDefName()), Humanlike: optional(b.Humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Roofed: optional(b.Roofed), RestEffectiveness: optional(b.RestEffectiveness), Temperature: optional(b.TemperatureC), Owners: ids(b.Owners), Users: ids(b.Users), AccessibleTo: ids(b.AccessibleTo), Room: optional(b.RoomId), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: b.Bed.GetPosition().GetX(), Z: b.Bed.GetPosition().GetZ()}})
+		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(b.Bed.GetDefName()), Humanlike: optional(b.Humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: optional(b.RestEffectiveness), Temperature: optional(b.TemperatureC), Owners: ids(b.Owners), Users: ids(b.Users), AccessibleTo: ids(b.AccessibleTo), Room: optional(b.RoomId), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: b.Bed.GetPosition().GetX(), Z: b.Bed.GetPosition().GetZ()}})
 	}
 	if !hasIssue(u.Issues, "rooms") {
 		r.Rooms = upkeepRooms(u.Rooms)

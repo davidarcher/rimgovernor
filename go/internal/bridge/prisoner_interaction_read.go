@@ -36,6 +36,26 @@ type PrisonerCensus struct {
 	// Custody carries the same read's capture/rescue candidate census: every
 	// observed humanlike, not only prisoners. See ReadRoutinePopulation.
 	Custody domain.Fact[[]policy.CustodyFacts]
+	// Colony is the colony side of each prisoner's use: the free
+	// colonists' best skills and the snapshot's Ideology facts.
+	Colony domain.Fact[policy.PrisonerColony]
+}
+
+// prisonerProspect decodes a person's biography and health; unknown when
+// either is absent.
+func prisonerProspect(person *o.PopulationPerson) domain.Fact[policy.PrisonerProspect] {
+	bio := person.GetBiography()
+	if bio == nil || bio.BiologicalAgeYears == nil || person.HealthSummary == nil {
+		return domain.Unknown[policy.PrisonerProspect]()
+	}
+	p := policy.PrisonerProspect{Age: bio.GetBiologicalAgeYears(), Health: person.GetHealthSummary(), Incapable: append([]string{}, bio.IncapableWorkTypes...)}
+	for _, s := range bio.Skills {
+		p.Skills = append(p.Skills, policy.PrisonerSkill{Name: s.GetDefinition().GetDefName(), Level: int(s.GetLevel()), Passion: s.GetPassion(), Disabled: s.GetDisabled()})
+	}
+	for _, t := range bio.Traits {
+		p.Traits = append(p.Traits, policy.PrisonerTrait{Def: t.GetDefName(), Degree: int(t.GetDegree())})
+	}
+	return domain.Known(p)
 }
 
 // ReadRoutinePopulation reads the whole population census and extracts every
@@ -70,6 +90,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		return PrisonerCensus{}, ErrUnavailable
 	}
 	seen := map[string]bool{}
+	colony := policy.PrisonerColony{BestSkill: map[string]int{}, IdeologyActive: observed.GetIdeologyActive(), ClassicIdeo: observed.GetClassicIdeoMode(), Ideo: observed.GetColonyIdeoId(), SlaveryPrecept: observed.GetSlaveryPrecept()}
 	rows := make([]policy.PrisonerFacts, 0, len(observed.Persons))
 	custody := make([]policy.CustodyFacts, 0, len(observed.Persons))
 	for _, person := range observed.Persons {
@@ -102,6 +123,14 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 			custodyRow.Guest = domain.Known(person.GetGuest())
 		}
 		custody = append(custody, custodyRow)
+		if person.GetAdmitted() && !pawn.GetDead() {
+			colony.Colonists++
+			for _, s := range person.GetBiography().GetSkills() {
+				if name := s.GetDefinition().GetDefName(); !s.GetDisabled() && int(s.GetLevel()) > colony.BestSkill[name] {
+					colony.BestSkill[name] = int(s.GetLevel())
+				}
+			}
+		}
 		if pawn.Prisoner == nil || !pawn.GetPrisoner() {
 			continue // MaintainPopulation's recruit census only ever considers colony prisoners.
 		}
@@ -118,6 +147,10 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		if person.PrisonerTicks != nil {
 			f.HeldTicks = domain.Known(person.GetPrisonerTicks())
 		}
+		if person.Will != nil {
+			f.Will = domain.Known(person.GetWill())
+		}
+		f.Ideo, f.WildMan, f.Prospect = person.GetIdeoId(), person.GetWildMan(), prisonerProspect(person)
 		if person.Interaction != nil {
 			if mode, ok := prisonerInteractionDefNames[person.GetInteraction()]; ok {
 				f.CurrentInteraction = domain.Known(mode)
@@ -125,5 +158,5 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		}
 		rows = append(rows, f)
 	}
-	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody)}, nil
+	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody), Colony: domain.Known(colony)}, nil
 }

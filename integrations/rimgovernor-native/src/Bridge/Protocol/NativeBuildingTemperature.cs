@@ -93,7 +93,8 @@ namespace HomeBridge.BridgeTools
             {
                 case Operations.BuildingPatchIntent.ChangeOneofCase.TargetTemperature: return NativeBuildingTemperature.Validate(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.Medical:
-                case Operations.BuildingPatchIntent.ChangeOneofCase.ForPrisoners: return NativeBedUse.Validate(intent, context);
+                case Operations.BuildingPatchIntent.ChangeOneofCase.ForPrisoners:
+                case Operations.BuildingPatchIntent.ChangeOneofCase.ForSlaves: return NativeBedUse.Validate(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.PlantDef: return NativeGrowerCrop.Validate(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.Claim: return NativeClaimBuilding.Validate(intent, context);
                 default: return Missing();
@@ -107,7 +108,8 @@ namespace HomeBridge.BridgeTools
             {
                 case Operations.BuildingPatchIntent.ChangeOneofCase.TargetTemperature: return NativeBuildingTemperature.Apply(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.Medical:
-                case Operations.BuildingPatchIntent.ChangeOneofCase.ForPrisoners: return NativeBedUse.Apply(intent, context);
+                case Operations.BuildingPatchIntent.ChangeOneofCase.ForPrisoners:
+                case Operations.BuildingPatchIntent.ChangeOneofCase.ForSlaves: return NativeBedUse.Apply(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.PlantDef: return NativeGrowerCrop.Apply(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.Claim: return NativeClaimBuilding.Apply(intent, context);
                 default: throw new InvalidOperationException(Missing().Detail);

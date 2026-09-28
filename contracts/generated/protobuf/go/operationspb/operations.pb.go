@@ -5813,8 +5813,8 @@ func (x *RelocateIntent) GetUninstall() bool {
 }
 
 // One settings change on one exact building: a CompTempControl target,
-// a humanlike bed's medical flag or prisoner use (for_prisoners drops every
-// owner; only setting it is meaningful), a grower's crop under the game's
+// a humanlike bed's medical flag, prisoner use or slave use (for_prisoners and
+// for_slaves drop every owner; only setting it is meaningful), a grower's crop under the game's
 // sow rules, or a claim of a claimable building. Native checks it live; an
 // already-applied change applies again.
 type BuildingPatchIntent struct {
@@ -5827,6 +5827,7 @@ type BuildingPatchIntent struct {
 	//	*BuildingPatchIntent_ForPrisoners
 	//	*BuildingPatchIntent_PlantDef
 	//	*BuildingPatchIntent_Claim
+	//	*BuildingPatchIntent_ForSlaves
 	Change        isBuildingPatchIntent_Change `protobuf_oneof:"change"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5921,6 +5922,15 @@ func (x *BuildingPatchIntent) GetClaim() *Clear {
 	return nil
 }
 
+func (x *BuildingPatchIntent) GetForSlaves() *Clear {
+	if x != nil {
+		if x, ok := x.Change.(*BuildingPatchIntent_ForSlaves); ok {
+			return x.ForSlaves
+		}
+	}
+	return nil
+}
+
 type isBuildingPatchIntent_Change interface {
 	isBuildingPatchIntent_Change()
 }
@@ -5945,6 +5955,10 @@ type BuildingPatchIntent_Claim struct {
 	Claim *Clear `protobuf:"bytes,6,opt,name=claim,proto3,oneof"`
 }
 
+type BuildingPatchIntent_ForSlaves struct {
+	ForSlaves *Clear `protobuf:"bytes,7,opt,name=for_slaves,json=forSlaves,proto3,oneof"`
+}
+
 func (*BuildingPatchIntent_TargetTemperature) isBuildingPatchIntent_Change() {}
 
 func (*BuildingPatchIntent_Medical) isBuildingPatchIntent_Change() {}
@@ -5954,6 +5968,8 @@ func (*BuildingPatchIntent_ForPrisoners) isBuildingPatchIntent_Change() {}
 func (*BuildingPatchIntent_PlantDef) isBuildingPatchIntent_Change() {}
 
 func (*BuildingPatchIntent_Claim) isBuildingPatchIntent_Change() {}
+
+func (*BuildingPatchIntent_ForSlaves) isBuildingPatchIntent_Change() {}
 
 type RecoverIntent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -7971,14 +7987,16 @@ const file_operations_proto_rawDesc = "" +
 	"\t_thing_idB\v\n" +
 	"\t_rotationB\f\n" +
 	"\n" +
-	"_uninstall\"\xbb\x02\n" +
+	"_uninstall\"\xfe\x02\n" +
 	"\x13BuildingPatchIntent\x12\x1e\n" +
 	"\bthing_id\x18\x01 \x01(\tH\x01R\athingId\x88\x01\x01\x12/\n" +
 	"\x12target_temperature\x18\x02 \x01(\x02H\x00R\x11targetTemperature\x12\x1a\n" +
 	"\amedical\x18\x03 \x01(\bH\x00R\amedical\x12G\n" +
 	"\rfor_prisoners\x18\x04 \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\fforPrisoners\x12\x1d\n" +
 	"\tplant_def\x18\x05 \x01(\tH\x00R\bplantDef\x128\n" +
-	"\x05claim\x18\x06 \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\x05claimB\b\n" +
+	"\x05claim\x18\x06 \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\x05claim\x12A\n" +
+	"\n" +
+	"for_slaves\x18\a \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\tforSlavesB\b\n" +
 	"\x06changeB\v\n" +
 	"\t_thing_id\"\xb8\x01\n" +
 	"\rRecoverIntent\x12\x1c\n" +
@@ -8548,44 +8566,45 @@ var file_operations_proto_depIdxs = []int32{
 	112, // 131: rimgovernor.operations.v1.RelocateIntent.rotation:type_name -> rimgovernor.placement.v1.Rotation
 	28,  // 132: rimgovernor.operations.v1.BuildingPatchIntent.for_prisoners:type_name -> rimgovernor.operations.v1.Clear
 	28,  // 133: rimgovernor.operations.v1.BuildingPatchIntent.claim:type_name -> rimgovernor.operations.v1.Clear
-	11,  // 134: rimgovernor.operations.v1.RecoverIntent.method:type_name -> rimgovernor.operations.v1.ServiceMethod
-	109, // 135: rimgovernor.operations.v1.RemoveWallIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	109, // 136: rimgovernor.operations.v1.ExcavateIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	17,  // 137: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
-	48,  // 138: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
-	42,  // 139: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
-	29,  // 140: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
-	43,  // 141: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
-	4,   // 142: rimgovernor.operations.v1.WorkSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
-	49,  // 143: rimgovernor.operations.v1.WorkSettingsIntent.food_allow:type_name -> rimgovernor.operations.v1.DefinitionList
-	29,  // 144: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
-	13,  // 145: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
-	30,  // 146: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
-	109, // 147: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
-	113, // 148: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
-	60,  // 149: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
-	62,  // 150: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
-	63,  // 151: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
-	64,  // 152: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
-	114, // 153: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
-	103, // 154: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
-	99,  // 155: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
-	104, // 156: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
-	100, // 157: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
-	104, // 158: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
-	20,  // 159: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
-	18,  // 160: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
-	65,  // 161: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	69,  // 162: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
-	21,  // 163: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
-	19,  // 164: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
-	68,  // 165: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
-	101, // 166: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
-	163, // [163:167] is the sub-list for method output_type
-	159, // [159:163] is the sub-list for method input_type
-	159, // [159:159] is the sub-list for extension type_name
-	159, // [159:159] is the sub-list for extension extendee
-	0,   // [0:159] is the sub-list for field type_name
+	28,  // 134: rimgovernor.operations.v1.BuildingPatchIntent.for_slaves:type_name -> rimgovernor.operations.v1.Clear
+	11,  // 135: rimgovernor.operations.v1.RecoverIntent.method:type_name -> rimgovernor.operations.v1.ServiceMethod
+	109, // 136: rimgovernor.operations.v1.RemoveWallIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	109, // 137: rimgovernor.operations.v1.ExcavateIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	17,  // 138: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
+	48,  // 139: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
+	42,  // 140: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
+	29,  // 141: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
+	43,  // 142: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
+	4,   // 143: rimgovernor.operations.v1.WorkSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	49,  // 144: rimgovernor.operations.v1.WorkSettingsIntent.food_allow:type_name -> rimgovernor.operations.v1.DefinitionList
+	29,  // 145: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
+	13,  // 146: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
+	30,  // 147: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
+	109, // 148: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
+	113, // 149: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
+	60,  // 150: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
+	62,  // 151: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
+	63,  // 152: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
+	64,  // 153: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
+	114, // 154: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
+	103, // 155: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
+	99,  // 156: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
+	104, // 157: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
+	100, // 158: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
+	104, // 159: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
+	20,  // 160: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
+	18,  // 161: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
+	65,  // 162: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	69,  // 163: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
+	21,  // 164: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
+	19,  // 165: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
+	68,  // 166: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
+	101, // 167: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
+	164, // [164:168] is the sub-list for method output_type
+	160, // [160:164] is the sub-list for method input_type
+	160, // [160:160] is the sub-list for extension type_name
+	160, // [160:160] is the sub-list for extension extendee
+	0,   // [0:160] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }
@@ -8726,6 +8745,7 @@ func file_operations_proto_init() {
 		(*BuildingPatchIntent_ForPrisoners)(nil),
 		(*BuildingPatchIntent_PlantDef)(nil),
 		(*BuildingPatchIntent_Claim)(nil),
+		(*BuildingPatchIntent_ForSlaves)(nil),
 	}
 	file_operations_proto_msgTypes[61].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[62].OneofWrappers = []any{}

@@ -26,8 +26,10 @@ type SleepingBed struct {
 	ID                                    string
 	Definition                            Resource
 	Humanlike, Medical, Prisoners, Roofed domain.Fact[bool]
-	RestEffectiveness, Temperature        domain.Fact[float64]
-	Owners, Users, AccessibleTo           []PawnID
+	// Slaves is Building_Bed.ForSlaves; false without Ideology.
+	Slaves                         bool
+	RestEffectiveness, Temperature domain.Fact[float64]
+	Owners, Users, AccessibleTo    []PawnID
 	// Room is the native room id (RoomQuality.ID); Quality the native
 	// QualityCategory name, unknown for a bed without quality.
 	Room, Quality domain.Fact[string]
@@ -39,7 +41,11 @@ type SleepingBed struct {
 type SleepingObservation struct {
 	Colonists int
 	People    []SleepingPerson
-	Beds      []SleepingBed
+	// Slaves are the colony's slaves (Ideology), outside Colonists and
+	// People: each needs a bed set for slaves (Building_Bed.ForSlaves),
+	// which a free colonist may never own. They are never partnered.
+	Slaves []SleepingPerson
+	Beds   []SleepingBed
 	// Rooms is the room quality census, unknown when its section is.
 	Rooms domain.Fact[[]UpkeepRoom]
 }
@@ -151,7 +157,7 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 	if !known {
 		return r, nil
 	}
-	if v.Colonists < 0 || v.Colonists > 256 || len(v.People) > 256 || len(v.Beds) > 256 {
+	if v.Colonists < 0 || v.Colonists > 256 || len(v.People) > 256 || len(v.Slaves) > 256 || len(v.Beds) > 256 {
 		return r, invalid
 	}
 	if len(v.People) != v.Colonists {
@@ -160,7 +166,13 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 	finite := func(f domain.Fact[float64]) bool { n, k := f.Value(); return k && !math.IsNaN(n) && !math.IsInf(n, 0) }
 	people := map[PawnID]bool{}
 	complete := true
-	for _, p := range v.People {
+	// Slaves sleep only in beds set for slaves, colonists never in one.
+	everyone := append(append([]SleepingPerson{}, v.People...), v.Slaves...)
+	slave := map[PawnID]bool{}
+	for _, p := range v.Slaves {
+		slave[p.ID] = true
+	}
+	for _, p := range everyone {
 		if !foodID(string(p.ID)) || people[p.ID] {
 			return r, invalid
 		}
@@ -251,7 +263,7 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 	}
 	targets := []SleepingTarget{}
 	next := []SleepingUse{}
-	ordered := append([]SleepingPerson{}, v.People...)
+	ordered := everyone
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].ID < ordered[j].ID })
 	for _, p := range ordered {
 		lo, _ := p.ComfortableMin.Value()
@@ -262,7 +274,7 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 			prisoner, _ := b.Prisoners.Value()
 			roof, _ := b.Roofed.Value()
 			temperature, _ := b.Temperature.Value()
-			return human && !medical && !prisoner && roof && contains(b.AccessibleTo, p.ID) && temperature >= lo && temperature <= hi
+			return human && !medical && !prisoner && b.Slaves == slave[p.ID] && roof && contains(b.AccessibleTo, p.ID) && temperature >= lo && temperature <= hi
 		}
 		suitable := func(b SleepingBed) bool {
 			rest, _ := b.RestEffectiveness.Value()

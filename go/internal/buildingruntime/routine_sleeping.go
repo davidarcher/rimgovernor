@@ -1407,7 +1407,8 @@ func cellsBox(cells map[domain.Cell]bool) policy.Rectangle {
 
 // regularBedsShort reports whether the sleeping census holds fewer regular
 // (humanlike, non-medical, non-prisoner) beds than max(colonists, housing
-// target): the shelter's spots were lost or converted, not merely uncounted.
+// target) plus the colony's slaves, whose beds count as regular: the
+// shelter's spots were lost or converted, not merely uncounted.
 func regularBedsShort(f policy.RoutineFacts) bool {
 	sleeping, known := f.Sleeping.Value()
 	count, ck := f.Colonists.Value()
@@ -1417,6 +1418,7 @@ func regularBedsShort(f policy.RoutineFacts) bool {
 	if target, known := f.HousingTarget.Value(); known {
 		count = max(count, target)
 	}
+	count += int64(len(sleeping.Slaves))
 	regular := int64(0)
 	for _, bed := range sleeping.Beds {
 		humanlike, hk := bed.Humanlike.Value()

@@ -36,7 +36,7 @@ func soloBedrooms(obs SleepingObservation) []soloBedroom {
 		humanlike, _ := bed.Humanlike.Value()
 		medical, _ := bed.Medical.Value()
 		prisoners, _ := bed.Prisoners.Value()
-		if !ok || room == "" || !humanlike || medical || prisoners || len(bed.Owners) == 0 {
+		if !ok || room == "" || !humanlike || medical || prisoners || bed.Slaves || len(bed.Owners) == 0 {
 			continue
 		}
 		owned[room] = append(owned[room], bed)

@@ -6,12 +6,13 @@ import "errors"
 // humanlike bed's use -- its medical flag (Building_Bed.Medical on the
 // native side), or, for a prisoners patch (#880), setting it for
 // prisoners (a BuildingPatchIntent since #940; native revalidates at
-// apply, #991). There is no pawn/Job involved -- see NativeBedUse.cs and
+// apply, #991), or, for a slaves patch (#1036), setting it for slaves. There is no pawn/Job involved -- see NativeBedUse.cs and
 // bridge/bed_use.go.
 type BedUse struct {
 	thing     string
 	medical   bool
 	prisoners bool
+	slaves    bool
 }
 
 func NewBedMedical(thing string, medical bool) (BedUse, error) {
@@ -28,6 +29,15 @@ func NewBedPrisoners(thing string) (BedUse, error) {
 	b.prisoners = err == nil
 	return b, err
 }
+
+// NewBedSlaves sets one exact bed for slaves (#1036, Ideology); like the
+// prisoners patch there is no patch back.
+func NewBedSlaves(thing string) (BedUse, error) {
+	b, err := NewBedMedical(thing, false)
+	b.slaves = err == nil
+	return b, err
+}
+func (b BedUse) Slaves() bool    { return b.slaves }
 func (b BedUse) Thing() string   { return b.thing }
 func (b BedUse) Medical() bool   { return b.medical }
 func (b BedUse) Prisoners() bool { return b.prisoners }
@@ -39,6 +49,8 @@ func NewBedUseAction(id ActionID, b BedUse) (Action, error) {
 	canonical, err := NewBedMedical(b.thing, b.medical)
 	if b.prisoners {
 		canonical, err = NewBedPrisoners(b.thing)
+	} else if b.slaves {
+		canonical, err = NewBedSlaves(b.thing)
 	}
 	if err != nil || canonical != b {
 		return Action{}, errors.New("invalid bed medical")
