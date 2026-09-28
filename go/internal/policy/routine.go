@@ -928,7 +928,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// TradeWithCaravan is config-only: it needs a
 	// negotiator's conversation, not a development slot, and recovers by
 	// itself when the caravan leaves or nothing is left worth trading.
-	tradeRecovered := TradeRecovered(f.Traders, ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)))
+	tradeRecovered := TradeRecovered(f.Traders, PopulationTradeNeed(ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), JoinerCapacity(f.JoinerCapacity())))
 	if !positive(tradeRecovered) {
 		addGoal(TradeWithCaravan, 3)
 		if _, known := tradeRecovered.Value(); known {

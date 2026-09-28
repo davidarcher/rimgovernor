@@ -115,7 +115,25 @@ namespace HomeBridge.BridgeTools
                 ProtectedExport = def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn,
                 Food = pawn ? null : NativeTradeFoodFacts.Read(def),
             };
-            if (pawn) line.PawnDescription = SafeText(() => t.Label);
+            if (pawn)
+            {
+                line.PawnDescription = SafeText(() => t.Label);
+                // The purchase choice (#1037) reads the pawn's skills, passions
+                // and violence capability; an unreadable pawn leaves them absent.
+                Pawn? p; try { p = t.AnyThing as Pawn; } catch { p = null; }
+                if (p != null)
+                {
+                    line.PawnId = SafeText(() => p.GetUniqueLoadID());
+                    line.ViolenceCapable = SafeBool(() => !p.WorkTagIsDisabled(WorkTags.Violent));
+                    try
+                    {
+                        if (p.skills != null)
+                            foreach (var s in p.skills.skills)
+                                line.Skills.Add(new Obs.Skill { Definition = new Obs.DefinitionRef { DefName = s.def.defName }, Level = s.Level, Passion = s.passion.ToString(), Disabled = s.TotallyDisabled });
+                    }
+                    catch { line.Skills.Clear(); }
+                }
+            }
             return line;
         }
 

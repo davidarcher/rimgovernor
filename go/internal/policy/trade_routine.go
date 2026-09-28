@@ -162,10 +162,14 @@ type TradeNeed struct {
 	// Shortfall is each MaintainResource floor stock is below (#728): a
 	// caravan selling it is the catalog's trade method.
 	Shortfall []Amount
+	// Population is set while the colony can host one more colonist
+	// (JoinerCapacity): a caravan offering a slave or prisoner is worth
+	// opening for (#1037).
+	Population bool
 }
 
 func (n TradeNeed) Any() bool {
-	return n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
+	return n.Population || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
 }
 
 // ReviewTradeNeed measures the trade need from the same facts the other

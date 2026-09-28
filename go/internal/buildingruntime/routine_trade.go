@@ -402,14 +402,25 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	if phase == domain.TradeEnd {
 		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 	}
-	economic, facts, err := r.selection(call, state, review, sheet)
+	economic, facts, capacity, err := r.selection(call, state, review, sheet)
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
 	selection := policy.SelectTrade(economic, facts)
+	if len(economic.Targets) == 0 {
+		// Nothing to buy or sell by the resource catalog: only a pawn
+		// purchase can still stage, against the same silver reserve.
+		selection = policy.TradeSelection{SilverReserve: max(economic.SilverReserve, facts.Floors["Silver"])}
+	}
 	r.bid(state, trader, selection, facts.Rows, review.Tick)
+	// A pawn buy is its own line beside the resource lines (#1037).
+	if !selection.Refused && facts.SilverKnown {
+		if pawn, ok := policy.SelectPawnPurchase(capacity, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected); ok {
+			selection.Selected = append(selection.Selected, pawn)
+		}
+	}
 	if phase == domain.TradeSetLines {
-		if len(economic.Targets) == 0 || selection.Refused || len(selection.Selected) == 0 {
+		if selection.Refused || len(selection.Selected) == 0 {
 			return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 		}
 		value, err := domain.NewTradeSetLines(trader, negotiator, tradeLinesOf(selection), false)
@@ -452,64 +463,65 @@ func tradeSessionPhase(lines tradePhase, staged int) domain.TradeOperationKind {
 
 // selection re-measures the need from a fresh colony read and turns it,
 // with the live sheet, into SelectTrade's inputs.
-func (r *RoutineTradePlanner) selection(call context.Context, state ControlState, review store.RoutineReview, sheet bridge.TradeSheetRead) (domain.TradeEconomicPolicy, policy.TradeSelectionFacts, error) {
+func (r *RoutineTradePlanner) selection(call context.Context, state ControlState, review store.RoutineReview, sheet bridge.TradeSheetRead) (domain.TradeEconomicPolicy, policy.TradeSelectionFacts, bool, error) {
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.native.ReadColonyFacts(call, identity, false)
 	if err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: observed == nil", ErrControl)
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: observed == nil", ErrControl)
 	}
 	if err = bridge.ValidateColonyFacts(observed, identity); err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: err != nil", ErrControl)
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: err != nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: err != nil", ErrControl)
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: err != nil", ErrControl)
 	}
 	medicalFacts := medicalReserveObservationFacts(observed)
 	medical, err := policy.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
 	if err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	// Refresh through the same projection and per-tick plan owner used by
 	// goal review; a staged trade never relies on a previous tick's need.
 	projection, err := observation.DecodeColony(reply, observation.Identity{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map, Tick: domain.Tick(observed.Context.GetTick())})
 	if err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	zoneNative, _ := r.native.(observation.ZonesNative)
 	if err = observation.FillZones(call, zoneNative, observed.Context.Identity, projection.Identity, &projection); err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	projection.Facts.FoodPlan = r.reviewer.planFood(projection)
 	seasonal := r.reviewer.seasonal(projection.Facts)
 	construction, _, err := r.native.ReadConstructionDeficits(call, identity)
 	if err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	if _, err = boundary.Context(construction.Context, state.Snapshot); err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: err != nil", ErrControl)
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: err != nil", ErrControl)
 	}
 	floors := policy.RoutineTradeFloors(seasonal, construction.StillNeed)
 	// MaintainResource's floors (the wood floor, shortfall edges) are the
 	// catalog's trade demand (#728): a caravan selling one buys it.
 	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, projection.Facts.Resources)
 	if err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	targets = policy.ResourceGoalTargets(targets, seasonal.ResourceTargets)
 	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)).Value()
 	if !known {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: !known", ErrControl)
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
 	rows := tradeSheetRowFacts(sheet.Rows)
 	economic := policy.RoutineTradeTargets(need, rows, policy.ResourceGoalTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
-	return economic, facts, nil
+	capacity, _ := policy.JoinerCapacity(projection.Facts.JoinerCapacity()).Value()
+	return economic, facts, capacity, nil
 }
 
 func (r *RoutineTradePlanner) cancel(call, epoch context.Context, state ControlState, goal store.GoalState, trader string, negotiator domain.PawnID, started time.Time) (RoutineTradeResult, error) {
@@ -578,7 +590,16 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow) []policy.TradeSheetRowFact 
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,
 			Currency: row.Currency, CurrencyKnown: row.CurrencyKnown, Pawn: row.Pawn, PawnKnown: row.PawnKnown,
 			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown,
+			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
 		})
+	}
+	return out
+}
+
+func tradePawnSkills(skills []bridge.TradeSheetSkill) []policy.ProfileSkill {
+	var out []policy.ProfileSkill
+	for _, skill := range skills {
+		out = append(out, policy.ProfileSkill{Name: skill.Name, Level: int(skill.Level), Passion: skill.Passion, Disabled: skill.Disabled})
 	}
 	return out
 }
@@ -614,12 +635,20 @@ func tradeStagedLines(sheet bridge.TradeSheetRead) []domain.TradeLine {
 	return out
 }
 
+// sameTradeLines compares two line sets regardless of order: the sheet
+// stages rows in sheet order, the selection in target order with any pawn
+// buy last.
 func sameTradeLines(left, right []domain.TradeLine) bool {
 	if len(left) != len(right) {
 		return false
 	}
+	counts := map[domain.TradeLine]int{}
 	for i := range left {
-		if left[i] != right[i] {
+		counts[left[i]]++
+		counts[right[i]]--
+	}
+	for _, n := range counts {
+		if n != 0 {
 			return false
 		}
 	}

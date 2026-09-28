@@ -35,6 +35,11 @@ type TradeSheetRowFact struct {
 	PawnKnown            bool
 	ProtectedExport      bool
 	ProtectedExportKnown bool
+
+	// Pawn rows only (#1037): what SelectPawnPurchase ranks.
+	Skills               []ProfileSkill
+	ViolenceCapable      bool
+	ViolenceCapableKnown bool
 }
 
 // TradeSelectionFacts is everything SelectTrade reads: the complete unfiltered
