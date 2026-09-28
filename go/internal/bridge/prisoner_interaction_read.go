@@ -116,6 +116,9 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		if pawn.Prisoner != nil {
 			custodyRow.Prisoner = domain.Known(pawn.GetPrisoner())
 		}
+		if person.Recruitable != nil {
+			custodyRow.Recruitable = domain.Known(person.GetRecruitable())
+		}
 		if person.Admitted != nil {
 			custodyRow.Admitted = domain.Known(person.GetAdmitted())
 		}

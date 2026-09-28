@@ -1,10 +1,6 @@
 package policy
 
-import (
-	"sort"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-)
+import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // CustodyDecision names which of Population-*'s two custody sub-steps a
 // candidate calls for: capture (a downed hostile not yet colony property)
@@ -25,6 +21,10 @@ const (
 type CustodyFacts struct {
 	Pawn                                             domain.PawnID
 	Dead, Downed, Guest, Admitted, Prisoner, Hostile domain.Fact[bool]
+	// Recruitable is the game's guest.Recruitable, rolled at pawn generation
+	// (PawnGenerator.GeneratePawn -> SetupRecruitable), so a downed raider
+	// already carries it before capture. It orders captures only (#1034).
+	Recruitable domain.Fact[bool]
 }
 
 // CustodyPlanReason names why RoutinePopulationCustodyPlanner did or did
@@ -88,19 +88,32 @@ func CustodyDeficit(rows domain.Fact[[]CustodyFacts]) domain.Fact[bool] {
 	return domain.Known(false)
 }
 
-// SelectCustodyMethod picks the lowest-pawn-ID eligible candidate to
-// dispatch next, mirroring SelectPrisonerInteractionMethod's determinism.
+// SelectCustodyMethod picks the next eligible candidate to dispatch. A
+// capture of a raider not known to be recruitable ranks after every other
+// candidate (#1034); within a rank the lowest pawn ID wins, mirroring
+// SelectPrisonerInteractionMethod's determinism. Rescues are never demoted,
+// and an unrecruitable raider is still captured once nothing outranks it.
 func SelectCustodyMethod(rows domain.Fact[[]CustodyFacts]) CustodyChoice {
 	all, known := rows.Value()
 	if !known {
 		return CustodyChoice{Reason: CustodyUnknown}
 	}
-	sorted := append([]CustodyFacts{}, all...)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Pawn < sorted[j].Pawn })
-	for _, row := range sorted {
-		if decision, ok := custodyEligible(row); ok {
-			return CustodyChoice{Pawn: row.Pawn, Decision: decision}
+	best, bestRank, found := CustodyChoice{}, 0, false
+	for _, row := range all {
+		decision, ok := custodyEligible(row)
+		if !ok {
+			continue
+		}
+		rank := 0
+		if recruitable, known := row.Recruitable.Value(); decision == CustodyCapture && (!known || !recruitable) {
+			rank = 1
+		}
+		if !found || rank < bestRank || (rank == bestRank && row.Pawn < best.Pawn) {
+			best, bestRank, found = CustodyChoice{Pawn: row.Pawn, Decision: decision}, rank, true
 		}
 	}
-	return CustodyChoice{Reason: CustodyNoDeficit}
+	if !found {
+		return CustodyChoice{Reason: CustodyNoDeficit}
+	}
+	return best
 }
