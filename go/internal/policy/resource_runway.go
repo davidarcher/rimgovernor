@@ -137,7 +137,7 @@ func SurfaceOre(sources []ResourceSource) domain.Fact[int64] {
 	var total int64
 	seen := map[string]bool{}
 	for _, source := range sources {
-		if source.Method != ResourceSourceMine || source.Safety != "open_surface" {
+		if source.Method != ResourceSourceMine || !MineSafe(source.Safety) {
 			continue
 		}
 		if seen[source.ThingID] || source.Yield < 0 || source.Yield > math.MaxInt64-total {

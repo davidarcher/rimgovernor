@@ -102,8 +102,8 @@ func TestRecipeResourceUseAlternativesAndIterations(t *testing.T) {
 }
 
 func TestSurfaceOreOnlySafeMineables(t *testing.T) {
-	sources := []ResourceSource{{ThingID: "a", Method: ResourceSourceMine, Safety: "open_surface", Yield: 20, Designated: true}, {ThingID: "b", Method: ResourceSourceMine, Safety: "roofed", Yield: 100}, {ThingID: "c", Method: "haul", Yield: 40}}
-	if n, k := SurfaceOre(sources).Value(); !k || n != 20 {
+	sources := []ResourceSource{{ThingID: "a", Method: ResourceSourceMine, Safety: "open_surface", Yield: 20, Designated: true}, {ThingID: "b", Method: ResourceSourceMine, Safety: "roofed", Yield: 100}, {ThingID: "c", Method: "haul", Yield: 40}, {ThingID: "d", Method: ResourceSourceMine, Safety: MineSafetySupportedRoof, Yield: 30}}
+	if n, k := SurfaceOre(sources).Value(); !k || n != 50 {
 		t.Fatal(n, k)
 	}
 	if _, k := SurfaceOre(append(sources, sources[0])).Value(); k {

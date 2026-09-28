@@ -65,6 +65,10 @@ func TestSelectResourceSourcesMineRequiresOpenSurfaceSafety(t *testing.T) {
 	if len(got) != 1 || got[0].ThingID != "safe" {
 		t.Fatalf("got %v", got)
 	}
+	sources[1].Safety = MineSafetySupportedRoof
+	if got := SelectResourceSources(sources, 50, 0, 0); len(got) != 1 || got[0].ThingID != "safe" {
+		t.Fatalf("supported roof: got %v", got)
+	}
 }
 
 func TestSelectResourceSourcesAtMostOneMinePerCall(t *testing.T) {

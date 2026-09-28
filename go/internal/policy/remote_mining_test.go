@@ -24,6 +24,7 @@ func TestSurfaceMiningReachDemandAndSafety(t *testing.T) {
 		{"mountain interior without safe route", 0, func(s *ResourceSource, _ *ResourceReachRequest) { s.Reachable = domain.Known(false) }, 0},
 		{"unknown route", 0, func(s *ResourceSource, _ *ResourceReachRequest) { s.Reachable = domain.Unknown[bool]() }, 0},
 		{"roof support", 0, func(s *ResourceSource, _ *ResourceReachRequest) { s.Safety = "roofed" }, 0},
+		{"supported roof steel", 0, func(s *ResourceSource, _ *ResourceReachRequest) { s.Safety = MineSafetySupportedRoof }, 1},
 		{"foreign designation covers demand", 0, func(s *ResourceSource, _ *ResourceReachRequest) { s.Designated = true }, 0},
 		{"outside base reach", 0, func(_ *ResourceSource, r *ResourceReachRequest) { r.Armed = domain.Known(int64(0)) }, 0},
 	} {

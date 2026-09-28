@@ -59,7 +59,7 @@ type ResourceSource struct {
 	Designated bool
 	// Safety gates a "mine" source only: an older companion cannot certify
 	// excavation geometry, so a mine source is usable only when native
-	// reports "open_surface".
+	// reports a MineSafe safety.
 	Safety    string
 	WorkTypes []WorkType
 	// Cell and Token are populated for a "mine" source only (see
@@ -99,7 +99,7 @@ func SelectReachableResourceSources(sources []ResourceSource, target, stock int6
 			}
 			if reason == "" {
 				decision := FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: source.Cell,
-					Eligible: domain.Known(source.Safety == "open_surface"), RouteObservedPassable: source.Reachable})
+					Eligible: domain.Known(MineSafe(source.Safety)), RouteObservedPassable: source.Reachable})
 				if !decision.Allowed {
 					reason = RemoteHoldReason(RemoteMining, decision.Reason)
 				}
@@ -123,8 +123,8 @@ func SelectReachableResourceSources(sources []ResourceSource, target, stock int6
 // "mine" source is ever selected per call — one excavation identity per
 // method preserves cancellation across a changing stock target without
 // retaining an unbounded second source ledger — and it is the last source
-// selected. A "mine" source lacking native "open_surface" safety
-// confirmation can never be selected. The result is capped at 8 sources,
+// selected. A "mine" source lacking native mine safety confirmation
+// (MineSafe) can never be selected. The result is capped at 8 sources,
 // matching the native selection this ports.
 func SelectResourceSources(sources []ResourceSource, target, stock, pending int64) []ResourceSource {
 	needed := target - stock - pending
@@ -133,7 +133,7 @@ func SelectResourceSources(sources []ResourceSource, target, stock, pending int6
 	}
 	usable := make([]ResourceSource, 0, len(sources))
 	for _, s := range sources {
-		if s.Method == ResourceSourceMine && s.Safety != "open_surface" {
+		if s.Method == ResourceSourceMine && !MineSafe(s.Safety) {
 			continue
 		}
 		usable = append(usable, s)
@@ -512,4 +512,17 @@ func SelectFullStorageZone(deficit int64, storage ResourceStorage) (ResourceStor
 	}
 	zone, needed, _, err := SelectStockpileCapacity(min(deficit, storage.StackLimit), storage)
 	return zone, needed, err
+}
+
+// Native mine-source safety verdicts that permit excavation: open ground,
+// or a roofed deposit whose removal keeps the roof supported (#1068).
+const (
+	MineSafetyOpenSurface   = "open_surface"
+	MineSafetySupportedRoof = "supported_roof"
+)
+
+// MineSafe reports whether a native safety verdict lets a "mine" source be
+// counted and selected.
+func MineSafe(safety string) bool {
+	return safety == MineSafetyOpenSurface || safety == MineSafetySupportedRoof
 }
