@@ -179,19 +179,11 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	}
 	call, recorded := recordPlannerStep(call, policy.MaintainEquipment, state.Snapshot, review.Tick)
 	defer recorded()
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainEquipment {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineGearResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	busy := map[domain.PawnID]bool{}

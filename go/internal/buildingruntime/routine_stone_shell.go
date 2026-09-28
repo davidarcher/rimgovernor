@@ -68,19 +68,11 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineStoneShellResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainStoneShell {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainStoneShell)
 	if err != nil {
 		return RoutineStoneShellResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineStoneShellResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {

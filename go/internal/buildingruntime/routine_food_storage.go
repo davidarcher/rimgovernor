@@ -50,19 +50,11 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineFoodStorageResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainFoodStorage {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainFoodStorage)
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineFoodStorageResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	if goal.Goal.Priority >= 3 {

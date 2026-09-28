@@ -2,8 +2,9 @@ package store
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestTrustedRefusalSurvivesReopen(t *testing.T) {

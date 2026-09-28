@@ -54,7 +54,7 @@ func hasNeed(r RoutineNeeds, id GoalID) bool {
 // assessedDeficit reports an unrecovered assessment of id: a Response
 // (#1078) is assessed, never filed as a development goal.
 func assessedDeficit(r RoutineNeeds, id GoalID) bool {
-	for _, a := range r.Assessments {
+	for _, a := range r.All() {
 		if a.ID == id && a.Need != domain.NeedRecovered {
 			return true
 		}

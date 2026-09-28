@@ -521,10 +521,13 @@ type RoutineLatches struct {
 	Medical Phase `json:",omitempty"`
 }
 type RoutineNeeds struct {
-	Disaster    *DisasterHistory
-	Latches     RoutineLatches
-	Goals       []DevelopmentGoal
+	Disaster *DisasterHistory
+	Latches  RoutineLatches
+	Goals    []DevelopmentGoal
+	// Assessments are the goal needs the review files goal rows for;
+	// Incidents are the incident kinds' assessments (#1020, #1121).
 	Assessments []RoutineAssessment
+	Incidents   []RoutineAssessment
 	// WoodFloor is the WoodLog stock floor the wood latch asks of
 	// MaintainResource, 0 while the latch is off (#728).
 	WoodFloor int64
@@ -1375,7 +1378,21 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			}
 		}
 	}
+	all := r.Assessments
+	r.Assessments = nil
+	for _, a := range all {
+		if IsIncidentKind(a.ID) {
+			r.Incidents = append(r.Incidents, a)
+		} else {
+			r.Assessments = append(r.Assessments, a)
+		}
+	}
 	return r, nil
+}
+
+// All is every assessment, goal needs then incident kinds.
+func (r RoutineNeeds) All() []RoutineAssessment {
+	return slices.Concat(r.Assessments, r.Incidents)
 }
 
 // criticalMedicinePriority is 1 (an emergency that suspends every other goal)

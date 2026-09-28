@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"

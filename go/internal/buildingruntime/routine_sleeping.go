@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"slices"
 	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -163,17 +164,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineBuildingResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	for _, binding := range review.Goals {
-		if binding.Need == r.goal {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, r.goal)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// A phased goal walks its phases in order: only the planner for the

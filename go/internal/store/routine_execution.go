@@ -169,6 +169,23 @@ func (r RoutineReview) Veto(g domain.Goal) string {
 	return r.vetoNeed(need, g.Priority)
 }
 
+// Workable loads the goal the review binds to need and reports whether a
+// planner may work it: an active deficit the Rules admit (#1121). The goal
+// is returned whenever the review binds one, workable or not.
+func (s *Store) Workable(ctx context.Context, r RoutineReview, need policy.GoalID) (GoalState, bool, error) {
+	for _, binding := range r.Goals {
+		if binding.Need != need {
+			continue
+		}
+		goal, err := s.LoadGoal(ctx, binding.Goal)
+		if err != nil {
+			return GoalState{}, false, err
+		}
+		return goal, goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit && r.Veto(goal.Goal) == "", nil
+	}
+	return GoalState{}, false, nil
+}
+
 // vetoAction asks the action Rules (#1018) at dispatch: a vetoed action is
 // ErrActionVetoed with the Rule's reason and only that action is refused.
 func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {

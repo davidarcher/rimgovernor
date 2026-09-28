@@ -3,9 +3,10 @@ package store
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"testing"
 )
 
 func supplyPlan(t *testing.T, id string, count int, cell domain.Cell) domain.PlanSpec {

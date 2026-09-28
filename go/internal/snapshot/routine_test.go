@@ -31,7 +31,7 @@ func TestReplayReproducesTheRecordedReview(t *testing.T) {
 	for _, g := range r.Review.Goals {
 		bound[g.Need] = true
 	}
-	for _, a := range needs.Assessments {
+	for _, a := range needs.All() {
 		if !bound[a.ID] {
 			t.Error("replay assessed unbound", a.ID)
 		}

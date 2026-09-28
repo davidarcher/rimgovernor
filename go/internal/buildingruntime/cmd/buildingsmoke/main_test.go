@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 )
 
 func argsFor(t *testing.T, mode string) []string {

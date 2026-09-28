@@ -55,19 +55,11 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutinePopulationCustodyResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainPopulation {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainPopulation)
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutinePopulationCustodyResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {

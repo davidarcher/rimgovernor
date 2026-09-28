@@ -60,12 +60,6 @@ func (r RoutineReview) VetoIncident(i domain.Incident) string {
 	return r.vetoNeed(i.Kind, i.Priority)
 }
 
-// goalAssessments are the assessments the review files goal rows for:
-// every one but the incident kinds.
-func goalAssessments(all []policy.RoutineAssessment) []policy.RoutineAssessment {
-	return slices.DeleteFunc(slices.Clone(all), func(a policy.RoutineAssessment) bool { return policy.IsIncidentKind(a.ID) })
-}
-
 func openIncidentID(ctx context.Context, tx *sql.Tx, world domain.GenerationSnapshot, kind domain.GoalID, subject domain.PawnID) (domain.IncidentID, bool, error) {
 	var id domain.IncidentID
 	err := tx.QueryRowContext(ctx, "SELECT id FROM incidents WHERE colony=? AND load_token=? AND map_id=? AND kind=? AND subject=? AND ended_tick IS NULL", world.Colony, world.Load, world.Map, kind, subject).Scan(&id)
@@ -84,9 +78,6 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Routi
 	var bindings []RoutineIncident
 	var states []IncidentState
 	for _, n := range assessments {
-		if !policy.IsIncidentKind(n.ID) {
-			continue
-		}
 		id, open, err := openIncidentID(ctx, tx, current, n.ID, n.Subject)
 		if err != nil {
 			return nil, nil, err

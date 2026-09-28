@@ -156,19 +156,10 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if len(needs) == 0 && len(staged.ResearchLadder) == 0 {
 		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.EnsureResearch {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, deficit, err := p.journal.Workable(call, review, policy.EnsureResearch)
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
-	deficit := found && goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit && review.Veto(goal.Goal) == ""
 	if deficit {
 		for _, method := range goal.Methods {
 			plan, err := p.journal.LoadPlan(call, method.Plan)

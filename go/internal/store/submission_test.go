@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"sync"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func submissionRequest(t *testing.T, id string) SubmissionRequest {

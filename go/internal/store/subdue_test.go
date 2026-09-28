@@ -2,10 +2,11 @@ package store
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"path/filepath"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 func TestSubdueRoundTripAndMoodEvidence(t *testing.T) {

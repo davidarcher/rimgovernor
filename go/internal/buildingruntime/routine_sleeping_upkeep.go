@@ -169,19 +169,11 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineBuildingResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainHousing {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainHousing)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Housing != policy.HousingSleeping || review.Veto(goal.Goal) != "" {
+	if !workable || review.Latches.Housing != policy.HousingSleeping {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, m := range goal.Methods {

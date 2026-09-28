@@ -55,19 +55,11 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineBlightResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.RemoveBlight {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.RemoveBlight)
 	if err != nil {
 		return RoutineBlightResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineBlightResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// RemoveBlight competes for the bounded development capacity like waste

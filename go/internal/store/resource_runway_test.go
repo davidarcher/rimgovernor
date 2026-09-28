@@ -2,9 +2,10 @@ package store
 
 import (
 	"context"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"testing"
 )
 
 // A day of journal history with no charged production reads a known zero

@@ -4,14 +4,15 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"slices"
+	"sort"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"slices"
-	"sort"
 )
 
 type RoutineSupplySource interface {

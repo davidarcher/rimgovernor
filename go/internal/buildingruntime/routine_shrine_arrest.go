@@ -3,10 +3,11 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"time"
 )
 
 func shrineArrestPlan(id domain.PlanID, performer, target domain.PawnID, bed string) (domain.PlanSpec, error) {

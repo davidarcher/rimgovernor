@@ -8,7 +8,7 @@ import (
 
 func assessment(t *testing.T, r RoutineNeeds, id GoalID) domain.NeedState {
 	t.Helper()
-	for _, n := range r.Assessments {
+	for _, n := range r.All() {
 		if n.ID == id {
 			return n.Need
 		}
@@ -19,10 +19,10 @@ func assessment(t *testing.T, r RoutineNeeds, id GoalID) domain.NeedState {
 
 func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	r := needs(t, RoutineFacts{}, RoutineLatches{})
-	if len(r.Assessments) != 44 {
+	if len(r.All()) != 44 {
 		t.Fatal(r)
 	}
-	for _, n := range r.Assessments {
+	for _, n := range r.All() {
 		// EnsureResearch and MaintainResource are gated on
 		// operator config (RoutinePolicy.ResearchLadder/ResourceTargets): DefaultRoutinePolicy's empty
 		// target/map is itself known evidence ("no target configured" is
@@ -39,7 +39,7 @@ func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 		}
 	}
 	r = needs(t, stableRoutine(), RoutineLatches{})
-	for _, n := range r.Assessments {
+	for _, n := range r.All() {
 		if n.Need != domain.NeedRecovered {
 			t.Fatal("stable evidence not recovered", n)
 		}

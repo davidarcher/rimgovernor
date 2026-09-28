@@ -12,18 +12,11 @@ import (
 
 func (r *RoutineMedicalPlanner) planMedicineTier(call, epoch context.Context, state ControlState, review store.RoutineReview, arbiter *stepArbiter) (RoutineMedicalResult, error) {
 	p := r.reviewer.player
-	var goal store.GoalState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainMedicalReserves {
-			var err error
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			if err != nil {
-				return RoutineMedicalResult{}, err
-			}
-			break
-		}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainMedicalReserves)
+	if err != nil {
+		return RoutineMedicalResult{}, err
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Medical != policy.MedicalCare || review.Veto(goal.Goal) != "" {
+	if !workable || review.Latches.Medical != policy.MedicalCare {
 		return RoutineMedicalResult{}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)

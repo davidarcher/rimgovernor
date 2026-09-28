@@ -134,19 +134,11 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	}
 	call, recorded := recordPlannerStep(call, policy.MaintainResource, state.Snapshot, review.Tick)
 	defer recorded()
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainResource {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainResource)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineResourceResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// A tunnel stage held against geometry that changed under it closes so

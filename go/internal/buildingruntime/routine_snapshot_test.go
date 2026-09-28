@@ -323,7 +323,7 @@ func TestSnapshotConditionResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 	opened := map[domain.PawnID]bool{}
-	for _, a := range needs.Assessments {
+	for _, a := range needs.Incidents {
 		opened[a.Subject] = opened[a.Subject] || a.ID == policy.EnsureMood
 	}
 	pawns, _ := r.Facts.MoodPawns.Value()

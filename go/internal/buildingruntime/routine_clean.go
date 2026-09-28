@@ -56,19 +56,11 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineCleanResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainCleanFacilities {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainCleanFacilities)
 	if err != nil {
 		return RoutineCleanResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineCleanResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// MaintainCleanFacilities competes for the same bounded concurrent-project

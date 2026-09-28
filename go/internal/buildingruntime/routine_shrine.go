@@ -116,19 +116,11 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if err = r.settleOrphanedPlans(call); err != nil {
 		return RoutineShrineResult{}, err
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.ClearAncientShrine {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.ClearAncientShrine)
 	if err != nil {
 		return RoutineShrineResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineShrineResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {

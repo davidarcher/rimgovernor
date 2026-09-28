@@ -56,28 +56,18 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineRepairResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainEssentialRepairs {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEssentialRepairs)
 	if err != nil {
 		return RoutineRepairResult{}, err
 	}
-	if found {
-		// A repair the colonists already made (the goal recovered, or the
-		// structure is ineligible) is settled here, before the need gate:
-		// once the goal recovers the gate returns early, and the open
-		// method would hold the goal's development commitment forever.
-		if err = cancelSettledRepairMethods(call, p.journal, goal); err != nil {
-			return RoutineRepairResult{}, err
-		}
+	// A repair the colonists already made (the goal recovered, or the
+	// structure is ineligible) is settled here, before the need gate:
+	// once the goal recovers the gate returns early, and the open
+	// method would hold the goal's development commitment forever.
+	if err = cancelSettledRepairMethods(call, p.journal, goal); err != nil {
+		return RoutineRepairResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineRepairResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// MaintainEssentialRepairs competes for the same bounded concurrent-project

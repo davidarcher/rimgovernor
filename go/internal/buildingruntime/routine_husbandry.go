@@ -67,19 +67,11 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{}, err
 	}
 	wait := animalProductWait(read.Projection.Facts.FoodPlan)
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainHerd {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainHerd)
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineHusbandryResult{Reason: BuildingMethodNoDeficit, NativeWorkTicks: wait}, nil
 	}
 	for _, method := range goal.Methods {

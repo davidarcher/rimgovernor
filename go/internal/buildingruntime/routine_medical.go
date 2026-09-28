@@ -148,19 +148,11 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if result, err := r.planMedicineTier(call, epoch, state, review, arbiter); err != nil || result.Plan != "" || result.Reason == BuildingMethodExistingWork {
 		return result, err
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainMedicalReserves {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainMedicalReserves)
 	if err != nil {
 		return RoutineMedicalResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || !review.Latches.Medical.Restocks() || review.Veto(goal.Goal) != "" {
+	if !workable || !review.Latches.Medical.Restocks() {
 		return RoutineMedicalResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	started := r.reviewer.clock.Now()

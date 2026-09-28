@@ -300,9 +300,6 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	allowed := map[domain.GoalID]bool{}
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
-		if policy.IsIncidentKind(n.ID) {
-			continue
-		}
 		allowed[n.ID] = true
 		optional[n.ID] = n.Priority >= 3 || n.ID == policy.EnsureComfort || n.ID == policy.MaintainHousing || n.ID == policy.MaintainMedicalReserves || n.ID == policy.MaintainFoodStorage
 	}
@@ -515,7 +512,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	old := map[domain.GoalID]GoalState{}
 	assessed := map[domain.GoalID]bool{}
-	for _, n := range needs.Assessments {
+	for _, n := range needs.All() {
 		assessed[n.ID] = true
 	}
 	if request.Enabled {
@@ -683,16 +680,16 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	} else {
 		// The review records the emergency needs; the EmergencyRule vetoes
 		// other work from them at admission and dispatch (#1017).
-		for _, n := range needs.Assessments {
+		for _, n := range needs.All() {
 			if policy.EmergencyNeed(n) {
 				r.Emergency = append(r.Emergency, n.ID)
 			}
 		}
 		result.Emergency = r.Emergency
-		if r.Incidents, result.Incidents, err = reviewIncidents(ctx, tx, needs.Assessments, b, request.Tick); err != nil {
+		if r.Incidents, result.Incidents, err = reviewIncidents(ctx, tx, needs.Incidents, b, request.Tick); err != nil {
 			return RoutineReviewResult{}, err
 		}
-		for _, n := range goalAssessments(needs.Assessments) {
+		for _, n := range needs.Assessments {
 			g, exists := old[n.ID]
 			project := policy.GoalConcept(n.ID) == policy.ConceptProject
 			if exists && project && domain.ProjectRegressed(g.Goal, n.Need, false) {
@@ -763,7 +760,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		unavailable := map[domain.GoalID]bool{}
-		for _, n := range needs.Assessments {
+		for _, n := range needs.All() {
 			unavailable[n.ID] = n.MethodUnavailable
 		}
 		r.Progress = policy.HoldProgress(r.Progress, development.Rows, policy.WithheldLabor(r.Progress), unavailable)

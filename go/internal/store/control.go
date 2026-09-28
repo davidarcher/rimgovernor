@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"strconv"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 type ControlKind string

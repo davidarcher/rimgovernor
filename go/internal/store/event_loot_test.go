@@ -3,9 +3,10 @@ package store
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"testing"
 )
 
 func TestEventLootRestartAdmissionAndReset(t *testing.T) {

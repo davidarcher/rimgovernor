@@ -49,19 +49,11 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainPopulation {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainPopulation)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {

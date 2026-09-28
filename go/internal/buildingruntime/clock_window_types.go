@@ -1,10 +1,11 @@
 package buildingruntime
 
 import (
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
-	"time"
 )
 
 // ClockWindowRequest carries fresh policy facts through the serialized command.

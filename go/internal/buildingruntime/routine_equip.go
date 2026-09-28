@@ -56,19 +56,11 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineEquipResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.EnsureBasicDefense {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.EnsureBasicDefense)
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineEquipResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	attemptsByPawn := map[domain.PawnID]int{}

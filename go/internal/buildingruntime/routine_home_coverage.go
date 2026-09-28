@@ -86,19 +86,11 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineHomeCoverageResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainHomeCoverage {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainHomeCoverage)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineHomeCoverageResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {

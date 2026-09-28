@@ -4,12 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"sort"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"sort"
-	"time"
 )
 
 func breakMelee(row *n.PawnState) domain.Fact[bool] {

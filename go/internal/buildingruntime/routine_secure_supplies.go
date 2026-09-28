@@ -104,19 +104,11 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	}
 	call, recorded := recordPlannerStep(call, policy.SecureSupplies, state.Snapshot, review.Tick)
 	defer recorded()
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.SecureSupplies {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.SecureSupplies)
 	if err != nil {
 		return PlanResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodNoDeficit}, nil
 	}
 	// SecureSupplies competes for the same bounded concurrent-project capacity

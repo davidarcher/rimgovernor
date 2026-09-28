@@ -187,19 +187,11 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineAnimalContainmentResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainAnimalContainment {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainAnimalContainment)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineAnimalContainmentResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	selected := false

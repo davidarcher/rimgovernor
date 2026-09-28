@@ -2,12 +2,13 @@ package buildingruntime
 
 import (
 	"context"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"time"
 )
 
 // ClockEventNative serves the event poll: the long-polled clock journal

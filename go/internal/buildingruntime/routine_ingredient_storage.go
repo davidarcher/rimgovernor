@@ -71,19 +71,11 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	if !r.reviewer.policy.ResourceGoalConfigured() && review.MedicineTarget == 0 {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodDisabled}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainResource {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainResource)
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	selected := false

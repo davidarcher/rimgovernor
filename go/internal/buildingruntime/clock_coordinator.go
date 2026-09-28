@@ -3,6 +3,9 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,8 +16,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"google.golang.org/protobuf/proto"
-	"sync"
-	"time"
 )
 
 type ClockNative interface {

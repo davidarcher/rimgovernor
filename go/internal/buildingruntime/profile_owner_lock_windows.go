@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"errors"
-	"golang.org/x/sys/windows"
 	"os"
+
+	"golang.org/x/sys/windows"
 )
 
 func lockProfile(file *os.File) error {

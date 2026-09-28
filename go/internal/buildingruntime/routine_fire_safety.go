@@ -9,7 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -68,19 +67,11 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineFireSafetyResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainFireSafety {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	_, workable, err := p.journal.Workable(call, review, policy.MaintainFireSafety)
 	if err != nil {
 		return RoutineFireSafetyResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineFireSafetyResult{Reason: BuildingMethodNoDeficit, Outcome: policy.FireSafetyRecovered}, nil
 	}
 	identity, _, err := r.native.Identity(call)

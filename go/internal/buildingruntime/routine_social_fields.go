@@ -16,17 +16,11 @@ func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state Co
 		return RoutineFieldResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	p := r.reviewer.player
-	var goal store.GoalState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainResource {
-			var err error
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			if err != nil {
-				return RoutineFieldResult{}, err
-			}
-		}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainResource)
+	if err != nil {
+		return RoutineFieldResult{}, err
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineFieldResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {

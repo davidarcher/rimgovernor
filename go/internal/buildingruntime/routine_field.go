@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,7 +15,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	"math"
 )
 
 type RoutineFieldPlanner struct {
@@ -52,17 +53,11 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineFieldResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.EnsureFoodSupply {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.EnsureFoodSupply)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return r.socialFields(call, epoch, state, review)
 	}
 	if goal.Goal.Priority >= 3 {

@@ -2,9 +2,10 @@ package store
 
 import (
 	"context"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"testing"
 )
 
 func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T) {

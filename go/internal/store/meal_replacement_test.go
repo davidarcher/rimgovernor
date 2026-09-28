@@ -2,9 +2,10 @@ package store
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"path/filepath"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestMealReplacementSurvivesJournalReload(t *testing.T) {

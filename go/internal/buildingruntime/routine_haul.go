@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -85,19 +84,11 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	}
 	call, recorded := recordPlannerStep(call, policy.MaintainStorage, state.Snapshot, review.Tick)
 	defer recorded()
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainStorage {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainStorage)
 	if err != nil {
 		return PlanResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodNoDeficit}, nil
 	}
 	// MaintainStorage competes for the same bounded concurrent-project

@@ -116,7 +116,7 @@ func (r Routine) Assessment(id policy.GoalID) (policy.RoutineAssessment, error) 
 	if err != nil {
 		return policy.RoutineAssessment{}, err
 	}
-	for _, a := range needs.Assessments {
+	for _, a := range needs.All() {
 		if a.ID == id {
 			return a, nil
 		}

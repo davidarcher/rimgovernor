@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -49,17 +50,11 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineAcquisitionResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	for _, binding := range review.Goals {
-		if binding.Need == r.need {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, r.need)
 	if err != nil {
 		return RoutineAcquisitionResult{}, err
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineAcquisitionResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	if goal.Goal.Priority >= 3 {

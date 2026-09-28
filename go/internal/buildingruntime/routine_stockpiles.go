@@ -361,18 +361,11 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineStockpileResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainStockpiles {
-			if goal, err = p.journal.LoadGoal(call, binding.Goal); err != nil {
-				return RoutineStockpileResult{}, err
-			}
-			found = true
-			break
-		}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainStockpiles)
+	if err != nil {
+		return RoutineStockpileResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineStockpileResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {

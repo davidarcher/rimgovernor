@@ -3,10 +3,11 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"reflect"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {

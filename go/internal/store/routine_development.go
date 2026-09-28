@@ -141,7 +141,7 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 
 func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, []DependencyRecord, error) {
 	var bindings []RoutineGoal
-	for i, n := range goalAssessments(needs.Assessments) {
+	for i, n := range needs.Assessments {
 		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: states[i].Goal.ID})
 	}
 	plans, err := routinePlans(ctx, tx, r.Current, bindings)
@@ -173,7 +173,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 			}
 		}
 	}
-	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Goals: goals, Assessments: needs.Assessments, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Census: r.Facts.WorkerCensus, Dependencies: dependencies})
+	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Goals: goals, Assessments: needs.All(), Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Census: r.Facts.WorkerCensus, Dependencies: dependencies})
 	if err != nil {
 		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}

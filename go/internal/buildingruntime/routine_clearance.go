@@ -58,19 +58,11 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	call, recorded := recordPlannerStep(call, policy.ClearHomeObstructions, state.Snapshot, review.Tick)
 	defer recorded()
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.ClearHomeObstructions {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	goal, workable, err := p.journal.Workable(call, review, policy.ClearHomeObstructions)
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !workable {
 		return RoutineClearanceResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	selected := false
