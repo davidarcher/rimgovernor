@@ -2,6 +2,7 @@ package sustainedfood
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -54,6 +55,11 @@ type FailFast struct {
 	// next review, which reads like a planner that found no method, so the
 	// case that knows the design opts in.
 	MethodUnavailableWaits bool
+	// RetryableUnsuccessful lists reasons the unsuccessful shape skips like
+	// interrupted and cancelled: a goal serving several resources retries a
+	// shortfall on one of them (#1136: a MedicineHerbal acquisition ending
+	// outcome_not_achieved under MaintainResource) without the case failing.
+	RetryableUnsuccessful []domain.UnsuccessfulReason
 	// ParkSamples is how many consecutive samples the watched goal may sit
 	// suspended under an emergency with the live tick unchanged before the
 	// watch fails (default 12: a minute at the usual 5 s poll, past the
@@ -138,7 +144,7 @@ func (f *failFastState) unsuccessful(sample map[string]any) (Verdict, bool) {
 		rows, _ := plan["unsuccessful"].([]map[string]any)
 		for _, row := range rows {
 			reason := domain.UnsuccessfulReason(asString(row["reason"]))
-			if reason == domain.NativeInterrupted || reason == domain.NativeCancelled {
+			if reason == domain.NativeInterrupted || reason == domain.NativeCancelled || slices.Contains(f.cfg.RetryableUnsuccessful, reason) {
 				continue
 			}
 			return Verdict{

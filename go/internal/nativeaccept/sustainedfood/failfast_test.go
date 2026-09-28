@@ -6,8 +6,28 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
+
+func TestFailFastRetryableUnsuccessfulSkipsListedReasons(t *testing.T) {
+	sample := func(reason string) map[string]any {
+		return map[string]any{"method_count": 1, "plans": []map[string]any{{
+			"plan": "plan-1", "unsuccessful": []map[string]any{{"action": "a-1", "kind": "acquire", "reason": reason}},
+		}}}
+	}
+	on := newFailFast(FailFast{RetryableUnsuccessful: []domain.UnsuccessfulReason{domain.OutcomeNotAchieved}}, policy.MaintainResource, "")
+	if v, failed := on.check(sample("outcome_not_achieved")); failed {
+		t.Fatalf("outcome_not_achieved is retryable here: %v", v)
+	}
+	if _, failed := on.check(sample("native_failure")); !failed {
+		t.Fatal("native_failure must still trip")
+	}
+	off := newFailFast(FailFast{}, policy.MaintainResource, "")
+	if _, failed := off.check(sample("outcome_not_achieved")); !failed {
+		t.Fatal("outcome_not_achieved must trip without the option")
+	}
+}
 
 func idleSample(revision uint64, idle bool, methods int) map[string]any {
 	return map[string]any{

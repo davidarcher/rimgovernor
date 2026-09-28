@@ -83,7 +83,14 @@ const benchStage = "bench-built"
 // workshop recorded as gating the bench is unfinished the goal holds no
 // method of its own by design (policy.RoutineNeeds), so those reviews are
 // not the planner committing nothing under a slot it was handed.
-var ladderFailFast = sustainedfood.FailFast{MethodUnavailableWaits: true}
+//
+// MaintainResource also keeps other resources (medicine) stocked, and one of
+// those acquisitions falling short (outcome_not_achieved) is retried, not
+// the ladder failing (#1136).
+var ladderFailFast = sustainedfood.FailFast{
+	MethodUnavailableWaits: true,
+	RetryableUnsuccessful:  []domain.UnsuccessfulReason{domain.OutcomeNotAchieved},
+}
 
 func init() {
 	cases.Register(cases.Case{
