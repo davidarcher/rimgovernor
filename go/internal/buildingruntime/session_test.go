@@ -90,7 +90,7 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
 			fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
 			// The apply receipt settles the intent at once (#856).
-			result, err := session.Run(ctx, "plan", "action")
+			result, err := runOne(ctx, session, "plan", "action")
 			if err != nil || !result.NativeCalled || result.Progress.View().Stage != domain.Completed {
 				t.Fatalf("dispatch %v %v", result, err)
 			}
@@ -125,7 +125,7 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			fixture.EmergencyErr = errors.New("emergency facts unavailable during reconciliation")
 			fixture.Emergency.Facts.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
 			emergencyCalls := fixture.Emergencies
-			result, err = session.Run(ctx, "plan", "action")
+			result, err = runOne(ctx, session, "plan", "action")
 			if fixture.Emergencies != emergencyCalls {
 				t.Fatal("issued attempt reconciliation read emergency facts")
 			}
@@ -135,7 +135,7 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			if err = session.Close(ctx); err != nil {
 				t.Fatal(err)
 			}
-			if _, err = session.Run(ctx, "plan", "action"); !errors.Is(err, executor.ErrStopped) {
+			if _, err = runOne(ctx, session, "plan", "action"); !errors.Is(err, executor.ErrStopped) {
 				t.Fatalf("closed runtime ran: %v", err)
 			}
 			owner, err := AcquireProfile(ctx, dir)
@@ -145,4 +145,14 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			owner.Close()
 		})
 	}
+}
+
+// runOne dispatches a single building action through RunBatch, the worker's
+// only building path since #1042.
+func runOne(ctx context.Context, session *Session, plan domain.PlanID, action domain.ActionID) (executor.Result, error) {
+	items, err := session.RunBatch(ctx, plan, []domain.ActionID{action})
+	if err != nil {
+		return executor.Result{}, err
+	}
+	return items[0].Result, items[0].Err
 }

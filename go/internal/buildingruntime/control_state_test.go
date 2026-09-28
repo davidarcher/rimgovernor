@@ -163,7 +163,7 @@ func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
-	go func() { _, err := session.Run(ctx, "plan", "action"); done <- err }()
+	go func() { _, err := runOne(ctx, session, "plan", "action"); done <- err }()
 	<-blocked.entered
 	if err = session.Disable(); err != nil {
 		t.Fatal(err)
@@ -179,7 +179,7 @@ func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("disabled Run did not stop")
 	}
-	if _, err = session.Run(ctx, "plan", "action"); !errors.Is(err, executor.ErrAuthority) {
+	if _, err = runOne(ctx, session, "plan", "action"); !errors.Is(err, executor.ErrAuthority) {
 		t.Fatal(err)
 	}
 	state, err := journal.LoadPlan(ctx, "plan")

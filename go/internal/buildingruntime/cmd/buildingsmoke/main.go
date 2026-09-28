@@ -121,7 +121,7 @@ func fixture(data []byte) (domain.PlanSpec, error) {
 type session interface {
 	Acquire(context.Context, domain.GenerationSnapshot) (domain.GenerationSnapshot, error)
 	ObserveTarget(context.Context, domain.GenerationSnapshot) error
-	Run(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
+	RunBatch(context.Context, domain.PlanID, []domain.ActionID) ([]executor.BatchItem, error)
 }
 
 func advance(ctx context.Context, mode string, s session, snapshot domain.GenerationSnapshot) (executor.Result, error) {
@@ -134,7 +134,11 @@ func advance(ctx context.Context, mode string, s session, snapshot domain.Genera
 			return executor.Result{}, err
 		}
 	}
-	return s.Run(ctx, planID, actionID)
+	items, err := s.RunBatch(ctx, planID, []domain.ActionID{actionID})
+	if err != nil {
+		return executor.Result{}, err
+	}
+	return items[0].Result, items[0].Err
 }
 func accepted(mode, expected string, result executor.Result) bool {
 	v := result.Progress.View()

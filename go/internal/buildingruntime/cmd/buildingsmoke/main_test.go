@@ -75,9 +75,9 @@ func (s *fakeSession) ObserveTarget(context.Context, domain.GenerationSnapshot) 
 	s.observed++
 	return s.err
 }
-func (s *fakeSession) Run(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error) {
+func (s *fakeSession) RunBatch(_ context.Context, _ domain.PlanID, ids []domain.ActionID) ([]executor.BatchItem, error) {
 	s.runs++
-	return s.result, nil
+	return []executor.BatchItem{{Action: ids[0], Result: s.result}}, nil
 }
 func TestOneAdvanceAndReadOnlyRestart(t *testing.T) {
 	for _, mode := range []string{"place", "observe"} {
