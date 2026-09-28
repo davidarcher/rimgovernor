@@ -54,6 +54,8 @@ type Fixture struct {
 	// Arrival, when set, is a PawnsArrivalModeDef that drops the hostiles
 	// in around the first hostile's cell instead of spawning each (#870).
 	Arrival string `json:"arrival,omitempty"`
+	// Roof, when set, roofs a rectangle (#1071: overhead mountain).
+	Roof *Roof `json:"roof,omitempty"`
 	// PrisonBreak starts a prison break by the first prisoner once staged
 	// (#1080).
 	PrisonBreak bool `json:"prisonBreak,omitempty"`
@@ -75,6 +77,15 @@ type Layout struct {
 	Choke  *Cell
 }
 
+// Roof is a RoofDef over the cells MinX..MaxX, MinZ..MaxZ inclusive.
+type Roof struct {
+	Def  string `json:"def"`
+	MinX int    `json:"minX"`
+	MinZ int    `json:"minZ"`
+	MaxX int    `json:"maxX"`
+	MaxZ int    `json:"maxZ"`
+}
+
 // Cell is one map cell.
 type Cell struct{ X, Z int }
 
@@ -87,6 +98,9 @@ const (
 	Manhunter = "manhunter"
 	// Prisoner is a generated hostile Kind held as the colony's prisoner.
 	Prisoner = "prisoner"
+	// Insect is an insect Kind of the insects' faction under an assault
+	// lord (#1071).
+	Insect = "insect"
 
 	rifle     = "Gun_AssaultRifle"
 	longsword = "MeleeWeapon_LongSword"
@@ -98,7 +112,8 @@ const (
 // Names are the fixtures in landing order; #854 lands the first three and
 // reserves lab-breach, lab-mech and lab-manhunter for the first #845 child
 // that needs each. lab-pods (#870) joins with its rooms (#897).
-// The metrics baselines run Names; lab-manhunter (#1057) and lab-siege
+// The metrics baselines run Names; lab-manhunter (#1057), lab-infestation
+// (#1071) and lab-siege
 // (#1051) build but have no metrics baseline yet.
 var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods"}
 
@@ -119,6 +134,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return manhunter(cx, cz), nil
 	case "lab-prison":
 		return prison(cx, cz), nil
+	case "lab-infestation":
+		return infestation(cx, cz), nil
 	}
 	return Fixture{}, fmt.Errorf("combatlab: no fixture %q", name)
 }
@@ -276,6 +293,50 @@ func manhunter(cx, cz int) Fixture {
 		{Side: Manhunter, Kind: "Warg", X: cx - 2, Z: cz + 15},
 		{Side: Manhunter, Kind: "Warg", X: cx + 2, Z: cz + 15},
 	}}
+}
+
+// Infestation room (#1071): an 11x11 granite ring (natural rock) 10 cells
+// north of the centre, roofed thick (overhead mountain) wall to wall, with
+// one opening, the tunnel, in the middle of its south wall.
+const (
+	infestRoom = 10
+	infestHalf = 5
+)
+
+// infestation (#1071): a hive in a mountain room with three insects around
+// it; two longsword brawlers south of the tunnel, two riflemen behind them
+// and a frag grenadier in line with the tunnel and in throw range of the
+// hive. The line holds the tunnel, the brawlers block it.
+func infestation(cx, cz int) Fixture {
+	rz := cz + infestRoom
+	f := Fixture{Name: "lab-infestation", Colonists: 5,
+		Roof: &Roof{Def: "RoofRockThick", MinX: cx - infestHalf, MinZ: rz - infestHalf, MaxX: cx + infestHalf, MaxZ: rz + infestHalf}}
+	for x := cx - infestHalf; x <= cx+infestHalf; x++ {
+		for z := rz - infestHalf; z <= rz+infestHalf; z++ {
+			edge := x == cx-infestHalf || x == cx+infestHalf || z == rz-infestHalf || z == rz+infestHalf
+			if edge && !(x == cx && z == rz-infestHalf) {
+				f.Things = append(f.Things, Thing{Def: "Granite", X: x, Z: z})
+			}
+		}
+	}
+	f.Things = append(f.Things, Thing{Def: "Hive", X: cx, Z: rz + 2})
+	f.Pawns = []Pawn{
+		{Side: Insect, Kind: "Megascarab", X: cx - 2, Z: rz + 1},
+		{Side: Insect, Kind: "Spelopede", X: cx + 2, Z: rz + 1},
+		{Side: Insect, Kind: "Megaspider", X: cx, Z: rz},
+		{Side: Colonist, Index: 0, X: cx - 1, Z: cz + 3, Weapon: longsword, WeaponStuff: "Steel"},
+		{Side: Colonist, Index: 1, X: cx + 1, Z: cz + 3, Weapon: longsword, WeaponStuff: "Steel"},
+		{Side: Colonist, Index: 2, X: cx - 3, Z: cz, Weapon: rifle},
+		{Side: Colonist, Index: 3, X: cx + 3, Z: cz, Weapon: rifle},
+		{Side: Colonist, Index: 4, X: cx, Z: cz + 1, Weapon: "Weapon_GrenadeFrag"},
+	}
+	tunnel := Cell{cx, rz - infestHalf}
+	f.Layout = &Layout{Toward: "south", Choke: &tunnel}
+	for _, dx := range []int{-3, 3} {
+		f.Layout.Firing = append(f.Layout.Firing, Cell{cx + dx, cz})
+		f.Layout.Retreat = append(f.Layout.Retreat, Cell{cx + dx, cz - 5})
+	}
+	return f
 }
 
 // prison (#1080): two prisoners, one bruised, break out of a 7x7 granite

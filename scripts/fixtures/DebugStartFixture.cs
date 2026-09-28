@@ -349,6 +349,7 @@ namespace HomeBridge.BridgeTools
             var pawns = new List<Pawn>();
             var hostiles = new List<Pawn>();
             var prisoners = new List<Pawn>();
+            var insects = new List<Pawn>();
             Rand.PushState(Seed);
             try
             {
@@ -361,9 +362,18 @@ namespace HomeBridge.BridgeTools
                     var cell = Cell(map, t);
                     var thing = ThingMaker.MakeThing(def, stuff);
                     // hostile (#930): the lab hostiles' faction, e.g. a ship part to attack.
-                    if (def.category == ThingCategory.Building) thing.SetFaction((bool?)t["hostile"] == true ? faction : Faction.OfPlayer);
+                    // A hive (#1071) is the insects'; natural rock no one's.
+                    if (thing is Hive) thing.SetFaction(Faction.OfInsects);
+                    else if (def.category == ThingCategory.Building && def.CanHaveFaction) thing.SetFaction((bool?)t["hostile"] == true ? faction : Faction.OfPlayer);
                     GenSpawn.Spawn(thing, cell, map, new Rot4((int?)t["rotation"] ?? 0));
                     things.Add(new { id = thing.GetUniqueLoadID(), def = def.defName, x = cell.x, z = cell.z });
+                }
+                // roof (#1071): a RoofDef over a rectangle, e.g. overhead mountain.
+                if (spec["roof"] is JObject roof)
+                {
+                    var roofDef = DefDatabase<RoofDef>.GetNamedSilentFail((string)roof["def"]) ?? throw new ArgumentException($"No RoofDef {roof["def"]}.");
+                    foreach (var cell in CellRect.FromLimits((int)roof["minX"], (int)roof["minZ"], (int)roof["maxX"], (int)roof["maxZ"]))
+                        if (cell.InBounds(map)) map.roofGrid.SetRoof(cell, roofDef);
                 }
                 var colonists = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
                 // An arrival mode (#870) drops the hostiles in by the game's
@@ -406,6 +416,15 @@ namespace HomeBridge.BridgeTools
                             if (arrival == null) GenSpawn.Spawn(pawn, cell, map);
                             hostiles.Add(pawn);
                         }
+                    }
+                    else if ((string)p["side"] == "insect")
+                    {
+                        // #1071: an insect of the insects' faction, assaulting the colony.
+                        var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
+                        pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, Faction.OfInsects, forceGenerateNewPawn: true, canGeneratePawnRelations: false, developmentalStages: DevelopmentalStage.Adult));
+                        foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
+                        GenSpawn.Spawn(pawn, cell, map);
+                        insects.Add(pawn);
                     }
                     else if ((string)p["side"] == "animal" || (string)p["side"] == "manhunter")
                     {
@@ -451,6 +470,8 @@ namespace HomeBridge.BridgeTools
             }
             if (hostiles.Count > 0)
                 LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, hostiles);
+            if (insects.Count > 0)
+                LordMaker.MakeNewLord(Faction.OfInsects, new LordJob_AssaultColony(Faction.OfInsects, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, insects);
             // prisonBreak (#1080): the game's own break, started by the first prisoner.
             if ((bool?)spec["prisonBreak"] == true)
             {
@@ -459,7 +480,7 @@ namespace HomeBridge.BridgeTools
                 if (escaping == null || escaping.Count == 0) throw new InvalidOperationException("The prison break freed no prisoner.");
             }
             var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(),
-                side = p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : "manhunter") : p.Faction == Faction.OfPlayer ? "colonist" : p.HostFaction == Faction.OfPlayer ? "prisoner" : "hostile", kind = p.kindDef.defName,
+                side = p.Faction == Faction.OfInsects ? "insect" : p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : "manhunter") : p.Faction == Faction.OfPlayer ? "colonist" : p.HostFaction == Faction.OfPlayer ? "prisoner" : "hostile", kind = p.kindDef.defName,
                 x = p.PositionHeld.x, z = p.PositionHeld.z, inPod = !p.Spawned, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
                 lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0 }).ToList();
             return new { success = true, faction = hostiles.FirstOrDefault()?.Faction.def.defName, things, pawns = rows, digest = Digest(map), digestRows = DigestRows(map) };
@@ -557,7 +578,7 @@ namespace HomeBridge.BridgeTools
         // well under the call ceiling.
         private const int MaxTicks = 2000;
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel}], prisonBreak}. Hostiles get fixed skills, only the named apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak}. Hostiles get fixed skills, only the named apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
             [ToolParameter(Description = "stage (default), read, or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",

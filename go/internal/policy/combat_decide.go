@@ -78,7 +78,10 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			// layout) it forms at once.
 			return nil, ask, memory
 		}
-		if ManhunterPack(view) {
+		if Infestation(view) {
+			// An infestation picks its own tactic (#1071).
+			next.Tactic, next.Roles, next.Refusal = TacticInfestation, infestationFormation(view, geometry, next.Relieved), ""
+		} else if ManhunterPack(view) {
 			// A manhunter pack picks its own tactic (#898).
 			next.Tactic, next.Roles, next.Refusal = TacticManhunter, manhunterFormation(view, geometry, next.Relieved), ""
 		} else if mode := siegeMode(view, next); mode != "" {
@@ -148,6 +151,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	flank(view, &next)
 	groupSquads(view, &next)
 	grenade(view, &next)
+	hiveGrenade(view, &next)
 	// Contained raiders who will not bleed down are finished in melee (#1036).
 	finishContained(view, &next)
 	rescue, ask := rescueStep(view, geometry, stop, &next, orderable, state)
@@ -717,7 +721,7 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 		return !ok || HoldCompromised(holdLine(layout, m), layout.Toward, unpeeled(view, stop, m))
 	case TacticPods:
 		return reformPods(view, m)
-	case TacticManhunter:
+	case TacticManhunter, TacticInfestation:
 		return reformManhunter(view, m)
 	case TacticSquad:
 		return squadTargetDown(view, m)

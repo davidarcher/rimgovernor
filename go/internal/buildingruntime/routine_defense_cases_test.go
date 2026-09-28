@@ -151,14 +151,17 @@ func TestDefenseReplayHuntingPredatorIsSquadDefense(t *testing.T) {
 	}
 }
 
-// defense/hive: an insect hive near the colony is a hostile building the
-// squad targets, melee or ranged from a line of fire.
-func TestDefenseReplayHiveIsSquadTargeted(t *testing.T) {
+// defense/hive: an insect hive near the colony is an infestation (#1071)
+// whose fighters target the hive, melee or ranged from a line of fire.
+func TestDefenseReplayHiveIsTargeted(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/hive.json.gz")
-	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
-	if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Hive53013"]+ranged["Thing_Hive53013"] == 0 {
-		t.Fatal("squad defense does not target the hive")
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticInfestation)
+	fight, _, _ := db.LoadCombatFight(context.Background(), results[0].Plan)
+	for _, role := range fight.Memory.Roles {
+		if role.Target != "Thing_Hive53013" {
+			t.Fatalf("a fighter not on the hive: %+v", fight.Memory.Roles)
+		}
 	}
 }
 
