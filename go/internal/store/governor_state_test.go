@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"reflect"
 	"testing"
 )
 
@@ -26,14 +25,6 @@ func TestGovernorStateBlobsMirrorGoals(t *testing.T) {
 	var shape map[string]json.RawMessage
 	if json.Unmarshal([]byte(blobs[key]), &shape) != nil || len(shape) != 3 || shape["schemaVersion"] == nil || shape["goal"] == nil || shape["revision"] == nil || GovernorStateSchemaVersion != 2 {
 		t.Fatal("goal blob is not v2 {schemaVersion, goal, revision}", blobs[key])
-	}
-	if drift := GovernorStateDrift(blobs, blobs); drift != nil {
-		t.Fatal(drift)
-	}
-	saved := map[string]string{"family/tidies": "{}", "other": "x"}
-	want := []string{"family/tidies: extra", key + ": missing"}
-	if drift := GovernorStateDrift(blobs, saved); !reflect.DeepEqual(drift, want) {
-		t.Fatal(drift)
 	}
 	if _, err = s.CancelGoal(ctx, g.Goal.ID, g.Revision); err != nil {
 		t.Fatal(err)

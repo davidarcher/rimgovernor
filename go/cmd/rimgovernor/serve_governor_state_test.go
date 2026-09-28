@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -36,7 +35,7 @@ func (f *fakeGovernorState) PutGovernorState(_ context.Context, key, blob string
 	return f.blobs, nil
 }
 
-func TestShadowGovernorStateLogsDriftAndPutsChanges(t *testing.T) {
+func TestShadowGovernorStatePutsChanges(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
 	if err != nil {
@@ -49,7 +48,7 @@ func TestShadowGovernorStateLogsDriftAndPutsChanges(t *testing.T) {
 	if err = shadowGovernorStateOnce(ctx, native, database, &written, nil, &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "family/stale: extra") || native.blobs["family/stale"] != "" || native.blobs["unrelated"] != "x" {
+	if _, ok := native.blobs["family/stale"]; ok || native.blobs["unrelated"] != "" {
 		t.Fatal(out.String(), native.blobs)
 	}
 	puts := native.puts
@@ -58,9 +57,9 @@ func TestShadowGovernorStateLogsDriftAndPutsChanges(t *testing.T) {
 	}
 }
 
-// A second world in the same process re-reads its save and re-checks
-// drift (#994); the same world does not.
-func TestShadowGovernorStateRechecksDriftOnWorldChange(t *testing.T) {
+// A second world in the same process re-reads its save (#994); the same
+// world does not.
+func TestShadowGovernorStateRereadsSaveOnWorldChange(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
 	if err != nil {
@@ -70,15 +69,15 @@ func TestShadowGovernorStateRechecksDriftOnWorldChange(t *testing.T) {
 	var shadow governorShadow
 	var out bytes.Buffer
 	first := governorWorld{Colony: "a", Map: 1, Load: "load-a", Generation: 1}
-	if err = shadow.round(ctx, first, &fakeGovernorState{blobs: map[string]string{"family/stale": "{}"}}, database, &out); err != nil || strings.Count(out.String(), "drift") != 1 {
-		t.Fatal(err, out.String())
+	stale := func() *fakeGovernorState { return &fakeGovernorState{blobs: map[string]string{"family/stale": "{}"}} }
+	if native := stale(); shadow.round(ctx, first, native, database, &out) != nil || native.blobs["family/stale"] != "" {
+		t.Fatal("first world save not read", native.blobs)
 	}
-	if err = shadow.round(ctx, first, &fakeGovernorState{blobs: map[string]string{"family/stale": "{}"}}, database, &out); err != nil || strings.Count(out.String(), "drift") != 1 {
-		t.Fatal("same world re-checked", err, out.String())
+	if native := stale(); shadow.round(ctx, first, native, database, &out) != nil || native.blobs["family/stale"] == "" {
+		t.Fatal("same world re-read", native.blobs)
 	}
-	second := &fakeGovernorState{blobs: map[string]string{"family/stale": "{}"}}
-	if err = shadow.round(ctx, governorWorld{Colony: "b", Map: 1, Load: "load-b", Generation: 1}, second, database, &out); err != nil || strings.Count(out.String(), "drift") != 2 || second.blobs["family/stale"] != "" {
-		t.Fatal("second world not re-checked", err, out.String(), second.blobs)
+	if native := stale(); shadow.round(ctx, governorWorld{Colony: "b", Map: 1, Load: "load-b", Generation: 1}, native, database, &out) != nil || native.blobs["family/stale"] != "" {
+		t.Fatal("second world save not read", native.blobs)
 	}
 }
 
@@ -97,7 +96,7 @@ func governorGoalBlob(t *testing.T, id domain.GoalID, colony domain.ColonyID, re
 
 // A world change rebuilds the family tables from the save (#1005): the
 // store's layout plan goes, and a saved production ladder is not written
-// back as drift.
+// back.
 func TestShadowGovernorStateRebuildsFamiliesOnWorldChange(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
@@ -123,7 +122,7 @@ func TestShadowGovernorStateRebuildsFamiliesOnWorldChange(t *testing.T) {
 	if err = shadow.round(ctx, governorWorld{Colony: "b", Map: 1, Load: "l", Generation: 1}, native, database, &out); err != nil {
 		t.Fatal(err)
 	}
-	if got, ok, err := database.LoadProductionLadder(ctx, ladder.World); err != nil || !ok || got.Resource != ladder.Resource || native.puts != 0 || strings.Contains(out.String(), "drift") {
+	if got, ok, err := database.LoadProductionLadder(ctx, ladder.World); err != nil || !ok || got.Resource != ladder.Resource || native.puts != 0 {
 		t.Fatal(got, ok, err, native.puts, out.String())
 	}
 }
@@ -155,9 +154,6 @@ func TestShadowGovernorStateRebuildsGoalsOnWorldChange(t *testing.T) {
 	}
 	if state, err := database.LoadGoal(ctx, "b"); err != nil || state.Revision != 7 || state.Goal.Snapshot.Colony != "two" || len(state.Methods) != 0 {
 		t.Fatal("world 2 goals not rebuilt", state, err)
-	}
-	if strings.Contains(out.String(), "goal/") {
-		t.Fatal("rebuilt goals drifted", out.String())
 	}
 }
 

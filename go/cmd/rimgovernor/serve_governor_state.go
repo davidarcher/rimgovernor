@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -157,18 +158,10 @@ func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, da
 		if err = database.RebuildFamilies(ctx, saved); err != nil {
 			return fmt.Errorf("rebuild families: %w", err)
 		}
-		blobs, err := database.GovernorStateBlobs(ctx)
-		if err != nil {
-			return err
-		}
-		if drift := store.GovernorStateDrift(blobs, saved); len(drift) > 0 {
-			fmt.Fprintf(out, "governor state: drift from store on load (%d keys): %v\n", len(drift), drift)
-		}
-		*written = map[string]string{}
-		for key, blob := range saved {
-			if store.GovernorShadowKey(key) {
-				(*written)[key] = blob
-			}
+		// The shadow writer owns every saved key, so it seeds from all.
+		*written = maps.Clone(saved)
+		if *written == nil {
+			*written = map[string]string{}
 		}
 	}
 	blobs, err := database.GovernorStateBlobs(ctx)

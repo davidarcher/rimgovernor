@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/gabp"
@@ -183,29 +182,4 @@ func newestLayoutTidies(ctx context.Context, tx *sql.Tx) (*GovernorScope, []Layo
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Item < out[j].Item })
 	return &scope, out, nil
-}
-
-// GovernorStateDrift lists keys whose saved blob differs from the store's,
-// sorted: "missing" (store only), "extra" (save only) or "differs".
-func GovernorStateDrift(store, saved map[string]string) []string {
-	var out []string
-	for key, blob := range store {
-		if have, ok := saved[key]; !ok {
-			out = append(out, key+": missing")
-		} else if have != blob {
-			out = append(out, key+": differs")
-		}
-	}
-	for key := range saved {
-		if _, ok := store[key]; !ok && GovernorShadowKey(key) {
-			out = append(out, key+": extra")
-		}
-	}
-	sort.Strings(out)
-	return out
-}
-
-// GovernorShadowKey reports whether key is one the shadow write owns.
-func GovernorShadowKey(key string) bool {
-	return strings.HasPrefix(key, GovernorGoalKeyPrefix) || strings.HasPrefix(key, "family/")
 }
