@@ -127,6 +127,42 @@ func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, o
 	return g, nil
 }
 
+// ProjectFinished reports whether a Project goal has reached its terminal
+// completed state: a satisfied Project row is finished (#1022).
+func ProjectFinished(g Goal) bool { return g.Status == GoalSatisfied }
+
+// ProjectRegressed reports whether a finished Project was measured broken
+// with no work open. A Project never re-arms an epoch: the caller opens a
+// new Project row and leaves the finished one as its record.
+func ProjectRegressed(g Goal, need NeedState, openWork bool) bool {
+	return ProjectFinished(g) && need == NeedDeficit && !openWork
+}
+
+// ReviewProject reviews a Project goal. Unfinished Projects review like any
+// goal; a finished Project stays finished (an unknown measurement does not
+// reopen it) until the world changes or the tick rewinds. Callers check
+// ProjectRegressed first and open a new row instead.
+func ReviewProject(g Goal, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Goal, error) {
+	if !ProjectFinished(g) {
+		return ReviewGoal(g, current, tick, need, openWork)
+	}
+	if ProjectRegressed(g, need, openWork) {
+		return g, errors.New("regressed project needs a new goal")
+	}
+	if err := g.Validate(); err != nil {
+		return g, err
+	}
+	if current.Validate() != nil || tick < 0 {
+		return g, errors.New("invalid goal review scope")
+	}
+	if !g.Snapshot.sameWorld(current) || tick < g.Tick {
+		g.Status = GoalInvalidated
+		return g, nil
+	}
+	g.Snapshot, g.Tick = current, tick
+	return g, nil
+}
+
 func CancelGoal(g Goal) (Goal, error) {
 	if err := g.Validate(); err != nil {
 		return g, err
