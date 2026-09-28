@@ -122,6 +122,19 @@ func NewControl(ctx context.Context, config ControlConfig, identity SessionIdent
 // requested snapshot's plan/revision are scoped intent, not authentication.
 // Fresh native CAS replaces the requested native generation.
 func (control *Control) Acquire(ctx context.Context, requested domain.GenerationSnapshot) (domain.GenerationSnapshot, error) {
+	granted, err := control.acquireOnce(ctx, requested)
+	if errors.Is(err, errEpochReplacedMidWrite) && ctx.Err() == nil {
+		granted, err = control.acquireOnce(ctx, requested)
+	}
+	return granted, err
+}
+
+// errEpochReplacedMidWrite marks an Acquire whose SetMode succeeded after a
+// concurrent Disable replaced the epoch; the stale grant was revoked and one
+// fresh Acquire is allowed (#1140).
+var errEpochReplacedMidWrite = fmt.Errorf("%w: Acquire: epoch replaced during SetMode", ErrControl)
+
+func (control *Control) acquireOnce(ctx context.Context, requested domain.GenerationSnapshot) (domain.GenerationSnapshot, error) {
 	if err := requested.Validate(); err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
@@ -176,15 +189,36 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 	}
 	control.snapshot, control.haveTarget, control.granted = requested, true, false
 	control.mu.Unlock()
-	reply, _, err := control.native.SetMode(call, &a.SetMode{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Mode: a.Mode_MODE_AUTO.Enum()})
+	// The write runs under the caller's context and the call timeout, not the
+	// epoch: the SetMode itself is the AuthorityChanged the clock poll ingests,
+	// and the poll's Disable on it cancelled the in-flight call and left the
+	// resume uncertain (#1140). The gate stays held.
+	write, cancel := context.WithTimeout(ctx, control.config.CallTimeout)
+	defer cancel()
+	reply, _, err := control.native.SetMode(write, &a.SetMode{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Mode: a.Mode_MODE_AUTO.Enum()})
 	if err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
 	requested.Native++
-	if err = control.acceptGrant(call, epoch, reply, requested); err != nil {
+	if epoch.Err() != nil && !control.isClosing() && reply.GetGranted().GetContext().GetNativeGeneration() == uint64(requested.Native) {
+		// The epoch was replaced mid-write: this grant is stale evidence.
+		// Revoke it at the known generation, then the caller acquires again
+		// under the new epoch.
+		if _, _, err = control.native.Revoke(write, &a.Revoke{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(uint64(requested.Native)), Reason: a.RevocationReason_REVOCATION_REASON_MANUAL.Enum()}); err != nil {
+			return domain.GenerationSnapshot{}, err
+		}
+		return domain.GenerationSnapshot{}, errEpochReplacedMidWrite
+	}
+	if err = control.acceptGrant(write, epoch, reply, requested); err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
 	return requested, nil
+}
+
+func (control *Control) isClosing() bool {
+	control.mu.Lock()
+	defer control.mu.Unlock()
+	return control.closing
 }
 
 // holdsGrant reports whether an Active observed at generation in the

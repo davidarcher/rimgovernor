@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -80,25 +81,52 @@ func TestControlStateChecksExpiryAndHidesUnknownTarget(t *testing.T) {
 func TestControlDisableInvalidatesBlockedAcquireGrant(t *testing.T) {
 	t.Parallel()
 	control, native, sink, _ := controlFixture(t, nil)
-	entered, release := make(chan struct{}), make(chan struct{})
-	native.onGrant = func(context.Context, *a.ControlReply) error { close(entered); <-release; return nil }
+	// A Disable on every write is persistent: the stale grant is revoked each
+	// time, one fresh Acquire is tried, then the failure (#1140).
+	entered := make(chan struct{}, 2)
+	native.onGrant = func(ctx context.Context, _ *a.ControlReply) error {
+		entered <- struct{}{}
+		if err := control.Disable(); err != nil {
+			return err
+		}
+		return ctx.Err()
+	}
 	done := make(chan error, 1)
 	go func() { _, err := control.Acquire(context.Background(), controlScope()); done <- err }()
-	<-entered
-	if err := control.Disable(); err != nil {
-		t.Fatal(err)
-	}
-	close(release)
 	select {
 	case err := <-done:
 		if err == nil {
 			t.Fatal("stale grant enabled control")
 		}
-	case <-time.After(time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("acquire did not return")
 	}
-	if control.State().Enabled || sink.enabled() || native.acquires.Load() != 1 || native.renews.Load() != 0 || native.revokes.Load() != 0 {
-		t.Fatal("disabled acquire resumed authority")
+	if control.State().Enabled || sink.enabled() || native.acquires.Load() != 2 || native.renews.Load() != 0 || native.revokes.Load() != 2 {
+		t.Fatal("disabled acquire resumed authority", native.acquires.Load(), native.revokes.Load())
+	}
+}
+
+// A clock-poll Disable during the SetMode write (our own AuthorityChanged)
+// must not cancel the write and leave a player resume uncertain: the stale
+// grant is revoked and Acquire retries once under the new epoch (#1140).
+func TestControlAcquireRetriesAfterDisableDuringSetMode(t *testing.T) {
+	t.Parallel()
+	control, native, sink, _ := controlFixture(t, nil)
+	var writes atomic.Int32
+	native.onGrant = func(ctx context.Context, _ *a.ControlReply) error {
+		if writes.Add(1) == 1 {
+			if err := control.Disable(); err != nil {
+				return err
+			}
+		}
+		return ctx.Err()
+	}
+	granted, err := control.Acquire(context.Background(), controlScope())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !control.State().Enabled || !sink.enabled() || native.acquires.Load() != 2 || native.revokes.Load() != 1 || granted.Native != 4 {
+		t.Fatal("acquire not retried after mid-write disable", native.acquires.Load(), native.revokes.Load(), granted)
 	}
 }
 
