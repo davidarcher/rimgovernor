@@ -3,7 +3,6 @@ package combatlab
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"time"
 
@@ -115,7 +114,7 @@ func runResumeDrafted(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	if layout := staged.Fixture.Layout; layout != nil {
-		if _, err := storeLayout(ctx, filepath.Join(s.Config().Output, "service.sqlite"), s.Identity(), *layout); err != nil {
+		if _, err := storeLayout(ctx, s.Harness(), s.Identity(), *layout); err != nil {
 			return err
 		}
 	}

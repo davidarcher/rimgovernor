@@ -65,14 +65,19 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 			layout = domain.Known(*s.Layout)
 		}
 		view := combatView(combat, in, s.Orderable, layout)
-		// The recordings predate sparing contained bleeders (#1035): their
-		// fixed geometry answers asks that still name them. That rule is
-		// proven on a recorded frame by TestCombatFrameSparesFleeingBleeder.
-		view.Population = domain.Unknown[int]()
 		if stop := combatStop(combat, s.MemoryIn.Tick); !reflect.DeepEqual(stop, s.Stop) {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: the frame's events answer %+v, the recording %+v", i, s.Tick, stop, s.Stop)
 		}
 		orders, ask, memory := policy.DecideCombat(view, policy.GeometryReply{}, s.Stop, s.MemoryIn)
+		if !reflect.DeepEqual(ask, s.Ask) {
+			// Recordings older than sparing contained bleeders (#1035)
+			// answer asks that still name them: replay those with the
+			// population unknown. The rule itself is proven on a recorded
+			// frame by TestCombatFrameSparesFleeingBleeder; lab-ranged
+			// (#1152) is recorded after it and spares.
+			view.Population = domain.Unknown[int]()
+			orders, ask, memory = policy.DecideCombat(view, policy.GeometryReply{}, s.Stop, s.MemoryIn)
+		}
 		if !reflect.DeepEqual(ask, s.Ask) {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: DecideCombat asks %+v, the recording answered %+v", i, s.Tick, ask, s.Ask)
 		}

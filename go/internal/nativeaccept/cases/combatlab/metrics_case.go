@@ -106,7 +106,7 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	first["staged"] = sides
 	start := int(na.AsNumber(first["tick"]))
 	if layout := staged.Fixture.Layout; layout != nil {
-		record, err := storeLayout(ctx, filepath.Join(dir, "service.sqlite"), s.Identity(), *layout)
+		record, err := storeLayout(ctx, s.Harness(), s.Identity(), *layout)
 		if err != nil {
 			return err
 		}
@@ -245,11 +245,13 @@ func serveUntil(ctx context.Context, service *na.ServiceProcess, until int) (int
 	}
 }
 
-// storeLayout writes the fixture's layout as a complete, verified defense
-// layout record for the staged world into the journal the service will
-// open (na.Serve keeps it at <output>/service.sqlite), so combat reads it
-// as the colony's standing layout (routine_defense.go, LoadDefenseLayout).
-func storeLayout(ctx context.Context, path string, identity map[string]any, l Layout) (store.DefenseLayoutRecord, error) {
+// storeLayout puts the fixture's layout, as a complete, verified defense
+// layout record for the staged world, into the save's governor state: the
+// service rebuilds its family tables from the save on the world change
+// (#1005), so combat reads it as the colony's standing layout
+// (routine_defense.go, LoadDefenseLayout). A row written into the journal
+// before the serve was wiped by that rebuild (#1152).
+func storeLayout(ctx context.Context, h *na.Harness, identity map[string]any, l Layout) (store.DefenseLayoutRecord, error) {
 	typed, err := typedIdentity(identity)
 	if err != nil {
 		return store.DefenseLayoutRecord{}, err
@@ -276,15 +278,25 @@ func storeLayout(ctx context.Context, path string, identity map[string]any, l La
 		record.SafeLane = []domain.Cell{{X: int32(l.Choke.X), Z: int32(l.Choke.Z)}}
 		record.Chokepoint = record.SafeLane[0]
 	}
-	journal, err := store.Open(ctx, path)
+	if err = record.Validate(); err != nil {
+		return record, err
+	}
+	data, err := json.Marshal(record)
 	if err != nil {
 		return record, err
 	}
-	err = journal.SaveDefenseLayout(ctx, record)
-	if closeErr := journal.Close(); err == nil {
-		err = closeErr
+	blob, err := json.Marshal(store.GovernorFamilyBlob{SchemaVersion: store.GovernorStateSchemaVersion, Record: data})
+	if err != nil {
+		return record, err
 	}
-	return record, err
+	reply, err := h.Wire(ctx, "store-layout", "lifecycle_put_governor_state", map[string]any{"key": store.GovernorDefenseLayoutKey, "blob": string(blob)})
+	if err != nil {
+		return record, err
+	}
+	if _, _, err = na.Outcome(reply, "loaded"); err != nil {
+		return record, fmt.Errorf("store-layout: %w", err)
+	}
+	return record, nil
 }
 
 func writeReads(dir string, reads []map[string]any) error {
