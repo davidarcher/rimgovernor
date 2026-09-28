@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
     // designates or orders anything.
     public sealed class HutShellFixture
     {
-        [Tool("test/hut_shell_fixture", Description = "UNSAFE FOR MODEL EXECUTION. Disposable shell-staging fixture: stage spawns finished player wood Walls at walls ('x,z;x,z') and a Door at door ('x,z', doorRotation north|east|south|west), moving pawns and items off those cells and keeping player walls and doors already standing there, clears plants and items off the gap cells gaps ('x,z;x,z') left to the builders, and drops wood WoodLog beside the door; clear removes the player walls at walls and clears those cells the same way; allow unforbids every forbidden item on the map; take removes every WoodLog item on the map and the wood delivered to frames on gaps; wood drops wood WoodLog beside door, outside the ring walls.")]
+        [Tool("test/hut_shell_fixture", Description = "UNSAFE FOR MODEL EXECUTION. Disposable shell-staging fixture: stage spawns finished player wood Walls at walls ('x,z;x,z') and a Door at door ('x,z', doorRotation north|east|south|west), moving pawns and items off those cells and keeping player walls and doors already standing there, clears plants and items off the gap cells gaps ('x,z;x,z') left to the builders, and drops wood WoodLog beside the door; clear removes the player walls at walls and clears those cells the same way; allow unforbids every forbidden item on the map; furniture finishes the ComplexFurniture research; take removes every WoodLog item on the map and the wood delivered to frames on gaps; wood drops wood WoodLog beside door, outside the ring walls.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             string action = "stage", string walls = "", string door = "", string doorRotation = "north", int wood = 0, string gaps = "")
         {
@@ -29,6 +29,13 @@ namespace HomeBridge.BridgeTools
                 if (!Find.TickManager.Paused) throw new InvalidOperationException("Paused map required.");
                 if (action == "clear") return Clear(map, ParseCells(walls));
                 if (action == "allow") return Allow(map);
+                if (action == "furniture") {
+                    // Wooden beds need ComplexFurniture, which the tribal
+                    // baseline has not researched (#1137).
+                    var furniture = DefDatabase<ResearchProjectDef>.GetNamed("ComplexFurniture");
+                    if (!furniture.IsFinished) Find.ResearchManager.FinishProject(furniture, doCompletionDialog: false, researcher: null, doCompletionLetter: false);
+                    return new { success = true, finished = furniture.IsFinished };
+                }
                 if (action == "take") return Take(map, ParseCells(gaps));
                 if (action == "wood") {
                     var at = ParseCells(door);

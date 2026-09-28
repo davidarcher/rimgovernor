@@ -450,7 +450,7 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 		return RoutineBuildingResult{}, false, nil
 	}
 	if !routineDefinitionsAvailable(s.facts, []string{definition}, false) {
-		clockSchedulerLog("%s: %s: %s is not buildable now", r.goal, method, definition)
+		clockSchedulerLog("%s: %s: %s is not buildable now: %s", r.goal, method, definition, definitionRefusal(s.facts, definition))
 		return RoutineBuildingResult{}, false, nil
 	}
 	var stuff string

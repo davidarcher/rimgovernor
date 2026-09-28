@@ -67,6 +67,13 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["dropped_wood"] = dropped
+	// The baseline has not researched ComplexFurniture, so the beds rung
+	// would be refused and the shell admitted without it (#1137).
+	furniture, err := s.Harness().Call(ctx, "finish-furniture", "test/hut_shell_fixture", map[string]any{"action": "furniture"})
+	if err != nil {
+		return err
+	}
+	report["furniture"] = furniture
 	service, err := start(ctx, s, nil)
 	if err != nil {
 		return err

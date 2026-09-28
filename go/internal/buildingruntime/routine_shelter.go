@@ -155,6 +155,28 @@ func routineDefinitionsAvailable(facts observation.ColonyProjection, names []str
 	return true
 }
 
+// definitionRefusal names the field routineDefinitionsAvailable refused a
+// non-shell definition on, for the log (#1137).
+func definitionRefusal(facts observation.ColonyProjection, name string) string {
+	for _, def := range facts.Definitions {
+		if def.Name != name {
+			continue
+		}
+		if ready, known := def.Available.Value(); !known {
+			return "availability unknown"
+		} else if !ready {
+			return fmt.Sprintf("unavailable (research %v)", def.Research)
+		}
+		if skill, known := def.ConstructionSkill.Value(); !known {
+			return "construction skill unknown"
+		} else if skill != 0 {
+			return fmt.Sprintf("construction skill %d", skill)
+		}
+		return "available"
+	}
+	return "no definition row"
+}
+
 // structureReader is the optional native census a shell planner uses to
 // recognise a shell it began earlier; sources without it always site afresh.
 type structureReader interface {
