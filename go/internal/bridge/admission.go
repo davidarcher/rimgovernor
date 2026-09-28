@@ -213,7 +213,6 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/operations_execute":                   AdmissionControl,
 	ActionsApplyMethod:                                 AdmissionControl,
 	"rimgovernor/operations_preview":                   AdmissionControl,
-	"rimgovernor/operations_release_owned_draft":       AdmissionControl,
 	"rimgovernor/receipts_lookup":                      AdmissionControl,
 	"rimgovernor/receipts_observe_progress":            AdmissionControl,
 	"rimgovernor/placement_preview":                    AdmissionControl,

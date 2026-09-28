@@ -68,15 +68,11 @@ func run(ctx context.Context, s cases.Session) error {
 	if _, refused := undrafted["refused"]; !refused {
 		return fmt.Errorf("undrafted: a move for an undrafted pawn was not refused: %#v", undrafted)
 	}
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "grant", identity)
+	_, err = na.GrantAuto(ctx, h.WireFunc(), "grant", identity)
 	if err != nil {
 		return err
 	}
-	draftReply, err := h.Wire(ctx, "draft", "operations_execute", na.ExecuteRequest(identity, grant, before, 1))
-	if err != nil {
-		return err
-	}
-	if _, _, err = na.Outcome(draftReply, "receipt"); err != nil {
+	if _, err := na.ApplyDraft(ctx, h, "draft", identity, "move-draft", pawnID, true); err != nil {
 		return err
 	}
 	owned, err := read("owned", pawnID)

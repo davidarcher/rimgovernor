@@ -9,11 +9,8 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -24,11 +21,8 @@ type SessionConfig struct {
 	RoutineMethods  bool
 	Control         ControlConfig
 	Executor        executor.Limits
-	Draft           *draft.DraftCapabilities
 	Clock           *ClockCapabilities
-	Melee           *melee.MeleeCapabilities
 	Haul            *haul.HaulCapabilities
-	Ranged          *ranged.RangedCapabilities
 	Movement        *MovementCapabilities
 	Trade           *TradeCapabilities
 	MineAcquisition *mineacquisition.MineAcquisitionCapabilities
@@ -43,7 +37,6 @@ type Session struct {
 	control        *Control
 	executor       *executor.Executor
 	journal        *store.Store
-	drafts         *draftSweep
 	clock          *ClockCoordinator
 	clockWorkers   *clockWorkerSlot
 }
@@ -52,7 +45,6 @@ type sessionSink struct {
 	mu           sync.Mutex
 	executor     *executor.Executor
 	control      *Control
-	drafts       *draftSweep
 	clock        *ClockCoordinator
 	clockWorkers *clockWorkerSlot
 }
@@ -72,6 +64,18 @@ func (s *sessionSink) UpdateAuthority(value executor.Authority) error {
 	}
 	return err
 }
+
+// Lease is a construction-time relay; native calls never occur under sink.mu.
+func (s *sessionSink) Lease(snapshot domain.GenerationSnapshot) (string, error) {
+	s.mu.Lock()
+	control := s.control
+	s.mu.Unlock()
+	if control == nil {
+		return "", fmt.Errorf("%w: Lease: control == nil", ErrControl)
+	}
+	return control.Lease(snapshot)
+}
+
 func (s *sessionSink) stop(ctx context.Context) error {
 	workerStopped, err := s.clockWorkers.stop(ctx)
 	if err != nil {
@@ -79,7 +83,6 @@ func (s *sessionSink) stop(ctx context.Context) error {
 	}
 	s.mu.Lock()
 	e := s.executor
-	drafts := s.drafts
 	clock := s.clock
 	s.mu.Unlock()
 	if e == nil {
@@ -94,9 +97,6 @@ func (s *sessionSink) stop(ctx context.Context) error {
 	}
 	if clock != nil && !workerStopped {
 		err = clock.Cleanup(ctx)
-	}
-	if drafts != nil {
-		err = errors.Join(err, drafts.run(ctx, false))
 	}
 	return err
 }
@@ -164,17 +164,8 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		return nil, errors.New("building session dependencies required")
 	}
 	colonyFacts := &ColonyFacts{}
-	if config.Draft != nil && (config.Draft.Native == nil || config.Draft.Writer == nil || config.Draft.Cleanup == nil) {
-		return nil, errors.New("complete draft capabilities required")
-	}
-	if config.Melee != nil && (config.Melee.Writer == nil || config.Draft == nil) {
-		return nil, errors.New("complete melee and draft capabilities required")
-	}
-	if config.Ranged != nil && (config.Ranged.Native == nil || config.Ranged.Writer == nil || config.Draft == nil) {
-		return nil, errors.New("complete ranged and draft capabilities required")
-	}
-	if config.Movement != nil && (config.Movement.Writer == nil || config.Draft == nil) {
-		return nil, errors.New("complete movement and draft capabilities required")
+	if config.Movement != nil && config.Movement.Writer == nil {
+		return nil, errors.New("complete movement capabilities required")
 	}
 	if config.Clock != nil && (config.Clock.Native == nil || config.Clock.Writer == nil) {
 		return nil, errors.New("complete clock capabilities required")
@@ -188,16 +179,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	namespace, err := journal.Identity(ctx)
 	if err != nil {
 		return nil, err
-	}
-	var draftBoundary *draft.DraftBoundary
-	if config.Draft != nil {
-		draftBoundary, err = draft.NewDraftBoundary(config.Draft.Native, config.Draft.Writer, config.Draft.Cleanup, lazyRoutineLeases{sink, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return nil, err
-		}
-		if config.Control.Worlds == nil {
-			config.Control.Worlds = draftBoundary
-		}
 	}
 	config.Control.StopWrites = sink.stop
 	config.Control.CleanupWrites = sink.cleanup
@@ -221,23 +202,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if err != nil {
 		return cleanup(err)
 	}
-	var meleeBoundary *melee.MeleeBoundary
-	if config.Melee != nil {
-		meleeBoundary, err = melee.NewMeleeBoundary(place, config.Melee.Writer)
-		if err != nil {
-			return cleanup(err)
-		}
-	}
-	var rangedBoundary *ranged.RangedAttackBoundary
-	if config.Ranged != nil {
-		if config.Ranged.Native == nil || config.Ranged.Writer == nil {
-			return cleanup(fmt.Errorf("%w: NewSession: config.Ranged.Native == nil || config.Ranged.Writer == nil", ErrControl))
-		}
-		rangedBoundary, err = ranged.NewRangedBoundary(config.Ranged.Native, config.Ranged.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-	}
 	var moves *movementBoundary
 	if config.Movement != nil {
 		moves = &movementBoundary{Boundary: place, writer: config.Movement.Writer}
@@ -257,24 +221,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		return cleanup(fmt.Errorf("%w: NewSession: config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer ==", ErrControl))
 	}
 	routine := []executor.RoutineScope{planAuthorizer{journal, config.RoutineMethods}}
-	switch {
-	case meleeBoundary != nil && rangedBoundary != nil && moves != nil:
-		worker, err = executor.NewWithMeleeRangedAndMovement(journal, place, draftBoundary, meleeBoundary, rangedBoundary, moves, clock, config.Executor, routine...)
-	case meleeBoundary != nil && rangedBoundary != nil:
-		worker, err = executor.NewWithMeleeAndRanged(journal, place, draftBoundary, meleeBoundary, rangedBoundary, clock, config.Executor, routine...)
-	case meleeBoundary != nil && moves != nil:
-		worker, err = executor.NewWithMeleeAndMovement(journal, place, draftBoundary, meleeBoundary, moves, clock, config.Executor, routine...)
-	case rangedBoundary != nil && moves != nil:
-		worker, err = executor.NewWithRangedAndMovement(journal, place, draftBoundary, rangedBoundary, moves, clock, config.Executor, routine...)
-	case meleeBoundary != nil:
-		worker, err = executor.NewWithMelee(journal, place, draftBoundary, meleeBoundary, clock, config.Executor, routine...)
-	case rangedBoundary != nil:
-		worker, err = executor.NewWithRanged(journal, place, draftBoundary, rangedBoundary, clock, config.Executor, routine...)
-	case moves != nil:
-		worker, err = executor.NewWithMovement(journal, place, draftBoundary, moves, clock, config.Executor, routine...)
-	case draftBoundary != nil:
-		worker, err = executor.NewWithDraft(journal, place, draftBoundary, clock, config.Executor, routine...)
-	default:
+	if moves != nil {
+		worker, err = executor.NewWithMovement(journal, place, moves, clock, config.Executor, routine...)
+	} else {
 		worker, err = executor.New(journal, place, clock, config.Executor, routine...)
 	}
 	if err != nil {
@@ -309,10 +258,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 	}
-	var drafts *draftSweep
-	if draftBoundary != nil {
-		drafts = &draftSweep{journal: journal, executor: worker, fights: draftBoundary, gate: make(chan struct{}, 1), timeout: config.Control.CallTimeout}
-	}
 	var coordinator *ClockCoordinator
 	if config.Clock != nil {
 		coordinator, err = NewClockCoordinator(journal, config.Clock.Native, config.Clock.Writer, sink, clock, ClockCoordinatorConfig{CallTimeout: config.Control.CallTimeout, JournalTimeout: config.Executor.JournalTimeout})
@@ -320,25 +265,24 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 	}
-	if err = sink.attach(ctx, worker, drafts, coordinator); err != nil {
+	if err = sink.attach(ctx, worker, coordinator); err != nil {
 		if coordinator != nil {
 			_ = coordinator.Stop(context.Background())
 		}
 		return cleanup(err)
 	}
-	return &Session{routineMethods: config.RoutineMethods, colonyFacts: colonyFacts, control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
+	return &Session{routineMethods: config.RoutineMethods, colonyFacts: colonyFacts, control: control, executor: worker, journal: journal, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
 }
 
 // Publish only after the final fallible construction check. Until publication,
 // failure cleanup releases the owner without draining unrelated durable work.
-func (s *sessionSink) attach(ctx context.Context, worker *executor.Executor, drafts *draftSweep, clock *ClockCoordinator) error {
+func (s *sessionSink) attach(ctx context.Context, worker *executor.Executor, clock *ClockCoordinator) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.executor = worker
-	s.drafts = drafts
 	s.clock = clock
 	return nil
 }
@@ -380,15 +324,6 @@ func (s *Session) Manual(ctx context.Context) error {
 }
 func (s *Session) ManualForResume(ctx context.Context) error {
 	return s.control.ManualForResume(ctx)
-}
-
-// ReleaseClosedFights releases the draft claims of every combat fight that
-// has closed (#910); the worker runs it each step.
-func (s *Session) ReleaseClosedFights(ctx context.Context) error {
-	if s.drafts == nil {
-		return nil
-	}
-	return s.drafts.releaseClosedFights(ctx)
 }
 
 // RunBatch dispatches a plan's actions in one native Apply (#1042).

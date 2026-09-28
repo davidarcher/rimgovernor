@@ -25,7 +25,7 @@ func TestClearanceReadAndUnavailableStub(t *testing.T) {
 			if arg.Tool != clearanceTool {
 				t.Fatal(arg.Tool)
 			}
-			draftTestRequest(t, arg, &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, IncludeSalvage: true})
+			protoTestRequest(t, arg, &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, IncludeSalvage: true})
 			return pbResult(reply), nil
 		}}, time.Second)
 		got, _, err := client.ReadClearanceTargets(context.Background(), pbIdentity(), true)

@@ -17,10 +17,7 @@ func TestMovementIntentAndClosedVariants(t *testing.T) {
 	if got, ok := action.Movement(); !ok || got != intent {
 		t.Fatal(got, ok)
 	}
-	if _, ok := action.RangedAttack(); ok {
-		t.Fatal("movement exposed ranged attack")
-	}
-	if _, ok := action.MeleeAttack(); ok {
+	if _, ok := action.Subdue(); ok {
 		t.Fatal("movement exposed melee")
 	}
 	if _, ok := action.Building(); ok {
@@ -74,9 +71,6 @@ func TestMovementPlanRequiresExactPrecedingOwnedDraft(t *testing.T) {
 	progress, err := NewProgress(plan, "move")
 	if err != nil || progress.Action() != move || progress.View().Stage != Pending || progress.View().Unresolved {
 		t.Fatal(progress, err)
-	}
-	if _, known := progress.View().DraftCleanup.Value(); known {
-		t.Fatal("intent fabricated draft ownership")
 	}
 }
 

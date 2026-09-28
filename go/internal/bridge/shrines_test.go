@@ -30,7 +30,7 @@ func TestShrinesReadAndUnavailableStub(t *testing.T) {
 			if arg.Tool != shrinesTool {
 				t.Fatal(arg.Tool)
 			}
-			draftTestRequest(t, arg, &o.AncientShrinesRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}})
+			protoTestRequest(t, arg, &o.AncientShrinesRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}})
 			return pbResult(reply), nil
 		}}, time.Second)
 		got, _, err := client.ReadAncientShrines(context.Background(), pbIdentity())

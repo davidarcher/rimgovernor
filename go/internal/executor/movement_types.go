@@ -6,11 +6,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MovementJournal is DraftJournal plus the untyped Prepare: a move is an
+// MovementJournal is Journal plus the untyped Prepare: a move is an
 // idempotent intent native validates at apply time (alive, spawned,
 // drafted, reachable), so there is no movement admission row to persist.
 type MovementJournal interface {
-	DraftJournal
+	Journal
 	Prepare(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 }
 

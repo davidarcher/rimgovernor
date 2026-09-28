@@ -29,11 +29,7 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.GeometryBlocked:   domain.HeldGeometryBlocked,
 	policy.InvalidHeld:       domain.HeldInvalidHeld,
 
-	policy.DraftOwnership:            domain.HeldDraftOwnership,
 	policy.NativeIneligible:          domain.HeldNativeIneligible,
-	policy.PlayerOrder:               domain.HeldPlayerOrder,
-	policy.UnsuitableEquipment:       domain.HeldUnsuitableEquipment,
-	policy.UnsupportedThreat:         domain.HeldUnsupportedThreat,
 	policy.ExcavationUnsupported:     domain.HeldExcavationUnsupported,
 	policy.ExcavationGeometryChanged: domain.HeldExcavationGeometryChanged,
 	policy.UnsafeRoute:               domain.HeldUnsafeRoute,

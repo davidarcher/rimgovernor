@@ -12,7 +12,7 @@ import (
 
 func init() {
 	cases.Register(cases.Case{
-		Name: "takeover/draft", Scope: "Manual player draft is adopted under Auto through native CAS, then exact owned cleanup undrafts it; independent pawn readbacks prove both effects.",
+		Name: "takeover/draft", Scope: "A Manual player draft is undrafted by the Auto undraft intent; pawn readbacks prove both effects.",
 		Start: cases.LabStart(), RequiredOps: []string{"test/b04f_setup"}, Budget: 2 * time.Minute, Run: runDraftTakeover,
 	})
 }
@@ -50,52 +50,17 @@ func runDraftTakeover(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if drafted, _ := na.AsBool(player["drafted"]); !drafted || !na.DeepEqual(player["draftClaim"], map[string]any{"unowned": map[string]any{}}) {
-		return fmt.Errorf("player draft is not standing and unowned: %v", player)
+	if drafted, _ := na.AsBool(player["drafted"]); !drafted {
+		return fmt.Errorf("player draft is not standing: %v", player)
 	}
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "takeover-auto", identity)
-	if err != nil {
+	if _, err = na.GrantAuto(ctx, h.WireFunc(), "takeover-auto", identity); err != nil {
 		return err
 	}
-	request := na.ExecuteRequest(identity, grant, player, 1)
-	reply, err := h.Wire(ctx, "auto-adopt", "operations_execute", request)
-	if err != nil {
+	// Auto has full control: no plan needs the player's draft, so the
+	// undraft intent releases it (#939).
+	if err := expectDraft(ctx, h, identity, "auto-undraft", id, false, true); err != nil {
 		return err
 	}
-	_, receipt, err := na.Outcome(reply, "receipt")
-	if err != nil {
-		return err
-	}
-	precondition, _ := na.AsMap(request["precondition"])
-	if err = takeover.Receipt(ctx, h, map[string]any{"identity": identity, "attempt": precondition["attempt"]}, receipt, s.Report()); err != nil {
-		return err
-	}
-	adopted, err := read("auto-adopt-readback", id)
-	if err != nil {
-		return err
-	}
-	if err = na.OwnedEffect(receipt, adopted, "applied", false); err != nil {
-		return err
-	}
-	s.Report()["adopted"] = adopted
-	cleanup, err := na.ReleaseRequest(identity, adopted)
-	if err != nil {
-		return err
-	}
-	released, err := h.Wire(ctx, "auto-release", "operations_release_owned_draft", cleanup)
-	if err != nil {
-		return err
-	}
-	if _, _, err = na.Outcome(released, "released"); err != nil {
-		return err
-	}
-	after, err := read("auto-release-readback", id)
-	if err != nil {
-		return err
-	}
-	if drafted, _ := na.AsBool(after["drafted"]); drafted || !na.DeepEqual(after["draftClaim"], map[string]any{"unowned": map[string]any{}}) {
-		return fmt.Errorf("auto failed to release adopted player draft: %v", after)
-	}
-	s.Report()["released"] = after
+	s.Report()["undrafted"] = id
 	return nil
 }

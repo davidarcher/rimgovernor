@@ -181,172 +181,171 @@ namespace RimGovernor.Protocol.Receipts {
             "AyADKAkSIAoTZGVtb2xpdGlvbl9vYnNlcnZlZBgEIAEoCEgCiAEBEjcKBHNp",
             "dGUYBSABKAsyKS5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5TbmFwc2hvdEV2",
             "aWRlbmNlQgwKCl90YXJnZXRfaWRCEQoPX2Rlc2lnbmF0aW9uX2lkQhYKFF9k",
-            "ZW1vbGl0aW9uX29ic2VydmVkIukBChFDb21iYXRPcmRlclJlc3VsdBISCgVp",
+            "ZW1vbGl0aW9uX29ic2VydmVkIs8BChFDb21iYXRPcmRlclJlc3VsdBISCgVp",
             "bmRleBgBIAEoDUgAiAEBEhQKB3Bhd25faWQYAiABKAlIAYgBARIUCgdhcHBs",
             "aWVkGAMgASgISAKIAQESFAoHcmVmdXNhbBgEIAEoCUgDiAEBEhQKB2pvYl9k",
-            "ZWYYBSABKAlIBIgBARIbCg5kcmFmdF9jbGFpbV9pZBgGIAEoCUgFiAEBQggK",
-            "Bl9pbmRleEIKCghfcGF3bl9pZEIKCghfYXBwbGllZEIKCghfcmVmdXNhbEIK",
-            "Cghfam9iX2RlZkIRCg9fZHJhZnRfY2xhaW1faWQiUQoSQ29tYmF0T3JkZXJz",
-            "RWZmZWN0EjsKB3Jlc3VsdHMYASADKAsyKi5yaW1nb3Zlcm5vci5yZWNlaXB0",
-            "cy52MS5Db21iYXRPcmRlclJlc3VsdCL3AQoKV2FsbEVmZmVjdBIWCgl0YXJn",
-            "ZXRfaWQYASABKAlIAIgBARIXCgpyZW1vdmFsX2lkGAIgASgJSAGIAQESEgoK",
-            "d29ya2VyX2lkcxgDIAMoCRIgChNkZW1vbGl0aW9uX29ic2VydmVkGAUgASgI",
-            "SAKIAQESNwoEc2l0ZRgGIAEoCzIpLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYx",
-            "LlNuYXBzaG90RXZpZGVuY2VCDAoKX3RhcmdldF9pZEINCgtfcmVtb3ZhbF9p",
-            "ZEIWChRfZGVtb2xpdGlvbl9vYnNlcnZlZEoECAQQBVIOcmVsZWFzZWRfY291",
-            "bnQiVgoJSm9iVGFyZ2V0EhIKCHRoaW5nX2lkGAEgASgJSAASKwoEY2VsbBgC",
-            "IAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5DZWxsSABCCAoGdGFyZ2V0",
-            "IukHCglKb2JFZmZlY3QSFAoHcGF3bl9pZBgBIAEoCUgAiAEBEhMKBmpvYl9p",
-            "ZBgCIAEoBUgBiAEBEhQKB2pvYl9kZWYYAyABKAlIAogBARI0Cgh0YXJnZXRf",
-            "YRgEIAEoCzIiLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkpvYlRhcmdldBI0",
-            "Cgh0YXJnZXRfYhgFIAEoCzIiLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkpv",
-            "YlRhcmdldBIbCg53b3JrX2dpdmVyX2RlZhgGIAEoCUgDiAEBEhoKDXdvcmtf",
-            "dHlwZV9kZWYYByABKAlIBIgBARISCgVjb3VudBgIIAEoBUgFiAEBEhMKBmlz",
-            "c3VlZBgJIAEoCEgGiAEBEhUKCHZlcmlmaWVkGAogASgISAeIAQESHAoPdmVy",
-            "aWZpZWRfcmVhc29uGAsgASgJSAiIAQESFAoHZHJhZnRlZBgMIAEoCEgJiAEB",
-            "EhgKC2RyYWZ0X293bmVyGA0gASgJSAqIAQESGQoMYXV0b19kcmFmdGVkGA4g",
-            "ASgISAuIAQESGwoOYXV0b191bmRyYWZ0ZWQYDyABKAhIDIgBARIcCg9zdXBw",
-            "bHlfdGhpbmdfaWQYECABKAlIDYgBARIXCgpoaXRfcG9pbnRzGBEgASgFSA6I",
-            "AQESEQoEZnVlbBgSIAEoAkgPiAEBEhgKC25lZWRfYmVmb3JlGBMgASgCSBCI",
-            "AQESFAoHY2FuX3RyeRgUIAEoCEgRiAEBEiUKGHJlc3VsdGluZ19zbmFwc2hv",
-            "dF90b2tlbhgVIAEoCUgSiAEBEhsKDmRyYWZ0X2NsYWltX2lkGBYgASgJSBOI",
-            "AQESIgoVdGFyZ2V0X3NuYXBzaG90X3Rva2VuGBcgASgJSBSIAQFCCgoIX3Bh",
-            "d25faWRCCQoHX2pvYl9pZEIKCghfam9iX2RlZkIRCg9fd29ya19naXZlcl9k",
-            "ZWZCEAoOX3dvcmtfdHlwZV9kZWZCCAoGX2NvdW50QgkKB19pc3N1ZWRCCwoJ",
-            "X3ZlcmlmaWVkQhIKEF92ZXJpZmllZF9yZWFzb25CCgoIX2RyYWZ0ZWRCDgoM",
-            "X2RyYWZ0X293bmVyQg8KDV9hdXRvX2RyYWZ0ZWRCEQoPX2F1dG9fdW5kcmFm",
-            "dGVkQhIKEF9zdXBwbHlfdGhpbmdfaWRCDQoLX2hpdF9wb2ludHNCBwoFX2Z1",
-            "ZWxCDgoMX25lZWRfYmVmb3JlQgoKCF9jYW5fdHJ5QhsKGV9yZXN1bHRpbmdf",
-            "c25hcHNob3RfdG9rZW5CEQoPX2RyYWZ0X2NsYWltX2lkQhgKFl90YXJnZXRf",
-            "c25hcHNob3RfdG9rZW4ijQQKDEFuaW1hbEVmZmVjdBI5CgZhbmltYWwYASAB",
-            "KAsyKS5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5TbmFwc2hvdEV2aWRlbmNl",
-            "EhoKDXRyYWluYWJsZV9kZWYYAyABKAlIAIgBARITCgZ3YW50ZWQYBCABKAhI",
-            "AYgBARIhChRzbGF1Z2h0ZXJfZGVzaWduYXRlZBgFIAEoCEgCiAEBEhwKD3Rh",
-            "bWVfZGVzaWduYXRlZBgGIAEoCEgDiAEBEh8KEnJlbGVhc2VfZGVzaWduYXRl",
-            "ZBgHIAEoCEgEiAEBEhwKD2FsbG93ZWRfYXJlYV9pZBgIIAEoCUgFiAEBEhYK",
-            "CW1hc3Rlcl9pZBgJIAEoCUgGiAEBEhsKDmZvbGxvd19kcmFmdGVkGAogASgI",
-            "SAeIAQESHQoQZm9sbG93X2ZpZWxkd29yaxgLIAEoCEgIiAEBQhAKDl90cmFp",
-            "bmFibGVfZGVmQgkKB193YW50ZWRCFwoVX3NsYXVnaHRlcl9kZXNpZ25hdGVk",
-            "QhIKEF90YW1lX2Rlc2lnbmF0ZWRCFQoTX3JlbGVhc2VfZGVzaWduYXRlZEIS",
-            "ChBfYWxsb3dlZF9hcmVhX2lkQgwKCl9tYXN0ZXJfaWRCEQoPX2ZvbGxvd19k",
-            "cmFmdGVkQhMKEV9mb2xsb3dfZmllbGR3b3JrSgQIAhADUgxjZW5zdXNfdG9r",
-            "ZW4inQEKDlByaXNvbmVyRWZmZWN0EjcKBHBhd24YASABKAsyKS5yaW1nb3Zl",
-            "cm5vci5yZWNlaXB0cy52MS5TbmFwc2hvdEV2aWRlbmNlEhwKD2ludGVyYWN0",
-            "aW9uX2RlZhgCIAEoCUgAiAEBEhQKB291dGNvbWUYAyABKAlIAYgBAUISChBf",
-            "aW50ZXJhY3Rpb25fZGVmQgoKCF9vdXRjb21lIokBCg9UcmFkZUxpbmVFZmZl",
-            "Y3QSFAoHbGluZV9pZBgBIAEoCUgAiAEBEhkKDGJlZm9yZV9jb3VudBgCIAEo",
-            "BUgBiAEBEhgKC2FmdGVyX2NvdW50GAMgASgFSAKIAQFCCgoIX2xpbmVfaWRC",
-            "DwoNX2JlZm9yZV9jb3VudEIOCgxfYWZ0ZXJfY291bnQi0QQKC1RyYWRlRWZm",
-            "ZWN0EhcKCnNlc3Npb25faWQYASABKAlIAIgBARIbCg5kZWFsX3NpZ25hdHVy",
-            "ZRgCIAEoCUgBiAEBEjcKBWxpbmVzGAMgAygLMigucmltZ292ZXJub3IucmVj",
-            "ZWlwdHMudjEuVHJhZGVMaW5lRWZmZWN0EhUKCGV4ZWN1dGVkGAQgASgISAKI",
-            "AQESEwoGY2xvc2VkGAUgASgISAOIAQESGgoNYmVmb3JlX3NpbHZlchgGIAEo",
-            "BUgEiAEBEhkKDGFmdGVyX3NpbHZlchgHIAEoBUgFiAEBEhwKD2JlZm9yZV9n",
-            "b29kd2lsbBgIIAEoBUgGiAEBEhsKDmFmdGVyX2dvb2R3aWxsGAkgASgFSAeI",
-            "AQESFwoKZmFjdGlvbl9pZBgKIAEoCUgIiAEBEhoKEnJlY2VpdmVkX3F1ZXN0",
-            "X2lkcxgLIAMoCRI7CghzbmFwc2hvdBgMIAEoCzIpLnJpbWdvdmVybm9yLnJl",
-            "Y2VpcHRzLnYxLlNuYXBzaG90RXZpZGVuY2USHAoPYWN0dWFsbHlfdHJhZGVk",
-            "GA0gASgISAmIAQFCDQoLX3Nlc3Npb25faWRCEQoPX2RlYWxfc2lnbmF0dXJl",
-            "QgsKCV9leGVjdXRlZEIJCgdfY2xvc2VkQhAKDl9iZWZvcmVfc2lsdmVyQg8K",
-            "DV9hZnRlcl9zaWx2ZXJCEgoQX2JlZm9yZV9nb29kd2lsbEIRCg9fYWZ0ZXJf",
-            "Z29vZHdpbGxCDQoLX2ZhY3Rpb25faWRCEgoQX2FjdHVhbGx5X3RyYWRlZCK8",
-            "AgoNQ2FyYXZhbkVmZmVjdBIXCgpjYXJhdmFuX2lkGAEgASgJSACIAQESHQoQ",
-            "YXNzZW1ibHlfc3RhcnRlZBgCIAEoCEgBiAEBEhkKDHBhdGhfc3RhcnRlZBgD",
-            "IAEoCEgCiAEBEhQKB3N0b3BwZWQYBCABKAhIA4gBARIdChBkZXN0aW5hdGlv",
-            "bl90aWxlGAUgASgFSASIAQESEAoIcGF3bl9pZHMYBiADKAkSOwoIc25hcHNo",
-            "b3QYByABKAsyKS5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5TbmFwc2hvdEV2",
-            "aWRlbmNlQg0KC19jYXJhdmFuX2lkQhMKEV9hc3NlbWJseV9zdGFydGVkQg8K",
-            "DV9wYXRoX3N0YXJ0ZWRCCgoIX3N0b3BwZWRCEwoRX2Rlc3RpbmF0aW9uX3Rp",
-            "bGUikgIKC1F1ZXN0RWZmZWN0EhUKCHF1ZXN0X2lkGAEgASgJSACIAQESFQoI",
-            "YWNjZXB0ZWQYAiABKAhIAYgBARIbCg5yZXF1ZXN0X2FjdGl2ZRgDIAEoCEgC",
-            "iAEBEhIKBXN0YXRlGAQgASgJSAOIAQESHAoPYWNjZXB0YW5jZV90aWNrGAUg",
-            "ASgDSASIAQESOwoIc25hcHNob3QYBiABKAsyKS5yaW1nb3Zlcm5vci5yZWNl",
-            "aXB0cy52MS5TbmFwc2hvdEV2aWRlbmNlQgsKCV9xdWVzdF9pZEILCglfYWNj",
-            "ZXB0ZWRCEQoPX3JlcXVlc3RfYWN0aXZlQggKBl9zdGF0ZUISChBfYWNjZXB0",
-            "YW5jZV90aWNrInYKDUxvb2t1cFJlcXVlc3QSMQoIaWRlbnRpdHkYASABKAsy",
-            "Hy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSMgoHYXR0ZW1wdBgC",
-            "IAEoCzIhLnJpbWdvdmVybm9yLmNvbW1vbi52MS5BdHRlbXB0S2V5IkwKDlVu",
-            "a25vd25BdHRlbXB0EjoKB2NvbnRleHQYASABKAsyKS5yaW1nb3Zlcm5vci5j",
-            "b21tb24udjEuT2JzZXJ2YXRpb25Db250ZXh0IoMBCghJbkZsaWdodBIyCgdh",
-            "dHRlbXB0GAEgASgLMiEucmltZ292ZXJub3IuY29tbW9uLnYxLkF0dGVtcHRL",
-            "ZXkSQwoQYWRtaXR0ZWRfY29udGV4dBgCIAEoCzIpLnJpbWdvdmVybm9yLmNv",
-            "bW1vbi52MS5PYnNlcnZhdGlvbkNvbnRleHQi9AEKC0xvb2t1cFJlcGx5EjMK",
-            "B3JlY2VpcHQYASABKAsyIC5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5SZWNl",
-            "aXB0SAASNgoJaW5fZmxpZ2h0GAIgASgLMiEucmltZ292ZXJub3IucmVjZWlw",
-            "dHMudjEuSW5GbGlnaHRIABI6Cgd1bmtub3duGAMgASgLMicucmltZ292ZXJu",
-            "b3IucmVjZWlwdHMudjEuVW5rbm93bkF0dGVtcHRIABIxCgdmYWlsdXJlGAQg",
-            "ASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRj",
-            "b21lIngKD1Byb2dyZXNzUmVxdWVzdBIxCghpZGVudGl0eRgBIAEoCzIfLnJp",
-            "bWdvdmVybm9yLmNvbW1vbi52MS5JZGVudGl0eRIyCgdhdHRlbXB0GAIgASgL",
-            "MiEucmltZ292ZXJub3IuY29tbW9uLnYxLkF0dGVtcHRLZXkiSgoNUGVuZGlu",
-            "Z0VmZmVjdBI5CghldmlkZW5jZRgBIAEoCzInLnJpbWdvdmVybm9yLnJlY2Vp",
-            "cHRzLnYxLkVmZmVjdEV2aWRlbmNlIkwKD0NvbXBsZXRlZEVmZmVjdBI5Cghl",
-            "dmlkZW5jZRgBIAEoCzInLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkVmZmVj",
-            "dEV2aWRlbmNlIkIKDEFic2VudEVmZmVjdBIdChBpbnNwZWN0aW9uX3Rva2Vu",
-            "GAEgASgJSACIAQFCEwoRX2luc3BlY3Rpb25fdG9rZW4iLwoNVW5rbm93bkVm",
-            "ZmVjdBITCgZyZWFzb24YASABKAlIAIgBAUIJCgdfcmVhc29uIrwBChJVbnN1",
-            "Y2Nlc3NmdWxFZmZlY3QSQAoGcmVhc29uGAEgASgOMisucmltZ292ZXJub3Iu",
-            "cmVjZWlwdHMudjEuVW5zdWNjZXNzZnVsUmVhc29uSACIAQESOQoIZXZpZGVu",
-            "Y2UYAiABKAsyJy5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5FZmZlY3RFdmlk",
-            "ZW5jZRITCgZkZXRhaWwYAyABKAlIAYgBAUIJCgdfcmVhc29uQgkKB19kZXRh",
-            "aWwi8QMKCFByb2dyZXNzEjIKB2F0dGVtcHQYASABKAsyIS5yaW1nb3Zlcm5v",
-            "ci5jb21tb24udjEuQXR0ZW1wdEtleRI6Cgdjb250ZXh0GAIgASgLMikucmlt",
-            "Z292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBIgChNjb21w",
-            "bGV0ZV9pbnNwZWN0aW9uGAMgASgISAGIAQESOQoHdW5rbm93bhgEIAEoCzIm",
-            "LnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLlVua25vd25FZmZlY3RIABI5Cgdw",
-            "ZW5kaW5nGAUgASgLMiYucmltZ292ZXJub3IucmVjZWlwdHMudjEuUGVuZGlu",
-            "Z0VmZmVjdEgAEj0KCWNvbXBsZXRlZBgGIAEoCzIoLnJpbWdvdmVybm9yLnJl",
-            "Y2VpcHRzLnYxLkNvbXBsZXRlZEVmZmVjdEgAEjcKBmFic2VudBgHIAEoCzIl",
-            "LnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkFic2VudEVmZmVjdEgAEkMKDHVu",
-            "c3VjY2Vzc2Z1bBgIIAEoCzIrLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLlVu",
-            "c3VjY2Vzc2Z1bEVmZmVjdEgAQggKBmVmZmVjdEIWChRfY29tcGxldGVfaW5z",
-            "cGVjdGlvbiKEAQoNUHJvZ3Jlc3NSZXBseRI1Cghwcm9ncmVzcxgBIAEoCzIh",
-            "LnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLlByb2dyZXNzSAASMQoHZmFpbHVy",
-            "ZRgCIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABCCQoH",
-            "b3V0Y29tZSq6AQoRQ29uc3RydWN0aW9uU3RhZ2USIgoeQ09OU1RSVUNUSU9O",
-            "X1NUQUdFX1VOU1BFQ0lGSUVEEAASIAocQ09OU1RSVUNUSU9OX1NUQUdFX0JM",
-            "VUVQUklOVBABEhwKGENPTlNUUlVDVElPTl9TVEFHRV9GUkFNRRACEh8KG0NP",
-            "TlNUUlVDVElPTl9TVEFHRV9CVUlMRElORxADEiAKHENPTlNUUlVDVElPTl9T",
-            "VEFHRV9DQU5DRUxMRUQQBCqFAgoRSW5zdGFsbGF0aW9uU3RhZ2USIgoeSU5T",
-            "VEFMTEFUSU9OX1NUQUdFX1VOU1BFQ0lGSUVEEAASHQoZSU5TVEFMTEFUSU9O",
-            "X1NUQUdFX1BBQ0tFRBABEiAKHElOU1RBTExBVElPTl9TVEFHRV9QTEFDRUFC",
-            "TEUQAhIdChlJTlNUQUxMQVRJT05fU1RBR0VfUVVFVUVEEAMSIAocSU5TVEFM",
-            "TEFUSU9OX1NUQUdFX0lOU1RBTExFRBAEEiEKHUlOU1RBTExBVElPTl9TVEFH",
-            "RV9VTlZFUklGSUVEEAUSJwojSU5TVEFMTEFUSU9OX1NUQUdFX1VOSU5TVEFM",
-            "TF9RVUVVRUQQBirtBQoNU2V0dGluZ3NGaWVsZBIeChpTRVRUSU5HU19GSUVM",
-            "RF9VTlNQRUNJRklFRBAAEhwKGFNFVFRJTkdTX0ZJRUxEX0ZPUkJJRERFThAB",
-            "EhgKFFNFVFRJTkdTX0ZJRUxEX1BPV0VSEAISHgoaU0VUVElOR1NfRklFTERf",
-            "VEVNUEVSQVRVUkUQAxIeChpTRVRUSU5HU19GSUVMRF9NRURJQ0FMX0JFRBAE",
-            "EhgKFFNFVFRJTkdTX0ZJRUxEX09XTkVSEAUSHwobU0VUVElOR1NfRklFTERf",
-            "UFJJU09ORVJfQkVEEAYSFwoTU0VUVElOR1NfRklFTERfV09SSxAHEhsKF1NF",
-            "VFRJTkdTX0ZJRUxEX1NDSEVEVUxFEAgSHwobU0VUVElOR1NfRklFTERfTUVE",
-            "SUNBTF9DQVJFEAkSHAoYU0VUVElOR1NfRklFTERfSE9TVElMSVRZEAoSHAoY",
-            "U0VUVElOR1NfRklFTERfU0VMRl9URU5EEAsSIQodU0VUVElOR1NfRklFTERf",
-            "Rk9MTE9XX0RSQUZURUQQDBIjCh9TRVRUSU5HU19GSUVMRF9GT0xMT1dfRklF",
-            "TERXT1JLEA0SHwobU0VUVElOR1NfRklFTERfQUxMT1dFRF9BUkVBEA4SGQoV",
-            "U0VUVElOR1NfRklFTERfTUFTVEVSEA8SGwoXU0VUVElOR1NfRklFTERfVFJB",
-            "SU5JTkcQEBIcChhTRVRUSU5HU19GSUVMRF9TTEFVR0hURVIQERIaChZTRVRU",
-            "SU5HU19GSUVMRF9SRUxFQVNFEBISHgoaU0VUVElOR1NfRklFTERfR1JPV0VS",
-            "X0NST1AQExIYChRTRVRUSU5HU19GSUVMRF9DTEFJTRAUEiMKH1NFVFRJTkdT",
-            "X0ZJRUxEX0ZPT0RfUkVTVFJJQ1RJT04QFRIeChpTRVRUSU5HU19GSUVMRF9E",
-            "UlVHX1BPTElDWRAWEhwKGFNFVFRJTkdTX0ZJRUxEX1NMQVZFX0JFRBAXKpsB",
-            "CgxGaWVsZE91dGNvbWUSHQoZRklFTERfT1VUQ09NRV9VTlNQRUNJRklFRBAA",
-            "EhsKF0ZJRUxEX09VVENPTUVfVU5DSEFOR0VEEAESGQoVRklFTERfT1VUQ09N",
-            "RV9BUFBMSUVEEAISGQoVRklFTERfT1VUQ09NRV9SRUZVU0VEEAMSGQoVRklF",
-            "TERfT1VUQ09NRV9VTktOT1dOEAQqnQIKElVuc3VjY2Vzc2Z1bFJlYXNvbhIj",
-            "Ch9VTlNVQ0NFU1NGVUxfUkVBU09OX1VOU1BFQ0lGSUVEEAASJgoiVU5TVUND",
-            "RVNTRlVMX1JFQVNPTl9OQVRJVkVfRkFJTFVSRRABEiEKHVVOU1VDQ0VTU0ZV",
-            "TF9SRUFTT05fQ0FOQ0VMTEVEEAISIwofVU5TVUNDRVNTRlVMX1JFQVNPTl9J",
-            "TlRFUlJVUFRFRBADEh8KG1VOU1VDQ0VTU0ZVTF9SRUFTT05fRVhQSVJFRBAE",
-            "EiMKH1VOU1VDQ0VTU0ZVTF9SRUFTT05fVEFSR0VUX0RFQUQQBRIsCihVTlNV",
-            "Q0NFU1NGVUxfUkVBU09OX09VVENPTUVfTk9UX0FDSElFVkVEEAYyxwEKCEF0",
-            "dGVtcHRzElYKBkxvb2t1cBImLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkxv",
-            "b2t1cFJlcXVlc3QaJC5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5Mb29rdXBS",
-            "ZXBseRJjCg9PYnNlcnZlUHJvZ3Jlc3MSKC5yaW1nb3Zlcm5vci5yZWNlaXB0",
-            "cy52MS5Qcm9ncmVzc1JlcXVlc3QaJi5yaW1nb3Zlcm5vci5yZWNlaXB0cy52",
-            "MS5Qcm9ncmVzc1JlcGx5QmtaSWdpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmlt",
-            "R292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9yZWNlaXB0c3BiO3JlY2VpcHRz",
-            "cGKqAh1SaW1Hb3Zlcm5vci5Qcm90b2NvbC5SZWNlaXB0c2IGcHJvdG8z"));
+            "ZWYYBSABKAlIBIgBAUIICgZfaW5kZXhCCgoIX3Bhd25faWRCCgoIX2FwcGxp",
+            "ZWRCCgoIX3JlZnVzYWxCCgoIX2pvYl9kZWZKBAgGEAdSDmRyYWZ0X2NsYWlt",
+            "X2lkIlEKEkNvbWJhdE9yZGVyc0VmZmVjdBI7CgdyZXN1bHRzGAEgAygLMiou",
+            "cmltZ292ZXJub3IucmVjZWlwdHMudjEuQ29tYmF0T3JkZXJSZXN1bHQi9wEK",
+            "CldhbGxFZmZlY3QSFgoJdGFyZ2V0X2lkGAEgASgJSACIAQESFwoKcmVtb3Zh",
+            "bF9pZBgCIAEoCUgBiAEBEhIKCndvcmtlcl9pZHMYAyADKAkSIAoTZGVtb2xp",
+            "dGlvbl9vYnNlcnZlZBgFIAEoCEgCiAEBEjcKBHNpdGUYBiABKAsyKS5yaW1n",
+            "b3Zlcm5vci5yZWNlaXB0cy52MS5TbmFwc2hvdEV2aWRlbmNlQgwKCl90YXJn",
+            "ZXRfaWRCDQoLX3JlbW92YWxfaWRCFgoUX2RlbW9saXRpb25fb2JzZXJ2ZWRK",
+            "BAgEEAVSDnJlbGVhc2VkX2NvdW50IlYKCUpvYlRhcmdldBISCgh0aGluZ19p",
+            "ZBgBIAEoCUgAEisKBGNlbGwYAiABKAsyGy5yaW1nb3Zlcm5vci5jb21tb24u",
+            "djEuQ2VsbEgAQggKBnRhcmdldCLPBwoJSm9iRWZmZWN0EhQKB3Bhd25faWQY",
+            "ASABKAlIAIgBARITCgZqb2JfaWQYAiABKAVIAYgBARIUCgdqb2JfZGVmGAMg",
+            "ASgJSAKIAQESNAoIdGFyZ2V0X2EYBCABKAsyIi5yaW1nb3Zlcm5vci5yZWNl",
+            "aXB0cy52MS5Kb2JUYXJnZXQSNAoIdGFyZ2V0X2IYBSABKAsyIi5yaW1nb3Zl",
+            "cm5vci5yZWNlaXB0cy52MS5Kb2JUYXJnZXQSGwoOd29ya19naXZlcl9kZWYY",
+            "BiABKAlIA4gBARIaCg13b3JrX3R5cGVfZGVmGAcgASgJSASIAQESEgoFY291",
+            "bnQYCCABKAVIBYgBARITCgZpc3N1ZWQYCSABKAhIBogBARIVCgh2ZXJpZmll",
+            "ZBgKIAEoCEgHiAEBEhwKD3ZlcmlmaWVkX3JlYXNvbhgLIAEoCUgIiAEBEhQK",
+            "B2RyYWZ0ZWQYDCABKAhICYgBARIYCgtkcmFmdF9vd25lchgNIAEoCUgKiAEB",
+            "EhkKDGF1dG9fZHJhZnRlZBgOIAEoCEgLiAEBEhsKDmF1dG9fdW5kcmFmdGVk",
+            "GA8gASgISAyIAQESHAoPc3VwcGx5X3RoaW5nX2lkGBAgASgJSA2IAQESFwoK",
+            "aGl0X3BvaW50cxgRIAEoBUgOiAEBEhEKBGZ1ZWwYEiABKAJID4gBARIYCgtu",
+            "ZWVkX2JlZm9yZRgTIAEoAkgQiAEBEhQKB2Nhbl90cnkYFCABKAhIEYgBARIl",
+            "ChhyZXN1bHRpbmdfc25hcHNob3RfdG9rZW4YFSABKAlIEogBARIiChV0YXJn",
+            "ZXRfc25hcHNob3RfdG9rZW4YFyABKAlIE4gBAUIKCghfcGF3bl9pZEIJCgdf",
+            "am9iX2lkQgoKCF9qb2JfZGVmQhEKD193b3JrX2dpdmVyX2RlZkIQCg5fd29y",
+            "a190eXBlX2RlZkIICgZfY291bnRCCQoHX2lzc3VlZEILCglfdmVyaWZpZWRC",
+            "EgoQX3ZlcmlmaWVkX3JlYXNvbkIKCghfZHJhZnRlZEIOCgxfZHJhZnRfb3du",
+            "ZXJCDwoNX2F1dG9fZHJhZnRlZEIRCg9fYXV0b191bmRyYWZ0ZWRCEgoQX3N1",
+            "cHBseV90aGluZ19pZEINCgtfaGl0X3BvaW50c0IHCgVfZnVlbEIOCgxfbmVl",
+            "ZF9iZWZvcmVCCgoIX2Nhbl90cnlCGwoZX3Jlc3VsdGluZ19zbmFwc2hvdF90",
+            "b2tlbkIYChZfdGFyZ2V0X3NuYXBzaG90X3Rva2VuSgQIFhAXUg5kcmFmdF9j",
+            "bGFpbV9pZCKNBAoMQW5pbWFsRWZmZWN0EjkKBmFuaW1hbBgBIAEoCzIpLnJp",
+            "bWdvdmVybm9yLnJlY2VpcHRzLnYxLlNuYXBzaG90RXZpZGVuY2USGgoNdHJh",
+            "aW5hYmxlX2RlZhgDIAEoCUgAiAEBEhMKBndhbnRlZBgEIAEoCEgBiAEBEiEK",
+            "FHNsYXVnaHRlcl9kZXNpZ25hdGVkGAUgASgISAKIAQESHAoPdGFtZV9kZXNp",
+            "Z25hdGVkGAYgASgISAOIAQESHwoScmVsZWFzZV9kZXNpZ25hdGVkGAcgASgI",
+            "SASIAQESHAoPYWxsb3dlZF9hcmVhX2lkGAggASgJSAWIAQESFgoJbWFzdGVy",
+            "X2lkGAkgASgJSAaIAQESGwoOZm9sbG93X2RyYWZ0ZWQYCiABKAhIB4gBARId",
+            "ChBmb2xsb3dfZmllbGR3b3JrGAsgASgISAiIAQFCEAoOX3RyYWluYWJsZV9k",
+            "ZWZCCQoHX3dhbnRlZEIXChVfc2xhdWdodGVyX2Rlc2lnbmF0ZWRCEgoQX3Rh",
+            "bWVfZGVzaWduYXRlZEIVChNfcmVsZWFzZV9kZXNpZ25hdGVkQhIKEF9hbGxv",
+            "d2VkX2FyZWFfaWRCDAoKX21hc3Rlcl9pZEIRCg9fZm9sbG93X2RyYWZ0ZWRC",
+            "EwoRX2ZvbGxvd19maWVsZHdvcmtKBAgCEANSDGNlbnN1c190b2tlbiKdAQoO",
+            "UHJpc29uZXJFZmZlY3QSNwoEcGF3bhgBIAEoCzIpLnJpbWdvdmVybm9yLnJl",
+            "Y2VpcHRzLnYxLlNuYXBzaG90RXZpZGVuY2USHAoPaW50ZXJhY3Rpb25fZGVm",
+            "GAIgASgJSACIAQESFAoHb3V0Y29tZRgDIAEoCUgBiAEBQhIKEF9pbnRlcmFj",
+            "dGlvbl9kZWZCCgoIX291dGNvbWUiiQEKD1RyYWRlTGluZUVmZmVjdBIUCgds",
+            "aW5lX2lkGAEgASgJSACIAQESGQoMYmVmb3JlX2NvdW50GAIgASgFSAGIAQES",
+            "GAoLYWZ0ZXJfY291bnQYAyABKAVIAogBAUIKCghfbGluZV9pZEIPCg1fYmVm",
+            "b3JlX2NvdW50Qg4KDF9hZnRlcl9jb3VudCLRBAoLVHJhZGVFZmZlY3QSFwoK",
+            "c2Vzc2lvbl9pZBgBIAEoCUgAiAEBEhsKDmRlYWxfc2lnbmF0dXJlGAIgASgJ",
+            "SAGIAQESNwoFbGluZXMYAyADKAsyKC5yaW1nb3Zlcm5vci5yZWNlaXB0cy52",
+            "MS5UcmFkZUxpbmVFZmZlY3QSFQoIZXhlY3V0ZWQYBCABKAhIAogBARITCgZj",
+            "bG9zZWQYBSABKAhIA4gBARIaCg1iZWZvcmVfc2lsdmVyGAYgASgFSASIAQES",
+            "GQoMYWZ0ZXJfc2lsdmVyGAcgASgFSAWIAQESHAoPYmVmb3JlX2dvb2R3aWxs",
+            "GAggASgFSAaIAQESGwoOYWZ0ZXJfZ29vZHdpbGwYCSABKAVIB4gBARIXCgpm",
+            "YWN0aW9uX2lkGAogASgJSAiIAQESGgoScmVjZWl2ZWRfcXVlc3RfaWRzGAsg",
+            "AygJEjsKCHNuYXBzaG90GAwgASgLMikucmltZ292ZXJub3IucmVjZWlwdHMu",
+            "djEuU25hcHNob3RFdmlkZW5jZRIcCg9hY3R1YWxseV90cmFkZWQYDSABKAhI",
+            "CYgBAUINCgtfc2Vzc2lvbl9pZEIRCg9fZGVhbF9zaWduYXR1cmVCCwoJX2V4",
+            "ZWN1dGVkQgkKB19jbG9zZWRCEAoOX2JlZm9yZV9zaWx2ZXJCDwoNX2FmdGVy",
+            "X3NpbHZlckISChBfYmVmb3JlX2dvb2R3aWxsQhEKD19hZnRlcl9nb29kd2ls",
+            "bEINCgtfZmFjdGlvbl9pZEISChBfYWN0dWFsbHlfdHJhZGVkIrwCCg1DYXJh",
+            "dmFuRWZmZWN0EhcKCmNhcmF2YW5faWQYASABKAlIAIgBARIdChBhc3NlbWJs",
+            "eV9zdGFydGVkGAIgASgISAGIAQESGQoMcGF0aF9zdGFydGVkGAMgASgISAKI",
+            "AQESFAoHc3RvcHBlZBgEIAEoCEgDiAEBEh0KEGRlc3RpbmF0aW9uX3RpbGUY",
+            "BSABKAVIBIgBARIQCghwYXduX2lkcxgGIAMoCRI7CghzbmFwc2hvdBgHIAEo",
+            "CzIpLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLlNuYXBzaG90RXZpZGVuY2VC",
+            "DQoLX2NhcmF2YW5faWRCEwoRX2Fzc2VtYmx5X3N0YXJ0ZWRCDwoNX3BhdGhf",
+            "c3RhcnRlZEIKCghfc3RvcHBlZEITChFfZGVzdGluYXRpb25fdGlsZSKSAgoL",
+            "UXVlc3RFZmZlY3QSFQoIcXVlc3RfaWQYASABKAlIAIgBARIVCghhY2NlcHRl",
+            "ZBgCIAEoCEgBiAEBEhsKDnJlcXVlc3RfYWN0aXZlGAMgASgISAKIAQESEgoF",
+            "c3RhdGUYBCABKAlIA4gBARIcCg9hY2NlcHRhbmNlX3RpY2sYBSABKANIBIgB",
+            "ARI7CghzbmFwc2hvdBgGIAEoCzIpLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYx",
+            "LlNuYXBzaG90RXZpZGVuY2VCCwoJX3F1ZXN0X2lkQgsKCV9hY2NlcHRlZEIR",
+            "Cg9fcmVxdWVzdF9hY3RpdmVCCAoGX3N0YXRlQhIKEF9hY2NlcHRhbmNlX3Rp",
+            "Y2sidgoNTG9va3VwUmVxdWVzdBIxCghpZGVudGl0eRgBIAEoCzIfLnJpbWdv",
+            "dmVybm9yLmNvbW1vbi52MS5JZGVudGl0eRIyCgdhdHRlbXB0GAIgASgLMiEu",
+            "cmltZ292ZXJub3IuY29tbW9uLnYxLkF0dGVtcHRLZXkiTAoOVW5rbm93bkF0",
+            "dGVtcHQSOgoHY29udGV4dBgBIAEoCzIpLnJpbWdvdmVybm9yLmNvbW1vbi52",
+            "MS5PYnNlcnZhdGlvbkNvbnRleHQigwEKCEluRmxpZ2h0EjIKB2F0dGVtcHQY",
+            "ASABKAsyIS5yaW1nb3Zlcm5vci5jb21tb24udjEuQXR0ZW1wdEtleRJDChBh",
+            "ZG1pdHRlZF9jb250ZXh0GAIgASgLMikucmltZ292ZXJub3IuY29tbW9uLnYx",
+            "Lk9ic2VydmF0aW9uQ29udGV4dCL0AQoLTG9va3VwUmVwbHkSMwoHcmVjZWlw",
+            "dBgBIAEoCzIgLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLlJlY2VpcHRIABI2",
+            "Cglpbl9mbGlnaHQYAiABKAsyIS5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5J",
+            "bkZsaWdodEgAEjoKB3Vua25vd24YAyABKAsyJy5yaW1nb3Zlcm5vci5yZWNl",
+            "aXB0cy52MS5Vbmtub3duQXR0ZW1wdEgAEjEKB2ZhaWx1cmUYBCABKAsyHi5y",
+            "aW1nb3Zlcm5vci5jb21tb24udjEuRmFpbHVyZUgAQgkKB291dGNvbWUieAoP",
+            "UHJvZ3Jlc3NSZXF1ZXN0EjEKCGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJu",
+            "b3IuY29tbW9uLnYxLklkZW50aXR5EjIKB2F0dGVtcHQYAiABKAsyIS5yaW1n",
+            "b3Zlcm5vci5jb21tb24udjEuQXR0ZW1wdEtleSJKCg1QZW5kaW5nRWZmZWN0",
+            "EjkKCGV2aWRlbmNlGAEgASgLMicucmltZ292ZXJub3IucmVjZWlwdHMudjEu",
+            "RWZmZWN0RXZpZGVuY2UiTAoPQ29tcGxldGVkRWZmZWN0EjkKCGV2aWRlbmNl",
+            "GAEgASgLMicucmltZ292ZXJub3IucmVjZWlwdHMudjEuRWZmZWN0RXZpZGVu",
+            "Y2UiQgoMQWJzZW50RWZmZWN0Eh0KEGluc3BlY3Rpb25fdG9rZW4YASABKAlI",
+            "AIgBAUITChFfaW5zcGVjdGlvbl90b2tlbiIvCg1Vbmtub3duRWZmZWN0EhMK",
+            "BnJlYXNvbhgBIAEoCUgAiAEBQgkKB19yZWFzb24ivAEKElVuc3VjY2Vzc2Z1",
+            "bEVmZmVjdBJACgZyZWFzb24YASABKA4yKy5yaW1nb3Zlcm5vci5yZWNlaXB0",
+            "cy52MS5VbnN1Y2Nlc3NmdWxSZWFzb25IAIgBARI5CghldmlkZW5jZRgCIAEo",
+            "CzInLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkVmZmVjdEV2aWRlbmNlEhMK",
+            "BmRldGFpbBgDIAEoCUgBiAEBQgkKB19yZWFzb25CCQoHX2RldGFpbCLxAwoI",
+            "UHJvZ3Jlc3MSMgoHYXR0ZW1wdBgBIAEoCzIhLnJpbWdvdmVybm9yLmNvbW1v",
+            "bi52MS5BdHRlbXB0S2V5EjoKB2NvbnRleHQYAiABKAsyKS5yaW1nb3Zlcm5v",
+            "ci5jb21tb24udjEuT2JzZXJ2YXRpb25Db250ZXh0EiAKE2NvbXBsZXRlX2lu",
+            "c3BlY3Rpb24YAyABKAhIAYgBARI5Cgd1bmtub3duGAQgASgLMiYucmltZ292",
+            "ZXJub3IucmVjZWlwdHMudjEuVW5rbm93bkVmZmVjdEgAEjkKB3BlbmRpbmcY",
+            "BSABKAsyJi5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5QZW5kaW5nRWZmZWN0",
+            "SAASPQoJY29tcGxldGVkGAYgASgLMigucmltZ292ZXJub3IucmVjZWlwdHMu",
+            "djEuQ29tcGxldGVkRWZmZWN0SAASNwoGYWJzZW50GAcgASgLMiUucmltZ292",
+            "ZXJub3IucmVjZWlwdHMudjEuQWJzZW50RWZmZWN0SAASQwoMdW5zdWNjZXNz",
+            "ZnVsGAggASgLMisucmltZ292ZXJub3IucmVjZWlwdHMudjEuVW5zdWNjZXNz",
+            "ZnVsRWZmZWN0SABCCAoGZWZmZWN0QhYKFF9jb21wbGV0ZV9pbnNwZWN0aW9u",
+            "IoQBCg1Qcm9ncmVzc1JlcGx5EjUKCHByb2dyZXNzGAEgASgLMiEucmltZ292",
+            "ZXJub3IucmVjZWlwdHMudjEuUHJvZ3Jlc3NIABIxCgdmYWlsdXJlGAIgASgL",
+            "Mh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRjb21l",
+            "KroBChFDb25zdHJ1Y3Rpb25TdGFnZRIiCh5DT05TVFJVQ1RJT05fU1RBR0Vf",
+            "VU5TUEVDSUZJRUQQABIgChxDT05TVFJVQ1RJT05fU1RBR0VfQkxVRVBSSU5U",
+            "EAESHAoYQ09OU1RSVUNUSU9OX1NUQUdFX0ZSQU1FEAISHwobQ09OU1RSVUNU",
+            "SU9OX1NUQUdFX0JVSUxESU5HEAMSIAocQ09OU1RSVUNUSU9OX1NUQUdFX0NB",
+            "TkNFTExFRBAEKoUCChFJbnN0YWxsYXRpb25TdGFnZRIiCh5JTlNUQUxMQVRJ",
+            "T05fU1RBR0VfVU5TUEVDSUZJRUQQABIdChlJTlNUQUxMQVRJT05fU1RBR0Vf",
+            "UEFDS0VEEAESIAocSU5TVEFMTEFUSU9OX1NUQUdFX1BMQUNFQUJMRRACEh0K",
+            "GUlOU1RBTExBVElPTl9TVEFHRV9RVUVVRUQQAxIgChxJTlNUQUxMQVRJT05f",
+            "U1RBR0VfSU5TVEFMTEVEEAQSIQodSU5TVEFMTEFUSU9OX1NUQUdFX1VOVkVS",
+            "SUZJRUQQBRInCiNJTlNUQUxMQVRJT05fU1RBR0VfVU5JTlNUQUxMX1FVRVVF",
+            "RBAGKu0FCg1TZXR0aW5nc0ZpZWxkEh4KGlNFVFRJTkdTX0ZJRUxEX1VOU1BF",
+            "Q0lGSUVEEAASHAoYU0VUVElOR1NfRklFTERfRk9SQklEREVOEAESGAoUU0VU",
+            "VElOR1NfRklFTERfUE9XRVIQAhIeChpTRVRUSU5HU19GSUVMRF9URU1QRVJB",
+            "VFVSRRADEh4KGlNFVFRJTkdTX0ZJRUxEX01FRElDQUxfQkVEEAQSGAoUU0VU",
+            "VElOR1NfRklFTERfT1dORVIQBRIfChtTRVRUSU5HU19GSUVMRF9QUklTT05F",
+            "Ul9CRUQQBhIXChNTRVRUSU5HU19GSUVMRF9XT1JLEAcSGwoXU0VUVElOR1Nf",
+            "RklFTERfU0NIRURVTEUQCBIfChtTRVRUSU5HU19GSUVMRF9NRURJQ0FMX0NB",
+            "UkUQCRIcChhTRVRUSU5HU19GSUVMRF9IT1NUSUxJVFkQChIcChhTRVRUSU5H",
+            "U19GSUVMRF9TRUxGX1RFTkQQCxIhCh1TRVRUSU5HU19GSUVMRF9GT0xMT1df",
+            "RFJBRlRFRBAMEiMKH1NFVFRJTkdTX0ZJRUxEX0ZPTExPV19GSUVMRFdPUksQ",
+            "DRIfChtTRVRUSU5HU19GSUVMRF9BTExPV0VEX0FSRUEQDhIZChVTRVRUSU5H",
+            "U19GSUVMRF9NQVNURVIQDxIbChdTRVRUSU5HU19GSUVMRF9UUkFJTklORxAQ",
+            "EhwKGFNFVFRJTkdTX0ZJRUxEX1NMQVVHSFRFUhAREhoKFlNFVFRJTkdTX0ZJ",
+            "RUxEX1JFTEVBU0UQEhIeChpTRVRUSU5HU19GSUVMRF9HUk9XRVJfQ1JPUBAT",
+            "EhgKFFNFVFRJTkdTX0ZJRUxEX0NMQUlNEBQSIwofU0VUVElOR1NfRklFTERf",
+            "Rk9PRF9SRVNUUklDVElPThAVEh4KGlNFVFRJTkdTX0ZJRUxEX0RSVUdfUE9M",
+            "SUNZEBYSHAoYU0VUVElOR1NfRklFTERfU0xBVkVfQkVEEBcqmwEKDEZpZWxk",
+            "T3V0Y29tZRIdChlGSUVMRF9PVVRDT01FX1VOU1BFQ0lGSUVEEAASGwoXRklF",
+            "TERfT1VUQ09NRV9VTkNIQU5HRUQQARIZChVGSUVMRF9PVVRDT01FX0FQUExJ",
+            "RUQQAhIZChVGSUVMRF9PVVRDT01FX1JFRlVTRUQQAxIZChVGSUVMRF9PVVRD",
+            "T01FX1VOS05PV04QBCqdAgoSVW5zdWNjZXNzZnVsUmVhc29uEiMKH1VOU1VD",
+            "Q0VTU0ZVTF9SRUFTT05fVU5TUEVDSUZJRUQQABImCiJVTlNVQ0NFU1NGVUxf",
+            "UkVBU09OX05BVElWRV9GQUlMVVJFEAESIQodVU5TVUNDRVNTRlVMX1JFQVNP",
+            "Tl9DQU5DRUxMRUQQAhIjCh9VTlNVQ0NFU1NGVUxfUkVBU09OX0lOVEVSUlVQ",
+            "VEVEEAMSHwobVU5TVUNDRVNTRlVMX1JFQVNPTl9FWFBJUkVEEAQSIwofVU5T",
+            "VUNDRVNTRlVMX1JFQVNPTl9UQVJHRVRfREVBRBAFEiwKKFVOU1VDQ0VTU0ZV",
+            "TF9SRUFTT05fT1VUQ09NRV9OT1RfQUNISUVWRUQQBjLHAQoIQXR0ZW1wdHMS",
+            "VgoGTG9va3VwEiYucmltZ292ZXJub3IucmVjZWlwdHMudjEuTG9va3VwUmVx",
+            "dWVzdBokLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkxvb2t1cFJlcGx5EmMK",
+            "D09ic2VydmVQcm9ncmVzcxIoLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLlBy",
+            "b2dyZXNzUmVxdWVzdBomLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLlByb2dy",
+            "ZXNzUmVwbHlCa1pJZ2l0aHViLmNvbS9kYXZpZGFyY2hlci9SaW1Hb3Zlcm5v",
+            "ci9nby9pbnRlcm5hbC93aXJlL3JlY2VpcHRzcGI7cmVjZWlwdHNwYqoCHVJp",
+            "bUdvdmVybm9yLlByb3RvY29sLlJlY2VpcHRzYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Receipts.ConstructionStage), typeof(global::RimGovernor.Protocol.Receipts.InstallationStage), typeof(global::RimGovernor.Protocol.Receipts.SettingsField), typeof(global::RimGovernor.Protocol.Receipts.FieldOutcome), typeof(global::RimGovernor.Protocol.Receipts.UnsuccessfulReason), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -373,11 +372,11 @@ namespace RimGovernor.Protocol.Receipts {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.HomeEffect), global::RimGovernor.Protocol.Receipts.HomeEffect.Parser, new[]{ "Snapshot", "ShapeToken", "Revision", "ChangedCells", "Covered" }, new[]{ "ShapeToken", "Revision", "ChangedCells", "Covered" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.BedEffect), global::RimGovernor.Protocol.Receipts.BedEffect.Parser, new[]{ "PawnId", "BedId", "PreviousBedId", "Assigned", "Sleeping" }, new[]{ "PawnId", "BedId", "PreviousBedId", "Assigned", "Sleeping" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.DeconstructEffect), global::RimGovernor.Protocol.Receipts.DeconstructEffect.Parser, new[]{ "TargetId", "DesignationId", "WorkerIds", "DemolitionObserved", "Site" }, new[]{ "TargetId", "DesignationId", "DemolitionObserved" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.CombatOrderResult), global::RimGovernor.Protocol.Receipts.CombatOrderResult.Parser, new[]{ "Index", "PawnId", "Applied", "Refusal", "JobDef", "DraftClaimId" }, new[]{ "Index", "PawnId", "Applied", "Refusal", "JobDef", "DraftClaimId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.CombatOrderResult), global::RimGovernor.Protocol.Receipts.CombatOrderResult.Parser, new[]{ "Index", "PawnId", "Applied", "Refusal", "JobDef" }, new[]{ "Index", "PawnId", "Applied", "Refusal", "JobDef" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.CombatOrdersEffect), global::RimGovernor.Protocol.Receipts.CombatOrdersEffect.Parser, new[]{ "Results" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.WallEffect), global::RimGovernor.Protocol.Receipts.WallEffect.Parser, new[]{ "TargetId", "RemovalId", "WorkerIds", "DemolitionObserved", "Site" }, new[]{ "TargetId", "RemovalId", "DemolitionObserved" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.JobTarget), global::RimGovernor.Protocol.Receipts.JobTarget.Parser, new[]{ "ThingId", "Cell" }, new[]{ "Target" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.JobEffect), global::RimGovernor.Protocol.Receipts.JobEffect.Parser, new[]{ "PawnId", "JobId", "JobDef", "TargetA", "TargetB", "WorkGiverDef", "WorkTypeDef", "Count", "Issued", "Verified", "VerifiedReason", "Drafted", "DraftOwner", "AutoDrafted", "AutoUndrafted", "SupplyThingId", "HitPoints", "Fuel", "NeedBefore", "CanTry", "ResultingSnapshotToken", "DraftClaimId", "TargetSnapshotToken" }, new[]{ "PawnId", "JobId", "JobDef", "WorkGiverDef", "WorkTypeDef", "Count", "Issued", "Verified", "VerifiedReason", "Drafted", "DraftOwner", "AutoDrafted", "AutoUndrafted", "SupplyThingId", "HitPoints", "Fuel", "NeedBefore", "CanTry", "ResultingSnapshotToken", "DraftClaimId", "TargetSnapshotToken" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.JobEffect), global::RimGovernor.Protocol.Receipts.JobEffect.Parser, new[]{ "PawnId", "JobId", "JobDef", "TargetA", "TargetB", "WorkGiverDef", "WorkTypeDef", "Count", "Issued", "Verified", "VerifiedReason", "Drafted", "DraftOwner", "AutoDrafted", "AutoUndrafted", "SupplyThingId", "HitPoints", "Fuel", "NeedBefore", "CanTry", "ResultingSnapshotToken", "TargetSnapshotToken" }, new[]{ "PawnId", "JobId", "JobDef", "WorkGiverDef", "WorkTypeDef", "Count", "Issued", "Verified", "VerifiedReason", "Drafted", "DraftOwner", "AutoDrafted", "AutoUndrafted", "SupplyThingId", "HitPoints", "Fuel", "NeedBefore", "CanTry", "ResultingSnapshotToken", "TargetSnapshotToken" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.AnimalEffect), global::RimGovernor.Protocol.Receipts.AnimalEffect.Parser, new[]{ "Animal", "TrainableDef", "Wanted", "SlaughterDesignated", "TameDesignated", "ReleaseDesignated", "AllowedAreaId", "MasterId", "FollowDrafted", "FollowFieldwork" }, new[]{ "TrainableDef", "Wanted", "SlaughterDesignated", "TameDesignated", "ReleaseDesignated", "AllowedAreaId", "MasterId", "FollowDrafted", "FollowFieldwork" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.PrisonerEffect), global::RimGovernor.Protocol.Receipts.PrisonerEffect.Parser, new[]{ "Pawn", "InteractionDef", "Outcome" }, new[]{ "InteractionDef", "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.TradeLineEffect), global::RimGovernor.Protocol.Receipts.TradeLineEffect.Parser, new[]{ "LineId", "BeforeCount", "AfterCount" }, new[]{ "LineId", "BeforeCount", "AfterCount" }, null, null, null),
@@ -11016,9 +11015,8 @@ namespace RimGovernor.Protocol.Receipts {
   /// One result per CombatOrders order, in request order. An applied result
   /// names the ordered job where one was taken (Goto, AttackStatic,
   /// AttackMelee, Wait_Combat); a refusal carries a short snake_case reason:
-  /// draft_ownership, stale_snapshot, not_found, unreachable, cannot_hit,
-  /// no_ground_verb, not_a_door, native_refused.
-  /// draft_claim_id: the claim an applied draft order holds (#910); absent on every other order.
+  /// not_drafted, cannot_draft, stale_snapshot, not_found, unreachable,
+  /// cannot_hit, no_ground_verb, not_a_door, native_refused.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class CombatOrderResult : pb::IMessage<CombatOrderResult>
@@ -11062,7 +11060,6 @@ namespace RimGovernor.Protocol.Receipts {
       applied_ = other.applied_;
       refusal_ = other.refusal_;
       jobDef_ = other.jobDef_;
-      draftClaimId_ = other.draftClaimId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -11204,32 +11201,6 @@ namespace RimGovernor.Protocol.Receipts {
       jobDef_ = null;
     }
 
-    /// <summary>Field number for the "draft_claim_id" field.</summary>
-    public const int DraftClaimIdFieldNumber = 6;
-    private readonly static string DraftClaimIdDefaultValue = "";
-
-    private string draftClaimId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string DraftClaimId {
-      get { return draftClaimId_ ?? DraftClaimIdDefaultValue; }
-      set {
-        draftClaimId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "draft_claim_id" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasDraftClaimId {
-      get { return draftClaimId_ != null; }
-    }
-    /// <summary>Clears the value of the "draft_claim_id" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearDraftClaimId() {
-      draftClaimId_ = null;
-    }
-
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -11250,7 +11221,6 @@ namespace RimGovernor.Protocol.Receipts {
       if (Applied != other.Applied) return false;
       if (Refusal != other.Refusal) return false;
       if (JobDef != other.JobDef) return false;
-      if (DraftClaimId != other.DraftClaimId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -11263,7 +11233,6 @@ namespace RimGovernor.Protocol.Receipts {
       if (HasApplied) hash ^= Applied.GetHashCode();
       if (HasRefusal) hash ^= Refusal.GetHashCode();
       if (HasJobDef) hash ^= JobDef.GetHashCode();
-      if (HasDraftClaimId) hash ^= DraftClaimId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -11302,10 +11271,6 @@ namespace RimGovernor.Protocol.Receipts {
         output.WriteRawTag(42);
         output.WriteString(JobDef);
       }
-      if (HasDraftClaimId) {
-        output.WriteRawTag(50);
-        output.WriteString(DraftClaimId);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -11336,10 +11301,6 @@ namespace RimGovernor.Protocol.Receipts {
         output.WriteRawTag(42);
         output.WriteString(JobDef);
       }
-      if (HasDraftClaimId) {
-        output.WriteRawTag(50);
-        output.WriteString(DraftClaimId);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -11364,9 +11325,6 @@ namespace RimGovernor.Protocol.Receipts {
       }
       if (HasJobDef) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(JobDef);
-      }
-      if (HasDraftClaimId) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(DraftClaimId);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -11394,9 +11352,6 @@ namespace RimGovernor.Protocol.Receipts {
       }
       if (other.HasJobDef) {
         JobDef = other.JobDef;
-      }
-      if (other.HasDraftClaimId) {
-        DraftClaimId = other.DraftClaimId;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -11437,10 +11392,6 @@ namespace RimGovernor.Protocol.Receipts {
             JobDef = input.ReadString();
             break;
           }
-          case 50: {
-            DraftClaimId = input.ReadString();
-            break;
-          }
         }
       }
     #endif
@@ -11478,10 +11429,6 @@ namespace RimGovernor.Protocol.Receipts {
           }
           case 42: {
             JobDef = input.ReadString();
-            break;
-          }
-          case 50: {
-            DraftClaimId = input.ReadString();
             break;
           }
         }
@@ -12420,7 +12367,6 @@ namespace RimGovernor.Protocol.Receipts {
       needBefore_ = other.needBefore_;
       canTry_ = other.canTry_;
       resultingSnapshotToken_ = other.resultingSnapshotToken_;
-      draftClaimId_ = other.draftClaimId_;
       targetSnapshotToken_ = other.targetSnapshotToken_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
@@ -12960,32 +12906,6 @@ namespace RimGovernor.Protocol.Receipts {
       resultingSnapshotToken_ = null;
     }
 
-    /// <summary>Field number for the "draft_claim_id" field.</summary>
-    public const int DraftClaimIdFieldNumber = 22;
-    private readonly static string DraftClaimIdDefaultValue = "";
-
-    private string draftClaimId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string DraftClaimId {
-      get { return draftClaimId_ ?? DraftClaimIdDefaultValue; }
-      set {
-        draftClaimId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "draft_claim_id" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasDraftClaimId {
-      get { return draftClaimId_ != null; }
-    }
-    /// <summary>Clears the value of the "draft_claim_id" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearDraftClaimId() {
-      draftClaimId_ = null;
-    }
-
     /// <summary>Field number for the "target_snapshot_token" field.</summary>
     public const int TargetSnapshotTokenFieldNumber = 23;
     private readonly static string TargetSnapshotTokenDefaultValue = "";
@@ -13053,7 +12973,6 @@ namespace RimGovernor.Protocol.Receipts {
       if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(NeedBefore, other.NeedBefore)) return false;
       if (CanTry != other.CanTry) return false;
       if (ResultingSnapshotToken != other.ResultingSnapshotToken) return false;
-      if (DraftClaimId != other.DraftClaimId) return false;
       if (TargetSnapshotToken != other.TargetSnapshotToken) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -13083,7 +13002,6 @@ namespace RimGovernor.Protocol.Receipts {
       if (HasNeedBefore) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(NeedBefore);
       if (HasCanTry) hash ^= CanTry.GetHashCode();
       if (HasResultingSnapshotToken) hash ^= ResultingSnapshotToken.GetHashCode();
-      if (HasDraftClaimId) hash ^= DraftClaimId.GetHashCode();
       if (HasTargetSnapshotToken) hash ^= TargetSnapshotToken.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -13187,10 +13105,6 @@ namespace RimGovernor.Protocol.Receipts {
         output.WriteRawTag(170, 1);
         output.WriteString(ResultingSnapshotToken);
       }
-      if (HasDraftClaimId) {
-        output.WriteRawTag(178, 1);
-        output.WriteString(DraftClaimId);
-      }
       if (HasTargetSnapshotToken) {
         output.WriteRawTag(186, 1);
         output.WriteString(TargetSnapshotToken);
@@ -13289,10 +13203,6 @@ namespace RimGovernor.Protocol.Receipts {
         output.WriteRawTag(170, 1);
         output.WriteString(ResultingSnapshotToken);
       }
-      if (HasDraftClaimId) {
-        output.WriteRawTag(178, 1);
-        output.WriteString(DraftClaimId);
-      }
       if (HasTargetSnapshotToken) {
         output.WriteRawTag(186, 1);
         output.WriteString(TargetSnapshotToken);
@@ -13369,9 +13279,6 @@ namespace RimGovernor.Protocol.Receipts {
       }
       if (HasResultingSnapshotToken) {
         size += 2 + pb::CodedOutputStream.ComputeStringSize(ResultingSnapshotToken);
-      }
-      if (HasDraftClaimId) {
-        size += 2 + pb::CodedOutputStream.ComputeStringSize(DraftClaimId);
       }
       if (HasTargetSnapshotToken) {
         size += 2 + pb::CodedOutputStream.ComputeStringSize(TargetSnapshotToken);
@@ -13456,9 +13363,6 @@ namespace RimGovernor.Protocol.Receipts {
       }
       if (other.HasResultingSnapshotToken) {
         ResultingSnapshotToken = other.ResultingSnapshotToken;
-      }
-      if (other.HasDraftClaimId) {
-        DraftClaimId = other.DraftClaimId;
       }
       if (other.HasTargetSnapshotToken) {
         TargetSnapshotToken = other.TargetSnapshotToken;
@@ -13572,10 +13476,6 @@ namespace RimGovernor.Protocol.Receipts {
             ResultingSnapshotToken = input.ReadString();
             break;
           }
-          case 178: {
-            DraftClaimId = input.ReadString();
-            break;
-          }
           case 186: {
             TargetSnapshotToken = input.ReadString();
             break;
@@ -13687,10 +13587,6 @@ namespace RimGovernor.Protocol.Receipts {
           }
           case 170: {
             ResultingSnapshotToken = input.ReadString();
-            break;
-          }
-          case 178: {
-            DraftClaimId = input.ReadString();
             break;
           }
           case 186: {

@@ -3,7 +3,7 @@
 // lifecycle (nativeaccept.GameReuse). One RimWorld process is launched;
 // the tribal8 baseline is then loaded several times into it, each load a
 // separate case that takes authority, drafts a colonist through
-// operations_execute, releases the draft, revokes authority and launches
+// the draft intent, undrafts, revokes authority and launches
 // and stops a per-case `rimgovernor serve` (the run's -rimgovernor) with
 // its own SQLite state, asserting the stopped controller no longer
 // answers. Between cases the lifecycle's own
@@ -103,8 +103,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 	}
 	labSave := na.AsString(lab["save"])
 	for _, tool := range []string{"rimgovernor/lifecycle_read_identity", "rimgovernor/authority_control",
-		"rimgovernor/observations_list_pawns", "rimgovernor/observations_read_colony_facts", "rimgovernor/operations_execute",
-		"rimgovernor/operations_release_owned_draft"} {
+		"rimgovernor/observations_list_pawns", "rimgovernor/observations_read_colony_facts", "rimgovernor/operations_apply"} {
 		if !na.Contains(names, tool) {
 			return fmt.Errorf("missing %s in discovery", tool)
 		}
@@ -135,7 +134,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 	}
 	report["load_tokens"] = tokens
 
-	// Negative case: leave an owned draft behind. EndCase must retire.
+	// Negative case: leave a draft behind. EndCase must retire.
 	c, err := reuse.BeginCase(ctx, "case-unclean", labSave, filepath.Join(cfg.Output, "case-unclean"))
 	if err != nil {
 		return fmt.Errorf("case-unclean: begin: %w", err)
@@ -169,18 +168,11 @@ func cleanCase(ctx context.Context, cfg *na.Config, reuse *na.GameReuse, c *na.R
 	if err != nil {
 		return err
 	}
-	claim, _ := na.AsMap(row0["draftClaim"])
-	owned, _ := na.AsMap(claim["owned"])
-	releaseReply, err := h.Wire(ctx, "release", "operations_release_owned_draft", map[string]any{
-		"identity": identity, "pawn": na.Target(row0), "expectedClaimId": owned["claimId"],
-	})
-	if err != nil {
-		return err
-	}
-	if _, released, err := na.Outcome(releaseReply, "released"); err != nil {
-		return fmt.Errorf("release: %w", err)
-	} else if observed, _ := na.AsMap(released["observed"]); observed["drafted"] != false {
-		return fmt.Errorf("release did not clear drafted: %#v", observed)
+	pawn0, _ := na.AsMap(row0["pawn"])
+	if job, err := na.ApplyDraft(ctx, h, "undraft", identity, c.Name+"-undraft", na.AsString(pawn0["id"]), false); err != nil {
+		return fmt.Errorf("undraft: %w", err)
+	} else if issued, _ := na.AsBool(job["issued"]); !issued {
+		return fmt.Errorf("undraft did not clear drafted: %#v", job)
 	}
 	// Every admitted write advances the native generation, so revoke against
 	// the status read after the release, not the grant's generation.
@@ -239,8 +231,8 @@ func cleanCase(ctx context.Context, cfg *na.Config, reuse *na.GameReuse, c *na.R
 }
 
 // draftColonist sets authority to Auto and drafts the first standing colonist
-// through operations_execute, returning the granted generation and the
-// pawn's post-draft row (drafted, owned claim).
+// through the draft intent, returning the granted generation and the
+// pawn's post-draft row.
 func draftColonist(ctx context.Context, h *na.Harness, identity map[string]any, label string) (any, map[string]any, error) {
 	statusReply, err := h.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": identity})
 	if err != nil {
@@ -295,19 +287,7 @@ func draftColonist(ctx context.Context, h *na.Harness, identity map[string]any, 
 	}
 	pawn, _ := na.AsMap(before["pawn"])
 	pawnID := na.AsString(pawn["id"])
-	receiptReply, err := h.Wire(ctx, label+"-draft", "operations_execute", map[string]any{
-		"precondition": map[string]any{
-			"identity": identity, "expectedGeneration": generation,
-			"attempt": map[string]any{"controllerSessionId": "reuseaccept", "actionId": label + "-draft", "attemptId": "1"},
-		},
-		"operation": map[string]any{"setDrafted": map[string]any{
-			"pawn": na.Target(before), "drafted": true, "allowPersistentDraft": false,
-		}},
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	if _, _, err := na.Outcome(receiptReply, "receipt"); err != nil {
+	if _, err := na.ApplyDraft(ctx, h, label+"-draft", identity, label+"-draft", pawnID, true); err != nil {
 		return nil, nil, fmt.Errorf("draft: %w", err)
 	}
 	after, err := listPawns("drafted", []any{pawnID})
@@ -316,10 +296,6 @@ func draftColonist(ctx context.Context, h *na.Harness, identity map[string]any, 
 	}
 	if drafted, _ := after["drafted"].(bool); !drafted {
 		return nil, nil, fmt.Errorf("colonist %s is not drafted after the receipt", pawnID)
-	}
-	claim, _ := na.AsMap(after["draftClaim"])
-	if _, owned := claim["owned"]; !owned {
-		return nil, nil, fmt.Errorf("colonist %s has no owned draft claim after the receipt: %#v", pawnID, claim)
 	}
 	return generation, after, nil
 }

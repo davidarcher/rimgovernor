@@ -362,14 +362,6 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 	if err = s.CloseCombatFight(ctx, "bill-plan"); err != nil {
 		t.Fatal(err)
 	}
-	// A closed fight still holding a draft claim (#910) keeps it too.
-	reviewRoutine(t, s, &r)
-	if p, err = s.LoadPlan(ctx, "bill-plan"); err != nil || p.Retired {
-		t.Fatal("closed fight holding a claim retired", p.Retired, err)
-	}
-	if err = s.RecordCombatClaims(ctx, "bill-plan", nil, []domain.PawnID{"a"}); err != nil {
-		t.Fatal(err)
-	}
 	// The next review retires the settled plan.
 	reviewRoutine(t, s, &r)
 	if p, err = s.LoadPlan(ctx, "bill-plan"); err != nil || !p.Retired {

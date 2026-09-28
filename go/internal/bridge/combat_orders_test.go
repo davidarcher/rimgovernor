@@ -83,45 +83,35 @@ func combatResult(i int, pawn string, applied bool, refusal, job string) *r.Comb
 	return v
 }
 
-func combatDraftResult(i int, pawn, claim string) *r.CombatOrderResult {
-	v := combatResult(i, pawn, true, "", "")
-	v.DraftClaimId = proto.String(claim)
-	return v
-}
-
 func combatTestResults() []*r.CombatOrderResult {
 	return []*r.CombatOrderResult{
 		combatResult(0, "p0", true, "", "AttackStatic"),
 		combatResult(1, "p1", true, "", "Goto"),
-		combatResult(2, "p2", false, CombatRefusalDraftOwnership, ""),
+		combatResult(2, "p2", false, CombatRefusalNotDrafted, ""),
 		combatResult(3, "p3", true, "", ""),
 		combatResult(4, "p3", true, "", "Wait_Combat"),
 		combatResult(5, "p4", true, "", ""),
-		combatDraftResult(6, "p5", "claim-5"),
+		combatResult(6, "p5", true, "", ""),
 		combatResult(7, "", false, CombatRefusalNotADoor, ""),
 	}
 }
 
-func combatReceipt(results []*r.CombatOrderResult, applied bool) *r.Receipt {
-	v := buildingAdmission()
+// combatReceipt is the applied action receipt: an applied combat_orders
+// action carries every order's result, refused ones included.
+func combatReceipt(results []*r.CombatOrderResult) *r.Receipt {
 	evidence := &r.EffectEvidence{Effect: &r.EffectEvidence_CombatOrders{CombatOrders: &r.CombatOrdersEffect{Results: results}}}
-	if applied {
-		v.Outcome = &r.Receipt_Applied{Applied: &r.Applied{Observed: evidence}}
-	} else {
-		v.Outcome = &r.Receipt_NoChange{NoChange: &r.NoChange{Observed: evidence, Detail: proto.String("Every combat order was refused.")}}
-	}
-	return v
+	return &r.Receipt{AdmittedContext: pbContext(), Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: evidence}}}
 }
 
 func TestCombatOrderResultsDecode(t *testing.T) {
-	got, err := CombatOrderResults(combatReceipt(combatTestResults(), true), combatTestOrders())
+	got, err := CombatOrderResults(combatReceipt(combatTestResults()), combatTestOrders())
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []CombatOrderResult{
-		{0, "p0", true, "", "AttackStatic", ""}, {1, "p1", true, "", "Goto", ""}, {2, "p2", false, "draft_ownership", "", ""},
-		{3, "p3", true, "", "", ""}, {4, "p3", true, "", "Wait_Combat", ""}, {5, "p4", true, "", "", ""},
-		{6, "p5", true, "", "", "claim-5"}, {7, "", false, "not_a_door", "", ""},
+		{0, "p0", true, "", "AttackStatic"}, {1, "p1", true, "", "Goto"}, {2, "p2", false, "not_drafted", ""},
+		{3, "p3", true, "", ""}, {4, "p3", true, "", "Wait_Combat"}, {5, "p4", true, "", ""},
+		{6, "p5", true, "", ""}, {7, "", false, "not_a_door", ""},
 	}
 	for i := range want {
 		if got[i] != want[i] {
@@ -130,41 +120,32 @@ func TestCombatOrderResultsDecode(t *testing.T) {
 	}
 	allRefused := []*r.CombatOrderResult{combatResult(0, "p0", false, CombatRefusalStaleSnapshot, "")}
 	one := &o.CombatOrders{Orders: combatTestOrders().Orders[:1]}
-	if got, err := CombatOrderResults(combatReceipt(allRefused, false), one); err != nil || got[0].Refusal != "stale_snapshot" {
+	if got, err := CombatOrderResults(combatReceipt(allRefused), one); err != nil || got[0].Refusal != "stale_snapshot" {
 		t.Errorf("no-change decode: %v %+v", err, got)
 	}
-	uncertain := buildingAdmission()
+	uncertain := &r.Receipt{AdmittedContext: pbContext()}
 	uncertain.Outcome = &r.Receipt_Uncertain{Uncertain: &r.Uncertain{Detail: proto.String("x")}}
 	if got, err := CombatOrderResults(uncertain, one); err != nil || got != nil {
 		t.Errorf("uncertain decode: %v %+v", err, got)
 	}
 	for _, tc := range []struct {
-		name    string
-		edit    func([]*r.CombatOrderResult) []*r.CombatOrderResult
-		applied bool
-		want    string
+		name string
+		edit func([]*r.CombatOrderResult) []*r.CombatOrderResult
+		want string
 	}{
-		{"short", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { return v[:7] }, true, "7 results for 8 orders"},
-		{"draft no claim", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[6].DraftClaimId = nil; return v }, true, "without a valid claim"},
-		{"claim on move", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[1].DraftClaimId = proto.String("c"); return v }, true, "did not draft"},
-		{"refused draft claim", func(v []*r.CombatOrderResult) []*r.CombatOrderResult {
-			v[6] = combatResult(6, "p5", false, CombatRefusalCannotDraft, "")
-			v[6].DraftClaimId = proto.String("c")
-			return v
-		}, true, "did not draft"},
-		{"index", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[1].Index = proto.Uint32(3); return v }, true, "index"},
-		{"pawn", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[1].PawnId = proto.String("p9"); return v }, true, "names pawn"},
-		{"door pawn", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[7].PawnId = proto.String("p0"); return v }, true, "names pawn"},
-		{"no reason", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[2].Refusal = nil; return v }, true, "known reason"},
-		{"unknown reason", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[2].Refusal = proto.String("nope"); return v }, true, "known reason"},
+		{"short", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { return v[:7] }, "7 results for 8 orders"},
+		{"index", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[1].Index = proto.Uint32(3); return v }, "index"},
+		{"pawn", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[1].PawnId = proto.String("p9"); return v }, "names pawn"},
+		{"door pawn", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[7].PawnId = proto.String("p0"); return v }, "names pawn"},
+		{"no reason", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[2].Refusal = nil; return v }, "known reason"},
+		{"unknown reason", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[2].Refusal = proto.String("nope"); return v }, "known reason"},
 		{"applied refusal", func(v []*r.CombatOrderResult) []*r.CombatOrderResult {
 			v[0].Refusal = proto.String("cannot_hit")
 			return v
-		}, true, "applied with a refusal"},
-		{"refused job", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[2].JobDef = proto.String("Goto"); return v }, true, "refused with a job"},
-		{"outcome", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { return v }, false, "disagrees"},
+		}, "applied with a refusal"},
+		{"refused job", func(v []*r.CombatOrderResult) []*r.CombatOrderResult { v[2].JobDef = proto.String("Goto"); return v }, "refused with a job"},
 	} {
-		_, err := CombatOrderResults(combatReceipt(tc.edit(combatTestResults()), tc.applied), combatTestOrders())
+		_, err := CombatOrderResults(combatReceipt(tc.edit(combatTestResults())), combatTestOrders())
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: err %v, want %q", tc.name, err, tc.want)
 		}
@@ -173,22 +154,24 @@ func TestCombatOrderResultsDecode(t *testing.T) {
 
 func TestCombatOrdersIssue(t *testing.T) {
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
-		if arg.Tool != "rimgovernor/operations_execute" {
+		if arg.Tool != ActionsApplyMethod {
 			t.Fatal(arg.Tool)
 		}
-		draftTestRequest(t, arg, &o.ExecuteRequest{Precondition: buildingPre(), Operation: combatOrdersOperation(combatTestOrders())})
-		return pbResult(&o.ExecuteReply{Outcome: &o.ExecuteReply_Receipt{Receipt: combatReceipt(combatTestResults(), true)}}), nil
+		protoTestRequest(t, arg, &o.ApplyRequest{Identity: pbIdentity(), Actions: []*o.Action{{Key: proto.String("fight"), Intent: &o.Action_CombatOrders{CombatOrders: combatTestOrders()}}}})
+		return pbResult(&o.ApplyReply{Results: []*o.ActionResult{{Key: proto.String("fight"), Outcome: &o.ActionResult_Applied{Applied: combatReceipt(combatTestResults())}}}}), nil
 	}}, time.Second)
-	control := &CombatOrdersControl{client: client}
-	results, _, _, err := control.Issue(context.Background(), buildingPre(), combatTestOrders())
-	if err != nil || len(results) != 8 || results[2].Refusal != CombatRefusalDraftOwnership {
+	issue := func(command *o.CombatOrders) ([]CombatOrderResult, error) {
+		return client.CombatOrders(context.Background(), pbIdentity(), "fight", command)
+	}
+	results, err := issue(combatTestOrders())
+	if err != nil || len(results) != 8 || results[2].Refusal != CombatRefusalNotDrafted {
 		t.Fatalf("issue: %v %+v", err, results)
 	}
 	var logged bytes.Buffer
 	previous := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, nil)))
 	defer slog.SetDefault(previous)
-	if _, _, _, err := control.Issue(context.Background(), buildingPre(), combatTestOrders()); err != nil {
+	if _, err := issue(combatTestOrders()); err != nil {
 		t.Fatal(err)
 	}
 	// combatlab metrics (#855) count these lines by this pattern.
@@ -202,7 +185,7 @@ func TestCombatOrdersIssue(t *testing.T) {
 	if strings.Join(outcomes, ",") != "applied,applied,refused,applied,applied,applied,applied,refused" {
 		t.Errorf("combat_order lines: %v", outcomes)
 	}
-	if _, _, _, err := control.Issue(context.Background(), buildingPre(), &o.CombatOrders{}); err == nil {
+	if _, err := issue(&o.CombatOrders{}); err == nil {
 		t.Fatal("empty batch reached the wire")
 	}
 }
@@ -241,7 +224,7 @@ func TestValidateCombatRescueAndDoorModes(t *testing.T) {
 		combatResult(2, "", true, "", ""),
 		combatResult(3, "", true, "", ""),
 	}
-	if _, err := CombatOrderResults(combatReceipt(results, true), rescue()); err != nil {
+	if _, err := CombatOrderResults(combatReceipt(results), rescue()); err != nil {
 		t.Fatalf("rescue refusals: %v", err)
 	}
 }
@@ -268,10 +251,10 @@ func TestValidateCombatRepair(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 		}
 	}
-	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", false, CombatRefusalCannotRepair, "")}, false), repair()); err != nil {
+	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", false, CombatRefusalCannotRepair, "")}), repair()); err != nil {
 		t.Fatalf("repair refusal: %v", err)
 	}
-	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", true, "", "Repair")}, true), repair()); err != nil {
+	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", true, "", "Repair")}), repair()); err != nil {
 		t.Fatalf("repair applied: %v", err)
 	}
 }
@@ -298,7 +281,7 @@ func TestValidateCombatMortar(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 		}
 	}
-	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", false, CombatRefusalNotAMortar, "")}, false), mortar()); err != nil {
+	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", false, CombatRefusalNotAMortar, "")}), mortar()); err != nil {
 		t.Fatalf("mortar refusal: %v", err)
 	}
 }
@@ -336,7 +319,7 @@ func TestValidateCombatAnimalOrders(t *testing.T) {
 		combatResult(0, "dog", false, CombatRefusalUntrained, ""),
 		combatResult(1, "dog", false, CombatRefusalNotOurs, ""),
 		combatResult(2, "dog", false, CombatRefusalNotOurs, ""),
-	}, false)
+	})
 	if _, err := CombatOrderResults(receipt, animal()); err != nil {
 		t.Fatalf("animal refusals: %v", err)
 	}

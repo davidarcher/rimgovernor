@@ -46,9 +46,9 @@ type ExcavationRequest struct {
 // immediately before dispatch, the same shape EvaluateWallRemoval uses.
 // Admission proves the exact visible rock, native eligibility, roof support
 // and worker access still hold; it does not prove pawns will finish mining.
-func EvaluateExcavation(r ExcavationRequest) DraftDecision {
-	refuse := func(reason Reason) DraftDecision {
-		return DraftDecision{Refused: []Refusal{{Action: r.Action.ID(), Reason: reason}}}
+func EvaluateExcavation(r ExcavationRequest) AdmissionDecision {
+	refuse := func(reason Reason) AdmissionDecision {
+		return AdmissionDecision{Refused: []Refusal{{Action: r.Action.ID(), Reason: reason}}}
 	}
 	excavation, ok := r.Action.Excavation()
 	canonical, err := domain.NewExcavationAction(r.Action.ID(), excavation)
@@ -79,7 +79,7 @@ func EvaluateExcavation(r ExcavationRequest) DraftDecision {
 	// longer tracks, finished between planning and dispatch) is adopted as
 	// done: dispatch records the cleared evidence instead of designating.
 	if definition == "" {
-		return DraftDecision{Admitted: true}
+		return AdmissionDecision{Admitted: true}
 	}
 	if definition != excavation.Definition() || !eligible {
 		return refuse(ExcavationGeometryChanged)
@@ -99,5 +99,5 @@ func EvaluateExcavation(r ExcavationRequest) DraftDecision {
 	if !access || !worker {
 		return refuse(NotReady)
 	}
-	return DraftDecision{Admitted: true}
+	return AdmissionDecision{Admitted: true}
 }

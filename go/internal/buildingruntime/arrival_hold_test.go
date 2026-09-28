@@ -110,12 +110,8 @@ func TestShrineDraftHeldPastAppliedMove(t *testing.T) {
 	if d, err = d.Prepare(s, 5); err == nil {
 		d, err = d.MarkDispatched(s, 5)
 	}
-	claim := domain.DraftClaim{Action: "draft", Attempt: 1, Pawn: "pawn", Claim: "claim", Session: "session", Origin: s}
 	if err == nil {
-		d, err = d.RecordDraftReceipt(1, domain.ReceiptAccepted, domain.Known(claim))
-	}
-	if err == nil {
-		d, err = d.ObserveDraft(domain.Observation{Action: "draft", Attempt: 1, Snapshot: s, Tick: 6, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, s, domain.Known(claim))
+		d, err = d.RecordReceipt(1, domain.ReceiptAccepted)
 	}
 	if err != nil {
 		t.Fatal(err)

@@ -211,7 +211,6 @@ type ProgressView struct {
 	Effect             Fact[Effect]
 	UnsuccessfulReason Fact[UnsuccessfulReason]
 	HeldReason         Fact[HoldEvidence]
-	DraftCleanup       Fact[DraftCleanup]
 }
 
 // Progress transitions return a new value; failed transitions preserve the original.
@@ -240,7 +239,7 @@ func (p Progress) Action() Action     { return p.action }
 // under the current snapshot rather than left behind with one it can never
 // dispatch against.
 func (p Progress) Prepare(snapshot GenerationSnapshot, tick Tick) (Progress, error) {
-	if p.view.Stage != Pending && p.view.Stage != Prepared || p.view.Unresolved || p.draftCleanupOutstanding() {
+	if p.view.Stage != Pending && p.view.Stage != Prepared || p.view.Unresolved {
 		return p, errors.New("action is not ready")
 	}
 	if err := snapshot.Validate(); err != nil {
@@ -321,21 +320,12 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	if p.view.Attempt == ^AttemptID(0) {
 		return p, errors.New("dispatch attempt identity exhausted")
 	}
-	if p.draftCleanupOutstanding() {
-		return p, errors.New("draft cleanup remains outstanding")
-	}
-	if p.action.kind == OwnedDraftAction && (current.Native == 0) {
-		return p, errors.New("draft dispatch requires native generation and player direction")
-	}
 	p.view.Attempt++
 	p.view.Stage, p.view.Unresolved, p.view.Tick = Dispatched, true, tick
 	p.view.Receipt, p.view.Effect = Unknown[Receipt](), Unknown[Effect]()
 	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
 	p.view.HeldReason = Unknown[HoldEvidence]()
 	p.view.Zone = Unknown[string]()
-	if p.action.kind == OwnedDraftAction {
-		p.view.DraftCleanup = Known(DraftCleanup{Stage: DraftAwaitingClaim})
-	}
 	return p, nil
 }
 
@@ -354,9 +344,6 @@ var intentKinds = map[ActionKind]bool{}
 func RegisterIntentKind(k ActionKind) { intentKinds[k] = true }
 
 func (p Progress) RecordReceipt(attempt AttemptID, receipt Receipt) (Progress, error) {
-	if p.action.kind == OwnedDraftAction {
-		return p, errors.New("draft receipt requires typed claim transition")
-	}
 	return p.recordReceipt(attempt, receipt)
 }
 
@@ -466,9 +453,6 @@ func (p Progress) Cancel() (Progress, error) {
 // Terminal evidence must come from a complete native attempt-correlated inspection;
 // the executor validates that boundary evidence regardless of tick distance.
 func (p Progress) Observe(observation Observation, current GenerationSnapshot) (Progress, error) {
-	if p.action.kind == OwnedDraftAction {
-		return p, errors.New("draft observation requires typed claim transition")
-	}
 	if p.action.kind.IntentMode() {
 		return p, errors.New("an intent's receipt is terminal; there is nothing to observe")
 	}

@@ -24,9 +24,9 @@ type TradeRequest struct {
 // EvaluateTrade re-validates one already-selected trade intent immediately
 // before dispatch: the canonical action, its progress and a fresh anchor in
 // the current world. It never selects a trader, lines or floors.
-func EvaluateTrade(r TradeRequest) DraftDecision {
-	refuse := func(reason Reason) DraftDecision {
-		return DraftDecision{Refused: []Refusal{{Action: r.Action.ID(), Reason: reason}}}
+func EvaluateTrade(r TradeRequest) AdmissionDecision {
+	refuse := func(reason Reason) AdmissionDecision {
+		return AdmissionDecision{Refused: []Refusal{{Action: r.Action.ID(), Reason: reason}}}
 	}
 	trade, ok := r.Action.Trade()
 	canonical, err := domain.NewTradeAction(r.Action.ID(), trade)
@@ -44,5 +44,5 @@ func EvaluateTrade(r TradeRequest) DraftDecision {
 	if f.PreviewTick < v.Tick || (v.Stage == domain.Prepared && !v.Snapshot.Matches(r.Current)) || (v.Attempt > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map)) {
 		return refuse(StaleFacts)
 	}
-	return DraftDecision{Admitted: true}
+	return AdmissionDecision{Admitted: true}
 }

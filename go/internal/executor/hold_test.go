@@ -18,10 +18,7 @@ func allKnownReasons() []policy.Reason {
 		policy.DependencyBlocked, policy.GeometryBlocked,
 		policy.InvalidHeld,
 
-		policy.DraftOwnership,
-		policy.NativeIneligible, policy.PlayerOrder,
-		policy.UnsuitableEquipment,
-		policy.UnsupportedThreat,
+		policy.NativeIneligible,
 		policy.ExcavationUnsupported, policy.ExcavationGeometryChanged,
 		policy.UnsafeRoute, policy.RoofSupportRisk, policy.StorageMissing, policy.UrgentCompetingWork,
 	}

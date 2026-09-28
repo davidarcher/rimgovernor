@@ -86,8 +86,8 @@ func TestPodFightCommitsLoadoutBeforeFirstCombatBatch(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatal(err)
 	}
-	if _, held := fight.Claims[action.Pawn()]; held {
-		t.Fatal("the loadout pawn holds a draft claim", fight.Claims)
+	if fight.Roster[action.Pawn()] {
+		t.Fatal("the loadout pawn is on the fight roster", fight.Roster)
 	}
 	// Its equip still open, the next stop leaves it undrafted.
 	if _, err = planner.Step(ctx); err != nil {

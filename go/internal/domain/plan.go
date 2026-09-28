@@ -21,10 +21,9 @@ type ActionKind string
 
 const BuildingAction ActionKind = "building"
 const OwnedDraftAction ActionKind = "owned_draft"
-const MeleeAttackAction ActionKind = "melee_attack"
+const SubdueAction ActionKind = "subdue"
 const TendAction ActionKind = "tend"
 const RescueAction ActionKind = "rescue"
-const RangedAttackAction ActionKind = "ranged_attack"
 const HaulAction ActionKind = "haul"
 const EquipAction ActionKind = "equip"
 const GearReplaceAction ActionKind = "gear_replace"
@@ -94,7 +93,7 @@ type Action struct {
 	kind                ActionKind
 	building            Building
 	draft               OwnedDraft
-	melee               MeleeAttack
+	subdue              Subdue
 	zone                ZoneCreate
 	bill                ProductionBill
 	acquisition         Acquisition
@@ -109,7 +108,6 @@ type Action struct {
 	rescue              Rescue
 	capture             Capture
 	useItem             UseItem
-	ranged              RangedAttack
 	movement            Movement
 	haul                Haul
 	equip               Equip
@@ -192,8 +190,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewBuildingAction(a.id, a.building)
 		case OwnedDraftAction:
 			canonical, err = NewOwnedDraftAction(a.id, a.draft)
-		case MeleeAttackAction:
-			canonical, err = NewMeleeAttackAction(a.id, a.melee)
+		case SubdueAction:
+			canonical, err = NewSubdueAction(a.id, a.subdue)
 		case WorkAssignmentAction:
 			canonical, err = NewWorkAssignmentAction(a.id, a.work)
 		case ProductionBillAction:
@@ -222,8 +220,6 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewRescueAction(a.id, a.rescue)
 		case CaptureAction:
 			canonical, err = NewCaptureAction(a.id, a.capture)
-		case RangedAttackAction:
-			canonical, err = NewRangedAttackAction(a.id, a.ranged)
 		case HaulAction:
 			canonical, err = NewHaulAction(a.id, a.haul)
 		case EquipAction:
@@ -300,16 +296,10 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 		if _, exists := seen[a.id]; exists {
 			return PlanSpec{}, fmt.Errorf("duplicate action identity %q", a.id)
 		}
-		if a.kind == MeleeAttackAction {
-			prerequisite, exists := seen[a.melee.draftAction]
-			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.melee.pawn {
-				return PlanSpec{}, errors.New("melee attack requires its preceding owned draft for the same pawn")
-			}
-		}
-		if a.kind == RangedAttackAction {
-			prerequisite, exists := seen[a.ranged.draftAction]
-			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.ranged.pawn {
-				return PlanSpec{}, errors.New("ranged attack requires its preceding owned draft for the same pawn")
+		if a.kind == SubdueAction {
+			prerequisite, exists := seen[a.subdue.draftAction]
+			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.subdue.pawn {
+				return PlanSpec{}, errors.New("subdue requires its preceding owned draft for the same pawn")
 			}
 		}
 		if a.kind == MovementAction {
@@ -379,15 +369,11 @@ func validateDependencies(actions map[ActionID]Action, dependencies []ActionDepe
 		}
 		graph[d.Action] = append(graph[d.Action], d.Requires)
 	}
-	// Melee, ranged attacks and movement already have a mandatory draft prerequisite.
-	// Include it in cycle detection without changing either family's exact
-	// owned-claim checks.
+	// Subdue and movement already have a mandatory draft prerequisite.
+	// Include it in cycle detection.
 	for id, a := range actions {
-		if melee, k := a.MeleeAttack(); k {
-			graph[id] = append(graph[id], melee.DraftAction())
-		}
-		if ranged, k := a.RangedAttack(); k {
-			graph[id] = append(graph[id], ranged.DraftAction())
+		if subdue, k := a.Subdue(); k {
+			graph[id] = append(graph[id], subdue.DraftAction())
 		}
 		if movement, k := a.Movement(); k {
 			graph[id] = append(graph[id], movement.DraftAction())

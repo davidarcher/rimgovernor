@@ -95,12 +95,9 @@ preferences attach to the live root plan.
   `building` payload.
 - any other routine kind with neither payload.
 
-Ordinary `progress` keeps its current fields. When draft cleanup evidence exists,
-it also contains `draftCleanup: {"stage": "…"}`. The field is absent before draft
-dispatch and for every other kind. Stages are `awaiting_claim`, `not_acquired`, `required`,
-`dispatched`, `uncertain`, `released` or `superseded`. Cleanup does not change an
-already recorded ordinary outcome. The public projection omits claim IDs, leases,
-native tokens and controller-session ownership data.
+Ordinary `progress` keeps its current fields. The public projection omits leases,
+native tokens and controller-session ownership data. Drafts carry no cleanup
+progress: the undraft sweep releases drafts no live plan needs (#939).
 
 The Go player surface (`httpapi.PlayerBuildings`) is `Submit`,
 `SubmitResearchSelect`, `Resume`, `Pause` and `State`; its reader

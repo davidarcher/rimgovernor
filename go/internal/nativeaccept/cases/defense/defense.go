@@ -912,11 +912,8 @@ func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.Pla
 			if err != nil {
 				return "", false, err
 			}
-			for pawn, claim := range fight.Claims {
-				if claim == "" {
-					claim = "unknown"
-				}
-				drafts[string(id)+"/"+string(pawn)] = claim
+			for pawn := range fight.Roster {
+				drafts[string(id)+"/"+string(pawn)] = "roster"
 				pending++
 			}
 		}

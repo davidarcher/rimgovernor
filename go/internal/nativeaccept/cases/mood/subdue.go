@@ -11,13 +11,13 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment through a subdue MeleeIntent on Actions/Apply: refuse non-aggro targets and ranged weapons; draft and order a blunt attack, resend applies again, and the colonist ends living, downed or recovered, without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare", ArgsFrom: startersite.ArgsFor(7), On: cases.LabStart()}, Budget: 2 * time.Minute, Run: runSubdue})
+	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment through a PawnOrderIntent SUBDUE on Actions/Apply: refuse non-aggro targets and ranged weapons; draft and order a blunt attack, resend applies again, and the colonist ends living, downed or recovered, without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare", ArgsFrom: startersite.ArgsFor(7), On: cases.LabStart()}, Budget: 2 * time.Minute, Run: runSubdue})
 }
 
 func runSubdue(ctx context.Context, s cases.Session) error {
 	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	pawn, target := na.AsString(prepared["pawn"]), na.AsString(prepared["target"])
-	intent := map[string]any{"melee": map[string]any{"pawnId": pawn, "targetId": target, "subdue": true}}
+	intent := map[string]any{"pawnOrder": map[string]any{"pawnId": pawn, "targetId": target, "kind": "PAWN_ORDER_KIND_SUBDUE"}}
 	read := func(label string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "observations_list_pawns", map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"ids": []string{pawn}}})
 		if err != nil {

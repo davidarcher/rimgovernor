@@ -55,6 +55,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.PawnOrderKind.Wear: return NativeGearOperations.Validate(intent, context);
                 case Operations.PawnOrderKind.Rescue: case Operations.PawnOrderKind.Capture: return NativeCustodyOperations.Validate(intent, context);
                 case Operations.PawnOrderKind.Arrest: return NativeArrestOperations.Validate(intent, context);
+                case Operations.PawnOrderKind.Subdue: return NativeSubdueOperations.Validate(intent, context);
                 default: return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This pawn order kind is not an Actions/Apply intent.");
             }
         }
@@ -72,6 +73,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.PawnOrderKind.Wear: return NativeGearOperations.Apply(intent, context);
                 case Operations.PawnOrderKind.Rescue: case Operations.PawnOrderKind.Capture: return NativeCustodyOperations.Apply(intent, context);
                 case Operations.PawnOrderKind.Arrest: return NativeArrestOperations.Apply(intent, context);
+                case Operations.PawnOrderKind.Subdue: return NativeSubdueOperations.Apply(intent, context);
                 default: throw new System.InvalidOperationException("Unsupported pawn order kind.");
             }
         }

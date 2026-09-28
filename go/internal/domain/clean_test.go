@@ -55,9 +55,6 @@ func TestCleanPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 	if err != nil || progress.Action() != action || progress.View().Stage != Pending || progress.View().Unresolved {
 		t.Fatal(progress, err)
 	}
-	if _, known := progress.View().DraftCleanup.Value(); known {
-		t.Fatal("clean fabricated draft ownership")
-	}
 }
 
 func TestCleanHandlerCoverageIsRequired(t *testing.T) {

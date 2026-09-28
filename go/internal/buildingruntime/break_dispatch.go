@@ -49,7 +49,7 @@ func releaseBreakWork(ctx context.Context, journal *store.Store, current domain.
 		if len(broken) == 0 {
 			hasSubdue := false
 			for _, action := range plan.Spec.Actions() {
-				hasSubdue = hasSubdue || action.Subdues()
+				hasSubdue = hasSubdue || action.Kind() == domain.SubdueAction
 			}
 			if !hasSubdue {
 				continue
@@ -61,7 +61,7 @@ func releaseBreakWork(ctx context.Context, journal *store.Store, current domain.
 		}
 		for _, p := range plan.Progress {
 			v := p.View()
-			if m, ok := p.Action().MeleeAttack(); ok && m.Subdue() && ck && complete && !aggressive[m.Target()] && !v.Unresolved && (v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Completed) {
+			if m, ok := p.Action().Subdue(); ok && ck && complete && !aggressive[m.Target()] && !v.Unresolved && (v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Completed) {
 				if _, err = journal.Cancel(ctx, plan.Spec.ID(), v.Action); err != nil {
 					return err
 				}
@@ -140,8 +140,8 @@ func (w *Worker) breakDispatchHolds(ctx context.Context, current domain.Generati
 		}
 		drafts := map[domain.ActionID]bool{}
 		for _, action := range plan.Spec.Actions() {
-			if action.Subdues() {
-				m, _ := action.MeleeAttack()
+			if action.Kind() == domain.SubdueAction {
+				m, _ := action.Subdue()
 				drafts[m.DraftAction()] = true
 			}
 		}
@@ -151,7 +151,7 @@ func (w *Worker) breakDispatchHolds(ctx context.Context, current domain.Generati
 				held[action.ID()] = true
 				continue
 			}
-			if action.Subdues() || drafts[action.ID()] {
+			if action.Kind() == domain.SubdueAction || drafts[action.ID()] {
 				continue
 			}
 			for _, id := range aggressive {

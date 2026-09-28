@@ -88,8 +88,8 @@ func TestBreakResponsePlannerDraftsSubduesThenOffersRescue(t *testing.T) {
 		if _, ok := a.OwnedDraft(); ok {
 			drafts++
 		}
-		if m, ok := a.MeleeAttack(); ok {
-			if !m.Subdue() || m.Target() != "broken" {
+		if m, ok := a.Subdue(); ok {
+			if m.Target() != "broken" {
 				t.Fatal(a)
 			}
 			subdues++
@@ -108,7 +108,7 @@ func TestBreakResponsePlannerDraftsSubduesThenOffersRescue(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range plan.Progress {
-		if p.Action().Subdues() && p.View().Stage != domain.Cancelled {
+		if p.Action().Kind() == domain.SubdueAction && p.View().Stage != domain.Cancelled {
 			t.Fatal(p.View())
 		}
 	}
@@ -169,7 +169,7 @@ func TestBreakResponseDispatchRadiusAndSquadExemption(t *testing.T) {
 	d, _ := domain.NewOwnedDraft("a")
 	da, _ := domain.NewOwnedDraftAction("draft", d)
 	m, _ := domain.NewSubdue("a", "broken", "draft")
-	ma, _ := domain.NewMeleeAttackAction("subdue", m)
+	ma, _ := domain.NewSubdueAction("subdue", m)
 	actions = append(actions, da, ma)
 	plan, err := domain.NewPlan("radius", 1, actions)
 	if err != nil {

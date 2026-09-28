@@ -121,9 +121,6 @@ type PopulationDecision struct {
 	Decision string `json:"decision"`
 }
 
-type DraftCleanup struct {
-	Stage domain.DraftCleanupStage `json:"stage"`
-}
 type Building struct {
 	DefName  string          `json:"defName"`
 	X        int32           `json:"x"`
@@ -132,7 +129,6 @@ type Building struct {
 	Stuff    string          `json:"stuff"`
 }
 type Progress struct {
-	DraftCleanup       *DraftCleanup              `json:"draftCleanup,omitempty"`
 	Stage              domain.Stage               `json:"stage"`
 	Attempt            domain.AttemptID           `json:"attempt,string"`
 	Tick               domain.Tick                `json:"tick"`

@@ -176,37 +176,6 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 				return err
 			}
 		}
-		if claim := row.DraftClaim; claim != nil {
-			switch state := claim.State.(type) {
-			case *o.DraftClaimObservation_Unavailable:
-				if err := validateUnavailable(state.Unavailable); err != nil {
-					return err
-				}
-			case *o.DraftClaimObservation_Unowned:
-				if state.Unowned == nil {
-					return contract("empty unowned draft claim")
-				}
-			case *o.DraftClaimObservation_Owned:
-				owned := state.Owned
-				if owned == nil {
-					return contract("owned draft missing")
-				}
-				if err := validID(owned.GetClaimId()); err != nil {
-					return err
-				}
-				if owned.PawnSnapshot == nil {
-					return contract("owned draft snapshot missing")
-				}
-				if err := pawnsRef(owned.PawnSnapshot, row.Pawn.GetId(), v.Context); err != nil {
-					return err
-				}
-				if row.Pawn.Snapshot != nil && !proto.Equal(row.Pawn.Snapshot, owned.PawnSnapshot) {
-					return contract("draft and pawn snapshots differ")
-				}
-			default:
-				return contract("draft claim state missing")
-			}
-		}
 	}
 	return nil
 }

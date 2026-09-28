@@ -60,12 +60,12 @@ func runEMP(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("raider %s shield energy %v before the EMP, want charged: %v", id, e, before.pawns[id])
 		}
 	}
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "combat-emp-acquire", identity)
+	_, err = na.GrantAuto(ctx, h.WireFunc(), "combat-emp-acquire", identity)
 	if err != nil {
 		return err
 	}
 	pawn := map[string]any{"entityId": colonists[0]}
-	results, err := issue(ctx, h, identity, grant, "combat-emp-1", []any{
+	results, err := issue(ctx, h, identity, "combat-emp-1", []any{
 		map[string]any{"pawn": pawn, "draft": map[string]any{}},
 		map[string]any{"pawn": pawn, "attackGround": cell(cx, cz+2)},
 	})

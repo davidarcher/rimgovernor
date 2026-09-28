@@ -6,7 +6,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -20,11 +19,14 @@ type combatOrdersFake struct {
 	refuse  map[string]string // pawn -> refusal
 	asks    []*mp.CombatGeometryRequest
 	propose []domain.Cell // the game's covered cells behind the line
+	// drafted is every pawn an applied draft order drafted; framed shows
+	// them drafted in the next frame, as the game does.
+	drafted map[string]bool
 }
 
-func (f *combatOrdersFake) CombatOrders(ctx context.Context, _ *a.WritePrecondition, command *op.CombatOrders) ([]bridge.CombatOrderResult, *op.ExecuteReply, bridge.Result, error) {
+func (f *combatOrdersFake) CombatOrders(ctx context.Context, _ *c.Identity, _ string, command *op.CombatOrders) ([]bridge.CombatOrderResult, error) {
 	if err := bridge.ValidateCombatOrders(command); err != nil {
-		return nil, nil, bridge.Result{}, err
+		return nil, err
 	}
 	f.batches = append(f.batches, command)
 	out := make([]bridge.CombatOrderResult, len(command.Orders))
@@ -34,20 +36,25 @@ func (f *combatOrdersFake) CombatOrders(ctx context.Context, _ *a.WritePrecondit
 		if reason := f.refuse[pawn]; reason != "" {
 			out[i].Applied, out[i].Refusal = false, reason
 		} else if order.GetDraft() != nil {
-			// A draft order's claim (#910) names its pawn.
-			out[i].Claim = "claim-" + pawn
+			if f.drafted == nil {
+				f.drafted = map[string]bool{}
+			}
+			f.drafted[pawn] = true
 		}
 	}
-	return out, nil, bridge.Result{}, ctx.Err()
+	return out, ctx.Err()
 }
 
-func (n *equipTestNative) CombatOrders(ctx context.Context, pre *a.WritePrecondition, command *op.CombatOrders) ([]bridge.CombatOrderResult, *op.ExecuteReply, bridge.Result, error) {
-	return n.orders.CombatOrders(ctx, pre, command)
+func (n *equipTestNative) CombatOrders(ctx context.Context, identity *c.Identity, key string, command *op.CombatOrders) ([]bridge.CombatOrderResult, error) {
+	return n.orders.CombatOrders(ctx, identity, key, command)
 }
 
-func (n *defenseReplayNative) CombatOrders(ctx context.Context, pre *a.WritePrecondition, command *op.CombatOrders) ([]bridge.CombatOrderResult, *op.ExecuteReply, bridge.Result, error) {
-	return n.orders.CombatOrders(ctx, pre, command)
+func (n *defenseReplayNative) CombatOrders(ctx context.Context, identity *c.Identity, key string, command *op.CombatOrders) ([]bridge.CombatOrderResult, error) {
+	return n.orders.CombatOrders(ctx, identity, key, command)
 }
+
+func (n *equipTestNative) combatDrafted() map[string]bool     { return n.orders.drafted }
+func (n *defenseReplayNative) combatDrafted() map[string]bool { return n.orders.drafted }
 
 // CombatGeometry validates the ask and proposes the fake's cells.
 func (f *combatOrdersFake) CombatGeometry(ctx context.Context, request *mp.CombatGeometryRequest) (*mp.CombatGeometry, bridge.Result, error) {
@@ -73,7 +80,7 @@ func (n *defenseReplayNative) CombatGeometry(ctx context.Context, request *mp.Co
 // legacyDefense is a fake that answers the fight's inputs read by read
 // (the census, the combat detail, the building lines of fire).
 type legacyDefense interface {
-	CombatOrders(context.Context, *a.WritePrecondition, *op.CombatOrders) ([]bridge.CombatOrderResult, *op.ExecuteReply, bridge.Result, error)
+	CombatOrders(context.Context, *c.Identity, string, *op.CombatOrders) ([]bridge.CombatOrderResult, error)
 	CombatGeometry(context.Context, *mp.CombatGeometryRequest) (*mp.CombatGeometry, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadCombatPawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
@@ -125,8 +132,15 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 	if reply.GetObserved() != nil {
 		detail := proto.Clone(reply.GetObserved()).(*o.PawnSnapshot)
 		detail.Context = proto.Clone(emergency.Context).(*c.ObservationContext)
+		drafted := map[string]bool{}
+		if d, ok := f.legacyDefense.(interface{ combatDrafted() map[string]bool }); ok {
+			drafted = d.combatDrafted()
+		}
 		for _, row := range detail.Pawns {
 			row.Needs, row.Settings, row.Social, row.TendDoctor = nil, nil, nil, nil
+			if drafted[row.GetPawn().GetId()] {
+				row.Drafted = proto.Bool(true)
+			}
 		}
 		scopeRefs(detail.ProtoReflect(), emergency.Context)
 		frame.CombatDetail = detail

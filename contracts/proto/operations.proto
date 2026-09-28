@@ -81,10 +81,14 @@ message Operation {
   // Caravan travel, settlement gifts and quest fulfilment had no Go sender (#942).
   reserved 42, 43, 45;
   reserved "travel_caravan", "gift_caravan_silver", "fulfill_quest";
-  // Pawn-target orders and arrest moved to Actions/Apply PawnOrderIntent;
-  // subdue is a MeleeIntent (#939).
+  // Pawn-target orders, arrest and subdue moved to Actions/Apply
+  // PawnOrderIntent (#939).
   reserved 36, 57;
   reserved "pawn_target_order", "arrest";
+  // Drafting and combat orders moved to Actions/Apply DraftIntent and
+  // CombatOrders; attacks are combat orders only (#939).
+  reserved 33, 35, 62;
+  reserved "set_drafted", "attack_target", "combat_orders";
   // Need relief moved to Actions/Apply NeedReliefIntent (#939).
   reserved 27;
   reserved "relieve_need";
@@ -96,10 +100,7 @@ message Operation {
     // Preview only: the siting read planners run per candidate; zones are
     // created through the create_zone Action arm.
     CreateZone create_zone = 14;
-    SetDrafted set_drafted = 33;
-    AttackTarget attack_target = 35;
     CancelAcquisition cancel_acquisition = 54;
-    CombatOrders combat_orders = 62;
   }
   // Why the controller issues this operation, one short ASCII line such as
   // "Hunting: food runway 3d" (#822). Native keeps it with the jobs the
@@ -115,14 +116,13 @@ message DefCount { optional string def_name = 1; optional int32 count = 2; }
 message CellList { repeated rimgovernor.common.v1.Cell cells = 1; }
 message Rectangle { rimgovernor.common.v1.Cell origin = 1; optional int32 width = 2; optional int32 height = 3; }
 message Cells { oneof selection { CellList explicit_cells = 1; Rectangle rectangle = 2; } }
-// Batched combat micro (#850): every order applies in request order within
-// one native call, so on one game tick. Each pawn's snapshot token is checked
-// once, before any order runs; a pawn may carry several orders (fire mode
-// then move). A pawn needs an eligible drafted state under an existing
-// native draft claim, which a draft order earlier in the batch may create.
-// A door order names no pawn. Per-order refusals come
-// back in CombatOrdersEffect; only a malformed batch or missing authority
-// fails the whole call.
+// Batched combat micro (#850), the Actions/Apply combat_orders arm (#939):
+// every order applies in request order within one apply, so on one game
+// tick. Each pawn's snapshot token, when sent, is checked once, before any
+// order runs; a pawn may carry several orders (fire mode then move). A pawn
+// order needs an eligible drafted pawn, which a draft order earlier in the
+// batch may make. A door order names no pawn. Per-order refusals come back
+// in CombatOrdersEffect; only a malformed batch refuses the whole action.
 enum CombatFireMode { COMBAT_FIRE_MODE_UNSPECIFIED = 0; COMBAT_FIRE_MODE_AT_WILL = 1; COMBAT_FIRE_MODE_HOLD = 2; }
 // FORBID and ALLOW (#867) set the door's forbidden flag, which every player
 // pawn's path respects, drafted or not (ForbidUtility.IsForbiddenToPass).
@@ -163,7 +163,9 @@ message CombatOrder {
     rimgovernor.common.v1.Cell move = 2;
     // A spawned pawn or a hostile building thing (#930): any spawned
     // hostile-faction building or frame with hit points (a crashed ship
-    // part, its cluster buildings, a siege mortar or its frame); mode Auto.
+    // part, its cluster buildings, a siege mortar or its frame). Native
+    // picks melee or ranged as the vanilla float menu does for the pawn's
+    // weapon (#939); there is no other attack order.
     EntityPrecondition attack = 3;
     // Force-fire a ground-targetable verb (grenades, launchers) at a cell.
     rimgovernor.common.v1.Cell attack_ground = 4;
@@ -173,12 +175,9 @@ message CombatOrder {
     Clear stop = 8;
     CombatRescue rescue = 9;
     CombatRepair repair = 10;
-    // Draft (#910): claim a pawn nobody claims, as SetDrafted does: an
-    // eligible undrafted pawn is drafted under a fresh native claim, a
-    // drafted unclaimed one adopted. The result carries the claim id, which
-    // the controller releases with ReleaseOwnedDraft. Refusals:
-    // cannot_draft (not eligible, or the claim could not be certified),
-    // draft_ownership (another claim holds it).
+    // Draft (#910): draft an eligible pawn; one already drafted applies
+    // again. The controller undrafts pawns no live plan needs (#939).
+    // Refusal: cannot_draft (not eligible).
     Clear draft = 11;
     CombatMortar mortar = 12;
     // Release (#1057): a release-trained player animal attacks one spawned
@@ -291,10 +290,7 @@ enum PrisonerInteraction {
   PRISONER_INTERACTION_UNSPECIFIED = 0; PRISONER_INTERACTION_ATTEMPT_RECRUIT = 1; PRISONER_INTERACTION_MAINTAIN_ONLY = 2;
   PRISONER_INTERACTION_REDUCE_RESISTANCE = 3; PRISONER_INTERACTION_RELEASE = 4; PRISONER_INTERACTION_ENSLAVE = 5; PRISONER_INTERACTION_CONVERT = 6;
 }
-message SetDrafted { EntityPrecondition pawn = 1; optional bool drafted = 2; optional string expected_draft_owner = 3; optional bool allow_persistent_draft = 4; }
-enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE_MELEE = 2; ATTACK_MODE_RANGED = 3; }
-message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
-enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_ARREST = 12; PAWN_ORDER_KIND_WEAR = 13; reserved 5, 6, 10, 11; reserved "PAWN_ORDER_KIND_HAUL", "PAWN_ORDER_KIND_WORK", "PAWN_ORDER_KIND_SUBDUE"; }
+enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_ARREST = 12; PAWN_ORDER_KIND_WEAR = 13; PAWN_ORDER_KIND_SUBDUE = 14; reserved 5, 6, 10, 11; reserved "PAWN_ORDER_KIND_HAUL", "PAWN_ORDER_KIND_WORK"; }
 // Trade steps, sent as TradeIntent through Actions/Apply, act on RimWorld's
 // one live trade session. Native validates each against live state when it
 // applies and refuses with a reason when the session is gone or held by a
@@ -308,41 +304,9 @@ enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; E
 // A cancel with no live session is a no-op, not a refusal.
 message EndTrade { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
 
-// Safe cleanup may run after authority revocation, only for an unchanged native
-// claim. original_owner (rimgovernor.authority.v1.Owner) was removed: whether
-// this release still belongs to the same causal owned scope is now proven by
-// generation continuity alone (see NativeControlAuthority.IsCausalScopeForOriginalOwner),
-// since there is only ever one bot that could have held the claim.
-message ReleaseOwnedDraftRequest {
-  rimgovernor.common.v1.Identity identity = 1;
-  EntityPrecondition pawn = 2;
-  optional string expected_claim_id = 3;
-  reserved 4;
-  reserved "original_owner";
-}
-message DraftRelease {
-  ReleaseOwnedDraftRequest request = 1;
-  rimgovernor.common.v1.ObservationContext context = 2;
-  rimgovernor.receipts.v1.JobEffect observed = 3;
-}
-message DraftReleaseUncertain {
-  ReleaseOwnedDraftRequest request = 1;
-  rimgovernor.common.v1.ObservationContext context = 2;
-  optional string detail = 3;
-}
-message ReleaseOwnedDraftReply {
-  oneof outcome {
-    DraftRelease released = 1;
-    DraftRelease already_released = 2;
-    DraftReleaseUncertain uncertain = 3;
-    rimgovernor.common.v1.Failure failure = 4;
-  }
-}
-
 service Operations {
   rpc Preview(PreviewRequest) returns (PreviewReply);
   rpc Execute(ExecuteRequest) returns (ExecuteReply);
-  rpc ReleaseOwnedDraft(ReleaseOwnedDraftRequest) returns (ReleaseOwnedDraftReply);
 }
 
 // Actions/Apply carries idempotent intents (#856). Actions apply on the game
@@ -360,12 +324,13 @@ message ApplyRequest {
 // One intent kind per arm.
 message Action {
   optional string key = 1;
+  // Melee attacks are combat orders; subdue is PawnOrderIntent SUBDUE (#939).
+  reserved 14; reserved "melee";
   oneof intent {
     TradeIntent trade = 10;
     BuildingIntent building = 11;
     MoveIntent move = 12;
     HaulIntent haul = 13;
-    MeleeIntent melee = 14;
     ApparelPolicyIntent apparel_policy = 15;
     ResearchIntent research = 16;
     NamingIntent naming = 17;
@@ -398,15 +363,23 @@ message Action {
     PawnOrderIntent pawn_order = 41;
     NeedReliefIntent need_relief = 42;
     UseItemIntent use_item = 43;
+    DraftIntent draft = 44;
+    CombatOrders combat_orders = 45;
   }
 }
+// Draft or undraft one eligible colonist (#939). Drafts are plan-owned: the
+// controller drafts for a plan and undrafts any drafted colonist no live plan
+// needs. A pawn already in the wanted state applies again.
+message DraftIntent { optional string pawn_id = 1; optional bool drafted = 2; }
 // Order one pawn onto one target with the job the game's own work giver or
 // float menu builds for that kind (repair, clean, open a casket, tend,
 // equip, rescue, capture, arrest). Native checks the pawn and the target
 // live; a pawn already running that job on the target applies again.
 // Applied means ordered, not finished; the next census reads the outcome.
-// ARREST alone names bed_id, the exact prisoner bed; it needs an armed arrester
-// with an owned draft and a target in an arrestable mental state.
+// ARREST alone names bed_id, the exact prisoner bed; it needs an armed,
+// drafted arrester and a target in an arrestable mental state. SUBDUE puts
+// the pawn (drafted if it is not) on a blunt containment melee attack on an
+// aggressive colonist, ending once the target is downed or out of the break.
 message PawnOrderIntent { optional string pawn_id = 1; optional string target_id = 2; optional PawnOrderKind kind = 3; optional string bed_id = 4; }
 // Offer one undrafted colonist the ordinary native job for one deficient
 // need (food, rest or recreation), the job its own need giver issues.
@@ -576,15 +549,6 @@ message AcceptQuestIntent {
   optional string quest_id = 1;
   optional string accepter_pawn_id = 2;
   optional int32 reward_choice = 3;
-}
-// Put a drafted pawn on a melee attack on a hostile target (a pawn or a
-// census-listed hostile building), or with subdue on a blunt containment
-// attack on an aggressive colonist. Native validates both pawns live and
-// keeps an attack already running on that target.
-message MeleeIntent {
-  optional string pawn_id = 1;
-  optional string target_id = 2;
-  optional bool subdue = 3;
 }
 // Order one alive, spawned, drafted pawn to walk to one standable,
 // reachable cell. Applied means the order was given, or already matched (the

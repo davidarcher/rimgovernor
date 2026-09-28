@@ -2,12 +2,34 @@ package buildingruntime
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
+
+// rangedWeaponEquipped requires the pawn's primary equipped item to be found
+// and its native ranged flag known. Unarmed is a known false, never unknown.
+func rangedWeaponEquipped(equipment *n.PawnEquipment) domain.Fact[bool] {
+	if equipment == nil || equipment.Armed == nil || boundary.IssueField(equipment.Issues, "equipped") || boundary.IssueField(equipment.Issues, "armed") {
+		return domain.Unknown[bool]()
+	}
+	if !equipment.GetArmed() {
+		return domain.Known(false)
+	}
+	if equipment.PrimaryId == nil {
+		return domain.Unknown[bool]()
+	}
+	for _, item := range equipment.Equipped {
+		if item.GetThing().GetId() == equipment.GetPrimaryId() {
+			if item.Ranged == nil {
+				return domain.Unknown[bool]()
+			}
+			return domain.Known(item.GetRanged())
+		}
+	}
+	return domain.Unknown[bool]()
+}
 
 // meleeCapable reports whether equipment is completely known:
 // melee needs no specific weapon, only complete information
@@ -38,7 +60,7 @@ func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
 	if row.Animal != nil {
 		facts.Animal = domain.Known(row.GetAnimal())
 	}
-	facts.RangedEquipped = ranged.RangedWeaponEquipped(row.Equipment)
+	facts.RangedEquipped = rangedWeaponEquipped(row.Equipment)
 	// A wild animal has no equipment tracker (the equipped field reads as a
 	// missing native component); it carries no ranged weapon either way.
 	if _, known := facts.RangedEquipped.Value(); !known && facts.Animal == domain.Known(true) {
@@ -66,14 +88,12 @@ func manhunterFact(state *string, issues []*n.ReadIssue) domain.Fact[bool] {
 	return domain.Unknown[bool]()
 }
 
-func squadDefenderFacts(row *n.PawnState) policy.SquadDefenderFacts {
+// squadDefenderFacts reads row's defender facts. needed is plannedDrafts:
+// a drafted pawn a live plan needs is spoken for (DraftOwned); any other
+// drafted pawn is free to take (#939).
+func squadDefenderFacts(row *n.PawnState, needed map[domain.PawnID]bool) policy.SquadDefenderFacts {
 	facts := policy.SquadDefenderFacts{ID: domain.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
-	switch row.GetDraftClaim().GetState().(type) {
-	case *n.DraftClaimObservation_Owned:
-		facts.DraftOwned = domain.Known(true)
-	case *n.DraftClaimObservation_Unowned:
-		facts.DraftOwned = domain.Known(false)
-	}
+	facts.DraftOwned = domain.Known(needed[facts.ID])
 	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") && !boundary.IssueField(row.Job.Issues, "queued_jobs") {
 		facts.PlayerForced, facts.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
 	}
@@ -92,7 +112,7 @@ func squadDefenderFacts(row *n.PawnState) policy.SquadDefenderFacts {
 		}
 		facts.ViolenceCapable = domain.Known(capable)
 	}
-	facts.RangedEquipped = ranged.RangedWeaponEquipped(row.Equipment)
+	facts.RangedEquipped = rangedWeaponEquipped(row.Equipment)
 	facts.MeleeEquipped = meleeCapable(row.Equipment)
 	if equipment := row.Equipment; equipment != nil && equipment.Armed != nil && !boundary.IssueField(equipment.Issues, "armed") {
 		facts.Armed = domain.Known(equipment.GetArmed())

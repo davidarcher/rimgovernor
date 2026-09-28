@@ -94,7 +94,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// Prove the happy path with a bounded, filtered read over the same
 	// population: every detail family explicitly disabled keeps the reply
 	// well under the envelope while still exercising the core pawn facts,
-	// draft-claim and CAS-snapshot invariants that draftControl checks.
+	// CAS-snapshot invariants that draftControl checks.
 	baseline, _, err := read("default-pawns-bounded", map[string]any{
 		"details": map[string]any{
 			"needs": false, "health": false, "equipment": false, "biography": false,
@@ -162,8 +162,8 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	// As with default-pawns above, omitting details requests every detail family
 	// for every matched pawn; a fresh map's animal population can carry enough
-	// hediff/needs/social data. Only pawn.snapshot and draftClaim are checked
-	// below, neither of which depends on Details, so keep this small the same way.
+	// hediff/needs/social data. Only pawn.snapshot is checked
+	// below, which does not depend on Details, so keep this small the same way.
 	animals, _, err := read("animals", map[string]any{
 		"filter": map[string]any{"colonist": false, "animal": true},
 		"details": map[string]any{
@@ -182,10 +182,6 @@ func run(ctx context.Context, s cases.Session) error {
 		pawn, _ := nativeaccept.AsMap(row["pawn"])
 		if err := RequireSnapshotStrict(pawn["snapshot"]); err != nil {
 			return fmt.Errorf("animal row missing exact target snapshot: %w", err)
-		}
-		claim, _ := nativeaccept.AsMap(row["draftClaim"])
-		if _, ok := claim["unowned"]; !ok || len(claim) != 1 {
-			return fmt.Errorf("fresh readable animal must have an unowned draft claim")
 		}
 	}
 	disabled, _, err := read("details-disabled", map[string]any{
@@ -296,7 +292,19 @@ func run(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
-// draftControl validates a pawn row's draft claim/snapshot invariants. The health
+// snapshotIssueReason returns the unavailable reason of the row's pawn.snapshot issue.
+func snapshotIssueReason(row map[string]any) string {
+	for _, raw := range nativeaccept.AsSlice(row["issues"]) {
+		issue, _ := nativeaccept.AsMap(raw)
+		if nativeaccept.AsString(issue["field"]) == "pawn.snapshot" {
+			unavailable, _ := nativeaccept.AsMap(issue["unavailable"])
+			return nativeaccept.AsString(unavailable["reason"])
+		}
+	}
+	return ""
+}
+
+// draftControl validates a pawn row's snapshot invariants. The health
 // section carries its own populated CAS snapshot (PawnHealth.snapshot=19), and social is
 // now a populated PawnSocial block: earlier acceptance runs predated both and
 // asserted their absence, which this port corrects rather than preserves.
@@ -305,17 +313,10 @@ func draftControl(row map[string]any, context any) error {
 	if err := nativeaccept.RequireIdentifier(pawn["id"]); err != nil {
 		return fmt.Errorf("pawn id: %w", err)
 	}
-	claim, _ := nativeaccept.AsMap(row["draftClaim"])
-	if len(claim) != 1 {
-		return fmt.Errorf("draftClaim must have exactly one case: %#v", claim)
-	}
-	if unavailable, ok := nativeaccept.AsMap(claim["unavailable"]); ok {
-		if _, present := pawn["snapshot"]; present {
-			return fmt.Errorf("unavailable draft claim row unexpectedly carries a pawn snapshot")
-		}
-		reason := nativeaccept.AsString(unavailable["reason"])
+	if _, present := pawn["snapshot"]; !present {
+		reason := snapshotIssueReason(row)
 		if reason != "UNAVAILABLE_REASON_NOT_APPLICABLE" && reason != "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING" {
-			return fmt.Errorf("unexpected draft-claim unavailable reason %q", reason)
+			return fmt.Errorf("a row without a pawn snapshot needs a pawn.snapshot issue, got reason %q", reason)
 		}
 		contextMap, _ := nativeaccept.AsMap(context)
 		identity, _ := nativeaccept.AsMap(contextMap["identity"])
@@ -324,9 +325,6 @@ func draftControl(row map[string]any, context any) error {
 		onCurrentMap := nativeaccept.AsNumber(pawn["mapId"]) == nativeaccept.AsNumber(identity["mapId"])
 		if animal && !dead && onCurrentMap && reason != "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING" {
 			return fmt.Errorf("a live current-map animal cannot be blanket %q", reason)
-		}
-		if !nativeaccept.RequireIssueReason(nativeaccept.AsSlice(row["issues"]), "pawn.snapshot", reason) {
-			return fmt.Errorf("missing matching pawn.snapshot issue for unavailable draft claim")
 		}
 	} else {
 		snapshot, _ := nativeaccept.AsMap(pawn["snapshot"])
@@ -338,23 +336,6 @@ func draftControl(row map[string]any, context any) error {
 		}
 		if !nativeaccept.DeepEqual(snapshot["context"], context) {
 			return fmt.Errorf("snapshot context does not match the read context")
-		}
-		if owned, ok := nativeaccept.AsMap(claim["owned"]); ok {
-			if err := nativeaccept.RequireIdentifier(owned["claimId"]); err != nil {
-				return fmt.Errorf("owned draft claim id: %w", err)
-			}
-			owner, _ := nativeaccept.AsMap(owned["owner"])
-			if err := nativeaccept.RequireIdentifier(owner["controllerSessionId"]); err != nil {
-				return fmt.Errorf("owned draft claim owner: %w", err)
-			}
-			if !nativeaccept.DeepEqual(owned["pawnSnapshot"], snapshot) {
-				return fmt.Errorf("owned draft claim's pawnSnapshot does not match the row's snapshot")
-			}
-			if drafted, _ := nativeaccept.AsBool(row["drafted"]); !drafted {
-				return fmt.Errorf("owned draft claim requires drafted=true")
-			}
-		} else if _, ok := claim["unowned"]; !ok {
-			return fmt.Errorf("draft claim is neither owned nor unowned: %#v", claim)
 		}
 	}
 	// "health" carries a populated CAS snapshot: NativePawnDetails.Health via

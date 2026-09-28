@@ -38,7 +38,7 @@ func runMortar(ctx context.Context, s cases.Session) error {
 	}
 	colonists, things := staged.Colonists(), staged.Things
 	part := things[len(things)-3]
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "combat-mortar-acquire", identity)
+	_, err = na.GrantAuto(ctx, h.WireFunc(), "combat-mortar-acquire", identity)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func runMortar(ctx context.Context, s cases.Session) error {
 		map[string]any{"pawn": pawn(colonists[0]), "attack": pawn(part)},
 		map[string]any{"pawn": pawn(colonists[1]), "mortar": map[string]any{"mortar": mortar, "target": target}},
 		map[string]any{"pawn": pawn(colonists[2]), "mortar": map[string]any{"mortar": chunk, "target": target}})
-	results, err := issue(ctx, h, identity, grant, "combat-mortar-1", orders)
+	results, err := issue(ctx, h, identity, "combat-mortar-1", orders)
 	if err != nil {
 		return err
 	}

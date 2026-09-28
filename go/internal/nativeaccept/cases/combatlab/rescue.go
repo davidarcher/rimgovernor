@@ -59,34 +59,16 @@ func runRescue(ctx context.Context, s cases.Session) error {
 	if err := rescuePath(ctx, h, s, colonists[0], downed, hostiles, report); err != nil {
 		return err
 	}
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "combat-rescue-acquire", s.Identity())
+	_, err = na.GrantAuto(ctx, h.WireFunc(), "combat-rescue-acquire", s.Identity())
 	if err != nil {
 		return err
 	}
-	for i, id := range colonists[:2] {
-		reply, err := h.Wire(ctx, fmt.Sprintf("rescue-read-%d", i), "observations_list_pawns", map[string]any{
-			"scope": map[string]any{"expectedIdentity": s.Identity()}, "filter": map[string]any{"ids": []any{id}},
-		})
-		if err != nil {
-			return err
-		}
-		row, err := na.PawnRow(reply, s.Identity(), id)
-		if err != nil {
-			return fmt.Errorf("colonist %d: %w", i, err)
-		}
-		drafted, err := h.Wire(ctx, fmt.Sprintf("rescue-draft-%d", i), "operations_execute", na.ExecuteRequest(s.Identity(), grant, row, 867+i))
-		if err != nil {
-			return err
-		}
-		if _, receipt, err := na.Outcome(drafted, "receipt"); err != nil {
-			return fmt.Errorf("draft colonist %d: %w", i, err)
-		} else if _, ok := na.AsMap(receipt["applied"]); !ok {
-			return fmt.Errorf("draft colonist %d not applied: %v", i, receipt)
-		}
+	if err := draftAll(ctx, h, s.Identity(), "rescue-draft", colonists[:2]); err != nil {
+		return err
 	}
 	pawn := func(id string) map[string]any { return map[string]any{"entityId": id} }
 	door := cell(cx, cz-13)
-	results, err := issue(ctx, h, s.Identity(), grant, "combat-rescue-1", []any{
+	results, err := issue(ctx, h, s.Identity(), "combat-rescue-1", []any{
 		map[string]any{"door": map[string]any{"cell": door, "mode": "COMBAT_DOOR_MODE_FORBID"}},
 		map[string]any{"pawn": pawn(colonists[0]), "rescue": map[string]any{"downed": pawn(colonists[2])}},
 		map[string]any{"pawn": pawn(colonists[1]), "rescue": map[string]any{"downed": pawn(hostiles[0])}},
@@ -114,7 +96,7 @@ func runRescue(ctx context.Context, s cases.Session) error {
 	if forbidden, err := doorForbidden(after, cx, cz-13); err != nil || !forbidden {
 		return fmt.Errorf("door forbidden %v after forbid (%v)", forbidden, err)
 	}
-	allowed, err := issue(ctx, h, s.Identity(), grant, "combat-rescue-2", []any{
+	allowed, err := issue(ctx, h, s.Identity(), "combat-rescue-2", []any{
 		map[string]any{"door": map[string]any{"cell": door, "mode": "COMBAT_DOOR_MODE_ALLOW"}},
 	})
 	if err != nil {

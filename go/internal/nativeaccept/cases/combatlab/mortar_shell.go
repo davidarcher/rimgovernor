@@ -42,7 +42,7 @@ func runMortarShell(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defer frames.reader.Close()
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "combat-mortar-shell-acquire", s.Identity())
+	_, err = na.GrantAuto(ctx, h.WireFunc(), "combat-mortar-shell-acquire", s.Identity())
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func runMortarShell(ctx context.Context, s cases.Session) error {
 	order := func(id, shell string) map[string]any {
 		return map[string]any{"pawn": pawn(id), "mortar": map[string]any{"mortar": mortar, "target": target, "shell": shell}}
 	}
-	results, err := issue(ctx, h, s.Identity(), grant, "combat-mortar-shell-1", []any{
+	results, err := issue(ctx, h, s.Identity(), "combat-mortar-shell-1", []any{
 		map[string]any{"pawn": pawn(colonists[0]), "draft": map[string]any{}},
 		map[string]any{"pawn": pawn(colonists[1]), "draft": map[string]any{}},
 		order(colonists[0], "Shell_HighExplosive"),
@@ -71,7 +71,7 @@ func runMortarShell(ctx context.Context, s cases.Session) error {
 	if err := awaitLoaded(ctx, h, frames, cx, cz+siegeOurMortar, "Shell_HighExplosive", report, "heTick"); err != nil {
 		return err
 	}
-	results, err = issue(ctx, h, s.Identity(), grant, "combat-mortar-shell-2", []any{order(colonists[0], "Shell_EMP")})
+	results, err = issue(ctx, h, s.Identity(), "combat-mortar-shell-2", []any{order(colonists[0], "Shell_EMP")})
 	if err != nil {
 		return err
 	}

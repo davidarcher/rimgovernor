@@ -195,9 +195,6 @@ func GoalWorkOpen(progress []Progress) bool {
 		if v.Stage == "" || v.Unresolved || v.Stage == Pending || v.Stage == Prepared || v.Stage == Dispatched || v.Stage == AwaitingObservation {
 			return true
 		}
-		if p.draftCleanupOutstanding() {
-			return true
-		}
 	}
 	return false
 }

@@ -1,4 +1,4 @@
-# Pawn snapshot and draft claim state
+# Pawn snapshot state
 
 This probe is now part of the consolidated `NativeContractProbes.csproj`; it no
 longer has its own `.csproj`. Build the merged net472 project, then run it with:

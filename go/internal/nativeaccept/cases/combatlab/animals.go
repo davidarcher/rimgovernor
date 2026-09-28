@@ -35,13 +35,13 @@ func runAnimals(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("staged %d animals and %d manhunters, want 2 and 2", len(animals), len(wargs))
 	}
 	trained, pup := animals[0], animals[1]
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "combat-animals-acquire", identity)
+	_, err = na.GrantAuto(ctx, h.WireFunc(), "combat-animals-acquire", identity)
 	if err != nil {
 		return err
 	}
 	pawn := func(id string) map[string]any { return map[string]any{"entityId": id} }
 	zone := cell(cx-1, cz-3)
-	results, err := issue(ctx, h, identity, grant, "combat-animals-1", []any{
+	results, err := issue(ctx, h, identity, "combat-animals-1", []any{
 		map[string]any{"pawn": pawn(trained), "release": pawn(wargs[0])},
 		map[string]any{"pawn": pawn(pup), "release": pawn(wargs[0])},
 		map[string]any{"pawn": pawn(wargs[1]), "animalArea": map[string]any{"cell": zone}},
@@ -73,7 +73,7 @@ func runAnimals(ctx context.Context, s cases.Session) error {
 	if p := after.pawns[pup]; na.AsString(p["area"]) != "RimGovernor "+pup || int(na.AsNumber(p["areaCells"])) != 1 {
 		return fmt.Errorf("zoned husky not restricted to one cell: %v", p)
 	}
-	results, err = issue(ctx, h, identity, grant, "combat-animals-2", []any{
+	results, err = issue(ctx, h, identity, "combat-animals-2", []any{
 		map[string]any{"pawn": pawn(pup), "animalArea": map[string]any{"clear": map[string]any{}}},
 	})
 	if err != nil {

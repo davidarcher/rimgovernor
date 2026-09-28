@@ -3,8 +3,8 @@ package domain
 import "errors"
 
 // Movement is explicit intent to walk one already-drafted pawn to one exact
-// cell, layered on an existing owned draft exactly like MeleeAttack and
-// RangedAttack. It proves nothing about pathability, reachability or
+// cell, layered on an existing owned draft exactly like Subdue. It
+// proves nothing about pathability, reachability or
 // permission to dispatch a job.
 type Movement struct {
 	pawn        PawnID

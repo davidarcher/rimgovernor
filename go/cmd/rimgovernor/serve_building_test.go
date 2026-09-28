@@ -15,7 +15,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -77,17 +76,6 @@ type unusedBuildingCapabilities struct {
 	boundary.BuildingWriter
 }
 
-type unusedDraftCapabilities struct {
-	draft.DraftNative
-	draft.DraftWriter
-	draft.DraftCleanupWriter
-}
-
-func unusedDrafts() *draft.DraftCapabilities {
-	caps := unusedDraftCapabilities{}
-	return &draft.DraftCapabilities{Native: caps, Writer: caps, Cleanup: caps}
-}
-
 func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	dir := t.TempDir()
 	fake := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
@@ -99,7 +87,7 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{reads: fake, native: caps, authority: caps, writes: caps, draft: unusedDrafts()}, nil
+			return buildingServiceBridge{reads: fake, native: caps, authority: caps, writes: caps}, nil
 		})
 	}()
 	var address string

@@ -47,9 +47,6 @@ internal static class NativeContractProbesDispatcher
                 case "native-proto-boundary": NativeProtoBoundaryProbe.Invoke(rest); return 0;
 
                 // ---- Category 3: reflection-over-real-compiled-DLL (args[0] = bridge DLL path) ----
-                case "native-combat-causality": return NativeCombatCausalityProbe.Invoke(rest);
-                case "native-combat-operations": NativeCombatOperationsProbe.Invoke(rest); return 0;
-                case "native-draft-operations": NativeDraftOperationsProbe.Invoke(rest); return 0;
                 case "native-movement-operations": NativeMovementOperationsProbe.Invoke(rest); return 0;
                 case "native-pawn-control-state": return NativePawnControlStateProbe.Invoke(rest);
                 case "native-pawn-observations": return NativePawnObservationsProbe.Invoke(rest);
@@ -63,15 +60,6 @@ internal static class NativeContractProbesDispatcher
                 case "native-proto-rooms": return NativeProtoRoomsProbe.Invoke(rest);
                 case "native-proto-supplies": return NativeProtoSuppliesProbe.Invoke(rest);
 
-#if HAVE_HARMONY_AND_RIMWORLD
-                case "native-explosive-causality": return NativeExplosiveCausalityProbe.Invoke(rest);
-                case "native-ranged-causality": return NativeRangedCausalityProbe.Invoke(rest);
-#else
-                case "native-explosive-causality":
-                case "native-ranged-causality":
-                    Console.Error.WriteLine(probe + " requires $(HarmonyAssembly) and $(RimWorldManagedDir) to be supplied at build time; not available in this build.");
-                    return 1;
-#endif
 
 #if HAVE_RIMBRIDGE_SDK
                 case "native-journal-cache": NativeJournalCacheProbe.Invoke(); return 0;
@@ -103,12 +91,12 @@ internal static class NativeContractProbesDispatcher
             "native-authority", "native-authority-control", "native-authority-status", "native-clock",
             "native-attempt-ledger", "native-construction-causality", "native-observation-work",
             "native-threat-classifier", "native-reply-encoder", "native-acquisition-token",
-            "native-proto-boundary", "native-combat-causality",
-            "native-combat-operations", "native-draft-operations", "native-movement-operations",
+            "native-proto-boundary",
+            "native-movement-operations",
             "native-pawn-control-state", "native-pawn-observations", "native-proto-buildings",
             "native-proto-observations", "native-proto-placement", "native-proto-presentation",
             "native-proto-research", "native-population-outlook", "native-use-item", "native-proto-rooms", "native-proto-supplies",
-            "native-explosive-causality", "native-ranged-causality", "native-journal-cache",
+            "native-journal-cache",
         }) Console.Error.WriteLine("  " + name);
     }
 }

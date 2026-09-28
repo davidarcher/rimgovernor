@@ -29,7 +29,7 @@ discovered/mapped, not as live source links.
 | `home/pawn_config` | Actions.Apply WorkSettingsIntent; Observations.ReadPawnSettings | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/building_config` | Actions.Apply: BuildingPatchIntent; Observations.ReadBuildingSettings / PresentationReads.Gizmos | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/bills` | Actions.Apply ProductionBillIntent; Observations.ReadBills / ReadRecipes | Typed | `controller/rimgovernor/bridge_game.py:16` |
-| `home/order` | Operations.Preview / Execute: SetDrafted / AttackTarget; Actions.Apply MoveIntent / PawnOrderIntent; Observations.ResolveTarget; Operations.ReleaseOwnedDraft | Typed | `controller/rimgovernor/bridge_game.py:16` |
+| `home/order` | Operations.Preview / Execute: SetDrafted / AttackTarget; Actions.Apply MoveIntent / PawnOrderIntent; Observations.ResolveTarget | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/trade` | Actions.Apply: TradeIntent (open / set_lines / accept / end); Observations.ListTraders / ReadTradeSheet / ReadTradeSession | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/research` | Actions.Apply ResearchIntent; Observations.ReadResearch | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/dialog_text` | PresentationReads.DialogFields / PreviewDialogText; PlayerPresentation.Apply text | Typed | `controller/rimgovernor/bridge_game.py:16` |
@@ -97,7 +97,7 @@ The nine canonical schemas divide ownership as follows:
 | [clock.proto](clock.proto) | Bounded supervised ticks, epoch ownership, safety stops, journal and admitted clock receipt lookup. |
 | [lifecycle.proto](lifecycle.proto) | Native identity, save/load and correlated completion reads; the Go controller gamehost owns process lifetime. |
 | [placement.proto](placement.proto) | Ordinary native placement candidate evaluation and complete bounded site/cost facts. |
-| [operations.proto](operations.proto) | One concrete ordinary mutation per guarded attempt, previews and owned draft cleanup. |
+| [operations.proto](operations.proto) | One concrete ordinary mutation per guarded attempt, previews. |
 | [receipts.proto](receipts.proto) | Attributed admitted effects, attempt lookup and subsequent correlated progress. |
 | [observations.proto](observations.proto) | Simulation reads, definition catalogs, complete/paged observations and scoped mutation preconditions. |
 | [presentation.proto](presentation.proto) | Explicit player camera/selection/UI/input and separately bounded media capture. |

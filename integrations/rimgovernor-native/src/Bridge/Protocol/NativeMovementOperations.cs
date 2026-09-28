@@ -12,9 +12,9 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeMovementOperations
     {
-        // Since there is only ever one bot process (see #52), a claim's mere
-        // existence is proof of ownership; no caller-supplied owner token remains.
-        internal static bool Owns(NativePawnSnapshot snapshot)=>snapshot.Eligible && snapshot.Drafted && snapshot.Claim!=null;
+        // Drafts are plan-owned (#939): an eligible drafted pawn takes orders;
+        // the controller undrafts pawns no live plan needs.
+        internal static bool Owns(NativePawnSnapshot snapshot)=>snapshot.Eligible && snapshot.Drafted;
         internal static bool Legal(Pawn pawn,IntVec3 cell)=>cell.InBounds(pawn.Map) && cell.Standable(pawn.Map) && !cell.Fogged(pawn.Map)
             && pawn.CanReach(cell,PathEndMode.OnCell,Danger.Deadly);
         // The order already matches: the pawn stands on the cell or its
@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
             var identity=new NativeControlIdentity(Current.Game,map,context.Identity.ColonyId,context.Identity.LoadToken);
             var check=NativePawnControlState.Observe(identity,pawn,out var snapshot);
             if(check!=NativePawnControlResult.Ready || snapshot==null)return NativeDraftProtocol.Failure(check,context);
-            if(!Owns(snapshot))return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict,"A move requires an eligible drafted pawn with an owned draft claim.");
+            if(!Owns(snapshot))return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict,"A move requires an eligible drafted pawn.");
             if(Matches(pawn,destination))return null;
             if(!Legal(pawn,destination))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"The destination is not a standable, unfogged cell this pawn can reach.");
             return null;

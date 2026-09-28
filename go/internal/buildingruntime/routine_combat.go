@@ -18,7 +18,6 @@ import (
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -28,8 +27,8 @@ import (
 
 // combatMethodPrefix names the ActiveCombat method that owns a fight
 // (#852): one plan with no actions, its fight row holding the defenders'
-// draft claims (#910). Its orders are DecideCombat's, sent through
-// combat.orders at each stop and recorded as the plan's evidence
+// roster (#939). Its orders are DecideCombat's, sent through
+// combat_orders at each stop and recorded as the plan's evidence
 // (store.RecordCombatStop).
 const combatMethodPrefix = "combat-"
 
@@ -46,10 +45,10 @@ type fightAdmission struct {
 }
 
 // admitFight commits the fight (#910): its empty plan and open fight row
-// holding a claim for every defender the formation gave a role, then one
-// combat.orders batch on this stop that drafts them all and gives the
-// formation's orders. The batch's draft results are the fight's claims;
-// the controller releases them once the fight closes (draftSweep).
+// rostering every defender the formation gave a role, then one
+// combat_orders batch on this stop that drafts them all and gives the
+// formation's orders. Once the fight closes the undraft sweep undrafts
+// its roster (#939).
 func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident store.IncidentState, state ControlState, started time.Time, arbiter *stepArbiter, a fightAdmission) (RoutineDefenseResult, error) {
 	p := r.reviewer.player
 	memory := a.memory
@@ -113,8 +112,8 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 	}
 	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-admit", id), drafts, orders)
 	if err != nil {
-		// Nothing is known of the batch: the claims stay unknown and the
-		// next stop's rows settle them.
+		// Nothing is known of the batch: the next stop's rows show who
+		// was drafted.
 		slog.Default().WarnContext(call, "fight admission batch failed", telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "fight_admission", "plan", string(id), "error", err)
 		return admitted, nil
 	}
@@ -147,37 +146,33 @@ func (r *RoutineDefensePlanner) clearFightAnimals(call context.Context, state Co
 	}
 }
 
-// recordDrafts records a batch's draft results as the fight's claims
-// (#910): an applied draft's claim, a refused one dropped with its orders
-// forgotten. It returns the remaining (order) results; an uncertain
-// receipt (nil results) leaves the claims unknown for the next stop's rows.
 func (r *RoutineDefensePlanner) recordDrafts(call context.Context, plan domain.PlanID, pawns []domain.PawnID, results []bridge.CombatOrderResult, memory policy.CombatMemory) ([]bridge.CombatOrderResult, policy.CombatMemory, error) {
 	if results == nil || len(pawns) == 0 {
 		return results, memory, nil
 	}
-	set := map[domain.PawnID]string{}
-	var drop []domain.PawnID
+	var add, drop []domain.PawnID
 	for i, pawn := range pawns {
 		if results[i].Applied {
-			set[pawn] = results[i].Claim
+			add = append(add, pawn)
 		} else {
 			drop = append(drop, pawn)
 			memory = memory.Forget(pawn)
 		}
 	}
-	return results[len(pawns):], memory, r.reviewer.player.journal.RecordCombatClaims(call, plan, set, drop)
+	return results[len(pawns):], memory, r.reviewer.player.journal.UpdateCombatRoster(call, plan, add, drop)
 }
 
-// unclaimedRoles are the live role pawns the fight holds no claim on,
-// sorted.
-func unclaimedRoles(m policy.CombatMemory, claims map[domain.PawnID]string, view policy.CombatView) []domain.PawnID {
+// undraftedRoles are the live role pawns not among the fight's drafted
+// defenders (orderable), sorted: a later formation's evacuee or responder
+// (#911), or a defender undrafted since.
+func undraftedRoles(m policy.CombatMemory, orderable []domain.PawnID, view policy.CombatView) []domain.PawnID {
 	down := map[domain.PawnID]bool{}
 	for _, p := range view.Pawns {
 		down[p.ID] = p.Dead || p.Downed
 	}
 	var out []domain.PawnID
 	for _, role := range m.Roles {
-		if _, held := claims[role.Pawn]; !held && !down[role.Pawn] && !slices.Contains(out, role.Pawn) {
+		if !slices.Contains(orderable, role.Pawn) && !down[role.Pawn] && !slices.Contains(out, role.Pawn) {
 			out = append(out, role.Pawn)
 		}
 	}
@@ -239,10 +234,6 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 // It returns every order's result in that order (nil for an uncertain
 // receipt) and the orders sent.
 func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state ControlState, action string, drafts []domain.PawnID, orders []policy.CombatOrder) ([]bridge.CombatOrderResult, []policy.CombatOrder, error) {
-	session, err := r.reviewer.player.journal.Identity(call)
-	if err != nil {
-		return nil, nil, err
-	}
 	command := &op.CombatOrders{}
 	for _, pawn := range drafts {
 		command.Orders = append(command.Orders, &op.CombatOrder{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(pawn))}, Order: &op.CombatOrder_Draft{Draft: &op.Clear{}}})
@@ -296,11 +287,7 @@ func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state Cont
 		}
 		command.Orders = append(command.Orders, wire)
 	}
-	pre := &a.WritePrecondition{
-		Identity: boundary.Identity(state.Snapshot), ExpectedGeneration: proto.Uint64(uint64(state.Snapshot.Native)),
-		Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(session)), ActionId: proto.String(action), AttemptId: proto.Uint64(1)},
-	}
-	results, _, _, err := r.native.CombatOrders(call, pre, command)
+	results, err := r.native.CombatOrders(call, boundary.Identity(state.Snapshot), action, command)
 	if err != nil {
 		return nil, nil, err
 	}

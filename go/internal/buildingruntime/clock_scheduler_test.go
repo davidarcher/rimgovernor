@@ -236,7 +236,7 @@ func TestClockSchedulerUnknownStartWorldReplacement(t *testing.T) {
 }
 
 // combatGoalPlan binds an ActiveCombat goal to the scheduler's current review
-// and commits a squad plan (draft plus ranged attack) whose work stays open.
+// and commits a squad plan (draft plus subdue) whose work stays open.
 func combatGoalPlan(t *testing.T, s *ClockScheduler) domain.PlanID {
 	t.Helper()
 	ctx := context.Background()
@@ -258,11 +258,11 @@ func combatGoalPlan(t *testing.T, s *ClockScheduler) domain.PlanID {
 	if err != nil {
 		t.Fatal(err)
 	}
-	attack, err := domain.NewRangedAttack("pawn", "raider", "combat-draft")
+	attack, err := domain.NewSubdue("pawn", "raider", "combat-draft")
 	if err != nil {
 		t.Fatal(err)
 	}
-	attackAction, err := domain.NewRangedAttackAction("combat-attack", attack)
+	attackAction, err := domain.NewSubdueAction("combat-attack", attack)
 	if err != nil {
 		t.Fatal(err)
 	}

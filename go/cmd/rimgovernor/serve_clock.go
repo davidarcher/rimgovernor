@@ -285,6 +285,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return nil, errors.New("routine reviews require typed colony and emergency observations")
 		}
 		thresholds, capabilities := routineCapabilities(sc)
+		// The undraft sweep releases drafts no live plan needs (#939).
+		if client, ok := reads.(*bridge.Client); ok {
+			if capabilities.Undraft, err = bridge.NewActionsWriter(client); err != nil {
+				return nil, err
+			}
+		}
 		reviewer, err := buildingruntime.NewRoutineReviewer(player, native, wallClock{}, thresholds, config.MaxAge, capabilities)
 		if err != nil {
 			return nil, err

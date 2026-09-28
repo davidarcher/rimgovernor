@@ -100,9 +100,9 @@ it neither activates ActiveCombat nor selects a subdue response. Independent
 hostile threats and urgent medical needs retain their emergency classification.
 
 Other standing aggressive colonists activate defense. The controller drafts one or
-two nearest healthy armed-melee colonists and dispatches a subdue MeleeIntent through the shared
-owned-draft and melee lifecycle. Other dispatch stays outside an eight-cell radius
-of the target; uncertain attempts and draft cleanup remain reconcilable. Downing
+two nearest healthy armed-melee colonists and applies a SUBDUE PawnOrderIntent (#939); the
+undraft sweep releases them afterward. Other dispatch stays outside an eight-cell radius
+of the target; uncertain attempts remain reconcilable. Downing
 the target ends containment and lets the ordinary RESCUE planner carry the pawn
 to a colonist bed using native bed selection. There is no Capture or prisoner
 custody. Arrest remains a non-aggressive custody operation.

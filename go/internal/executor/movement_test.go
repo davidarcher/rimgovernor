@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func init() { domain.RegisterIntentKind(domain.MovementAction) }
+func init() {
+	domain.RegisterIntentKind(domain.MovementAction)
+	domain.RegisterIntentKind(domain.OwnedDraftAction)
+}
 
 type movementFake struct {
 	writes int
@@ -28,7 +30,7 @@ func (m *movementFake) WriteMovement(_ context.Context, p Placement) (Receipt, e
 	return Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: kind}, m.err
 }
 
-func newMovementFixture(t *testing.T) (*fixture, *draftFake, *movementFake) {
+func newMovementFixture(t *testing.T) (*fixture, *movementFake) {
 	t.Helper()
 	f := newFixture(t)
 	draft, _ := domain.NewOwnedDraft("pawn")
@@ -44,32 +46,31 @@ func newMovementFixture(t *testing.T) (*fixture, *draftFake, *movementFake) {
 	}
 	f.plan, f.action = plan, a
 	f.authority.Snapshot.Plan = plan.ID()
-	df := &draftFake{f: f}
 	mf := &movementFake{}
 	s := f.authority.Snapshot
 	ctx := context.Background()
-	if _, err = f.store.PrepareDraft(ctx, plan.ID(), d.ID(), store.DraftAdmission{Snapshot: s, Tick: 100, Pawn: "pawn", PawnSnapshotToken: "draft-cas"}); err != nil {
+	if _, err = f.store.Prepare(ctx, plan.ID(), d.ID(), s, 101); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = f.store.Dispatch(ctx, plan.ID(), d.ID(), s, 100); err != nil {
+	if _, err = f.store.Dispatch(ctx, plan.ID(), d.ID(), s, 101); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = f.store.ObserveDraft(ctx, plan.ID(), domain.Observation{Action: d.ID(), Attempt: 1, Snapshot: s, Tick: 101, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, s, domain.Known(df.claim(Placement{d, 1, s, 100}))); err != nil {
+	if _, err = f.store.RecordReceipt(ctx, plan.ID(), d.ID(), 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
-	f.executor, err = NewWithMovement(f.store, f.env, df, mf, f.clock, Limits{time.Second, 2 * time.Second, time.Second})
+	f.executor, err = NewWithMovement(f.store, f.env, mf, f.clock, Limits{time.Second, 2 * time.Second, time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = f.executor.UpdateAuthority(f.authority); err != nil {
 		t.Fatal(err)
 	}
-	return f, df, mf
+	return f, mf
 }
 
 // An applied move intent is terminal: the order was given.
 func TestMovementAppliedIsTerminal(t *testing.T) {
-	f, _, m := newMovementFixture(t)
+	f, m := newMovementFixture(t)
 	r, err := f.run()
 	v := r.Progress.View()
 	if err != nil || m.writes != 1 || v.Stage != domain.Completed || v.Unresolved {
@@ -84,7 +85,7 @@ func TestMovementAppliedIsTerminal(t *testing.T) {
 }
 
 func TestMovementRefusedIsUnsuccessful(t *testing.T) {
-	f, _, m := newMovementFixture(t)
+	f, m := newMovementFixture(t)
 	m.kind = domain.ReceiptRefused
 	r, err := f.run()
 	if err != nil || r.Progress.View().Stage != domain.Unsuccessful {
@@ -92,7 +93,7 @@ func TestMovementRefusedIsUnsuccessful(t *testing.T) {
 	}
 }
 
-// The move waits for its draft to hold a live claim.
+// The move waits for its draft to apply.
 func TestMovementHeldWithoutDraft(t *testing.T) {
 	f := newFixture(t)
 	draft, _ := domain.NewOwnedDraft("pawn")
@@ -109,7 +110,7 @@ func TestMovementHeldWithoutDraft(t *testing.T) {
 	f.plan, f.action = plan, a
 	f.authority.Snapshot.Plan = plan.ID()
 	m := &movementFake{}
-	if f.executor, err = NewWithMovement(f.store, f.env, &draftFake{f: f}, m, f.clock, Limits{time.Second, 2 * time.Second, time.Second}); err != nil {
+	if f.executor, err = NewWithMovement(f.store, f.env, m, f.clock, Limits{time.Second, 2 * time.Second, time.Second}); err != nil {
 		t.Fatal(err)
 	}
 	if err = f.executor.UpdateAuthority(f.authority); err != nil {
@@ -124,7 +125,7 @@ func TestMovementHeldWithoutDraft(t *testing.T) {
 // The hold-the-line move belongs to a routine method plan, so it dispatches
 // under the root authority exactly like the draft it depends on (#70).
 func TestMovementDispatchesRoutinePlanUnderRootAuthority(t *testing.T) {
-	f, _, m := newMovementFixture(t)
+	f, m := newMovementFixture(t)
 	root := f.authority
 	root.Snapshot.Plan = "player-plan"
 	if err := f.executor.UpdateAuthority(root); err != nil {

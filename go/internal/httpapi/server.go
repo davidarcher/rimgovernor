@@ -361,17 +361,6 @@ func plan(stored store.PlanState) (Plan, error) {
 		} else {
 			return Plan{}, errors.New("unsupported action")
 		}
-		if cleanup, known := view.DraftCleanup.Value(); known {
-			if projected.Draft == nil {
-				return Plan{}, errors.New("building has draft cleanup")
-			}
-			switch cleanup.Stage {
-			case domain.DraftAwaitingClaim, domain.DraftNotAcquired, domain.DraftCleanupRequired, domain.DraftCleanupDispatched, domain.DraftCleanupUncertain, domain.DraftReleased, domain.DraftSuperseded:
-			default:
-				return Plan{}, errors.New("invalid draft cleanup")
-			}
-			projected.Progress.DraftCleanup = &DraftCleanup{cleanup.Stage}
-		}
 		result.Actions = append(result.Actions, projected)
 	}
 	return result, nil

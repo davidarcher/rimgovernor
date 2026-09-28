@@ -295,7 +295,8 @@ message PawnState {
   PawnSettings settings = 26; PawnSocial social = 27; AnimalState animal_state = 28;
   optional bool predator = 29; optional double manhunter_on_damage_chance = 30; EntityRef nearest_colonist = 31;
   optional double nearest_colonist_distance = 32; repeated ReadIssue issues = 33;
-  DraftClaimObservation draft_claim = 34;
+  // Native draft claims were removed (#939): drafts are plan-owned.
+  reserved 34; reserved "draft_claim";
   optional string owned_bed_id = 35;
   SnapshotRef snapshot = 36;
   // Native lord evidence for hostile groups: the LordJob and current LordToil
@@ -336,24 +337,6 @@ message PawnTendDoctor {
   // reachable_pawn_ids.
   repeated string reachable_pawn_ids = 7;
   repeated ReadIssue issues = 8;
-}
-message NoOwnedDraftClaim {}
-// owner (rimgovernor.authority.v1.Owner) was removed: a claim is either held by
-// the single bot process or it is not; there is no other possible owner left
-// to distinguish.
-message OwnedDraftClaim {
-  optional string claim_id = 1;
-  reserved 2;
-  reserved "owner";
-  SnapshotRef pawn_snapshot = 3;
-}
-// A drafted pawn may have no controller claim. Missing owner is not ours.
-message DraftClaimObservation {
-  oneof state {
-    OwnedDraftClaim owned = 1;
-    NoOwnedDraftClaim unowned = 2;
-    rimgovernor.common.v1.Unavailable unavailable = 3;
-  }
 }
 message PawnFilter {
   repeated string ids = 1; optional string name_contains = 2; optional bool colonist = 3; optional bool prisoner = 4;

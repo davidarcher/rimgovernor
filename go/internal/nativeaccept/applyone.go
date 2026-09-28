@@ -25,6 +25,43 @@ func ApplyOne(ctx context.Context, h *Harness, label string, identity map[string
 	return result, nil
 }
 
+// ApplyDraft drafts or undrafts pawn through a DraftIntent (#939) and
+// returns the applied job evidence (issued is false when the pawn already
+// stood that way), or an error naming a refusal.
+func ApplyDraft(ctx context.Context, h *Harness, label string, identity map[string]any, key, pawn string, drafted bool) (map[string]any, error) {
+	result, err := ApplyOne(ctx, h, label, identity, key, map[string]any{"draft": map[string]any{"pawnId": pawn, "drafted": drafted}})
+	if err != nil {
+		return nil, err
+	}
+	return AppliedJob(label, result)
+}
+
+// ApplyCombatOrders sends one combat_orders batch as an Actions/Apply
+// intent under key and returns its per-order results. The intent always
+// applies; each order carries its own applied or refusal.
+func ApplyCombatOrders(ctx context.Context, h *Harness, label string, identity map[string]any, key string, orders []any) ([]map[string]any, error) {
+	result, err := ApplyOne(ctx, h, label, identity, key, map[string]any{"combatOrders": map[string]any{"orders": orders}})
+	if err != nil {
+		return nil, err
+	}
+	receipt, _ := AsMap(result["applied"])
+	applied, ok := AsMap(receipt["applied"])
+	if !ok {
+		return nil, fmt.Errorf("%s: combat orders not applied: %#v", label, result)
+	}
+	observed, _ := AsMap(applied["observed"])
+	effect, _ := AsMap(observed["combatOrders"])
+	rows := AsSlice(effect["results"])
+	if len(rows) != len(orders) {
+		return nil, fmt.Errorf("%s: %d results for %d orders: %#v", label, len(rows), len(orders), result)
+	}
+	out := make([]map[string]any, len(rows))
+	for i, r := range rows {
+		out[i], _ = AsMap(r)
+	}
+	return out, nil
+}
+
 // AppliedJob is the job evidence of an applied result, or an error naming
 // the refusal.
 func AppliedJob(label string, result map[string]any) (map[string]any, error) {

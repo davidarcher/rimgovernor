@@ -49,7 +49,7 @@ func runArrestTarget(ctx context.Context, s cases.Session, legalFixture string) 
 		{"unowned", "legal", "owned draft claim", false},
 		{"legal", legalFixture, "", true},
 	}
-	for i, scenario := range scenarios {
+	for _, scenario := range scenarios {
 		staged, err := h.Call(ctx, "stage-"+scenario.name, "test/arrest_stage", map[string]any{"pawnId": pawnID, "targetId": targetID, "scenario": scenario.fixture})
 		if err != nil {
 			return err
@@ -57,8 +57,7 @@ func runArrestTarget(ctx context.Context, s cases.Session, legalFixture string) 
 		if ok, _ := na.AsBool(staged["success"]); !ok {
 			return fmt.Errorf("stage %s: %#v", scenario.name, staged)
 		}
-		grant, err := na.GrantAuto(ctx, h.WireFunc(), "grant-"+scenario.name, identity)
-		if err != nil {
+		if _, err := na.GrantAuto(ctx, h.WireFunc(), "grant-"+scenario.name, identity); err != nil {
 			return err
 		}
 		row, err := read("before-" + scenario.name)
@@ -66,16 +65,8 @@ func runArrestTarget(ctx context.Context, s cases.Session, legalFixture string) 
 			return err
 		}
 		if scenario.draft {
-			drafted, err := h.Wire(ctx, "draft-"+scenario.name, "operations_execute", na.ExecuteRequest(identity, grant, row, i+1))
-			if err != nil {
+			if _, err := na.ApplyDraft(ctx, h, "draft-"+scenario.name, identity, "draft-"+scenario.name, pawnID, true); err != nil {
 				return err
-			}
-			_, r, err := na.Outcome(drafted, "receipt")
-			if err != nil {
-				return err
-			}
-			if _, ok := r["applied"]; !ok {
-				return fmt.Errorf("draft %s: %#v", scenario.name, r)
 			}
 			row, err = read("drafted-" + scenario.name)
 			if err != nil {

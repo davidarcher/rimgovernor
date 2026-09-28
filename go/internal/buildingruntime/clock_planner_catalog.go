@@ -121,10 +121,10 @@ func (e plannerEntry) reviewEvery() domain.Tick {
 // breaks priority ties (plannerGroup.Wait is stable), so the order here is
 // the order Step queued them inline.
 var plannerCatalog = []plannerEntry{
-	{name: "idleDrafts", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.OwnedDraftAction}, sections: sectionsThreat,
+	{name: "undraft", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.OwnedDraftAction}, sections: sectionsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Routine != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
-			return "", s.config.Routine.restoreIdleDrafts(ctx, epoch, arbiter)
+			return "", s.config.Routine.sweepDrafts(ctx, epoch, arbiter)
 		}},
 	{name: "work", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction}, sections: sectionsPawns,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Work != nil },
@@ -406,7 +406,7 @@ var plannerCatalog = []plannerEntry{
 			out.Expansion = &method
 			return method.Reason, nil
 		}},
-	{name: defensePlanner, class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.OwnedDraftAction, domain.MeleeAttackAction, domain.RangedAttackAction, domain.MovementAction}, sections: sectionsThreat,
+	{name: defensePlanner, class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.OwnedDraftAction, domain.SubdueAction, domain.MovementAction}, sections: sectionsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Defense != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Defense.step(ctx, epoch, arbiter)

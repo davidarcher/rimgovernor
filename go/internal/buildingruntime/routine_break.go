@@ -47,10 +47,14 @@ func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, incident 
 		return RoutineDefenseResult{}, nil
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].ID < targets[j].ID })
+	needed, err := plannedDrafts(call, r.reviewer.player.journal)
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
 	var responders []policy.BreakResponder
 	for _, p := range f.Colonists {
 		row := rows[string(p.ID)]
-		d := squadDefenderFacts(row)
+		d := squadDefenderFacts(row, needed)
 		d.MeleeEquipped = breakMelee(row)
 		responders = append(responders, policy.BreakResponder{SquadDefenderFacts: d, Cell: breakCell(row)})
 	}
@@ -87,7 +91,7 @@ func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, incident 
 		if err != nil {
 			return RoutineDefenseResult{}, err
 		}
-		ma, err := domain.NewMeleeAttackAction(domain.ActionID(fmt.Sprintf("%s-s%d", id, i)), m)
+		ma, err := domain.NewSubdueAction(domain.ActionID(fmt.Sprintf("%s-s%d", id, i)), m)
 		if err != nil {
 			return RoutineDefenseResult{}, err
 		}

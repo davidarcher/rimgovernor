@@ -786,8 +786,8 @@ service-hosting case.
 
 Reuse is only valid because every reload is checked against a reset
 contract before the case starts (`CheckReset`): a load token never issued
-before, the game paused at the baseline tick, no active authority, no owned
-draft claim, and the sampled resource census equal to the first load's. The
+before, the game paused at the baseline tick, no active authority, no drafted
+colonist, and the sampled resource census equal to the first load's. The
 colony id is not compared -- a fixture save the mod never wrote has no
 persisted id, so native mints one per load; for the same reason reloads go
 through `rimworld/load_game_ready`, not `lifecycle_load`. A case

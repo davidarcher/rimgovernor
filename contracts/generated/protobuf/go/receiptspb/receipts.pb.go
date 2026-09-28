@@ -2554,9 +2554,8 @@ func (x *DeconstructEffect) GetSite() *SnapshotEvidence {
 // One result per CombatOrders order, in request order. An applied result
 // names the ordered job where one was taken (Goto, AttackStatic,
 // AttackMelee, Wait_Combat); a refusal carries a short snake_case reason:
-// draft_ownership, stale_snapshot, not_found, unreachable, cannot_hit,
-// no_ground_verb, not_a_door, native_refused.
-// draft_claim_id: the claim an applied draft order holds (#910); absent on every other order.
+// not_drafted, cannot_draft, stale_snapshot, not_found, unreachable,
+// cannot_hit, no_ground_verb, not_a_door, native_refused.
 type CombatOrderResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Index         *uint32                `protobuf:"varint,1,opt,name=index,proto3,oneof" json:"index,omitempty"`
@@ -2564,7 +2563,6 @@ type CombatOrderResult struct {
 	Applied       *bool                  `protobuf:"varint,3,opt,name=applied,proto3,oneof" json:"applied,omitempty"`
 	Refusal       *string                `protobuf:"bytes,4,opt,name=refusal,proto3,oneof" json:"refusal,omitempty"`
 	JobDef        *string                `protobuf:"bytes,5,opt,name=job_def,json=jobDef,proto3,oneof" json:"job_def,omitempty"`
-	DraftClaimId  *string                `protobuf:"bytes,6,opt,name=draft_claim_id,json=draftClaimId,proto3,oneof" json:"draft_claim_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2630,13 +2628,6 @@ func (x *CombatOrderResult) GetRefusal() string {
 func (x *CombatOrderResult) GetJobDef() string {
 	if x != nil && x.JobDef != nil {
 		return *x.JobDef
-	}
-	return ""
-}
-
-func (x *CombatOrderResult) GetDraftClaimId() string {
-	if x != nil && x.DraftClaimId != nil {
-		return *x.DraftClaimId
 	}
 	return ""
 }
@@ -2866,7 +2857,6 @@ type JobEffect struct {
 	NeedBefore             *float32               `protobuf:"fixed32,19,opt,name=need_before,json=needBefore,proto3,oneof" json:"need_before,omitempty"`
 	CanTry                 *bool                  `protobuf:"varint,20,opt,name=can_try,json=canTry,proto3,oneof" json:"can_try,omitempty"`
 	ResultingSnapshotToken *string                `protobuf:"bytes,21,opt,name=resulting_snapshot_token,json=resultingSnapshotToken,proto3,oneof" json:"resulting_snapshot_token,omitempty"`
-	DraftClaimId           *string                `protobuf:"bytes,22,opt,name=draft_claim_id,json=draftClaimId,proto3,oneof" json:"draft_claim_id,omitempty"`
 	// Fresh CAS token for the operation's non-pawn target (e.g. RecoverService's
 	// building), populated only by an unconstrained preview discovery read;
 	// distinct from resulting_snapshot_token's post-effect pawn meaning.
@@ -3048,13 +3038,6 @@ func (x *JobEffect) GetCanTry() bool {
 func (x *JobEffect) GetResultingSnapshotToken() string {
 	if x != nil && x.ResultingSnapshotToken != nil {
 		return *x.ResultingSnapshotToken
-	}
-	return ""
-}
-
-func (x *JobEffect) GetDraftClaimId() string {
-	if x != nil && x.DraftClaimId != nil {
-		return *x.DraftClaimId
 	}
 	return ""
 }
@@ -4694,14 +4677,13 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"_target_idB\x11\n" +
 	"\x0f_designation_idB\x16\n" +
-	"\x14_demolition_observed\"\xa0\x02\n" +
+	"\x14_demolition_observed\"\xf8\x01\n" +
 	"\x11CombatOrderResult\x12\x19\n" +
 	"\x05index\x18\x01 \x01(\rH\x00R\x05index\x88\x01\x01\x12\x1c\n" +
 	"\apawn_id\x18\x02 \x01(\tH\x01R\x06pawnId\x88\x01\x01\x12\x1d\n" +
 	"\aapplied\x18\x03 \x01(\bH\x02R\aapplied\x88\x01\x01\x12\x1d\n" +
 	"\arefusal\x18\x04 \x01(\tH\x03R\arefusal\x88\x01\x01\x12\x1c\n" +
-	"\ajob_def\x18\x05 \x01(\tH\x04R\x06jobDef\x88\x01\x01\x12)\n" +
-	"\x0edraft_claim_id\x18\x06 \x01(\tH\x05R\fdraftClaimId\x88\x01\x01B\b\n" +
+	"\ajob_def\x18\x05 \x01(\tH\x04R\x06jobDef\x88\x01\x01B\b\n" +
 	"\x06_indexB\n" +
 	"\n" +
 	"\b_pawn_idB\n" +
@@ -4710,8 +4692,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_refusalB\n" +
 	"\n" +
-	"\b_job_defB\x11\n" +
-	"\x0f_draft_claim_id\"Z\n" +
+	"\b_job_defJ\x04\b\x06\x10\aR\x0edraft_claim_id\"Z\n" +
 	"\x12CombatOrdersEffect\x12D\n" +
 	"\aresults\x18\x01 \x03(\v2*.rimgovernor.receipts.v1.CombatOrderResultR\aresults\"\xb1\x02\n" +
 	"\n" +
@@ -4730,7 +4711,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\tJobTarget\x12\x1b\n" +
 	"\bthing_id\x18\x01 \x01(\tH\x00R\athingId\x121\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x00R\x04cellB\b\n" +
-	"\x06target\"\xf6\t\n" +
+	"\x06target\"\xce\t\n" +
 	"\tJobEffect\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1a\n" +
 	"\x06job_id\x18\x02 \x01(\x05H\x01R\x05jobId\x88\x01\x01\x12\x1c\n" +
@@ -4757,9 +4738,8 @@ const file_receipts_proto_rawDesc = "" +
 	"\vneed_before\x18\x13 \x01(\x02H\x10R\n" +
 	"needBefore\x88\x01\x01\x12\x1c\n" +
 	"\acan_try\x18\x14 \x01(\bH\x11R\x06canTry\x88\x01\x01\x12=\n" +
-	"\x18resulting_snapshot_token\x18\x15 \x01(\tH\x12R\x16resultingSnapshotToken\x88\x01\x01\x12)\n" +
-	"\x0edraft_claim_id\x18\x16 \x01(\tH\x13R\fdraftClaimId\x88\x01\x01\x127\n" +
-	"\x15target_snapshot_token\x18\x17 \x01(\tH\x14R\x13targetSnapshotToken\x88\x01\x01B\n" +
+	"\x18resulting_snapshot_token\x18\x15 \x01(\tH\x12R\x16resultingSnapshotToken\x88\x01\x01\x127\n" +
+	"\x15target_snapshot_token\x18\x17 \x01(\tH\x13R\x13targetSnapshotToken\x88\x01\x01B\n" +
 	"\n" +
 	"\b_pawn_idB\t\n" +
 	"\a_job_idB\n" +
@@ -4782,9 +4762,8 @@ const file_receipts_proto_rawDesc = "" +
 	"\f_need_beforeB\n" +
 	"\n" +
 	"\b_can_tryB\x1b\n" +
-	"\x19_resulting_snapshot_tokenB\x11\n" +
-	"\x0f_draft_claim_idB\x18\n" +
-	"\x16_target_snapshot_token\"\x9c\x05\n" +
+	"\x19_resulting_snapshot_tokenB\x18\n" +
+	"\x16_target_snapshot_tokenJ\x04\b\x16\x10\x17R\x0edraft_claim_id\"\x9c\x05\n" +
 	"\fAnimalEffect\x12A\n" +
 	"\x06animal\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x06animal\x12(\n" +
 	"\rtrainable_def\x18\x03 \x01(\tH\x00R\ftrainableDef\x88\x01\x01\x12\x1b\n" +

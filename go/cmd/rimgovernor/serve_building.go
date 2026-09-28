@@ -14,11 +14,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
@@ -38,11 +35,8 @@ type buildingServiceBridge struct {
 	writes            boundary.BuildingWriter
 	acquisition       *acquisition.AcquisitionCapabilities
 	mineAcquisition   *mineacquisition.MineAcquisitionCapabilities
-	draft             *draft.DraftCapabilities
 	clock             *buildingruntime.ClockCapabilities
 	clockReads        serviceClockReads
-	melee             *melee.MeleeCapabilities
-	ranged            *ranged.RangedCapabilities
 	movement          *buildingruntime.MovementCapabilities
 	haul              *haul.HaulCapabilities
 	trade             *buildingruntime.TradeCapabilities
@@ -80,23 +74,11 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	drafts, err := bridge.NewDraftControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	cleanup, err := bridge.NewDraftCleanup(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	clock, err := bridge.NewClockControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	acquisitionWriter, err := bridge.NewAcquisitionControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	attack, err := bridge.NewAttackControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -120,9 +102,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
-		draft:             &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
-		melee:             &melee.MeleeCapabilities{Writer: actionsWriter},
-		ranged:            &ranged.RangedCapabilities{Native: client, Writer: attack},
 		movement:          &buildingruntime.MovementCapabilities{Writer: actionsWriter},
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
 		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
@@ -232,8 +211,8 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return errors.New("building service requires a read client")
 	}
 	defer func() { result = errors.Join(result, client.reads.Close()) }()
-	if client.native == nil || client.authority == nil || client.writes == nil || client.draft == nil || client.draft.Native == nil || client.draft.Writer == nil || client.draft.Cleanup == nil {
-		return errors.New("player service requires complete building and draft capabilities")
+	if client.native == nil || client.authority == nil || client.writes == nil {
+		return errors.New("player service requires complete building capabilities")
 	}
 	started, err := client.reads.GamesStart(lifetime)
 	if err != nil {
@@ -269,14 +248,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		mineAcquisitionCapabilities = client.mineAcquisition
 	}
-	var meleeCapabilities *melee.MeleeCapabilities
-	var rangedCapabilities *ranged.RangedCapabilities
 	var movementCapabilities *buildingruntime.MovementCapabilities
 	if config.routineDefensePlans {
-		if client.melee == nil || client.ranged == nil || client.movement == nil {
-			return errors.New("defense plans require typed melee, ranged and movement capabilities")
+		if client.movement == nil {
+			return errors.New("defense plans require typed movement capabilities")
 		}
-		meleeCapabilities, rangedCapabilities, movementCapabilities = client.melee, client.ranged, client.movement
+		movementCapabilities = client.movement
 	}
 	var haulCapabilities *haul.HaulCapabilities
 	if haulExecutorRequired(config) {
@@ -297,10 +274,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Executor:        executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
 		Acquisition:     acquisitionCapabilities,
 		MineAcquisition: mineAcquisitionCapabilities,
-		Draft:           client.draft,
 		Clock:           clockCapabilities,
-		Melee:           meleeCapabilities,
-		Ranged:          rangedCapabilities,
 		Movement:        movementCapabilities,
 		Haul:            haulCapabilities,
 		Trade:           tradeCapabilities,

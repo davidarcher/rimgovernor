@@ -59,6 +59,8 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.CleanAction:               true,
 	domain.OpenCasketAction:          true,
 	domain.TendAction:                true,
+	domain.OwnedDraftAction:          true,
+	domain.SubdueAction:              true,
 	domain.EquipAction:               true,
 	domain.RescueAction:              true,
 	domain.CaptureAction:             true,

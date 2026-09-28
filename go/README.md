@@ -891,8 +891,8 @@ memory. Requests bind exact colony/load/map identity and stable request IDs;
 control intents are journaled in order without a compare-and-swap.
 
 Owned drafts are produced only by routine planners (defense, medical); a
-completed draft plan releases its own temporary claim, and plan views show
-ordinary progress and cleanup status independently. See the
+pawn no live plan needs is undrafted by the census sweep (#939); plan views show
+ordinary progress. See the
 [fixed player API](../docs/developers/contracts/go-player-api.md) for exact shapes.
 
 Both building admission checks require fresh, complete threat and basic pawn

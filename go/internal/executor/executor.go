@@ -102,16 +102,10 @@ type Executor struct {
 	tradeJournal           TradeJournal
 	mineAcquisition        AcquisitionBoundary
 	mineAcquisitionJournal MineAcquisitionJournal
-	ranged                 RangedBoundary
-	rangedJournal          RangedJournal
 	movement               MovementBoundary
 	movementJournal        MovementJournal
 	routineScope           RoutineScope
 	journal                Journal
-	draftJournal           DraftJournal
-	draft                  DraftBoundary
-	meleeJournal           MeleeJournal
-	melee                  MeleeBoundary
 	boundary               Boundary
 	clock                  Clock
 	limits                 Limits
@@ -285,14 +279,8 @@ func (e *Executor) runLoaded(ctx context.Context, state store.PlanState, actionI
 	if action.Kind().IntentMode() && progress.View().Unresolved {
 		return e.settleIntent(progress)
 	}
-	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
-		return e.runDraft(ctx, action, progress, authority, generation)
-	}
 	if action.Kind() == domain.AcquisitionAction && e.acquisition != nil {
 		return e.runAcquisition(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.RangedAttackAction && e.ranged != nil {
-		return e.runRangedAttack(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MovementAction && e.movement != nil {
 		return e.runMovement(ctx, action, progress, authority, generation)
@@ -302,9 +290,6 @@ func (e *Executor) runLoaded(ctx context.Context, state store.PlanState, actionI
 	}
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
-		return e.runMelee(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MineAcquisitionAction && e.mineAcquisition != nil {
 		return e.runMineAcquisition(ctx, action, progress, authority, generation)

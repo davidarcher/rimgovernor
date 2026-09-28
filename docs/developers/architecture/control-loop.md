@@ -253,7 +253,7 @@ continues to suppress duplicate production; unrelated recipes remain unchanged.
 The diet planner restores missing natively eligible definitions while retaining
 ingredient filters and condition ranges; it never changes a shared diet in place
 or forces a pawn to eat.
-`draft/order` retains stale-snapshot and exact-claim checks alongside adoption;
+`draft/intent` checks draft, same-state and undraft readbacks;
 `upkeep/home-coverage` checks connected Home restoration and save recovery.
 Obsolete standing release/slaughter designations are cancelled through shared
 Hands. Destructive orders still require explicit opt-ins and native eligibility.

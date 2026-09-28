@@ -265,7 +265,6 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/receipts_lookup":                      true,
 	"rimgovernor/receipts_observe_progress":            true,
 	"rimgovernor/authority_control":                    true,
-	"rimgovernor/operations_release_owned_draft":       true,
 	"rimgovernor/operations_execute":                   true,
 	ActionsApplyMethod:                                 true,
 	"rimgovernor/clock_start":                          true,
@@ -416,8 +415,6 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		case *a.ControlReply:
 			typedFailure = r.GetFailure() != nil
 		case *op.PreviewReply:
-			typedFailure = r.GetFailure() != nil
-		case *op.ReleaseOwnedDraftReply:
 			typedFailure = r.GetFailure() != nil
 		case *op.ExecuteReply:
 			typedFailure = r.GetFailure() != nil

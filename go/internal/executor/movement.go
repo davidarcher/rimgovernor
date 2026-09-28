@@ -8,66 +8,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func NewWithMovement(journal MovementJournal, building Boundary, draft DraftBoundary, move MovementBoundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
+// NewWithMovement is New with explicit walk-to-cell orders for drafted
+// pawns.
+func NewWithMovement(journal MovementJournal, building Boundary, move MovementBoundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
 	if move == nil {
 		return nil, errors.New("movement boundary required")
 	}
-	e, err := NewWithDraft(journal, building, draft, clock, limits, routine...)
-	if err != nil {
-		return nil, err
-	}
-	e.movementJournal, e.movement = journal, move
-	return e, nil
-}
-
-// NewWithMeleeAndMovement composes melee attack and movement onto one
-// draft-backed executor, mirroring NewWithMeleeAndRanged: a drafted pawn's
-// plan may include either or both of a melee engagement and an explicit
-// walk-to-cell order.
-func NewWithMeleeAndMovement(journal interface {
-	MeleeJournal
-	MovementJournal
-}, building Boundary, draft DraftBoundary, melee MeleeBoundary, move MovementBoundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
-	if move == nil {
-		return nil, errors.New("movement boundary required")
-	}
-	e, err := NewWithMelee(journal, building, draft, melee, clock, limits, routine...)
-	if err != nil {
-		return nil, err
-	}
-	e.movementJournal, e.movement = journal, move
-	return e, nil
-}
-
-// NewWithRangedAndMovement composes ranged attack and movement onto one
-// draft-backed executor, mirroring NewWithMeleeAndRanged.
-func NewWithRangedAndMovement(journal interface {
-	RangedJournal
-	MovementJournal
-}, building Boundary, draft DraftBoundary, ranged RangedBoundary, move MovementBoundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
-	if move == nil {
-		return nil, errors.New("movement boundary required")
-	}
-	e, err := NewWithRanged(journal, building, draft, ranged, clock, limits, routine...)
-	if err != nil {
-		return nil, err
-	}
-	e.movementJournal, e.movement = journal, move
-	return e, nil
-}
-
-// NewWithMeleeRangedAndMovement composes all three drafted-pawn action
-// families onto one executor, for a plan that may issue any mix of melee,
-// ranged, and movement orders against the same owned draft.
-func NewWithMeleeRangedAndMovement(journal interface {
-	MeleeJournal
-	RangedJournal
-	MovementJournal
-}, building Boundary, draft DraftBoundary, melee MeleeBoundary, ranged RangedBoundary, move MovementBoundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
-	if move == nil {
-		return nil, errors.New("movement boundary required")
-	}
-	e, err := NewWithMeleeAndRanged(journal, building, draft, melee, ranged, clock, limits, routine...)
+	e, err := New(journal, building, clock, limits, routine...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +31,8 @@ func movementProgressLookup(state store.PlanState, id domain.ActionID) (domain.P
 	return domain.Progress{}, false
 }
 
-// runMovement sends one move intent once its draft prerequisite holds a
-// live claim: guard, Prepare, Dispatch, DispatchIntent. Native validates
+// runMovement sends one move intent once its draft prerequisite has
+// applied: guard, Prepare, Dispatch, DispatchIntent. Native validates
 // the move against live state when it applies; the receipt settles it.
 func (e *Executor) runMovement(ctx context.Context, action domain.Action, progress domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: progress}
@@ -127,8 +74,7 @@ func (e *Executor) runMovement(ctx context.Context, action domain.Action, progre
 		return result, ErrEvidence
 	}
 	d := prerequisite.View()
-	cleanup, known := d.DraftCleanup.Value()
-	if !known || d.Stage != domain.Completed || d.Unresolved || cleanup.Stage != domain.DraftCleanupRequired || !d.Snapshot.SameWorld(expected) {
+	if d.Stage != domain.Completed || d.Unresolved || !d.Snapshot.SameWorld(expected) {
 		return result, ErrHeld
 	}
 	tick := max(latest.View().Tick, d.Tick)

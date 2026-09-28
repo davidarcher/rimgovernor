@@ -82,7 +82,7 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 				colonists = append(colonists, string(pawn.ID))
 			}
 		}
-		if squad, err = shrineSquad(ctx, native, identity, colonists); err != nil {
+		if squad, err = shrineSquad(ctx, native, identity, colonists, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -188,7 +188,7 @@ const ShrineHoldReadinessUnknown = "readiness_unknown"
 // shrineSquad reads the combat facts of the named colonists (every colonist
 // of the emergency census when nil) as shrine defenders: the breach squad
 // and the melee lock (#460) staff from it.
-func shrineSquad(ctx context.Context, native shrineReadinessNative, identity *c.Identity, colonists []string) ([]policy.ShrineDefenderFacts, error) {
+func shrineSquad(ctx context.Context, native shrineReadinessNative, identity *c.Identity, colonists []string, needed map[domain.PawnID]bool) ([]policy.ShrineDefenderFacts, error) {
 	if colonists == nil {
 		observed, _, err := native.ReadEmergency(ctx, identity)
 		if err != nil {
@@ -207,7 +207,7 @@ func shrineSquad(ctx context.Context, native shrineReadinessNative, identity *c.
 		if row == nil || row.Pawn == nil {
 			continue
 		}
-		facts := policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row)}
+		facts := policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row, needed)}
 		if reach := primaryRange(row.Equipment); reach > 0 {
 			facts.WeaponRange = domain.Known(reach)
 		}
@@ -242,7 +242,7 @@ func shrineOpening(ctx context.Context, native shrineReadinessNative, identity *
 		bleeding, _ := pawn.Bleeding.Value()
 		emergency = emergency || downed || bleeding
 	}
-	squad, err := shrineSquad(ctx, native, identity, colonists)
+	squad, err := shrineSquad(ctx, native, identity, colonists, nil)
 	if err != nil {
 		return out, err
 	}

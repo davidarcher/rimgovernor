@@ -169,10 +169,9 @@ message DeconstructEffect { optional string target_id = 1; optional string desig
 // One result per CombatOrders order, in request order. An applied result
 // names the ordered job where one was taken (Goto, AttackStatic,
 // AttackMelee, Wait_Combat); a refusal carries a short snake_case reason:
-// draft_ownership, stale_snapshot, not_found, unreachable, cannot_hit,
-// no_ground_verb, not_a_door, native_refused.
-// draft_claim_id: the claim an applied draft order holds (#910); absent on every other order.
-message CombatOrderResult { optional uint32 index = 1; optional string pawn_id = 2; optional bool applied = 3; optional string refusal = 4; optional string job_def = 5; optional string draft_claim_id = 6; }
+// not_drafted, cannot_draft, stale_snapshot, not_found, unreachable,
+// cannot_hit, no_ground_verb, not_a_door, native_refused.
+message CombatOrderResult { optional uint32 index = 1; optional string pawn_id = 2; optional bool applied = 3; optional string refusal = 4; optional string job_def = 5; reserved 6; reserved "draft_claim_id"; }
 message CombatOrdersEffect { repeated CombatOrderResult results = 1; }
 message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; reserved 4; reserved "released_count"; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }
@@ -198,7 +197,7 @@ message JobEffect {
   optional float need_before = 19;
   optional bool can_try = 20;
   optional string resulting_snapshot_token = 21;
-  optional string draft_claim_id = 22;
+  reserved 22; reserved "draft_claim_id";
   // Fresh CAS token for the operation's non-pawn target (e.g. RecoverService's
   // building), populated only by an unconstrained preview discovery read;
   // distinct from resulting_snapshot_token's post-effect pawn meaning.

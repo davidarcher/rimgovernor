@@ -42,30 +42,23 @@ func TestCombatFightEvidence(t *testing.T) {
 	if err != nil || !ok || !fight.Open || fight.Memory.Tactic != policy.TacticSquad {
 		t.Fatal(fight, ok, err)
 	}
-	if fight.World != world || len(fight.Claims) != 2 || fight.Claims["a"] != "" {
-		t.Fatal("roster claims", fight)
+	if fight.World != world || len(fight.Roster) != 2 || !fight.Roster["a"] {
+		t.Fatal("roster", fight)
 	}
-	// The admission batch's results (#910): a's claim learned, b refused.
-	if err = s.RecordCombatClaims(ctx, "fight", map[domain.PawnID]string{"a": "claim-a"}, []domain.PawnID{"b"}); err != nil {
+	// The admission batch's results (#910): b's draft refused.
+	if err = s.UpdateCombatRoster(ctx, "fight", nil, []domain.PawnID{"b"}); err != nil {
 		t.Fatal(err)
 	}
-	if held, err := s.HeldCombatFights(ctx); err != nil || !held["fight"].Open || held["fight"].Claims["a"] != "claim-a" || len(held["fight"].Claims) != 1 {
+	if held, err := s.OpenCombatFights(ctx); err != nil || !held["fight"].Open || !held["fight"].Roster["a"] || len(held["fight"].Roster) != 1 {
 		t.Fatal(held, err)
 	}
 	if err = s.CloseCombatFight(ctx, "fight"); err != nil {
 		t.Fatal(err)
 	}
-	// Closed, the fight is held until its last claim is released.
-	if held, err := s.HeldCombatFights(ctx); err != nil || held["fight"].Open || len(held["fight"].Claims) != 1 {
+	if held, err := s.OpenCombatFights(ctx); err != nil || len(held) != 0 {
 		t.Fatal(held, err)
 	}
-	if err = s.RecordCombatClaims(ctx, "fight", nil, []domain.PawnID{"a"}); err != nil {
-		t.Fatal(err)
-	}
-	if held, err := s.HeldCombatFights(ctx); err != nil || len(held) != 0 {
-		t.Fatal(held, err)
-	}
-	if err = s.RecordCombatClaims(ctx, "nofight", nil, nil); err == nil {
-		t.Fatal("claims recorded for a missing fight")
+	if err = s.UpdateCombatRoster(ctx, "nofight", nil, nil); err == nil {
+		t.Fatal("roster dropped for a missing fight")
 	}
 }

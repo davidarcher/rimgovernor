@@ -167,13 +167,7 @@ namespace HomeBridge.BridgeTools
                 {
                     FullMethodName = "rimgovernor.observations.v1.Observations/ListPawns",
                     Support = Lifecycle.CapabilitySupport.Supported,
-                    Detail = "Complete bounded map pawn census with exact filters. Available draft controllers expose draft-control CAS and causal claims; other entities, social and additional gear/animal details carry explicit issues."
-                });
-                loaded.Capabilities.Add(new Lifecycle.Capability
-                {
-                    FullMethodName = "rimgovernor.operations.v1.Operations/ReleaseOwnedDraft",
-                    Support = Lifecycle.CapabilitySupport.Supported,
-                    Detail = "Exact claim, original owner and unchanged pawn cleanup after revocation, independently of ordinary attempt capacity."
+                    Detail = "Complete bounded map pawn census with exact filters. Available draft controllers expose draft-control CAS; other entities, social and additional gear/animal details carry explicit issues."
                 });
                 return new Lifecycle.IdentityReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);

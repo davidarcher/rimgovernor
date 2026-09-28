@@ -69,7 +69,7 @@ func TestHoldTheLineActionKindsAreRoutineExecutable(t *testing.T) {
 	// The hold plan drafts, moves to the firing cell and then fires; the
 	// worker must be able to dispatch each kind or the plan sits pending
 	// forever (M4, #5; movement restored under #68).
-	for _, kind := range []domain.ActionKind{domain.OwnedDraftAction, domain.MovementAction, domain.RangedAttackAction} {
+	for _, kind := range []domain.ActionKind{domain.OwnedDraftAction, domain.MovementAction, domain.SubdueAction} {
 		if !routineExecutableKind(kind) {
 			t.Fatalf("%s is not routine-executable", kind)
 		}
@@ -94,8 +94,8 @@ func TestOrphanedDraftDependentsAfterDraftRelease(t *testing.T) {
 		draftAction, _ := domain.NewOwnedDraftAction(domain.ActionID("draft-"+pawn), draft)
 		move, _ := domain.NewMovement(pawn, domain.Cell{X: 1, Z: 1}, draftAction.ID())
 		moveAction, _ := domain.NewMovementAction(domain.ActionID("move-"+pawn), move)
-		attack, _ := domain.NewRangedAttack(pawn, "raider", draftAction.ID())
-		attackAction, _ := domain.NewRangedAttackAction(domain.ActionID("attack-"+pawn), attack)
+		attack, _ := domain.NewSubdue(pawn, "raider", draftAction.ID())
+		attackAction, _ := domain.NewSubdueAction(domain.ActionID("attack-"+pawn), attack)
 		actions = append(actions, draftAction, moveAction, attackAction)
 		deps = append(deps, domain.ActionDependency{Action: attackAction.ID(), Requires: moveAction.ID()})
 	}
@@ -113,27 +113,15 @@ func TestOrphanedDraftDependentsAfterDraftRelease(t *testing.T) {
 	if got := orphanedDraftDependents(state.Spec, state.Progress); len(got) != 0 {
 		t.Fatalf("intact drafts orphaned: %v", got)
 	}
-	// Pawn a: draft dispatched, claimed, then observed superseded (released).
+	// Pawn a: draft dispatched and refused.
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Plan: plan.ID(), Revision: 1, Native: 2}
-	admission := store.DraftAdmission{Snapshot: snapshot, Tick: 10, Pawn: "a", PawnSnapshotToken: "cas"}
-	if _, err = journal.PrepareDraft(ctx, plan.ID(), "draft-a", admission); err != nil {
+	if _, err = journal.Prepare(ctx, plan.ID(), "draft-a", snapshot, 10); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = journal.Dispatch(ctx, plan.ID(), "draft-a", snapshot, 10); err != nil {
 		t.Fatal(err)
 	}
-	session, _ := journal.Identity(ctx)
-	claim := domain.DraftClaim{Action: "draft-a", Attempt: 1, Pawn: "a", Claim: "claim", Session: domain.ControllerSessionID(session), Origin: snapshot}
-	if _, err = journal.RecordDraftReceipt(ctx, plan.ID(), "draft-a", 1, domain.ReceiptAccepted, domain.Known(claim)); err != nil {
-		t.Fatal(err)
-	}
-	observed := domain.Observation{Action: "draft-a", Attempt: 1, Snapshot: snapshot, Tick: 10, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}
-	if _, err = journal.ObserveDraft(ctx, plan.ID(), observed, snapshot, domain.Known(claim)); err != nil {
-		t.Fatal(err)
-	}
-	later := snapshot
-	later.Native++
-	if _, err = journal.ObserveDraftCleanup(ctx, plan.ID(), "draft-a", domain.DraftCleanupObservation{Claim: claim, Observed: later, Tick: 11, Outcome: domain.DraftReleaseSuperseded}); err != nil {
+	if _, err = journal.RecordReceipt(ctx, plan.ID(), "draft-a", 1, domain.ReceiptRefused); err != nil {
 		t.Fatal(err)
 	}
 	// Pawn b: draft intact, but its move was cancelled, so only the attack is orphaned.
@@ -232,8 +220,8 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 		for _, pawn := range []domain.PawnID{"a", "b"} {
 			draft, _ := domain.NewOwnedDraft(pawn)
 			draftAction, _ := domain.NewOwnedDraftAction(domain.ActionID("draft-"+string(pawn)+suffix), draft)
-			attack, _ := domain.NewRangedAttack(pawn, "raider", draftAction.ID())
-			attackAction, _ := domain.NewRangedAttackAction(domain.ActionID("attack-"+string(pawn)+suffix), attack)
+			attack, _ := domain.NewSubdue(pawn, "raider", draftAction.ID())
+			attackAction, _ := domain.NewSubdueAction(domain.ActionID("attack-"+string(pawn)+suffix), attack)
 			actions = append(actions, draftAction, attackAction)
 		}
 		return actions
@@ -245,31 +233,20 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 	if _, err = db.CommitIncidentMethod(ctx, goal.Incident, "squad-test", "", plan); err != nil {
 		t.Fatal(err)
 	}
-	// Pawn a's draft was issued, claimed and released again; pawn b's draft
-	// was prepared but the raid resolved before dispatch.
+	// Pawn a's draft was applied; pawn b's draft was prepared but the raid
+	// resolved before dispatch.
 	planSnapshot := snapshot
 	planSnapshot.Plan = plan.ID()
-	admission := store.DraftAdmission{Snapshot: planSnapshot, Tick: 7, Pawn: "a", PawnSnapshotToken: "cas"}
-	if _, err = db.PrepareDraft(ctx, plan.ID(), "draft-a", admission); err != nil {
+	if _, err = db.Prepare(ctx, plan.ID(), "draft-a", planSnapshot, 7); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = db.Dispatch(ctx, plan.ID(), "draft-a", planSnapshot, 7); err != nil {
 		t.Fatal(err)
 	}
-	controller, _ := db.Identity(ctx)
-	claim := domain.DraftClaim{Action: "draft-a", Attempt: 1, Pawn: "a", Claim: "claim", Session: domain.ControllerSessionID(controller), Origin: planSnapshot}
-	if _, err = db.RecordDraftReceipt(ctx, plan.ID(), "draft-a", 1, domain.ReceiptAccepted, domain.Known(claim)); err != nil {
+	if _, err = db.RecordReceipt(ctx, plan.ID(), "draft-a", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
-	observed := domain.Observation{Action: "draft-a", Attempt: 1, Snapshot: planSnapshot, Tick: 8, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}
-	if _, err = db.ObserveDraft(ctx, plan.ID(), observed, planSnapshot, domain.Known(claim)); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.ObserveDraftCleanup(ctx, plan.ID(), "draft-a", domain.DraftCleanupObservation{Claim: claim, Observed: planSnapshot, Tick: 9, Outcome: domain.DraftReleaseSuperseded}); err != nil {
-		t.Fatal(err)
-	}
-	admission.Pawn = "b"
-	if _, err = db.PrepareDraft(ctx, plan.ID(), "draft-b", admission); err != nil {
+	if _, err = db.Prepare(ctx, plan.ID(), "draft-b", planSnapshot, 7); err != nil {
 		t.Fatal(err)
 	}
 	first := goal.Incident

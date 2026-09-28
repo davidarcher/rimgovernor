@@ -136,8 +136,8 @@ func routineActionsSupported(spec domain.PlanSpec) error {
 	for _, action := range spec.Actions() {
 		switch action.Kind() {
 		case domain.BuildingAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction,
-			domain.ZoneCreateAction, domain.ProductionBillAction, domain.OwnedDraftAction, domain.MeleeAttackAction,
-			domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction, domain.HaulAction, domain.EquipAction,
+			domain.ZoneCreateAction, domain.ProductionBillAction, domain.OwnedDraftAction, domain.SubdueAction,
+			domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction, domain.HaulAction, domain.EquipAction,
 			domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction, domain.MovementAction, domain.HusbandryAction,
 			domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.OpenCasketAction,
 			domain.BuildingTemperatureAction, domain.BedUseAction, domain.GrowerCropAction, domain.ClaimBuildingAction, domain.ZoneDeleteAction, domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.BedAssignAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.ResearchSelectAction, domain.TradeAction, domain.DeconstructionAction, domain.CutPlantAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.FoundationRemovalAction, domain.HomeCoverageAction, domain.QuestAcceptAction, domain.WallRemovalAction, domain.CaravanDepartureAction:

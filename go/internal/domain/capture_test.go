@@ -20,7 +20,7 @@ func TestCaptureIntentAndClosedVariants(t *testing.T) {
 	if _, ok := action.Rescue(); ok {
 		t.Fatal("capture exposed rescue")
 	}
-	if _, ok := action.MeleeAttack(); ok {
+	if _, ok := action.Subdue(); ok {
 		t.Fatal("capture exposed melee")
 	}
 	if _, err := NewCaptureAction("capture", Capture{}); err == nil {
@@ -52,9 +52,6 @@ func TestCapturePlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 	progress, err := NewProgress(plan, "capture")
 	if err != nil || progress.Action() != action || progress.View().Stage != Pending || progress.View().Unresolved {
 		t.Fatal(progress, err)
-	}
-	if _, known := progress.View().DraftCleanup.Value(); known {
-		t.Fatal("capture fabricated draft ownership")
 	}
 }
 

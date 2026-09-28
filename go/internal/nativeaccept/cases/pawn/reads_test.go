@@ -22,29 +22,21 @@ func pawnContext() map[string]any {
 	return map[string]any{"identity": map[string]any{"colonyId": "c", "loadToken": "l", "mapId": 0.0}, "tick": "1", "nativeGeneration": "2"}
 }
 
-// controlledPawnRow is the controlled-snapshot
-// fixture: one drafted-or-unowned colonist with an exact CAS snapshot.
-func controlledPawnRow(context map[string]any, owned bool) map[string]any {
+// controlledPawnRow is one colonist with an exact CAS snapshot.
+func controlledPawnRow(context map[string]any, drafted bool) map[string]any {
 	ref := map[string]any{"context": copyAny(context), "entityId": "Thing_Human42", "token": "opaque-native-token"}
-	claim := map[string]any{"unowned": map[string]any{}}
-	if owned {
-		claim = map[string]any{"owned": map[string]any{
-			"claimId": "claim", "owner": map[string]any{"controllerSessionId": "original owner", "playerDirection": "3"},
-			"pawnSnapshot": copyAny(ref),
-		}}
-	}
 	return map[string]any{
 		"pawn":     map[string]any{"id": "Thing_Human42", "mapId": 0.0, "snapshot": ref},
-		"colonist": true, "dead": false, "animal": false, "drafted": owned,
-		"draftClaim": claim, "issues": []any{},
+		"colonist": true, "dead": false, "animal": false, "drafted": drafted,
+		"issues": []any{},
 	}
 }
 
 func TestDraftControlAcceptsLiveColonistExactSnapshot(t *testing.T) {
 	context := pawnContext()
-	for _, owned := range []bool{false, true} {
-		if err := draftControl(controlledPawnRow(context, owned), context); err != nil {
-			t.Fatalf("owned=%v: unexpected error: %v", owned, err)
+	for _, drafted := range []bool{false, true} {
+		if err := draftControl(controlledPawnRow(context, drafted), context); err != nil {
+			t.Fatalf("drafted=%v: unexpected error: %v", drafted, err)
 		}
 	}
 }
@@ -76,52 +68,23 @@ func TestDraftControlRejectsSnapshotDisappearingOrScopeChange(t *testing.T) {
 	}
 }
 
-func TestDraftControlOwnedClaimRequiresExactNativeBindingAndOriginalOwner(t *testing.T) {
-	for _, fault := range []string{"empty-id", "different-snapshot", "undrafted", "empty-owner", "two-variants"} {
-		t.Run(fault, func(t *testing.T) {
-			context := pawnContext()
-			row := controlledPawnRow(context, true)
-			draftClaim, _ := nativeaccept.AsMap(row["draftClaim"])
-			claim, _ := nativeaccept.AsMap(draftClaim["owned"])
-			switch fault {
-			case "empty-id":
-				claim["claimId"] = ""
-			case "different-snapshot":
-				pawnSnapshot, _ := nativeaccept.AsMap(claim["pawnSnapshot"])
-				pawnSnapshot["token"] = "other"
-			case "undrafted":
-				row["drafted"] = false
-			case "empty-owner":
-				owner, _ := nativeaccept.AsMap(claim["owner"])
-				owner["controllerSessionId"] = " "
-			default:
-				draftClaim["unowned"] = map[string]any{}
-			}
-			if err := draftControl(row, context); err == nil {
-				t.Fatalf("expected an error for fault %q", fault)
-			}
-		})
-	}
-}
-
-// animalPawnRow is the animal-snapshot fixture: a
-// dead, unspawned animal with an explicit unavailable draft claim and no snapshot.
-func animalPawnRow(context map[string]any) map[string]any {
+// animalPawnRow is a dead, unspawned animal with no snapshot and an
+// explicit pawn.snapshot issue.
+func animalPawnRow(context map[string]any, reason string) map[string]any {
 	row := controlledPawnRow(context, false)
 	pawn, _ := nativeaccept.AsMap(row["pawn"])
 	delete(pawn, "snapshot")
 	row["colonist"] = false
 	row["animal"] = true
 	row["dead"] = true
-	unavailable := map[string]any{"reason": "UNAVAILABLE_REASON_NOT_APPLICABLE", "detail": "No native draft controller"}
-	row["draftClaim"] = map[string]any{"unavailable": unavailable}
-	row["issues"] = []any{map[string]any{"field": "pawn.snapshot", "unavailable": copyAny(unavailable)}}
+	unavailable := map[string]any{"reason": reason, "detail": "Pawn is not spawned on the current map."}
+	row["issues"] = []any{map[string]any{"field": "pawn.snapshot", "unavailable": unavailable}}
 	return row
 }
 
 func TestDraftControlDeadUnspawnedAnimalHasExplicitUnavailability(t *testing.T) {
 	context := pawnContext()
-	if err := draftControl(animalPawnRow(context), context); err != nil {
+	if err := draftControl(animalPawnRow(context, "UNAVAILABLE_REASON_NOT_APPLICABLE"), context); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -130,15 +93,13 @@ func TestDraftControlUnavailabilityCannotMaskLiveColonistOrInventReason(t *testi
 	for _, fault := range []string{"snapshot-present", "legacy-unsupported", "missing-issue"} {
 		t.Run(fault, func(t *testing.T) {
 			context := pawnContext()
-			row := animalPawnRow(context)
+			row := animalPawnRow(context, "UNAVAILABLE_REASON_NOT_APPLICABLE")
 			switch fault {
 			case "snapshot-present":
 				pawn, _ := nativeaccept.AsMap(row["pawn"])
 				pawn["snapshot"] = map[string]any{}
 			case "legacy-unsupported":
-				draftClaim, _ := nativeaccept.AsMap(row["draftClaim"])
-				unavailable, _ := nativeaccept.AsMap(draftClaim["unavailable"])
-				unavailable["reason"] = "UNAVAILABLE_REASON_UNSUPPORTED"
+				row = animalPawnRow(context, "UNAVAILABLE_REASON_UNSUPPORTED")
 			default:
 				row["issues"] = []any{}
 			}
@@ -149,7 +110,7 @@ func TestDraftControlUnavailabilityCannotMaskLiveColonistOrInventReason(t *testi
 	}
 }
 
-func TestDraftControlReadableAnimalHasSameSnapshotAndUnownedClaim(t *testing.T) {
+func TestDraftControlReadableAnimalHasSameSnapshot(t *testing.T) {
 	context := pawnContext()
 	row := controlledPawnRow(context, false)
 	row["colonist"] = false
@@ -161,11 +122,8 @@ func TestDraftControlReadableAnimalHasSameSnapshotAndUnownedClaim(t *testing.T) 
 
 func TestDraftControlAliveAnimalMissingTrackerIsExplicitlyUnavailable(t *testing.T) {
 	context := pawnContext()
-	row := animalPawnRow(context)
+	row := animalPawnRow(context, "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING")
 	row["dead"] = false
-	unavailable := map[string]any{"reason": "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING", "detail": "Native job tracker missing"}
-	row["draftClaim"] = map[string]any{"unavailable": unavailable}
-	row["issues"] = []any{map[string]any{"field": "pawn.snapshot", "unavailable": copyAny(unavailable)}}
 	if err := draftControl(row, context); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -173,7 +131,7 @@ func TestDraftControlAliveAnimalMissingTrackerIsExplicitlyUnavailable(t *testing
 
 func TestDraftControlLiveCurrentMapAnimalIsNotBlanketNotApplicable(t *testing.T) {
 	context := pawnContext()
-	row := animalPawnRow(context)
+	row := animalPawnRow(context, "UNAVAILABLE_REASON_NOT_APPLICABLE")
 	row["dead"] = false
 	if err := draftControl(row, context); err == nil {
 		t.Fatal("expected an error: a live current-map animal cannot use NOT_APPLICABLE without a component-missing tracker reason")

@@ -82,7 +82,7 @@ type ResetState struct {
 	Tick            float64
 	Paused          bool
 	AuthorityActive bool
-	OwnedDrafts     int
+	Drafted         int
 	Stock           map[string]StockCounts
 }
 
@@ -104,8 +104,8 @@ func CheckReset(now ResetState, baseline *ResetState, tokens map[string]string) 
 	if now.AuthorityActive {
 		problems = append(problems, "authority is still active after the reload")
 	}
-	if now.OwnedDrafts > 0 {
-		problems = append(problems, fmt.Sprintf("%d owned draft claim(s) survive the reload", now.OwnedDrafts))
+	if now.Drafted > 0 {
+		problems = append(problems, fmt.Sprintf("%d drafted colonist(s) survive the reload", now.Drafted))
 	}
 	// ColonyID is deliberately not compared: a fixture save never written by
 	// the mod has no persisted colony id, so each load mints a new one.
@@ -319,8 +319,8 @@ func (g *GameReuse) EndCase(ctx context.Context, c *ReuseCase, failed bool) erro
 	if state.AuthorityActive {
 		problems = append(problems, "authority left active")
 	}
-	if state.OwnedDrafts > 0 {
-		problems = append(problems, fmt.Sprintf("%d owned draft claim(s) left behind", state.OwnedDrafts))
+	if state.Drafted > 0 {
+		problems = append(problems, fmt.Sprintf("%d drafted colonist(s) left behind", state.Drafted))
 	}
 	if len(problems) > 0 {
 		c.row["quiescence_violation"] = strings.Join(problems, "; ")
@@ -455,9 +455,8 @@ func ObserveReset(ctx context.Context, h *Harness, label string) (ResetState, ma
 	}
 	for _, v := range AsSlice(pawns["pawns"]) {
 		row, _ := AsMap(v)
-		claim, _ := AsMap(row["draftClaim"])
-		if _, owned := claim["owned"]; owned {
-			state.OwnedDrafts++
+		if drafted, _ := AsBool(row["drafted"]); drafted {
+			state.Drafted++
 		}
 	}
 

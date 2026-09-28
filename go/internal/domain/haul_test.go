@@ -57,9 +57,6 @@ func TestHaulPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 	if err != nil || progress.Action() != action || progress.View().Stage != Pending || progress.View().Unresolved {
 		t.Fatal(progress, err)
 	}
-	if _, known := progress.View().DraftCleanup.Value(); known {
-		t.Fatal("haul fabricated draft ownership")
-	}
 }
 
 func TestHaulHandlerCoverageIsRequired(t *testing.T) {

@@ -47,34 +47,16 @@ func runHoldFire(ctx context.Context, s cases.Session) error {
 	if len(colonists) < 2 || len(hostiles) < 2 {
 		return fmt.Errorf("staged %d colonists and %d hostiles", len(colonists), len(hostiles))
 	}
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "combat-holdfire-acquire", identity)
+	_, err = na.GrantAuto(ctx, h.WireFunc(), "combat-holdfire-acquire", identity)
 	if err != nil {
 		return err
 	}
 	held, shooter := colonists[0], colonists[1]
-	for i, id := range []string{held, shooter} {
-		reply, err := h.Wire(ctx, fmt.Sprintf("read-%d", i), "observations_list_pawns", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"ids": []any{id}},
-		})
-		if err != nil {
-			return err
-		}
-		row, err := na.PawnRow(reply, identity, id)
-		if err != nil {
-			return err
-		}
-		drafted, err := h.Wire(ctx, fmt.Sprintf("draft-%d", i), "operations_execute", na.ExecuteRequest(identity, grant, row, 861+i))
-		if err != nil {
-			return err
-		}
-		if _, receipt, err := na.Outcome(drafted, "receipt"); err != nil {
-			return fmt.Errorf("draft %s: %w", id, err)
-		} else if _, ok := na.AsMap(receipt["applied"]); !ok {
-			return fmt.Errorf("draft %s not applied: %v", id, receipt)
-		}
+	if err := draftAll(ctx, h, identity, "draft", []string{held, shooter}); err != nil {
+		return err
 	}
 	pawn := func(id string) map[string]any { return map[string]any{"entityId": id} }
-	results, err := issue(ctx, h, identity, grant, "combat-holdfire-1", []any{
+	results, err := issue(ctx, h, identity, "combat-holdfire-1", []any{
 		map[string]any{"pawn": pawn(held), "stop": map[string]any{}},
 		map[string]any{"pawn": pawn(held), "fireMode": "COMBAT_FIRE_MODE_HOLD"},
 		map[string]any{"pawn": pawn(shooter), "attack": pawn(hostiles[1])},
@@ -96,7 +78,7 @@ func runHoldFire(ctx context.Context, s cases.Session) error {
 	if shots[held] != 0 {
 		return fmt.Errorf("held rifleman fired %d shots under hold fire: %v", shots[held], shots)
 	}
-	results, err = issue(ctx, h, identity, grant, "combat-holdfire-2", []any{
+	results, err = issue(ctx, h, identity, "combat-holdfire-2", []any{
 		map[string]any{"pawn": pawn(held), "fireMode": "COMBAT_FIRE_MODE_AT_WILL"},
 	})
 	if err != nil {

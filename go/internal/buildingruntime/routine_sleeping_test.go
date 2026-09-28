@@ -277,57 +277,6 @@ func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	}
 }
 
-func TestRoutineReviewDerivesCleanupFromSharedDraftJournal(t *testing.T) {
-	t.Parallel()
-	r, db, session, _, _ := routineFixture(t)
-	draft, err := domain.NewOwnedDraft("pawn")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, err := domain.NewOwnedDraftAction("cleanup-a", draft)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, err := domain.NewPlan("cleanup", 1, []domain.Action{a})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreatePlan(context.Background(), p); err != nil {
-		t.Fatal(err)
-	}
-	check := func(want domain.NeedState) {
-		t.Helper()
-		result, err := r.Step(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
-		// RestoreWorkers is an incident (#1078): a recovered need with no
-		// open work has no open occurrence.
-		b, ok := result.Review.Incident(policy.RestoreWorkers)
-		if !ok && want == domain.NeedRecovered {
-			return
-		}
-		if !ok || b.Need != want {
-			t.Fatal("cleanup need", b, ok, want)
-		}
-	}
-	check(domain.NeedRecovered)
-	snapshot := session.State().Snapshot
-	snapshot.Plan = p.ID()
-	snapshot.Revision = 1
-	if _, err = db.PrepareDraft(context.Background(), p.ID(), a.ID(), store.DraftAdmission{Snapshot: snapshot, Tick: 7, Pawn: "pawn", PawnSnapshotToken: "cas"}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Dispatch(context.Background(), p.ID(), a.ID(), snapshot, 7); err != nil {
-		t.Fatal(err)
-	}
-	check(domain.NeedDeficit)
-	if _, err = db.RecordDraftReceipt(context.Background(), p.ID(), a.ID(), 1, domain.ReceiptRefused, domain.Unknown[domain.DraftClaim]()); err != nil {
-		t.Fatal(err)
-	}
-	check(domain.NeedRecovered)
-}
-
 func TestRoutineSleepingManualCancelsBlockedPreview(t *testing.T) {
 	t.Parallel()
 	r, db, session, request, n := sleepingFixture(t)

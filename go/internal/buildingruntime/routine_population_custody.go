@@ -143,6 +143,10 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	if len(observed.Pawns) != len(ids) {
 		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
+	needed, err := plannedDrafts(call, p.journal)
+	if err != nil {
+		return RoutinePopulationCustodyResult{}, err
+	}
 	var squad []policy.ShrineDefenderFacts
 	var performers []policy.RescuerFacts
 	var profiles []policy.PawnProfile
@@ -158,7 +162,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			patient = row
 			continue
 		}
-		squad = append(squad, policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row)})
+		squad = append(squad, policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row, needed)})
 		performers = append(performers, rescue.NewRescuerFacts(pawn, row, ""))
 		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
 	}

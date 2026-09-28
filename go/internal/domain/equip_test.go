@@ -57,9 +57,6 @@ func TestEquipPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 	if err != nil || progress.Action() != action || progress.View().Stage != Pending || progress.View().Unresolved {
 		t.Fatal(progress, err)
 	}
-	if _, known := progress.View().DraftCleanup.Value(); known {
-		t.Fatal("equip fabricated draft ownership")
-	}
 }
 
 func TestEquipHandlerCoverageIsRequired(t *testing.T) {

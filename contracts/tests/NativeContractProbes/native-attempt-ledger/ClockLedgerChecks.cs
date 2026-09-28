@@ -29,7 +29,7 @@ internal static class ClockLedgerChecks
         { Authority = Pre(id), Speed = Clock.Speed.Normal, LeaseMs = 1000, MaxTicks = 100, Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0 } };
     private static Clock.Status Status() => new Clock.Status { Context = Context(), NeverStarted = new Clock.NeverStarted(), ActualPaused = true };
     private static Operations.ExecuteRequest Operation(ulong id = 1) => new Operations.ExecuteRequest
-        { Precondition = Pre(id), Operation = new Operations.Operation { SetDrafted = new Operations.SetDrafted() } };
+        { Precondition = Pre(id), Operation = new Operations.Operation { CancelAcquisition = new Operations.CancelAcquisition() } };
     internal static int Run()
     {
         var ledger = new NativeAttemptLedger(Identity());

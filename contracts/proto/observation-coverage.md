@@ -301,7 +301,6 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |
 | SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.snapshot; trader and negotiator from ReadTradeSession |
 | SetTradeLines.line_id | ReadTradeSheet.lines.line_id, scoped to frozen sheet; not an inferred DefName/index |
-| ReleaseOwnedDraft | ListPawns.draft_claim.owned claim_id/Owner and pawn_snapshot; known unowned differs from unavailable |
 
 PlaceBuilding uses its placement preview and write authority precondition; it has
 no separate EntityPrecondition. Preview preparation return-storage/catalog tokens

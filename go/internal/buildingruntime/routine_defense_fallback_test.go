@@ -125,8 +125,8 @@ func crossedHoldFight(t *testing.T) {
 	if orders := batchOrders(native.orders.batches[0]); orders["a"] != "move 9,23" || orders["b"] != "move 8,23" {
 		t.Fatal(orders)
 	}
-	if fight, _, _ = db.LoadCombatFight(ctx, plan); fight.Claims["a"] != "claim-a" || fight.Claims["b"] != "claim-b" {
-		t.Fatal("the fight holds no claims", fight.Claims)
+	if fight, _, _ = db.LoadCombatFight(ctx, plan); !fight.Roster["a"] || !fight.Roster["b"] {
+		t.Fatal("the fight rosters no drafts", fight.Roster)
 	}
 	// Nothing changed: no orders, no evidence.
 	native.raider = domain.Cell{X: 9, Z: 21}
@@ -160,8 +160,8 @@ func crossedHoldFight(t *testing.T) {
 	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodNoDeficit {
 		t.Fatal(got, err)
 	}
-	if fight, _, _ = db.LoadCombatFight(ctx, plan); fight.Open || len(fight.Claims) != 2 {
-		t.Fatal("the fight stayed open after recovery, or dropped its claims unreleased", fight)
+	if fight, _, _ = db.LoadCombatFight(ctx, plan); fight.Open || len(fight.Roster) != 2 {
+		t.Fatal("the fight stayed open after recovery, or dropped its roster", fight)
 	}
 }
 

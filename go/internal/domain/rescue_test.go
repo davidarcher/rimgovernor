@@ -20,7 +20,7 @@ func TestRescueIntentAndClosedVariants(t *testing.T) {
 	if _, ok := action.Tend(); ok {
 		t.Fatal("rescue exposed tend")
 	}
-	if _, ok := action.MeleeAttack(); ok {
+	if _, ok := action.Subdue(); ok {
 		t.Fatal("rescue exposed melee")
 	}
 	if _, err := NewRescueAction("rescue", Rescue{}); err == nil {
@@ -52,9 +52,6 @@ func TestRescuePlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 	progress, err := NewProgress(plan, "rescue")
 	if err != nil || progress.Action() != action || progress.View().Stage != Pending || progress.View().Unresolved {
 		t.Fatal(progress, err)
-	}
-	if _, known := progress.View().DraftCleanup.Value(); known {
-		t.Fatal("rescue fabricated draft ownership")
 	}
 }
 

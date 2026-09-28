@@ -17,7 +17,7 @@ const defenseWaitTier policy.DefenseTierName = "wait"
 // defenseWaitingFight is the memory of this world's open fight while it
 // waits behind its rooms' doors (#1065), nil otherwise.
 func defenseWaitingFight(ctx context.Context, journal *store.Store, world store.World) (*policy.CombatMemory, error) {
-	fights, err := journal.HeldCombatFights(ctx)
+	fights, err := journal.OpenCombatFights(ctx)
 	if err != nil {
 		return nil, err
 	}

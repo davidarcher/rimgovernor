@@ -44,8 +44,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z,rotation,stuff) VALUES(?,?,?,'building',?,?,?,?,?)", a.ID(), plan, ordinal, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff())
 	} else if d, ok := a.OwnedDraft(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn) VALUES(?,?,?,'owned_draft',?)", a.ID(), plan, ordinal, d.Pawn())
-	} else if m, ok := a.MeleeAttack(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action,definition) VALUES(?,?,?,'melee_attack',?,?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction(), subdueMarker(m))
+	} else if m, ok := a.Subdue(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'subdue',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
 	} else if work, ok := a.WorkAssignment(); ok {
 		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings(), work.HasArea(), work.AreaClear(), work.Area(), work.Schedule(), work.FoodAllow(), work.MedicalCare(), work.DrugPolicy()})
 		if encodeErr != nil {
@@ -82,8 +82,6 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 	} else if use, ok := a.UseItem(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'use_item',?,?,?)", a.ID(), plan, ordinal, use.Pawn(), use.Target(), use.Item())
-	} else if ranged, ok := a.RangedAttack(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'ranged_attack',?,?,?)", a.ID(), plan, ordinal, ranged.Pawn(), ranged.Target(), ranged.DraftAction())
 	} else if mv, ok := a.Movement(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,x,z,draft_action) VALUES(?,?,?,'movement',?,?,?,?)", a.ID(), plan, ordinal, mv.Pawn(), mv.Destination().X, mv.Destination().Z, mv.DraftAction())
 	} else if haul, ok := a.Haul(); ok {
@@ -565,18 +563,12 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewSupplyAllowAction(id, s)
 		return a, ordinal, err
 	}
-	if kind == "melee_attack" && pawn.Valid && target.Valid && draftAction.Valid && (!def.Valid || def.String == "subdue") && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
-		m, err := domain.NewMeleeAttack(domain.PawnID(pawn.String), domain.PawnID(target.String), domain.ActionID(draftAction.String))
+	if kind == "subdue" && pawn.Valid && target.Valid && draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		m, err := domain.NewSubdue(domain.PawnID(pawn.String), domain.PawnID(target.String), domain.ActionID(draftAction.String))
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
-		if def.Valid {
-			m, err = domain.NewSubdue(domain.PawnID(pawn.String), domain.PawnID(target.String), domain.ActionID(draftAction.String))
-		}
-		if err != nil {
-			return domain.Action{}, 0, err
-		}
-		a, err := domain.NewMeleeAttackAction(id, m)
+		a, err := domain.NewSubdueAction(id, m)
 		return a, ordinal, err
 	}
 	if kind == "tend" && pawn.Valid && target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
@@ -612,14 +604,6 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewUseItemAction(id, u)
-		return a, ordinal, err
-	}
-	if kind == "ranged_attack" && pawn.Valid && target.Valid && draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
-		m, err := domain.NewRangedAttack(domain.PawnID(pawn.String), domain.PawnID(target.String), domain.ActionID(draftAction.String))
-		if err != nil {
-			return domain.Action{}, 0, err
-		}
-		a, err := domain.NewRangedAttackAction(id, m)
 		return a, ordinal, err
 	}
 	if kind == "movement" && pawn.Valid && !target.Valid && x.Valid && z.Valid && draftAction.Valid && !def.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
@@ -932,10 +916,6 @@ type tradePayload struct {
 }
 type moodReliefPayload struct {
 	Need domain.MoodReliefNeed
-}
-
-func subdueMarker(m domain.MeleeAttack) sql.NullString {
-	return sql.NullString{String: "subdue", Valid: m.Subdue()}
 }
 
 // bedPrisonersUse is a bed_medical row's definition for a bed set for

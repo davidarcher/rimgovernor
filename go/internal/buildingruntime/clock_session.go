@@ -55,26 +55,22 @@ func requireNoClockObligations(ctx context.Context, journal *store.Store) error 
 	return nil
 }
 
-// cleanup joins the owed clock commands and releases every owned draft: an
-// explicit Manual, a checkpoint save and shutdown hand the pawns back.
-func (s *sessionSink) cleanup(ctx context.Context) error { return s.drain(ctx, false) }
+// cleanup joins the owed clock commands: an explicit Manual, a checkpoint
+// save and shutdown. Drafted pawns stay drafted; with authority inactive
+// the game's own auto-undraft applies again (#939).
+func (s *sessionSink) cleanup(ctx context.Context) error { return s.drain(ctx) }
 
-// resume is cleanup before a resume in the same world: the drafts a plan
-// still holds stay owned (draftSweep.run).
-func (s *sessionSink) resume(ctx context.Context) error { return s.drain(ctx, true) }
+// resume is cleanup before a resume in the same world.
+func (s *sessionSink) resume(ctx context.Context) error { return s.drain(ctx) }
 
-func (s *sessionSink) drain(ctx context.Context, retainHeld bool) error {
+func (s *sessionSink) drain(ctx context.Context) error {
 	s.mu.Lock()
-	drafts, clock := s.drafts, s.clock
+	clock := s.clock
 	s.mu.Unlock()
-	var err error
 	if clock != nil {
-		err = clock.Cleanup(ctx)
+		return clock.Cleanup(ctx)
 	}
-	if drafts != nil {
-		err = errors.Join(err, drafts.run(ctx, retainHeld))
-	}
-	return err
+	return nil
 }
 
 // CommandClock belongs to explicit trusted player composition. Current shared

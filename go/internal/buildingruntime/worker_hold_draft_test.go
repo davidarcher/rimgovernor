@@ -46,12 +46,7 @@ func TestWorkerPlanHoldsDraftPerDefender(t *testing.T) {
 		if p, err = p.MarkDispatched(s, 10); err != nil {
 			t.Fatal(err)
 		}
-		draft, _ := a.OwnedDraft()
-		claim := domain.DraftClaim{Action: a.ID(), Attempt: 1, Pawn: draft.Pawn(), Claim: "claim", Session: "session", Origin: s}
-		if p, err = p.RecordDraftReceipt(1, domain.ReceiptAccepted, domain.Known(claim)); err != nil {
-			t.Fatal(err)
-		}
-		if p, err = p.ObserveDraft(domain.Observation{Action: a.ID(), Attempt: 1, Snapshot: s, Tick: 11, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, s, domain.Known(claim)); err != nil {
+		if p, err = p.RecordReceipt(1, domain.ReceiptAccepted); err != nil {
 			t.Fatal(err)
 		}
 		return p
@@ -72,28 +67,6 @@ func TestWorkerPlanHoldsDraftPerDefender(t *testing.T) {
 	}
 	if !workerPlanHoldsDraft(state, pdB.View()) {
 		t.Fatal("another defender's cancelled move released this draft")
-	}
-	// A draft still awaiting its observation when the hold lands (the
-	// second defender in turrets6) is held too: the resume sweep must not
-	// release a claim the executor is about to observe complete.
-	inflight, _ := domain.NewProgress(plan, dB.ID())
-	if inflight, err = inflight.Prepare(s, 10); err != nil {
-		t.Fatal(err)
-	}
-	if inflight, err = inflight.MarkDispatched(s, 10); err != nil {
-		t.Fatal(err)
-	}
-	draftB, _ := dB.OwnedDraft()
-	claimB := domain.DraftClaim{Action: dB.ID(), Attempt: 1, Pawn: draftB.Pawn(), Claim: "claim-b", Session: "session", Origin: s}
-	if inflight, err = inflight.RecordDraftReceipt(1, domain.ReceiptAccepted, domain.Known(claimB)); err != nil {
-		t.Fatal(err)
-	}
-	if inflight.View().Stage != domain.AwaitingObservation {
-		t.Fatal(inflight.View().Stage)
-	}
-	state.Progress = []domain.Progress{pdA, pmA, inflight, pmB}
-	if !workerPlanHoldsDraft(state, inflight.View()) {
-		t.Fatal("an in-flight draft is not held")
 	}
 	// A move's applied receipt is terminal: once a recovered goal cancelled
 	// defender A's move the plan is settled, and B's draft is released

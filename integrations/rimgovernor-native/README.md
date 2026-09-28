@@ -57,7 +57,7 @@ blueprint, frame or instant building. Pawn completion requires a separate progre
 read following the exact native object transitions. Lost transition evidence
 remains unknown. New loads start without authority or attempt history.
 
-Movement and combat require an existing canonical owned draft and exact pawn
+Movement and combat require a drafted pawn (the draft intent, #939) and exact pawn
 snapshots. Animals without draft controllers have target snapshots but cannot be
 drafted. Movement completion follows the issued job to its exact destination.
 Melee completion requires native positive damage from that exact attack to cause

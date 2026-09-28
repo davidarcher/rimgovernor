@@ -1870,7 +1870,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		if _, ok := p.Action().Building(); !ok {
 			switch p.Action().Kind() {
 			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
-				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
+				domain.SubdueAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
 				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.CutPlantAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
@@ -1894,7 +1894,7 @@ func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current
 	if !review.Enabled || review.Snapshot != current {
 		return false, false, nil
 	}
-	fights, err := journal.HeldCombatFights(ctx)
+	fights, err := journal.OpenCombatFights(ctx)
 	if err != nil {
 		return false, false, err
 	}

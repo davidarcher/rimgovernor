@@ -197,7 +197,11 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	held = RoutineShrineResult{Reason: BuildingMethodHeld}
 	opens := policy.ShrineOpenTargets(candidates, opening)
 	if len(opens) > 0 {
-		squad, err := shrineSquad(call, r.native, boundary.Identity(state.Snapshot), nil)
+		needed, err := plannedDrafts(call, p.journal)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		squad, err := shrineSquad(call, r.native, boundary.Identity(state.Snapshot), nil, needed)
 		if err != nil {
 			return RoutineShrineResult{}, err
 		}

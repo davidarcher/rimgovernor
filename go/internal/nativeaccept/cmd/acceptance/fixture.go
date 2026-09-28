@@ -129,7 +129,7 @@ type fixtureCensus struct {
 	Tick            float64                   `json:"tick"`
 	Paused          bool                      `json:"paused"`
 	AuthorityActive bool                      `json:"authorityActive"`
-	OwnedDrafts     int                       `json:"ownedDrafts"`
+	Drafted         int                       `json:"drafted"`
 	Stock           map[string]na.StockCounts `json:"stock"`
 }
 
@@ -210,7 +210,7 @@ func executeFixture(ctx context.Context, o fixtureOptions, result *fixtureResult
 		return fmt.Errorf("census: %w", err)
 	}
 	result.Census = &fixtureCensus{ColonyID: state.ColonyID, LoadToken: state.LoadToken, Tick: state.Tick, Paused: state.Paused,
-		AuthorityActive: state.AuthorityActive, OwnedDrafts: state.OwnedDrafts, Stock: state.Stock}
+		AuthorityActive: state.AuthorityActive, Drafted: state.Drafted, Stock: state.Stock}
 	report["census"] = result.Census
 	report["passed"] = result.Success
 	return nil
@@ -241,7 +241,7 @@ func printFixture(w io.Writer, asJSON bool, r fixtureResult) {
 		fmt.Fprintf(w, "response:\n%s\n", string(data))
 	}
 	if c := r.Census; c != nil {
-		fmt.Fprintf(w, "census: tick=%.0f paused=%t authority=%t ownedDrafts=%d loadToken=%s\n", c.Tick, c.Paused, c.AuthorityActive, c.OwnedDrafts, c.LoadToken)
+		fmt.Fprintf(w, "census: tick=%.0f paused=%t authority=%t drafted=%d loadToken=%s\n", c.Tick, c.Paused, c.AuthorityActive, c.Drafted, c.LoadToken)
 		names := make([]string, 0, len(c.Stock))
 		for name, counts := range c.Stock {
 			if counts.Units != 0 {

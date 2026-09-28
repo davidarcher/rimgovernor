@@ -48,7 +48,7 @@ func TestCheckResetRejectsEveryViolation(t *testing.T) {
 		"missing colony id or load token":  func(s *ResetState) { s.LoadToken = "" },
 		"not paused":                       func(s *ResetState) { s.Paused = false },
 		"authority is still active":        func(s *ResetState) { s.AuthorityActive = true },
-		"owned draft claim(s) survive":     func(s *ResetState) { s.OwnedDrafts = 1 },
+		"drafted colonist(s) survive":      func(s *ResetState) { s.Drafted = 1 },
 		"differs from the baseline tick":   func(s *ResetState) { s.Tick = 11 },
 		"stock differs":                    func(s *ResetState) { s.Stock["WoodLog"] = StockCounts{Units: 300, Forbidden: 5} },
 		"baseline: Steel":                  func(s *ResetState) { delete(s.Stock, "Steel") },

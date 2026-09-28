@@ -15,7 +15,7 @@ var Owner = map[string]any{"controllerSessionId": Controller}
 
 // PawnRow asserts an observations_list_pawns reply is a single complete, exact-match
 // page whose context matches identity, extracts the row for pawnID (the first
-// row when pawnID is empty) and validates its snapshot/draftClaim invariants.
+// row when pawnID is empty) and validates its snapshot invariants.
 func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[string]any, error) {
 	_, observed, err := Outcome(reply, "observed")
 	if err != nil {
@@ -58,20 +58,6 @@ func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[
 	if _, ok := row["drafted"].(bool); !ok {
 		return nil, fmt.Errorf("pawn row drafted must be an explicit boolean")
 	}
-	claim, _ := AsMap(row["draftClaim"])
-	if len(claim) != 1 {
-		return nil, fmt.Errorf("draftClaim must have exactly one case: %#v", claim)
-	}
-	if owned, ok := AsMap(claim["owned"]); ok {
-		if !DeepEqual(owned["pawnSnapshot"], snapshot) {
-			return nil, fmt.Errorf("owned draft claim's pawnSnapshot does not match the row's snapshot")
-		}
-		if AsString(owned["claimId"]) == "" {
-			return nil, fmt.Errorf("owned draft claim missing claimId")
-		}
-	} else if _, ok := claim["unowned"]; !ok {
-		return nil, fmt.Errorf("draftClaim is neither owned nor unowned: %#v", claim)
-	}
 	return row, nil
 }
 
@@ -82,44 +68,8 @@ func Target(row map[string]any) map[string]any {
 	return map[string]any{"entityId": pawn["id"], "expectedSnapshotToken": snapshot["token"]}
 }
 
-// ExecuteRequest builds an operations_execute setDrafted request at grant's
-// native generation (grant is an authority_control "granted" body). Callers
-// overwrite ["operation"] for non-draft operations (attack, movement), building
-// on this shared precondition/attempt shape.
-func ExecuteRequest(identity, grant, row map[string]any, number int) map[string]any {
-	context, _ := AsMap(grant["context"])
-	return map[string]any{
-		"precondition": map[string]any{
-			"identity":           identity,
-			"expectedGeneration": context["nativeGeneration"],
-			"attempt": map[string]any{
-				"controllerSessionId": Controller,
-				"actionId":            fmt.Sprintf("draft-%d", number),
-				"attemptId":           "1",
-			},
-		},
-		"operation": map[string]any{"setDrafted": map[string]any{
-			"pawn": Target(row), "drafted": true, "allowPersistentDraft": false,
-		}},
-	}
-}
-
-// ReleaseRequest builds an operations_release_owned_draft request for row's current
-// owned claim. A claim's existence is the ownership proof (there is only one bot
-// process); no owner token is carried since #52.
-func ReleaseRequest(identity, row map[string]any) (map[string]any, error) {
-	draftClaim, _ := AsMap(row["draftClaim"])
-	claim, ok := AsMap(draftClaim["owned"])
-	if !ok {
-		return nil, fmt.Errorf("release_request requires an owned draft claim, found %#v", draftClaim)
-	}
-	return map[string]any{
-		"identity": identity, "pawn": Target(row), "expectedClaimId": claim["claimId"],
-	}, nil
-}
-
 // SameControl asserts before and after describe the same draft control state
-// (drafted flag, target/snapshot token, and full draftClaim).
+// (drafted flag and target/snapshot token).
 func SameControl(before, after map[string]any) error {
 	beforeDrafted, _ := before["drafted"].(bool)
 	afterDrafted, _ := after["drafted"].(bool)
@@ -128,9 +78,6 @@ func SameControl(before, after map[string]any) error {
 	}
 	if !DeepEqual(Target(before), Target(after)) {
 		return fmt.Errorf("pawn target/snapshot token changed unexpectedly")
-	}
-	if !DeepEqual(before["draftClaim"], after["draftClaim"]) {
-		return fmt.Errorf("draftClaim changed unexpectedly")
 	}
 	return nil
 }
@@ -164,41 +111,6 @@ func ActualOrder(external, row map[string]any) error {
 	}
 	if AsString(job["defName"]) != AsString(external["jobDef"]) {
 		return fmt.Errorf("job.defName does not match the external order's jobDef")
-	}
-	return nil
-}
-
-// OwnedEffect asserts an operations_execute receipt's named case (default "applied")
-// describes row's own owned draft claim being set with the given issued value.
-func OwnedEffect(receipt, row map[string]any, caseName string, issued bool) error {
-	if caseName == "" {
-		caseName = "applied"
-	}
-	caseValue, _ := AsMap(receipt[caseName])
-	observed, _ := AsMap(caseValue["observed"])
-	effect, _ := AsMap(observed["job"])
-	draftClaim, _ := AsMap(row["draftClaim"])
-	claim, _ := AsMap(draftClaim["owned"])
-	drafted, _ := row["drafted"].(bool)
-	if !drafted || claim == nil {
-		return fmt.Errorf("row is not owned-drafted")
-	}
-	pawn, _ := AsMap(row["pawn"])
-	if AsString(effect["pawnId"]) != AsString(pawn["id"]) {
-		return fmt.Errorf("effect pawnId does not match row")
-	}
-	effectDrafted, _ := effect["drafted"].(bool)
-	effectVerified, _ := effect["verified"].(bool)
-	effectIssued, _ := effect["issued"].(bool)
-	if !effectDrafted || !effectVerified || effectIssued != issued {
-		return fmt.Errorf("effect drafted/verified/issued mismatch: %#v", effect)
-	}
-	if AsString(effect["draftClaimId"]) != AsString(claim["claimId"]) {
-		return fmt.Errorf("effect draftClaimId does not match row's owned claim")
-	}
-	target := Target(row)
-	if AsString(effect["resultingSnapshotToken"]) != AsString(target["expectedSnapshotToken"]) {
-		return fmt.Errorf("effect resultingSnapshotToken does not match row's current snapshot")
 	}
 	return nil
 }

@@ -18,12 +18,11 @@ const CombatEvidenceStops = 32
 
 // A combat fight is the one ActiveCombat plan that owns a whole fight
 // (#852). Its plan has no actions: the defenders are drafted by draft
-// orders in the fight's first combat.orders batch (#910) and every later
+// orders in the fight's first combat_orders batch (#910) and every later
 // stop's orders go out the same way, recorded here as the plan's evidence,
-// the single record of combat orders. The fight row owns the draft claims
-// those orders made: held while the fight is open, released by the
-// controller once it closes (buildingruntime's fight release). A fight
-// that is open or still holds a claim is its goal's open work.
+// the single record of combat orders. The fight's roster is the pawns it
+// drafted: while the fight is open the undraft sweep leaves them drafted
+// (#939). An open fight is its goal's open work.
 
 // CombatOrderRecord is one order of a stop and its native outcome.
 type CombatOrderRecord struct {
@@ -39,34 +38,29 @@ type CombatStopRecord struct {
 	Orders []CombatOrderRecord
 }
 
-// CombatFight is a fight's state: open while its drafts are held, the
-// DecideCombat memory after its latest stop, and the draft claims it owns
-// in World. A claim id is empty while the admission batch that drafted the
-// pawn is uncertain: the pawn's claim row settles it.
+// CombatFight is a fight's state: open while it runs, the DecideCombat
+// memory after its latest stop, and the roster of pawns it drafted in
+// World.
 type CombatFight struct {
 	Open   bool
 	Memory policy.CombatMemory
 	World  World
-	Claims map[domain.PawnID]string
+	Roster map[domain.PawnID]bool
 }
 
-// Holds reports whether the fight is still its goal's open work: open, or
-// holding a claim not yet released.
-func (f CombatFight) Holds() bool { return f.Open || len(f.Claims) > 0 }
-
-type combatClaims struct {
+type combatRoster struct {
 	World  World
-	Claims map[domain.PawnID]string
+	Roster []domain.PawnID
 }
 
 func initializeCombatFights(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `CREATE TABLE combat_fights(plan_id TEXT PRIMARY KEY REFERENCES plans(id), open INTEGER NOT NULL CHECK(open IN (0,1)), memory BLOB NOT NULL, claims BLOB NOT NULL) STRICT;
+	_, err := tx.ExecContext(ctx, `CREATE TABLE combat_fights(plan_id TEXT PRIMARY KEY REFERENCES plans(id), open INTEGER NOT NULL CHECK(open IN (0,1)), memory BLOB NOT NULL, roster BLOB NOT NULL) STRICT;
 CREATE TABLE combat_evidence(plan_id TEXT NOT NULL REFERENCES combat_fights(plan_id), sequence INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), payload BLOB NOT NULL, PRIMARY KEY(plan_id,sequence)) STRICT;`)
 	return err
 }
 
 func checkCombatFightsSchema(ctx context.Context, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, "SELECT plan_id,open,memory,claims FROM combat_fights LIMIT 0"); err != nil {
+	if _, err := tx.ExecContext(ctx, "SELECT plan_id,open,memory,roster FROM combat_fights LIMIT 0"); err != nil {
 		return err
 	}
 	_, err := tx.ExecContext(ctx, "SELECT plan_id,sequence,tick,payload FROM combat_evidence LIMIT 0")
@@ -75,9 +69,9 @@ func checkCombatFightsSchema(ctx context.Context, tx *sql.Tx) error {
 
 // CommitCombatFight admits a fight (#910): the ActiveCombat incident's
 // method on plan, whose only actions are its threat loadout's equip and
-// wear actions (#1115), and its open fight row in one transaction, with a
-// claim of unknown id for every pawn of roster (the admission batch drafts
-// them; a loadout pawn drafts later, so roster may be empty then).
+// wear actions (#1115), and its open fight row with roster in one
+// transaction (the admission batch drafts them; a loadout pawn drafts
+// later, so roster may be empty then).
 func (s *Store) CommitCombatFight(ctx context.Context, incident domain.IncidentID, method domain.MethodID, plan domain.PlanSpec, memory policy.CombatMemory, world World, roster []domain.PawnID) (IncidentState, error) {
 	if err := plan.Validate(); err != nil {
 		return IncidentState{}, err
@@ -119,35 +113,43 @@ func (s *Store) OpenCombatFight(ctx context.Context, plan domain.PlanID, memory 
 	return tx.Commit()
 }
 
+func encodeRoster(world World, roster map[domain.PawnID]bool) ([]byte, error) {
+	held := combatRoster{World: world}
+	for pawn := range roster {
+		held.Roster = append(held.Roster, pawn)
+	}
+	return json.Marshal(held)
+}
+
 func insertCombatFight(ctx context.Context, tx *sql.Tx, plan domain.PlanID, memory policy.CombatMemory, world World, roster []domain.PawnID) error {
 	encoded, err := json.Marshal(memory)
 	if err != nil {
 		return err
 	}
-	held := combatClaims{World: world, Claims: map[domain.PawnID]string{}}
+	set := map[domain.PawnID]bool{}
 	for _, pawn := range roster {
-		held.Claims[pawn] = ""
+		set[pawn] = true
 	}
-	claims, err := json.Marshal(held)
+	held, err := encodeRoster(world, set)
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, "INSERT OR IGNORE INTO combat_fights(plan_id,open,memory,claims) VALUES(?,1,?,?)", string(plan), encoded, claims)
+	_, err = tx.ExecContext(ctx, "INSERT OR IGNORE INTO combat_fights(plan_id,open,memory,roster) VALUES(?,1,?,?)", string(plan), encoded, held)
 	return err
 }
 
-func decodeCombatFight(open int, memory, claims []byte) (CombatFight, error) {
-	out := CombatFight{Open: open == 1}
+func decodeCombatFight(open int, memory, roster []byte) (CombatFight, error) {
+	out := CombatFight{Open: open == 1, Roster: map[domain.PawnID]bool{}}
 	if err := json.Unmarshal(memory, &out.Memory); err != nil {
 		return CombatFight{}, err
 	}
-	var held combatClaims
-	if err := json.Unmarshal(claims, &held); err != nil {
+	var held combatRoster
+	if err := json.Unmarshal(roster, &held); err != nil {
 		return CombatFight{}, err
 	}
-	out.World, out.Claims = held.World, held.Claims
-	if out.Claims == nil {
-		out.Claims = map[domain.PawnID]string{}
+	out.World = held.World
+	for _, pawn := range held.Roster {
+		out.Roster[pawn] = true
 	}
 	return out, nil
 }
@@ -163,28 +165,27 @@ type queryRower interface {
 
 func loadCombatFight(ctx context.Context, db queryRower, plan domain.PlanID) (CombatFight, bool, error) {
 	var open int
-	var memory, claims []byte
-	err := db.QueryRowContext(ctx, "SELECT open,memory,claims FROM combat_fights WHERE plan_id=?", string(plan)).Scan(&open, &memory, &claims)
+	var memory, roster []byte
+	err := db.QueryRowContext(ctx, "SELECT open,memory,roster FROM combat_fights WHERE plan_id=?", string(plan)).Scan(&open, &memory, &roster)
 	if errors.Is(err, sql.ErrNoRows) {
 		return CombatFight{}, false, nil
 	}
 	if err != nil {
 		return CombatFight{}, false, err
 	}
-	out, err := decodeCombatFight(open, memory, claims)
+	out, err := decodeCombatFight(open, memory, roster)
 	return out, err == nil, err
 }
 
-// combatFightHolds reports whether plan is a fight still holding its goal
-// open (CombatFight.Holds).
+// combatFightHolds reports whether plan is a fight still open.
 func combatFightHolds(ctx context.Context, tx *sql.Tx, plan domain.PlanID) (bool, error) {
 	fight, ok, err := loadCombatFight(ctx, tx, plan)
-	return ok && fight.Holds(), err
+	return ok && fight.Open, err
 }
 
-// HeldCombatFights is every fight that is open or still holds a claim.
-func (s *Store) HeldCombatFights(ctx context.Context) (map[domain.PlanID]CombatFight, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT plan_id,open,memory,claims FROM combat_fights")
+// OpenCombatFights is every open fight.
+func (s *Store) OpenCombatFights(ctx context.Context) (map[domain.PlanID]CombatFight, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT plan_id,open,memory,roster FROM combat_fights WHERE open=1")
 	if err != nil {
 		return nil, err
 	}
@@ -193,25 +194,22 @@ func (s *Store) HeldCombatFights(ctx context.Context) (map[domain.PlanID]CombatF
 	for rows.Next() {
 		var id string
 		var open int
-		var memory, claims []byte
-		if err = rows.Scan(&id, &open, &memory, &claims); err != nil {
+		var memory, roster []byte
+		if err = rows.Scan(&id, &open, &memory, &roster); err != nil {
 			return nil, err
 		}
-		fight, err := decodeCombatFight(open, memory, claims)
+		fight, err := decodeCombatFight(open, memory, roster)
 		if err != nil {
 			return nil, err
 		}
-		if fight.Holds() {
-			out[domain.PlanID(id)] = fight
-		}
+		out[domain.PlanID(id)] = fight
 	}
 	return out, rows.Err()
 }
 
-// RecordCombatClaims updates plan's claims: set records claim ids learned
-// (a pawn the fight does not hold is added), drop forgets pawns whose claim
-// was refused or released.
-func (s *Store) RecordCombatClaims(ctx context.Context, plan domain.PlanID, set map[domain.PawnID]string, drop []domain.PawnID) error {
+// UpdateCombatRoster adds the pawns a stop drafted and forgets those whose
+// draft order was refused: the fight no longer needs them drafted.
+func (s *Store) UpdateCombatRoster(ctx context.Context, plan domain.PlanID, add, drop []domain.PawnID) error {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return err
@@ -224,23 +222,24 @@ func (s *Store) RecordCombatClaims(ctx context.Context, plan domain.PlanID, set 
 	if !ok {
 		return fmt.Errorf("%w: combat fight %s", ErrNotFound, plan)
 	}
-	for pawn, claim := range set {
-		fight.Claims[pawn] = claim
+	for _, pawn := range add {
+		fight.Roster[pawn] = true
 	}
 	for _, pawn := range drop {
-		delete(fight.Claims, pawn)
+		delete(fight.Roster, pawn)
 	}
-	claims, err := json.Marshal(combatClaims{World: fight.World, Claims: fight.Claims})
+	roster, err := encodeRoster(fight.World, fight.Roster)
 	if err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, "UPDATE combat_fights SET claims=? WHERE plan_id=?", claims, string(plan)); err != nil {
+	if _, err = tx.ExecContext(ctx, "UPDATE combat_fights SET roster=? WHERE plan_id=?", roster, string(plan)); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-// CloseCombatFight ends plan's fight: its claims are released.
+// CloseCombatFight ends plan's fight; the undraft sweep then undrafts its
+// roster.
 func (s *Store) CloseCombatFight(ctx context.Context, plan domain.PlanID) error {
 	_, err := s.db.ExecContext(ctx, "UPDATE combat_fights SET open=0 WHERE plan_id=?", string(plan))
 	return err

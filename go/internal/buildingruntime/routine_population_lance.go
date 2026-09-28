@@ -18,7 +18,7 @@ import (
 func lanceUsers(rows []*n.PawnState) []policy.LanceUser {
 	var out []policy.LanceUser
 	for _, row := range rows {
-		facts := squadDefenderFacts(row)
+		facts := squadDefenderFacts(row, nil)
 		dead, dk := facts.Dead.Value()
 		downed, wk := facts.Downed.Value()
 		mental, mk := facts.MentalState.Value()

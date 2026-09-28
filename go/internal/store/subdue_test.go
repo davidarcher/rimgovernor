@@ -15,7 +15,7 @@ func TestSubdueRoundTripAndMoodEvidence(t *testing.T) {
 	d, _ := domain.NewOwnedDraft("responder")
 	da, _ := domain.NewOwnedDraftAction("draft", d)
 	m, _ := domain.NewSubdue("responder", "broken", "draft")
-	a, _ := domain.NewMeleeAttackAction("subdue", m)
+	a, _ := domain.NewSubdueAction("subdue", m)
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{da, a})
 	if err != nil {
 		t.Fatal(err)

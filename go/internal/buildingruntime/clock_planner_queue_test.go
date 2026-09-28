@@ -34,7 +34,7 @@ func TestClockSchedulerSectionWakeRunsDeclaringPlanners(t *testing.T) {
 	s.lastTick, s.lastTickKnown = tick, true
 	// The idle-draft restorer would be due on its own cadence by then;
 	// hold it back so the wake alone decides the wave.
-	s.queue.due["idleDrafts"] = tick + 1
+	s.queue.due["undraft"] = tick + 1
 	reason := StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactColony}, Sections: []facts.Section{facts.Buildings}}
 	step, err := s.StepWithReason(ctx, reason)
 	if err != nil || step.Reason.Cause != StepLive || !reflect.DeepEqual(step.Planners, []string{"sleeping"}) {
@@ -46,7 +46,7 @@ func TestClockSchedulerSectionWakeRunsDeclaringPlanners(t *testing.T) {
 	// A pawns wake selects the pawn readers (the idle-draft restorer is the
 	// configured one) and no building planner.
 	pawns, err := s.StepWithReason(ctx, StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactPawns}})
-	if err != nil || !reflect.DeepEqual(pawns.Planners, []string{"idleDrafts"}) {
+	if err != nil || !reflect.DeepEqual(pawns.Planners, []string{"undraft"}) {
 		t.Fatal(pawns, err)
 	}
 }

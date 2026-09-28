@@ -33,7 +33,7 @@ func defenseServer(t *testing.T, tool string, want proto.Message, reply proto.Me
 		if arg.Tool != tool {
 			t.Fatal(arg.Tool)
 		}
-		draftTestRequest(t, arg, want)
+		protoTestRequest(t, arg, want)
 		return pbResult(reply), nil
 	}}, time.Second)
 }

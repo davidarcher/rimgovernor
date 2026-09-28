@@ -19,14 +19,12 @@ internal static class NativeMovementOperationsProbe
         var dirs=args.Skip(1).Concat(new[]{Path.GetDirectoryName(Path.GetFullPath(args[0]))!}).ToArray();
         AppDomain.CurrentDomain.AssemblyResolve+=(_,e)=>{var path=dirs.Select(d=>Path.Combine(d,new AssemblyName(e.Name).Name+".dll")).FirstOrDefault(File.Exists);return path==null?null:Assembly.LoadFrom(path);};
         bridge=Assembly.LoadFrom(Path.GetFullPath(args[0]));foreach(var reference in bridge.GetReferencedAssemblies())Assembly.Load(reference);
-        // Authority.Owner was removed by #52: a claim is held by the single bot process or not at all,
-        // so Owns() is claim presence plus eligibility, with no owner comparison.
+        // Drafts are plan-owned (#939): Owns() is an eligible drafted pawn, with no native claim.
         var facts=New("NativePawnFacts");Field(facts,"Spawned",true);Field(facts,"PlayerControlled",true);Field(facts,"Drafted",true);
         Field(facts,"Drafter",System.Runtime.Serialization.FormatterServices.GetUninitializedObject(
             AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="Assembly-CSharp").GetType("RimWorld.Pawn_DraftController",true)!));
-        var claim=New("NativeDraftClaim","claim");var snapshot=New("NativePawnSnapshot","token",facts,claim);
-        Check((bool)Call("NativeMovementOperations","Owns",snapshot),"Eligible drafted pawn with a native claim accepted");
-        Check(!(bool)Call("NativeMovementOperations","Owns",New("NativePawnSnapshot","token",facts,null)),"Unclaimed player draft refused");
+        var snapshot=New("NativePawnSnapshot","token",facts);
+        Check((bool)Call("NativeMovementOperations","Owns",snapshot),"Eligible drafted pawn accepted");
         foreach(var field in new[]{"Dead","Downed","Mental"}){Field(facts,field,true);Check(!(bool)Call("NativeMovementOperations","Owns",snapshot),field+" cannot move");Field(facts,field,false);}
         Field(facts,"Drafted",false);Check(!(bool)Call("NativeMovementOperations","Owns",snapshot),"Move cannot auto-draft");
         Console.WriteLine($"{checks} compiled movement ownership assertions passed; no gameplay.");

@@ -17,7 +17,6 @@ import (
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mirrorpb "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -26,7 +25,7 @@ import (
 
 type RoutineDefenseSource interface {
 	// CombatOrders sends a stop's changed orders (#850, #852).
-	CombatOrders(context.Context, *a.WritePrecondition, *op.CombatOrders) ([]bridge.CombatOrderResult, *op.ExecuteReply, bridge.Result, error)
+	CombatOrders(context.Context, *c.Identity, string, *op.CombatOrders) ([]bridge.CombatOrderResult, error)
 	CombatGeometry(context.Context, *mirrorpb.CombatGeometryRequest) (*mirrorpb.CombatGeometry, bridge.Result, error)
 	// ReadCombat is the newest snapshot frame's combat state and the
 	// fight's other inputs (#851, #853, #858).
@@ -77,8 +76,8 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		if err = r.settleUnissuedWork(call, incident); err != nil {
 			return RoutineDefenseResult{}, err
 		}
-		// The fight is over: closing it lets draft cleanup release its
-		// defenders, and the goal satisfies once they are released.
+		// The fight is over: closing it lets the undraft sweep undraft its
+		// defenders (#939).
 		for _, method := range incident.Methods {
 			if strings.HasPrefix(string(method.Method), combatMethodPrefix) {
 				r.clearFightAnimals(call, state, method.Plan)
@@ -93,8 +92,8 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// One ActiveCombat plan owns the fight (#852): its combat method whose
-	// fight is open or still holds claims (#910) is the fight the stop
-	// decides for. Any other open work waits.
+	// fight is open is the fight the stop decides for. Any other open work
+	// waits.
 	var fight *store.CombatFight
 	var fightPlan domain.PlanID
 	for _, method := range incident.Methods {
@@ -103,7 +102,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 			if err != nil {
 				return RoutineDefenseResult{}, err
 			}
-			if !ok || !record.Holds() {
+			if !ok || !record.Open {
 				continue
 			}
 			if fight != nil {
@@ -136,6 +135,9 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if err != nil || reason != "" {
 		return RoutineDefenseResult{Reason: reason}, err
 	}
+	if in.needed, err = plannedDrafts(call, p.journal); err != nil {
+		return RoutineDefenseResult{}, err
+	}
 	emergency, rows := combat.Emergency, in.rows
 	if result, err := r.planBreak(call, epoch, incident, state, started, arbiter, emergency.Facts, rows); err != nil || result.Reason != "" {
 		return result, err
@@ -143,13 +145,8 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	var orderable []domain.PawnID
 	var memory policy.CombatMemory
 	if fight != nil {
-		if !fight.Open {
-			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
-		}
 		memory = fight.Memory
-		if orderable, err = learnFightClaims(call, p.journal, fightPlan, *fight, rows); err != nil {
-			return RoutineDefenseResult{}, err
-		}
+		orderable = fightOrderable(*fight, rows)
 	}
 	// A complete record from an earlier load of this colony still holds:
 	// its geometry is on the map and its completion was census-verified
@@ -197,11 +194,11 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	}
 	id := fightPlan
 	recorded.Plan = id
-	// A role pawn the fight holds no claim on (a later formation's evacuee
-	// or responder, #911) is drafted in this stop's batch, and the stop
-	// decides as it will be once drafted, as the admission does.
+	// A role pawn that is not a drafted defender (a later formation's
+	// evacuee or responder, #911) is drafted in this stop's batch, and the
+	// stop decides as it will be once drafted, as the admission does.
 	var drafts []domain.PawnID
-	unclaimed := unclaimedRoles(next, fight.Claims, view)
+	unclaimed := undraftedRoles(next, orderable, view)
 	if len(unclaimed) > 0 {
 		// A pawn still taking its loadout (#1115) drafts once it settles.
 		plan, err := p.journal.LoadPlan(call, id)
@@ -261,33 +258,17 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	return RoutineDefenseResult{Reason: BuildingMethodCombatOrders, Plan: id}, nil
 }
 
-// learnFightClaims is the fight's orderable defenders: the pawns whose
-// draft claim it knows (#910). A claim the admission batch left unknown
-// (an uncertain receipt) is settled from the pawn's frame row: a claim
-// owning the draft is the fight's, an unowned pawn was never drafted.
-func learnFightClaims(ctx context.Context, journal *store.Store, plan domain.PlanID, fight store.CombatFight, rows map[string]*n.PawnState) ([]domain.PawnID, error) {
-	set := map[domain.PawnID]string{}
-	var drop, orderable []domain.PawnID
-	for pawn, claim := range fight.Claims {
-		if claim == "" {
-			switch state := rows[string(pawn)].GetDraftClaim().GetState().(type) {
-			case *n.DraftClaimObservation_Owned:
-				if claim = state.Owned.GetClaimId(); claim != "" {
-					set[pawn] = claim
-				}
-			case *n.DraftClaimObservation_Unowned:
-				drop = append(drop, pawn)
-			}
-		}
-		if claim != "" {
+// fightOrderable is the fight's orderable defenders (#939): its roster
+// pawns the frame shows drafted, sorted.
+func fightOrderable(fight store.CombatFight, rows map[string]*n.PawnState) []domain.PawnID {
+	var orderable []domain.PawnID
+	for pawn := range fight.Roster {
+		if row := rows[string(pawn)]; row != nil && boundary.FactBool(row.Drafted) == domain.Known(true) {
 			orderable = append(orderable, pawn)
 		}
 	}
 	slices.Sort(orderable)
-	if len(set)+len(drop) == 0 {
-		return orderable, nil
-	}
-	return orderable, journal.RecordCombatClaims(ctx, plan, set, drop)
+	return orderable
 }
 
 // combatInputs is what the fight reads from one frame beside the view:
@@ -298,6 +279,8 @@ type combatInputs struct {
 	hunting    map[string]bool
 	buildings  []policy.EmergencyThreat
 	rows       map[string]*n.PawnState
+	// needed is plannedDrafts, set by the planner (#939).
+	needed map[domain.PawnID]bool
 }
 
 // combatFrameInputs is the fight's inputs from the frame; a reason means
@@ -357,7 +340,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	var profiles []policy.PawnProfile
 	for _, pawn := range combat.Emergency.Facts.Colonists {
 		row := in.rows[string(pawn.ID)]
-		d := squadDefenderFacts(row)
+		d := squadDefenderFacts(row, in.needed)
 		if a, ok := armor[d.ID]; ok {
 			d.Armor = domain.Known(a)
 		}
@@ -551,9 +534,8 @@ func (r *RoutineDefensePlanner) settleUnissuedWork(call context.Context, inciden
 }
 
 // orphanedDraftDependents lists the unissued movement and attack actions
-// whose owned-draft prerequisite can no longer carry them: the draft's
-// claim was released or superseded, or the draft (or, for an attack, the
-// move it waits on) ended without completing. Only pending and prepared
+// whose owned-draft prerequisite can no longer carry them: the draft (or,
+// for an attack, the move it waits on) ended without completing. Only pending and prepared
 // actions are named; anything native may still be executing is left to
 // its own reconciliation.
 func orphanedDraftDependents(spec domain.PlanSpec, progress []domain.Progress) []domain.ActionID {
@@ -566,11 +548,7 @@ func orphanedDraftDependents(spec domain.PlanSpec, progress []domain.Progress) [
 		if !ok {
 			return false
 		}
-		if v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled {
-			return true
-		}
-		cleanup, known := v.DraftCleanup.Value()
-		return known && (cleanup.Stage == domain.DraftReleased || cleanup.Stage == domain.DraftSuperseded)
+		return v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled
 	}
 	requires := map[domain.ActionID][]domain.ActionID{}
 	for _, d := range spec.Dependencies() {
@@ -585,9 +563,7 @@ func orphanedDraftDependents(spec domain.PlanSpec, progress []domain.Progress) [
 		var draft domain.ActionID
 		if m, ok := action.Movement(); ok {
 			draft = m.DraftAction()
-		} else if a, ok := action.RangedAttack(); ok {
-			draft = a.DraftAction()
-		} else if a, ok := action.MeleeAttack(); ok {
+		} else if a, ok := action.Subdue(); ok {
 			draft = a.DraftAction()
 		} else {
 			continue

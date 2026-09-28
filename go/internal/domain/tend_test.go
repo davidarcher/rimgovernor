@@ -23,7 +23,7 @@ func TestTendIntentAndClosedVariants(t *testing.T) {
 	if _, ok := action.OwnedDraft(); ok {
 		t.Fatal("tend exposed draft")
 	}
-	if _, ok := action.MeleeAttack(); ok {
+	if _, ok := action.Subdue(); ok {
 		t.Fatal("tend exposed melee")
 	}
 	if _, err := NewTendAction("tend", Tend{}); err == nil {
@@ -55,9 +55,6 @@ func TestTendPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 	progress, err := NewProgress(plan, "tend")
 	if err != nil || progress.Action() != action || progress.View().Stage != Pending || progress.View().Unresolved {
 		t.Fatal(progress, err)
-	}
-	if _, known := progress.View().DraftCleanup.Value(); known {
-		t.Fatal("tend fabricated draft ownership")
 	}
 }
 

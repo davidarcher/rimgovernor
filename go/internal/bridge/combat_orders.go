@@ -6,32 +6,30 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
 )
 
 // Combat order refusal reasons, one per CombatOrderResult.refusal.
-// DraftOwnership is policy.DraftOwnership: the pawn is not an eligible
-// drafted pawn under an existing native draft claim.
 const (
-	CombatRefusalDraftOwnership = "draft_ownership"
-	CombatRefusalStaleSnapshot  = "stale_snapshot"
-	CombatRefusalNotFound       = "not_found"
-	CombatRefusalUnreachable    = "unreachable"
-	CombatRefusalCannotHit      = "cannot_hit"
-	CombatRefusalNoGroundVerb   = "no_ground_verb"
-	CombatRefusalNotADoor       = "not_a_door"
-	CombatRefusalNativeRefused  = "native_refused"
+	// NotDrafted: a pawn order for a pawn that is not drafted (#939).
+	CombatRefusalNotDrafted    = "not_drafted"
+	CombatRefusalStaleSnapshot = "stale_snapshot"
+	CombatRefusalNotFound      = "not_found"
+	CombatRefusalUnreachable   = "unreachable"
+	CombatRefusalCannotHit     = "cannot_hit"
+	CombatRefusalNoGroundVerb  = "no_ground_verb"
+	CombatRefusalNotADoor      = "not_a_door"
+	CombatRefusalNativeRefused = "native_refused"
 	// Rescue refusals (#867): the rescue eligibility or bed search failed.
 	CombatRefusalCannotRescue = "cannot_rescue"
 	CombatRefusalNoBed        = "no_bed"
 	// Repair refusal (#900): no damaged player building on the cell, or
 	// the pawn cannot construct.
 	CombatRefusalCannotRepair = "cannot_repair"
-	// Draft refusal (#910): the pawn is not eligible, or the claim could not
-	// be certified. A pawn another claim holds refuses draft_ownership.
+	// Draft refusal (#910): the pawn is not eligible.
 	CombatRefusalCannotDraft = "cannot_draft"
 	// Mortar refusal (#931): no unroofed player mortar on the cell.
 	CombatRefusalNotAMortar = "not_a_mortar"
@@ -46,7 +44,7 @@ const (
 )
 
 var combatRefusals = map[string]bool{
-	CombatRefusalDraftOwnership: true, CombatRefusalStaleSnapshot: true, CombatRefusalNotFound: true,
+	CombatRefusalNotDrafted: true, CombatRefusalStaleSnapshot: true, CombatRefusalNotFound: true,
 	CombatRefusalUnreachable: true, CombatRefusalCannotHit: true, CombatRefusalNoGroundVerb: true,
 	CombatRefusalNotADoor: true, CombatRefusalNativeRefused: true,
 	CombatRefusalCannotRescue: true, CombatRefusalNoBed: true, CombatRefusalCannotRepair: true,
@@ -62,14 +60,6 @@ type CombatOrderResult struct {
 	Applied bool
 	Refusal string // one of the CombatRefusal* reasons when not applied
 	JobDef  string // the ordered job, when the order took one
-	Claim   string // the native claim an applied draft order holds (#910)
-}
-
-// CombatOrdersControl issues batched combat micro orders under an owned draft.
-type CombatOrdersControl struct{ client *Client }
-
-func combatOrdersOperation(command *o.CombatOrders) *o.Operation {
-	return &o.Operation{Command: &o.Operation_CombatOrders{CombatOrders: command}}
 }
 
 // optionalTokenEntity is an exact entity whose snapshot token may be
@@ -203,29 +193,19 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 	return nil
 }
 
-// CombatOrderResults decodes a combat.orders receipt against its request:
-// one result per order, in order, each applied or refused with a known reason.
-// An uncertain receipt carries no complete result set and returns nil results.
+// CombatOrderResults decodes an applied combat_orders action receipt
+// against its request: one result per order, in order, each applied or
+// refused with a known reason. An uncertain receipt carries no result set
+// and returns nil results.
 func CombatOrderResults(receipt *r.Receipt, command *o.CombatOrders) ([]CombatOrderResult, error) {
-	if receipt == nil {
-		return nil, contract("combat orders receipt missing")
-	}
-	var evidence *r.EffectEvidence
-	applied := false
-	switch v := receipt.Outcome.(type) {
-	case *r.Receipt_Applied:
-		evidence, applied = v.Applied.GetObserved(), true
-	case *r.Receipt_NoChange:
-		if !diagnostic(v.NoChange.Detail) {
-			return nil, contract("combat orders no-change detail missing")
-		}
-		evidence = v.NoChange.GetObserved()
-	case *r.Receipt_Uncertain:
+	if _, uncertain := receipt.GetOutcome().(*r.Receipt_Uncertain); uncertain {
 		return nil, nil
-	default:
-		return nil, contract("combat orders receipt outcome missing")
 	}
-	effect := evidence.GetCombatOrders()
+	applied, ok := receipt.GetOutcome().(*r.Receipt_Applied)
+	if !ok {
+		return nil, contract("combat orders receipt not applied")
+	}
+	effect := applied.Applied.GetObserved().GetCombatOrders()
 	if effect == nil {
 		return nil, contract("combat orders evidence missing")
 	}
@@ -233,7 +213,6 @@ func CombatOrderResults(receipt *r.Receipt, command *o.CombatOrders) ([]CombatOr
 		return nil, contract("combat orders: %d results for %d orders", len(effect.Results), len(command.GetOrders()))
 	}
 	out := make([]CombatOrderResult, len(effect.Results))
-	any := false
 	for i, v := range effect.Results {
 		if v == nil || v.Index == nil || int(v.GetIndex()) != i || v.Applied == nil {
 			return nil, contract("combat order result %d index or outcome missing", i)
@@ -241,14 +220,7 @@ func CombatOrderResults(receipt *r.Receipt, command *o.CombatOrders) ([]CombatOr
 		if v.GetPawnId() != command.Orders[i].GetPawn().GetEntityId() {
 			return nil, contract("combat order result %d names pawn %q, want %q", i, v.GetPawnId(), command.Orders[i].GetPawn().GetEntityId())
 		}
-		res := CombatOrderResult{Index: i, PawnID: v.GetPawnId(), Applied: v.GetApplied(), Refusal: v.GetRefusal(), JobDef: v.GetJobDef(), Claim: v.GetDraftClaimId()}
-		_, draft := command.Orders[i].GetOrder().(*o.CombatOrder_Draft)
-		if v.DraftClaimId != nil && !(draft && res.Applied) {
-			return nil, contract("combat order result %d carries a claim it did not draft", i)
-		}
-		if draft && res.Applied && validID(res.Claim) != nil {
-			return nil, contract("combat order result %d drafted without a valid claim", i)
-		}
+		res := CombatOrderResult{Index: i, PawnID: v.GetPawnId(), Applied: v.GetApplied(), Refusal: v.GetRefusal(), JobDef: v.GetJobDef()}
 		if res.Applied {
 			if v.Refusal != nil {
 				return nil, contract("combat order result %d applied with a refusal", i)
@@ -256,7 +228,6 @@ func CombatOrderResults(receipt *r.Receipt, command *o.CombatOrders) ([]CombatOr
 			if res.JobDef != "" && validID(res.JobDef) != nil {
 				return nil, contract("combat order result %d job invalid", i)
 			}
-			any = true
 		} else if !combatRefusals[res.Refusal] {
 			return nil, contract("combat order result %d refused without a known reason: %q", i, res.Refusal)
 		} else if v.JobDef != nil {
@@ -264,66 +235,37 @@ func CombatOrderResults(receipt *r.Receipt, command *o.CombatOrders) ([]CombatOr
 		}
 		out[i] = res
 	}
-	if any != applied {
-		return nil, contract("combat orders receipt outcome disagrees with its results")
-	}
 	return out, nil
 }
 
-// Issue executes one combat.orders batch under the current authority
-// generation and decodes its per-order results.
-func (control *CombatOrdersControl) Issue(ctx context.Context, pre *a.WritePrecondition, command *o.CombatOrders) ([]CombatOrderResult, *o.ExecuteReply, Result, error) {
-	if control == nil || control.client == nil {
-		return nil, nil, Result{}, contract("combat orders capability missing")
-	}
-	if pre == nil || pre.GetExpectedGeneration() == 0 {
-		return nil, nil, Result{}, contract("combat orders precondition missing")
-	}
-	if err := buildingUnknown(pre); err != nil {
-		return nil, nil, Result{}, err
-	}
-	if err := ValidateIdentity(pre.Identity); err != nil {
-		return nil, nil, Result{}, err
-	}
-	if err := buildingAttempt(pre.Attempt); err != nil {
-		return nil, nil, Result{}, err
-	}
+// CombatOrders applies one combat_orders batch as an Actions/Apply intent
+// under key (#939) and decodes its per-order results: the fight's orders at
+// a stop (#852). A refused or failed action returns an error.
+func (client *Client) CombatOrders(ctx context.Context, identity *c.Identity, key string, command *o.CombatOrders) ([]CombatOrderResult, error) {
 	if err := ValidateCombatOrders(command); err != nil {
-		return nil, nil, Result{}, err
+		return nil, err
 	}
-	pre = proto.Clone(pre).(*a.WritePrecondition)
-	command = proto.Clone(command).(*o.CombatOrders)
-	reply := &o.ExecuteReply{}
-	raw, err := control.client.protoCall(ctx, "rimgovernor/operations_execute", &o.ExecuteRequest{Precondition: pre, Operation: combatOrdersOperation(command)}, reply)
+	writer, err := NewActionsWriter(client)
 	if err != nil {
-		return nil, nil, raw, err
+		return nil, err
 	}
-	if err = buildingUnknown(reply); err != nil {
-		return nil, reply, raw, err
+	command = proto.Clone(command).(*o.CombatOrders)
+	action := &o.Action{Key: proto.String(key), Intent: &o.Action_CombatOrders{CombatOrders: command}}
+	reply, _, err := writer.Apply(ctx, identity, []*o.Action{action})
+	if err != nil {
+		return nil, err
 	}
-	switch v := reply.Outcome.(type) {
-	case *o.ExecuteReply_Receipt:
-		if v.Receipt == nil || !proto.Equal(v.Receipt.Attempt, pre.Attempt) {
-			return nil, reply, raw, contract("combat orders receipt attempt mismatch")
-		}
-		if err = buildingContext(v.Receipt.AdmittedContext, pre.Identity, pre.GetExpectedGeneration(), true); err != nil {
-			return nil, reply, raw, err
-		}
-		results, err := CombatOrderResults(v.Receipt, command)
-		for _, res := range results {
-			logCombatOrder(ctx, res)
-		}
-		return results, reply, raw, err
-	case *o.ExecuteReply_Failure:
-		return nil, reply, raw, failure(v.Failure, raw)
+	switch v := reply.Results[0].Outcome.(type) {
+	case *o.ActionResult_Refused:
+		return nil, contract("combat orders refused: %s", v.Refused.GetReason())
+	case *o.ActionResult_Failed:
+		return nil, contract("combat orders failed: %s", v.Failed.GetDetail())
 	}
-	return nil, reply, raw, contract("combat orders execute outcome missing")
-}
-
-// CombatOrders issues one combat.orders batch (CombatOrdersControl.Issue):
-// the fight's orders at a stop (#852).
-func (client *Client) CombatOrders(ctx context.Context, pre *a.WritePrecondition, command *o.CombatOrders) ([]CombatOrderResult, *o.ExecuteReply, Result, error) {
-	return (&CombatOrdersControl{client: client}).Issue(ctx, pre, command)
+	results, err := CombatOrderResults(reply.Results[0].GetApplied(), command)
+	for _, res := range results {
+		logCombatOrder(ctx, res)
+	}
+	return results, err
 }
 
 // logCombatOrder writes one service-log line per order result, the

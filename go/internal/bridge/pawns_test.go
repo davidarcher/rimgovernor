@@ -16,7 +16,7 @@ import (
 )
 
 func pawnsTestSnapshot() *o.PawnSnapshot {
-	return &o.PawnSnapshot{Context: authorityTestContext(7), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1"), MapId: proto.Int32(0)}, Drafted: proto.Bool(false), DraftClaim: &o.DraftClaimObservation{State: &o.DraftClaimObservation_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}}}, Completeness: &o.Completeness{Filtered: proto.Uint64(9)}}
+	return &o.PawnSnapshot{Context: authorityTestContext(7), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1"), MapId: proto.Int32(0)}, Drafted: proto.Bool(false), Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}}}, Completeness: &o.Completeness{Filtered: proto.Uint64(9)}}
 }
 func TestPawnsFixedReadPreservesUnknown(t *testing.T) {
 	id := pbIdentity()
@@ -78,10 +78,6 @@ func TestPawnsMalformedEvidence(t *testing.T) {
 		"contradictory issue": func(v *o.PawnSnapshot) {
 			v.Pawns[0].Issues = append(v.Pawns[0].Issues, &o.ReadIssue{Field: proto.String("drafted"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}})
 		},
-		"empty claim": func(v *o.PawnSnapshot) { v.Pawns[0].DraftClaim = &o.DraftClaimObservation{} },
-		"bad claim": func(v *o.PawnSnapshot) {
-			v.Pawns[0].DraftClaim = &o.DraftClaimObservation{State: &o.DraftClaimObservation_Owned{Owned: &o.OwnedDraftClaim{}}}
-		},
 	}
 	for name, edit := range edits {
 		t.Run(name, func(t *testing.T) {
@@ -91,46 +87,6 @@ func TestPawnsMalformedEvidence(t *testing.T) {
 				t.Fatal("accepted invalid evidence")
 			}
 		})
-	}
-}
-func TestPawnsOptionalCASAndClaims(t *testing.T) {
-	snapshot := pawnsTestSnapshot()
-	row := snapshot.Pawns[0]
-	row.Issues = nil
-	ref := &o.SnapshotRef{Context: proto.Clone(snapshot.Context).(*c.ObservationContext), EntityId: proto.String("pawn-1"), Token: proto.String("opaque")}
-	row.Pawn.Snapshot = ref
-	row.DraftClaim = &o.DraftClaimObservation{State: &o.DraftClaimObservation_Owned{Owned: &o.OwnedDraftClaim{ClaimId: proto.String("claim"), PawnSnapshot: proto.Clone(ref).(*o.SnapshotRef)}}}
-	for _, name := range []string{"valid", "wrongentity", "future", "wrongworld", "mismatchedtoken", "missingtoken"} {
-		t.Run(name, func(t *testing.T) {
-			v := proto.Clone(snapshot).(*o.PawnSnapshot)
-			owned := v.Pawns[0].DraftClaim.GetOwned()
-			switch name {
-			case "wrongentity":
-				owned.PawnSnapshot.EntityId = proto.String("other")
-			case "future":
-				owned.PawnSnapshot.Context.Tick = proto.Int64(v.Context.GetTick() + 1)
-			case "wrongworld":
-				owned.PawnSnapshot.Context.Identity.LoadToken = proto.String("other")
-			case "mismatchedtoken":
-				owned.PawnSnapshot.Token = proto.String("different")
-			case "missingtoken":
-				owned.PawnSnapshot.Token = nil
-			}
-			err := pawnsSnapshot(v, pbIdentity(), map[string]bool{"pawn-1": true})
-			if (err == nil) != (name == "valid") {
-				t.Fatal(err)
-			}
-		})
-	}
-	row.Pawn.Snapshot = nil
-	row.DraftClaim = &o.DraftClaimObservation{State: &o.DraftClaimObservation_Unowned{Unowned: &o.NoOwnedDraftClaim{}}}
-	snapshot.Context.NativeGeneration = nil
-	if err := pawnsSnapshot(snapshot, pbIdentity(), map[string]bool{"pawn-1": true}); err != nil {
-		t.Fatal(err)
-	}
-	row.DraftClaim = nil
-	if err := pawnsSnapshot(snapshot, pbIdentity(), map[string]bool{"pawn-1": true}); err != nil {
-		t.Fatal(err)
 	}
 }
 func TestPawnsTypedFailuresAndEmptyQuery(t *testing.T) {

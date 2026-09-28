@@ -200,41 +200,23 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	pawnReply, err := h.Wire(ctx, "pawn-before", "observations_list_pawns", map[string]any{
-		"scope": map[string]any{"expectedIdentity": home}, "filter": map[string]any{"colonist": true, "downed": false, "ids": []any{firstColonist}},
-	})
+	draftResult, err := na.ApplyOne(ctx, h, "draft", home, "mapscope-draft-1", map[string]any{"draft": map[string]any{"pawnId": firstColonist, "drafted": true}})
 	if err != nil {
 		return err
 	}
-	before, err := na.PawnRow(pawnReply, home, firstColonist)
-	if err != nil {
-		return fmt.Errorf("pawn-before: %w", err)
-	}
-	draftReply, err := h.Wire(ctx, "draft", "operations_execute", map[string]any{
-		"precondition": map[string]any{
-			"identity": home, "expectedGeneration": fmt.Sprint(regranted),
-			"attempt": map[string]any{"controllerSessionId": na.Owner["controllerSessionId"], "actionId": "mapscope-draft-1", "attemptId": "1"},
-		},
-		"operation": map[string]any{"setDrafted": map[string]any{"pawn": na.Target(before), "drafted": true, "allowPersistentDraft": false}},
-	})
+	job, err := na.AppliedJob("draft", draftResult)
 	if err != nil {
 		return err
 	}
-	_, receipt, err := na.Outcome(draftReply, "receipt")
-	if err != nil {
-		return fmt.Errorf("draft: expected a receipt: %w", err)
+	if issued, _ := na.AsBool(job["issued"]); !issued {
+		return fmt.Errorf("draft: expected %s drafted, got %v", firstColonist, draftResult)
 	}
+	receipt, _ := na.AsMap(draftResult["applied"])
 	afterReply, err := h.Wire(ctx, "pawn-after", "observations_list_pawns", map[string]any{
 		"scope": map[string]any{"expectedIdentity": home}, "filter": map[string]any{"colonist": true, "downed": false, "ids": []any{firstColonist}},
 	})
 	if err != nil {
 		return err
-	}
-	applied, _ := na.AsMap(receipt["applied"])
-	appliedObserved, _ := na.AsMap(applied["observed"])
-	job, _ := na.AsMap(appliedObserved["job"])
-	if verified, _ := na.AsBool(job["verified"]); !verified || na.AsString(job["pawnId"]) != firstColonist {
-		return fmt.Errorf("draft: expected a verified draft of %s, got %v", firstColonist, receipt)
 	}
 	admitted, _ := na.AsMap(receipt["admittedContext"])
 	admittedIdentity, _ := na.AsMap(admitted["identity"])

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/mirror"
@@ -26,6 +27,8 @@ type RoutineReviewer struct {
 	clock   observation.Clock
 	policy  policy.RoutinePolicy
 	maxAge  time.Duration
+	// undraft sends the undraft sweep's intents; nil never undrafts.
+	undraft boundary.ActionsWriter
 	// census retains the latest review reading for the planners of the same
 	// tick; see routineCensus.
 	census routineCensusStore
@@ -162,6 +165,9 @@ type RoutineCapabilities struct {
 	// LayoutOverlay draws the layout plan as a native overlay layer
 	// (#726, serve --layout-overlay).
 	LayoutOverlay bool
+	// Undraft sends the undraft sweep's Draft intents (#939); nil never
+	// undrafts.
+	Undraft boundary.ActionsWriter
 }
 
 func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration, capabilities ...RoutineCapabilities) (*RoutineReviewer, error) {
@@ -170,17 +176,18 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 	}
 	methods := domain.Unknown[[]policy.GoalID]()
 	reviewerOverlay := false
+	var undraftWriter boundary.ActionsWriter
 	if len(capabilities) > 1 {
 		return nil, fmt.Errorf("%w: NewRoutineReviewer: len(capabilities) > 1", ErrControl)
 	}
 	if len(capabilities) == 1 {
-		reviewerOverlay = capabilities[0].LayoutOverlay
+		reviewerOverlay, undraftWriter = capabilities[0].LayoutOverlay, capabilities[0].Undraft
 		methods = domain.Known(append([]policy.GoalID{}, capabilities[0].Methods...))
 		if _, err := policy.DetectRoutine(policy.RoutineFacts{AvailableMethods: methods}, policy.RoutineLatches{}, thresholds); err != nil {
 			return nil, err
 		}
 	}
-	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, layoutOverlay: reviewerOverlay}
+	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, layoutOverlay: reviewerOverlay, undraft: undraftWriter}
 	return reviewer, nil
 }
 
@@ -333,23 +340,18 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
 	reading.Projection.Facts.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
-	// Owned drafts belong to this persistent controller's shared journal.
-	// Use the same complete catalog and cleanup predicate as the release sweep.
-	// A draft its plan still holds for an unfinished order (a shrine shooter
-	// between its draft and its move) is working, not stranded; counting it
-	// raised RestoreWorkers and suspended the very goal drafting it (#679).
-	cleanup := false
-	for _, plan := range plans {
-		cleanup = cleanup || idleDraftWorkOpen(plan)
-		for _, progress := range plan.Progress {
-			cleanup = cleanup || draftOutstanding(progress) && !workerPlanHoldsDraft(plan, progress.View())
-		}
-	}
-	idleDrafts, err := r.idleDrafts(ctx, state, expected.Tick, reading.Emergency, reading.Frame.Pawns, plans)
+	// RestoreWorkers stands while a drafted colonist no live plan needs
+	// waits for the undraft sweep (#939). A draft its plan still holds is
+	// working, not stranded (#679).
+	needed, err := plannedDrafts(ctx, p.journal)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
 	}
-	reading.Projection.Facts.CleanupPawns = domain.Known(cleanup || len(idleDrafts) > 0)
+	stray, err := idleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	reading.Projection.Facts.CleanupPawns = domain.Known(len(stray) > 0)
 	reading.Projection.ApplyFieldBudget(r.seasonal(reading.Projection.Facts).FoodTargetDays)
 	// The workshop ladder's recorded research rung is the derived
 	// EnsureResearch target; it is journal evidence, not a native read, so

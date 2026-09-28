@@ -77,7 +77,7 @@ type WorkerConfig struct {
 // machinery, not a bypass of it.
 func routineExecutableKind(kind domain.ActionKind) bool {
 	switch kind {
-	case domain.BuildingAction, domain.OwnedDraftAction, domain.MeleeAttackAction, domain.RangedAttackAction,
+	case domain.BuildingAction, domain.OwnedDraftAction, domain.SubdueAction,
 		domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction, domain.ZoneCreateAction,
 		domain.ProductionBillAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction, domain.HaulAction, domain.EquipAction,
 		domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction, domain.MovementAction, domain.HusbandryAction,
@@ -92,8 +92,6 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 type workerSession interface {
 	playerSession
 	RunBatch(context.Context, domain.PlanID, []domain.ActionID) ([]executor.BatchItem, error)
-	CleanupDraft(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
-	ReleaseClosedFights(context.Context) error
 	ObserveTarget(context.Context, domain.GenerationSnapshot) error
 }
 
@@ -140,10 +138,9 @@ func (w *Worker) dispatchBudget() int {
 }
 
 type workerCandidate struct {
-	view    domain.ProgressView
-	cleanup bool
-	plan    domain.PlanID
-	kind    domain.ActionKind
+	view domain.ProgressView
+	plan domain.PlanID
+	kind domain.ActionKind
 	// action and snapshot are what a dispatch inspects: the action's spec
 	// and the authority snapshot the plan dispatches under.
 	action   domain.Action
@@ -151,11 +148,10 @@ type workerCandidate struct {
 }
 
 type workerWait struct {
-	cleanup bool
-	view    domain.ProgressView
-	scope   ControlState
-	delay   time.Duration
-	until   time.Time
+	view  domain.ProgressView
+	scope ControlState
+	delay time.Duration
+	until time.Time
 	// outcome is the last surfaced "stage/refusals/error" of this action, so
 	// a sustained hold logs once instead of every step (see issue #70);
 	// repeats counts the unlogged runs that restated it, reported when the
@@ -378,13 +374,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	if worldErr == nil {
-		// A closed fight's drafts go back as soon as it ends (#910); a
-		// failed release is retried next step without holding other work.
-		if err = w.session.ReleaseClosedFights(call); err != nil {
-			slog.Default().WarnContext(call, "combat fight release failed", telemetry.ComponentKey, "worker", "error", err)
-		}
-	}
 	breakHeld := map[domain.ActionID]bool{}
 	if scope.Enabled && scope.ObservationKnown {
 		breakHeld, err = w.breakDispatchHolds(call, scope.Snapshot, plans)
@@ -415,17 +404,16 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		for _, progress := range plan.Progress {
 			v := progress.View()
-			cleanup := workerCleanupEligible(plan, v, planScope, world)
-			if !cleanup && !v.Unresolved && breakHeld[v.Action] {
+			if !v.Unresolved && breakHeld[v.Action] {
 				continue
 			}
 			routineObservation := w.config.RoutineMethods && v.Unresolved && routineExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
 			if clockDebug() && progress.Action().Kind() == domain.BuildingTemperatureAction {
 				clockSchedulerLog("worker: temperature candidate action=%s stage=%v authorized=%v eligible=%v worldErr=%v", v.Action, v.Stage, planScope.Snapshot != scope.Snapshot, workerEligible(plan, v, planScope, world), worldErr)
 			}
-			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
+			if worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
-				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup, plan: plan.Spec.ID(), kind: progress.Action().Kind(), action: progress.Action(), snapshot: planScope.Snapshot})
+				candidates = append(candidates, workerCandidate{view: v, plan: plan.Spec.ID(), kind: progress.Action().Kind(), action: progress.Action(), snapshot: planScope.Snapshot})
 			}
 		}
 	}
@@ -521,7 +509,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		if err = w.player.current(call, epoch); err != nil {
 			return err
 		}
-		if !lead.cleanup && !scope.Enabled {
+		if !scope.Enabled {
 			err = w.session.ObserveTarget(call, lead.view.Snapshot)
 		}
 		if err == nil {
@@ -536,8 +524,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			for i := range group {
 				resultErrs[i] = err
 			}
-		} else if lead.cleanup {
-			results[0], resultErrs[0] = w.session.CleanupDraft(run, lead.view.Plan, lead.view.Action)
 		} else {
 			results, resultErrs = w.runBatch(call, run, lead.view.Plan, group)
 		}
@@ -547,7 +533,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				// The decoded store drops what the dispatch changed:
 				// only a clock events page would drop it otherwise, and a
 				// next decision replans from the rows before this write.
-				if everything, families := operationFamilies(lead.kind, !lead.cleanup); everything {
+				if everything, families := operationFamilies(lead.kind, true); everything {
 					w.config.Store.InvalidateAll()
 				} else {
 					w.config.Store.InvalidateFamily(families...)
@@ -564,12 +550,12 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			if result.Progress.View().Action == v.Action {
 				after = result.Progress.View()
 			}
-			stale := !candidate.cleanup && workerHeldStale(after, result, err)
+			stale := workerHeldStale(after, result, err)
 			if result.NativeCalled {
 				workerDispatchRow(run, tally, candidate.view, after, running, stale, err)
 			}
 			delay := w.config.StepInterval
-			if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
+			if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) {
 				delay = min(wait.delay*2, workerBackoffCap(w.config, after))
 			}
 			if err == nil && after.Stage != v.Stage {
@@ -600,7 +586,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				repeats++
 			}
 			cancelled := 0
-			own := !candidate.cleanup && workerOwnCancel(call, err) && after.Attempt == v.Attempt && (after.Stage == domain.Pending || after.Stage == domain.Prepared)
+			own := workerOwnCancel(call, err) && after.Attempt == v.Attempt && (after.Stage == domain.Pending || after.Stage == domain.Prepared)
 			if own {
 				cancelled = 1
 				if workerSameView(wait.view, v) {
@@ -620,7 +606,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 					continue
 				}
 			}
-			w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats, stale: stale, cancelled: cancelled}
+			w.waits[v.Action] = workerWait{view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats, stale: stale, cancelled: cancelled}
 			if err != nil {
 				errs = append(errs, err)
 				// A step that ran out of budget or lost its transport says
@@ -642,10 +628,10 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 }
 
 // workerBatched reports whether candidate joins its plan's other plain
-// intents in one batched Apply (#1042); other kinds dispatch alone and
-// cleanups keep their own path.
+// intents in one batched Apply (#1042); other kinds
+// each dispatch alone.
 func workerBatched(candidate workerCandidate) bool {
-	return !candidate.cleanup && executor.PlainIntent(candidate.kind)
+	return executor.PlainIntent(candidate.kind)
 }
 
 // runBatch sends group, one plan's candidates, as one RunBatch and
@@ -693,7 +679,7 @@ func workerOwnCancel(call context.Context, err error) bool {
 func (w *Worker) backedOff(candidate workerCandidate, scope ControlState, now time.Time) bool {
 	v := candidate.view
 	wait := w.waits[v.Action]
-	return !w.focusNamed(v.Action) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until)
+	return !w.focusNamed(v.Action) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && now.Before(wait.until)
 }
 
 // workerDispatchRow publishes one "worker_dispatch" flight row for a run
@@ -803,9 +789,6 @@ func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlSt
 	if !supported {
 		return false
 	}
-	if cleanup, known := v.DraftCleanup.Value(); known && (cleanup.Stage == domain.DraftReleased || cleanup.Stage == domain.DraftSuperseded) {
-		return false
-	}
 	if scope.Enabled {
 		if !scope.ObservationKnown || playerWorld(scope.Snapshot) != world || scope.Snapshot.Plan != v.Plan || scope.Snapshot.Revision != v.Revision {
 			return false
@@ -858,57 +841,11 @@ func workerScope(scope ControlState) ControlState {
 	return scope
 }
 
-// Draft ownership outlives ordinary progress. Completed drafts remain useful only
-// while their original active plan still has unfinished, nonfailed work.
-// A combat fight's drafts are claims its fight row holds (#910), released
-// by the draft sweep, not plan actions.
-func workerCleanupEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {
-	cleanup, known := v.DraftCleanup.Value()
-	if !known || v.Attempt == 0 {
-		return false
-	}
-	switch cleanup.Stage {
-	case domain.DraftAwaitingClaim, domain.DraftCleanupRequired, domain.DraftCleanupDispatched, domain.DraftCleanupUncertain:
-	default:
-		return false
-	}
-	draft := false
-	for _, a := range plan.Spec.Actions() {
-		if a.ID() == v.Action {
-			_, draft = a.OwnedDraft()
-			break
-		}
-	}
-	if !draft {
-		return false
-	}
-	// A draft the plan still holds in this world is kept through an
-	// authority hold and the generation a resume grants: a pause or letter
-	// pause suspends routine work until control resumes in the same world,
-	// and the drafted defenders of a combat hold plan are that work
-	// (#228, #318, #342). The claim readback at the next order catches a
-	// pawn the player undrafted meanwhile. An explicit Manual still
-	// releases every draft (Control.Manual).
-	if playerWorld(v.Snapshot) == world && workerPlanHoldsDraft(plan, v) {
-		return false
-	}
-	if !scope.Enabled || !scope.ObservationKnown || playerWorld(scope.Snapshot) != world || scope.Snapshot != v.Snapshot {
-		return true
-	}
-	if v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful {
-		return true
-	}
-	if v.Stage != domain.Completed {
-		return false
-	}
-	return !workerPlanHoldsDraft(plan, v)
-}
-
 // workerPlanHoldsDraft reports whether plan still holds the draft v, either
 // completed or still in flight (dispatched, receipt accepted, awaiting the
 // observation a hold interrupted): no other action of the plan has failed
 // or been cancelled, and at least one is still unfinished. An order riding
-// on another draft (a move, a ranged or melee attack naming a different
+// on another draft (a move or a subdue naming a different
 // draft action) says nothing about this one: a timed-out move for one
 // defender must not undraft the others mid-order. An order riding on this
 // draft that native is still executing holds it outright: a recovered goal
@@ -945,7 +882,7 @@ func workerPlanHoldsDraft(plan store.PlanState, v domain.ProgressView) bool {
 		case domain.Pending, domain.Prepared:
 			unfinished = true
 		case domain.Completed:
-			if rides == v.Action && p.Action().Subdues() {
+			if rides == v.Action && p.Action().Kind() == domain.SubdueAction {
 				return true
 			}
 		}
@@ -959,10 +896,7 @@ func workerOrderDraft(action domain.Action) domain.ActionID {
 	if m, ok := action.Movement(); ok {
 		return m.DraftAction()
 	}
-	if r, ok := action.RangedAttack(); ok {
-		return r.DraftAction()
-	}
-	if m, ok := action.MeleeAttack(); ok {
+	if m, ok := action.Subdue(); ok {
 		return m.DraftAction()
 	}
 	return ""

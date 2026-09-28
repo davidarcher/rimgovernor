@@ -21,13 +21,13 @@ func acquisitionTestEffect() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Acquisition{Acquisition: &r.AcquisitionEffect{SourceId: proto.String("plant"), ResourceDef: proto.String("WoodLog"), Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Designated: proto.Bool(true), LaborFinished: proto.Bool(false), ProducedUnits: proto.Int32(0), OutputComplete: proto.Bool(true), OutputObserved: proto.Bool(false)}}}
 }
 func TestAcquisitionFixedWriteAndExactAdmission(t *testing.T) {
-	receipt := draftTestReceipt()
+	receipt := executeTestReceipt()
 	receipt.Outcome = &r.Receipt_Applied{Applied: &r.Applied{Observed: acquisitionTestEffect()}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(arg.Tool)
 		}
-		draftTestRequest(t, arg, &op.ExecuteRequest{Precondition: buildingPre(), Operation: acquisitionOperation(acquisitionTestTarget(), false)})
+		protoTestRequest(t, arg, &op.ExecuteRequest{Precondition: buildingPre(), Operation: acquisitionOperation(acquisitionTestTarget(), false)})
 		if arg.Arguments != nil && bytes.Contains(arg.Arguments, []byte("expectedSnapshotToken")) {
 			t.Fatal("execute carries the snapshot token", string(arg.Arguments))
 		}

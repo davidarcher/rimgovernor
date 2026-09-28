@@ -121,9 +121,6 @@
        only their own Program.cs; all bridge/game types are resolved at runtime via
        Assembly.LoadFrom(args[0]) + AssemblyResolve. No external inputs required to compile. -->
   <ItemGroup>
-    <Compile Include="NativeContractProbes/native-combat-causality/Program.cs" />
-    <Compile Include="NativeContractProbes/native-combat-operations/Program.cs" />
-    <Compile Include="NativeContractProbes/native-draft-operations/Program.cs" />
     <Compile Include="NativeContractProbes/native-movement-operations/Program.cs" />
     <Compile Include="NativeContractProbes/native-pawn-control-state/Program.cs" />
     <Compile Include="NativeContractProbes/native-pawn-observations/Program.cs" />
@@ -145,16 +142,6 @@
        build standalone before the merge either, without a licensed RimWorld install / Harmony
        assembly / RimBridgeServer SDK supplied by the caller). Gating their Compile/Reference
        items keeps the default (no external inputs) build green for the other 20 probes. ==== -->
-
-  <!-- native-explosive-causality + native-ranged-causality: real Harmony AND real RimWorld
-       managed assemblies referenced at compile time (using Verse, RimWorld, HarmonyLib directly). -->
-  <ItemGroup Condition="'$(HarmonyAssembly)' != '' AND '$(RimWorldManagedDir)' != ''">
-    <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
-    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
-    <Compile Include="NativeContractProbes/native-explosive-causality/Program.cs" />
-    <Compile Include="NativeContractProbes/native-ranged-causality/Program.cs" />
-  </ItemGroup>
 
   <!-- native-journal-cache: compiles the REAL BridgeCommon.cs and REAL RimBridgeServer.Sdk against
        a licensed RimBridgeSdkDir/RimWorldManagedDir, unlike every other probe here. Its real

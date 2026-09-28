@@ -17,6 +17,32 @@ func pawnOrderIntent(pawn domain.PawnID, target string, kind o.PawnOrderKind) (*
 		PawnId: proto.String(string(pawn)), TargetId: proto.String(target), Kind: kind.Enum()}}}, nil
 }
 
+// draftAction drafts one plan-owned pawn (#939).
+func draftAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.OwnedDraft()
+	if !ok || validID(string(v.Pawn())) != nil {
+		return nil, contract("not a draft action")
+	}
+	return &o.Action{Intent: &o.Action_Draft{Draft: &o.DraftIntent{PawnId: proto.String(string(v.Pawn())), Drafted: proto.Bool(true)}}}, nil
+}
+
+// UndraftAction is the wire intent that undrafts one pawn no live plan
+// needs (#939).
+func UndraftAction(key string, pawn domain.PawnID) (*o.Action, error) {
+	if validID(key) != nil || validID(string(pawn)) != nil {
+		return nil, contract("undraft requires a key and a pawn")
+	}
+	return &o.Action{Key: proto.String(key), Intent: &o.Action_Draft{Draft: &o.DraftIntent{PawnId: proto.String(string(pawn)), Drafted: proto.Bool(false)}}}, nil
+}
+
+func subdueAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.Subdue()
+	if !ok {
+		return nil, contract("not a subdue action")
+	}
+	return pawnOrderIntent(v.Pawn(), string(v.Target()), o.PawnOrderKind_PAWN_ORDER_KIND_SUBDUE)
+}
+
 func repairAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.Repair()
 	if !ok {

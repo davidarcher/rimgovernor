@@ -55,9 +55,6 @@ func TestRepairPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 	if err != nil || progress.Action() != action || progress.View().Stage != Pending || progress.View().Unresolved {
 		t.Fatal(progress, err)
 	}
-	if _, known := progress.View().DraftCleanup.Value(); known {
-		t.Fatal("repair fabricated draft ownership")
-	}
 }
 
 func TestRepairHandlerCoverageIsRequired(t *testing.T) {

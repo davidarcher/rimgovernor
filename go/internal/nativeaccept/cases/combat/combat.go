@@ -1,15 +1,14 @@
 // Package combat holds the Loud combat cases (the former combataccept):
-// bounded actual combat terminal outcome through the scenario clock's
-// WATCH_MODE_COMBAT policy, with player override/fresh claim, replay, and
-// completed-before-Manual retention. No damage or completion injection;
-// the terminal outcome must be causally verified by the native runtime
-// itself within a bounded shared-clock tick budget.
+// a colonist drafted by a DraftIntent attacks through one combat_orders
+// intent (#939), native picking melee or ranged from its weapon; the
+// same key replays the receipt; the scenario clock's WATCH_MODE_COMBAT
+// policy runs bounded windows until the target is down, and the undraft
+// intent releases the attacker. No damage or completion injection.
 package combat
 
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -40,8 +39,8 @@ func init() {
 		v := v
 		cases.Register(cases.Case{
 			Name: v.name,
-			Scope: "Actual attributed combat terminal outcome, player override and fresh claim, replay, " +
-				"completed-before-Manual retention; bounded shared clock waits. No damage or completion injection.",
+			Scope: "Draft intent, one combat_orders attack (melee or ranged by weapon), key replay, " +
+				"target downed or dead within bounded shared clock waits, undraft intent. No damage or completion injection.",
 			Start:  cases.LabStart(),
 			Quiet:  na.Loud,
 			Reason: loudReason,
@@ -58,10 +57,8 @@ func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
 	report["ranged"] = ranged
 	report["explosive"] = explosive
 	report["combat_tick_budget"] = combatTickBudget
-	mode := "ATTACK_MODE_MELEE"
 	jobDef := "AttackMelee"
 	if ranged {
-		mode = "ATTACK_MODE_RANGED"
 		jobDef = "AttackStatic"
 	}
 	h, names, identity := s.Harness(), s.Names(), s.Identity()
@@ -199,226 +196,54 @@ func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
 		}
 	}
 
-	actor, err := read("attacker-before", actorID)
-	if err != nil {
-		return err
-	}
-	victim, err := read("target-before", targets[0])
-	if err != nil {
-		return err
-	}
 	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
 	if err != nil {
 		return err
 	}
-	draftReply, err := h.Wire(ctx, "draft", "operations_execute", na.ExecuteRequest(identity, grant, actor, 1))
+	// Drafts are plan-owned intents (#939): draft, then one combat_orders
+	// attack; native picks melee or ranged from the attacker's weapon.
+	if job, err := na.ApplyDraft(ctx, h, "draft", identity, "combat-draft", actorID, true); err != nil {
+		return err
+	} else if issued, _ := na.AsBool(job["issued"]); !issued {
+		return fmt.Errorf("draft: an undrafted attacker was not drafted: %#v", job)
+	}
+	actor, err := read("drafted-attacker", actorID)
 	if err != nil {
 		return err
 	}
-	_, drafted, err := na.Outcome(draftReply, "receipt")
+	if drafted, _ := na.AsBool(actor["drafted"]); !drafted {
+		return fmt.Errorf("drafted-attacker: census shows the attacker undrafted")
+	}
+	orders := []any{map[string]any{"pawn": map[string]any{"entityId": actorID}, "attack": map[string]any{"entityId": targets[0]}}}
+	results, err := na.ApplyCombatOrders(ctx, h, "attack", identity, "combat-attack", orders)
 	if err != nil {
 		return err
 	}
-	actor, err = read("owned-attacker", actorID)
-	if err != nil {
-		return err
-	}
-	if err := na.OwnedEffect(drafted, actor, "applied", true); err != nil {
-		return err
-	}
-
-	request := attackRequest(identity, grant, actor, victim, 3, mode)
-	operation, _ := na.AsMap(request["operation"])
-	previewReply, err := h.Wire(ctx, "attack-preview", "operations_preview", map[string]any{"identity": identity, "operation": operation})
-	if err != nil {
-		return err
-	}
-	_, preview, err := na.Outcome(previewReply, "evaluated")
-	if err != nil {
-		return err
-	}
-	if accepted, _ := na.AsBool(preview["accepted"]); !accepted {
-		return fmt.Errorf("attack preview was not accepted: %#v", preview)
-	}
-	receiptReply, err := h.Wire(ctx, "attack", "operations_execute", request)
-	if err != nil {
-		return err
-	}
-	_, receipt, err := na.Outcome(receiptReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if err := checkAttackEffect(receipt, "applied", actorID, targets[0], jobDef); err != nil {
+	if err := checkAttackResult(results, actorID, jobDef); err != nil {
 		return fmt.Errorf("attack: %w", err)
 	}
 	attacking, err := read("attack-job", actorID)
 	if err != nil {
 		return err
 	}
-	appliedJob, _ := na.AsMap(receipt["applied"])
-	appliedObserved, _ := na.AsMap(appliedJob["observed"])
-	appliedEffect, _ := na.AsMap(appliedObserved["job"])
 	attackingJob, _ := na.AsMap(attacking["job"])
-	if na.AsString(attackingJob["loadId"]) != fmt.Sprint(appliedEffect["jobId"]) || na.AsString(attackingJob["defName"]) != jobDef {
-		return fmt.Errorf("attack-job: row job does not match the issued effect")
+	if na.AsString(attackingJob["defName"]) != jobDef {
+		return fmt.Errorf("attack-job: row job %v is not %s", attackingJob["defName"], jobDef)
 	}
-	precondition, _ := na.AsMap(request["precondition"])
-	attempt := map[string]any{"identity": identity, "attempt": precondition["attempt"]}
-	pendingReply, err := h.Wire(ctx, "attack-pending", "receipts_observe_progress", attempt)
+	// The same key replays the committed receipt without a second order.
+	replay, err := na.ApplyCombatOrders(ctx, h, "attack-replay", identity, "combat-attack", orders)
 	if err != nil {
 		return err
 	}
-	_, pending, err := na.Outcome(pendingReply, "progress")
-	if err != nil {
-		return err
-	}
-	if _, ok := pending["pending"]; !ok {
-		return fmt.Errorf("attack-pending: expected a pending case, got %#v", pending)
-	}
-	replayReply, err := h.Wire(ctx, "attack-replay", "operations_execute", request)
-	if err != nil {
-		return err
-	}
-	_, replay, err := na.Outcome(replayReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(replay, receipt) {
-		return fmt.Errorf("attack-replay returned a different receipt than the original execute")
+	if !na.DeepEqual(replay, results) {
+		return fmt.Errorf("attack-replay returned different results: %#v", replay)
 	}
 	replayRow, err := read("replay-unchanged", actorID)
 	if err != nil {
 		return err
 	}
-	if err := na.SameControl(attacking, replayRow); err != nil {
-		return fmt.Errorf("replay-unchanged: %w", err)
-	}
 	if !na.DeepEqual(replayRow["job"], attacking["job"]) {
 		return fmt.Errorf("replay-unchanged: job changed unexpectedly")
-	}
-
-	external, err := h.Call(ctx, "player-override", "test/b04f_setup", map[string]any{"op": "external-order", "pawn": actorID})
-	if err != nil {
-		return err
-	}
-	player, err := read("player-job", actorID)
-	if err != nil {
-		return err
-	}
-	overrideProgressReply, err := h.Wire(ctx, "override-progress", "receipts_observe_progress", attempt)
-	if err != nil {
-		return err
-	}
-	_, interrupted, err := na.Outcome(overrideProgressReply, "progress")
-	if err != nil {
-		return err
-	}
-	if err := overriddenAttack(interrupted, attacking, player, external); err != nil {
-		return err
-	}
-	report["interrupted_attempt"] = attempt
-	report["interrupted_progress"] = interrupted
-
-	grant, err = na.GrantAuto(ctx, h.WireFunc(), "unowned-acquire", identity)
-	if err != nil {
-		return err
-	}
-	// Auto adopts the player's standing draft without issuing a setter or
-	// replacing the player order. The override above still interrupts the attack.
-	adoptReply, err := h.Wire(ctx, "adopt-player-draft", "operations_execute", na.ExecuteRequest(identity, grant, player, 4))
-	if err != nil {
-		return err
-	}
-	_, adopted, err := na.Outcome(adoptReply, "receipt")
-	if err != nil {
-		return err
-	}
-	preserved, err := read("player-job-preserved", actorID)
-	if err != nil {
-		return err
-	}
-	if err := na.OwnedEffect(adopted, preserved, "applied", false); err != nil {
-		return fmt.Errorf("adopt-player-draft: %w", err)
-	}
-	if err := na.ActualOrder(external, preserved); err != nil {
-		return err
-	}
-
-	undraft, err := h.Call(ctx, "player-undraft", "test/b04f_setup", map[string]any{"op": "external-draft", "pawn": actorID, "drafted": false})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(undraft["success"]); !success {
-		return fmt.Errorf("player-undraft fixture refused")
-	}
-	if after, _ := na.AsBool(undraft["after"]); after {
-		return fmt.Errorf("player-undraft fixture did not clear drafted")
-	}
-	actor, err = read("fresh-undrafted", actorID)
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(actor["draftClaim"], map[string]any{"unowned": map[string]any{}}) {
-		return fmt.Errorf("fresh-undrafted: draft claim is not unowned")
-	}
-	if drafted, _ := na.AsBool(actor["drafted"]); drafted {
-		return fmt.Errorf("fresh-undrafted: pawn is still drafted")
-	}
-	grant, err = na.GrantAuto(ctx, h.WireFunc(), "fresh-acquire", identity)
-	if err != nil {
-		return err
-	}
-	freshDraftReply, err := h.Wire(ctx, "fresh-draft", "operations_execute", na.ExecuteRequest(identity, grant, actor, 5))
-	if err != nil {
-		return err
-	}
-	_, freshDraft, err := na.Outcome(freshDraftReply, "receipt")
-	if err != nil {
-		return err
-	}
-	actor, err = read("fresh-owned-attacker", actorID)
-	if err != nil {
-		return err
-	}
-	if err := na.OwnedEffect(freshDraft, actor, "applied", true); err != nil {
-		return err
-	}
-	actorClaim, _ := na.AsMap(actor["draftClaim"])
-	actorOwned, _ := na.AsMap(actorClaim["owned"])
-	attackingClaim, _ := na.AsMap(attacking["draftClaim"])
-	attackingOwned, _ := na.AsMap(attackingClaim["owned"])
-	if na.AsString(actorOwned["claimId"]) == na.AsString(attackingOwned["claimId"]) {
-		return fmt.Errorf("fresh draft reused the original owned claim id")
-	}
-
-	victim, err = read("fresh-target-snapshot", targets[0])
-	if err != nil {
-		return err
-	}
-	request = attackRequest(identity, grant, actor, victim, 6, mode)
-	freshAttackReply, err := h.Wire(ctx, "fresh-attack", "operations_execute", request)
-	if err != nil {
-		return err
-	}
-	_, receipt, err = na.Outcome(freshAttackReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if err := checkAttackEffect(receipt, "applied", actorID, targets[0], jobDef); err != nil {
-		return fmt.Errorf("fresh-attack: %w", err)
-	}
-	precondition, _ = na.AsMap(request["precondition"])
-	attempt = map[string]any{"identity": identity, "attempt": precondition["attempt"]}
-	freshPendingReply, err := h.Wire(ctx, "fresh-pending", "receipts_observe_progress", attempt)
-	if err != nil {
-		return err
-	}
-	_, freshPending, err := na.Outcome(freshPendingReply, "progress")
-	if err != nil {
-		return err
-	}
-	if _, ok := freshPending["pending"]; !ok {
-		return fmt.Errorf("fresh-pending: expected a pending case, got %#v", freshPending)
 	}
 
 	supervisor := &na.ScenarioClock{
@@ -429,23 +254,13 @@ func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
 	}
 	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, Tools: names, CombatTargets: targets}
 
-	var completed map[string]any
-	var progress map[string]any
 	var victims []map[string]any
-	window := 0
-	for ; window < combatWindows; window++ {
+	window, ended := 0, false
+	for ; window < combatWindows && !ended; window++ {
 		if err := supervisor.RenewAuthority(ctx); err != nil {
 			return err
 		}
 		if _, err := na.AdvanceGame(ctx, rt, ticksPerWindow, na.WithTimeout(180*time.Second), na.WithCombatTargets(targets...)); err != nil {
-			return err
-		}
-		progressReply, err := h.Wire(ctx, fmt.Sprintf("progress-%d", window), "receipts_observe_progress", attempt)
-		if err != nil {
-			return err
-		}
-		_, progress, err = na.Outcome(progressReply, "progress")
-		if err != nil {
 			return err
 		}
 		targetStateReply, err := query(fmt.Sprintf("target-state-%d", window), map[string]any{"ids": []any{targets[0]}, "includeDead": true})
@@ -459,96 +274,28 @@ func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
 		if len(victims) != 1 {
 			return fmt.Errorf("exact native target state unavailable: %#v", victims)
 		}
-		attackerState, err := read(fmt.Sprintf("attacker-state-%d", window), actorID)
-		if err != nil {
-			return err
-		}
-		report["last_attacker"] = attackerState
-		report["last_progress"] = progress
 		report["last_target"] = victims[0]
-		if _, ok := progress["completed"]; ok {
-			if err := terminal(progress, receipt, victims[0], targets[0], ranged); err != nil {
-				return err
-			}
-			completed = progress
-			break
-		}
-		if _, ok := progress["pending"]; !ok {
-			return fmt.Errorf("window %d: expected a pending or completed progress, got %#v", window, progress)
-		}
+		dead, _ := na.AsBool(victims[0]["dead"])
+		downed, _ := na.AsBool(victims[0]["downed"])
+		ended = dead || downed
 	}
-	report["combat_windows_used"] = window + 1
-	report["last_combat_progress"] = progress
-	report["last_target_state"] = victims[0]
-	if completed == nil {
-		return fmt.Errorf("combat budget exhausted after %d ticks without causally verified terminal damage", combatTickBudget)
+	report["combat_windows_used"] = window
+	if !ended {
+		return fmt.Errorf("combat budget exhausted after %d ticks with the target standing", combatTickBudget)
 	}
 
-	manualStatusReply, err := h.Wire(ctx, "manual-status", "authority_read_status", map[string]any{"identity": identity})
+	// No plan needs the attacker now: the undraft intent releases it.
+	if job, err := na.ApplyDraft(ctx, h, "undraft", identity, "combat-undraft", actorID, false); err != nil {
+		return err
+	} else if issued, _ := na.AsBool(job["issued"]); !issued {
+		return fmt.Errorf("undraft: a drafted attacker was not undrafted: %#v", job)
+	}
+	after, err := read("undrafted-attacker", actorID)
 	if err != nil {
 		return err
 	}
-	_, manualStatus, err := na.Outcome(manualStatusReply, "status")
-	if err != nil {
-		return err
-	}
-	manualStatusContext, _ := na.AsMap(manualStatus["context"])
-	manualRevokeReply, err := h.Wire(ctx, "manual-after-completion", "authority_control", map[string]any{"revoke": map[string]any{
-		"identity": identity, "expectedGeneration": manualStatusContext["nativeGeneration"], "reason": "REVOCATION_REASON_MANUAL",
-	}})
-	if err != nil {
-		return err
-	}
-	if _, _, err := na.Outcome(manualRevokeReply, "revoked"); err != nil {
-		return err
-	}
-	retainedReply, err := h.Wire(ctx, "completed-after-manual", "receipts_observe_progress", attempt)
-	if err != nil {
-		return err
-	}
-	_, retained, err := na.Outcome(retainedReply, "progress")
-	if err != nil {
-		return err
-	}
-	if complete, _ := na.AsBool(retained["completeInspection"]); !complete {
-		return fmt.Errorf("completed-after-manual: not a complete inspection")
-	}
-	if !na.DeepEqual(retained["completed"], completed["completed"]) {
-		return fmt.Errorf("completed-after-manual: retained completion does not match")
-	}
-	actor, err = read("cleanup-attacker", actorID)
-	if err != nil {
-		return err
-	}
-	cleanup, err := na.ReleaseRequest(identity, actor)
-	if err != nil {
-		return err
-	}
-	releasedReply, err := h.Wire(ctx, "cleanup-draft", "operations_release_owned_draft", cleanup)
-	if err != nil {
-		return err
-	}
-	_, released, err := na.Outcome(releasedReply, "released")
-	if err != nil {
-		return err
-	}
-	releasedObserved, _ := na.AsMap(released["observed"])
-	if drafted, _ := na.AsBool(releasedObserved["drafted"]); drafted {
-		return fmt.Errorf("cleanup-draft did not clear drafted")
-	}
-	if verified, _ := na.AsBool(releasedObserved["verified"]); !verified {
-		return fmt.Errorf("cleanup-draft was not verified")
-	}
-	immutableReply, err := h.Wire(ctx, "immutable-attack-replay", "operations_execute", request)
-	if err != nil {
-		return err
-	}
-	_, immutable, err := na.Outcome(immutableReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(immutable, receipt) {
-		return fmt.Errorf("immutable-attack-replay returned a different receipt than the original execute")
+	if drafted, _ := na.AsBool(after["drafted"]); drafted {
+		return fmt.Errorf("undrafted-attacker: census shows the attacker drafted")
 	}
 	finalReply, err := h.Wire(ctx, "identity-after", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
@@ -574,106 +321,20 @@ func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
 	}
 	report["pawn_id"] = actorID
 	report["target_ids"] = targets
-	report["completed"] = completed
 	report["ticks"] = ticks
 	return nil
 }
 
-// attackRequest builds an operations_execute attackTarget request at grant's
-// generation.
-func attackRequest(identity, grant, actor, victim map[string]any, number int, mode string) map[string]any {
-	request := na.ExecuteRequest(identity, grant, actor, number)
-	request["operation"] = map[string]any{"attackTarget": map[string]any{
-		"pawn": na.Target(actor), "target": na.Target(victim), "mode": mode,
-		"requireHostile": true, "requireStanding": true, "requireCombatHealth": true,
-	}}
-	return request
-}
-
-// checkAttackEffect asserts an operations_execute receipt's named case describes an
-// issued, verified attack job against targetID.
-func checkAttackEffect(receipt map[string]any, caseName, actorID, targetID, jobDef string) error {
-	caseValue, _ := na.AsMap(receipt[caseName])
-	observed, _ := na.AsMap(caseValue["observed"])
-	effect, _ := na.AsMap(observed["job"])
-	issued, _ := na.AsBool(effect["issued"])
-	verified, _ := na.AsBool(effect["verified"])
-	if !issued || !verified || na.AsString(effect["jobDef"]) != jobDef {
-		return fmt.Errorf("effect issued/verified/jobDef mismatch: %#v", effect)
+// checkAttackResult asserts the one attack order applied as jobDef.
+func checkAttackResult(results []map[string]any, actorID, jobDef string) error {
+	if len(results) != 1 {
+		return fmt.Errorf("expected one result: %#v", results)
 	}
-	targetA, _ := na.AsMap(effect["targetA"])
-	if na.AsString(targetA["thingId"]) != targetID || na.AsString(effect["pawnId"]) != actorID {
-		return fmt.Errorf("effect target/pawn mismatch: %#v", effect)
+	r := results[0]
+	if applied, _ := na.AsBool(r["applied"]); !applied || na.AsString(r["pawnId"]) != actorID || na.AsString(r["jobDef"]) != jobDef {
+		return fmt.Errorf("result applied/pawn/jobDef mismatch: %#v", r)
 	}
 	return nil
-}
-
-// terminal asserts progress records a causally verified terminal attack outcome
-// against victim/targetID.
-func terminal(progress, receipt, victim map[string]any, targetID string, ranged bool) error {
-	complete, _ := na.AsBool(progress["completeInspection"])
-	completed, ok := na.AsMap(progress["completed"])
-	if !complete || !ok {
-		return fmt.Errorf("expected a complete terminal progress: %#v", progress)
-	}
-	applied, _ := na.AsMap(receipt["applied"])
-	appliedObserved, _ := na.AsMap(applied["observed"])
-	original, _ := na.AsMap(appliedObserved["job"])
-	evidence, _ := na.AsMap(completed["evidence"])
-	effect, _ := na.AsMap(evidence["job"])
-	wantJobDef := "AttackMelee"
-	if ranged {
-		wantJobDef = "AttackStatic"
-	}
-	if fmt.Sprint(effect["jobId"]) != fmt.Sprint(original["jobId"]) || na.AsString(effect["jobDef"]) != wantJobDef {
-		return fmt.Errorf("terminal jobId/jobDef mismatch: %#v", effect)
-	}
-	if na.AsString(effect["pawnId"]) != na.AsString(original["pawnId"]) {
-		return fmt.Errorf("terminal pawnId mismatch")
-	}
-	targetA, _ := na.AsMap(effect["targetA"])
-	if na.AsString(targetA["thingId"]) != targetID {
-		return fmt.Errorf("terminal targetA mismatch: %#v", effect)
-	}
-	if verified, _ := na.AsBool(effect["verified"]); !verified {
-		return fmt.Errorf("terminal effect was not verified")
-	}
-	pawn, _ := na.AsMap(victim["pawn"])
-	if na.AsString(pawn["id"]) != targetID {
-		return fmt.Errorf("victim id does not match targetID")
-	}
-	dead, _ := na.AsBool(victim["dead"])
-	downed, _ := na.AsBool(victim["downed"])
-	if !dead && !downed {
-		return fmt.Errorf("victim is neither dead nor downed")
-	}
-	reason := na.AsString(effect["verifiedReason"])
-	if !strings.HasPrefix(reason, "Native positive damage by this exact attacker/job caused") {
-		return fmt.Errorf("unexpected verifiedReason: %q", reason)
-	}
-	return nil
-}
-
-// overriddenAttack asserts a player override interrupted the pending attack.
-func overriddenAttack(progress, before, after, external map[string]any) error {
-	complete, _ := na.AsBool(progress["completeInspection"])
-	if !complete {
-		return fmt.Errorf("expected a complete progress inspection: %#v", progress)
-	}
-	unsuccessful, _ := na.AsMap(progress["unsuccessful"])
-	if na.AsString(unsuccessful["reason"]) != "UNSUCCESSFUL_REASON_INTERRUPTED" {
-		return fmt.Errorf("expected UNSUCCESSFUL_REASON_INTERRUPTED, got %#v", progress)
-	}
-	if !na.DeepEqual(after["draftClaim"], map[string]any{"unowned": map[string]any{}}) {
-		return fmt.Errorf("override: draft claim was not cleared")
-	}
-	if drafted, _ := na.AsBool(after["drafted"]); !drafted {
-		return fmt.Errorf("override: pawn is no longer drafted")
-	}
-	if na.DeepEqual(na.Target(before), na.Target(after)) {
-		return fmt.Errorf("override: snapshot token did not rotate")
-	}
-	return na.ActualOrder(external, after)
 }
 
 // observedRows asserts an observations_list_pawns reply is a single complete, exact-

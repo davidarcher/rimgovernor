@@ -20,8 +20,6 @@ namespace HomeBridge.BridgeTools
         private readonly string colony;
         private readonly string load;
         internal readonly NativeAttemptLedger Ledger;
-        internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
@@ -41,9 +39,9 @@ namespace HomeBridge.BridgeTools
 
     public sealed class NativeOperationTools
     {
-        public NativeOperationTools() { NativeDrugPolicy.Install(); MiningGuard.Install(); HomeCoverage.Install(); NativeAcquisitionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
+        public NativeOperationTools() { NativeDrugPolicy.Install(); MiningGuard.Install(); HomeCoverage.Install(); NativeAcquisitionTracking.Install(); NativePawnControlState.Initialize(); }
 
-        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit exact supply Allow, temporary SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget, or a batched CombatOrders, under current native authority. Combat requires an existing owned draft. Exact retries return their original receipt.")]
+        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit an exact supply acquisition or its cancellation under current native authority. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
         public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ExecuteRequest ProtoJSON string.")] object? request = null)
@@ -84,12 +82,6 @@ namespace HomeBridge.BridgeTools
                 return NativePlantAcquisition.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CancelAcquisition)
                 return NativePlantAcquisition.Cancel(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
-                return NativeDraftOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
-                return NativeCombatOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CombatOrders)
-                return NativeCombatOrders.Execute(state, request, context);
             return Refuse(Common.FailureCode.Unsupported, "This native adapter does not implement the " + request.Operation.CommandCase + " operation; buildings are placed through Actions/Apply.");
         }
 
@@ -104,13 +96,9 @@ namespace HomeBridge.BridgeTools
             {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
-                    return ProtoBoundary.Encode(NativeDraftOperations.Preview(parsed.Operation.SetDrafted, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.CreateZone) return ProtoBoundary.Encode(NativeZoneCreation.Preview(parsed.Operation.CreateZone, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AcquireResource)
                     return ProtoBoundary.Encode(NativePlantAcquisition.Preview(parsed.Operation.AcquireResource, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
-                    return ProtoBoundary.Encode(NativeCombatOperations.Preview(parsed.Operation.AttackTarget, context));
                 return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview does not implement this operation; building placement previews through rimgovernor/placement_preview.") });
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -152,27 +140,11 @@ namespace HomeBridge.BridgeTools
                     INativeAcquisitionRecord acquisition;
                     if (state.Acquisition.TryGetValue(parsed.Attempt, out acquisition))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = acquisition.Observe(parsed.Attempt, context) });
-                    NativeCombatRecord combat;
-                    if (state.Combat.TryGetValue(parsed.Attempt, out combat))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = combat.Observe(parsed.Attempt, context) });
-                    NativeDraftRecord draft;
-                    if (state.Drafts.TryGetValue(parsed.Attempt, out draft))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = draft.Observe(parsed.Attempt, context) });
                 }
                 var progress = new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
                     Unknown = new Receipts.UnknownEffect { Reason = "No tracked effect is available for this attempt." } };
                 return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = progress });
             }, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool("rimgovernor/operations_release_owned_draft", Title = "Release exact owned draft", Description = "Release an unchanged native draft claim under its original owner/direction, including after Manual or lease expiry. Independent of ordinary attempt capacity; never adopts or clears replacement player orders.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ReleaseOwnedDraftReply.", Always = true)]
-        public async Task<object> ReleaseOwnedDraft(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official operations ReleaseOwnedDraftRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_release_owned_draft", request, Operations.ReleaseOwnedDraftRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Operations.ReleaseOwnedDraftReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => { try { return ProtoBoundary.Encode(NativeDraftOperations.Release(parsed)); } finally { SnapshotStream.NoteWrite(); } }, cancellationToken).ConfigureAwait(false);
         }
 
         private static bool ValidAttempt([NotNullWhen(true)] Common.AttemptKey? value) => value != null && value.HasControllerSessionId

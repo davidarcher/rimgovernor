@@ -51,30 +51,12 @@ func runOrders(ctx context.Context, s cases.Session) error {
 	if len(colonists) != 5 || len(hostiles) != 3 {
 		return fmt.Errorf("staged %d colonists and %d hostiles, want 5 and 3", len(colonists), len(hostiles))
 	}
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "combat-orders-acquire", identity)
+	_, err = na.GrantAuto(ctx, h.WireFunc(), "combat-orders-acquire", identity)
 	if err != nil {
 		return err
 	}
-	for i, id := range colonists {
-		reply, err := h.Wire(ctx, fmt.Sprintf("read-%d", i), "observations_list_pawns", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"ids": []any{id}},
-		})
-		if err != nil {
-			return err
-		}
-		row, err := na.PawnRow(reply, identity, id)
-		if err != nil {
-			return fmt.Errorf("colonist %d: %w", i, err)
-		}
-		drafted, err := h.Wire(ctx, fmt.Sprintf("draft-%d", i), "operations_execute", na.ExecuteRequest(identity, grant, row, 850+i))
-		if err != nil {
-			return err
-		}
-		if _, receipt, err := na.Outcome(drafted, "receipt"); err != nil {
-			return fmt.Errorf("draft colonist %d: %w", i, err)
-		} else if _, ok := na.AsMap(receipt["applied"]); !ok {
-			return fmt.Errorf("draft colonist %d not applied: %v", i, receipt)
-		}
+	if err := draftAll(ctx, h, identity, "draft", colonists); err != nil {
+		return err
 	}
 	pawn := func(id string) map[string]any { return map[string]any{"entityId": id} }
 	ground, moveTo, stopFrom, door := cell(cx-2, cz-3), cell(cx+7, cz-12), cell(cx+5, cz-15), cell(cx, cz-13)
@@ -92,7 +74,7 @@ func runOrders(ctx context.Context, s cases.Session) error {
 	}
 	wantJob := []string{"AttackStatic", "Goto", "AttackStatic", "", "Wait_Combat", "Goto", "", "", "", ""}
 	wantRefusal := map[int]string{8: "draft_ownership", 9: "not_a_door"}
-	results, err := issue(ctx, h, identity, grant, "combat-orders-1", orders)
+	results, err := issue(ctx, h, identity, "combat-orders-1", orders)
 	if err != nil {
 		return err
 	}
@@ -156,7 +138,7 @@ func runOrders(ctx context.Context, s cases.Session) error {
 	if open, err := after.door(cx, cz-13); err != nil || !open {
 		return fmt.Errorf("door hold-open %v after hold_open (%v)", open, err)
 	}
-	closed, err := issue(ctx, h, identity, grant, "combat-orders-2", []any{
+	closed, err := issue(ctx, h, identity, "combat-orders-2", []any{
 		map[string]any{"door": map[string]any{"cell": door, "mode": "COMBAT_DOOR_MODE_CLOSE"}},
 	})
 	if err != nil {
@@ -176,38 +158,20 @@ func runOrders(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
-// issue sends one combat.orders batch and returns its per-order results.
-func issue(ctx context.Context, h *na.Harness, identity, grant map[string]any, action string, orders []any) ([]map[string]any, error) {
-	granted, _ := na.AsMap(grant["context"])
-	reply, err := h.Wire(ctx, action, "operations_execute", map[string]any{
-		"precondition": map[string]any{
-			"identity": identity, "expectedGeneration": granted["nativeGeneration"],
-			"attempt": map[string]any{"controllerSessionId": na.Controller, "actionId": action, "attemptId": "1"},
-		},
-		"operation": map[string]any{"combatOrders": map[string]any{"orders": orders}},
-	})
-	if err != nil {
-		return nil, err
+// issue sends one combat_orders batch through Actions/Apply (#939) and
+// returns its per-order results.
+func issue(ctx context.Context, h *na.Harness, identity map[string]any, action string, orders []any) ([]map[string]any, error) {
+	return na.ApplyCombatOrders(ctx, h, action, identity, action, orders)
+}
+
+// draftAll drafts every pawn through a DraftIntent (#939).
+func draftAll(ctx context.Context, h *na.Harness, identity map[string]any, label string, pawns []string) error {
+	for i, id := range pawns {
+		if _, err := na.ApplyDraft(ctx, h, fmt.Sprintf("%s-%d", label, i), identity, fmt.Sprintf("%s-%s", label, id), id, true); err != nil {
+			return fmt.Errorf("draft %s: %w", id, err)
+		}
 	}
-	_, receipt, err := na.Outcome(reply, "receipt")
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", action, err)
-	}
-	outcome, ok := na.AsMap(receipt["applied"])
-	if !ok {
-		return nil, fmt.Errorf("%s: receipt not applied: %v", action, receipt)
-	}
-	observed, _ := na.AsMap(outcome["observed"])
-	effect, _ := na.AsMap(observed["combatOrders"])
-	rows := na.AsSlice(effect["results"])
-	if len(rows) != len(orders) {
-		return nil, fmt.Errorf("%s: %d results for %d orders: %v", action, len(rows), len(orders), receipt)
-	}
-	out := make([]map[string]any, len(rows))
-	for i, r := range rows {
-		out[i], _ = na.AsMap(r)
-	}
-	return out, nil
+	return nil
 }
 
 type labState struct {

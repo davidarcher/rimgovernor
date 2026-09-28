@@ -24,17 +24,12 @@ namespace HomeBridge.BridgeTools
                 {
                     var reference = new Obs.SnapshotRef { Context = context.Clone(), EntityId = snapshot.PawnId, Token = snapshot.Token };
                     row.Pawn.Snapshot = reference;
-                    row.DraftClaim = snapshot.Claim == null
-                        ? new Obs.DraftClaimObservation { Unowned = new Obs.NoOwnedDraftClaim() }
-                        : new Obs.DraftClaimObservation { Owned = new Obs.OwnedDraftClaim {
-                            ClaimId = snapshot.Claim.ClaimId, PawnSnapshot = reference.Clone() } };
                     return;
                 }
                 detail += " " + result;
             }
             var unavailable = new Common.Unavailable { Reason = reason, Detail = detail };
             row.Issues.Add(new Obs.ReadIssue { Field = "pawn.snapshot", Unavailable = unavailable });
-            row.DraftClaim = new Obs.DraftClaimObservation { Unavailable = unavailable.Clone() };
         }
     }
 }
