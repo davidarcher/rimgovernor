@@ -130,6 +130,23 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 	return admitted, p.journal.RecordCombatStop(call, id, record, next)
 }
 
+// clearFightAnimals restores the restriction of every animal an open
+// fight still has zoned (#1058) as the fight closes. It is best effort: a
+// failed batch is logged and the animal keeps its one-cell area.
+func (r *RoutineDefensePlanner) clearFightAnimals(call context.Context, state ControlState, plan domain.PlanID) {
+	fight, ok, err := r.reviewer.player.journal.LoadCombatFight(call, plan)
+	if err != nil || !ok || !fight.Open {
+		return
+	}
+	clears := policy.AnimalClears(fight.Memory)
+	if len(clears) == 0 {
+		return
+	}
+	if _, _, err = r.sendCombatBatch(call, state, fmt.Sprintf("%s-animals", plan), nil, clears); err != nil {
+		slog.Default().WarnContext(call, "fight animal clears failed", telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "animal_clear", "plan", string(plan), "error", err)
+	}
+}
+
 // recordDrafts records a batch's draft results as the fight's claims
 // (#910): an applied draft's claim, a refused one dropped with its orders
 // forgotten. It returns the remaining (order) results; an uncertain
@@ -202,7 +219,9 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 			row.Applied, row.Refusal = results[i].Applied, results[i].Refusal
 		}
 		if !row.Applied && results != nil && order.Pawn != "" {
-			if from, ok := cells[order.Pawn]; ok && row.Refusal == bridge.CombatRefusalCannotHit {
+			if policy.AnimalOrderKind(order.Kind) {
+				memory = memory.RefuseAnimal(order, row.Refusal)
+			} else if from, ok := cells[order.Pawn]; ok && row.Refusal == bridge.CombatRefusalCannotHit {
 				memory = memory.RefuseHit(order, from)
 			} else if row.Refusal == bridge.CombatRefusalNoShell || row.Refusal == bridge.CombatRefusalUnknownShell {
 				memory = memory.RefuseShell(order)
@@ -260,6 +279,12 @@ func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state Cont
 			wire.Order = &op.CombatOrder_Door{Door: &op.CombatDoor{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Mode: mode.Enum()}}
 		case policy.OrderStop:
 			wire.Order = &op.CombatOrder_Stop{Stop: &op.Clear{}}
+		case policy.OrderRelease:
+			wire.Order = &op.CombatOrder_Release{Release: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
+		case policy.OrderAnimalArea:
+			wire.Order = &op.CombatOrder_AnimalArea{AnimalArea: &op.CombatAnimalArea{Area: &op.CombatAnimalArea_Cell{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}}}
+		case policy.OrderAnimalClear:
+			wire.Order = &op.CombatOrder_AnimalArea{AnimalArea: &op.CombatAnimalArea{Area: &op.CombatAnimalArea_Clear{Clear: &op.Clear{}}}}
 		case policy.OrderFireMode:
 			mode := op.CombatFireMode_COMBAT_FIRE_MODE_AT_WILL
 			if order.FireMode == policy.HoldFire {
@@ -419,7 +444,8 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 		for _, row := range combat.Pawns {
 			s := policy.CombatPawnState{ID: domain.PawnID(row.GetId()), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance()),
 				Weapon: row.GetWeapon(), WeaponRange: row.GetWeaponRange(), FireMode: row.GetFireMode(),
-				Job: row.GetJob(), ShieldBelt: row.GetShieldBelt(), MedicalSkill: int(row.GetMedicalSkill()), MoveSpeed: row.GetMoveSpeed()}
+				Job: row.GetJob(), ShieldBelt: row.GetShieldBelt(), MedicalSkill: int(row.GetMedicalSkill()), MoveSpeed: row.GetMoveSpeed(),
+				Animal: row.GetSide() == mp.CombatSide_COMBAT_SIDE_COLONY_ANIMAL}
 			if cell := row.GetCell(); cell != nil && cell.X != nil && cell.Z != nil {
 				s.Cell = domain.Known(domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 			}

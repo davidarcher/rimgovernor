@@ -81,6 +81,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		// defenders, and the goal satisfies once they are released.
 		for _, method := range incident.Methods {
 			if strings.HasPrefix(string(method.Method), combatMethodPrefix) {
+				r.clearFightAnimals(call, state, method.Plan)
 				if err = p.journal.CloseCombatFight(call, method.Plan); err != nil {
 					return RoutineDefenseResult{}, err
 				}

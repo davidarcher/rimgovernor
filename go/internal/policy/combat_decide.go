@@ -183,6 +183,8 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	orders, next.Roles, next.CannotHit = clearLines(view, orders, geometry, next.Roles, next)
 	// The rescue's orders (#867) lead; a door order names no pawn to issue.
 	orders = append(append(rescue, podDoorOrders(&next)...), orders...)
+	// The colony animals' orders (#1058) name no drafted pawn.
+	orders = append(orders, animalStep(view, &next)...)
 	for _, o := range orders {
 		if o.Pawn != "" {
 			next.issue(o, view.Tick)
@@ -230,6 +232,8 @@ type CombatPawnState struct {
 	Shield domain.Fact[float64]
 	// MoveSpeed is the pawn's MoveSpeed stat in cells/s, 0 unknown (#898).
 	MoveSpeed float64
+	// Animal is a colony animal (mirror side colony_animal, #1058).
+	Animal bool `json:",omitempty"`
 	// Health summary (#1035): BloodLoss severity, the bleed rate per day
 	// and the hours until blood loss kills; unknown when unread.
 	BloodLoss, BleedRatePerDay, HoursUntilBleedDeath domain.Fact[float64]
@@ -492,6 +496,10 @@ type CombatMemory struct {
 	CannotHit []HitRefusal `json:",omitempty"`
 	// Flank is the hold's flanking detachment (#1062).
 	Flank *CombatFlank `json:",omitempty"`
+	// Animals are the colony animals' last release or zone (#1058);
+	// Untrained the animals native refused a release as untrained.
+	Animals   []AnimalOrder   `json:",omitempty"`
+	Untrained []domain.PawnID `json:",omitempty"`
 	// Groups are the split raid's side-group squads (#1064).
 	Groups []CombatGroup `json:",omitempty"`
 	// NoShells are the shells native refused a mortar order for (#1051):
@@ -578,6 +586,8 @@ func (m CombatMemory) clone() CombatMemory {
 	m.PodDoors = slices.Clone(m.PodDoors)
 	m.WaitDoors = slices.Clone(m.WaitDoors)
 	m.CannotHit = slices.Clone(m.CannotHit)
+	m.Animals = slices.Clone(m.Animals)
+	m.Untrained = slices.Clone(m.Untrained)
 	m.NoShells = slices.Clone(m.NoShells)
 	m.Flank = m.Flank.clone()
 	m.Groups = slices.Clone(m.Groups)
