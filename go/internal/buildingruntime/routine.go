@@ -45,6 +45,9 @@ type RoutineReviewer struct {
 	// stockpiles remembers since when each owned stockpile sat mostly
 	// empty (#725); see stockpileMemory.
 	stockpiles stockpileMemory
+	// tunnels remembers the buried-ore corridor each resource last sited
+	// until a stage is admitted under it (#1124); see tunnelMemory.
+	tunnels tunnelMemory
 	// stage is the colony stage of the review the last step loaded (#630):
 	// the stage the store holds that step's review to, so the planners'
 	// targets (staged) agree with the review's. Foothold before any

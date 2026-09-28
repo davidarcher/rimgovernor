@@ -86,8 +86,10 @@ type ResourceSource struct {
 
 // BuriedResourceSource is the deposit MaintainResource tunnels to (#1074)
 // when no mine source can be selected directly: the nearest undesignated,
-// MineSafe, buried mine row with yield left. Nothing is returned while a
-// known threat or urgent competing work would hold any mining.
+// MineSafe, buried mine row with yield left whose cell the resource reach
+// would let a miner work once the corridor opens it (#1124). Nothing is
+// returned while a known threat or urgent competing work would hold any
+// mining.
 func BuriedResourceSource(sources []ResourceSource, r RemoteWorkRequest) (ResourceSource, bool) {
 	if remoteThreatHold(r.Reach) != "" || r.Competition.UrgentPriority > 0 {
 		return ResourceSource{}, false
@@ -96,6 +98,10 @@ func BuriedResourceSource(sources []ResourceSource, r RemoteWorkRequest) (Resour
 	found := false
 	for _, s := range sources {
 		if s.Method != ResourceSourceMine || !s.Buried || s.Designated || s.Yield <= 0 || !MineSafe(s.Safety) {
+			continue
+		}
+		// The tunnel supplies the route; the deposit itself must lie in reach.
+		if !FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: s.Cell, Eligible: domain.Known(true), RouteObservedPassable: domain.Known(true)}).Allowed {
 			continue
 		}
 		if !found || s.Distance < best.Distance || s.Distance == best.Distance && s.ThingID < best.ThingID {

@@ -149,3 +149,17 @@ func TestResourceReachEmptyExtentStagesOnReadiness(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// A buried deposit is tunnelled to only when the reach would let a miner
+// work it once opened (#1124); a nearer one outside the reach is skipped.
+func TestBuriedResourceSourceRespectsReach(t *testing.T) {
+	outside := ResourceSource{ThingID: "outside", Method: ResourceSourceMine, Buried: true, Yield: 40, Safety: "supported_roof", Distance: 5, Cell: domain.Cell{X: 33, Z: 20}}
+	inside := ResourceSource{ThingID: "inside", Method: ResourceSourceMine, Buried: true, Yield: 40, Safety: "supported_roof", Distance: 9, Cell: domain.Cell{X: 20, Z: 20}}
+	r := RemoteWorkRequest{Reach: tribal8Reach()}
+	if got, ok := BuriedResourceSource([]ResourceSource{outside, inside}, r); !ok || got.ThingID != "inside" {
+		t.Fatal(got, ok)
+	}
+	if got, ok := BuriedResourceSource([]ResourceSource{outside}, r); ok {
+		t.Fatal(got)
+	}
+}

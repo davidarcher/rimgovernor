@@ -24,6 +24,9 @@ type buriedOreNative struct {
 	*starvingResourceNative
 	rock    map[domain.Cell]string
 	support policy.ExcavationSupport
+	// onSite, when set, sees each excavation site read by its count.
+	onSite func(int)
+	sites  int
 }
 
 func (n *buriedOreNative) buried() bool {
@@ -45,6 +48,9 @@ func (n *buriedOreNative) ReadResourceSources(_ context.Context, _ *c.Identity, 
 }
 
 func (n *buriedOreNative) ReadExcavationSite(ctx context.Context, _ *c.Identity, cells []domain.Cell, _ domain.Cell) (bridge.ExcavationSite, bridge.Result, error) {
+	if n.sites++; n.onSite != nil {
+		n.onSite(n.sites)
+	}
 	site := bridge.ExcavationSite{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Support: n.support, WorkerAvailable: true, AccessReachable: true, Workers: []string{"miner"}}
 	for _, cell := range cells {
 		row := bridge.ExcavationSiteCell{Cell: cell}
@@ -244,5 +250,45 @@ func TestBuriedSteelUnsupportedCorridorHoldsTheDig(t *testing.T) {
 	}
 	if id, _ := tunnelStage(t, db); id != "" || result.Reason == BuildingMethodAdmitted {
 		t.Fatal(result, id)
+	}
+}
+
+// A tunnel sited under a planner cut off before its first stage was
+// admitted (#1124: the optional resource planner missed the wave cutoff)
+// resumes on the next review, even once the face has left the colony
+// window and the geometry search proposes nothing.
+func TestBuriedSteelResumesADroppedFirstStage(t *testing.T) {
+	t.Parallel()
+	planner, db, native := buriedOreFixture(t)
+	cutoff, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	native.onSite = func(n int) {
+		if n == 2 {
+			cancel()
+		}
+	}
+	if _, err := planner.Step(cutoff); err == nil {
+		t.Fatal("the cut-off planner finished")
+	}
+	if id, _ := tunnelStage(t, db); id != "" || native.sites < 2 {
+		t.Fatal("stage 0 admitted before the cutoff", id, native.sites)
+	}
+	native.onSite = nil
+	projection := &planner.reviewer.census.latest.reading.Projection
+	projection.Region.Width = 12 - projection.Region.X + 1
+	var kept []policy.SiteCell
+	for _, cell := range projection.Cells {
+		if cell.Cell.X <= 12 {
+			kept = append(kept, cell)
+		}
+	}
+	projection.Cells = kept
+	result, err := planner.Step(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, cells := tunnelStage(t, db)
+	if result.Reason != BuildingMethodAdmitted || id == "" || len(cells) == 0 {
+		t.Fatal(result, id, cells)
 	}
 }
