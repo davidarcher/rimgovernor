@@ -81,8 +81,9 @@ namespace HomeBridge.BridgeTools
                 }
                 if (p.Ideo != null) person.IdeoId = NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID());
                 // Prospect facts (#1036): MaintainPopulation weighs a prisoner's
-                // skills, traits, age and health against the free colonists'.
-                if (p.IsPrisonerOfColony || person.Admitted)
+                // skills, traits, age and health against the free colonists';
+                // a hostile's skills rank it as a lance target (#1038).
+                if (p.IsPrisonerOfColony || person.Admitted || p.HostileTo(player))
                 {
                     person.WildMan = p.IsWildMan();
                     person.Biography = NativePawnDetails.Biography(p);

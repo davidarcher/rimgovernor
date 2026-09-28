@@ -135,6 +135,7 @@
     <Compile Include="NativeContractProbes/native-proto-placement/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-presentation/Program.cs" />
     <Compile Include="NativeContractProbes/native-population-outlook/Program.cs" />
+    <Compile Include="NativeContractProbes/native-use-item/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-research/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-rooms/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-supplies/Program.cs" />

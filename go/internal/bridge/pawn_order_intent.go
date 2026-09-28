@@ -95,6 +95,21 @@ func wearAction(action domain.Action) (*o.Action, error) {
 	return pawnOrderIntent(v.Pawn(), v.Thing(), o.PawnOrderKind_PAWN_ORDER_KIND_WEAR)
 }
 
+// useItemAction is the UseItemIntent (#1038): one colonist uses one
+// targetable item (a worn lance's verb, a CompTargetable item) on one pawn;
+// native validates the verb or use comp against the target live.
+func useItemAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.UseItem()
+	if !ok {
+		return nil, contract("not a use item action")
+	}
+	if validID(string(v.Pawn())) != nil || validID(v.Item()) != nil || validID(string(v.Target())) != nil || v.Pawn() == v.Target() {
+		return nil, contract("use item intent requires a distinct pawn, item and target")
+	}
+	return &o.Action{Intent: &o.Action_UseItem{UseItem: &o.UseItemIntent{
+		PawnId: proto.String(string(v.Pawn())), ItemId: proto.String(v.Item()), TargetId: proto.String(string(v.Target()))}}}, nil
+}
+
 // moodReliefAction is the NeedReliefIntent: native offers the pawn the job
 // its own need giver issues, checked live.
 func moodReliefAction(action domain.Action) (*o.Action, error) {

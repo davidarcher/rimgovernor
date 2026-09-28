@@ -22,7 +22,7 @@ discovered/mapped, not as live source links.
 | `rimworld/load_game_ready` | Lifecycle.Load / ReadLoad | Typed | `controller/rimgovernor/bridge.py:153` |
 | `home/husbandry_config` | Actions.Apply HusbandryIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/caravan` | Actions.Apply: FormCaravanIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/population` | Actions.Apply PrisonerInteractionIntent; Observations.ReadPopulation | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/population` | Actions.Apply PrisonerInteractionIntent; UseItemIntent (#1038); Observations.ReadPopulation | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/confirm_colony_names` | Actions.Apply NamingIntent (autopilot); PresentationReads.PreviewNaming/PlayerPresentation.Apply naming (future player affordance, unregistered) | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/zone_cells` | Actions.Apply CreateZone / DeleteZoneIntent / ZoneCellsIntent / StockpileIntent; Operations.Preview CreateZone (planner siting); Operations RepairZone / PatchGrowing; Observations.ListZones | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/place_building` | Operations.Preview / Execute: PlaceBuilding; Placement.Preview | Typed | `controller/rimgovernor/bridge_game.py:15` |

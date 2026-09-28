@@ -25,6 +25,9 @@ type CustodyFacts struct {
 	// (PawnGenerator.GeneratePawn -> SetupRecruitable), so a downed raider
 	// already carries it before capture. It orders captures only (#1034).
 	Recruitable domain.Fact[bool]
+	// Prospect is the pawn's biography: skills rank a standing hostile as
+	// a lance target (#1038).
+	Prospect domain.Fact[PrisonerProspect]
 }
 
 // CustodyPlanReason names why RoutinePopulationCustodyPlanner did or did

@@ -62,6 +62,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.RemoveWall] = new RemoveWallActionHandler(),
             [Operations.Action.IntentOneofCase.PawnOrder] = new PawnOrderActionHandler(),
             [Operations.Action.IntentOneofCase.NeedRelief] = new NeedReliefActionHandler(),
+            [Operations.Action.IntentOneofCase.UseItem] = new UseItemActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

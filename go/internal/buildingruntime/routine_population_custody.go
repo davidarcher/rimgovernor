@@ -95,6 +95,13 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	arrestTarget := policy.ShrineArrestTarget(read.Projection.Facts)
 	if arrestTarget != "" {
 		choice = policy.CustodyChoice{Pawn: arrestTarget}
+	} else if target := policy.LanceCandidate(read.Projection.Facts); target != "" {
+		// A standing recruitable raider goes down alive to a lance
+		// (#1038) before any capture; without an able user the step
+		// goes on to capture and rescue.
+		if result, ok, err := r.stepLance(call, epoch, p, state, started, goal, review.Tick, target, arbiter); err != nil || ok {
+			return result, err
+		}
 	}
 	switch choice.Reason {
 	case policy.CustodyNoDeficit:

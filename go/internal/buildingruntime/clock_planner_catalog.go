@@ -630,7 +630,7 @@ var plannerCatalog = []plannerEntry{
 			out.PrisonerInteraction = &method
 			return method.Reason, nil
 		}},
-	{name: "populationCustody", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.CaptureAction, domain.RescueAction, domain.OpenCasketAction}, sections: sectionsCustody,
+	{name: "populationCustody", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.CaptureAction, domain.UseItemAction, domain.RescueAction, domain.OpenCasketAction}, sections: sectionsCustody,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PopulationCustody != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.PopulationCustody.step(ctx, epoch, arbiter)

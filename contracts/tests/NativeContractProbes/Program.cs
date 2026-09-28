@@ -59,6 +59,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-proto-presentation": return NativeProtoPresentationProbe.Invoke(rest);
                 case "native-proto-research": return NativeProtoResearchProbe.Invoke(rest);
                 case "native-population-outlook": return NativePopulationOutlookProbe.Invoke(rest);
+                case "native-use-item": return NativeUseItemProbe.Invoke(rest);
                 case "native-proto-rooms": return NativeProtoRoomsProbe.Invoke(rest);
                 case "native-proto-supplies": return NativeProtoSuppliesProbe.Invoke(rest);
 
@@ -106,7 +107,7 @@ internal static class NativeContractProbesDispatcher
             "native-combat-operations", "native-draft-operations", "native-movement-operations",
             "native-pawn-control-state", "native-pawn-observations", "native-proto-buildings",
             "native-proto-observations", "native-proto-placement", "native-proto-presentation",
-            "native-proto-research", "native-population-outlook", "native-proto-rooms", "native-proto-supplies",
+            "native-proto-research", "native-population-outlook", "native-use-item", "native-proto-rooms", "native-proto-supplies",
             "native-explosive-causality", "native-ranged-causality", "native-journal-cache",
         }) Console.Error.WriteLine("  " + name);
     }

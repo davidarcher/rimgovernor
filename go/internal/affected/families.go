@@ -81,6 +81,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_mood_relief.go":          {"mood"},
 	"routine_naming.go":               {"naming"},
 	"routine_population_custody.go":   {"population-custody"},
+	"routine_population_lance.go":     {"population-custody"},
 	"routine_shrine_arrest.go":        {"population-custody"},
 	"routine_population_joiner.go":    {"population-joiner"},
 	"routine_power.go":                {"power"},

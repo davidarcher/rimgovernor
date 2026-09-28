@@ -444,7 +444,7 @@ namespace HomeBridge.BridgeTools
                     }
                     else throw new ArgumentException($"Unknown side {p["side"]}.");
                     if (pawn.equipment != null) Arm(pawn, (string)p["weapon"] ?? "", (string)p["weaponStuff"] ?? "");
-                    // apparel (#1049): one worn apparel def, a shield belt for the EMP case.
+                    // apparel (#1049): one worn apparel def, a shield belt for the EMP case or a psychic shock lance (#1038).
                     if ((string)p["apparel"] is string apparel && apparel != "")
                     {
                         var apparelDef = DefDatabase<ThingDef>.GetNamedSilentFail(apparel) ?? throw new ArgumentException($"No apparel {apparel}.");
@@ -485,7 +485,8 @@ namespace HomeBridge.BridgeTools
             var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(),
                 side = p.Faction == Faction.OfInsects ? "insect" : p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : "manhunter") : p.Faction == Faction.OfPlayer ? "colonist" : p.HostFaction == Faction.OfPlayer ? "prisoner" : "hostile", kind = p.kindDef.defName,
                 x = p.PositionHeld.x, z = p.PositionHeld.z, inPod = !p.Spawned, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
-                lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0 }).ToList();
+                lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0,
+                worn = p.apparel?.WornApparel.Select(a => new { id = a.GetUniqueLoadID(), def = a.def.defName }).ToList() }).ToList();
             return new { success = true, faction = hostiles.FirstOrDefault()?.Faction.def.defName, things, pawns = rows, digest = Digest(map), digestRows = DigestRows(map) };
         }
 
@@ -581,7 +582,7 @@ namespace HomeBridge.BridgeTools
         // well under the call ceiling.
         private const int MaxTicks = 2000;
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak}. Hostiles get fixed skills, only the named apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak}. Hostiles get fixed skills, only the named apparel and an assault lord. Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
             [ToolParameter(Description = "stage (default), read, or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
@@ -604,7 +605,8 @@ namespace HomeBridge.BridgeTools
                         job = p.CurJobDef?.defName, playerForced = p.CurJob?.playerForced == true, jobCell = p.CurJob == null || p.CurJob.targetA.HasThing ? null : new { x = p.CurJob.targetA.Cell.x, z = p.CurJob.targetA.Cell.z },
                         jobThing = p.CurJob?.targetA.Thing?.GetUniqueLoadID(), drafted = p.Drafted, fireAtWill = p.drafter?.FireAtWill,
                         shield = p.apparel?.WornApparel.Select(a => a.GetComp<CompShield>()).FirstOrDefault(c => c != null)?.Energy,
-                        area = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.Label, areaCells = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.TrueCount ?? 0 }).ToList(),
+                        area = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.Label, areaCells = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.TrueCount ?? 0,
+                        hediffs = p.health.hediffSet.hediffs.Select(h => h.def.defName).Distinct().ToList() }).ToList(),
                         doors = map.listerBuildings.allBuildingsColonist.OfType<Building_Door>().Select(d => new { x = d.Position.x, z = d.Position.z, holdOpen = d.HoldOpen, forbidden = d.IsForbidden(Faction.OfPlayer) }).ToList(),
                         damage = LabDamageLedger.Rows(), damageDropped = LabDamageLedger.Dropped };
                 if (action != "stage") throw new ArgumentException("Unknown action.");
