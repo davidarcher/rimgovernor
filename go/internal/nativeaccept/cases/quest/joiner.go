@@ -1,10 +1,9 @@
 // The quest/joiner case proves MaintainPopulation's joiner answer (#250)
 // end to end: a real ThreatReward_Raid_Joiner offer generated through the
 // native storyteller path reads back in the quest census with its root
-// script_def, stays unanswered while the colony has declared no population
-// capacity, and once the player declares a population policy the colony can
-// meet (spare unowned beds and a food runway past the policy reserve, both
-// staged by the fixture) the routine-population-joiner planner accepts it
+// script_def and, since the colony has capacity (spare unowned beds and a
+// food runway past policy.JoinerFoodFloorDays, both staged by the fixture),
+// the routine-population-joiner planner accepts it
 // through the QuestAccept vertical, the joiner walks into the colony and
 // the native quest reports itself accepted and ongoing.
 package quest
@@ -26,11 +25,6 @@ const (
 	joinerPrepareTool = "test/joiner_quest_prepare"
 	joinerReadTool    = "test/joiner_quest_read"
 	joinerBaseline    = "RimGovernor-tribal8-baseline"
-	// joinerPolicyMaximum leaves room for one more colonist on the eight-
-	// colonist baseline; joinerPolicyFoodDays is the smallest reserve the
-	// policy admits, which the fixture's survival meals exceed many times.
-	joinerPolicyMaximum  = 20
-	joinerPolicyFoodDays = 1.0
 	// joinerCeiling bounds each service-side wait; the stall budget ends it
 	// earlier when nothing moves.
 	joinerCeiling = 8 * time.Minute
@@ -44,8 +38,8 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "quest/joiner",
 		Scope: "Issue #250: a real ThreatReward_Raid_Joiner offer reads back in the quest census with its root " +
-			"script_def, is left unanswered without a declared population policy, and once the player declares one the " +
-			"colony can meet (headroom, food reserve, a spare unowned bed) MaintainPopulation accepts it through the " +
+			"script_def and, with capacity under the bot's population target (#1032: food floor, a spare unowned bed), " +
+			"MaintainPopulation accepts it through the " +
 			"QuestAccept vertical and the joiner arrives natively.",
 		Start: cases.Fixture{Op: joinerPrepareTool, On: cases.LabStart()},
 		// The building families keep supervised windows running; the joiner
@@ -203,43 +197,10 @@ func runJoiner(ctx context.Context, s cases.Session) error {
 		return answers, nil
 	}
 
-	// Phase 1: without a declared population policy the colony has no
-	// capacity, so the first reviews bind no MaintainPopulation deficit for
-	// the offer and admit nothing: an offer the colony cannot host is left
-	// alone.
-	review, diagnostics, err := service.WaitRoutineReview(ctx, st, joinerCeiling)
-	report["phase1_review"] = diagnostics
-	if err != nil {
-		return fmt.Errorf("phase1: %w", err)
-	}
-	answers, found, err := joinerAnswers(ctx, st)
-	if err != nil {
-		return err
-	}
-	report["phase1_answers"] = answers
-	report["phase1_population_bound"] = found
-	if len(answers) != 0 {
-		return fmt.Errorf("phase1: review %d answered the offer (%v) before any population policy was declared", review.Revision, answers)
-	}
-
-	// The player declares a policy the colony can meet through the same
-	// route the web client uses; the next review reads it as
-	// RoutineFacts.PopulationCapacity.
-	submission, status, err := service.API("POST", "/api/player/population-policy/replace", map[string]any{
-		"requestId": "quest-joiner-policy-1", "expected": identity,
-		"policy": map[string]any{"maximum": joinerPolicyMaximum, "foodDays": joinerPolicyFoodDays},
-	}, service.Token)
-	if err != nil {
-		return err
-	}
-	if status != 201 {
-		return fmt.Errorf("population-policy/replace: status=%d body=%#v", status, submission)
-	}
-	report["population_policy"] = submission
-
-	// Phase 2: MaintainPopulation admits one QuestAccept for the offer and
-	// the executor completes it against the live quest.
-	answers, err = waitFor("phase2", func(a map[domain.QuestID]joinerAnswer, found bool) (bool, error) {
+	// MaintainPopulation admits one QuestAccept for the offer against the
+	// bot's own population target (#1032) and the executor completes it
+	// against the live quest.
+	answers, err := waitFor("phase2", func(a map[domain.QuestID]joinerAnswer, found bool) (bool, error) {
 		for quest, answer := range a {
 			if quest != questID {
 				return false, fmt.Errorf("MaintainPopulation accepted quest %s, not the joiner offer %s", quest, questID)

@@ -26,11 +26,11 @@ func TestJoinerLettersNeedKnownCapacityAndChooseOneOffer(t *testing.T) {
 }
 
 func TestPendingLetterRaisesPopulationNeedOnlyWithRoom(t *testing.T) {
-	capacity := joinerFacts(t, 2, 3)
-	facts := RoutineFacts{Custody: capacity.Custody, Sleeping: capacity.Sleeping, PopulationFoodDays: capacity.FoodDays, PopulationCapacity: capacity.Policy,
+	capacity := joinerFacts(t, 2)
+	facts := RoutineFacts{Custody: capacity.Custody, Sleeping: capacity.Sleeping, PopulationFoodDays: capacity.FoodDays,
 		QuestOffers: domain.Known([]JoinerOffer{}), JoinerLetters: domain.Known([]JoinerLetterOffer{{ID: 3, CanAccept: true}})}
-	for _, maximum := range []int32{3, 2} {
-		facts.PopulationCapacity = joinerPolicy(t, maximum, 3)
+	for _, food := range []float64{20, 1} {
+		facts.PopulationFoodDays = domain.Known(food)
 		needs, err := DetectRoutine(facts, RoutineLatches{}, DefaultRoutinePolicy())
 		if err != nil {
 			t.Fatal(err)
@@ -39,8 +39,8 @@ func TestPendingLetterRaisesPopulationNeedOnlyWithRoom(t *testing.T) {
 		for _, assessment := range needs.Assessments {
 			if assessment.ID == MaintainPopulation {
 				found = true
-				if (assessment.Need == domain.NeedDeficit) != (maximum == 3) {
-					t.Fatal(maximum, assessment)
+				if (assessment.Need == domain.NeedDeficit) != (food == 20) {
+					t.Fatal(food, assessment)
 				}
 			}
 		}

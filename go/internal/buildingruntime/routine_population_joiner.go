@@ -14,10 +14,9 @@ import (
 // MaintainPopulation's joiner deficit: policy.JoinerDeficit and
 // SelectJoinerMethod read the per-cycle visible quest census
 // (RoutineFacts.QuestOffers, from the world-progression read the
-// RoutineSource offers as RoutineQuestSource) against the colony's declared
-// population capacity (RoutineFacts.PopulationCapacity, the player's
-// PopulationPolicy) and the population, sleeping and food facts the review
-// already carries. Pending WandererJoins letters use the same capacity gate
+// RoutineSource offers as RoutineQuestSource) against the bot's own
+// population target (domain.PopulationTarget) and the population, sleeping
+// and food facts the review already carries. Pending WandererJoins letters use the same capacity gate
 // and the dialog-answer executor. Offers the colony cannot host expire.
 type RoutinePopulationJoinerPlanner struct {
 	reviewer *RoutineReviewer
@@ -86,17 +85,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
-	// The census reading carries no journal facts; the policy is read here
-	// exactly as the review read it.
 	facts := read.Projection.Facts
-	facts.PopulationCapacity, err = routinePopulationCapacity(call, p.journal, state.Snapshot)
-	if err != nil {
-		return RoutinePopulationJoinerResult{}, err
-	}
-	facts.DefenseTiers, err = routineJoinerDefenseTiers(call, p.journal, state.Snapshot)
-	if err != nil {
-		return RoutinePopulationJoinerResult{}, err
-	}
 	if letter, ok := policy.SelectJoinerLetter(facts.JoinerLetters, policy.JoinerCapacity(facts.JoinerCapacity())); ok {
 		return r.admitLetter(call, epoch, state, goal, letter, started)
 	}

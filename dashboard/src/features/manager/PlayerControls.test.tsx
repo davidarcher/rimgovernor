@@ -150,14 +150,14 @@ it('shows initial bootstrap failure and retries without sending a POST',async()=
 
 it('submits a chat message, shows the adviser reply with its applied guidance and resumes the bot',async()=>{
  const fetcher=setup(async(url,options)=>{
-  if(url==='/api/chat')return response({requestId:'request-1',expected:world,explanation:'Capping the colony at eight.',guidance:{kind:'set_population_policy',populationPolicy:{maximum:8,foodDays:20}}},201);
+  if(url==='/api/chat')return response({requestId:'request-1',expected:world,explanation:'Rescuing Bob.',guidance:{kind:'set_population_decision',populationDecision:{pawn:'Thing_Human9',decision:'rescue'}}},201);
   if(url==='/api/player/control/resume')return response({record:{requestId:'request-2',kind:'resume',expected:world,phase:'running',nativeGeneration:'2'},state,error:null});
   throw Error(url+JSON.stringify(options));
  });
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});
  fireEvent.change(screen.getByLabelText('Message'),{target:{value:'keep the colony small'}});
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Send'}));});
- expect(screen.getByText('Capping the colony at eight.')).toBeVisible();expect(screen.getByText('Applied: Population policy: up to 8 colonists, 20 food days')).toBeVisible();
+ expect(screen.getByText('Rescuing Bob.')).toBeVisible();expect(screen.getByText('Applied: Population decision: rescue Thing_Human9')).toBeVisible();
  expect(fetcher).toHaveBeenCalledWith('/api/chat',expect.objectContaining({body:JSON.stringify({requestId:'request-1',expected:world,message:'keep the colony small'})}));
  expect(screen.getByLabelText('Message')).toHaveValue('');
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Resume'}));});

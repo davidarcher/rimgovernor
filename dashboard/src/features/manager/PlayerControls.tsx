@@ -10,7 +10,6 @@ function describeGuidance(value: ChatGuidance): string {
   switch (value.kind) {
     case 'activate_goal': return `Activated goal ${value.goal.goalId} (${value.goal.status}, ${value.goal.need})`;
     case 'cancel_goal': return `Cancelled goal ${value.goal.goalId}`;
-    case 'set_population_policy': return `Population policy: up to ${value.populationPolicy.maximum} colonists, ${value.populationPolicy.foodDays} food days`;
     case 'set_population_decision': return `Population decision: ${value.populationDecision.decision} ${value.populationDecision.pawn}`;
   }
 }

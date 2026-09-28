@@ -2499,9 +2499,6 @@
     }
    ]
   },
-  "DefenseTiers": {
-   "v": 0
-  },
   "DisabledConsumers": {
    "v": false
   },
@@ -30717,9 +30714,6 @@
      }
     }
    ]
-  },
-  "PopulationCapacity": {
-   "v": {}
   },
   "PowerHeadroom": {
    "v": 0

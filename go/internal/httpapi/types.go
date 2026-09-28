@@ -112,20 +112,10 @@ type ResearchSelect struct {
 	Project string `json:"project"`
 }
 
-// PopulationPolicy is the wire shape for the colony population capacity
-// policy: a maximum colonist count and a minimum stored-food reserve in
-// days. It is a configuration value rather than a plan action, so it
-// carries no entity identity and no before-token.
-type PopulationPolicy struct {
-	Maximum       int32   `json:"maximum"`
-	FoodDays      float64 `json:"foodDays"`
-	RaidThreshold float64 `json:"raidThreshold,omitempty"`
-}
-
 // PopulationDecision is the wire shape for one player-sourced per-pawn
 // population direction: rescue, capture, recruit or ignore for one exact
-// observed pawn. Like PopulationPolicy it is a recorded direction rather than
-// a plan action, so it carries no before-token.
+// observed pawn. It is a recorded direction rather than a plan action, so
+// it carries no before-token.
 type PopulationDecision struct {
 	Pawn     string `json:"pawn"`
 	Decision string `json:"decision"`

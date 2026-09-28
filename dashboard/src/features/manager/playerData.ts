@@ -99,10 +99,8 @@ export type ChatRequest = {requestId: string; expected: World; message: string};
 export type ChatGoal = {goalId: string; source: string; status: string; need: string; priority: number; revision: string};
 export type ChatGuidance =
   | {kind: 'activate_goal' | 'cancel_goal'; goal: ChatGoal}
-  | {kind: 'set_population_policy'; populationPolicy: {maximum: number; foodDays: number}}
   | {kind: 'set_population_decision'; populationDecision: {pawn: string; decision: string}};
 export type ChatReply = {requestId: string; expected: World; explanation: string; guidance: ChatGuidance | null};
-function number(value: unknown): number {if (typeof value !== 'number' || !Number.isFinite(value)) throw Error('Invalid number'); return value;}
 function readChatGoal(value: unknown): ChatGoal {
   const v = object(value, ['goalId', 'source', 'status', 'need', 'priority', 'epoch', 'revision', 'tick']);
   return {goalId: id(v.goalId), source: id(v.source), status: id(v.status), need: id(v.need), priority: integer(v.priority), revision: decimal(v.revision)};
@@ -111,7 +109,6 @@ function readChatGuidance(value: unknown): ChatGuidance {
   if (!isObject(value) || typeof value.kind !== 'string') throw Error('Invalid chat guidance');
   switch (value.kind) {
     case 'activate_goal': case 'cancel_goal': return {kind: value.kind, goal: readChatGoal(object(value, ['kind', 'goal']).goal)};
-    case 'set_population_policy': {const p = object(object(value, ['kind', 'populationPolicy']).populationPolicy, ['maximum', 'foodDays']); return {kind: value.kind, populationPolicy: {maximum: integer(p.maximum), foodDays: number(p.foodDays)}};}
     case 'set_population_decision': {const p = object(object(value, ['kind', 'populationDecision']).populationDecision, ['pawn', 'decision']); return {kind: value.kind, populationDecision: {pawn: id(p.pawn), decision: id(p.decision)}};}
     default: throw Error('Unknown chat guidance kind');
   }

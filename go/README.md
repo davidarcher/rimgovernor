@@ -129,14 +129,12 @@ and the nudge is applied through the same store submission the matching policy
 route uses. Chat never places buildings, selects research or issues orders
 ([issue #56](https://github.com/davidarcher/rimgovernor/issues/56)).
 
-Three player commands are configuration rather than plans of native actions and
+Two player commands are configuration rather than plans of native actions and
 live outside the plan/action tables, each with request-ID replay safety and one
-current value per colony/load/map: population policy (`/api/player/population-policy/*`,
-whole replace), expedition policy (`/api/player/expedition-policy/update`, a
+current value per colony/load/map: expedition policy (`/api/player/expedition-policy/update`, a
 partial patch merged over the limits in force, validated as a whole) and per-pawn
-population decisions (`/api/player/population-decision/*`; custody decisions
-require an established population policy, `ignore` never does). Production
-policy (reserves and spending) belongs to the autopilot alone. Player goals (`/api/player/goals/*`) activate or
+population decisions (`/api/player/population-decision/*`). The population
+target and production policy (reserves and spending) belong to the autopilot alone. Player goals (`/api/player/goals/*`) activate or
 cancel autopilot-managed maintained goals by exact goal ID.
 
 Multi-instance colony directory serving (`--colonies`) does not exist in Go

@@ -21,11 +21,6 @@ func TestPlayerPopulationDecisionSubmissionCommitsNoPlan(t *testing.T) {
 	t.Parallel()
 	p, _, s, worlds := playerFixture(t)
 	ctx := context.Background()
-	policy := playerPopulationPolicyRequest(12, 30)
-	policy.RequestID = "population-decision-policy"
-	if _, _, err := p.SubmitPopulationPolicy(ctx, policy); err != nil {
-		t.Fatal(err)
-	}
 	q := playerPopulationDecisionRequest("population-decision-submit", "Thing_Human1", domain.PopulationRescue)
 	result, created, err := p.SubmitPopulationDecision(ctx, q)
 	if err != nil || !created || result.Request != q || result.Current != q.Directive {
@@ -37,7 +32,7 @@ func TestPlayerPopulationDecisionSubmissionCommitsNoPlan(t *testing.T) {
 	}
 	worlds.err = errors.New("world unavailable")
 	replay, created, err := p.SubmitPopulationDecision(ctx, q)
-	if err != nil || created || replay != result || worlds.calls != 2 {
+	if err != nil || created || replay != result || worlds.calls != 1 {
 		t.Fatal(replay, created, err, worlds.calls)
 	}
 	changed := q
@@ -64,15 +59,13 @@ func TestPlayerPopulationDecisionFreshWorldAndClosedPlayer(t *testing.T) {
 		t.Fatal(err)
 	}
 	worlds.world = q.World
-	// Ignore needs no population policy, so it is accepted on a world that
-	// has never had one.
 	if _, created, err := p.SubmitPopulationDecision(ctx, q); err != nil || !created {
 		t.Fatal(created, err)
 	}
-	// The three custody decisions do need one.
+	// Custody decisions need no player population policy (#1032).
 	custody := playerPopulationDecisionRequest("population-decision-capture", "Thing_Human2", domain.PopulationCapture)
-	if _, _, err := p.SubmitPopulationDecision(ctx, custody); !errors.Is(err, store.ErrNotFound) {
-		t.Fatal(err)
+	if _, created, err := p.SubmitPopulationDecision(ctx, custody); err != nil || !created {
+		t.Fatal(created, err)
 	}
 	if err := p.Close(ctx); err != nil {
 		t.Fatal(err)

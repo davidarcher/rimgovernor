@@ -45,22 +45,23 @@ type JoinerChoice struct {
 // JoinerCapacityFacts are the population facts one more colonist is
 // admitted against: every living person the colony already hosts (admitted
 // colonists, guests and prisoners, from the same population census
-// CustodyFacts reads), the sleeping census for a spare non-medical bed, the
-// food runway in days and the player's PopulationPolicy. Without a policy
-// the colony has no declared capacity and no offer is ever answered.
+// CustodyFacts reads), the sleeping census for a spare non-medical bed and
+// the food runway in days. The target is the bot's own
+// domain.PopulationTarget; there is no player knob (#1032).
 type JoinerCapacityFacts struct {
-	Custody      domain.Fact[[]CustodyFacts]
-	Sleeping     domain.Fact[SleepingObservation]
-	FoodDays     domain.Fact[float64]
-	Policy       domain.Fact[domain.PopulationPolicy]
-	RaidPoints   domain.Fact[float64]
-	DefenseTiers domain.Fact[int]
+	Custody  domain.Fact[[]CustodyFacts]
+	Sleeping domain.Fact[SleepingObservation]
+	FoodDays domain.Fact[float64]
 }
 
-// joinerRaidPointIncrement uses the conservative upper end of the vanilla
-// 15–200 pawn-point range across wealth bands. It is a policy allowance,
-// not a prediction of the storyteller's final raid strength.
-const joinerRaidPointIncrement = 200.0
+// JoinerFoodFloorDays is the food runway one more colonist is admitted
+// against: 3 days for a colony of one, rising linearly to 15 days at 20 or
+// more hosted people (#1032).
+func JoinerFoodFloorDays(hosted int64) float64 {
+	const lowPop, highPop, lowDays, highDays = 1, 20, 3.0, 15.0
+	n := min(max(hosted, lowPop), highPop)
+	return lowDays + float64(n-lowPop)*(highDays-lowDays)/float64(highPop-lowPop)
+}
 
 // IsJoinerOffer reports whether a quest root is one of the refugee-chased-
 // by-a-threat family (Core's ThreatReward_Raid_Joiner and the expansions'
@@ -83,7 +84,7 @@ func joinerAnswerable(offer JoinerOffer) bool {
 // hostedPopulation counts the living people the colony hosts: admitted
 // colonists plus every guest (a prisoner is a guest of the player faction
 // too). A row missing any of those facts leaves the count unknown, since an
-// undercount would admit a joiner past the policy maximum.
+// undercount would admit a joiner past the population target.
 func hostedPopulation(custody domain.Fact[[]CustodyFacts]) domain.Fact[int64] {
 	rows, known := custody.Value()
 	if !known {
@@ -122,32 +123,18 @@ func spareBed(sleeping domain.Fact[SleepingObservation]) domain.Fact[bool] {
 	return domain.Known(false)
 }
 
-// JoinerCapacity reports whether the colony can host one more colonist
-// under its population policy: hosted population below the maximum, the
-// food runway at or above the policy's reserve days and a spare bed. Any
-// unknown capacity ingredient leaves it unknown; an unset policy is a known no.
-// The optional raid threshold refuses an undefended join only when both raid
-// points and built defense tiers are known; unknown threat facts add no veto.
+// JoinerCapacity reports whether the colony can host one more colonist:
+// hosted population below domain.PopulationTarget, the food runway at or
+// above JoinerFoodFloorDays and a spare bed. Any unknown ingredient leaves
+// it unknown.
 func JoinerCapacity(f JoinerCapacityFacts) domain.Fact[bool] {
-	p, known := f.Policy.Value()
-	if !known {
-		return domain.Unknown[bool]()
-	}
-	if !p.Set() {
-		return domain.Known(false)
-	}
 	hosted, hk := hostedPopulation(f.Custody).Value()
 	food, fk := f.FoodDays.Value()
 	bed, bk := spareBed(f.Sleeping).Value()
 	if !hk || !fk || !bk {
 		return domain.Unknown[bool]()
 	}
-	points, pk := f.RaidPoints.Value()
-	tiers, tk := f.DefenseTiers.Value()
-	if p.RaidThreshold() > 0 && pk && tk && tiers == 0 && points+joinerRaidPointIncrement > p.RaidThreshold() {
-		return domain.Known(false)
-	}
-	return domain.Known(hosted < int64(p.Maximum()) && food >= p.FoodDays() && bed)
+	return domain.Known(hosted < domain.PopulationTarget && food >= JoinerFoodFloorDays(hosted) && bed)
 }
 
 // JoinerDeficit reports whether an answerable joiner offer is waiting while
@@ -205,10 +192,9 @@ func SelectJoinerMethod(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[
 
 // JoinerCapacity is the slice of a review's facts JoinerCapacity measures:
 // the population census, the sleeping census, the population food runway
-// (falling back to the stock runway, as the foothold food gate does) and the
-// player's policy.
+// (falling back to the stock runway, as the foothold food gate does).
 func (f RoutineFacts) JoinerCapacity() JoinerCapacityFacts {
-	return JoinerCapacityFacts{Custody: f.Custody, Sleeping: f.Sleeping, FoodDays: fallback(f.PopulationFoodDays, f.FoodDays), Policy: f.PopulationCapacity, RaidPoints: f.RaidPoints, DefenseTiers: f.DefenseTiers}
+	return JoinerCapacityFacts{Custody: f.Custody, Sleeping: f.Sleeping, FoodDays: fallback(f.PopulationFoodDays, f.FoodDays)}
 }
 
 // JoinerLetterOffer is a pending current-map WandererJoins letter. Its opaque

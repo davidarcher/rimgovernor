@@ -7,7 +7,7 @@ import (
 )
 
 func TestShrineArrestRoutesOnlyStandingNeutralCaptureDecisions(t *testing.T) {
-	base := joinerFacts(t, 2, 5)
+	base := joinerFacts(t, 2)
 	for name, occupant := range map[string]ShrineOccupant{
 		"standing ancient": {EntityID: "ancient", Faction: "Ancients"},
 		"visitor":          {EntityID: "visitor", Faction: "OutlanderCivil"},
@@ -17,7 +17,7 @@ func TestShrineArrestRoutesOnlyStandingNeutralCaptureDecisions(t *testing.T) {
 		"prisoner":         {EntityID: "prisoner", Faction: "Ancients", Prisoner: true},
 	} {
 		t.Run(name, func(t *testing.T) {
-			facts := RoutineFacts{Custody: base.Custody, Sleeping: base.Sleeping, FoodDays: base.FoodDays, PopulationCapacity: base.Policy}
+			facts := RoutineFacts{Custody: base.Custody, Sleeping: base.Sleeping, FoodDays: base.FoodDays}
 			facts.Upkeep.Shrines = domain.Known([]AncientShrine{{ID: "shrine", Occupants: []ShrineOccupant{occupant}}})
 			want := domain.PawnID("")
 			if name == "standing ancient" {
@@ -26,11 +26,11 @@ func TestShrineArrestRoutesOnlyStandingNeutralCaptureDecisions(t *testing.T) {
 			if got := ShrineArrestTarget(facts); got != want {
 				t.Fatalf("target = %q, want %q", got, want)
 			}
-			facts.PopulationCapacity = domain.Unknown[domain.PopulationPolicy]()
+			facts.Sleeping = domain.Unknown[SleepingObservation]()
 			if got := ShrineArrestTarget(facts); got != "" {
 				t.Fatalf("unknown capacity selected %q", got)
 			}
-			facts.PopulationCapacity = base.Policy
+			facts.Sleeping = base.Sleeping
 			facts.FoodDays = domain.Known(0.0)
 			if got := ShrineArrestTarget(facts); got != "" {
 				t.Fatalf("no food capacity selected %q", got)
@@ -61,8 +61,8 @@ func TestShrineArrestBedRequiresVacantPrisonerBed(t *testing.T) {
 
 func TestShrineArrestCreatesPopulationDeficitAndSelectsArmedPerformer(t *testing.T) {
 	facts := stableRoutine()
-	capacity := joinerFacts(t, 2, 5)
-	facts.Custody, facts.Sleeping, facts.FoodDays, facts.PopulationCapacity = capacity.Custody, capacity.Sleeping, capacity.FoodDays, capacity.Policy
+	capacity := joinerFacts(t, 2)
+	facts.Custody, facts.Sleeping, facts.FoodDays = capacity.Custody, capacity.Sleeping, capacity.FoodDays
 	facts.Upkeep.Shrines = domain.Known([]AncientShrine{{ID: "shrine", Occupants: []ShrineOccupant{{EntityID: "ancient", Faction: "Ancients"}}}})
 	needs, err := DetectRoutine(facts, RoutineLatches{}, DefaultRoutinePolicy())
 	if err != nil {

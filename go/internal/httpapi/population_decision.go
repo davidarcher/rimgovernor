@@ -7,13 +7,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// playerPopulationDecision is an optional player capability, asserted the
-// same way playerPopulationPolicy is, so enabling the per-pawn population
+// playerPopulationDecision is an optional player capability, asserted at
+// the route, so enabling the per-pawn population
 // decision routes never widens the required PlayerBuildings interface.
 type playerPopulationDecision interface {
 	SubmitPopulationDecision(context.Context, store.PopulationDecisionSubmissionRequest) (store.PopulationDecisionSubmission, bool, error)
@@ -102,8 +103,6 @@ func (s *Server) handlePopulationDecision(ctx context.Context, w http.ResponseWr
 			err = ctx.Err()
 		}
 		if err != nil {
-			// A missing population policy reports ErrNotFound: set an explicit
-			// population maximum and food reserve first.
 			status, failure := playerFailure(err)
 			s.write(w, r, status, failure)
 			return
@@ -170,4 +169,22 @@ func (s *Server) handlePopulationDecision(ctx context.Context, w http.ResponseWr
 		}
 		s.write(w, r, 200, populationDecisionsDTO{playerWorldDTO(world), decisions})
 	}
+}
+
+// policyWorld reads a colonyId/loadToken/mapId query triple, shared by the
+// population-decision and goal reads. A current policy is scoped per
+// world rather than per plan, so a read cannot borrow work-preferences'
+// single planId query shape.
+func policyWorld(query url.Values) (store.World, error) {
+	var world store.World
+	colony, load, mapID := query["colonyId"], query["loadToken"], query["mapId"]
+	if len(query) != 3 || len(colony) != 1 || len(load) != 1 || len(mapID) != 1 {
+		return world, errors.New("colonyId, loadToken and mapId are required")
+	}
+	n, err := strconv.ParseInt(mapID[0], 10, 32)
+	if err != nil || strconv.FormatInt(n, 10) != mapID[0] {
+		return world, errors.New("expected canonical mapId")
+	}
+	world = store.World{Colony: domain.ColonyID(colony[0]), Load: domain.LoadID(load[0]), Map: domain.MapID(n)}
+	return world, world.Validate()
 }

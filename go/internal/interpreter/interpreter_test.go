@@ -94,7 +94,7 @@ func mustJSON(value string) []byte { data, _ := json.Marshal(value); return data
 
 func TestExplainOnlyCarriesNoNudge(t *testing.T) {
 	guidance, err := replying(t, explainOnly).Interpret(context.Background(), inputFixture())
-	if err != nil || guidance.Kind != Explain || guidance.ActivateGoal != "" || guidance.CancelGoal != "" || guidance.PopulationPolicy.Set() || guidance.PopulationDecision.Set() {
+	if err != nil || guidance.Kind != Explain || guidance.ActivateGoal != "" || guidance.CancelGoal != "" || guidance.PopulationDecision.Set() {
 		t.Fatalf("%+v %v", guidance, err)
 	}
 	if !strings.Contains(guidance.Explanation, "rice") {
@@ -109,9 +109,6 @@ func TestEveryNudgeKindDecodesToItsPolicyInput(t *testing.T) {
 		check          func(Guidance) bool
 	}{
 		{"cancel", `{"kind":"cancel_goal","goalId":"goal-food"}`, func(g Guidance) bool { return g.Kind == CancelGoal && g.CancelGoal == "goal-food" }},
-		{"population policy", `{"kind":"set_population_policy","maximum":8,"foodDays":20}`, func(g Guidance) bool {
-			return g.Kind == SetPopulationPolicy && g.PopulationPolicy.Maximum() == 8 && g.PopulationPolicy.FoodDays() == 20
-		}},
 		{"decision", `{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"rescue"}`, func(g Guidance) bool {
 			return g.Kind == SetPopulationDecision && g.PopulationDecision.Pawn() == "Thing_Human9" && g.PopulationDecision.Decision() == domain.PopulationRescue
 		}},
@@ -165,7 +162,6 @@ func TestInvalidInputNeverCallsModel(t *testing.T) {
 		{"duplicate pawn", func(in *Input) { in.Facts.Pawns = append(in.Facts.Pawns, in.Facts.Pawns[0]) }, InvalidInput},
 		{"duplicate goal", func(in *Input) { in.Facts.Goals = append(in.Facts.Goals, in.Facts.Goals[0]) }, InvalidInput},
 		{"bad goal priority", func(in *Input) { in.Facts.Goals[0].Priority = 9 }, InvalidInput},
-		{"bad population policy fact", func(in *Input) { in.Facts.PopulationPolicy = &PopulationPolicy{Maximum: 0, FoodDays: 1} }, InvalidInput},
 		{"negative stock", func(in *Input) { in.Facts.Colony.Resources[0].Units = -1 }, InvalidInput},
 		{"bad current", func(in *Input) { in.Current.Colony = ""; in.Facts.Generation.Colony = "" }, InvalidInput},
 	} {
@@ -194,8 +190,7 @@ func TestRefusesUnresolvedOrMalformedReplies(t *testing.T) {
 		{"unknown goal kind", wrap(`{"kind":"activate_goal","goal":"ConquerWorld"}`), InvalidGuidance},
 		{"cancel by kind name", wrap(`{"kind":"cancel_goal","goalId":"EnsureFoodSupply"}`), UnknownFacts},
 		{"cancel with extra field", wrap(`{"kind":"cancel_goal","goalId":"goal-food","revision":1}`), InvalidGuidance},
-		{"population out of range", wrap(`{"kind":"set_population_policy","maximum":500,"foodDays":20}`), InvalidGuidance},
-		{"population fraction", wrap(`{"kind":"set_population_policy","maximum":5.5,"foodDays":20}`), InvalidGuidance},
+		{"population policy retired", wrap(`{"kind":"set_population_policy","maximum":8,"foodDays":20}`), InvalidGuidance},
 		{"unknown pawn", wrap(`{"kind":"set_population_decision","pawn":"Bob","decision":"rescue"}`), UnknownFacts},
 		{"unknown decision", wrap(`{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"execute"}`), InvalidGuidance},
 		{"too large", strings.Repeat(" ", 65537), InvalidGuidance},

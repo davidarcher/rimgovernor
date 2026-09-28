@@ -30,7 +30,6 @@ type ChatFactsJournal interface {
 	LoadRoutineReview(context.Context) (store.RoutineReview, error)
 	LoadGoal(context.Context, domain.GoalID) (store.GoalState, error)
 	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]domain.GoalID, error)
-	CurrentPopulationPolicy(context.Context, store.World) (domain.PopulationPolicy, error)
 	PopulationDecisions(context.Context, store.World) ([]domain.PopulationDirective, error)
 }
 
@@ -172,13 +171,6 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 		}
 	}
 
-	population, err := journal.CurrentPopulationPolicy(ctx, world)
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
-		return none, domain.GenerationSnapshot{}, err
-	}
-	if err == nil && population.Set() {
-		facts.PopulationPolicy = &interpreter.PopulationPolicy{Maximum: population.Maximum(), FoodDays: population.FoodDays()}
-	}
 	decisions, err := journal.PopulationDecisions(ctx, world)
 	if err != nil {
 		return none, domain.GenerationSnapshot{}, err

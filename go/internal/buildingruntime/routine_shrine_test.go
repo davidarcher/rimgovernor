@@ -371,11 +371,8 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodNoDeficit {
 		t.Fatal("an unready gate leaves the caskets sealed", result, err)
 	}
-	// Ready the gate: a population policy with room, a spare bed, medicine
-	// and a hosted census the custody reading can count.
-	if _, _, err := reviewer.player.SubmitPopulationPolicy(ctx, playerPopulationPolicyRequest(12, 1)); err != nil {
-		t.Fatal(err)
-	}
+	// Ready the gate: a spare bed, food, medicine and a hosted census the
+	// custody reading can count.
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 		Beds:    []*o.UpkeepBed{{Bed: &o.EntityRef{Id: proto.String("spare"), DefName: proto.String("Bed"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}}, Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},

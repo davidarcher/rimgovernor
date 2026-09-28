@@ -28,14 +28,6 @@ func TestPlayerPopulationDecisionHTTPSubmitReplayReadAndConflict(t *testing.T) {
 	if out := playerCall(s, "POST", replace, request, "bad"); out.Code != 403 || p.calls != 0 {
 		t.Fatal(out.Code, p.calls)
 	}
-	// Rescue, capture and recruit require an established population policy.
-	if out := playerCall(s, "POST", replace, request, s.playerToken); out.Code != 404 {
-		t.Fatal(out.Code, out.Body.String())
-	}
-	policy := `{"requestId":"policy",` + expected + `,"policy":{"maximum":12,"foodDays":30}}`
-	if out := playerCall(s, "POST", "/api/player/population-policy/replace", policy, s.playerToken); out.Code != 201 {
-		t.Fatal(out.Code, out.Body.String())
-	}
 	out := playerCall(s, "POST", replace, request, s.playerToken)
 	var created populationDecisionSubmissionDTO
 	if err := json.Unmarshal(out.Body.Bytes(), &created); err != nil || out.Code != 201 || created.Decision.Pawn != "Thing_Human1" || created.Decision.Decision != "rescue" || created.Current != created.Decision {

@@ -11,13 +11,11 @@ import (
 // SubmitPopulationDecision stores explicit player intent to rescue, capture or
 // recruit one exact observed individual, or to withdraw future population
 // orders for them, under the shared player gate every other player submission
-// uses. Like SubmitPopulationPolicy it commits no plan and no action: a
+// uses. It commits no plan and no action: a
 // decision is a persistent player-sourced record read later, and issues no
 // native command of its own, so there is nothing to admit or dispatch here.
 // The world and current epoch are still checked, so a decision can only be
-// recorded against the colony/load/map the player is actually looking at, and
-// the store enforces the population-policy precondition for the three
-// non-ignore decisions.
+// recorded against the colony/load/map the player is actually looking at.
 func (p *Player) SubmitPopulationDecision(ctx context.Context, request store.PopulationDecisionSubmissionRequest) (store.PopulationDecisionSubmission, bool, error) {
 	call, epoch, done, err := p.enter(ctx, false)
 	if err != nil {

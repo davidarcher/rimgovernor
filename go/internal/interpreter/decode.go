@@ -22,9 +22,6 @@ type modelGuidance struct {
 	// Goal holds activate_goal's kind; GoalID holds cancel_goal's exact
 	// tracked identity.
 	Goal, GoalID *string
-	// Maximum/FoodDays hold set_population_policy's cap and food reserve.
-	Maximum  *int32
-	FoodDays *float64
 	// Pawn/Decision hold set_population_decision's named individual and
 	// direction.
 	Pawn, Decision *string
@@ -75,8 +72,6 @@ func decode(text string) (modelReply, error) {
 		guidance, err = decodeOneString(guidanceFields, ActivateGoal, "goal")
 	case CancelGoal:
 		guidance, err = decodeOneString(guidanceFields, CancelGoal, "goalId")
-	case SetPopulationPolicy:
-		guidance, err = decodeSetPopulationPolicy(guidanceFields)
 	case SetPopulationDecision:
 		guidance, err = decodeSetPopulationDecision(guidanceFields)
 	default:
@@ -107,23 +102,6 @@ func decodeOneString(fields map[string]json.RawMessage, kind GuidanceKind, key s
 		g.GoalID = &value
 	}
 	return g, nil
-}
-
-// decodeSetPopulationPolicy reads the two bounded numbers; the range check
-// belongs to domain.NewPopulationPolicy.
-func decodeSetPopulationPolicy(fields map[string]json.RawMessage) (modelGuidance, error) {
-	if len(fields) != 3 || fields["maximum"] == nil || fields["foodDays"] == nil || isNull(fields["maximum"]) || isNull(fields["foodDays"]) {
-		return modelGuidance{}, fail(InvalidGuidance, "unexpected guidance fields")
-	}
-	var maximum int32
-	if err := json.Unmarshal(fields["maximum"], &maximum); err != nil {
-		return modelGuidance{}, fail(InvalidGuidance, "invalid maximum field")
-	}
-	var foodDays float64
-	if err := json.Unmarshal(fields["foodDays"], &foodDays); err != nil {
-		return modelGuidance{}, fail(InvalidGuidance, "invalid foodDays field")
-	}
-	return modelGuidance{Kind: SetPopulationPolicy, Maximum: &maximum, FoodDays: &foodDays}, nil
 }
 
 // decodeSetPopulationDecision reads the pawn and direction; the vocabulary

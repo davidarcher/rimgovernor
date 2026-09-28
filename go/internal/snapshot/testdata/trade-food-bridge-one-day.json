@@ -1400,9 +1400,6 @@
     }
    ]
   },
-  "DefenseTiers": {
-   "v": 0
-  },
   "DisabledConsumers": {
    "v": false
   },
@@ -7160,9 +7157,6 @@
   },
   "PenGrazing": {
    "v": null
-  },
-  "PopulationCapacity": {
-   "v": {}
   },
   "PowerHeadroom": {
    "v": 0

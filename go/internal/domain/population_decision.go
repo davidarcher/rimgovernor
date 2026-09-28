@@ -18,7 +18,7 @@ const (
 // PopulationDirective is an immutable, comparable player-sourced population
 // direction for one exact observed pawn.
 //
-// Like PopulationPolicy it is player intent without being a plan action, and
+// It is player intent without being a plan action, and
 // for the same reason: recording a decision issues no native RimWorld call.
 // The native custody work it eventually describes -- rescue, capture and
 // prisoner recruitment -- already exists in this controller and is already
@@ -75,8 +75,7 @@ func (d PopulationDirective) Set() bool { return d != PopulationDirective{} }
 // cancelling only pending steps of the player's own direction.
 func (d PopulationDirective) Withdrawn() bool { return d.Set() && d.decision == PopulationIgnore }
 
-// RequiresPolicy reports whether recording this directive requires an already
-// established population capacity policy: rescue, capture and recruit do;
-// ignore deliberately skips that check, so a
-// player can always withdraw a direction they previously gave.
-func (d PopulationDirective) RequiresPolicy() bool { return d.Set() && !d.Withdrawn() }
+// PopulationTarget is the bot's own colony size target (#1032). The colony
+// grows toward it only as fast as policy.JoinerCapacity's bed and food gates
+// allow, so in practice the target rises with the colony's means.
+const PopulationTarget = 100

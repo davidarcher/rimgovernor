@@ -25,9 +25,6 @@ func TestPopulationDecisionReplayConflictAndOverwrite(t *testing.T) {
 	if _, err := s.CurrentPopulationDecision(ctx, world, "Thing_Human1"); !errors.Is(err, ErrNotFound) {
 		t.Fatal("unnamed pawn must report no decision", err)
 	}
-	if _, _, err := s.SubmitPopulationPolicy(ctx, populationPolicyRequest(t, "policy", 12, 30)); err != nil {
-		t.Fatal(err)
-	}
 	request := populationDecisionRequest(t, "request", "Thing_Human1", domain.PopulationRescue)
 	first, created, err := s.SubmitPopulationDecision(ctx, request)
 	if err != nil || !created || first.Request != request || first.Current != request.Directive {
@@ -92,32 +89,20 @@ func TestPopulationDecisionReplayConflictAndOverwrite(t *testing.T) {
 	}
 }
 
-func TestPopulationDecisionRequiresPolicyExceptIgnore(t *testing.T) {
+func TestPopulationDecisionNeedsNoPolicy(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
 	world := World{Colony: "colony", Load: "load", Map: 0}
-	for _, decision := range []domain.PopulationDecision{domain.PopulationRescue, domain.PopulationCapture, domain.PopulationRecruit} {
+	for _, decision := range []domain.PopulationDecision{domain.PopulationRescue, domain.PopulationCapture, domain.PopulationRecruit, domain.PopulationIgnore} {
 		request := populationDecisionRequest(t, "request-"+string(decision), "Thing_Human1", decision)
-		if _, _, err := s.SubmitPopulationDecision(ctx, request); !errors.Is(err, ErrNotFound) {
-			t.Fatal("custody decisions require an established population policy", decision, err)
+		if _, created, err := s.SubmitPopulationDecision(ctx, request); err != nil || !created {
+			t.Fatal(decision, created, err)
 		}
-	}
-	// Ignore withdraws a direction and never requires a policy.
-	withdraw := populationDecisionRequest(t, "withdraw", "Thing_Human1", domain.PopulationIgnore)
-	if _, created, err := s.SubmitPopulationDecision(ctx, withdraw); err != nil || !created {
-		t.Fatal(created, err)
-	}
-	if _, _, err := s.SubmitPopulationPolicy(ctx, populationPolicyRequest(t, "policy", 12, 30)); err != nil {
-		t.Fatal(err)
-	}
-	admitted := populationDecisionRequest(t, "recruit", "Thing_Human1", domain.PopulationRecruit)
-	if _, created, err := s.SubmitPopulationDecision(ctx, admitted); err != nil || !created {
-		t.Fatal(created, err)
-	}
-	current, err := s.CurrentPopulationDecision(ctx, world, "Thing_Human1")
-	if err != nil || current != admitted.Directive {
-		t.Fatal(current, err)
+		current, err := s.CurrentPopulationDecision(ctx, world, "Thing_Human1")
+		if err != nil || current != request.Directive {
+			t.Fatal(current, err)
+		}
 	}
 }
 

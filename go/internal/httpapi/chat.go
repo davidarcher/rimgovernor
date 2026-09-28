@@ -20,7 +20,6 @@ type chatGuidanceDTO struct {
 	Kind string `json:"kind"`
 	// Goal is the activated or cancelled goal's state now.
 	Goal               *goalStateDTO       `json:"goal,omitempty"`
-	PopulationPolicy   *PopulationPolicy   `json:"populationPolicy,omitempty"`
 	PopulationDecision *PopulationDecision `json:"populationDecision,omitempty"`
 }
 
@@ -168,20 +167,6 @@ func (s *Server) applyChatGuidance(ctx context.Context, requestID string, world 
 		}
 		projected := goalStateWire(v)
 		dto.Goal = &projected
-	case interpreter.SetPopulationPolicy:
-		player, ok := s.player.(playerPopulationPolicy)
-		if !ok {
-			return disabled("Population policy")
-		}
-		v, _, err := player.SubmitPopulationPolicy(ctx, store.PopulationPolicySubmissionRequest{RequestID: requestID, World: world, Policy: guidance.PopulationPolicy})
-		if status, failure := check(err); failure != nil {
-			return dto, status, failure, nil
-		}
-		projected, err := projectPopulationPolicySubmission(v)
-		if err != nil {
-			return dto, 0, nil, err
-		}
-		dto.PopulationPolicy = &projected.Current
 	case interpreter.SetPopulationDecision:
 		player, ok := s.player.(playerPopulationDecision)
 		if !ok {

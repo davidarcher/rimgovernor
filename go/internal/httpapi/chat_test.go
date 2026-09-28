@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/interpreter"
 	"github.com/davidarcher/RimGovernor/go/internal/model"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -147,28 +146,24 @@ func TestChatHTTPExplainOnlyWritesNothing(t *testing.T) {
 }
 
 func TestChatHTTPAppliesGuidanceThroughPolicyInputs(t *testing.T) {
-	s, f, completer := chatAPI(t, `{"explanation":"Capping the colony at eight.","guidance":{"kind":"set_population_policy","maximum":8,"foodDays":20}}`)
+	s, f, completer := chatAPI(t, `{"explanation":"Rescuing Bob.","guidance":{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"rescue"}}`)
 	w := playerCall(s, "POST", "/api/chat", chatJSON, s.playerToken)
 	var resp chatResponseDTO
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil || w.Code != 201 || resp.Guidance == nil || resp.Guidance.Kind != "set_population_policy" || resp.Guidance.PopulationPolicy == nil || resp.Guidance.PopulationPolicy.Maximum != 8 || resp.Guidance.PopulationPolicy.FoodDays != 20 {
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil || w.Code != 201 || resp.Guidance == nil || resp.Guidance.Kind != "set_population_decision" || resp.Guidance.PopulationDecision == nil || resp.Guidance.PopulationDecision.Decision != "rescue" {
 		t.Fatal(w.Code, w.Body.String(), err)
 	}
 	if f.calls != 1 {
 		t.Fatal("policy input calls", f.calls)
 	}
-	stored, err := f.journal.CurrentPopulationPolicy(context.Background(), chatWorld())
-	if err != nil || stored.Maximum() != 8 {
-		t.Fatal(stored, err)
-	}
 
-	// The next message sees the policy it just set, and activating a goal
+	// The next message sees the decision it just recorded, and activating a goal
 	// records a player goal bound to the world's root plan at the observed tick.
 	completer.reply = `{"explanation":"Working on food now.","guidance":{"kind":"activate_goal","goal":"EnsureFoodSupply"}}`
 	w = playerCall(s, "POST", "/api/chat", strings.Replace(chatJSON, "chat-request", "chat-2", 1), s.playerToken)
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil || w.Code != 201 || resp.Guidance == nil || resp.Guidance.Kind != "activate_goal" || resp.Guidance.Goal == nil || resp.Guidance.Goal.Source != "player" || resp.Guidance.Goal.Need != "deficit" || resp.Guidance.Goal.Tick != 500 {
 		t.Fatal(w.Code, w.Body.String(), err)
 	}
-	if !strings.Contains(completer.seen[1].Messages[1].Content, `"populationPolicy":{"maximum":8,"foodDays":20}`) {
+	if !strings.Contains(completer.seen[1].Messages[1].Content, `{"pawn":"Thing_Human9","decision":"rescue"}`) {
 		t.Fatal(completer.seen[1].Messages[1].Content)
 	}
 	goalID := resp.Guidance.Goal.GoalID
@@ -216,8 +211,6 @@ func TestChatHTTPRefusesGuidanceOutsideFacts(t *testing.T) {
 		})
 	}
 }
-
-func chatWorld() store.World { return store.World{Colony: "colony", Load: "load", Map: 0} }
 
 type downCompleter struct{}
 

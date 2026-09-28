@@ -2,8 +2,11 @@
 
 [Documentation](../../README.md)
 
-`SetPopulationPolicy` records an explicit maximum population and minimum food reserve
-in days. It grants no permission to capture or recruit an individual.
+The population target is the bot's own: `domain.PopulationTarget` (100), with no
+player knob (#1032). The colony grows toward it only as fast as
+`policy.JoinerCapacity` allows: a spare colonist bed and a food runway at or above
+`policy.JoinerFoodFloorDays`, which rises linearly from 3 days for one hosted
+person to 15 days at 20 or more.
 `SetPopulationDecision` records an exact observed pawn ID and one of `rescue`,
 `capture`, `recruit` or `ignore`. Ignore cancels future population work; it does not
 release a prisoner or undo a native order.
@@ -12,7 +15,7 @@ Each decision uses a `Population-<pawn ID>` ColonyGoal and ordinary Hands action
 The controller counts living free player colonists as admitted population. Guests,
 prisoners and accepted candidates consume reserved capacity but remain distinct from
 admitted colonists. Shared food and shelter methods can provision future capacity.
-Custody orders require the policy food reserve, spare colonist beds and available
+Custody orders require the food floor, spare colonist beds and available
 assigned doctors and wardens. A capture goes to the roster's
 [warden](work-assignment.md#situational-roles) while it is available, otherwise
 the first available colonist by ID. Native capture/rescue previews separately
@@ -49,14 +52,13 @@ The `population-joiner` routine family (on in the autonomous default; selected b
 goal answer joiner quests from population capacity. The routine review reads the
 visible quest census and accepts a not-yet-accepted `ThreatReward_*_Joiner` offer
 (a refugee chased by a threat; native checks `CanAcceptQuest` when it applies
-the `AcceptQuestIntent`) only when the player has set a population policy
-and living admitted colonists plus guests and prisoners are below its maximum, the
-food runway is at or above its reserve days and an unowned humanlike, non-medical,
-non-prisoner bed reads back. Without a policy, or without room, the offer is left
+the `AcceptQuestIntent`) only when living admitted colonists plus guests and prisoners are below the
+population target, the food runway is at or above the food floor and an unowned humanlike, non-medical,
+non-prisoner bed reads back. Without room, the offer is left
 to expire; nothing is ever rejected natively, and a reward-choice offer takes the
 game's first option. Pending current-map `WandererJoins` letters are read through
 the typed colony census (`joiner_letters`) with their letter ID, pawn, expiry
-and snapshot token. The same capacity policy admits one letter answer at a time
+and snapshot token. The same capacity gate admits one letter answer at a time
 through `DialogIntent.joiner_letter_token` on Actions/Apply. Native rechecks the exact letter,
 quest, pawn, map, expiry and option under authority and runs its ordinary Accept
 option. The intent applies only once the offered pawn is a living spawned free colonist
@@ -64,16 +66,6 @@ on that map; closing the letter alone is insufficient, and a resent intent for a
 letter already accepted that way applies again. Expired, changed and
 unsupported offers are never answered. Without known capacity, letters expire
 through their own native quest timeout.
-
-An optional population raid threshold adds a veto to quest and letter admission:
-when raid points and built defense tiers are known, no firing or turret tier
-stands, and current points plus a conservative 200-point allowance exceed the
-threshold, the joiner is not admitted. Zero disables this veto; unknown threat or
-defense leaves the ordinary capacity answer unchanged. The allowance is not a
-prediction of final raid strength. Colony snapshots replay the rejection without
-defense and the admission after a firing tier is built and recorded
-(`internal/snapshot` `TestWandererLetterRefusedWithoutDefenseAboveRaidThreshold`,
-`TestWandererLetterAnsweredOnceFiringCoverIsBuilt`).
 
 Progress observation of a prisoner order reads the pawn's actual custody state, not
 only the setting: `PrisonerEffect.outcome` is `held`, `recruited`, `enslaved`,

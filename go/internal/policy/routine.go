@@ -293,12 +293,7 @@ type RoutineFacts struct {
 	// to detect and SelectJoinerMethod to answer a joiner offer from.
 	QuestOffers   domain.Fact[[]JoinerOffer]
 	JoinerLetters domain.Fact[[]JoinerLetterOffer]
-	// PopulationCapacity is the player's declared PopulationPolicy (journal
-	// evidence, not a native read): the maximum and food reserve a joiner
-	// offer is admitted against. Unknown, or unset, answers no offer.
-	PopulationCapacity domain.Fact[domain.PopulationPolicy]
-	RaidPoints         domain.Fact[float64]
-	DefenseTiers       domain.Fact[int]
+	RaidPoints    domain.Fact[float64]
 	// Waste carries MaintainWaste's exposed/eligible native item census (the
 	// same WasteReply the generic per-tick colony read already carries), for
 	// pendingWaste/WasteDeficit to detect and, eventually, SelectWasteMethod

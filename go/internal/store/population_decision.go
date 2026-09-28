@@ -9,8 +9,7 @@ import (
 )
 
 // PopulationDecisionSubmissionRequest is explicit player intent to record one
-// per-pawn population direction. Like PopulationPolicySubmissionRequest it
-// deliberately produces no plan and no action -- recording a decision issues
+// per-pawn population direction. It deliberately produces no plan and no action -- recording a decision issues
 // no native call -- so it keeps its own request table rather than a row in
 // the shared submissions table, whose every row owns a plan_id and action_id.
 type PopulationDecisionSubmissionRequest struct {
@@ -84,11 +83,6 @@ func (s *Store) SubmitPopulationDecision(ctx context.Context, q PopulationDecisi
 	}
 	if !errors.Is(err, ErrNotFound) {
 		return PopulationDecisionSubmission{}, false, err
-	}
-	if q.Directive.RequiresPolicy() {
-		if _, err = currentPopulationPolicy(ctx, tx, q.World); err != nil {
-			return PopulationDecisionSubmission{}, false, err
-		}
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO population_decision_submissions(request_id,colony,load_token,map_id,pawn,decision) VALUES(?,?,?,?,?,?)",
 		q.RequestID, q.World.Colony, q.World.Load, q.World.Map, string(q.Directive.Pawn()), string(q.Directive.Decision())); err != nil {

@@ -6,15 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func joinerPolicy(t *testing.T, maximum int32, foodDays float64) domain.Fact[domain.PopulationPolicy] {
-	t.Helper()
-	p, err := domain.NewPopulationPolicy(maximum, foodDays, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return domain.Known(p)
-}
-
 func joinerBeds(beds ...SleepingBed) domain.Fact[SleepingObservation] {
 	return domain.Known(SleepingObservation{Beds: beds})
 }
@@ -27,13 +18,13 @@ func hostedRow(pawn string, admitted, guest, dead bool) CustodyFacts {
 	return CustodyFacts{Pawn: domain.PawnID(pawn), Dead: domain.Known(dead), Admitted: domain.Known(admitted), Guest: domain.Known(guest)}
 }
 
-func joinerFacts(t *testing.T, hosted int, maximum int32) JoinerCapacityFacts {
+func joinerFacts(t *testing.T, hosted int) JoinerCapacityFacts {
 	t.Helper()
 	rows := make([]CustodyFacts, 0, hosted)
 	for i := 0; i < hosted; i++ {
 		rows = append(rows, hostedRow(string(rune('a'+i)), true, false, false))
 	}
-	return JoinerCapacityFacts{Custody: domain.Known(rows), Sleeping: joinerBeds(spareSleepingBed("bed")), FoodDays: domain.Known(10.0), Policy: joinerPolicy(t, maximum, 3)}
+	return JoinerCapacityFacts{Custody: domain.Known(rows), Sleeping: joinerBeds(spareSleepingBed("bed")), FoodDays: domain.Known(20.0)}
 }
 
 func TestIsJoinerOfferNamesOnlyThreatRewardJoinerRoots(t *testing.T) {
@@ -48,16 +39,23 @@ func TestIsJoinerOfferNamesOnlyThreatRewardJoinerRoots(t *testing.T) {
 	}
 }
 
-func TestJoinerCapacityCountsHostedPeopleAgainstThePolicy(t *testing.T) {
+func TestJoinerCapacityAdmitsWithoutAPlayerPolicy(t *testing.T) {
 	t.Parallel()
-	facts := joinerFacts(t, 3, 4)
-	if room, known := JoinerCapacity(facts).Value(); !known || !room {
-		t.Fatal("three hosted under a maximum of four should have room")
+	if room, known := JoinerCapacity(joinerFacts(t, 3)).Value(); !known || !room {
+		t.Fatal("beds and food alone admit a joiner")
 	}
 	// A guest and a prisoner count as hosted; the dead do not.
-	facts.Custody = domain.Known([]CustodyFacts{hostedRow("a", true, false, false), hostedRow("b", true, false, false), hostedRow("g", false, true, false), hostedRow("p", false, true, false), hostedRow("d", true, false, true)})
+	facts := joinerFacts(t, 0)
+	rows := []CustodyFacts{hostedRow("a", true, false, false), hostedRow("g", false, true, false), hostedRow("p", false, true, false), hostedRow("d", true, false, true)}
+	facts.Custody = domain.Known(rows)
+	facts.FoodDays = domain.Known(JoinerFoodFloorDays(3))
+	if room, known := JoinerCapacity(facts).Value(); !known || !room {
+		t.Fatal("three hosted at the three-person floor has room")
+	}
+	facts.Custody = domain.Known(append(rows, hostedRow("e", true, false, false)))
+	facts.FoodDays = domain.Known(JoinerFoodFloorDays(4) - 0.01)
 	if room, known := JoinerCapacity(facts).Value(); !known || room {
-		t.Fatal("four hosted under a maximum of four should have no room")
+		t.Fatal("the floor rises with the hosted count")
 	}
 	// An unknown row leaves the count, and so the capacity, unknown.
 	facts.Custody = domain.Known([]CustodyFacts{hostedRow("a", true, false, false), {Pawn: "u", Dead: domain.Known(false)}})
@@ -66,17 +64,46 @@ func TestJoinerCapacityCountsHostedPeopleAgainstThePolicy(t *testing.T) {
 	}
 }
 
+func TestJoinerCapacityStopsAtThePopulationTarget(t *testing.T) {
+	t.Parallel()
+	facts := joinerFacts(t, domain.PopulationTarget-1)
+	if room, known := JoinerCapacity(facts).Value(); !known || !room {
+		t.Fatal("one under the target has room")
+	}
+	facts = joinerFacts(t, domain.PopulationTarget)
+	if room, known := JoinerCapacity(facts).Value(); !known || room {
+		t.Fatal("the target is a ceiling")
+	}
+}
+
+func TestJoinerFoodFloorScalesThreeToFifteenDays(t *testing.T) {
+	t.Parallel()
+	for hosted, want := range map[int64]float64{0: 3, 1: 3, 20: 15, 50: 15} {
+		if got := JoinerFoodFloorDays(hosted); got != want {
+			t.Fatalf("floor(%d) = %v, want %v", hosted, got, want)
+		}
+	}
+	if a, b := JoinerFoodFloorDays(5), JoinerFoodFloorDays(6); !(3 < a && a < b && b < 15) {
+		t.Fatal("floor must rise linearly between the ends", a, b)
+	}
+}
+
 func TestJoinerCapacityNeedsFoodReserveAndASpareBed(t *testing.T) {
 	t.Parallel()
-	facts := joinerFacts(t, 2, 10)
+	facts := joinerFacts(t, 1)
 	facts.FoodDays = domain.Known(2.5)
 	if room, known := JoinerCapacity(facts).Value(); !known || room {
-		t.Fatal("a runway under the policy reserve has no room")
+		t.Fatal("a runway under the food floor has no room")
 	}
 	facts.FoodDays = domain.Known(3.0)
 	if room, known := JoinerCapacity(facts).Value(); !known || !room {
-		t.Fatal("a runway at the policy reserve has room")
+		t.Fatal("a runway at the food floor has room")
 	}
+	facts.FoodDays = domain.Unknown[float64]()
+	if _, known := JoinerCapacity(facts).Value(); known {
+		t.Fatal("an unknown runway leaves capacity unknown")
+	}
+	facts.FoodDays = domain.Known(3.0)
 	facts.Sleeping = joinerBeds(spareSleepingBed("owned", "a"), SleepingBed{ID: "medical", Humanlike: domain.Known(true), Medical: domain.Known(true), Prisoners: domain.Known(false)}, SleepingBed{ID: "prison", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(true)}, SleepingBed{ID: "animal", Humanlike: domain.Known(false), Medical: domain.Known(false), Prisoners: domain.Known(false)})
 	if room, known := JoinerCapacity(facts).Value(); !known || room {
 		t.Fatal("owned, medical, prisoner and animal beds are not spare")
@@ -84,15 +111,6 @@ func TestJoinerCapacityNeedsFoodReserveAndASpareBed(t *testing.T) {
 	facts.Sleeping = domain.Unknown[SleepingObservation]()
 	if _, known := JoinerCapacity(facts).Value(); known {
 		t.Fatal("an unknown sleeping census leaves capacity unknown")
-	}
-	facts = joinerFacts(t, 2, 10)
-	facts.Policy = domain.Known(domain.PopulationPolicy{})
-	if room, known := JoinerCapacity(facts).Value(); !known || room {
-		t.Fatal("no declared policy is a known no")
-	}
-	facts.Policy = domain.Unknown[domain.PopulationPolicy]()
-	if _, known := JoinerCapacity(facts).Value(); known {
-		t.Fatal("an unread policy leaves capacity unknown")
 	}
 }
 
@@ -156,57 +174,12 @@ func TestSelectJoinerMethodPicksTheLowestAnswerableOffer(t *testing.T) {
 
 func TestRoutineFactsJoinerCapacityFallsBackToStockRunway(t *testing.T) {
 	t.Parallel()
-	f := RoutineFacts{FoodDays: domain.Known(4.0), PopulationCapacity: joinerPolicy(t, 5, 1)}
-	f.RaidPoints, f.DefenseTiers = domain.Known(120.0), domain.Known(1)
-	if f.JoinerCapacity().RaidPoints != f.RaidPoints || f.JoinerCapacity().DefenseTiers != f.DefenseTiers {
-		t.Fatal("joiner capacity lost raid/defense facts")
-	}
+	f := RoutineFacts{FoodDays: domain.Known(4.0)}
 	if days, known := f.JoinerCapacity().FoodDays.Value(); !known || days != 4 {
 		t.Fatal(f.JoinerCapacity().FoodDays)
 	}
 	f.PopulationFoodDays = domain.Known(2.0)
 	if days, known := f.JoinerCapacity().FoodDays.Value(); !known || days != 2 {
 		t.Fatal(f.JoinerCapacity().FoodDays)
-	}
-}
-
-func TestJoinerCapacityRaidThreshold(t *testing.T) {
-	for _, tt := range []struct {
-		name      string
-		points    domain.Fact[float64]
-		tiers     domain.Fact[int]
-		threshold float64
-		want      bool
-	}{
-		{"disabled", domain.Known(1000.0), domain.Known(0), 0, true},
-		{"below", domain.Known(99.0), domain.Known(0), 300, true},
-		{"at", domain.Known(100.0), domain.Known(0), 300, true},
-		{"crosses", domain.Known(101.0), domain.Known(0), 300, false},
-		{"already above", domain.Known(400.0), domain.Known(0), 300, false},
-		{"firing line", domain.Known(101.0), domain.Known(1), 300, true},
-		{"two tiers", domain.Known(101.0), domain.Known(2), 300, true},
-		{"unknown points", domain.Unknown[float64](), domain.Known(0), 300, true},
-		{"unknown tiers", domain.Known(101.0), domain.Unknown[int](), 300, true},
-		{"both unknown", domain.Unknown[float64](), domain.Unknown[int](), 300, true},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			f := joinerFacts(t, 2, 10)
-			p, err := domain.NewPopulationPolicy(10, 3, tt.threshold)
-			if err != nil {
-				t.Fatal(err)
-			}
-			f.Policy, f.RaidPoints, f.DefenseTiers = domain.Known(p), tt.points, tt.tiers
-			if got, known := JoinerCapacity(f).Value(); !known || got != tt.want {
-				t.Fatalf("capacity = %v, known = %v; want %v", got, known, tt.want)
-			}
-			f.FoodDays = domain.Known(0.0)
-			if got, known := JoinerCapacity(f).Value(); !known || got {
-				t.Fatal("raid facts bypassed food capacity")
-			}
-			f.FoodDays = domain.Unknown[float64]()
-			if _, known := JoinerCapacity(f).Value(); known {
-				t.Fatal("raid facts changed unknown food capacity")
-			}
-		})
 	}
 }

@@ -9,8 +9,8 @@ func TestPopulationDirectiveBoundsPawnAndDecision(t *testing.T) {
 		if err != nil || !directive.Set() || directive.Pawn() != "Thing_Human1" || directive.Decision() != decision {
 			t.Fatal(directive, err)
 		}
-		if directive.Withdrawn() != (decision == PopulationIgnore) || directive.RequiresPolicy() == (decision == PopulationIgnore) {
-			t.Fatal("ignore alone withdraws orders and needs no policy", decision)
+		if directive.Withdrawn() != (decision == PopulationIgnore) {
+			t.Fatal("ignore alone withdraws orders", decision)
 		}
 	}
 	for _, invalid := range []PopulationDecision{"", "release", "Rescue", "banish"} {
@@ -28,7 +28,7 @@ func TestPopulationDirectiveBoundsPawnAndDecision(t *testing.T) {
 func TestPopulationDirectiveZeroValueSaysNothing(t *testing.T) {
 	t.Parallel()
 	var zero PopulationDirective
-	if zero.Set() || zero.Withdrawn() || zero.RequiresPolicy() {
+	if zero.Set() || zero.Withdrawn() {
 		t.Fatal("the zero directive is the absence of a direction")
 	}
 	first, err := NewPopulationDirective("Thing_Human1", PopulationRescue)
