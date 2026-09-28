@@ -42,12 +42,34 @@ func defensePerimeterTiers(record *store.DefenseLayoutRecord, read observation.R
 	}
 	var transmitters []domain.Cell
 	spare := 0.0
+	q := defenseTurretRequest(read).Turret
 	if defenseResearched(projection, defenseMoistureResearch) {
-		q := defenseTurretRequest(read).Turret
 		transmitters = q.Transmitters
 		spare, _ = q.SpareW.Value()
 	}
-	return defenseRecutPerimeter(record, plan, projection.Bounds, defensePerimeterBridge(projection), transmitters, spare)
+	return defenseRecutPerimeter(record, plan, projection.Bounds, defensePerimeterBridge(projection), transmitters, spare, defensePrisonTurrets(plan, q)...)
+}
+
+// defensePrisonTurrets are the mini-turrets outside the prison doors
+// (#1081), planned only while the turret is available and the network's
+// spare watts carry every one.
+func defensePrisonTurrets(plan policy.LayoutPlan, q policy.DefenseTurretRequest) []policy.PerimeterSection {
+	available, ak := q.Available.Value()
+	draw, dk := q.DrawW.Value()
+	spare, sk := q.SpareW.Value()
+	if !ak || !available || !dk || !sk {
+		return nil
+	}
+	sections, err := policy.PerimeterPrisonTurrets(plan, q.Definition, q.Stuff, q.Conduit, q.Transmitters)
+	if err != nil {
+		return nil
+	}
+	for i := range sections {
+		if float64(i+1)*draw > spare {
+			return sections[:i]
+		}
+	}
+	return sections
 }
 
 func defenseResearched(projection observation.ColonyProjection, project string) bool {
@@ -68,7 +90,7 @@ func defenseBuildingKey(b store.DefenseBuilding) string {
 // record's entry un-anchors the record, so the layout is proposed afresh
 // on the new one (#983). A pump not already in the record is planned only
 // while spare watts cover it.
-func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.LayoutPlan, bounds policy.Bounds, bridge string, transmitters []domain.Cell, spare float64) (bool, error) {
+func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.LayoutPlan, bounds policy.Bounds, bridge string, transmitters []domain.Cell, spare float64, prison ...policy.PerimeterSection) (bool, error) {
 	var kept, old []store.DefenseTierRecord
 	standing := map[string]bool{}
 	for _, t := range record.Tiers {
@@ -125,7 +147,7 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 	fmt.Fprintf(digest, "%s/%v\n", bridge, len(pumps) > 0)
 	var fresh []store.DefenseTierRecord
 	wanted := map[string]bool{}
-	for _, s := range append(sections, pumps...) {
+	for _, s := range slices.Concat(sections, pumps, prison) {
 		t := store.DefenseTierRecord{Name: s.Name}
 		for _, b := range s.Buildings {
 			if taken[b.Cell()] {

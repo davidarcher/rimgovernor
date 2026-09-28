@@ -72,7 +72,7 @@ func stockpileCreateEdits(r StockpileRequest, open stockpileOpen) []StockpileEdi
 			for _, c := range cells {
 				free = free && open.ok(c)
 			}
-			if !free {
+			if !free || spec.Role == domain.WeaponsRole && nearPrison(cells, r.Prisons) {
 				continue
 			}
 			for _, c := range cells {
