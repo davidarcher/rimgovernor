@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -161,6 +164,87 @@ func TestLiveControl(t *testing.T) {
 	step("pause1", store.PauseControl, store.PausedControl, 0)
 	if ok, err := LiveControl(path); ok || err != nil {
 		t.Fatalf("paused: %v %v", ok, err)
+	}
+}
+
+func TestControlColony(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "state.sqlite")
+	s, err := store.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if c, err := ControlColony(path); c != "" || err != nil {
+		t.Fatalf("no record: %q %v", c, err)
+	}
+	if _, _, err := s.BeginControl(ctx, store.ControlRequest{RequestID: "resume1", Kind: store.ResumeControl, World: store.World{Colony: "abc", Load: "load"}}); err != nil {
+		t.Fatal(err)
+	}
+	if c, err := ControlColony(path); c != "abc" || err != nil {
+		t.Fatalf("got %q %v", c, err)
+	}
+}
+
+func TestLatestColonySave(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, colony string, age time.Duration) {
+		t.Helper()
+		p := filepath.Join(dir, name+".rws")
+		if err := os.WriteFile(p, []byte("<game><rimgovernorColonyId>"+colony+"</rimgovernorColonyId></game>"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		at := time.Now().Add(-age)
+		if err := os.Chtimes(p, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("Autosave-1", "abc", 3*time.Hour)
+	write("checkpoint", "abc", time.Hour)
+	write("Autosave-2", "other", 0)
+	if got, err := LatestColonySave(dir, "abc"); got != "checkpoint" || err != nil {
+		t.Fatalf("got %q %v", got, err)
+	}
+	if got, _ := LatestColonySave(dir, "missing"); got != "" {
+		t.Fatalf("missing colony matched %q", got)
+	}
+	if got, _ := LatestColonySave(dir, ""); got != "" {
+		t.Fatalf("empty colony matched %q", got)
+	}
+}
+
+func TestReloadSave(t *testing.T) {
+	var loads []map[string]any
+	fail, refuse := 1, false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/player/session":
+			w.Write([]byte(`{"token":"tok"}`))
+		case "/api/lifecycle/load":
+			var body map[string]any
+			json.NewDecoder(r.Body).Decode(&body)
+			loads = append(loads, body)
+			switch {
+			case refuse || r.Header.Get("X-RimGovernor-Player") != "tok":
+				w.WriteHeader(400)
+			case fail > 0:
+				fail--
+				w.WriteHeader(503)
+			default:
+				w.WriteHeader(201)
+			}
+		}
+	}))
+	defer srv.Close()
+	if err := ReloadSave(context.Background(), srv.URL, "checkpoint"); err != nil {
+		t.Fatal(err)
+	}
+	if len(loads) != 2 || loads[0]["saveName"] != "checkpoint" || loads[0]["requestId"] != loads[1]["requestId"] {
+		t.Fatalf("loads %v", loads)
+	}
+	refuse = true
+	if err := ReloadSave(context.Background(), srv.URL, "x"); err == nil {
+		t.Fatal("refusal not reported")
 	}
 }
 

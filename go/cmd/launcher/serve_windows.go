@@ -180,10 +180,36 @@ func (a *app) start(s Settings) error {
 		}
 		if healthy(url) {
 			a.setController(ctrlRunning, "")
+			if strings.HasPrefix(why, "continuing") {
+				go a.reload(url, state, filepath.Join(paths.Profile, "Saves"))
+			}
 			return nil
 		}
 	}
 	return fmt.Errorf("the controller did not answer within 60 s; see %s", errPath)
+}
+
+// reload puts the colony the continued state DB was running back in play
+// (#1143): its newest save, found by the control record's colony id.
+func (a *app) reload(url, state, saves string) {
+	colony, err := ControlColony(state)
+	if err != nil {
+		a.logf("reload: read the control record: %v", err)
+		return
+	}
+	save, err := LatestColonySave(saves, colony)
+	if err != nil || save == "" {
+		a.logf("reload: no save of colony %q in %s (%v)", colony, saves, err)
+		return
+	}
+	a.logf("reload: loading %s", save)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	if err := ReloadSave(ctx, url, save); err != nil {
+		a.logf("reload: %v", err)
+		return
+	}
+	a.logf("reload: %s loaded", save)
 }
 
 // stop ends the controller this launcher started (never the game).
