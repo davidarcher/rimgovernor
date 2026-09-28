@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -8,7 +9,7 @@ import (
 
 func TestStatusRowsSeverityAndOrder(t *testing.T) {
 	rows := StatusRows(StatusInput{
-		Progress:  []GoalProgress{{Goal: "MaintainFood", Method: "hunt", Blocked: "no_target"}, {Goal: "EnsureShelter", Method: "build"}},
+		Progress:  []GoalProgress{{Goal: "EnsureFoodSupply", Method: "hunt", Blocked: "no_target"}, {Goal: "EnsureBasicPower", Method: "build"}},
 		Colonists: domain.Known(int64(3)),
 		FoodDays:  domain.Known(1.5),
 		Wood:      domain.Known(int64(40)),
@@ -22,14 +23,16 @@ func TestStatusRowsSeverityAndOrder(t *testing.T) {
 		severity StatusSeverity
 		detail   bool
 	}{
-		{"goal", "goal EnsureShelter: build (3 pawns)", StatusInfo, false},
+		{"goal", "goal EnsureBasicPower: build (3 pawns)", StatusInfo, false},
 		{"food", "food 1.5 days", StatusCritical, false},
 		{"wood", "wood 40/100", StatusWarning, false},
 		{"population", "population ?/100, intent ?, downed raiders die ?, unrecruitable ?", StatusInfo, false},
 		{"emergency", "EMERGENCY ManageSupplySafety", StatusCritical, false},
 		{"refusal", "refused Building no_path", StatusWarning, false},
-		{"goal.MaintainFood", "MaintainFood: hunt - no_target", StatusWarning, true},
-		{"goal.EnsureShelter", "EnsureShelter: build", StatusInfo, true},
+		{"domain.Food", "Food", StatusInfo, true},
+		{"goal.EnsureFoodSupply", "Standard EnsureFoodSupply: hunt - no_target", StatusWarning, true},
+		{"domain.Industry", "Industry", StatusInfo, true},
+		{"goal.EnsureBasicPower", "Project EnsureBasicPower: build", StatusInfo, true},
 	}
 	if len(rows) != len(want) {
 		t.Fatalf("%+v", rows)
@@ -140,5 +143,43 @@ func TestStatusRowsGoalTargetCells(t *testing.T) {
 	}
 	if r, _ := statusRow(rows, "goal.MaintainFood"); r.Target != (domain.Fact[domain.Cell]{}) {
 		t.Fatalf("goal without a cell targeted %+v", r.Target)
+	}
+}
+
+// Detail rows sit under their domain's heading with their concept; open
+// incidents get incident.<id> rows; System and closed incidents get none.
+func TestStatusRowsGroupDetailByDomain(t *testing.T) {
+	rows := StatusRows(StatusInput{
+		Progress: []GoalProgress{
+			{Goal: MaintainWaste, Method: "haul"},
+			{Goal: EnsureFoodSupply, Method: "hunt"},
+			{Goal: MaintainRefrigeration, Blocked: HeldOptIn},
+		},
+		Incidents: []domain.Incident{
+			{ID: "inc-1", Kind: ActiveCombat},
+			{ID: "inc-2", Kind: CriticalMedicine, Subject: "pawn7"},
+			{ID: "inc-3", Kind: AnswerDialog},
+			{ID: "inc-4", Kind: ActiveCombat, Closed: true},
+		},
+	})
+	var got []string
+	for _, r := range rows {
+		if r.Detail {
+			got = append(got, r.Key+"|"+r.Text)
+		}
+	}
+	want := []string{
+		"domain.Food|Food",
+		"goal.EnsureFoodSupply|Standard EnsureFoodSupply: hunt",
+		"goal.held.Food|held MaintainRefrigeration",
+		"domain.Military|Military",
+		"incident.inc-1|Incident ActiveCombat",
+		"domain.Medical|Medical",
+		"incident.inc-2|Incident CriticalMedical pawn7",
+		"domain.Upkeep|Upkeep",
+		"goal.MaintainWaste|Standard MaintainWaste: haul",
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("detail rows\n got %q\nwant %q", got, want)
 	}
 }

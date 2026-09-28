@@ -67,7 +67,7 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 	// An invalid reserve read leaves Stock unknown and drops the row.
 	medicine, _ := policy.ReviewMedicalReserve(f.MedicalReserve, false, r.policy.MedicalReserve)
 	target, _ := medicine.Target.Value()
-	rows := policy.StatusRows(policy.StatusInput{Stage: result.Review.Stage, Progress: result.Review.Progress, Colonists: f.Colonists, FoodDays: f.FoodDays, Wood: f.Wood, WoodFloor: result.Review.WoodFloor, Emergency: result.Emergency, Refusals: refusals, Pause: r.pause, Medicine: medicine.Stock, MedicineTarget: target, GoalCells: cells, Outlook: f.Outlook})
+	rows := policy.StatusRows(policy.StatusInput{Stage: result.Review.Stage, Progress: result.Review.Progress, Colonists: f.Colonists, FoodDays: f.FoodDays, Wood: f.Wood, WoodFloor: result.Review.WoodFloor, Emergency: result.Emergency, Refusals: refusals, Pause: r.pause, Medicine: medicine.Stock, MedicineTarget: target, GoalCells: cells, Outlook: f.Outlook, Incidents: openIncidents(result.Incidents)})
 	layoutRows, actions := r.layoutPanel(projection)
 	rows = append(rows, layoutRows...)
 	key := fmt.Sprint(rows, refusals, actions)
@@ -84,6 +84,15 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 		return
 	}
 	r.strip = statusStripState{key: key, drawn: tick}
+}
+
+// openIncidents is the incidents the strip lists (#1025).
+func openIncidents(states []store.IncidentState) []domain.Incident {
+	out := make([]domain.Incident, 0, len(states))
+	for _, s := range states {
+		out = append(out, s.Incident)
+	}
+	return out
 }
 
 // planMarks reads the active goals' and open incidents' (#1078) plans

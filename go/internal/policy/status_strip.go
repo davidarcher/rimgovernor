@@ -59,6 +59,8 @@ type StatusInput struct {
 	// Outlook is the storyteller's population and capture outlook (#1033);
 	// each unknown fact renders as "?".
 	Outlook PopulationOutlook
+	// Incidents are the open incidents (#1020); each gets a detail row.
+	Incidents []domain.Incident
 }
 
 // populationRow is the headline population and capture outlook row
@@ -180,36 +182,75 @@ func StatusRows(in StatusInput) []StatusRow {
 	if len(in.Refusals) > 0 {
 		rows = append(rows, StatusRow{Key: "refusal", Text: "refused " + in.Refusals[0].Label, Severity: StatusWarning, Target: refusal})
 	}
-	// Detail rows: actionable blocked goals first (warning, with the
-	// reason), then goals being worked, then one dim row naming the goals
-	// held on purpose.
-	var held []string
-	for _, pass := range []int{0, 1} {
-		for _, g := range in.Progress {
-			actionable := g.Blocked.Actionable()
-			if g.Blocked.Held() {
-				if pass == 0 {
-					held = append(held, string(g.Goal))
+	// Detail rows, per domain: actionable blocked goals first (warning,
+	// with the reason), then goals being worked, then open incidents, then
+	// one dim row naming the goals held on purpose.
+	return append(rows, detailRows(in)...)
+}
+
+// panelDomains are the status panel's sections in order (#1025). System
+// goals are game plumbing and get no section; goals with no domain fall
+// under "Other".
+var panelDomains = []Domain{DomainFood, DomainShelter, DomainIndustry, DomainMilitary, DomainMedical, DomainPeople, DomainUpkeep, DomainUnknown}
+
+// detailRows groups the expanded panel's rows under one heading row (key
+// "domain.<name>") per domain that has any. Each row names its concept.
+func detailRows(in StatusInput) []StatusRow {
+	var rows []StatusRow
+	for _, d := range panelDomains {
+		var held []string
+		var body []StatusRow
+		for _, pass := range []int{0, 1} {
+			for _, g := range in.Progress {
+				if GoalDomain(g.Goal) != d {
+					continue
 				}
-				continue
+				actionable := g.Blocked.Actionable()
+				if g.Blocked.Held() {
+					if pass == 0 {
+						held = append(held, string(g.Goal))
+					}
+					continue
+				}
+				if actionable != (pass == 0) {
+					continue
+				}
+				text := string(g.Goal)
+				if c := GoalConcept(g.Goal); c != ConceptUnknown {
+					text = string(c) + " " + text
+				}
+				if method := statusMethod(g); method != "" {
+					text += ": " + method
+				}
+				severity := StatusInfo
+				if actionable {
+					text += " - " + string(g.Blocked)
+					severity = StatusWarning
+				}
+				body = append(body, StatusRow{Key: "goal." + string(g.Goal), Text: text, Severity: severity, Target: goalCell(in.GoalCells, g.Goal), Detail: true})
 			}
-			if actionable != (pass == 0) {
-				continue
-			}
-			text := string(g.Goal)
-			if method := statusMethod(g); method != "" {
-				text += ": " + method
-			}
-			severity := StatusInfo
-			if actionable {
-				text += " - " + string(g.Blocked)
-				severity = StatusWarning
-			}
-			rows = append(rows, StatusRow{Key: "goal." + string(g.Goal), Text: text, Severity: severity, Target: goalCell(in.GoalCells, g.Goal), Detail: true})
 		}
-	}
-	if len(held) > 0 {
-		rows = append(rows, StatusRow{Key: "goal.held", Text: "held " + joinShort(held), Severity: StatusInfo, Detail: true})
+		for _, inc := range in.Incidents {
+			if inc.Closed || GoalDomain(inc.Kind) != d {
+				continue
+			}
+			text := "Incident " + string(inc.Kind)
+			if inc.Subject != "" {
+				text += " " + string(inc.Subject)
+			}
+			body = append(body, StatusRow{Key: "incident." + string(inc.ID), Text: text, Severity: StatusInfo, Target: goalCell(in.GoalCells, inc.Kind), Detail: true})
+		}
+		name := string(d)
+		if d == DomainUnknown {
+			name = "Other"
+		}
+		if len(held) > 0 {
+			body = append(body, StatusRow{Key: "goal.held." + name, Text: "held " + joinShort(held), Severity: StatusInfo, Detail: true})
+		}
+		if len(body) > 0 {
+			rows = append(rows, StatusRow{Key: "domain." + name, Text: name, Severity: StatusInfo, Detail: true})
+			rows = append(rows, body...)
+		}
 	}
 	return rows
 }

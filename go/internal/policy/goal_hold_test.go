@@ -21,10 +21,14 @@ func TestStatusRowsActionableFirstHeldCollapsed(t *testing.T) {
 	want := []string{
 		"goal MaintainResource: mine",
 		"population ?/100, intent ?, downed raiders die ?, unrecruitable ?",
-		"EnsureResearch - no_method",
-		"EnsureBasicPower: assess - planner:insufficient_verified_space",
-		"MaintainResource: mine",
-		"held EnsureComfort, EnsureFoodSupply, MaintainLighting",
+		"Food",
+		"held EnsureFoodSupply",
+		"Shelter",
+		"held EnsureComfort, MaintainLighting",
+		"Industry",
+		"Project EnsureResearch - no_method",
+		"Project EnsureBasicPower: assess - planner:insufficient_verified_space",
+		"Standard MaintainResource: mine",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("%q", got)

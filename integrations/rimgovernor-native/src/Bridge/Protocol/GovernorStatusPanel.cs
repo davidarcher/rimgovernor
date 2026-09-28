@@ -209,11 +209,11 @@ namespace HomeBridge.BridgeTools
         {
             var lines = new List<Line> { new Line(control, controlSeverity), new Line(ClockLine(), StatusStripSeverity.Info) };
             foreach (var row in rows.Where(r => !r.Detail)) lines.Add(new Line(Capitalize(row.Text), row.Severity, row.Target));
-            var goals = rows.Where(r => r.Detail).ToList();
-            if (goals.Count > 0)
+            // Detail rows arrive grouped under "domain.<name>" heading rows (#1025).
+            foreach (var row in rows.Where(r => r.Detail))
             {
-                lines.Add(new Line("Goals", StatusStripSeverity.Info, heading: true));
-                foreach (var row in goals) lines.Add(new Line("  " + row.Text, row.Severity, row.Target));
+                if (row.Key.StartsWith("domain.", StringComparison.Ordinal)) lines.Add(new Line(row.Text, StatusStripSeverity.Info, heading: true));
+                else lines.Add(new Line("  " + row.Text, row.Severity, row.Target));
             }
             return lines;
         }

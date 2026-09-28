@@ -26,6 +26,13 @@ func TestPlayerGoalKindsMatchRoutineGoals(t *testing.T) {
 		domain.EnsureDefensiveLayoutGoal:   EnsureDefensiveLayout,
 	}
 	kinds := domain.GoalKinds()
+	// The player creates Standards and Projects only (#1025); Responses
+	// open as incidents and Rules carry no goal.
+	for _, kind := range kinds {
+		if c := GoalConcept(GoalID(kind)); c != ConceptStandard && c != ConceptProject {
+			t.Fatal("player goal kind is not a Standard or Project", kind, c)
+		}
+	}
 	if len(routine) != len(kinds) {
 		t.Fatal("player goal kinds and routine goals diverged", len(routine), len(kinds))
 	}
