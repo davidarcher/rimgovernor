@@ -84,6 +84,27 @@ type ResourceSource struct {
 	Tier int
 }
 
+// BuriedResourceSource is the deposit MaintainResource tunnels to (#1074)
+// when no mine source can be selected directly: the nearest undesignated,
+// MineSafe, buried mine row with yield left. Nothing is returned while a
+// known threat or urgent competing work would hold any mining.
+func BuriedResourceSource(sources []ResourceSource, r RemoteWorkRequest) (ResourceSource, bool) {
+	if remoteThreatHold(r.Reach) != "" || r.Competition.UrgentPriority > 0 {
+		return ResourceSource{}, false
+	}
+	var best ResourceSource
+	found := false
+	for _, s := range sources {
+		if s.Method != ResourceSourceMine || !s.Buried || s.Designated || s.Yield <= 0 || !MineSafe(s.Safety) {
+			continue
+		}
+		if !found || s.Distance < best.Distance || s.Distance == best.Distance && s.ThingID < best.ThingID {
+			best, found = s, true
+		}
+	}
+	return best, found
+}
+
 // SelectReachableResourceSources narrows mining to the current resource reach.
 // Existing designations reserve estimated yield but are never adopted or removed.
 // Each new method still contains at most one rock; its final native yield may

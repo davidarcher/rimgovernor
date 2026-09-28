@@ -150,6 +150,11 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
 		return RoutineResourceResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	// A tunnel stage held against geometry that changed under it closes so
+	// the corridor is reviewed instead of waited on (#1074).
+	if err := cancelStalledExcavation(call, p.journal, goal, review.Tick); err != nil {
+		return RoutineResourceResult{}, err
+	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -464,6 +469,12 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 	result, dispatched, err := r.dispatchMineSource(call, epoch, state, goal, resource, selected, started)
 	if err != nil {
 		return RoutineResourceResult{}, false, err
+	}
+	if !dispatched {
+		result, dispatched, err = r.tunnelToBuriedOre(call, epoch, state, goal, reviewTick, identity, resource)
+		if err != nil {
+			return RoutineResourceResult{}, false, err
+		}
 	}
 	if dispatched {
 		result.Sources = selected

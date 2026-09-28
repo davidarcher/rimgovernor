@@ -202,6 +202,10 @@ func (r *RoutineBuildingPlanner) previousExcavation(call context.Context) (*poli
 	if err != nil {
 		return nil, fmt.Errorf("%w: previousExcavation: err != nil", ErrControl)
 	}
+	if target.Shape.Kind == policy.ExcavationCorridor {
+		// A MaintainResource tunnel to ore (#1074) is no shelter to resume.
+		return nil, nil
+	}
 	if strings.HasSuffix(string(plan), "-door") {
 		state, err := journal.LoadPlan(call, plan)
 		if err != nil {
@@ -371,7 +375,9 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	if stage > excavationStageBound {
 		return RoutineBuildingResult{Reason: BuildingMethodExhausted}, nil
 	}
-	if !routineDefinitionsAvailable(s.facts, []string{"Door"}, true) {
+	// A corridor-only tunnel to buried ore (#1074) owes no door.
+	corridor := s.target.Shape.Kind == policy.ExcavationCorridor
+	if !corridor && !routineDefinitionsAvailable(s.facts, []string{"Door"}, true) {
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
 	check := func() error {
@@ -395,6 +401,9 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	}
 	review, reason, door := excavationNext(s.target, site)
 	clockSchedulerLog("excavation stage %d for %s: next=%v kept=%v remaining=%d unknown=%v complete=%v corridor=%v support=%d (%s) collapse=%v worker=%v access=%v", stage, s.target.Key(), review.Stage, review.Kept, review.Remaining, review.Unknown, review.Complete, review.Corridor, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable, site.AccessReachable)
+	if door && corridor {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+	}
 	if door {
 		snapshot.Plan = mintExcavationPlan(s.target, "door")
 		return r.admitExcavationDoor(call, epoch, s, snapshot, check)
@@ -553,7 +562,9 @@ func (r *RoutineBuildingPlanner) admitExcavationDoor(call, epoch context.Context
 // handing the bundle to the shared admission transaction.
 func (r *RoutineBuildingPlanner) admitExcavation(call, epoch context.Context, s excavationStep, snapshot domain.GenerationSnapshot, method domain.MethodID, plan domain.PlanSpec, previews []policy.Preview, stock policy.StockObservation, check func() error) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
-	last, _, err := r.native.Identity(call)
+	// The reviewer's identity: a MaintainResource tunnel (#1074) runs this
+	// without a building source of its own.
+	last, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
