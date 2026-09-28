@@ -2,11 +2,48 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
+
+// A player goal is derived from the rebuilt goals (#1006): after a world
+// change rebuilds a fresh store from the save's goal blob, it still lists in
+// PlayerGoals under a new load token; a rebuild without it drops it.
+func TestPlayerGoalSurvivesWorldChange(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	first, _, err := s.SubmitGoalCreate(ctx, goalCreateRequest("create", domain.MaintainResourceGoal))
+	if err != nil {
+		t.Fatal(err)
+	}
+	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.State.Goal, Revision: first.State.Revision})
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := map[string]string{GovernorGoalKeyPrefix + string(first.Goal): string(blob)}
+	reloaded := open(t, memoryPath(t))
+	if err = reloaded.RebuildGoals(ctx, saved, nil); err != nil {
+		t.Fatal(err)
+	}
+	w := World{Colony: scope().Colony, Load: "reloaded", Map: scope().Map}
+	bindings, err := reloaded.PlayerGoals(ctx, w)
+	if err != nil || len(bindings) != 1 || bindings[domain.MaintainResourceGoal] != first.Goal {
+		t.Fatal(bindings, err)
+	}
+	if other, err := reloaded.PlayerGoals(ctx, World{Colony: "elsewhere", Load: "reloaded"}); err != nil || len(other) != 0 {
+		t.Fatal(other, err)
+	}
+	if err = s.RebuildGoals(ctx, map[string]string{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if gone, err := s.PlayerGoals(ctx, first.Request.World()); err != nil || len(gone) != 0 {
+		t.Fatal("dropped goal still listed", gone, err)
+	}
+}
 
 func goalCreateRequest(id string, kind domain.GoalKind) GoalCreateSubmissionRequest {
 	return GoalCreateSubmissionRequest{RequestID: id, Kind: kind, Snapshot: scope(), Tick: 10}

@@ -18,7 +18,7 @@ type GoalOrphanPass func(context.Context, []PlanState) error
 
 // RebuildGoals replaces the store's goals with the save's goal/* blobs
 // (#998): the save wins. Goals absent from the save are deleted with their
-// player bindings; every goal method row is deleted and its plan retired
+// session-only create submissions; every goal method row is deleted and its plan retired
 // after orphans sees it, so methods start empty and are re-planned. A save
 // without goal blobs leaves no goals (D5).
 func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orphans GoalOrphanPass) error {
@@ -74,7 +74,7 @@ func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orpha
 		if _, ok := goals[id]; ok {
 			continue
 		}
-		for _, statement := range []string{"DELETE FROM player_goals WHERE goal_id=?", "DELETE FROM goal_create_submissions WHERE goal_id=?", "DELETE FROM goals WHERE id=?"} {
+		for _, statement := range []string{"DELETE FROM goal_create_submissions WHERE goal_id=?", "DELETE FROM goals WHERE id=?"} {
 			if _, err = tx.ExecContext(ctx, statement, id); err != nil {
 				return err
 			}

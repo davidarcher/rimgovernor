@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -53,8 +54,8 @@ type GoalCreateSubmission struct {
 	State GoalState
 }
 
-// World is the world half of the requested snapshot, the key the per-kind
-// player goal binding is stored under.
+// World is the world half of the requested snapshot; PlayerGoals matches its
+// colony and map against each player goal's own snapshot.
 func (q GoalCreateSubmissionRequest) World() World {
 	return World{Colony: q.Snapshot.Colony, Load: q.Snapshot.Load, Map: q.Snapshot.Map}
 }
@@ -135,9 +136,6 @@ func (s *Store) SubmitGoalCreate(ctx context.Context, q GoalCreateSubmissionRequ
 		q.RequestID, w.Colony, w.Load, w.Map, string(q.Kind), string(state.Goal.ID), payload); err != nil {
 		return GoalCreateSubmission{}, false, conflict(err)
 	}
-	if err = bindPlayerGoal(ctx, tx, w, q.Kind, "create_goal", q.RequestID, state.Goal.ID); err != nil {
-		return GoalCreateSubmission{}, false, conflict(err)
-	}
 	if err = tx.Commit(); err != nil {
 		return GoalCreateSubmission{}, false, err
 	}
@@ -148,15 +146,11 @@ func (s *Store) SubmitGoalCreate(ctx context.Context, q GoalCreateSubmissionRequ
 // leaves it active and in deficit. It never resurrects a cancelled or
 // invalidated goal; see SubmitGoalCreate.
 func activatePlayerGoal(ctx context.Context, tx *sql.Tx, q GoalCreateSubmissionRequest) (GoalState, error) {
-	existing, err := currentPlayerGoal(ctx, tx, q.World(), q.Kind)
-	if err != nil && !errors.Is(err, ErrNotFound) {
+	current, err := playerGoals(ctx, tx, q.World())
+	if err != nil {
 		return GoalState{}, err
 	}
-	if err == nil {
-		state, err := loadGoal(ctx, tx, existing)
-		if err != nil {
-			return GoalState{}, err
-		}
+	if state, ok := current[q.Kind]; ok {
 		if !state.Retired && state.Goal.Status != domain.GoalCancelled && state.Goal.Status != domain.GoalInvalidated {
 			open, err := goalOpenWork(ctx, tx, state)
 			if err != nil {
@@ -239,9 +233,12 @@ func (s *Store) CancelPlayerGoal(ctx context.Context, w World, id domain.GoalID,
 	return out, nil
 }
 
-// PlayerGoals returns every goal identity the player has activated for one
-// world, keyed by kind. An empty result is not an error: a world where the
-// player has activated nothing simply has none.
+// PlayerGoals returns the goal identity the player has activated for each kind
+// in one world. It is derived from the rebuilt goals themselves (#1006): every
+// goal whose Source is PlayerGoal and whose snapshot names this colony and map
+// (U4b: the load token is not compared, so a player goal survives a world
+// change). The kind is read from the identity activatePlayerGoal mints. An
+// empty result is not an error.
 func (s *Store) PlayerGoals(ctx context.Context, w World) (map[domain.GoalKind]domain.GoalID, error) {
 	if err := w.Validate(); err != nil {
 		return nil, err
@@ -251,31 +248,68 @@ func (s *Store) PlayerGoals(ctx context.Context, w World) (map[domain.GoalKind]d
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, "SELECT kind,goal_id FROM player_goals WHERE colony=? AND load_token=? AND map_id=? ORDER BY kind", w.Colony, w.Load, w.Map)
+	found, err := playerGoals(ctx, tx, w)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := map[domain.GoalKind]domain.GoalID{}
-	for rows.Next() {
-		var kind, id string
-		if err = rows.Scan(&kind, &id); err != nil {
-			return nil, err
+	out := make(map[domain.GoalKind]domain.GoalID, len(found))
+	for kind, state := range found {
+		out[kind] = state.Goal.ID
+	}
+	return out, tx.Commit()
+}
+
+// playerGoalKind reads the kind from a player goal identity,
+// "player-<hex>-<kind>". A goal minted any other way has no kind.
+func playerGoalKind(id domain.GoalID) (domain.GoalKind, bool) {
+	rest, ok := strings.CutPrefix(string(id), "player-")
+	if !ok {
+		return "", false
+	}
+	_, kind, ok := strings.Cut(rest, "-")
+	if !ok {
+		return "", false
+	}
+	known, err := domain.NewGoalKind(kind)
+	return known, err == nil
+}
+
+// playerGoals picks, per kind, the world's current player goal: a live one
+// over a cancelled, invalidated or retired one, then the latest tick, then
+// the greater identity.
+func playerGoals(ctx context.Context, tx *sql.Tx, w World) (map[domain.GoalKind]GoalState, error) {
+	ids, err := goalIDs(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	live := func(s GoalState) bool {
+		return !s.Retired && s.Goal.Status != domain.GoalCancelled && s.Goal.Status != domain.GoalInvalidated
+	}
+	out := map[domain.GoalKind]GoalState{}
+	for _, id := range ids {
+		kind, ok := playerGoalKind(id)
+		if !ok {
+			continue
 		}
-		known, err := domain.NewGoalKind(kind)
+		state, err := loadGoal(ctx, tx, id)
 		if err != nil {
 			return nil, err
 		}
-		out[known] = domain.GoalID(id)
-	}
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-	if err = rows.Close(); err != nil {
-		return nil, err
-	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
+		g := state.Goal
+		if g.Source != domain.PlayerGoal || g.Snapshot.Colony != w.Colony || g.Snapshot.Map != w.Map {
+			continue
+		}
+		prev, seen := out[kind]
+		if seen {
+			if live(prev) != live(state) {
+				if live(prev) {
+					continue
+				}
+			} else if prev.Goal.Tick > g.Tick {
+				continue
+			}
+		}
+		out[kind] = state
 	}
 	return out, nil
 }
@@ -298,28 +332,6 @@ func (s *Store) LookupGoalCreateSubmission(ctx context.Context, requestID string
 		return GoalCreateSubmission{}, err
 	}
 	return result, nil
-}
-
-// bindPlayerGoal records which goal identity a player command left bound to one
-// kind in one world, replacing whatever was bound before. Every player command
-// that owns a goal binds through here, so the binding stays single per kind; see
-// initializeGoals for why the row names its own command.
-func bindPlayerGoal(ctx context.Context, tx *sql.Tx, w World, kind domain.GoalKind, command, requestID string, id domain.GoalID) error {
-	_, err := tx.ExecContext(ctx, "INSERT INTO player_goals(colony,load_token,map_id,kind,command,request_id,goal_id) VALUES(?,?,?,?,?,?,?) ON CONFLICT(colony,load_token,map_id,kind) DO UPDATE SET command=excluded.command,request_id=excluded.request_id,goal_id=excluded.goal_id",
-		w.Colony, w.Load, w.Map, string(kind), command, requestID, string(id))
-	return err
-}
-
-func currentPlayerGoal(ctx context.Context, tx *sql.Tx, w World, kind domain.GoalKind) (domain.GoalID, error) {
-	var id string
-	err := tx.QueryRowContext(ctx, "SELECT goal_id FROM player_goals WHERE colony=? AND load_token=? AND map_id=? AND kind=?", w.Colony, w.Load, w.Map, string(kind)).Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrNotFound
-	}
-	if err != nil {
-		return "", err
-	}
-	return domain.GoalID(id), nil
 }
 
 // goalCreateRequestWire is the stored JSON shape of one accepted request. The
