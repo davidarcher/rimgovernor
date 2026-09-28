@@ -466,6 +466,17 @@ func threatFacts(s policy.CombatPawnState, row *n.PawnState) policy.CombatPawnSt
 		return s
 	}
 	s.Kind = row.GetKindDefName()
+	if h := row.GetHealth(); h != nil {
+		if h.BloodLoss != nil {
+			s.BloodLoss = domain.Known(h.GetBloodLoss())
+		}
+		if h.BleedRatePerDay != nil {
+			s.BleedRatePerDay = domain.Known(h.GetBleedRatePerDay())
+		}
+		if h.HoursUntilDeathFromBloodLoss != nil {
+			s.HoursUntilBleedDeath = domain.Known(h.GetHoursUntilDeathFromBloodLoss())
+		}
+	}
 	toil := row.GetLordToilClass()
 	s.Sapper = strings.Contains(toil, "Sapper") || strings.Contains(toil, "Breach") || row.GetJob().GetDefName() == "Mine"
 	return s

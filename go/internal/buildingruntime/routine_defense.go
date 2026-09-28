@@ -402,7 +402,8 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, door := range combat.Doors {
 		damaged = append(damaged, domain.Cell{X: door.GetCell().GetX(), Z: door.GetCell().GetZ()})
 	}
-	return policy.CombatView{Tick: domain.Tick(combat.Context.GetTick()), Pawns: combatPawnStates(combat, in.rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DamagedDoors: damaged, Mortars: combat.Mortars, Structures: structures}
+	return policy.CombatView{Tick: domain.Tick(combat.Context.GetTick()), Pawns: combatPawnStates(combat, in.rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DamagedDoors: damaged, Mortars: combat.Mortars, Structures: structures,
+		Population: domain.Known(len(combat.Emergency.Facts.Colonists))}
 }
 
 // podArrival is the frame's newest drop-pod arrival row (#870), for the

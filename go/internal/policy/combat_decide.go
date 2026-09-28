@@ -23,6 +23,9 @@ import (
 // Drafted pawns on fire-at-will pick their own targets once in place.
 func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memory CombatMemory) ([]CombatOrder, *GeometryRequest, CombatMemory) {
 	view = view.sorted()
+	// Contained raiders who will bleed down are left to go down (#1035).
+	spared := sparedBleeders(view)
+	view = view.spare(spared)
 	next := memory.clone()
 	next.Tick = view.Tick
 	next.CannotHit = keepHitRefusals(view, next.CannotHit)
@@ -147,7 +150,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	orders = holdFire(view, slices.DeleteFunc(slices.Clone(next.Roles), func(r CombatRole) bool {
 		return next.Rescue.carrying(r.Pawn) || next.Flank.waiting(r.Pawn)
-	}), orders, memory)
+	}), orders, memory, onlySpared(view, spared))
 	if !geometry.Answered {
 		// The attacks' lines of fire (#861) take the stop's geometry round
 		// trip when Formation did not.
@@ -205,6 +208,9 @@ type CombatPawnState struct {
 	Shield domain.Fact[float64]
 	// MoveSpeed is the pawn's MoveSpeed stat in cells/s, 0 unknown (#898).
 	MoveSpeed float64
+	// Health summary (#1035): BloodLoss severity, the bleed rate per day
+	// and the hours until blood loss kills; unknown when unread.
+	BloodLoss, BleedRatePerDay, HoursUntilBleedDeath domain.Fact[float64]
 }
 
 // CombatLayout is the stored, complete defense layout's line.
@@ -242,6 +248,9 @@ type CombatView struct {
 	// census's standing hostile buildings (#930).
 	Mortars    []CombatMortar     `json:",omitempty"`
 	Structures []HostileStructure `json:",omitempty"`
+	// Population is the colony's colonist count; below
+	// domain.PopulationTarget the fight spares contained bleeders (#1035).
+	Population domain.Fact[int]
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased

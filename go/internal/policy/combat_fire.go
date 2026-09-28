@@ -272,7 +272,10 @@ func meleeLocked(view CombatView, roles []CombatRole) map[domain.PawnID]bool {
 // is already shooting it, in place of its other orders; and fire-at-will
 // back to a held gunner once that melee ends. A pawn whose fire mode is
 // unknown counts as held when its last order was hold-fire.
-func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m CombatMemory) []CombatOrder {
+//
+// quiet (#1035) holds every gunner: the only hostiles left are spared
+// bleeders, whom fire-at-will would otherwise shoot.
+func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m CombatMemory, quiet bool) []CombatOrder {
 	state := map[domain.PawnID]CombatPawnState{}
 	for _, p := range view.Pawns {
 		state[p.ID] = p
@@ -295,13 +298,13 @@ func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m Comba
 		mine := func(o CombatOrder) bool { return o.Pawn == r.Pawn }
 		// A pawn mid-aim keeps its fire mode (#903) unless its shot is at
 		// the hostile our blocker is fighting.
-		if interruptsAim(s) && !locked[s.Target] {
+		if interruptsAim(s) && !locked[s.Target] && !quiet {
 			continue
 		}
 		switch {
-		case locked[r.Target] || locked[s.Target] && (r.Target == "" || s.Stance != StanceIdle):
+		case quiet || locked[r.Target] || locked[s.Target] && (r.Target == "" || s.Stance != StanceIdle):
 			orders = slices.DeleteFunc(orders, mine)
-			if locked[s.Target] && s.Stance != StanceIdle {
+			if (quiet && s.Target != "" || locked[s.Target]) && s.Stance != StanceIdle {
 				orders = append(orders, CombatOrder{Pawn: r.Pawn, Kind: OrderStop, Reason: ReasonHoldFire})
 			}
 			if !held {

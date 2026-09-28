@@ -65,6 +65,10 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 			layout = domain.Known(*s.Layout)
 		}
 		view := combatView(combat, in, s.Orderable, layout)
+		// The recordings predate sparing contained bleeders (#1035): their
+		// fixed geometry answers asks that still name them. That rule is
+		// proven on a recorded frame by TestCombatFrameSparesFleeingBleeder.
+		view.Population = domain.Unknown[int]()
 		if stop := combatStop(combat, s.MemoryIn.Tick); !reflect.DeepEqual(stop, s.Stop) {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: the frame's events answer %+v, the recording %+v", i, s.Tick, stop, s.Stop)
 		}
