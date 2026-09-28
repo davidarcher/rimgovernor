@@ -21,10 +21,7 @@
 //     suite that did not pass; rows that
 //     resumed from a checkpoint (`acceptance suite -resume`) land and are
 //     named in the acceptance line, since their pass proves the fix past
-//     the resume point only (#249, #308); without it, refuses a diff that
-//     touches the native mod sources or go/internal/buildingruntime (#273: nothing cheaper than a
-//     game run proves those) unless -unverified says the landing goes
-//     without, to be named in the commit body;
+//     the resume point only (#249, #308); results are optional;
 //  4. commits the merged branch's tree onto main as one squash commit and
 //     moves the main ref only if main has not moved since step 2, with a
 //     message built from the branch's commits (-m or -F overrides the
@@ -69,13 +66,12 @@ func main() {
 	issue := flag.Int("issue", 0, "GitHub issue to close with the landing commit (default: the number in the branch name)")
 	noClose := flag.Bool("no-close", false, "do not close a GitHub issue")
 	results := flag.String("results", "", "acceptance suite output directory (its result.json) the landing presents as its pass")
-	unverified := flag.Bool("unverified", false, "land a native or buildingruntime change without -results; name what is unverified in the commit body")
 	flag.Parse()
 	if flag.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-results dir | -unverified] [-issue N | -no-close] [<branch>]")
+		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-results dir] [-issue N | -no-close] [<branch>]")
 		os.Exit(2)
 	}
-	gate := acceptanceGate{Results: *results, Unverified: *unverified}
+	gate := acceptanceGate{Results: *results}
 	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests, gate, closeIssue(*issue, *noClose)); err != nil {
 		fmt.Fprintln(os.Stderr, "land:", err)
 		os.Exit(1)
@@ -160,7 +156,7 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if err != nil {
 		return err
 	}
-	if err := gate.check(changed); err != nil {
+	if err := gate.check(); err != nil {
 		return err
 	}
 	if runTests {

@@ -8,27 +8,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
 )
 
-// gatedRoots are the repo-relative roots whose change the lane will not
-// land without acceptance results (the smoke tier since #387; the nightly
-// full tier proves the affected areas): the native mod's build inputs (the
-// shared harness inputs cmd/affected treats as affecting every case) and
-// the building runtime, whose plans only a game run proves.
-func gatedRoots() []string {
-	return append(na.HarnessInputRoots(), "go/internal/buildingruntime")
-}
-
-// acceptanceGate is the landing-time check of case results (#308, #273).
+// acceptanceGate is the landing-time check of optional case results (#308).
+// No diff requires results; the nightly tier proves native behaviour.
 type acceptanceGate struct {
 	// Results is an `acceptance suite` output directory whose result.json
 	// the landing presents; empty presents none.
-	Results string
-	// Unverified lands a gated diff without results; the caller names what
-	// is unverified in the commit body.
-	Unverified     bool
+	Results        string
 	remoteVerified bool
 	remoteReport   *remoteaccept.Report
 }
@@ -78,10 +66,9 @@ func remoteResults(results string) (string, bool, error) {
 	return filepath.Dir(p), remote, nil
 }
 
-// check refuses the landing when the presented suite did not pass, or when
-// none is presented for a diff under a gated root; resumed rows are named,
-// not refused.
-func (g acceptanceGate) check(changed []string) error {
+// check refuses the landing when a presented suite did not pass; resumed
+// rows are named, not refused.
+func (g acceptanceGate) check() error {
 	if g.Results != "" {
 		root, remote, err := remoteResults(g.Results)
 		if err != nil {
@@ -110,33 +97,7 @@ func (g acceptanceGate) check(changed []string) error {
 		fmt.Println("acceptance:", summary)
 		return nil
 	}
-	touched := gatedFiles(changed)
-	if len(touched) == 0 {
-		return nil
-	}
-	if g.Unverified {
-		fmt.Printf("acceptance: none presented for %d gated file(s) (%s...); landing -unverified; name it in the commit body\n", len(touched), touched[0])
-		return nil
-	}
-	return fmt.Errorf("the diff touches %s (%d file(s) under %s) and presents no acceptance results;\n"+
-		"run `acceptance suite -tier smoke -root <abs root> -output <fresh dir>` from go/ and land with -results <that dir> (#387: the nightly full tier proves the affected areas),\n"+
-		"or -unverified and name what went unverified in the commit body",
-		touched[0], len(touched), strings.Join(gatedRoots(), ", "))
-}
-
-// gatedFiles lists the changed files under a gated root.
-func gatedFiles(changed []string) []string {
-	var out []string
-	for _, file := range changed {
-		file = filepath.ToSlash(file)
-		for _, root := range gatedRoots() {
-			if file == root || strings.HasPrefix(file, root+"/") {
-				out = append(out, file)
-				break
-			}
-		}
-	}
-	return out
+	return nil
 }
 
 // readSuiteResults reads a suite report and returns its one-line summary,

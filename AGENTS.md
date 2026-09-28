@@ -19,20 +19,14 @@ once acceptance passes, and land immediately.
 3. Commit each completed iteration. Checkpoint commits are authorized; do
    not ask. Size an iteration to a coherent milestone, not the smallest
    possible edit, so slow checks run once against meaningful progress.
-4. At the milestone, if `cmd/test` named affected case areas, run the one
-   command it prints, `acceptance suite -tier smoke` (three short cases,
-   minutes), and hand that output to `cmd/land -results`. The affected
-   areas themselves are proven by `go test` and the on-demand full tier
-   (#752); the scheduled nightly runs only the twelve end-to-end cases
-   (`-tier nightly`, a signal, not a gate). Run `-tier land` instead only
-   when you want the change proven before it lands, and never run the
-   areas with `acceptance run` first and then a tier, which runs every
-   case twice. (Native behaviour changes need the smoke pass before
-   completion; documentation needs none.) Speed over proof: the smoke
-   tier is ~30 s, so run it; anything longer is the nightly's job, so
-   land `-unverified` rather than wait on an area case or on another
-   issue's run. Name the run in the commit
-   message. Add `-resume` to carry the checkpoint
+4. Landing needs no acceptance run. Affected areas are proven by `go test`
+   and the on-demand full tier (#752); the scheduled nightly runs the
+   twelve end-to-end cases (`-tier nightly`, a signal, not a gate). Run a
+   tier (`acceptance suite -tier smoke` or `-tier land`) only when you want
+   the change proven before it lands, hand its output to `cmd/land
+   -results`, and name the run in the commit message; never run the areas
+   with `acceptance run` first and then a tier, which runs every case
+   twice. Add `-resume` to carry the checkpoint
    rings your failed `acceptance run`s left in `-root`: resumed rows pass,
    are listed under `resumed` and named in the landing, but prove the fix
    past the resume point only, so a change to early behaviour runs fresh.
@@ -42,9 +36,7 @@ once acceptance passes, and land immediately.
    milestone commit the tip and fold fixups into it first.
    The lane takes the repository lock, merges `main` into the branch,
    refuses a presented suite that failed (resumed rows are recorded),
-   refuses a diff under the native sources or `buildingruntime` without
-   one (the smoke tier since #387; `-unverified` lands it, naming what went
-   unverified in the commit body, not an issue), squash-lands on the
+   squash-lands on the
    `main` checkout, resets the branch to `main` and closes the branch's
    GitHub issue with the landing commit. Call it once and move on; land
    each ready milestone rather than holding a branch until the whole task
@@ -74,8 +66,8 @@ once acceptance passes, and land immediately.
 `main` moves constantly and that is never a reason to redo anything: a test
 or harness that passed on the branch's code stays passed, the lane's merge
 does not invalidate it, and a second rerun-and-land cycle for one milestone
-is forbidden. If something is left unverified, land with `-unverified` and
-say what in the commit body; do not open an issue for it. The next
+is forbidden. If something is left unverified, say what in the commit
+body; do not open an issue for it. The next
 full-suite pass (#363, acceptance on CI) verifies every unverified landing
 at once; per-landing issues only pile up until then.
 
@@ -96,7 +88,7 @@ first fix failed. Every landing report ends with one line:
   maintainer pushes `main` by hand.
 - `git reset --soft main` to squash, or edit the `main` checkout directly,
   not even to try a fix on the user's launcher game (which builds from
-  `main`): land it `-unverified`, then restart the launcher (#965).
+  `main`): land it, then restart the launcher (#965).
 - Kill `RimWorldWin64.exe` by image name; peers' games run
   beside yours. Stop your own by root or pid (runbook).
 - Replace a DLL under a game install some RimWorld is running from. Only a

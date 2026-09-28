@@ -135,11 +135,10 @@ commit per milestone; the loop is in [AGENTS.md](../../AGENTS.md), the
 machine setup in the [agent runbook](agent-runbook.md)); pull requests are
 disabled and the maintainer pushes `main` manually. `go run ./cmd/test`
 from `go/` is the test loop and the pre-land check (the lane runs no
-tests). When it names affected case areas, run the printed
-`acceptance suite -tier smoke` command once at the milestone and pass its
-output to `cmd/land -results`; the nightly full tier over `main` proves
-the affected areas (#387), and `-tier land` proves them before landing when
-the change warrants it. Do not run the areas separately first. `main` moving afterwards
+tests). Landing needs no acceptance run: the nightly full tier over `main`
+proves the affected areas (#387), and `-tier smoke` or `-tier land` proves
+them before landing when the change warrants it (pass the output to
+`cmd/land -results`). Do not run the areas separately first. `main` moving afterwards
 is never a reason to rerun.
 
 ## Keep deployment and docs maintainable

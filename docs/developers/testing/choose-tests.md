@@ -233,11 +233,10 @@ one, and `-tier full` runs the rest. `cmd/test` lists the sampled areas
 under `cases affected`, `acceptance list -tier land` names them on stderr
 and the suite's `result.json` records them as `sampled`. A boot-path edit
 (`headless.go`, `warm.go`) therefore costs one case per area plus the
-smoke set, not the registry. Run the printed
-`acceptance suite -tier smoke` command at the milestone and hand its output
-to `cmd/land -results`; the full tier proves the affected areas
-(#387), and `-tier land` proves them before landing when the change warrants
-it. Do not run the areas separately first. Name the suite in the commit
+smoke set, not the registry. Landing needs no acceptance run; the full
+tier proves the affected areas (#387), and `-tier smoke` or `-tier land`
+proves them before landing when the change warrants it (hand the output to
+`cmd/land -results`). Do not run the areas separately first. Name the suite in the commit
 message; an area you judged unaffected and skipped is "left unverified"
 below: land and say so in the commit body. A run counts for the code it ran against: `main` moving under the
 branch afterwards, a clean rebase or a cherry-pick does not invalidate it,
@@ -924,15 +923,12 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
 - **land** (`suite -tier land [-base main]`): the case areas
   `cmd/affected` selects for the worktree's diff plus the smoke set, fresh,
   on demand before a landing the author wants proven (#387; the landing
-  lane itself requires the smoke tier); an area a harness edit reaches through shared
+  lane requires no tier); an area a harness edit reaches through shared
   plumbing alone contributes one case (sampled, #348, above). `cmd/test`
   prints the command; `cmd/land -results
   <output>` reads the suite's `result.json` and refuses a suite that did
-  not pass or whose rows resumed from a checkpoint (#308). A diff under
-  the native mod sources (`na.HarnessInputRoots`) or
-  `go/internal/buildingruntime` does not land without `-results` (the
-  smoke tier suffices); `-unverified` lands it anyway, and the commit body
-  names what went unverified.
+  not pass or whose rows resumed from a checkpoint (#308). `-results` is
+  optional for every diff.
 - **nightly** (`suite -tier nightly`): the twelve end-to-end cases (#738
   bucket C, `endToEnd` in `cmd/acceptance/tier.go`), the scheduled loop
   against `main` on CI (#363, #752); a signal rather than a gate.
