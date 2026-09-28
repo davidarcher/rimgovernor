@@ -64,11 +64,29 @@ namespace HomeBridge.BridgeTools
             foreach (var cell in GenAdj.CellsAdjacent8WayAndInside(t))
             {
                 if (!cell.InBounds(map)) return "Map edge excavation is protected";
-                if (map.zoneManager.ZoneAt(cell) != null || map.areaManager.Home[cell]) return "Excavation overlaps protected colony space";
-                if (cell.GetThingList(map).Any(other => other != t && (other is Blueprint || other is Frame
+                if (cell.GetThingList(map).Any(other => other != t && !IsWall(other) && (other is Blueprint || other is Frame
                     || (other is Building && !(other is Mineable))))) return "Excavation borders a protected structure";
             }
             return null;
+        }
+
+        // Ore is always mineable (#1133). A wall (built or queued, such as a
+        // replacement from a neighbouring face) does not protect the rock.
+        private static bool IsWall(Thing t) => t.def == ThingDefOf.Wall || t.def.entityDefToBuild == ThingDefOf.Wall;
+
+        // A mined cell that borders a zone or Home opens protected colony
+        // space, so the mine is followed by an ordinary wall blueprint on it
+        // in the most-stocked wall material (#1133).
+        internal static bool OpensProtectedSpace(IntVec3 cell, Map map) => GenAdj.CellsAdjacent8Way(new TargetInfo(cell, map)).Concat(new[] { cell })
+            .Any(c => c.InBounds(map) && (map.zoneManager.ZoneAt(c) != null || map.areaManager.Home[c]));
+        internal static void ReplaceWall(IntVec3 cell, Map map)
+        {
+            if (!OpensProtectedSpace(cell, map)) return;
+            var allowed = GenStuff.AllowedStuffsFor(ThingDefOf.Wall).ToList();
+            var stuff = allowed.OrderByDescending(s => map.resourceCounter.GetCount(s)).FirstOrDefault(s => map.resourceCounter.GetCount(s) > 0)
+                ?? GenStuff.DefaultStuffFor(ThingDefOf.Wall);
+            if (!GenConstruct.CanPlaceBlueprintAt(ThingDefOf.Wall, cell, Rot4.North, map, false, null, null, stuff).Accepted) return;
+            GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Wall, cell, map, Rot4.North, Faction.OfPlayer, stuff);
         }
 
         // Buried ore (#1072): a mineable deposit whose roof support holds and

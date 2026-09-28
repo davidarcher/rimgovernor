@@ -37,18 +37,18 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/buried_steel", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab fixture (#1075): action=prepare raises a thick-roofed granite block beside the colonists with one compacted steel deposit on the face and one buried and fogged behind it, a stockpile and frozen needs; action=audit reads the deposits left, the steel on the map and in storage, and any roof lost, collapsed rock or pending collapse in the block.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "prepare")
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "prepare", string stockpile = "west")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
                 if (action == "audit") return Audit(map);
                 if (action != "prepare") throw new ArgumentException("action must be prepare or audit.");
                 if (!Find.TickManager.Paused) return new { success = false, reason = "Paused map required for prepare." };
-                return Prepare(map);
+                return Prepare(map, stockpile == "face");
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        private static object Prepare(Map map)
+        private static object Prepare(Map map, bool besideFace)
         {
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             if (people.Count == 0) return new { success = false, reason = "No colonists." };
@@ -73,7 +73,10 @@ namespace HomeBridge.BridgeTools
             map.zoneManager.RegisterZone(zone);
             // The stockpile (the colony extent) sits west of the colonists,
             // away from the face: colony space next to a deposit protects it.
-            foreach (var c in new CellRect(center.x - 7, center.z - 2, 4, 4).Cells) zone.AddCell(c);
+            // stockpile=face (#1133) puts it against the face deposit instead:
+            // ore is still mined, followed by a replacement wall.
+            var zoneRect = besideFace ? new CellRect(center.x + FaceOffset - 3, center.z - 4, 3, 4) : new CellRect(center.x - 7, center.z - 2, 4, 4);
+            foreach (var c in zoneRect.Cells) zone.AddCell(c);
             // Lab colonists start unarmed, and resource reach holds every
             // source outside the base below two armed colonists (far reach,
             // which needs no extent margin, below six).
@@ -113,6 +116,7 @@ namespace HomeBridge.BridgeTools
                 collapsedRocks = inBlock.Count(c => c.GetEdifice(map)?.def.defName == "CollapsedRocks"),
                 collapsing = inBlock.Count(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)),
                 mined = inBlock.Count(c => c.GetEdifice(map) == null),
+                replacementWalls = openDeposit.Count(c => c.GetThingList(map).Any(t => t.def == ThingDefOf.Wall || t.def.entityDefToBuild == ThingDefOf.Wall)),
             };
         }
 

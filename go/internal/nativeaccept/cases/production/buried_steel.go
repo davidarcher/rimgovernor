@@ -33,11 +33,23 @@ func init() {
 		Quiet:       na.QuietRequired, QuietWorld: true,
 		Serve:  &cases.ServeSpec{Families: []string{"resource,supply"}, NativeTimeout: 15 * time.Second, Prefix: "buried-steel"},
 		Budget: 14 * time.Minute,
-		Run:    runBuriedSteel,
+		Run:    func(ctx context.Context, s cases.Session) error { return runBuriedSteel(ctx, s, false) },
+	})
+	// The stockpile against the face deposit (#1133): ore is always mined,
+	// and each face cell beside colony space is followed by a wall.
+	cases.Register(cases.Case{
+		Name:        "production/buried-steel-stockpile",
+		Scope:       "production/buried-steel with the stockpile beside the face deposit: the face is still mined and replacement walls are queued on the mined face cells (#1133).",
+		Start:       cases.Fixture{Op: buriedSteelOp, Args: map[string]any{"action": "prepare", "stockpile": "face"}, On: cases.Lab{Colonists: 6}},
+		RequiredOps: []string{buriedSteelOp},
+		Quiet:       na.QuietRequired, QuietWorld: true,
+		Serve:  &cases.ServeSpec{Families: []string{"resource,supply"}, NativeTimeout: 15 * time.Second, Prefix: "buried-steel-stockpile"},
+		Budget: 14 * time.Minute,
+		Run:    func(ctx context.Context, s cases.Session) error { return runBuriedSteel(ctx, s, true) },
 	})
 }
 
-func runBuriedSteel(ctx context.Context, s cases.Session) error {
+func runBuriedSteel(ctx context.Context, s cases.Session, besideFace bool) error {
 	report := s.Report()
 	prepared := s.Prepared()
 	report["fixture"] = prepared
@@ -68,15 +80,18 @@ func runBuriedSteel(ctx context.Context, s cases.Session) error {
 				return err
 			}
 			report["after"] = after
-			return buriedSteelVerdict(after)
+			return buriedSteelVerdict(after, besideFace)
 		},
 	})
 	return err
 }
 
 // buriedSteelVerdict is the case's assertion over the final audit.
-func buriedSteelVerdict(after map[string]any) error {
+func buriedSteelVerdict(after map[string]any, besideFace bool) error {
 	var failures []string
+	if besideFace && na.AsNumber(after["replacementWalls"]) != 2 {
+		failures = append(failures, fmt.Sprintf("face beside the stockpile not walled: %v of 2 cells", after["replacementWalls"]))
+	}
 	if n := na.AsNumber(after["roofless"]) + na.AsNumber(after["collapsedRocks"]) + na.AsNumber(after["collapsing"]); n != 0 {
 		failures = append(failures, fmt.Sprintf("roof collapse: roofless=%v collapsedRocks=%v collapsing=%v", after["roofless"], after["collapsedRocks"], after["collapsing"]))
 	}
