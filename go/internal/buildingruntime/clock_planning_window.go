@@ -28,7 +28,7 @@ type PlanningWindowNative interface {
 // planner asks for a region the store does not hold (planningWindowCovers);
 // a timer or event step
 // with a held window serves it whatever its age, since stale state is
-// re-planned at apply (operations_preview, CAS tokens). The step's read
+// re-planned at apply (Actions/Apply checks live). The step's read
 // cache makes a second ask in the same step free.
 type planningWindow struct {
 	native PlanningWindowNative

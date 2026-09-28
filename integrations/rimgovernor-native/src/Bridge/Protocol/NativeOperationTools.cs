@@ -40,19 +40,20 @@ namespace HomeBridge.BridgeTools
     {
         public NativeOperationTools() { NativeDrugPolicy.Install(); MiningGuard.Install(); HomeCoverage.Install(); NativePawnControlState.Initialize(); }
 
-        [Tool("rimgovernor/operations_preview", Title = "Preview typed operation", Description = "Read exact supply Allow, work priorities, drafting, movement or melee, direct-bullet or supported injury-only explosive attack eligibility without acquiring authority or applying effects.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON PreviewReply.", Always = true)]
-        public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official operations PreviewRequest ProtoJSON string.")] object? request = null)
+        [Tool("rimgovernor/zones_preview", Title = "Preview zone site", Description = "Check one CreateZone site as the create_zone Action arm would, without creating the zone.")]
+        [ToolResponse("payload", "string", "Official ProtoJSON ZonePreviewReply.", Always = true)]
+        public async Task<object> PreviewZone(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Official operations ZonePreviewRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_preview", request, Operations.PreviewRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = failure });
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/zones_preview", request, Operations.ZonePreviewRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Operations.ZonePreviewReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                    return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.CreateZone) return ProtoBoundary.Encode(NativeZoneCreation.Preview(parsed.Operation.CreateZone, context));
-                return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview does not implement this operation; building placement previews through rimgovernor/placement_preview.") });
+                    return ProtoBoundary.Encode(new Operations.ZonePreviewReply { Failure = invalid });
+                if (parsed.Zone == null)
+                    return ProtoBoundary.Encode(new Operations.ZonePreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A zone is required.") });
+                return ProtoBoundary.Encode(NativeZoneCreation.Preview(parsed.Zone, context));
             }, cancellationToken).ConfigureAwait(false);
         }
 

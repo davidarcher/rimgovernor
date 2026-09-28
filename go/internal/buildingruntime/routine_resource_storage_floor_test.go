@@ -30,11 +30,11 @@ func (n *fullSteelStorageNative) ReadResourceSources(_ context.Context, _ *c.Ide
 	return nil, policy.ResourceStorage{Resource: policy.Resource(resource), StackLimit: 75, Haulers: 2, Candidates: []domain.Cell{{X: 3, Z: 3}, {X: 3, Z: 4}}}, bridge.Result{}, nil
 }
 
-func (n *fullSteelStorageNative) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
+func (n *fullSteelStorageNative) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error) {
 	n.previews = append(n.previews, target)
 	read := proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext)
 	read.Tick = proto.Int64(read.GetTick() + n.advance)
-	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: read, Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
+	return &op.ZonePreviewReply{Outcome: &op.ZonePreviewReply_Evaluated{Evaluated: &op.ZonePreview{Context: read, Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
 }
 
 // A steel deficit with full storage admits one stack of stockpile before

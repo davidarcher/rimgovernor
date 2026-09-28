@@ -179,11 +179,11 @@ namespace HomeBridge.BridgeTools
         // A refused site is an evaluation with Accepted false, as placement
         // previews report one, so a site search previews per candidate and
         // moves on; only an unevaluable request is a failure.
-        internal static Operations.PreviewReply Preview(Operations.CreateZone command, Common.ObservationContext context)
+        internal static Operations.ZonePreviewReply Preview(Operations.CreateZone command, Common.ObservationContext context)
         {
             var accepted = Prepare(command, context, out _, out var failure, out var ground);
-            if (!accepted && !ground) return new Operations.PreviewReply { Failure = failure };
-            return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = accepted } };
+            if (!accepted && !ground) return new Operations.ZonePreviewReply { Failure = failure };
+            return new Operations.ZonePreviewReply { Evaluated = new Operations.ZonePreview { Context = context.Clone(), Accepted = accepted } };
         }
 
         // Standing is the zone that already is the request: the zone on the

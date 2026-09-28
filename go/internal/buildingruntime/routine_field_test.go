@@ -19,8 +19,8 @@ type fieldTestNative struct {
 	*routineNative
 }
 
-func (n *fieldTestNative) PreviewZone(ctx context.Context, id *c.Identity, target domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
-	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
+func (n *fieldTestNative) PreviewZone(ctx context.Context, id *c.Identity, target domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error) {
+	return &op.ZonePreviewReply{Outcome: &op.ZonePreviewReply_Evaluated{Evaluated: &op.ZonePreview{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
 }
 func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	t.Parallel()

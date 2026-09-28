@@ -6,95 +6,6 @@ import "common.proto";
 import "placement.proto";
 import "receipts.proto";
 
-message PreviewRequest {
-  rimgovernor.common.v1.Identity identity = 1;
-  Operation operation = 2;
-}
-message PreviewReply {
-  oneof outcome {
-    PreviewEvaluation evaluated = 1;
-    rimgovernor.common.v1.Failure failure = 2;
-  }
-}
-message PreviewEvaluation {
-  rimgovernor.common.v1.ObservationContext context = 1;
-  optional bool accepted = 2;
-  optional string reason = 3;
-  // Proposed facts only; no native attempt/effect identifiers are fabricated.
-  rimgovernor.receipts.v1.EffectEvidence projected = 4;
-  // Trade previews moved to Actions/Apply (TradeIntent), which has none.
-  reserved 7;
-  reserved "trade";
-  // Surgery preparation went with QueueSurgery (#938).
-  reserved 6;
-  reserved "surgery";
-  oneof preparation {
-    CaravanPreparation caravan = 5;
-    rimgovernor.placement.v1.PlacementEvaluated placement = 8;
-  }
-}
-message StockAvailability { optional string def_name = 1; optional int32 available = 2; }
-message RoutePreparation { optional bool reachable = 1; optional int64 estimated_ticks = 2; optional float food_days = 3; optional float food_rot_days = 4; optional int32 destination_tile = 5; optional float temperature = 6; optional bool hostile = 7; optional int32 goodwill = 8; optional string faction_id = 9; }
-message CaravanPreparation { optional float mass_usage = 1; optional float mass_capacity = 2; repeated DefCount selected_cargo = 3; repeated DefCount carried_cargo = 4; repeated StockAvailability materials = 5; repeated string home_pawn_ids = 6; optional int32 home_doctors = 7; RoutePreparation route = 8; optional string return_storage_snapshot_token = 9; }
-message Operation {
-  reserved 13;
-  // Trade moved to Actions/Apply (TradeIntent).
-  reserved 37 to 40;
-  reserved "open_trade", "set_trade_lines", "accept_trade", "end_trade";
-  // Movement moved to Actions/Apply (MoveIntent).
-  reserved 34;
-  reserved "move_pawn";
-  // Building placement moved to Actions/Apply (BuildingIntent, #856).
-  reserved 1;
-  reserved "place_building";
-  // Arms nothing sent and native never handled (#856 cleanup).
-  reserved 2, 9, 10, 11, 17, 19;
-  reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
-  // Settings moved to Actions/Apply intents (#941).
-  reserved 7, 8, 12, 21, 30, 31, 32, 46, 48 to 53, 58, 59;
-  reserved "patch_pawn", "add_bill", "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy", "set_prisoner_interaction", "assign_bed", "set_drug_policy";
-  reserved "set_animal_training", "slaughter_animal", "tame_animal", "release_animal", "set_animal_area", "set_animal_master", "set_animal_following";
-  reserved 15, 16, 18;
-  reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
-  // Designations and construction-adjacent orders moved to Actions/Apply (#940).
-  reserved 3, 5, 6, 20, 22, 25, 26, 47, 55, 56, 60, 61;
-  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell", "manage_waste", "recover_service", "install_building", "uninstall", "patch_building", "remove_wall";
-  // Arms Go never sent (#938).
-  reserved 23, 24, 29;
-  reserved "release_wall_removals", "recovery_area", "queue_surgery";
-  // Quest acceptance and caravan formation moved to Actions/Apply
-  // (AcceptQuestIntent, FormCaravanIntent, #942).
-  reserved 41, 44;
-  reserved "form_caravan", "accept_quest";
-  // Caravan travel, settlement gifts and quest fulfilment had no Go sender (#942).
-  reserved 42, 43, 45;
-  reserved "travel_caravan", "gift_caravan_silver", "fulfill_quest";
-  // Pawn-target orders, arrest and subdue moved to Actions/Apply
-  // PawnOrderIntent (#939).
-  reserved 36, 57;
-  reserved "pawn_target_order", "arrest";
-  // Drafting and combat orders moved to Actions/Apply DraftIntent and
-  // CombatOrders; attacks are combat orders only (#939).
-  reserved 33, 35, 62;
-  reserved "set_drafted", "attack_target", "combat_orders";
-  // Need relief moved to Actions/Apply NeedReliefIntent (#939).
-  reserved 27;
-  reserved "relieve_need";
-  // Wear orders moved to Actions/Apply PawnOrderIntent WEAR (#939).
-  reserved 28;
-  reserved "improve_gear";
-  // Acquisition, mine and withdraw moved to Actions/Apply AcquireIntent (#1046, #1047).
-  reserved 4, 54;
-  reserved "acquire_resource", "cancel_acquisition";
-  oneof command {
-    // Preview only: the siting read planners run per candidate; zones are
-    // created through the create_zone Action arm.
-    CreateZone create_zone = 14;
-  }
-  // Execute's intent line went with Operations/Execute (#990, #1129).
-  reserved 100;
-  reserved "intent";
-}
 
 // Tokens are opaque native snapshots scoped to request identity and exact entity.
 message EntityPrecondition { optional string entity_id = 1; optional string expected_snapshot_token = 2; }
@@ -288,8 +199,20 @@ enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; E
 // A cancel with no live session is a no-op, not a refusal.
 message EndTrade { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
 
-service Operations {
-  rpc Preview(PreviewRequest) returns (PreviewReply);
+// Zone siting (#1130): a plain read planners run per candidate zone. Native
+// checks the ground as the create_zone Action arm would, creating nothing.
+// accepted false is the ground refusing (a littered or occupied cell); a bad
+// configuration is a failure.
+service Zones {
+  rpc Preview(ZonePreviewRequest) returns (ZonePreviewReply);
+}
+message ZonePreviewRequest { rimgovernor.common.v1.Identity identity = 1; CreateZone zone = 2; }
+message ZonePreview { rimgovernor.common.v1.ObservationContext context = 1; optional bool accepted = 2; }
+message ZonePreviewReply {
+  oneof outcome {
+    ZonePreview evaluated = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
 }
 
 // Actions/Apply carries idempotent intents (#856). Actions apply on the game

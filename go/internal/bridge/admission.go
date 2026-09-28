@@ -211,7 +211,7 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/authority_control":                    AdmissionControl,
 	"rimgovernor/authority_read_status":                AdmissionControl,
 	ActionsApplyMethod:                                 AdmissionControl,
-	"rimgovernor/operations_preview":                   AdmissionControl,
+	"rimgovernor/zones_preview":                        AdmissionControl,
 	"rimgovernor/receipts_lookup":                      AdmissionControl,
 	"rimgovernor/placement_preview":                    AdmissionControl,
 	"rimgovernor/lifecycle_read_identity":              AdmissionControl,

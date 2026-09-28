@@ -43,7 +43,7 @@ type RoutineSecureSuppliesSource interface {
 	observation.ColonySource
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadTendPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
-	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
+	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
 	PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 }
 
@@ -564,7 +564,7 @@ func shellInterior(spec domain.PlanSpec) []domain.Cell {
 
 // zonePreviewer is the one native read previewCoveredStorageSites needs.
 type zonePreviewer interface {
-	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
+	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
 }
 
 // previewCoveredStorageSites previews the census-legal patches nearest the
@@ -574,7 +574,7 @@ type zonePreviewer interface {
 // patch's verdict at this tick, not a failed read: it is logged and the next
 // patch is tried. A nil evaluation with a nil error means every previewed
 // patch was refused; any other error is the read's own failure.
-func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, identity *c.Identity, definition string, sites []policy.Rectangle, goal domain.GoalID) (domain.ZoneCreate, []domain.Cell, *op.PreviewEvaluation, error) {
+func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, identity *c.Identity, definition string, sites []policy.Rectangle, goal domain.GoalID) (domain.ZoneCreate, []domain.Cell, *op.ZonePreview, error) {
 	for i, site := range sites {
 		if i >= maxSecureSuppliesZoneSites {
 			break

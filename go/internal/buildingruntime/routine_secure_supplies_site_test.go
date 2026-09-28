@@ -22,12 +22,12 @@ type siteZonePreviewer struct {
 
 var errSiteTransport = errors.New("transport")
 
-func (n *siteZonePreviewer) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
+func (n *siteZonePreviewer) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error) {
 	origin := target.Cells()[0]
 	n.previewed = append(n.previewed, origin)
 	switch err := n.verdicts[origin]; {
 	case err == nil:
-		return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
+		return &op.ZonePreviewReply{Outcome: &op.ZonePreviewReply_Evaluated{Evaluated: &op.ZonePreview{Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
 	default:
 		return nil, bridge.Result{}, err
 	}

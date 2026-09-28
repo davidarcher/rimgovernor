@@ -68,7 +68,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 
 func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Context, goal store.GoalState, observed *o.ColonyFactsSnapshot, cell domain.Cell, method domain.MethodID, id domain.PlanID, actionID domain.ActionID) (RoutineFoodStorageUpkeepResult, error) {
 	native, ok := r.native.(interface {
-		PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
+		PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
 	})
 	if !ok {
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil

@@ -114,8 +114,8 @@ namespace HomeBridge.BridgeTools
                     loaded.Capabilities.Add(new Lifecycle.Capability { FullMethodName = method, Support = Lifecycle.CapabilitySupport.Supported });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {
-                    FullMethodName = "rimgovernor.operations.v1.Operations/Preview",
-                    Support = Lifecycle.CapabilitySupport.Supported, Detail = "Zone siting previews; every write goes through Actions/Apply and other commands return unsupported."
+                    FullMethodName = "rimgovernor.operations.v1.Zones/Preview",
+                    Support = Lifecycle.CapabilitySupport.Supported, Detail = "Zone siting: checks a CreateZone site as the create_zone Action arm would, creating nothing."
                 });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {

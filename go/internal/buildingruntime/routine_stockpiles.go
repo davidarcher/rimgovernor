@@ -485,7 +485,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time, edits []policy.StockpileEdit) (RoutineStockpileResult, error) {
 	p := r.reviewer.player
 	native, ok := r.native.(interface {
-		PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
+		PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
 	})
 	if !ok {
 		return RoutineStockpileResult{Reason: BuildingMethodUnknown}, nil

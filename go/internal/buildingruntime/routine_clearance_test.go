@@ -24,9 +24,9 @@ type routineClearanceNative struct {
 func (n *routineClearanceNative) ReadClearanceTargets(_ context.Context, _ *c.Identity, _ bool) (*o.ClearanceTargetsReply, bridge.Result, error) {
 	return &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: &o.ClearanceTargetsSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: n.rows, Chunks: n.chunks, DumpSites: n.sites}}}, bridge.Result{}, nil
 }
-func (n *routineClearanceNative) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
+func (n *routineClearanceNative) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error) {
 	n.previews = append(n.previews, target)
-	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
+	return &op.ZonePreviewReply{Outcome: &op.ZonePreviewReply_Evaluated{Evaluated: &op.ZonePreview{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
 }
 func clearanceChunk(id string, x, z int32, forbidden, stored, destination bool) *o.ClearanceChunk {
 	return &o.ClearanceChunk{EntityId: proto.String(id), DefName: proto.String("ChunkGranite"), Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Forbidden: proto.Bool(forbidden), Stored: proto.Bool(stored), Destination: proto.Bool(destination)}

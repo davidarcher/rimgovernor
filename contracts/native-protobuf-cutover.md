@@ -23,7 +23,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/observations_read_research | rimgovernor.observations.v1.Observations/ReadResearch | Protocol/NativeResearchObservationTools.cs |
 | rimgovernor/observations_read_bills | rimgovernor.observations.v1.Observations/ReadBills | Protocol/NativeBillsObservationTools.cs |
 | rimgovernor/observations_read_recipes | rimgovernor.observations.v1.Observations/ReadRecipes | Protocol/NativeBillsObservationTools.cs |
-| rimgovernor/operations_preview | rimgovernor.operations.v1.Operations/Preview | Protocol/NativeOperationTools.cs |
+| rimgovernor/zones_preview | rimgovernor.operations.v1.Zones/Preview | Protocol/NativeOperationTools.cs |
 | rimgovernor/operations_apply | rimgovernor.operations.v1.Actions/Apply | Protocol/NativeActionDispatch.cs |
 | rimgovernor/receipts_lookup | rimgovernor.receipts.v1.Attempts/Lookup | Protocol/NativeOperationTools.cs |
 | rimgovernor/clock_start | rimgovernor.clock.v1.Clock/Start | Protocol/NativeClockTools.cs |
@@ -42,8 +42,8 @@ Paths are under `integrations/rimgovernor-native/src/Bridge`. The shared
 Protobuf parsing/formatting. Generated compile inputs come from
 `contracts/generated/protobuf/csharp`.
 
-`Operations/Preview` implements only zone siting; every write is an
-`Actions/Apply` intent (Operations/Execute is gone, #990); other command variants return unsupported. Their presence does not advertise
+`Zones/Preview` is the zone siting read; every write is an
+`Actions/Apply` intent (the Operation message is gone, #990, #1130). The presence of intent arms does not advertise
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
 `Protocol/NativeConstructionCausality.cs` checks exact factory/spawn attribution.

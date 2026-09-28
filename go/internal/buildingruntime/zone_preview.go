@@ -15,7 +15,7 @@ import (
 // failed read. A refusal is a site outcome the planner moves on from, as
 // the building planners do with an unplaceable preview; every other error
 // still fails the step. The native detail names the refusing condition.
-func previewZone(ctx context.Context, native FieldNative, identity *c.Identity, target domain.ZoneCreate) (*op.PreviewReply, string, error) {
+func previewZone(ctx context.Context, native FieldNative, identity *c.Identity, target domain.ZoneCreate) (*op.ZonePreviewReply, string, error) {
 	reply, _, err := native.PreviewZone(ctx, identity, target)
 	var refusal *bridge.NativeFailure
 	if errors.As(err, &refusal) {

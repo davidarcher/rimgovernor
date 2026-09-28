@@ -1,7 +1,7 @@
 # Placement preview contract
 
-`placement.Placement.Preview` supplies the construction candidate/site facts used by ordinary placement. `operations.Preview` supplies
-other operation-specific preparations. Full player single-placement thermal
+`placement.Placement.Preview` supplies the construction candidate/site facts used by ordinary placement. `operations.Zones.Preview` checks
+zone sites. Full player single-placement thermal
 inspection belongs the observation family; preview never changes camera, watches
 or native orders.
 

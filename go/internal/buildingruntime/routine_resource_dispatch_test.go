@@ -43,7 +43,7 @@ func (n *resourceNative) ReadResourceSources(context.Context, *c.Identity, strin
 	return nil, policy.ResourceStorage{}, bridge.Result{}, errors.New("no sources in this fixture")
 }
 
-func (n *resourceNative) PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
+func (n *resourceNative) PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error) {
 	return nil, bridge.Result{}, errors.New("no zone in this fixture")
 }
 

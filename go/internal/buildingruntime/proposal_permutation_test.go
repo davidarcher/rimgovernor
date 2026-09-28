@@ -45,7 +45,7 @@ func (n *haulPairNative) ReadEmergency(ctx context.Context, identity *c.Identity
 	}
 	return v, receipt, err
 }
-func (n *haulPairNative) PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
+func (n *haulPairNative) PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error) {
 	return nil, bridge.Result{}, bridge.ErrUnavailable
 }
 func (n *haulPairNative) PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {

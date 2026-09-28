@@ -27,7 +27,7 @@ type RoutineFieldResult struct {
 }
 
 type FieldNative interface {
-	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
+	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
 }
 
 func NewRoutineFieldPlanner(reviewer *RoutineReviewer, native FieldNative) (*RoutineFieldPlanner, error) {
@@ -398,16 +398,15 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 
 const fieldBatchPatches = 6
 
-// recrop previews and commits one grower's crop change as a one-shot
+// recrop commits one grower's crop change as a one-shot
 // GrowerCrop plan, once per grower per goal epoch: a method that already
 // ran this epoch (the patch was refused, or a player changed the crop back)
 // is not retried until the next epoch. tried reports whether the grower
-// reached commitment; a grower whose native read or preview refuses is not
+// reached commitment; a grower whose native read refuses is not
 // tried so the caller moves on to the next one.
 func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, choice policy.GrowerCropChoice, arbiter *stepArbiter) (RoutineFieldResult, bool, error) {
 	native, ok := r.native.(interface {
 		ReadGrowerCropTarget(context.Context, *c.Identity, string) (bridge.GrowerCropTarget, bridge.Result, error)
-		PreviewGrowerCrop(context.Context, *c.Identity, domain.GrowerCrop) (*op.PreviewReply, bridge.Result, error)
 	})
 	if !ok {
 		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
@@ -434,18 +433,8 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	if err != nil {
 		return RoutineFieldResult{}, false, err
 	}
-	preview, _, err := native.PreviewGrowerCrop(call, boundary.Identity(state.Snapshot), patch)
-	if err != nil {
-		return RoutineFieldResult{}, false, err
-	}
-	evaluated := preview.GetEvaluated()
-	if evaluated == nil || !evaluated.GetAccepted() {
-		clockSchedulerLog("Fields: grower %s crop %s refused at preview: %s", choice.Grower, choice.Crop.Name, preview.GetFailure().GetDetail())
-		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
-	}
-	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineFieldResult{}, false, fmt.Errorf("%w: recrop: err != nil", ErrControl)
-	}
+	// Native checks the grower and crop live when the BuildingPatchIntent
+	// applies (#940); a refusal comes back on the plan, not here.
 	if !arbiter.tryClaim(nil, "grower:"+choice.Grower) {
 		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, false, nil
 	}

@@ -8,7 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -83,26 +82,25 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 // violation; a failure outcome or a missing verdict still rejects (#223).
 func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
 	zone, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 1, Z: 1}})
-	valid := &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: pbContext(), Accepted: proto.Bool(true)}}}
+	valid := &op.ZonePreviewReply{Outcome: &op.ZonePreviewReply_Evaluated{Evaluated: &op.ZonePreview{Context: pbContext(), Accepted: proto.Bool(true)}}}
 	for _, test := range []struct {
 		name     string
-		change   func(*op.PreviewReply)
+		change   func(*op.ZonePreviewReply)
 		accepted bool
 		ok       bool
 	}{
-		{"accepted", func(*op.PreviewReply) {}, true, true},
-		{"refused site", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = proto.Bool(false) }, false, true},
-		{"missing verdict", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = nil }, false, false},
-		{"unexpected projection", func(v *op.PreviewReply) { v.GetEvaluated().Projected = &r.EffectEvidence{} }, false, false},
-		{"failure outcome", func(v *op.PreviewReply) {
-			v.Outcome = &op.PreviewReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum()}}
+		{"accepted", func(*op.ZonePreviewReply) {}, true, true},
+		{"refused site", func(v *op.ZonePreviewReply) { v.GetEvaluated().Accepted = proto.Bool(false) }, false, true},
+		{"missing verdict", func(v *op.ZonePreviewReply) { v.GetEvaluated().Accepted = nil }, false, false},
+		{"failure outcome", func(v *op.ZonePreviewReply) {
+			v.Outcome = &op.ZonePreviewReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum()}}
 		}, false, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			reply := proto.Clone(valid).(*op.PreviewReply)
+			reply := proto.Clone(valid).(*op.ZonePreviewReply)
 			test.change(reply)
 			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
-				if arg.Tool != "rimgovernor/operations_preview" {
+				if arg.Tool != "rimgovernor/zones_preview" {
 					t.Fatal(arg.Tool)
 				}
 				return pbResult(reply), nil
