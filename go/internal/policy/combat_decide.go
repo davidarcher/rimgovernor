@@ -191,6 +191,8 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		}
 	}
 	orders, next.Roles, next.CannotHit = clearLines(view, orders, geometry, next.Roles, next)
+	// One gunner shoots a wild animal near the raiders (#1116).
+	orders = enrageWild(view, orders, next.Roles, orderable, state)
 	// The rescue's orders (#867) lead; a door order names no pawn to issue.
 	orders = append(append(rescue, podDoorOrders(&next)...), orders...)
 	// The colony animals' orders (#1058) name no drafted pawn.
@@ -254,6 +256,8 @@ type CombatPawnState struct {
 	// Health its summary health fraction.
 	Prisoner bool                 `json:",omitempty"`
 	Health   domain.Fact[float64] `json:",omitzero"`
+	// Wild is a wild animal near hostiles (COMBAT_SIDE_WILD_ANIMAL, #1116).
+	Wild bool `json:",omitempty"`
 	// StunTicks is a stunned pawn's ticks left (#1050), 0 awake.
 	StunTicks int `json:",omitempty"`
 }

@@ -426,8 +426,9 @@ namespace HomeBridge.BridgeTools
                         GenSpawn.Spawn(pawn, cell, map);
                         insects.Add(pawn);
                     }
-                    else if ((string)p["side"] == "animal" || (string)p["side"] == "manhunter")
+                    else if ((string)p["side"] == "animal" || (string)p["side"] == "manhunter" || (string)p["side"] == "wild")
                     {
+                        // #1116: "wild" is a factionless animal left calm.
                         // #1057: a player animal with the named trainables
                         // learned, or a wild animal gone permanently manhunter.
                         var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
@@ -439,7 +440,7 @@ namespace HomeBridge.BridgeTools
                         if (ours)
                             foreach (var name in p["trained"] as JArray ?? new JArray())
                                 pawn.training.Train(DefDatabase<TrainableDef>.GetNamedSilentFail((string)name) ?? throw new ArgumentException($"No TrainableDef {name}."), null, complete: true);
-                        else if (!pawn.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.ManhunterPermanent, forced: true))
+                        else if ((string)p["side"] == "manhunter" && !pawn.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.ManhunterPermanent, forced: true))
                             throw new InvalidOperationException($"{kind.defName} did not go manhunter.");
                     }
                     else throw new ArgumentException($"Unknown side {p["side"]}.");
@@ -483,7 +484,7 @@ namespace HomeBridge.BridgeTools
                 if (escaping == null || escaping.Count == 0) throw new InvalidOperationException("The prison break freed no prisoner.");
             }
             var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(),
-                side = p.Faction == Faction.OfInsects ? "insect" : p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : "manhunter") : p.Faction == Faction.OfPlayer ? "colonist" : p.HostFaction == Faction.OfPlayer ? "prisoner" : "hostile", kind = p.kindDef.defName,
+                side = p.Faction == Faction.OfInsects ? "insect" : p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : p.InMentalState ? "manhunter" : "wild") : p.Faction == Faction.OfPlayer ? "colonist" : p.HostFaction == Faction.OfPlayer ? "prisoner" : "hostile", kind = p.kindDef.defName,
                 x = p.PositionHeld.x, z = p.PositionHeld.z, inPod = !p.Spawned, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
                 lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0,
                 worn = p.apparel?.WornApparel.Select(a => new { id = a.GetUniqueLoadID(), def = a.def.defName }).ToList() }).ToList();

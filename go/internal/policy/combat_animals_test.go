@@ -142,3 +142,52 @@ func TestAnimalsOffDoors(t *testing.T) {
 		t.Fatalf("%+v", next.Animals)
 	}
 }
+
+// enrageOrders are the orders with the enrage reason.
+func enrageOrders(orders []CombatOrder) []CombatOrder {
+	var out []CombatOrder
+	for _, o := range orders {
+		if o.Reason == ReasonEnrage {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// {raiders r1 (9,5), r2 (10,4); riflemen a, b, c at (1..3,30); unhurt wild
+// warg at (15,5)} -> the nearest gunner c shoots the warg; {c on the warg},
+// {the warg hurt}, {the warg within 20 of a colonist}, {far from raiders}
+// -> nothing.
+func TestEnrageWild(t *testing.T) {
+	withWarg := func(c domain.Cell, health float64) CombatView {
+		view := holdView()
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: "warg", Wild: true, Cell: domain.Known(c), Health: domain.Known(health), Stance: StanceIdle})
+		return view
+	}
+	orders, _ := decideStop(t, withWarg(domain.Cell{X: 15, Z: 5}, 1), StopEvent{}, CombatMemory{})
+	want := []CombatOrder{{Pawn: "c", Kind: OrderAttack, Target: "warg", Reason: ReasonEnrage}}
+	if got := enrageOrders(orders); !reflect.DeepEqual(got, want) {
+		t.Fatalf("%+v", orders)
+	}
+	for _, o := range orders {
+		if o.Pawn == "c" && o.Reason != ReasonEnrage {
+			t.Fatalf("c has two orders: %+v", orders)
+		}
+	}
+	on := withWarg(domain.Cell{X: 15, Z: 5}, 1)
+	for i := range on.Pawns {
+		if on.Pawns[i].ID == "c" {
+			on.Pawns[i].Target = "warg"
+		}
+	}
+	for name, view := range map[string]CombatView{
+		"shooting": on,
+		"hurt":     withWarg(domain.Cell{X: 15, Z: 5}, 0.8),
+		"near us":  withWarg(domain.Cell{X: 9, Z: 14}, 1),
+		"far":      withWarg(domain.Cell{X: 40, Z: 5}, 1),
+	} {
+		if orders, _ := decideStop(t, view, StopEvent{}, CombatMemory{}); len(enrageOrders(orders)) != 0 {
+			t.Fatalf("%s: %+v", name, orders)
+		}
+	}
+}

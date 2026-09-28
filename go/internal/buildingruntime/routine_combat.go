@@ -441,6 +441,7 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 				s.Shield = domain.Known(row.GetShieldEnergy())
 			}
 			s.Prisoner = row.GetSide() == mp.CombatSide_COMBAT_SIDE_PRISONER
+			s.Wild = row.GetSide() == mp.CombatSide_COMBAT_SIDE_WILD_ANIMAL
 			if row.Health != nil {
 				s.Health = domain.Known(row.GetHealth())
 			}

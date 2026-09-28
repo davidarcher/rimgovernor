@@ -99,6 +99,8 @@ const (
 	// gone permanently manhunter (#1057).
 	Animal    = "animal"
 	Manhunter = "manhunter"
+	// Wild is a calm factionless animal of Kind (#1116).
+	Wild = "wild"
 	// Prisoner is a generated hostile Kind held as the colony's prisoner.
 	Prisoner = "prisoner"
 	// Insect is an insect Kind of the insects' faction under an assault

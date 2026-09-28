@@ -201,6 +201,7 @@ namespace HomeBridge.BridgeTools
             Ring.RemoveAll(e => e.Mark.Tick > now || !ReferenceEquals(e.Game, Verse.Current.Game));
             var hostile = false;
             var pawns = new List<(Pawn pawn, Mirror.CombatSide side)>();
+            var wild = new List<Pawn>();
             foreach (var p in map.mapPawns.AllPawnsSpawned)
             {
                 Mirror.CombatSide side;
@@ -208,9 +209,15 @@ namespace HomeBridge.BridgeTools
                 else if (p.HostFaction == Faction.OfPlayer && PrisonBreakUtility.IsPrisonBreaking(p)) { side = Mirror.CombatSide.Prisoner; if (!p.Downed) hostile = true; }
                 else if (p.HostileTo(Faction.OfPlayer)) { side = Mirror.CombatSide.Hostile; if (!p.Downed) hostile = true; }
                 else if (p.Faction == Faction.OfPlayer && p.RaceProps.Animal) side = Mirror.CombatSide.ColonyAnimal;
+                else if (p.Faction == null && p.RaceProps.Animal && (p.RaceProps.predator || p.BodySize >= 1f)) { wild.Add(p); continue; }
                 else continue;
                 pawns.Add((p, side));
             }
+            // Wild predators and large animals near an undowned hostile
+            // (#1116): the policy may shoot one to enrage it at the raiders.
+            var raiders = pawns.Where(e => e.side == Mirror.CombatSide.Hostile && !e.pawn.Downed).Select(e => e.pawn.Position).ToList();
+            foreach (var w in wild)
+                if (raiders.Any(c => c.InHorDistOf(w.Position, WildRange))) pawns.Add((w, Mirror.CombatSide.WildAnimal));
             // Raiders still in their drop pods are not spawned: a pods
             // arrival keeps combat active until its open tick (#876).
             _active = hostile || Ring.Any(e => e.MapId == map.uniqueID && e.Row.OpenTick > now);
@@ -239,6 +246,8 @@ namespace HomeBridge.BridgeTools
             Stamped.Clear();
             frame.CombatEvents.AddRange(Ring.Where(e => e.MapId == map.uniqueID).Select(e => e.Row.Clone()));
         }
+
+        private const float WildRange = 15f;
 
         private static double Step(double value, double step) => Math.Round(value / step) * step;
 

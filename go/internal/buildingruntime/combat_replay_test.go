@@ -127,7 +127,7 @@ func withOrders(s combatReplayStop) bool { return len(s.Orders) > 0 }
 func attacksOnPresentHostiles() combatAssertion {
 	return combatAssertion{name: "attacks name present hostiles", check: func(s combatReplayStop) error {
 		for _, o := range s.Orders {
-			if o.Kind == policy.OrderAttack && !slices.ContainsFunc(s.View.Threats, func(t policy.SquadThreatFacts) bool { return domain.PawnID(t.ID) == o.Target }) {
+			if o.Kind == policy.OrderAttack && o.Reason != policy.ReasonEnrage && !slices.ContainsFunc(s.View.Threats, func(t policy.SquadThreatFacts) bool { return domain.PawnID(t.ID) == o.Target }) {
 				return fmt.Errorf("%s ordered to attack missing %s", o.Pawn, o.Target)
 			}
 		}

@@ -12,6 +12,7 @@ enum CombatSide {
   COMBAT_SIDE_HOSTILE = 2;
   COMBAT_SIDE_COLONY_ANIMAL = 3;
   COMBAT_SIDE_PRISONER = 4; // a prisoner of the colony breaking out (#1080)
+  COMBAT_SIDE_WILD_ANIMAL = 5; // a wild predator or large animal near a hostile (#1116)
 }
 
 // What a combat pawn's stance is doing.

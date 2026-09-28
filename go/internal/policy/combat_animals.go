@@ -272,3 +272,92 @@ func meleeRaiders(view CombatView) ([]domain.PawnID, []domain.Cell) {
 	}
 	return ids, cells
 }
+
+// ReasonEnrage is a gunner's shot at a wild animal near the raiders
+// (#1116): hurt, it turns on whoever is near it.
+const ReasonEnrage CombatOrderReason = "enrage"
+
+// Enrage ranges (#1116), squared: a wild animal within 10 cells of a live
+// raider and beyond 20 of every live colonist is shot.
+const (
+	enrageNear = 10 * 10
+	enrageFar  = 20 * 20
+)
+
+// enrageTarget is the first wild animal by id that is unhurt, near a live
+// humanlike raider and away from every live colonist; the mirror sends
+// only wild predators and large animals near hostiles (#1116).
+func enrageTarget(view CombatView) (CombatPawnState, bool) {
+	humanlike := map[domain.PawnID]bool{}
+	for _, t := range view.Threats {
+		if !t.Building && positive(t.Humanlike) && !positive(t.Dead) && !positive(t.Downed) {
+			humanlike[domain.PawnID(t.ID)] = true
+		}
+	}
+	down := downPawns(view)
+	var raiders, ours []domain.Cell
+	for _, t := range view.Positional {
+		if id := domain.PawnID(t.ID); humanlike[id] && !down[id] {
+			c, ok := t.Position.Value()
+			if !ok {
+				continue
+			}
+			raiders = append(raiders, c)
+		}
+	}
+	if len(raiders) == 0 {
+		return CombatPawnState{}, false
+	}
+	for _, d := range view.Defenders {
+		for _, p := range view.Pawns {
+			if c, ok := p.Cell.Value(); ok && p.ID == d.ID && !p.Dead && !p.Downed {
+				ours = append(ours, c)
+			}
+		}
+	}
+	var best CombatPawnState
+	found := false
+	for _, p := range view.Pawns {
+		at, ok := p.Cell.Value()
+		if h, known := p.Health.Value(); !ok || !p.Wild || p.Dead || p.Downed || known && h < 1 {
+			continue
+		}
+		if distance2(at, raiders[nearestIndex(at, raiders)]) > enrageNear {
+			continue
+		}
+		if len(ours) > 0 && distance2(at, ours[nearestIndex(at, ours)]) <= enrageFar {
+			continue
+		}
+		if !found || p.ID < best.ID {
+			best, found = p, true
+		}
+	}
+	return best, found
+}
+
+// enrageWild has the nearest live ranged role shoot the enrage target
+// (#1116) with the attack order, in place of that role's own order.
+func enrageWild(view CombatView, orders []CombatOrder, roles []CombatRole, orderable map[domain.PawnID]bool, state map[domain.PawnID]CombatPawnState) []CombatOrder {
+	wild, ok := enrageTarget(view)
+	if !ok {
+		return orders
+	}
+	at, _ := wild.Cell.Value()
+	var gunner domain.PawnID
+	bestD := int64(-1)
+	for _, r := range roles {
+		s := state[r.Pawn]
+		c, known := s.Cell.Value()
+		if !r.Ranged || !orderable[r.Pawn] || !known || s.Dead || s.Downed {
+			continue
+		}
+		if d := distance2(at, c); bestD < 0 || d < bestD {
+			gunner, bestD = r.Pawn, d
+		}
+	}
+	if gunner == "" || state[gunner].Target == wild.ID {
+		return orders
+	}
+	orders = slices.DeleteFunc(orders, func(o CombatOrder) bool { return o.Pawn == gunner })
+	return append(orders, CombatOrder{Pawn: gunner, Kind: OrderAttack, Target: wild.ID, Reason: ReasonEnrage})
+}
