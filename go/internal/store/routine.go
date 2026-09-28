@@ -597,6 +597,9 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if r.WallCells, err = wallCells(ctx, tx, census); err != nil {
 			return RoutineReviewResult{}, err
 		}
+		if err = abandonStuckWallRemovals(ctx, tx, r.WallCells, request.Tick); err != nil {
+			return RoutineReviewResult{}, err
+		}
 	}
 	if built, known := policy.BuiltActions(request.Facts.CurrentConstruction); known {
 		r.Built = make([]domain.ActionID, 0, len(built))

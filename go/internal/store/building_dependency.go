@@ -125,3 +125,70 @@ func wallCells(ctx context.Context, tx *sql.Tx, census policy.CurrentConstructio
 	})
 	return out, nil
 }
+
+// abandonStuckWallRemovals is the census-side give-up for a wall removal
+// native never carries out (#1001): once a completed removal's wall still
+// stands in the census more than policy.DevelopmentStallTicks after its
+// dispatch, the removal and every action waiting on it are cancelled, so
+// the plan settles and its goal re-plans instead of checkDependencies
+// holding the replacement forever.
+func abandonStuckWallRemovals(ctx context.Context, tx *sql.Tx, cells []WallCell, tick domain.Tick) error {
+	standing := map[domain.Cell]bool{}
+	for _, c := range cells {
+		if c.Standing {
+			standing[c.Cell] = true
+		}
+	}
+	if len(standing) == 0 {
+		return nil
+	}
+	rows, err := tx.QueryContext(ctx, "SELECT DISTINCT a.plan_id FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.kind='wall_removal' AND p.retired=0")
+	if err != nil {
+		return err
+	}
+	var plans []domain.PlanID
+	for rows.Next() {
+		var id domain.PlanID
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		plans = append(plans, id)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return err
+	}
+	for _, plan := range plans {
+		state, err := load(ctx, tx, plan)
+		if err != nil {
+			return err
+		}
+		withdraw := map[domain.ActionID]bool{}
+		for _, p := range state.Progress {
+			v := p.View()
+			removal, ok := p.Action().WallRemoval()
+			if ok && v.Stage == domain.Completed && standing[removal.Cell()] && tick-v.Tick > policy.DevelopmentStallTicks {
+				withdraw[v.Action] = true
+			}
+		}
+		if len(withdraw) == 0 {
+			continue
+		}
+		for _, d := range state.Spec.Dependencies() {
+			if withdraw[d.Requires] {
+				withdraw[d.Action] = true
+			}
+		}
+		for _, p := range state.Progress {
+			v := p.View()
+			if !withdraw[v.Action] || v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful || v.Stage == domain.Completed && !p.Action().Kind().IntentMode() {
+				continue
+			}
+			if _, err = advanceInTransaction(ctx, tx, plan, v.Action, transition{Kind: "cancel"}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}

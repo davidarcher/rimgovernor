@@ -162,3 +162,61 @@ func TestWallReplacementWaitsForCensusRemoval(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A removal whose wall still stands a stall bound after dispatch is given
+// up with its replacement, so the goal can re-plan (#1001).
+func TestStuckWallRemovalWithdrawsReplacement(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	cell := domain.Cell{X: 3, Z: 4}
+	removal, err := domain.NewWallRemoval("Wall_original", "", cell)
+	if err != nil {
+		t.Fatal(err)
+	}
+	demolish, err := domain.NewWallRemovalAction("demolish", removal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wall, err := domain.NewBuilding("Wall", cell, domain.North, "BlocksGranite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	replace, err := domain.NewBuildingAction("replace", wall)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("p", domain.PlanRevision(^uint64(0)), []domain.Action{demolish, replace}, domain.ActionDependency{Action: "replace", Requires: "demolish"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CreatePlan(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	prepare(t, s, "demolish")
+	if _, err = s.Dispatch(ctx, "p", "demolish", scope(), 10); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.RecordReceipt(ctx, "p", "demolish", 1, domain.ReceiptAccepted); err != nil {
+		t.Fatal(err)
+	}
+	stages := func() map[domain.ActionID]domain.Stage {
+		state, err := s.LoadPlan(ctx, "p")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[domain.ActionID]domain.Stage{}
+		for _, p := range state.Progress {
+			out[p.View().Action] = p.View().Stage
+		}
+		return out
+	}
+	reviewWalls(t, s, 10+policy.DevelopmentStallTicks, cell)
+	if got := stages(); got["demolish"] != domain.Completed || got["replace"] != domain.Pending {
+		t.Fatalf("gave up inside the stall bound: %v", got)
+	}
+	reviewWalls(t, s, 11+policy.DevelopmentStallTicks, cell)
+	if got := stages(); got["demolish"] != domain.Cancelled || got["replace"] != domain.Cancelled {
+		t.Fatalf("stuck removal not withdrawn: %v", got)
+	}
+}
