@@ -4,9 +4,7 @@
 // (non-decaying) item into shared storage, the stored outcome is observed
 // via a native read, a renewed deficit (a second item, spawned forbidden and
 // released once the first haul is stored) is picked up without a duplicate
-// or conflicting order, and a player-revoked Hauling priority interrupts
-// dispatch without RoutineHaulPlanner overriding player intent or
-// double-issuing. Uses a private disposable fixture
+// or conflicting order. Uses a private disposable fixture
 // (test/storage_haul_prepare, test/storage_haul_control,
 // test/storage_haul_allow) since native random colony generation cannot
 // reliably produce a MaintainStorage deficit (an ordinary item outside legal
@@ -59,8 +57,7 @@ func init() {
 		Scope: "Native RoutineHaulPlanner/MaintainStorage vertical: a worker hauls a real " +
 			"ordinary item into shared storage under the live Go routine reviewer/planner/executor, the stored " +
 			"outcome is confirmed by an independent native read, a renewed deficit is picked up without a " +
-			"duplicate order, and a player-revoked Hauling priority interrupts dispatch without the planner " +
-			"overriding player intent or double-issuing.",
+			"duplicate order.",
 		Start: cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 2}, On: cases.LabStart(), ArgsFrom: cases.LabWood(75)},
 		// The haul runs between staged items and a stockpile inside the home
 		// area; the wild map is unobserved (#333).
@@ -204,15 +201,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("resume was not running: %#v", acquired)
 	}
 	report["acquired"] = acquired
-	// Work preferences hang off the world's root plan (the live authority),
-	// not the submitted guidance plan.
-	acquiredState, _ := na.AsMap(acquired["state"])
-	acquiredGeneration, _ := na.AsMap(acquiredState["generation"])
-	rootPlanID := na.AsString(acquiredGeneration["plan"])
-	if rootPlanID == "" {
-		return fmt.Errorf("resume reported no root plan: %#v", acquired)
-	}
-
 	verifyStore, err := service.Store(ctx)
 	if err != nil {
 		return err
@@ -312,35 +300,9 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["first_haul_item"] = item1
 
-	// Interruption: the player revokes the single eligible hauler's Hauling
-	// priority before the renewed deficit (the second item) exists.
-	// RoutineHaulPlanner must neither dispatch a new haul while overridden
-	// nor double-issue once the override lifts.
-	preferences, status, err := apiCall("GET", "/api/player/work-preferences?planId="+rootPlanID, nil, "")
-	if err != nil {
-		return err
-	}
-	if status != 200 {
-		return fmt.Errorf("unexpected work-preferences read status=%d body=%#v", status, preferences)
-	}
-	baseRevision := na.AsString(preferences["revision"])
-	revokeBody := map[string]any{
-		"requestId": s.RequestID("routine-haul-revoke-hauling"), "planId": rootPlanID, "expected": identity,
-		"expectedRevision": baseRevision,
-		"overrides":        []map[string]any{{"pawn": haulerID, "work": "Hauling", "priority": 0}},
-	}
-	revoked, status, err := apiCall("POST", "/api/player/work-preferences/replace", revokeBody, token)
-	if err != nil {
-		return err
-	}
-	if status != 200 {
-		return fmt.Errorf("unexpected work-preferences revoke status=%d body=%#v", status, revoked)
-	}
-	report["revoked_hauling"] = revoked
-
 	// Renew the deficit: release the second item. The fixture control needs
 	// the harness's own bridge session, so the service is stopped (its
-	// journal -- goal, methods, the revoke above -- persists), the session
+	// journal -- goal and methods -- persists), the session
 	// reattached for the one native write, and the service restarted on the
 	// same state. The game keeps running throughout; the restart acquires
 	// authority again exactly as the first launch did.
@@ -389,7 +351,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	defer stopRestarted()
 	report["restarted_pid"] = restarted.PID
-	apiCall, token = restarted.API, restarted.Token
+	apiCall = restarted.API
 	w = na.Wait{Stall: na.StallBudget(), Terminal: restarted.Exited}
 	if _, err = restarted.Acquire(); err != nil {
 		return fmt.Errorf("re-acquire after restart: %w", err)
@@ -435,41 +397,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("load goal at the quiet window: %w", err)
 	}
 	baselineMethodCount := baselineGoal.Admitted
-
-	// Observe several review cycles: no new method should appear for the
-	// renewed deficit while the only eligible hauler is overridden off.
-	quietDeadline := time.Now().Add(20 * time.Second)
-	for time.Now().Before(quietDeadline) {
-		goal, err := verifyStore.LoadGoal(ctx, quietGoal)
-		if err != nil {
-			return fmt.Errorf("poll during interruption: %w", err)
-		}
-		if goal.Admitted > baselineMethodCount {
-			return fmt.Errorf("RoutineHaulPlanner dispatched a new haul while the only eligible hauler's Hauling priority was revoked: %#v", goal.Methods)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(1 * time.Second):
-		}
-	}
-	report["interruption_held"] = true
-
-	// Clear the override: hauling for the second item must now proceed,
-	// exactly once, with no duplicate/conflicting order.
-	clearedRevision := na.AsString(revoked["revision"])
-	restoreBody := map[string]any{
-		"requestId": s.RequestID("routine-haul-restore-hauling"), "planId": rootPlanID, "expected": identity,
-		"expectedRevision": clearedRevision, "overrides": []map[string]any{},
-	}
-	restored, status, err := apiCall("POST", "/api/player/work-preferences/replace", restoreBody, token)
-	if err != nil {
-		return err
-	}
-	if status != 200 {
-		return fmt.Errorf("unexpected work-preferences restore status=%d body=%#v", status, restored)
-	}
-	report["restored_hauling"] = restored
 
 	_, method2, err := waitHaulMethod(ctx, verifyStore, w, quietGoal, &method1)
 	if err != nil {

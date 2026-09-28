@@ -385,7 +385,7 @@ speed and at most 60 game ticks between reviews; unavailable safe workers retain
 an emergency hold.
 
 Blocked upkeep reconsiders changed target eligibility, worker availability, research
-and player overrides immediately. Position, rot-timer and temperature drift alone
+immediately. Position, rot-timer and temperature drift alone
 do not reopen a failed method. A 2,500-tick review window catches changed capacity
 or routes without retrying every observation; outstanding receipts and watchdog
 holds remain authoritative.
@@ -473,7 +473,7 @@ Current usable, reachable medicine of any native medicine definition counts towa
 the reserve. Forbidden, expired, unreachable and future stock cannot establish it.
 Replenishment uses the native herbal-medicine definition and the existing resource
 source/production method. Required PlantCutting work joins shared allocation while
-player overrides remain authoritative. Native eligibility decides mature wild
+Native eligibility decides mature wild
 healroot acquisition: when no bench recipe can produce the definition, the
 planner harvests undesignated medicine-yielding wild plants from the acquisition
 census, counting designated plants as pending. Plants below harvest growth

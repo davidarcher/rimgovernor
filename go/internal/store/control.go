@@ -234,14 +234,3 @@ func (s *Store) EnsureRootPlan(ctx context.Context, w World) (PlanState, error) 
 	}
 	return state, tx.Commit()
 }
-
-// planWorld resolves the world a plan belongs to: the root plan's own world or
-// the submission that produced a player plan.
-func planWorld(ctx context.Context, tx *sql.Tx, plan domain.PlanID) (World, error) {
-	var world World
-	err := tx.QueryRowContext(ctx, "SELECT colony,load_token,map_id FROM root_plans WHERE plan_id=? UNION ALL SELECT colony,load_token,map_id FROM submissions WHERE plan_id=?", plan, plan).Scan(&world.Colony, &world.Load, &world.Map)
-	if errors.Is(err, sql.ErrNoRows) {
-		return World{}, ErrNotFound
-	}
-	return world, err
-}

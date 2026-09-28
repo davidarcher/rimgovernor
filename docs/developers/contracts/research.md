@@ -39,7 +39,7 @@ that value and the exact paused colony/load/map again. The runtime also rejects 
 before dispatch. Durable Hands receipts prevent automatic replay of uncertain writes.
 
 Research work coverage uses the existing deterministic work allocator, including
-player overrides and disabled-work checks. A usable laboratory must be powered (or
+disabled-work checks. A usable laboratory must be powered (or
 need no power), match the project's native required bench, and have every required
 facility active on that same bench. Missing capacity, staff, techprints or other
 native conditions produce a blocker with the laboratory requirements. Laboratory

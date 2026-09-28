@@ -116,7 +116,7 @@ func TestRoutineBuildingNativeUseBudgetCountsFromTheApplyReceipt(t *testing.T) {
 	}
 }
 
-func TestComfortBuilderHonorsNativeSkillAndPlayerWorkPreferences(t *testing.T) {
+func TestComfortBuilderHonorsNativeSkill(t *testing.T) {
 	t.Parallel()
 	pawn := policy.WorkPawn{ID: "builder", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(true), Ranged: domain.Known(false)}
 	var skills []policy.WorkSkill
@@ -129,20 +129,17 @@ func TestComfortBuilderHonorsNativeSkillAndPlayerWorkPreferences(t *testing.T) {
 		priorities = append(priorities, policy.WorkPriority{Work: name})
 	}
 	pawn.Work = domain.Known(priorities)
-	decision, err := policy.AssignWork([]policy.WorkPawn{pawn}, nil, nil)
+	decision, err := policy.AssignWork([]policy.WorkPawn{pawn}, nil)
 	if err != nil || len(decision.Assignments) != 1 {
 		t.Fatal(decision, err)
 	}
 	pawn.Work = domain.Known(decision.Assignments[0].Priorities)
 	facts := observation.ColonyProjection{WorkPawns: domain.Known([]policy.WorkPawn{pawn}), Definitions: []observation.PlanningDefinition{{Name: "DiningChair", Available: domain.Known(true), ConstructionSkill: domain.Known(int32(4))}}}
-	if !comfortBuilderAvailable(facts, "DiningChair", nil) {
+	if !comfortBuilderAvailable(facts, "DiningChair") {
 		t.Fatal("native skilled furniture rejected despite qualified assigned builder")
 	}
-	if comfortBuilderAvailable(facts, "DiningChair", []policy.WorkOverride{{Pawn: "builder", Work: "Construction", Priority: 0}}) {
-		t.Fatal("player disabled builder was ignored")
-	}
 	skills[0].Level = 3
-	if comfortBuilderAvailable(facts, "DiningChair", nil) {
+	if comfortBuilderAvailable(facts, "DiningChair") {
 		t.Fatal("native construction prerequisite bypassed")
 	}
 	skills[0].Level = 4
@@ -155,11 +152,11 @@ func TestComfortBuilderHonorsNativeSkillAndPlayerWorkPreferences(t *testing.T) {
 	}
 	other.Work = domain.Known(everything)
 	facts.WorkPawns = domain.Known([]policy.WorkPawn{pawn, other})
-	if !comfortBuilderAvailable(facts, "DiningChair", nil) {
+	if !comfortBuilderAvailable(facts, "DiningChair") {
 		t.Fatal("qualified builder held behind an unrelated pawn's settings")
 	}
 	facts.WorkPawns = domain.Unknown[[]policy.WorkPawn]()
-	if comfortBuilderAvailable(facts, "DiningChair", nil) {
+	if comfortBuilderAvailable(facts, "DiningChair") {
 		t.Fatal("missing work census accepted")
 	}
 }
@@ -260,26 +257,23 @@ func TestUnskilledBuilderNeedsOnlyOneEnabledConstructionPawn(t *testing.T) {
 		Skills: domain.Known([]policy.WorkSkill{{Name: "Medicine", Level: 8, Passion: "None"}}),
 		Work:   domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 0}, {Work: "Doctor", Priority: 0}, {Work: "Hauling", Priority: 3}})}
 	facts := observation.ColonyProjection{WorkPawns: domain.Known([]policy.WorkPawn{builder, other}), Definitions: []observation.PlanningDefinition{{Name: "CraftingSpot", Available: domain.Known(true), ConstructionSkill: domain.Known(int32(0))}}}
-	if !comfortBuilderAvailable(facts, "CraftingSpot", nil) {
+	if !comfortBuilderAvailable(facts, "CraftingSpot") {
 		t.Fatal("unskilled bench held behind the colony-wide work match")
-	}
-	if comfortBuilderAvailable(facts, "CraftingSpot", []policy.WorkOverride{{Pawn: "builder", Work: "Construction", Priority: 0}}) {
-		t.Fatal("player disabled builder was ignored")
 	}
 	builder.Work = domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 0}})
 	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, other})
-	if comfortBuilderAvailable(facts, "CraftingSpot", nil) {
+	if comfortBuilderAvailable(facts, "CraftingSpot") {
 		t.Fatal("no pawn has construction enabled")
 	}
 	builder.Work = domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 3, Disabled: true}})
 	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, other})
-	if comfortBuilderAvailable(facts, "CraftingSpot", nil) {
+	if comfortBuilderAvailable(facts, "CraftingSpot") {
 		t.Fatal("natively disabled construction accepted")
 	}
 	builder.Available = domain.Known(false)
 	builder.Work = domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 3}})
 	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, other})
-	if comfortBuilderAvailable(facts, "CraftingSpot", nil) {
+	if comfortBuilderAvailable(facts, "CraftingSpot") {
 		t.Fatal("unavailable builder accepted")
 	}
 }
@@ -297,20 +291,17 @@ func TestSkilledBuilderIgnoresUnrelatedWorkSettings(t *testing.T) {
 		Skills: domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 2, Passion: "None"}}),
 		Work:   domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 0}, {Work: "Art", Priority: 1}, {Work: "Research", Priority: 3}})}
 	facts := observation.ColonyProjection{WorkPawns: domain.Known([]policy.WorkPawn{builder, artist}), Definitions: []observation.PlanningDefinition{{Name: "Cooler", Available: domain.Known(true), ConstructionSkill: domain.Known(int32(5))}}}
-	if !comfortBuilderAvailable(facts, "Cooler", nil) {
+	if !comfortBuilderAvailable(facts, "Cooler") {
 		t.Fatal("skilled build held behind unrelated work settings")
-	}
-	if comfortBuilderAvailable(facts, "Cooler", []policy.WorkOverride{{Pawn: "builder", Work: "Construction", Priority: 0}}) {
-		t.Fatal("player disabled builder was ignored")
 	}
 	builder.Skills = domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 4, Passion: "None"}})
 	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, artist})
-	if comfortBuilderAvailable(facts, "Cooler", nil) {
+	if comfortBuilderAvailable(facts, "Cooler") {
 		t.Fatal("native construction prerequisite bypassed")
 	}
 	builder.Skills = domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 6, Passion: "None", Disabled: true}})
 	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, artist})
-	if comfortBuilderAvailable(facts, "Cooler", nil) {
+	if comfortBuilderAvailable(facts, "Cooler") {
 		t.Fatal("natively disabled construction skill accepted")
 	}
 }

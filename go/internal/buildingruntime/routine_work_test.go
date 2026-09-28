@@ -6,7 +6,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -32,26 +31,9 @@ func TestRoutineWorkReadbackRecoversInBothModesAndPreservesUnknown(t *testing.T)
 	}
 	row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String("Hunting"), Priority: proto.Int32(0), Disabled: proto.Bool(false)})
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
-	var preferenceRevision uint64
-	for _, phase := range []string{"numbered", "override", "unavailable-override", "clear-override", "project-skill", "unknown-project", "restored-project", "mismatch", "unknown", "checkbox"} {
+	for _, phase := range []string{"numbered", "project-skill", "unknown-project", "restored-project", "mismatch", "unknown", "checkbox"} {
 		want := domain.NeedRecovered
 		switch phase {
-		case "override", "unavailable-override", "clear-override":
-			values := []policy.WorkOverride{}
-			if phase == "override" {
-				values = append(values, policy.WorkOverride{Pawn: "patient", Work: "Construction", Priority: 0})
-				want = domain.NeedDeficit
-			}
-			if phase == "unavailable-override" {
-				values = append(values, policy.WorkOverride{Pawn: "patient", Work: "MissingWork", Priority: 1})
-				want = domain.NeedUnknown
-			}
-			snapshot := r.player.State().Snapshot
-			out, err := r.player.SetWorkPreferences(context.Background(), store.WorkPreferenceRequest{RequestID: phase, Plan: snapshot.Plan, World: store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}, ExpectedRevision: preferenceRevision, Overrides: values})
-			if err != nil {
-				t.Fatal(err)
-			}
-			preferenceRevision = out.Preferences.Revision
 		case "project-skill":
 			v.Planning.GetObserved().Definitions[0].ConstructionSkill = proto.Int32(11)
 			want = domain.NeedDeficit

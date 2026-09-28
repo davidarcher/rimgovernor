@@ -2,8 +2,8 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -35,17 +35,6 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 			action, err = domain.NewSupplyAllowAction(actionID, supply)
 		}
 	case "haul":
-		preferences, loadErr := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
-		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
-			return RoutineFoodStorageUpkeepResult{}, loadErr
-		}
-		if loadErr == nil {
-			for _, row := range preferences.Overrides {
-				if string(row.Pawn) == string(choice.Handling.Hauler) && row.Work == "Hauling" && row.Priority == 0 {
-					return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
-				}
-			}
-		}
 		if !arbiter.tryClaim([]domain.PawnID{choice.Handling.Hauler}, "haul-item:"+choice.Stock.ID) {
 			return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
 		}

@@ -6,14 +6,14 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
-func TestWorkPlannerAppliesSavedOverrideAndInvalidatesOnPreferenceChange(t *testing.T) {
+// Autopilot owns every priority (#719): a player who switched the only
+// builder's Construction off gets it switched back on.
+func TestWorkPlannerRestoresPlayerDisabledWork(t *testing.T) {
 	t.Parallel()
 	r, db, session, _, n := routineFixture(t)
 	r.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: n}}
@@ -28,19 +28,15 @@ func TestWorkPlannerAppliesSavedOverrideAndInvalidatesOnPreferenceChange(t *test
 	for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
 		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill)}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: proto.String("None")})
 	}
-	for _, work := range []string{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Firefighter"} {
+	row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String("Construction"), Priority: proto.Int32(0), Disabled: proto.Bool(false)})
+	for _, work := range []string{"Growing", "Cooking", "Doctor", "PlantCutting", "Firefighter"} {
 		row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String(work), Priority: proto.Int32(1), Disabled: proto.Bool(false)})
 	}
 	row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String("Hunting"), Priority: proto.Int32(0), Disabled: proto.Bool(false)})
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 
 	ctx := context.Background()
-	snapshot := r.player.State().Snapshot
-	saved, err := r.player.SetWorkPreferences(ctx, store.WorkPreferenceRequest{RequestID: "disable-builder", Plan: snapshot.Plan, World: playerWorld(snapshot), ExpectedRevision: 0, Overrides: []policy.WorkOverride{{Pawn: "patient", Work: "Construction", Priority: 0}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = r.Step(ctx); err != nil {
+	if _, err := r.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
 	planner, err := NewRoutineWorkPlanner(r)
@@ -57,18 +53,15 @@ func TestWorkPlannerAppliesSavedOverrideAndInvalidatesOnPreferenceChange(t *test
 		t.Fatal(plan, err)
 	}
 	work, ok := plan.Spec.Actions()[0].WorkAssignment()
-	if !ok || work.Pawn() != "patient" || len(work.Settings()) != 1 || work.Settings()[0].Definition != "Construction" || work.Settings()[0].Priority != 0 {
+	restored := false
+	for _, s := range work.Settings() {
+		restored = restored || s.Definition == "Construction" && s.Priority > 0
+	}
+	if !ok || work.Pawn() != "patient" || !restored {
 		t.Fatal(work)
 	}
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
 		t.Fatal(next, err)
-	}
-	if _, err = r.player.SetWorkPreferences(ctx, store.WorkPreferenceRequest{RequestID: "restore-builder", Plan: snapshot.Plan, World: playerWorld(snapshot), ExpectedRevision: saved.Preferences.Revision, Overrides: []policy.WorkOverride{}}); err != nil {
-		t.Fatal(err)
-	}
-	plan, err = db.LoadPlan(ctx, result.Plan)
-	if err != nil || plan.Progress[0].View().Stage != domain.Cancelled {
-		t.Fatal(plan, err)
 	}
 }
 

@@ -59,7 +59,7 @@ func powerFixture(t *testing.T, conduit bool) (*RoutineBuildingPlanner, *store.S
 		work = append(work, policy.WorkPriority{Work: name})
 	}
 	pawn.Work = domain.Known(work)
-	assignment, err := policy.AssignWork([]policy.WorkPawn{pawn}, nil, nil)
+	assignment, err := policy.AssignWork([]policy.WorkPawn{pawn}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

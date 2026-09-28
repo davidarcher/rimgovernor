@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -263,18 +262,6 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		// The planned kitchen, freezer and jail shells (#835) and jail beds (#880).
 		readDefinitions = append(append([]string(nil), readDefinitions...), "Wall", "Door", policy.JailBedDefinition)
 	}
-	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
-	if errors.Is(err, store.ErrNotFound) {
-		// Directly created plans have no player submission or saved overrides.
-		preferences = store.WorkPreferences{Plan: state.Snapshot.Plan, World: store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}, Overrides: []policy.WorkOverride{}}
-		err = nil
-	}
-	if err != nil {
-		return store.RoutineReviewResult{}, err
-	}
-	if preferences.World != (store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}) {
-		return store.RoutineReviewResult{}, fmt.Errorf("%w: step: preferences.World != (store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snap", ErrControl)
-	}
 	claims, err := p.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
 	if err != nil {
 		clockSchedulerLog("routine.step: ConstructionClaims err=%v", err)
@@ -412,7 +399,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			if err != nil {
 				return store.RoutineReviewResult{}, err
 			}
-			work, err := policy.PlanWork(pawns, required, preferences.Overrides, demand)
+			work, err := policy.PlanWork(pawns, required, demand)
 			if err == nil {
 				reading.Projection.Facts.WorkCoverage = work.Matches
 				for _, pawn := range pawns {
@@ -480,7 +467,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		}
 	}
 	reading.Projection.Facts.AvailableMethods = r.methods
-	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial})
+	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial})
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
 	} else {

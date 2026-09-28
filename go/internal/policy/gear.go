@@ -604,7 +604,7 @@ func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
 			}
 			names[recipe.Definition] = true
 			if work, known := recipe.RequiredWork.Value(); known {
-				if _, err := AssignWork(nil, work, nil); err != nil {
+				if _, err := AssignWork(nil, work); err != nil {
 					return err
 				}
 			}

@@ -77,10 +77,9 @@ func composedRoutineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *play
 	composedRoutineFacts(t, native)
 	reviewer.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: native}}
 	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
-	snapshot := reviewer.player.State().Snapshot
-	if _, err = reviewer.player.SetWorkPreferences(ctx, store.WorkPreferenceRequest{RequestID: "composed-disable-builder", Plan: snapshot.Plan, World: playerWorld(snapshot), ExpectedRevision: 0, Overrides: []policy.WorkOverride{{Pawn: "patient", Work: "Construction", Priority: 0}}}); err != nil {
-		t.Fatal(err)
-	}
+	// A player switched the only builder's Construction off; the work
+	// planner switches it back on (#719), which gives that family a plan.
+	native.pawnReply.GetObserved().Pawns[0].Settings.Work[0].Priority = proto.Int32(0)
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

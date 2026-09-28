@@ -254,11 +254,10 @@ namespace HomeBridge.BridgeTools
                 }
             }
             if (result.occupiedCells.Count == 0) throw new InvalidOperationException("Empty native footprint");
-            if (definition.defName == "HiddenConduit" && result.blockingThings.Any(b => b.Thing.def == ThingDefOf.PowerConduit
-                && (b.Thing.Faction != Faction.OfPlayer || b.Thing.IsForbidden(Faction.OfPlayer))))
+            if (definition.defName == "HiddenConduit" && result.blockingThings.Any(b => b.Thing.def == ThingDefOf.PowerConduit && b.Thing.Faction != Faction.OfPlayer))
             {
                 result.accepted = false;
-                result.reason = "Conduit replacement respects ownership and player forbidding.";
+                result.reason = "Conduit replacement respects ownership.";
             }
             // Admission protects newly placed rain-sensitive equipment even in
             // dry weather. Solar panels and weatherproof generators remain outdoors.

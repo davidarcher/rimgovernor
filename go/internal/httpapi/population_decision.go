@@ -173,8 +173,7 @@ func (s *Server) handlePopulationDecision(ctx context.Context, w http.ResponseWr
 
 // policyWorld reads a colonyId/loadToken/mapId query triple, shared by the
 // population-decision and goal reads. A current policy is scoped per
-// world rather than per plan, so a read cannot borrow work-preferences'
-// single planId query shape.
+// world rather than per plan.
 func policyWorld(query url.Values) (store.World, error) {
 	var world store.World
 	colony, load, mapID := query["colonyId"], query["loadToken"], query["mapId"]

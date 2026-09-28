@@ -25,7 +25,6 @@ control uses these routes.
 | POST | `/api/chat` | Answer one plain-language message with an explanation and at most one applied policy nudge (goal activate/cancel, population decision); never a build or order |
 | GET/POST | `/api/player/goals`, `/api/player/goals/activate`, `/api/player/goals/cancel` | Maintained goal activation and cancellation |
 | GET/POST | `/api/player/population-decision`, `…/replace` | Per-pawn population decision |
-| GET/POST | `/api/player/work-preferences`, `…/replace` | Work preferences |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
 | GET | `/api/player/world-evaluation` | Read-only caravan/quest evaluation |
 | GET | `/api/player/colony` | Live colony census: food nutrition and runway, colonists, workers, downed, mood mean, the living home roster, raid points and the wealth split (`raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`, `wealthPawns`; #395) and the ancient shrine census (`shrines`: id, `sealed`, `inHome`, `caskets`, `filledCaskets`, `guardsKnown`, `guardsAlive`, `breachWalls`; #456; with the breach judgement `ready`, `reason`, `wall`, `squad`, `traps`; #457) (unknown facts are null) |
@@ -72,7 +71,7 @@ between guidance and routine work. Pause stops local work; drafted pawns stay
 drafted until the game's own auto-undraft takes them back (#939). Record phases are `pending`, `running` (resume, non-zero
 native generation), `paused`, `refused` and `uncertain`. Historical results
 never confer current permission; `state.generation.plan` is the live root
-plan and is the `planId` that work preferences attach to. Bodies
+plan. Bodies
 remain bounded to 8192 bytes, with duplicate, unknown, null, malformed and trailing
 fields rejected. Errors retain the existing sanitized code/detail and control
 record/state/error shapes. Missing lookup is not proof that a timed-out POST had

@@ -1129,7 +1129,7 @@ the break bundle by default. A breakpoint needs the ring (never
 `-checkpoint-every 0`, a `NoCheckpoint` case or an `Owned` one) and a
 plain run (none of `-repeat`, `-postmortem-only`, `dev`).
 A `Run` that submits a deterministic request id (a building plan whose
-acceptance fills the arbitration slot, a work-preference override) takes
+acceptance fills the arbitration slot) takes
 it from `s.RequestID(base)`: the base on a fresh run, the base suffixed
 with the run id on a resumed one, since the restored store already holds
 the fresh run's submission and the replay under the resumed world's load

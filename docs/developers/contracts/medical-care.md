@@ -19,7 +19,7 @@ Existing tending is never interrupted. Changed patient/worker evidence can reope
 
 `MaintainMedicalReserves` (care phase) retains native visible condition identities, severity, immunity,
 retend timing, care policy and medical-rest state. It enables ordinary Patient and
-PatientBedRest work when available and not disabled by a player override. Native jobs choose
+PatientBedRest work when available and not disabled. Native jobs choose
 beds. Missing observations, unavailable work or player restrictions produce explicit
 blockers. Chronic conditions remain visible without automatically choosing elective
 operations. An absent tracked patient cannot certify recovery. Per-condition Go Facts preserve severity, immunity, tended state and tend quality,

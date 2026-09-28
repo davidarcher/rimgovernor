@@ -87,10 +87,8 @@ func TestDiseaseWorkRestAndRestore(t *testing.T) {
 		team := workTeam(manual)
 		work, _ := team[0].Work.Value()
 		team[0].Work = domain.Known(append(work, WorkPriority{Work: WorkPatient}, WorkPriority{Work: WorkBedRest}))
-		// Durable player intent is temporarily masked, not rewritten.
-		overrides := []WorkOverride{{Pawn: "builder", Work: WorkConstruction, Priority: 2}}
 		demand := WorkDemand{Resting: []DiseaseRest{{Pawn: "builder", Conditions: []string{"Plague"}}}}
-		d, err := PlanWork(team, nil, overrides, demand)
+		d, err := PlanWork(team, nil, demand)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -120,8 +118,8 @@ func TestDiseaseWorkRestAndRestore(t *testing.T) {
 				t.Fatal(w)
 			}
 		}
-		restored, err := PlanWork(team, nil, overrides, WorkDemand{})
-		if err != nil || workValue(t, restored, "builder", WorkConstruction) != 2 {
+		restored, err := PlanWork(team, nil, WorkDemand{})
+		if err != nil || workValue(t, restored, "builder", WorkConstruction) == 0 {
 			t.Fatal(restored, err)
 		}
 	}

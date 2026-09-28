@@ -148,7 +148,7 @@ func TestAllocateExcludesNonWorkingAndPreservesUnknown(t *testing.T) {
 	}
 }
 
-func TestAllocateIncapableAndOverride(t *testing.T) {
+func TestAllocateIncapable(t *testing.T) {
 	a := allocWorker("a", WorkCooking)
 	a.Incapable = []WorkType{WorkCooking}
 	b := allocWorker("b", WorkCooking)
@@ -156,9 +156,8 @@ func TestAllocateIncapableAndOverride(t *testing.T) {
 	r := AllocateWorkers(AllocRequest{
 		Workers: []AllocWorker{a, b, c},
 		Ready:   allocReady(allocCand("cook", WorkCooking, 2), allocCand("build", WorkConstruction, 1)),
-		Bounds:  AllocBounds{Overrides: []WorkOverride{{Pawn: "b", Work: WorkCooking, Priority: 0}, {Pawn: "c", Work: WorkConstruction, Priority: 1}}},
 	})
-	if got := assigned(r); !reflect.DeepEqual(got, map[PawnID]ReadyWorkID{"c": "build"}) {
+	if got := assigned(r); !reflect.DeepEqual(got, map[PawnID]ReadyWorkID{"b": "cook"}) {
 		t.Fatalf("assigned = %v", got)
 	}
 }

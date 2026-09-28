@@ -42,7 +42,7 @@ type SquadDefenderFacts struct {
 	Dead, Downed, Drafted, MentalState, PlayerForced domain.Fact[bool]
 	// DraftOwned is whether a live plan needs the pawn drafted (#939). A
 	// drafted pawn a plan needs is busy elsewhere; a drafted pawn no plan
-	// needs (the player's, made under Manual) is a candidate like any
+	// needs is a candidate like any
 	// undrafted colonist and the draft adopts it (#461).
 	DraftOwned                           domain.Fact[bool]
 	QueuedJobs                           domain.Fact[uint32]

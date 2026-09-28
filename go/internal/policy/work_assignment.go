@@ -61,11 +61,6 @@ type WorkRequirement struct {
 	Skill   string
 	Minimum int
 }
-type WorkOverride struct {
-	Pawn     PawnID
-	Work     WorkType
-	Priority int
-}
 type PawnWorkAssignment struct {
 	Pawn       PawnID
 	Priorities []WorkPriority
@@ -234,8 +229,8 @@ func baselineDemand(work WorkType, pawns int, demand WorkDemand) int {
 }
 
 // AssignWork is PlanWork with the baseline demand alone.
-func AssignWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOverride) (WorkDecision, error) {
-	return PlanWork(pawns, required, overrides, WorkDemand{})
+func AssignWork(pawns []WorkPawn, required []WorkRequirement) (WorkDecision, error) {
+	return PlanWork(pawns, required, WorkDemand{})
 }
 
 type workCandidate struct {
@@ -257,10 +252,11 @@ type workWorker struct {
 // by fitness (level, passion, trait work speed, incumbency), growth
 // secondaries (a passion within five levels of the weakest owner) and, under
 // manual priorities, every capable pawn at 3 or 4, never what a trait
-// forbids. Player overrides win except during a temporary disease rest hold.
+// forbids. A temporary disease rest hold zeroes a resting pawn's work.
+// Autopilot owns every priority (#719): no player edit is exempt.
 // This is a proposal/readback comparison,
 // never permission to change pawn settings.
-func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOverride, demand WorkDemand) (WorkDecision, error) {
+func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (WorkDecision, error) {
 	if err := validateDiseaseRest(demand.Resting); err != nil {
 		return WorkDecision{}, err
 	}
@@ -277,21 +273,6 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 			return WorkDecision{}, errors.New("invalid work requirement")
 		}
 		requirements[entry.Work] = entry
-	}
-	type overrideKey struct {
-		pawn PawnID
-		work WorkType
-	}
-	custom := map[overrideKey]int{}
-	for _, entry := range overrides {
-		key := overrideKey{entry.Pawn, entry.Work}
-		if !validResource(Resource(entry.Pawn)) || !validResource(Resource(entry.Work)) || entry.Priority < 0 || entry.Priority > 4 {
-			return WorkDecision{}, errors.New("invalid work override")
-		}
-		if _, exists := custom[key]; exists {
-			return WorkDecision{}, errors.New("duplicate work override")
-		}
-		custom[key] = entry.Priority
 	}
 	workers := []*workWorker{}
 	seen := map[PawnID]bool{}
@@ -338,25 +319,12 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 			}
 			w.work[value.Work] = value
 		}
-		for key, priority := range custom {
-			if key.pawn != pawn.ID {
-				continue
-			}
-			entry, exists := w.work[key.work]
-			if !exists || entry.Disabled && priority > 0 {
-				return WorkDecision{}, errors.New("override requires unavailable work")
-			}
-		}
 		workers = append(workers, w)
 	}
 	if !known {
 		return WorkDecision{}, nil
 	}
 	sort.Slice(workers, func(i, j int) bool { return workers[i].pawn.ID < workers[j].pawn.ID })
-	denied := func(id PawnID, work WorkType) bool {
-		v, exists := custom[overrideKey{id, work}]
-		return exists && v == 0
-	}
 	// Every work type native reports, in natural order first and any
 	// unlisted (DLC, mod) type after by name.
 	seenWork := map[WorkType]bool{}
@@ -394,7 +362,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 	}
 	ableAt := func(w *workWorker, work WorkType, floor int) bool {
 		row, exists := w.work[work]
-		if resting[w.pawn.ID] || !exists || row.Disabled || denied(w.pawn.ID, work) || w.profile.Forbidden(work) || w.profile.Incapable[work] {
+		if resting[w.pawn.ID] || !exists || row.Disabled || w.profile.Forbidden(work) || w.profile.Incapable[work] {
 			return false
 		}
 		if work == WorkHunting && !w.profile.Ranged {
@@ -539,15 +507,14 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 	}
 	if demand.Help != nil {
 		// Helpers (construction_helpers.go): sub-floor pawns the native
-		// floor admits, at the lowest rank; overrides and owners are not
+		// floor admits, at the lowest rank; owners are not
 		// helpers.
 		nativeFloor := 0
 		if r, ok := requirements[WorkConstruction]; ok {
 			nativeFloor = r.Minimum
 		}
 		rec := planConstructionHelp(*demand.Help, workers, owners[WorkConstruction], func(w *workWorker) bool {
-			_, overridden := custom[overrideKey{w.pawn.ID, WorkConstruction}]
-			return w.owns[WorkConstruction] == 0 && !overridden && !able(w, WorkConstruction) && ableAt(w, WorkConstruction, nativeFloor)
+			return w.owns[WorkConstruction] == 0 && !able(w, WorkConstruction) && ableAt(w, WorkConstruction, nativeFloor)
 		})
 		byID := map[PawnID]*workWorker{}
 		for _, w := range workers {
@@ -563,8 +530,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 		// at the lowest rank while builds wait, so the passion trains it
 		// past the floor instead of leaving two owners to build alone.
 		for _, w := range workers {
-			_, overridden := custom[overrideKey{w.pawn.ID, WorkConstruction}]
-			if w.owns[WorkConstruction] != 0 || overridden || able(w, WorkConstruction) {
+			if w.owns[WorkConstruction] != 0 || able(w, WorkConstruction) {
 				continue
 			}
 			if s := w.profile.Skill("Construction"); s.Passion != "" && ableAt(w, WorkConstruction, floorOf(WorkConstruction)-1) {
@@ -632,9 +598,6 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 						priority = 3
 					}
 				}
-			}
-			if value, ok := custom[overrideKey{w.pawn.ID, name}]; ok {
-				priority = value
 			}
 			if resting[w.pawn.ID] {
 				priority = 0

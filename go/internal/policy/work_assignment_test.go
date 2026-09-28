@@ -13,7 +13,7 @@ func TestFishingAllocationUsesAnimalsWithoutRangedWeapon(t *testing.T) {
 	pawn := testWorkPawn("fisher", true, false, []WorkSkill{{Name: "Animals", Level: 12}})
 	work, _ := pawn.Work.Value()
 	pawn.Work = domain.Known(append(work, WorkPriority{Work: WorkFishing}))
-	decision, err := AssignWork([]WorkPawn{pawn}, []WorkRequirement{{Work: WorkFishing, Skill: "Animals"}}, nil)
+	decision, err := AssignWork([]WorkPawn{pawn}, []WorkRequirement{{Work: WorkFishing, Skill: "Animals"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func coverageOf(t *testing.T, d WorkDecision, work WorkType) WorkCoverage {
 func TestWorkAssignmentSpecialistsModesAndReadback(t *testing.T) {
 	for _, manual := range []bool{false, true} {
 		team := workTeam(manual)
-		decision, err := AssignWork(team, nil, nil)
+		decision, err := AssignWork(team, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +94,7 @@ func TestWorkAssignmentSpecialistsModesAndReadback(t *testing.T) {
 			}
 			team[i].Work = domain.Known(values)
 		}
-		next, err := AssignWork(team, nil, nil)
+		next, err := AssignWork(team, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -102,20 +102,20 @@ func TestWorkAssignmentSpecialistsModesAndReadback(t *testing.T) {
 			t.Fatal("native mode readback did not match", next)
 		}
 		team[0], team[1] = team[1], team[0]
-		reordered, err := AssignWork(team, nil, nil)
+		reordered, err := AssignWork(team, nil)
 		if err != nil || !reflect.DeepEqual(next, reordered) {
 			t.Fatal("pawn order changed assignment", reordered, err)
 		}
 	}
 }
-func TestWorkAssignmentRequirementsOverridesAndUnknown(t *testing.T) {
+func TestWorkAssignmentRequirementsAndUnknown(t *testing.T) {
 	team := workTeam(true)
-	d, err := AssignWork(team, []WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: 10}}, []WorkOverride{{Pawn: "builder", Work: "Construction", Priority: 0}})
+	d, err := AssignWork(team, []WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: 20}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if capable, known := d.Capacity.Value(); !known || capable {
-		t.Fatal("override/minimum ignored", d)
+		t.Fatal("minimum ignored", d)
 	}
 	if workValue(t, d, "builder", "Construction") != 0 {
 		t.Fatal(d)
@@ -124,7 +124,7 @@ func TestWorkAssignmentRequirementsOverridesAndUnknown(t *testing.T) {
 		t.Fatal(c)
 	}
 	team[0].Manual = domain.Unknown[bool]()
-	d, err = AssignWork(team, nil, nil)
+	d, err = AssignWork(team, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,15 +132,9 @@ func TestWorkAssignmentRequirementsOverridesAndUnknown(t *testing.T) {
 		t.Fatal("unknown mode manufactured assignment", d)
 	}
 	team[0].Available = domain.Known(false)
-	d, err = AssignWork(team, nil, nil)
+	d, err = AssignWork(team, nil)
 	if err != nil || len(d.Assignments) != 1 || d.Assignments[0].Pawn != "grower" {
 		t.Fatal(d, err)
-	}
-	if _, err = AssignWork(workTeam(true), nil, []WorkOverride{{Pawn: "builder", Work: "Cooking", Priority: 0}, {Pawn: "builder", Work: "Cooking", Priority: 1}}); err == nil {
-		t.Fatal("duplicate override")
-	}
-	if _, err = AssignWork(workTeam(true), nil, []WorkOverride{{Pawn: "builder", Work: "MissingWork", Priority: 1}}); err == nil {
-		t.Fatal("unavailable override ignored")
 	}
 }
 
@@ -151,7 +145,7 @@ func TestWorkAssignmentFloorRelaxesForCoreWork(t *testing.T) {
 		testWorkPawn("a", true, false, []WorkSkill{{Name: "Cooking", Level: 2}, {Name: "Construction", Level: 6}, {Name: "Medicine", Level: 6}, {Name: "Plants", Level: 6}}),
 		testWorkPawn("b", true, false, []WorkSkill{{Name: "Cooking", Level: 4}, {Name: "Construction", Level: 6}, {Name: "Medicine", Level: 6}, {Name: "Plants", Level: 6}}),
 	}
-	d, err := AssignWork(team, nil, nil)
+	d, err := AssignWork(team, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +171,7 @@ func TestWorkAssignmentGrowthSecondary(t *testing.T) {
 		testWorkPawn("novice", true, false, []WorkSkill{{Name: "Cooking", Level: 1, Passion: "Major"}, {Name: "Construction", Level: 6}}),
 		testWorkPawn("hauler", true, false, []WorkSkill{{Name: "Cooking", Level: 6}, {Name: "Construction", Level: 6}}),
 	}
-	d, err := AssignWork(team, nil, nil)
+	d, err := AssignWork(team, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +184,7 @@ func TestWorkAssignmentGrowthSecondary(t *testing.T) {
 	// Four pawns, two cooks wanted at eight: an equal-level passion beats
 	// no passion for the second slot.
 	team = append(team, testWorkPawn("e", true, false, []WorkSkill{{Name: "Cooking", Level: 9}, {Name: "Construction", Level: 6}}), testWorkPawn("f", true, false, []WorkSkill{{Name: "Cooking", Level: 9, Passion: "Minor"}, {Name: "Construction", Level: 6}}), testWorkPawn("g", true, false, nil), testWorkPawn("h", true, false, nil))
-	d, err = AssignWork(team, nil, nil)
+	d, err = AssignWork(team, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +203,7 @@ func TestWorkAssignmentTraits(t *testing.T) {
 		testWorkPawn("abrasive", true, false, []WorkSkill{{Name: "Social", Level: 12}, {Name: "Mining", Level: 2}}, PawnTrait{Name: "Abrasive"}),
 		testWorkPawn("kind", true, false, []WorkSkill{{Name: "Social", Level: 6}, {Name: "Mining", Level: 2}}, PawnTrait{Name: "Kind"}, PawnTrait{Name: "Unknown_ModTrait", Degree: 3}),
 	}
-	d, err := PlanWork(team, nil, nil, WorkDemand{Prisoners: 1})
+	d, err := PlanWork(team, nil, WorkDemand{Prisoners: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +226,7 @@ func TestWorkAssignmentTraits(t *testing.T) {
 func TestWorkAssignmentIncapable(t *testing.T) {
 	pawn := testWorkPawn("a", true, false, []WorkSkill{{Name: "Mining", Level: 12}})
 	pawn.Incapable = domain.Known([]WorkType{WorkMining})
-	d, err := AssignWork([]WorkPawn{pawn}, nil, nil)
+	d, err := AssignWork([]WorkPawn{pawn}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +242,7 @@ func TestWorkAssignmentDecay(t *testing.T) {
 		return []WorkSkill{{Name: "Construction", Level: 15}, {Name: "Mining", Level: mining}, {Name: "Cooking", Level: 8}, {Name: "Medicine", Level: 8}, {Name: "Plants", Level: 8}}
 	}
 	team := []WorkPawn{testWorkPawn("a", true, false, rows(15)), testWorkPawn("b", true, false, rows(14)), testWorkPawn("c", true, false, rows(13))}
-	d, err := AssignWork(team, nil, nil)
+	d, err := AssignWork(team, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +265,7 @@ func TestWorkAssignmentDecay(t *testing.T) {
 		t.Fatal(d.Decaying, d.Assignments)
 	}
 	idle := testWorkPawn("idle", true, false, []WorkSkill{{Name: "Crafting", Level: 14}})
-	d, err = AssignWork([]WorkPawn{idle, team[0], team[1]}, nil, nil)
+	d, err = AssignWork([]WorkPawn{idle, team[0], team[1]}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +294,7 @@ func TestWorkAssignmentCoverageAndStability(t *testing.T) {
 	}
 	demand := WorkDemand{GrowingCells: 300, Construction: true, Prisoners: 1}
 	required := []WorkRequirement{{Work: WorkMining, Skill: "Mining"}, {Work: WorkSmithing, Skill: "Crafting"}, {Work: WorkResearch, Skill: "Intellectual"}}
-	d, err := PlanWork(team, required, nil, demand)
+	d, err := PlanWork(team, required, demand)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +319,7 @@ func TestWorkAssignmentCoverageAndStability(t *testing.T) {
 		for i := range team {
 			team[i].Work = domain.Known(append([]WorkPriority(nil), previous.Assignments[i].Priorities...))
 		}
-		next, err := PlanWork(team, required, nil, demand)
+		next, err := PlanWork(team, required, demand)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -350,18 +344,37 @@ func TestWorkAssignmentConstructionApprentice(t *testing.T) {
 		testWorkPawn("e", true, false, []WorkSkill{{Name: "Construction", Level: 3, Passion: "Minor"}}),
 		testWorkPawn("f", true, false, []WorkSkill{{Name: "Construction", Level: 2, Passion: "Major"}}),
 	}
-	decision, err := PlanWork(team, nil, nil, WorkDemand{Construction: true})
+	decision, err := PlanWork(team, nil, WorkDemand{Construction: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if workValue(t, decision, "e", WorkConstruction) != 4 || workValue(t, decision, "a", WorkConstruction) != 0 || workValue(t, decision, "f", WorkConstruction) != 0 {
 		t.Fatal(decision)
 	}
-	idle, err := PlanWork(team, nil, nil, WorkDemand{})
+	idle, err := PlanWork(team, nil, WorkDemand{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if workValue(t, idle, "e", WorkConstruction) != 0 {
 		t.Fatal(idle)
+	}
+}
+
+// Autopilot owns every priority (#719): a player who switched a planned
+// owner's work off gets it back on the next plan.
+func TestWorkAssignmentOverridesPlayerEdits(t *testing.T) {
+	team := workTeam(true)
+	before, err := AssignWork(team, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := workValue(t, before, "builder", WorkConstruction)
+	if want == 0 {
+		t.Fatal("builder owns no construction", before)
+	}
+	setObservedWork(team[0], WorkConstruction, 0)
+	after, err := AssignWork(team, nil)
+	if err != nil || workValue(t, after, "builder", WorkConstruction) != want {
+		t.Fatal("player edit survived the plan", after, err)
 	}
 }

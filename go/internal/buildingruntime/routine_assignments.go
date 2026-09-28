@@ -94,17 +94,6 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		return unknown
 	}
-	preferences, err := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
-	if errors.Is(err, store.ErrNotFound) {
-		preferences = store.WorkPreferences{Plan: state.Snapshot.Plan, World: playerWorld(state.Snapshot)}
-		err = nil
-	}
-	if err != nil {
-		return RoutineWorkResult{}, err
-	}
-	if preferences.World != playerWorld(state.Snapshot) || preferences.Revision != review.WorkPreferenceRevision {
-		return RoutineWorkResult{}, fmt.Errorf("%w: step: preferences.World != playerWorld(state.Snapshot) || preferences.Revision != review.WorkPreferenceRevision", ErrControl)
-	}
 	plans, err := p.journal.LoadPlans(call, 256)
 	if err != nil {
 		return RoutineWorkResult{}, err
@@ -162,7 +151,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}
-	decision, err := policy.PlanWork(pawns, required, preferences.Overrides, demand)
+	decision, err := policy.PlanWork(pawns, required, demand)
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}

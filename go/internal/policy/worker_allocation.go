@@ -86,9 +86,6 @@ type AllocBounds struct {
 	// Restricted work types get no new positions (emergency or control
 	// restrictions). Incumbents already on them keep their job.
 	Restricted map[WorkType]bool `json:",omitempty"`
-	// Overrides are player overrides: a priority here replaces the
-	// worker's setting for that work type, and 0 disables it.
-	Overrides []WorkOverride `json:",omitempty"`
 }
 
 // Declared maximums (the complexity contract): at most 64 workers against
@@ -174,17 +171,11 @@ const (
 	edgeYes
 )
 
-func allocEligible(w AllocWorker, t WorkType, overrides map[[2]string]int) allocEdge {
+func allocEligible(w AllocWorker, t WorkType) allocEdge {
 	for _, x := range w.Incapable {
 		if x == t {
 			return edgeNo
 		}
-	}
-	if p, ok := overrides[[2]string{string(w.ID), string(t)}]; ok {
-		if p > 0 {
-			return edgeYes
-		}
-		return edgeNo
 	}
 	settings, known := w.Work.Value()
 	if !known {
@@ -213,10 +204,6 @@ func AllocateWorkers(r AllocRequest) AllocationReport {
 	}
 	if b.MaxOps == 0 {
 		b.MaxOps = MaxAllocOps
-	}
-	overrides := map[[2]string]int{}
-	for _, o := range b.Overrides {
-		overrides[[2]string{string(o.Pawn), string(o.Work)}] = o.Priority
 	}
 	var report AllocationReport
 
@@ -260,7 +247,7 @@ func AllocateWorkers(r AllocRequest) AllocationReport {
 	eligible := func(w AllocWorker, p allocPosition) allocEdge {
 		best := edgeNo
 		for _, t := range p.work.Work {
-			if e := allocEligible(w, t, overrides); e > best {
+			if e := allocEligible(w, t); e > best {
 				best = e
 			}
 		}
@@ -381,7 +368,7 @@ func AllocateWorkers(r AllocRequest) AllocationReport {
 		if held[wi] != -1 {
 			continue
 		}
-		report.Unused = append(report.Unused, AllocIdle{Pawn: w.ID, Reason: workerIdleReason(w), Potential: potential(w, overrides)})
+		report.Unused = append(report.Unused, AllocIdle{Pawn: w.ID, Reason: workerIdleReason(w), Potential: potential(w)})
 	}
 	sort.SliceStable(report.Unused, func(i, j int) bool { return report.Unused[i].Pawn < report.Unused[j].Pawn })
 	return report
@@ -441,18 +428,13 @@ func workerIdleReason(w AllocWorker) string {
 // potential lists the work types the worker may take that are not ruled
 // out: known-enabled ones, or every type not known incapable when the
 // settings are unknown. It is sorted.
-func potential(w AllocWorker, overrides map[[2]string]int) []WorkType {
+func potential(w AllocWorker) []WorkType {
 	var out []WorkType
 	if settings, known := w.Work.Value(); known {
 		for _, s := range settings {
-			if allocEligible(w, s.Work, overrides) == edgeYes {
+			if allocEligible(w, s.Work) == edgeYes {
 				out = append(out, s.Work)
 			}
-		}
-	}
-	for k, p := range overrides {
-		if k[0] == string(w.ID) && p > 0 && allocEligible(w, WorkType(k[1]), overrides) == edgeYes {
-			out = append(out, WorkType(k[1]))
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })

@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -173,19 +172,6 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if len(observed.Pawns) != len(ids) {
 		return RoutineCleanResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
-	preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
-	if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
-		return RoutineCleanResult{}, loadErr
-	}
-	if preferences.Revision != review.WorkPreferenceRevision {
-		return RoutineCleanResult{}, fmt.Errorf("%w: step: preferences.Revision != review.WorkPreferenceRevision", ErrControl)
-	}
-	overridden := map[domain.PawnID]bool{}
-	for _, o := range preferences.Overrides {
-		if o.Work == policy.WorkType("Cleaning") && o.Priority == 0 {
-			overridden[domain.PawnID(o.Pawn)] = true
-		}
-	}
 	var pawns []policy.CleanCandidateFacts
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
@@ -195,9 +181,6 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
 		facts := cleanCandidateFacts(pawn, row)
-		if overridden[pawn] {
-			facts.CleaningEnabled = domain.Known(false)
-		}
 		pawns = append(pawns, facts)
 	}
 	target, pawn, ok := policy.SelectClean(filth, pawns)
@@ -267,8 +250,7 @@ func cleaningWorkEnabled(work []*n.WorkSetting) domain.Fact[bool] {
 		// the Work-tab priority says (OrderTool.FinishWorkGiverPlan), and the
 		// bounded response exists precisely for colonies whose ordinary
 		// coverage (Cleaning priority > 0) failed. Only real incapability
-		// excludes a pawn; controller-issued priority-0 overrides are
-		// honoured by the caller.
+		// excludes a pawn.
 		return domain.Known(!w.GetDisabled())
 	}
 	return domain.Unknown[bool]()

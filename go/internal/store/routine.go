@@ -46,20 +46,19 @@ type RoutineReview struct {
 	// ShrineStep is the shrine planner's last step (#680): the shrine it
 	// held on and why, and the candidates it passed over. A world change
 	// clears it; otherwise a review keeps the last one.
-	ShrineStep             *RoutineShrineStep      `json:",omitempty"`
-	Recovery               *RoutineRecovery        `json:",omitempty"`
-	Disaster               *policy.DisasterHistory `json:",omitempty"`
-	Mood                   *RoutineMood            `json:",omitempty"`
-	MoodMethods            []RoutineMoodMethod     `json:",omitempty"`
-	Sleeping               policy.SleepingHistory
-	Revision               uint64
-	WorkPreferenceRevision uint64
-	Snapshot               domain.GenerationSnapshot
-	Tick                   domain.Tick
-	Enabled                bool
-	Latches                policy.RoutineLatches
-	MedicalCare            policy.MedicalCareHistory
-	MedicineTarget         int64 `json:",omitempty"`
+	ShrineStep     *RoutineShrineStep      `json:",omitempty"`
+	Recovery       *RoutineRecovery        `json:",omitempty"`
+	Disaster       *policy.DisasterHistory `json:",omitempty"`
+	Mood           *RoutineMood            `json:",omitempty"`
+	MoodMethods    []RoutineMoodMethod     `json:",omitempty"`
+	Sleeping       policy.SleepingHistory
+	Revision       uint64
+	Snapshot       domain.GenerationSnapshot
+	Tick           domain.Tick
+	Enabled        bool
+	Latches        policy.RoutineLatches
+	MedicalCare    policy.MedicalCareHistory
+	MedicineTarget int64 `json:",omitempty"`
 	// DependencyNeeds are the MaintainResource floors this review's live
 	// shortfall edges raised (#728), so the resource planner stocks them.
 	DependencyNeeds map[policy.Resource]int64 `json:",omitempty"`
@@ -111,13 +110,12 @@ type RoutineReview struct {
 }
 
 type RoutineReviewRequest struct {
-	Revision               uint64
-	WorkPreferenceRevision uint64
-	Current                domain.GenerationSnapshot
-	Tick                   domain.Tick
-	Enabled                bool
-	Policy                 policy.RoutinePolicy
-	Facts                  policy.RoutineFacts
+	Revision uint64
+	Current  domain.GenerationSnapshot
+	Tick     domain.Tick
+	Enabled  bool
+	Policy   policy.RoutinePolicy
+	Facts    policy.RoutineFacts
 	// PartialPlanners: only the planners a wake named follow this review,
 	// so the next review must not count an unrun planner's goal idle.
 	PartialPlanners bool
@@ -379,15 +377,6 @@ func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest)
 }
 
 func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewRequest, settled map[retirementWorld]domain.Tick) (RoutineReviewResult, error) {
-	if request.Enabled {
-		preferences, err := loadWorkPreferences(ctx, tx, request.Current.Plan)
-		if err != nil && !errors.Is(err, ErrNotFound) {
-			return RoutineReviewResult{}, err
-		}
-		if preferences.Revision != request.WorkPreferenceRevision {
-			return RoutineReviewResult{}, ErrConflict
-		}
-	}
 	previous, err := loadRoutine(ctx, tx)
 	if err != nil {
 		return RoutineReviewResult{}, err
@@ -577,7 +566,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	if err = retireRoutineGoals(ctx, tx, retained); err != nil {
 		return RoutineReviewResult{}, err
 	}
-	r := RoutineReview{Revision: previous.Revision + 1, WorkPreferenceRevision: request.WorkPreferenceRevision, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
+	r := RoutineReview{Revision: previous.Revision + 1, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	r.MedicalCare = medical
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
@@ -660,7 +649,6 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	result := RoutineReviewResult{Needs: needs, Detection: detection}
 	if !request.Enabled {
-		r.WorkPreferenceRevision = previous.WorkPreferenceRevision
 		r.Goals = previous.Goals
 		if !changed {
 			r.Incidents = previous.Incidents

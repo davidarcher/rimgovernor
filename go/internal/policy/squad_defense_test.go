@@ -221,9 +221,9 @@ func TestSelectSquadDefensePrefersTheLineByOpponent(t *testing.T) {
 	}
 }
 
-// A drafted pawn is busy only under an owned claim; a standing draft nobody
-// claims (the player's, made under Manual) is a candidate, and a draft whose
-// claim cannot be read is not (#461).
+// A drafted pawn is busy only while a live plan needs it (#939); a standing
+// draft no plan needs is a candidate the draft adopts, and a draft whose
+// owner cannot be read is not (#461).
 func TestSquadDefenderEligibleDistinguishesOwnedDrafts(t *testing.T) {
 	owned := squadDefender("a", false)
 	owned.Drafted, owned.DraftOwned = domain.Known(true), domain.Known(true)

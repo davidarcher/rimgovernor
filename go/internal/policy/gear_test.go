@@ -131,13 +131,9 @@ func TestGearProductionRetainsRequiredWorkAndPlayerRefusals(t *testing.T) {
 	team[0].Work = domain.Known(append(append([]WorkPriority(nil), work...), WorkPriority{Work: "Tailoring"}))
 	skills, _ := team[0].Skills.Value()
 	team[0].Skills = domain.Known(append(append([]WorkSkill(nil), skills...), WorkSkill{Name: "Crafting", Level: 6}))
-	ready, err := AssignWork(team, m.RequiredWork, nil)
+	ready, err := AssignWork(team, m.RequiredWork)
 	if err != nil || ready.Capacity != domain.Known(true) || workValue(t, ready, "builder", "Tailoring") != 1 {
 		t.Fatal(ready, err)
-	}
-	refused, err := AssignWork(team, m.RequiredWork, []WorkOverride{{Pawn: "builder", Work: "Tailoring", Priority: 0}})
-	if err != nil || refused.Capacity != domain.Known(false) {
-		t.Fatal("player refusal was lost", refused, err)
 	}
 	m.RequiredWork[0].Minimum = 0
 	again, err := SelectGearMethod(r)

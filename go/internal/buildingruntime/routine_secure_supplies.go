@@ -208,19 +208,6 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	if len(observed.Pawns) != len(ids) {
 		return PlanResult{}, fmt.Errorf("%w: propose: len(observed.Pawns) != len(ids)", ErrControl)
 	}
-	preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
-	if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
-		return PlanResult{}, loadErr
-	}
-	if preferences.Revision != review.WorkPreferenceRevision {
-		return PlanResult{}, fmt.Errorf("%w: propose: preferences.Revision != review.WorkPreferenceRevision", ErrControl)
-	}
-	overridden := map[domain.PawnID]bool{}
-	for _, o := range preferences.Overrides {
-		if o.Work == policy.WorkType("Hauling") && o.Priority == 0 {
-			overridden[domain.PawnID(o.Pawn)] = true
-		}
-	}
 	var pawns []policy.SecureSuppliesHaulerFacts
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
@@ -230,9 +217,6 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
 		facts := secureSuppliesHaulerFacts(pawn, row)
-		if overridden[pawn] {
-			facts.HaulingEnabled = domain.Known(false)
-		}
 		pawns = append(pawns, facts)
 	}
 	snap.NoteSecureSupplies(call, snap.SecureSuppliesCall{Items: items, Pawns: pawns})

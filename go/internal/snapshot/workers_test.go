@@ -79,7 +79,7 @@ func workDisabled(pawns []policy.WorkPawn, id policy.PawnID, work policy.WorkTyp
 func rosterCheck(t *testing.T, scenario string, verify func([]policy.WorkPawn, policy.WorkDecision) error) {
 	before := loadPawns(t, "workers-"+scenario+"-before")
 	after := loadPawns(t, "workers-"+scenario+"-after")
-	decision, err := policy.PlanWork(before, nil, nil, policy.WorkDemand{})
+	decision, err := policy.PlanWork(before, nil, policy.WorkDemand{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func rosterCheck(t *testing.T, scenario string, verify func([]policy.WorkPawn, p
 	if err := verify(before, decision); err != nil {
 		t.Fatalf("before: %v", err)
 	}
-	replan, err := policy.PlanWork(after, nil, nil, policy.WorkDemand{})
+	replan, err := policy.PlanWork(after, nil, policy.WorkDemand{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +261,7 @@ func TestWorkersNightOwlSchedules(t *testing.T) {
 			t.Fatalf("after: %s still differs from its template", row.Pawn)
 		}
 	}
-	work, err := policy.PlanWork(after, nil, nil, policy.WorkDemand{})
+	work, err := policy.PlanWork(after, nil, policy.WorkDemand{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func TestWorkersHelpersEnabledUnderTheFloor(t *testing.T) {
 	}
 	plan := func(tick domain.Tick, previous *policy.ConstructionHelpRecord) policy.WorkDecision {
 		help := policy.ConstructionHelpDemand(ready, domain.GenerationSnapshot{}, tick, []string{"Wall"}, previous)
-		d, err := policy.PlanWork(pawns, nil, nil, policy.WorkDemand{Construction: true, Help: &help})
+		d, err := policy.PlanWork(pawns, nil, policy.WorkDemand{Construction: true, Help: &help})
 		if err != nil {
 			t.Fatal(err)
 		}

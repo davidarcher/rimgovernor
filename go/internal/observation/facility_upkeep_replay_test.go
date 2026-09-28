@@ -123,7 +123,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 		t.Fatal(stones, err)
 	}
 	projection.Facts.CurrentConstruction = current
-	request := store.RoutineReviewRequest{Revision: retained.Revision, WorkPreferenceRevision: retained.WorkPreferenceRevision, Current: retained.Snapshot, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
+	request := store.RoutineReviewRequest{Revision: retained.Revision, Current: retained.Snapshot, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
 	request.Current.Native, known = identity.NativeGeneration.Value()
 	if !known {
 		t.Fatal("native replay generation unavailable")

@@ -548,24 +548,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if len(r.paste) > 0 {
 		available = true
 		for _, name := range definitions {
-			available = available && comfortBuilderAvailable(facts, name, nil)
+			available = available && comfortBuilderAvailable(facts, name)
 		}
 	}
 	if r.facilityLadder() && !r.shelter || r.phase == policy.ComfortBasic || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
-		preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
-		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
-			return RoutineBuildingResult{}, loadErr
-		}
-		if preferences.Revision != review.WorkPreferenceRevision {
-			return RoutineBuildingResult{}, fmt.Errorf("%w: step: preferences.Revision != review.WorkPreferenceRevision", ErrControl)
-		}
-		available = comfortBuilderAvailable(facts, r.definition, preferences.Overrides)
+		available = comfortBuilderAvailable(facts, r.definition)
 		if r.power != nil && r.power.Method == policy.PowerGenerate {
 			// A generator no site accepts yields to the next ranked one a
 			// builder here can raise.
 			var alternatives []string
 			for _, name := range r.power.Alternatives {
-				if comfortBuilderAvailable(facts, name, preferences.Overrides) {
+				if comfortBuilderAvailable(facts, name) {
 					alternatives = append(alternatives, name)
 				}
 			}

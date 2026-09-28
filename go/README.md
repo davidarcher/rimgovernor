@@ -115,7 +115,7 @@ structured player endpoints are listed in
 surface is guidance, not per-pawn orders: one building placement and one
 research selection remain as typed plan submissions, and everything else is
 colony configuration (goals, population/expedition/resource policies, per-pawn
-population decisions, work preferences) or control (resume/pause, clock
+population decisions) or control (resume/pause, clock
 acknowledgement, world evaluation). Per-command player slices for tend, rescue,
 draft, husbandry, recovery service, bed assignment, movement, building
 temperature, surgery, caravans, quests, settlement gifts, trade, zone edits and
@@ -208,9 +208,9 @@ replies are observed without retry; receipts alone do not complete the action,
 and missing items remain unknown. Allow requires no game tick window.
 
 The `work` family compiles changed work priorities in batches of at most eight
-pawns, using saved overrides and required project skills. Each action retains the original work snapshot,
-so changed settings cannot be silently adopted on retry. Preference changes cancel
-pending methods; direct native work-tab edits revoke controller authority. Readback
+pawns, using required project skills. Each action retains the original work snapshot,
+so changed settings cannot be silently adopted on retry. Autopilot owns every
+priority (#719): a player edit in the Work tab is replanned like any other drift. Readback
 checks actual priorities as well as the correlated native outcome. Settings updates
 need no simulation ticks and do not certify that pawn production occurred.
 
@@ -603,27 +603,11 @@ Open selected player buildings and admitted shared projects supply the maximum
 native construction-skill requirement. Missing project definitions are read inside
 the same paused bracket without replacing default crop inputs. Unknown skills
 preserve unknown coverage; unresolved cancelled orders retain their requirements
-until native observation settles them. Player work preferences persist with the
-explicit player plan and feed
-every review. Updates atomically invalidate the previous review and linked methods;
-the next review records the preference revision and rejects stale inputs. Missing
+until native observation settles them. Missing
 native work types or capabilities preserve unknown work coverage. Native work
 captures replay with `RIMGOVERNOR_NATIVE_WORK_CAPTURE=<capture directory>`.
 The native routine scenario's `--work-project` option checks a HospitalBed project
 outside the default definition census; it verifies work review, not construction.
-
-With player control enabled, `GET /api/player/work-preferences?planId=<id>` returns
-the plan's preference revision and overrides. Authenticated
-`POST /api/player/work-preferences/replace` accepts `requestId`, `planId`, `expected`
-world identity, canonical string `expectedRevision`, and an `overrides` array of
-`{ "pawn": "Thing_Human1", "work": "Construction", "priority": 0 }` entries.
-Priorities are 0–4; zero explicitly disables that work in proposals. The complete
-array replaces prior preferences; an empty array clears them. The existing 8 KiB
-player request limit applies. Reusing an exact request returns its historical
-result without restoring old preferences; changed reuse or a stale revision returns
-409. Preferences neither enable control nor change native work settings. The native
-routine scenario's `--work-overrides` option verifies updates, clear/replay, durable
-work review and disabled restart against a private colony.
 
 `NewRoutineSleepingPlanner` configures the shared `RoutineBuildingPlanner` to compile an active reviewed shelter deficit into
 one complete method of ordinary indoor sleeping spots. It requires a known native
@@ -685,7 +669,7 @@ facility-specific dining/recreation use through Manual and restart; replacement
 facilities require new use. After observed construction, at most 10,000 ticks in
 the same load permit ordinary use, observed in windows of at most 120 ticks.
 Skilled furniture requires a qualified assigned builder from the same native
-observation bracket, honoring saved player work preferences; furniture with no
+observation bracket; furniture with no
 native construction skill requirement (a crafting spot) needs only one
 available pawn with Construction enabled. The `workshop`
 family (issue #4 M2) applies the same ladder to production: when a

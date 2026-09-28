@@ -96,7 +96,7 @@ DoubleSleepingSpot, Campfire, Sandbags, PowerConduit: no native skill
 minimum, no quality, cheap materials). Unmet demand is that parallelism
 beyond the owners not held by another work type's job. A helper is a pawn
 under the floor that the requirement's minimum (the native floor, else 0)
-admits, with no player override for Construction, not resting, idle
+admits, not resting, idle
 (`idleJob`) now and at the previous review, or already helping; helpers
 take priority 4 (enabled in checkbox mode), previous helpers first, then
 by level, at most one per unmet task. No other work type's floor moves.

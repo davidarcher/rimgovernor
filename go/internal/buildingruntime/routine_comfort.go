@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"strings"
 )
 
 const BuildingComfortWait RoutineBuildingReason = "waiting_for_native_comfort_use"
@@ -56,7 +57,7 @@ func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 // owners), so the two only agreed by luck and a cooler could wait forever
 // behind an unrelated pawn's Cooking checkbox (#66). This comparison never
 // writes work settings.
-func comfortBuilderAvailable(facts observation.ColonyProjection, definition string, overrides []policy.WorkOverride) bool {
+func comfortBuilderAvailable(facts observation.ColonyProjection, definition string) bool {
 	for _, d := range facts.Definitions {
 		if d.Name != definition {
 			continue
@@ -70,7 +71,7 @@ func comfortBuilderAvailable(facts observation.ColonyProjection, definition stri
 		if !known {
 			return false
 		}
-		available = builderAvailable(pawns, overrides, int(minimum))
+		available = builderAvailable(pawns, int(minimum))
 		if clockDebug() && !available {
 			clockSchedulerLog("%s builder gate: no available pawn with Construction enabled at skill >= %d (%s)", definition, minimum, builderCensus(pawns))
 		}
@@ -150,22 +151,13 @@ func comfortNativeWorkTicks(plan store.PlanState, current domain.GenerationSnaps
 }
 
 // builderAvailable reports whether some available pawn has Construction
-// enabled in its observed settings, no player override disabling it and,
+// enabled in its observed settings and,
 // when the definition needs one, a Construction skill at the native minimum.
 // builderCensus is the diagnostic behind a "builder unavailable" wait
 // (clock trace, serve --debug).
-func builderAvailable(pawns []policy.WorkPawn, overrides []policy.WorkOverride, minimum int) bool {
+func builderAvailable(pawns []policy.WorkPawn, minimum int) bool {
 	for _, pawn := range pawns {
 		if pawn.Available != domain.Known(true) || pawn.Applies != domain.Known(true) {
-			continue
-		}
-		disabled := false
-		for _, override := range overrides {
-			if override.Pawn == pawn.ID && override.Work == "Construction" && override.Priority == 0 {
-				disabled = true
-			}
-		}
-		if disabled {
 			continue
 		}
 		settings, known := pawn.Work.Value()
@@ -266,7 +258,7 @@ func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProj
 					return false
 				}
 			}
-			return comfortBuilderAvailable(facts, m.Definition, nil)
+			return comfortBuilderAvailable(facts, m.Definition)
 		})
 	}
 	switch method {
