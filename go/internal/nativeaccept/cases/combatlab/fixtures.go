@@ -36,6 +36,8 @@ type Pawn struct {
 	WeaponStuff string `json:"weaponStuff,omitempty"`
 	// Downed stages the pawn downed under anesthetic (#867).
 	Downed bool `json:"downed,omitempty"`
+	// Apparel is one worn apparel def, staged charged if a shield (#1049).
+	Apparel string `json:"apparel,omitempty"`
 	// Trained names the TrainableDefs an Animal has learned (#1057).
 	Trained []string `json:"trained,omitempty"`
 	// Injured stages the pawn with a blunt bruise (#1080).

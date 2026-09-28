@@ -228,8 +228,11 @@ func (s labState) door(x, z int) (bool, error) {
 
 // tickRead runs one game tick on the paused lab and reads every pawn's job
 // and fire mode and every door's hold-open.
-func tickRead(ctx context.Context, h *na.Harness) (labState, error) {
-	reply, err := h.Call(ctx, "combat-orders-tick", StageTool, map[string]any{"action": "tick", "ticks": 1})
+func tickRead(ctx context.Context, h *na.Harness) (labState, error) { return tickReadN(ctx, h, 1) }
+
+// tickReadN is tickRead over n ticks.
+func tickReadN(ctx context.Context, h *na.Harness, n int) (labState, error) {
+	reply, err := h.Call(ctx, "combat-orders-tick", StageTool, map[string]any{"action": "tick", "ticks": n})
 	if err != nil {
 		return labState{}, err
 	}

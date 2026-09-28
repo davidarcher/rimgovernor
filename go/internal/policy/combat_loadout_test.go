@@ -87,13 +87,13 @@ func TestLoadoutEMPCarrier(t *testing.T) {
 		loadoutDefender("b", 6, "Gun_AssaultRifle"),
 		loadoutDefender("c", 12, "Gun_AssaultRifle"),
 		{EquipCandidatePawn: weaponPawn("d", 12), Primary: "Gun_AssaultRifle", Squad: "west"},
-		{EquipCandidatePawn: weaponPawn("e", 3), Primary: "Grenade_EMP", Squad: "east"}, // east already carries
+		{EquipCandidatePawn: weaponPawn("e", 3), Primary: "Weapon_GrenadeEMP", Squad: "east"}, // east already carries
 		{EquipCandidatePawn: weaponPawn("f", 9), Primary: "Gun_AssaultRifle", Squad: "east"},
 	}
 	weapons := []EquipCandidateWeapon{
 		loose("launcher", "Gun_EmpLauncher", WeaponRanged),
-		loose("emp1", "Grenade_EMP", WeaponRanged),
-		loose("emp2", "Grenade_EMP", WeaponRanged),
+		loose("emp1", "Weapon_GrenadeEMP", WeaponRanged),
+		loose("emp2", "Weapon_GrenadeEMP", WeaponRanged),
 	}
 	got := orderPairs(ThreatLoadout(LoadoutEMP, defenders, weapons, nil))
 	want := [][3]string{{"c", "equip", "emp1"}, {"d", "equip", "emp2"}}

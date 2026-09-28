@@ -53,9 +53,9 @@ var weaponProfiles = map[string]WeaponProfile{
 	"Gun_EmpLauncher":        {Range: 23, ForcedMiss: true},
 	"Gun_TripleRocket":       {DPS: 50, Range: 40, ForcedMiss: true},
 	"Gun_DoomsdayRocket":     {DPS: 50, Range: 40, ForcedMiss: true},
-	"Grenade_Frag":           {DPS: 20, Range: 13, ForcedMiss: true},
-	"Grenade_EMP":            {Range: 13, ForcedMiss: true},
-	"Grenade_Molotov":        {DPS: 8, Range: 13, ForcedMiss: true},
+	"Weapon_GrenadeFrag":     {DPS: 20, Range: 13, ForcedMiss: true},
+	"Weapon_GrenadeEMP":      {Range: 13, ForcedMiss: true},
+	"Weapon_GrenadeMolotov":  {DPS: 8, Range: 13, ForcedMiss: true},
 }
 
 func ProfileWeapon(w EquipCandidateWeapon) WeaponProfile {

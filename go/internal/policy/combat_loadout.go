@@ -30,7 +30,7 @@ const (
 
 // empWeapons are the EMP primaries a carrier throws or fires; the grenade
 // first (#1048: EMP is thrown as the carrier's equipped primary).
-var empWeapons = []string{"Grenade_EMP", "Gun_EmpLauncher"}
+var empWeapons = []string{"Weapon_GrenadeEMP", "Gun_EmpLauncher"}
 
 // bluntWeapons are the blunt melee weapons a warden subdues with.
 var bluntWeapons = map[string]bool{"MeleeWeapon_Club": true, "MeleeWeapon_Mace": true, "MeleeWeapon_Warhammer": true}

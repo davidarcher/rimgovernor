@@ -135,6 +135,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	counterBattery(view, &next)
 	rocketClumps(view, &next)
 	flank(view, &next)
+	grenade(view, &next)
 	// Contained raiders who will not bleed down are finished in melee (#1036).
 	finishContained(view, &next)
 	rescue, ask := rescueStep(view, geometry, stop, &next, orderable, state)
