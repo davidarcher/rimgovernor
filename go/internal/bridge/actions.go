@@ -77,6 +77,7 @@ func init() {
 	registerIntentKind(domain.MoodReliefAction, moodReliefAction)
 	registerIntentKind(domain.GearReplaceAction, wearAction)
 	registerIntentKind(domain.UseItemAction, useItemAction)
+	registerIntentKind(domain.StripAction, stripAction)
 }
 
 // movementAction is the Actions/Apply move arm of one domain movement.

@@ -114,17 +114,20 @@ namespace HomeBridge.BridgeTools
     }
 
     // DesignateIntent dispatches by designation: CUT_PLANT to the blight
-    // responder, ALLOW/FORBID to the supply census's item rules.
+    // responder, STRIP to NativeStrip (#1117), ALLOW/FORBID to the supply census's item rules.
     internal sealed class DesignateActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
             var intent = action.Designate;
             if (intent != null && intent.HasDesignation && intent.Designation == Operations.ThingDesignation.CutPlant) return NativeCutPlant.Validate(intent, context);
+            if (intent != null && intent.HasDesignation && intent.Designation == Operations.ThingDesignation.Strip) return NativeStrip.Validate(intent, context);
             if (NativeSupplyAllow.Wants(intent)) return NativeSupplyAllow.Validate(intent!, context);
-            return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Designate supports only CutPlant, Allow and Forbid.");
+            return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Designate supports only CutPlant, Strip, Allow and Forbid.");
         }
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
-            action.Designate.Designation == Operations.ThingDesignation.CutPlant ? NativeCutPlant.Apply(action.Designate, context) : NativeSupplyAllow.Apply(action.Designate, context);
+            action.Designate.Designation == Operations.ThingDesignation.CutPlant ? NativeCutPlant.Apply(action.Designate, context)
+            : action.Designate.Designation == Operations.ThingDesignation.Strip ? NativeStrip.Apply(action.Designate, context)
+            : NativeSupplyAllow.Apply(action.Designate, context);
     }
 }

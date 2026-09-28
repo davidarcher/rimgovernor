@@ -118,7 +118,7 @@ func actionLabor(action domain.Action) policy.LaborProfile {
 	switch action.Kind() {
 	case domain.BuildingAction, domain.DeconstructionAction, domain.WallRemovalAction, domain.RepairAction, domain.MoveBuildingAction, domain.UninstallBuildingAction:
 		return policy.LaborProfile{policy.WorkConstruction}
-	case domain.HaulAction:
+	case domain.HaulAction, domain.StripAction:
 		return policy.LaborProfile{policy.WorkHauling}
 	case domain.CutPlantAction:
 		return policy.LaborProfile{policy.WorkPlantCutting}

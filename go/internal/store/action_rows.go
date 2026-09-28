@@ -82,6 +82,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 	} else if use, ok := a.UseItem(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'use_item',?,?,?)", a.ID(), plan, ordinal, use.Pawn(), use.Target(), use.Item())
+	} else if strip, ok := a.Strip(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target) VALUES(?,?,?,'strip',?)", a.ID(), plan, ordinal, strip.Target())
 	} else if mv, ok := a.Movement(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,x,z,draft_action) VALUES(?,?,?,'movement',?,?,?,?)", a.ID(), plan, ordinal, mv.Pawn(), mv.Destination().X, mv.Destination().Z, mv.DraftAction())
 	} else if haul, ok := a.Haul(); ok {
@@ -604,6 +606,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewUseItemAction(id, u)
+		return a, ordinal, err
+	}
+	if kind == "strip" && target.Valid && !pawn.Valid && !def.Valid && !draftAction.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		s, err := domain.NewStrip(target.String)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewStripAction(id, s)
 		return a, ordinal, err
 	}
 	if kind == "movement" && pawn.Valid && !target.Valid && x.Valid && z.Valid && draftAction.Valid && !def.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {

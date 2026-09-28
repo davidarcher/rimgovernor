@@ -108,6 +108,7 @@ type Action struct {
 	rescue              Rescue
 	capture             Capture
 	useItem             UseItem
+	strip               Strip
 	movement            Movement
 	haul                Haul
 	equip               Equip
@@ -284,6 +285,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewCaravanDepartureAction(a.id, a.caravanDeparture)
 		case UseItemAction:
 			canonical, err = NewUseItemAction(a.id, a.useItem)
+		case StripAction:
+			canonical, err = NewStripAction(a.id, a.strip)
 		default:
 			return PlanSpec{}, errors.New("unsupported action variant")
 		}

@@ -149,6 +149,9 @@ const (
 	ThingDesignation_THING_DESIGNATION_DECONSTRUCT   ThingDesignation = 5
 	// CutPlant on one exact blighted plant (ColonyFactsSnapshot.blighted_plants).
 	ThingDesignation_THING_DESIGNATION_CUT_PLANT ThingDesignation = 6
+	// Strip on one exact spawned pawn or corpse wearing or carrying
+	// strippable gear (#1117); colonists strip it through Hauling work.
+	ThingDesignation_THING_DESIGNATION_STRIP ThingDesignation = 7
 )
 
 // Enum value maps for ThingDesignation.
@@ -161,6 +164,7 @@ var (
 		4: "THING_DESIGNATION_HARVEST_PLANT",
 		5: "THING_DESIGNATION_DECONSTRUCT",
 		6: "THING_DESIGNATION_CUT_PLANT",
+		7: "THING_DESIGNATION_STRIP",
 	}
 	ThingDesignation_value = map[string]int32{
 		"THING_DESIGNATION_UNSPECIFIED":   0,
@@ -170,6 +174,7 @@ var (
 		"THING_DESIGNATION_HARVEST_PLANT": 4,
 		"THING_DESIGNATION_DECONSTRUCT":   5,
 		"THING_DESIGNATION_CUT_PLANT":     6,
+		"THING_DESIGNATION_STRIP":         7,
 	}
 )
 
@@ -7835,7 +7840,7 @@ const file_operations_proto_rawDesc = "" +
 	"\x1aCOMBAT_DOOR_MODE_HOLD_OPEN\x10\x01\x12\x1a\n" +
 	"\x16COMBAT_DOOR_MODE_CLOSE\x10\x02\x12\x1b\n" +
 	"\x17COMBAT_DOOR_MODE_FORBID\x10\x03\x12\x1a\n" +
-	"\x16COMBAT_DOOR_MODE_ALLOW\x10\x04*\xf5\x01\n" +
+	"\x16COMBAT_DOOR_MODE_ALLOW\x10\x04*\x92\x02\n" +
 	"\x10ThingDesignation\x12!\n" +
 	"\x1dTHING_DESIGNATION_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17THING_DESIGNATION_ALLOW\x10\x01\x12\x1c\n" +
@@ -7843,7 +7848,8 @@ const file_operations_proto_rawDesc = "" +
 	"\x16THING_DESIGNATION_HUNT\x10\x03\x12#\n" +
 	"\x1fTHING_DESIGNATION_HARVEST_PLANT\x10\x04\x12!\n" +
 	"\x1dTHING_DESIGNATION_DECONSTRUCT\x10\x05\x12\x1f\n" +
-	"\x1bTHING_DESIGNATION_CUT_PLANT\x10\x06*Z\n" +
+	"\x1bTHING_DESIGNATION_CUT_PLANT\x10\x06\x12\x1b\n" +
+	"\x17THING_DESIGNATION_STRIP\x10\a*Z\n" +
 	"\fPowerSetting\x12\x1d\n" +
 	"\x19POWER_SETTING_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10POWER_SETTING_ON\x10\x01\x12\x15\n" +
