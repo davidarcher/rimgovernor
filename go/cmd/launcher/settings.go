@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // Settings are the launcher's persisted choices (.rimgovernor/launcher.json),
@@ -19,7 +22,8 @@ type Settings struct {
 	Observe bool `json:"observe"`
 	// AutoStart is --resume: run the bot on every native load.
 	AutoStart bool `json:"autoStart"`
-	// ContinueState reuses the newest .rimgovernor/go/state-*.sqlite.
+	// ContinueState reuses the newest .rimgovernor/go/state-*.sqlite when
+	// the bot was running there (see StatePath).
 	ContinueState bool   `json:"continueState"`
 	ChatModel     string `json:"chatModel"`
 	ChatBaseURL   string `json:"chatBaseURL"`
@@ -152,17 +156,49 @@ func SplitArgs(text string) ([]string, error) {
 	return out, nil
 }
 
-// StatePath is the state database to serve: the newest state-*.sqlite in
-// dir when continuing and one exists, else a fresh stamped name.
-func StatePath(dir string, continueState bool, now time.Time) string {
-	if continueState {
-		matches, _ := filepath.Glob(filepath.Join(dir, "state-*.sqlite"))
-		if len(matches) > 0 {
-			sort.Strings(matches)
-			return matches[len(matches)-1]
-		}
+// StatePath is the state database to serve and a plain line saying why:
+// the newest state-*.sqlite in dir when continuing and the last session
+// left the bot running there (a live control record, #1132), else a fresh
+// stamped name. The controller must be stopped: live opens the database.
+func StatePath(dir string, continueState bool, now time.Time, live func(path string) (bool, error)) (string, string) {
+	fresh := filepath.Join(dir, "state-"+now.Format("20060102-150405")+".sqlite")
+	if !continueState {
+		return fresh, "starting fresh state " + filepath.Base(fresh) + " (continue is off)"
 	}
-	return filepath.Join(dir, "state-"+now.Format("20060102-150405")+".sqlite")
+	matches, _ := filepath.Glob(filepath.Join(dir, "state-*.sqlite"))
+	if len(matches) == 0 {
+		return fresh, "starting fresh state " + filepath.Base(fresh) + " (no earlier state)"
+	}
+	sort.Strings(matches)
+	newest := matches[len(matches)-1]
+	ok, err := live(newest)
+	switch {
+	case err != nil:
+		return fresh, fmt.Sprintf("starting fresh state %s (could not read %s: %v)", filepath.Base(fresh), filepath.Base(newest), err)
+	case !ok:
+		return fresh, fmt.Sprintf("starting fresh state %s (the bot was not running in %s)", filepath.Base(fresh), filepath.Base(newest))
+	}
+	return newest, "continuing state " + filepath.Base(newest) + " (the bot was running)"
+}
+
+// LiveControl reports whether the state database at path last recorded
+// the bot running (a resume that took effect).
+func LiveControl(path string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	s, err := store.Open(ctx, path)
+	if err != nil {
+		return false, err
+	}
+	defer s.Close()
+	r, err := s.CurrentControl(ctx)
+	if errors.Is(err, store.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return r.Request.Kind == store.ResumeControl && r.Phase == store.RunningControl, nil
 }
 
 // ConfiguredGame is the one game id config.json lists (games.<id>, the launch

@@ -39,6 +39,9 @@ func healthy(url string) bool {
 func (a *app) ready() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.busy[jobController] {
+		return "Still rebuilding the controller"
+	}
 	for _, art := range a.artifacts {
 		switch {
 		case art.State == StateOK, art.State == StatePending:
@@ -52,6 +55,12 @@ func (a *app) ready() string {
 }
 
 func (a *app) play() {
+	// Serve only the finished rimgovernor.exe: a rebuild in flight would
+	// otherwise leave the old binary running (#1132).
+	for deadline := time.Now().Add(5 * time.Minute); a.isBusy(jobController) && time.Now().Before(deadline); {
+		a.setController(ctrlStopped, "Waiting for the controller rebuild")
+		time.Sleep(250 * time.Millisecond)
+	}
 	if why := a.ready(); why != "" {
 		a.setController(ctrlStopped, why)
 		return
@@ -109,11 +118,13 @@ func (a *app) start(s Settings) error {
 	}
 	goDir := filepath.Join(a.private, "go")
 	now := time.Now()
+	state, why := StatePath(goDir, s.ContinueState, now, LiveControl)
+	a.logf("%s", why)
 	paths := Paths{
 		Profile: filepath.Join(a.layout.Root, "profile"),
 		Config:  config,
 		Game:    game,
-		State:   StatePath(goDir, s.ContinueState, now),
+		State:   state,
 		Assets:  filepath.Join(a.dashboardDir(), "dist"),
 	}
 	args, err := ServeArgs(s, paths, port)

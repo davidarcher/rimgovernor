@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -8,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 var testPaths = Paths{Profile: `C:\p`, Config: `C:\c`, Game: "rimgovernor-trial", State: `C:\s.sqlite`, Assets: `C:\a`}
@@ -98,17 +102,65 @@ func TestStatePath(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Date(2026, 9, 26, 10, 0, 0, 0, time.UTC)
 	fresh := filepath.Join(dir, "state-20260926-100000.sqlite")
-	if got := StatePath(dir, true, now); got != fresh {
-		t.Fatalf("empty dir: %s", got)
+	var asked string
+	var running func(string) (bool, error)
+	live := func(p string) (bool, error) { asked = p; return running(p) }
+	running = func(string) (bool, error) { return true, nil }
+	if got, why := StatePath(dir, true, now, live); got != fresh || !strings.Contains(why, "no earlier state") {
+		t.Fatalf("empty dir: %s (%s)", got, why)
 	}
 	for _, n := range []string{"state-20260101-000000.sqlite", "state-20260301-000000.sqlite"} {
 		os.WriteFile(filepath.Join(dir, n), nil, 0644)
 	}
-	if got := StatePath(dir, true, now); filepath.Base(got) != "state-20260301-000000.sqlite" {
-		t.Fatalf("continue: %s", got)
+	if got, why := StatePath(dir, true, now, live); filepath.Base(got) != "state-20260301-000000.sqlite" || filepath.Base(asked) != filepath.Base(got) || !strings.Contains(why, "continuing") {
+		t.Fatalf("continue: %s (%s)", got, why)
 	}
-	if got := StatePath(dir, false, now); got != fresh {
-		t.Fatalf("fresh: %s", got)
+	running = func(string) (bool, error) { return false, nil }
+	if got, why := StatePath(dir, true, now, live); got != fresh || !strings.Contains(why, "not running") {
+		t.Fatalf("no live control: %s (%s)", got, why)
+	}
+	running = func(string) (bool, error) { return false, errors.New("locked") }
+	if got, why := StatePath(dir, true, now, live); got != fresh || !strings.Contains(why, "locked") {
+		t.Fatalf("unreadable: %s (%s)", got, why)
+	}
+	if got, why := StatePath(dir, false, now, live); got != fresh || !strings.Contains(why, "continue is off") {
+		t.Fatalf("fresh: %s (%s)", got, why)
+	}
+}
+
+func TestLiveControl(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "state.sqlite")
+	s, err := store.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	if ok, err := LiveControl(path); ok || err != nil {
+		t.Fatalf("no record: %v %v", ok, err)
+	}
+	world := store.World{Colony: "colony", Load: "load"}
+	step := func(id string, kind store.ControlKind, phase store.ControlPhase, g domain.NativeGeneration) {
+		t.Helper()
+		s, err := store.Open(ctx, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+		if _, _, err := s.BeginControl(ctx, store.ControlRequest{RequestID: id, Kind: kind, World: world}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.CompleteControl(ctx, id, phase, g); err != nil {
+			t.Fatal(err)
+		}
+	}
+	step("resume1", store.ResumeControl, store.RunningControl, 3)
+	if ok, err := LiveControl(path); !ok || err != nil {
+		t.Fatalf("running: %v %v", ok, err)
+	}
+	step("pause1", store.PauseControl, store.PausedControl, 0)
+	if ok, err := LiveControl(path); ok || err != nil {
+		t.Fatalf("paused: %v %v", ok, err)
 	}
 }
 
