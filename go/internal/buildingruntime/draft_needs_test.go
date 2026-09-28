@@ -83,3 +83,74 @@ func TestPlannedDraftsCoversInFlightAndFights(t *testing.T) {
 		t.Fatal(needed)
 	}
 }
+
+// #1151: a fight whose admission batch went out uncertain (dispatched, no
+// receipt) holds its whole intended roster; once it closes and its drafts
+// settle, another plan's owned draft on a rostered pawn keeps that pawn
+// drafted. The fight row is keyed by plan, so closing it frees nothing
+// another plan owns.
+func TestClosedFightLeavesAnotherPlansDraft(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "fight.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var actions []domain.Action
+	for _, pawn := range []domain.PawnID{"shared", "solo"} {
+		d, _ := domain.NewOwnedDraft(pawn)
+		a, _ := domain.NewOwnedDraftAction(domain.ActionID("admit-"+pawn), d)
+		actions = append(actions, a)
+	}
+	fight, err := domain.NewPlan("fight", 1, actions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.CreatePlan(ctx, fight); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.OpenCombatFight(ctx, "fight", policy.CombatMemory{}, store.World{Colony: "colony", Load: "load", Map: 1}, []domain.PawnID{"shared", "solo"}); err != nil {
+		t.Fatal(err)
+	}
+	s := domain.GenerationSnapshot{Colony: "colony", Load: "load", Plan: "fight", Revision: 1, Native: 2}
+	for _, id := range []domain.ActionID{"admit-shared", "admit-solo"} {
+		if _, err = db.Prepare(ctx, "fight", id, s, 10); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Dispatch(ctx, "fight", id, s, 10); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d, _ := domain.NewOwnedDraft("shared")
+	a, _ := domain.NewOwnedDraftAction("guard-shared", d)
+	guard, err := domain.NewPlan("guard", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.CreatePlan(ctx, guard); err != nil {
+		t.Fatal(err)
+	}
+	needed, err := plannedDrafts(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !needed["shared"] || !needed["solo"] {
+		t.Fatalf("open fight after an uncertain batch: needed %v", needed)
+	}
+	if err = db.CloseCombatFight(ctx, "fight"); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []domain.ActionID{"admit-shared", "admit-solo"} {
+		if _, err = db.RecordReceipt(ctx, "fight", id, 1, domain.ReceiptAccepted); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if needed, err = plannedDrafts(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	got := undraftCandidates([]*n.PawnState{draftedRow("shared", "Wait_Combat"), draftedRow("solo", "Wait_Combat")}, needed)
+	if want := []domain.PawnID{"solo"}; !slices.Equal(got, want) {
+		t.Fatalf("after the fight closed: candidates %v, want %v (needed %v)", got, want, needed)
+	}
+}
