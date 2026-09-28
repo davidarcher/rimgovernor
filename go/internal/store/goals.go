@@ -502,9 +502,6 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current 
 	if retired {
 		return errors.New("retired plan does not admit work")
 	}
-	if err := guardRetirementFloor(ctx, tx, current, tick); err != nil {
-		return err
-	}
 	var id sql.NullString
 	var incident sql.NullString
 	var epoch string

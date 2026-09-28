@@ -10,25 +10,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Retained floors prevent old resource observations from becoming spendable
-// when their completed reservations leave the active catalog.
-func guardRetirementFloor(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) error {
-	var floor domain.Tick
-	err := tx.QueryRowContext(ctx, "SELECT tick FROM retirement_floors WHERE colony=? AND load_token=? AND map_id=?", current.Colony, current.Load, current.Map).Scan(&floor)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if floor < 0 || tick < floor {
-		return errors.New("observation predates retired accounting evidence")
-	}
-	return nil
-}
-
 // settledRetirementOutcome is dispatched evidence that settles an action for
-// retirement, so it also sets the retirement floor: a completed effect, a
+// retirement: a completed effect, a
 // building that ended unsuccessful, or a building intent native refused
 // (#856: a refusal is terminal, Unsuccessful with an absent effect).
 func settledRetirementOutcome(progress domain.Progress) bool {
@@ -133,15 +116,6 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		}
 		if g.Revision == ^uint64(0) {
 			return ErrCapacity
-		}
-		for _, progress := range p.Progress {
-			w := progress.View()
-			if settledRetirementOutcome(progress) {
-				s := w.Snapshot
-				if _, err = tx.ExecContext(ctx, "INSERT INTO retirement_floors(colony,load_token,map_id,tick) VALUES(?,?,?,?) ON CONFLICT(colony,load_token,map_id) DO UPDATE SET tick=max(tick,excluded.tick)", s.Colony, s.Load, s.Map, w.Tick); err != nil {
-					return err
-				}
-			}
 		}
 		if _, err = tx.ExecContext(ctx, "UPDATE plans SET retired=1 WHERE id=?", v.plan); err != nil {
 			return err
