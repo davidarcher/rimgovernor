@@ -256,6 +256,7 @@ func (b *gameBackend) connect(ctx context.Context) json.RawMessage {
 		return b.refuse(map[string]any{"status": "running"}, "game %q has no attachable endpoint yet: tools/list: %v", b.gameID, err)
 	}
 	welcome := conn.Welcome()
+	var acknowledged json.RawMessage
 	if slices.Contains(welcome.Capabilities.Methods, attentionCurrent) && slices.Contains(welcome.Capabilities.Methods, attentionAck) {
 		state.supported = true
 		var channels []string
@@ -270,6 +271,7 @@ func (b *gameBackend) connect(ctx context.Context) json.RawMessage {
 		if raw, err := conn.Call(dialCtx, attentionCurrent, struct{}{}); err == nil {
 			b.setAttention(state, currentAttention(raw))
 		}
+		acknowledged = b.ackPreexisting(dialCtx, conn, state)
 	}
 	b.mu.Lock()
 	if b.closed {
@@ -280,7 +282,49 @@ func (b *gameBackend) connect(ctx context.Context) json.RawMessage {
 	b.conn, b.tools, b.attention, b.game, b.stopping = conn, tools, state, game, false
 	b.mu.Unlock()
 	go b.watch(conn)
-	return receiptEnvelope(b.gameFields(game, map[string]any{"success": true, "status": "connected", "toolCount": len(tools)}), false)
+	fields := map[string]any{"success": true, "status": "connected", "toolCount": len(tools)}
+	if acknowledged != nil {
+		fields["acknowledgedAttention"] = acknowledged
+	}
+	return receiptEnvelope(b.gameFields(game, fields), false)
+}
+
+// ackPreexisting acknowledges a blocking attention item already open when
+// the controller attaches: the game logged it while booting or loading a
+// save, before any controller call it could be about, and left open it
+// refuses every native call so the bot never starts. The item rides the
+// connect receipt so the flight recorder keeps its text. Items opened
+// after attach still block until a caller acknowledges them.
+func (b *gameBackend) ackPreexisting(ctx context.Context, conn *gabp.Conn, state *attentionState) json.RawMessage {
+	b.mu.Lock()
+	item := state.current
+	b.mu.Unlock()
+	if blockingItem(item) == nil {
+		return nil
+	}
+	var id struct {
+		AttentionID string `json:"attentionId"`
+	}
+	if json.Unmarshal(item, &id) != nil || id.AttentionID == "" {
+		return nil
+	}
+	raw, err := conn.Call(ctx, attentionAck, map[string]string{"attentionId": id.AttentionID})
+	if err != nil {
+		return nil
+	}
+	var result struct {
+		Acknowledged     bool            `json:"acknowledged"`
+		CurrentAttention json.RawMessage `json:"currentAttention"`
+	}
+	if json.Unmarshal(raw, &result) != nil || !result.Acknowledged {
+		return nil
+	}
+	current := result.CurrentAttention
+	if string(current) == "null" {
+		current = nil
+	}
+	b.setAttention(state, current)
+	return item
 }
 
 // watch ends the session when conn drops on its own. games_stop and close

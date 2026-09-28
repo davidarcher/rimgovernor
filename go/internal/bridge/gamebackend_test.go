@@ -285,3 +285,23 @@ func TestGameSessionLaunchesAndStops(t *testing.T) {
 		t.Fatalf("relative state dir: %v", err)
 	}
 }
+
+func TestConnectAcknowledgesAttentionOpenBeforeAttach(t *testing.T) {
+	game := startFakeGame(t)
+	game.open(map[string]any{"attentionId": "att-load", "state": "open", "blocking": true, "summary": "save load error"})
+	client := openGameClient(t, game.spec)
+	started, err := client.GamesStart(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	connected, err := client.ConnectWithPoll(context.Background(), started)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(connected.Structured), "att-load") {
+		t.Fatalf("connect receipt omits the acknowledged item: %s", connected.Structured)
+	}
+	if _, err := client.NativeCall(context.Background(), "fixture/read", nil); err != nil {
+		t.Fatalf("call after attach: %v", err)
+	}
+}
