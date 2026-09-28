@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
                 // !Roofed for a valid dirty dumping stockpile -- impossible
                 // to ever observe as Complete: a real live run confirmed the
                 // haul physically finished (the item genuinely relocated)
-                // while receipts_observe_progress stayed Pending forever.
+                // while its progress stayed Pending forever.
                 protectedAll &= thing.Spawned && thing.Map.uniqueID == r.MapId && thing.IsInValidStorage();
             }
             if (protectedAll) { r.Complete = true; r.CompletedTick = Find.TickManager.TicksGame; }

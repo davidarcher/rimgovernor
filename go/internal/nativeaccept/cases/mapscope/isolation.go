@@ -31,7 +31,7 @@ func run(ctx context.Context, s cases.Session) error {
 	h, home := s.Harness(), s.Identity()
 	for _, tool := range []string{"rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/observations_read_status",
 		"rimgovernor/observations_list_pawns", "rimgovernor/presentation_colonists", "rimgovernor/presentation_selection",
-		"rimgovernor/operations_execute", "test/map_scope_generate", "test/map_scope_view"} {
+		"test/map_scope_generate", "test/map_scope_view"} {
 		if !na.Contains(s.Names(), tool) {
 			return fmt.Errorf("missing %s in discovery (fixture build required)", tool)
 		}

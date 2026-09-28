@@ -40,46 +40,6 @@ namespace HomeBridge.BridgeTools
     {
         public NativeOperationTools() { NativeDrugPolicy.Install(); MiningGuard.Install(); HomeCoverage.Install(); NativePawnControlState.Initialize(); }
 
-        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "No operation arm executes here any more; every write goes through Actions/Apply. Exact retries return their original receipt.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
-        public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official operations ExecuteRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_execute", request, Operations.ExecuteRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Operations.ExecuteReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(ExecuteNative(parsed)), cancellationToken).ConfigureAwait(false);
-        }
-
-        // Jobs, blueprints and designations made inside the op carry its
-        // intent to the activity overlay (#822).
-        internal static Operations.ExecuteReply ExecuteNative(Operations.ExecuteRequest request)
-        {
-            // The next snapshot frame reflects the op, applied or refused (#858).
-            try
-            {
-                using (OperationIntent.Scope(request.Operation?.HasIntent == true ? request.Operation.Intent : null))
-                    return ExecuteNativeCore(request);
-            }
-            finally { SnapshotStream.NoteWrite(); }
-        }
-
-        private static Operations.ExecuteReply ExecuteNativeCore(Operations.ExecuteRequest request)
-        {
-            var precondition = request.Precondition;
-            if (precondition == null || !precondition.HasExpectedGeneration || precondition.ExpectedGeneration == 0
-                || !ValidAttempt(precondition.Attempt))
-                return Refuse(Common.FailureCode.InvalidRequest, "A complete authority precondition and positive attempt are required.");
-            if (!ProtoBoundary.ValidateIdentity(precondition.Identity, out var context, out var failure))
-                return new Operations.ExecuteReply { Failure = failure };
-            if (request.Operation == null || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.None)
-                return Refuse(Common.FailureCode.InvalidRequest, "An operation is required.");
-            var state = NativeOperationState.ForAdmission(context.Identity);
-            NativeDrugPolicy.Install();
-            var prior = state.Ledger.Inspect("rimgovernor.operations.v1.Operations/Execute", request);
-            if (prior.Kind != NativeAttemptLedger.DecisionKind.New) return prior.DecidedReply;
-            return Refuse(Common.FailureCode.Unsupported, "This native adapter does not implement the " + request.Operation.CommandCase + " operation; buildings are placed through Actions/Apply.");
-        }
-
         [Tool("rimgovernor/operations_preview", Title = "Preview typed operation", Description = "Read exact supply Allow, work priorities, drafting, movement or melee, direct-bullet or supported injury-only explosive attack eligibility without acquiring authority or applying effects.")]
         [ToolResponse("payload", "string", "Official ProtoJSON PreviewReply.", Always = true)]
         public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,
@@ -114,33 +74,8 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("rimgovernor/receipts_observe_progress", Title = "Observe admitted operation", Description = "Read causally tracked supply Allow, work priorities, draft, movement or melee, direct-bullet or supported injury-only explosive outcomes; absence of an attempt never proves completion.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ProgressReply.", Always = true)]
-        public async Task<object> ObserveProgress(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official receipts ProgressRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/receipts_observe_progress", request, Receipts.ProgressRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () =>
-            {
-                if (!ValidAttempt(parsed.Attempt)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") });
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                    return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = invalid });
-                if (NativeOperationState.TryGet(context.Identity, out var state))
-                {
-                    var lookup = state.Ledger.Lookup(parsed.Attempt, context);
-                    if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
-                }
-                var progress = new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
-                    Unknown = new Receipts.UnknownEffect { Reason = "No tracked effect is available for this attempt." } };
-                return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = progress });
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
         private static bool ValidAttempt([NotNullWhen(true)] Common.AttemptKey? value) => value != null && value.HasControllerSessionId
             && ProtoBoundary.IsIdentifier(value.ControllerSessionId) && value.HasActionId && ProtoBoundary.IsIdentifier(value.ActionId)
             && value.HasAttemptId && value.AttemptId > 0;
-        private static Operations.ExecuteReply Refuse(Common.FailureCode code, string detail) => new Operations.ExecuteReply
-        { Failure = ProtoBoundary.Fail(code, detail) };
     }
 }

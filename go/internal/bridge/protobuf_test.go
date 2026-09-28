@@ -11,7 +11,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -127,7 +126,7 @@ func TestOfficialReadSDKBoundary(t *testing.T) {
 	if rows[0].Available != nil || rows[1].Available == nil {
 		t.Fatal("unknown/zero material conflated")
 	}
-	for _, name := range []string{"home/colony_identity", "home/status", "home/placement_previews", "rimgovernor/operations_execute", "rimgovernor/lifecycle_load"} {
+	for _, name := range []string{"home/colony_identity", "home/status", "home/placement_previews", "rimgovernor/operations_apply", "rimgovernor/lifecycle_load"} {
 		if _, err = client.protoRead(context.Background(), name, &l.IdentityRequest{}, &l.IdentityReply{}); !errors.Is(err, ErrContract) {
 			t.Fatalf("unapproved name accepted: %s", name)
 		}
@@ -274,7 +273,7 @@ func TestStatusRejectsUnknownBinaryIdentityBeforeDispatch(t *testing.T) {
 func TestTypedAdapterTransportRemainsClosed(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	client := testClient(t, s, testBudget)
-	for _, name := range []string{"rimgovernor/authority_control", "rimgovernor/operations_execute", "rimgovernor/clock_control"} {
+	for _, name := range []string{"rimgovernor/authority_control", "rimgovernor/operations_apply", "rimgovernor/clock_control"} {
 		if _, err := client.protoRead(context.Background(), name, &l.IdentityRequest{}, &l.IdentityReply{}); !errors.Is(err, ErrContract) {
 			t.Fatalf("mutation admitted through read: %s", name)
 		}
@@ -295,9 +294,7 @@ func TestAdditionalTypedSDKFailures(t *testing.T) {
 	}{
 		{"rimgovernor/authority_read_status", &a.StatusRequest{}, &a.StatusReply{Outcome: &a.StatusReply_Failure{Failure: f}}, &a.StatusReply{}, true},
 		{"rimgovernor/authority_control", &a.ControlRequest{}, &a.ControlReply{Outcome: &a.ControlReply_Failure{Failure: f}}, &a.ControlReply{}, false},
-		{"rimgovernor/operations_execute", &op.ExecuteRequest{}, &op.ExecuteReply{Outcome: &op.ExecuteReply_Failure{Failure: f}}, &op.ExecuteReply{}, false},
 		{"rimgovernor/receipts_lookup", &r.LookupRequest{}, &r.LookupReply{Outcome: &r.LookupReply_Failure{Failure: f}}, &r.LookupReply{}, true},
-		{"rimgovernor/receipts_observe_progress", &r.ProgressRequest{}, &r.ProgressReply{Outcome: &r.ProgressReply_Failure{Failure: f}}, &r.ProgressReply{}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

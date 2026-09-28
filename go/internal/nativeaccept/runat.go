@@ -267,43 +267,6 @@ func RunUntil(ctx context.Context, h *Harness, label string, ticks uint64, w Wai
 	return elapsed, err
 }
 
-// ObserveCompleted runs the game (RunUntil) until every attempt is observed
-// Completed through receipts_observe_progress, within ticks of game time,
-// and returns each attempt's completed body in order. An attempt observed
-// Unsuccessful fails the wait at once.
-func ObserveCompleted(ctx context.Context, h *Harness, label string, ticks uint64, attempts ...map[string]any) ([]map[string]any, error) {
-	completed := make([]map[string]any, len(attempts))
-	_, err := RunUntil(ctx, h, label, ticks, Wait{Stall: StallBudget()}, func(ctx context.Context) (string, bool, error) {
-		pending := 0
-		for i, attempt := range attempts {
-			if completed[i] != nil {
-				continue
-			}
-			reply, err := h.Wire(ctx, fmt.Sprintf("%s-observe-%d", label, i), "receipts_observe_progress", attempt)
-			if err != nil {
-				return "", false, err
-			}
-			_, progress, err := Outcome(reply, "progress")
-			if err != nil {
-				return "", false, err
-			}
-			if unsuccessful, ok := AsMap(progress["unsuccessful"]); ok {
-				return "", false, fmt.Errorf("%s: attempt %d became unsuccessful before completion: %#v", label, i, unsuccessful)
-			}
-			if body, ok := AsMap(progress["completed"]); ok {
-				completed[i] = body
-				continue
-			}
-			pending++
-		}
-		return Signature(len(attempts) - pending), pending == 0, nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", label, err)
-	}
-	return completed, nil
-}
-
 // ClockSpeedEnv overrides the clock speed a serve-driven harness runs
 // rimgovernor serve at; the default is Ultrafast (#265). Normal, Fast,
 // Superfast and Ultrafast are admitted. Ultrafast asks for test

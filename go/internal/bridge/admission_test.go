@@ -24,7 +24,7 @@ func TestEveryReviewedMethodHasAnAdmissionClass(t *testing.T) {
 	for name, want := range map[string]AdmissionClass{
 		"rimgovernor/clock_renew":              AdmissionControl,
 		"rimgovernor/clock_pause":              AdmissionControl,
-		"rimgovernor/operations_execute":       AdmissionControl,
+		"rimgovernor/operations_apply":         AdmissionControl,
 		"rimgovernor/observations_read_status": AdmissionObservation,
 		"rimgovernor/observations_list_pawns":  AdmissionObservation,
 		"games_status":                         AdmissionControl,

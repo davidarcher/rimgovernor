@@ -19,13 +19,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-const sessionOwner = "native-apply-refusal-acceptance"
-
 func init() {
 	cases.Register(cases.Case{
 		Name: "apply/refusal",
 		Scope: "Apply-time precondition refusals (#242, #252): for zone cell edit, stockpile patch, zone creation, " +
-			"Allow, haul, work settings, bills, build, tame and grower crop, " +
+			"haul, work settings, bills, build, tame and grower crop, " +
 			"a write whose token was valid when read is executed after the fixture moved the world and is refused " +
 			"with the documented reason naming the moved fact.",
 		// clutter plants every bare cell around the colonist before the
@@ -43,7 +41,7 @@ func run(ctx context.Context, s cases.Session) error {
 	h := s.Harness()
 	identity := s.Identity()
 	prepared := s.Prepared()
-	for _, required := range []string{"rimgovernor/operations_execute", "rimgovernor/operations_apply", "rimgovernor/placement_preview", "rimgovernor/observations_list_pawns", "test/apply_refusal_move"} {
+	for _, required := range []string{"rimgovernor/operations_apply", "rimgovernor/placement_preview", "rimgovernor/observations_list_pawns", "test/apply_refusal_move"} {
 		if !na.Contains(s.Names(), required) {
 			return fmt.Errorf("missing %s in discovery", required)
 		}
@@ -85,7 +83,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	buildCell := cellOf("buildCell")
 	tokens := map[string]string{}
-	for _, key := range []string{"zoneId", "itemId", "itemToken", "haulItemId", "pawnId", "tameId", "growerId", "growerCrop"} {
+	for _, key := range []string{"zoneId", "haulItemId", "pawnId", "tameId", "growerId", "growerCrop"} {
 		if tokens[key], err = str(key); err != nil {
 			return err
 		}
@@ -93,18 +91,6 @@ func run(ctx context.Context, s cases.Session) error {
 
 	if _, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity); err != nil {
 		return err
-	}
-	generation := func(label string) (any, error) {
-		reply, err := h.Wire(ctx, label, "authority_read_status", map[string]any{"identity": identity})
-		if err != nil {
-			return nil, err
-		}
-		_, status, err := na.Outcome(reply, "status")
-		if err != nil {
-			return nil, err
-		}
-		statusContext, _ := na.AsMap(status["context"])
-		return statusContext["nativeGeneration"], nil
 	}
 	move := func(label string, args map[string]any) error {
 		result, err := h.Call(ctx, label, "test/apply_refusal_move", args)
@@ -114,34 +100,6 @@ func run(ctx context.Context, s cases.Session) error {
 		if success, _ := na.AsBool(result["success"]); !success {
 			return fmt.Errorf("%s: fixture move refused: %#v", label, result)
 		}
-		return nil
-	}
-	// refused executes operation under a fresh generation and asserts the
-	// reply is a failure whose code and detail are the documented ones.
-	refused := func(label string, operation map[string]any, code, detail string) error {
-		current, err := generation("generation-" + label)
-		if err != nil {
-			return err
-		}
-		reply, err := h.Wire(ctx, "execute-"+label, "operations_execute", map[string]any{
-			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": current,
-				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": label, "attemptId": "1"},
-			},
-			"operation": operation,
-		})
-		if err != nil {
-			return err
-		}
-		_, failure, err := na.Outcome(reply, "failure")
-		if err != nil {
-			return fmt.Errorf("%s: expected a failure reply, got %#v", label, reply)
-		}
-		got := na.AsString(failure["detail"])
-		if na.AsString(failure["code"]) != code || !strings.Contains(got, detail) {
-			return fmt.Errorf("%s: expected %s %q, got %s %q", label, code, detail, na.AsString(failure["code"]), got)
-		}
-		report[strings.ReplaceAll(label, "-", "_")] = got
 		return nil
 	}
 	// intentRefused applies one Actions/Apply intent and asserts its result
@@ -251,16 +209,6 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := intentRefused("zone-edit-remove", map[string]any{"zoneCells": map[string]any{
 		"zoneId": tokens["zoneId"], "edit": "CELL_EDIT_REMOVE", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{zoneCells[0]}}},
 	}}, "FAILURE_CODE_NOT_FOUND", "Zone cell edit refused: the exact zone no longer exists on this map"); err != nil {
-		return err
-	}
-
-	// Allow: the item was unforbidden after the read.
-	if err := move("allow-item", map[string]any{"action": "allow_item", "id": tokens["itemId"]}); err != nil {
-		return err
-	}
-	if err := refused("allow", map[string]any{"designateThing": map[string]any{
-		"target": map[string]any{"entityId": tokens["itemId"], "expectedSnapshotToken": tokens["itemToken"]}, "designation": "THING_DESIGNATION_ALLOW",
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Allow refused: the item already has the desired forbid state"); err != nil {
 		return err
 	}
 

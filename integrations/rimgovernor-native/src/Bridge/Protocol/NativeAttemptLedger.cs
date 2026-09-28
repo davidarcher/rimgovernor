@@ -7,7 +7,6 @@ using System.Threading;
 using Google.Protobuf;
 using Common = RimGovernor.Protocol.Common;
 using Authority = RimGovernor.Protocol.Authority;
-using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 using Clock = RimGovernor.Protocol.Clock;
 
@@ -25,23 +24,6 @@ namespace HomeBridge.BridgeTools
         private readonly Dictionary<Common.AttemptKey, Entry> entries = new Dictionary<Common.AttemptKey, Entry>();
         private readonly Dictionary<Admission, Entry> handles = new Dictionary<Admission, Entry>();
         internal enum DecisionKind { New, Admitted, Replay, InFlight, Refused }
-
-        internal sealed class Decision
-        {
-            internal DecisionKind Kind { get; }
-            internal Admission? Handle { get; }
-            /// <summary>The handle an Admitted decision carries; any other kind has none.</summary>
-            internal Admission AdmittedHandle => Handle ?? throw new InvalidOperationException("Decision was not admitted.");
-            private readonly Operations.ExecuteReply? reply;
-            private readonly Receipts.InFlight? inFlight;
-            internal Operations.ExecuteReply? Reply => reply?.Clone();
-            /// <summary>The reply a Replay, InFlight or Refused decision carries; New and Admitted have none.</summary>
-            internal Operations.ExecuteReply DecidedReply => Reply ?? throw new InvalidOperationException("Decision carries no reply.");
-            internal Receipts.InFlight? InFlight => inFlight?.Clone();
-            internal Decision(DecisionKind kind, Admission? handle = null,
-                Operations.ExecuteReply? reply = null, Receipts.InFlight? inFlight = null)
-            { Kind = kind; Handle = handle; this.reply = reply; this.inFlight = inFlight; }
-        }
 
         internal sealed class Admission { internal Admission() { } }
 
@@ -63,7 +45,6 @@ namespace HomeBridge.BridgeTools
             internal readonly IMessage Request;
             internal readonly Authority.WritePrecondition Precondition;
             internal readonly Common.ObservationContext Context;
-            internal Receipts.Receipt? Receipt;
             internal Clock.ControlReceipt? ClockReceipt;
             internal Entry(string method, IMessage request, Authority.WritePrecondition precondition,
                 Common.ObservationContext context)
@@ -72,7 +53,6 @@ namespace HomeBridge.BridgeTools
                 // The accepted union is deliberately closed to official request types.
                 switch (request)
                 {
-                    case Operations.ExecuteRequest operation: Request = operation.Clone(); break;
                     case Clock.StartRequest start: Request = start.Clone(); break;
                     case Clock.RenewRequest renew: Request = renew.Clone(); break;
                     case Clock.SpeedRequest speed: Request = speed.Clone(); break;
@@ -90,79 +70,6 @@ namespace HomeBridge.BridgeTools
 
         internal int Count { get { RequireThread(); return entries.Count; } }
 
-        // Inspect before revalidating current authority: an admitted exact retry
-        // may replay after lease expiry, but can never schedule another effect.
-        internal Decision Inspect(string method, Operations.ExecuteRequest request)
-        {
-            RequireThread();
-            var invalid = ValidateRequest(method, request);
-            if (invalid != null) return Refused(invalid.Value, "Invalid or stale attempt envelope.");
-            var key = request.Precondition.Attempt;
-            if (entries.TryGetValue(key, out var entry))
-            {
-                if (!string.Equals(method, entry.Method, StringComparison.Ordinal) || !SameMessage(request, entry.Request))
-                    return Refused(Common.FailureCode.AttemptConflict, "Attempt key already identifies a different request or original precondition.");
-                if (entry.Receipt != null)
-                    return new Decision(DecisionKind.Replay, reply: new Operations.ExecuteReply { Receipt = entry.Receipt.Clone() });
-                return new Decision(DecisionKind.InFlight,
-                    reply: new Operations.ExecuteReply { Receipt = new Receipts.Receipt
-                        { Attempt = key.Clone(), AdmittedContext = entry.Context.Clone(),
-                          Uncertain = new Receipts.Uncertain { Detail = "Attempt is admitted and still in flight; no new effect was dispatched." } } },
-                    inFlight: new Receipts.InFlight
-                    { Attempt = key.Clone(), AdmittedContext = entry.Context.Clone() });
-            }
-            return entries.Count == Capacity
-                ? Refused(Common.FailureCode.CapacityExhausted, "The native attempt ledger is full; no attempt was admitted.")
-                : new Decision(DecisionKind.New);
-        }
-
-        // Call only after all native guards succeed, immediately before effects.
-        // The handle is the only route to terminal admitted outcomes.
-        internal Decision Admit(string method, Operations.ExecuteRequest request,
-            Common.ObservationContext context)
-        {
-            var prior = Inspect(method, request);
-            if (prior.Kind != DecisionKind.New) return prior;
-            if (!ValidContext(context) || !context.Identity.Equals(request.Precondition.Identity)
-                || !context.HasNativeGeneration || context.NativeGeneration != request.Precondition.ExpectedGeneration)
-                return Refused(Common.FailureCode.InvalidRequest, "Admission context must match the validated request.");
-            var entry = new Entry(method, request, request.Precondition, context);
-            var handle = new Admission();
-            entries.Add(entry.Precondition.Attempt.Clone(), entry);
-            handles.Add(handle, entry);
-            return new Decision(DecisionKind.Admitted, handle);
-        }
-
-        internal Receipts.Receipt FinishApplied(Admission handle, Receipts.EffectEvidence observed)
-        {
-            RequireEvidence(observed);
-            return Finish(handle, new Receipts.Receipt { Applied = new Receipts.Applied { Observed = observed.Clone() } });
-        }
-        internal Receipts.Receipt FinishNoChange(Admission handle, Receipts.EffectEvidence observed, string detail)
-        {
-            RequireEvidence(observed);
-            return Finish(handle, new Receipts.Receipt { NoChange = new Receipts.NoChange { Observed = observed.Clone(), Detail = Diagnostic(detail) } });
-        }
-        internal Receipts.Receipt FinishUncertain(Admission handle, Receipts.EffectEvidence? lastObserved, string detail)
-        {
-            if (lastObserved != null) RequireEvidence(lastObserved);
-            return Finish(handle, new Receipts.Receipt { Uncertain = new Receipts.Uncertain
-                { LastObserved = lastObserved?.Clone(), Detail = Diagnostic(detail) } });
-        }
-
-        private Receipts.Receipt Finish(Admission handle, Receipts.Receipt receipt)
-        {
-            RequireThread();
-            if (handle == null || !handles.TryGetValue(handle, out var entry))
-                throw new ArgumentException("Admission does not belong to this ledger.", nameof(handle));
-            if (!(entry.Request is Operations.ExecuteRequest)) throw new ArgumentException("Admission belongs to clock control.", nameof(handle));
-            if (entry.Receipt != null) throw new InvalidOperationException("An admitted receipt is immutable once recorded.");
-            receipt.Attempt = entry.Precondition.Attempt.Clone();
-            receipt.AdmittedContext = entry.Context.Clone();
-            entry.Receipt = receipt;
-            return receipt.Clone();
-        }
-
         internal Receipts.LookupReply Lookup(Common.AttemptKey attempt, Common.ObservationContext current)
         {
             RequireThread();
@@ -174,12 +81,7 @@ namespace HomeBridge.BridgeTools
                 return new Receipts.LookupReply { Unknown = new Receipts.UnknownAttempt { Context = current.Clone() } };
             if (!current.Identity.Equals(entry.Context.Identity))
                 return new Receipts.LookupReply { Failure = Failure(Common.FailureCode.StaleIdentity, "Attempt belongs to another map.") };
-            if (!(entry.Request is Operations.ExecuteRequest))
-                return new Receipts.LookupReply { Failure = Failure(Common.FailureCode.AttemptConflict, "Attempt belongs to clock control.") };
-            return entry.Receipt != null
-                ? new Receipts.LookupReply { Receipt = entry.Receipt.Clone() }
-                : new Receipts.LookupReply { InFlight = new Receipts.InFlight
-                    { Attempt = attempt.Clone(), AdmittedContext = entry.Context.Clone() } };
+            return new Receipts.LookupReply { Failure = Failure(Common.FailureCode.AttemptConflict, "Attempt belongs to clock control.") };
         }
 
         internal ClockDecision InspectClock(string method, IMessage request)
@@ -236,7 +138,6 @@ namespace HomeBridge.BridgeTools
             RequireThread();
             if (handle == null || !handles.TryGetValue(handle, out var entry))
                 throw new ArgumentException("Admission does not belong to this ledger.", nameof(handle));
-            if (entry.Request is Operations.ExecuteRequest) throw new ArgumentException("Admission belongs to operations.", nameof(handle));
             if (entry.ClockReceipt != null) throw new InvalidOperationException("An admitted receipt is immutable once recorded.");
             return entry;
         }
@@ -266,8 +167,6 @@ namespace HomeBridge.BridgeTools
             if (!entries.TryGetValue(attempt, out var entry)) return new Clock.AttemptReply { Unknown = new Clock.AttemptUnknown() };
             if (!current.Identity.Equals(entry.Context.Identity))
                 return new Clock.AttemptReply { Failure = Failure(Common.FailureCode.StaleIdentity, "Attempt belongs to another map.") };
-            if (entry.Request is Operations.ExecuteRequest)
-                return new Clock.AttemptReply { Failure = Failure(Common.FailureCode.AttemptConflict, "Attempt belongs to operations.") };
             return new Clock.AttemptReply { Receipt = entry.ClockReceipt?.Clone() ?? ClockInFlight(entry) };
         }
 
@@ -298,19 +197,6 @@ namespace HomeBridge.BridgeTools
             return SameLoad(pre.Identity) ? (Common.FailureCode?)null : Common.FailureCode.StaleIdentity;
         }
 
-        private Common.FailureCode? ValidateRequest(string method, Operations.ExecuteRequest request)
-        {
-            var pre = request?.Precondition;
-            if (!Identifier(method) || pre == null || !ValidIdentity(pre.Identity) || !ValidAttempt(pre.Attempt)
-                || !pre.HasExpectedGeneration || pre.ExpectedGeneration == 0
-                || request!.Operation == null || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.None)
-                return Common.FailureCode.InvalidRequest;
-            // Official binary parsing discards unknown fields recursively; equality
-            // remains generated typed-field equality, never serialized-byte equality.
-            if (!request.Equals(Operations.ExecuteRequest.Parser.WithDiscardUnknownFields(true).ParseFrom(request.ToByteArray())))
-                return Common.FailureCode.InvalidRequest;
-            return SameLoad(pre.Identity) ? (Common.FailureCode?)null : Common.FailureCode.StaleIdentity;
-        }
         // Generated C# Equals compares optional scalar values but can ignore their
         // presence. Admission identity must also preserve presence and list order.
         private static bool SameMessage(IMessage left, IMessage right)
@@ -357,11 +243,6 @@ namespace HomeBridge.BridgeTools
             if (string.IsNullOrWhiteSpace(value) || value.IndexOf('\0') >= 0) return false;
             try { return Utf8.GetByteCount(value) <= 256; } catch (EncoderFallbackException) { return false; }
         }
-        private static void RequireEvidence(Receipts.EffectEvidence evidence)
-        {
-            if (evidence == null || evidence.EffectCase == Receipts.EffectEvidence.EffectOneofCase.None)
-                throw new ArgumentException("Observed evidence requires an explicit concrete effect.", nameof(evidence));
-        }
         private static string Diagnostic(string text)
         {
             if (text == null) throw new ArgumentNullException(nameof(text));
@@ -372,8 +253,6 @@ namespace HomeBridge.BridgeTools
             return text.Substring(0, end);
         }
         private static Common.Failure Failure(Common.FailureCode code, string detail) => new Common.Failure { Code = code, Detail = detail };
-        private static Decision Refused(Common.FailureCode code, string detail) => new Decision(DecisionKind.Refused,
-            reply: new Operations.ExecuteReply { Failure = Failure(code, detail) });
         private static ClockDecision ClockRefused(Common.FailureCode code, string detail) => new ClockDecision(DecisionKind.Refused,
             reply: new Clock.ControlReply { Failure = Failure(code, detail) });
         private void RequireThread()

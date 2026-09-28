@@ -226,8 +226,7 @@ func clockAttemptKey(attempt *c.AttemptKey) error {
 }
 
 // clockOperationOutcome accepts a terminal outcome of a watched attempt. The
-// effect evidence itself is family specific and is re-observed by the
-// controller through receipts_observe_progress, so only the shape is checked.
+// effect evidence itself is family specific, so only the shape is checked.
 func clockOperationOutcome(v *k.OperationOutcome) error {
 	if v == nil {
 		return contract("clock operation outcome required")

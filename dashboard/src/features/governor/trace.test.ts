@@ -38,7 +38,7 @@ describe('buildTrace', () => {
       [10, 'native_cache_hit', 0, 'cache hit rimgovernor/lifecycle_read_tick'],
       [11, 'native_request', 0, 'native rimgovernor/snapshot_frame_routine'],
       [14, 'worker_dispatch', 1, 'worker_dispatch'],
-      [15, 'native_error', 1, 'native rimgovernor/operations_execute'],
+      [15, 'native_error', 1, 'native rimgovernor/operations_apply'],
       [17, 'scheduler_step', 0, 'scheduler_step "step done"'],
     ]);
     const read = trace.lines[1];
@@ -70,6 +70,6 @@ describe('feed helpers', () => {
     const by = (sequence: number): TelemetryEvent => events.find(e => e.sequence === sequence) as TelemetryEvent;
     expect(eventSummary(by(17))).toBe('step done cause=live window_ticks=250');
     expect(eventSummary(by(14))).toBe('action=routine-acquire-1 receipt=refused reads=1');
-    expect(eventSummary(by(16))).toBe('rimgovernor/operations_execute — refused: stale_facts');
+    expect(eventSummary(by(16))).toBe('rimgovernor/operations_apply — refused: stale_facts');
   });
 });

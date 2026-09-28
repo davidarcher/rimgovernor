@@ -25,9 +25,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/observations_read_recipes | rimgovernor.observations.v1.Observations/ReadRecipes | Protocol/NativeBillsObservationTools.cs |
 | rimgovernor/operations_preview | rimgovernor.operations.v1.Operations/Preview | Protocol/NativeOperationTools.cs |
 | rimgovernor/operations_apply | rimgovernor.operations.v1.Actions/Apply | Protocol/NativeActionDispatch.cs |
-| rimgovernor/operations_execute | rimgovernor.operations.v1.Operations/Execute | Protocol/NativeOperationTools.cs |
 | rimgovernor/receipts_lookup | rimgovernor.receipts.v1.Attempts/Lookup | Protocol/NativeOperationTools.cs |
-| rimgovernor/receipts_observe_progress | rimgovernor.receipts.v1.Attempts/ObserveProgress | Protocol/NativeOperationTools.cs |
 | rimgovernor/clock_start | rimgovernor.clock.v1.Clock/Start | Protocol/NativeClockTools.cs |
 | rimgovernor/clock_renew | rimgovernor.clock.v1.Clock/Renew | Protocol/NativeClockTools.cs |
 | rimgovernor/clock_change_speed | rimgovernor.clock.v1.Clock/ChangeSpeed | Protocol/NativeClockTools.cs |
@@ -44,9 +42,8 @@ Paths are under `integrations/rimgovernor-native/src/Bridge`. The shared
 Protobuf parsing/formatting. Generated compile inputs come from
 `contracts/generated/protobuf/csharp`.
 
-`Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`;
-drafting and combat orders are `Actions/Apply` intents (`DraftIntent`,
-`CombatOrders`, #939); other command variants return unsupported. Their presence does not advertise
+`Operations/Preview` implements only zone siting; every write is an
+`Actions/Apply` intent (Operations/Execute is gone, #990); other command variants return unsupported. Their presence does not advertise
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
 `Protocol/NativeConstructionCausality.cs` checks exact factory/spawn attribution.

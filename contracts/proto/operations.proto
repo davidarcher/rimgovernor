@@ -3,21 +3,9 @@ package rimgovernor.operations.v1;
 option csharp_namespace = "RimGovernor.Protocol.Operations";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb;operationspb";
 import "common.proto";
-import "authority.proto";
 import "placement.proto";
 import "receipts.proto";
 
-// Exactly one operation per attempt. See operations.md for semantic bounds.
-message ExecuteRequest {
-  rimgovernor.authority.v1.WritePrecondition precondition = 1;
-  Operation operation = 2;
-}
-message ExecuteReply {
-  oneof outcome {
-    rimgovernor.receipts.v1.Receipt receipt = 1;
-    rimgovernor.common.v1.Failure failure = 2;
-  }
-}
 message PreviewRequest {
   rimgovernor.common.v1.Identity identity = 1;
   Operation operation = 2;
@@ -103,10 +91,9 @@ message Operation {
     // created through the create_zone Action arm.
     CreateZone create_zone = 14;
   }
-  // Why the controller issues this operation, one short ASCII line such as
-  // "Hunting: food runway 3d" (#822). Native keeps it with the jobs the
-  // operation orders and shows it over the pawn; it never changes the order.
-  optional string intent = 100;
+  // Execute's intent line went with Operations/Execute (#990, #1129).
+  reserved 100;
+  reserved "intent";
 }
 
 // Tokens are opaque native snapshots scoped to request identity and exact entity.
@@ -303,7 +290,6 @@ message EndTrade { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; opti
 
 service Operations {
   rpc Preview(PreviewRequest) returns (PreviewReply);
-  rpc Execute(ExecuteRequest) returns (ExecuteReply);
 }
 
 // Actions/Apply carries idempotent intents (#856). Actions apply on the game

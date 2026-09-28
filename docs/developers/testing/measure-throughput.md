@@ -121,7 +121,7 @@ trace 5c0e1f2a9b3d4e6f: 14 rows over 412.7ms, tick 12000, sequence 1032..1045
     at ms   dur ms  span      row
       0.0     11.9  5c0e1f2a  native rimgovernor/observations_read_status  gate 0.0 call 11.5 decode 0.2 native queue 0.4 exec 9.1
      12.5        -  5c0e1f2a  cache hit rimgovernor/observations_list_pawns
-    230.1      5.0  90faecc0      native rimgovernor/operations_execute  gate 0.0 call 4.9 decode 0.0
+    230.1      5.0  90faecc0      native rimgovernor/operations_apply  gate 0.0 call 4.9 decode 0.0
     235.2        -  90faecc0      worker_dispatch action=... receipt=accepted running=true
     412.7        -  5c0e1f2a  scheduler_step "step done" admitted=true running=true window_ticks=150
 ```

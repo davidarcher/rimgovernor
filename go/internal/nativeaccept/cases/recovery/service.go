@@ -45,7 +45,7 @@ func runService(ctx context.Context, s cases.Session) error {
 	identity := s.Identity()
 	prepared := s.Prepared()
 	if !na.Contains(s.Names(), "rimgovernor/operations_apply") {
-		return fmt.Errorf("missing rimgovernor/operations_execute in discovery")
+		return fmt.Errorf("missing rimgovernor/operations_apply in discovery")
 	}
 	pawnID := na.AsString(prepared["pawn"])
 	wallID := na.AsString(prepared["wall"])

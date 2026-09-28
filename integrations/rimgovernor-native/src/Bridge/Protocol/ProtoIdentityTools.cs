@@ -110,15 +110,13 @@ namespace HomeBridge.BridgeTools
                     "rimgovernor.authority.v1.Authority/Control",
                     "rimgovernor.observations.v1.Observations/ReadStatus",
                     "rimgovernor.observations.v1.Observations/GetCells",
-                    "rimgovernor.receipts.v1.Attempts/Lookup",
-                    "rimgovernor.receipts.v1.Attempts/ObserveProgress" })
+                    "rimgovernor.receipts.v1.Attempts/Lookup" })
                     loaded.Capabilities.Add(new Lifecycle.Capability { FullMethodName = method, Support = Lifecycle.CapabilitySupport.Supported });
-                foreach (var method in new[] { "Preview", "Execute" })
-                    loaded.Capabilities.Add(new Lifecycle.Capability
-                    {
-                        FullMethodName = "rimgovernor.operations.v1.Operations/" + method,
-                        Support = Lifecycle.CapabilitySupport.Supported, Detail = "Typed colony operations are implemented; building placement goes through Actions/Apply and unimplemented commands return unsupported."
-                    });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.operations.v1.Operations/Preview",
+                    Support = Lifecycle.CapabilitySupport.Supported, Detail = "Zone siting previews; every write goes through Actions/Apply and other commands return unsupported."
+                });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {
                     FullMethodName = "rimgovernor.observations.v1.Observations/ListBuildings",

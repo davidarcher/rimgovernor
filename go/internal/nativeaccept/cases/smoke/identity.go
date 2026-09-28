@@ -30,8 +30,8 @@ func init() {
 					return fmt.Errorf("identity has no %s: %#v", key, identity)
 				}
 			}
-			if !na.Contains(s.Names(), "rimgovernor/operations_execute") {
-				return fmt.Errorf("missing rimgovernor/operations_execute in discovery")
+			if !na.Contains(s.Names(), "rimgovernor/operations_apply") {
+				return fmt.Errorf("missing rimgovernor/operations_apply in discovery")
 			}
 			// A second read through the same session must agree with the
 			// runner's: the game is loaded and stable under the case.

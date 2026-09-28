@@ -19,7 +19,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -124,17 +123,6 @@ func (n *scriptedBuildingNative) Apply(_ context.Context, identity *c.Identity, 
 		return nil, bridge.Result{}, fmt.Errorf("%w: reply lost after the write", bridge.ErrTransport)
 	}
 	return reply, bridge.Result{}, nil
-}
-
-// LookupBuildingAttempt and ObserveBuildingProgress belong to the
-// dispatch-and-observe flow building left (#856); nothing calls them.
-func (n *scriptedBuildingNative) LookupBuildingAttempt(context.Context, *c.Identity, *c.AttemptKey, uint64, *p.PlacementCandidate) (*r.LookupReply, bridge.Result, error) {
-	n.t.Error("building attempt looked up")
-	return nil, bridge.Result{}, errors.New("unexpected lookup")
-}
-func (n *scriptedBuildingNative) ObserveBuildingProgress(context.Context, *r.Receipt, *p.PlacementCandidate) (*r.ProgressReply, bridge.Result, error) {
-	n.t.Error("building progress observed")
-	return nil, bridge.Result{}, errors.New("unexpected observation")
 }
 
 // controllerRig is one process lifetime of the routine controller over a

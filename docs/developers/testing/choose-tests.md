@@ -549,8 +549,7 @@ by review alone.
    debug colony against 348 at Superfast and 168 at Fast; no `devMode`
    pref needed, and that pref adds a 35s def check to every boot), polls
    under a `na.Wait{Ticks: 2*na.TicksPerDay}` budget every 250ms
-   (`na.RunInterval`) and pauses again; `na.ObserveCompleted` is the
-   receipt-observing form (`receipts_observe_progress` until Completed). A
+   (`na.RunInterval`) and pauses again. A
    tick budget means the same at every speed and on every machine; the
    stall budget still catches a game that stops ticking (a pausing letter)
    and the wall ceiling a run that never finishes. *Enforced:* `s.Serve`

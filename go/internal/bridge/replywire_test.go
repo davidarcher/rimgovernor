@@ -115,7 +115,7 @@ func (b *encodingServer) handler(t *testing.T) func(context.Context, nativeArgum
 func TestProtoCallAlwaysAsksForBinaryReplies(t *testing.T) {
 	b := &encodingServer{}
 	client := testClient(t, &testServer{schema: protoSchema, handler: b.handler(t)}, testBudget)
-	if _, err := client.protoCall(context.Background(), "rimgovernor/operations_execute", &l.IdentityRequest{}, &l.IdentityReply{}); err != nil {
+	if _, err := client.protoCall(context.Background(), "rimgovernor/operations_apply", &l.IdentityRequest{}, &l.IdentityReply{}); err != nil {
 		t.Fatal(err)
 	}
 	identity, _, err := client.Identity(context.Background())

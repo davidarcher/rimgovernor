@@ -271,9 +271,6 @@ func (s *Session) ManualForResume(ctx context.Context) error {
 
 // RunBatch dispatches a plan's actions in one native Apply (#1042).
 func (s *Session) RunBatch(ctx context.Context, plan domain.PlanID, actions []domain.ActionID) ([]executor.BatchItem, error) {
-	if s.journal != nil {
-		ctx = withPlanIntent(ctx, s.journal, plan)
-	}
 	return s.executor.RunBatch(ctx, plan, actions)
 }
 func (s *Session) Close(ctx context.Context) error { return s.control.Close(ctx) }

@@ -15290,8 +15290,7 @@ namespace RimGovernor.Protocol.Clock {
 
   /// <summary>
   /// Terminal progress of an armed watched attempt, latched at a tick boundary.
-  /// The outcome mirrors receipts.v1.Progress so the controller reconciles the
-  /// same attempt through receipts_observe_progress and finds agreement.
+  /// The outcome mirrors receipts.v1.Progress.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class OperationOutcome : pb::IMessage<OperationOutcome>

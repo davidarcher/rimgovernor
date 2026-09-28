@@ -239,7 +239,6 @@ message LookupReply {
     rimgovernor.common.v1.Failure failure = 4;
   }
 }
-message ProgressRequest { rimgovernor.common.v1.Identity identity = 1; rimgovernor.common.v1.AttemptKey attempt = 2; }
 message PendingEffect { EffectEvidence evidence = 1; }
 message CompletedEffect { EffectEvidence evidence = 1; }
 message AbsentEffect { optional string inspection_token = 1; }
@@ -271,8 +270,6 @@ message Progress {
     UnsuccessfulEffect unsuccessful = 8;
   }
 }
-message ProgressReply { oneof outcome { Progress progress = 1; rimgovernor.common.v1.Failure failure = 2; } }
 service Attempts {
   rpc Lookup(LookupRequest) returns (LookupReply);
-  rpc ObserveProgress(ProgressRequest) returns (ProgressReply);
 }

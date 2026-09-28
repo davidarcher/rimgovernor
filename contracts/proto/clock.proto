@@ -454,8 +454,7 @@ message PauseEvidence {
 }
 message DialogPause { optional int32 window_id = 1; optional string window_type = 2; optional string title = 3; }
 // Terminal progress of an armed watched attempt, latched at a tick boundary.
-// The outcome mirrors receipts.v1.Progress so the controller reconciles the
-// same attempt through receipts_observe_progress and finds agreement.
+// The outcome mirrors receipts.v1.Progress.
 message OperationOutcome {
   rimgovernor.common.v1.AttemptKey attempt = 1;
   optional int64 latched_tick = 2;

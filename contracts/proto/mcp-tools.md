@@ -33,8 +33,8 @@ Tool discovery is not authorization. Apply these restrictions before evaluating 
 
 | Service or methods | Allowed capability |
 |---|---|
-| Observations, Placement.Preview, Operations.Preview; Authority.ReadStatus; Clock.ReadStatus/ReadEvents/ReadAttempt; Attempts.Lookup/ObserveProgress; Lifecycle.ReadIdentity | Scoped reads/inspection. Read-only methods grant no execution authority and cannot turn unknown facts into absence. |
-| Operations.Execute; Clock.Start/Renew/ChangeSpeed | Deterministic guarded execution under current authenticated player direction, native authority, exact identity and attempt correlation. Advisers cannot invoke them. Special policies such as surgery, pawn trading and persistent draft additionally require the approved current action and targets. |
+| Observations, Placement.Preview, Operations.Preview; Authority.ReadStatus; Clock.ReadStatus/ReadEvents/ReadAttempt; Attempts.Lookup; Lifecycle.ReadIdentity | Scoped reads/inspection. Read-only methods grant no execution authority and cannot turn unknown facts into absence. |
+| Actions.Apply; Clock.Start/Renew/ChangeSpeed | Deterministic guarded execution under current authenticated player direction, native authority, exact identity and attempt correlation. Advisers cannot invoke them. Special policies such as surgery, pawn trading and persistent draft additionally require the approved current action and targets. |
 | Clock.Pause | May remain available after automation revocation, but only for the exact original current-load epoch. Never pause another owner. |
 | Authority.Control | Acquire only from the trusted explicit player-direction path; renew only the active owner/lease; revoke through authorized Manual/direction/disconnect/cleanup policy. Caller-supplied direction numbers cannot authenticate themselves, and renewal cannot reacquire revoked authority. |
 | Lifecycle.Save/Load/ReadSave/ReadLoad | Explicit session lifecycle with exact instance/request ownership and current player direction. Follow lifecycle preconditions; no automatic/model load or process management escape hatch. Completion reads grant no permission to retry uncertain writes. |
@@ -101,7 +101,6 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/observations_read_world_progression` | `rimgovernor.observations.v1.Observations/ReadWorldProgression` | `rimgovernor.observations.v1.WorldProgressionRequest` | `rimgovernor.observations.v1.WorldProgressionReply` |
 | `rimgovernor/observations_resolve_target` | `rimgovernor.observations.v1.Observations/ResolveTarget` | `rimgovernor.observations.v1.ResolveTargetRequest` | `rimgovernor.observations.v1.ResolveTargetReply` |
 | `rimgovernor/operations_apply` | `rimgovernor.operations.v1.Actions/Apply` | `rimgovernor.operations.v1.ApplyRequest` | `rimgovernor.operations.v1.ApplyReply` |
-| `rimgovernor/operations_execute` | `rimgovernor.operations.v1.Operations/Execute` | `rimgovernor.operations.v1.ExecuteRequest` | `rimgovernor.operations.v1.ExecuteReply` |
 | `rimgovernor/operations_preview` | `rimgovernor.operations.v1.Operations/Preview` | `rimgovernor.operations.v1.PreviewRequest` | `rimgovernor.operations.v1.PreviewReply` |
 | `rimgovernor/placement_preview` | `rimgovernor.placement.v1.Placement/Preview` | `rimgovernor.placement.v1.PlacementRequest` | `rimgovernor.placement.v1.PlacementReply` |
 | `rimgovernor/presentation_apply` | `rimgovernor.presentation.v1.PlayerPresentation/Apply` | `rimgovernor.presentation.v1.PlayerCommand` | `rimgovernor.presentation.v1.PlayerCommandReply` |
@@ -124,6 +123,5 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/presentation_selection` | `rimgovernor.presentation.v1.PresentationReads/Selection` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.SelectionReply` |
 | `rimgovernor/presentation_send_input` | `rimgovernor.presentation.v1.PlayerPresentation/SendInput` | `rimgovernor.presentation.v1.InputEvent` | `rimgovernor.presentation.v1.InputEventReply` |
 | `rimgovernor/receipts_lookup` | `rimgovernor.receipts.v1.Attempts/Lookup` | `rimgovernor.receipts.v1.LookupRequest` | `rimgovernor.receipts.v1.LookupReply` |
-| `rimgovernor/receipts_observe_progress` | `rimgovernor.receipts.v1.Attempts/ObserveProgress` | `rimgovernor.receipts.v1.ProgressRequest` | `rimgovernor.receipts.v1.ProgressReply` |
 | `rimgovernor/observations_get_clearance_targets` | `rimgovernor.observations.v1.Observations/GetClearanceTargets` | `rimgovernor.observations.v1.ClearanceTargetsRequest` | `rimgovernor.observations.v1.ClearanceTargetsReply` |
 | `rimgovernor/observations_get_ancient_shrines` | `rimgovernor.observations.v1.Observations/GetAncientShrines` | `rimgovernor.observations.v1.AncientShrinesRequest` | `rimgovernor.observations.v1.AncientShrinesReply` |

@@ -7,7 +7,6 @@ using HomeBridge.BridgeTools;
 using Common = RimGovernor.Protocol.Common;
 using Authority = RimGovernor.Protocol.Authority;
 using Clock = RimGovernor.Protocol.Clock;
-using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 using Kind = HomeBridge.BridgeTools.NativeAttemptLedger.DecisionKind;
 
@@ -16,7 +15,6 @@ internal static class ClockLedgerChecks
     private const string Start = "rimgovernor.clock.v1.Clock/Start";
     private const string Renew = "rimgovernor.clock.v1.Clock/Renew";
     private const string Speed = "rimgovernor.clock.v1.Clock/ChangeSpeed";
-    private const string Execute = "rimgovernor.operations.v1.Operations/Execute";
     private static int checks;
     private static void Check(bool value, string detail) { checks++; if (!value) throw new Exception(detail); }
     private static void Throws(Action action, string detail)
@@ -28,8 +26,6 @@ internal static class ClockLedgerChecks
     private static Clock.StartRequest Request(ulong id = 1) => new Clock.StartRequest
         { Authority = Pre(id), Speed = Clock.Speed.Normal, LeaseMs = 1000, MaxTicks = 100, Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0 } };
     private static Clock.Status Status() => new Clock.Status { Context = Context(), NeverStarted = new Clock.NeverStarted(), ActualPaused = true };
-    private static Operations.ExecuteRequest Operation(ulong id = 1) => new Operations.ExecuteRequest
-        { Precondition = Pre(id), Operation = new Operations.Operation { CreateZone = new Operations.CreateZone() } };
     internal static int Run()
     {
         var ledger = new NativeAttemptLedger(Identity());
@@ -50,8 +46,6 @@ internal static class ClockLedgerChecks
         Check(ledger.AdmitClock(Start, original, Context()).Kind == Kind.InFlight && ledger.Count == 1, "reentrant clock admission does not reserve twice");
         Check(ledger.LookupClock(original.Authority.Attempt, Context()).Receipt.Uncertain != null, "in-flight clock lookup remains correlated uncertainty");
         Check(ledger.Lookup(original.Authority.Attempt, Context()).Failure.Code == Common.FailureCode.AttemptConflict, "operation lookup cannot mistake clock attempt for missing work");
-        Check(ledger.Inspect(Execute, Operation()).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "operation and clock share attempt key namespace");
-        Throws(() => ledger.FinishUncertain(admission.Handle!, null, "wrong family"), "operation finalizer rejects clock admission");
         Throws(() => ledger.FinishClockApplied(admission.Handle!, new Clock.Status()), "empty clock status cannot finalize applied");
         var staleStatus = Status(); staleStatus.Context.Tick = 9;
         Throws(() => ledger.FinishClockApplied(admission.Handle!, staleStatus), "pre-dispatch clock status cannot finalize applied");
@@ -69,10 +63,6 @@ internal static class ClockLedgerChecks
         Check(ledger.LookupClock(original.Authority.Attempt, later).Receipt.Equals(replay.Reply!.Receipt), "clock receipt survives later generation changes");
         Throws(() => ledger.FinishClockUncertain(admission.Handle!, null, "late"), "clock terminal result is immutable");
         Throws(() => new NativeAttemptLedger(Identity()).FinishClockApplied(admission.Handle!, Status()), "clock foreign handle refused");
-        var op = Operation(2); var opAdmission = ledger.Admit(Execute, op, Context());
-        Throws(() => ledger.FinishClockApplied(opAdmission.Handle!, Status()), "clock finalizer rejects operation admission");
-        Check(ledger.InspectClock(Start, Request(2)).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "clock cannot reuse operation attempt key");
-        Check(ledger.LookupClock(op.Precondition.Attempt, Context()).Failure.Code == Common.FailureCode.AttemptConflict, "clock lookup reports wrong-family conflict");
         Check(ledger.LookupClock(Pre(999).Attempt, Context()).Unknown != null, "never-admitted clock attempt remains unknown");
         later = Context(); later.Identity.MapId = 1;
         Check(ledger.LookupClock(original.Authority.Attempt, later).Failure.Code == Common.FailureCode.StaleIdentity, "clock lookup cannot cross original map");
@@ -114,7 +104,7 @@ internal static class ClockLedgerChecks
         Check(ledger.InspectClock(Start.ToLowerInvariant(), original).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "clock full method spelling is fixed");
         Check(ledger.InspectClock(Renew, original).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "clock request cannot impersonate another method");
         Check(ledger.InspectClock(Start, new Clock.OwnedRequest()).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "unguarded pause is outside admitted request union");
-        Check(ledger.InspectClock(Start, Operation()).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "operation messages cannot be smuggled as clock requests");
+        Check(ledger.InspectClock(Start, new Receipts.LookupRequest()).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "other messages cannot be smuggled as clock requests");
         var repeated = Request(10); repeated.Policy.AcknowledgedHostileIds.Add(new[] { "first", "second" });
         ledger.AdmitClock(Start, repeated, Context());
         repeated.Policy.AcknowledgedHostileIds.Clear(); repeated.Policy.AcknowledgedHostileIds.Add(new[] { "second", "first" });
@@ -147,23 +137,12 @@ internal static class ClockLedgerChecks
         var ledger = new NativeAttemptLedger(Identity());
         for (ulong i = 1; i <= NativeAttemptLedger.Capacity; i++)
         {
-            if (i % 2 == 0)
-            {
-                var admitted = ledger.AdmitClock(Start, Request(i), Context());
-                if (admitted.Kind != Kind.Admitted) throw new Exception("mixed clock capacity admission failed");
-                ledger.FinishClockUncertain(admitted.Handle!, null, "not dispatched in test");
-            }
-            else
-            {
-                var admitted = ledger.Admit(Execute, Operation(i), Context());
-                if (admitted.Kind != Kind.Admitted) throw new Exception("mixed operation capacity admission failed");
-                ledger.FinishUncertain(admitted.Handle!, null, "not dispatched in test");
-            }
+            var admitted = ledger.AdmitClock(Start, Request(i), Context());
+            if (admitted.Kind != Kind.Admitted) throw new Exception("clock capacity admission failed");
+            ledger.FinishClockUncertain(admitted.Handle!, null, "not dispatched in test");
         }
-        Check(ledger.Count == 4096, "operation and clock share one total capacity");
-        Check(ledger.InspectClock(Start, Request(4097)).Reply!.Failure.Code == Common.FailureCode.CapacityExhausted, "mixed ledger refuses overflow clock before effects");
-        Check(ledger.Inspect(Execute, Operation(4097)).Reply!.Failure.Code == Common.FailureCode.CapacityExhausted, "mixed ledger refuses overflow operation before effects");
-        Check(ledger.InspectClock(Start, Request(2)).Kind == Kind.Replay && ledger.Inspect(Execute, Operation(1)).Kind == Kind.Replay, "mixed capacity never evicts either family");
-        Check(ledger.InspectClock(Start, Request(1)).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "cross-family conflict still diagnosed at capacity");
+        Check(ledger.Count == 4096, "fixed capacity");
+        Check(ledger.InspectClock(Start, Request(4097)).Reply!.Failure.Code == Common.FailureCode.CapacityExhausted, "full ledger refuses overflow clock before effects");
+        Check(ledger.InspectClock(Start, Request(1)).Kind == Kind.Replay, "capacity never evicts");
     }
 }
