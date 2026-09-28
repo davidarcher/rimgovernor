@@ -205,6 +205,7 @@ namespace HomeBridge.BridgeTools
             {
                 Mirror.CombatSide side;
                 if (p.IsColonist) side = Mirror.CombatSide.Colonist;
+                else if (p.HostFaction == Faction.OfPlayer && PrisonBreakUtility.IsPrisonBreaking(p)) { side = Mirror.CombatSide.Prisoner; if (!p.Downed) hostile = true; }
                 else if (p.HostileTo(Faction.OfPlayer)) { side = Mirror.CombatSide.Hostile; if (!p.Downed) hostile = true; }
                 else if (p.Faction == Faction.OfPlayer && p.RaceProps.Animal) side = Mirror.CombatSide.ColonyAnimal;
                 else continue;

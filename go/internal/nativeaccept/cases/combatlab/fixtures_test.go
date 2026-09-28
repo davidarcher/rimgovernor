@@ -3,6 +3,7 @@ package combatlab
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"testing"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -13,7 +14,7 @@ func labCenter() (int, int) { return na.LabMapSize / 2, na.LabMapSize / 2 }
 
 func TestFixturesFitTheLabWithoutOverlap(t *testing.T) {
 	cx, cz := labCenter()
-	for _, name := range Names {
+	for _, name := range append(slices.Clone(Names), "lab-manhunter", "lab-prison") {
 		f, err := Build(name, cx, cz)
 		if err != nil {
 			t.Fatal(err)

@@ -365,7 +365,9 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 			d.DraftOwned = domain.Known(false)
 		}
 		defenders = append(defenders, d)
-		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
+		profile := policy.BuildProfile(observation.WorkPawnRow(row))
+		d.Warden = profile.Capable(policy.WorkWarden, 0)
+		profiles = append(profiles, profile)
 	}
 	// The combat detail carries the biography, so the line split comes
 	// from the same rows: holders take melee opponents, shooters ranged

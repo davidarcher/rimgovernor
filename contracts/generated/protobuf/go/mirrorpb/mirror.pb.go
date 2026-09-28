@@ -31,6 +31,7 @@ const (
 	CombatSide_COMBAT_SIDE_COLONIST      CombatSide = 1
 	CombatSide_COMBAT_SIDE_HOSTILE       CombatSide = 2
 	CombatSide_COMBAT_SIDE_COLONY_ANIMAL CombatSide = 3
+	CombatSide_COMBAT_SIDE_PRISONER      CombatSide = 4 // a prisoner of the colony breaking out (#1080)
 )
 
 // Enum value maps for CombatSide.
@@ -40,12 +41,14 @@ var (
 		1: "COMBAT_SIDE_COLONIST",
 		2: "COMBAT_SIDE_HOSTILE",
 		3: "COMBAT_SIDE_COLONY_ANIMAL",
+		4: "COMBAT_SIDE_PRISONER",
 	}
 	CombatSide_value = map[string]int32{
 		"COMBAT_SIDE_UNSPECIFIED":   0,
 		"COMBAT_SIDE_COLONIST":      1,
 		"COMBAT_SIDE_HOSTILE":       2,
 		"COMBAT_SIDE_COLONY_ANIMAL": 3,
+		"COMBAT_SIDE_PRISONER":      4,
 	}
 )
 
@@ -2471,13 +2474,14 @@ const file_mirror_proto_rawDesc = "" +
 	"\x04ruin\x18\x12 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04ruin\x12H\n" +
 	"\x0eplayer_edifice\x18\x13 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\rplayerEdifice\x12H\n" +
 	"\x0eclaimable_ruin\x18\x14 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\rclaimableRuin\x12>\n" +
-	"\truin_hold\x18\x15 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bruinHold*{\n" +
+	"\truin_hold\x18\x15 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bruinHold*\x95\x01\n" +
 	"\n" +
 	"CombatSide\x12\x1b\n" +
 	"\x17COMBAT_SIDE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14COMBAT_SIDE_COLONIST\x10\x01\x12\x17\n" +
 	"\x13COMBAT_SIDE_HOSTILE\x10\x02\x12\x1d\n" +
-	"\x19COMBAT_SIDE_COLONY_ANIMAL\x10\x03*\xae\x01\n" +
+	"\x19COMBAT_SIDE_COLONY_ANIMAL\x10\x03\x12\x18\n" +
+	"\x14COMBAT_SIDE_PRISONER\x10\x04*\xae\x01\n" +
 	"\fCombatStance\x12\x1d\n" +
 	"\x19COMBAT_STANCE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12COMBAT_STANCE_IDLE\x10\x01\x12\x18\n" +

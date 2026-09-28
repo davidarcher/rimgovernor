@@ -38,6 +38,8 @@ type Pawn struct {
 	Downed bool `json:"downed,omitempty"`
 	// Trained names the TrainableDefs an Animal has learned (#1057).
 	Trained []string `json:"trained,omitempty"`
+	// Injured stages the pawn with a blunt bruise (#1080).
+	Injured bool `json:"injured,omitempty"`
 }
 
 // Fixture is one staged combat. Colonists is the lab wipe's colonist
@@ -50,6 +52,9 @@ type Fixture struct {
 	// Arrival, when set, is a PawnsArrivalModeDef that drops the hostiles
 	// in around the first hostile's cell instead of spawning each (#870).
 	Arrival string `json:"arrival,omitempty"`
+	// PrisonBreak starts a prison break by the first prisoner once staged
+	// (#1080).
+	PrisonBreak bool `json:"prisonBreak,omitempty"`
 	// Layout, when set, is the complete defense layout record the metrics
 	// run stores before serving (#890), so the planner holds this
 	// fixture's line instead of refusing the hold for want of one.
@@ -78,6 +83,8 @@ const (
 	// gone permanently manhunter (#1057).
 	Animal    = "animal"
 	Manhunter = "manhunter"
+	// Prisoner is a generated hostile Kind held as the colony's prisoner.
+	Prisoner = "prisoner"
 
 	rifle     = "Gun_AssaultRifle"
 	longsword = "MeleeWeapon_LongSword"
@@ -108,6 +115,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return siege(cx, cz), nil
 	case "lab-manhunter":
 		return manhunter(cx, cz), nil
+	case "lab-prison":
+		return prison(cx, cz), nil
 	}
 	return Fixture{}, fmt.Errorf("combatlab: no fixture %q", name)
 }
@@ -265,4 +274,21 @@ func manhunter(cx, cz int) Fixture {
 		{Side: Manhunter, Kind: "Warg", X: cx - 2, Z: cz + 15},
 		{Side: Manhunter, Kind: "Warg", X: cx + 2, Z: cz + 15},
 	}}
+}
+
+// prison (#1080): two prisoners, one bruised, break out of a 7x7 granite
+// cell 8 cells north with a door in its south wall; four wardens wait
+// south of it: two unarmed, one with a mace, one with a revolver.
+func prison(cx, cz int) Fixture {
+	f := Fixture{Name: "lab-prison", Colonists: 4, PrisonBreak: true}
+	f.Things = walledRoom(cx, cz+8, 3, Cell{cx, cz + 5})
+	f.Pawns = []Pawn{
+		{Side: Prisoner, Kind: slasher, X: cx - 1, Z: cz + 9},
+		{Side: Prisoner, Kind: slasher, X: cx + 1, Z: cz + 9, Injured: true},
+		{Side: Colonist, Index: 0, X: cx - 3, Z: cz},
+		{Side: Colonist, Index: 1, X: cx - 1, Z: cz},
+		{Side: Colonist, Index: 2, X: cx + 1, Z: cz, Weapon: "MeleeWeapon_Mace", WeaponStuff: "Steel"},
+		{Side: Colonist, Index: 3, X: cx + 3, Z: cz - 2, Weapon: "Gun_Revolver"},
+	}
+	return f
 }

@@ -119,6 +119,8 @@ enum CombatEvent {
   COMBAT_EVENT_BREACH = 9;
   // A pawn on the map started a mental state (berserk, fleeing).
   COMBAT_EVENT_MENTAL_BREAK = 10;
+  // A prison break started on the map (#1080).
+  COMBAT_EVENT_PRISON_BREAK = 11;
 }
 
 message WatchPolicy {

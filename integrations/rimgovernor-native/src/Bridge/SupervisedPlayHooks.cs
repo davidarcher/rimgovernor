@@ -43,6 +43,7 @@ namespace HomeBridge.BridgeTools
                 Postfix(harmony, AccessTools.Method(typeof(Pawn), nameof(Pawn.SpawnSetup)), nameof(OnPawnSpawned));
                 Postfix(harmony, AccessTools.Method(typeof(Pawn_HealthTracker), "MakeDowned"), nameof(OnPawnDowned));
                 Postfix(harmony, AccessTools.Method(typeof(Pawn), nameof(Pawn.Kill)), nameof(OnPawnKilled));
+                Postfix(harmony, AccessTools.Method(typeof(Pawn), nameof(Pawn.Notify_PrisonBreakout)), nameof(OnPrisonBreakout));
                 Postfix(harmony, AccessTools.Method(typeof(LetterStack), nameof(LetterStack.ReceiveLetter),
                     new[] { typeof(Letter), typeof(string), typeof(int), typeof(bool) }), nameof(OnLetterReceived));
                 foreach (var target in DigestTargets())
@@ -109,6 +110,23 @@ namespace HomeBridge.BridgeTools
                     RequestProbe("hostile");
                     if (ReferenceEquals(__instance.Map, s.Map)) NoteCombatEvent(RimGovernor.Protocol.Clock.CombatEvent.HostileArrived, __instance, "hostile spawned");
                 }
+            }
+            catch { }
+        }
+
+        /// A prisoner joined a prison break (#1080): it is hostile from now
+        /// on (GenHostility), with no spawn to see it by. The colony window
+        /// probes for it and a combat window stops on it.
+        private static void OnPrisonBreakout(Pawn __instance)
+        {
+            try
+            {
+                var s = _state;
+                if (__instance != null && CombatMirror.Active)
+                    CombatMirror.Record(RimGovernor.Protocol.Mirror.CombatLogKind.HostileArrived, RimGovernor.Protocol.Clock.CombatEvent.PrisonBreak, __instance, null, __instance.kindDef?.defName, "prison_break");
+                if (s == null || !s.Active || __instance == null) return;
+                RequestProbe("hostile");
+                if (ReferenceEquals(__instance.Map, s.Map)) NoteCombatEvent(RimGovernor.Protocol.Clock.CombatEvent.PrisonBreak, __instance, "prison break");
             }
             catch { }
         }

@@ -269,9 +269,10 @@ namespace HomeBridge.BridgeTools
         // PawnRow is built only for a pawn it keeps.
         private static ThreatFacts ThreatFactsOf(Pawn pawn, Faction player)
         {
-            var ours = pawn.Faction == player; var hunt = pawn.CurJobDef?.defName == "PredatorHunt";
+            var ours = pawn.Faction == player; var hunt = pawn.CurJobDef?.defName == "PredatorHunt"; var held = pawn.HostFaction == player;
             var facts = new ThreatFacts { Ours = ours, Mental = pawn.MentalStateDef?.defName,
-                FactionHostile = pawn.Faction != null && !ours && pawn.Faction.HostileTo(player), PredatorHunt = hunt,
+                FactionHostile = pawn.Faction != null && !ours && !held && pawn.Faction.HostileTo(player), PredatorHunt = hunt,
+                PrisonBreak = held && PrisonBreakUtility.IsPrisonBreaking(pawn),
                 Downed = pawn.Downed, Predator = pawn.RaceProps.predator, X = pawn.Position.x, Z = pawn.Position.z };
             if (facts.FactionHostile) facts.FactionId = pawn.Faction!.GetUniqueLoadID();
             if (facts.FactionHostile && pawn.Faction == Faction.OfInsects) facts.Passive = !InsectEngaging(pawn, player);

@@ -26,6 +26,7 @@ var combatStopEvents = []k.CombatEvent{
 	k.CombatEvent_COMBAT_EVENT_HOSTILE_ARRIVED,
 	k.CombatEvent_COMBAT_EVENT_BREACH,
 	k.CombatEvent_COMBAT_EVENT_MENTAL_BREAK,
+	k.CombatEvent_COMBAT_EVENT_PRISON_BREAK,
 }
 
 // combatStopMetrics measures one combat's stops for the service log

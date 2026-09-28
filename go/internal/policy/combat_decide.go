@@ -33,6 +33,22 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// A downed or dead defender keeps no role; its rescue is rescueStep's
 	// (#867, combat_rescue.go).
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
+	orderable := map[domain.PawnID]bool{}
+	for _, id := range view.Orderable {
+		orderable[id] = true
+	}
+	state := map[domain.PawnID]CombatPawnState{}
+	for _, p := range view.Pawns {
+		state[p.ID] = p
+	}
+	if orders, ok := prisonBreakTurn(view, &next, state, orderable); ok {
+		// A prison break picks its own tactic (#1080) and answers every stop
+		// itself: no geometry, no raid reactions.
+		for _, o := range orders {
+			next.issue(o, view.Tick)
+		}
+		return orders, nil, next
+	}
 	formed := false // a formation this stop picks the potshot door (#900, #1059)
 	waitTurn(view, &next)
 	siegeTurn(view, &next)
@@ -119,14 +135,6 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	counterBattery(view, &next)
 	rocketClumps(view, &next)
 	flank(view, &next)
-	orderable := map[domain.PawnID]bool{}
-	for _, id := range view.Orderable {
-		orderable[id] = true
-	}
-	state := map[domain.PawnID]CombatPawnState{}
-	for _, p := range view.Pawns {
-		state[p.ID] = p
-	}
 	rescue, ask := rescueStep(view, geometry, stop, &next, orderable, state)
 	if ask != nil {
 		return nil, ask, memory
@@ -211,6 +219,10 @@ type CombatPawnState struct {
 	// Health summary (#1035): BloodLoss severity, the bleed rate per day
 	// and the hours until blood loss kills; unknown when unread.
 	BloodLoss, BleedRatePerDay, HoursUntilBleedDeath domain.Fact[float64]
+	// Prisoner is a prison-breaking prisoner (COMBAT_SIDE_PRISONER, #1080);
+	// Health its summary health fraction.
+	Prisoner bool                 `json:",omitempty"`
+	Health   domain.Fact[float64] `json:",omitzero"`
 }
 
 // CombatLayout is the stored, complete defense layout's line.
@@ -660,6 +672,9 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 		return reformManhunter(view, m)
 	case TacticSquad:
 		return squadTargetDown(view, m)
+	case TacticPrisonBreak:
+		// The escapees are down or gone: whatever is left is a fight anew.
+		return true
 	}
 	return false
 }

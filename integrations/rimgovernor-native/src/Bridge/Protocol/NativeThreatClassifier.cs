@@ -16,6 +16,9 @@ namespace HomeBridge.BridgeTools
         internal string? Mental;
         /// A non-player faction hostile to the player.
         internal bool FactionHostile;
+        /// A prisoner of the colony breaking out (#1080); a held prisoner
+        /// is never FactionHostile.
+        internal bool PrisonBreak;
         internal string? FactionId;
         /// The current job is PredatorHunt.
         internal bool PredatorHunt;
@@ -54,7 +57,7 @@ namespace HomeBridge.BridgeTools
                 scan.Examined++;
                 var f = facts(pawn);
                 var manhunter = f.Mental?.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0;
-                var hostile = manhunter || f.FactionHostile;
+                var hostile = manhunter || f.FactionHostile || f.PrisonBreak;
                 int? nearest;
                 if (hostile || f.PredatorHunt) nearest = Nearest(colonists, f.X, f.Z, ref scan);
                 else {
@@ -72,7 +75,7 @@ namespace HomeBridge.BridgeTools
                 row.Hostile = hostile;
                 var threat = new Obs.ThreatPawn { Pawn = row };
                 if (hostile && f.Passive.HasValue) threat.Passive = f.Passive.Value;
-                if (hostile) { row.HostileReason = manhunter ? "manhunter:"+f.Mental : "faction:"+f.FactionId; threats.Hostiles.Add(threat); }
+                if (hostile) { row.HostileReason = manhunter ? "manhunter:"+f.Mental : f.PrisonBreak ? "prison_break" : "faction:"+f.FactionId; threats.Hostiles.Add(threat); }
                 else if (f.PredatorHunt) {
                     threat.PredatorIsOurs = f.Ours;
                     if (f.HasPrey) { threat.Prey = prey(pawn); threat.PreyIsOurs = f.PreyOurs; }

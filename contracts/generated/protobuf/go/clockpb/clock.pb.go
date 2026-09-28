@@ -464,6 +464,8 @@ const (
 	CombatEvent_COMBAT_EVENT_BREACH CombatEvent = 9
 	// A pawn on the map started a mental state (berserk, fleeing).
 	CombatEvent_COMBAT_EVENT_MENTAL_BREAK CombatEvent = 10
+	// A prison break started on the map (#1080).
+	CombatEvent_COMBAT_EVENT_PRISON_BREAK CombatEvent = 11
 )
 
 // Enum value maps for CombatEvent.
@@ -480,6 +482,7 @@ var (
 		8:  "COMBAT_EVENT_HOSTILE_ARRIVED",
 		9:  "COMBAT_EVENT_BREACH",
 		10: "COMBAT_EVENT_MENTAL_BREAK",
+		11: "COMBAT_EVENT_PRISON_BREAK",
 	}
 	CombatEvent_value = map[string]int32{
 		"COMBAT_EVENT_UNSPECIFIED":        0,
@@ -493,6 +496,7 @@ var (
 		"COMBAT_EVENT_HOSTILE_ARRIVED":    8,
 		"COMBAT_EVENT_BREACH":             9,
 		"COMBAT_EVENT_MENTAL_BREAK":       10,
+		"COMBAT_EVENT_PRISON_BREAK":       11,
 	}
 )
 
@@ -5788,7 +5792,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x1bSTOP_REASON_COLONIST_INJURY\x10\x15\x12\x1d\n" +
 	"\x19STOP_REASON_WATCH_LATCHED\x10\x16\x12\x1c\n" +
 	"\x18STOP_REASON_DIALOG_PAUSE\x10\x17\x12\x1c\n" +
-	"\x18STOP_REASON_COMBAT_EVENT\x10\x18*\xe1\x02\n" +
+	"\x18STOP_REASON_COMBAT_EVENT\x10\x18*\x80\x03\n" +
 	"\vCombatEvent\x12\x1c\n" +
 	"\x18COMBAT_EVENT_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13COMBAT_EVENT_DOWNED\x10\x01\x12\x1f\n" +
@@ -5801,7 +5805,8 @@ const file_clock_proto_rawDesc = "" +
 	"\x1cCOMBAT_EVENT_HOSTILE_ARRIVED\x10\b\x12\x17\n" +
 	"\x13COMBAT_EVENT_BREACH\x10\t\x12\x1d\n" +
 	"\x19COMBAT_EVENT_MENTAL_BREAK\x10\n" +
-	"*\x9a\x01\n" +
+	"\x12\x1d\n" +
+	"\x19COMBAT_EVENT_PRISON_BREAK\x10\v*\x9a\x01\n" +
 	"\x11InjurySuppression\x12\"\n" +
 	"\x1eINJURY_SUPPRESSION_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17INJURY_SUPPRESSION_NONE\x10\x01\x12#\n" +

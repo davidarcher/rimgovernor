@@ -44,6 +44,7 @@ internal static class NativeThreatClassifierProbe
         LegacyContract();
         NoColonists();
         ZeroRadius();
+        PrisonBreak();
         Console.WriteLine("native-threat-classifier: " + checks + " checks passed");
     }
 
@@ -138,5 +139,17 @@ internal static class NativeThreatClassifierProbe
         Check(t.Hostiles.Count == 1 && t.Hostiles[0].Pawn.NearestColonistDistance == 0, "hostile at distance zero");
         Check(t.DownedNear.Count == 0 && t.WildPredatorsNear.Count == 0, "zero radius keeps no proximity threat");
         Check(projected == 1 && scan.ProximityChecks == 1, "zero radius skips the proximity scan");
+    }
+
+    // A prison-breaking prisoner (#1080) is a hostile with its own reason;
+    // a held prisoner of a hostile faction arrives with FactionHostile false.
+    private static void PrisonBreak()
+    {
+        var pawns = new List<P> {
+            Pawn("escapee", new ThreatFacts { PrisonBreak = true, X = 2, Z = 0 }),
+            Pawn("held", new ThreatFacts { X = 3, Z = 0 }),
+        };
+        var (t, _) = Run(pawns, Colonists, 30);
+        Check(t.Hostiles.Count == 1 && t.Hostiles[0].Pawn.HostileReason == "prison_break" && t.Hostiles[0].Pawn.Hostile, "escapee is hostile");
     }
 }

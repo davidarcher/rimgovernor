@@ -158,6 +158,13 @@ namespace HomeBridge.BridgeTools
             {
                 var faction = pawn.Faction;
                 var player = PlayerFaction();
+                if (player != null && pawn.HostFaction == player)
+                {
+                    // A held prisoner is hostile only while breaking out (#1080).
+                    if (!PrisonBreakUtility.IsPrisonBreaking(pawn)) return false;
+                    reason = "prison_break";
+                    return true;
+                }
                 if (faction == null || player == null || faction == player)
                     return false;
                 if (faction.HostileTo(player))

@@ -348,6 +348,7 @@ namespace HomeBridge.BridgeTools
             var things = new List<object>();
             var pawns = new List<Pawn>();
             var hostiles = new List<Pawn>();
+            var prisoners = new List<Pawn>();
             Rand.PushState(Seed);
             try
             {
@@ -383,7 +384,7 @@ namespace HomeBridge.BridgeTools
                         pawn.Position = cell;
                         pawn.Notify_Teleported(true, true);
                     }
-                    else if ((string)p["side"] == "hostile")
+                    else if ((string)p["side"] == "hostile" || (string)p["side"] == "prisoner")
                     {
                         var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
                         pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, faction, forceGenerateNewPawn: true, canGeneratePawnRelations: false, mustBeCapableOfViolence: true,
@@ -393,8 +394,18 @@ namespace HomeBridge.BridgeTools
                         foreach (var skill in pawn.skills.skills) { skill.Level = HostileSkill; skill.passion = Passion.None; }
                         pawn.apparel?.DestroyAll();
                         pawn.inventory?.DestroyAll();
-                        if (arrival == null) GenSpawn.Spawn(pawn, cell, map);
-                        hostiles.Add(pawn);
+                        if ((string)p["side"] == "prisoner")
+                        {
+                            // #1080: held by the colony, no lord until it breaks out.
+                            GenSpawn.Spawn(pawn, cell, map);
+                            pawn.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
+                            prisoners.Add(pawn);
+                        }
+                        else
+                        {
+                            if (arrival == null) GenSpawn.Spawn(pawn, cell, map);
+                            hostiles.Add(pawn);
+                        }
                     }
                     else if ((string)p["side"] == "animal" || (string)p["side"] == "manhunter")
                     {
@@ -416,6 +427,8 @@ namespace HomeBridge.BridgeTools
                     if (pawn.equipment != null) Arm(pawn, (string)p["weapon"] ?? "", (string)p["weaponStuff"] ?? "");
                     // downed (#867): anesthetic downs the pawn without wounds.
                     if ((bool?)p["downed"] == true) pawn.health.AddHediff(HediffDefOf.Anesthetic);
+                    // injured (#1080): a blunt blow bruises without bleeding.
+                    if ((bool?)p["injured"] == true) pawn.TakeDamage(new DamageInfo(DamageDefOf.Blunt, 8f));
                     pawns.Add(pawn);
                     if (arrival != null && pawn.Faction != Faction.OfPlayer && arrivalCenter == null) arrivalCenter = cell;
                 }
@@ -428,8 +441,15 @@ namespace HomeBridge.BridgeTools
             }
             if (hostiles.Count > 0)
                 LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, hostiles);
+            // prisonBreak (#1080): the game's own break, started by the first prisoner.
+            if ((bool?)spec["prisonBreak"] == true)
+            {
+                if (prisoners.Count == 0) throw new ArgumentException("prisonBreak needs a prisoner.");
+                PrisonBreakUtility.StartPrisonBreak(prisoners[0], out _, out _, out _, out var escaping);
+                if (escaping == null || escaping.Count == 0) throw new InvalidOperationException("The prison break freed no prisoner.");
+            }
             var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(),
-                side = p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : "manhunter") : p.Faction == Faction.OfPlayer ? "colonist" : "hostile", kind = p.kindDef.defName,
+                side = p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : "manhunter") : p.Faction == Faction.OfPlayer ? "colonist" : p.HostFaction == Faction.OfPlayer ? "prisoner" : "hostile", kind = p.kindDef.defName,
                 x = p.PositionHeld.x, z = p.PositionHeld.z, inPod = !p.Spawned, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
                 lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0 }).ToList();
             return new { success = true, faction = hostiles.FirstOrDefault()?.Faction.def.defName, things, pawns = rows, digest = Digest(map), digestRows = DigestRows(map) };
@@ -527,7 +547,7 @@ namespace HomeBridge.BridgeTools
         // well under the call ceiling.
         private const int MaxTicks = 2000;
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile|animal|manhunter, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, trained (animal TrainableDefs)}]}. Hostiles get fixed skills, no apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs)}], prisonBreak}. Hostiles get fixed skills, no apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
             [ToolParameter(Description = "stage (default), read, or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
