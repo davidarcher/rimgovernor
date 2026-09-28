@@ -38,6 +38,9 @@ type DefenseLine struct {
 type DefenseDefinitions struct {
 	Sandbag, SandbagStuff, Wall, WallStuff, Fence, FenceStuff, Trap, TrapStuff, Door, DoorStuff, Floor string
 	Embrasure                                                                                          string
+	// Bait is the cheap furniture the bait tier places on the arrival
+	// sector's approach (#1063); empty places none.
+	Bait, BaitStuff string
 }
 
 type DefenseRequest struct {
@@ -453,6 +456,9 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		layout.Tiers = append(layout.Tiers, turrets)
 	}
 	layout.Approaches = s.defenseApproaches(layout)
+	if bait := s.baitTier(layout); len(bait.Buildings) > 0 {
+		layout.Tiers = append(layout.Tiers, bait)
+	}
 	return layout, nil
 }
 

@@ -29,7 +29,7 @@ import (
 // MaintainStoneShell upgrades flammable walls afterwards through its own goal.
 // The wood floor under each shooter needs no research and keeps the firing
 // cell free of the trees that grew onto it before (#224).
-var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", SandbagStuff: "WoodLog", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Door: "Door", DoorStuff: "WoodLog", Floor: "WoodPlankFloor"}
+var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", SandbagStuff: "WoodLog", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Door: "Door", DoorStuff: "WoodLog", Floor: "WoodPlankFloor", Bait: "Stool", BaitStuff: "WoodLog"}
 
 // The powered turret tier (#61): the mini turret needs no rearming, and a
 // conduit chain connects it to the network. Both are planning definitions
@@ -68,7 +68,7 @@ func defenseDefinitionAvailable(read observation.RoutineReading, name string) bo
 
 // defenseTierOrder is the staged construction order; a tier without
 // placements (the chokepoint reuses existing geometry) is complete as-is.
-var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets}
+var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets, policy.TierBait}
 
 // RoutineDefenseLayoutSource is the native read set the planner needs beyond
 // the reviewer's shared colony observation: the census rectangle, shooting
@@ -921,6 +921,9 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	}
 	request := defenseTurretRequest(read)
 	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
+	// Observed arrivals rank the sectors; the bait tier stands only on a
+	// sector a raid used (#1063).
+	request.Arrivals, request.Tick = defenseArrivals(site.Raids, region), projection.Identity.Tick
 	request.Protected = layoutProtected(projection, request.Protected)
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
@@ -1032,7 +1035,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	var blockedCells []domain.Cell
 	for _, t := range record.Tiers {
 		for _, b := range t.Buildings {
-			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseDefinitions.Door || b.Definition == defenseConduitDefinition || defenseTerrain(b.Definition) {
+			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseDefinitions.Door || b.Definition == defenseDefinitions.Bait || b.Definition == defenseConduitDefinition || defenseTerrain(b.Definition) {
 				continue
 			}
 			if !blocked[b.Cell] {

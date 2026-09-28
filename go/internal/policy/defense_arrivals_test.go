@@ -315,3 +315,65 @@ func TestDefenseApproachesFloodFromEntryWhenHomeIsBlocked(t *testing.T) {
 		t.Fatalf("sectors %d with Home blocked, %d open", len(got.Sectors), len(open.Sectors))
 	}
 }
+
+// TestBaitPlacedOnArrivalSector: a raid that arrived up the south corridor
+// gets two stools beside its route, at least the standoff from the killbox
+// entry and never on the route; no arrival or no bait definition places
+// none (#1063).
+func TestBaitPlacedOnArrivalSector(t *testing.T) {
+	r := defenseFixture()
+	r.Definitions.Bait, r.Definitions.BaitStuff = "Stool", "WoodLog"
+	r.UnitCosts["Stool"] = []Amount{{Resource: "WoodLog", Count: 25}}
+	layout, err := DefenseLayouts(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := layout.Tier(TierBait); ok {
+		t.Fatal("bait placed without an observed arrival")
+	}
+	r.Tick = 100000
+	r.Arrivals = []DefenseArrival{{ID: "raid-1", Edge: domain.Cell{X: 9, Z: 0}, Tick: r.Tick - 10}}
+	layout, err = DefenseLayouts(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bait, ok := layout.Tier(TierBait)
+	if !ok || len(bait.Buildings) != defenseBaitCount {
+		t.Fatalf("bait tier: %+v", layout.Tiers)
+	}
+	route := layout.Approaches.Sectors[0].Route
+	onRoute := map[domain.Cell]int{}
+	for i, c := range route {
+		onRoute[c] = len(route) - 1 - i
+	}
+	for _, b := range bait.Buildings {
+		c := b.Cell()
+		if b.Definition() != "Stool" || b.Stuff() != "WoodLog" {
+			t.Fatalf("bait piece %v", b)
+		}
+		if _, on := onRoute[c]; on {
+			t.Fatalf("bait on the route at %v", c)
+		}
+		// Beside a route cell at least the standoff from Entry: outside
+		// the killbox, on the approach.
+		beside := false
+		for _, d := range directions {
+			if dist, on := onRoute[addCell(c, d)]; on && dist >= defenseBaitStandoff {
+				beside = true
+			}
+		}
+		if !beside || c.Z >= layout.Entry.Z {
+			t.Fatalf("bait off the approach at %v (route %v)", c, route)
+		}
+	}
+	if costs, known := bait.Costs.Value(); !known || !reflect.DeepEqual(costs, []Amount{{Resource: "WoodLog", Count: 50}}) {
+		t.Fatalf("bait costs %v", bait.Costs)
+	}
+	r.Definitions.Bait = ""
+	if layout, err = DefenseLayouts(r); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := layout.Tier(TierBait); ok {
+		t.Fatal("bait placed without a bait definition")
+	}
+}

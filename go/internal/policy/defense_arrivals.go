@@ -389,3 +389,80 @@ func (s defenseSite) defenseApproaches(l DefenseLayout) DefenseApproaches {
 	})
 	return out
 }
+
+// TierBait is cheap furniture on the arrival sector's approach, outside the
+// killbox (#1063): looters break off to grab it, splitting the raid before
+// it reaches the corridor.
+const TierBait DefenseTierName = "bait"
+
+const (
+	// defenseBaitCount bounds the pieces: a few split a group, more only
+	// cost wood.
+	defenseBaitCount = 2
+	// defenseBaitStandoff is the least route distance from Entry: a piece
+	// nearer would pull looters into the killbox rather than off the line.
+	defenseBaitStandoff = 10
+	// defenseBaitSpacing keeps pieces apart along the route, so each draws
+	// its own looters.
+	defenseBaitSpacing = 3
+)
+
+// baitTier places Definitions.Bait beside the top-ranked sector's route,
+// only once a raid has arrived there: without an observed arrival the
+// sector is a guess. Pieces stand beside the route, never on it, walking
+// outward from the standoff. Empty without a bait definition, an arrival
+// sector or a free cell.
+func (s defenseSite) baitTier(l DefenseLayout) DefenseTier {
+	tier := DefenseTier{Name: TierBait}
+	def := s.r.Definitions.Bait
+	if def == "" || len(l.Approaches.Sectors) == 0 {
+		return tier
+	}
+	sector := l.Approaches.Sectors[0]
+	if sector.RecentRaids == 0 || len(sector.Route) == 0 {
+		return tier
+	}
+	taken := map[domain.Cell]bool{}
+	for _, c := range sector.Route {
+		taken[c] = true
+	}
+	for _, c := range append(append([]domain.Cell{}, l.TrapLane...), l.SafeLane...) {
+		taken[c] = true
+	}
+	for _, t := range l.Tiers {
+		for _, c := range t.Reserved {
+			taken[c] = true
+		}
+		for _, b := range t.Buildings {
+			taken[b.Cell()] = true
+		}
+	}
+	for _, f := range l.Firing {
+		taken[f.Cell], taken[f.Cover], taken[f.Retreat] = true, true, true
+	}
+	// Route runs from the opening to Entry, so index len-1 is Entry.
+	last := -defenseBaitSpacing
+	for i := len(sector.Route) - 1 - defenseBaitStandoff; i >= 0 && len(tier.Buildings) < defenseBaitCount; i-- {
+		distance := len(sector.Route) - 1 - i
+		if distance-last < defenseBaitSpacing {
+			continue
+		}
+		at, next := sector.Route[i], sector.Route[i+1]
+		p := perpendicular(domain.Cell{X: next.X - at.X, Z: next.Z - at.Z})
+		for _, c := range []domain.Cell{addCell(at, p), addCell(at, scale(p, -1))} {
+			if taken[c] || !s.free(c) {
+				continue
+			}
+			b, err := domain.NewBuilding(def, c, domain.North, s.r.Definitions.BaitStuff)
+			if err != nil {
+				continue
+			}
+			tier.Buildings = append(tier.Buildings, b)
+			tier.Reserved = append(tier.Reserved, c)
+			taken[c], last = true, distance
+			break
+		}
+	}
+	tier.Costs = tierCosts(s.r.UnitCosts, tier.Buildings)
+	return tier
+}
