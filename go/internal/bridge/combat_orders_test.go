@@ -302,3 +302,42 @@ func TestValidateCombatMortar(t *testing.T) {
 		t.Fatalf("mortar refusal: %v", err)
 	}
 }
+
+// TestValidateCombatAnimalOrders covers the #1057 release and animal_area orders.
+func TestValidateCombatAnimalOrders(t *testing.T) {
+	animal := func() *o.CombatOrders {
+		return &o.CombatOrders{Orders: []*o.CombatOrder{
+			{Pawn: combatPawn("dog"), Order: &o.CombatOrder_Release{Release: combatPawn("h0")}},
+			{Pawn: combatPawn("dog"), Order: &o.CombatOrder_AnimalArea{AnimalArea: &o.CombatAnimalArea{Area: &o.CombatAnimalArea_Cell{Cell: combatCell(4, 5)}}}},
+			{Pawn: combatPawn("dog"), Order: &o.CombatOrder_AnimalArea{AnimalArea: &o.CombatAnimalArea{Area: &o.CombatAnimalArea_Clear{Clear: &o.Clear{}}}}},
+		}}
+	}
+	if err := ValidateCombatOrders(animal()); err != nil {
+		t.Fatal(err)
+	}
+	for name, edit := range map[string]func(*o.CombatOrders){
+		"release nil":     func(v *o.CombatOrders) { v.Orders[0].Order = &o.CombatOrder_Release{} },
+		"release self":    func(v *o.CombatOrders) { v.Orders[0].Order = &o.CombatOrder_Release{Release: combatPawn("dog")} },
+		"release no pawn": func(v *o.CombatOrders) { v.Orders[0].Pawn = nil },
+		"area nil":        func(v *o.CombatOrders) { v.Orders[1].Order = &o.CombatOrder_AnimalArea{} },
+		"area empty":      func(v *o.CombatOrders) { v.Orders[1].GetAnimalArea().Area = nil },
+		"area bad cell": func(v *o.CombatOrders) {
+			v.Orders[1].GetAnimalArea().Area = &o.CombatAnimalArea_Cell{Cell: combatCell(-1, 5)}
+		},
+		"clear nil": func(v *o.CombatOrders) { v.Orders[2].GetAnimalArea().Area = &o.CombatAnimalArea_Clear{} },
+	} {
+		v := animal()
+		edit(v)
+		if err := ValidateCombatOrders(v); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	receipt := combatReceipt([]*r.CombatOrderResult{
+		combatResult(0, "dog", false, CombatRefusalUntrained, ""),
+		combatResult(1, "dog", false, CombatRefusalNotOurs, ""),
+		combatResult(2, "dog", false, CombatRefusalNotOurs, ""),
+	}, false)
+	if _, err := CombatOrderResults(receipt, animal()); err != nil {
+		t.Fatalf("animal refusals: %v", err)
+	}
+}

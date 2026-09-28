@@ -36,6 +36,8 @@ type Pawn struct {
 	WeaponStuff string `json:"weaponStuff,omitempty"`
 	// Downed stages the pawn downed under anesthetic (#867).
 	Downed bool `json:"downed,omitempty"`
+	// Trained names the TrainableDefs an Animal has learned (#1057).
+	Trained []string `json:"trained,omitempty"`
 }
 
 // Fixture is one staged combat. Colonists is the lab wipe's colonist
@@ -72,6 +74,10 @@ type Cell struct{ X, Z int }
 const (
 	Colonist = "colonist"
 	Hostile  = "hostile"
+	// Animal is a generated player animal of Kind; Manhunter a wild Kind
+	// gone permanently manhunter (#1057).
+	Animal    = "animal"
+	Manhunter = "manhunter"
 
 	rifle     = "Gun_AssaultRifle"
 	longsword = "MeleeWeapon_LongSword"
@@ -83,7 +89,8 @@ const (
 // Names are the fixtures in landing order; #854 lands the first three and
 // reserves lab-breach, lab-mech, lab-manhunter and lab-siege for the first
 // #845 child that needs each. lab-pods (#870) joins with its rooms (#897).
-// The metrics baselines run Names.
+// The metrics baselines run Names; lab-manhunter (#1057) builds but has
+// no metrics baseline yet.
 var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
@@ -97,6 +104,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return ranged(cx, cz), nil
 	case "lab-pods":
 		return pods(cx, cz), nil
+	case "lab-manhunter":
+		return manhunter(cx, cz), nil
 	}
 	return Fixture{}, fmt.Errorf("combatlab: no fixture %q", name)
 }
@@ -218,4 +227,16 @@ func ranged(cx, cz int) Fixture {
 		f.Layout.Retreat = append(f.Layout.Retreat, Cell{cx + dx, cz - 14})
 	}
 	return f
+}
+
+// manhunter (#1057): one colonist, a release-trained husky beside her and
+// an untrained one, two permanent-manhunter wargs 15 cells north.
+func manhunter(cx, cz int) Fixture {
+	return Fixture{Name: "lab-manhunter", Colonists: 1, Pawns: []Pawn{
+		{Side: Colonist, Index: 0, X: cx, Z: cz},
+		{Side: Animal, Kind: "Husky", X: cx + 1, Z: cz, Trained: []string{"Tameness", "Obedience", "Release"}},
+		{Side: Animal, Kind: "Husky", X: cx - 1, Z: cz},
+		{Side: Manhunter, Kind: "Warg", X: cx - 2, Z: cz + 15},
+		{Side: Manhunter, Kind: "Warg", X: cx + 2, Z: cz + 15},
+	}}
 }

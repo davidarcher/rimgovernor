@@ -144,6 +144,14 @@ message CombatRepair { rimgovernor.common.v1.Cell cell = 1; }
 // not_a_mortar, cannot_hit (inside the minimum or past the maximum range),
 // unreachable.
 message CombatMortar { rimgovernor.common.v1.Cell mortar = 1; rimgovernor.common.v1.Cell target = 2; }
+// Animal orders (#1057) name a player-faction animal, not a drafted pawn:
+// no draft claim is needed, and the animal carries no snapshot token.
+// Refusals: not_ours (not a spawned player animal), untrained (release
+// without the Release training).
+// animal_area restricts the animal to one cell by a native-owned allowed
+// area; clear restores the area it had before (none when unknown, as
+// after a reload) and removes the native area.
+message CombatAnimalArea { oneof area { rimgovernor.common.v1.Cell cell = 1; Clear clear = 2; } }
 message CombatDoor { rimgovernor.common.v1.Cell cell = 1; optional CombatDoorMode mode = 2; }
 message CombatOrder {
   EntityPrecondition pawn = 1;
@@ -169,6 +177,11 @@ message CombatOrder {
     // draft_ownership (another claim holds it).
     Clear draft = 11;
     CombatMortar mortar = 12;
+    // Release (#1057): a release-trained player animal attacks one spawned
+    // pawn by the vanilla melee attack job, as a released animal does.
+    // Refusals: not_ours, untrained, not_found, cannot_hit, unreachable.
+    EntityPrecondition release = 13;
+    CombatAnimalArea animal_area = 14;
   }
 }
 message CombatOrders { repeated CombatOrder orders = 1; }

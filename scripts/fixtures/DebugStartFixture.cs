@@ -396,8 +396,24 @@ namespace HomeBridge.BridgeTools
                         if (arrival == null) GenSpawn.Spawn(pawn, cell, map);
                         hostiles.Add(pawn);
                     }
+                    else if ((string)p["side"] == "animal" || (string)p["side"] == "manhunter")
+                    {
+                        // #1057: a player animal with the named trainables
+                        // learned, or a wild animal gone permanently manhunter.
+                        var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
+                        bool ours = (string)p["side"] == "animal";
+                        pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, ours ? Faction.OfPlayer : null, forceGenerateNewPawn: true, canGeneratePawnRelations: false,
+                            fixedBiologicalAge: 3f, fixedChronologicalAge: 3f, developmentalStages: DevelopmentalStage.Adult));
+                        foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
+                        GenSpawn.Spawn(pawn, cell, map);
+                        if (ours)
+                            foreach (var name in p["trained"] as JArray ?? new JArray())
+                                pawn.training.Train(DefDatabase<TrainableDef>.GetNamedSilentFail((string)name) ?? throw new ArgumentException($"No TrainableDef {name}."), null, complete: true);
+                        else if (!pawn.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.ManhunterPermanent, forced: true))
+                            throw new InvalidOperationException($"{kind.defName} did not go manhunter.");
+                    }
                     else throw new ArgumentException($"Unknown side {p["side"]}.");
-                    Arm(pawn, (string)p["weapon"] ?? "", (string)p["weaponStuff"] ?? "");
+                    if (pawn.equipment != null) Arm(pawn, (string)p["weapon"] ?? "", (string)p["weaponStuff"] ?? "");
                     // downed (#867): anesthetic downs the pawn without wounds.
                     if ((bool?)p["downed"] == true) pawn.health.AddHediff(HediffDefOf.Anesthetic);
                     pawns.Add(pawn);
@@ -412,7 +428,8 @@ namespace HomeBridge.BridgeTools
             }
             if (hostiles.Count > 0)
                 LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, hostiles);
-            var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(), side = p.Faction == Faction.OfPlayer ? "colonist" : "hostile", kind = p.kindDef.defName,
+            var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(),
+                side = p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : "manhunter") : p.Faction == Faction.OfPlayer ? "colonist" : "hostile", kind = p.kindDef.defName,
                 x = p.PositionHeld.x, z = p.PositionHeld.z, inPod = !p.Spawned, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
                 lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0 }).ToList();
             return new { success = true, faction = hostiles.FirstOrDefault()?.Faction.def.defName, things, pawns = rows, digest = Digest(map), digestRows = DigestRows(map) };
@@ -510,7 +527,7 @@ namespace HomeBridge.BridgeTools
         // well under the call ceiling.
         private const int MaxTicks = 2000;
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile, index (colonist), kind (hostile PawnKindDef), x, z, weapon, weaponStuff, downed}]}. Hostiles get fixed skills, no apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile}], pawns:[{side:colonist|hostile|animal|manhunter, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, trained (animal TrainableDefs)}]}. Hostiles get fixed skills, no apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
             [ToolParameter(Description = "stage (default), read, or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
@@ -531,7 +548,8 @@ namespace HomeBridge.BridgeTools
                         id = p.GetUniqueLoadID(), side = p.Faction == Faction.OfPlayer ? "colonist" : "hostile", x = p.PositionHeld.x, z = p.PositionHeld.z, downed = p.Downed, dead = p.Dead,
                         fleeing = !p.Dead && (p.MentalStateDef == MentalStateDefOf.PanicFlee || p.CurJobDef == JobDefOf.Flee || p.CurJobDef == JobDefOf.FleeAndCower),
                         job = p.CurJobDef?.defName, playerForced = p.CurJob?.playerForced == true, jobCell = p.CurJob == null || p.CurJob.targetA.HasThing ? null : new { x = p.CurJob.targetA.Cell.x, z = p.CurJob.targetA.Cell.z },
-                        jobThing = p.CurJob?.targetA.Thing?.GetUniqueLoadID(), drafted = p.Drafted, fireAtWill = p.drafter?.FireAtWill }).ToList(),
+                        jobThing = p.CurJob?.targetA.Thing?.GetUniqueLoadID(), drafted = p.Drafted, fireAtWill = p.drafter?.FireAtWill,
+                        area = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.Label, areaCells = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.TrueCount ?? 0 }).ToList(),
                         doors = map.listerBuildings.allBuildingsColonist.OfType<Building_Door>().Select(d => new { x = d.Position.x, z = d.Position.z, holdOpen = d.HoldOpen, forbidden = d.IsForbidden(Faction.OfPlayer) }).ToList(),
                         damage = LabDamageLedger.Rows(), damageDropped = LabDamageLedger.Dropped };
                 if (action != "stage") throw new ArgumentException("Unknown action.");

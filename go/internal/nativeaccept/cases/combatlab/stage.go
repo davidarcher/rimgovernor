@@ -26,6 +26,12 @@ func (s Staged) Colonists() []string { return s.ids(Colonist) }
 // Hostiles returns the staged hostiles' load ids, spec order.
 func (s Staged) Hostiles() []string { return s.ids(Hostile) }
 
+// Animals returns the staged player animals' load ids, spec order.
+func (s Staged) Animals() []string { return s.ids(Animal) }
+
+// Manhunters returns the staged manhunters' load ids, spec order.
+func (s Staged) Manhunters() []string { return s.ids(Manhunter) }
+
 func (s Staged) ids(side string) []string {
 	var out []string
 	for i, p := range s.Fixture.Pawns {
@@ -171,7 +177,7 @@ func checkPawn(want Pawn, got map[string]any) error {
 	if na.AsString(got["weapon"]) != want.Weapon {
 		return fmt.Errorf("weapon %v, want %s", got["weapon"], want.Weapon)
 	}
-	if hostile, _ := na.AsBool(got["hostile"]); hostile != (want.Side == Hostile) {
+	if hostile, _ := na.AsBool(got["hostile"]); hostile != (want.Side == Hostile || want.Side == Manhunter) {
 		return fmt.Errorf("hostile %v for side %s", hostile, want.Side)
 	}
 	if want.Side == Hostile {

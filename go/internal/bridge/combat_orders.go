@@ -35,6 +35,10 @@ const (
 	CombatRefusalCannotDraft = "cannot_draft"
 	// Mortar refusal (#931): no unroofed player mortar on the cell.
 	CombatRefusalNotAMortar = "not_a_mortar"
+	// Animal order refusals (#1057): not a spawned player animal, or a
+	// release order to an animal without the Release training.
+	CombatRefusalNotOurs   = "not_ours"
+	CombatRefusalUntrained = "untrained"
 )
 
 var combatRefusals = map[string]bool{
@@ -43,6 +47,7 @@ var combatRefusals = map[string]bool{
 	CombatRefusalNotADoor: true, CombatRefusalNativeRefused: true,
 	CombatRefusalCannotRescue: true, CombatRefusalNoBed: true, CombatRefusalCannotRepair: true,
 	CombatRefusalCannotDraft: true, CombatRefusalNotAMortar: true,
+	CombatRefusalNotOurs: true, CombatRefusalUntrained: true,
 }
 
 // CombatOrderResult is one order's outcome, in request order.
@@ -153,6 +158,26 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 		case *o.CombatOrder_Mortar:
 			if v.Mortar == nil || movementCell(v.Mortar.Mortar) != nil || movementCell(v.Mortar.Target) != nil {
 				return contract("combat order %d mortar or target cell missing or invalid", i)
+			}
+		case *o.CombatOrder_Release:
+			if err := optionalTokenEntity(v.Release); err != nil {
+				return contract("combat order %d release target: %v", i, err)
+			}
+			if v.Release.GetEntityId() == order.Pawn.GetEntityId() {
+				return contract("combat order %d releases its animal on itself", i)
+			}
+		case *o.CombatOrder_AnimalArea:
+			switch a := v.AnimalArea.GetArea().(type) {
+			case *o.CombatAnimalArea_Cell:
+				if err := movementCell(a.Cell); err != nil {
+					return contract("combat order %d animal_area: %v", i, err)
+				}
+			case *o.CombatAnimalArea_Clear:
+				if a.Clear == nil {
+					return contract("combat order %d animal_area clear missing", i)
+				}
+			default:
+				return contract("combat order %d animal_area needs a cell or clear", i)
 			}
 		case *o.CombatOrder_HoldPosition:
 			if v.HoldPosition == nil {

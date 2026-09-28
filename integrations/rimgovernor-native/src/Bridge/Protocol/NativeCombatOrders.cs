@@ -45,6 +45,11 @@ namespace HomeBridge.BridgeTools
                             || order.Rescue.Dest != null && !ValidCell(order.Rescue.Dest)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.Repair: if (!ValidCell(order.Repair.Cell)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.Mortar: if (!ValidCell(order.Mortar.Mortar) || !ValidCell(order.Mortar.Target)) return false; break;
+                    case Operations.CombatOrder.OrderOneofCase.Release:
+                        if (!NativeDraftProtocol.ValidEntityTokenOptional(order.Release) || order.Release.EntityId == order.Pawn!.EntityId) return false; break;
+                    case Operations.CombatOrder.OrderOneofCase.AnimalArea:
+                        if (order.AnimalArea.AreaCase == Operations.CombatAnimalArea.AreaOneofCase.Cell ? !ValidCell(order.AnimalArea.Cell)
+                            : order.AnimalArea.AreaCase != Operations.CombatAnimalArea.AreaOneofCase.Clear) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.HoldPosition:
                     case Operations.CombatOrder.OrderOneofCase.Stop:
                     case Operations.CombatOrder.OrderOneofCase.Draft: break;
@@ -98,6 +103,18 @@ namespace HomeBridge.BridgeTools
                             {
                                 try { refusal = Draft(identity, admitted.pawn!, out claim); }
                                 catch (Exception error) { refusal = "cannot_draft"; Log.Warning("[RimGovernor] combat order " + i + " draft failed: " + error.GetType().Name); }
+                            }
+                        }
+                        else if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Release || order.OrderCase == Operations.CombatOrder.OrderOneofCase.AnimalArea)
+                        {
+                            // Animal orders (#1057): a player animal, no draft claim.
+                            result.PawnId = order.Pawn.EntityId;
+                            var admitted = pawns[order.Pawn.EntityId];
+                            refusal = admitted.refusal;
+                            if (refusal.Length == 0)
+                            {
+                                try { refusal = Animal(identity, map, admitted.pawn!, order, out job); }
+                                catch (Exception error) { refusal = "native_refused"; Log.Warning("[RimGovernor] combat order " + i + " animal order failed: " + error.GetType().Name); }
                             }
                         }
                         else
@@ -278,6 +295,60 @@ namespace HomeBridge.BridgeTools
             }
             return "native_refused";
         }
+
+        // Animal orders (#1057) on one spawned player-faction animal.
+        // Release: the vanilla released animal's melee attack on one pawn.
+        // AnimalArea: a one-cell native allowed area, labelled by the animal
+        // so it survives a reload and clear still finds it; clear restores
+        // the restriction the animal had before, none when unknown.
+        private static string Animal(NativeControlIdentity identity, Map map, Pawn animal, Operations.CombatOrder order, out string? job)
+        {
+            job = null;
+            var player = Faction.OfPlayerSilentFail;
+            if (player == null || animal.Faction != player || animal.RaceProps?.Animal != true || !animal.Spawned || animal.Dead) return "not_ours";
+            if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Release)
+            {
+                if (animal.training == null || !animal.training.HasLearned(TrainableDefOf.Release)) return "untrained";
+                var target = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == order.Release.EntityId);
+                if (target == null) return "not_found";
+                if (NativeDraftProtocol.TokenSent(order.Release)
+                    && NativePawnControlState.Check(identity, target, order.Release.ExpectedSnapshotToken, out _) != NativePawnControlResult.Ready) return "stale_snapshot";
+                if (target.Dead || target.Downed || animal.Downed || animal.InMentalState || target.Faction == player) return "cannot_hit";
+                if (!animal.CanReach(target, PathEndMode.Touch, Danger.Deadly)) return "unreachable";
+                return Take(animal, JobMaker.MakeJob(JobDefOf.AttackMelee, target), out job);
+            }
+            var id = animal.GetUniqueLoadID();
+            var owned = map.areaManager.GetLabeled("RimGovernor " + id) as Area_Allowed;
+            if (order.AnimalArea.AreaCase == Operations.CombatAnimalArea.AreaOneofCase.Clear)
+            {
+                Area? prior = null;
+                if (PriorAreas.TryGetValue(id, out var kept) && kept != null && map.areaManager.AllAreas.Contains(kept)) prior = kept;
+                PriorAreas.Remove(id);
+                if (animal.playerSettings != null && (owned == null || animal.playerSettings.AreaRestrictionInPawnCurrentMap == owned))
+                    animal.playerSettings.AreaRestrictionInPawnCurrentMap = prior;
+                owned?.Delete();
+                return "";
+            }
+            if (animal.playerSettings == null || !animal.playerSettings.SupportsAllowedAreas) return "not_ours";
+            var cell = new IntVec3(order.AnimalArea.Cell.X, 0, order.AnimalArea.Cell.Z);
+            if (!cell.InBounds(map) || !cell.Standable(map) || !animal.CanReach(cell, PathEndMode.OnCell, Danger.Deadly)) return "unreachable";
+            if (owned == null)
+            {
+                if (!map.areaManager.CanMakeNewAllowed()) return "native_refused";
+                owned = new Area_Allowed(map.areaManager, "RimGovernor " + id);
+                map.areaManager.AllAreas.Add(owned);
+            }
+            var current = animal.playerSettings.AreaRestrictionInPawnCurrentMap;
+            if (current != owned) PriorAreas[id] = current;
+            foreach (var c in owned.ActiveCells.ToList()) owned[c] = false;
+            owned[cell] = true;
+            animal.playerSettings.AreaRestrictionInPawnCurrentMap = owned;
+            return "";
+        }
+
+        // The restriction each animal had before its first animal_area order;
+        // lost on a reload, when clear falls back to unrestricted.
+        private static readonly Dictionary<string, Area?> PriorAreas = new Dictionary<string, Area?>();
 
         private static string Take(Pawn pawn, Job made, out string? job)
         {
