@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // IntentInspection anchors an intent's dispatch to a native read of the
@@ -109,6 +110,13 @@ func (e *Executor) runIntent(ctx context.Context, action domain.Action, p domain
 	}
 	result.Progress = next
 	next, err = e.journal.Dispatch(ctx, v.Plan, v.Action, expected, tick)
+	if errors.Is(err, store.ErrActionVetoed) {
+		// An action Rule refused only this action (#1018); record why.
+		if held, holdErr := e.journal.Hold(ctx, v.Plan, v.Action, []domain.HeldReason{domain.HeldUnsafeItem}, tick); holdErr == nil {
+			result.Progress = held
+		}
+		return result, errors.Join(ErrHeld, err)
+	}
 	if err != nil {
 		return result, err
 	}

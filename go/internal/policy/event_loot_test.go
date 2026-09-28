@@ -33,12 +33,14 @@ func TestLootSafetyTracksBothDirections(t *testing.T) {
 	}
 }
 
-func TestOnlyKnownUnsafeLootIsEmergencyPriority(t *testing.T) {
+// Unsafe loot is refused at dispatch by UnsafeLootRule, never an emergency
+// (#1018).
+func TestUnsafeLootIsNotEmergencyPriority(t *testing.T) {
 	for _, tc := range []struct {
 		forbidden, safe, known bool
 		priority               int
 	}{
-		{true, true, true, 2}, {false, false, true, 0}, {false, false, false, 2},
+		{true, true, true, 2}, {false, false, true, 2}, {false, false, false, 2},
 	} {
 		f := RoutineFacts{EventLoot: domain.Known([]LootItem{{Forbidden: tc.forbidden, SafeToHaul: tc.safe, SafetyKnown: tc.known}})}
 		if got := supplySafetyPriority(f); got != tc.priority {

@@ -2,10 +2,12 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // AuthorizeRoutinePlan verifies a method under the existing player direction.
@@ -114,4 +116,17 @@ func (r RoutineReview) Veto(g domain.Goal) string {
 		return ""
 	}
 	return r.vetoNeed(need, g.Priority)
+}
+
+// vetoAction asks the action Rules (#1018) at dispatch: a vetoed action is
+// ErrActionVetoed with the Rule's reason and only that action is refused.
+func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {
+	review, err := loadRoutine(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if reason := policy.VetoAction(policy.ActionContext{Unsafe: review.Unsafe}, a); reason != "" {
+		return fmt.Errorf("%w: action %s: %s", ErrActionVetoed, a.ID(), reason)
+	}
+	return nil
 }

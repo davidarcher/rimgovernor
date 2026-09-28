@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"testing"
@@ -94,5 +95,45 @@ func TestSafetyForbidPersistsAsDistinctAction(t *testing.T) {
 	actual, ok := loaded.Spec.Actions()[0].SupplyAllow()
 	if !ok || actual != target || loaded.Spec.Actions()[0].Kind() != domain.SupplyForbidAction {
 		t.Fatal(loaded)
+	}
+}
+
+// An action Rule refuses allowing an item the safety census reported unsafe,
+// whichever planner proposed it (#1018); only that action is refused and
+// the rest of the plan dispatches. Unsafe loot raises no emergency.
+func TestUnsafeItemAllowVetoedAtDispatchOnly(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	request := routineRequest()
+	request.Current.Native = 1
+	cell := domain.Cell{X: 1, Z: 2}
+	request.Facts.StartingSupplies = domain.Known(supplyCohort(2, cell))
+	request.Facts.EventLoot = domain.Known([]policy.LootItem{
+		{Supply: supplyCohort(1, cell)[0], Forbidden: true, SafetyKnown: true},
+		{Supply: policy.StartingSupply{Thing: "burning", Definition: "Steel", Cell: cell}, SafetyKnown: true},
+	})
+	review := reviewRoutine(t, s, &request)
+	if got := review.Review.Unsafe; len(got) != 2 || got[0] != "burning" || got[1] != "item-0" {
+		t.Fatal("unsafe not recorded", got)
+	}
+	if len(review.Review.Emergency) != 0 {
+		t.Fatal("unsafe loot raised an emergency", review.Review.Emergency)
+	}
+	goal := routineGoal(t, review, policy.AllowStartingSupplies)
+	plan := supplyPlan(t, "allow", 2, cell)
+	if _, err := s.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "allow", plan); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := request.Current
+	snapshot.Plan, snapshot.Revision = plan.ID(), plan.Revision()
+	for i, action := range plan.Actions() {
+		if _, err := s.Prepare(ctx, plan.ID(), action.ID(), snapshot, 10); err != nil {
+			t.Fatal(err)
+		}
+		_, err := s.Dispatch(ctx, plan.ID(), action.ID(), snapshot, 10)
+		if vetoed := errors.Is(err, ErrActionVetoed); vetoed != (i == 0) || !vetoed && err != nil {
+			t.Fatal(action.ID(), err)
+		}
 	}
 }

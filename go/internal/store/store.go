@@ -38,6 +38,9 @@ const applicationID = 0x52474f31
 
 var ErrConflict = core.ErrConflict
 var ErrNotAdmitted = core.ErrNotAdmitted
+
+// ErrActionVetoed is an action Rule's dispatch refusal (#1018).
+var ErrActionVetoed = errors.New("action vetoed")
 var ErrNotFound = core.ErrNotFound
 
 type Store struct{ db *sql.DB }
@@ -726,6 +729,11 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 	}
 	if !found {
 		return domain.Progress{}, ErrNotFound
+	}
+	if event.Kind == "dispatch" {
+		if err = vetoAction(ctx, tx, current.Action()); err != nil {
+			return domain.Progress{}, err
+		}
 	}
 	if current.Action().Kind() == domain.AcquisitionAction {
 		if event.Kind == "prepare" {

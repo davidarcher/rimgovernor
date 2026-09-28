@@ -108,6 +108,7 @@ const (
 	HeldRoofSupportRisk            HeldReason = "roof_support_risk"
 	HeldStorageMissing             HeldReason = "missing_storage"
 	HeldUrgentCompetingWork        HeldReason = "urgent_competing_work"
+	HeldUnsafeItem                 HeldReason = "unsafe_item"
 )
 
 // orderedHeldReasons lists every reason in the fixed, deterministic order
@@ -123,7 +124,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,
 	HeldExcavationUnsupported, HeldExcavationGeometryChanged,
-	HeldUnsafeRoute, HeldRoofSupportRisk, HeldStorageMissing, HeldUrgentCompetingWork,
+	HeldUnsafeRoute, HeldRoofSupportRisk, HeldStorageMissing, HeldUrgentCompetingWork, HeldUnsafeItem,
 }
 
 func (r HeldReason) valid() bool {

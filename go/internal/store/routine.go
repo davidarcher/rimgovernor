@@ -32,7 +32,11 @@ type ReserveSupply struct {
 type RoutineReview struct {
 	// Emergency names the assessed needs policy.EmergencyNeed found in this
 	// enabled review; the EmergencyRule vetoes other work from them (#1017).
-	Emergency       []policy.GoalID         `json:",omitempty"`
+	Emergency []policy.GoalID `json:",omitempty"`
+	// Unsafe lists the loose things the last known safety census reported
+	// unsafe to haul; policy.UnsafeLootRule refuses allowing them at
+	// dispatch (#1018).
+	Unsafe          []string                `json:",omitempty"`
 	BrewingFinished bool                    `json:",omitempty"`
 	ResourceRunways []ResourceRunwayRecord  `json:",omitempty"`
 	ReserveSupplies []ReserveSupply         `json:",omitempty"`
@@ -581,6 +585,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.WoodFloor = needs.WoodFloor
 	r.StartingSupplies = supplies
 	r.EventLoot = loot
+	if rows, known := request.Facts.EventLoot.Value(); known {
+		r.Unsafe = policy.UnsafeLoot(rows)
+	} else if !reset {
+		r.Unsafe = previous.Unsafe
+	}
 	if !reset {
 		r.Built = previous.Built
 	}
