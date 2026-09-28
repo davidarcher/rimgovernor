@@ -446,6 +446,9 @@ const (
 	// ReasonHoldFire is a fire-mode toggle (and its stop) for a hostile in
 	// melee with our blockers (#861).
 	ReasonHoldFire CombatOrderReason = "hold_fire"
+	// ReasonFinish is a stripped downed raider not worth capturing,
+	// finished by its stripper (#1079).
+	ReasonFinish CombatOrderReason = "finish"
 )
 
 // CombatOrder is one changed order.

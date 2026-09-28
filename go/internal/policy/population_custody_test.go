@@ -10,7 +10,7 @@ func downedRaider(id domain.PawnID, recruitable bool) CustodyFacts {
 	f := domain.Known(false)
 	return CustodyFacts{
 		Pawn: id, Dead: f, Downed: domain.Known(true), Guest: f, Admitted: f, Prisoner: f,
-		Hostile: domain.Known(true), Recruitable: domain.Known(recruitable),
+		Hostile: domain.Known(true), Recruitable: domain.Known(recruitable), WearingApparel: f,
 	}
 }
 

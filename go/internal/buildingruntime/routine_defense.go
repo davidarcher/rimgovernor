@@ -78,6 +78,11 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		if err = r.settleUnissuedWork(call, incident); err != nil {
 			return RoutineDefenseResult{}, err
 		}
+		// Its downed raiders are stripped, and the ones not worth
+		// capturing finished, before it closes (#1079).
+		if result, held, err := r.postFight(call, epoch, incident, state, arbiter); err != nil || held {
+			return result, err
+		}
 		// The fight is over: closing it lets the undraft sweep undraft its
 		// defenders (#939).
 		for _, method := range incident.Methods {
@@ -524,6 +529,9 @@ func defenseMethodID(prefix string, admitted int, hash hash.Hash) domain.MethodI
 func (r *RoutineDefensePlanner) settleUnissuedWork(call context.Context, incident store.IncidentState) error {
 	p := r.reviewer.player
 	for _, method := range incident.Methods {
+		if strings.HasPrefix(string(method.Method), stripMethodPrefix) {
+			continue // the post-fight strip waits for its own dispatch (#1079)
+		}
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return err

@@ -248,14 +248,16 @@ func (s *Store) CommitIncidentMethod(ctx context.Context, id domain.IncidentID, 
 		return IncidentState{}, err
 	}
 	defer tx.Rollback()
-	state, err := commitIncidentMethod(ctx, tx, id, method, reason, plan)
+	state, err := commitIncidentMethod(ctx, tx, id, method, reason, plan, false)
 	if err != nil {
 		return IncidentState{}, err
 	}
 	return state, tx.Commit()
 }
 
-func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID, method domain.MethodID, reason string, plan domain.PlanSpec) (IncidentState, error) {
+// fightWork admits the method beside the incident's open fight (#1079):
+// only a plan still open refuses it.
+func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID, method domain.MethodID, reason string, plan domain.PlanSpec, fightWork bool) (IncidentState, error) {
 	state, err := loadIncident(ctx, tx, id)
 	if err != nil {
 		return IncidentState{}, err
@@ -267,6 +269,9 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 		return IncidentState{}, err
 	}
 	open, err := goalOpenWork(ctx, tx, state)
+	if err == nil && open && fightWork {
+		open, err = planOpenWork(ctx, tx, state)
+	}
 	if err != nil {
 		return IncidentState{}, err
 	}

@@ -252,7 +252,7 @@ namespace HomeBridge.BridgeTools
         private static double Step(double value, double step) => Math.Round(value / step) * step;
 
         // A hediff by def name; false when the def is not loaded.
-        private static bool HasHediff(Pawn pawn, string defName)
+        internal static bool HasHediff(Pawn pawn, string defName)
         {
             var def = DefDatabase<HediffDef>.GetNamedSilentFail(defName);
             return def != null && pawn.health?.hediffSet?.HasHediff(def) == true;

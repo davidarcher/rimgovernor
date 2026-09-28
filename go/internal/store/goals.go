@@ -227,6 +227,18 @@ func goalOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, err
 	return open, nil
 }
 
+// planOpenWork is goalOpenWork without the fights: whether any of the
+// owner's plans is still open.
+func planOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, error) {
+	for _, plan := range owner.ownerPlans() {
+		p, err := load(ctx, tx, plan)
+		if err != nil || PlanOpen(p) {
+			return err == nil, err
+		}
+	}
+	return false, nil
+}
+
 func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (GoalState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {

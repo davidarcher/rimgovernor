@@ -128,6 +128,12 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 			custodyRow.Guest = domain.Known(person.GetGuest())
 		}
 		custodyRow.Prospect = prisonerProspect(person)
+		if person.LuciferiumAddicted != nil {
+			custodyRow.Luciferium = domain.Known(person.GetLuciferiumAddicted())
+		}
+		if person.WearingApparel != nil {
+			custodyRow.WearingApparel = domain.Known(person.GetWearingApparel())
+		}
 		custody = append(custody, custodyRow)
 		if person.GetAdmitted() && !pawn.GetDead() {
 			colony.Colonists++

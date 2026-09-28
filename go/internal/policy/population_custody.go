@@ -28,6 +28,11 @@ type CustodyFacts struct {
 	// Prospect is the pawn's biography: skills rank a standing hostile as
 	// a lance target (#1038).
 	Prospect domain.Fact[PrisonerProspect]
+	// Luciferium is a LuciferiumAddiction hediff (#1079): the raider is
+	// not CaptureWorthy, so the fight strips and finishes it instead.
+	// WearingApparel gates a capture on the fight's strip: every downed
+	// raider is stripped before it is taken.
+	Luciferium, WearingApparel domain.Fact[bool]
 }
 
 // CustodyPlanReason names why RoutinePopulationCustodyPlanner did or did
@@ -67,6 +72,10 @@ func custodyEligible(row CustodyFacts) (CustodyDecision, bool) {
 		return "", false
 	}
 	if !guest && !admitted && !prisoner && hostile {
+		addicted, _ := row.Luciferium.Value()
+		if worn, known := row.WearingApparel.Value(); !CaptureWorthy(CombatPawnState{Luciferium: addicted}) || !known || worn {
+			return "", false
+		}
 		return CustodyCapture, true
 	}
 	return "", false

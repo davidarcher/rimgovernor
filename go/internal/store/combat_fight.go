@@ -89,11 +89,38 @@ func (s *Store) CommitCombatFight(ctx context.Context, incident domain.IncidentI
 		return IncidentState{}, err
 	}
 	defer tx.Rollback()
-	state, err := commitIncidentMethod(ctx, tx, incident, method, "", plan)
+	state, err := commitIncidentMethod(ctx, tx, incident, method, "", plan, false)
 	if err != nil {
 		return IncidentState{}, err
 	}
 	if err = insertCombatFight(ctx, tx, plan.ID(), memory, world, roster); err != nil {
+		return IncidentState{}, err
+	}
+	return state, tx.Commit()
+}
+
+// CommitFightStrip admits a strip of a downed raider beside the incident's
+// open fight (#1079): a method whose plan holds only strip actions, which
+// the fight's own open work does not refuse.
+func (s *Store) CommitFightStrip(ctx context.Context, incident domain.IncidentID, method domain.MethodID, plan domain.PlanSpec) (IncidentState, error) {
+	if err := plan.Validate(); err != nil {
+		return IncidentState{}, err
+	}
+	if len(plan.Actions()) == 0 {
+		return IncidentState{}, errors.New("empty fight strip")
+	}
+	for _, action := range plan.Actions() {
+		if action.Kind() != domain.StripAction {
+			return IncidentState{}, errors.New("fight strip plan holds only strip actions")
+		}
+	}
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return IncidentState{}, err
+	}
+	defer tx.Rollback()
+	state, err := commitIncidentMethod(ctx, tx, incident, method, "", plan, true)
+	if err != nil {
 		return IncidentState{}, err
 	}
 	return state, tx.Commit()

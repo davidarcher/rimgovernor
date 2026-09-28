@@ -88,6 +88,10 @@ namespace HomeBridge.BridgeTools
                     person.WildMan = p.IsWildMan();
                     person.Biography = NativePawnDetails.Biography(p);
                     if (p.health?.summaryHealth != null) person.HealthSummary = Number(p.health.summaryHealth.SummaryHealthPercent);
+                    // After combat (#1079): a luciferium addict is stripped and
+                    // finished, not captured; every raider is stripped first.
+                    person.LuciferiumAddicted = CombatMirror.HasHediff(p, "LuciferiumAddiction");
+                    person.WearingApparel = p.apparel?.WornApparel.Count > 0;
                 }
                 if (p.ownership?.OwnedBed != null) person.OwnedBed = new Obs.BuildingState { Building = NativePawnObservationTools.Entity(p.ownership.OwnedBed) };
                 if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);

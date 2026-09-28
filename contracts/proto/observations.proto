@@ -699,7 +699,11 @@ message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optio
   // id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
   // colonists, the skill/trait/age biography and SummaryHealthPercent.
   optional double will = 10; optional string ideo_id = 11; optional bool wild_man = 12;
-  PawnBiography biography = 13; optional double health_summary = 14; }
+  PawnBiography biography = 13; optional double health_summary = 14;
+  // After combat (#1079), for a hostile: a LuciferiumAddiction hediff (not
+  // worth capturing: stripped and finished instead) and any worn apparel
+  // (every downed raider is stripped before it is captured).
+  optional bool luciferium_addicted = 15; optional bool wearing_apparel = 16; }
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; reserved 4;
   // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
   // primary ideoligion load id and the defName of its Slavery-issue precept

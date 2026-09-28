@@ -73,6 +73,48 @@ func threatTier(h CombatPawnState, colonists map[domain.PawnID]bool) int {
 // (#1056), so the after-combat step strips or finishes it instead (#1079).
 func CaptureWorthy(h CombatPawnState) bool { return !h.Luciferium }
 
+// StripState is where the strip of a downed raider stands (#1079): not
+// yet issued, its action still open, the designation placed, or the
+// action refused or cancelled.
+type StripState int
+
+const (
+	StripNone StripState = iota
+	StripOpen
+	StripPlaced
+	StripRefused
+)
+
+// PostFightStep is the fight's next step for one downed raider (#1079):
+// strip it, wait for the strip, or it is done (stripped). A raider not
+// CaptureWorthy is then finished; a worthy one is left to capture.
+type PostFightStep string
+
+const (
+	PostFightStrip PostFightStep = "strip"
+	PostFightWait  PostFightStep = "wait"
+	PostFightDone  PostFightStep = "done"
+)
+
+// PostFightNext strips a downed raider still wearing apparel (or of
+// unknown apparel) and waits until its apparel is gone. A refused strip,
+// or a placed one whose apparel the frame no longer shows, is done rather
+// than holding the fight on a missing row.
+func PostFightNext(worn domain.Fact[bool], strip StripState) PostFightStep {
+	w, known := worn.Value()
+	switch {
+	case strip == StripOpen:
+		return PostFightWait
+	case known && !w:
+		return PostFightDone
+	case strip == StripNone:
+		return PostFightStrip
+	case strip == StripPlaced && known && w:
+		return PostFightWait
+	}
+	return PostFightDone
+}
+
 // rankThreats is the live hostile pawns (not buildings) by threat score,
 // ties by id: the order gunners focus fire in.
 func rankThreats(view CombatView) []CombatPawnState {

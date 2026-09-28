@@ -15947,8 +15947,13 @@ type PopulationPerson struct {
 	WildMan       *bool          `protobuf:"varint,12,opt,name=wild_man,json=wildMan,proto3,oneof" json:"wild_man,omitempty"`
 	Biography     *PawnBiography `protobuf:"bytes,13,opt,name=biography,proto3" json:"biography,omitempty"`
 	HealthSummary *float64       `protobuf:"fixed64,14,opt,name=health_summary,json=healthSummary,proto3,oneof" json:"health_summary,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// After combat (#1079), for a hostile: a LuciferiumAddiction hediff (not
+	// worth capturing: stripped and finished instead) and any worn apparel
+	// (every downed raider is stripped before it is captured).
+	LuciferiumAddicted *bool `protobuf:"varint,15,opt,name=luciferium_addicted,json=luciferiumAddicted,proto3,oneof" json:"luciferium_addicted,omitempty"`
+	WearingApparel     *bool `protobuf:"varint,16,opt,name=wearing_apparel,json=wearingApparel,proto3,oneof" json:"wearing_apparel,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PopulationPerson) Reset() {
@@ -16077,6 +16082,20 @@ func (x *PopulationPerson) GetHealthSummary() float64 {
 		return *x.HealthSummary
 	}
 	return 0
+}
+
+func (x *PopulationPerson) GetLuciferiumAddicted() bool {
+	if x != nil && x.LuciferiumAddicted != nil {
+		return *x.LuciferiumAddicted
+	}
+	return false
+}
+
+func (x *PopulationPerson) GetWearingApparel() bool {
+	if x != nil && x.WearingApparel != nil {
+		return *x.WearingApparel
+	}
+	return false
 }
 
 type PopulationSnapshot struct {
@@ -36067,7 +36086,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2-.rimgovernor.observations.v1.RecoverySnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x94\x06\n" +
+	"\aoutcome\"\xa4\a\n" +
 	"\x10PopulationPerson\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12\x1f\n" +
 	"\badmitted\x18\x02 \x01(\bH\x00R\badmitted\x88\x01\x01\x12\x19\n" +
@@ -36086,7 +36105,9 @@ const file_observations_proto_rawDesc = "" +
 	"\bwild_man\x18\f \x01(\bH\tR\awildMan\x88\x01\x01\x12H\n" +
 	"\tbiography\x18\r \x01(\v2*.rimgovernor.observations.v1.PawnBiographyR\tbiography\x12*\n" +
 	"\x0ehealth_summary\x18\x0e \x01(\x01H\n" +
-	"R\rhealthSummary\x88\x01\x01B\v\n" +
+	"R\rhealthSummary\x88\x01\x01\x124\n" +
+	"\x13luciferium_addicted\x18\x0f \x01(\bH\vR\x12luciferiumAddicted\x88\x01\x01\x12,\n" +
+	"\x0fwearing_apparel\x18\x10 \x01(\bH\fR\x0ewearingApparel\x88\x01\x01B\v\n" +
 	"\t_admittedB\b\n" +
 	"\x06_guestB\x0e\n" +
 	"\f_recruitableB\r\n" +
@@ -36098,7 +36119,9 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_ideo_idB\v\n" +
 	"\t_wild_manB\x11\n" +
-	"\x0f_health_summary\"\xd0\x06\n" +
+	"\x0f_health_summaryB\x16\n" +
+	"\x14_luciferium_addictedB\x12\n" +
+	"\x10_wearing_apparel\"\xd0\x06\n" +
 	"\x12PopulationSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
 	"\apersons\x18\x02 \x03(\v2-.rimgovernor.observations.v1.PopulationPersonR\apersons\x12a\n" +
