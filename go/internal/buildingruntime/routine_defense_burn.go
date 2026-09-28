@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -10,24 +11,39 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// defenseFuelTier names the burn-out fuel's methods and results (#1120).
+// defenseFuelTier names the burn-out's seal and fuel methods and results
+// (#1120, #1122).
 const defenseFuelTier policy.DefenseTierName = "fuel"
 
-// burnFuelRegion is the fuel census rectangle around the hive.
-func burnFuelRegion(hive domain.Cell) bridge.CellRect {
-	lo, hi := policy.BurnFuelRegion(hive)
+// burnRegion is the burn-out's census rectangle around the hive.
+func burnRegion(hive domain.Cell) bridge.CellRect {
+	lo, hi := policy.BurnRegion(hive)
 	return bridge.CellRect{Min: lo, Max: hi}
 }
 
-// fuel admits the burn-out's wood stools around the hive (#1120) on the
-// free cells the census shows, enough to bring the standing fuel to the
-// policy's count; nothing once it stands.
-func (r *RoutineDefenseLayoutPlanner) fuel(call, epoch context.Context, goal store.GoalState, state ControlState, burn policy.CombatBurn) (RoutineDefenseLayoutResult, error) {
-	read, census, err := r.fightCensus(call, state, burnFuelRegion(burn.Hive))
-	if err != nil {
-		return RoutineDefenseLayoutResult{}, err
+// burnStone is the stone the seal is built in: the most plentiful blocks
+// in stock (ties by name), else the policy's default.
+func burnStone(stock map[policy.Resource]int64) string {
+	best, most := policy.BurnStoneStuff, int64(0)
+	for r, n := range stock {
+		if s := string(r); strings.HasPrefix(s, "Blocks") && (n > most || n == most && most > 0 && s < best) {
+			best, most = s, n
+		}
 	}
-	buildings, err := policy.BurnFuel(burn.Hive, census)
+	return best
+}
+
+// fuel admits what the burn-out still lacks (#1120, #1122): its stone
+// seal and corridor doors and its wood stools, on the census around the
+// hive; nothing once all of it stands, or while the seal reads unroofed
+// (the fight then drops the burn).
+func (r *RoutineDefenseLayoutPlanner) fuel(call, epoch context.Context, goal store.GoalState, state ControlState, burn policy.CombatBurn) (RoutineDefenseLayoutResult, error) {
+	read, census, err := r.fightCensus(call, state, burnRegion(burn.Hive))
+	if err != nil || !policy.BurnRoofed(burn.Hive, census) {
+		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit, Tier: defenseFuelTier}, err
+	}
+	stock, _ := read.Projection.Resources.Value()
+	buildings, err := policy.BurnBuilds(burn, census, burnStone(stock))
 	if err != nil || len(buildings) == 0 {
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit, Tier: defenseFuelTier}, err
 	}
@@ -35,24 +51,29 @@ func (r *RoutineDefenseLayoutPlanner) fuel(call, epoch context.Context, goal sto
 }
 
 // burnFuelSource is the census read the combat step makes for a burn-out
-// waiting on its fuel.
+// waiting on its seal and fuel.
 type burnFuelSource interface {
 	ReadDefenseSite(context.Context, *c.Identity, bridge.CellRect) (bridge.DefenseSite, bridge.Result, error)
 }
 
-// combatBurnFuel is the fuel standing around a fueling burn-out's hive,
-// censused at the combat frame's tick; unknown for any other fight or a
-// census older than the frame, so the fight never lights on a stale read.
-func combatBurnFuel(ctx context.Context, native burnFuelSource, identity *c.Identity, m policy.CombatMemory, tick int64) (domain.Fact[int], error) {
-	if !m.Burn.Fueling() {
-		return domain.Unknown[int](), nil
+// combatBurnSite is an active burn-out's census, read at the combat
+// frame's tick: what it lacks, its roof and its standing fuel. Unknown for
+// any other fight or a census older than the frame, so the fight never
+// lights or tops up on a stale read.
+func combatBurnSite(ctx context.Context, native burnFuelSource, identity *c.Identity, m policy.CombatMemory, tick int64) (domain.Fact[policy.BurnSite], error) {
+	if !m.Burn.Active() {
+		return domain.Unknown[policy.BurnSite](), nil
 	}
-	site, _, err := native.ReadDefenseSite(ctx, identity, burnFuelRegion(m.Burn.Hive))
+	site, _, err := native.ReadDefenseSite(ctx, identity, burnRegion(m.Burn.Hive))
 	if err != nil {
-		return domain.Unknown[int](), err
+		return domain.Unknown[policy.BurnSite](), err
 	}
 	if site.Context.GetTick() < tick {
-		return domain.Unknown[int](), nil
+		return domain.Unknown[policy.BurnSite](), nil
 	}
-	return domain.Known(policy.BurnFuelStanding(m.Burn.Hive, defenseFightCensus(site))), nil
+	out, err := policy.BurnSurvey(*m.Burn, defenseFightCensus(site))
+	if err != nil {
+		return domain.Unknown[policy.BurnSite](), err
+	}
+	return domain.Known(out), nil
 }

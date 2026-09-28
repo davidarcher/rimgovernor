@@ -176,8 +176,8 @@ func behindDoor(room CombatRoom, door domain.Cell) (domain.Cell, bool) {
 // WaitDoorCell is the census of one cell the wait hardening reads: the
 // edifice standing on it and its stuff.
 type WaitDoorCell struct {
-	Edifice, Stuff string
-	Walkable       bool
+	Edifice, Stuff   string
+	Walkable, Roofed bool
 }
 
 // Wait hardening's stuff (#1065): a plasteel door holds far longer than a

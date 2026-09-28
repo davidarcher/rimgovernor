@@ -85,7 +85,7 @@ func defenseFightCensus(site bridge.DefenseSite) map[domain.Cell]policy.WaitDoor
 	census := map[domain.Cell]policy.WaitDoorCell{}
 	for _, c := range site.Cells {
 		if !c.Fogged {
-			census[c.Cell] = policy.WaitDoorCell{Edifice: c.EdificeDefName, Stuff: c.EdificeStuff, Walkable: c.Walkable}
+			census[c.Cell] = policy.WaitDoorCell{Edifice: c.EdificeDefName, Stuff: c.EdificeStuff, Walkable: c.Walkable, Roofed: c.Roofed}
 		}
 	}
 	return census

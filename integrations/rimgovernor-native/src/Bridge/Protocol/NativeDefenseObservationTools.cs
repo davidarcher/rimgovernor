@@ -118,6 +118,7 @@ namespace HomeBridge.BridgeTools
                 row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map);
                 row.HomeArea = map.areaManager.Home[cell];
                 row.BlocksSight = !cell.CanBeSeenOver(map);
+                row.Roofed = cell.Roofed(map);
                 var edifice = cell.GetEdifice(map);
                 var cover = cell.GetCover(map);
                 row.CoverFill = Finite(cover?.def.fillPercent ?? edifice?.def.fillPercent ?? 0);

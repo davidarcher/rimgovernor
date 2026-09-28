@@ -174,12 +174,12 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		}
 		held = domain.Known(combatLayout)
 	}
-	fuel, err := combatBurnFuel(call, r.native, identity, memory, combat.Context.GetTick())
+	burn, err := combatBurnSite(call, r.native, identity, memory, combat.Context.GetTick())
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
 	view := combatView(combat, in, orderable, held)
-	view.BurnFuel = fuel
+	view.Burn = burn
 	tick := view.Tick
 	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
@@ -225,7 +225,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		recorded.Orderable = append(slices.Clone(orderable), drafts...)
 		slices.Sort(recorded.Orderable)
 		view = combatView(combat, in, recorded.Orderable, held)
-		view.BurnFuel = fuel
+		view.Burn = burn
 		var more *policy.GeometryRequest
 		orders, more, next = policy.DecideCombat(view, recorded.Reply, stop, memory)
 		if more != nil && recorded.Ask == nil {

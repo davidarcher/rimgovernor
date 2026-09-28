@@ -11987,8 +11987,10 @@ type DefenseCell struct {
 	FoundationRemovalDesignated *bool `protobuf:"varint,20,opt,name=foundation_removal_designated,json=foundationRemovalDesignated,proto3,oneof" json:"foundation_removal_designated,omitempty"`
 	// The edifice's stuff def (WoodLog, Plasteel), absent for a stuffless one (#1065).
 	EdificeStuffDefName *string `protobuf:"bytes,21,opt,name=edifice_stuff_def_name,json=edificeStuffDefName,proto3,oneof" json:"edifice_stuff_def_name,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// The cell is under any roof (#1122: a burn-out's seal holds its heat).
+	Roofed        *bool `protobuf:"varint,22,opt,name=roofed,proto3,oneof" json:"roofed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DefenseCell) Reset() {
@@ -12159,6 +12161,13 @@ func (x *DefenseCell) GetEdificeStuffDefName() string {
 		return *x.EdificeStuffDefName
 	}
 	return ""
+}
+
+func (x *DefenseCell) GetRoofed() bool {
+	if x != nil && x.Roofed != nil {
+		return *x.Roofed
+	}
+	return false
 }
 
 // One hostile lord observed on the map since load: where its first pawn was
@@ -35615,7 +35624,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v22.rimgovernor.observations.v1.SpatialAccessSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xcf\t\n" +
+	"\aoutcome\"\xf7\t\n" +
 	"\vDefenseCell\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1b\n" +
 	"\x06fogged\x18\x02 \x01(\bH\x00R\x06fogged\x88\x01\x01\x12\x1f\n" +
@@ -35640,7 +35649,8 @@ const file_observations_proto_rawDesc = "" +
 	"cover_kind\x18\x11 \x01(\x0e2&.rimgovernor.observations.v1.CoverKindH\x0eR\tcoverKind\x88\x01\x01\x12.\n" +
 	"\x10cover_designated\x18\x13 \x01(\bH\x0fR\x0fcoverDesignated\x88\x01\x01\x12G\n" +
 	"\x1dfoundation_removal_designated\x18\x14 \x01(\bH\x10R\x1bfoundationRemovalDesignated\x88\x01\x01\x128\n" +
-	"\x16edifice_stuff_def_name\x18\x15 \x01(\tH\x11R\x13edificeStuffDefName\x88\x01\x01B\t\n" +
+	"\x16edifice_stuff_def_name\x18\x15 \x01(\tH\x11R\x13edificeStuffDefName\x88\x01\x01\x12\x1b\n" +
+	"\x06roofed\x18\x16 \x01(\bH\x12R\x06roofed\x88\x01\x01B\t\n" +
 	"\a_foggedB\v\n" +
 	"\t_walkableB\v\n" +
 	"\t_passableB\r\n" +
@@ -35660,7 +35670,8 @@ const file_observations_proto_rawDesc = "" +
 	"\v_cover_kindB\x13\n" +
 	"\x11_cover_designatedB \n" +
 	"\x1e_foundation_removal_designatedB\x19\n" +
-	"\x17_edifice_stuff_def_nameJ\x04\b\x12\x10\x13R\vcover_token\"\xdc\x02\n" +
+	"\x17_edifice_stuff_def_nameB\t\n" +
+	"\a_roofedJ\x04\b\x12\x10\x13R\vcover_token\"\xdc\x02\n" +
 	"\tRaidTrack\x12\x1c\n" +
 	"\alord_id\x18\x01 \x01(\tH\x00R\x06lordId\x88\x01\x01\x12$\n" +
 	"\vfaction_def\x18\x02 \x01(\tH\x01R\n" +

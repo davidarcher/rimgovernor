@@ -594,6 +594,8 @@ message DefenseCell {
   optional bool foundation_removal_designated = 20;
   // The edifice's stuff def (WoodLog, Plasteel), absent for a stuffless one (#1065).
   optional string edifice_stuff_def_name = 21;
+  // The cell is under any roof (#1122: a burn-out's seal holds its heat).
+  optional bool roofed = 22;
 }
 // How the game's own designators would remove a cover thing.
 enum CoverKind { COVER_KIND_UNSPECIFIED = 0; COVER_KIND_PLANT = 1; COVER_KIND_CHUNK = 2; COVER_KIND_MINEABLE = 3; COVER_KIND_BUILDING = 4; }

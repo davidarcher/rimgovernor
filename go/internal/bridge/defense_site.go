@@ -49,6 +49,8 @@ type DefenseCell struct {
 	Cover *DefenseCover
 	// Unbridging is a foundation removal designated on the cell (#954).
 	Unbridging bool
+	// Roofed is the cell under any roof (#1122).
+	Roofed bool
 }
 
 // DefenseCover is the clearance identity of one cover thing: what it is,
@@ -279,6 +281,7 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 		out.CoverFill = row.GetCoverFill()
 		out.PlayerOwned, out.NaturalRock, out.Door = row.GetPlayerOwned(), row.GetNaturalRock(), row.GetDoor()
 		out.EdgeReachable, out.HomeArea, out.Unbridging = row.GetEdgeReachable(), row.GetHomeArea(), row.GetFoundationRemovalDesignated()
+		out.Roofed = row.GetRoofed()
 		if row.CoverThingId != nil || row.CoverDefName != nil || row.CoverKind != nil || row.CoverDesignated != nil {
 			if validID(row.GetCoverThingId()) != nil || validID(row.GetCoverDefName()) != nil || row.CoverDesignated == nil || row.GetCoverKind() == o.CoverKind_COVER_KIND_UNSPECIFIED || row.GetCoverFill() <= 0 {
 				return DefenseSite{}, contract("defense cell cover identity incomplete")

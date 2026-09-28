@@ -2,162 +2,363 @@ package policy
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The burn-out (#1120): wood stools stand around the hive, one molotov
-// lights them, and every colonist waits behind at least burnDoors closed
-// doors while the insects cook. The layout planner builds the fuel from
-// the fight's memory; the fight lights it once the census (CombatView.
-// BurnFuel) shows burnFuelStools standing.
+// The burn-out (#1120, #1122) is the infestation's one heat tactic: it
+// cooks every insect down together in its own sealed, roofed room. Every
+// open cell of a square ring around the hive is walled but one, and from
+// that gap a 1-wide corridor of burnCorridorDoors stone doors in series
+// runs toward the colony, walled on both flanks. Wood stools stand inside
+// the seal, spread out and away from the hive, as fuel. Once the census
+// (CombatView.Burn) shows the room roofed and every seal wall, corridor
+// door and stool standing, one molotov lights a stool clear of the
+// insects (a player's flame on an insect may send the hive to assault)
+// and every colonist waits past the last door. While the hive reads under
+// burnTopUpC another molotov tops the fire up; none is thrown at or above
+// burnMaxC, below the 210 C air burn whose memo also turns the hive.
+// Every insect breathes the same air, so heat stroke downs them together
+// (about heatStrokeTicks at 150 C); the retreat holds until the frame
+// shows every insect downed, then the fight re-enters and finishes them
+// before the stroke kills. The doors hold any straggler.
 const (
 	// BurnFuelDef and BurnFuelStuff are the fuel: cheap wood furniture,
 	// the #1063 bait stool.
 	BurnFuelDef   = "Stool"
 	BurnFuelStuff = "WoodLog"
-	// BurnFuelRadius bounds the fuel census around the hive (Chebyshev).
-	BurnFuelRadius = 3
-	burnFuelStools = 4
-	burnDoors      = 2
-	// burnThrowTicks is how long the carrier keeps its throw before it
-	// retreats; burnFireTicks how long the fire is given to take before a
-	// cool hive reads as out.
+	// BurnWallDef and BurnDoorDef are the seal's walls and corridor doors,
+	// built in stone: BurnStoneStuff unless the stock holds other blocks.
+	BurnWallDef    = "Wall"
+	BurnDoorDef    = "Door"
+	BurnStoneStuff = "BlocksGranite"
+	// BurnFuelRadius bounds the fuel around the hive (Chebyshev); the seal
+	// ring lies one cell beyond it. No stool stands nearer the hive than
+	// burnFuelClear.
+	BurnFuelRadius    = 3
+	burnFuelClear     = 2
+	burnSealRadius    = BurnFuelRadius + 1
+	burnCorridorDoors = 3
+	// burnRetreatDepth and burnRetreatWidth size the retreat just past the
+	// last door.
+	burnRetreatDepth = 2
+	burnRetreatWidth = 3
+	burnFuelStools   = 4
+	// burnInsectClear is the least distance from a molotov's target stool
+	// to any insect.
+	burnInsectClear = 2.5
+	// burnThrowTicks is how long the carrier keeps a throw before it
+	// retreats; burnFireTicks the least wait between molotovs, and how
+	// long a fire with no fuel left is given before a cool hive reads as
+	// out.
 	burnThrowTicks domain.Tick = 300
 	burnFireTicks  domain.Tick = 1200
 	burnMolotov                = "Weapon_GrenadeMolotov"
+	// burnTopUpC is the hive temperature below which a molotov goes in;
+	// burnMaxC one no molotov is ever thrown at.
+	burnTopUpC = 150.0
+	burnMaxC   = 200.0
+	// heatEntryMaxC is the hive temperature above which no melee fighter
+	// walks in at anything but a downed insect.
+	heatEntryMaxC = 50.0
+	// heatStrokeTicks is how long 150 C air takes to down an insect
+	// (HediffGiver_Heat): every insect's comfortable maximum is 60 C, so
+	// heat stroke builds above 70 C, by curve(150-70)*6.45e-5 = 0.00335
+	// per 60-tick interval, to 0.62 (consciousness 0.1, downed) in about
+	// 185 intervals. Death at 1.0 follows some 6.7k ticks later: the
+	// window to finish them.
+	heatStrokeTicks domain.Tick = 11100
 )
 
+// BurnSite is the combat step's census of a burn-out (#1122): how many
+// seal walls, corridor doors and stools it still lacks, whether its sealed
+// room is roofed, and the stools standing.
+type BurnSite struct {
+	Missing int
+	Roofed  bool
+	Fuel    []domain.Cell
+}
+
 // CombatBurn is an infestation fight's burn-out: the hive it cooks, the
-// room the colonists retreat to, the molotov carrier and the stop it was
-// lit (0 while the fuel is short). Done once the fire is out.
+// corridor's direction out of the seal (a unit step), the retreat past the
+// last corridor door, the molotov carrier, the stop it was lit (0 while
+// the seal or fuel is short) and the stop of its last molotov. Done once
+// every insect is down, the fire is out, or the room reads unroofed.
 type CombatBurn struct {
 	Hive    domain.Cell
+	Exit    domain.Cell
 	Room    Rectangle
 	Carrier domain.PawnID
 	Lit     domain.Tick `json:",omitempty"`
+	Thrown  domain.Tick `json:",omitempty"`
 	Done    bool        `json:",omitempty"`
 }
 
-// Fueling reports a burn-out waiting on its fuel: the layout planner's cue.
+// Fueling reports a burn-out waiting on its seal and fuel: the layout
+// planner's cue.
 func (b *CombatBurn) Fueling() bool { return b != nil && b.Lit == 0 && !b.Done }
+
+// Active reports a burn-out not yet done: the combat step censuses it.
+func (b *CombatBurn) Active() bool { return b != nil && !b.Done }
 
 // retreating reports a lit burn-out still holding its retreat.
 func (b *CombatBurn) retreating() bool { return b != nil && b.Lit > 0 && !b.Done }
 
-// BurnFuelRegion is the fuel census rectangle around the hive, as min and
-// max corners.
-func BurnFuelRegion(hive domain.Cell) (domain.Cell, domain.Cell) {
-	return domain.Cell{X: hive.X - BurnFuelRadius, Z: hive.Z - BurnFuelRadius}, domain.Cell{X: hive.X + BurnFuelRadius, Z: hive.Z + BurnFuelRadius}
+// step is the cell k steps from the hive along the exit, side steps
+// across it.
+func (b CombatBurn) step(k, side int32) domain.Cell {
+	return domain.Cell{X: b.Hive.X + b.Exit.X*k + b.Exit.Z*side, Z: b.Hive.Z + b.Exit.Z*k + b.Exit.X*side}
 }
 
-// BurnFuelStanding counts the fuel the census shows within BurnFuelRadius
+// CorridorDoors are the corridor's door cells, from the seal's gap out.
+func (b CombatBurn) CorridorDoors() []domain.Cell {
+	out := make([]domain.Cell, burnCorridorDoors)
+	for k := range out {
+		out[k] = b.step(burnSealRadius+int32(k), 0)
+	}
+	return out
+}
+
+// BurnRegion is the census rectangle a burn-out reads, as min and max
+// corners: its fuel, seal, corridor and retreat.
+func BurnRegion(hive domain.Cell) (domain.Cell, domain.Cell) {
+	r := int32(burnSealRadius + burnCorridorDoors + burnRetreatDepth)
+	return domain.Cell{X: hive.X - r, Z: hive.Z - r}, domain.Cell{X: hive.X + r, Z: hive.Z + r}
+}
+
+// burnExit is the unit step from hive toward toward on its dominant axis;
+// ties go to z.
+func burnExit(hive, toward domain.Cell) domain.Cell {
+	dx, dz := toward.X-hive.X, toward.Z-hive.Z
+	switch {
+	case abs(dx) > abs(dz) && dx > 0:
+		return domain.Cell{X: 1}
+	case abs(dx) > abs(dz):
+		return domain.Cell{X: -1}
+	case dz < 0:
+		return domain.Cell{Z: -1}
+	}
+	return domain.Cell{Z: 1}
+}
+
+// burnRetreat is the rectangle just past the last corridor door.
+func burnRetreat(b CombatBurn) Rectangle {
+	near := int32(burnSealRadius + burnCorridorDoors)
+	a := b.step(near, -burnRetreatWidth/2)
+	z := b.step(near+burnRetreatDepth-1, burnRetreatWidth/2)
+	return Rectangle{X: min(a.X, z.X), Z: min(a.Z, z.Z), Width: abs(a.X-z.X) + 1, Height: abs(a.Z-z.Z) + 1}
+}
+
+// burnFuelCell reports c a fuel cell of the hive: inside the seal, clear
 // of the hive.
-func BurnFuelStanding(hive domain.Cell, census map[domain.Cell]WaitDoorCell) int {
-	n := 0
-	for c, at := range census {
-		if at.Edifice == BurnFuelDef && max(abs(c.X-hive.X), abs(c.Z-hive.Z)) <= BurnFuelRadius {
-			n++
-		}
-	}
-	return n
+func burnFuelCell(hive, c domain.Cell) bool {
+	d := chebyshev(c, hive)
+	return d >= burnFuelClear && d <= BurnFuelRadius
 }
 
-// BurnFuel is the layout planner's fuel tier: stools on the free walkable
-// census cells nearest the hive (then lower x, z), enough to bring the
-// standing fuel to burnFuelStools. The hive's own cell is never used.
-func BurnFuel(hive domain.Cell, census map[domain.Cell]WaitDoorCell) ([]domain.Building, error) {
-	need := burnFuelStools - BurnFuelStanding(hive, census)
-	var free []domain.Cell
+// BurnFuelStanding is the fuel the census shows inside the seal, by cell.
+func BurnFuelStanding(hive domain.Cell, census map[domain.Cell]WaitDoorCell) []domain.Cell {
+	var out []domain.Cell
 	for c, at := range census {
-		if c != hive && at.Edifice == "" && at.Walkable && max(abs(c.X-hive.X), abs(c.Z-hive.Z)) <= BurnFuelRadius {
-			free = append(free, c)
+		if at.Edifice == BurnFuelDef && burnFuelCell(hive, c) {
+			out = append(out, c)
 		}
 	}
-	slices.SortFunc(free, func(a, b domain.Cell) int {
-		if d := distance2(a, hive) - distance2(b, hive); d != 0 {
-			return int(d)
+	slices.SortFunc(out, cellOrder)
+	return out
+}
+
+// cellOrder orders cells by x, then z.
+func cellOrder(a, b domain.Cell) int {
+	if a.X != b.X {
+		return int(a.X - b.X)
+	}
+	return int(a.Z - b.Z)
+}
+
+// BurnRoofed reports every census cell inside the seal roofed (#1122): an
+// open sky vents the heat. A cell the census does not carry is not read.
+func BurnRoofed(hive domain.Cell, census map[domain.Cell]WaitDoorCell) bool {
+	for c, at := range census {
+		if chebyshev(c, hive) < burnSealRadius && !at.Roofed {
+			return false
 		}
-		if a.X != b.X {
-			return int(a.X - b.X)
+	}
+	return true
+}
+
+// BurnSurvey is the combat step's BurnSite from a census.
+func BurnSurvey(b CombatBurn, census map[domain.Cell]WaitDoorCell) (BurnSite, error) {
+	missing, err := BurnBuilds(b, census, BurnStoneStuff)
+	if err != nil {
+		return BurnSite{}, err
+	}
+	return BurnSite{Missing: len(missing), Roofed: BurnRoofed(b.Hive, census), Fuel: BurnFuelStanding(b.Hive, census)}, nil
+}
+
+// BurnSeal is the seal and corridor still to build (#1122): a stone wall
+// on every open (walkable, edifice-free) cell of the ring burnSealRadius
+// around the hive except the corridor's gap, a wall on each open flank
+// cell beside the doors past the gap, and a stone door on each corridor
+// cell not already holding one (a door of other stuff, per the census's
+// edifice stuff read, is rebuilt in stone). A ring or flank cell the
+// census does not carry is left alone; a door is always asked for.
+func BurnSeal(b CombatBurn, census map[domain.Cell]WaitDoorCell, stone string) ([]domain.Building, error) {
+	doors := b.CorridorDoors()
+	var cells []domain.Cell
+	for x := b.Hive.X - burnSealRadius; x <= b.Hive.X+burnSealRadius; x++ {
+		for z := b.Hive.Z - burnSealRadius; z <= b.Hive.Z+burnSealRadius; z++ {
+			if c := (domain.Cell{X: x, Z: z}); chebyshev(c, b.Hive) == burnSealRadius && c != doors[0] {
+				cells = append(cells, c)
+			}
 		}
-		return int(a.Z - b.Z)
-	})
+	}
+	for k := int32(1); k < burnCorridorDoors; k++ {
+		cells = append(cells, b.step(burnSealRadius+k, -1), b.step(burnSealRadius+k, 1))
+	}
 	var out []domain.Building
-	for _, c := range free[:max(0, min(need, len(free)))] {
-		b, err := domain.NewBuilding(BurnFuelDef, c, domain.North, BurnFuelStuff)
-		if err != nil {
-			return nil, err
+	for _, c := range cells {
+		if at, ok := census[c]; ok && at.Edifice == "" && at.Walkable {
+			w, err := domain.NewBuilding(BurnWallDef, c, domain.North, stone)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, w)
 		}
-		out = append(out, b)
+	}
+	for _, c := range doors {
+		if at := census[c]; at.Edifice != BurnDoorDef || !strings.HasPrefix(at.Stuff, "Blocks") {
+			d, err := domain.NewBuilding(BurnDoorDef, c, domain.North, stone)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, d)
+		}
 	}
 	return out, nil
 }
 
-// roomDoorDepth is the room/door graph on view.Rooms: the fewest doors
-// between from (a room index, -1 outside every room) and each room. A
-// room door leads to the room holding the cell beyond it, else outside.
-func roomDoorDepth(rooms []CombatRoom, from int) map[int]int {
-	at := func(c domain.Cell) int {
-		return slices.IndexFunc(rooms, func(r CombatRoom) bool { return r.contains(c) })
+// BurnBuilds is everything the burn-out still needs standing: its seal
+// and corridor, then its fuel. The fight lights on none missing.
+func BurnBuilds(b CombatBurn, census map[domain.Cell]WaitDoorCell, stone string) ([]domain.Building, error) {
+	seal, err := BurnSeal(b, census, stone)
+	if err != nil {
+		return nil, err
 	}
-	edges := map[int][]int{}
-	for i, r := range rooms {
-		for _, d := range r.Doors {
-			out, ok := outward(r.Interior, d)
-			if !ok {
-				continue
-			}
-			j := at(domain.Cell{X: d.X + out.X, Z: d.Z + out.Z})
-			edges[i], edges[j] = append(edges[i], j), append(edges[j], i)
-		}
-	}
-	depth := map[int]int{from: 0}
-	queue := []int{from}
-	for len(queue) > 0 {
-		n := queue[0]
-		queue = queue[1:]
-		for _, m := range edges[n] {
-			if _, seen := depth[m]; !seen {
-				depth[m] = depth[n] + 1
-				queue = append(queue, m)
-			}
-		}
-	}
-	return depth
+	fuel, err := BurnFuel(b.Hive, census)
+	return append(seal, fuel...), err
 }
 
-// burnRetreatRoom is the room the most doors from the hive, at least
-// burnDoors; ties go to the larger room, then the lower index.
-func burnRetreatRoom(view CombatView, hive domain.Cell) (Rectangle, bool) {
-	from := slices.IndexFunc(view.Rooms, func(r CombatRoom) bool { return r.contains(hive) })
-	depth := roomDoorDepth(view.Rooms, from)
-	best, bestDepth := -1, burnDoors-1
-	for i, r := range view.Rooms {
-		d, ok := depth[i]
-		if !ok || i == from {
+// BurnFuel is the fuel still to build, enough to bring the standing fuel
+// to burnFuelStools: stools on free walkable census cells inside the seal
+// and clear of the hive, spread for an even heat. Each next stool takes
+// the free cell farthest from every stool standing or chosen (the first,
+// with none, the farthest from the hive), then the farther from the hive,
+// then the lower x, z.
+func BurnFuel(hive domain.Cell, census map[domain.Cell]WaitDoorCell) ([]domain.Building, error) {
+	placed := BurnFuelStanding(hive, census)
+	var free []domain.Cell
+	for c, at := range census {
+		if at.Edifice == "" && at.Walkable && burnFuelCell(hive, c) {
+			free = append(free, c)
+		}
+	}
+	slices.SortFunc(free, cellOrder)
+	var out []domain.Building
+	for len(placed) < burnFuelStools && len(free) > 0 {
+		score := func(c domain.Cell) (int64, int64) {
+			near := int64(-1)
+			for _, p := range placed {
+				if d := distance2(c, p); near < 0 || d < near {
+					near = d
+				}
+			}
+			return near, distance2(c, hive)
+		}
+		best := 0
+		for i := range free {
+			n, h := score(free[i])
+			bn, bh := score(free[best])
+			if n > bn || n == bn && h > bh {
+				best = i
+			}
+		}
+		c := free[best]
+		free = slices.Delete(free, best, best+1)
+		placed = append(placed, c)
+		s, err := domain.NewBuilding(BurnFuelDef, c, domain.North, BurnFuelStuff)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+// burnTarget is the standing stool a molotov lights: the one farthest
+// from the nearest insect, at least burnInsectClear from every insect
+// (then the lower x, z); none when no stool is clear.
+func burnTarget(fuel, insects []domain.Cell) (domain.Cell, bool) {
+	var best domain.Cell
+	bestNear, found := 0.0, false
+	for _, c := range fuel {
+		near := -1.0
+		for _, i := range insects {
+			if d := dist(c, i); near < 0 || d < near {
+				near = d
+			}
+		}
+		if near >= 0 && near < burnInsectClear {
 			continue
 		}
-		if d > bestDepth || d == bestDepth && best >= 0 && r.Interior.Width*r.Interior.Height > view.Rooms[best].Interior.Width*view.Rooms[best].Interior.Height {
-			best, bestDepth = i, d
+		if near < 0 {
+			near = 1e9
+		}
+		if !found || near > bestNear {
+			best, bestNear, found = c, near, true
 		}
 	}
-	if best < 0 {
-		return Rectangle{}, false
+	return best, found
+}
+
+// burnInsects are the infestation's live hostile pawns: their cells, and
+// whether every one reads downed.
+func burnInsects(view CombatView) ([]domain.Cell, bool) {
+	state := map[domain.PawnID]CombatPawnState{}
+	for _, p := range view.Pawns {
+		state[p.ID] = p
 	}
-	return view.Rooms[best].Interior, true
+	var cells []domain.Cell
+	down := true
+	for _, t := range view.Threats {
+		s := state[domain.PawnID(t.ID)]
+		if t.Building || positive(t.Dead) || s.Dead {
+			continue
+		}
+		if !positive(t.Downed) && !s.Downed {
+			down = false
+		}
+		if c, ok := s.Cell.Value(); ok {
+			cells = append(cells, c)
+		}
+	}
+	return cells, down
 }
 
 // burnOut runs the burn-out on an infestation fight with a live hive
-// (#1120), after the heat hold. It plans the burn once a molotov carrier
-// has the hive in reach and a room lies burnDoors doors from it; fewer
-// doors, no burn. While the fuel is short no molotov is thrown. With the
-// fuel standing the carrier throws once at the hive, everyone else takes
-// the retreat room's cells behind closed, forbidden doors (the #1065
-// wait), and the carrier follows after burnThrowTicks. The retreat holds
-// while the hive reads hot; once it cools (or reads unknown) past
-// burnFireTicks the burn is done and the wait releases so the fight
-// re-forms.
+// (#1120, #1122). It plans the burn once a molotov carrier has the hive
+// in reach, its corridor leading out of the seal toward the carrier.
+// While the census is unread, or any seal wall, corridor door or stool is
+// missing, no molotov is thrown; a room that reads unroofed ends the
+// burn. With all of it standing the carrier lights a stool clear of the
+// insects, everyone else takes the retreat past the last door, behind the
+// corridor's closed, forbidden doors (the #1065 wait), and the carrier
+// follows after burnThrowTicks. While the hive reads under burnTopUpC, at
+// most one molotov per burnFireTicks tops the fire up. The retreat holds
+// until every insect reads downed (or a fire with no fuel left has
+// cooled), then the burn is done, the wait releases and every fighter
+// finishes the downed insects.
 func burnOut(view CombatView, m *CombatMemory) {
 	i := slices.IndexFunc(view.Structures, HostileStructure.hive)
 	if m.Tactic != TacticInfestation || i < 0 {
@@ -169,59 +370,91 @@ func burnOut(view CombatView, m *CombatMemory) {
 		state[p.ID] = p
 	}
 	if m.Burn == nil {
-		room, ok := burnRetreatRoom(view, hive)
-		if !ok {
-			return
-		}
+		var at domain.Cell
 		carrier := slices.IndexFunc(m.Roles, func(r CombatRole) bool {
 			s := state[r.Pawn]
-			at, known := s.Cell.Value()
-			return s.Weapon == burnMolotov && known && dist(at, hive) <= grenadeReach(s)
+			c, known := s.Cell.Value()
+			at = c
+			return s.Weapon == burnMolotov && known && dist(c, hive) <= grenadeReach(s)
 		})
 		if carrier < 0 {
 			return
 		}
-		m.Burn = &CombatBurn{Hive: hive, Room: room, Carrier: m.Roles[carrier].Pawn}
+		b := CombatBurn{Hive: hive, Exit: burnExit(hive, at), Carrier: m.Roles[carrier].Pawn}
+		b.Room = burnRetreat(b)
+		m.Burn = &b
 	}
 	b := m.Burn
 	if b.Done {
+		burnFinish(view, m)
 		return
 	}
-	if b.Lit == 0 {
-		if fuel, known := view.BurnFuel.Value(); !known || fuel < burnFuelStools {
-			// One molotov, into the fuel: none before it stands.
-			for i := range m.Roles {
-				if state[m.Roles[i].Pawn].Weapon == burnMolotov {
-					m.Roles[i].Ground = nil
-				}
-			}
-			return
+	for i := range m.Roles {
+		if state[m.Roles[i].Pawn].Weapon == burnMolotov {
+			m.Roles[i].Ground = nil
 		}
-		if !slices.ContainsFunc(m.Roles, func(r CombatRole) bool { return r.Pawn == b.Carrier }) {
-			return
-		}
-		b.Lit = view.Tick
-	} else if temp, known := view.HiveTemperatureC.Value(); view.Tick-b.Lit >= burnFireTicks && (!known || temp <= heatEntryMaxC) {
+	}
+	site, sited := view.Burn.Value()
+	if sited && !site.Roofed {
 		b.Done = true
 		return
+	}
+	insects, down := burnInsects(view)
+	temp, hot := view.HiveTemperatureC.Value()
+	throw := false
+	if b.Lit == 0 {
+		if !sited || site.Missing > 0 || !slices.ContainsFunc(m.Roles, func(r CombatRole) bool { return r.Pawn == b.Carrier }) {
+			return
+		}
+		throw = !hot || temp < burnTopUpC
+		if !throw {
+			return
+		}
+	} else {
+		if down {
+			b.Done = true
+			burnFinish(view, m)
+			return
+		}
+		if sited && len(site.Fuel) == 0 && hot && temp <= heatEntryMaxC && view.Tick-b.Lit >= burnFireTicks {
+			b.Done = true
+			return
+		}
+		throw = sited && hot && temp < burnTopUpC && view.Tick-b.Thrown >= burnFireTicks
+	}
+	var aim domain.Cell
+	if throw {
+		aim, throw = burnTarget(site.Fuel, insects)
+		if !throw && b.Lit == 0 {
+			return
+		}
+	}
+	if throw {
+		b.Thrown = view.Tick
+		if b.Lit == 0 {
+			b.Lit = view.Tick
+		}
 	}
 	if !m.Wait {
 		m.Wait, m.WaitSince = true, view.Tick
 	}
+	had := slices.Clone(m.WaitDoors)
 	shelter(view, m)
-	var cells []domain.Cell
-	for x := b.Room.X; x < b.Room.X+b.Room.Width; x++ {
-		for z := b.Room.Z; z < b.Room.Z+b.Room.Height; z++ {
-			cells = append(cells, domain.Cell{X: x, Z: z})
+	var want []PodDoor
+	for _, d := range b.CorridorDoors() {
+		if !slices.ContainsFunc(m.WaitDoors, func(p PodDoor) bool { return p.Cell == d }) {
+			want = append(want, PodDoor{Cell: d, Mode: DoorClose}, PodDoor{Cell: d, Mode: DoorForbid})
 		}
 	}
+	m.WaitDoors = append(m.WaitDoors, keepSent(had, want)...)
+	cells := rectCells(b.Room)
 	for i := range m.Roles {
 		r := &m.Roles[i]
 		r.Target, r.Duty, r.Cell, r.Retreat, r.Ground, r.Mortar, r.Aim = "", "", nil, false, nil, nil, nil
-		if r.Pawn == b.Carrier && view.Tick-b.Lit < burnThrowTicks {
-			if view.Tick == b.Lit {
-				h := b.Hive
-				r.Ground = &h
+		if r.Pawn == b.Carrier && view.Tick-b.Thrown < burnThrowTicks {
+			if throw {
+				c := aim
+				r.Ground = &c
 			}
 			continue
 		}
@@ -233,6 +466,47 @@ func burnOut(view CombatView, m *CombatMemory) {
 		c := cells[k]
 		cells = slices.Delete(cells, k, k+1)
 		r.Cell, r.Retreat = &c, true
+	}
+}
+
+// burnFinish sends every fighter at the nearest insect a finished burn
+// left downed but alive, before heat stroke kills it.
+func burnFinish(view CombatView, m *CombatMemory) {
+	if m.Burn.Lit == 0 {
+		return
+	}
+	state := map[domain.PawnID]CombatPawnState{}
+	for _, p := range view.Pawns {
+		state[p.ID] = p
+	}
+	var downed []CombatPawnState
+	for _, t := range view.Threats {
+		s, ok := state[domain.PawnID(t.ID)]
+		if _, known := s.Cell.Value(); ok && known && !t.Building && !positive(t.Dead) && !s.Dead && (positive(t.Downed) || s.Downed) {
+			downed = append(downed, s)
+		}
+	}
+	if len(downed) == 0 {
+		return
+	}
+	for i := range m.Roles {
+		r := &m.Roles[i]
+		if m.Rescue.carrying(r.Pawn) {
+			continue
+		}
+		at, known := state[r.Pawn].Cell.Value()
+		if !known {
+			continue
+		}
+		best := downed[0]
+		for _, d := range downed[1:] {
+			c, _ := d.Cell.Value()
+			bc, _ := best.Cell.Value()
+			if dist(at, c) < dist(at, bc) {
+				best = d
+			}
+		}
+		r.Target, r.Duty, r.Cell, r.Retreat, r.Ground, r.Mortar, r.Aim = best.ID, "", nil, false, nil, nil, nil
 	}
 }
 

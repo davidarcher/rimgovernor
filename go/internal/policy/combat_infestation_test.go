@@ -129,39 +129,6 @@ func molotovHive(tick domain.Tick, temp float64) CombatView {
 	return view
 }
 
-// throwsAtHive reports a's molotov role aimed at the hive.
-func throwsAtHive(m CombatMemory) bool {
-	for _, r := range m.Roles {
-		if r.Pawn == "a" && r.Ground != nil && *r.Ground == hiveCell {
-			return true
-		}
-	}
-	return false
-}
-
-// {a molotov carrier, the hive heating} -> molotovs until the hive reads
-// 150 C, still inside 150-200 C, none above 200 C, and none once the hive
-// has held 150 C for heatStrokeTicks (the insects past 60% heat stroke).
-func TestHeatStrokeHold(t *testing.T) {
-	var m CombatMemory
-	for _, step := range []struct {
-		tick  domain.Tick
-		temp  float64
-		throw bool
-	}{{100, 30, true}, {200, 160, true}, {1200, 210, false}, {2200, 180, true}, {2200 + heatStrokeTicks, 170, false}} {
-		_, m = decideStop(t, molotovHive(step.tick, step.temp), StopEvent{}, m)
-		if m.Tactic != TacticInfestation {
-			t.Fatalf("%+v", m)
-		}
-		if got := throwsAtHive(m); got != step.throw {
-			t.Fatalf("tick %d at %v C: throw %v, want %v: %+v", step.tick, step.temp, got, step.throw, m.Roles)
-		}
-	}
-	if m.HeatTicks < heatStrokeTicks {
-		t.Fatalf("held %d ticks", m.HeatTicks)
-	}
-}
-
 // {brawlers committed to an infestation} -> above 50 C at the hive no
 // melee fighter is sent at an insect or the hive; at 30 C they charge.
 func TestNoEntryWhenHot(t *testing.T) {
