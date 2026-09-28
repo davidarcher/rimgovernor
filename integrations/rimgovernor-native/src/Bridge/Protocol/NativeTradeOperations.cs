@@ -624,6 +624,7 @@ namespace HomeBridge.BridgeTools
             try { executed = deal.TryExecute(out actuallyTraded); }
             catch { executed = false; actuallyTraded = false; }
             var afterGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : beforeGoodwill;
+            var afterSilver = ColonySilverNow(traderPawn, _sessionNegotiator, beforeSilver);
             var sessionIdForEvidence = _sessionId ?? "";
             var receiveQuest = !command.HasReceiveQuest || command.ReceiveQuest;
             var quest = false;
@@ -639,17 +640,27 @@ namespace HomeBridge.BridgeTools
             try { TradeSession.Close(); } catch { }
             _sessionId = null; _sessionColonyId = null; _sessionLoadToken = null; _sessionMap = null;
             _sessionDeal = null; _sessionTrader = null; _sessionNegotiator = null; _giftMode = false;
-            // A deal the game would not execute still ends the session: the
-            // intent applied, and its evidence says the deal did not.
+            // A deal the game would not execute still ends the session, but the
+            // accept is refused (#1156): the routine fails the method and replans.
+            if (!executed) throw new ApplyRefusedException(Common.FailureCode.NativeFailure, "The game declined to execute the deal; the session is closed.");
             var evidence = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect
             {
                 SessionId = sessionIdForEvidence, DealSignature = command.HasExpectedDealSignature ? command.ExpectedDealSignature : "",
                 Executed = executed, ActuallyTraded = actuallyTraded, Closed = true,
-                BeforeSilver = beforeSilver, AfterSilver = 0, BeforeGoodwill = beforeGoodwill, AfterGoodwill = afterGoodwill,
+                BeforeSilver = beforeSilver, AfterSilver = afterSilver, BeforeGoodwill = beforeGoodwill, AfterGoodwill = afterGoodwill,
                 FactionId = faction != null ? faction.GetUniqueLoadID() : "",
             } };
             if (quest) evidence.Trade.ReceivedQuestIds.Add(sessionIdForEvidence);
             return evidence;
+        }
+
+        // The colony silver the trader could now take, read fresh from live
+        // stacks: the session deal's rows are stale once it has executed.
+        private static int ColonySilverNow(Pawn? trader, Pawn? negotiator, int fallback)
+        {
+            if (trader == null || negotiator == null) return fallback;
+            try { return trader.ColonyThingsWillingToBuy(negotiator).Where(t => t != null && !t.Destroyed && t.def == ThingDefOf.Silver).Sum(t => t.stackCount); }
+            catch { return fallback; }
         }
 
         private static Receipts.EffectEvidence ApplyEnd(Operations.EndTrade command, string traderId, string negotiatorId, Common.Identity identity)

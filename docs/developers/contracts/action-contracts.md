@@ -106,7 +106,12 @@ counts, stock identities and prices. Native acceptance rechecks stock
 eligibility, both silver balances and trader availability after any viewing
 delay. Trade is an intent-mode kind (`domain.ActionKind.IntentMode`): an
 applied receipt completes the action with no observation phase, a refused
-one fails it, and a lost receipt sends the intent again. Dispatch does not
+one fails it, and a lost receipt sends the intent again. An accept whose
+deal the game declines to execute (`TryExecute` false) still closes the
+session but is refused with `FAILURE_CODE_NATIVE_FAILURE` (#1156), never
+applied; the routine reads the refused accept as settling that caravan for
+the occurrence and replans. An applied accept's `after_silver` is the
+colony silver read from live stacks after the exchange. Dispatch does not
 gate on a preview: native judges the intent against live state when it
 applies. The routine replans from live state: the trade-session read
 (`ReadTradeSession`) names the negotiator walking to or trading with a

@@ -47,3 +47,22 @@ func TestTradeSessionPhaseReadsLiveSheet(t *testing.T) {
 		}
 	}
 }
+
+// A refused accept is terminal (#1156): native closed the session, so the
+// caravan is settled like an applied one and the routine replans instead
+// of reopening it; only an accept still in flight or never sent is not.
+func TestTradeAcceptRefusalSettlesCaravan(t *testing.T) {
+	for _, c := range []struct {
+		accept tradePhase
+		want   bool
+	}{
+		{tradePhase{found: true}, true},
+		{tradePhase{found: true, completed: true}, true},
+		{tradePhase{found: true, open: true}, false},
+		{tradePhase{}, false},
+	} {
+		if got := tradeAcceptSpent(c.accept); got != c.want {
+			t.Fatalf("%+v: %v", c.accept, got)
+		}
+	}
+}

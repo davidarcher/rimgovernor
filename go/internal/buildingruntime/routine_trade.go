@@ -141,7 +141,7 @@ func (r *RoutineTradePlanner) phase(ctx context.Context, incident store.Incident
 
 // tradeSettled reports whether the caravan's session is over for this occurrence:
 // its last open attempt ended with no session or walk left, its accept
-// completed, or an end phase exists and is no longer open.
+// applied or was refused, or an end phase exists and is no longer open.
 // engaged is whether native holds a walk or session with the trader.
 func (r *RoutineTradePlanner) tradeSettled(ctx context.Context, incident store.IncidentState, trader string, engaged bool) (bool, error) {
 	open, err := r.phase(ctx, incident, domain.TradeOpen, trader)
@@ -155,7 +155,7 @@ func (r *RoutineTradePlanner) tradeSettled(ctx context.Context, incident store.I
 	if err != nil {
 		return false, err
 	}
-	if accept.completed {
+	if tradeAcceptSpent(accept) {
 		return true, nil
 	}
 	end, err := r.phase(ctx, incident, domain.TradeEnd, trader)
@@ -164,6 +164,11 @@ func (r *RoutineTradePlanner) tradeSettled(ctx context.Context, incident store.I
 	}
 	return end.found && !end.open, nil
 }
+
+// tradeAcceptSpent reports an accept that is over, applied or refused
+// (#1156): native closes the session either way, so the caravan is settled
+// for the occurrence and the routine replans rather than reopening it.
+func tradeAcceptSpent(accept tradePhase) bool { return accept.found && !accept.open }
 
 // tradeOpenSpent reports an open attempt that is over without a session
 // or walk to show for it: refused, or applied and since ended.

@@ -123,6 +123,10 @@ namespace HomeBridge.BridgeTools
                 return new Operations.ActionResult { Key = action.Key, Applied = new Receipts.Receipt
                     { AdmittedContext = context, Applied = new Receipts.Applied { Observed = evidence } } };
             }
+            catch (ApplyRefusedException refused)
+            {
+                return Refused(action.Key, refused.Code, refused.Message);
+            }
             catch (Exception error)
             {
                 Verse.Log.Error("[RimGovernor] Action " + action.IntentCase + " failed: " + error);
@@ -132,6 +136,14 @@ namespace HomeBridge.BridgeTools
 
         private static Operations.ActionResult Refused(string key, Common.FailureCode code, string reason) => new Operations.ActionResult
         { Key = key ?? "", Refused = new Operations.Refusal { Code = code, Reason = reason ?? "" } };
+    }
+
+    // Thrown from Apply when native state already changed but the intent's
+    // effect did not happen (#1156): the action is refused, not failed.
+    internal sealed class ApplyRefusedException : Exception
+    {
+        internal Common.FailureCode Code { get; }
+        internal ApplyRefusedException(Common.FailureCode code, string message) : base(message) { Code = code; }
     }
 
     internal sealed class TradeActionHandler : IActionHandler
