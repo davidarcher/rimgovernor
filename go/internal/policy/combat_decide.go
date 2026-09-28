@@ -142,6 +142,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	sapperRush(view, stop, &next)
 	doorPotshot(view, formed, &next)
 	shelter(view, &next)
+	scatter(view, &next)
 	counterBattery(view, &next)
 	rocketClumps(view, &next)
 	flank(view, &next)
@@ -161,6 +162,8 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		want, ok := role.want(state[role.Pawn])
 		if d := next.PotshotDoor; d != nil && d.Repairer == role.Pawn {
 			want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderRepair, Cell: d.Cell, Reason: ReasonRepair}, true
+		} else if role.Repair != nil {
+			want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderRepair, Cell: *role.Repair, Reason: ReasonRepair}, true
 		}
 		if !ok || next.doing(want, state[role.Pawn]) {
 			continue
@@ -281,6 +284,9 @@ type CombatView struct {
 	// Population is the colony's colonist count; below
 	// domain.PopulationTarget the fight spares contained bleeders (#1035).
 	Population domain.Fact[int]
+	// OutdoorTemperatureC is the map outdoor temperature in degrees
+	// Celsius from the frame (#1077); extreme cold or heat waits indoors.
+	OutdoorTemperatureC domain.Fact[float64] `json:",omitzero"`
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -390,6 +396,9 @@ type CombatRole struct {
 	// Ground is the cell a rocket carrier fires at (#1051); set, it wins
 	// over Cell and Target.
 	Ground *domain.Cell `json:",omitempty"`
+	// Repair is a damaged door queued at a line collapse (#1077); set, the
+	// pawn repairs it.
+	Repair *domain.Cell `json:",omitempty"`
 }
 
 // CombatOrderKind is the combat.orders order an order becomes.
@@ -477,6 +486,14 @@ type CombatMemory struct {
 	// WaitRooms pairs each sheltering room door with its floor cell
 	// behind it, for the layout planner's hardening (#1065).
 	WaitRooms []WaitDoor `json:",omitempty"`
+	// Scattered is a hold whose line collapsed (#1077): every defender
+	// runs away from the raid. Repairs are the damaged doors queued at the
+	// collapse, repaired once it clears.
+	Scattered bool          `json:",omitempty"`
+	Repairs   []domain.Cell `json:",omitempty"`
+	// LineHeld is the most hold-the-line cells defenders stood on at once
+	// this fight (#1077), the base a collapse is judged against.
+	LineHeld int `json:",omitempty"`
 	// SapperBreach is the wall cell a sapper formation guards (#913).
 	SapperBreach *domain.Cell `json:",omitempty"`
 	// Intercept is a sapper fight whose gunners went out to the diggers (#914).
@@ -585,6 +602,7 @@ func (m CombatMemory) clone() CombatMemory {
 	}
 	m.PodDoors = slices.Clone(m.PodDoors)
 	m.WaitDoors = slices.Clone(m.WaitDoors)
+	m.Repairs = slices.Clone(m.Repairs)
 	m.CannotHit = slices.Clone(m.CannotHit)
 	m.Animals = slices.Clone(m.Animals)
 	m.Untrained = slices.Clone(m.Untrained)

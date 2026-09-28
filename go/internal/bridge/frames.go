@@ -665,7 +665,9 @@ type Combat struct {
 	Doors []*mp.CombatDoorRow
 	// Mortars are the unroofed player mortars (#931).
 	Mortars []policy.CombatMortar
-	Frame   *o.BundleSnapshot
+	// OutdoorTemperatureC is the map outdoor temperature (#1077).
+	OutdoorTemperatureC domain.Fact[float64]
+	Frame               *o.BundleSnapshot
 }
 
 // ReadCombat reads the combat state from the newest frame past this
@@ -687,7 +689,7 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 
 // combatFrame is the part of frame v a combat read answers.
 func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
-	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars}
+	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatOutdoorTemperatureC: v.CombatOutdoorTemperatureC}
 }
 
 // DecodeCombat validates and decodes a frame's combat part (ReadCombat,
@@ -747,6 +749,9 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 		c, _ := protoCell(row.GetCell())
 		out.Mortars = append(out.Mortars, policy.CombatMortar{ID: row.GetId(), Cell: c, MinRange: float64(row.GetMinRange()), MaxRange: float64(row.GetMaxRange()), Loaded: row.GetLoadedShell()})
 	}
+	if v.CombatOutdoorTemperatureC != nil {
+		out.OutdoorTemperatureC = domain.Known(float64(v.GetCombatOutdoorTemperatureC()))
+	}
 	for _, row := range v.CombatRooms {
 		if room, ok := combatRoom(row); ok {
 			out.Rooms = append(out.Rooms, room)
@@ -779,6 +784,9 @@ func combatRoom(row *mp.CombatRoom) (policy.CombatRoom, bool) {
 
 // validateCombat checks a frame's combat rows (#851).
 func validateCombat(v *o.BundleSnapshot) error {
+	if t := v.CombatOutdoorTemperatureC; t != nil && (*t != *t || *t < -300 || *t > 300) {
+		return contract("combat outdoor temperature")
+	}
 	for _, row := range v.CombatMortars {
 		if validID(row.GetId()) != nil || movementCell(row.Cell) != nil || row.MinRange == nil || row.MaxRange == nil || row.GetMinRange() < 0 || row.GetMaxRange() < row.GetMinRange() {
 			return contract("combat mortar without id, cell or range")

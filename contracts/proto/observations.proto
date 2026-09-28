@@ -1207,6 +1207,9 @@ message BundleSnapshot {
   // Every spawned unroofed player mortar (#931), with combat_detail, at
   // most 16: the guns a fight may crew for counter-battery.
   repeated rimgovernor.mirror.v1.CombatMortarRow combat_mortars = 28;
+  // The map's outdoor temperature in degrees Celsius (#1077), with
+  // combat_detail: in extreme cold or heat a fight shelters indoors.
+  optional float combat_outdoor_temperature_c = 29;
 }
 message ObservationBatchSnapshot {
   rimgovernor.common.v1.ObservationContext start_context = 1; rimgovernor.common.v1.ObservationContext end_context = 2;

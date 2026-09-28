@@ -39,6 +39,20 @@ func outmatched(view CombatView) bool {
 	return ours < theirs
 }
 
+// Extreme outdoor temperatures (#1077): past these a fight shelters
+// indoors and lets hypothermia or heatstroke wear the raiders down.
+const (
+	extremeColdC = -20.0
+	extremeHeatC = 45.0
+)
+
+// extremeWeather reports a known outdoor temperature at or past the cold
+// or heat bound; unknown never shelters.
+func extremeWeather(view CombatView) bool {
+	t, ok := view.OutdoorTemperatureC.Value()
+	return ok && (t <= extremeColdC || t >= extremeHeatC)
+}
+
 // humanoidRaid reports a fight whose live hostile pawns (at least one) are
 // all known humanlike, with no pods arrival and no siege lord (those wait
 // by their own tactics, #893, #776), and no complete hold-the-line layout:
@@ -64,8 +78,9 @@ func humanoidRaid(view CombatView, m CombatMemory) bool {
 	return n > 0
 }
 
-// waitTurn runs before formation (#902, #1065): it decides whether a
-// manhunter fight or a humanoid raid waits this stop. A raid waits at most
+// waitTurn runs before formation (#902, #1065, #1077): it decides whether a
+// manhunter fight or a humanoid raid waits this stop: outmatched, or in
+// extreme outdoor cold or heat. A raid waits at most
 // raidGiveUpTicks from its first waiting stop. A fight that stops waiting
 // drops its roles so it re-forms to fight, and allows the doors it forbade.
 func waitTurn(view CombatView, m *CombatMemory) {
@@ -73,7 +88,7 @@ func waitTurn(view CombatView, m *CombatMemory) {
 	if !ManhunterPack(view) && !raid {
 		return
 	}
-	wait := outmatched(view)
+	wait := outmatched(view) || extremeWeather(view)
 	if wait && !m.Wait {
 		m.WaitSince = view.Tick
 	}

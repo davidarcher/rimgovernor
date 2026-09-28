@@ -33,6 +33,34 @@ func TestDecodeCombatRooms(t *testing.T) {
 	}
 }
 
+// The frame's outdoor temperature (#1077) decodes as a known fact and
+// survives the combat read; absent it is unknown; NaN or out of range is
+// a contract failure.
+func TestDecodeCombatOutdoorTemperature(t *testing.T) {
+	frame := &o.BundleSnapshot{Context: authorityTestContext(7), CombatOutdoorTemperatureC: proto.Float32(-32.5)}
+	combat, err := DecodeCombat(frame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := combat.OutdoorTemperatureC.Value(); !ok || got != -32.5 {
+		t.Fatalf("temperature %v %v", got, ok)
+	}
+	if combatFrame(frame).CombatOutdoorTemperatureC == nil {
+		t.Fatal("the combat read drops the frame's outdoor temperature")
+	}
+	combat, err = DecodeCombat(&o.BundleSnapshot{Context: authorityTestContext(7)})
+	if _, ok := combat.OutdoorTemperatureC.Value(); err != nil || ok {
+		t.Fatal("an absent temperature is not unknown")
+	}
+	nan := float32(0)
+	nan /= nan
+	for _, bad := range []float32{nan, 1000} {
+		if _, err := DecodeCombat(&o.BundleSnapshot{Context: authorityTestContext(7), CombatOutdoorTemperatureC: proto.Float32(bad)}); err == nil {
+			t.Fatalf("temperature %v accepted", bad)
+		}
+	}
+}
+
 // Named cells alone may be asked with no hostile: their standability
 // before drop pods open (#897); a propose still needs one.
 func TestCombatGeometryNamedCellsWithoutHostiles(t *testing.T) {

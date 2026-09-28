@@ -111,6 +111,8 @@ namespace HomeBridge.BridgeTools
             pawns.Filter.Ids.AddRange(ids);
             if (!NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) return;
             observed.CombatDetail = detail;
+            // The outdoor temperature (#1077), for sheltering in extreme cold or heat.
+            observed.CombatOutdoorTemperatureC = map.mapTemperature.OutdoorTemp;
             // The damaged player doors (#900), for a fight's door repair.
             foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
             {

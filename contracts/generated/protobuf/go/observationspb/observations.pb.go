@@ -32263,8 +32263,11 @@ type BundleSnapshot struct {
 	// Every spawned unroofed player mortar (#931), with combat_detail, at
 	// most 16: the guns a fight may crew for counter-battery.
 	CombatMortars []*mirrorpb.CombatMortarRow `protobuf:"bytes,28,rep,name=combat_mortars,json=combatMortars,proto3" json:"combat_mortars,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// The map's outdoor temperature in degrees Celsius (#1077), with
+	// combat_detail: in extreme cold or heat a fight shelters indoors.
+	CombatOutdoorTemperatureC *float32 `protobuf:"fixed32,29,opt,name=combat_outdoor_temperature_c,json=combatOutdoorTemperatureC,proto3,oneof" json:"combat_outdoor_temperature_c,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *BundleSnapshot) Reset() {
@@ -32470,6 +32473,13 @@ func (x *BundleSnapshot) GetCombatMortars() []*mirrorpb.CombatMortarRow {
 		return x.CombatMortars
 	}
 	return nil
+}
+
+func (x *BundleSnapshot) GetCombatOutdoorTemperatureC() float32 {
+	if x != nil && x.CombatOutdoorTemperatureC != nil {
+		return *x.CombatOutdoorTemperatureC
+	}
+	return 0
 }
 
 type ObservationBatchSnapshot struct {
@@ -38437,7 +38447,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2+.rimgovernor.observations.v1.StatusSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xb2\x0f\n" +
+	"\aoutcome\"\x99\x10\n" +
 	"\x0eBundleSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1b\n" +
 	"\x06paused\x18\x02 \x01(\bH\x00R\x06paused\x88\x01\x01\x12?\n" +
@@ -38466,8 +38476,10 @@ const file_observations_proto_rawDesc = "" +
 	"\fcombat_doors\x18\x19 \x03(\v2$.rimgovernor.mirror.v1.CombatDoorRowR\vcombatDoors\x12`\n" +
 	"\x13project_definitions\x18\x1a \x03(\v2/.rimgovernor.observations.v1.PlanningDefinitionR\x12projectDefinitions\x12@\n" +
 	"\x05rooms\x18\x1b \x01(\v2*.rimgovernor.observations.v1.RoomsSnapshotR\x05rooms\x12M\n" +
-	"\x0ecombat_mortars\x18\x1c \x03(\v2&.rimgovernor.mirror.v1.CombatMortarRowR\rcombatMortarsB\t\n" +
-	"\a_pausedJ\x04\b\x05\x10\x06J\x04\b\x12\x10\x13J\x04\b\x13\x10\x14\"\xb6\x05\n" +
+	"\x0ecombat_mortars\x18\x1c \x03(\v2&.rimgovernor.mirror.v1.CombatMortarRowR\rcombatMortars\x12D\n" +
+	"\x1ccombat_outdoor_temperature_c\x18\x1d \x01(\x02H\x01R\x19combatOutdoorTemperatureC\x88\x01\x01B\t\n" +
+	"\a_pausedB\x1f\n" +
+	"\x1d_combat_outdoor_temperature_cJ\x04\b\x05\x10\x06J\x04\b\x12\x10\x13J\x04\b\x13\x10\x14\"\xb6\x05\n" +
 	"\x18ObservationBatchSnapshot\x12N\n" +
 	"\rstart_context\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\fstartContext\x12J\n" +
 	"\vend_context\x18\x02 \x01(\v2).rimgovernor.common.v1.ObservationContextR\n" +

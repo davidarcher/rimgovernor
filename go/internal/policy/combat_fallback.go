@@ -1,6 +1,119 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"math"
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
+
+// scatterCells is how far a scattering defender runs from the raid (#1077).
+const scatterCells = 20
+
+// scatter is the hold's last resort (#1077). The line collapses when the
+// fight is outmatched and most of the hold-the-line cells defenders once
+// stood on are lost (their defenders downed or pushed off): every live
+// role then drops its target and runs scatterCells away from the live
+// hostiles, and the damaged doors are queued. The fight stays scattered
+// while it is outmatched; once it is not, it drops its roles to re-form,
+// and each queued door still damaged goes to the nearest free role to
+// repair.
+func scatter(view CombatView, m *CombatMemory) {
+	at := map[domain.PawnID]domain.Cell{}
+	for _, p := range view.Pawns {
+		if c, ok := p.Cell.Value(); ok {
+			at[p.ID] = c
+		}
+	}
+	if !m.Scattered {
+		layout, ok := view.Layout.Value()
+		if !ok || m.Tactic != TacticHold {
+			queueRepairs(view, m, at)
+			return
+		}
+		live := view.live()
+		held := 0
+		for _, c := range holdLine(layout, *m) {
+			for id, p := range at {
+				if p == c && live[id] {
+					held++
+					break
+				}
+			}
+		}
+		m.LineHeld = max(m.LineHeld, held)
+		if !outmatched(view) || m.LineHeld == 0 || 2*held >= m.LineHeld {
+			queueRepairs(view, m, at)
+			return
+		}
+		m.Scattered = true
+		for _, d := range view.DamagedDoors {
+			if !slices.Contains(m.Repairs, d) {
+				m.Repairs = append(m.Repairs, d)
+			}
+		}
+	} else if !outmatched(view) {
+		m.Scattered, m.LineHeld, m.Roles = false, 0, nil
+		return
+	}
+	var hx, hz float64
+	n := 0
+	down := downPawns(view)
+	for _, t := range view.Threats {
+		c, ok := at[domain.PawnID(t.ID)]
+		if !ok || t.Building || positive(t.Dead) || positive(t.Downed) || down[domain.PawnID(t.ID)] {
+			continue
+		}
+		hx, hz, n = hx+float64(c.X), hz+float64(c.Z), n+1
+	}
+	for i := range m.Roles {
+		r := &m.Roles[i]
+		r.Target, r.Duty, r.Cell, r.Home, r.Mortar, r.Aim, r.Ground, r.Repair = "", "", nil, nil, nil, nil, nil, nil
+		from, ok := at[r.Pawn]
+		if !ok || n == 0 {
+			continue
+		}
+		dx, dz := float64(from.X)-hx/float64(n), float64(from.Z)-hz/float64(n)
+		l := math.Hypot(dx, dz)
+		if l == 0 {
+			dx, dz, l = 0, 1, 1
+		}
+		c := domain.Cell{X: max(0, from.X+int32(math.Round(dx/l*scatterCells))), Z: max(0, from.Z+int32(math.Round(dz/l*scatterCells)))}
+		r.Cell, r.Retreat = &c, true
+	}
+	m.Kiter, m.Leading, m.PotshotDoor = "", false, nil
+	m.Intercept, m.Rushing, m.MechLure = false, false, false
+}
+
+// queueRepairs drops the queued doors no longer damaged and gives each one
+// still damaged to the nearest role with a known cell and no repair yet.
+func queueRepairs(view CombatView, m *CombatMemory, at map[domain.PawnID]domain.Cell) {
+	m.Repairs = slices.DeleteFunc(m.Repairs, func(d domain.Cell) bool { return !slices.Contains(view.DamagedDoors, d) })
+	for i := range m.Roles {
+		if r := &m.Roles[i]; r.Repair != nil && !slices.Contains(m.Repairs, *r.Repair) {
+			r.Repair = nil
+		}
+	}
+	for _, d := range m.Repairs {
+		if slices.ContainsFunc(m.Roles, func(r CombatRole) bool { return r.Repair != nil && *r.Repair == d }) {
+			continue
+		}
+		best := -1
+		for i, r := range m.Roles {
+			c, ok := at[r.Pawn]
+			if r.Repair != nil || !ok {
+				continue
+			}
+			if best < 0 || distance2(c, d) < distance2(at[m.Roles[best].Pawn], d) {
+				best = i
+			}
+		}
+		if best >= 0 {
+			door := d
+			m.Roles[best].Repair = &door
+		}
+	}
+}
 
 // StopSeriousInjury is the #849 stop for a colonist's serious hit.
 const StopSeriousInjury CombatStopKind = "serious_injury"
