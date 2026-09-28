@@ -68,8 +68,8 @@ player submissions (building, research) for the same world are dispatched
 under the root's authority once `AuthorizeRoutinePlan` or
 `AuthorizePlayerPlan` accepts them — a submission is guidance the running
 bot executes, not a grant of its own, and there is no priority arbitration
-between guidance and routine work. Pause stops local work and cleans up
-owned drafts. Record phases are `pending`, `running` (resume, non-zero
+between guidance and routine work. Pause stops local work; drafted pawns stay
+drafted until the game's own auto-undraft takes them back (#939). Record phases are `pending`, `running` (resume, non-zero
 native generation), `paused`, `refused` and `uncertain`. Historical results
 never confer current permission; `state.generation.plan` is the live root
 plan and is the `planId` that work preferences attach to. Bodies
@@ -118,14 +118,12 @@ preserves both forms, request IDs and last-good data. Session/world changes
 exclude stale permission and responses without silently resubmitting either
 intent.
 
-Show ordinary progress and cleanup separately. A routine-produced owned draft
-releases its claim when its plan finishes; it is not a persistent draft toggle.
-The UI has no draft, undraft, claim-adoption or native-token input.
+A routine-produced `owned_draft` action is plan-owned: the undraft sweep
+undrafts its pawn once no live plan needs it (#939); it is not a persistent
+draft toggle. The UI has no draft, undraft or native-token input.
 
 
 ## Native draft acceptance
 
-Draft claim/release evidence (ordinary completion, player override,
-transport-error recovery, HTTP response-body loss followed by lookup, and
-disabled same-database restarts) is Go native acceptance tracked in
-[issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
+Draft and undraft through the draft intent are Go native acceptance in
+`draft/intent`.

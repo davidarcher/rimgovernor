@@ -281,8 +281,8 @@ func (g *GameReuse) abandon(ctx context.Context, c *ReuseCase, reason string) er
 }
 
 // EndCase closes the case. A failed case retires the game. A successful case
-// must have released everything it owned: authority inactive and no owned
-// draft claims; otherwise the game is retired too, since the next case could
+// must have released everything it owned: authority inactive and no drafted
+// colonist; otherwise the game is retired too, since the next case could
 // not trust its baseline. Returns ErrReuseRetired (wrapped) on retirement.
 func (g *GameReuse) EndCase(ctx context.Context, c *ReuseCase, failed bool) error {
 	if g.current != c {

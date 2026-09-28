@@ -211,12 +211,15 @@ the player just drafted, forced, restricted or placed: there is no
 per-subsystem "player owns this, hands off" state and no waiting period.
 Squad, rescue, tend, repair and recovery selection prefer candidates without
 forced or queued work, but that evidence never excludes the remaining candidates.
-Active draft claims, native job legality and exact snapshot checks still apply.
+Native job legality and exact snapshot checks still apply.
 
-Auto also adopts and releases an idle, unclaimed standing draft when the complete
-squad census has no threat and no open draft plan wants that colonist. The
-RestoreWorkers method uses the ordinary draft CAS and ownership lifecycle;
-existing claims and uncertain attempts retain their normal reconciliation.
+Drafts are plan-owned (#939): there is no native draft claim. A plan drafts
+the pawns it needs through the draft intent, and the census-based undraft
+sweep undrafts every drafted colonist no live plan needs (an unsettled or
+still-held draft action, the capturer of an open capture or arrest plan,
+or an open fight's roster), sparing a pawn native is running an Arrest or
+Capture job for. RestoreWorkers stands while such a stray draft waits for
+the sweep.
 `TestIdleDraftObservationGuards` (buildingruntime) covers the candidate
 guards and admission; the colony snapshots in `internal/snapshot`
 (`draft_idle_test.go`, recorded from the former `draft/idle` and
@@ -227,11 +230,13 @@ Colony, load and map changes and stale in-flight snapshots still invalidate
 pending work; that is ordinary concurrency safety, not a player-ownership
 rule. A pause or letter pause only suspends routine goals and their open
 work until control resumes in the same world (see the
-[overview](overview.md)): the owned drafts a suspended plan still holds
+[overview](overview.md)): the drafts a suspended plan still holds
 (a completed draft with unfinished, unfailed work behind it, such as a
-combat hold plan's defenders) stay owned through the hold and the resume,
-and the next order's claim readback catches a pawn the player undrafted
-meanwhile. An explicit Pause releases every owned draft. The game's own
+combat hold plan's defenders) stay needed through the hold and the resume,
+and the next order's drafted check refuses a pawn the player undrafted
+meanwhile (`not_drafted`). An explicit Pause undrafts nobody: drafted pawns
+stay drafted, and with authority inactive the game's own auto-undraft
+applies again. The game's own
 pause on an informational letter (NeutralEvent, PositiveEvent,
 NegativeEvent, the classes the native supervisor never stops play for)
 stops the window but holds nothing: the next step admits again without a

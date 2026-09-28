@@ -8,12 +8,12 @@
 // its own SQLite state, asserting the stopped controller no longer
 // answers. Between cases the lifecycle's own
 // reset contract must hold: a load token never issued before, the game
-// paused at the baseline tick, no active authority, no owned draft claim,
+// paused at the baseline tick, no active authority, no drafted colonist,
 // and the sampled stock equal to the first load's. (The colony id is not
 // compared: a fixture save the mod never wrote carries none, so native
 // mints a fresh one per load.)
 //
-// A final negative case deliberately leaves a colonist owned-drafted and
+// A final negative case deliberately leaves a colonist drafted and
 // asserts EndCase refuses to hand the game on: it retires (games_stop)
 // the process instead, so a dirty case can never leak into the next one.
 //

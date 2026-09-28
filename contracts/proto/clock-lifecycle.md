@@ -83,7 +83,7 @@ pauses an unrelated replacement. There is no new native resume or event-ack verb
 Save names identify a single native save, not a path: nonblank, at most 128 UTF-8
 bytes, no NUL, directory separators, dot-only components or platform-invalid
 filename characters. The owned profile resolves the path. Saves require explicit
-current player direction, Manual, resolved owned drafts, verified pause and exact
+current player direction, Manual, verified pause and exact
 expected tick. `SaveCompleted` requires a nonempty complete native file and the
 same observed identity/direction/tick afterward. It does not publish a paired
 controller checkpoint; the controller verifies and durably publishes its own
@@ -94,7 +94,7 @@ Load timeout is 1000–120000 ms. Map readiness and optional visual readiness ar
 distinct; completion carries the newly observed identity. A timeout after dispatch
 is `pending`, with unavailable readiness facts absent. Do not retry loading from
 an ambiguous acknowledgement. Load starts Manual and invalidates authority,
-input/UI captures, owned drafts, pending actions and observation cursors. There
+input/UI captures, pending actions and observation cursors (drafts are plan-owned, #939, and carry no native claim to invalidate). There
 is no saved-lease restoration, old-format conversion or compatibility override.
 The lifecycle facade uses the existing SDK implementation; its method descriptor
 does not imply another in-game loader or native process server.

@@ -47,7 +47,7 @@ and talks GABP to RimBridgeServer directly.
 `rimgovernor serve` has two modes; `serve -h` is the authoritative flag list.
 
 - `serve --profile PATH ...` is **autonomous play**: player control (building,
-  owned draft/melee execution, lifecycle save/load, presentation/media, the
+  plan-owned draft and combat orders, lifecycle save/load, presentation/media, the
   typed player endpoints under `internal/httpapi/player.go`), the clock worker
   (event polling, epoch renewal, bounded supervised windows: 600 ticks, 30-second
   lease), durable routine reviews with method execution across every routine
@@ -308,8 +308,8 @@ cannot be modified or reused. Disabled bindings and player cancellations remain
 retained. Enabled reviews also retire settled autopilot method plans from active
 capacity. `GoalState.Methods` lists active bindings; `LoadGoalMethod` reads an exact
 historical binding, and `LoadPlan` preserves its progress and admissions. Plan and
-method IDs remain reserved. Current plans, unfinished dependencies, uncertain effects,
-owned-draft cleanup and unsuccessful outcomes stay pinned.
+method IDs remain reserved. Current plans, unfinished dependencies, uncertain effects
+and unsuccessful outcomes stay pinned.
 
 Completed plan retirement retains a per-world observation-tick floor. Method
 admission, preparation and dispatch reject older observations, including after a
@@ -345,8 +345,8 @@ through the existing player gate, rechecks authority after the read, and retains
 unknown needs. `observation.ObserveRoutine` includes the typed emergency census
 inside the same paused brackets. Medical/combat need counts use the shared emergency
 rules, deduplicate patients/threats, and remain unknown on incomplete or conflicting
-evidence. Owned-draft cleanup needs use the complete shared journal and the same
-cleanup predicate as the release sweep. Manual and fresh acquisition invalidate previous routine reviews
+evidence. The undraft sweep reads the complete shared journal for the live plans
+that need drafts (#939). Manual and fresh acquisition invalidate previous routine reviews
 without a native read. A disabled reviewer retires existing work without acquiring
 authority. The reviewer has no independent background loop. A clock scheduler can
 attach the same player's reviewer through `ClockSchedulerConfig.Routine`; it runs
@@ -901,58 +901,20 @@ and unknown facts hold new orders. Previously issued attempts remain observable
 while held; the controller does not release their reservations or invent a retry.
 
 `bridge.Client.ReadPawns` reads 1–256 exact pawn IDs, including dead pawns, with
-optional detail families disabled. It preserves native snapshot and draft-claim
-availability. Missing pawns or unsupported claims cannot establish ownership or
-release.
+optional detail families disabled. It preserves native snapshot tokens and drafted
+state; missing pawns never establish ownership or permission.
 
-The owned-draft domain retains cleanup responsibility independently of ordinary
-action completion. Native adapters provide temporary drafting, attempt reads and
-exact-claim release as separate capabilities. Attempt reads carry original owner
-and generation evidence without retaining a lease. Completion requires original
-attempt attribution and fresh matching full-owner pawn observations. A verified
-original receipt can also bind a historical claim after positive player ownership
-replacement; cleanup then supersedes the old claim without changing player state.
-A cleanup call uses the exact journaled pawn token and original claim.
-
-The fresh Go schema stores building and owned-draft submissions under shared
-request headers with separate typed payloads. Draft admission records the exact
-pawn and snapshot token; progress and cleanup evidence commit atomically. Each
-cleanup request receives a durable local sequence before release. Reopening the
-database restores evidence, while dispatch still requires fresh runtime admission
-and live permission. Older Go schema versions are rejected without migration.
-Positive colony, load or map replacement can supersede an outstanding cleanup
-obligation without claiming the original draft was acquired or released. Same-world
-missing ownership cannot establish this transition.
-
-The gated melee plan variant names an explicit preceding draft action for the
-same pawn. Its typed admission records both pawn snapshot tokens and the exact
-retained claim. Preparation and dispatch atomically require a completed, currently
-owned prerequisite; generic preparation cannot bypass it. Historical admission
-survives cleanup for receipt reconciliation. The melee bridge validates causal
-completion separately from accepted jobs, and combat pawn reads preserve unknown
-health and equipment facts. Deterministic admission requires a fresh complete
-single-opponent census, healthy capable colonist, current ownership and guarded
-native preview. `executor.NewWithMelee` uses two fresh inspections and the shared
-writer. Reconciliation retains the original admission after Manual or cleanup;
-accepted jobs never establish combat completion. Optional `SessionConfig.Melee`
-requires complete draft capabilities and shares their joined cleanup. Player-service
-submission and actual Go native defense acceptance remain separate gates.
-
-Pure draft admission requires a healthy selected colonist, known unowned and
-undrafted state, no forced or queued job, native eligibility and fresh complete
-emergency observations. Known threats can admit this emergency action; unknown
-facts hold it. `executor.NewWithDraft` prepares from fresh observations twice
-before journaling dispatch. Drafting and cleanup share the building writer;
-`CleanupDraft` remains available after ordinary `Stop`. Each call consumes one
-fresh decision, preserving uncertainty and the exact persisted cleanup sequence.
-An optional complete `SessionConfig.Draft` capability set composes draft execution
-and cleanup into the existing session. The worker releases completed standalone
-drafts and invalidated claims independently of ordinary action progress. An active
-multi-action plan can retain a completed draft while its other work remains valid.
-Manual and shutdown run a bounded cleanup sweep through the same writer; unknown
-acquisition is observed before release, and an uncertain release remains retryable.
-The explicitly selected player service supplies these complete capabilities;
-production enablement still depends on the remaining G01 acceptance work.
+Drafts are plan-owned (#939). A plan's `owned_draft` action drafts its pawn
+through the `DraftIntent` arm of `Actions/Apply`; subdue and movement actions
+name that draft action as their prerequisite, and combat orders go out as the
+`CombatOrders` arm (a fight keeps a roster of its drafted defenders). Native
+keeps no draft claim. The routine review's undraft sweep (`plannedDrafts`,
+`undraftCandidates`) undrafts every drafted, live, sane colonist no live plan
+needs: an unsettled or still-held draft action, the capturer of an open capture
+or arrest plan, or an open fight's roster; a pawn running an Arrest or Capture
+job is spared. Manual, checkpoint saves and shutdown undraft nobody: drafted
+pawns stay drafted and, with authority inactive, the game's own auto-undraft
+applies again.
 
 An uncertain HTTP reply is resolved by reading its request ID through
 `GET /api/buildings/submission?requestId=...` or

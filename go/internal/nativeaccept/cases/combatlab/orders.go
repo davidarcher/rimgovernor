@@ -73,7 +73,7 @@ func runOrders(ctx context.Context, s cases.Session) error {
 		map[string]any{"door": map[string]any{"cell": cell(cx+10, cz), "mode": "COMBAT_DOOR_MODE_CLOSE"}},
 	}
 	wantJob := []string{"AttackStatic", "Goto", "AttackStatic", "", "Wait_Combat", "Goto", "", "", "", ""}
-	wantRefusal := map[int]string{8: "draft_ownership", 9: "not_a_door"}
+	wantRefusal := map[int]string{8: "not_drafted", 9: "not_a_door"}
 	results, err := issue(ctx, h, identity, "combat-orders-1", orders)
 	if err != nil {
 		return err

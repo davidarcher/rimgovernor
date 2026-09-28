@@ -10,8 +10,7 @@ const stages = ['pending', 'prepared', 'dispatched', 'awaiting_observation', 'co
 const effects = ['unknown', 'pending', 'completed', 'absent', 'unsuccessful'] as const;
 const unsuccessfulReasons = ['native_failure', 'cancelled', 'interrupted', 'expired', 'target_dead', 'outcome_not_achieved'] as const;
 export type UnsuccessfulReason = typeof unsuccessfulReasons[number];
-export const cleanupStages = ['awaiting_claim', 'not_acquired', 'required', 'dispatched', 'uncertain', 'released', 'superseded'] as const;
-export type ActionProgress = {stage: typeof stages[number]; attempt: string; tick: number; unresolved: boolean; receipt: string | null; effect: typeof effects[number] | null; unsuccessfulReason: UnsuccessfulReason | null; draftCleanup?: {stage: typeof cleanupStages[number]}};
+export type ActionProgress = {stage: typeof stages[number]; attempt: string; tick: number; unresolved: boolean; receipt: string | null; effect: typeof effects[number] | null; unsuccessfulReason: UnsuccessfulReason | null};
 export type BuildingAction = {id: string; progress: ActionProgress} & (
   {kind: 'building'; building: {defName: string; x: number; z: number; rotation: string; stuff: string}} |
   {kind: 'owned_draft'; draft: {pawnId: string}}
@@ -52,16 +51,8 @@ export function readPlan(raw: unknown): BuildingPlan {
     if ((effect === 'unsuccessful') !== (unsuccessfulReason !== null) ||
       (effect === 'unsuccessful' && (unresolved || (stage !== 'unsuccessful' && stage !== 'cancelled'))) ||
       (stage === 'unsuccessful' && effect !== 'unsuccessful')) throw Error('Inconsistent unsuccessful outcome');
-    let draftCleanup: ActionProgress['draftCleanup'];
-    if (Object.hasOwn(progress, 'draftCleanup')) {
-      if (action.kind !== 'owned_draft') throw Error('Building cannot have draft cleanup');
-      const cleanup = object(progress.draftCleanup);
-      if (Object.keys(cleanup).length !== 1) throw Error('Invalid cleanup fields');
-      draftCleanup = {stage: oneOf(cleanup.stage, cleanupStages)};
-    }
     const parsed: ActionProgress = {stage, attempt: decimal(progress.attempt), tick: integer(progress.tick), unresolved,
-      receipt: optional(progress.receipt, v => oneOf(v, ['accepted', 'refused', 'unknown'])), effect, unsuccessfulReason,
-      ...(draftCleanup ? {draftCleanup} : {})};
+      receipt: optional(progress.receipt, v => oneOf(v, ['accepted', 'refused', 'unknown'])), effect, unsuccessfulReason};
     if (action.kind === 'owned_draft') return {id, kind: 'owned_draft', draft: readDraft(action.draft), progress: parsed};
     const building = object(action.building);
     return {id, kind: 'building', building: {defName: text(building.defName), x: integer(building.x), z: integer(building.z),

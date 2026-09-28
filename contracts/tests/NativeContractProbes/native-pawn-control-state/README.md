@@ -25,25 +25,7 @@ At most4096 pawn records per unsaved Game and256 queued jobs/target entries are
 supported; overflow is explicit. This is a draft-control CAS, not a health/settings
 snapshot or permission to issue arbitrary orders.
 
-PrepareClaim requires an exact snapshot, an undrafted eligible pawn and the live
-owned authority scope with exact original session/direction. The caller rechecks
-admission immediately before invoking the ordinary draft setter. CompleteClaim
-requires exactly one observed false-to-true transition. It can retain the causal
-cleanup claim after lease expiry without granting authority. Every later setter,
-including an undraft/redraft between reads, invalidates that claim. Successful
-external ordered jobs invalidate claims; same-owner admitted orders preserve them.
-Ordinary simulation job progress updates the snapshot without discarding ownership.
-
-PrepareRelease needs exact identity, original token, claim ID and original typed
-owner. It does not require a current lease. The caller invokes the ordinary setter;
-CompleteRelease records success only after exact undrafted readback. An exception
-or unavailable read leaves a correlated uncertain ticket. No rollback or implicit
-retry occurs. Caller diagnostics may remain uncertain even after a verified effect.
-The separate latest-release ticket permits exact request replay before old-token
-CAS, only while post-release facts remain unchanged. New claims, later setters,
-orders and context transitions prevent obsolete replay. It consumes no ordinary
-operation-ledger capacity. Legacy string draft ownership remains separate.
-
-Integration acceptance must prove actual hook installation/invalidation, canonical
-SetDrafted admission, manual/expired cleanup, exact release replay and uncertainty
-through real native callers. This foundation does not advertise those operations.
+Drafts are plan-owned (#939): native keeps no draft claim or release ticket.
+The draft setter hook (`DraftOwnership`) only advances the per-pawn draft
+revision the snapshot token covers; the controller's undraft sweep undrafts
+pawns no live plan needs.

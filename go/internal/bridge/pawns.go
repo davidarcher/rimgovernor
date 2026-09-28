@@ -11,7 +11,7 @@ import (
 )
 
 // ReadPawns observes exact IDs including dead pawns. Missing rows, CAS tokens and
-// draft claims never imply death, write permission or controller ownership.
+// drafted state never imply death, write permission or controller ownership.
 func (client *Client) ReadPawns(ctx context.Context, identity *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
 	return client.readPawns(ctx, identity, ids, false)
 }

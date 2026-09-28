@@ -194,7 +194,7 @@ re-admitted as a new tier method, while `Complete` stays true so combat keeps
 holding the line on the proven geometry. A missing building whose cell already
 carries a blueprint or frame (the game's own trap auto-rearm) is not placed
 again; the planner asks for a clock window so native construction finishes
-it. Defenders are undrafted by ordinary draft cleanup once the recovered
+it. Defenders are undrafted by the undraft sweep once the recovered
 ActiveCombat goal stops authorizing the hold plan.
 
 Combat holds the line only against an ordinary edge assault still in front

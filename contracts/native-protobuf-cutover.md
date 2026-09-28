@@ -44,9 +44,9 @@ Paths are under `integrations/rimgovernor-native/src/Bridge`. The shared
 Protobuf parsing/formatting. Generated compile inputs come from
 `contracts/generated/protobuf/csharp`.
 
-`Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`
-and temporary `SetDrafted` plus guarded `AttackTarget` under an existing owned draft;
-other command variants return unsupported. Their presence does not advertise
+`Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`;
+drafting and combat orders are `Actions/Apply` intents (`DraftIntent`,
+`CombatOrders`, #939); other command variants return unsupported. Their presence does not advertise
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
 `Protocol/NativeConstructionCausality.cs` checks exact factory/spawn attribution.
@@ -124,23 +124,22 @@ Headless and rendered acceptance cross-check populated indoor structures against
 native reads and preserve paused context. Populated bed, pawn and stockpile
 memberships remain acceptance gaps.
 
-Live current-map pawns expose opaque control snapshots and canonical owned/unowned
-draft claims. Animals without draft controllers expose unowned target snapshots
-and remain ineligible for drafting. Tokens cover identity, draft and successful
-ordered-job revisions, position, eligibility and current/queued job facts; they
-are not health or settings CAS. Registration installs hooks; reads do not install
-hooks or allocate authority. `SetDrafted` uses ordinary admission and causal
-readback. Already-owned drafting preserves its claim without another setter.
-`ReleaseOwnedDraft` checks exact original ownership and unchanged snapshot after
-revocation and keeps its latest cleanup replay outside the ordinary attempt ledger.
-Persistent drafting remains unsupported.
+Live current-map pawns expose opaque control snapshots. Drafts are plan-owned
+(#939): native keeps no draft claim, and the controller's undraft sweep undrafts
+every drafted colonist no live plan needs. Animals without draft controllers
+expose target snapshots and remain ineligible for drafting. Tokens cover
+identity, draft and successful ordered-job revisions, position, eligibility and
+current/queued job facts; they are not health or settings CAS. Registration
+installs hooks; reads do not install hooks or allocate authority. The
+`DraftIntent` sets or clears a draft under Auto; drafting an already-drafted
+pawn applies without another setter.
 
 A move is the `MoveIntent` arm of `Actions/Apply`: native requires an alive,
-spawned pawn drafted under an owned claim and a standable, reachable cell, and
-applies an order that already matches as a no-op. Arrival is not reported.
+spawned, drafted pawn and a standable, reachable cell, and applies an order
+that already matches as a no-op. Arrival is not reported.
 
-`AttackTarget` requires exact attacker and target snapshots, the attacker's current
-owned draft, and ordinary native violence, reach and melee-verb eligibility.
+A `CombatOrders` attack requires exact attacker and target snapshots, a drafted
+attacker, and ordinary native violence, reach and verb eligibility.
 Requested hostility, standing and colony-health predicates are checked before
 dispatch. Melee and ordinary native direct-bullet ranged attacks are supported;
 Auto resolves through the native weapon choice. Explosive, overhead, beam and

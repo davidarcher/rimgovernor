@@ -95,7 +95,6 @@ const (
 	HeldInvalidHeld        HeldReason = "held_reservation_unverifiable"
 	HeldArithmeticOverflow HeldReason = "arithmetic_overflow"
 
-	HeldDraftOwnership             HeldReason = "draft_ownership"
 	HeldNativeIneligible           HeldReason = "native_ineligible"
 	HeldPlayerOrder                HeldReason = "player_order"
 	HeldUnsuitableEquipment        HeldReason = "unsuitable_equipment"
@@ -119,7 +118,6 @@ var orderedHeldReasons = []HeldReason{
 	HeldNotReady, HeldAlreadyReserved, HeldUnsafePlacement, HeldMaterialRequired,
 	HeldDependencyBlocked, HeldGeometryBlocked, HeldSpendingBlocked, HeldInsufficientStock,
 	HeldInvalidHeld, HeldArithmeticOverflow,
-	HeldDraftOwnership,
 	HeldNativeIneligible, HeldPlayerOrder,
 	HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,
@@ -133,7 +131,7 @@ func (r HeldReason) valid() bool {
 
 // heldReasonBits packs every hold reason into a comparable value so
 // ProgressView (compared by == elsewhere) stays comparable; a slice field
-// could not. 43 reasons currently exist, comfortably under the 64-bit cap;
+// could not. The reason count must stay under the 64-bit cap;
 // bit reports 0 (invalid) once orderedHeldReasons would exceed that cap.
 type heldReasonBits uint64
 

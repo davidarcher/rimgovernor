@@ -146,6 +146,10 @@ func (r *RoutineDefensePlanner) clearFightAnimals(call context.Context, state Co
 	}
 }
 
+// recordDrafts records a batch's leading draft results on the fight's
+// roster (#939): an applied draft joins it, a refused one leaves it with its
+// orders forgotten. It returns the remaining (order) results; an uncertain
+// receipt (nil results) leaves the roster alone for the next stop's rows.
 func (r *RoutineDefensePlanner) recordDrafts(call context.Context, plan domain.PlanID, pawns []domain.PawnID, results []bridge.CombatOrderResult, memory policy.CombatMemory) ([]bridge.CombatOrderResult, policy.CombatMemory, error) {
 	if results == nil || len(pawns) == 0 {
 		return results, memory, nil

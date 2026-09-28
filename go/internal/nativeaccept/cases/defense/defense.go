@@ -882,9 +882,9 @@ func trapIDDelta(before, after map[string]any) (sprung, rebuilt []string) {
 	return sprung, rebuilt
 }
 
-// waitDefendersReleased waits until every draft claim the fights hold is
-// released (#910): the recovered ActiveCombat goal closes the fight, so
-// the worker's fight release returns each defender to colony work.
+// waitDefendersReleased waits until every fight rostering a defender is
+// closed and its defenders undrafted (#939): the recovered ActiveCombat goal closes the fight, so
+// the undraft sweep returns each defender to colony work.
 func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.PlanID, prefix string, w na.Wait) (map[string]any, error) {
 	out := map[string]any{}
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {

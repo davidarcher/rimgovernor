@@ -81,15 +81,15 @@ it.each(['cancelled','unsuccessful'])('shows unsuccessful evidence in %s stage a
  expect(screen.queryByRole('button')).toBeNull();
 });
 
-it('renders temporary draft completion separately from uncertain cleanup and retains it on refresh failure',async()=>{
+it('renders temporary draft completion separately from its receipt and retains it on refresh failure',async()=>{
  goToWork();
  vi.useFakeTimers();let fail=false;
- const draftPlan={...plan,actions:[{id:'draft',kind:'owned_draft',draft:{pawnId:'Pawn_42'},progress:{stage:'completed',attempt:'1',tick:44,unresolved:false,receipt:'accepted',effect:'completed',unsuccessfulReason:null,draftCleanup:{stage:'uncertain'}}}]};
+ const draftPlan={...plan,actions:[{id:'draft',kind:'owned_draft',draft:{pawnId:'Pawn_42'},progress:{stage:'completed',attempt:'1',tick:44,unresolved:false,receipt:'accepted',effect:'completed',unsuccessfulReason:null}}]};
  stubObservationFetch(async(url)=>{if(fail)throw Error('Offline');return reply(url==='/api/state'?state:draftPlan);});
  await act(async()=>{render(<ObservationDashboard/>);});
- expect(screen.getByText('Pawn Pawn_42')).toBeVisible();expect(screen.getByText('Completion observed')).toBeVisible();expect(screen.getByText('Draft cleanup: Release outcome unknown')).toBeVisible();
+ expect(screen.getByText('Pawn Pawn_42')).toBeVisible();expect(screen.getByText('Completion observed')).toBeVisible();
  fail=true;await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});
- expect(screen.getByText('Draft cleanup: Release outcome unknown')).toBeVisible();expect(screen.queryByRole('button')).toBeNull();
+ expect(screen.queryByRole('button')).toBeNull();
 });
 
 it('keeps Help reachable without a connection, from the Watch view default',async()=>{

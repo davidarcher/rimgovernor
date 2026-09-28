@@ -86,8 +86,8 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if PlanWorkOpen(p, census) {
 			continue
 		}
-		// A fight (#852) owns its empty plan while open or holding a
-		// draft claim (#910): retiring it would hide the fight from its
+		// A fight (#852) owns its empty plan while open or rostering a
+		// drafted defender (#939): retiring it would hide the fight from its
 		// goal, and the clock scheduler would stop admitting ticks
 		// mid-fight (#869).
 		held, err := combatFightHolds(ctx, tx, v.plan)

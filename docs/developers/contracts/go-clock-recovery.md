@@ -114,8 +114,8 @@ from an identity read and, under the origin identity, a `clock_read_status`;
 the scheduler step that settles a stopped epoch passes the owned status its
 bundle just read (`CleanupObserved`) and both reads are skipped for the
 obligations that status describes (#200). A new acquire drains old owned
-effects before requesting authority. Close joins writers, prioritizes clock pause
-before draft cleanup, and retains the profile, transport and store until cleanup
+effects before requesting authority. Close joins writers, joins the owed clock
+commands (drafted pawns stay drafted, #939), and retains the profile, transport and store until cleanup
 succeeds. Lease-free cleanup remains usable after the command coordinator stops.
 
 A fresh positive replacement world can durably retire the scope of an unknown

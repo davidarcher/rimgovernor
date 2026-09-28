@@ -63,8 +63,8 @@ drafted. Movement completion follows the issued job to its exact destination.
 Melee completion requires native positive damage from that exact attack to cause
 target death or requested standing-target downing. Ordinary direct bullets retain
 exact launch/impact lineage; explosive and custom projectile paths remain unavailable.
-`ReleaseOwnedDraft` permits exact original-owner cleanup
-after Manual or lease expiry without acquiring new authority.
+Drafts are plan-owned (#939): native keeps no draft claim, and the
+controller undrafts pawns no live plan needs.
 
 Work-detail pawn reads provide work-only settings snapshots for eligible workers.
 `PatchPawn` accepts only bounded work-priority entries, using ordinary native

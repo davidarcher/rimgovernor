@@ -776,11 +776,11 @@ colony is no larger than the squad. The breach deconstruction is
 inspected against the shrine census, not the clearance census, and is
 eligible only while the shrine is still sealed; a wall that vanishes or
 changes definition is absent. The wall falling ends the method: the plan
-has no open work, the worker releases the owned drafts and `ActiveCombat`
+has no open work, the undraft sweep undrafts the squad and `ActiveCombat`
 answers the guards, which the goal then holds `guards_alive` until they are
 dead or downed. Eight attempts per wall and goal epoch; Stop and Manual
-release the drafts and controller-owned designations as for any owned
-draft. Ranged breaching is not composed.
+leave the squad drafted (the game's own auto-undraft applies once authority
+is inactive). Ranged breaching is not composed.
 
 Filled caskets stay sealed (#459) unless the opening gate holds (#460,
 #875). `policy.CasketDecisionUnder`

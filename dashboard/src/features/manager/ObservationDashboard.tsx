@@ -12,7 +12,6 @@ import PlayerGuide from './PlayerGuide';
 import GovernorPanel from '../governor/GovernorPanel';
 
 const stageLabels: Record<BuildingAction['progress']['stage'], string> = {pending: 'Pending', prepared: 'Prepared', dispatched: 'Order sent', awaiting_observation: 'Awaiting observation', completed: 'Completed', cancelled: 'Cancelled', unsuccessful: 'Unsuccessful'};
-const cleanupLabels = {awaiting_claim: 'Ownership not yet known', not_acquired: 'No owned draft acquired', required: 'Release required', dispatched: 'Release sent', uncertain: 'Release outcome unknown', released: 'Release observed', superseded: 'Original ownership no longer applies'};
 const reasonLabels: Record<UnsuccessfulReason, string> = {native_failure: 'Native operation failed', cancelled: 'Operation cancelled', interrupted: 'Operation interrupted', expired: 'Operation expired', target_dead: 'Target died', outcome_not_achieved: 'Expected outcome not achieved'};
 
 type View = 'watch' | 'work' | 'colony' | 'governor' | 'help';
@@ -33,7 +32,7 @@ function WorkPanel({state, plan}: {state: ObservationState | null; plan: Buildin
       {plan.actions.length === 0 ? <p>This plan has no actions.</p> : <ol className="observation-actions">{plan.actions.map(action => <li key={action.id}>
         <div>{action.kind === 'building' ? <><h3>{action.building.defName}</h3><p>{action.building.stuff || 'Native default material'} · ({action.building.x}, {action.building.z}) · {action.building.rotation}</p></> : <><h3>Temporary draft</h3><p>Pawn {action.draft.pawnId}</p></>}</div>
         <div><strong>{stageLabels[action.progress.stage]}</strong><p>{action.progress.unsuccessfulReason !== null ? reasonLabels[action.progress.unsuccessfulReason] : action.progress.unresolved ? 'Outcome requires observation' : action.progress.effect === 'completed' ? 'Completion observed' : 'Effect: ' + (action.progress.effect ?? 'unknown')}</p>
-          <p>Receipt: {action.progress.receipt ?? 'unknown'}</p>{action.progress.draftCleanup && <p>Draft cleanup: {cleanupLabels[action.progress.draftCleanup.stage]}</p>}</div>
+          <p>Receipt: {action.progress.receipt ?? 'unknown'}</p></div>
       </li>)}</ol>}
     </>}
     <p className="observation-note">Work here is submitted through Player controls on Watch; this list is a read-only status feed — there is no control to cancel a step in place yet.</p>

@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
             if (target == null || bed == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact arrest target or bed is not spawned on this map.");
             if (!NativeMovementOperations.Owns(snapshot!))
-                return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "Arrest requires an eligible pawn with an owned draft claim.");
+                return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "Arrest requires an eligible drafted pawn.");
             if (Running(pawn!, target, bed)) return null;
             string? reason = null;
             if (target.Dead || !target.InMentalState && !(target.Faction == Faction.OfAncients && !target.HostileTo(pawn) && !target.Downed && target.RaceProps.Humanlike && !target.IsPrisonerOfColony)) reason = "target is not living in a mental state or a standing neutral ancient";

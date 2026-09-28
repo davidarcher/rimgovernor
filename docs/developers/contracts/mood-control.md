@@ -118,7 +118,7 @@ Containment clearance applies to new dispatch's observed worker and explicit
 target positions (including the fixture's nearby damaged wall), not a predicted
 walking route. The case audits ordered native dispatch requests against pawn
 censuses throughout containment, while repair remains enabled. SUBDUE and its
-owned drafts are exempt; cleanup remains available. A receipt or completed
+plan-owned drafts are exempt; the undraft sweep remains available. A receipt or completed
 plan alone cannot satisfy the native bed outcome.
 
 ## Recreation
@@ -158,11 +158,12 @@ the test-only `test/mental_state_berserk` fixture and verifies both reads.
 ## Native subdual
 
 PAWN_ORDER_KIND_SUBDUE accepts exact colonist snapshots and an aggressive,
-standing colonist target. It drafts an undrafted responder with an owned claim
-and issues an ordinary AttackMelee job; an existing owned draft is retained.
+standing colonist target. It drafts an undrafted responder (the plan's draft
+keeps it drafted, #939) and issues an ordinary AttackMelee job; an existing
+draft is retained.
 Unarmed and melee responders are legal; ranged weapons are refused. The job prefers
 a legal blunt verb, including fists, without changing native damage. It
 ends when the target is downed or its aggressive break ends. Death is failure,
-never successful containment. Progress requires the same draft claim and order.
+never successful containment. Progress requires the same order on a still-drafted responder.
 The operation neither changes damage rules nor creates prisoner custody.
 The mood/subdue case covers native refusal, resend and living containment.

@@ -46,7 +46,7 @@ func runArrestTarget(ctx context.Context, s cases.Session, legalFixture string) 
 		{"unarmed", "unarmed", "unarmed or incapable of violence", true},
 		{"berserk", "berserk", "native arrest eligibility", true},
 		{"ordinary-bed", "legal", "prisoner bed", true},
-		{"unowned", "legal", "owned draft claim", false},
+		{"unowned", "legal", "eligible drafted pawn", false},
 		{"legal", legalFixture, "", true},
 	}
 	for _, scenario := range scenarios {

@@ -130,7 +130,6 @@ var materialHolds = map[domain.HeldReason]bool{
 
 // workerHolds are the hold reasons that mean "no pawn can take this".
 var workerHolds = map[domain.HeldReason]bool{
-	domain.HeldDraftOwnership:      true,
 	domain.HeldUrgentCompetingWork: true,
 }
 

@@ -34,8 +34,8 @@ The normal controller dashboard keeps its existing interactive contracts.
 ## Time, camera and player control
 
 The dashboard adds session-bound player time and camera endpoints. Time
-controls enter Manual, invalidate pending execution, verify a native pause and release
-owned drafts before requesting Normal, Fast or Superfast through the existing
+controls enter Manual, invalidate pending execution, and verify a native pause (drafted pawns stay
+drafted, #939) before requesting Normal, Fast or Superfast through the existing
 supervisor. An in-flight review must finish before a play request; Pause remains
 available. New direction or a load change prevents resuming. The clock wire also
 admits Ultrafast; the native tick
@@ -106,7 +106,7 @@ viewer/token credentials must name a live owner even after release; delayed owne
 requests cannot fall through to the unowned controls. Native writes are sent once;
 an uncertain result requires inspecting the view. These controls do not hold keys. The optional player-control lease gates
 camera/time requests to one viewer. Handoff enters Manual and invalidates pending
-orders before awaiting pause and owned-draft cleanup; native paused readback is
+orders before awaiting pause; native paused readback is
 required before acknowledgement. A 15-second lease renews through heartbeats.
 Expiry leaves a Manual hold, rejecting input until another explicit takeover.
 Model/controller writes and generic Automate remain blocked until owner release;
