@@ -132,6 +132,10 @@ func SelectReachableResourceSources(sources []ResourceSource, target, stock int6
 			if reason == "" && r.Competition.UrgentPriority > 0 {
 				reason = RemoteHoldUrgentWork
 			}
+			if reason == "" && source.Buried {
+				// Native confirmed its support; it waits on a corridor.
+				reason = RemoteHoldBuried
+			}
 			if reason == "" {
 				decision := FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: source.Cell,
 					Eligible: domain.Known(MineSafe(source.Safety) && !source.Buried), RouteObservedPassable: source.Reachable})

@@ -310,12 +310,13 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			if err != nil {
 				return RoutineResourceResult{}, err
 			}
-			selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
+			sel, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
 			if !ok {
 				r.reviewer.bids.bid(state.Snapshot, resource, bidResource, 0, "", reviewTick)
 				return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 			}
-			pre = &sourceSelection{selected, sourceStorage}
+			pre = &sel
+			selected, sourceStorage := sel.selected, sel.storage
 			if result, handled, err := r.storageFloor(call, epoch, state, goal, reviewTick, resource, sourceStorage, target-resourceCount(stock, resource), started); err != nil || handled {
 				return result, err
 			}
@@ -339,7 +340,8 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
-		selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
+		sel, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
+		selected, sourceStorage := sel.selected, sel.storage
 		deficit := target - resourceCount(stock, resource)
 		if ok {
 			if result, handled, err := r.storageFloor(call, epoch, state, goal, reviewTick, resource, sourceStorage, deficit, started); err != nil || handled && result.Reason == BuildingMethodAdmitted {
@@ -359,7 +361,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		}
 		if ok && len(ranked) > 0 && ranked[0].Kind == policy.AcquisitionMining {
 			clockSchedulerLog("%s: %s mining %s scores %.3f over the bill", goal.Goal.ID, resource, ranked[0].ID, ranked[0].Score)
-			result, dispatched, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, &sourceSelection{selected, sourceStorage})
+			result, dispatched, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, &sel)
 			if err != nil || dispatched {
 				return result, err
 			}
@@ -438,6 +440,9 @@ func resourceCount(stock domain.Fact[[]policy.Amount], resource policy.Resource)
 type sourceSelection struct {
 	selected []policy.ResourceSource
 	storage  policy.ResourceStorage
+	// designated: a mine source already carries a designation that no
+	// colonist has finished yet.
+	designated bool
 }
 
 // acquireFromSources is the mine/harvest branch of dispatchResourceGoal:
@@ -450,11 +455,11 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 		if err != nil {
 			return RoutineResourceResult{}, false, err
 		}
-		selected, storage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
+		sel, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
 		if !ok {
 			return RoutineResourceResult{Reason: BuildingMethodUsed}, false, nil
 		}
-		pre = &sourceSelection{selected, storage}
+		pre = &sel
 	}
 	selected := pre.selected
 	zoneResult, handled, err := r.materialStorageZoneFallback(call, epoch, state, goal, reviewTick, resource, selected, pre.storage, target-resourceCount(stock, resource), started)
@@ -479,6 +484,12 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 		result.Sources = selected
 		return result, true, nil
 	}
+	// A deposit designated by an earlier, completed mine method is mined
+	// by a colonist on game time alone (#1075): lend a window rather than
+	// park the clock on no_work beside it.
+	if pre.designated {
+		return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks, Sources: selected}, false, nil
+	}
 	return RoutineResourceResult{Reason: BuildingMethodUsed, Sources: selected}, false, nil
 }
 
@@ -493,10 +504,10 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 // adequate -- so a native read failure here is deliberately swallowed
 // (ok=false) rather than surfaced, preserving the bench/recipe outcome the
 // caller already computed.
-func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], remote policy.RemoteWorkRequest) (selected []policy.ResourceSource, storage policy.ResourceStorage, ok bool) {
+func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], remote policy.RemoteWorkRequest) (sourceSelection, bool) {
 	rows, known := stock.Value()
 	if !known {
-		return nil, policy.ResourceStorage{}, false
+		return sourceSelection{}, false
 	}
 	var have int64
 	for _, row := range rows {
@@ -506,20 +517,23 @@ func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity
 		}
 	}
 	if have >= target {
-		return nil, policy.ResourceStorage{}, true
+		return sourceSelection{}, true
 	}
 	sources, storage, _, err := r.native.ReadResourceSources(ctx, identity, string(resource))
 	if err != nil {
-		return nil, policy.ResourceStorage{}, false
+		return sourceSelection{}, false
 	}
 	remote.Reach.StorageHeadroom = domain.Known(storage.Capacity)
-	var holds []policy.RemoteWorkHold
-	selected, holds = policy.SelectReachableResourceSources(sources, target, have, remote)
+	selected, holds := policy.SelectReachableResourceSources(sources, target, have, remote)
 	if len(selected) == 0 && len(holds) > 0 {
 		decision := policy.ResourceReach(remote.Reach)
 		clockSchedulerLog("resource %s: %d sources held, reach=%s first=%s:%s stock=%d target=%d", resource, len(holds), decision.Stage, holds[0].Target, holds[0].Reason, have, target)
 	}
-	return selected, storage, true
+	out := sourceSelection{selected: selected, storage: storage}
+	for _, s := range sources {
+		out.designated = out.designated || s.Method == policy.ResourceSourceMine && s.Designated
+	}
+	return out, true
 }
 
 // Mining uses the same observed readiness, colony extent and urgent-work

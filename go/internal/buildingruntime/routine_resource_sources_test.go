@@ -55,7 +55,8 @@ func TestSourcesForDeficitSelectsAgainstOutstandingNeed(t *testing.T) {
 	for i := range native.rows {
 		native.rows[i].Reachable = domain.Known(true)
 	}
-	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock, sourceTestReach())
+	sel, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock, sourceTestReach())
+	selected := sel.selected
 	if !ok || len(selected) != 1 || selected[0].ThingID != "rock1" {
 		t.Fatal(selected, ok)
 	}
@@ -64,7 +65,8 @@ func TestSourcesForDeficitSelectsAgainstOutstandingNeed(t *testing.T) {
 func TestSourcesForDeficitReturnsNilWhenStockUnknown(t *testing.T) {
 	native := &fakeResourceSourceNative{}
 	planner := &RoutineResourcePlanner{native: native}
-	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, domain.Unknown[[]policy.Amount](), sourceTestReach())
+	sel, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, domain.Unknown[[]policy.Amount](), sourceTestReach())
+	selected := sel.selected
 	if ok || selected != nil {
 		t.Fatal(selected, ok)
 	}
@@ -74,7 +76,8 @@ func TestSourcesForDeficitSwallowsNativeReadFailure(t *testing.T) {
 	native := &fakeResourceSourceNative{err: errors.New("native unavailable")}
 	planner := &RoutineResourcePlanner{native: native}
 	stock := domain.Known([]policy.Amount{{Resource: "Steel", Count: 0}})
-	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock, sourceTestReach())
+	sel, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock, sourceTestReach())
+	selected := sel.selected
 	if ok || selected != nil {
 		t.Fatal(selected, ok)
 	}
@@ -107,7 +110,8 @@ func TestSourcesForDeficitReturnsStorageOnSuccess(t *testing.T) {
 	}, storage: storage}
 	planner := &RoutineResourcePlanner{native: native}
 	stock := domain.Known([]policy.Amount{{Resource: "Steel", Count: 0}})
-	_, gotStorage, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock, sourceTestReach())
+	sel, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock, sourceTestReach())
+	gotStorage := sel.storage
 	if !ok || !reflect.DeepEqual(gotStorage, storage) {
 		t.Fatal(gotStorage, ok)
 	}
@@ -120,10 +124,35 @@ func sourceTestReach() policy.RemoteWorkRequest {
 
 func TestSourcesForSatisfiedDemandDoesNotReadOrSelectOre(t *testing.T) {
 	planner := &RoutineResourcePlanner{}
-	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50,
+	sel, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50,
 		domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}}), sourceTestReach())
-	if !ok || len(selected) != 0 {
-		t.Fatal(selected, ok)
+	if !ok || len(sel.selected) != 0 {
+		t.Fatal(sel, ok)
+	}
+}
+
+// A deposit designated by a completed mine method still owes a colonist's
+// labor: the selection reports it, so the planner lends a window instead of
+// parking the clock on no_work beside a buried neighbour it cannot reach
+// (#1075).
+func TestSourcesForDeficitReportsDesignatedMine(t *testing.T) {
+	native := &fakeResourceSourceNative{rows: []bridge.ResourceSourceRow{
+		{ThingID: "ore1", Yield: 40, Distance: 5, Method: policy.ResourceSourceMine, Safety: "supported_roof", Designated: true, Reachable: domain.Known(true)},
+		{ThingID: "ore2", Yield: 40, Distance: 6, Method: policy.ResourceSourceMine, Safety: "supported_roof", Buried: true, Reachable: domain.Known(false)},
+	}}
+	planner := &RoutineResourcePlanner{native: native}
+	stock := domain.Known([]policy.Amount{{Resource: "Steel", Count: 80}})
+	sel, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 200, stock, sourceTestReach())
+	if !ok || !sel.designated || len(sel.selected) != 0 {
+		t.Fatal(sel, ok)
+	}
+	result, dispatched, err := planner.acquireFromSources(context.Background(), context.Background(), ControlState{}, store.GoalState{}, 0, &c.Identity{}, "Steel", 200, stock, time.Time{}, &sel)
+	if err != nil || dispatched || result.Reason != BuildingMethodExistingWork || result.NativeWorkTicks != stockWaitTicks {
+		t.Fatal(result, dispatched, err)
+	}
+	native.rows[0].Designated = false
+	if sel, _ = planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 200, stock, sourceTestReach()); sel.designated {
+		t.Fatal("an undesignated deposit reported as designated")
 	}
 }
 

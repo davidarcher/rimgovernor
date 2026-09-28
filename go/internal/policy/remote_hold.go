@@ -21,6 +21,9 @@ const (
 	// RemoteHoldRoofSupport: removing the target would drop a roof, or the
 	// deposit is not an open-surface rock.
 	RemoteHoldRoofSupport = "roof_support_risk"
+	// RemoteHoldBuried: a supported deposit no colonist can reach yet; the
+	// corridor dig (#1074) opens it. Not a roof risk (#1075).
+	RemoteHoldBuried = "buried"
 	// RemoteHoldMissingStorage: no accepting storage headroom for the yield.
 	RemoteHoldMissingStorage = "missing_storage"
 	// RemoteHoldUrgentWork: urgent colony work outranks acquisition.

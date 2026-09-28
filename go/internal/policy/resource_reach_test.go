@@ -163,3 +163,13 @@ func TestBuriedResourceSourceRespectsReach(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// A buried deposit native reports as supported is held as buried, never as
+// a roof support risk (#1075).
+func TestBuriedSourceHeldAsBuried(t *testing.T) {
+	buried := ResourceSource{ThingID: "ore", Method: ResourceSourceMine, Buried: true, Yield: 40, Safety: "supported_roof", Distance: 5, Cell: domain.Cell{X: 20, Z: 20}, Reachable: domain.Known(false)}
+	selected, holds := SelectReachableResourceSources([]ResourceSource{buried}, 200, 0, RemoteWorkRequest{Reach: tribal8Reach()})
+	if len(selected) != 0 || len(holds) != 1 || holds[0].Reason != RemoteHoldBuried {
+		t.Fatal(selected, holds)
+	}
+}
