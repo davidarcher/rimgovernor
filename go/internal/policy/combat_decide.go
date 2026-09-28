@@ -30,7 +30,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// A downed or dead defender keeps no role; its rescue is rescueStep's
 	// (#867, combat_rescue.go).
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
-	formed := false // a manhunter formation this stop (#900)
+	formed := false // a formation this stop picks the potshot door (#900, #1059)
 	manhunterWaitTurn(view, &next)
 	siegeTurn(view, &next)
 	if pods, ok := view.Pods.Value(); ok && next.Pods == nil {
@@ -62,7 +62,6 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		if ManhunterPack(view) {
 			// A manhunter pack picks its own tactic (#898).
 			next.Tactic, next.Roles, next.Refusal = TacticManhunter, manhunterFormation(view, geometry, next.Relieved), ""
-			formed = true
 		} else if mode := siegeMode(view, next); mode != "" {
 			// A siege picks its own tactic (#776).
 			next.Tactic, next.Roles, next.Refusal = TacticSiege, siegeFormation(view, mode), ""
@@ -81,7 +80,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			}
 			next.Tactic, next.Roles, next.Refusal = formation(view, formGeometry, next.Relieved)
 		}
-		next.Formed = view.Tick
+		next.Formed, formed = view.Tick, true
 		next.Flank = nil
 	}
 	if ask := flankAsk(view, next); ask != nil {
@@ -102,7 +101,6 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	next.Roles = dropMissingTargets(view, next.Roles)
 	fromRange(view, &next)
-	shipPartHitAndRun(view, &next)
 	siegeHold(&next)
 	lure(view, &next)
 	siegeSnipe(view, &next)
@@ -110,7 +108,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	pikemenCharge(view, &next)
 	sapperIntercept(view, &next)
 	sapperRush(view, stop, &next)
-	manhunterDoor(view, formed, &next)
+	doorPotshot(view, formed, &next)
 	manhunterShelter(view, &next)
 	counterBattery(view, &next)
 	flank(view, &next)
@@ -132,7 +130,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			continue
 		}
 		want, ok := role.want(state[role.Pawn])
-		if d := next.ManhunterDoor; d != nil && d.Repairer == role.Pawn {
+		if d := next.PotshotDoor; d != nil && d.Repairer == role.Pawn {
 			want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderRepair, Cell: d.Cell, Reason: ReasonRepair}, true
 		}
 		if !ok || next.doing(want, state[role.Pawn]) {
@@ -413,8 +411,9 @@ type CombatMemory struct {
 	// PodStruck one that struck when the raid fled or looted (#893).
 	PodWait   bool `json:",omitempty"`
 	PodStruck bool `json:",omitempty"`
-	// ManhunterDoor is the manhunter tactic's potshot door (#900).
-	ManhunterDoor *PodDoor `json:",omitempty"`
+	// PotshotDoor is the potshot door of a manhunter pack (#900) or a
+	// squad-defense raid (#1059).
+	PotshotDoor *PodDoor `json:",omitempty"`
 	// Kiter is the manhunter tactic's kiter, Leading once it leads the
 	// chaser past the line (#901).
 	Kiter   domain.PawnID `json:",omitempty"`
@@ -518,9 +517,9 @@ func (m CombatMemory) clone() CombatMemory {
 		c := *m.SapperBreach
 		m.SapperBreach = &c
 	}
-	if m.ManhunterDoor != nil {
-		d := *m.ManhunterDoor
-		m.ManhunterDoor = &d
+	if m.PotshotDoor != nil {
+		d := *m.PotshotDoor
+		m.PotshotDoor = &d
 	}
 	if m.Pods != nil {
 		p := *m.Pods

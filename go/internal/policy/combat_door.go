@@ -7,11 +7,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Door potshot constants (#900), in cells.
+// Door potshot constants (#900, #1059), in cells.
 const (
-	// doorCloseRange: an animal this close to the door shuts it.
+	// doorCloseRange: a hostile this close to the door shuts it.
 	doorCloseRange = 3
-	// doorOpenRange: the nearest animal back beyond this reopens it.
+	// doorOpenRange: the nearest hostile back beyond this reopens it.
 	doorOpenRange = 6
 	// doorGunners is how many gunners shoot from inside the door.
 	doorGunners = 2
@@ -23,26 +23,28 @@ const OrderRepair CombatOrderKind = "repair"
 // ReasonRepair is a door repair order (#900).
 const ReasonRepair CombatOrderReason = "repair"
 
-// manhunterDoor is the manhunter tactic's hit-and-run from a door (#900).
-// On a formation without blockers, the planned-room door nearest the pack
+// doorPotshot is the hit-and-run from a perimeter door, for a manhunter
+// pack (#900) and a humanoid raid on squad defense (#1059); a killbox hold
+// fights from its firing line instead.
+// On a formation without blockers, the planned-room door nearest the hostiles
 // becomes the potshot door: the doorGunners gunners nearest it take the
-// cells just inside it and the door is held open. Every stop after, an
-// animal within doorCloseRange of the door closes it and the door gunners
-// hold their cells without a target; the nearest animal back beyond
+// cells just inside it and the door is held open. Every stop after, a
+// hostile within doorCloseRange of the door closes it and the door gunners
+// hold their cells without a target; the nearest hostile back beyond
 // doorOpenRange opens it again.
-func manhunterDoor(view CombatView, formed bool, m *CombatMemory) {
-	if m.Tactic != TacticManhunter {
-		m.ManhunterDoor = nil
+func doorPotshot(view CombatView, formed bool, m *CombatMemory) {
+	if m.Tactic != TacticManhunter && m.Tactic != TacticSquad {
+		m.PotshotDoor = nil
 		return
 	}
 	if formed {
-		m.ManhunterDoor = potshotDoor(view, m.Roles)
+		m.PotshotDoor = potshotDoor(view, m.Roles)
 	}
-	door := m.ManhunterDoor
+	door := m.PotshotDoor
 	if door == nil {
 		return
 	}
-	near := nearestAnimal(view, door.Cell)
+	near := hostileDistance(view, door.Cell)
 	mode := door.Mode
 	switch {
 	case near <= doorCloseRange*doorCloseRange:
@@ -111,9 +113,16 @@ func potshotDoor(view CombatView, roles []CombatRole) *PodDoor {
 			at[p.ID] = c
 		}
 	}
+	// A gunner is a ranged role or, on squad defense against melee raiders
+	// (#1059), a defender carrying a ranged weapon: it shoots from the door
+	// instead of charging.
+	armed := map[domain.PawnID]bool{}
+	for _, d := range view.Defenders {
+		armed[d.ID] = positive(d.RangedEquipped)
+	}
 	var gunners []int
 	for i, r := range roles {
-		if r.Ranged {
+		if r.Ranged || armed[r.Pawn] {
 			gunners = append(gunners, i)
 		}
 	}
@@ -131,14 +140,14 @@ func potshotDoor(view CombatView, roles []CombatRole) *PodDoor {
 	}
 	for k := range n {
 		c := cells[k]
-		roles[gunners[k]].Cell, roles[gunners[k]].Duty = &c, DutyDoorway
+		roles[gunners[k]].Cell, roles[gunners[k]].Duty, roles[gunners[k]].Ranged = &c, DutyDoorway, true
 	}
 	return &PodDoor{Cell: door, Mode: DoorHoldOpen}
 }
 
-// nearestAnimal is the squared distance from c to the nearest live
+// hostileDistance is the squared distance from c to the nearest live
 // hostile with a known cell.
-func nearestAnimal(view CombatView, c domain.Cell) int64 {
+func hostileDistance(view CombatView, c domain.Cell) int64 {
 	var cells []domain.Cell
 	for _, h := range rankThreats(view) {
 		if at, ok := h.Cell.Value(); ok {

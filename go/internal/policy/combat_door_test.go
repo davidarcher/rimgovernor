@@ -139,7 +139,53 @@ func TestDecideCombatManhunterDoorNoRepairUnderThreat(t *testing.T) {
 	view.Tick = 160
 	view.DamagedDoors = []domain.Cell{{X: 15, Z: 19}}
 	orders, next := decideStop(t, view, StopEvent{}, m)
-	if _, ok := repairOrder(orders); ok || next.ManhunterDoor.Repairer != "" {
+	if _, ok := repairOrder(orders); ok || next.PotshotDoor.Repairer != "" {
 		t.Fatalf("repair with a wolf at 5 cells: %+v", orders)
+	}
+}
+
+// {a humanoid raid on squad defense, no killbox layout, a planned-room
+// door} -> the same potshot (#1059): two gunners inside the door, the door
+// held open; a raider within 3 cells closes it.
+func TestDoorPotshotRaid(t *testing.T) {
+	view := holdView()
+	view.Layout = domain.Unknown[CombatLayout]()
+	view.Rooms = []CombatRoom{{Interior: Rectangle{X: 10, Z: 20, Width: 10, Height: 10}, Doors: []domain.Cell{{X: 15, Z: 19}}}}
+	view.Pawns = append(view.Pawns,
+		CombatPawnState{ID: "r1", Cell: domain.Known(domain.Cell{X: 9, Z: 5})},
+		CombatPawnState{ID: "r2", Cell: domain.Known(domain.Cell{X: 10, Z: 4})})
+	orders, m := decideStop(t, view, StopEvent{}, CombatMemory{})
+	if d, ok := doorOrder(orders); m.Tactic != TacticSquad || !ok || d.Cell != (domain.Cell{X: 15, Z: 19}) || d.Door != DoorHoldOpen {
+		t.Fatalf("%s %+v %+v", m.Tactic, orders, m.Roles)
+	}
+	posted := 0
+	for _, r := range m.Roles {
+		if r.Duty == DutyDoorway {
+			posted++
+			if r.Cell == nil || r.Cell.Z != 20 || r.Target == "" {
+				t.Fatalf("%+v", r)
+			}
+		}
+	}
+	if posted != doorGunners {
+		t.Fatalf("%+v", m.Roles)
+	}
+	s1, d1 := combatRaider("r1", domain.Cell{X: 15, Z: 17})
+	view.Threats[0], view.Positional[0] = s1, d1
+	view.Pawns[3].Cell = domain.Known(domain.Cell{X: 15, Z: 17})
+	view.Tick = 160
+	orders, _ = decideStop(t, view, StopEvent{}, m)
+	if d, ok := doorOrder(orders); !ok || d.Door != DoorClose {
+		t.Fatalf("%+v", orders)
+	}
+}
+
+// A killbox hold fights from its firing line: no potshot door.
+func TestDoorPotshotNotOnHold(t *testing.T) {
+	view := holdView()
+	view.Rooms = []CombatRoom{{Interior: Rectangle{X: 10, Z: 20, Width: 10, Height: 10}, Doors: []domain.Cell{{X: 15, Z: 19}}}}
+	orders, m := decideStop(t, view, StopEvent{}, CombatMemory{})
+	if _, ok := doorOrder(orders); ok || m.PotshotDoor != nil {
+		t.Fatalf("%+v", orders)
 	}
 }

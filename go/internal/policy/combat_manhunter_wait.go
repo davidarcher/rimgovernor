@@ -62,7 +62,7 @@ func manhunterShelter(view CombatView, m *CombatMemory) {
 	if !m.ManhunterWait || m.Tactic != TacticManhunter {
 		return
 	}
-	m.Kiter, m.Leading, m.ManhunterDoor = "", false, nil
+	m.Kiter, m.Leading, m.PotshotDoor = "", false, nil
 	var inner []domain.Cell
 	if layout, ok := view.Layout.Value(); ok {
 		inner = slices.Clone(layout.Retreat)
