@@ -216,6 +216,21 @@ namespace HomeBridge.BridgeTools
             _sessionDeal = null; _sessionTrader = null; _sessionNegotiator = null; _giftMode = false;
         }
 
+        // A session left by another identity or load (a prior run against a
+        // kept game) belongs to nobody who can still end it: close it so the
+        // open proceeds instead of refusing until the game restarts (#1159).
+        // The game's TradeSession is closed only while it is still ours.
+        private static void DropForeignSession(Common.Identity identity)
+        {
+            if (_sessionId == null) return;
+            var sameIdentity = _sessionColonyId == identity.ColonyId && _sessionLoadToken == identity.LoadToken;
+            var ours = TradeSession.Active && ReferenceEquals(TradeSession.deal, _sessionDeal);
+            if (sameIdentity && ours && ProtoBoundary.IsLoaded(_sessionMap)) return;
+            if (ours) { CloseSession(false); return; }
+            _sessionId = null; _sessionColonyId = null; _sessionLoadToken = null; _sessionMap = null;
+            _sessionDeal = null; _sessionTrader = null; _sessionNegotiator = null; _giftMode = false;
+        }
+
         // ---------------------------------------------------------- open
         // The live session or walk an OpenTrade intent names exactly, which the
         // intent reuses instead of opening again.
@@ -227,6 +242,7 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "OpenTrade requires a trader and a negotiator.");
             if (command == null || string.IsNullOrEmpty(traderId) || string.IsNullOrEmpty(negotiatorId) || traderId == negotiatorId) return false;
             var giftMode = command.HasGiftMode && command.GiftMode;
+            DropForeignSession(identity);
             if (_sessionId != null)
             {
                 if (!RequireParticipants(traderId, negotiatorId, identity, out failure)) return false;
