@@ -28,3 +28,21 @@ func TestShelterPrefersARoofedRoomElseStepsAway(t *testing.T) {
 		t.Fatalf("%+v, want a step away from the raider", orders)
 	}
 }
+
+// A fists-only colonist against a manhunter pack shelters too (#1146):
+// the manhunter formation has no role for her, and a fight with no role
+// admits no combat window, so the clock would park on unsafe_colony.
+func TestShelterFromAManhunterPack(t *testing.T) {
+	d := combatRifleman("a")
+	d.RangedEquipped, d.Armed = domain.Known(false), domain.Known(false)
+	view := CombatView{Tick: 1, Defenders: []SquadDefenderFacts{d}, Orderable: []domain.PawnID{"a"},
+		Pawns: []CombatPawnState{{ID: "a", Cell: domain.Known(domain.Cell{X: 10, Z: 10}), Stance: StanceIdle}}}
+	view = withAnimals(view, animal("w1", "Warg", domain.Cell{X: 0, Z: 10}, 6.6))
+	if !ManhunterPack(view) {
+		t.Fatal("not a manhunter pack")
+	}
+	orders, _, m := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
+	if m.Tactic != TacticShelter || len(m.Roles) != 1 || len(orders) != 1 || orders[0].Cell != (domain.Cell{X: 10 + shelterStep, Z: 10}) {
+		t.Fatalf("%s %+v, want a step away from the pack", m.Tactic, orders)
+	}
+}

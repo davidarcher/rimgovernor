@@ -274,8 +274,11 @@ func StagedSides(s Staged) map[string]string {
 	for _, id := range s.Colonists() {
 		out[id] = Colonist
 	}
-	for _, id := range s.Hostiles() {
-		out[id] = Hostile
+	// Manhunters and mechanoids are the enemy side of their fixtures (#1146).
+	for _, ids := range [][]string{s.Hostiles(), s.Manhunters(), s.Mechs()} {
+		for _, id := range ids {
+			out[id] = Hostile
+		}
 	}
 	return out
 }

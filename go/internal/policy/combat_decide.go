@@ -84,6 +84,12 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		} else if ManhunterPack(view) {
 			// A manhunter pack picks its own tactic (#898).
 			next.Tactic, next.Roles, next.Refusal = TacticManhunter, manhunterFormation(view, geometry, next.Relieved), ""
+			if len(next.Roles) == 0 {
+				// With no armed defender the pack is sheltered from as
+				// #968's squadless fight is; that plan admits the combat
+				// window instead of parking the clock (#1146).
+				next.Tactic, next.Roles = TacticShelter, shelterRoles(view)
+			}
 		} else if mode := siegeMode(view, next); mode != "" {
 			// A siege picks its own tactic (#776).
 			next.Tactic, next.Roles, next.Refusal = TacticSiege, siegeFormation(view, mode), ""
