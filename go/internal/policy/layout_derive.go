@@ -35,7 +35,7 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, geysers []PowerGeyser) domain.Fact
 		}
 		want.Geysers = append(want.Geysers, r)
 	}
-	plan = PlanMountainPockets(PlanPerimeter(PlanUtilities(plan, want), s), s)
+	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(PlanUtilities(plan, want), s), s), s)
 	return domain.Known(withoutCore(plan))
 }
 
@@ -70,13 +70,13 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int) (LayoutPlan, b
 	next.Rooms, next.Zones = kept, zones
 	next = Grow(next, pawns, tombs)
 	if !dropped && len(next.Rooms) == before {
-		fresh := withoutCore(PlanMountainPockets(PlanPerimeter(plan, s), s))
+		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
 		return fresh, !samePerimeter(plan, fresh)
 	}
 	if len(next.Rooms) == 0 {
 		return plan, false
 	}
-	return withoutCore(PlanMountainPockets(PlanPerimeter(next, s), s)), true
+	return withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(next, s), s), s)), true
 }
 
 // samePerimeter reports whether a and b hold the same perimeter
