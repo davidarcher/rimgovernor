@@ -14131,8 +14131,10 @@ type ResourceSource struct {
 	PendingYield   *int64                 `protobuf:"varint,12,opt,name=pending_yield,json=pendingYield,proto3,oneof" json:"pending_yield,omitempty"`
 	DesignatedTick *int64                 `protobuf:"varint,13,opt,name=designated_tick,json=designatedTick,proto3,oneof" json:"designated_tick,omitempty"`
 	Taken          *bool                  `protobuf:"varint,14,opt,name=taken,proto3,oneof" json:"taken,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first (#1072).
+	Buried        *bool `protobuf:"varint,15,opt,name=buried,proto3,oneof" json:"buried,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResourceSource) Reset() {
@@ -14259,6 +14261,13 @@ func (x *ResourceSource) GetDesignatedTick() int64 {
 func (x *ResourceSource) GetTaken() bool {
 	if x != nil && x.Taken != nil {
 		return *x.Taken
+	}
+	return false
+}
+
+func (x *ResourceSource) GetBuried() bool {
+	if x != nil && x.Buried != nil {
+		return *x.Buried
 	}
 	return false
 }
@@ -36006,7 +36015,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v20.rimgovernor.observations.v1.WallUpgradeSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xa7\x05\n" +
+	"\aoutcome\"\xcf\x05\n" +
 	"\x0eResourceSource\x12>\n" +
 	"\x06source\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x06source\x12\x1b\n" +
 	"\x06method\x18\x02 \x01(\tH\x00R\x06method\x88\x01\x01\x12\x19\n" +
@@ -36025,7 +36034,8 @@ const file_observations_proto_rawDesc = "" +
 	"\rpending_yield\x18\f \x01(\x03H\n" +
 	"R\fpendingYield\x88\x01\x01\x12,\n" +
 	"\x0fdesignated_tick\x18\r \x01(\x03H\vR\x0edesignatedTick\x88\x01\x01\x12\x19\n" +
-	"\x05taken\x18\x0e \x01(\bH\fR\x05taken\x88\x01\x01B\t\n" +
+	"\x05taken\x18\x0e \x01(\bH\fR\x05taken\x88\x01\x01\x12\x1b\n" +
+	"\x06buried\x18\x0f \x01(\bH\rR\x06buried\x88\x01\x01B\t\n" +
 	"\a_methodB\b\n" +
 	"\x06_yieldB\f\n" +
 	"\n" +
@@ -36041,7 +36051,8 @@ const file_observations_proto_rawDesc = "" +
 	"_remainingB\x10\n" +
 	"\x0e_pending_yieldB\x12\n" +
 	"\x10_designated_tickB\b\n" +
-	"\x06_taken\"\xa6\x03\n" +
+	"\x06_takenB\t\n" +
+	"\a_buried\"\xa6\x03\n" +
 	"\x0fStorageCapacity\x12\x1f\n" +
 	"\bresource\x18\x01 \x01(\tH\x00R\bresource\x88\x01\x01\x12\x1f\n" +
 	"\bcapacity\x18\x02 \x01(\x03H\x01R\bcapacity\x88\x01\x01\x12\x1b\n" +

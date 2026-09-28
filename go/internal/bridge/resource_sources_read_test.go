@@ -30,7 +30,7 @@ func TestReadResourceSourcesDecodesAndOrdersByDistance(t *testing.T) {
 		Sources: []*o.ResourceSource{
 			{Source: &o.EntityRef{Id: proto.String("rock2"), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)},
 				Snapshot: &o.SnapshotRef{Token: proto.String("mine-tok2")}}, Method: proto.String("mine"), Yield: proto.Float64(20),
-				Distance: proto.Float64(9), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface")},
+				Distance: proto.Float64(9), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface"), Buried: proto.Bool(true)},
 			{Source: &o.EntityRef{Id: proto.String("rock1"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)},
 				Snapshot: &o.SnapshotRef{Token: proto.String("mine-tok1")}}, Method: proto.String("mine"), Yield: proto.Float64(15),
 				Distance: proto.Float64(3), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface")},
@@ -55,6 +55,9 @@ func TestReadResourceSourcesDecodesAndOrdersByDistance(t *testing.T) {
 	}
 	if rows[0].Cell.X != 1 || rows[0].Cell.Z != 2 || rows[0].Token != "mine-tok1" {
 		t.Fatal(rows[0])
+	}
+	if rows[0].Buried || !rows[1].Buried {
+		t.Fatal("buried flag", rows)
 	}
 	if rows[1].Cell.X != 5 || rows[1].Cell.Z != 6 || rows[1].Token != "mine-tok2" {
 		t.Fatal(rows[1])

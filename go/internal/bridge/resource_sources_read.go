@@ -131,6 +131,7 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 			Cell:           cell,
 			Token:          token,
 			Reachable:      emergencyBool(row.Reachable),
+			Buried:         row.GetBuried(),
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool {

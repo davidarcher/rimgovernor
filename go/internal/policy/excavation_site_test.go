@@ -492,3 +492,63 @@ func TestExcavationShapeValidation(t *testing.T) {
 		t.Fatal("diagonal oval reported open at its box midpoint")
 	}
 }
+
+func TestCorridorExcavationSitesReachesBuriedOre(t *testing.T) {
+	r := mountainSite()
+	ore := domain.Cell{X: 14, Z: 15}
+	targets, err := CorridorExcavationSites(r, ore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) == 0 {
+		t.Fatal("no corridor")
+	}
+	best := targets[0]
+	if best.Shape != CorridorShape() || best.Access != (domain.Cell{X: 9, Z: 15}) || len(best.Corridor) != 4 || best.Door != (domain.Cell{X: 13, Z: 15}) {
+		t.Fatal(best)
+	}
+	if best.InteriorCells() != nil || best.Center() != best.Door || len(best.Cells()) != 4 || best.Interior != (Rectangle{}) {
+		t.Fatal(best)
+	}
+	for _, target := range targets {
+		dx, dz := target.Door.X-ore.X, target.Door.Z-ore.Z
+		if dx*dx+dz*dz != 1 || !excavationSupported(target.Cells()) {
+			t.Fatal("not adjacent or unsupported", target)
+		}
+		for _, c := range target.Corridor {
+			if c == ore {
+				t.Fatal("corridor through ore", target)
+			}
+		}
+		key := target.Key()
+		if key[len(key)-2:] != ".c" {
+			t.Fatal(key)
+		}
+		parsed, err := ParseExcavationKey(key)
+		if err != nil {
+			t.Fatal(key, err)
+		}
+		if parsed.Key() != key || parsed.Door != target.Door || parsed.Shape != CorridorShape() || len(parsed.Corridor) != len(target.Corridor) {
+			t.Fatal(parsed, target)
+		}
+	}
+	// Out of corridor reach: nothing is proposed.
+	if far, err := CorridorExcavationSites(r, domain.Cell{X: 25, Z: 15}); err != nil || len(far) != 0 {
+		t.Fatal(far, err)
+	}
+	for _, bad := range []string{"9.15.1.0.4.0.0.0.0.x", "9.15.1.0.4.1.0.0.0.c", "9.15.1.0.0.0.0.0.0.c"} {
+		if _, err := ParseExcavationKey(bad); err == nil {
+			t.Fatal("accepted", bad)
+		}
+	}
+}
+
+func TestCorridorExcavationSupport(t *testing.T) {
+	var long []domain.Cell
+	for x := int32(0); x < 40; x++ {
+		long = append(long, domain.Cell{X: x})
+	}
+	if !excavationSupported(long) {
+		t.Fatal("1-wide corridor must be supported per cell")
+	}
+}

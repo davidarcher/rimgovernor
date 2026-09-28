@@ -75,6 +75,10 @@ type ResourceSource struct {
 	Cell      domain.Cell
 	Token     string
 	Reachable domain.Fact[bool]
+	// Buried marks a supported "mine" deposit no colonist can reach yet
+	// (#1072): it is never mined directly, only tunnelled to by a
+	// corridor excavation (CorridorExcavationSites).
+	Buried bool
 	// Tier is the layout plan's MineTier for a mine source (0 without a
 	// plan); lower tiers are selected first.
 	Tier int
@@ -103,7 +107,7 @@ func SelectReachableResourceSources(sources []ResourceSource, target, stock int6
 			}
 			if reason == "" {
 				decision := FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: source.Cell,
-					Eligible: domain.Known(MineSafe(source.Safety)), RouteObservedPassable: source.Reachable})
+					Eligible: domain.Known(MineSafe(source.Safety) && !source.Buried), RouteObservedPassable: source.Reachable})
 				if !decision.Allowed {
 					reason = RemoteHoldReason(RemoteMining, decision.Reason)
 				}
@@ -137,7 +141,7 @@ func SelectResourceSources(sources []ResourceSource, target, stock, pending int6
 	}
 	usable := make([]ResourceSource, 0, len(sources))
 	for _, s := range sources {
-		if s.Method == ResourceSourceMine && !MineSafe(s.Safety) {
+		if s.Method == ResourceSourceMine && (!MineSafe(s.Safety) || s.Buried) {
 			continue
 		}
 		usable = append(usable, s)

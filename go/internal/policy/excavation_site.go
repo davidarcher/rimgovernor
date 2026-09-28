@@ -74,6 +74,9 @@ const (
 	ExcavationRectangle ExcavationShapeKind = "rectangle"
 	// ExcavationEllipse is a round room from domain.EllipseInterior.
 	ExcavationEllipse ExcavationShapeKind = "ellipse"
+	// ExcavationCorridor has no room (#1072): the 1-wide corridor ends
+	// beside a buried ore deposit, which mining then opens.
+	ExcavationCorridor ExcavationShapeKind = "corridor"
 )
 
 // ExcavationShape is one deterministic interior generator. The shape is
@@ -97,11 +100,18 @@ func EllipseShape(radiusX, radiusZ int32, orientation domain.EllipseOrientation)
 	return ExcavationShape{Kind: ExcavationEllipse, RadiusX: radiusX, RadiusZ: radiusZ, Orientation: orientation}
 }
 
+// CorridorShape is the roomless shape of a corridor-only target.
+func CorridorShape() ExcavationShape { return ExcavationShape{Kind: ExcavationCorridor} }
+
 func (s ExcavationShape) Validate() error {
 	switch s.Kind {
 	case ExcavationRectangle:
 		if s.Width <= 0 || s.Height <= 0 || s.Width > excavationSupportSpan || s.Height > excavationSupportSpan {
 			return errors.New("invalid excavation interior")
+		}
+	case ExcavationCorridor:
+		if s != CorridorShape() {
+			return errors.New("invalid excavation corridor")
 		}
 	case ExcavationEllipse:
 		if s.RadiusX < 1 || s.RadiusZ < 1 || s.RadiusX > excavationMaxRadius || s.RadiusZ > excavationMaxRadius || s.Orientation.Validate() != nil {
@@ -140,6 +150,9 @@ func (s ExcavationShape) offsets() ([]domain.Cell, Rectangle) {
 // cell past the door is not interior, since the corridor must open into the
 // room.
 func (s ExcavationShape) place(door, direction domain.Cell) (Rectangle, []domain.Cell, bool) {
+	if s.Kind == ExcavationCorridor {
+		return Rectangle{}, nil, true
+	}
 	offsets, box := s.offsets()
 	if len(offsets) == 0 {
 		return Rectangle{}, nil, false
@@ -161,10 +174,13 @@ func (s ExcavationShape) place(door, direction domain.Cell) (Rectangle, []domain
 // rectangle (the interior rectangle already says it), the ellipse
 // parameters otherwise.
 func (s ExcavationShape) keySuffix() string {
-	if s.Kind != ExcavationEllipse {
-		return ""
+	switch s.Kind {
+	case ExcavationCorridor:
+		return ".c"
+	case ExcavationEllipse:
+		return fmt.Sprintf(".e.%d.%d.%s", s.RadiusX, s.RadiusZ, s.Orientation)
 	}
-	return fmt.Sprintf(".e.%d.%d.%s", s.RadiusX, s.RadiusZ, s.Orientation)
+	return ""
 }
 
 // ExcavationTarget is one proposed dig: Access is the walkable cell the
@@ -184,6 +200,9 @@ type ExcavationTarget struct {
 
 // InteriorCells returns the room cells in z-outer, x-inner order.
 func (t ExcavationTarget) InteriorCells() []domain.Cell {
+	if t.Shape.Kind == ExcavationCorridor {
+		return nil
+	}
 	if t.Shape.Kind != ExcavationEllipse {
 		return rectCells(t.Interior)
 	}
@@ -207,15 +226,20 @@ func (t ExcavationTarget) Cells() []domain.Cell {
 }
 
 // Center is the interior centre used for anchor distance comparisons; for
-// every supported shape it is an interior cell.
+// every room shape it is an interior cell; a corridor has none, so it is the
+// door.
 func (t ExcavationTarget) Center() domain.Cell {
+	if t.Shape.Kind == ExcavationCorridor {
+		return t.Door
+	}
 	return domain.Cell{X: t.Interior.X + t.Interior.Width/2, Z: t.Interior.Z + t.Interior.Height/2}
 }
 
 // Key is a compact, reversible identity for the target so per-stage plan
 // identities survive restarts and cleared cells without any extra table.
 // A rectangle's key is the nine legacy fields; an ellipse appends
-// ".e.<radiusX>.<radiusZ>.<orientation>" after its bounding rectangle.
+// ".e.<radiusX>.<radiusZ>.<orientation>" after its bounding rectangle. A
+// corridor (#1072) has a zero rectangle and appends ".c".
 func (t ExcavationTarget) Key() string {
 	return fmt.Sprintf("%d.%d.%d.%d.%d.%d.%d.%d.%d", t.Access.X, t.Access.Z, t.Direction.X, t.Direction.Z, len(t.Corridor), t.Interior.X, t.Interior.Z, t.Interior.Width, t.Interior.Height) + t.Shape.keySuffix()
 }
@@ -225,7 +249,7 @@ func (t ExcavationTarget) Key() string {
 func ParseExcavationKey(key string) (ExcavationTarget, error) {
 	invalid := errors.New("invalid excavation key")
 	parts := strings.Split(key, ".")
-	if len(parts) != 9 && len(parts) != 13 {
+	if len(parts) != 9 && len(parts) != 10 && len(parts) != 13 {
 		return ExcavationTarget{}, invalid
 	}
 	var v [9]int32
@@ -236,6 +260,12 @@ func ParseExcavationKey(key string) (ExcavationTarget, error) {
 	}
 	t := ExcavationTarget{Access: domain.Cell{X: v[0], Z: v[1]}, Direction: domain.Cell{X: v[2], Z: v[3]}, Interior: Rectangle{v[5], v[6], v[7], v[8]}}
 	t.Shape = RectangleShape(t.Interior.Width, t.Interior.Height)
+	if len(parts) == 10 {
+		if parts[9] != "c" {
+			return ExcavationTarget{}, invalid
+		}
+		t.Shape = CorridorShape()
+	}
 	if len(parts) == 13 {
 		if parts[9] != "e" {
 			return ExcavationTarget{}, invalid
@@ -335,6 +365,29 @@ func excavatedCell(c SiteCell) bool {
 // any known cell inside it is not rock, when any known cell bordering it
 // (other than the access cell) is passable, or when it touches the map edge.
 func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
+	return excavationSites(r, nil)
+}
+
+// CorridorExcavationSites proposes corridor-only targets (#1072) whose door
+// is cardinally adjacent to the buried ore cell, best first. r.Shapes and
+// r.Interior are ignored: there is no room, so only the corridor is judged
+// (diggable, sealed, supported per cell).
+func CorridorExcavationSites(r ExcavationSiteRequest, ore domain.Cell) ([]ExcavationTarget, error) {
+	r.Shapes, r.Interior = []ExcavationShape{CorridorShape()}, Bounds{}
+	return excavationSites(r, func(t ExcavationTarget) bool {
+		for _, c := range t.Corridor {
+			if c == ore {
+				return false
+			}
+		}
+		dx, dz := t.Door.X-ore.X, t.Door.Z-ore.Z
+		return dx*dx+dz*dz == 1 && excavationSupported(t.Corridor)
+	})
+}
+
+// excavationSites is the shared search; accept, when set, filters placed
+// targets before they are judged.
+func excavationSites(r ExcavationSiteRequest, accept func(ExcavationTarget) bool) ([]ExcavationTarget, error) {
 	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 {
 		return nil, errors.New("invalid excavation site bounds")
 	}
@@ -488,6 +541,9 @@ func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
 					var cells []domain.Cell
 					var opens bool
 					if t.Interior, cells, opens = shape.place(t.Door, d); !opens {
+						continue
+					}
+					if accept != nil && !accept(t) {
 						continue
 					}
 					if seen[t.Key()] {

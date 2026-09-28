@@ -71,6 +71,14 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
+        // Buried ore (#1072): a mineable deposit whose roof support holds and
+        // that no colonist can reach, usually because it sits in fog. It is
+        // not mined directly; Go tunnels a corridor to it first, and the
+        // excavation re-checks support per cell at dispatch.
+        internal static bool Buried(Thing t, Map map) => t is Mineable && t.Spawned && !t.IsForbidden(Faction.OfPlayer)
+            && Product(t) != null && MiningBlocker(t, map) == null
+            && !map.mapPawns.FreeColonistsSpawned.Any(p => p.CanReach(t, PathEndMode.Touch, Danger.None));
+
         // Safety label for an admitted row: mined ore with roof in its support
         // radius is "supported_roof", other ore "open_surface".
         internal static string Safety(Thing t, Map map) => !(t is Mineable) ? "native_eligible"

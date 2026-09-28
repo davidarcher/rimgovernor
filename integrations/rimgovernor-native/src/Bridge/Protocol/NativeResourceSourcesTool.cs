@@ -56,14 +56,19 @@ namespace HomeBridge.BridgeTools
                 var definition = DefDatabase<ThingDef>.GetNamedSilentFail(parsed.Resource);
                 if (definition == null)
                     return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.NotApplicable, "Unknown resource definition.") };
-                var deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource && !t.Position.Fogged(map)).ToList();
+                var deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource).ToList();
                 var eligible = deposits.Where(t => ResourceAcquisitionTools.Eligible(t, map)).ToList();
+                // Buried ore (#1072): a supported deposit no colonist can reach,
+                // usually fogged. The support check reads the true map, so it is
+                // reported for a corridor excavation rather than dropped.
+                var buried = new HashSet<Thing>(deposits.Where(t => !eligible.Contains(t) && ResourceAcquisitionTools.Buried(t, map)));
+                eligible.AddRange(buried);
                 double Distance(Thing t) => map.mapPawns.FreeColonistsSpawned.Min(p => p.Position.DistanceTo(t.Position));
                 var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(Distance).ThenBy(t => t.thingIDNumber).ToList();
                 var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
                     Storage = Storage(map, definition),
                     Completeness = new Obs.Completeness { Filtered = (ulong)(deposits.Count - eligible.Count) } };
-                foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing), context));
+                foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing), context, buried.Contains(thing)));
                 return new Obs.ResourceSourcesReply { Observed = snapshot };
             }
             catch (Exception) { return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Resource sources could not be read completely.") }; }
@@ -128,7 +133,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        private static Obs.ResourceSource Project(Thing thing, Map map, double distance, Common.ObservationContext context)
+        private static Obs.ResourceSource Project(Thing thing, Map map, double distance, Common.ObservationContext context, bool buried)
         {
             var mineable = thing is Mineable;
             var entity = new Obs.EntityRef { Id = thing.GetUniqueLoadID(), DefName = thing.def.defName, MapId = map.uniqueID,
@@ -144,7 +149,8 @@ namespace HomeBridge.BridgeTools
                 Source = entity,
                 Method = mineable ? "mine" : thing.def.plant.IsTree ? "cut" : "harvest",
                 Yield = thing is Plant plant ? plant.YieldNow() : thing.def.building.mineableYield,
-                Reachable = true,
+                Reachable = !buried,
+                Buried = buried,
                 Designated = ResourceAcquisitionTools.Designated(thing),
                 Safety = ResourceAcquisitionTools.Safety(thing, thing.Map),
                 Distance = distance,

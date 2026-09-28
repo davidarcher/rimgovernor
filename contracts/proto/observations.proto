@@ -680,6 +680,8 @@ message ResourceSource {
   optional bool designated = 5; optional string risk = 6; optional string safety = 7; optional string blocker = 8;
   optional double distance = 9; optional bool depleted = 10; optional int64 remaining = 11; optional int64 pending_yield = 12;
   optional int64 designated_tick = 13; optional bool taken = 14;
+  // buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first (#1072).
+  optional bool buried = 15;
 }
 message StorageCapacity { optional string resource = 1; optional int64 capacity = 2; optional int64 stored = 3; optional int32 stack_limit = 4; repeated EntityRef haulers = 5; repeated string blockers = 6; repeated ReadIssue issues = 7; repeated rimgovernor.common.v1.Cell candidates = 8; }
 message ExtractionWorkType { DefinitionRef definition = 1; repeated DefinitionRef work_givers = 2; }
