@@ -32,7 +32,7 @@ import (
 // (colony, map, load, tick) of the newest row written. Field names are the
 // Go struct field names encoding/json emits; a breaking change bumps
 // GovernorStateSchemaVersion.
-const GovernorStateSchemaVersion = 1
+const GovernorStateSchemaVersion = 2
 
 const (
 	GovernorGoalKeyPrefix       = "goal/"
@@ -42,13 +42,12 @@ const (
 	GovernorProductionLadderKey = "family/production_ladder"
 )
 
-// GovernorGoalBlob is one goal: its payload, CAS revision and active methods.
+// GovernorGoalBlob is one goal: its payload and CAS revision. Methods and
+// admission counts are session state, re-planned after a load (#997).
 type GovernorGoalBlob struct {
-	SchemaVersion int                 `json:"schemaVersion"`
-	Revision      uint64              `json:"revision"`
-	Goal          domain.Goal         `json:"goal"`
-	Methods       []domain.GoalMethod `json:"methods"`
-	Admitted      int                 `json:"admitted"`
+	SchemaVersion int         `json:"schemaVersion"`
+	Goal          domain.Goal `json:"goal"`
+	Revision      uint64      `json:"revision"`
 }
 
 // GovernorFamilyBlob is one family record; Scope is set for timeline rows.
@@ -110,7 +109,7 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 		if err != nil {
 			return nil, fmt.Errorf("goal %s: %w", id, err)
 		}
-		if err = put(GovernorGoalKeyPrefix+string(id), GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Revision: g.Revision, Goal: g.Goal, Methods: g.Methods, Admitted: g.Admitted}); err != nil {
+		if err = put(GovernorGoalKeyPrefix+string(id), GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: g.Goal, Revision: g.Revision}); err != nil {
 			return nil, err
 		}
 	}

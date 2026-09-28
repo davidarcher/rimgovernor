@@ -23,6 +23,10 @@ func TestGovernorStateBlobsMirrorGoals(t *testing.T) {
 	if got.SchemaVersion != GovernorStateSchemaVersion || got.Revision != g.Revision || got.Goal != g.Goal {
 		t.Fatal(got, g)
 	}
+	var shape map[string]json.RawMessage
+	if json.Unmarshal([]byte(blobs[key]), &shape) != nil || len(shape) != 3 || shape["schemaVersion"] == nil || shape["goal"] == nil || shape["revision"] == nil || GovernorStateSchemaVersion != 2 {
+		t.Fatal("goal blob is not v2 {schemaVersion, goal, revision}", blobs[key])
+	}
 	if drift := GovernorStateDrift(blobs, blobs); drift != nil {
 		t.Fatal(drift)
 	}
