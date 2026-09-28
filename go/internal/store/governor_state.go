@@ -27,8 +27,8 @@ import (
 //	family/defense_layout     GovernorFamilyBlob, Record = DefenseLayoutRecord
 //	family/production_ladder  GovernorFamilyBlob, Record = ProductionLadderRecord
 //
-// Layout plan and tidies are timeline rows: the blob carries the scope
-// (colony, map, load, tick) of the newest row written. Field names are the
+// Layout plan and tidies are world rows: the blob carries the scope
+// (colony, map, tick) of the newest row written. Field names are the
 // Go struct field names encoding/json emits; a breaking change bumps
 // GovernorStateSchemaVersion.
 const GovernorStateSchemaVersion = 2
@@ -59,7 +59,6 @@ type GovernorFamilyBlob struct {
 type GovernorScope struct {
 	Colony domain.ColonyID `json:"colony"`
 	Map    domain.MapID    `json:"map"`
-	Load   domain.LoadID   `json:"load"`
 	Tick   domain.Tick     `json:"tick"`
 }
 
@@ -114,7 +113,7 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 	}
 	var scope GovernorScope
 	var plan string
-	err = tx.QueryRowContext(ctx, "SELECT colony,map_id,load_token,tick,plan FROM colony_layout_plans ORDER BY rowid DESC LIMIT 1").Scan(&scope.Colony, &scope.Map, &scope.Load, &scope.Tick, &plan)
+	err = tx.QueryRowContext(ctx, "SELECT colony,map_id,tick,plan FROM colony_layout_plans ORDER BY rowid DESC LIMIT 1").Scan(&scope.Colony, &scope.Map, &scope.Tick, &plan)
 	if err == nil {
 		err = put(GovernorLayoutPlanKey, GovernorFamilyBlob{SchemaVersion: GovernorStateSchemaVersion, Scope: &scope, Record: json.RawMessage(plan)})
 	}
@@ -149,14 +148,14 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 // newest tidy row, nil scope when none.
 func newestLayoutTidies(ctx context.Context, tx *sql.Tx) (*GovernorScope, []LayoutTidy, error) {
 	var scope GovernorScope
-	err := tx.QueryRowContext(ctx, "SELECT colony,map_id,load_token,tick FROM layout_tidies ORDER BY id DESC LIMIT 1").Scan(&scope.Colony, &scope.Map, &scope.Load, &scope.Tick)
+	err := tx.QueryRowContext(ctx, "SELECT colony,map_id,tick FROM layout_tidies ORDER BY id DESC LIMIT 1").Scan(&scope.Colony, &scope.Map, &scope.Tick)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, nil
 	}
 	if err != nil {
 		return nil, nil, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation FROM layout_tidies WHERE colony=? AND map_id=? AND load_token=? ORDER BY id DESC", scope.Colony, scope.Map, scope.Load)
+	rows, err := tx.QueryContext(ctx, "SELECT tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation FROM layout_tidies WHERE colony=? AND map_id=? ORDER BY id DESC", scope.Colony, scope.Map)
 	if err != nil {
 		return nil, nil, err
 	}

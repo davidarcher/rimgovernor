@@ -93,7 +93,7 @@ func rebuildLayoutPlan(ctx context.Context, tx *sql.Tx, b GovernorFamilyBlob) er
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO colony_layout_plans(colony,map_id,load_token,tick,plan) VALUES(?,?,?,?,?)", b.Scope.Colony, b.Scope.Map, b.Scope.Load, b.Scope.Tick, string(encoded))
+	_, err = tx.ExecContext(ctx, "INSERT INTO colony_layout_plans(colony,map_id,tick,plan) VALUES(?,?,?,?)", b.Scope.Colony, b.Scope.Map, b.Scope.Tick, string(encoded))
 	return err
 }
 
@@ -115,8 +115,8 @@ func rebuildLayoutTidies(ctx context.Context, tx *sql.Tx, b GovernorFamilyBlob) 
 		if !layoutTidyValid(t) {
 			return errors.New("invalid layout tidy")
 		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO layout_tidies(colony,map_id,load_token,tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-			sc.Colony, sc.Map, sc.Load, t.Tick, t.Item, string(t.Kind), string(t.Status), t.From.X, t.From.Z, t.From.Width, t.From.Height, t.To.X, t.To.Z, t.To.Width, t.To.Height, t.Crop, t.NewZone, t.PlanID, t.Explanation); err != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO layout_tidies(colony,map_id,tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+			sc.Colony, sc.Map, t.Tick, t.Item, string(t.Kind), string(t.Status), t.From.X, t.From.Z, t.From.Width, t.From.Height, t.To.X, t.To.Z, t.To.Width, t.To.Height, t.Crop, t.NewZone, t.PlanID, t.Explanation); err != nil {
 			return err
 		}
 	}

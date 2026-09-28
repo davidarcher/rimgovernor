@@ -9,12 +9,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The colony grid (#605) is recorded once per world and timeline and never
-// moves: it shares the colony extent's timeline segments, so a load sees
-// the grid its own lineage established at or before its fork, an older
-// save restores the grid that save knew (or none), and a same-load tick
-// rewind past the grid's tick forgets it. Another colony or map has its
-// own grid.
+// The colony grid (#605) is recorded once per world and load and never
+// moves. A new load re-establishes it from the live world (#1009); another
+// colony or map has its own grid.
 
 // ColonyGridRecord is a persisted grid with the tick and generation that
 // established it.
@@ -44,44 +41,28 @@ func colonyGridValid(g policy.ColonyGrid) bool {
 	return false
 }
 
-// discardColonyGrid forgets a load's grid established after tick, the
-// same-load rewind rule the extent journal applies to its events.
-func discardColonyGrid(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, tick domain.Tick) error {
-	_, err := tx.ExecContext(ctx, "DELETE FROM colony_grids WHERE colony=? AND map_id=? AND load_token=? AND tick>?", s.Colony, s.Map, s.Load, tick)
-	return err
-}
-
-// colonyGrid reads the grid visible through the lineage at tick: the
-// oldest ancestor's first, since a grid never moves once established.
+// colonyGrid reads the load's grid established at or before tick.
 func colonyGrid(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, tick domain.Tick) (ColonyGridRecord, bool, error) {
-	lineage, err := extentLineage(ctx, tx, s, tick)
+	var r ColonyGridRecord
+	var generation domain.NativeGeneration
+	var source string
+	err := tx.QueryRowContext(ctx, "SELECT tick,native_generation,origin_x,origin_z,pitch,axis0_x,axis0_z,axis1_x,axis1_z,source FROM colony_grids WHERE colony=? AND map_id=? AND load_token=? AND tick<=?", s.Colony, s.Map, s.Load, tick).Scan(
+		&r.Tick, &generation, &r.Grid.Origin.X, &r.Grid.Origin.Z, &r.Grid.Pitch, &r.Grid.Axes[0].X, &r.Grid.Axes[0].Z, &r.Grid.Axes[1].X, &r.Grid.Axes[1].Z, &source)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ColonyGridRecord{}, false, nil
+	}
 	if err != nil {
 		return ColonyGridRecord{}, false, err
 	}
-	for i := len(lineage) - 1; i >= 0; i-- {
-		segment := lineage[i]
-		var r ColonyGridRecord
-		var generation domain.NativeGeneration
-		var source string
-		err := tx.QueryRowContext(ctx, "SELECT tick,native_generation,origin_x,origin_z,pitch,axis0_x,axis0_z,axis1_x,axis1_z,source FROM colony_grids WHERE colony=? AND map_id=? AND load_token=? AND tick<=?", s.Colony, s.Map, segment.load, segment.limit).Scan(
-			&r.Tick, &generation, &r.Grid.Origin.X, &r.Grid.Origin.Z, &r.Grid.Pitch, &r.Grid.Axes[0].X, &r.Grid.Axes[0].Z, &r.Grid.Axes[1].X, &r.Grid.Axes[1].Z, &source)
-		if errors.Is(err, sql.ErrNoRows) {
-			continue
-		}
-		if err != nil {
-			return ColonyGridRecord{}, false, err
-		}
-		r.Grid.Source = policy.ColonyGridSource(source)
-		if !colonyGridValid(r.Grid) {
-			return ColonyGridRecord{}, false, errors.New("invalid persisted colony grid")
-		}
-		r.Snapshot = domain.GenerationSnapshot{Colony: s.Colony, Map: s.Map, Load: segment.load, Plan: s.Plan, Revision: s.Revision, Native: generation}
-		return r, true, nil
+	r.Grid.Source = policy.ColonyGridSource(source)
+	if !colonyGridValid(r.Grid) {
+		return ColonyGridRecord{}, false, errors.New("invalid persisted colony grid")
 	}
-	return ColonyGridRecord{}, false, nil
+	r.Snapshot = domain.GenerationSnapshot{Colony: s.Colony, Map: s.Map, Load: s.Load, Plan: s.Plan, Revision: s.Revision, Native: generation}
+	return r, true, nil
 }
 
-// EstablishColonyGrid records grid for the timeline at tick unless one is
+// EstablishColonyGrid records grid for the load at tick unless one is
 // already visible, in which case the visible grid is returned unchanged
 // and established reports false.
 func (s *Store) EstablishColonyGrid(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, grid policy.ColonyGrid) (ColonyGridRecord, bool, error) {
@@ -96,9 +77,6 @@ func (s *Store) EstablishColonyGrid(ctx context.Context, snapshot domain.Generat
 		return ColonyGridRecord{}, false, err
 	}
 	defer tx.Rollback()
-	if _, err = reconcileColonyExtent(ctx, tx, snapshot, tick); err != nil {
-		return ColonyGridRecord{}, false, err
-	}
 	if held, ok, err := colonyGrid(ctx, tx, snapshot, tick); err != nil || ok {
 		return held, false, err
 	}
@@ -109,9 +87,7 @@ func (s *Store) EstablishColonyGrid(ctx context.Context, snapshot domain.Generat
 	return ColonyGridRecord{Grid: grid, Snapshot: snapshot, Tick: tick}, true, tx.Commit()
 }
 
-// ColonyGrid returns the grid the timeline sees at tick, if any. The read
-// binds the load to its timeline first (ReconcileColonyExtent), so a
-// freshly loaded save finds the grid its origin segment established.
+// ColonyGrid returns the grid the load holds at tick, if any.
 func (s *Store) ColonyGrid(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) (ColonyGridRecord, bool, error) {
 	if err := extentScope(snapshot, tick); err != nil {
 		return ColonyGridRecord{}, false, err
@@ -121,9 +97,6 @@ func (s *Store) ColonyGrid(ctx context.Context, snapshot domain.GenerationSnapsh
 		return ColonyGridRecord{}, false, err
 	}
 	defer tx.Rollback()
-	if _, err = reconcileColonyExtent(ctx, tx, snapshot, tick); err != nil {
-		return ColonyGridRecord{}, false, err
-	}
 	record, ok, err := colonyGrid(ctx, tx, snapshot, tick)
 	if err != nil {
 		return ColonyGridRecord{}, false, err

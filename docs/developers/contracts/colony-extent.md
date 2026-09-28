@@ -2,7 +2,7 @@
 
 The colony extent is the controller's one shared territory model (#453,
 milestone 2 of #338): where the colony *is*, recorded with why each cell
-belongs, kept per saved timeline, and read by layout and resource policies
+belongs, kept per world and load, and read by layout and resource policies
 through one bounded query. It is distinct from native Home coverage (what
 the game maintains and cleans) and from resource-operation reach (where
 current readiness permits considering remote work). Territory history never
@@ -13,7 +13,7 @@ implies that a cell or route is safe today.
 | Concept | Owner | Code |
 | --- | --- | --- |
 | Current extent | Pure policy derivation from held colony facts; no writer | `policy.DeriveColonyExtent` |
-| Established history and expansion areas | Controller durable store, append-only per world and timeline | `store.EstablishColonyExtent`, `AddExpansionArea`, `RemoveExpansionArea`, `EstablishedColonyExtent`, `ExpansionAreas` |
+| Established history and expansion areas | Controller durable store, append-only per world and load | `store.EstablishColonyExtent`, `AddExpansionArea`, `RemoveExpansionArea`, `EstablishedColonyExtent`, `ExpansionAreas` |
 | Eligibility | Pure overlay of current evidence on history; read-only diagnostics | `policy.ExtentEligibility` |
 | Bounded consumer query | Pure geometry over extent plus areas | `policy.ExtentWindow` |
 | Native Home mask | The game, through the `HomeIntent` action only | [Maintained jobs](upkeep-contracts.md#maintained-jobs) |
@@ -48,12 +48,9 @@ contracts](upkeep-contracts.md#maintained-jobs).
 ## Persistence and recovery (slice B, #517)
 
 Established regions and explicitly selected expansion areas are an
-append-only journal scoped to the world (colony, map) and to the saved
-timeline the current load belongs to. A load token is one timeline segment
-forking from the segment whose observed span covered its first tick;
-loading an older save restores exactly what that timeline had recorded by
-that tick, territory established later or on another branch never leaks
-back, and another colony or map starts empty. Removal of an expansion area
+append-only journal scoped to the world (colony, map) and load. A new load
+starts empty and re-establishes its extent from the live world (#1009), and
+another colony or map starts empty. Removal of an expansion area
 is a later entry, never an edit. See [persistence
 contracts](persistence-contracts.md#what-must-survive).
 
@@ -105,7 +102,7 @@ batch. Enclosed traversable cells carry interior provenance; internal
 door cells carry corridor provenance. The clock scheduler establishes known
 regions after each routine review; missing or stale evidence writes nothing.
 The planner reads established history and live expansion areas for that
-world and timeline, falling back to current derivation when history is empty.
+world and load, falling back to current derivation when history is empty.
 
 The stone-shell and storage site planners still derive their candidate
 area per facility (claims, starter room, the planning-cell window);
@@ -140,6 +137,6 @@ nothing. The converse also holds: Home cells are an *input* to derivation
 - [Colony upkeep contracts](upkeep-contracts.md): Home ownership, the
   derivation's inputs, resource reach and the eligibility view.
 - [Persistence contracts](persistence-contracts.md#what-must-survive):
-  extent history and timeline reconciliation.
+  extent history.
 - [Spatial contracts](spatial-contracts.md): site selection and bounded
   connectivity that consumers keep using inside the window.

@@ -15,14 +15,9 @@ import (
 )
 
 // Colony extent history is an append-only journal of established regions
-// and explicit expansion areas, scoped to one world (colony, map) and to
-// the saved timeline the current load belongs to. Every load token is one
-// timeline segment; a segment forks from the segment whose observed span
-// covered its first tick, and only entries at or before the fork tick are
-// visible through it. Loading an older save therefore restores exactly
-// what that save's timeline had recorded by that tick, and territory
-// established after the save, or on another branch, never leaks back.
-// Another colony or map has its own segments and starts empty.
+// and explicit expansion areas, scoped to one world (colony, map) and load.
+// A new load starts empty and re-establishes its extent from the live world
+// (#1009); another colony or map has its own journal.
 
 type EstablishedExtent struct {
 	Snapshot domain.GenerationSnapshot
@@ -40,41 +35,19 @@ type ExpansionArea struct {
 	Tick     domain.Tick
 }
 
-// ExtentReconciliation reports what a load's first observation kept and
-// discarded so the caller can log it.
-type ExtentReconciliation struct {
-	// Parent is the load token the current load's timeline forked from;
-	// empty when no recorded segment of this world covered the tick.
-	Parent domain.LoadID
-	// ForkTick is the tick the current load was first observed at.
-	ForkTick domain.Tick
-	// Visible counts the established regions and expansion entries restored
-	// through the lineage; Beyond counts the parent lineage's entries past
-	// the fork that this timeline does not see.
-	Visible, Beyond int
-	// Discarded counts entries of the same load deleted by a tick rewind
-	// within it, which is a dev-mode edit rather than a save.
-	Discarded int
-}
-
 const (
 	extentKindEstablished = "established"
 	extentKindExpand      = "expand"
 	extentKindContract    = "contract"
 	extentPayloadLimit    = 4 << 20
-	extentLineageLimit    = 256
 	extentReasonLimit     = 256
 )
 
 func initializeColonyExtent(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `CREATE TABLE colony_extent_timelines(sequence INTEGER PRIMARY KEY AUTOINCREMENT, colony TEXT NOT NULL, map_id INTEGER NOT NULL, load_token TEXT NOT NULL, parent_load_token TEXT, fork_tick INTEGER NOT NULL CHECK(fork_tick>=0), last_tick INTEGER NOT NULL CHECK(last_tick>=fork_tick), UNIQUE(colony,map_id,load_token)) STRICT;
-CREATE TABLE colony_extent_events(colony TEXT NOT NULL, map_id INTEGER NOT NULL, load_token TEXT NOT NULL, ordinal INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('established','expand','contract')), area_id TEXT, reason TEXT, payload BLOB, PRIMARY KEY(colony,map_id,load_token,ordinal), CHECK((kind='established' AND area_id IS NULL AND reason IS NULL AND payload IS NOT NULL) OR (kind='expand' AND area_id IS NOT NULL AND reason IS NOT NULL AND payload IS NOT NULL) OR (kind='contract' AND area_id IS NOT NULL AND reason IS NOT NULL AND payload IS NULL))) STRICT;`)
+	_, err := tx.ExecContext(ctx, `CREATE TABLE colony_extent_events(colony TEXT NOT NULL, map_id INTEGER NOT NULL, load_token TEXT NOT NULL, ordinal INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('established','expand','contract')), area_id TEXT, reason TEXT, payload BLOB, PRIMARY KEY(colony,map_id,load_token,ordinal), CHECK((kind='established' AND area_id IS NULL AND reason IS NULL AND payload IS NOT NULL) OR (kind='expand' AND area_id IS NOT NULL AND reason IS NOT NULL AND payload IS NOT NULL) OR (kind='contract' AND area_id IS NOT NULL AND reason IS NOT NULL AND payload IS NULL))) STRICT;`)
 	return err
 }
 func checkColonyExtentSchema(ctx context.Context, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, "SELECT sequence,colony,map_id,load_token,parent_load_token,fork_tick,last_tick FROM colony_extent_timelines LIMIT 0"); err != nil {
-		return err
-	}
 	_, err := tx.ExecContext(ctx, "SELECT colony,map_id,load_token,ordinal,tick,native_generation,kind,area_id,reason,payload FROM colony_extent_events LIMIT 0")
 	return err
 }
@@ -169,130 +142,6 @@ func extentScope(s domain.GenerationSnapshot, tick domain.Tick) error {
 	return nil
 }
 
-type extentSegment struct {
-	load domain.LoadID
-	// limit is the highest tick of this segment visible from the reader.
-	limit domain.Tick
-}
-
-// extentLineage walks from the current load back through its parents,
-// tightening the visible tick at every fork. A load without a recorded
-// segment sees only its own entries at or before tick.
-func extentLineage(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, tick domain.Tick) ([]extentSegment, error) {
-	lineage := []extentSegment{{load: s.Load, limit: tick}}
-	load, limit := s.Load, tick
-	for range extentLineageLimit {
-		var parent sql.NullString
-		var fork domain.Tick
-		err := tx.QueryRowContext(ctx, "SELECT parent_load_token,fork_tick FROM colony_extent_timelines WHERE colony=? AND map_id=? AND load_token=?", s.Colony, s.Map, load).Scan(&parent, &fork)
-		if errors.Is(err, sql.ErrNoRows) || err == nil && !parent.Valid {
-			return lineage, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		if fork < limit {
-			limit = fork
-		}
-		load = domain.LoadID(parent.String)
-		lineage = append(lineage, extentSegment{load: load, limit: limit})
-	}
-	return nil, errors.New("colony extent lineage exceeds bound")
-}
-
-// reconcileColonyExtent records the current load's timeline segment on its
-// first observation and advances it afterwards. Same-load rewinds discard
-// the load's entries past the tick.
-func reconcileColonyExtent(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, tick domain.Tick) (ExtentReconciliation, error) {
-	report := ExtentReconciliation{ForkTick: tick}
-	var parent sql.NullString
-	var fork, last domain.Tick
-	err := tx.QueryRowContext(ctx, "SELECT parent_load_token,fork_tick,last_tick FROM colony_extent_timelines WHERE colony=? AND map_id=? AND load_token=?", s.Colony, s.Map, s.Load).Scan(&parent, &fork, &last)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		// The segment that was live at this tick is the save's origin; among
-		// branches that all covered it, the most recently played one is the
-		// save the player is likeliest to have taken. A tick past every
-		// recorded span continues the latest segment that ended before it.
-		err = tx.QueryRowContext(ctx, `SELECT load_token FROM colony_extent_timelines WHERE colony=? AND map_id=? AND fork_tick<=? ORDER BY (last_tick>=?) DESC, CASE WHEN last_tick>=? THEN sequence ELSE last_tick END DESC, sequence DESC LIMIT 1`, s.Colony, s.Map, tick, tick, tick).Scan(&parent)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return report, err
-		}
-		if parent.Valid {
-			report.Parent = domain.LoadID(parent.String)
-			if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM colony_extent_events WHERE colony=? AND map_id=? AND load_token=? AND tick>?", s.Colony, s.Map, parent.String, tick).Scan(&report.Beyond); err != nil {
-				return report, err
-			}
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO colony_extent_timelines(colony,map_id,load_token,parent_load_token,fork_tick,last_tick) VALUES(?,?,?,?,?,?)", s.Colony, s.Map, s.Load, parent, tick, tick); err != nil {
-			return report, err
-		}
-	case err != nil:
-		return report, err
-	default:
-		report.ForkTick = fork
-		if parent.Valid {
-			report.Parent = domain.LoadID(parent.String)
-		}
-		if tick < last {
-			result, err := tx.ExecContext(ctx, "DELETE FROM colony_extent_events WHERE colony=? AND map_id=? AND load_token=? AND tick>?", s.Colony, s.Map, s.Load, tick)
-			if err != nil {
-				return report, err
-			}
-			n, err := result.RowsAffected()
-			if err != nil {
-				return report, err
-			}
-			report.Discarded = int(n)
-			if err = discardColonyGrid(ctx, tx, s, tick); err != nil {
-				return report, err
-			}
-			if err = discardLayoutPlan(ctx, tx, s, tick); err != nil {
-				return report, err
-			}
-			if err = discardLayoutTidies(ctx, tx, s, tick); err != nil {
-				return report, err
-			}
-		}
-		if tick < fork {
-			fork = tick
-		}
-		if _, err = tx.ExecContext(ctx, "UPDATE colony_extent_timelines SET fork_tick=?,last_tick=? WHERE colony=? AND map_id=? AND load_token=?", fork, tick, s.Colony, s.Map, s.Load); err != nil {
-			return report, err
-		}
-	}
-	lineage, err := extentLineage(ctx, tx, s, tick)
-	if err != nil {
-		return report, err
-	}
-	for _, segment := range lineage {
-		var n int
-		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM colony_extent_events WHERE colony=? AND map_id=? AND load_token=? AND tick<=?", s.Colony, s.Map, segment.load, segment.limit).Scan(&n); err != nil {
-			return report, err
-		}
-		report.Visible += n
-	}
-	return report, nil
-}
-
-// ReconcileColonyExtent binds the current load to its timeline. Call it on
-// restart and on every world change; writes reconcile implicitly.
-func (s *Store) ReconcileColonyExtent(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) (ExtentReconciliation, error) {
-	if err := extentScope(snapshot, tick); err != nil {
-		return ExtentReconciliation{}, err
-	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ExtentReconciliation{}, err
-	}
-	defer tx.Rollback()
-	report, err := reconcileColonyExtent(ctx, tx, snapshot, tick)
-	if err != nil {
-		return ExtentReconciliation{}, err
-	}
-	return report, tx.Commit()
-}
-
 type extentEvent struct {
 	load       domain.LoadID
 	tick       domain.Tick
@@ -303,37 +152,25 @@ type extentEvent struct {
 	payload    []byte
 }
 
-// extentEvents lists the visible journal oldest first: ancestors before
-// descendants, then tick and ordinal.
+// extentEvents lists the load's journal at or before tick, oldest first.
 func extentEvents(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, tick domain.Tick) ([]extentEvent, error) {
-	lineage, err := extentLineage(ctx, tx, s, tick)
+	rows, err := tx.QueryContext(ctx, "SELECT tick,native_generation,kind,area_id,reason,payload FROM colony_extent_events WHERE colony=? AND map_id=? AND load_token=? AND tick<=? ORDER BY ordinal", s.Colony, s.Map, s.Load, tick)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	var out []extentEvent
-	for i := len(lineage) - 1; i >= 0; i-- {
-		segment := lineage[i]
-		rows, err := tx.QueryContext(ctx, "SELECT tick,native_generation,kind,area_id,reason,payload FROM colony_extent_events WHERE colony=? AND map_id=? AND load_token=? AND tick<=? ORDER BY ordinal", s.Colony, s.Map, segment.load, segment.limit)
-		if err != nil {
+	for rows.Next() {
+		e := extentEvent{load: s.Load}
+		var area, reason sql.NullString
+		if err = rows.Scan(&e.tick, &e.generation, &e.kind, &area, &reason, &e.payload); err != nil {
+			rows.Close()
 			return nil, err
 		}
-		for rows.Next() {
-			e := extentEvent{load: segment.load}
-			var area, reason sql.NullString
-			if err = rows.Scan(&e.tick, &e.generation, &e.kind, &area, &reason, &e.payload); err != nil {
-				rows.Close()
-				return nil, err
-			}
-			e.area, e.reason = area.String, reason.String
-			out = append(out, e)
-		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return nil, err
-		}
+		e.area, e.reason = area.String, reason.String
+		out = append(out, e)
 	}
-	return out, nil
+	return out, rows.Err()
 }
 
 func appendExtentEvent(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, e extentEvent) error {
@@ -347,7 +184,7 @@ func appendExtentEvent(ctx context.Context, tx *sql.Tx, s domain.GenerationSnaps
 }
 
 // EstablishColonyExtent appends regions observed established at tick under
-// snapshot. A region already visible in the timeline is not repeated; the
+// snapshot. A region already in the load's journal is not repeated; the
 // count returned is the number of new entries.
 func (s *Store) EstablishColonyExtent(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, regions []policy.ExtentRegion) (int, error) {
 	if err := extentScope(snapshot, tick); err != nil {
@@ -369,9 +206,6 @@ func (s *Store) EstablishColonyExtent(ctx context.Context, snapshot domain.Gener
 		return 0, err
 	}
 	defer tx.Rollback()
-	if _, err = reconcileColonyExtent(ctx, tx, snapshot, tick); err != nil {
-		return 0, err
-	}
 	events, err := extentEvents(ctx, tx, snapshot, tick)
 	if err != nil {
 		return 0, err
@@ -396,7 +230,7 @@ func (s *Store) EstablishColonyExtent(ctx context.Context, snapshot domain.Gener
 	return added, tx.Commit()
 }
 
-// EstablishedColonyExtent lists the timeline's established regions visible
+// EstablishedColonyExtent lists the load's established regions visible
 // at tick, oldest first, each with the generation that first observed it.
 func (s *Store) EstablishedColonyExtent(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) ([]EstablishedExtent, error) {
 	if err := extentScope(snapshot, tick); err != nil {
@@ -463,9 +297,6 @@ func (s *Store) AddExpansionArea(ctx context.Context, snapshot domain.Generation
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = reconcileColonyExtent(ctx, tx, snapshot, tick); err != nil {
-		return err
-	}
 	events, err := extentEvents(ctx, tx, snapshot, tick)
 	if err != nil {
 		return err
@@ -503,9 +334,6 @@ func (s *Store) RemoveExpansionArea(ctx context.Context, snapshot domain.Generat
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = reconcileColonyExtent(ctx, tx, snapshot, tick); err != nil {
-		return err
-	}
 	events, err := extentEvents(ctx, tx, snapshot, tick)
 	if err != nil {
 		return err
@@ -523,7 +351,7 @@ func (s *Store) RemoveExpansionArea(ctx context.Context, snapshot domain.Generat
 	return tx.Commit()
 }
 
-// ExpansionAreas lists the areas live in the timeline at tick, by ID.
+// ExpansionAreas lists the areas live in the load at tick, by ID.
 func (s *Store) ExpansionAreas(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) ([]ExpansionArea, error) {
 	if err := extentScope(snapshot, tick); err != nil {
 		return nil, err

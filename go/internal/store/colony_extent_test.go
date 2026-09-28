@@ -98,10 +98,6 @@ func TestColonyExtentPersistsAcrossReopenWithProvenance(t *testing.T) {
 	}
 	defer db.Close()
 	// The next process observes the same load at a later tick.
-	report, err := db.ReconcileColonyExtent(ctx, world, 200)
-	if err != nil || report.Visible != 2 || report.Discarded != 0 || report.Parent != "" {
-		t.Fatal(report, err)
-	}
 	rows, err := db.EstablishedColonyExtent(ctx, world, 200)
 	if err != nil || len(rows) != 1 {
 		t.Fatal(rows, err)
@@ -119,63 +115,23 @@ func TestColonyExtentPersistsAcrossReopenWithProvenance(t *testing.T) {
 	}
 }
 
-func TestColonyExtentRewindRestoresOnlyThatGenerationsHistory(t *testing.T) {
+// A new load starts empty and re-establishes from the live world (#1009);
+// ticks past the read are not visible.
+func TestColonyExtentIsScopedToTheLoad(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := open(t, memoryPath(t))
 	first := extentWorld("colony", "load-1", 1)
-	for i, tick := range []domain.Tick{100, 200, 300} {
-		if tick == 300 {
-			if err := db.AddExpansionArea(ctx, first, 250, "late", []domain.Cell{{X: 9, Z: 9}}, "added after the save"); err != nil {
-				t.Fatal(err)
-			}
-		}
+	for i, tick := range []domain.Tick{100, 200} {
 		if _, err := db.EstablishColonyExtent(ctx, first, tick, []policy.ExtentRegion{extentRegion(string(rune('a'+i)), domain.Cell{X: int32(i), Z: 0})}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// Loading the save taken at tick 200 forks from load-1 there.
-	rewound := extentWorld("colony", "load-2", 1)
-	report, err := db.ReconcileColonyExtent(ctx, rewound, 200)
-	if err != nil || report.Parent != "load-1" || report.Visible != 2 || report.Beyond != 2 {
-		t.Fatal(report, err)
-	}
-	if got := extentRegions(t, db, rewound, 200); !reflect.DeepEqual(got, []string{"a", "b"}) {
+	if got := extentRegions(t, db, first, 150); !reflect.DeepEqual(got, []string{"a"}) {
 		t.Fatal(got)
 	}
-	if areas, err := db.ExpansionAreas(ctx, rewound, 200); err != nil || len(areas) != 0 {
-		t.Fatal(areas, err)
-	}
-	// Playing past the fork on the new branch never reveals the old branch.
-	if _, err = db.EstablishColonyExtent(ctx, rewound, 260, []policy.ExtentRegion{extentRegion("d", domain.Cell{X: 5, Z: 5})}); err != nil {
-		t.Fatal(err)
-	}
-	if got := extentRegions(t, db, rewound, 400); !reflect.DeepEqual(got, []string{"a", "b", "d"}) {
-		t.Fatal(got)
-	}
-	// A later save of the first branch restores that branch alone.
-	third := extentWorld("colony", "load-3", 1)
-	if report, err = db.ReconcileColonyExtent(ctx, third, 300); err != nil || report.Parent != "load-1" {
-		t.Fatal(report, err)
-	}
-	if got := extentRegions(t, db, third, 300); !reflect.DeepEqual(got, []string{"a", "b", "c"}) {
-		t.Fatal(got)
-	}
-	// A save inside the span both branches cover comes from the branch
-	// played most recently, and sees the lineage beneath its fork.
-	fourth := extentWorld("colony", "load-4", 1)
-	if report, err = db.ReconcileColonyExtent(ctx, fourth, 220); err != nil || report.Parent != "load-2" {
-		t.Fatal(report, err)
-	}
-	if got := extentRegions(t, db, fourth, 500); !reflect.DeepEqual(got, []string{"a", "b"}) {
-		t.Fatal(got)
-	}
-	// A tick rewind inside one load discards that load's later entries.
-	if report, err = db.ReconcileColonyExtent(ctx, rewound, 210); err != nil || report.Discarded != 1 {
-		t.Fatal(report, err)
-	}
-	if got := extentRegions(t, db, rewound, 400); !reflect.DeepEqual(got, []string{"a", "b"}) {
-		t.Fatal(got)
+	if got := extentRegions(t, db, extentWorld("colony", "load-2", 1), 300); len(got) != 0 {
+		t.Fatal("new load saw another load's extent", got)
 	}
 }
 
@@ -194,27 +150,12 @@ func TestColonyExtentIsolatesWorlds(t *testing.T) {
 	otherMap := world
 	otherMap.Map = 2
 	for _, s := range []domain.GenerationSnapshot{other, otherMap} {
-		report, err := db.ReconcileColonyExtent(ctx, s, 500)
-		if err != nil || report.Parent != "" || report.Visible != 0 {
-			t.Fatal(report, err)
-		}
 		if rows, err := db.EstablishedColonyExtent(ctx, s, 500); err != nil || len(rows) != 0 {
 			t.Fatal(rows, err)
 		}
 		if areas, err := db.ExpansionAreas(ctx, s, 500); err != nil || len(areas) != 0 {
 			t.Fatal(areas, err)
 		}
-	}
-	// A reload of the original colony at a later tick continues its history.
-	reloaded := extentWorld("colony", "load-2", 2)
-	if got := extentRegions(t, db, reloaded, 900); len(got) != 0 {
-		t.Fatal("unreconciled load saw history", got)
-	}
-	if report, err := db.ReconcileColonyExtent(ctx, reloaded, 900); err != nil || report.Parent != "load-1" || report.Visible != 2 {
-		t.Fatal(report, err)
-	}
-	if got := extentRegions(t, db, reloaded, 900); !reflect.DeepEqual(got, []string{"a"}) {
-		t.Fatal(got)
 	}
 }
 

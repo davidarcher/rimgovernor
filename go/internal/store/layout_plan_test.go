@@ -39,18 +39,18 @@ func TestLayoutPlanRoundTripsAndForgetsOnRewind(t *testing.T) {
 	if r, ok, err := db.LayoutPlan(ctx, w, 250); err != nil || !ok || r.Tick != 200 || !reflect.DeepEqual(r.Plan, grown) {
 		t.Fatal(r, ok, err)
 	}
-	// A same-load rewind past the replan forgets it.
+	// A read at an earlier tick sees the plan held then.
 	if r, ok, err := db.LayoutPlan(ctx, w, 150); err != nil || !ok || !reflect.DeepEqual(r.Plan, first) {
 		t.Fatal(r, ok, err)
 	}
-	if r, ok, err := db.LayoutPlan(ctx, w, 250); err != nil || !ok || r.Tick != 100 {
-		t.Fatal("the rewind kept the replan", r, ok, err)
+	if r, ok, err := db.LayoutPlan(ctx, w, 250); err != nil || !ok || r.Tick != 200 {
+		t.Fatal("the earlier read dropped the replan", r, ok, err)
 	}
 	if err := db.RecordLayoutPlan(ctx, w, 300, policy.LayoutPlan{}); err == nil {
 		t.Fatal("recorded a plan without rooms")
 	}
 	// A saved plan that no longer decodes reads as no plan (#783).
-	if _, err := db.db.ExecContext(ctx, "INSERT INTO colony_layout_plans(colony,map_id,load_token,tick,plan) VALUES(?,?,?,?,?)", w.Colony, w.Map, w.Load, 400, `{"Rooms":[{"Role":""}]}`); err != nil {
+	if _, err := db.db.ExecContext(ctx, "INSERT INTO colony_layout_plans(colony,map_id,tick,plan) VALUES(?,?,?,?)", w.Colony, w.Map, 400, `{"Rooms":[{"Role":""}]}`); err != nil {
 		t.Fatal(err)
 	}
 	if r, ok, err := db.LayoutPlan(ctx, w, 450); err != nil || ok || !r.Invalid || r.Tick != 400 {

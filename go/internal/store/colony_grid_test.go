@@ -54,7 +54,7 @@ func TestColonyGridPersistsAcrossReopenAndNeverMoves(t *testing.T) {
 	}
 }
 
-func TestColonyGridFollowsTheSavedTimeline(t *testing.T) {
+func TestColonyGridIsScopedToTheLoad(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := open(t, memoryPath(t))
@@ -68,8 +68,8 @@ func TestColonyGridFollowsTheSavedTimeline(t *testing.T) {
 	if _, err := db.EstablishColonyExtent(ctx, first, 300, []policy.ExtentRegion{extentRegion("b", domain.Cell{X: 1, Z: 0})}); err != nil {
 		t.Fatal(err)
 	}
-	// A save taken before the grid was fixed knows no grid and may fix
-	// its own; the first branch keeps its grid.
+	// Another load knows no grid and fixes its own from the live world
+	// (#1009); the first load keeps its grid.
 	early := extentWorld("colony", "load-2", 1)
 	if _, ok, err := db.ColonyGrid(ctx, early, 200); err != nil || ok {
 		t.Fatal("grid leaked into an earlier save", ok, err)
@@ -80,17 +80,7 @@ func TestColonyGridFollowsTheSavedTimeline(t *testing.T) {
 	if record, ok, err := db.ColonyGrid(ctx, first, 400); err != nil || !ok || record.Grid != testGrid(40, 50) {
 		t.Fatal(record, ok, err)
 	}
-	// A save taken after the grid restores it with its origin segment.
-	late := extentWorld("colony", "load-3", 1)
-	record, ok, err := db.ColonyGrid(ctx, late, 300)
-	if err != nil || !ok || record.Grid != testGrid(40, 50) || record.Snapshot.Load != "load-1" || record.Tick != 250 {
-		t.Fatal(record, ok, err)
-	}
-	// A same-load rewind past the grid's tick forgets it.
-	if report, err := db.ReconcileColonyExtent(ctx, first, 240); err != nil || report.Discarded != 1 {
-		t.Fatal(report, err)
-	}
 	if _, ok, err := db.ColonyGrid(ctx, first, 240); err != nil || ok {
-		t.Fatal("rewound load kept its grid", ok, err)
+		t.Fatal("grid visible before its tick", ok, err)
 	}
 }

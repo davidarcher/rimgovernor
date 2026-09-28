@@ -31,39 +31,24 @@ paired backups, manifests or archive tables.
   provenance and the tick and native generation that first observed them)
   and explicitly selected expansion areas (with the reason recorded on add
   and on remove) are an append-only journal scoped to the world (colony,
-  map) and to its saved timeline (`store.EstablishColonyExtent`,
-  `AddExpansionArea`, `RemoveExpansionArea`). Each load token is one
-  timeline segment. On its first observation (`ReconcileColonyExtent`,
-  which every write also performs) a load forks from the segment of the
-  same world whose observed span covered that tick, preferring the segment
-  played most recently when several branches cover it, or continues the
-  latest segment that ended before it; with no such segment it starts
-  empty. A segment sees its ancestors' entries only up to each fork tick,
-  so loading an older save restores exactly what its timeline had recorded
-  by that tick, and territory established later or on another branch never
-  leaks back; another colony or map sees nothing. A tick rewind within one
-  load discards that load's entries past the tick. The reconciliation
-  report names the parent segment and counts the entries restored, the
-  parent's entries beyond the fork and any discarded, for the caller's log.
+  map) and load (`store.EstablishColonyExtent`, `AddExpansionArea`,
+  `RemoveExpansionArea`). A read sees the load's entries at or before its
+  tick. A new load starts empty and re-establishes its extent from the live
+  world (#1009); another colony or map sees nothing.
   Historical Home exclusions are not recorded here: they are current
   restorable state, not player vetoes. Ownership and the consumer contract:
   [colony extent contract](colony-extent.md).
 
 - **Colony grid.** The layout grid (`store.EstablishColonyGrid`,
-  `ColonyGrid`) is one row per world and timeline segment, sharing the
-  colony extent's segments and reconciliation: a load sees the grid its
-  lineage established at or before each fork, so an older save restores the
-  grid that save knew (or none, and may fix its own), a later save restores
-  its origin segment's grid, another colony or map sees none, and a tick
-  rewind within one load past the grid's tick forgets it. A grid visible
-  through the lineage is never replaced: `EstablishColonyGrid` returns the
-  visible grid and reports nothing established.
+  `ColonyGrid`) is one row per world and load, fixed from the live world
+  and visible at or after its tick; another load, colony or map sees none.
+  A visible grid is never replaced: `EstablishColonyGrid` returns it and
+  reports nothing established.
 - **Layout tidies.** The re-sites `TidyLayout` moved or is moving
-  (`store.RecordLayoutTidy`, `LayoutTidies`, #611) share the extent's
-  segments and reconciliation the same way: each status change (moving,
-  done, abandoned) is a row on the recording load, the latest visible row
-  per item through the lineage is the item's state, an older save restores
-  what it knew and a same-load tick rewind past a tidy's tick forgets it.
+  (`store.RecordLayoutTidy`, `LayoutTidies`, #611) are a session cache per
+  world (colony, map), rebuilt from the save's `family/tidies` blob on a
+  world change (#1005): each status change (moving, done, abandoned) is a
+  row, and the latest row per item at or before the tick is its state.
 
 ## What is re-derived
 
