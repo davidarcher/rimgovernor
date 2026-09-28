@@ -71,3 +71,39 @@ func TestDecideCombatSiegeHarassSkipsOutranged(t *testing.T) {
 		}
 	}
 }
+
+// shipPartView is holdView with a defoliator ship part 40 cells south of
+// the line and rifleman a at range 30.
+func shipPartView(mechs ...combatMech) CombatView {
+	view := holdView()
+	if len(mechs) > 0 {
+		view = withMechs(view, mechs...)
+	}
+	view.Structures = []HostileStructure{{ID: "Thing_DefoliatorShipPart2", Def: "DefoliatorShipPart", Cell: domain.Cell{X: 9, Z: -10}}}
+	for i := range view.Pawns {
+		if view.Pawns[i].ID == "a" {
+			view.Pawns[i].WeaponRange = 30
+		}
+	}
+	return view
+}
+
+// TestHitAndRunShipPart: {a ship part, no live mech} -> the gunner stands
+// off the part at 0.9 of its range and targets it; {a live scyther} ->
+// no hit-and-run (#1061).
+func TestHitAndRunShipPart(t *testing.T) {
+	_, m := decideStop(t, shipPartView(), StopEvent{}, CombatMemory{})
+	r := role(m, "a")
+	if r.Duty != DutyHarasser || r.Target != "Thing_DefoliatorShipPart2" || r.Cell == nil {
+		t.Fatalf("%+v", r)
+	}
+	if d := math.Hypot(float64(r.Cell.X-9), float64(r.Cell.Z+10)); math.Abs(d-27) > 1 {
+		t.Fatalf("a at %v, %.1f from the part", *r.Cell, d)
+	}
+	_, m = decideStop(t, shipPartView(combatMech{id: "s1", kind: "Mech_Scyther", cell: domain.Cell{X: 9, Z: -8}, speed: 4.7}), StopEvent{}, CombatMemory{})
+	for _, r := range m.Roles {
+		if r.Duty == DutyHarasser {
+			t.Fatalf("hit-and-run with a live scyther: %+v", r)
+		}
+	}
+}

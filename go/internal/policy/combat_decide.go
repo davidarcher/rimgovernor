@@ -102,6 +102,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	next.Roles = dropMissingTargets(view, next.Roles)
 	fromRange(view, &next)
+	shipPartHitAndRun(view, &next)
 	siegeHold(&next)
 	lure(view, &next)
 	siegeSnipe(view, &next)
