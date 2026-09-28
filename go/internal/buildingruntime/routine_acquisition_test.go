@@ -122,38 +122,6 @@ func dispatchedHunt(t *testing.T, action domain.ActionID, thing string, tick dom
 	return p
 }
 
-func TestStalledHuntActionsGracePeriod(t *testing.T) {
-	t.Parallel()
-	hunt := dispatchedHunt(t, "hunt-deer", "deer", 100)
-	sources := map[string]bool{"deer": true}
-	if got := stalledHuntActions([]domain.Progress{hunt}, sources, 100+5999, huntContract(6000)); got != nil {
-		t.Fatal("stalled before grace elapses", got)
-	}
-	got := stalledHuntActions([]domain.Progress{hunt}, sources, 100+6000, huntContract(6000))
-	if len(got) != 1 || got[0].Action != "hunt-deer" || got[0].Thing != "deer" {
-		t.Fatal("did not report stalled hunt", got)
-	}
-	if got := stalledHuntActions([]domain.Progress{hunt}, sources, 100+6000, huntContract(0)); got != nil {
-		t.Fatal("zero grace must disable stall detection", got)
-	}
-}
-
-func TestStalledHuntActionsIgnoresResolvedAndNonHuntWork(t *testing.T) {
-	t.Parallel()
-	hunt := dispatchedHunt(t, "hunt-deer", "deer", 100)
-	sources := map[string]bool{"deer": true}
-	if got := stalledHuntActions([]domain.Progress{hunt}, map[string]bool{}, 100+6000, huntContract(6000)); got != nil {
-		t.Fatal("unlisted source must not be treated as a stalled hunt", got)
-	}
-	resolved, err := hunt.Observe(domain.Observation{Action: hunt.View().Action, Attempt: hunt.View().Attempt, Snapshot: hunt.View().Snapshot, Tick: 100, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, hunt.View().Snapshot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := stalledHuntActions([]domain.Progress{resolved}, sources, 100+6000, huntContract(6000)); got != nil {
-		t.Fatal("resolved hunt action must not be reported as stalled", got)
-	}
-}
-
 // MaintainResource chops, forages and hunts through the acquisition
 // catalog (#728): a harvestable floor admits a bounded, nearest-first
 // acquisition method on the goal, and open work holds the next one.

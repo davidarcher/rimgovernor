@@ -150,34 +150,26 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		// its exit: the pest goal has no other prey to try for that animal,
 		// and cancelling the hunt withdraws the designation from under its
 		// hunter only to re-plan the same animal (#455).
-		if !pest {
-			for _, stalled := range stalledHuntActions(plan.Progress, huntSources, expected.Tick, r.reviewer.policy.HuntProgress()) {
-				// HuntingSafety.RouteSafe (native) stays authoritative and is never
-				// bypassed here -- this only stops RimGovernor's own planner from
-				// staying wedged behind an action native keeps correctly refusing
-				// to let through, freeing it to try a different prey or source.
-				if _, err = p.journal.Cancel(call, method.Plan, stalled.Action); err != nil {
+		// Both kinds read stalls from the census (#1044): designated,
+		// untaken, past the kind's contract since native first saw it.
+		for _, hunt := range []bool{false, true} {
+			if hunt && pest {
+				continue
+			}
+			contract := r.reviewer.policy.AcquisitionProgress()
+			if hunt {
+				contract = r.reviewer.policy.HuntProgress()
+			}
+			for _, v := range stalledDesignations(plan.Progress, projection.Acquisition, hunt, expected.Tick, contract) {
+				if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
-				if err = cool(r.reviewer.policy.HuntProgress(), stalled.Thing); err != nil {
+				if err = cool(contract, v.Thing); err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
+				stalledSources[v.Thing] = true
 				reloadPlans = true
 			}
-		}
-		stalled, err := stalledAcquisitionDesignations(call, p.journal, plan.Progress, huntSources, expected.Tick, r.reviewer.policy.AcquisitionProgress())
-		if err != nil {
-			return RoutineAcquisitionResult{}, err
-		}
-		for _, v := range stalled {
-			if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
-				return RoutineAcquisitionResult{}, err
-			}
-			if err = cool(r.reviewer.policy.AcquisitionProgress(), v.Thing); err != nil {
-				return RoutineAcquisitionResult{}, err
-			}
-			stalledSources[v.Thing] = true
-			reloadPlans = true
 		}
 		plan, err = p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -211,26 +203,8 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			return RoutineAcquisitionResult{}, err
 		}
 	}
-	pending := projection.PendingFoodNutrition
+	pending := withoutStalled(projection.PendingFoodNutrition, projection.Acquisition, stalledSources, food)
 	deficit := domain.Unknown[float64]()
-	// A designation nobody took still counts in native's pending totals;
-	// without this the re-plan would see its own stalled yield as covering
-	// the deficit and propose nothing.
-	if rows, known := projection.Acquisition.Value(); known && len(stalledSources) > 0 {
-		if outstanding, pk := pending.Value(); pk {
-			for _, row := range rows {
-				if !stalledSources[row.ID] || !row.Designated {
-					continue
-				}
-				if food {
-					outstanding -= row.NutritionYield
-				} else {
-					outstanding -= row.Yield
-				}
-			}
-			pending = domain.Known(max(0, outstanding))
-		}
-	}
 	runway := domain.Unknown[float64]()
 	if food {
 		plan, known := projection.Facts.FoodPlan.Value()
@@ -484,60 +458,63 @@ type stalledDesignation struct {
 	Thing  string
 }
 
-// stalledAcquisitionDesignations finds dispatched non-hunt acquisition
-// actions whose effect has stayed pending (designated, no labor) for at
-// least stallTicks since their dispatch (#291): native reports why in the
-// pending effect's reason (worker outcome detail), and the planner cancels
-// them so the goal re-plans from another source instead of holding a
-// method (and a development slot) on one plant nobody harvests. The native
-// executor then withdraws the designation natively (CancelAcquisition) and
-// the withdrawn record's terminal effect settles the action; an already
-// cancelled action is left to that. The contract is
-// RoutinePolicy.AcquisitionProgress; one without a deadline disables this.
-func stalledAcquisitionDesignations(ctx context.Context, journal *store.Store, progress []domain.Progress, huntSources map[string]bool, now domain.Tick, contract policy.ProgressContract) ([]stalledDesignation, error) {
-	if contract.Deadline <= 0 {
-		return nil, nil
-	}
-	var stalled []stalledDesignation
-	for _, p := range progress {
-		acquisition, ok := p.Action().Acquisition()
-		v := p.View()
-		effect, known := v.Effect.Value()
-		if !ok || huntSources[acquisition.Thing()] || !v.Unresolved || v.Stage == domain.Cancelled || !known || effect != domain.EffectPending {
-			continue
-		}
-		dispatched, err := journal.DispatchTick(ctx, v.Action)
-		if err != nil {
-			return nil, err
-		}
-		if since, known := dispatched.Value(); known && contract.Expired(since, now) {
-			stalled = append(stalled, stalledDesignation{v.Action, acquisition.Thing()})
-		}
-	}
-	return stalled, nil
-}
-
-// stalledHuntActions finds dispatched Hunt-kind acquisition actions whose
-// contract (RoutinePolicy.HuntProgress) has expired unresolved. Native's
-// HuntingSafety.RouteSafe can repeatedly interrupt the shared game clock
-// while a hunter's route stays unsafe, which leaves the dispatched action's
-// evidence unresolved -- it never completes, fails, or gets re-inspected --
-// so it reads as open work forever and blocks acquisitionBlockingWork's
-// caller from proposing anything else. A contract without a deadline never
-// treats anything as stalled. Pest hunts are not subject to it (#321, #455).
-func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool, now domain.Tick, contract policy.ProgressContract) []stalledDesignation {
-	if contract.Deadline <= 0 {
+// stalledDesignations selects, from the acquisition census, the designated
+// rows of one kind (hunt or not) no colonist has taken for at least the
+// contract's deadline since native first saw the designation (#1044), each
+// paired with the plan's open, dispatched acquisition action on that thing.
+// The planner cancels those so the goal re-plans from another source
+// instead of holding a method on a designation nobody works; the native
+// executor then withdraws it (CancelAcquisition) and the withdrawn record's
+// terminal effect settles the action. A taken row (reserved, or a
+// colonist's job targets it) is never stalled. Harvests run on
+// RoutinePolicy.AcquisitionProgress (#291), hunts on HuntProgress; pest
+// hunts are not passed here (#321, #455). A contract without a deadline,
+// or an unknown census, stalls nothing.
+func stalledDesignations(progress []domain.Progress, sources domain.Fact[[]policy.AcquisitionSource], hunt bool, now domain.Tick, contract policy.ProgressContract) []stalledDesignation {
+	rows, known := sources.Value()
+	if contract.Deadline <= 0 || !known {
 		return nil
 	}
-	var stalled []stalledDesignation
+	actions := map[string]domain.ActionID{}
 	for _, p := range progress {
 		acquisition, ok := p.Action().Acquisition()
 		v := p.View()
-		if ok && huntSources[acquisition.Thing()] && v.Unresolved && v.Stage != domain.Cancelled && contract.Expired(v.Tick, now) {
-			stalled = append(stalled, stalledDesignation{v.Action, acquisition.Thing()})
+		if ok && v.Unresolved && v.Stage != domain.Pending && v.Stage != domain.Prepared && v.Stage != domain.Cancelled {
+			actions[acquisition.Thing()] = v.Action
+		}
+	}
+	var stalled []stalledDesignation
+	for _, row := range rows {
+		action, open := actions[row.ID]
+		if open && row.Designated && !row.Taken && row.Hunt == hunt && contract.Expired(row.DesignatedTick, now) {
+			stalled = append(stalled, stalledDesignation{action, row.ID})
 		}
 	}
 	return stalled
+}
+
+// withoutStalled takes the census rows this step withdrew as stalled off
+// native's pending total (nutrition for food, yield otherwise): a
+// designation nobody took still counts there, and without this the re-plan
+// would see its own stalled yield as covering the deficit and propose
+// nothing.
+func withoutStalled(pending domain.Fact[float64], sources domain.Fact[[]policy.AcquisitionSource], stalled map[string]bool, food bool) domain.Fact[float64] {
+	rows, known := sources.Value()
+	outstanding, pk := pending.Value()
+	if !known || !pk || len(stalled) == 0 {
+		return pending
+	}
+	for _, row := range rows {
+		if !stalled[row.ID] || !row.Designated {
+			continue
+		}
+		if food {
+			outstanding -= row.NutritionYield
+		} else {
+			outstanding -= row.Yield
+		}
+	}
+	return domain.Known(max(0, outstanding))
 }
 
 // acquisitionReason is the admitted method's short why for Operation.intent

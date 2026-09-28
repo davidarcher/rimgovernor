@@ -178,17 +178,17 @@ func (c ProgressContract) CooldownUntil(now domain.Tick) domain.Tick {
 	return now + c.cooldown()
 }
 
-// HuntProgress is the hunt stall policy as a contract: a dispatched hunt
-// whose route native keeps refusing (HuntingSafety.RouteSafe) never
-// settles, so the planner tries other prey or a non-hunt source once
-// HuntStallTicks pass without the kill.
+// HuntProgress is the hunt stall policy as a contract: a hunt designation
+// the census reports untaken for HuntStallTicks since native first saw it
+// (#1044) is withdrawn, so the planner tries other prey or a non-hunt
+// source.
 func (p RoutinePolicy) HuntProgress() ProgressContract {
 	return ProgressContract{Method: "hunt", Expected: "designated animal killed or the hunt settled", Deadline: domain.Tick(p.HuntStallTicks)}
 }
 
 // AcquisitionProgress is the designation stall policy: a plant harvest
-// designated with its effect pending (no colonist took it) for
-// AcquisitionStallTicks is cancelled so the goal re-plans from another
+// the census reports designated and untaken for AcquisitionStallTicks
+// since native first saw it (#291, #1044) is cancelled so the goal re-plans from another
 // source (#291).
 func (p RoutinePolicy) AcquisitionProgress() ProgressContract {
 	return ProgressContract{Method: "harvest", Expected: "designation taken and the yield hauled", Deadline: domain.Tick(p.AcquisitionStallTicks)}

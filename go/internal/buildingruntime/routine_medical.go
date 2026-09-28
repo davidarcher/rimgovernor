@@ -163,31 +163,6 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || !review.Latches.Medical.Restocks() || review.Veto(goal.Goal) != "" {
 		return RoutineMedicalResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	stalledSources := map[string]bool{}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineMedicalResult{}, err
-		}
-		stalled, err := stalledAcquisitionDesignations(call, p.journal, plan.Progress, nil, review.Tick, r.reviewer.policy.AcquisitionProgress())
-		if err != nil {
-			return RoutineMedicalResult{}, err
-		}
-		for _, v := range stalled {
-			if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
-				return RoutineMedicalResult{}, err
-			}
-			stalledSources[v.Thing] = true
-		}
-		if len(stalled) > 0 {
-			if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
-				return RoutineMedicalResult{}, err
-			}
-		}
-		if store.PlanOpen(plan) {
-			return RoutineMedicalResult{Reason: BuildingMethodExistingWork}, nil
-		}
-	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
@@ -203,6 +178,31 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
+	}
+	// Stalls are read from the acquisition census (#1044): a designated,
+	// untaken plant past AcquisitionStallTicks since native first saw it.
+	sources := observation.ColonyAcquisition(observed)
+	stalledSources := map[string]bool{}
+	for _, method := range goal.Methods {
+		plan, err := p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return RoutineMedicalResult{}, err
+		}
+		stalled := stalledDesignations(plan.Progress, sources, false, domain.Tick(observed.Context.GetTick()), r.reviewer.policy.AcquisitionProgress())
+		for _, v := range stalled {
+			if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
+				return RoutineMedicalResult{}, err
+			}
+			stalledSources[v.Thing] = true
+		}
+		if len(stalled) > 0 {
+			if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
+				return RoutineMedicalResult{}, err
+			}
+		}
+		if store.PlanOpen(plan) {
+			return RoutineMedicalResult{Reason: BuildingMethodExistingWork}, nil
+		}
 	}
 	facts := medicalReserveObservationFacts(observed)
 	medicalReview, err := policy.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)

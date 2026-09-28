@@ -1,157 +1,119 @@
 package buildingruntime
 
 import (
-	"context"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// pendingHarvest journals one dispatched plant-harvest acquisition whose
-// effect native keeps reporting pending (designated, nobody harvesting):
-// dispatched at tick 100, observed pending at 200 and again at 40000, the
-// way colony-6's wild healroot sat (#291).
-func pendingHarvest(t *testing.T, db *store.Store, plan domain.PlanID, action domain.ActionID, thing string) domain.GenerationSnapshot {
-	t.Helper()
-	ctx := context.Background()
-	value, err := domain.NewAcquisition(thing, "MedicineHerbal", domain.Cell{X: 140, Z: 110})
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, err := domain.NewAcquisitionAction(action, value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	spec, err := domain.NewPlan(plan, 1, []domain.Action{a})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreatePlan(ctx, spec); err != nil {
-		t.Fatal(err)
-	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: spec.ID(), Revision: spec.Revision(), Native: 1}
-	if _, err = db.PrepareAcquisition(ctx, plan, action, store.AcquisitionAdmission{Snapshot: snapshot, Tick: 100, Thing: thing, SnapshotToken: "cas-1"}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Dispatch(ctx, plan, action, snapshot, 100); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.RecordReceipt(ctx, plan, action, 1, domain.ReceiptAccepted); err != nil {
-		t.Fatal(err)
-	}
-	for _, tick := range []domain.Tick{200, 40000} {
-		if _, err = db.Observe(ctx, plan, domain.Observation{Action: action, Attempt: 1, Snapshot: snapshot, Tick: tick, Effect: domain.EffectPending, Causality: domain.AfterDispatch}, snapshot); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return snapshot
+// censusRow is one designated census row native first saw at since.
+func censusRow(id string, hunt, taken bool, since domain.Tick) policy.AcquisitionSource {
+	return policy.AcquisitionSource{ID: id, Hunt: hunt, Designated: true, DesignatedTick: since, Taken: taken, Yield: 10, NutritionYield: 2}
 }
 
-func TestStalledAcquisitionDesignationsMeasureFromDispatch(t *testing.T) {
+func census(rows ...policy.AcquisitionSource) domain.Fact[[]policy.AcquisitionSource] {
+	return domain.Known(rows)
+}
+
+// A designated plant nobody took past AcquisitionStallTicks, measured from
+// native's first sight of the designation, is withdrawn (#1044).
+func TestStalledDesignationsWithdrawUntakenHarvest(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
-	path := storetest.Path(t)
-	db, err := store.Open(ctx, path)
-	if err != nil {
-		t.Fatal(err)
+	progress := []domain.Progress{dispatchedHunt(t, "harvest-0", "healroot", 100)}
+	rows := census(censusRow("healroot", false, false, 500))
+	if got := stalledDesignations(progress, rows, false, 500+59999, harvestContract(60000)); got != nil {
+		t.Fatal("stalled before the bound elapses", got)
 	}
-	defer func() { _ = db.Close() }()
-	pendingHarvest(t, db, "medical-plan", "medical-plan-0", "Thing_Plant_HealrootWild16865")
-	plan, err := db.LoadPlan(ctx, "medical-plan")
-	if err != nil {
-		t.Fatal(err)
+	got := stalledDesignations(progress, rows, false, 500+60000, harvestContract(60000))
+	if len(got) != 1 || got[0].Action != "harvest-0" || got[0].Thing != "healroot" {
+		t.Fatal("did not report the stalled designation", got)
 	}
-	// The pending observations moved the view's tick to 40000; the stall
-	// bound counts from the dispatch at 100, not the latest observation.
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+59999, harvestContract(60000)); err != nil || got != nil {
-		t.Fatal("stalled before the bound elapses", got, err)
+	if got := stalledDesignations(progress, rows, false, 500+60000, harvestContract(0)); got != nil {
+		t.Fatal("zero bound must disable stall detection", got)
 	}
-	got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, harvestContract(60000))
-	if err != nil || len(got) != 1 || got[0].Action != "medical-plan-0" || got[0].Thing != "Thing_Plant_HealrootWild16865" {
-		t.Fatal("did not report the stalled designation", got, err)
+	if got := stalledDesignations(progress, domain.Unknown[[]policy.AcquisitionSource](), false, 500+60000, harvestContract(60000)); got != nil {
+		t.Fatal("unknown census stalls nothing", got)
 	}
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, harvestContract(0)); err != nil || got != nil {
-		t.Fatal("zero bound must disable stall detection", got, err)
-	}
-	// Hunts have their own bound (stalledHuntActions) and are not designations.
-	hunts := map[string]bool{"Thing_Plant_HealrootWild16865": true}
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, hunts, 100+60000, harvestContract(60000)); err != nil || got != nil {
-		t.Fatal("hunt sources are not stalled designations", got, err)
-	}
-	// Cancelling it stops the planner from re-reporting it, but the method's
-	// work stays open until the executor withdraws the designation natively
-	// and observes the withdrawn record's terminal effect; a reopened store
-	// replays that withdrawal transition.
-	if _, err = db.Cancel(ctx, "medical-plan", got[0].Action); err != nil {
-		t.Fatal(err)
-	}
-	if plan, err = db.LoadPlan(ctx, "medical-plan"); err != nil || !store.PlanOpen(plan) {
-		t.Fatal("cancelled designation released the work before its withdrawal", err)
-	}
-	if got, err = stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, harvestContract(60000)); err != nil || got != nil {
-		t.Fatal("cancelled designation reported as stalled again", got, err)
-	}
-	snapshot := plan.Progress[0].View().Snapshot
-	if _, err = db.Withdraw(ctx, "medical-plan", "medical-plan-0", snapshot, 40100); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.RecordReceipt(ctx, "medical-plan", "medical-plan-0", 2, domain.ReceiptAccepted); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Observe(ctx, "medical-plan", domain.Observation{Action: "medical-plan-0", Attempt: 2, Snapshot: snapshot, Tick: 40200, Effect: domain.EffectUnsuccessful, UnsuccessfulReason: domain.OutcomeNotAchieved, Causality: domain.AfterDispatch}, snapshot); err != nil {
-		t.Fatal(err)
-	}
-	if err = db.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if db, err = store.Open(ctx, path); err != nil {
-		t.Fatal(err)
-	}
-	if plan, err = db.LoadPlan(ctx, "medical-plan"); err != nil || store.PlanOpen(plan) || plan.Progress[0].View().Attempt != 2 {
-		t.Fatal("withdrawn designation still open after replay", err)
+	if got := stalledDesignations(progress, rows, true, 500+60000, huntContract(60000)); got != nil {
+		t.Fatal("a harvest row is not a hunt", got)
 	}
 }
 
-func TestStalledAcquisitionDesignationsIgnoreResolvedAndUndispatchedWork(t *testing.T) {
+func TestStalledDesignationsSkipTakenAndUndesignatedRows(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
-	db, err := store.Open(ctx, storetest.Path(t))
+	progress := []domain.Progress{dispatchedHunt(t, "harvest-0", "healroot", 100)}
+	if got := stalledDesignations(progress, census(censusRow("healroot", false, true, 0)), false, 1000000, harvestContract(60000)); got != nil {
+		t.Fatal("a taken row is not stalled", got)
+	}
+	row := censusRow("healroot", false, false, 0)
+	row.Designated, row.DesignatedTick = false, 0
+	if got := stalledDesignations(progress, census(row), false, 1000000, harvestContract(60000)); got != nil {
+		t.Fatal("an undesignated row is not stalled", got)
+	}
+}
+
+// A hunt untaken within HuntStallTicks is left alone; past it, it stalls.
+// A taken hunt (a hunter holds it, even one HuntingSafety keeps refusing)
+// never does.
+func TestStalledDesignationsHuntGracePeriod(t *testing.T) {
+	t.Parallel()
+	progress := []domain.Progress{dispatchedHunt(t, "hunt-deer", "deer", 100)}
+	rows := census(censusRow("deer", true, false, 100))
+	if got := stalledDesignations(progress, rows, true, 100+5999, huntContract(6000)); got != nil {
+		t.Fatal("stalled before grace elapses", got)
+	}
+	got := stalledDesignations(progress, rows, true, 100+6000, huntContract(6000))
+	if len(got) != 1 || got[0].Action != "hunt-deer" || got[0].Thing != "deer" {
+		t.Fatal("did not report stalled hunt", got)
+	}
+	if got := stalledDesignations(progress, rows, false, 100+6000, harvestContract(6000)); got != nil {
+		t.Fatal("a hunt row is not a harvest", got)
+	}
+	if got := stalledDesignations(progress, census(censusRow("deer", true, true, 100)), true, 100+6000, huntContract(6000)); got != nil {
+		t.Fatal("a taken hunt is not stalled", got)
+	}
+}
+
+// Only the plan's open, dispatched action on the row is withdrawn.
+func TestStalledDesignationsNeedOpenDispatchedAction(t *testing.T) {
+	t.Parallel()
+	hunt := dispatchedHunt(t, "hunt-deer", "deer", 100)
+	rows := census(censusRow("deer", true, false, 100))
+	resolved, err := hunt.Observe(domain.Observation{Action: hunt.View().Action, Attempt: hunt.View().Attempt, Snapshot: hunt.View().Snapshot, Tick: 100, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, hunt.View().Snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
-	snapshot := pendingHarvest(t, db, "medical-plan", "medical-plan-0", "Thing_Plant_HealrootWild1")
-	if _, err = db.Observe(ctx, "medical-plan", domain.Observation{Action: "medical-plan-0", Attempt: 1, Snapshot: snapshot, Tick: 50000, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
-		t.Fatal(err)
+	if got := stalledDesignations([]domain.Progress{resolved}, rows, true, 100+6000, huntContract(6000)); got != nil {
+		t.Fatal("resolved action must not be reported as stalled", got)
 	}
-	plan, err := db.LoadPlan(ctx, "medical-plan")
+	cancelled, err := hunt.Cancel()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, harvestContract(60000)); err != nil || got != nil {
-		t.Fatal("a completed harvest is not stalled", got, err)
+	if got := stalledDesignations([]domain.Progress{cancelled}, rows, true, 100+6000, huntContract(6000)); got != nil {
+		t.Fatal("cancelled action reported as stalled again", got)
 	}
-	value, err := domain.NewAcquisition("Thing_Plant_HealrootWild2", "MedicineHerbal", domain.Cell{X: 1, Z: 1})
-	if err != nil {
-		t.Fatal(err)
+	if got := stalledDesignations(nil, rows, true, 100+6000, huntContract(6000)); got != nil {
+		t.Fatal("a row without a plan action is not this plan's to withdraw", got)
 	}
-	a, err := domain.NewAcquisitionAction("waiting-plan-0", value)
-	if err != nil {
-		t.Fatal(err)
+}
+
+// Stalled rows come off native's pending food and wood totals.
+func TestWithoutStalledTakesRowsOffPending(t *testing.T) {
+	t.Parallel()
+	rows := census(censusRow("a", false, false, 0), censusRow("b", true, false, 0), censusRow("c", false, false, 0))
+	stalled := map[string]bool{"a": true, "b": true}
+	if got, _ := withoutStalled(domain.Known(10.0), rows, stalled, true).Value(); got != 6 {
+		t.Fatal("food pending", got)
 	}
-	spec, err := domain.NewPlan("waiting-plan", 1, []domain.Action{a})
-	if err != nil {
-		t.Fatal(err)
+	if got, _ := withoutStalled(domain.Known(25.0), rows, stalled, false).Value(); got != 5 {
+		t.Fatal("wood pending", got)
 	}
-	if err = db.CreatePlan(ctx, spec); err != nil {
-		t.Fatal(err)
+	if got, _ := withoutStalled(domain.Known(3.0), rows, stalled, true).Value(); got != 0 {
+		t.Fatal("pending floors at zero", got)
 	}
-	if plan, err = db.LoadPlan(ctx, "waiting-plan"); err != nil {
-		t.Fatal(err)
-	}
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 1000000, harvestContract(60000)); err != nil || got != nil {
-		t.Fatal("an undispatched harvest is not stalled", got, err)
+	if _, known := withoutStalled(domain.Unknown[float64](), rows, stalled, true).Value(); known {
+		t.Fatal("unknown pending stays unknown")
 	}
 }

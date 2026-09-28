@@ -143,17 +143,6 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved, Construction: r.Facts.CurrentConstruction})
 }
 
-// DispatchTick is the tick of the action's latest dispatch transition,
-// unknown when the action was never dispatched.
-func (s *Store) DispatchTick(ctx context.Context, action domain.ActionID) (domain.Fact[domain.Tick], error) {
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return domain.Unknown[domain.Tick](), err
-	}
-	defer tx.Rollback()
-	return dispatchTick(ctx, tx, action)
-}
-
 // dispatchTick is the tick of the action's latest dispatch transition.
 func dispatchTick(ctx context.Context, tx *sql.Tx, action domain.ActionID) (domain.Fact[domain.Tick], error) {
 	rows, err := tx.QueryContext(ctx, "SELECT payload FROM transitions WHERE action_id=? ORDER BY sequence", action)
