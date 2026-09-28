@@ -536,7 +536,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current 
 	g := state.Goal
 	s := g.Snapshot
 	if g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || epoch != strconv.FormatUint(g.Epoch, 10) ||
-		s.Colony != current.Colony || s.Map != current.Map || s.Load != current.Load || tick < g.Tick {
+		s.Colony != current.Colony || s.Map != current.Map || tick < g.Tick {
 		return errors.New("maintained goal does not admit current work")
 	}
 	// A prepared plan does not prepare or dispatch while a Rule vetoes its

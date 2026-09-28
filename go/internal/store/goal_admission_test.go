@@ -80,3 +80,16 @@ func TestBuildingMethodAdmitsWithoutPricing(t *testing.T) {
 		t.Fatal(held, e)
 	}
 }
+
+// A goal rebuilt from the save carries the load it was reviewed under; a
+// later load of the same colony and map still admits its work (#1007).
+func TestBuildingMethodAdmitsUnderNewLoad(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s, _, g := goalFixture(t)
+	r := methodRequest(t, g, "reload", 10)
+	r.Current.Load = "reloaded"
+	if d, e := s.AdmitBuildingMethod(ctx, r); e != nil || !d.Admitted {
+		t.Fatal(d, e)
+	}
+}
