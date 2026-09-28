@@ -397,7 +397,9 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	if sheet.Trader != trader || sheet.Negotiator != string(negotiator) || sheet.GiftMode || !sheet.CanTradeNow {
 		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 	}
-	if lines.found && !lines.completed {
+	staged := tradeStagedLines(sheet)
+	phase := tradeSessionPhase(lines, len(staged))
+	if phase == domain.TradeEnd {
 		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 	}
 	economic, facts, err := r.selection(call, state, review, sheet)
@@ -406,7 +408,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	}
 	selection := policy.SelectTrade(economic, facts)
 	r.bid(state, trader, selection, facts.Rows, review.Tick)
-	if !lines.found {
+	if phase == domain.TradeSetLines {
 		if len(economic.Targets) == 0 || selection.Refused || len(selection.Selected) == 0 {
 			return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 		}
@@ -419,7 +421,6 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	// Lines are staged: re-run the same selection over the live sheet and
 	// require an exact match, then native's affordability and the silver
 	// reserve, before accepting. Any drift cancels.
-	staged := tradeStagedLines(sheet)
 	if selection.Refused || !sameTradeLines(tradeLinesOf(selection), staged) || !sheet.BalanceKnown || !sheet.ColonyCanAfford || !sheet.TraderHasSilver || sheet.DealSignature == "" {
 		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 	}
@@ -432,6 +433,21 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		return RoutineTradeResult{}, err
 	}
 	return r.commit(call, epoch, state, goal, domain.TradeAccept, 0, trader, value, started)
+}
+
+// tradeSessionPhase is the next phase of an open session (#999, D1): read
+// from the live sheet, not the journal, so a session a save load carried
+// over resumes where native holds it. Lines already staged on the sheet go
+// to accept; a recorded line staging that failed cancels; otherwise the
+// lines are staged.
+func tradeSessionPhase(lines tradePhase, staged int) domain.TradeOperationKind {
+	switch {
+	case lines.found && !lines.open && !lines.completed:
+		return domain.TradeEnd
+	case staged > 0 || lines.completed:
+		return domain.TradeAccept
+	}
+	return domain.TradeSetLines
 }
 
 // selection re-measures the need from a fresh colony read and turns it,
