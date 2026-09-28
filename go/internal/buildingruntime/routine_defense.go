@@ -200,7 +200,17 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	// or responder, #911) is drafted in this stop's batch, and the stop
 	// decides as it will be once drafted, as the admission does.
 	var drafts []domain.PawnID
-	if unclaimed := unclaimedRoles(next, fight.Claims, view); len(unclaimed) > 0 && arbiter.tryClaim(unclaimed) {
+	unclaimed := unclaimedRoles(next, fight.Claims, view)
+	if len(unclaimed) > 0 {
+		// A pawn still taking its loadout (#1115) drafts once it settles.
+		plan, err := p.journal.LoadPlan(call, id)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		pending := loadoutPending(plan)
+		unclaimed = slices.DeleteFunc(unclaimed, func(pawn domain.PawnID) bool { return pending[pawn] })
+	}
+	if len(unclaimed) > 0 && arbiter.tryClaim(unclaimed) {
 		drafts = unclaimed
 		recorded.Orderable = append(slices.Clone(orderable), drafts...)
 		slices.Sort(recorded.Orderable)

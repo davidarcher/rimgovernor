@@ -66,8 +66,25 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 	if !arbiter.tryClaim(pawns) {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
+	// The threat loadout (#1115) is the fight plan's own equip and wear
+	// actions, committed before the first combat.orders batch; its pawns
+	// draft once their action settles.
+	loadout := r.fightLoadout(call, state, combatView(a.combat, a.in, pawns, a.held), a.in.rows, pawns)
+	for _, order := range loadout {
+		fmt.Fprintf(hash, "loadout %s/%s/%t\n", order.Pawn, order.Thing, order.Wear)
+	}
 	method, id := defenseMethodID(strings.TrimSuffix(combatMethodPrefix, "-"), len(incident.Methods), hash), domain.MintPlanID("routine-defense")
-	plan, err := domain.NewPlan(id, 1, nil)
+	actions, held, err := loadoutActions(id, loadout)
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	drafts := make([]domain.PawnID, 0, len(pawns))
+	for _, pawn := range pawns {
+		if !held[pawn] {
+			drafts = append(drafts, pawn)
+		}
+	}
+	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
@@ -79,26 +96,29 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 		return RoutineDefenseResult{}, fmt.Errorf("%w: admitFight: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
-	if _, err = p.journal.CommitCombatFight(call, incident.Incident.ID, method, plan, memory, world, pawns); err != nil {
+	if _, err = p.journal.CommitCombatFight(call, incident.Incident.ID, method, plan, memory, world, drafts); err != nil {
 		return RoutineDefenseResult{}, err
 	}
 	admitted := RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}
 	// The formation's orders as the defenders will be once drafted: the
 	// same decision with them orderable. An ask (a rescue path) waits for
 	// the next stop; the batch then only drafts.
-	view := combatView(a.combat, a.in, pawns, a.held)
+	view := combatView(a.combat, a.in, drafts, a.held)
 	orders, ask, next := policy.DecideCombat(view, a.reply, policy.StopEvent{}, memory)
 	if ask != nil {
 		orders, next = nil, memory
 	}
-	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-admit", id), pawns, orders)
+	if len(drafts)+len(orders) == 0 {
+		return admitted, p.journal.SaveCombatMemory(call, id, next)
+	}
+	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-admit", id), drafts, orders)
 	if err != nil {
 		// Nothing is known of the batch: the claims stay unknown and the
 		// next stop's rows settle them.
 		slog.Default().WarnContext(call, "fight admission batch failed", telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "fight_admission", "plan", string(id), "error", err)
 		return admitted, nil
 	}
-	results, next, err = r.recordDrafts(call, id, pawns, results, next)
+	results, next, err = r.recordDrafts(call, id, drafts, results, next)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}

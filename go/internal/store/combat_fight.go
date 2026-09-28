@@ -74,15 +74,21 @@ func checkCombatFightsSchema(ctx context.Context, tx *sql.Tx) error {
 }
 
 // CommitCombatFight admits a fight (#910): the ActiveCombat incident's
-// method on plan, which has no actions, and its open fight row in one
-// transaction, with a claim of unknown id for every pawn of roster (the
-// admission batch drafts them).
+// method on plan, whose only actions are its threat loadout's equip and
+// wear actions (#1115), and its open fight row in one transaction, with a
+// claim of unknown id for every pawn of roster (the admission batch drafts
+// them; a loadout pawn drafts later, so roster may be empty then).
 func (s *Store) CommitCombatFight(ctx context.Context, incident domain.IncidentID, method domain.MethodID, plan domain.PlanSpec, memory policy.CombatMemory, world World, roster []domain.PawnID) (IncidentState, error) {
 	if err := plan.Validate(); err != nil {
 		return IncidentState{}, err
 	}
-	if len(plan.Actions()) != 0 || len(roster) == 0 || world.Validate() != nil {
-		return IncidentState{}, errors.New("combat fight needs an empty plan, a roster and a world")
+	for _, action := range plan.Actions() {
+		if action.Kind() != domain.EquipAction && action.Kind() != domain.GearReplaceAction {
+			return IncidentState{}, errors.New("combat fight plan holds only loadout actions")
+		}
+	}
+	if len(roster)+len(plan.Actions()) == 0 || world.Validate() != nil {
+		return IncidentState{}, errors.New("combat fight needs a roster or a loadout, and a world")
 	}
 	tx, err := s.begin(ctx)
 	if err != nil {
