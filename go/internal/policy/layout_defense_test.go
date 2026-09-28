@@ -87,8 +87,10 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 		}
 	}
 	for _, r := range reserved(p, ReserveGate) {
-		for _, c := range rectCells(r) {
-			gate[c] = true
+		cs := rectCells(r)
+		gate[cs[0]], gate[cs[len(cs)-1]] = true, true
+		for _, c := range cs[1 : len(cs)-1] {
+			delete(wall, c) // the airlock cell stays open
 		}
 	}
 	kb := reserved(p, ReserveKillbox)[0]
@@ -125,7 +127,47 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 			t.Fatal("a section nearer the killbox than the first", s.Name)
 		}
 	}
-	if len(seen) != len(wall) || doors == 0 || doors%3 != 0 {
+	if len(seen) != len(wall) || doors == 0 || doors%2 != 0 {
 		t.Fatal(len(seen), len(wall), doors)
+	}
+}
+
+// Every perimeter gate is an airlock (#1060): a door on each face of the
+// wall, the cell between them unbuilt and walled in on both flanks.
+func TestPerimeterAirlock(t *testing.T) {
+	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	built := map[domain.Cell]string{}
+	for _, s := range sections {
+		for _, b := range s.Buildings {
+			built[b.Cell()] = b.Definition()
+		}
+	}
+	gates := reserved(p, ReserveGate)
+	if len(gates) == 0 {
+		t.Fatal("no gates")
+	}
+	for _, g := range gates {
+		cs := rectCells(g)
+		if len(cs) != int(perimeterThick) {
+			t.Fatal("gate", g)
+		}
+		mid := cs[1]
+		if built[cs[0]] != "Door" || built[cs[2]] != "Door" || built[mid] != "" {
+			t.Fatalf("gate %+v: %q %q %q, want Door, open, Door", g, built[cs[0]], built[mid], built[cs[2]])
+		}
+		// The flanks run along the wall, across the gate's axis.
+		flank := domain.Cell{X: 1}
+		if g.Width > 1 {
+			flank = domain.Cell{Z: 1}
+		}
+		for _, c := range []domain.Cell{addCell(mid, flank), addCell(mid, scale(flank, -1))} {
+			if built[c] != "Wall" {
+				t.Fatalf("gate %+v: airlock flank %v is %q, want Wall", g, c, built[c])
+			}
+		}
 	}
 }

@@ -120,22 +120,32 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 }
 
 // PerimeterSections cuts the plan's wall into sections of about 60 blocks,
-// nearest the killbox first: walls, with a door on every gate cell (three
-// in a row through the thickness). The geothermal site's shell, when the
-// plan holds one, is its own section with a doorway of doors facing the
+// nearest the killbox first: walls, with a door at each end of every gate
+// and the cell between left open, an airlock (#1060). The geothermal site's
+// shell, when the plan holds one, is its own section with a doorway of doors facing the
 // core. A wall on water stands on bridge (#949), laid by a section of its
 // own just before the wall's; a wall on light footing or on a plain Bridge
 // is WoodLog. Other stuff is left empty; the planner fills in the stone at
 // admission.
 func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterSection, error) {
-	gates, light, bridged := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	gates, airlock, light, bridged := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	var runs []Rectangle
 	var killbox, geothermal Rectangle
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case ReserveGate:
-			for _, c := range rectCells(r.Area) {
-				gates[c] = true
+			// An airlock (#1060): a door on each face of the wall, the
+			// cells between left open, enclosed by the wall beside them.
+			ends := r.Area.Width
+			if r.Area.Height > ends {
+				ends = r.Area.Height
+			}
+			for i, c := range rectCells(r.Area) {
+				if i == 0 || int32(i) == ends-1 {
+					gates[c] = true
+				} else {
+					airlock[c] = true
+				}
 			}
 		case ReservePerimeter:
 			runs = append(runs, r.Area)
@@ -204,6 +214,9 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 		}
 		s := next()
 		for _, c := range rectCells(p.area) {
+			if airlock[c] {
+				continue
+			}
 			def, stuff := wall, ""
 			if gates[c] {
 				def = door

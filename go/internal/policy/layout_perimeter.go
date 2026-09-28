@@ -17,7 +17,7 @@ import (
 // edges are traced with the defense planner's flood (defense_arrivals.go),
 // and the dry ring position most of them cross becomes the one opening: a
 // killbox behind it with turret slots, and a bent approach lane outside.
-// Gates of 3 doors through the wall's thickness stand along the dry ring. A
+// Airlock gates (a door on each face, #1060) stand along the dry ring. A
 // cover-clear band runs 30 cells out, and the mortar spot is the firm cell
 // farthest from the wall. Moisture pump sites inside the wall cover the soft
 // ring cells a pump dries (#954), so a later re-survey straightens the wall.

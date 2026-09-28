@@ -37,7 +37,7 @@ func checkPerimeter(t *testing.T, p LayoutPlan) (killbox Rectangle) {
 	}
 	for _, g := range gates {
 		if g.Width*g.Height != 3 {
-			t.Fatal("gate is 3 doors", g)
+			t.Fatal("gate spans the 3-cell wall", g)
 		}
 		in := false
 		for _, w := range walls {
