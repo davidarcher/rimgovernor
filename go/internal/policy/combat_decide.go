@@ -87,7 +87,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	next.Roles = dropMissingTargets(view, next.Roles)
 	fromRange(view, &next)
 	siegeHold(&next)
-	mechLure(view, &next)
+	lure(view, &next)
 	siegeSnipe(view, &next)
 	kite(view, &next)
 	pikemenCharge(view, &next)
@@ -408,7 +408,7 @@ type CombatMemory struct {
 	// Intercept is a sapper fight whose gunners went out to the diggers (#914).
 	Intercept bool `json:",omitempty"`
 	// MechLure is a hold whose gunners wait on the inner line for
-	// outranging mechs to close (#922).
+	// outranging raiders to close (#922, #1052). The name predates #1052.
 	MechLure bool `json:",omitempty"`
 	// Rushing is a sapper fight whose posted brawlers rush the breach (#915).
 	Rushing bool `json:",omitempty"`

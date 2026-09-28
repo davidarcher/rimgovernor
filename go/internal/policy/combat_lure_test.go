@@ -96,6 +96,47 @@ func TestDecideCombatMechLureEndsInRange(t *testing.T) {
 	}
 }
 
+// sniperView is mechLureView with a human raid: snipers of range reach
+// 40 cells south of the line.
+func sniperView(reach float64) CombatView {
+	view := mechLureView(
+		combatMech{id: "s1", kind: "Pirate_Sniper", cell: domain.Cell{X: 9, Z: -17}, reach: reach, speed: 4.6},
+		combatMech{id: "s2", kind: "Pirate_Sniper", cell: domain.Cell{X: 10, Z: -18}, reach: reach, speed: 4.6},
+	)
+	for i := range view.Threats {
+		view.Threats[i].Humanlike, view.Positional[i].Humanlike = domain.Known(true), domain.Known(true)
+	}
+	return view
+}
+
+// {a sniper party of range 44.9, rifles range 30} -> gunners wait in
+// cover on the inner line, no attacks.
+func TestLureSniperParty(t *testing.T) {
+	orders, m := decideStop(t, sniperView(44.9), StopEvent{}, CombatMemory{})
+	if m.Tactic != TacticHold || !m.MechLure {
+		t.Fatalf("%+v", m)
+	}
+	want := map[domain.PawnID]domain.Cell{"a": {X: 9, Z: 24}, "b": {X: 8, Z: 24}, "c": {X: 10, Z: 24}}
+	if got := moves(orders); len(got) != 3 || got["a"] != want["a"] || got["b"] != want["b"] || got["c"] != want["c"] {
+		t.Fatalf("%+v", orders)
+	}
+	if a := attacks(orders); len(a) != 0 {
+		t.Fatalf("%+v", a)
+	}
+}
+
+// {raiders of range 25 under our rifles' 30} -> the plain hold.
+func TestNoLureWhenWeOutrange(t *testing.T) {
+	orders, m := decideStop(t, sniperView(25), StopEvent{}, CombatMemory{})
+	if m.Tactic != TacticHold || m.MechLure {
+		t.Fatalf("%+v", m)
+	}
+	want := map[domain.PawnID]domain.Cell{"a": {X: 9, Z: 23}, "b": {X: 8, Z: 23}, "c": {X: 10, Z: 23}}
+	if got := moves(orders); len(got) != 3 || got["a"] != want["a"] || got["b"] != want["b"] || got["c"] != want["c"] {
+		t.Fatalf("%+v", orders)
+	}
+}
+
 // {lancers, range under our rifles} -> the plain hold on the firing line.
 func TestDecideCombatMechLancersHold(t *testing.T) {
 	view := mechLureView(
