@@ -402,7 +402,8 @@ func TestControllerRefusalIsTerminal(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if places := native.placeCount(); places != 2 {
+	// Both spots go out in one batched Apply, and a refusal is not retried.
+	if places := native.placeCount(); places != 1 {
 		t.Fatal("refusal retried", places)
 	}
 	for id, v := range planStages(rig.plan(t, plan.Spec.ID())) {

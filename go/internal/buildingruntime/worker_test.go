@@ -28,12 +28,28 @@ type workerFake struct {
 	run                              func(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
 	observe                          func(context.Context, domain.GenerationSnapshot) error
 	renew                            func(context.Context) error
+	batch                            func(context.Context, domain.PlanID, []domain.ActionID) ([]executor.BatchItem, error)
 	runs, observes, renews, cleanups atomic.Int32
+	batches                          atomic.Int32
 }
 
 func (f *workerFake) Run(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
 	f.runs.Add(1)
 	return f.run(ctx, p, a)
+}
+
+// RunBatch is the batch of Runs unless a test sets batch.
+func (f *workerFake) RunBatch(ctx context.Context, p domain.PlanID, ids []domain.ActionID) ([]executor.BatchItem, error) {
+	f.batches.Add(1)
+	if f.batch != nil {
+		return f.batch(ctx, p, ids)
+	}
+	out := make([]executor.BatchItem, len(ids))
+	for i, a := range ids {
+		out[i].Action = a
+		out[i].Result, out[i].Err = f.Run(ctx, p, a)
+	}
+	return out, nil
 }
 func (f *workerFake) ObserveTarget(ctx context.Context, s domain.GenerationSnapshot) error {
 	f.observes.Add(1)
@@ -729,14 +745,16 @@ func TestWorkerRotationAlternatesPlans(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	want := []domain.ActionID{"0-long-0", short.Action, "0-long-1", "0-long-2"}
-	if fmt.Sprint(order) != fmt.Sprint(want) {
-		t.Fatal(order, want)
+	// A plan's building actions go out as one batch, one dispatch (#1042):
+	// the long plan's batch takes the first step and the short plan the next.
+	want := []domain.ActionID{"0-long-0", "0-long-1", "0-long-2", short.Action}
+	if fmt.Sprint(order) != fmt.Sprint(want) || f.batches.Load() != 2 {
+		t.Fatal(order, want, f.batches.Load())
 	}
 }
 
-// Every eligible action dispatches in the step that finds it, in catalog
-// order, up to the dispatch budget; one per step cost a scheduler round per
+// Every eligible plan's batch dispatches in the step that finds it, in
+// catalog order, up to the dispatch budget; one per step cost a scheduler round per
 // wall segment (#593). Actions on their backoff are skipped, and the budget
 // leaves the rest for the next step past the rotation cursor.
 func TestWorkerDispatchesEveryEligibleActionPerStep(t *testing.T) {
@@ -754,8 +772,8 @@ func TestWorkerDispatchesEveryEligibleActionPerStep(t *testing.T) {
 	if err := w.step(context.Background(), now); err != nil {
 		t.Fatal(err)
 	}
-	if len(order) != 3 || order[0] != views[0].Action || order[1] != views[1].Action || order[2] != views[2].Action {
-		t.Fatal("one step dispatches every eligible action", order)
+	if len(order) != 3 || order[0] != views[0].Action || order[1] != views[1].Action || order[2] != views[2].Action || f.batches.Load() != 3 {
+		t.Fatal("one step dispatches every eligible plan's batch", order, f.batches.Load())
 	}
 	// All three are now on their backoff: a step at the same instant runs none.
 	if err := w.step(context.Background(), now); err != nil {
@@ -773,8 +791,8 @@ func TestWorkerDispatchesEveryEligibleActionPerStep(t *testing.T) {
 	if err := w.step(context.Background(), now); err != nil {
 		t.Fatal(err)
 	}
-	if len(order) != 2 || order[0] != views[0].Action || order[1] != views[1].Action {
-		t.Fatal("budget", order)
+	if len(order) != 2 || order[0] != views[0].Action || order[1] != views[1].Action || f.batches.Load() != 5 {
+		t.Fatal("budget counts batches", order, f.batches.Load())
 	}
 	w.waits = map[domain.ActionID]workerWait{}
 	if err := w.step(context.Background(), now); err != nil {
@@ -782,5 +800,117 @@ func TestWorkerDispatchesEveryEligibleActionPerStep(t *testing.T) {
 	}
 	if len(order) != 4 || order[2] != views[2].Action || order[3] != views[0].Action {
 		t.Fatal("rotation past the budget cursor", order)
+	}
+}
+
+// workerWallPlan creates plan id with n unresolved wall actions under
+// snapshot's world and returns their ids in catalog order.
+func workerWallPlan(t *testing.T, db *store.Store, id domain.PlanID, n int, snapshot domain.GenerationSnapshot) []domain.ActionID {
+	t.Helper()
+	var actions []domain.Action
+	var ids []domain.ActionID
+	for i := 0; i < n; i++ {
+		b, err := domain.NewBuilding("Wall", domain.Cell{X: int32(10 + i), Z: 2}, domain.North, "WoodLog")
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%02d", id, i)), b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actions, ids = append(actions, action), append(ids, action.ID())
+	}
+	plan, err := domain.NewPlan(id, 1, actions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.CreatePlan(context.Background(), plan); err != nil {
+		t.Fatal(err)
+	}
+	snapshot.Plan = id
+	for _, action := range ids {
+		if _, err = db.Prepare(context.Background(), id, action, snapshot, 1); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Dispatch(context.Background(), id, action, snapshot, 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return ids
+}
+
+// workerBatchRecorder records each RunBatch call's plan and actions.
+func workerBatchRecorder(f *workerFake, db *store.Store) *[][]domain.ActionID {
+	var calls [][]domain.ActionID
+	f.batch = func(ctx context.Context, p domain.PlanID, ids []domain.ActionID) ([]executor.BatchItem, error) {
+		calls = append(calls, append([]domain.ActionID(nil), ids...))
+		plan, err := db.LoadPlan(ctx, p)
+		out := make([]executor.BatchItem, len(ids))
+		for i, id := range ids {
+			out[i].Action = id
+			for _, progress := range plan.Progress {
+				if progress.View().Action == id {
+					out[i].Result.Progress = progress
+				}
+			}
+		}
+		return out, err
+	}
+	return &calls
+}
+
+// A 32-wall shell plan goes out in one step as one batched Apply (#1042).
+func TestWorkerShellPlanIsOneBatch(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	short := workerPending(t, w, "seed", true)
+	f.run = func(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error) {
+		return executor.Result{}, nil
+	}
+	ids := workerWallPlan(t, db, "0-shell", 32, short.Snapshot)
+	calls := workerBatchRecorder(f, db)
+	w.config.MaxDispatches = 1
+	if err := w.step(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 1 || fmt.Sprint((*calls)[0]) != fmt.Sprint(ids) || f.runs.Load() != 0 {
+		t.Fatal("shell plan not one batch", *calls, f.runs.Load())
+	}
+}
+
+// Two plans give two batches per step, and the rotation cursor still moves
+// by plan when the budget admits only one (#1042).
+func TestWorkerTwoPlansTwoBatchesRotate(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	seed := workerPending(t, w, "seed", false)
+	f.run = func(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error) {
+		return executor.Result{}, nil
+	}
+	if _, err := w.player.journal.Cancel(context.Background(), seed.Plan, seed.Action); err != nil {
+		t.Fatal(err)
+	}
+	a := workerWallPlan(t, db, "0-a", 3, seed.Snapshot)
+	b := workerWallPlan(t, db, "0-b", 2, seed.Snapshot)
+	calls := workerBatchRecorder(f, db)
+	now := time.Now()
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(*calls) != fmt.Sprint([][]domain.ActionID{a, b}) {
+		t.Fatal("two plans, two batches", *calls)
+	}
+	*calls = nil
+	w.waits = map[domain.ActionID]workerWait{}
+	w.cursorKnown = false
+	w.config.MaxDispatches = 1
+	for i := 0; i < 3; i++ {
+		w.waits = map[domain.ActionID]workerWait{}
+		if err := w.step(context.Background(), now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if fmt.Sprint(*calls) != fmt.Sprint([][]domain.ActionID{a, b, a}) {
+		t.Fatal("rotation by plan", *calls)
 	}
 }

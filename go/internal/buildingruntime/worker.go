@@ -92,6 +92,7 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 type workerSession interface {
 	playerSession
 	Run(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
+	RunBatch(context.Context, domain.PlanID, []domain.ActionID) ([]executor.BatchItem, error)
 	CleanupDraft(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
 	ReleaseClosedFights(context.Context) error
 	ObserveTarget(context.Context, domain.GenerationSnapshot) error
@@ -485,7 +486,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// the step yields instead and the next one starts it whole (#410).
 	var longest time.Duration
 	deadline, bounded := call.Deadline()
-	for _, candidate := range ordered {
+	// A plan's building candidates go out together as one batched Apply
+	// (#1042): the batch is one dispatch against the budget and the longest
+	// estimate, and takes every eligible building candidate of its plan.
+	taken := make(map[domain.ActionID]bool)
+	for at, lead := range ordered {
 		if dispatched >= w.dispatchBudget() {
 			break
 		}
@@ -493,129 +498,192 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			clockSchedulerLog("worker: step budget short of a dispatch (%s left, longest %s): yielding after %d", time.Until(deadline).Round(time.Millisecond), longest.Round(time.Millisecond), dispatched)
 			break
 		}
-		v := candidate.view
-		wait := w.waits[v.Action]
-		focused := w.focusNamed(v.Action)
-		if w.backedOff(candidate, scope, now) {
+		if taken[lead.view.Action] || w.backedOff(lead, scope, now) {
 			continue
 		}
+		group := []workerCandidate{lead}
+		if workerBatched(lead) {
+			for _, next := range ordered[at+1:] {
+				if next.plan == lead.plan && workerBatched(next) && !taken[next.view.Action] && !w.backedOff(next, scope, now) {
+					group = append(group, next)
+				}
+			}
+		}
 		dispatched++
-		delete(w.focus, v.Action)
-		if !focused {
-			w.cursor, w.cursorKnown = candidate.plan, true
+		focusedAt := make([]bool, len(group))
+		for i, member := range group {
+			taken[member.view.Action] = true
+			focusedAt[i] = w.focusNamed(member.view.Action)
+			delete(w.focus, member.view.Action)
+			if !focusedAt[i] {
+				w.cursor, w.cursorKnown = lead.plan, true
+			}
 		}
 		if err = w.player.current(call, epoch); err != nil {
 			return err
 		}
-		if !candidate.cleanup && !scope.Enabled {
-			err = w.session.ObserveTarget(call, v.Snapshot)
+		if !lead.cleanup && !scope.Enabled {
+			err = w.session.ObserveTarget(call, lead.view.Snapshot)
 		}
 		if err == nil {
 			err = w.player.current(call, epoch)
 		}
-		var result executor.Result
+		results := make([]executor.Result, len(group))
+		resultErrs := make([]error, len(group))
 		dispatchStarted := time.Now()
 		running := w.config.WindowRunning != nil && w.config.WindowRunning()
-		kind, known := candidate.kind, !candidate.cleanup
 		run, tally := bridge.WithReadTally(telemetry.WithTrace(call, stepTrace.Child()))
-		if err == nil {
-			if candidate.cleanup {
-				result, err = w.session.CleanupDraft(run, v.Plan, v.Action)
-			} else {
-				result, err = w.session.Run(run, v.Plan, v.Action)
-				// A dispatch cancelled by its own context (an authority
-				// generation turned over under it) while the step's is live
-				// retries once under the step's: Run reloads durable state,
-				// so the retry cannot lose a receipt (#671).
-				if workerOwnCancel(call, err) {
-					result, err = w.session.Run(run, v.Plan, v.Action)
-				}
+		if err != nil {
+			for i := range group {
+				resultErrs[i] = err
+			}
+		} else if lead.cleanup {
+			results[0], resultErrs[0] = w.session.CleanupDraft(run, lead.view.Plan, lead.view.Action)
+		} else if workerBatched(lead) {
+			results, resultErrs = w.runBatch(call, run, lead.view.Plan, group)
+		} else {
+			results[0], resultErrs[0] = w.session.Run(run, lead.view.Plan, lead.view.Action)
+			// A dispatch cancelled by its own context (an authority
+			// generation turned over under it) while the step's is live
+			// retries once under the step's: Run reloads durable state,
+			// so the retry cannot lose a receipt (#671).
+			if workerOwnCancel(call, resultErrs[0]) {
+				results[0], resultErrs[0] = w.session.Run(run, lead.view.Plan, lead.view.Action)
 			}
 		}
 		longest = max(longest, time.Since(dispatchStarted))
-		after := v
-		if result.Progress.View().Action == v.Action {
-			after = result.Progress.View()
-		}
-		stale := !candidate.cleanup && workerHeldStale(after, result, err)
-		if result.NativeCalled {
-			// The decoded store drops what the dispatch changed:
-			// only a clock events page would drop it otherwise, and a
-			// next decision replans from the rows before this write.
-			if everything, families := operationFamilies(kind, known); everything {
-				w.config.Store.InvalidateAll()
-			} else {
-				w.config.Store.InvalidateFamily(families...)
-			}
-			workerDispatchRow(run, tally, candidate.view, after, running, stale, err)
-		}
-		delay := w.config.StepInterval
-		if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
-			delay = min(wait.delay*2, workerBackoffCap(w.config, after))
-		}
-		if err == nil && after.Stage != v.Stage {
-			w.advanced = true
-		}
-		// A dispatch held on stale facts (the authority or tick moved under
-		// its inspection) clears on the next observation, so it is retried
-		// at once, off its backoff, before the game's own work scanner takes
-		// the order's target (#288); the clock is not held for it, since
-		// every routine kind dispatches under the running window (#244). One
-		// retry per hold: a hold that survives it backs off as usual.
-		if stale && !wait.stale {
-			if w.focus == nil {
-				w.focus = map[domain.ActionID]WakeOutcome{}
-			}
-			w.focus[v.Action] = WakeOutcome{Action: v.Action, Attempt: after.Attempt}
-		}
-		// One line per change of outcome, in either log: a refusal that
-		// repeats verbatim on every retry (a CAS token that never matches, a
-		// native read refused for the same reason) would otherwise dominate
-		// the run's log without adding anything a reader can act on (#100).
-		outcome := workerOutcome(after, result, err)
-		repeats := wait.repeats
-		if outcome != wait.outcome {
-			workerOutcomeEvent(run, v, after, outcome, err, repeats)
-			repeats = 0
-		} else {
-			repeats++
-		}
-		cancelled := 0
-		own := !candidate.cleanup && workerOwnCancel(call, err) && after.Attempt == v.Attempt && (after.Stage == domain.Pending || after.Stage == domain.Prepared)
-		if own {
-			cancelled = 1
-			if workerSameView(wait.view, v) {
-				cancelled = wait.cancelled + 1
-			}
-		}
-		// An undispatched action whose dispatch is cancelled step after step
-		// never reaches native; parked at attempt 0 it would hold its goal
-		// for ever (#671). It settles cancelled, so the goal re-plans.
-		if cancelled >= workerCancelledSettle {
-			if _, cancelErr := w.player.journal.Cancel(call, v.Plan, v.Action); cancelErr != nil {
-				errs = append(errs, cancelErr)
-			} else {
-				slog.Default().Warn("worker settled a dispatch cancelled on every attempt", telemetry.ComponentKey, "worker", "action", string(v.Action), "stage", string(v.Stage), "attempts", cancelled, "err", err)
-				delete(w.waits, v.Action)
-				w.advanced = true
-				continue
-			}
-		}
-		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats, stale: stale, cancelled: cancelled}
-		if err != nil {
-			errs = append(errs, err)
-			// A step that ran out of budget or lost its transport says
-			// nothing about the next candidate either (#342); one dispatch
-			// cancelled by its own context says nothing about its siblings.
-			if !own && (call.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, bridge.ErrTransport)) {
+		for _, result := range results {
+			if result.NativeCalled {
+				// The decoded store drops what the dispatch changed:
+				// only a clock events page would drop it otherwise, and a
+				// next decision replans from the rows before this write.
+				if everything, families := operationFamilies(lead.kind, !lead.cleanup); everything {
+					w.config.Store.InvalidateAll()
+				} else {
+					w.config.Store.InvalidateFamily(families...)
+				}
 				break
 			}
+		}
+		stop := false
+		for i, candidate := range group {
+			v := candidate.view
+			wait := w.waits[v.Action]
+			result, err := results[i], resultErrs[i]
+			after := v
+			if result.Progress.View().Action == v.Action {
+				after = result.Progress.View()
+			}
+			stale := !candidate.cleanup && workerHeldStale(after, result, err)
+			if result.NativeCalled {
+				workerDispatchRow(run, tally, candidate.view, after, running, stale, err)
+			}
+			delay := w.config.StepInterval
+			if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
+				delay = min(wait.delay*2, workerBackoffCap(w.config, after))
+			}
+			if err == nil && after.Stage != v.Stage {
+				w.advanced = true
+			}
+			// A dispatch held on stale facts (the authority or tick moved under
+			// its inspection) clears on the next observation, so it is retried
+			// at once, off its backoff, before the game's own work scanner takes
+			// the order's target (#288); the clock is not held for it, since
+			// every routine kind dispatches under the running window (#244). One
+			// retry per hold: a hold that survives it backs off as usual.
+			if stale && !wait.stale {
+				if w.focus == nil {
+					w.focus = map[domain.ActionID]WakeOutcome{}
+				}
+				w.focus[v.Action] = WakeOutcome{Action: v.Action, Attempt: after.Attempt}
+			}
+			// One line per change of outcome, in either log: a refusal that
+			// repeats verbatim on every retry (a CAS token that never matches, a
+			// native read refused for the same reason) would otherwise dominate
+			// the run's log without adding anything a reader can act on (#100).
+			outcome := workerOutcome(after, result, err)
+			repeats := wait.repeats
+			if outcome != wait.outcome {
+				workerOutcomeEvent(run, v, after, outcome, err, repeats)
+				repeats = 0
+			} else {
+				repeats++
+			}
+			cancelled := 0
+			own := !candidate.cleanup && workerOwnCancel(call, err) && after.Attempt == v.Attempt && (after.Stage == domain.Pending || after.Stage == domain.Prepared)
+			if own {
+				cancelled = 1
+				if workerSameView(wait.view, v) {
+					cancelled = wait.cancelled + 1
+				}
+			}
+			// An undispatched action whose dispatch is cancelled step after step
+			// never reaches native; parked at attempt 0 it would hold its goal
+			// for ever (#671). It settles cancelled, so the goal re-plans.
+			if cancelled >= workerCancelledSettle {
+				if _, cancelErr := w.player.journal.Cancel(call, v.Plan, v.Action); cancelErr != nil {
+					errs = append(errs, cancelErr)
+				} else {
+					slog.Default().Warn("worker settled a dispatch cancelled on every attempt", telemetry.ComponentKey, "worker", "action", string(v.Action), "stage", string(v.Stage), "attempts", cancelled, "err", err)
+					delete(w.waits, v.Action)
+					w.advanced = true
+					continue
+				}
+			}
+			w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats, stale: stale, cancelled: cancelled}
+			if err != nil {
+				errs = append(errs, err)
+				// A step that ran out of budget or lost its transport says
+				// nothing about the next candidate either (#342); one dispatch
+				// cancelled by its own context says nothing about its siblings.
+				if !own && (call.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, bridge.ErrTransport)) {
+					stop = true
+				}
+			}
+		}
+		if stop {
+			break
 		}
 	}
 	if w.advanced && w.config.Advanced != nil {
 		w.config.Advanced()
 	}
 	return errors.Join(append([]error{worldErr}, errs...)...)
+}
+
+// workerBatched reports whether candidate dispatches in its plan's batched
+// Apply (#1042); other kinds and cleanups keep the per-action path.
+func workerBatched(candidate workerCandidate) bool {
+	return !candidate.cleanup && candidate.kind == domain.BuildingAction
+}
+
+// runBatch sends group, one plan's building candidates, as one RunBatch and
+// returns each member's result and error in group order. A batch cancelled
+// by its own context while the step's is live retries once, whole (#671).
+func (w *Worker) runBatch(call, run context.Context, plan domain.PlanID, group []workerCandidate) ([]executor.Result, []error) {
+	ids := make([]domain.ActionID, len(group))
+	for i, member := range group {
+		ids[i] = member.view.Action
+	}
+	results, errs := make([]executor.Result, len(group)), make([]error, len(group))
+	for try := 0; try < 2; try++ {
+		items, err := w.session.RunBatch(run, plan, ids)
+		ownCancel := workerOwnCancel(call, err)
+		for i := range group {
+			results[i], errs[i] = executor.Result{}, err
+			if i < len(items) {
+				results[i] = items[i].Result
+				if items[i].Err != nil {
+					errs[i] = items[i].Err
+				}
+			}
+			ownCancel = ownCancel || workerOwnCancel(call, errs[i])
+		}
+		if !ownCancel {
+			break
+		}
+	}
+	return results, errs
 }
 
 // workerCancelledSettle is how many consecutive steps an undispatched

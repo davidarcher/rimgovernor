@@ -396,6 +396,14 @@ func (s *Session) Run(ctx context.Context, plan domain.PlanID, action domain.Act
 	}
 	return s.executor.Run(ctx, plan, action)
 }
+
+// RunBatch dispatches a plan's actions in one native Apply (#1042).
+func (s *Session) RunBatch(ctx context.Context, plan domain.PlanID, actions []domain.ActionID) ([]executor.BatchItem, error) {
+	if s.journal != nil {
+		ctx = withPlanIntent(ctx, s.journal, plan)
+	}
+	return s.executor.RunBatch(ctx, plan, actions)
+}
 func (s *Session) Close(ctx context.Context) error { return s.control.Close(ctx) }
 
 func (s *Session) RoutineMethodsEnabled() bool { return s.routineMethods }
