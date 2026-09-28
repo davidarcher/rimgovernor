@@ -57,6 +57,10 @@ type ResourceSource struct {
 	Distance   float64
 	Method     ResourceSourceMethod
 	Designated bool
+	// DesignatedTick and Taken mirror AcquisitionSource's (#1043); mine
+	// rows only.
+	DesignatedTick domain.Tick
+	Taken          bool
 	// Safety gates a "mine" source only: an older companion cannot certify
 	// excavation geometry, so a mine source is usable only when native
 	// reports a MineSafe safety.

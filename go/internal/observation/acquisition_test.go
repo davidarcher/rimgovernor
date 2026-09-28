@@ -1,0 +1,27 @@
+package observation
+
+import (
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
+)
+
+// A census row carries its designation age and taken flag (#1043).
+func TestColonyAcquisitionMapsDesignationAgeAndTaken(t *testing.T) {
+	v := &o.ColonyFactsSnapshot{Acquisition: []*o.AcquisitionFacts{
+		{Source: &o.EntityRef{Id: proto.String("deer")}, Hunt: proto.Bool(true), Designated: proto.Bool(true), DesignatedTick: proto.Int64(1200), Taken: proto.Bool(true)},
+		{Source: &o.EntityRef{Id: proto.String("oak")}, Designated: proto.Bool(false), Taken: proto.Bool(false)},
+	}}
+	rows, ok := ColonyAcquisition(v).Value()
+	if !ok || len(rows) != 2 {
+		t.Fatal(rows, ok)
+	}
+	if rows[0].DesignatedTick != domain.Tick(1200) || !rows[0].Taken || !rows[0].Designated {
+		t.Fatal(rows[0])
+	}
+	if rows[1].DesignatedTick != 0 || rows[1].Taken {
+		t.Fatal(rows[1])
+	}
+}

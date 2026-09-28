@@ -25,6 +25,11 @@ func validateColonyAcquisition(v *o.ColonyFactsSnapshot) error {
 		if row.GetHunt() && (row.RevengeChance == nil || !combatNumber(row.RevengeChance, true) || row.GetRevengeChance() > 1 || row.HerdSize == nil || row.GetHerdSize() == 0 || row.GetHerdSize() > 65536 || row.MeleeOnly == nil || row.Downed == nil || row.WeaponRange == nil || !combatNumber(row.WeaponRange, true)) {
 			return contract("missing or invalid hunt cost facts")
 		}
+		// A designated row carries the tick native first saw it; an
+		// undesignated row none (#1043). taken is always reported.
+		if row.Taken == nil || row.GetDesignated() != (row.DesignatedTick != nil) || row.DesignatedTick != nil && (row.GetDesignatedTick() < 0 || row.GetDesignatedTick() > v.Context.GetTick()) {
+			return contract("invalid acquisition designation age or taken")
+		}
 		seen[source.GetId()] = true
 	}
 	for _, issue := range v.Issues {

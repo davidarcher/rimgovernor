@@ -149,6 +149,12 @@ namespace HomeBridge.BridgeTools
                 Safety = ResourceAcquisitionTools.Safety(thing, thing.Map),
                 Distance = distance,
             };
+            if (mineable)
+            {
+                row.Taken = ResourceAcquisitionTools.Taken(thing);
+                var tick = ResourceAcquisitionTools.DesignatedTick(thing, row.Designated);
+                if (tick.HasValue) row.DesignatedTick = tick.Value;
+            }
             return row;
         }
 

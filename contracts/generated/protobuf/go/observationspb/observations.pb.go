@@ -14107,21 +14107,23 @@ func (*WallUpgradeSitesReply_Unavailable) isWallUpgradeSitesReply_Outcome() {}
 func (*WallUpgradeSitesReply_Failure) isWallUpgradeSitesReply_Outcome() {}
 
 type ResourceSource struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Source        *EntityRef             `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
-	Method        *string                `protobuf:"bytes,2,opt,name=method,proto3,oneof" json:"method,omitempty"`
-	Yield         *float64               `protobuf:"fixed64,3,opt,name=yield,proto3,oneof" json:"yield,omitempty"`
-	Reachable     *bool                  `protobuf:"varint,4,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"`
-	Designated    *bool                  `protobuf:"varint,5,opt,name=designated,proto3,oneof" json:"designated,omitempty"`
-	Risk          *string                `protobuf:"bytes,6,opt,name=risk,proto3,oneof" json:"risk,omitempty"`
-	Safety        *string                `protobuf:"bytes,7,opt,name=safety,proto3,oneof" json:"safety,omitempty"`
-	Blocker       *string                `protobuf:"bytes,8,opt,name=blocker,proto3,oneof" json:"blocker,omitempty"`
-	Distance      *float64               `protobuf:"fixed64,9,opt,name=distance,proto3,oneof" json:"distance,omitempty"`
-	Depleted      *bool                  `protobuf:"varint,10,opt,name=depleted,proto3,oneof" json:"depleted,omitempty"`
-	Remaining     *int64                 `protobuf:"varint,11,opt,name=remaining,proto3,oneof" json:"remaining,omitempty"`
-	PendingYield  *int64                 `protobuf:"varint,12,opt,name=pending_yield,json=pendingYield,proto3,oneof" json:"pending_yield,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Source         *EntityRef             `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	Method         *string                `protobuf:"bytes,2,opt,name=method,proto3,oneof" json:"method,omitempty"`
+	Yield          *float64               `protobuf:"fixed64,3,opt,name=yield,proto3,oneof" json:"yield,omitempty"`
+	Reachable      *bool                  `protobuf:"varint,4,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"`
+	Designated     *bool                  `protobuf:"varint,5,opt,name=designated,proto3,oneof" json:"designated,omitempty"`
+	Risk           *string                `protobuf:"bytes,6,opt,name=risk,proto3,oneof" json:"risk,omitempty"`
+	Safety         *string                `protobuf:"bytes,7,opt,name=safety,proto3,oneof" json:"safety,omitempty"`
+	Blocker        *string                `protobuf:"bytes,8,opt,name=blocker,proto3,oneof" json:"blocker,omitempty"`
+	Distance       *float64               `protobuf:"fixed64,9,opt,name=distance,proto3,oneof" json:"distance,omitempty"`
+	Depleted       *bool                  `protobuf:"varint,10,opt,name=depleted,proto3,oneof" json:"depleted,omitempty"`
+	Remaining      *int64                 `protobuf:"varint,11,opt,name=remaining,proto3,oneof" json:"remaining,omitempty"`
+	PendingYield   *int64                 `protobuf:"varint,12,opt,name=pending_yield,json=pendingYield,proto3,oneof" json:"pending_yield,omitempty"`
+	DesignatedTick *int64                 `protobuf:"varint,13,opt,name=designated_tick,json=designatedTick,proto3,oneof" json:"designated_tick,omitempty"`
+	Taken          *bool                  `protobuf:"varint,14,opt,name=taken,proto3,oneof" json:"taken,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ResourceSource) Reset() {
@@ -14236,6 +14238,20 @@ func (x *ResourceSource) GetPendingYield() int64 {
 		return *x.PendingYield
 	}
 	return 0
+}
+
+func (x *ResourceSource) GetDesignatedTick() int64 {
+	if x != nil && x.DesignatedTick != nil {
+		return *x.DesignatedTick
+	}
+	return 0
+}
+
+func (x *ResourceSource) GetTaken() bool {
+	if x != nil && x.Taken != nil {
+		return *x.Taken
+	}
+	return false
 }
 
 type StorageCapacity struct {
@@ -25570,6 +25586,8 @@ type AcquisitionFacts struct {
 	MeleeOnly      *bool                  `protobuf:"varint,11,opt,name=melee_only,json=meleeOnly,proto3,oneof" json:"melee_only,omitempty"`
 	Downed         *bool                  `protobuf:"varint,12,opt,name=downed,proto3,oneof" json:"downed,omitempty"`
 	WeaponRange    *float64               `protobuf:"fixed64,13,opt,name=weapon_range,json=weaponRange,proto3,oneof" json:"weapon_range,omitempty"`
+	DesignatedTick *int64                 `protobuf:"varint,14,opt,name=designated_tick,json=designatedTick,proto3,oneof" json:"designated_tick,omitempty"`
+	Taken          *bool                  `protobuf:"varint,15,opt,name=taken,proto3,oneof" json:"taken,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -25693,6 +25711,20 @@ func (x *AcquisitionFacts) GetWeaponRange() float64 {
 		return *x.WeaponRange
 	}
 	return 0
+}
+
+func (x *AcquisitionFacts) GetDesignatedTick() int64 {
+	if x != nil && x.DesignatedTick != nil {
+		return *x.DesignatedTick
+	}
+	return 0
+}
+
+func (x *AcquisitionFacts) GetTaken() bool {
+	if x != nil && x.Taken != nil {
+		return *x.Taken
+	}
+	return false
 }
 
 type ButcheringFacts struct {
@@ -35939,7 +35971,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v20.rimgovernor.observations.v1.WallUpgradeSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xc0\x04\n" +
+	"\aoutcome\"\xa7\x05\n" +
 	"\x0eResourceSource\x12>\n" +
 	"\x06source\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x06source\x12\x1b\n" +
 	"\x06method\x18\x02 \x01(\tH\x00R\x06method\x88\x01\x01\x12\x19\n" +
@@ -35956,7 +35988,9 @@ const file_observations_proto_rawDesc = "" +
 	" \x01(\bH\bR\bdepleted\x88\x01\x01\x12!\n" +
 	"\tremaining\x18\v \x01(\x03H\tR\tremaining\x88\x01\x01\x12(\n" +
 	"\rpending_yield\x18\f \x01(\x03H\n" +
-	"R\fpendingYield\x88\x01\x01B\t\n" +
+	"R\fpendingYield\x88\x01\x01\x12,\n" +
+	"\x0fdesignated_tick\x18\r \x01(\x03H\vR\x0edesignatedTick\x88\x01\x01\x12\x19\n" +
+	"\x05taken\x18\x0e \x01(\bH\fR\x05taken\x88\x01\x01B\t\n" +
 	"\a_methodB\b\n" +
 	"\x06_yieldB\f\n" +
 	"\n" +
@@ -35970,7 +36004,9 @@ const file_observations_proto_rawDesc = "" +
 	"\t_depletedB\f\n" +
 	"\n" +
 	"_remainingB\x10\n" +
-	"\x0e_pending_yield\"\xa6\x03\n" +
+	"\x0e_pending_yieldB\x12\n" +
+	"\x10_designated_tickB\b\n" +
+	"\x06_taken\"\xa6\x03\n" +
 	"\x0fStorageCapacity\x12\x1f\n" +
 	"\bresource\x18\x01 \x01(\tH\x00R\bresource\x88\x01\x01\x12\x1f\n" +
 	"\bcapacity\x18\x02 \x01(\x03H\x01R\bcapacity\x88\x01\x01\x12\x1b\n" +
@@ -37522,7 +37558,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_zone_idB\r\n" +
 	"\v_designatedB\t\n" +
-	"\a_growth\"\x84\x05\n" +
+	"\a_growth\"\xeb\x05\n" +
 	"\x10AcquisitionFacts\x12>\n" +
 	"\x06source\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x06source\x12\x1f\n" +
 	"\bresource\x18\x02 \x01(\tH\x00R\bresource\x88\x01\x01\x12\x17\n" +
@@ -37541,7 +37577,9 @@ const file_observations_proto_rawDesc = "" +
 	"melee_only\x18\v \x01(\bH\tR\tmeleeOnly\x88\x01\x01\x12\x1b\n" +
 	"\x06downed\x18\f \x01(\bH\n" +
 	"R\x06downed\x88\x01\x01\x12&\n" +
-	"\fweapon_range\x18\r \x01(\x01H\vR\vweaponRange\x88\x01\x01B\v\n" +
+	"\fweapon_range\x18\r \x01(\x01H\vR\vweaponRange\x88\x01\x01\x12,\n" +
+	"\x0fdesignated_tick\x18\x0e \x01(\x03H\fR\x0edesignatedTick\x88\x01\x01\x12\x19\n" +
+	"\x05taken\x18\x0f \x01(\bH\rR\x05taken\x88\x01\x01B\v\n" +
 	"\t_resourceB\a\n" +
 	"\x05_treeB\a\n" +
 	"\x05_foodB\b\n" +
@@ -37554,7 +37592,9 @@ const file_observations_proto_rawDesc = "" +
 	"_herd_sizeB\r\n" +
 	"\v_melee_onlyB\t\n" +
 	"\a_downedB\x0f\n" +
-	"\r_weapon_range\"\xb2\x05\n" +
+	"\r_weapon_rangeB\x12\n" +
+	"\x10_designated_tickB\b\n" +
+	"\x06_taken\"\xb2\x05\n" +
 	"\x0fButcheringFacts\x12<\n" +
 	"\x05bench\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05bench\x12<\n" +
 	"\x05bills\x18\x02 \x03(\v2&.rimgovernor.observations.v1.BillStateR\x05bills\x12\x1b\n" +

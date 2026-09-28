@@ -45,7 +45,7 @@ func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
 
 	for i := 0; i < 12; i++ {
 		id := fmt.Sprint("plant", i)
-		v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Oak"), MapId: v.Context.Identity.MapId, Position: proto.Clone(v.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("WoodLog"), Hunt: proto.Bool(false), Tree: proto.Bool(true), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)})
+		v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Oak"), MapId: v.Context.Identity.MapId, Position: proto.Clone(v.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("WoodLog"), Hunt: proto.Bool(false), Tree: proto.Bool(true), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)})
 	}
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -193,7 +193,7 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 		id := fmt.Sprint("grass", i)
 		cell := proto.Clone(v.Center).(*c.Cell)
 		cell.X = proto.Int32(cell.GetX() + int32(i))
-		v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Haygrass"), MapId: v.Context.Identity.MapId, Position: cell, Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("Hay"), Hunt: proto.Bool(false), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)})
+		v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Haygrass"), MapId: v.Context.Identity.MapId, Position: cell, Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("Hay"), Hunt: proto.Bool(false), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)})
 	}
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)

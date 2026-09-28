@@ -21,6 +21,11 @@ type AcquisitionSource struct {
 	RevengeChance, WeaponRange   float64
 	HerdSize                     int
 	MeleeOnly, Downed            bool
+	// DesignatedTick is the tick native first saw the designation (reset on
+	// load); set only when Designated. Taken: a pawn's reservation or a
+	// colonist's current job targets the source (#1043).
+	DesignatedTick domain.Tick
+	Taken          bool
 }
 
 // SelectAcquisition prefers forage, then downed prey and lower herd revenge cost.

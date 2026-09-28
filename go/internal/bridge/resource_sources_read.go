@@ -114,18 +114,23 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 				return nil, policy.ResourceStorage{}, raw, contract("mine source snapshot unavailable")
 			}
 			cell, token = domain.Cell{X: position.GetX(), Z: position.GetZ()}, snapshotToken
+			if row.Taken == nil || row.GetDesignated() != (row.DesignatedTick != nil) || row.DesignatedTick != nil && (row.GetDesignatedTick() < 0 || row.GetDesignatedTick() > snapshot.Context.GetTick()) {
+				return nil, policy.ResourceStorage{}, raw, contract("invalid mine source designation age or taken")
+			}
 		}
 		seen[row.Source.GetId()] = true
 		out = append(out, ResourceSourceRow{
-			ThingID:    row.Source.GetId(),
-			Yield:      units,
-			Distance:   row.GetDistance(),
-			Method:     method,
-			Designated: row.GetDesignated(),
-			Safety:     row.GetSafety(),
-			Cell:       cell,
-			Token:      token,
-			Reachable:  emergencyBool(row.Reachable),
+			ThingID:        row.Source.GetId(),
+			Yield:          units,
+			Distance:       row.GetDistance(),
+			Method:         method,
+			Designated:     row.GetDesignated(),
+			DesignatedTick: domain.Tick(row.GetDesignatedTick()),
+			Taken:          row.GetTaken(),
+			Safety:         row.GetSafety(),
+			Cell:           cell,
+			Token:          token,
+			Reachable:      emergencyBool(row.Reachable),
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool {

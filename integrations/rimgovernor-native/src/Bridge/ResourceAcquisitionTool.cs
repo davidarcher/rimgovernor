@@ -21,6 +21,23 @@ namespace HomeBridge.BridgeTools
             ? t.Map.designationManager.DesignationAt(t.Position, DesignationDefOf.Mine) != null
             : t.Map.designationManager.DesignationOn(t, DesignationDefOf.HarvestPlant) != null
                 || t.Map.designationManager.DesignationOn(t, DesignationDefOf.CutPlant) != null;
+        // Census designation age (#1043): the tick a designation was first
+        // seen, per thing, dropped when the designation goes. Not persisted:
+        // a new Game (load) starts it empty, so designations read fresh.
+        private static Game? designationGame;
+        private static readonly Dictionary<string, int> designationSeen = new Dictionary<string, int>();
+        internal static long? DesignatedTick(Thing t, bool designated)
+        {
+            if (!ReferenceEquals(designationGame, Current.Game)) { designationSeen.Clear(); designationGame = Current.Game; }
+            var id = t.GetUniqueLoadID();
+            if (!designated) { designationSeen.Remove(id); return null; }
+            if (!designationSeen.TryGetValue(id, out var tick)) designationSeen[id] = tick = Find.TickManager.TicksGame;
+            return tick;
+        }
+        // Taken (#1043): any pawn's reservation, or a colonist's current job, targets the thing.
+        internal static bool Taken(Thing t) => t.Map.reservationManager.AllReservedThings().Contains(t)
+            || t.Map.mapPawns.FreeColonistsSpawned.Any(p => p.CurJob is Job job && (job.targetA.Thing == t || job.targetB.Thing == t || job.targetC.Thing == t
+                || job.targetQueueA?.Any(q => q.Thing == t) == true || job.targetQueueB?.Any(q => q.Thing == t) == true));
         internal static Designator DesignatorFor(Thing t) => t is Mineable ? (Designator)new Designator_Mine() :
             t.def.plant.IsTree ? new Designator_PlantsHarvestWood() : new Designator_PlantsHarvest();
         internal static bool Eligible(Thing t, Map map)

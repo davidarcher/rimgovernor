@@ -14,12 +14,25 @@ import (
 
 func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
 	base := colonyFixture(t).GetObserved()
-	base.Acquisition = []*o.AcquisitionFacts{{Source: &o.EntityRef{Id: proto.String("plant"), DefName: proto.String("Oak"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("plant"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, Resource: proto.String("WoodLog"), Hunt: proto.Bool(false), Tree: proto.Bool(true), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)}}
+	base.Acquisition = []*o.AcquisitionFacts{{Source: &o.EntityRef{Id: proto.String("plant"), DefName: proto.String("Oak"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("plant"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, Resource: proto.String("WoodLog"), Hunt: proto.Bool(false), Tree: proto.Bool(true), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0), Taken: proto.Bool(false)}}
 	base.Issues = nil
 	if err := validateColonyAcquisition(base); err != nil {
 		t.Fatal(err)
 	}
+	designated := proto.Clone(base).(*o.ColonyFactsSnapshot)
+	designated.Acquisition[0].Designated, designated.Acquisition[0].DesignatedTick = proto.Bool(true), proto.Int64(designated.Context.GetTick())
+	if err := validateColonyAcquisition(designated); err != nil {
+		t.Fatal(err)
+	}
 	for _, change := range []func(*o.ColonyFactsSnapshot){
+		// #1043: a designated row without its first-seen tick, a tick on an
+		// undesignated row, a tick past the read, and a missing taken.
+		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].Designated = proto.Bool(true) },
+		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].DesignatedTick = proto.Int64(0) },
+		func(v *o.ColonyFactsSnapshot) {
+			v.Acquisition[0].Designated, v.Acquisition[0].DesignatedTick = proto.Bool(true), proto.Int64(v.Context.GetTick()+1)
+		},
+		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].Taken = nil },
 		func(v *o.ColonyFactsSnapshot) {
 			v.Acquisition[0].Source.Snapshot.Context.Tick = proto.Int64(v.Context.GetTick() + 1)
 		},
@@ -45,7 +58,7 @@ func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
 
 func TestAcquisitionCensusAcceptsAnInediblePestHunt(t *testing.T) {
 	base := colonyFixture(t).GetObserved()
-	base.Acquisition = []*o.AcquisitionFacts{{Source: &o.EntityRef{Id: proto.String("beaver"), DefName: proto.String("Alphabeaver"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("beaver"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), WeaponRange: proto.Float64(30), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)}}
+	base.Acquisition = []*o.AcquisitionFacts{{Taken: proto.Bool(false), Source: &o.EntityRef{Id: proto.String("beaver"), DefName: proto.String("Alphabeaver"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("beaver"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), WeaponRange: proto.Float64(30), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)}}
 	base.Issues = nil
 	if err := validateColonyAcquisition(base); err != nil {
 		t.Fatal(err)
@@ -55,7 +68,7 @@ func TestAcquisitionCensusAcceptsAnInediblePestHunt(t *testing.T) {
 func TestHuntCostsRequireCompleteBoundedFacts(t *testing.T) {
 	base := colonyFixture(t).GetObserved()
 	source := &o.EntityRef{Id: proto.String("deer"), DefName: proto.String("Deer"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("deer"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}
-	base.Acquisition = []*o.AcquisitionFacts{{Source: source, Resource: proto.String("Corpse_Deer"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(true), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(10), RevengeChance: proto.Float64(0), HerdSize: proto.Uint32(1), MeleeOnly: proto.Bool(true), Downed: proto.Bool(false), WeaponRange: proto.Float64(0)}}
+	base.Acquisition = []*o.AcquisitionFacts{{Taken: proto.Bool(false), Source: source, Resource: proto.String("Corpse_Deer"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(true), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(10), RevengeChance: proto.Float64(0), HerdSize: proto.Uint32(1), MeleeOnly: proto.Bool(true), Downed: proto.Bool(false), WeaponRange: proto.Float64(0)}}
 	base.Issues = nil
 	if err := validateColonyAcquisition(base); err != nil {
 		t.Fatal(err)
@@ -86,8 +99,8 @@ func TestReadAcquisitionFollowsAHuntByAnimal(t *testing.T) {
 	center := v.Center
 	away := &c.Cell{X: proto.Int32(center.GetX() + 9), Z: proto.Int32(center.GetZ())}
 	v.Acquisition = []*o.AcquisitionFacts{
-		{Source: &o.EntityRef{Id: proto.String("beaver"), DefName: proto.String("Alphabeaver"), MapId: v.Context.Identity.MapId, Position: away, Snapshot: &o.SnapshotRef{EntityId: proto.String("beaver"), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), WeaponRange: proto.Float64(30), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)},
-		{Source: &o.EntityRef{Id: proto.String("plant"), DefName: proto.String("Oak"), MapId: v.Context.Identity.MapId, Position: proto.Clone(away).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("plant"), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("WoodLog"), Hunt: proto.Bool(false), Tree: proto.Bool(true), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)},
+		{Taken: proto.Bool(false), Source: &o.EntityRef{Id: proto.String("beaver"), DefName: proto.String("Alphabeaver"), MapId: v.Context.Identity.MapId, Position: away, Snapshot: &o.SnapshotRef{EntityId: proto.String("beaver"), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), WeaponRange: proto.Float64(30), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)},
+		{Taken: proto.Bool(false), Source: &o.EntityRef{Id: proto.String("plant"), DefName: proto.String("Oak"), MapId: v.Context.Identity.MapId, Position: proto.Clone(away).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("plant"), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("WoodLog"), Hunt: proto.Bool(false), Tree: proto.Bool(true), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)},
 	}
 	v.Issues = nil
 	v.Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}

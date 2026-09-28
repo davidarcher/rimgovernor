@@ -201,17 +201,24 @@ namespace HomeBridge.BridgeTools
             var candidates = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Position.DistanceTo(center) <= 100 && Eligible(p))
                 .OrderByDescending(p => p.BodySize / (1 + p.Position.DistanceTo(center) / 25)).ThenBy(p => p.thingIDNumber)
                 .Concat(map.mapPawns.AllPawnsSpawned.Where(p => Pest(p) && Eligible(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber));
-            foreach (var prey in candidates) result.Acquisition.Add(new Obs.AcquisitionFacts {
+            foreach (var prey in candidates)
+            {
+                var designated = Designated(prey);
+                var row = new Obs.AcquisitionFacts {
                 Source = new Obs.EntityRef { Id = prey.GetUniqueLoadID(), DefName = prey.def.defName, MapId = map.uniqueID,
                     Position = new Common.Cell { X = prey.Position.x, Z = prey.Position.z }, Snapshot = Snapshot(prey, result.Context) },
                 Resource = prey.RaceProps.corpseDef.defName, Tree = false, Food = !Pest(prey), Hunt = true,
-                Yield = 1, NutritionYield = Pest(prey) ? 0 : Nutrition(prey), Designated = Designated(prey),
+                Yield = 1, NutritionYield = Pest(prey) ? 0 : Nutrition(prey), Designated = designated,
                 RevengeChance = prey.RaceProps.manhunterOnDamageChance,
                 HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == prey.def && p.Position.DistanceToSquared(prey.Position) <= 625),
                 MeleeOnly = Meleeable(prey), Downed = prey.Downed,
                 WeaponRange = map.mapPawns.FreeColonistsSpawned.Where(p => Hunter(p, prey) && OrdinaryWeapon(p))
                     .SelectMany(p => p.equipment.Primary.def.Verbs).Where(v => !v.IsMeleeAttack && v.ai_IsWeapon)
-                    .Select(v => (double)v.range).DefaultIfEmpty(0).Max() });
+                    .Select(v => (double)v.range).DefaultIfEmpty(0).Max(), Taken = ResourceAcquisitionTools.Taken(prey) };
+                var tick = ResourceAcquisitionTools.DesignatedTick(prey, designated);
+                if (tick.HasValue) row.DesignatedTick = tick.Value;
+                result.Acquisition.Add(row);
+            }
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
         internal const string Kind = "Hunt";

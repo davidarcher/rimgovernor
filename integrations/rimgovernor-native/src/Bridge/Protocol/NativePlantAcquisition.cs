@@ -40,12 +40,16 @@ namespace HomeBridge.BridgeTools
             {
                 var resource = plant.def.plant.harvestedThingDef;
                 var food = humanFood(resource);
-                result.Acquisition.Add(new Obs.AcquisitionFacts {
+                var designated = ResourceAcquisitionTools.Designated(plant);
+                var row = new Obs.AcquisitionFacts {
                     Source = new Obs.EntityRef { Id = plant.GetUniqueLoadID(), DefName = plant.def.defName, MapId = map.uniqueID,
                         Position = new Common.Cell { X = plant.Position.x, Z = plant.Position.z }, Snapshot = Snapshot(plant, result.Context) },
                     Resource = resource.defName, Tree = plant.def.plant.IsTree, Food = food, Yield = yield,
                     NutritionYield = food ? yield * resource.GetStatValueAbstract(StatDefOf.Nutrition) : 0,
-                    Designated = ResourceAcquisitionTools.Designated(plant), Hunt = false });
+                    Designated = designated, Hunt = false, Taken = ResourceAcquisitionTools.Taken(plant) };
+                var tick = ResourceAcquisitionTools.DesignatedTick(plant, designated);
+                if (tick.HasValue) row.DesignatedTick = tick.Value;
+                result.Acquisition.Add(row);
             }
             var pending = plants.Where(ResourceAcquisitionTools.Designated).ToArray();
             result.PendingFoodNutrition = pending.Where(p => humanFood(p.def.plant.harvestedThingDef)).Sum(p => (double)p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition));

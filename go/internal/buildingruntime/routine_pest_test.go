@@ -98,7 +98,7 @@ func TestPestHuntWithdrawalReleasesTargetForReplanning(t *testing.T) {
 	}
 	for _, row := range facts.Acquisition {
 		if row.Source.GetId() == target.Thing() {
-			row.Designated = proto.Bool(true)
+			row.Designated, row.DesignatedTick = proto.Bool(true), proto.Int64(0)
 		}
 	}
 	facts.PendingHunts = proto.Uint32(1)
@@ -135,7 +135,7 @@ func TestPestHuntWithdrawalReleasesTargetForReplanning(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, row := range facts.Acquisition {
-		row.Designated = proto.Bool(false)
+		row.Designated, row.DesignatedTick = proto.Bool(false), nil
 	}
 	facts.PendingHunts = proto.Uint32(0)
 	reviewer.census.invalidate()
@@ -186,7 +186,7 @@ func addPest(v *o.ColonyFactsSnapshot, id string, x, z int32) {
 	beaver := &o.EntityRef{Id: proto.String(id), DefName: proto.String("Alphabeaver"), MapId: v.Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}
 	upkeep := v.Upkeep.GetObserved()
 	upkeep.WildAnimals = append(upkeep.WildAnimals, &o.AnimalFeed{Pawn: &o.PawnState{Pawn: beaver, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false), MinimumHandlingSkill: proto.Int32(8)}}, Diet: proto.String("DendrovoreAnimal"), RequiresPen: proto.Bool(false)})
-	v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Alphabeaver"), MapId: v.Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), WeaponRange: proto.Float64(30), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)})
+	v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Alphabeaver"), MapId: v.Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), WeaponRange: proto.Float64(30), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)})
 }
 
 func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
@@ -293,7 +293,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	}
 	for _, row := range v.Acquisition {
 		if row.Source.GetId() == target.Thing() {
-			row.Designated = proto.Bool(true)
+			row.Designated, row.DesignatedTick = proto.Bool(true), proto.Int64(0)
 		}
 	}
 	v.PendingHunts = proto.Uint32(1)

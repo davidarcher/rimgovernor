@@ -30,10 +30,10 @@ func TestReadResourceSourcesDecodesAndOrdersByDistance(t *testing.T) {
 		Sources: []*o.ResourceSource{
 			{Source: &o.EntityRef{Id: proto.String("rock2"), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)},
 				Snapshot: &o.SnapshotRef{Token: proto.String("mine-tok2")}}, Method: proto.String("mine"), Yield: proto.Float64(20),
-				Distance: proto.Float64(9), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
+				Distance: proto.Float64(9), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface")},
 			{Source: &o.EntityRef{Id: proto.String("rock1"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)},
 				Snapshot: &o.SnapshotRef{Token: proto.String("mine-tok1")}}, Method: proto.String("mine"), Yield: proto.Float64(15),
-				Distance: proto.Float64(3), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
+				Distance: proto.Float64(3), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
 		Completeness: &o.Completeness{},
 	}}}
@@ -74,7 +74,7 @@ func TestReadResourceSourcesRejectsMineSourceMissingSnapshot(t *testing.T) {
 		Storage:  validResourceStorage(),
 		Sources: []*o.ResourceSource{
 			{Source: &o.EntityRef{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15),
-				Distance: proto.Float64(3), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
+				Distance: proto.Float64(3), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
 		Completeness: &o.Completeness{},
 	}}}
@@ -93,7 +93,7 @@ func TestReadResourceSourcesRejectsFractionalYield(t *testing.T) {
 		Storage:  validResourceStorage(),
 		Sources: []*o.ResourceSource{
 			{Source: &o.EntityRef{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15.5),
-				Distance: proto.Float64(3), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
+				Distance: proto.Float64(3), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
 		Completeness: &o.Completeness{},
 	}}}
