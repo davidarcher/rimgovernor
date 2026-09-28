@@ -182,13 +182,6 @@ func TestSelectScopesFixtures(t *testing.T) {
 	if sel.AllHarnesses || !slices.Contains(sel.Cases, "defense") || slices.Contains(sel.Cases, "light") {
 		t.Errorf("guarded construction fixture change selected %+v", sel)
 	}
-	sel, err = Select(r, []string{"scripts/fixtures/CombatFixtures.csproj"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sel.AllHarnesses || !slices.Contains(sel.Cases, "light") || !slices.Contains(sel.Cases, "smoke") {
-		t.Errorf("fixture build file change selected %+v", sel)
-	}
 	sel, err = Select(r, []string{"contracts/fixtures/colony-core.json"})
 	if err != nil {
 		t.Fatal(err)

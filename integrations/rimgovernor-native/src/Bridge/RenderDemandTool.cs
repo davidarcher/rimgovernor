@@ -13,20 +13,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class RenderDemandTools
-    {
-        [Tool("home/render_demand", Description = "Controller rendering lease. No simulation or game-speed changes. Visible game window always renders.")]
-        public async Task<object> Demand(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Keep rendering for this many real seconds; zero only reads status.", DefaultValue = 0)] int seconds = 0)
-        {
-            if (seconds < 0 || seconds > 30) throw new ArgumentOutOfRangeException(nameof(seconds));
-            var status = await ctx.MainThread.InvokeAsync(() => RenderDemandDriver.Lease(seconds), cancellationToken);
-            if (!status.Supported) return new { supported = false, suspended = status.Suspended, reason = status.UnavailableDetail };
-            return new { supported = true, suspended = status.Suspended, windowVisible = status.WindowVisible, leaseSeconds = status.RemainingSeconds };
-        }
-    }
-
-    // The one status shape produced by the driver. Legacy JSON and the typed
+    // The one status shape produced by the driver. The typed
     // rimgovernor/presentation_render_state and .../presentation_render_demand
     // tools each project this into their own reply shape.
     internal readonly struct RenderDemandStatus
@@ -43,9 +30,6 @@ namespace HomeBridge.BridgeTools
         static RenderDemandDriver? instance;
         static float until;
         public static bool Suspended;
-#if THROUGHPUT_FIXTURE
-        public static float TestSuspendUntil;
-#endif
         readonly HashSet<Camera> disabled = new HashSet<Camera>();
         float nextCheck;
         bool windowVisible = true;
@@ -99,11 +83,6 @@ namespace HomeBridge.BridgeTools
             }
             catch { windowVisible = true; }
             Suspended = !windowVisible && Time.realtimeSinceStartup >= until;
-#if THROUGHPUT_FIXTURE
-            // Private Linux acceptance exercises the same camera suspension path
-            // without depending on Windows window-visibility APIs.
-            Suspended |= Time.realtimeSinceStartup < TestSuspendUntil;
-#endif
             if (Suspended)
             {
                 foreach (var camera in Camera.allCameras)

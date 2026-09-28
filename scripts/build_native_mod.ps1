@@ -5,11 +5,11 @@ param(
     [Parameter(Mandatory = $true)][string]$RimBridgeSdkDir,
     [string]$DotNet = 'dotnet',
     [string]$OutputRoot = '',
-    [ValidateSet('HomeCoverageFixture', 'InterruptionFixture', 'SleepingFixture', 'StoreroomFixture', 'MedicineFixture', 'AnimalContainmentFixture', 'AnimalFeedFixture', 'ResearchObservationFixture', 'RoutineSleepingFixture', 'RoutineProductionFixture', 'GuardedConstructionFixture', 'StorageHaulFixture', 'ThroughputFixture', 'WasteFixture', 'DisasterFixture', 'GearFixture',
-        'MoodFixture', 'WorkersFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
-        'DeepResourcesFixture', 'FoodObservationFixture', 'FoodChannelFixture', 'FishingFixture', 'HuntSelectionFixture', 'UpkeepFixture', 'TradeFixture',
-        'ScenarioStartFixture', 'ConstructionLedgerFixture', 'EmergencyDevelopmentFixture',
-        'InstallFixture', 'ForecastFixture', 'InspectorFixture', 'ModalFixture', 'CampaignMetricsFixture', 'DraftFaultFixture', 'RuntimeFaultFixture', 'MapScopeFixture', 'BuildingTemperatureFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'ApplyRefusalFixture', 'RefrigerationFixture', 'PowerFixture', 'CleanlinessFixture', 'DefenseFixture', 'LightingFixture', 'FlooringFixture', 'RoutesFixture', 'MountainFixture', 'HutShellFixture', 'QuietStorytellerFixture', 'DebugStartFixture', 'LetterFixture', 'FreezeNeedsFixture', 'WallUpgradeFixture', 'ShutdownFixture', 'FarmEnvironmentFixture', 'DialogFixture', 'NamingFixture', 'ProductionLadderFixture', 'BlightFixture', 'WinterFixture', 'ConditionFixture', 'ShrineFixture', 'SubdueFixture', 'ArrestFixture', 'LayoutGridFixture', 'HazardFixture', 'StartupLaborFixture')]
+    [ValidateSet('HomeCoverageFixture', 'SleepingFixture', 'MedicineFixture', 'AnimalContainmentFixture', 'AnimalFeedFixture', 'ResearchObservationFixture', 'RoutineSleepingFixture', 'RoutineProductionFixture', 'GuardedConstructionFixture', 'StorageHaulFixture', 'ThroughputFixture', 'WasteFixture', 'GearFixture',
+        'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
+        'DeepResourcesFixture', 'FoodChannelFixture', 'FishingFixture', 'UpkeepFixture', 'TradeFixture',
+        'ScenarioStartFixture', 'EmergencyDevelopmentFixture',
+        'ForecastFixture', 'DraftFaultFixture', 'RuntimeFaultFixture', 'MapScopeFixture', 'BuildingTemperatureFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'ApplyRefusalFixture', 'RefrigerationFixture', 'PowerFixture', 'CleanlinessFixture', 'DefenseFixture', 'LightingFixture', 'FlooringFixture', 'RoutesFixture', 'MountainFixture', 'HutShellFixture', 'QuietStorytellerFixture', 'DebugStartFixture', 'LetterFixture', 'FreezeNeedsFixture', 'WallUpgradeFixture', 'ShutdownFixture', 'FarmEnvironmentFixture', 'DialogFixture', 'NamingFixture', 'ProductionLadderFixture', 'BlightFixture', 'WinterFixture', 'ShrineFixture', 'SubdueFixture', 'ArrestFixture', 'LayoutGridFixture', 'HazardFixture', 'StartupLaborFixture')]
     [string[]]$Fixture = @()
 )
 $ErrorActionPreference = 'Stop'

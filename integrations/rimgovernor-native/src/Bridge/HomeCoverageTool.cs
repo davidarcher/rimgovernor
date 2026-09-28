@@ -140,12 +140,4 @@ namespace HomeBridge.BridgeTools
                 covered = cells.All(c => map.areaManager.Home[c]), revision = state.Revision };
         }
     }
-    public sealed class HomeCoverageTools
-    {
-        public HomeCoverageTools() { HomeCoverage.Install(); }
-        [Tool("home/upkeep_home", Description = "Restore Home in a bounded batch over an owned facility and connected enclosed roofed rooms, or an exact stockpile. Requires unchanged native geometry and area revision; controller must independently prove autonomous ownership. Does not alter allowed areas or perform pawn work.")]
-        public async Task<object> Apply(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string target, string shape, long revision, bool dryRun = true)
-            => await ctx.MainThread.InvokeAsync<object>(() => HomeCoverage.Apply(target, shape, revision, dryRun), cancellationToken).ConfigureAwait(false);
-    }
 }

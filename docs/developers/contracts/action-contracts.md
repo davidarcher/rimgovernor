@@ -14,7 +14,6 @@ what each action must observe.
 | Bill ingredient whitelists | Exact native bill identity and filter must match fresh readback; production remains separate. |
 | Medical native operations | Optional `patient_tended` and `patient_in_bed` wait for fresh living-patient observations. These certify current treatment/delivery state, not full healing or actor attribution. |
 | Waste native operations | Required `waste_contained` verifies the exact item in separated storage or a grave on a later native tick. Relocation does not mean destruction; explicit burial requires the body inside a grave. |
-| `home/gear_upkeep` | `pawn_gear` requires fresh exact apparel/primary-weapon identity on the assigned pawn; an ordered job is insufficient. See [equipment upkeep](equipment-upkeep.md). |
 | Population native operations | Orders/settings have receipt boundaries; [population goals](population-contracts.md) separately observe custody, care, recruitment and work/equipment/housing integration. Current-load observed custody/settings can resolve an uncertain order without replaying it. |
 
 | Upkeep native operations | `upkeep_target` waits for protected stock, repaired target health, or cleaned target absence. Ownership, quantity and unknown-state rules are in [upkeep contracts](upkeep-contracts.md). |

@@ -91,20 +91,6 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/list_start_scenarios", Description = "Read native scenario definitions and configurable pawn counts; test builds only.")]
-        public async Task<object> List(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => new { success = true,
-                difficulties = DefDatabase<DifficultyDef>.AllDefsListForReading.Select(d => new {
-                    defName = d.defName, label = d.label, cropYieldFactor = d.cropYieldFactor
-                }).ToArray(),
-                scenarios = DefDatabase<ScenarioDef>.AllDefsListForReading.Select(d => new {
-                    defName = d.defName, label = d.label,
-                    pawnCount = d.scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>()
-                        .Select(p => (int?)p.pawnCount).SingleOrDefault()
-                }).ToArray() }, cancellationToken).ConfigureAwait(false);
-        }
-
         private static bool Start()
         {
             if (pending == null) return true;

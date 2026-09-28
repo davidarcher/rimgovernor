@@ -10,8 +10,8 @@ namespace HomeBridge.BridgeTools
 {
     /// <summary>
     /// Whether a bill can actually run, computed from the map rather than from
-    /// the bill's own label. Shared by home/bills and by home/list_buildings
-    /// under billIngredients:true.
+    /// the bill's own label. Used by home/list_buildings under
+    /// billIngredients:true.
     ///
     /// ## What it reproduces
     ///

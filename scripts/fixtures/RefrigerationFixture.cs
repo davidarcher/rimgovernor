@@ -311,36 +311,6 @@ namespace HomeBridge.BridgeTools
             Find.ResearchManager.FinishProject(project, false);
         }
 
-        [Tool("test/corpse_larder_probe", Description = "UNSAFE FOR MODEL EXECUTION when drain=true. Disposable larder probe; optionally remove raw meat and enable the cook bill, then report exact native corpses and butcher-bill state.")]
-        public async Task<object> CorpseLarderProbe(IRimBridgeContext ctx, CancellationToken cancellationToken, bool drain = false)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null) return Refuse("No map.");
-                if (drain) {
-                    if (!Find.TickManager.Paused) return Refuse("Drain requires paused disposable map.");
-                    foreach (var item in map.listerThings.AllThings.Where(t => t.def.IsMeat).ToList()) item.Destroy();
-                    foreach (var bench in map.listerThings.AllThings.OfType<Building_WorkTable>())
-                    foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>().Where(b => b.recipe.defName == "CookMealSimple")) bill.suspended = false;
-                }
-                var corpses = map.listerThings.AllThings.OfType<Corpse>().Where(c => c.InnerPawn.def.defName == "Muffalo").ToList();
-                var butcherBills = map.listerThings.AllThings.OfType<Building_WorkTable>().SelectMany(b => b.BillStack.Bills).OfType<Bill_Production>().Where(b => b.recipe.defName == "ButcherCorpseFlesh").ToList();
-                return new { success = true, tick = Find.TickManager.TicksGame,
-                    rawMeat = map.listerThings.AllThings.Where(t => t.def.IsMeat).Sum(t => t.stackCount),
-                    corpses = corpses.Select(c => new { id = c.GetUniqueLoadID(), forbidden = c.IsForbidden(Faction.OfPlayer),
-                        meat = c.InnerPawn.GetStatValue(StatDefOf.MeatAmount), temperature = c.AmbientTemperature,
-                        rot = c.GetRotStage().ToString(), safe = EventLootFacts.Safe(c),
-                        access = map.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(),
-                            reachable = p.CanReach(c, Verse.AI.PathEndMode.Touch, Danger.None),
-                            danger = c.Position.GetDangerFor(p, map).ToString(),
-                            meatAllowed = p.WillEat(c.InnerPawn.RaceProps.meatDef),
-                            mealAllowed = p.WillEat(ThingDefOf.MealSimple) }).ToArray() }).ToArray(),
-                    corpseTiles = corpses.Count,
-                    butcheredTiles = corpses.Sum(c => (int)System.Math.Ceiling(c.InnerPawn.GetStatValue(StatDefOf.MeatAmount) / 75f)),
-                    foreverButcher = butcherBills.Count == 1 && butcherBills[0].repeatMode == BillRepeatModeDefOf.Forever && !butcherBills[0].suspended && !butcherBills[0].paused };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
         private static object Refuse(string reason) => new { success = false, reason };
     }
 }

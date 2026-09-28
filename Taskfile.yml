@@ -29,7 +29,6 @@ includes:
   protobuf-go: { taskfile: tools/protobuf/go, dir: tools/protobuf/go }
   native: { taskfile: integrations/rimgovernor-native, dir: integrations/rimgovernor-native }
   probes: { taskfile: contracts/tests, dir: contracts/tests }
-  fixtures: { taskfile: scripts/fixtures, dir: scripts/fixtures }
 
 tasks:
   build:
@@ -42,7 +41,6 @@ tasks:
       - task: protobuf:build
       - task: native:build
       - task: probes:build
-      - task: fixtures:build
 
   test:
     desc: Tests for every project, run concurrently; the Go suite last, alone
@@ -57,6 +55,5 @@ tasks:
       - protobuf:test
       - native:test
       - probes:test
-      - fixtures:test
     cmds:
       - task: go:test

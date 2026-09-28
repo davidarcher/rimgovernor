@@ -64,8 +64,8 @@ no hook acquires authority, and ordinary pause does not imply Manual. These two
 paths are relative to `integrations/rimgovernor-native/src`, outside Bridge.
 
 The private `scripts/fixtures/GuardedConstructionFixture.cs` supplies
-`test/guarded_construction_prepare` and `test/guarded_construction_control` under
-the fixture compile condition. Both require exclusion from production discovery.
+`test/guarded_construction_prepare` under the fixture compile condition. It
+requires exclusion from production discovery.
 
 `home/placement_previews` has been removed, with no alias. `home/colony_identity`
 remains a separately exported old surface pending its consumers'

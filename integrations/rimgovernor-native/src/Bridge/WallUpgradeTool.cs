@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
         internal static void Install()
         {
             if (installed) return;
-            PlayerFrame.ObserveUi();
+            PlayerUiRevision.Observe();
             var harmony = new Harmony("rimgovernor.wall-upgrade");
             harmony.Patch(AccessTools.Method(typeof(WorkGiver_Deconstruct), nameof(WorkGiver_Deconstruct.HasJobOnThing)),
                 postfix: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(Eligible)));
@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
             var map = Find.CurrentMap;
             if (map == null || map.uniqueID != r.MapId || ownership && r.Load != Load) return "Colony/load/map changed";
             if (r.Blocker != null) return r.Blocker;
-            if (ownership && r.UiRevision != PlayerFrame.CurrentUiRevision) return "Player input invalidated pending demolition";
+            if (ownership && r.UiRevision != PlayerUiRevision.Current) return "Player input invalidated pending demolition";
             if (Math.Abs(r.Nx) > 1 || Math.Abs(r.Nz) > 1 || r.Nx == 0 && r.Nz == 0) return "Invalid wall orientation";
             var origin = Origin(r); var normal = new IntVec3(r.Nx, 0, r.Nz);
             var inside = origin - normal;
@@ -168,33 +168,11 @@ namespace HomeBridge.BridgeTools
                         && map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) != null };
             }).ToList();
         }
-        internal static object Release(bool dryRun)
-        {
-            var released = dryRun ? (State()?.Records ?? new List<WallRemovalRecord>()).Count(r => !r.Complete) : ReleaseAll();
-            return new { success = true, accepted = true, dryRun, released };
-        }
-        /// <summary>Invalidate every open guarded removal and drop its designation; returns how many were open.</summary>
-        internal static int ReleaseAll()
-        {
-            var records = (State()?.Records ?? new List<WallRemovalRecord>()).Where(r => !r.Complete).ToList();
-            foreach (var r in records) {
-                r.Blocker = "Automation stopped; pending demolition invalidated";
-                var map = Find.CurrentMap;
-                if (map == null || map.uniqueID != r.MapId) continue;
-                var target = Wall(map, r.Target);
-                if (target == null) continue;
-                // Keep the guard on an already-running job until it observes cancellation.
-                var designation = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
-                if (designation != null) map.designationManager.RemoveDesignation(designation);
-                r.Retired = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null;
-            }
-            return records.Count;
-        }
         internal static WallRemovalRecord NewRecord(Map map, string target, string original, string left, string right, IEnumerable<string> backup,
             string permanent, string material, int x, int z, int nx, int nz) => new WallRemovalRecord {
                 Id = Guid.NewGuid().ToString("N"), Target = target, Original = original, Left = left, Right = right,
                 Backup = backup.ToList(), Permanent = string.IsNullOrEmpty(permanent) ? null : permanent, Material = material,
-                MapId = map.uniqueID, X = x, Z = z, Nx = nx, Nz = nz, Load = Load, UiRevision = PlayerFrame.CurrentUiRevision };
+                MapId = map.uniqueID, X = x, Z = z, Nx = nx, Nz = nz, Load = Load, UiRevision = PlayerUiRevision.Current };
         /// <summary>Why this record cannot be admitted now, or null with the builders who could take the job. Changes nothing.</summary>
         internal static string? Prepare(WallRemovalRecord r, out List<Pawn> workers)
         {
@@ -230,20 +208,6 @@ namespace HomeBridge.BridgeTools
             catch { r.Blocker = "Native designation outcome is uncertain"; throw; }
             return map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null
                 ? "Native demolition designation was not observed" : null;
-        }
-        internal static object Remove(string target, string original, string left, string right, string backup,
-            string permanent, string material, int x, int z, int nx, int nz, bool dryRun)
-        {
-            object Refuse(string why) => new { success = dryRun, accepted = false, error = why, reason = why };
-            var map = Find.CurrentMap;
-            if (map == null) return Refuse("Native removal ledger unavailable");
-            var r = NewRecord(map, target, original, left, right, (backup ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries),
-                permanent, material, x, z, nx, nz);
-            var blocker = Prepare(r, out var workers) ?? (dryRun ? null : Commit(r));
-            if (blocker != null) return Refuse(blocker);
-            return new { success = true, accepted = true, dryRun, removalId = dryRun ? null : r.Id,
-                target, workers = workers.Select(p => p.GetUniqueLoadID()).ToList(),
-                meaning = "Guarded native designation; completed pawn demolition is observed separately" };
         }
     }
     public sealed class WallUpgradeTools
@@ -282,12 +246,5 @@ namespace HomeBridge.BridgeTools
                         costs = ThingDefOf.Wall.CostListAdjusted(s).ToDictionary(c => c.thingDef.defName, c => c.count) }).ToList();
                 return new { success = true, target, tick = Find.TickManager.TicksGame, sites, materials };
             }, cancellationToken).ConfigureAwait(false);
-        [Tool("home/upkeep_wall", Description = "Guard one exact wall's ordinary native demolition during an admitted replacement. Requires completed straight-wall backups, an open corner hauling approach with existing support, or a completed permanent wall for cleanup. Side walls remain unchanged. Rechecks roof/enclosure before native completion; player input, Manual and load invalidate pending work. Controller must independently prove every demolition target's autonomous construction ownership.")]
-        public async Task<object> Apply(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string action, string target = "", string original = "", string left = "", string right = "", string backup = "",
-            string permanent = "", string material = "", int x = 0, int z = 0, int nx = 0, int nz = 0, bool dryRun = true)
-            => await ctx.MainThread.InvokeAsync<object>(() => action == "release" ? WallUpgradeSafety.Release(dryRun)
-                : action == "remove" ? WallUpgradeSafety.Remove(target, original, left, right, backup, permanent, material, x, z, nx, nz, dryRun)
-                : new { success = false, error = "Unknown wall upkeep action" }, cancellationToken).ConfigureAwait(false);
     }
 }

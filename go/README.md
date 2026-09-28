@@ -368,10 +368,7 @@ is injected. Retained captures can be replayed with
 
 Routine naming needs use the exact pending native dialog ID. Explicit absence
 recovers the need; missing or obstructed observations remain unknown. The read
-does not confirm names. Native Protobuf acceptance uses `--routine-naming` with
-the private `ModalFixture` to verify absence, presence and unrelated replacement.
-Replay its captures with `RIMGOVERNOR_NATIVE_NAMING=present` or `absent` alongside
-`RIMGOVERNOR_NATIVE_COLONY_CAPTURE` to check the durable need.
+does not confirm names.
 
 Routine defense readiness reads equipment for the complete emergency census's exact
 pawn IDs inside the same paused observation bracket. Only living, standing armed

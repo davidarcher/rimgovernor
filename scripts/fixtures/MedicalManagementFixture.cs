@@ -71,15 +71,6 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, patients = people.Select(p => p.GetUniqueLoadID()).ToArray() };
             }, cancellationToken).ConfigureAwait(false);
         }
-        [Tool("test/medical_disease_stock", Description = "UNSAFE FOR MODEL EXECUTION. Read disposable disease medicine stocks; no mutations.")]
-        public async Task<object> DiseaseStock(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var items = Find.CurrentMap.listerThings.ThingsInGroup(ThingRequestGroup.Medicine);
-                return new { herbal = items.Where(t => t.def.defName == "MedicineHerbal").Sum(t => t.stackCount),
-                    industrial = items.Where(t => t.def.defName == "MedicineIndustrial").Sum(t => t.stackCount) };
-            }, cancellationToken).ConfigureAwait(false);
-        }
         [Tool("test/medical_management_setup", Description = "Disposable B23 initial disease, injury, beds and supplies. Never performs treatment or surgery.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Include two initial flu patients.", DefaultValue = true)] bool disease = true,
@@ -173,24 +164,6 @@ namespace HomeBridge.BridgeTools
                     patients = people.Take(2).Select(p => p.GetUniqueLoadID()).ToArray(), surgical = surgical.GetUniqueLoadID(),
                     part = surgical.RaceProps.body.AllParts.IndexOf(leg), withdrawalPatient, tick = Find.TickManager.TicksGame };
                 } catch (Exception error) { return new { success = false, stage, error = error.ToString() }; }
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool("test/medical_management_change", Description = "Disposable shortage fixture: forbid or restore medicine, draft or release the available doctors. No treatment outcomes injected.")]
-        public async Task<object> Change(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "supplies-off, supplies-on, doctors-off or doctors-on.")] string op)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                if (!Find.TickManager.Paused) throw new InvalidOperationException("Paused fixture required");
-                var map = Find.CurrentMap;
-                if (op == "supplies-off" || op == "supplies-on") {
-                    foreach (var thing in map.listerThings.ThingsInGroup(ThingRequestGroup.Medicine).ToArray())
-                        thing.SetForbidden(op == "supplies-off", false);
-                } else if (op == "doctors-off" || op == "doctors-on") {
-                    foreach (var pawn in map.mapPawns.FreeColonistsSpawned.Where(p => p.thingIDNumber != surgicalId).ToArray())
-                        pawn.drafter.Drafted = op == "doctors-off";
-                } else throw new ArgumentException("Unknown fixture change");
-                return new { success = true, op, tick = Find.TickManager.TicksGame };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

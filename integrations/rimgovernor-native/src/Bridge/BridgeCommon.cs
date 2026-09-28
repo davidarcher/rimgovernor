@@ -507,12 +507,6 @@ namespace HomeBridge.BridgeTools
             return d[key] is int value ? value : throw new InvalidOperationException(key + " is not a boxed int.");
         }
 
-        /// <summary>The bool counterpart of Int.</summary>
-        internal static bool Flag(IDictionary<string, object?> d, string key)
-        {
-            return d[key] is bool value ? value : throw new InvalidOperationException(key + " is not a boxed bool.");
-        }
-
         /// <summary>A double out of a payload dictionary; absent or another type
         /// reads as 0.</summary>
         internal static double Num(Dictionary<string, object?> d, string key)
@@ -534,12 +528,9 @@ namespace HomeBridge.BridgeTools
         /// <c>Blueprint_Install</c> and <c>Blueprint_Storage</c>, which subclass
         /// them), which is why one call covers every construction site.
         ///
-        /// This lives here rather than in either tool because
-        /// <c>home/list_buildings</c> reports it per site as
-        /// <c>resources[].stillNeeded</c> and <c>home/place_building</c> sums it
-        /// map-wide as <c>materials[].reservedByOtherBlueprints</c>. Two copies
-        /// of this arithmetic would eventually disagree, and the whole point of
-        /// the second number is that it agrees with the first.
+        /// This lives here because <c>home/list_buildings</c> reports it per site
+        /// as <c>resources[].stillNeeded</c> and <see cref="MaterialBudget"/> sums it
+        /// map-wide. Two copies of this arithmetic would eventually disagree.
         ///
         /// A throwing read falls back to the full <paramref name="need"/> — the
         /// pessimistic answer, never a confident zero.
@@ -638,185 +629,5 @@ namespace HomeBridge.BridgeTools
             }
             return totals;
         }
-    }
-
-    /// <summary>
-    /// One walk of a rectangle, resolving each cell to the room that covers it.
-    /// Lifted out of home/get_temperatures {mode:rooms} so home/list_rooms and
-    /// the temperature tool resolve rooms by exactly the same code, in exactly
-    /// the same order.
-    ///
-    /// What it produces, and why in this shape:
-    ///
-    ///   * <see cref="Rooms"/> — one entry per DISTINCT room touching the rect,
-    ///     numbered 0..n-1 in RASTER ORDER OF FIRST APPEARANCE. That ordering is
-    ///     load-bearing: get_temperatures' documented `roomGrid` promises that
-    ///     its first non-null value is always 0, and a caller correlating two
-    ///     calls over the same rect relies on the numbering being a function of
-    ///     the rect, not of a dictionary's iteration order.
-    ///   * <see cref="Grid"/> — row-major rows of those indexes, `null` where the
-    ///     cell is in no room at all. Never a short row: an omitted entry would
-    ///     be indistinguishable from an unroomed cell.
-    ///   * <see cref="CellsWithNoRoom"/> — how many nulls, so a caller can tell
-    ///     "the rect is mostly wall" from "the room lookup failed".
-    ///
-    /// Reads only <see cref="GridsUtility.GetRoom(IntVec3, Map)"/> (two args in
-    /// 1.6; it forwards to RegionAndRoomQuery.RoomAt) and <see cref="Room.ID"/>,
-    /// which is a public FIELD, not a property. Both are behind a guard: a room
-    /// lookup that throws becomes an unroomed cell rather than a failed reply.
-    ///
-    /// It does NOT read Room.Cells. A rect walk asks "what is in these cells";
-    /// walking each room's own cell list would answer a different question and
-    /// would leave the rect's own coverage unaccounted for.
-    /// </summary>
-    internal sealed class RoomWalk
-    {
-        /// <summary>One distinct room found inside the rectangle, with the
-        /// bookkeeping a legend line needs: how many of its cells fell inside
-        /// the rect, a cell guaranteed to be in both the room and the rect, and
-        /// a centroid snapped to a real in-rect cell.</summary>
-        internal sealed class Entry
-        {
-            // In-rect cells, kept internally only. Deliberately NOT emitted by
-            // either consumer: an index grid says the same thing in half the
-            // tokens. It exists so Center() can snap to a real cell without a
-            // second pass over the rect.
-            private readonly List<IntVec3> _cellsInRect = new List<IntVec3>();
-            private long _sumX;
-            private long _sumZ;
-
-            internal Entry(int index, int id, Room room, IntVec3 representativeCell)
-            {
-                Index = index;
-                Id = id;
-                Room = room;
-                RepresentativeCell = representativeCell;
-            }
-
-            internal int Index { get; private set; }
-            internal int Id { get; private set; }
-            internal Room Room { get; private set; }
-            internal IntVec3 RepresentativeCell { get; private set; }
-            internal int CellsInRect { get; private set; }
-
-            internal void AddCell(IntVec3 cell)
-            {
-                CellsInRect++;
-                _cellsInRect.Add(cell);
-                _sumX += cell.x;
-                _sumZ += cell.z;
-            }
-
-            /// <summary>
-            /// Rough centroid of the in-rect cells, snapped to the in-rect cell
-            /// nearest it. M asked for "a rough center coordinate (or just
-            /// the top left corner)"; the centroid is the better legend anchor, and
-            /// the snap is what stops an L-shaped or ring-shaped room from placing
-            /// its label in the hole.
-            /// </summary>
-            internal IntVec3 Center()
-            {
-                if (_cellsInRect.Count == 0)
-                    return RepresentativeCell;
-
-                var centroidX = (int)Math.Round((double)_sumX / _cellsInRect.Count, MidpointRounding.AwayFromZero);
-                var centroidZ = (int)Math.Round((double)_sumZ / _cellsInRect.Count, MidpointRounding.AwayFromZero);
-
-                var best = _cellsInRect[0];
-                var bestScore = long.MaxValue;
-                for (var i = 0; i < _cellsInRect.Count; i++)
-                {
-                    var cell = _cellsInRect[i];
-                    long dx = cell.x - centroidX;
-                    long dz = cell.z - centroidZ;
-                    var score = dx * dx + dz * dz;
-                    if (score == 0)
-                        return cell;                    // the centroid is itself a room cell
-                    if (score < bestScore)
-                    {
-                        bestScore = score;
-                        best = cell;
-                    }
-                }
-                return best;
-            }
-        }
-
-        private RoomWalk() { Rooms = new List<Entry>(); Grid = new List<List<object?>>(); }
-
-        internal List<Entry> Rooms { get; private set; }
-        internal List<List<object?>> Grid { get; private set; }
-        internal int CellsWithNoRoom { get; private set; }
-
-        /// <summary>Walk the rectangle row-major, bottom row (rect.z) first, the
-        /// same order both consumers document for their grids.</summary>
-        internal static RoomWalk OverRect(Map map, int x, int z, int width, int height)
-        {
-            var walk = new RoomWalk
-            {
-                Rooms = new List<Entry>(),
-                Grid = new List<List<object?>>(height < 0 ? 0 : height)
-            };
-
-            // Response-local index per distinct room, assigned in raster order so
-            // the grid's first non-null value is always 0.
-            var indexByRoomId = new Dictionary<int, int>();
-
-            for (var offsetZ = 0; offsetZ < height; offsetZ++)
-            {
-                var row = new List<object?>(width < 0 ? 0 : width);
-                for (var offsetX = 0; offsetX < width; offsetX++)
-                {
-                    var cell = new IntVec3(x + offsetX, 0, z + offsetZ);
-                    var room = RoomAt(map, cell);
-                    if (room == null)
-                    {
-                        walk.CellsWithNoRoom++;
-                        row.Add(null);          // explicit, never omitted
-                        continue;
-                    }
-
-                    var roomId = RoomId(room);
-                    if (roomId == null)
-                    {
-                        walk.CellsWithNoRoom++;
-                        row.Add(null);
-                        continue;
-                    }
-
-                    int index;
-                    if (!indexByRoomId.TryGetValue(roomId.Value, out index))
-                    {
-                        index = walk.Rooms.Count;
-                        indexByRoomId[roomId.Value] = index;
-                        walk.Rooms.Add(new Entry(index, roomId.Value, room, cell));
-                    }
-
-                    walk.Rooms[index].AddCell(cell);
-                    row.Add(index);
-                }
-                walk.Grid.Add(row);
-            }
-
-            return walk;
-        }
-
-        /// <summary>The room covering a cell, or null. GridsUtility.GetRoom takes
-        /// (IntVec3, Map) in 1.6 — there is no RegionType overload — and forwards
-        /// to RegionAndRoomQuery.RoomAt, so this is that call.</summary>
-        internal static Room? RoomAt(Map map, IntVec3 cell)
-        {
-            try { return cell.GetRoom(map); }
-            catch { return null; }
-        }
-
-        /// <summary>Room.ID is a public FIELD. Null here means the read threw,
-        /// which is a different thing from a room whose id happens to be 0.</summary>
-        internal static int? RoomId(Room room)
-        {
-            try { return room.ID; }
-            catch { return null; }
-        }
-
     }
 }

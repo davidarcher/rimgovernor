@@ -211,59 +211,8 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-
-        private static Thing lootStack;
-        private static Thing lootTrap;
         private static Zone_Stockpile lootZone;
 
-        [Tool("test/loot_drop", Description = "UNSAFE FOR MODEL EXECUTION. Spawn an allowed Steel stack more than 40 cells from the colony on a spike trap; extend the prepared stockpile. Tests autonomous safety forbidding of mid-run loot.")]
-        public async Task<object> LootDrop(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null || map != preparedMap || preparedHauler == null || !Find.TickManager.Paused)
-                    return Refuse("Prepared paused storage fixture required.");
-                var center = new IntVec3((int)preparedPeople.Average(p => p.Position.x), 0, (int)preparedPeople.Average(p => p.Position.z));
-                var cells = map.AllCells.Where(c => !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null
-                    && c.GetThingList(map).All(t => t is Plant) && map.zoneManager.ZoneAt(c) == null
-                    && !map.areaManager.Home[c] && c.DistanceTo(center) > 45
-                    && preparedHauler.CanReach(c, PathEndMode.Touch, Danger.None)).OrderBy(c => c.DistanceToSquared(center)).ToList();
-                if (cells.Count == 0) return Refuse("No safe distant drop cell.");
-                lootZone = map.zoneManager.AllZones.OfType<Zone_Stockpile>().First(z => z.GetStoreSettings().filter.Allows(ThingDefOf.Steel));
-                foreach (var c in GenRadial.RadialCellsAround(lootZone.Cells[0], 6, true)
-                    .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null && map.zoneManager.ZoneAt(c) == null).Take(8))
-                    lootZone.AddCell(c);
-                lootTrap = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("TrapSpike"), ThingDefOf.Steel);
-                lootTrap.SetFaction(Faction.OfPlayer);
-                GenSpawn.Spawn(lootTrap, cells[0], map);
-                lootStack = ThingMaker.MakeThing(ThingDefOf.Steel);
-                lootStack.stackCount = 25;
-                GenSpawn.Spawn(lootStack, cells[0], map);
-                lootStack.SetForbidden(false, false);
-                return new { success = true, id = lootStack.GetUniqueLoadID(), distance = cells[0].DistanceTo(center), forbidden = false };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool("test/loot_safety_control", Description = "UNSAFE FOR MODEL EXECUTION. Read the staged loot's forbidden/storage state, or remove only its staged trap and release the prepared haulers for the safe-haul phase.")]
-        public async Task<object> LootSafetyControl(IRimBridgeContext ctx, CancellationToken cancellationToken, bool removeDanger = false)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                if (Current.Game != preparedGame || Find.CurrentMap != preparedMap || lootStack == null)
-                    return Refuse("Prepared loot fixture required.");
-                if (removeDanger) {
-                    if (lootTrap != null && !lootTrap.Destroyed) lootTrap.Destroy(DestroyMode.Vanish);
-                    // The drop sits outside the established extent, so the
-                    // safe-haul phase also needs far resource reach (#522).
-                    var readiness = RaiseReadiness(preparedMap);
-                    if (readiness is string refusal) return Refuse(refusal);
-                }
-                var stored = lootZone.Cells.SelectMany(c => c.GetThingList(preparedMap))
-                    .Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
-                return new { success = true, forbidden = !lootStack.Destroyed && lootStack.IsForbidden(Faction.OfPlayer),
-                    spawned = lootStack.Spawned, storedSteel = stored, hazard = lootTrap != null && !lootTrap.Destroyed,
-                    inStockpile = lootStack.Spawned && lootZone.Cells.Contains(lootStack.Position) };
-            }, cancellationToken).ConfigureAwait(false);
-        }
         // Far resource reach (#520) needs six armed colonists, two free
         // haulers and a quiet storyteller: every existing colonist takes a
         // rifle and Hauling, and generated colonists fill the count. Returns
@@ -337,28 +286,6 @@ namespace HomeBridge.BridgeTools
                 remoteStack.SetForbidden(true, false);
                 return new { success = true, id = remoteStack.GetUniqueLoadID(), x = cells[0].x, z = cells[0].z,
                     distance = cells[0].DistanceTo(center), edge = Edge(cells[0]), forbidden = true, count };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool("test/loot_remote_control", Description = "UNSAFE FOR MODEL EXECUTION. Read the remote loot stack's forbidden/storage/Home state, or raise the colony's resource reach readiness (six armed colonists, every colonist hauling).")]
-        public async Task<object> LootRemoteControl(IRimBridgeContext ctx, CancellationToken cancellationToken, bool raiseReadiness = false)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                if (Current.Game != preparedGame || Find.CurrentMap != preparedMap || remoteStack == null || lootZone == null)
-                    return Refuse("Prepared remote loot fixture required.");
-                object readiness = null;
-                if (raiseReadiness) {
-                    readiness = RaiseReadiness(preparedMap);
-                    if (readiness is string refusal) return Refuse(refusal);
-                }
-                var stored = lootZone.Cells.SelectMany(c => c.GetThingList(preparedMap))
-                    .Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
-                return new { success = true, forbidden = !remoteStack.Destroyed && remoteStack.IsForbidden(Faction.OfPlayer),
-                    spawned = remoteStack.Spawned, storedSteel = stored, readiness,
-                    inStockpile = remoteStack.Spawned && lootZone.Cells.Contains(remoteStack.Position),
-                    inHome = remoteStack.Spawned && preparedMap.areaManager.Home[remoteStack.Position],
-                    armed = preparedMap.mapPawns.FreeColonistsSpawned.Count(p => p.equipment?.Primary != null),
-                    raidPoints = StorytellerUtility.DefaultThreatPointsNow(preparedMap) };
             }, cancellationToken).ConfigureAwait(false);
         }
 

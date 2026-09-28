@@ -76,41 +76,6 @@ namespace HomeBridge.BridgeTools
             },cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/guarded_construction_control", Description = "UNSAFE FOR MODEL EXECUTION. Private prepared-fixture controls: cancel one exact WoodLog Wall blueprint on a returned site using Designator_Cancel; toggle the prepared pawn's actual drafted state; or issue a native ordered Goto. No suppression of game methods or authority hooks.")]
-        public async Task<object> Control(IRimBridgeContext ctx,CancellationToken cancellationToken,string operation,
-            string colonyId,string loadToken,int mapId,string pawnId=null,string blueprintId=null,int x=0,int z=0)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(()=>{
-                var map=Find.CurrentMap; var identity=Current.Game?.GetComponent<ColonyIdentity>();
-                if(Current.Game!=preparedGame||map!=preparedMap||map==null||identity==null||identity.ColonyId!=colonyId
-                    ||identity.LoadToken!=loadToken||map.uniqueID!=mapId||!Find.TickManager.Paused)return Refuse("Prepared paused colony/load/map identity changed.");
-                if(operation=="cancel") {
-                    var blueprint=map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).OfType<Blueprint>()
-                        .SingleOrDefault(b=>b.GetUniqueLoadID()==blueprintId);
-                    if(blueprint==null||blueprint is Blueprint_Install||blueprint.def.entityDefToBuild!=ThingDefOf.Wall
-                        ||!(blueprint is Blueprint_Build build)||build.EntityToBuildStuff()!=ThingDefOf.WoodLog||!PreparedSites.Contains(blueprint.Position))return Refuse("Exact prepared WoodLog Wall blueprint unavailable.");
-                    var cancel=new Designator_Cancel(); if(!cancel.CanDesignateThing(blueprint).Accepted)return Refuse("Native cancellation refused.");
-                    cancel.DesignateThing(blueprint);
-                    return new { success=blueprint.Destroyed,operation,blueprintId,tick=Find.TickManager.TicksGame };
-                }
-                var pawn=preparedPawn;
-                if(pawn==null||!pawn.Spawned||pawn.Map!=map||pawn.GetUniqueLoadID()!=pawnId||pawn.Dead||pawn.Downed||pawn.InMentalState)
-                    return Refuse("Exact prepared pawn unavailable.");
-                if(operation=="draft") {
-                    if(pawn.drafter==null)return Refuse("Pawn cannot be drafted.");
-                    var before=pawn.drafter.Drafted;pawn.drafter.Drafted=!before;
-                    return new { success=pawn.drafter.Drafted!=before,operation,pawnId,before,drafted=pawn.drafter.Drafted,tick=Find.TickManager.TicksGame };
-                }
-                if(operation=="move") {
-                    var cell=new IntVec3(x,0,z);
-                    if(!cell.InBounds(map)||cell.Fogged(map)||!cell.Standable(map)||pawn.Position.DistanceToSquared(cell)>144
-                        ||!pawn.CanReach(cell,PathEndMode.OnCell,Danger.None))return Refuse("Nearby ordinary move destination unavailable.");
-                    var job=JobMaker.MakeJob(JobDefOf.Goto,cell);var accepted=pawn.jobs.TryTakeOrderedJob(job,JobTag.Misc);
-                    return new { success=accepted,operation,pawnId,x,z,jobId=job.loadID,currentJobId=pawn.CurJob?.loadID,tick=Find.TickManager.TicksGame };
-                }
-                return Refuse("Use cancel, draft or move.");
-            },cancellationToken).ConfigureAwait(false);
-        }
         private static object Refuse(string reason)=>new { success=false,reason };
     }
 }

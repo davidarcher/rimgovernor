@@ -245,17 +245,5 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, room = room?.ID, impressiveness = room?.GetStat(RoomStatDefOf.Impressiveness) ?? 0f, greedyThought = greedy.Worker.CurrentState(p).Active, thought, thoughtActive = named.Worker.CurrentState(p).Active };
             }, cancellationToken).ConfigureAwait(false);
         }
-
-        [Tool("test/sleeping_need", Description = "Prepare low rest on an exact disposable test colonist.")]
-        public async Task<object> Need(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Exact fixture pawn ID.")] string pawn)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var p = Find.CurrentMap.mapPawns.FreeColonistsSpawned.Single(x => x.GetUniqueLoadID() == pawn);
-                p.needs.rest.CurLevelPercentage = .05f;
-                p.jobs.EndCurrentJob(JobCondition.InterruptForced);
-                return new { success = true, rest = p.needs.rest.CurLevelPercentage };
-            }, cancellationToken).ConfigureAwait(false);
-        }
     }
 }

@@ -628,8 +628,7 @@ hunting, no queued incidents, no storyteller ticks, and every non-colony pawn
 and map-gen insect hive removed from the map (#340); because the Custom difficulty is what the save
 persists, a quiet save stays quiet after reload while a fixture build is
 installed. Interruption harnesses (the `combat/*`, `movement/arrival` and
-`authority/disconnect` and `defense/*` cases, `test/world_incident`
-users) stay `Loud`; a registered case declares why in `Reason`.
+`authority/disconnect` and `defense/*` cases) stay `Loud`; a registered case declares why in `Reason`.
 
 Needs are frozen when the assertion is not about them. `na.FreezeNeeds(ctx,
 h, names, keep...)` (`test/freeze_needs`, `FreezeNeedsFixture`, in every

@@ -41,22 +41,4 @@ namespace HomeBridge.BridgeTools
                 c => map.roofCollapseBuffer.IsMarkedToCollapse(c), out checkedRoofs, structuralCells);
         }
     }
-
-    public sealed class RoofSupportTools
-    {
-        [Tool("home/roof_support", Description = "Read-only counterfactual support check for one exact native building. Follows installed roof connectivity and radius while excluding its whole occupied rectangle. Does not prove enclosure, escape access, ownership or authorize deconstruction.")]
-        public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Exact observed building Thing ID.")] string target)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                var wall = map?.listerThings.AllThings.OfType<Building>().SingleOrDefault(b => b.GetUniqueLoadID() == target);
-                if (wall == null) return new { success = false, error = "Observed building is unavailable" };
-                var blocker = RoofSupportSafety.Blocker(wall, out var roofs);
-                return new { success = true, target, tick = Find.TickManager.TicksGame,
-                    supportWithoutTarget = blocker == null, checkedRoofs = roofs, blocker,
-                    scope = "Roof support only; enclosure, escape routes and construction ownership require independent checks" };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-    }
 }

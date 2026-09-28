@@ -10,12 +10,12 @@ import (
 	"strings"
 )
 
-// FixtureRoot holds the test fixture sources (scripts/fixtures/<Name>Fixture.cs),
-// their build files and the committed checkpoint saves (saves/). Which of
+// FixtureRoot holds the test fixture sources (scripts/fixtures/<Name>Fixture.cs)
+// and the committed checkpoint saves (saves/). Which of
 // them a case depends on follows from the case's Go sources (#170): a
 // fixture source feeds a case when the case names one of its
-// [Tool("test/...")] ops, a save when the case names it, while the build
-// files (the .csproj, Taskfile, lock file) feed every case.
+// [Tool("test/...")] ops, a save when the case names it, while any other
+// file directly under it feeds every case.
 const FixtureRoot = "scripts/fixtures"
 
 // fixtureSavesDir is where committed checkpoint saves live under FixtureRoot.
@@ -131,7 +131,7 @@ func FixtureInputs(repo string, refs FixtureRefs) ([]string, error) {
 			}
 			sources[strings.TrimSuffix(name, ".cs")] = src
 		default:
-			// The .csproj, Taskfile and lock file: every build reads them.
+			// Any other file directly under FixtureRoot feeds every build.
 			files = append(files, FixtureRoot+"/"+name)
 		}
 	}

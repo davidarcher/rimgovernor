@@ -109,19 +109,5 @@ namespace HomeBridge.BridgeTools
                 return new { success = revisionRefused && geometryRefused, revisionRefused, geometryRefused };
             }, cancellationToken).ConfigureAwait(false);
 
-        [Tool("test/home_bulk_edits", Description = "Exercise Home Clear and Invert hooks in a disposable colony; changes the map Home mask as declared test input and proves each bulk edit advances the Home revision.")]
-        public async Task<object> Bulk(IRimBridgeContext ctx, CancellationToken cancellationToken, string target)
-            => await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap; var state = HomeCoverage.State(map); var cells = HomeCoverage.Scope(map, target);
-                long before = state.Revision;
-                map.areaManager.Home.Clear();
-                bool clear = state.Revision > before && map.areaManager.Home.TrueCount == 0;
-                try { HomeCoverage.PreparingFixture = true; foreach (var c in cells) map.areaManager.Home[c] = true; }
-                finally { HomeCoverage.PreparingFixture = false; }
-                long beforeInvert = state.Revision;
-                map.areaManager.Home.Invert();
-                bool invert = state.Revision > beforeInvert && cells.All(c => !map.areaManager.Home[c]);
-                return new { success = clear && invert, clear, invert, revision = state.Revision };
-            }, cancellationToken).ConfigureAwait(false);
         }
 }

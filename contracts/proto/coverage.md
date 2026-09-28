@@ -20,19 +20,9 @@ discovered/mapped, not as live source links.
 | `home/colony_identity` | Lifecycle.ReadIdentity | Typed | `controller/rimgovernor/bridge.py:108` |
 | `games_status` | Go controller gamehost process adapter | External host | `controller/rimgovernor/bridge.py:54` |
 | `rimworld/load_game_ready` | Lifecycle.Load / ReadLoad | Typed | `controller/rimgovernor/bridge.py:153` |
-| `home/upkeep_home` | Actions.Apply HomeIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/upkeep_wall` | Actions.Apply: RemoveWallIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/upkeep_bed` | Actions.Apply BedAssignIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/recover_service` | Actions.Apply: RecoverIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/husbandry_config` | Actions.Apply HusbandryIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/relieve_need` | Actions.Apply: NeedReliefIntent (#939) | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/medical_operations` | Observations.ReadMedicalCatalog | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/caravan` | Actions.Apply: FormCaravanIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/manage_waste` | Actions.Apply: WasteIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/gear_upkeep` | Actions.Apply: PawnOrderIntent WEAR (#939); Observations.ReadGear | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/population` | Actions.Apply PrisonerInteractionIntent; Observations.ReadPopulation | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/acquire_resource` | Operations.Preview / Execute: AcquireResource | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/cancel_construction` | Operations.Preview / Execute: CancelConstruction | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/confirm_colony_names` | Actions.Apply NamingIntent (autopilot); PresentationReads.PreviewNaming/PlayerPresentation.Apply naming (future player affordance, unregistered) | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/zone_cells` | Actions.Apply CreateZone / DeleteZoneIntent / ZoneCellsIntent / StockpileIntent; Operations.Preview CreateZone (planner siting); Operations RepairZone / PatchGrowing; Observations.ListZones | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/place_building` | Operations.Preview / Execute: PlaceBuilding; Placement.Preview | Typed | `controller/rimgovernor/bridge_game.py:15` |
@@ -54,12 +44,8 @@ discovered/mapped, not as live source links.
 | `rimworld/open_main_tab` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/bridge_game.py:20` |
 | `rimworld/close_main_tab` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/bridge_game.py:20` |
 | `home/wall_upgrade_sites` | Observations.ListWallUpgradeSites | Typed | `controller/rimgovernor/bridge_game.py:7` |
-| `home/roof_support` | Observations.ReadRoofSupport | Typed | `controller/rimgovernor/bridge_game.py:7` |
 | (new, Go-era) excavation site | Observations.ReadExcavationSite; Actions.Apply: ExcavateIntent | Typed | [#8](https://github.com/davidarcher/rimgovernor/issues/8) |
-| `home/recovery_state` | Observations.ReadRecovery | Typed | `controller/rimgovernor/bridge_game.py:7` |
 | `home/husbandry_facts` | Observations.ReadHusbandry | Typed | `controller/rimgovernor/bridge_game.py:7` |
-| `home/waste_state` | Observations.ReadWaste | Typed | `controller/rimgovernor/bridge_game.py:7` |
-| `home/resource_sources` | Observations.ListResourceSources | Typed | `controller/rimgovernor/bridge_game.py:7` |
 | `rimworld/get_cells_info` | Observations.GetCells | Typed | `controller/rimgovernor/bridge_game.py:8` |
 | `rimworld/get_cell_info` | Observations.GetCells | Typed | `controller/rimgovernor/bridge_game.py:8` |
 | `rimworld/list_architect_categories` | Observations.ListArchitectCategories / ListArchitectDesignators | Typed | `controller/rimgovernor/bridge_game.py:9` |
@@ -75,7 +61,6 @@ discovered/mapped, not as live source links.
 | `rimworld/list_messages` | PresentationReads.Notifications | Typed | `controller/rimgovernor/bridge_game.py:13` |
 | `rimworld/list_alerts` | PresentationReads.Notifications | Typed | `controller/rimgovernor/bridge_game.py:13` |
 | `rimworld/get_map_target_info` | Observations.ResolveTarget + entity/cell read | Typed | `controller/rimgovernor/bridge_game.py:13` |
-| `home/get_cells_plus` | Observations.GetCells | Typed | `controller/rimgovernor/bridge_game.py:122` |
 | `home/world` | Observations.ReadWorld; PlayerPresentation.Apply world view | Typed | `controller/rimgovernor/bridge_game.py:53` |
 | `home/colony_facts` | Observations.ReadColonyFacts | Typed | `controller/rimgovernor/bridge_observation.py:22` |
 | `home/status` | Observations.ReadStatus + Clock.ReadStatus + PresentationReads.Notifications | Typed | `controller/rimgovernor/bridge_observation.py:23` |
@@ -84,9 +69,6 @@ discovered/mapped, not as live source links.
 | `home/list_buildings` | Observations.ListBuildings | Typed | `controller/rimgovernor/bridge_observation.py:24` |
 | `home/list_rooms` | Observations.ListRooms | Typed | `controller/rimgovernor/bridge_observation.py:24` |
 | `home/list_zones` | Observations.ListZones | Typed | `controller/rimgovernor/bridge_observation.py:24` |
-| `home/world_progression` | Observations.ReadWorldProgression | Typed | `controller/rimgovernor/bridge_observation.py:25` |
-| `home/spatial_access` | Observations.ReadSpatialAccess | Typed | `controller/rimgovernor/bridge_observation.py:27` |
-| `home/render_demand` | PresentationMedia.DemandRendering; PresentationReads.RenderState | Typed | `controller/rimgovernor/bridge_runtime.py:250` |
 | `rimworld/take_screenshot` | PresentationMedia.CaptureScreenshot | Typed | `controller/rimgovernor/bridge_runtime.py:256` |
 | `rimworld/get_camera_state` | PresentationReads.Camera | Typed | `controller/rimgovernor/bridge_runtime.py:252` |
 | `rimworld/list_colonists` | PresentationReads.Colonists; Observations.ListPawns | Typed | `controller/rimgovernor/dashboard_controls.py:184` |
@@ -94,7 +76,6 @@ discovered/mapped, not as live source links.
 | `rimworld/clear_selection` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/dashboard_controls.py:194` |
 | `rimworld/set_camera_zoom` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/dashboard_controls.py:271` |
 | `rimworld/move_camera` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/dashboard_controls.py:275` |
-| `home/player_input` | PlayerPresentation.LeaseInput / SendInput; PresentationReads.InputStateRead | Typed | `controller/rimgovernor/dashboard_controls.py:73` |
 | `games_kill` | Go controller gamehost process adapter | External host | `controller/rimgovernor/native_trials.py:112` |
 | `rimworld/save_game` | Lifecycle.Save / ReadSave | Typed | `controller/rimgovernor/session_checkpoint.py:48` |
 | `games_stop` | Go controller gamehost process adapter | External host | `controller/rimgovernor/session_checkpoint.py:92` |
