@@ -17,7 +17,7 @@ import (
 // build, the stage is what it has achieved.
 //
 // Each stage has explicit exit criteria, all read from the review's one
-// gate set (FootholdGates) and facts (StageColonyFacts):
+// live facts (StageColonyFacts):
 //
 //	Foothold     roofed sleeping for every colonist, a cooking bill, a food
 //	             stockpile, food >= FootholdFoodDays, two armed fighters
@@ -377,18 +377,17 @@ func ProductionBlockedGoal(progress []GoalProgress) (GoalID, BlockedReason) {
 	return "", ""
 }
 
-// StageColonyFacts gathers the stage's facts from one review: the gates
-// DetectRoutine derived, the food runway, the wood latch, the built
+// StageColonyFacts gathers the stage's facts from one review: the foothold
+// facts read live, the food runway, the wood latch, the built
 // research bench, the season, the doctors and the production goals'
 // progress records.
-func StageColonyFacts(needs RoutineNeeds, f RoutineFacts, progress []GoalProgress) ColonyStageFacts {
-	g := needs.Gates
+func StageColonyFacts(needs RoutineNeeds, f RoutineFacts, p RoutinePolicy, progress []GoalProgress) ColonyStageFacts {
 	facts := ColonyStageFacts{
-		Shelter: allFacts(g.Shelter, g.Sleeping), Cooking: g.Cooking, FoodStorage: g.Storage, Armed: g.Armed,
+		Shelter: allFacts(footholdShelter(f), footholdSleeping(f)), Cooking: f.Cooking, FoodStorage: f.FoodStorage, Armed: footholdArmed(f),
 		FoodDays:  fallback(f.PopulationFoodDays, f.FoodDays),
-		FieldSown: allFacts(g.Production, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })),
+		FieldSown: allFacts(footholdProduction(f), measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })),
 		WoodShort: needs.Latches.Wood, ResearchBench: ResearchBenchBuilt(f.CurrentConstruction),
-		Power: g.Power, Climate: SeasonalClimate(f.Calendar, g.Temperature, needs.Latches.Refrigeration), Doctor: DoctorCapable(f.WorkProfiles),
+		Power: footholdPower(f), Climate: SeasonalClimate(f.Calendar, footholdTemperature(f, p), needs.Latches.Refrigeration), Doctor: DoctorCapable(f.WorkProfiles),
 	}
 	facts.ProductionBlocked, facts.Blocked = ProductionBlockedGoal(progress)
 	return facts

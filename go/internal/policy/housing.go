@@ -34,8 +34,8 @@ type HousingReview struct {
 // A later phase never opens while an earlier one is owed, so the first
 // shelter and its beds come before any bedroom or spare room. A sleeping
 // census that is unknown and not latched active does not hold expansion.
-func reviewHousing(f RoutineFacts, g FootholdGates, previous RoutineLatches, p RoutinePolicy, sleepingActive bool) HousingReview {
-	shelter := allFacts(g.Shelter, g.Sleeping)
+func reviewHousing(f RoutineFacts, previous RoutineLatches, p RoutinePolicy, sleepingActive bool) HousingReview {
+	shelter := allFacts(footholdShelter(f), footholdSleeping(f))
 	// The upkeep census counts any issued housing plan; only one the
 	// sleeping phase issued holds that phase open.
 	issued := f.UpkeepIssued[MaintainHousing] && previous.Housing == HousingSleeping

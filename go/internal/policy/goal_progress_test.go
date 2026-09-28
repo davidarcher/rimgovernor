@@ -109,26 +109,26 @@ func TestGoalProgressCooldownLiftsWhenConditionChanges(t *testing.T) {
 }
 
 func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T) {
-	gates := FootholdGates{Food: domain.Known(true), Cooking: domain.Known(false), Storage: domain.Known(true)}
-	c, prerequisite, observed := FoodProgress(gates, RoutineFacts{FoodDays: domain.Known(3.5)}, DefaultRoutinePolicy(), false)
+	f := RoutineFacts{FoodDays: domain.Known(3.5), Cooking: domain.Known(false), FoodStorage: domain.Known(true)}
+	c, prerequisite, observed := FoodProgress(f, DefaultRoutinePolicy(), false)
 	if v, known := observed.Value(); c.Method != "cook" || prerequisite != EnsureCooking || !known || v != 0.5 {
 		t.Fatalf("cook rung %+v %s %v", c, prerequisite, observed)
 	}
-	gates.Food = domain.Known(false)
-	c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), false)
+	f.FoodDays = domain.Known(1.0)
+	c, prerequisite, _ = FoodProgress(f, DefaultRoutinePolicy(), false)
 	if c.Method != "acquire" || prerequisite != EnsureCooking {
 		t.Fatalf("acquire rung keeps the bench prerequisite %+v %s", c, prerequisite)
 	}
-	gates.Food, gates.Cooking, gates.Storage = domain.Known(true), domain.Known(true), domain.Known(false)
-	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), true); c.Method != "store" || prerequisite != MaintainFoodStorage {
+	f.FoodDays, f.Cooking, f.FoodStorage = domain.Known(3.5), domain.Known(true), domain.Known(false)
+	if c, prerequisite, _ = FoodProgress(f, DefaultRoutinePolicy(), true); c.Method != "store" || prerequisite != MaintainFoodStorage {
 		t.Fatalf("store rung %+v %s", c, prerequisite)
 	}
 	// Storage owed but no storage method open: the ladder falls to grow.
-	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), false); c.Method != "grow" || prerequisite != "" {
+	if c, prerequisite, _ = FoodProgress(f, DefaultRoutinePolicy(), false); c.Method != "grow" || prerequisite != "" {
 		t.Fatalf("store rung without a method %+v %s", c, prerequisite)
 	}
-	gates.Storage = domain.Known(true)
-	if c, prerequisite, _ = FoodProgress(gates, RoutineFacts{}, DefaultRoutinePolicy(), false); c.Method != "grow" || prerequisite != "" {
+	f.FoodStorage = domain.Known(true)
+	if c, prerequisite, _ = FoodProgress(f, DefaultRoutinePolicy(), false); c.Method != "grow" || prerequisite != "" {
 		t.Fatalf("grow rung %+v %s", c, prerequisite)
 	}
 	food := ReviewGoalProgress(GoalProgress{}, EnsureFoodSupply, ProgressContract{Method: "cook", Deadline: 10}, ProgressEvidence{Prerequisite: EnsureCooking}, 5)

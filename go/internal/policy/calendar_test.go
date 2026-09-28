@@ -117,8 +117,8 @@ func TestRoutineFoodAndWoodLatchesHoldThroughTheHarvestGap(t *testing.T) {
 	}
 	// The foothold food gate keeps its flat minimum: a stocked larder short
 	// of the winter target is a development deficit, not a foothold failure.
-	if !positive(r.Gates.Food) {
-		t.Fatal(r.Gates)
+	if !positive(footholdFood(f, DefaultRoutinePolicy())) {
+		t.Fatal(r)
 	}
 	f.Calendar = domain.Known(Calendar{GrowingDays: 61})
 	if _, err := DetectRoutine(f, r.Latches, DefaultRoutinePolicy()); err == nil {

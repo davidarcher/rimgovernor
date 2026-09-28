@@ -68,7 +68,7 @@ func TestColonyDisasterCarriesRemainingTicks(t *testing.T) {
 			t.Fatal("unreported or negative duration became known", row)
 		}
 	}
-	if _, err := policy.ReviewDisaster(f.DisasterConditions, domain.Unknown[[]policy.RecoveryBuilding](), policy.FootholdGates{}, nil, 12); err != nil {
+	if _, err := policy.ReviewDisaster(f.DisasterConditions, domain.Unknown[[]policy.RecoveryBuilding](), nil, nil, 12); err != nil {
 		t.Fatal(err)
 	}
 }

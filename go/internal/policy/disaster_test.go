@@ -8,9 +8,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func disasterGates() FootholdGates {
+func disasterGates() map[DisasterService]domain.Fact[bool] {
 	k := domain.Known(true)
-	return FootholdGates{Food: k, Production: k, Sleeping: k, Shelter: k, Temperature: k, Cooking: k, Power: k, Storage: k}
+	return map[DisasterService]domain.Fact[bool]{DisasterFood: k, DisasterProduction: k, DisasterSleeping: k, DisasterShelter: k, DisasterTemperature: k, DisasterCooking: k, DisasterPower: k, DisasterStorage: k}
 }
 func recoveryBuilding(id string) RecoveryBuilding {
 	return RecoveryBuilding{ID: id, UsesHitPoints: domain.Known(true), HitPoints: domain.Known(int64(100)), MaxHitPoints: domain.Known(int64(100)), Broken: domain.Known(false), Forbidden: domain.Known(false), Burning: domain.Known(false), Refuelable: domain.Known(false)}
@@ -24,7 +24,7 @@ func TestDisasterCompoundExpiryAndRenewal(t *testing.T) {
 	if err != nil || h != nil {
 		t.Fatal(h, err)
 	}
-	g.Food, g.Power, g.Temperature = domain.Known(false), domain.Known(false), domain.Known(false)
+	g[DisasterFood], g[DisasterPower], g[DisasterTemperature] = domain.Known(false), domain.Known(false), domain.Known(false)
 	h, err = ReviewDisaster(conditions, buildings, g, nil, 11)
 	if err != nil || h.Phase != DisasterDisrupted || h.Conditions[0].ID != "1" {
 		t.Fatal(h, err)
@@ -85,7 +85,7 @@ func TestDisasterTemporarySurvivalRequiresCompleteServices(t *testing.T) {
 		t.Fatal(h, err)
 	}
 	g := disasterGates()
-	g.Storage = domain.Unknown[bool]()
+	g[DisasterStorage] = domain.Unknown[bool]()
 	h, err = ReviewDisaster(conditions, buildings, g, h, 2)
 	if err != nil || h.Phase != DisasterUnknown {
 		t.Fatal(h, err)
@@ -183,7 +183,7 @@ func TestRoutineDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 }
 
 func TestReviewDisasterRejectsInconsistentDuration(t *testing.T) {
-	g := FootholdGates{}
+	var g map[DisasterService]domain.Fact[bool]
 	five := int64(5)
 	negative := int64(-1)
 	for _, bad := range [][]DisasterCondition{

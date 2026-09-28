@@ -71,8 +71,8 @@ func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got, known := needs.Gates.Production.Value(); change != "unknown-farm" && (!known || !got) {
-				t.Fatal(needs.Gates)
+			if got, known := policy.DisasterServiceFacts(f, policy.DefaultRoutinePolicy())[policy.DisasterProduction].Value(); change != "unknown-farm" && (!known || !got) {
+				t.Fatal(needs)
 			}
 		})
 	}

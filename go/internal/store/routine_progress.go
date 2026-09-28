@@ -95,7 +95,7 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 		contract := policy.GoalProgressContract(methodLabel(method), request.Policy)
 		if n.ID == policy.EnsureFoodSupply {
-			contract, evidence.Prerequisite, evidence.Observed = policy.FoodProgress(needs.Gates, request.Facts, request.Policy, storageOpen)
+			contract, evidence.Prerequisite, evidence.Observed = policy.FoodProgress(request.Facts, request.Policy, storageOpen)
 		}
 		record := policy.ReviewGoalProgress(last, n.ID, contract, evidence, request.Tick)
 		if !evidence.Advanced {

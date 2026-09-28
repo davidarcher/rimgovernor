@@ -779,7 +779,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
-		stage := policy.ReviewColonyStage(previousStage, policy.StageColonyFacts(needs, request.Facts, r.Progress), request.Policy.Stages(), request.Tick)
+		stage := policy.ReviewColonyStage(previousStage, policy.StageColonyFacts(needs, request.Facts, request.Policy, r.Progress), request.Policy.Stages(), request.Tick)
 		r.Stage = &stage
 		var development policy.DevelopmentState
 		var ready policy.ReadyWorkReport

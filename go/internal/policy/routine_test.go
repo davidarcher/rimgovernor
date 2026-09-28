@@ -63,7 +63,7 @@ func TestRoutineStableAndRenewedDeficits(t *testing.T) {
 	}
 	f.FoodDays = domain.Known(5.0)
 	r = needs(t, f, r.Latches)
-	if !positive(r.Gates.Food) || !hasNeed(r, EnsureFoodSupply) {
+	if !positive(footholdFood(f, DefaultRoutinePolicy())) || !hasNeed(r, EnsureFoodSupply) {
 		t.Fatal("foothold gate must not erase recovery target", r)
 	}
 	f.FoodDays = domain.Known(7.0)
@@ -84,7 +84,7 @@ func TestRoutineStableAndRenewedDeficits(t *testing.T) {
 }
 func TestRoutineUnknownNeverRecovers(t *testing.T) {
 	r := needs(t, RoutineFacts{}, RoutineLatches{Food: true, Wood: true, Cold: true, Hot: true})
-	if positive(r.Gates.Food) || !r.Latches.Food || !r.Latches.Wood || !r.Latches.Cold || !r.Latches.Hot {
+	if positive(footholdFood(RoutineFacts{}, DefaultRoutinePolicy())) || !r.Latches.Food || !r.Latches.Wood || !r.Latches.Cold || !r.Latches.Hot {
 		t.Fatal(r)
 	}
 	if !hasNeed(r, ActiveCombat) || !hasNeed(r, CriticalMedicine) {
@@ -127,7 +127,7 @@ func TestRoutineForecastAndPopulationAreSeparateFromStock(t *testing.T) {
 	f.FoodDays = domain.Known(0.0)
 	f.FieldCoverage = domain.Known(10.0)
 	r := needs(t, f, RoutineLatches{})
-	if positive(r.Gates.Food) || !hasNeed(r, EnsureFoodSupply) {
+	if positive(footholdFood(f, DefaultRoutinePolicy())) || !hasNeed(r, EnsureFoodSupply) {
 		t.Fatal(r)
 	}
 	f = stableRoutine()
@@ -135,7 +135,7 @@ func TestRoutineForecastAndPopulationAreSeparateFromStock(t *testing.T) {
 	f.IndoorCapacity = domain.Known(int64(3))
 	f.PopulationFoodDays = domain.Known(2.0)
 	r = needs(t, f, RoutineLatches{})
-	if positive(r.Gates.Shelter) || positive(r.Gates.Production) || positive(r.Gates.Food) {
+	if positive(footholdShelter(f)) || positive(footholdProduction(f)) || positive(footholdFood(f, DefaultRoutinePolicy())) {
 		t.Fatal(r)
 	}
 }

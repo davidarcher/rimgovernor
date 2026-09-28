@@ -424,12 +424,66 @@ type RoutineFacts struct {
 	ShortCircuitTick                                                     domain.Fact[domain.Tick]
 }
 
-// FootholdGates is the review's one gate set: the foothold goals open on
-// them and the colony stage's exit criteria read them (StageColonyFacts).
-// Armed is two armed fighters (every colonist when fewer); Defense adds no
-// hostiles on the map.
-type FootholdGates struct {
-	Sleeping, Shelter, Food, Production, Storage, Cooking, Temperature, Power, Medical, Armed, Defense, Work domain.Fact[bool]
+// The foothold facts below are read live from one review's facts: the
+// foothold goals open on them (DetectRoutine), and the colony stage
+// (StageColonyFacts), the disaster services (DisasterServiceFacts) and the
+// food ladder (FoodProgress) read the ones they need.
+
+// footholdCount is the colonist count the foothold sizes for: the housing
+// target when it is larger.
+func footholdCount(f RoutineFacts) domain.Fact[int64] {
+	count := f.Colonists
+	if target, k := f.HousingTarget.Value(); k {
+		if n, nk := count.Value(); nk {
+			count = domain.Known(max(n, target))
+		}
+	}
+	return count
+}
+func footholdSleeping(f RoutineFacts) domain.Fact[bool] {
+	return countCapacity(f.BedCapacity, footholdCount(f), 1)
+}
+func footholdShelter(f RoutineFacts) domain.Fact[bool] {
+	return countCapacity(f.IndoorCapacity, footholdCount(f), 1)
+}
+func footholdProduction(f RoutineFacts) domain.Fact[bool] {
+	return countCapacity(f.GrowingCells, footholdCount(f), 10)
+}
+func footholdFood(f RoutineFacts, p RoutinePolicy) domain.Fact[bool] {
+	return measured(fallback(f.PopulationFoodDays, f.FoodDays), func(v float64) bool { return v >= p.FootholdFoodDays })
+}
+func footholdTemperature(f RoutineFacts, p RoutinePolicy) domain.Fact[bool] {
+	return allFacts(measured(f.SleepingMin, func(v float64) bool { return v >= p.ColdEnter }), measured(f.SleepingMax, func(v float64) bool { return v <= p.HotEnter }))
+}
+func footholdPower(f RoutineFacts) domain.Fact[bool] {
+	if safe, known := f.PowerWeatherSafe.Value(); known && !safe {
+		return domain.Known(false)
+	}
+	power := measured(f.PowerHeadroom, func(v float64) bool { return v >= 0 })
+	if required, k := f.PowerRequired.Value(); k && !required {
+		power = domain.Known(true)
+	} else if !k {
+		power = domain.Unknown[bool]()
+	}
+	return allFacts(power, measured(f.DisabledConsumers, func(v bool) bool { return !v }))
+}
+
+// footholdArmed is two armed fighters (every colonist when fewer).
+func footholdArmed(f RoutineFacts) domain.Fact[bool] {
+	if n, k := footholdCount(f).Value(); k {
+		return measured(f.Armed, func(v int64) bool { return v >= min(2, n) })
+	}
+	return domain.Unknown[bool]()
+}
+
+// DisasterServiceFacts are the survival services ReviewDisaster tracks,
+// read live from the review's facts (infrastructure is its own).
+func DisasterServiceFacts(f RoutineFacts, p RoutinePolicy) map[DisasterService]domain.Fact[bool] {
+	return map[DisasterService]domain.Fact[bool]{
+		DisasterFood: footholdFood(f, p), DisasterProduction: footholdProduction(f), DisasterSleeping: footholdSleeping(f),
+		DisasterShelter: footholdShelter(f), DisasterTemperature: footholdTemperature(f, p), DisasterCooking: f.Cooking,
+		DisasterPower: footholdPower(f), DisasterStorage: f.FoodStorage,
+	}
 }
 
 type RoutineLatches struct {
@@ -471,7 +525,6 @@ type RoutineLatches struct {
 }
 type RoutineNeeds struct {
 	Disaster    *DisasterHistory
-	Gates       FootholdGates
 	Latches     RoutineLatches
 	Goals       []DevelopmentGoal
 	Assessments []RoutineAssessment
@@ -635,36 +688,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			return RoutineNeeds{}, errors.New("negative food fact")
 		}
 	}
-	count := f.Colonists
-	if target, k := f.HousingTarget.Value(); k {
-		if n, nk := count.Value(); nk {
-			count = domain.Known(max(n, target))
-		}
-	}
-	g := FootholdGates{
-		Sleeping: countCapacity(f.BedCapacity, count, 1), Shelter: countCapacity(f.IndoorCapacity, count, 1),
-		Production: countCapacity(f.GrowingCells, count, 10), Storage: f.FoodStorage, Cooking: f.Cooking,
-		Food:        measured(fallback(f.PopulationFoodDays, f.FoodDays), func(v float64) bool { return v >= p.FootholdFoodDays }),
-		Temperature: allFacts(measured(f.SleepingMin, func(v float64) bool { return v >= p.ColdEnter }), measured(f.SleepingMax, func(v float64) bool { return v <= p.HotEnter })),
-		Medical:     measured(f.CriticalPatients, func(v int64) bool { return v == 0 }),
-		Work:        allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v })),
-	}
-	power := measured(f.PowerHeadroom, func(v float64) bool { return v >= 0 })
-	if required, k := f.PowerRequired.Value(); k && !required {
-		power = domain.Known(true)
-	} else if !k {
-		power = domain.Unknown[bool]()
-	}
-	g.Power = allFacts(power, measured(f.DisabledConsumers, func(v bool) bool { return !v }))
-	if safe, known := f.PowerWeatherSafe.Value(); known && !safe {
-		g.Power = domain.Known(false)
-	}
-	armed := domain.Unknown[bool]()
-	if n, k := count.Value(); k {
-		armed = measured(f.Armed, func(v int64) bool { return v >= min(2, n) })
-	}
-	g.Armed = armed
-	g.Defense = allFacts(armed, measured(f.Hostiles, func(v int64) bool { return v == 0 }))
+	count := footholdCount(f)
+	sleepingMet, shelterMet, productionMet := footholdSleeping(f), footholdShelter(f), footholdProduction(f)
+	foodMet, temperatureMet, powerMet := footholdFood(f, p), footholdTemperature(f, p), footholdPower(f)
+	medicalMet := measured(f.CriticalPatients, func(v int64) bool { return v == 0 })
+	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v }))
+	defenseMet := allFacts(footholdArmed(f), measured(f.Hostiles, func(v int64) bool { return v == 0 }))
 	wood := domain.Unknown[float64]()
 	if n, k := f.Wood.Value(); k {
 		wood = domain.Known(float64(n))
@@ -697,7 +726,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		Wood:           latchValue(previous.Wood, wood, float64(p.WoodMin), float64(p.WoodTarget), false),
 		Soldiers:       previous.Soldiers || GearSoldierPresent(f.Gear),
 	}
-	r := RoutineNeeds{Gates: g, Latches: l}
+	r := RoutineNeeds{Latches: l}
 	addGoal := func(id GoalID, priority int) {
 		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, f, p), Labor: GoalLabor(id), Risk: RoutineDevelopmentRisk(id, f, l)})
 	}
@@ -711,7 +740,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addGoal(ActiveCombat, 0)
 	}
 	medicalPriority := criticalMedicinePriority(f)
-	if !positive(g.Medical) {
+	if !positive(medicalMet) {
 		addGoal(CriticalMedicine, medicalPriority)
 	}
 	if positive(measured(f.Hostiles, func(n int64) bool { return n == 0 })) && positive(f.CleanupPawns) {
@@ -723,13 +752,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if positive(f.ForbiddenSupplies) {
 		addGoal(AllowStartingSupplies, 2)
 	}
-	if !positive(g.Work) {
+	if !positive(workMet) {
 		addGoal(EnsureWorkAssignments, 2)
 	}
-	if HumanFoodPending(f.FoodPlan) || l.Food || !positive(g.Food) || !positive(g.Production) || !positive(measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })) {
+	if HumanFoodPending(f.FoodPlan) || l.Food || !positive(foodMet) || !positive(productionMet) || !positive(measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })) {
 		addGoal(EnsureFoodSupply, 2)
 	}
-	housing := reviewHousing(f, g, previous, p, sleepingActive)
+	housing := reviewHousing(f, previous, p, sleepingActive)
 	r.Latches.Housing = housing.Phase
 	if housing.Phase != "" {
 		addGoal(MaintainHousing, housing.Priority)
@@ -741,10 +770,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Goals[len(r.Goals)-1].Labor, r.Goals[len(r.Goals)-1].Risk = nil, domain.Known(0.0)
 		}
 	}
-	if l.Cold || l.Hot || !positive(g.Temperature) {
+	if l.Cold || l.Hot || !positive(temperatureMet) {
 		addGoal(EnsureTemperatureSafety, 2)
 	}
-	if !positive(g.Cooking) {
+	if !positive(f.Cooking) {
 		addGoal(EnsureCooking, 2)
 	}
 	// A solar flare with a known remaining duration switches every powered
@@ -753,11 +782,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// method (it neither extends the startup hold nor is cancelled) until
 	// the flare ends and the planner can tell an outage from a shortfall.
 	flare := SolarFlareHold(f.DisasterConditions)
-	if !positive(g.Power) {
+	if !positive(powerMet) {
 		addGoal(EnsureBasicPower, 2)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = flare
 	}
-	defense := basicDefenseRecovered(g.Defense, f.Unarmed)
+	defense := basicDefenseRecovered(defenseMet, f.Unarmed)
 	if !positive(defense) {
 		addGoal(EnsureBasicDefense, 3)
 		n, k := count.Value()
@@ -780,7 +809,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Latches.Comfort = ComfortBasic
 		addGoal(EnsureComfort, basicComfort.Priority())
 		r.Goals[len(r.Goals)-1].Deficit = basicComfort.Deficit()
-		r.Goals[len(r.Goals)-1].MethodUnavailable = !positive(g.Shelter) || !positive(g.Sleeping) || basicComfort.Priority() == 3 && !basicComfort.VarietyKnown
+		r.Goals[len(r.Goals)-1].MethodUnavailable = !positive(shelterMet) || !positive(sleepingMet) || basicComfort.Priority() == 3 && !basicComfort.VarietyKnown
 	} else if comfortRanked && !positive(f.ComfortRecovered) {
 		// The ranked phase: hosting rooms and proof of use, once the basic
 		// facilities stand and the colony reached StageDevelopment.
@@ -832,16 +861,16 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(ConfirmColonyNames, 0, not(f.ColonyNaming))
 	addAssessment(AnswerDialog, 0, not(f.ChoiceDialog))
 	addAssessment(ActiveCombat, 0, measured(f.Hostiles, func(n int64) bool { return n == 0 }))
-	addAssessment(CriticalMedicine, medicalPriority, g.Medical)
+	addAssessment(CriticalMedicine, medicalPriority, medicalMet)
 	addAssessment(RestoreWorkers, 1, not(f.CleanupPawns))
 	addAssessment(AllowStartingSupplies, 2, not(f.ForbiddenSupplies))
 	addAssessment(ManageSupplySafety, supplySafetyPriority(f), not(f.EventLootPending))
-	addAssessment(EnsureWorkAssignments, 2, g.Work)
-	addAssessment(EnsureFoodSupply, 2, allFacts(domain.Known(!HumanFoodPending(f.FoodPlan)), g.Food, g.Production, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 }), latchRecovered(l.Food, f.FoodDays)))
+	addAssessment(EnsureWorkAssignments, 2, workMet)
+	addAssessment(EnsureFoodSupply, 2, allFacts(domain.Known(!HumanFoodPending(f.FoodPlan)), foodMet, productionMet, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 }), latchRecovered(l.Food, f.FoodDays)))
 	addAssessment(MaintainHousing, housing.Priority, housing.Recovered)
-	addAssessment(EnsureTemperatureSafety, 2, allFacts(g.Temperature, latchRecovered(l.Cold, fallback(f.SleepingMin, f.OutdoorTemperature)), latchRecovered(l.Hot, fallback(f.SleepingMax, f.OutdoorTemperature))))
-	addAssessment(EnsureCooking, 2, g.Cooking)
-	addAssessment(EnsureBasicPower, 2, g.Power)
+	addAssessment(EnsureTemperatureSafety, 2, allFacts(temperatureMet, latchRecovered(l.Cold, fallback(f.SleepingMin, f.OutdoorTemperature)), latchRecovered(l.Hot, fallback(f.SleepingMax, f.OutdoorTemperature))))
+	addAssessment(EnsureCooking, 2, f.Cooking)
+	addAssessment(EnsureBasicPower, 2, powerMet)
 	addAssessment(EnsureBasicDefense, 3, defense)
 	addAssessment(EnsureComfort, comfortPriority, comfortRecovered)
 	addAssessment(ClearPests, 2, pestsClear)
@@ -1031,7 +1060,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// MaintainFoodStorage is the one food storage goal: the foothold food
 	// stockpile (the storage gate) first, then the larder, the reserve and
 	// the stored-food upkeep.
-	stockpileOwed := !positive(g.Storage)
+	stockpileOwed := !positive(f.FoodStorage)
 	foodStorageActive := foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage] || reserveAccess || reserveRefill
 	foodStorageRecovered := domain.Unknown[bool]()
 	foodStoragePriority := foodStorageUpkeepPriority
@@ -1050,7 +1079,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if reserveAccess || reserveRefill {
 		foodStorageRecovered = domain.Known(false)
 	}
-	foodStorageRecovered = allFacts(g.Storage, foodStorageRecovered)
+	foodStorageRecovered = allFacts(f.FoodStorage, foodStorageRecovered)
 	addAssessment(MaintainFoodStorage, foodStoragePriority, foodStorageRecovered)
 	if !positive(foodStorageRecovered) {
 		addGoal(MaintainFoodStorage, foodStoragePriority)
@@ -1294,7 +1323,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Goals[i].Deficit = domain.Known(pressure)
 		}
 	}
-	r.Disaster, err = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, r.Gates, f.Disaster, f.DisasterTick, f.ShortCircuitTick)
+	r.Disaster, err = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick)
 	if err != nil {
 		return RoutineNeeds{}, err
 	}

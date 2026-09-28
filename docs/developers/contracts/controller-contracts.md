@@ -179,8 +179,8 @@ The review also derives the colony stage (`policy.ColonyStage`, #630), one order
 of what the colony has achieved by outcome: Foothold, Reserves, Stable, Development.
 It is a pure function of colony facts and the progress records (`ReviewColonyStage`),
 never of research: `policy.BuildTier` (#604) is what the colony can build, the stage is
-what it has. Each stage has explicit exit criteria, all read from the review's one gate
-set (`FootholdGates`) through `StageColonyFacts`: Foothold exits with roofed sleeping for
+what it has. Each stage has explicit exit criteria, all read live from the review's
+facts through `StageColonyFacts`: Foothold exits with roofed sleeping for
 every colonist, an active meal bill, a food stockpile, the runway at `FootholdFoodDays`
 and two armed fighters; Reserves with the runway at `FoodTargetDays`, the growing field
 sown, the wood latch clear, a research bench built and no production goal blocked;

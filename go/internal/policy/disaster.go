@@ -315,7 +315,7 @@ func cloneDisaster(h *DisasterHistory) *DisasterHistory {
 
 // ReviewDisaster uses the same survival gates as routine planning. The store
 // resets history on world replacement or rewind and retains it through Manual.
-func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domain.Fact[[]RecoveryBuilding], gates FootholdGates, previous *DisasterHistory, tick domain.Tick, shortCircuit ...domain.Fact[domain.Tick]) (*DisasterHistory, error) {
+func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domain.Fact[[]RecoveryBuilding], services map[DisasterService]domain.Fact[bool], previous *DisasterHistory, tick domain.Tick, shortCircuit ...domain.Fact[domain.Tick]) (*DisasterHistory, error) {
 	if err := previous.Validate(); err != nil {
 		return nil, err
 	}
@@ -423,7 +423,11 @@ func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domai
 		}
 		infrastructure = domain.Known(recovered)
 	}
-	facts := []domain.Fact[bool]{gates.Food, gates.Production, gates.Sleeping, gates.Shelter, gates.Temperature, gates.Cooking, gates.Power, gates.Storage, infrastructure}
+	facts := make([]domain.Fact[bool], len(disasterServices))
+	for i, s := range disasterServices {
+		facts[i] = services[s]
+	}
+	facts[len(facts)-1] = infrastructure
 	h.Services = nil
 	affected := map[DisasterService]bool{}
 	for _, s := range h.Affected {

@@ -389,23 +389,23 @@ func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
 // unknown gate is no evidence of a missing bench and blocks nothing. The
 // observable is the food runway's shortfall against FoodTargetDays, so a
 // day of food gained reads as progress whichever rung is current.
-func FoodProgress(g FootholdGates, f RoutineFacts, p RoutinePolicy, storageOpen bool) (ProgressContract, GoalID, domain.Fact[float64]) {
+func FoodProgress(f RoutineFacts, p RoutinePolicy, storageOpen bool) (ProgressContract, GoalID, domain.Fact[float64]) {
 	owed := func(v domain.Fact[bool]) bool { b, k := v.Value(); return k && !b }
 	observed := domain.Unknown[float64]()
 	if days, known := fallback(f.PopulationFoodDays, f.FoodDays).Value(); known && p.FoodTargetDays > 0 {
 		observed = domain.Known(max(0, min(1, 1-days/p.FoodTargetDays)))
 	}
 	var prerequisite GoalID
-	if owed(g.Cooking) {
+	if owed(f.Cooking) {
 		prerequisite = EnsureCooking
 	}
 	deadline := domain.Tick(p.GoalStallTicks)
 	switch {
-	case HumanFoodPending(f.FoodPlan) || !positive(g.Food):
+	case HumanFoodPending(f.FoodPlan) || !positive(footholdFood(f, p)):
 		return ProgressContract{Method: "acquire", Expected: "food days rise toward the target", Deadline: deadline}, prerequisite, observed
-	case owed(g.Cooking):
+	case owed(f.Cooking):
 		return ProgressContract{Method: "cook", Expected: "meals cooked at a bench", Deadline: deadline}, prerequisite, observed
-	case owed(g.Storage) && storageOpen:
+	case owed(f.FoodStorage) && storageOpen:
 		return ProgressContract{Method: "store", Expected: "raw food stored under a roof", Deadline: deadline}, MaintainFoodStorage, observed
 	default:
 		return ProgressContract{Method: "grow", Expected: "growing zone planted to the field target", Deadline: deadline}, prerequisite, observed
