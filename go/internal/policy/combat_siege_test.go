@@ -66,12 +66,31 @@ func TestDecideCombatSiegeSortiesOnceCampIsSet(t *testing.T) {
 	}
 }
 
-// {stop past the window, no weapon ranges known} -> harass mode with no
-// harasser: no attack, riflemen to the line.
-func TestDecideCombatSiegeHoldsAfterSortieWindow(t *testing.T) {
+// {a besieger starts a mortar frame, no weapon ranges known} -> harass
+// mode with no harasser: no attack, riflemen to the line; the latch holds
+// once the builder moves off the frame (#1154).
+func TestDecideCombatSiegeHoldsAfterFirstMortarFrame(t *testing.T) {
 	view := siegeView(siegeCampToil)
 	_, m := decideStop(t, view, StopEvent{}, CombatMemory{})
-	view.Tick += siegeSortieWindow + 1
+	view.Tick += 100_000
+	_, m = decideStop(t, view, StopEvent{}, m)
+	if m.SiegeMode != SiegeSortie {
+		t.Fatalf("sortie ended on a clock: %+v", m)
+	}
+	for i := range view.Pawns {
+		if view.Pawns[i].ID == "r1" {
+			view.Pawns[i].Job, view.Pawns[i].Target, view.Pawns[i].TargetMortar = "FinishFrame", "frame1", true
+		}
+	}
+	view.Tick++
+	_, m = decideStop(t, view, StopEvent{}, m)
+	if m.SiegeMode != SiegeHarass || !m.SiegeMortar {
+		t.Fatalf("%+v", m)
+	}
+	for i := range view.Pawns {
+		view.Pawns[i].Job, view.Pawns[i].TargetMortar = "", false
+	}
+	view.Tick++
 	orders, m := decideStop(t, view, StopEvent{}, m)
 	if m.SiegeMode != SiegeHarass {
 		t.Fatalf("%+v", m)

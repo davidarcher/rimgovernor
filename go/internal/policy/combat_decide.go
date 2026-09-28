@@ -540,6 +540,9 @@ type CombatMemory struct {
 	// siege tactic's mode at its last formation (#776).
 	SiegeCamp domain.Tick `json:",omitempty"`
 	SiegeMode SiegeMode   `json:",omitempty"`
+	// SiegeMortar latches the first hostile mortar frame (#1154): the
+	// sortie ends there.
+	SiegeMortar bool `json:",omitempty"`
 	// CannotHit are the attacks native refused cannot_hit (#912), kept
 	// while the shooter stands on the cell it was refused from, so the
 	// fight retargets or waits instead of re-sending them every stop.

@@ -137,11 +137,10 @@ const (
 
 // Names are the fixtures in landing order; #854 lands the first three,
 // lab-pods (#870) joins with its rooms (#897), lab-breach with its sapper
-// raid (#1149).
+// raid (#1149), lab-siege with its siege lord (#1154).
 // The metrics baselines run Names; lab-manhunter (#1057), lab-infestation
-// (#1071), lab-mech (#1118) and lab-siege
-// (#1051) build but have no metrics baseline yet.
-var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach"}
+// (#1071) and lab-mech (#1118) build but have no metrics baseline yet.
+var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
 func Build(name string, cx, cz int) (Fixture, error) {

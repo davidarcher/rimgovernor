@@ -6,20 +6,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// sortieView is siegeView camped, inside the sortie window, with brawler m.
+// sortieView is siegeView camped, before any mortar frame, with brawler m.
 func sortieView() CombatView {
 	return withBrawlers(siegeView(siegeCampToil), combatBrawler("m", 0.5))
 }
 
-// {camp in the window, r1 building a mortar frame, r2 a sandbag frame, 3
-// riflemen, 1 brawler} -> riflemen attack the mortar frame; the brawler
-// attacks a besieger.
-func TestDecideCombatSiegeSnipesMortarFrames(t *testing.T) {
+// {camp set, r1 and r2 building sandbag frames, 3 riflemen, 1 brawler}
+// -> riflemen attack the least frame; the brawler attacks a besieger.
+func TestDecideCombatSiegeSnipesFrames(t *testing.T) {
 	view := sortieView()
 	for i, p := range view.Pawns {
 		switch p.ID {
 		case "r1":
-			view.Pawns[i].Job, view.Pawns[i].Target, view.Pawns[i].TargetMortar = "FinishFrame", "Thing_Frame9", true
+			view.Pawns[i].Job, view.Pawns[i].Target = "FinishFrame", "Thing_Frame9"
 		case "r2":
 			view.Pawns[i].Job, view.Pawns[i].Target = "FinishFrame", "Thing_Frame3"
 		}
@@ -30,7 +29,7 @@ func TestDecideCombatSiegeSnipesMortarFrames(t *testing.T) {
 	}
 	a := attacks(orders)
 	for _, id := range []domain.PawnID{"a", "b", "c"} {
-		if a[id] != "Thing_Frame9" {
+		if a[id] != "Thing_Frame3" {
 			t.Errorf("%s attacks %q", id, a[id])
 		}
 	}

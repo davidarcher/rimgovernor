@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// harassView is siegeView camped past the sortie window: besiegers with
+// harassView is siegeView camped past the first mortar frame: besiegers with
 // range 20, rifleman a range 30, b and c range 20.
 func harassView() (CombatView, CombatMemory) {
 	view := siegeView(siegeCampToil)
@@ -19,10 +19,10 @@ func harassView() (CombatView, CombatMemory) {
 			view.Pawns[i].WeaponRange = 20
 		}
 	}
-	return view, CombatMemory{SiegeCamp: view.Tick - siegeSortieWindow - 1}
+	return view, CombatMemory{SiegeCamp: view.Tick - 1, SiegeMortar: true}
 }
 
-// {camp past the window, a outranges, b and c do not} -> a moves to 27
+// {past the first mortar frame, a outranges, b and c do not} -> a moves to 27
 // cells from its nearest besieger (r2) and attacks the camp (focus fire
 // may pick r1); b and c no attack.
 func TestDecideCombatSiegeHarassesFromOutrange(t *testing.T) {

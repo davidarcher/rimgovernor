@@ -1,35 +1,20 @@
 package policy
 
-import (
-	"sort"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-)
+import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // siegeFrame is the frame a sortie's gunners shoot (#919): the job
-// target of a live besieger on a FinishFrame job, a mortar frame (the
-// native TargetMortar fact, #1148) first, then by id; "" with no builder.
+// target of a live besieger on a FinishFrame job, the least id; "" with
+// no builder. The first mortar frame ends the sortie (#1154), so these
+// are the sandbags.
 func siegeFrame(view CombatView) domain.PawnID {
 	besiegers := liveBesiegers(view)
-	var frames []domain.PawnID
-	mortar := map[domain.PawnID]bool{}
+	var frame domain.PawnID
 	for _, p := range view.Pawns {
-		if _, ok := besiegers[p.ID]; ok && p.Job == "FinishFrame" && p.Target != "" {
-			frames = append(frames, p.Target)
-			mortar[p.Target] = mortar[p.Target] || p.TargetMortar
+		if _, ok := besiegers[p.ID]; ok && p.Job == "FinishFrame" && p.Target != "" && (frame == "" || p.Target < frame) {
+			frame = p.Target
 		}
 	}
-	sort.SliceStable(frames, func(i, j int) bool {
-		mi, mj := mortar[frames[i]], mortar[frames[j]]
-		if mi != mj {
-			return mi
-		}
-		return frames[i] < frames[j]
-	})
-	if len(frames) == 0 {
-		return ""
-	}
-	return frames[0]
+	return frame
 }
 
 // siegeSnipe points a sortie's gunners at the frame the besiegers are

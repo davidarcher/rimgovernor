@@ -22,11 +22,6 @@ const (
 	SiegeHarass SiegeMode = "harass"
 )
 
-// siegeSortieWindow is how long after the camp is first seen, in ticks,
-// the fight sorties: two in-game hours, roughly the builders' time to put
-// the sandbags up before they start on the mortars.
-const siegeSortieWindow domain.Tick = 5000
-
 // Siege lord classes.
 const (
 	siegeLordJob  = "LordJob_Siege"
@@ -53,22 +48,39 @@ func liveBesiegers(view CombatView) map[domain.PawnID]string {
 	return out
 }
 
-// siegeTurn records the tick the siege camp is first seen (#776).
+// siegeTurn records the tick the siege camp is first seen (#776) and
+// latches the first hostile mortar frame (#1154): the builders start on
+// the mortars once the sandbags are up, so the sortie ends there.
 func siegeTurn(view CombatView, m *CombatMemory) {
-	if m.SiegeCamp != 0 {
+	besiegers := liveBesiegers(view)
+	if m.SiegeCamp == 0 {
+		for _, toil := range besiegers {
+			if toil == siegeCampToil {
+				m.SiegeCamp = view.Tick
+				break
+			}
+		}
+	}
+	if m.SiegeCamp == 0 || m.SiegeMortar {
 		return
 	}
-	for _, toil := range liveBesiegers(view) {
-		if toil == siegeCampToil {
-			m.SiegeCamp = view.Tick
+	for _, p := range view.Pawns {
+		if _, ok := besiegers[p.ID]; ok && p.Job == "FinishFrame" && p.TargetMortar {
+			m.SiegeMortar = true
+			return
+		}
+	}
+	for _, s := range view.Structures {
+		if s.Mortar {
+			m.SiegeMortar = true
 			return
 		}
 	}
 }
 
 // siegeMode is the siege tactic's mode at this stop, "" when no siege
-// lord is travelling or camped: hold before the camp is set, sortie for
-// siegeSortieWindow after it, then harass.
+// lord is travelling or camped: hold before the camp is set, sortie until
+// the first hostile mortar frame, then harass.
 func siegeMode(view CombatView, m CombatMemory) SiegeMode {
 	if len(liveBesiegers(view)) == 0 {
 		return ""
@@ -78,7 +90,7 @@ func siegeMode(view CombatView, m CombatMemory) SiegeMode {
 		return SiegeHold
 	case campAsleep(view):
 		return SiegeSneak
-	case view.Tick-m.SiegeCamp > siegeSortieWindow:
+	case m.SiegeMortar:
 		return SiegeHarass
 	}
 	return SiegeSortie
