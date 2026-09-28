@@ -140,36 +140,56 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				}
 			}
 		}
-		// A pest hunt follows its animal (#321) and native settles it on
-		// the animal's death or departure, so the hunt-stall rule is not
-		// its exit: the pest goal has no other prey to try for that animal,
-		// and cancelling the hunt withdraws the designation from under its
-		// hunter only to re-plan the same animal (#455).
-		// Both kinds read stalls from the census (#1044): designated,
-		// untaken, past the kind's contract since native first saw it.
-		for _, hunt := range []bool{false, true} {
-			if hunt && pest {
-				continue
+		for thing := range undispatchedAcquisitions(plan.Progress) {
+			undispatched[thing] = true
+		}
+	}
+	// Stalls are read from the census alone (#1044, #1046): any designated
+	// row of the goal's kind, untaken past its contract since native first
+	// saw it, the player's own included (#719). Each is withdrawn by its own
+	// one-action method, admitted before re-selection and using up this
+	// step's admission. A pest hunt follows its animal (#321) and native
+	// settles it on the animal's death or departure, so the hunt-stall rule
+	// is not its exit (#455): the pest goal withdraws nothing.
+	if !pest {
+		mine := func(row policy.AcquisitionSource) bool { return food && row.Food }
+		if stockGoal {
+			targets, err := r.reviewer.resourceTargets(call, state.Snapshot, projection.Facts.Resources)
+			if err != nil {
+				return RoutineAcquisitionResult{}, err
 			}
+			mine = func(row policy.AcquisitionSource) bool { _, ok := targets[policy.Resource(row.Resource)]; return ok }
+		}
+		for _, hunt := range []bool{false, true} {
 			contract := r.reviewer.policy.AcquisitionProgress()
 			if hunt {
 				contract = r.reviewer.policy.HuntProgress()
 			}
-			for _, v := range stalledDesignations(plan.Progress, projection.Acquisition, hunt, expected.Tick, contract) {
-				if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
+			for _, row := range stalledDesignations(projection.Acquisition, hunt, expected.Tick, contract, mine) {
+				stalledSources[row.ID] = true
+				method, plan, err := stallWithdraw(row, "routine-acquire-withdraw")
+				if err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
-				if err = cool(contract, v.Thing); err != nil {
+				if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+					continue
+				} else if !errors.Is(err, store.ErrNotFound) {
 					return RoutineAcquisitionResult{}, err
 				}
-				stalledSources[v.Thing] = true
+				if err = cool(contract, row.ID); err != nil {
+					return RoutineAcquisitionResult{}, err
+				}
+				if err = p.current(call, epoch); err != nil {
+					return RoutineAcquisitionResult{}, err
+				}
+				if p.session.State() != state {
+					return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
+				}
+				if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, "withdraw stalled "+row.Resource, plan); err != nil {
+					return RoutineAcquisitionResult{}, err
+				}
+				return RoutineAcquisitionResult{Reason: BuildingMethodAdmitted, Plan: plan.ID()}, nil
 			}
-		}
-		if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
-			return RoutineAcquisitionResult{}, err
-		}
-		for thing := range undispatchedAcquisitions(plan.Progress) {
-			undispatched[thing] = true
 		}
 	}
 	// Sources under a cooldown are passed over like held ones: the cooldown
@@ -465,46 +485,48 @@ func huntRows(sources domain.Fact[[]policy.AcquisitionSource]) domain.Fact[[]pol
 	return domain.Known(hunts)
 }
 
-// stalledDesignation is a dispatched, still-designated harvest nobody has
-// taken: the action and the source thing the planner must stop counting.
-type stalledDesignation struct {
-	Action domain.ActionID
-	Thing  string
-}
-
 // stalledDesignations selects, from the acquisition census, the designated
-// rows of one kind (hunt or not) no colonist has taken for at least the
-// contract's deadline since native first saw the designation (#1044), each
-// paired with the plan's open, dispatched acquisition action on that thing.
-// The planner cancels those so the goal re-plans from another source
-// instead of holding a method on a designation nobody works; the native
-// executor then withdraws it (CancelAcquisition) and the withdrawn record's
-// terminal effect settles the action. A taken row (reserved, or a
-// colonist's job targets it) is never stalled. Harvests run on
-// RoutinePolicy.AcquisitionProgress (#291), hunts on HuntProgress; pest
-// hunts are not passed here (#321, #455). A contract without a deadline,
-// or an unknown census, stalls nothing.
-func stalledDesignations(progress []domain.Progress, sources domain.Fact[[]policy.AcquisitionSource], hunt bool, now domain.Tick, contract policy.ProgressContract) []stalledDesignation {
+// rows of one kind (hunt or not) the goal owns (mine) that no colonist has
+// taken for at least the contract's deadline since native first saw the
+// designation (#1044). No action pairing (#1046): a player's designation of
+// the goal's kind stalls too (#719). The planner withdraws each so the goal
+// re-plans from another source. A taken row (reserved, or a colonist's job
+// targets it) is never stalled. Harvests run on
+// RoutinePolicy.AcquisitionProgress (#291), hunts on HuntProgress. A
+// contract without a deadline, or an unknown census, stalls nothing.
+func stalledDesignations(sources domain.Fact[[]policy.AcquisitionSource], hunt bool, now domain.Tick, contract policy.ProgressContract, mine func(policy.AcquisitionSource) bool) []policy.AcquisitionSource {
 	rows, known := sources.Value()
 	if contract.Deadline <= 0 || !known {
 		return nil
 	}
-	actions := map[string]domain.ActionID{}
-	for _, p := range progress {
-		acquisition, ok := p.Action().Acquisition()
-		v := p.View()
-		if ok && v.Unresolved && v.Stage != domain.Pending && v.Stage != domain.Prepared && v.Stage != domain.Cancelled {
-			actions[acquisition.Thing()] = v.Action
-		}
-	}
-	var stalled []stalledDesignation
+	var stalled []policy.AcquisitionSource
 	for _, row := range rows {
-		action, open := actions[row.ID]
-		if open && row.Designated && !row.Taken && row.Hunt == hunt && contract.Expired(row.DesignatedTick, now) {
-			stalled = append(stalled, stalledDesignation{action, row.ID})
+		if row.Designated && !row.Taken && row.Hunt == hunt && mine(row) && contract.Expired(row.DesignatedTick, now) {
+			stalled = append(stalled, row)
 		}
 	}
 	return stalled
+}
+
+// stallWithdraw is the one-action withdraw method of one stalled row
+// (#1046). Its method id hashes the source and the designation's first-seen
+// tick: a withdraw not yet read back is not filed twice, and a later
+// re-designation of the same source rehashes.
+func stallWithdraw(row policy.AcquisitionSource, planPrefix string) (domain.MethodID, domain.PlanSpec, error) {
+	hash := sha256.New()
+	fmt.Fprintf(hash, "%s/%s/%d/%d/%d\n", row.ID, row.Resource, row.Cell.X, row.Cell.Z, row.DesignatedTick)
+	method := domain.MethodID(fmt.Sprintf("withdraw-%x", hash.Sum(nil)[:16]))
+	value, err := domain.NewAcquisition(row.ID, row.Resource, row.Cell)
+	if err != nil {
+		return "", domain.PlanSpec{}, err
+	}
+	id := domain.MintPlanID(planPrefix)
+	action, err := domain.NewAcquisitionWithdrawAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	if err != nil {
+		return "", domain.PlanSpec{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	return method, plan, err
 }
 
 // withoutStalled takes the census rows this step withdrew as stalled off

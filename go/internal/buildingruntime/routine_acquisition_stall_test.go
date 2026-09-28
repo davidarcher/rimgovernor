@@ -16,39 +16,43 @@ func census(rows ...policy.AcquisitionSource) domain.Fact[[]policy.AcquisitionSo
 	return domain.Known(rows)
 }
 
+func anyRow(policy.AcquisitionSource) bool { return true }
+
 // A designated plant nobody took past AcquisitionStallTicks, measured from
-// native's first sight of the designation, is withdrawn (#1044).
+// native's first sight of the designation, is withdrawn (#1044), with no
+// plan action paired to it (#1046).
 func TestStalledDesignationsWithdrawUntakenHarvest(t *testing.T) {
 	t.Parallel()
-	progress := []domain.Progress{dispatchedHunt(t, "harvest-0", "healroot", 100)}
 	rows := census(censusRow("healroot", false, false, 500))
-	if got := stalledDesignations(progress, rows, false, 500+59999, harvestContract(60000)); got != nil {
+	if got := stalledDesignations(rows, false, 500+59999, harvestContract(60000), anyRow); got != nil {
 		t.Fatal("stalled before the bound elapses", got)
 	}
-	got := stalledDesignations(progress, rows, false, 500+60000, harvestContract(60000))
-	if len(got) != 1 || got[0].Action != "harvest-0" || got[0].Thing != "healroot" {
+	got := stalledDesignations(rows, false, 500+60000, harvestContract(60000), anyRow)
+	if len(got) != 1 || got[0].ID != "healroot" {
 		t.Fatal("did not report the stalled designation", got)
 	}
-	if got := stalledDesignations(progress, rows, false, 500+60000, harvestContract(0)); got != nil {
+	if got := stalledDesignations(rows, false, 500+60000, harvestContract(0), anyRow); got != nil {
 		t.Fatal("zero bound must disable stall detection", got)
 	}
-	if got := stalledDesignations(progress, domain.Unknown[[]policy.AcquisitionSource](), false, 500+60000, harvestContract(60000)); got != nil {
+	if got := stalledDesignations(domain.Unknown[[]policy.AcquisitionSource](), false, 500+60000, harvestContract(60000), anyRow); got != nil {
 		t.Fatal("unknown census stalls nothing", got)
 	}
-	if got := stalledDesignations(progress, rows, true, 500+60000, huntContract(60000)); got != nil {
+	if got := stalledDesignations(rows, true, 500+60000, huntContract(60000), anyRow); got != nil {
 		t.Fatal("a harvest row is not a hunt", got)
+	}
+	if got := stalledDesignations(rows, false, 500+60000, harvestContract(60000), func(policy.AcquisitionSource) bool { return false }); got != nil {
+		t.Fatal("a row not of the goal's kind is not its to withdraw", got)
 	}
 }
 
 func TestStalledDesignationsSkipTakenAndUndesignatedRows(t *testing.T) {
 	t.Parallel()
-	progress := []domain.Progress{dispatchedHunt(t, "harvest-0", "healroot", 100)}
-	if got := stalledDesignations(progress, census(censusRow("healroot", false, true, 0)), false, 1000000, harvestContract(60000)); got != nil {
+	if got := stalledDesignations(census(censusRow("healroot", false, true, 0)), false, 1000000, harvestContract(60000), anyRow); got != nil {
 		t.Fatal("a taken row is not stalled", got)
 	}
 	row := censusRow("healroot", false, false, 0)
 	row.Designated, row.DesignatedTick = false, 0
-	if got := stalledDesignations(progress, census(row), false, 1000000, harvestContract(60000)); got != nil {
+	if got := stalledDesignations(census(row), false, 1000000, harvestContract(60000), anyRow); got != nil {
 		t.Fatal("an undesignated row is not stalled", got)
 	}
 }
@@ -58,44 +62,44 @@ func TestStalledDesignationsSkipTakenAndUndesignatedRows(t *testing.T) {
 // never does.
 func TestStalledDesignationsHuntGracePeriod(t *testing.T) {
 	t.Parallel()
-	progress := []domain.Progress{dispatchedHunt(t, "hunt-deer", "deer", 100)}
 	rows := census(censusRow("deer", true, false, 100))
-	if got := stalledDesignations(progress, rows, true, 100+5999, huntContract(6000)); got != nil {
+	if got := stalledDesignations(rows, true, 100+5999, huntContract(6000), anyRow); got != nil {
 		t.Fatal("stalled before grace elapses", got)
 	}
-	got := stalledDesignations(progress, rows, true, 100+6000, huntContract(6000))
-	if len(got) != 1 || got[0].Action != "hunt-deer" || got[0].Thing != "deer" {
+	got := stalledDesignations(rows, true, 100+6000, huntContract(6000), anyRow)
+	if len(got) != 1 || got[0].ID != "deer" {
 		t.Fatal("did not report stalled hunt", got)
 	}
-	if got := stalledDesignations(progress, rows, false, 100+6000, harvestContract(6000)); got != nil {
+	if got := stalledDesignations(rows, false, 100+6000, harvestContract(6000), anyRow); got != nil {
 		t.Fatal("a hunt row is not a harvest", got)
 	}
-	if got := stalledDesignations(progress, census(censusRow("deer", true, true, 100)), true, 100+6000, huntContract(6000)); got != nil {
+	if got := stalledDesignations(census(censusRow("deer", true, true, 100)), true, 100+6000, huntContract(6000), anyRow); got != nil {
 		t.Fatal("a taken hunt is not stalled", got)
 	}
 }
 
-// Only the plan's open, dispatched action on the row is withdrawn.
-func TestStalledDesignationsNeedOpenDispatchedAction(t *testing.T) {
+// A withdraw is one AcquisitionWithdrawAction whose method id hashes the
+// source and the designation's first-seen tick (#1046).
+func TestStallWithdrawIsOneHashedWithdrawAction(t *testing.T) {
 	t.Parallel()
-	hunt := dispatchedHunt(t, "hunt-deer", "deer", 100)
-	rows := census(censusRow("deer", true, false, 100))
-	resolved, err := hunt.Observe(domain.Observation{Action: hunt.View().Action, Attempt: hunt.View().Attempt, Snapshot: hunt.View().Snapshot, Tick: 100, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, hunt.View().Snapshot)
+	row := censusRow("deer", true, false, 100)
+	row.Resource, row.Cell = "Corpse_Deer", domain.Cell{X: 3, Z: 4}
+	method, plan, err := stallWithdraw(row, "routine-acquire-withdraw")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := stalledDesignations([]domain.Progress{resolved}, rows, true, 100+6000, huntContract(6000)); got != nil {
-		t.Fatal("resolved action must not be reported as stalled", got)
+	actions := plan.Actions()
+	if len(actions) != 1 || actions[0].Kind() != domain.AcquisitionWithdrawAction {
+		t.Fatal("withdraw plan", actions)
 	}
-	cancelled, err := hunt.Cancel()
-	if err != nil {
-		t.Fatal(err)
+	if w, ok := actions[0].AcquisitionWithdraw(); !ok || w.Thing() != "deer" || w.Definition() != "Corpse_Deer" {
+		t.Fatal("withdraw payload", w)
 	}
-	if got := stalledDesignations([]domain.Progress{cancelled}, rows, true, 100+6000, huntContract(6000)); got != nil {
-		t.Fatal("cancelled action reported as stalled again", got)
-	}
-	if got := stalledDesignations(nil, rows, true, 100+6000, huntContract(6000)); got != nil {
-		t.Fatal("a row without a plan action is not this plan's to withdraw", got)
+	again, _, _ := stallWithdraw(row, "routine-acquire-withdraw")
+	row.DesignatedTick = 200
+	later, _, _ := stallWithdraw(row, "routine-acquire-withdraw")
+	if again != method || later == method {
+		t.Fatal("method id must hash the source and its designation tick", method, again, later)
 	}
 }
 

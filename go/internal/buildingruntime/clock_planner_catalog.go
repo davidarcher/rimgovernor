@@ -161,7 +161,7 @@ var plannerCatalog = []plannerEntry{
 			out.FoodStorage = &method
 			return method.Reason, nil
 		}},
-	{name: "foodAcquisition", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction}, sections: sectionsColony,
+	{name: "foodAcquisition", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction, domain.AcquisitionWithdrawAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.FoodAcquisition != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.FoodAcquisition.step(ctx, epoch, arbiter)
@@ -172,7 +172,7 @@ var plannerCatalog = []plannerEntry{
 			out.FoodAcquisition = &method
 			return method.Reason, nil
 		}},
-	{name: "pestAcquisition", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction}, sections: sectionsColony,
+	{name: "pestAcquisition", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction, domain.AcquisitionWithdrawAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PestAcquisition != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.PestAcquisition.step(ctx, epoch, arbiter)
@@ -183,7 +183,7 @@ var plannerCatalog = []plannerEntry{
 			out.PestAcquisition = &method
 			return method.Reason, nil
 		}},
-	{name: "resourceAcquisition", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AcquisitionAction}, sections: sectionsColony,
+	{name: "resourceAcquisition", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AcquisitionAction, domain.AcquisitionWithdrawAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.ResourceAcquisition != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.ResourceAcquisition.step(ctx, epoch, arbiter)

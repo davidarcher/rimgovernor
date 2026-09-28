@@ -1869,7 +1869,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		// all use the healthy-colony clock window; anything else is unsupported.
 		if _, ok := p.Action().Building(); !ok {
 			switch p.Action().Kind() {
-			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
+			case domain.AcquisitionAction, domain.AcquisitionWithdrawAction, domain.ProductionBillAction, domain.OwnedDraftAction,
 				domain.SubdueAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,

@@ -78,7 +78,7 @@ type WorkerConfig struct {
 func routineExecutableKind(kind domain.ActionKind) bool {
 	switch kind {
 	case domain.BuildingAction, domain.OwnedDraftAction, domain.SubdueAction,
-		domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction, domain.ZoneCreateAction,
+		domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction, domain.AcquisitionWithdrawAction, domain.ZoneCreateAction,
 		domain.ProductionBillAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction, domain.HaulAction, domain.EquipAction,
 		domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction, domain.MovementAction, domain.HusbandryAction,
 		domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.OpenCasketAction,

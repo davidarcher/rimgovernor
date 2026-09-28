@@ -166,12 +166,3 @@ func loadMineAcquisitionAdmission(ctx context.Context, tx *sql.Tx, a domain.Acti
 	}
 	return admission, true, nil
 }
-
-func mineAcquisitionGuardDispatch(admissions []ActionMineAcquisitionAdmission, action domain.ActionID, snapshot domain.GenerationSnapshot, tick domain.Tick) bool {
-	for _, record := range admissions {
-		if record.Action == action && record.Admission.Snapshot == snapshot && record.Admission.Tick <= tick {
-			return true
-		}
-	}
-	return false
-}

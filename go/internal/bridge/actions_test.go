@@ -88,3 +88,32 @@ func TestTradeAndBuildingRegisterAsIntentKinds(t *testing.T) {
 		t.Fatalf("%v", wire)
 	}
 }
+
+// Acquisition, mine acquisition and a stall withdraw build one AcquireIntent
+// arm; only the withdraw sets withdraw (#1046).
+func TestAcquisitionKindsBuildAcquireIntent(t *testing.T) {
+	value, err := domain.NewAcquisition("deer-1", "Corpse_Deer", domain.Cell{X: 3, Z: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		build    func(domain.ActionID, domain.Acquisition) (domain.Action, error)
+		withdraw bool
+	}{{domain.NewAcquisitionAction, false}, {domain.NewMineAcquisitionAction, false}, {domain.NewAcquisitionWithdrawAction, true}} {
+		action, err := tc.build("a1", value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !action.Kind().IntentMode() {
+			t.Fatal("not an intent kind", action.Kind())
+		}
+		wire, err := IntentAction("plan/1", action)
+		if err != nil {
+			t.Fatal(err)
+		}
+		acquire := wire.GetAcquire()
+		if acquire.GetSourceId() != "deer-1" || acquire.GetResourceDefName() != "Corpse_Deer" || acquire.GetCell().GetX() != 3 || acquire.GetCell().GetZ() != 4 || acquire.GetWithdraw() != tc.withdraw {
+			t.Fatalf("%s: %v", action.Kind(), wire)
+		}
+	}
+}

@@ -90,7 +90,7 @@ func newFixture(t *testing.T) *fixture {
 	return newFixtureAt(t, storetest.Path(t))
 }
 
-func newFixtureAt(t *testing.T, path string) *fixture {
+func newFixtureAt(t *testing.T, path string, with ...domain.Action) *fixture {
 	t.Helper()
 	ctx := context.Background()
 	clock := testkit.NewManualClock(time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC))
@@ -106,6 +106,9 @@ func newFixtureAt(t *testing.T, path string) *fixture {
 	action, err := domain.NewBuildingAction("action-1", building)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(with) > 0 {
+		action = with[0]
 	}
 	plan, err := domain.NewPlan("plan-1", 1, []domain.Action{action})
 	if err != nil {

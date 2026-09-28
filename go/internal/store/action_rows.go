@@ -54,6 +54,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,work_payload) VALUES(?,?,?,'work_assignment',?,?)", a.ID(), plan, ordinal, work.Pawn(), data)
 	} else if acquisition, ok := a.Acquisition(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'acquisition',?,?,?,?)", a.ID(), plan, ordinal, acquisition.Thing(), acquisition.Definition(), acquisition.Cell().X, acquisition.Cell().Z)
+	} else if withdraw, ok := a.AcquisitionWithdraw(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'acquisition_withdraw',?,?,?,?)", a.ID(), plan, ordinal, withdraw.Thing(), withdraw.Definition(), withdraw.Cell().X, withdraw.Cell().Z)
 	} else if mineAcquisition, ok := a.MineAcquisition(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'mine_acquisition',?,?,?,?)", a.ID(), plan, ordinal, mineAcquisition.Thing(), mineAcquisition.Definition(), mineAcquisition.Cell().X, mineAcquisition.Cell().Z)
 	} else if excavation, ok := a.Excavation(); ok {
@@ -483,10 +485,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, e := domain.NewOwnedDraftAction(id, d)
 		return a, ordinal, e
 	}
-	if kind == "acquisition" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+	if (kind == "acquisition" || kind == "acquisition_withdraw") && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		s, err := domain.NewAcquisition(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
 		if err != nil {
 			return domain.Action{}, 0, err
+		}
+		if kind == "acquisition_withdraw" {
+			a, err := domain.NewAcquisitionWithdrawAction(id, s)
+			return a, ordinal, err
 		}
 		a, err := domain.NewAcquisitionAction(id, s)
 		return a, ordinal, err

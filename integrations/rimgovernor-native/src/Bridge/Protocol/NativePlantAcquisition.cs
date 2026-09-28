@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
         // (action-contracts.md): the conjunction is Eligible plus the
         // request's own cell, resource and designation rules, evaluated one
         // rule at a time so a refusal names the fact that moved.
-        private static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Plant? plant, out Common.Failure failure)
+        internal static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Plant? plant, out Common.Failure failure)
         {
             plant = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Acquisition requires an exact safe mature wild plant snapshot.");
             if (!Valid(command) || !NativeAcquisitionTracking.Ready) return false;
@@ -192,5 +192,83 @@ namespace HomeBridge.BridgeTools
                     : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted acquisition requires observation: " + error.GetType().Name) };
             }
         }
+    }
+
+    // AcquireIntent on Actions/Apply (#1046): the plant harvest or cut, hunt
+    // or mine designation on one census source, checked live by the same
+    // per-kind Prepare rules; with withdraw, that designation removed (the
+    // planner's stall withdraw; a hunter already on the prey is stopped).
+    // A source already in the requested state applies again, and a withdraw
+    // of a source that is gone applies too: nothing is designated. Applied
+    // means ordered; the next census reads progress.
+    internal static class NativeAcquire
+    {
+        private const string Kind = "Acquire";
+
+        private static bool Valid(Operations.AcquireIntent intent) => ProtoBoundary.IsIdentifier(intent.SourceId)
+            && intent.HasResourceDefName && ProtoBoundary.IsIdentifier(intent.ResourceDefName)
+            && intent.Cell != null && intent.Cell.HasX && intent.Cell.HasZ && intent.Cell.X >= 0 && intent.Cell.Z >= 0;
+
+        private static Operations.AcquireResource Command(Operations.AcquireIntent intent) => new Operations.AcquireResource {
+            Source = new Operations.EntityPrecondition { EntityId = intent.SourceId }, ResourceDefName = intent.ResourceDefName, Cell = intent.Cell.Clone() };
+
+        // Source is the live thing the intent names: a mineable, a plant or an
+        // animal, found by identity.
+        private static Thing? Source(Map map, string id) =>
+            (Thing?)map.listerThings.AllThings.FirstOrDefault(t => (t is Plant || t is Mineable) && t.GetUniqueLoadID() == id)
+            ?? map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == id);
+
+        private static bool Designated(Thing thing) => thing is Pawn prey ? NativeHuntAcquisition.Designated(prey) : ResourceAcquisitionTools.Designated(thing);
+
+        private static Common.Failure? Resolve(Operations.AcquireIntent? intent, Common.ObservationContext context, out Thing? source)
+        {
+            source = null;
+            if (intent == null || !Valid(intent)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Acquire requires an exact source, its resource and a cell.");
+            var map = ProtoBoundary.LoadedMap(context);
+            source = Source(map, intent.SourceId);
+            if (intent.Withdraw || source != null && source.Spawned && Designated(source)) return null;
+            var command = Command(intent);
+            Common.Failure failure;
+            var ok = source is Pawn ? NativeHuntAcquisition.Prepare(command, context, out _, out failure)
+                : source is Mineable ? NativeMineAcquisition.Prepare(command, context, out _, out failure)
+                : NativePlantAcquisition.Prepare(command, context, out _, out failure);
+            return ok ? null : failure;
+        }
+
+        internal static Common.Failure? Validate(Operations.AcquireIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _);
+
+        internal static Receipts.EffectEvidence Apply(Operations.AcquireIntent? intent, Common.ObservationContext context)
+        {
+            var failure = Resolve(intent, context, out var source);
+            if (failure != null) throw new InvalidOperationException(failure.Detail);
+            var live = source != null && source.Spawned && !source.Destroyed;
+            if (intent!.Withdraw)
+            {
+                if (live && source is Pawn prey) new NativeHuntRecord(prey, new IntVec3(intent.Cell.X, 0, intent.Cell.Z)).Withdraw();
+                else if (live)
+                {
+                    var manager = source!.Map.designationManager;
+                    if (source is Mineable) { if (manager.DesignationAt(source.Position, DesignationDefOf.Mine) is Designation mine) manager.RemoveDesignation(mine); }
+                    else foreach (var def in new[] { DesignationDefOf.HarvestPlant, DesignationDefOf.CutPlant })
+                        if (manager.DesignationOn(source, def) is Designation designation) manager.RemoveDesignation(designation);
+                }
+                if (live && Designated(source!)) throw new InvalidOperationException("Acquisition designation survived the withdraw.");
+            }
+            else if (!Designated(source!))
+            {
+                if (source is Pawn prey) new Designator_Hunt().DesignateThing(prey);
+                else if (source is Mineable rock) { _ = new NativeMineRecord(rock); new Designator_Mine().DesignateThing(rock); }
+                else ResourceAcquisitionTools.DesignatorFor(source!).DesignateThing(source);
+                if (!Designated(source!)) throw new InvalidOperationException("Native acquisition designation was not observed.");
+            }
+            return new Receipts.EffectEvidence { Acquisition = new Receipts.AcquisitionEffect { SourceId = intent.SourceId, ResourceDef = intent.ResourceDefName,
+                Cell = intent.Cell.Clone(), Designated = live && Designated(source!) } };
+        }
+    }
+
+    internal sealed class AcquireActionHandler : IActionHandler
+    {
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAcquire.Validate(action.Acquire, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAcquire.Apply(action.Acquire, context);
     }
 }

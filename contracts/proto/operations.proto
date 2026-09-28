@@ -368,8 +368,16 @@ message Action {
     UseItemIntent use_item = 43;
     DraftIntent draft = 44;
     CombatOrders combat_orders = 45;
+    AcquireIntent acquire = 46;
   }
 }
+// Designate one census source for its resource: a plant harvest or cut, a
+// hunt (the animal wherever it is now, cell the hint) or a mine cell. With
+// withdraw, remove that designation instead (the planner's stall withdraw,
+// #1046). Native checks the source live; a designation already in the
+// requested state applies again. Applied means ordered; the next census
+// reads progress.
+message AcquireIntent { optional string source_id = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional bool withdraw = 4; }
 // Draft or undraft one eligible colonist (#939). Drafts are plan-owned: the
 // controller drafts for a plan and undrafts any drafted colonist no live plan
 // needs. A pawn already in the wanted state applies again.

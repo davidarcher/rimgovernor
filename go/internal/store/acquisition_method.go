@@ -20,6 +20,11 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, 
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
+	// A stall withdraw (#1046) is admitted over any open work: it only
+	// removes a designation nobody took.
+	if _, ok := plan.Actions()[0].AcquisitionWithdraw(); ok && len(plan.Actions()) == 1 {
+		return true, nil
+	}
 	for _, action := range plan.Actions() {
 		if action.Kind() != domain.AcquisitionAction {
 			return false, nil

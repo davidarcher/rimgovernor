@@ -90,6 +90,26 @@ func acquisitionOperation(target AcquisitionTarget, withToken bool) *op.Operatio
 func cancelAcquisitionOperation(target AcquisitionTarget) *op.Operation {
 	return &op.Operation{Command: &op.Operation_CancelAcquisition{CancelAcquisition: &op.CancelAcquisition{Source: &op.EntityPrecondition{EntityId: proto.String(target.Acquisition.Thing())}, ResourceDefName: proto.String(target.Acquisition.Definition()), Cell: &c.Cell{X: proto.Int32(target.Acquisition.Cell().X), Z: proto.Int32(target.Acquisition.Cell().Z)}}}}
 }
+
+// acquireAction is the AcquireIntent of an acquisition or a mine acquisition
+// (designate the source), or of a stall withdraw (withdraw=true, #1046).
+// Native checks the source live; a designation already in the requested
+// state applies again, and the next census reads progress.
+func acquireAction(action domain.Action) (*op.Action, error) {
+	acquisition, withdraw, ok := action.AcquireIntent()
+	if !ok {
+		return nil, contract("not an acquisition action")
+	}
+	if _, err := domain.NewAcquisition(acquisition.Thing(), acquisition.Definition(), acquisition.Cell()); err != nil {
+		return nil, contract("acquire intent requires a source, a resource and a cell")
+	}
+	return &op.Action{Intent: &op.Action_Acquire{Acquire: &op.AcquireIntent{
+		SourceId:        proto.String(acquisition.Thing()),
+		ResourceDefName: proto.String(acquisition.Definition()),
+		Cell:            &c.Cell{X: proto.Int32(acquisition.Cell().X), Z: proto.Int32(acquisition.Cell().Z)},
+		Withdraw:        proto.Bool(withdraw)}}}, nil
+}
+
 func validAcquisition(target AcquisitionTarget) error {
 	if _, err := domain.NewAcquisition(target.Acquisition.Thing(), target.Acquisition.Definition(), target.Acquisition.Cell()); err != nil {
 		return err

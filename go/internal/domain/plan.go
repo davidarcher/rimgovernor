@@ -201,6 +201,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewZoneCreateAction(a.id, a.zone)
 		case AcquisitionAction:
 			canonical, err = NewAcquisitionAction(a.id, a.acquisition)
+		case AcquisitionWithdrawAction:
+			canonical, err = NewAcquisitionWithdrawAction(a.id, a.acquisition)
 		case SupplyAllowAction, SupplyForbidAction:
 			canonical, err = NewSupplyAllowAction(a.id, a.supply)
 		case DeconstructionAction:

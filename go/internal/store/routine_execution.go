@@ -135,7 +135,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, go
 func routineActionsSupported(spec domain.PlanSpec) error {
 	for _, action := range spec.Actions() {
 		switch action.Kind() {
-		case domain.BuildingAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction,
+		case domain.BuildingAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction, domain.AcquisitionWithdrawAction,
 			domain.ZoneCreateAction, domain.ProductionBillAction, domain.OwnedDraftAction, domain.SubdueAction,
 			domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction, domain.HaulAction, domain.EquipAction,
 			domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction, domain.MovementAction, domain.HusbandryAction,

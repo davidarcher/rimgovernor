@@ -194,14 +194,6 @@ func TestDevelopmentSharedProgressCommitments(t *testing.T) {
 			t.Fatal(s)
 		}
 	}
-	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectAbsent} {
-		observed, err := cancelled.Observe(domain.Observation{Action: "action", Attempt: 1, Snapshot: r.Snapshot, Tick: r.Tick + 1, Effect: effect}, r.Snapshot)
-		if err != nil {
-			t.Fatal(err)
-		}
-		r.Commitments = []Commitment{{Goal: "player-room", Source: PlayerGoal, Priority: 2, Progress: observed}}
-		requireSelected(t, rank(t, r), "storage", "defense", "wood")
-	}
 }
 func TestDevelopmentRejectsInvalidInputs(t *testing.T) {
 	for _, mutate := range []func(*DevelopmentRequest){
@@ -279,43 +271,5 @@ func TestPartialPlannerPassDoesNotIdleSelection(t *testing.T) {
 	requireSelected(t, s, "storage", "defense", "wood")
 	if s.Rows[0].Idle || s.Rows[0].Score != 100+2.5+20 {
 		t.Fatal("selection after a partial pass keeps its hysteresis", s.Rows)
-	}
-}
-
-// A dispatched commitment whose effect stays pending for a game day is
-// stalled: it no longer holds a development slot (colony-6 kept a slot two
-// days on a wild healroot harvest nobody picked up), though a fresher
-// pending effect still does.
-func TestStalledCommitmentReleasesCapacity(t *testing.T) {
-	s := newDevelopmentSim(t, 1, simGoal("storage", 1.0, nil), simGoal("defense", 0.5, nil))
-	s.tick = 5000
-	c := s.commitment("storage", AutopilotGoal, 4, true)
-	c.Dispatched = domain.Known(s.tick)
-	var err error
-	if c.Progress, err = c.Progress.RecordReceipt(1, domain.ReceiptAccepted); err != nil {
-		t.Fatal(err)
-	}
-	observe := func(tick domain.Tick) Commitment {
-		p, err := c.Progress.Observe(domain.Observation{Action: c.Progress.View().Action, Attempt: 1, Snapshot: s.snapshot, Tick: tick, Effect: domain.EffectPending, Causality: domain.AfterDispatch}, s.snapshot)
-		if err != nil {
-			t.Fatal(err)
-		}
-		out := c
-		out.Progress = p
-		return out
-	}
-	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: 5000 + DevelopmentStallTicks, Workers: s.workers, Goals: s.goals}
-	r.Commitments = []Commitment{observe(r.Tick)}
-	fresh := rank(t, r)
-	requireSelected(t, fresh, "defense")
-	if fresh.Committed[0] != "storage" || s.row(fresh, "storage").Reason != DevelopmentCommitted {
-		t.Fatal("a pending effect within the stall bound still commits", fresh)
-	}
-	r.Tick++
-	r.Commitments = []Commitment{observe(r.Tick)}
-	stalled := rank(t, r)
-	requireSelected(t, stalled, "storage", "defense")
-	if len(stalled.Committed) != 0 || !r.Commitments[0].Stalled(r.Tick) {
-		t.Fatal("a stalled commitment should hold no slot", stalled)
 	}
 }

@@ -182,23 +182,38 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	// Stalls are read from the acquisition census (#1044): a designated,
 	// untaken plant past AcquisitionStallTicks since native first saw it.
 	sources := observation.ColonyAcquisition(observed)
+	// Each is withdrawn by its own one-action method (#1046), admitted
+	// before anything else and using up this step's admission.
 	stalledSources := map[string]bool{}
+	medicine := func(row policy.AcquisitionSource) bool {
+		return policy.Resource(row.Resource) == medicineResourceDefinition
+	}
+	for _, row := range stalledDesignations(sources, false, domain.Tick(observed.Context.GetTick()), r.reviewer.policy.AcquisitionProgress(), medicine) {
+		stalledSources[row.ID] = true
+		method, plan, err := stallWithdraw(row, "routine-medical-withdraw")
+		if err != nil {
+			return RoutineMedicalResult{}, err
+		}
+		if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+			continue
+		} else if !errors.Is(err, store.ErrNotFound) {
+			return RoutineMedicalResult{}, err
+		}
+		if err = p.current(call, epoch); err != nil {
+			return RoutineMedicalResult{}, err
+		}
+		if p.session.State() != state {
+			return RoutineMedicalResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
+		}
+		if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+			return RoutineMedicalResult{}, err
+		}
+		return RoutineMedicalResult{Reason: BuildingMethodAdmitted, Plan: plan.ID()}, nil
+	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineMedicalResult{}, err
-		}
-		stalled := stalledDesignations(plan.Progress, sources, false, domain.Tick(observed.Context.GetTick()), r.reviewer.policy.AcquisitionProgress())
-		for _, v := range stalled {
-			if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
-				return RoutineMedicalResult{}, err
-			}
-			stalledSources[v.Thing] = true
-		}
-		if len(stalled) > 0 {
-			if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
-				return RoutineMedicalResult{}, err
-			}
 		}
 		if store.PlanOpen(plan) {
 			return RoutineMedicalResult{Reason: BuildingMethodExistingWork}, nil

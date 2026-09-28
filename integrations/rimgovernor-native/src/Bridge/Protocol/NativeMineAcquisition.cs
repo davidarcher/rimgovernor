@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
         // (action-contracts.md): ResourceAcquisitionTools.Eligible plus the
         // request's cell, resource and designation rules, one rule at a time;
         // the excavation-geometry rule reports MiningBlocker's own text.
-        private static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Mineable? rock, out Common.Failure failure)
+        internal static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Mineable? rock, out Common.Failure failure)
         {
             rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mining requires an exact safe mineable snapshot, an eligible miner and safe excavation geometry.");
             if (!NativePlantAcquisition.Valid(command)) return false;
