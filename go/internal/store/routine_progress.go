@@ -31,7 +31,7 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		deficits[g.ID] = g.Deficit
 	}
 	storageOpen := false
-	for i, n := range needs.Assessments {
+	for i, n := range goalAssessments(needs.Assessments) {
 		if n.ID != policy.MaintainFoodStorage || states[i].Goal.Status != domain.GoalActive {
 			continue
 		}
@@ -42,7 +42,7 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		storageOpen = storageOpen || open
 	}
 	var out []policy.GoalProgress
-	for i, n := range needs.Assessments {
+	for i, n := range goalAssessments(needs.Assessments) {
 		g := states[i]
 		if g.Goal.Status != domain.GoalActive {
 			continue

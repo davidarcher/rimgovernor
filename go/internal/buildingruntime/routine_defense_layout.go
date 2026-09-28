@@ -732,25 +732,17 @@ func defenseReverifyDue(record store.DefenseLayoutRecord, tick domain.Tick, comb
 	return combat != record.VerifiedCombat || tick-record.VerifiedTick >= defenseReverifyTicks
 }
 
-// defenseCombatKey identifies the ActiveCombat goal epoch the review binds
-// (goal/epoch): each raid that follows a recovery advances the epoch, so a
-// changed key marks a combat whose aftermath the layout has not verified.
-// Empty when the review binds no combat goal.
+// defenseCombatKey identifies the world's latest ActiveCombat incident, open
+// or closed (#1020): each raid opens a new one, so a changed key marks a
+// combat whose aftermath the layout has not verified. Empty before the
+// first combat.
 func defenseCombatKey(ctx context.Context, p *Player, review store.RoutineReview) (string, error) {
-	for _, binding := range review.Goals {
-		if binding.Need != policy.ActiveCombat {
-			continue
-		}
-		goal, err := p.journal.LoadGoal(ctx, binding.Goal)
-		if errors.Is(err, store.ErrNotFound) {
-			return "", nil
-		}
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%s/%d", goal.Goal.ID, goal.Goal.Epoch), nil
+	s := review.Snapshot
+	latest, ok, err := p.journal.LatestIncident(ctx, store.World{Colony: s.Colony, Load: s.Load, Map: s.Map}, policy.ActiveCombat)
+	if err != nil || !ok {
+		return "", err
 	}
-	return "", nil
+	return string(latest.Incident.ID), nil
 }
 
 // defenseTierCensus applies one census to the record: a tier whose

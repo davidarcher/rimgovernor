@@ -692,35 +692,39 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 	return record, nil
 }
 
-// waitCombatMethod polls the journal for the ActiveCombat goal's first
+// combatIncident is the review's ActiveCombat incident (#1020), if bound.
+func combatIncident(ctx context.Context, s *store.Store, review store.RoutineReview) (store.IncidentState, store.RoutineIncident, bool, error) {
+	binding, ok := review.Incident(policy.ActiveCombat)
+	if !ok {
+		return store.IncidentState{}, binding, false, nil
+	}
+	state, err := s.LoadIncident(ctx, binding.Incident)
+	return state, binding, err == nil, err
+}
+
+// waitCombatMethod polls the journal for the ActiveCombat incident's first
 // committed method after the raid.
-func waitCombatMethod(ctx context.Context, s *store.Store, w na.Wait, report na.Report) (domain.GoalMethod, error) {
-	var found domain.GoalMethod
+func waitCombatMethod(ctx context.Context, s *store.Store, w na.Wait, report na.Report) (store.IncidentMethod, error) {
+	var found store.IncidentMethod
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
 		if err != nil {
 			return na.Signature("no-review"), false, nil
 		}
-		for _, binding := range review.Goals {
-			if binding.Need != policy.ActiveCombat {
-				continue
-			}
-			goal, err := s.LoadGoal(ctx, binding.Goal)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return "", false, err
-			}
-			if len(goal.Methods) > 0 {
-				report["combat_goal"] = string(binding.Goal)
-				report["combat_method"] = string(goal.Methods[0].Method)
-				found = goal.Methods[0]
-				return "", true, nil
-			}
-			return na.Signature("bound", binding.Goal, goal.Goal.Epoch), false, nil
+		incident, binding, ok, err := combatIncident(ctx, s, review)
+		if err != nil || !ok {
+			return na.Signature("unbound", len(review.Incidents)), false, err
 		}
-		return na.Signature("unbound", len(review.Goals)), false, nil
+		if len(incident.Methods) > 0 {
+			report["combat_incident"] = string(binding.Incident)
+			report["combat_method"] = string(incident.Methods[0].Method)
+			found = incident.Methods[0]
+			return "", true, nil
+		}
+		return na.Signature("bound", binding.Incident), false, nil
 	})
 	if err != nil {
-		return domain.GoalMethod{}, fmt.Errorf("no ActiveCombat method: %w", err)
+		return store.IncidentMethod{}, fmt.Errorf("no ActiveCombat method: %w", err)
 	}
 	return found, nil
 }
@@ -806,22 +810,14 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 		if err != nil {
 			return "", false, err
 		}
-		bound := false
-		need := ""
-		for _, binding := range review.Goals {
-			if binding.Need != policy.ActiveCombat {
-				continue
-			}
-			bound = true
-			goal, err := s.LoadGoal(ctx, binding.Goal)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return "", false, err
-			}
-			need = string(goal.Goal.Need)
-			for _, m := range goal.Methods {
-				if strings.HasPrefix(string(m.Method), "combat-") {
-					holdPlans[m.Plan] = true
-				}
+		incident, binding, bound, err := combatIncident(ctx, s, review)
+		if err != nil {
+			return "", false, err
+		}
+		need := string(binding.Need)
+		for _, m := range incident.Methods {
+			if strings.HasPrefix(string(m.Method), "combat-") {
+				holdPlans[m.Plan] = true
 			}
 		}
 		for id := range holdPlans {
@@ -897,18 +893,16 @@ func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.Pla
 		if err != nil {
 			return "", false, err
 		}
-		for _, binding := range review.Goals {
-			if binding.Need != policy.ActiveCombat {
-				continue
-			}
-			goal, err := s.LoadGoal(ctx, binding.Goal)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return "", false, err
-			}
-			for _, m := range goal.Methods {
-				if strings.HasPrefix(string(m.Method), prefix) {
-					plans[m.Plan] = true
-				}
+		// The recovered incident closes once its fights settle, so read the
+		// latest one, closed or not.
+		world := store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map}
+		incident, _, err := s.LatestIncident(ctx, world, policy.ActiveCombat)
+		if err != nil {
+			return "", false, err
+		}
+		for _, m := range incident.Methods {
+			if strings.HasPrefix(string(m.Method), prefix) {
+				plans[m.Plan] = true
 			}
 		}
 		drafts := map[string]string{}
@@ -958,14 +952,17 @@ func waitLayoutRepaired(ctx context.Context, s *store.Store, world store.World, 
 			return "", false, err
 		}
 		combat := ""
+		if latest, ok, err := s.LatestIncident(ctx, world, policy.ActiveCombat); err != nil {
+			return "", false, err
+		} else if ok {
+			combat = string(latest.Incident.ID)
+		}
 		for _, binding := range review.Goals {
 			goal, err := s.LoadGoal(ctx, binding.Goal)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return "", false, err
 			}
 			switch binding.Need {
-			case policy.ActiveCombat:
-				combat = fmt.Sprintf("%s/%d", goal.Goal.ID, goal.Goal.Epoch)
 			case policy.EnsureDefensiveLayout:
 				for _, m := range goal.Methods {
 					if _, seen := methods[string(m.Method)]; seen {

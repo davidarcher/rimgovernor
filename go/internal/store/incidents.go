@@ -115,6 +115,14 @@ func (s *Store) CloseIncident(ctx context.Context, id domain.IncidentID, tick do
 		return IncidentState{}, err
 	}
 	defer tx.Rollback()
+	state, err := closeIncident(ctx, tx, id, tick)
+	if err != nil {
+		return IncidentState{}, err
+	}
+	return state, tx.Commit()
+}
+
+func closeIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID, tick domain.Tick) (IncidentState, error) {
 	state, err := loadIncident(ctx, tx, id)
 	if err != nil {
 		return IncidentState{}, err
@@ -134,10 +142,7 @@ func (s *Store) CloseIncident(ctx context.Context, id domain.IncidentID, tick do
 	if _, err = tx.ExecContext(ctx, "UPDATE incidents SET ended_tick=?,payload=? WHERE id=?", tick, data, id); err != nil {
 		return IncidentState{}, err
 	}
-	if state, err = loadIncident(ctx, tx, id); err != nil {
-		return IncidentState{}, err
-	}
-	return state, tx.Commit()
+	return loadIncident(ctx, tx, id)
 }
 
 func (s *Store) LoadIncident(ctx context.Context, id domain.IncidentID) (IncidentState, error) {
@@ -243,6 +248,14 @@ func (s *Store) CommitIncidentMethod(ctx context.Context, id domain.IncidentID, 
 		return IncidentState{}, err
 	}
 	defer tx.Rollback()
+	state, err := commitIncidentMethod(ctx, tx, id, method, reason, plan)
+	if err != nil {
+		return IncidentState{}, err
+	}
+	return state, tx.Commit()
+}
+
+func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID, method domain.MethodID, reason string, plan domain.PlanSpec) (IncidentState, error) {
 	state, err := loadIncident(ctx, tx, id)
 	if err != nil {
 		return IncidentState{}, err
@@ -277,10 +290,7 @@ func (s *Store) CommitIncidentMethod(ctx context.Context, id domain.IncidentID, 
 	if _, err = tx.ExecContext(ctx, "INSERT INTO goal_methods(incident_id,epoch,method_id,plan_id,priority,reason) VALUES(?,'0',?,?,?,?)", id, method, plan.ID(), state.Incident.Priority, sql.NullString{String: reason, Valid: reason != ""}); err != nil {
 		return IncidentState{}, conflict(err)
 	}
-	if state, err = loadIncident(ctx, tx, id); err != nil {
-		return IncidentState{}, err
-	}
-	return state, tx.Commit()
+	return loadIncident(ctx, tx, id)
 }
 
 // guardIncidentWork is guardGoalWork for an incident's plan: the occurrence

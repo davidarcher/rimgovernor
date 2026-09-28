@@ -54,18 +54,19 @@ func settledRetirementOutcome(progress domain.Progress) bool {
 // Only settled autopilot methods retire. The current root plan, unresolved effects,
 // cleanup and unsuccessful work keep their complete catalog entries.
 func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick, census domain.Fact[policy.CurrentConstruction]) error {
-	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.goal_id IS NOT NULL ORDER BY p.id LIMIT 257")
+	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id,m.incident_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257")
 	if err != nil {
 		return err
 	}
 	type link struct {
-		plan domain.PlanID
-		goal domain.GoalID
+		plan     domain.PlanID
+		goal     sql.NullString
+		incident sql.NullString
 	}
 	var links []link
 	for rows.Next() {
 		var v link
-		if err = rows.Scan(&v.plan, &v.goal); err != nil {
+		if err = rows.Scan(&v.plan, &v.goal, &v.incident); err != nil {
 			rows.Close()
 			return err
 		}
@@ -83,12 +84,16 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if v.plan == current.Plan {
 			continue
 		}
-		g, err := loadGoal(ctx, tx, v.goal)
-		if err != nil {
-			return err
-		}
-		if g.Goal.Source != domain.AutopilotGoal {
-			continue
+		// Incidents are autopilot-owned (#1020); a goal is only when the
+		// autopilot sourced it.
+		var g GoalState
+		if !v.incident.Valid {
+			if g, err = loadGoal(ctx, tx, domain.GoalID(v.goal.String)); err != nil {
+				return err
+			}
+			if g.Goal.Source != domain.AutopilotGoal {
+				continue
+			}
 		}
 		p, err := load(ctx, tx, v.plan)
 		if err != nil {
@@ -141,7 +146,10 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if _, err = tx.ExecContext(ctx, "UPDATE plans SET retired=1 WHERE id=?", v.plan); err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=? WHERE id=?", strconv.FormatUint(g.Revision+1, 10), v.goal); err != nil {
+		if v.incident.Valid {
+			continue
+		}
+		if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=? WHERE id=?", strconv.FormatUint(g.Revision+1, 10), v.goal.String); err != nil {
 			return err
 		}
 	}

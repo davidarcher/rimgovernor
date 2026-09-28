@@ -36,7 +36,7 @@ func hasAggressiveBreak(f policy.EmergencyFacts) bool {
 	return false
 }
 
-func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, goal store.GoalState, state ControlState, started time.Time, arbiter *stepArbiter, f policy.EmergencyFacts, rows map[string]*n.PawnState) (RoutineDefenseResult, error) {
+func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, incident store.IncidentState, state ControlState, started time.Time, arbiter *stepArbiter, f policy.EmergencyFacts, rows map[string]*n.PawnState) (RoutineDefenseResult, error) {
 	var targets []policy.EmergencyPawn
 	for _, p := range f.Colonists {
 		if policy.AggressiveBreak(p) {
@@ -72,7 +72,7 @@ func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, goal stor
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
 	fmt.Fprintf(h, "%s/%v", victim, chosen)
-	method, id := defenseMethodID("subdue", goal, h), domain.MintPlanID("routine-defense")
+	method, id := defenseMethodID("subdue", len(incident.Methods), h), domain.MintPlanID("routine-defense")
 	for i, pawn := range chosen {
 		draftID := domain.ActionID(fmt.Sprintf("%s-d%d", id, i))
 		d, err := domain.NewOwnedDraft(pawn)
@@ -105,7 +105,7 @@ func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, goal stor
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineDefenseResult{}, fmt.Errorf("%w: planBreak: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineDefenseResult{}, err
 	}
 	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil

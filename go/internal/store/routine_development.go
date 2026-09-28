@@ -37,8 +37,18 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 		source, priority := domain.PlayerGoal, 3
 		world := World{}
 		admitted := 0
-		err = tx.QueryRowContext(ctx, "SELECT goal_id,priority FROM goal_methods WHERE plan_id=? AND goal_id IS NOT NULL", plan.Spec.ID()).Scan(&goalID, &admitted)
-		if err == nil {
+		var owner, incident sql.NullString
+		err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,priority FROM goal_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&owner, &incident, &admitted)
+		goalID = domain.GoalID(owner.String)
+		if err == nil && incident.Valid {
+			// An incident's method serves its Response kind (#1020).
+			i, e := loadIncident(ctx, tx, domain.IncidentID(incident.String))
+			if e != nil {
+				return nil, e
+			}
+			goalID, source, priority = i.Incident.Kind, domain.AutopilotGoal, admitted
+			world = World{Colony: i.Incident.Snapshot.Colony, Load: i.Incident.Snapshot.Load, Map: i.Incident.Snapshot.Map}
+		} else if err == nil {
 			g, e := loadGoal(ctx, tx, goalID)
 			if e != nil {
 				return nil, e
@@ -170,7 +180,7 @@ func dispatchTick(ctx context.Context, tx *sql.Tx, action domain.ActionID) (doma
 
 func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, []DependencyRecord, error) {
 	var bindings []RoutineGoal
-	for i, n := range needs.Assessments {
+	for i, n := range goalAssessments(needs.Assessments) {
 		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: states[i].Goal.ID})
 	}
 	plans, err := routinePlans(ctx, tx, r.Current, bindings)

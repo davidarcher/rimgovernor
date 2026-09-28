@@ -44,6 +44,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_combat.go":               {"defense"},
 	"routine_defense_snapshot.go":     {"defense", "defensive-layout"},
 	"routine_break.go":                {"defense"},
+	"routine_incident.go":             {"defense", "defensive-layout", "rescue", "tend"},
 	"routine_defense_layout.go":       {"defensive-layout"},
 	"routine_defense_cover.go":        {"defensive-layout"},
 	"routine_defense_perimeter.go":    {"defensive-layout"},

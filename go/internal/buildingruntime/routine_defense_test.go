@@ -219,18 +219,12 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 		}
 		return out
 	}
-	combat := func(out store.RoutineReviewResult) store.GoalState {
+	combat := func(out store.RoutineReviewResult) (store.RoutineIncident, bool) {
 		t.Helper()
-		for i, binding := range out.Review.Goals {
-			if binding.Need == policy.ActiveCombat {
-				return out.Goals[i]
-			}
-		}
-		t.Fatal(out.Review.Goals)
-		return store.GoalState{}
+		return out.Review.Incident(policy.ActiveCombat)
 	}
-	goal := combat(review(1))
-	if goal.Goal.Need != domain.NeedDeficit || goal.Goal.Epoch != 0 {
+	goal, ok := combat(review(1))
+	if !ok || goal.Need != domain.NeedDeficit {
 		t.Fatal(goal)
 	}
 	squad := func(suffix string) []domain.Action {
@@ -248,7 +242,7 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "squad-test", plan); err != nil {
+	if _, err = db.CommitIncidentMethod(ctx, goal.Incident, "squad-test", "", plan); err != nil {
 		t.Fatal(err)
 	}
 	// Pawn a's draft was issued, claimed and released again; pawn b's draft
@@ -278,9 +272,9 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 	if _, err = db.PrepareDraft(ctx, plan.ID(), "draft-b", admission); err != nil {
 		t.Fatal(err)
 	}
-	goal = combat(review(0))
-	if goal.Goal.Need != domain.NeedRecovered || goal.Goal.Status != domain.GoalActive {
-		t.Fatal("recovered goal with open work should stay active", goal.Goal)
+	first := goal.Incident
+	if goal, ok = combat(review(0)); !ok || goal.Incident != first || goal.Need != domain.NeedRecovered {
+		t.Fatal("recovered incident with open work should stay open", goal)
 	}
 	got, err := planner.Step(ctx)
 	if err != nil || got.Reason != BuildingMethodNoDeficit {
@@ -295,19 +289,19 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 			t.Fatalf("%s is %s after recovery, want cancelled", v.Action, v.Stage)
 		}
 	}
-	if goal = combat(review(0)); goal.Goal.Status != domain.GoalSatisfied {
-		t.Fatal("settled goal did not satisfy", goal.Goal)
+	if _, ok = combat(review(0)); ok {
+		t.Fatal("settled incident did not close")
 	}
-	// The next raid opens the next epoch and the planner no longer reports
-	// the stale squad plan as existing work.
-	if goal = combat(review(1)); goal.Goal.Epoch != 1 || goal.Goal.Need != domain.NeedDeficit {
-		t.Fatal(goal.Goal)
+	// The next raid opens the next incident and the planner no longer
+	// reports the stale squad plan as existing work.
+	if goal, ok = combat(review(1)); !ok || goal.Incident == first || goal.Need != domain.NeedDeficit {
+		t.Fatal(goal)
 	}
 	if got, err = planner.Step(ctx); err != nil || got.Reason == BuildingMethodExistingWork {
 		t.Fatal(got, err)
 	}
 	fresh, _ := domain.NewPlan("routine-defense-test-2", 1, squad("-2"))
-	if _, err = db.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "squad-test-2", fresh); err != nil {
+	if _, err = db.CommitIncidentMethod(ctx, goal.Incident, "squad-test-2", "", fresh); err != nil {
 		t.Fatal("second raid refused a fresh method:", err)
 	}
 }

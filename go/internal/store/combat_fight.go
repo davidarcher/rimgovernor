@@ -73,27 +73,28 @@ func checkCombatFightsSchema(ctx context.Context, tx *sql.Tx) error {
 	return err
 }
 
-// CommitCombatFight admits a fight (#910): the goal's method on plan, which
-// has no actions, and its open fight row in one transaction, with a claim
-// of unknown id for every pawn of roster (the admission batch drafts them).
-func (s *Store) CommitCombatFight(ctx context.Context, goal domain.GoalID, revision uint64, method domain.MethodID, plan domain.PlanSpec, memory policy.CombatMemory, world World, roster []domain.PawnID) (GoalState, error) {
+// CommitCombatFight admits a fight (#910): the ActiveCombat incident's
+// method on plan, which has no actions, and its open fight row in one
+// transaction, with a claim of unknown id for every pawn of roster (the
+// admission batch drafts them).
+func (s *Store) CommitCombatFight(ctx context.Context, incident domain.IncidentID, method domain.MethodID, plan domain.PlanSpec, memory policy.CombatMemory, world World, roster []domain.PawnID) (IncidentState, error) {
 	if err := plan.Validate(); err != nil {
-		return GoalState{}, err
+		return IncidentState{}, err
 	}
 	if len(plan.Actions()) != 0 || len(roster) == 0 || world.Validate() != nil {
-		return GoalState{}, errors.New("combat fight needs an empty plan, a roster and a world")
+		return IncidentState{}, errors.New("combat fight needs an empty plan, a roster and a world")
 	}
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return GoalState{}, err
+		return IncidentState{}, err
 	}
 	defer tx.Rollback()
-	state, err := commitGoalMethod(ctx, tx, goal, revision, method, "", plan)
+	state, err := commitIncidentMethod(ctx, tx, incident, method, "", plan)
 	if err != nil {
-		return GoalState{}, err
+		return IncidentState{}, err
 	}
 	if err = insertCombatFight(ctx, tx, plan.ID(), memory, world, roster); err != nil {
-		return GoalState{}, err
+		return IncidentState{}, err
 	}
 	return state, tx.Commit()
 }

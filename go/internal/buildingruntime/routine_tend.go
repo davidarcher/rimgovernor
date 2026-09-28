@@ -9,7 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -53,29 +52,15 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineTendResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.CriticalMedicine {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	incident, found, err := incidentDeficit(call, p.journal, review, policy.CriticalMedicine)
 	if err != nil {
 		return RoutineTendResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !found {
 		return RoutineTendResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineTendResult{}, err
-		}
-		if store.PlanOpen(plan) {
-			return RoutineTendResult{Reason: BuildingMethodExistingWork}, nil
-		}
+	if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
+		return RoutineTendResult{Reason: BuildingMethodExistingWork}, err
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -138,7 +123,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// interrupted or failed try picks whichever doctor is currently best,
 	// which is how doctor replacement happens across cycles.
 	prefix := fmt.Sprintf("tend-%s-", patient)
-	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	attempt := incidentAttemptCount(incident.Methods, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		// The attempts are spent and the deficit stays visible; the
 		// clock must still advance under it (#636).
@@ -161,7 +146,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineTendResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineTendResult{}, err
 	}
 	return RoutineTendResult{Reason: BuildingMethodAdmitted, Plan: id}, nil

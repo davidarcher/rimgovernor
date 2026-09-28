@@ -63,31 +63,23 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineDefenseResult{Reason: BuildingMethodNoReview}, nil
 	}
-	var goal store.GoalState
-	found := false
-	for _, binding := range review.Goals {
-		if binding.Need == policy.ActiveCombat {
-			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			found = true
-			break
-		}
-	}
+	incident, need, found, err := routineIncident(call, p.journal, review, policy.ActiveCombat)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	if found && goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedRecovered {
+	if found && need == domain.NeedRecovered {
 		// The raid ended before every action was issued: a squad draft the
 		// worker prepared but never dispatched, and the moves and attacks
 		// waiting on it or on a target that is now dead, would hold the
 		// epoch open forever, so the goal could never satisfy and the next
 		// raid could never open a fresh epoch (#226). Nothing native was
 		// ordered for an unissued action, so cancelling it settles it.
-		if err = r.settleUnissuedWork(call, goal); err != nil {
+		if err = r.settleUnissuedWork(call, incident); err != nil {
 			return RoutineDefenseResult{}, err
 		}
 		// The fight is over: closing it lets draft cleanup release its
 		// defenders, and the goal satisfies once they are released.
-		for _, method := range goal.Methods {
+		for _, method := range incident.Methods {
 			if strings.HasPrefix(string(method.Method), combatMethodPrefix) {
 				if err = p.journal.CloseCombatFight(call, method.Plan); err != nil {
 					return RoutineDefenseResult{}, err
@@ -96,7 +88,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		}
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !found || need != domain.NeedDeficit || review.VetoIncident(incident.Incident) != "" {
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// One ActiveCombat plan owns the fight (#852): its combat method whose
@@ -104,7 +96,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	// decides for. Any other open work waits.
 	var fight *store.CombatFight
 	var fightPlan domain.PlanID
-	for _, method := range goal.Methods {
+	for _, method := range incident.Methods {
 		if strings.HasPrefix(string(method.Method), combatMethodPrefix) {
 			record, ok, err := p.journal.LoadCombatFight(call, method.Plan)
 			if err != nil {
@@ -144,7 +136,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		return RoutineDefenseResult{Reason: reason}, err
 	}
 	emergency, rows := combat.Emergency, in.rows
-	if result, err := r.planBreak(call, epoch, goal, state, started, arbiter, emergency.Facts, rows); err != nil || result.Reason != "" {
+	if result, err := r.planBreak(call, epoch, incident, state, started, arbiter, emergency.Facts, rows); err != nil || result.Reason != "" {
 		return result, err
 	}
 	var orderable []domain.PawnID
@@ -192,10 +184,10 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	recorded.MemoryOut = next
 	if next.Formed == tick && next.Refusal != "" && next.Tactic != policy.TacticHold {
 		// Squad defense follows; say which gate refused the hold (#714).
-		slog.Default().InfoContext(call, "hold refused: "+next.Refusal, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "hold_refused", "goal", string(goal.Goal.ID))
+		slog.Default().InfoContext(call, "hold refused: "+next.Refusal, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "hold_refused", "incident", string(incident.Incident.ID))
 	}
 	if fight == nil {
-		result, err := r.admitFight(call, epoch, goal, state, started, arbiter, fightAdmission{combat: combat, in: in, held: held, reply: recorded.Reply, stop: stop, memory: next})
+		result, err := r.admitFight(call, epoch, incident, state, started, arbiter, fightAdmission{combat: combat, in: in, held: held, reply: recorded.Reply, stop: stop, memory: next})
 		if err == nil && result.Reason == BuildingMethodAdmitted {
 			recorded.Plan = result.Plan
 			recordCombatStop(call, combat, recorded)
@@ -515,8 +507,8 @@ func defensiveThreatFacts(row *n.PawnState) policy.DefensiveThreatFacts {
 // The active method count is not that salt: it falls when a plan retires,
 // and the same assignments then rehash to a plan id the journal still
 // holds (#214).
-func defenseMethodID(prefix string, goal store.GoalState, hash hash.Hash) domain.MethodID {
-	fmt.Fprintf(hash, "#%d\n", goal.Admitted)
+func defenseMethodID(prefix string, admitted int, hash hash.Hash) domain.MethodID {
+	fmt.Fprintf(hash, "#%d\n", admitted)
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
 	return method
 }
@@ -524,9 +516,9 @@ func defenseMethodID(prefix string, goal store.GoalState, hash hash.Hash) domain
 // settleUnissuedWork cancels every pending or prepared action across the
 // recovered goal's methods. Dispatched actions are left to their own
 // reconciliation; once they close the goal has no open work and satisfies.
-func (r *RoutineDefensePlanner) settleUnissuedWork(call context.Context, goal store.GoalState) error {
+func (r *RoutineDefensePlanner) settleUnissuedWork(call context.Context, incident store.IncidentState) error {
 	p := r.reviewer.player
-	for _, method := range goal.Methods {
+	for _, method := range incident.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return err

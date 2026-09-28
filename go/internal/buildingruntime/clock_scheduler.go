@@ -1884,7 +1884,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 }
 
 // clockSchedulerCombatPlan reports whether the current routine review binds an
-// active ActiveCombat goal whose admitted plan still has open work: the only
+// ActiveCombat incident in deficit whose admitted plan still has open work: the only
 // evidence under which live hostiles are watched rather than refused.
 func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current domain.GenerationSnapshot) (bool, bool, error) {
 	review, err := journal.LoadRoutineReview(ctx)
@@ -1898,36 +1898,24 @@ func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current
 	if err != nil {
 		return false, false, err
 	}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.ActiveCombat {
-			continue
+	incident, need, found, err := routineIncident(ctx, journal, review, policy.ActiveCombat)
+	if err != nil || !found || need != domain.NeedDeficit {
+		return false, false, err
+	}
+	for _, method := range incident.Methods {
+		// A fight (#852) owns the combat: its orders go out at each
+		// stop, not as plan work. Closed, it holds the incident until its
+		// claims are released (#910), with no stops armed.
+		if fight, ok := fights[method.Plan]; ok {
+			return true, fight.Open, nil
 		}
-		goal, err := journal.LoadGoal(ctx, binding.Goal)
-		if errors.Is(err, store.ErrNotFound) {
-			return false, false, nil
-		}
+		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
 			return false, false, err
 		}
-		if goal.Retired || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
-			return false, false, nil
+		if domain.GoalWorkOpen(plan.Progress) {
+			return true, false, nil
 		}
-		for _, method := range goal.Methods {
-			// A fight (#852) owns the combat: its orders go out at each
-			// stop, not as plan work. Closed, it holds the goal until its
-			// claims are released (#910), with no stops armed.
-			if fight, ok := fights[method.Plan]; ok {
-				return true, fight.Open, nil
-			}
-			plan, err := journal.LoadPlan(ctx, method.Plan)
-			if err != nil {
-				return false, false, err
-			}
-			if domain.GoalWorkOpen(plan.Progress) {
-				return true, false, nil
-			}
-		}
-		return false, false, nil
 	}
 	return false, false, nil
 }

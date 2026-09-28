@@ -112,15 +112,15 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 			if binding.Need == policy.ClearAncientShrine {
 				shrineGoal = binding.Goal
 			}
-			if binding.Need == policy.ActiveCombat {
-				goal, err := journal.LoadGoal(ctx, binding.Goal)
-				if err != nil {
-					return "", false, err
-				}
-				if len(goal.Methods) > 0 {
-					combat = true
-					s.Report()["combat_goal"] = goal
-				}
+		}
+		if binding, ok := review.Incident(policy.ActiveCombat); ok {
+			incident, err := journal.LoadIncident(ctx, binding.Incident)
+			if err != nil {
+				return "", false, err
+			}
+			if len(incident.Methods) > 0 {
+				combat = true
+				s.Report()["combat_incident"] = incident
 			}
 		}
 		if shrineGoal != "" {

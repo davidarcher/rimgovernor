@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -33,10 +34,54 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 	if !review.Enabled || review.Snapshot != root {
 		return ErrConflict
 	}
-	var goalID domain.GoalID
-	if err = tx.QueryRowContext(ctx, "SELECT goal_id FROM goal_methods WHERE plan_id=? AND goal_id IS NOT NULL", target.Plan).Scan(&goalID); err != nil {
+	var goalID, incidentID sql.NullString
+	if err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id FROM goal_methods WHERE plan_id=?", target.Plan).Scan(&goalID, &incidentID); err != nil {
 		return err
 	}
+	if incidentID.Valid {
+		if err = authorizeIncidentPlan(ctx, tx, review, domain.IncidentID(incidentID.String), root, target); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	if err = authorizeGoalPlan(ctx, tx, review, domain.GoalID(goalID.String), root, target); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// authorizeIncidentPlan is AuthorizeRoutinePlan for an incident's method
+// (#1020): the review binds the open occurrence in deficit, no Rule vetoes
+// it and the plan is its unretired method.
+func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, id domain.IncidentID, root, target domain.GenerationSnapshot) error {
+	binding, bound := review.incidentBinding(id)
+	if !bound || binding.Need != domain.NeedDeficit {
+		return ErrConflict
+	}
+	state, err := loadIncident(ctx, tx, id)
+	if err != nil {
+		return err
+	}
+	if state.Incident.Closed || state.Incident.Snapshot != root {
+		return ErrConflict
+	}
+	if reason := review.VetoIncident(state.Incident); reason != "" {
+		return fmt.Errorf("%w: %w: incident %s: %s", ErrConflict, ErrNotAdmitted, id, reason)
+	}
+	if !slices.ContainsFunc(state.Methods, func(m IncidentMethod) bool { return m.Plan == target.Plan }) {
+		return ErrConflict
+	}
+	p, err := load(ctx, tx, target.Plan)
+	if err != nil {
+		return err
+	}
+	if p.Retired || p.Spec.Revision() != target.Revision {
+		return ErrConflict
+	}
+	return routineActionsSupported(p.Spec)
+}
+
+func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, goalID domain.GoalID, root, target domain.GenerationSnapshot) error {
 	if _, bound := review.Need(goalID); !bound {
 		return ErrConflict
 	}
@@ -82,7 +127,13 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 			return ErrConflict
 		}
 	}
-	for _, action := range p.Spec.Actions() {
+	return routineActionsSupported(p.Spec)
+}
+
+// routineActionsSupported refuses a plan with an action kind routine
+// execution does not dispatch.
+func routineActionsSupported(spec domain.PlanSpec) error {
+	for _, action := range spec.Actions() {
 		switch action.Kind() {
 		case domain.BuildingAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction,
 			domain.ZoneCreateAction, domain.ProductionBillAction, domain.OwnedDraftAction, domain.MeleeAttackAction,
@@ -94,7 +145,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 			return errors.New("routine execution requires supported routine methods")
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 // Need returns the routine need the review binds the goal to.

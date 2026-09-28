@@ -310,7 +310,7 @@ func TestRoutineReviewerPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Goals) != 44 || got.Review.Revision != 1 || !got.Review.Enabled {
+	if len(got.Goals) != 42 || got.Review.Revision != 1 || !got.Review.Enabled {
 		t.Fatal(got)
 	}
 	for _, binding := range got.Review.Goals {
@@ -441,21 +441,21 @@ func TestRoutineReviewerUsesSameTickMedicalCensus(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, binding := range got.Review.Goals {
-				if binding.Need != domain.GoalID(policy.CriticalMedicine) {
-					continue
-				}
-				g, e := db.LoadGoal(context.Background(), binding.Goal)
-				want := domain.NeedDeficit
-				if kind == "unknown" {
-					want = domain.NeedUnknown
-				}
-				if e != nil || g.Goal.Need != want {
-					t.Fatal(g, e)
+			// A deficit opens the CriticalMedical incident (#1020); an
+			// unknown census opens none.
+			binding, ok := got.Review.Incident(policy.CriticalMedicine)
+			if kind == "unknown" {
+				if ok {
+					t.Fatal("unknown census opened an incident", binding)
 				}
 				return
 			}
-			t.Fatal("medical goal missing")
+			if !ok || binding.Need != domain.NeedDeficit {
+				t.Fatal("medical incident missing", got.Review.Incidents)
+			}
+			if _, err := db.LoadIncident(context.Background(), binding.Incident); err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }

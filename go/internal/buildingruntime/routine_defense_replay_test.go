@@ -151,18 +151,13 @@ func admittedMethod(t *testing.T, db *store.Store, plan domain.PlanID) domain.Me
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.ActiveCombat {
-			continue
-		}
-		goal, err := db.LoadGoal(ctx, binding.Goal)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, m := range goal.Methods {
-			if m.Plan == plan {
-				return m.Method
-			}
+	incident, _, _, err := routineIncident(ctx, db, review, policy.ActiveCombat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range incident.Methods {
+		if m.Plan == plan {
+			return m.Method
 		}
 	}
 	t.Fatal("no ActiveCombat method admitted", plan)

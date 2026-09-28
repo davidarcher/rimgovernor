@@ -481,9 +481,9 @@ func cancelUndispatchedGoalMethods(ctx context.Context, tx *sql.Tx, owner method
 	return nil
 }
 
-func cancelGoalMethods(ctx context.Context, tx *sql.Tx, state GoalState) error {
-	for _, m := range state.Methods {
-		p, err := load(ctx, tx, m.Plan)
+func cancelGoalMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
+	for _, plan := range owner.ownerPlans() {
+		p, err := load(ctx, tx, plan)
 		if err != nil {
 			return err
 		}
@@ -494,7 +494,7 @@ func cancelGoalMethods(ctx context.Context, tx *sql.Tx, state GoalState) error {
 			if v.Stage == domain.Completed && !progress.Action().Kind().IntentMode() || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled {
 				continue
 			}
-			if _, err = advanceInTransaction(ctx, tx, m.Plan, v.Action, transition{Kind: "cancel"}); err != nil {
+			if _, err = advanceInTransaction(ctx, tx, plan, v.Action, transition{Kind: "cancel"}); err != nil {
 				return err
 			}
 		}

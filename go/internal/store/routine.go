@@ -69,7 +69,10 @@ type RoutineReview struct {
 	EventLoot        policy.EventLootHistory
 	Comfort          policy.ComfortHistory
 	Goals            []RoutineGoal
-	Development      RoutineDevelopment
+	// Incidents binds the Responses this review assessed to their open
+	// occurrences (#1020); those needs have no entry in Goals.
+	Incidents   []RoutineIncident `json:",omitempty"`
+	Development RoutineDevelopment
 	// Roster is the roster planner's last recorded report (#448): coverage,
 	// decaying skills and pawn profiles as of its Tick. A disabled review
 	// keeps the last one; absent until an enabled review planned work.
@@ -124,6 +127,8 @@ type RoutineReviewResult struct {
 	Review RoutineReview
 	Needs  policy.RoutineNeeds
 	Goals  []GoalState
+	// Incidents are the occurrences Review.Incidents binds (#1020).
+	Incidents []IncidentState
 	// Emergency names the assessed needs whose EmergencyRule vetoes every
 	// priority>=2 proposal in this review (a home fire, live hostiles, a critical patient);
 	// empty when nothing did. The development rows only say "emergency", so
@@ -297,6 +302,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	allowed := map[domain.GoalID]bool{}
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
+		if policy.IsIncidentKind(n.ID) {
+			continue
+		}
 		allowed[n.ID] = true
 		optional[n.ID] = n.Priority >= 3 || n.ID == policy.RecoverDisasterServices || n.ID == policy.EnsureComfort || n.ID == policy.MaintainHousing || n.ID == policy.MaintainMedicalReserves
 	}
@@ -342,6 +350,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		if g.Goal.Source != domain.AutopilotGoal || !routineGoalOwns(binding.Goal, binding.Need) {
 			return RoutineReview{}, errors.New("routine goal ownership mismatch")
 		}
+	}
+	if err := validateRoutineIncidents(ctx, tx, r); err != nil {
+		return RoutineReview{}, err
 	}
 	return r, nil
 }
@@ -563,6 +574,15 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		// resumed goal adopts the result.
 		old[binding.Need] = g
 	}
+	// A replaced or rewound world ends its occurrences and their work, as
+	// it invalidates its goals.
+	if changed {
+		for _, binding := range previous.Incidents {
+			if err = abandonIncident(ctx, tx, binding.Incident, previous.Tick); err != nil {
+				return RoutineReviewResult{}, err
+			}
+		}
+	}
 	// Keep disabled bindings available for review. An enabled review replaces
 	// invalidated bindings, so their clean history can leave active capacity.
 	retained := map[domain.GoalID]bool{}
@@ -659,6 +679,16 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	if !request.Enabled {
 		r.WorkPreferenceRevision = previous.WorkPreferenceRevision
 		r.Goals = previous.Goals
+		if !changed {
+			r.Incidents = previous.Incidents
+			for _, binding := range r.Incidents {
+				state, err := loadIncident(ctx, tx, binding.Incident)
+				if err != nil {
+					return RoutineReviewResult{}, err
+				}
+				result.Incidents = append(result.Incidents, state)
+			}
+		}
 		r.Latches = latches
 		// Manual mode, a player interruption or a restart's first review
 		// before authority returns does not rank; the last ranking stays
@@ -688,7 +718,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			}
 		}
 		result.Emergency = r.Emergency
-		for _, n := range needs.Assessments {
+		if r.Incidents, result.Incidents, err = reviewIncidents(ctx, tx, needs.Assessments, b, request.Tick); err != nil {
+			return RoutineReviewResult{}, err
+		}
+		for _, n := range goalAssessments(needs.Assessments) {
 			g, exists := old[n.ID]
 			project := policy.GoalConcept(n.ID) == policy.ConceptProject
 			if exists && project && domain.ProjectRegressed(g.Goal, n.Need, false) {

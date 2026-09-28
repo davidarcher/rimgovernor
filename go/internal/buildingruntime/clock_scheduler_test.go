@@ -246,14 +246,9 @@ func combatGoalPlan(t *testing.T, s *ClockScheduler) domain.PlanID {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var goal store.GoalState
-	for i, binding := range review.Review.Goals {
-		if binding.Need == policy.ActiveCombat {
-			goal = review.Goals[i]
-		}
-	}
-	if goal.Goal.ID == "" || goal.Goal.Need != domain.NeedDeficit {
-		t.Fatal(review.Review.Goals)
+	binding, ok := review.Review.Incident(policy.ActiveCombat)
+	if !ok || binding.Need != domain.NeedDeficit {
+		t.Fatal(review.Review.Incidents)
 	}
 	draft, err := domain.NewOwnedDraft("pawn")
 	if err != nil {
@@ -275,7 +270,7 @@ func combatGoalPlan(t *testing.T, s *ClockScheduler) domain.PlanID {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.player.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "squad-test", plan); err != nil {
+	if _, err = s.player.journal.CommitIncidentMethod(ctx, binding.Incident, "squad-test", "", plan); err != nil {
 		t.Fatal(err)
 	}
 	return plan.ID()

@@ -50,7 +50,7 @@ type fightAdmission struct {
 // combat.orders batch on this stop that drafts them all and gives the
 // formation's orders. The batch's draft results are the fight's claims;
 // the controller releases them once the fight closes (draftSweep).
-func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal store.GoalState, state ControlState, started time.Time, arbiter *stepArbiter, a fightAdmission) (RoutineDefenseResult, error) {
+func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident store.IncidentState, state ControlState, started time.Time, arbiter *stepArbiter, a fightAdmission) (RoutineDefenseResult, error) {
 	p := r.reviewer.player
 	memory := a.memory
 	if len(memory.Roles) == 0 {
@@ -66,7 +66,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal sto
 	if !arbiter.tryClaim(pawns) {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
-	method, id := defenseMethodID(strings.TrimSuffix(combatMethodPrefix, "-"), goal, hash), domain.MintPlanID("routine-defense")
+	method, id := defenseMethodID(strings.TrimSuffix(combatMethodPrefix, "-"), len(incident.Methods), hash), domain.MintPlanID("routine-defense")
 	plan, err := domain.NewPlan(id, 1, nil)
 	if err != nil {
 		return RoutineDefenseResult{}, err
@@ -79,7 +79,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal sto
 		return RoutineDefenseResult{}, fmt.Errorf("%w: admitFight: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
-	if _, err = p.journal.CommitCombatFight(call, goal.Goal.ID, goal.Revision, method, plan, memory, world, pawns); err != nil {
+	if _, err = p.journal.CommitCombatFight(call, incident.Incident.ID, method, plan, memory, world, pawns); err != nil {
 		return RoutineDefenseResult{}, err
 	}
 	admitted := RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}

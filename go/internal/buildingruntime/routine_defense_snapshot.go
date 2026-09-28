@@ -117,18 +117,13 @@ func (r *RoutineDefensePlanner) defenseSnapshot(ctx context.Context, rec *defens
 	if err != nil {
 		return d, err
 	}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.ActiveCombat {
-			continue
-		}
-		goal, err := p.journal.LoadGoal(ctx, binding.Goal)
-		if err != nil {
-			return d, err
-		}
-		for _, m := range goal.Methods {
-			if m.Plan == result.Plan {
-				d.Method = m.Method
-			}
+	incident, _, found, err := routineIncident(ctx, p.journal, review, policy.ActiveCombat)
+	if err != nil || !found {
+		return d, err
+	}
+	for _, m := range incident.Methods {
+		if m.Plan == result.Plan {
+			d.Method = m.Method
 		}
 	}
 	return d, nil

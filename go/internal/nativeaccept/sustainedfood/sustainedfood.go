@@ -393,6 +393,9 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 		emergency = append(emergency, string(id))
 	}
 	sample["emergency"] = emergency
+	if policy.IsIncidentKind(need) {
+		return sampleIncident(ctx, s, review, need, sample)
+	}
 	var goalID domain.GoalID
 	for _, binding := range review.Goals {
 		if binding.Need == need {
@@ -475,6 +478,54 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 		}
 	}
 	sample["retired_plans"] = retired
+	return sample, nil
+}
+
+// sampleIncident is SampleGoal for a Response whose occurrences are
+// incidents (#1020): the latest occurrence in the review's world, open or
+// closed, with the need the review binds it at and its plans.
+func sampleIncident(ctx context.Context, s *store.Store, review store.RoutineReview, kind policy.GoalID, sample map[string]any) (map[string]any, error) {
+	world := store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map}
+	incident, ok, err := s.LatestIncident(ctx, world, kind)
+	if err != nil || !ok {
+		sample["goal_bound"] = false
+		return sample, err
+	}
+	binding, bound := review.Incident(kind)
+	sample["goal_bound"] = bound
+	sample["incident"] = string(incident.Incident.ID)
+	sample["status"] = "closed"
+	if !incident.Incident.Closed {
+		sample["status"] = "open"
+	}
+	sample["need"] = string(binding.Need)
+	sample["priority"] = incident.Incident.Priority
+	sample["vetoed"] = review.VetoIncident(incident.Incident) != ""
+	sample["method_count"] = len(incident.Methods)
+	var plans []map[string]any
+	for _, method := range incident.Methods {
+		plan, err := s.LoadPlan(ctx, method.Plan)
+		if err != nil {
+			plans = append(plans, map[string]any{"plan": string(method.Plan), "error": err.Error()})
+			continue
+		}
+		stages := map[string]int{}
+		var unsuccessful []map[string]any
+		for _, p := range plan.Progress {
+			view := p.View()
+			stages[string(view.Stage)]++
+			if view.Stage == domain.Unsuccessful {
+				reason, _ := view.UnsuccessfulReason.Value()
+				unsuccessful = append(unsuccessful, map[string]any{"action": string(view.Action), "kind": string(p.Action().Kind()), "reason": string(reason)})
+			}
+		}
+		described := map[string]any{"plan": string(method.Plan), "method": string(method.Method), "actions": len(plan.Spec.Actions()), "stages": stages}
+		if len(unsuccessful) > 0 {
+			described["unsuccessful"] = unsuccessful
+		}
+		plans = append(plans, described)
+	}
+	sample["plans"] = plans
 	return sample, nil
 }
 

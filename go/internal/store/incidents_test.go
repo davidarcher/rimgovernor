@@ -81,9 +81,15 @@ func TestIncidentMethodCommit(t *testing.T) {
 	if _, err = s.CommitIncidentMethod(ctx, id, "fight", "", p); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal("pause admitted an incident method", err)
 	}
+	// The enabled review asserts the occurrence: it re-triggers the open
+	// row rather than opening another (#1020).
 	r.Enabled = true
 	r.Tick++
-	reviewRoutine(t, s, &r)
+	r.Facts.Hostiles = domain.Known(int64(3))
+	out := reviewRoutine(t, s, &r)
+	if b, ok := out.Review.Incident(policy.ActiveCombat); !ok || b.Incident != id || b.Need != domain.NeedDeficit {
+		t.Fatal("review did not bind the open occurrence", out.Review.Incidents)
+	}
 	state, err = s.CommitIncidentMethod(ctx, id, "fight", "raid at the edge", p)
 	if err != nil {
 		t.Fatal(err)
@@ -94,9 +100,9 @@ func TestIncidentMethodCommit(t *testing.T) {
 	if _, err = s.LoadPlan(ctx, p.ID()); err != nil {
 		t.Fatal(err)
 	}
-	// The plan is no goal's method.
-	if _, ok, err := s.PlanGoalMethod(ctx, p.ID()); ok || err != nil {
-		t.Fatal("incident plan read as a goal method", err)
+	// The plan's method names the Response kind and the incident.
+	if m, ok, err := s.PlanGoalMethod(ctx, p.ID()); !ok || err != nil || m.Goal != policy.ActiveCombat || m.Incident != id || m.Reason != "raid at the edge" {
+		t.Fatal("incident plan method", m, err)
 	}
 	// Open work blocks a second method, as it does a goal's.
 	if _, err = s.CommitIncidentMethod(ctx, id, "fight-2", "", plan(t, "second", "second-action")); err == nil {
@@ -119,5 +125,100 @@ func TestIncidentMethodCommit(t *testing.T) {
 	// goal_methods rows bind exactly one owner.
 	if _, err = s.db.ExecContext(ctx, "INSERT INTO goal_methods(epoch,method_id,plan_id,priority) VALUES('0','orphan','incident-plan',1)"); err == nil {
 		t.Fatal("ownerless goal_methods row accepted")
+	}
+}
+
+// The review owns the incident kinds' occurrences (#1020): a deficit opens
+// one and files no goal; a recovered one closes once its work settles; the
+// next deficit opens a new row; a world change abandons an open one.
+func TestRoutineReviewIncidentLifecycle(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "incidents.db"))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Facts.CriticalPatients = domain.Known(int64(1))
+	out := reviewRoutine(t, s, &r)
+	for _, b := range out.Review.Goals {
+		if policy.IsIncidentKind(b.Need) {
+			t.Fatal("incident kind filed a goal", b)
+		}
+	}
+	b, ok := out.Review.Incident(policy.CriticalMedicine)
+	if !ok || b.Need != domain.NeedDeficit || len(out.Incidents) != 1 {
+		t.Fatal("deficit opened no incident", out.Review.Incidents)
+	}
+	first := b.Incident
+	p := plan(t, "tend-plan", "tend-action")
+	if _, err := s.CommitIncidentMethod(ctx, first, "tend-alice-0", "", p); err != nil {
+		t.Fatal(err)
+	}
+	target := r.Current
+	target.Plan, target.Revision = p.ID(), p.Revision()
+	if err := s.AuthorizeRoutinePlan(ctx, r.Current, target); err != nil {
+		t.Fatal("incident plan not authorized", err)
+	}
+	if _, err := s.Prepare(ctx, p.ID(), "tend-action", target, r.Tick); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Dispatch(ctx, p.ID(), "tend-action", target, r.Tick); err != nil {
+		t.Fatal(err)
+	}
+	// Recovered with dispatched work: the occurrence stays bound, recovered,
+	// and authorizes nothing.
+	r.Facts.CriticalPatients = domain.Known(int64(0))
+	out = reviewRoutine(t, s, &r)
+	if b, ok = out.Review.Incident(policy.CriticalMedicine); !ok || b.Incident != first || b.Need != domain.NeedRecovered {
+		t.Fatal("recovered occurrence with open work", out.Review.Incidents)
+	}
+	if err := s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {
+		t.Fatal("recovered incident authorized its plan")
+	}
+	// A world change abandons it and cancels its work.
+	r.Current.Load = "second-load"
+	if out = reviewRoutine(t, s, &r); len(out.Review.Incidents) != 0 {
+		t.Fatal("world change kept the occurrence", out.Review.Incidents)
+	}
+	if closed, err := s.LoadIncident(ctx, first); err != nil || !closed.Incident.Closed {
+		t.Fatal("occurrence not closed", closed.Incident, err)
+	}
+	// Recovered with only undispatched work: it is cancelled and the
+	// occurrence closes at once; the next deficit opens a new row.
+	r.Facts.CriticalPatients = domain.Known(int64(2))
+	out = reviewRoutine(t, s, &r)
+	b, _ = out.Review.Incident(policy.CriticalMedicine)
+	pending := plan(t, "tend-pending", "tend-pending-action")
+	if _, err := s.CommitIncidentMethod(ctx, b.Incident, "tend-bob-0", "", pending); err != nil {
+		t.Fatal(err)
+	}
+	r.Facts.CriticalPatients = domain.Known(int64(0))
+	if out = reviewRoutine(t, s, &r); len(out.Review.Incidents) != 0 {
+		t.Fatal("settled occurrence stayed open", out.Review.Incidents)
+	}
+	if loaded, err := s.LoadPlan(ctx, pending.ID()); err != nil || domain.GoalWorkOpen(loaded.Progress) {
+		t.Fatal("recovery left undispatched work open", err)
+	}
+	r.Facts.CriticalPatients = domain.Known(int64(1))
+	out = reviewRoutine(t, s, &r)
+	if next, ok := out.Review.Incident(policy.CriticalMedicine); !ok || next.Incident == b.Incident {
+		t.Fatal("next deficit reused the closed occurrence", out.Review.Incidents)
+	}
+	b, _ = out.Review.Incident(policy.CriticalMedicine)
+	second := b.Incident
+	world := World{Colony: r.Current.Colony, Load: r.Current.Load, Map: r.Current.Map}
+	if latest, ok, err := s.LatestIncident(ctx, world, policy.CriticalMedicine); err != nil || !ok || latest.Incident.ID != second {
+		t.Fatal("latest incident", latest.Incident, err)
+	}
+	// Pausing keeps the occurrence; replacing the world ends it.
+	r.Enabled = false
+	if out = reviewRoutine(t, s, &r); len(out.Review.Incidents) != 1 {
+		t.Fatal("disabled review dropped the occurrence", out.Review.Incidents)
+	}
+	r.Current.Load = "other-load"
+	if out = reviewRoutine(t, s, &r); len(out.Review.Incidents) != 0 {
+		t.Fatal("world change kept the occurrence", out.Review.Incidents)
+	}
+	if abandoned, err := s.LoadIncident(ctx, second); err != nil || !abandoned.Incident.Closed {
+		t.Fatal("world change left the occurrence open", abandoned.Incident, err)
 	}
 }

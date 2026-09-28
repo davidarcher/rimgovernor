@@ -73,3 +73,14 @@ func GoalConcept(id GoalID) Concept {
 	}
 	return goalConcepts[id]
 }
+
+// incidentKinds are the Responses whose occurrences live in the incidents
+// table instead of the goal table (#1020): the review opens and closes
+// their incidents and never files a goal row for them.
+var incidentKinds = map[GoalID]bool{
+	ActiveCombat:     true,
+	CriticalMedicine: true,
+}
+
+// IsIncidentKind reports whether id's occurrences are incidents (#1020).
+func IsIncidentKind(id GoalID) bool { return incidentKinds[id] }
