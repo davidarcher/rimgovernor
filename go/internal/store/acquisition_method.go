@@ -3,9 +3,10 @@ package store
 import (
 	"context"
 	"database/sql"
+	"strings"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"strings"
 )
 
 // acquisitionOpenWorkExempt lets a purely-acquisition method be committed
@@ -63,9 +64,9 @@ func huntAcquisition(action domain.Action) bool {
 
 // pestGoal reports the routine ClearPests goal (#247), whose hunts are
 // planned animal by animal: a hunt still awaiting its kill never blocks
-// the next animal's method. The routine goal id ends in its need.
+// the next animal's method. The routine goal id names its need.
 func pestGoal(goal GoalState) bool {
-	return goal.Goal.Source == domain.AutopilotGoal && strings.HasSuffix(string(goal.Goal.ID), "-"+string(policy.ClearPests))
+	return goal.Goal.Source == domain.AutopilotGoal && routineGoalOwns(goal.Goal.ID, policy.ClearPests)
 }
 
 // acquisitionIndependentWork reports the action kinds whose open progress does

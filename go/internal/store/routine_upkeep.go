@@ -45,7 +45,7 @@ func routineUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.Generat
 		// Invalidated methods keep their original goal binding while new routine
 		// goals replace the current review. Their unresolved effects still count.
 		for _, need := range []policy.GoalID{policy.ClearHomeObstructions, policy.MaintainFireSafety, policy.SecureSupplies, policy.MaintainEssentialRepairs, policy.MaintainCleanFacilities, policy.MaintainStorage, policy.MaintainMedicalReserves, policy.MaintainFoodStorage, policy.MaintainAnimalContainment, policy.MaintainAnimalFeed, policy.MaintainHousing, policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
-			if strings.HasSuffix(string(goal), "-"+string(need)) {
+			if routineGoalOwns(goal, need) {
 				result[need] = true
 			}
 		}

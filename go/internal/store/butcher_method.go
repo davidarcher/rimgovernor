@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -16,7 +15,7 @@ const butcherSpotDefinition = "ButcherSpot"
 // foodGoal reports the routine EnsureFoodSupply goal; the routine goal id
 // ends in its need.
 func foodGoal(goal GoalState) bool {
-	return goal.Goal.Source == domain.AutopilotGoal && strings.HasSuffix(string(goal.Goal.ID), "-"+string(policy.EnsureFoodSupply))
+	return goal.Goal.Source == domain.AutopilotGoal && routineGoalOwns(goal.Goal.ID, policy.EnsureFoodSupply)
 }
 
 // butcherSpotBuilding reports a building action placing the butcher spot.

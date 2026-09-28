@@ -50,7 +50,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 			source, priority = g.Goal.Source, admitted
 			world = World{Colony: g.Goal.Snapshot.Colony, Load: g.Goal.Snapshot.Load, Map: g.Goal.Snapshot.Map}
 			for _, b := range bindings {
-				if goalID == b.Goal || source == domain.AutopilotGoal && strings.HasPrefix(string(goalID), "routine-") && strings.HasSuffix(string(goalID), "-"+string(b.Need)) {
+				if goalID == b.Goal || source == domain.AutopilotGoal && routineGoalOwns(goalID, b.Need) {
 					goalID = b.Need
 					break
 				}

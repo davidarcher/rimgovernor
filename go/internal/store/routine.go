@@ -3,13 +3,10 @@ package store
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -342,7 +339,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		if r.Recovery != nil && r.Recovery.Goal == g.Goal.ID && r.Recovery.Epoch > g.Goal.Epoch {
 			return RoutineReview{}, errors.New("future recovery method epoch")
 		}
-		if g.Goal.Source != domain.AutopilotGoal || !strings.HasPrefix(string(binding.Goal), "routine-") || !strings.HasSuffix(string(binding.Goal), "-"+string(binding.Need)) {
+		if g.Goal.Source != domain.AutopilotGoal || !routineGoalOwns(binding.Goal, binding.Need) {
 			return RoutineReview{}, errors.New("routine goal ownership mismatch")
 		}
 	}
@@ -691,10 +688,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		for _, n := range needs.Assessments {
 			g, exists := old[n.ID]
 			if !exists || g.Goal.Status == domain.GoalInvalidated {
-				// Include the durable review revision so tick rewinds cannot reuse
-				// invalidated identities, even in an otherwise identical world.
-				digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d/%d", b.Colony, b.Load, b.Map, r.Revision)))
-				id := domain.GoalID(fmt.Sprintf("routine-%x-%s", digest[:8], n.ID))
+				id, err := mintRoutineGoalID(ctx, tx, World{b.Colony, b.Load, b.Map}, n.ID)
+				if err != nil {
+					return RoutineReviewResult{}, err
+				}
 				goal, err := domain.NewGoal(id, domain.AutopilotGoal, n.Priority, b, request.Tick)
 				if err != nil {
 					return RoutineReviewResult{}, err
