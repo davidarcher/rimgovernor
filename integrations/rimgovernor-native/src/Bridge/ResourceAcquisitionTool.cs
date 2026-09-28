@@ -35,16 +35,16 @@ namespace HomeBridge.BridgeTools
                 && (t is Mineable || p.Position.DistanceTo(t.Position) <= 50) && p.CanReach(t, PathEndMode.Touch, Danger.None));
         }
 
-        // Only surface excavation is certified. Never infer support from a partial
-        // map read or remove a roof holder whose influence includes any roof.
+        // A deposit may be mined under roof when it is not the last holder of
+        // any roof cell (#986). The check reads the true map through fog, as
+        // the game does for collapse; a pending collapse nearby still refuses.
         internal static string? MiningBlocker(Thing t, Map map)
         {
             if (t.Faction != null) return "Faction-owned extraction target is protected";
-            foreach (var cell in GenRadial.RadialCellsAround(t.Position, RoofCollapseUtility.RoofMaxSupportDistance, true))
-            {
-                if (!cell.InBounds(map) || cell.Fogged(map)) return "Unknown excavation geometry";
-                if (cell.Roofed(map) || map.roofCollapseBuffer.IsMarkedToCollapse(cell)) return "Roof support requires a supported excavation plan";
-            }
+            if (GenRadial.RadialCellsAround(t.Position, RoofCollapseUtility.RoofMaxSupportDistance, true)
+                    .Any(cell => cell.InBounds(map) && map.roofCollapseBuffer.IsMarkedToCollapse(cell))
+                || ExcavationSafety.Check(map, new[] { t.Position }, out _, out _, throughFog: true) != ExcavationSafety.Support.Supported)
+                return "Roof support requires a supported excavation plan";
             foreach (var cell in GenAdj.CellsAdjacent8WayAndInside(t))
             {
                 if (!cell.InBounds(map)) return "Map edge excavation is protected";
@@ -54,6 +54,12 @@ namespace HomeBridge.BridgeTools
             }
             return null;
         }
+
+        // Safety label for an admitted row: mined ore with roof in its support
+        // radius is "supported_roof", other ore "open_surface".
+        internal static string Safety(Thing t, Map map) => !(t is Mineable) ? "native_eligible"
+            : GenRadial.RadialCellsAround(t.Position, RoofCollapseUtility.RoofMaxSupportDistance, true)
+                .Any(cell => cell.InBounds(map) && cell.Roofed(map)) ? "supported_roof" : "open_surface";
 
         private static object ExtractionInfrastructure(Map map, string resource, bool development)
         {
@@ -140,7 +146,7 @@ namespace HomeBridge.BridgeTools
                         sourceId = MiningGuard.State().Records.FirstOrDefault(r => r.MapId == map.uniqueID && r.ThingId == t.ThingID)?.SourceId ?? t.ThingID,
                         resource, workTypes = new[] { ExtractionDevelopment.WorkTypeMetadata(
                             t is Mineable ? WorkTypeDefOf.Mining : WorkTypeDefOf.PlantCutting) },
-                        distance = Distance(t), safety = t is Mineable ? "open_surface" : "native_eligible",
+                        distance = Distance(t), safety = Safety(t, map),
                         x = t.Position.x, z = t.Position.z, designated = Designated(t), hitPoints = t.HitPoints,
                         method = t is Mineable ? "mine" : t.def.plant.IsTree ? "cut" : "harvest",
                         yield = t is Plant plant ? plant.YieldNow() : t.def.building.mineableYield }).ToList();

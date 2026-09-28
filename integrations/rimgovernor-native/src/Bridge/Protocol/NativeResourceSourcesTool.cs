@@ -146,7 +146,7 @@ namespace HomeBridge.BridgeTools
                 Yield = thing is Plant plant ? plant.YieldNow() : thing.def.building.mineableYield,
                 Reachable = true,
                 Designated = ResourceAcquisitionTools.Designated(thing),
-                Safety = mineable ? "open_surface" : "native_eligible",
+                Safety = ResourceAcquisitionTools.Safety(thing, thing.Map),
                 Distance = distance,
             };
             return row;
