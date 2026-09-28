@@ -259,7 +259,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-shrine")
+	id := domain.MintPlanID()
 	identity := boundary.Identity(state.Snapshot)
 	var actions []domain.Action
 	for _, casket := range caskets {
@@ -323,7 +323,7 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-shrine")
+	id := domain.MintPlanID()
 	var actions []domain.Action
 	for _, defender := range drafted {
 		draftID := domain.ActionID(fmt.Sprintf("%s-draft-%s", id, defender))
@@ -409,7 +409,7 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-shrine")
+	id := domain.MintPlanID()
 	var actions []domain.Action
 	var target policy.ShrineCasket
 	for _, casket := range caskets {
@@ -471,6 +471,17 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 	return RoutineShrineResult{Reason: BuildingMethodAdmitted, Plan: id, Shrine: shrine.ID}, nil
 }
 
+// shrineMethod reports a method the shrine planner admits (claim, breach or
+// open), read from the plan's stored method (#987).
+func shrineMethod(method domain.MethodID) bool {
+	for _, prefix := range []string{"claim-", "breach-", "open-"} {
+		if strings.HasPrefix(string(method), prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // settleOrphanedPlans cancels the unissued work of every shrine plan whose
 // draft was lost (orphanedDraftDependents): the open and retreat wait on
 // the move, so the whole plan settles, not only the orders on the draft.
@@ -481,7 +492,7 @@ func (r *RoutineShrinePlanner) settleOrphanedPlans(call context.Context) error {
 		return err
 	}
 	for _, plan := range plans {
-		if !strings.HasPrefix(string(plan.Spec.ID()), "routine-shrine-") || len(orphanedDraftDependents(plan.Spec, plan.Progress)) == 0 {
+		if !shrineMethod(plan.Method) || len(orphanedDraftDependents(plan.Spec, plan.Progress)) == 0 {
 			continue
 		}
 		for _, progress := range plan.Progress {

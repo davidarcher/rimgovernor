@@ -3,15 +3,14 @@ package store
 import (
 	"context"
 	"database/sql"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// shelterBunkPlanPrefix names the initial shelter's bunk rung plans
-// (buildingruntime.BunkPlanPrefix).
-const shelterBunkPlanPrefix = "routine-bunks-"
+// shelterBunkMethods name the initial shelter's bunk rung methods
+// (buildingruntime.ShelterSpotsMethod, ShelterBedsMethod).
+var shelterBunkMethods = map[domain.MethodID]bool{"shelter-spots": true, "shelter-beds": true}
 
 // shelterOpenWorkExempt admits a method under the initial shelter while its
 // only open work is bunk rungs (#641): the ring is sited around the spots
@@ -39,7 +38,7 @@ func shelterOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan
 		if !PlanOpen(p) {
 			continue
 		}
-		if !strings.HasPrefix(string(p.Spec.ID()), shelterBunkPlanPrefix) {
+		if !shelterBunkMethods[m.Method] {
 			return false, nil
 		}
 		for _, a := range p.Spec.Actions() {

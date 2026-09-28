@@ -190,7 +190,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	for _, row := range stalledDesignations(sources, false, domain.Tick(observed.Context.GetTick()), r.reviewer.policy.AcquisitionProgress(), medicine) {
 		stalledSources[row.ID] = true
-		method, plan, err := stallWithdraw(row, "routine-medical-withdraw")
+		method, plan, err := stallWithdraw(row)
 		if err != nil {
 			return RoutineMedicalResult{}, err
 		}
@@ -266,7 +266,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !arbiter.tryClaim(nil, "bench:"+choice.Bench) {
 		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
 	}
-	id := domain.MintPlanID("routine-medical")
+	id := domain.MintPlanID()
 	target := int32(choice.Target)
 	if int64(target) != choice.Target {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: int64(target) != choice.Target", ErrControl)
@@ -354,7 +354,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineMedicalResult{}, err
 	}
-	id := domain.MintPlanID("routine-medical-acquire")
+	id := domain.MintPlanID()
 	var actions []domain.Action
 	for i, row := range selected {
 		value, err := domain.NewAcquisition(row.ID, row.Resource, row.Cell)

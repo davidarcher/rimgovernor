@@ -283,7 +283,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if !arbiter.tryClaim(nil, "bench:"+medChoice.Bench) {
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
 	}
-	id := domain.MintPlanID("routine-food-storage-upkeep")
+	id := domain.MintPlanID()
 	target := int32(medChoice.Target)
 	if int64(target) != medChoice.Target {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: int64(target) != medChoice.Target", ErrControl)

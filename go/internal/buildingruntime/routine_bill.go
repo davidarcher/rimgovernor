@@ -223,7 +223,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 							return RoutineBillResult{Reason: BuildingMethodNoSpace}, nil
 						}
 						core := RoutineResourcePlanner{reviewer: r.reviewer, native: native}
-						out, e := core.admitStorageZone(call, epoch, state, goal, review.Tick, policy.Resource(bench.HumanCorpseDef), bench.HumanStorageCells, r.reviewer.clock.Now(), "human-corpse-storage", "routine-human-corpse-zone")
+						out, e := core.admitStorageZone(call, epoch, state, goal, review.Tick, policy.Resource(bench.HumanCorpseDef), bench.HumanStorageCells, r.reviewer.clock.Now(), "human-corpse-storage")
 						return RoutineBillResult{Reason: out.Reason, Plan: out.Plan}, e
 					}
 				}
@@ -265,7 +265,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBillResult{}, err
 	}
-	id := domain.MintPlanID("routine-bill")
+	id := domain.MintPlanID()
 	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Mode, selected.Target, selected.Ingredients...)
 	if selected.Mode == domain.HumanButcherForever {
 		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Worker)

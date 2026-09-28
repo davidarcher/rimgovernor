@@ -213,11 +213,11 @@ func furnitureMoved(sample map[string]any) bool {
 	plans, _ := sample["plans"].([]map[string]any)
 	retired, _ := sample["retired_plans"].([]map[string]any)
 	for _, plan := range append(plans, retired...) {
-		id, _ := plan["plan"].(string)
+		method, _ := plan["method"].(string)
 		actions, _ := plan["actions"].(int)
 		stages, _ := plan["stages"].(map[string]int)
 		kinds, _ := plan["kinds"].(map[string]int)
-		if strings.HasPrefix(id, "routine-tidy-") && actions > 0 && kinds[string(domain.MoveBuildingAction)] == actions && stages["completed"] == actions {
+		if strings.HasPrefix(method, "tidy-furniture-") && actions > 0 && kinds[string(domain.MoveBuildingAction)] == actions && stages["completed"] == actions {
 			return true
 		}
 	}

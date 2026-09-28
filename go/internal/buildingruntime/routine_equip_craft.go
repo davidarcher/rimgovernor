@@ -87,7 +87,7 @@ func (r *RoutineEquipPlanner) craftWeapons(call, epoch context.Context, arbiter 
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
-	id := domain.MintPlanID("routine-weapon-bill")
+	id := domain.MintPlanID()
 	action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
 	if err != nil {
 		return RoutineEquipResult{}, err

@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -50,7 +49,7 @@ func TestRoutineShelterSpotsThenBedsThenShell(t *testing.T) {
 		t.Fatal(result, err, n.previews)
 	}
 	shell, err := db.LoadPlan(ctx, shellMethod(result.Decision.Goal).Plan)
-	if err != nil || !strings.HasPrefix(string(shell.Spec.ID()), "routine-shell") || len(shell.Progress) != 32 {
+	if err != nil || !IsShellMethod(shell.Method) || len(shell.Progress) != 32 {
 		t.Fatal(shell, err)
 	}
 	// The ring encloses every bunk, no bed touches a ring corner, and no
@@ -110,7 +109,7 @@ func TestRoutineShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 	if err != nil || first.Reason != BuildingMethodAdmitted {
 		t.Fatal(first, err)
 	}
-	if plan := methodPlan(t, first.Decision, shelterSpotsMethod); !strings.HasPrefix(string(plan), bunkPlanPrefix+"-") {
+	if plan := methodPlan(t, first.Decision, shelterSpotsMethod); plan == "" {
 		t.Fatal("spots did not lead", plan)
 	}
 	completeRoutineBuildingMethod(t, db, first)
@@ -120,7 +119,7 @@ func TestRoutineShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 		t.Fatal(second, err, n.previews)
 	}
 	plan, err := db.LoadPlan(ctx, shellMethod(second.Decision.Goal).Plan)
-	if err != nil || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell") {
+	if err != nil || !IsShellMethod(plan.Method) {
 		t.Fatal(plan.Spec.ID(), err)
 	}
 	for _, m := range second.Decision.Goal.Methods {
@@ -158,12 +157,12 @@ func TestRoutineShelterAdoptionSkipsBunks(t *testing.T) {
 		t.Fatal(result, err, n.censuses)
 	}
 	for _, m := range result.Decision.Goal.Methods {
-		if strings.HasPrefix(string(m.Plan), bunkPlanPrefix+"-") {
+		if m.Method == shelterSpotsMethod || m.Method == shelterBedsMethod {
 			t.Fatal("bunk rung ran on an adopted shell", m)
 		}
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
-	if err != nil || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell") {
+	if err != nil || !IsShellMethod(plan.Method) {
 		t.Fatal(plan.Spec.ID(), err)
 	}
 }
@@ -196,7 +195,7 @@ func TestRoutineShelterStalledBedsAdmitShell(t *testing.T) {
 		t.Fatal("stalled beds held the ring", shell, err)
 	}
 	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Goal).Plan)
-	if err != nil || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell") {
+	if err != nil || !IsShellMethod(plan.Method) {
 		t.Fatal(plan.Spec.ID(), err)
 	}
 	wall := map[domain.Cell]bool{}

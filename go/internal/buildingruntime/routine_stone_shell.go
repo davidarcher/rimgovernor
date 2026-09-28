@@ -195,7 +195,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 		costs[i] = policy.Amount{Resource: policy.Resource(c.Resource), Count: c.Units}
 	}
 	key := stoneShellMethodID(wall)
-	id := domain.MintPlanID("routine-stone-shell")
+	id := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	var actions []domain.Action

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -111,7 +112,7 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 		return lineage{}, err
 	}
 	for _, plan := range live {
-		if strings.HasPrefix(string(plan.Spec.ID()), "routine-shell-") {
+		if buildingruntime.IsShellMethod(plan.Method) {
 			sh.seen[plan.Spec.ID()] = true
 		}
 	}

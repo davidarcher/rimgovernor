@@ -118,7 +118,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 		if done, err := used(method); err != nil || done {
 			return RoutineBuildingResult{}, false, err
 		}
-		id := domain.MintPlanID("routine-sleeping-couple")
+		id := domain.MintPlanID()
 		actions := make([]domain.Action, 0, len(step.Pack))
 		for i, piece := range step.Pack {
 			value, err := domain.NewMoveBuilding(piece.Thing, piece.Def, policy.AnchorForRect(piece.Rect, piece.Size, piece.Rot), piece.Rot)
@@ -144,7 +144,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 			return RoutineBuildingResult{}, false, err
 		}
 		if stored {
-			id := domain.MintPlanID("routine-sleeping-couple")
+			id := domain.MintPlanID()
 			action, err := domain.NewMoveBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", id)), move)
 			if err != nil {
 				return RoutineBuildingResult{}, false, err
@@ -193,7 +193,7 @@ func (r *RoutineSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Co
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineBuildingResult{}, false, err
 		}
-		id := domain.MintPlanID("routine-sleeping-couple")
+		id := domain.MintPlanID()
 		action, err := domain.NewMoveBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", id)), move)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err

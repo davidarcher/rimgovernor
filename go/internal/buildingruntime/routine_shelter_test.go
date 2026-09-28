@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -78,7 +77,7 @@ func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 // is not a bunk rung, or the last bound when only bunks are.
 func shellMethod(goal store.GoalState) domain.GoalMethod {
 	for _, m := range goal.Methods {
-		if !strings.HasPrefix(string(m.Plan), bunkPlanPrefix+"-") {
+		if m.Method != shelterSpotsMethod && m.Method != shelterBedsMethod {
 			return m
 		}
 	}
@@ -401,9 +400,6 @@ func stageShelterBunks(t *testing.T, r *RoutineBuildingPlanner, db *store.Store,
 			t.Fatal("bunk rung not admitted", rung, result)
 		}
 		method := methodPlan(t, result.Decision, []domain.MethodID{shelterSpotsMethod, shelterBedsMethod}[rung])
-		if !strings.HasPrefix(string(method), bunkPlanPrefix+"-") {
-			t.Fatal("the shell went up before its bunks", method)
-		}
 		completeRoutineBuildingMethod(t, db, result)
 		plan, err := db.LoadPlan(ctx, method)
 		if err != nil {
@@ -813,7 +809,7 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range plans {
-		if strings.HasPrefix(string(p.Spec.ID()), "routine-shell-") {
+		if IsShellMethod(p.Method) {
 			t.Fatal("no shell plan while the earlier shell is blocked", p.Spec.ID())
 		}
 	}
@@ -876,6 +872,9 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 	if err := db.CreatePlan(context.Background(), plan); err != nil {
 		t.Fatal(err)
 	}
+	if err := db.SeedPlanMethod(context.Background(), id, "starter-shell"); err != nil {
+		t.Fatal(err)
+	}
 	return shell, ring
 }
 
@@ -888,7 +887,7 @@ func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 	// which no template describes, and a restart left its door and all but
 	// three walls standing. The terrain is open now: every template at the
 	// door is placeable, so only the journal tells the true ring apart.
-	shell, ring := earlierGrownShell(t, db, "routine-shell-earlier")
+	shell, ring := earlierGrownShell(t, db, "earlier-shell")
 	n := &adoptingNative{sleepingNative: base}
 	standing := map[domain.Cell]bool{}
 	walls := shell.Walls()
@@ -942,7 +941,7 @@ func TestRoutineShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 	// with no door standing the census alone sees nothing to adopt, but the
 	// journal remembers the ring, so it is completed door first with the
 	// walls gated on the door exactly as a fresh shell would be.
-	shell, ring := earlierGrownShell(t, db, "routine-shell-earlier")
+	shell, ring := earlierGrownShell(t, db, "earlier-shell")
 	n := &adoptingNative{sleepingNative: base}
 	standing := map[domain.Cell]bool{}
 	walls := shell.Walls()
@@ -989,7 +988,7 @@ func TestRoutineShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) 
 	// A shell plan whose every cell was cancelled before anything was built
 	// leaves no durable native record; the ring is not adopted from the
 	// journal alone and the planner sites afresh.
-	shell, _ := earlierGrownShell(t, db, "routine-shell-earlier")
+	shell, _ := earlierGrownShell(t, db, "earlier-shell")
 	n := &adoptingNative{sleepingNative: base}
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
 	if err != nil {

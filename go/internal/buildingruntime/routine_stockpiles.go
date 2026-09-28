@@ -418,7 +418,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	}
 	tick := projection.Identity.Tick
 	method := domain.MethodID(fmt.Sprintf("stockpiles-%d", tick))
-	id := domain.MintPlanID("routine-stockpiles")
+	id := domain.MintPlanID()
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineStockpileResult{Reason: BuildingMethodUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
@@ -496,7 +496,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		roles[i] = e.Role
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/create/%s/%d", goal.Goal.ID, goal.Goal.Epoch, strings.Join(roles, ","), tick)))
-	id := domain.MintPlanID("routine-stockpile-create")
+	id := domain.MintPlanID()
 	method := domain.MethodID(fmt.Sprintf("stockpile-create-%x", digest[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineStockpileResult{Reason: BuildingMethodUsed}, nil

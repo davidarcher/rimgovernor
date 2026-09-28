@@ -74,7 +74,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, true, nil
 	}
-	id := domain.MintPlanID("routine-sleeping-sculpture")
+	id := domain.MintPlanID()
 	var action domain.Action
 	switch step.Kind {
 	case policy.SculptureBill:

@@ -364,7 +364,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
-	id := domain.MintPlanID("routine-sleeping")
+	id := domain.MintPlanID()
 	action, err := domain.NewBedAssignAction(domain.ActionID(fmt.Sprintf("%s-0", id)), assign)
 	if err != nil {
 		return RoutineBuildingResult{}, err
@@ -455,7 +455,7 @@ func (r *RoutineSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context,
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	id := domain.MintPlanID("routine-slave-bed")
+	id := domain.MintPlanID()
 	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err

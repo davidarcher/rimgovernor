@@ -145,7 +145,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(chosen.Pawn)}) {
 		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
 	}
-	id := domain.MintPlanID("routine-recovery")
+	id := domain.MintPlanID()
 	var action domain.Action
 	switch chosen.Kind {
 	case policy.RecoveryAreaProposal:

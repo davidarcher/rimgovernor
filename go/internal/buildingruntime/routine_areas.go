@@ -30,7 +30,7 @@ func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, a
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(change.Pawn)}) {
 		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
 	}
-	id := domain.MintPlanID("routine-recovery")
+	id := domain.MintPlanID()
 	actionID := domain.ActionID(fmt.Sprintf("%s-0", id))
 	var action domain.Action
 	var err error

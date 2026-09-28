@@ -224,7 +224,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResearchResult{}, err
 	}
-	id := domain.MintPlanID("routine-research")
+	id := domain.MintPlanID()
 	value, err := domain.NewResearchSelect(next)
 	if err != nil {
 		return RoutineResearchResult{}, err

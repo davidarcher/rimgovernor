@@ -2,8 +2,8 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -26,9 +26,8 @@ type RoutineExcavationSource interface {
 }
 
 const (
-	excavationPlanPrefix  = "routine-excavation"
 	excavationStagePrefix = "excavation-stage-"
-	excavationDoorMethod  = domain.MethodID("excavation-door")
+	excavationDoorPrefix  = "excavation-door"
 	excavationStageLimit  = 8
 	excavationStageBound  = 64
 	// excavationStallTicks bounds how long a stage action may stay held
@@ -53,47 +52,64 @@ func excavationShapes() []policy.ExcavationShape {
 	}
 }
 
-func excavationStageMethod(stage int) domain.MethodID {
-	return domain.MethodID(fmt.Sprintf("%s%d", excavationStagePrefix, stage))
+// excavationStageMethod names stage n of the project on target. The target
+// key rides on the method id (#987), the goal_methods key, so an
+// in-progress project is recovered from the journal alone; plan ids are
+// bare UUIDs.
+func excavationStageMethod(stage int, target policy.ExcavationTarget) domain.MethodID {
+	return domain.MethodID(fmt.Sprintf("%s%d@%s", excavationStagePrefix, stage, target.Key()))
 }
 
-// mintExcavationPlan mints a stage plan id carrying the target key, so an
-// in-progress project is recovered from the journal alone; the UUID keeps a
-// successor goal re-adopting the same target clear of retired stage plans.
-func mintExcavationPlan(target policy.ExcavationTarget, suffix string) domain.PlanID {
-	return domain.PlanID(fmt.Sprintf("%s-%s", domain.MintPlanID(excavationPlanPrefix+"-"+target.Key()), suffix))
+// excavationDoorMethod names the door that closes the project on target.
+func excavationDoorMethod(target policy.ExcavationTarget) domain.MethodID {
+	return domain.MethodID(excavationDoorPrefix + "@" + target.Key())
 }
 
-// excavationPlanTarget recovers the target from a stage plan identity so an
-// in-progress project survives restarts and retired stage plans without a
-// separate table.
-func excavationPlanTarget(plan domain.PlanID) (policy.ExcavationTarget, error) {
-	rest, ok := strings.CutPrefix(string(plan), excavationPlanPrefix+"-")
-	if !ok {
-		return policy.ExcavationTarget{}, errors.New("not an excavation plan")
+// ExcavationMethod parses an excavation method id: its stage (-1 for the
+// door) and the target it carries. ok is false for any other method.
+func ExcavationMethod(method domain.MethodID) (stage int, target policy.ExcavationTarget, ok bool) {
+	head, key, found := strings.Cut(string(method), "@")
+	if !found {
+		return 0, policy.ExcavationTarget{}, false
 	}
-	parts := strings.Split(rest, "-")
-	if len(parts) < 7 {
-		return policy.ExcavationTarget{}, errors.New("not an excavation plan")
+	if head == excavationDoorPrefix {
+		stage = -1
+	} else if n, cut := strings.CutPrefix(head, excavationStagePrefix); !cut {
+		return 0, policy.ExcavationTarget{}, false
+	} else if v, err := strconv.Atoi(n); err != nil || v < 0 || strconv.Itoa(v) != n {
+		return 0, policy.ExcavationTarget{}, false
+	} else {
+		stage = v
 	}
-	return policy.ParseExcavationKey(strings.Join(parts[:len(parts)-6], "-"))
+	target, err := policy.ParseExcavationKey(key)
+	if err != nil {
+		return 0, policy.ExcavationTarget{}, false
+	}
+	return stage, target, true
 }
 
-// ExcavationPlanTarget exposes the stage plan identity scheme to acceptance
-// tooling that verifies excavation projects from the durable journal alone.
-func ExcavationPlanTarget(plan domain.PlanID) (policy.ExcavationTarget, error) {
-	return excavationPlanTarget(plan)
+// IsExcavationMethod reports whether method belongs to the routine
+// excavation planner (stage or door).
+func IsExcavationMethod(method domain.MethodID) bool {
+	_, _, ok := ExcavationMethod(method)
+	return ok
 }
 
-// ExcavationStageMethod and ExcavationDoorMethod name the per-stage and door
-// methods an excavation project commits under its goal.
-func ExcavationStageMethod(stage int) domain.MethodID { return excavationStageMethod(stage) }
-func ExcavationDoorMethod() domain.MethodID           { return excavationDoorMethod }
-
-// IsExcavationPlan reports whether plan belongs to the routine excavation
-// planner (stage or door).
-func IsExcavationPlan(plan domain.PlanID) bool {
-	return strings.HasPrefix(string(plan), excavationPlanPrefix+"-")
+// excavationProgress reads a goal epoch's excavation methods: the target the
+// latest (highest) stage carries, the next stage number and whether the
+// door is bound.
+func excavationProgress(methods []domain.GoalMethod) (latest *policy.ExcavationTarget, next int, door bool) {
+	for _, m := range methods {
+		stage, target, ok := ExcavationMethod(m.Method)
+		switch {
+		case !ok:
+		case stage < 0:
+			door = true
+		case stage >= next:
+			next, latest = stage+1, &target
+		}
+	}
+	return latest, next, door
 }
 
 // excavationProject reports the target of the goal's current excavation
@@ -101,25 +117,12 @@ func IsExcavationPlan(plan domain.PlanID) bool {
 // carries, since a re-sited project continues its stage count under a new
 // target key.
 func (r *RoutineBuildingPlanner) excavationProject(call context.Context, goal store.GoalState) (*policy.ExcavationTarget, error) {
-	var latest *domain.GoalMethod
-	for stage := 0; stage <= excavationStageBound; stage++ {
-		method, err := r.reviewer.player.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, excavationStageMethod(stage))
-		if errors.Is(err, store.ErrNotFound) {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		latest = &method
-	}
-	if latest == nil {
-		return nil, nil
-	}
-	target, err := excavationPlanTarget(latest.Plan)
+	methods, err := r.reviewer.player.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
 	if err != nil {
-		return nil, fmt.Errorf("%w: excavationProject: err != nil", ErrControl)
+		return nil, err
 	}
-	return &target, nil
+	latest, _, _ := excavationProgress(methods)
+	return latest, nil
 }
 
 // readExcavationSite reads the target under the current observation and
@@ -191,26 +194,23 @@ func (r *RoutineBuildingPlanner) excavationCandidate(call context.Context, snaps
 // later shelter need starts a new one.
 func (r *RoutineBuildingPlanner) previousExcavation(call context.Context) (*policy.ExcavationTarget, error) {
 	journal := r.reviewer.player.journal
-	plan, err := journal.LatestPlanWithPrefix(call, excavationPlanPrefix+"-")
-	if errors.Is(err, store.ErrNotFound) {
-		return nil, nil
-	}
+	history, err := journal.PlanHistoryWithMethods(call, 1, excavationStagePrefix+"*@*", excavationDoorPrefix+"@*")
 	if err != nil {
 		return nil, err
 	}
-	target, err := excavationPlanTarget(plan)
-	if err != nil {
-		return nil, fmt.Errorf("%w: previousExcavation: err != nil", ErrControl)
+	if len(history) == 0 {
+		return nil, nil
+	}
+	state := history[0]
+	stage, target, ok := ExcavationMethod(state.Method)
+	if !ok {
+		return nil, fmt.Errorf("%w: previousExcavation: method %s", ErrControl, state.Method)
 	}
 	if target.Shape.Kind == policy.ExcavationCorridor {
 		// A MaintainResource tunnel to ore (#1074) is no shelter to resume.
 		return nil, nil
 	}
-	if strings.HasSuffix(string(plan), "-door") {
-		state, err := journal.LoadPlan(call, plan)
-		if err != nil {
-			return nil, err
-		}
+	if stage < 0 {
 		finished := len(state.Progress) > 0
 		for _, progress := range state.Progress {
 			if effect, known := progress.View().Effect.Value(); !known || effect != domain.EffectCompleted {
@@ -359,18 +359,13 @@ func excavationStates(site bridge.ExcavationSite) []policy.ExcavationCellState {
 func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s excavationStep) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	journal := p.journal
-	if _, err := journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, excavationDoorMethod); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
+	methods, err := journal.LoadGoalMethods(call, s.goal.Goal.ID, s.goal.Goal.Epoch)
+	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	stage := 0
-	for ; stage <= excavationStageBound; stage++ {
-		if _, err := journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, excavationStageMethod(stage)); errors.Is(err, store.ErrNotFound) {
-			break
-		} else if err != nil {
-			return RoutineBuildingResult{}, err
-		}
+	_, stage, door := excavationProgress(methods)
+	if door {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
 	if stage > excavationStageBound {
 		return RoutineBuildingResult{Reason: BuildingMethodExhausted}, nil
@@ -405,7 +400,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
 	if door {
-		snapshot.Plan = mintExcavationPlan(s.target, "door")
+		snapshot.Plan = domain.MintPlanID()
 		return r.admitExcavationDoor(call, epoch, s, snapshot, check)
 	}
 	if reason != "" {
@@ -434,7 +429,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	if !site.WorkerAvailable {
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
-	snapshot.Plan = mintExcavationPlan(s.target, fmt.Sprint(stage))
+	snapshot.Plan = domain.MintPlanID()
 	actions := make([]domain.Action, 0, len(next))
 	for i, cell := range next {
 		excavation, err := domain.NewExcavation(cell, definitions[cell])
@@ -451,7 +446,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return r.admitExcavation(call, epoch, s, snapshot, excavationStageMethod(stage), plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, check)
+	return r.admitExcavation(call, epoch, s, snapshot, excavationStageMethod(stage, s.target), plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, check)
 }
 
 // excavationNext is stepExcavation's judgement of the project's site read:
@@ -484,7 +479,7 @@ func excavationNext(target policy.ExcavationTarget, site bridge.ExcavationSite) 
 // already opened stay cleared and are never designated again.
 func cancelStalledExcavation(ctx context.Context, journal *store.Store, goal store.GoalState, now domain.Tick) error {
 	for _, method := range goal.Methods {
-		if !IsExcavationPlan(method.Plan) {
+		if !IsExcavationMethod(method.Method) {
 			continue
 		}
 		plan, err := journal.LoadPlan(ctx, method.Plan)
@@ -555,7 +550,7 @@ func (r *RoutineBuildingPlanner) admitExcavationDoor(call, epoch context.Context
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return r.admitExcavation(call, epoch, s, snapshot, excavationDoorMethod, plan, []policy.Preview{v}, stock, check)
+	return r.admitExcavation(call, epoch, s, snapshot, excavationDoorMethod(s.target), plan, []policy.Preview{v}, stock, check)
 }
 
 // admitExcavation repeats step's boundary, staleness and review checks before

@@ -152,14 +152,14 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 			if err != nil {
 				return "", false, err
 			}
-			plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-chunk-dump", 256)
+			plans, err := journal.PlanHistoryWithMethods(ctx, 256, "chunk-dump-*")
 			if err != nil {
 				return "", false, err
 			}
 			admitted = admitted || len(plans) > 0
 			// A dump alone never moves a chunk (#702): the haul plan designates
 			// them, so the service must run until it is admitted too.
-			hauls, err := journal.PlanHistoryWithPrefix(ctx, "routine-chunk-haul", 256)
+			hauls, err := journal.PlanHistoryWithMethods(ctx, 256, "chunk-haul-*")
 			if err != nil {
 				return "", false, err
 			}

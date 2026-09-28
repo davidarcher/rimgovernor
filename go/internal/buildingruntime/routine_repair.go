@@ -220,7 +220,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineRepairResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-repair")
+	id := domain.MintPlanID()
 	action, err := domain.NewRepairAction(domain.ActionID(fmt.Sprintf("%s-0", id)), repair)
 	if err != nil {
 		return RoutineRepairResult{}, err

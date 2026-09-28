@@ -130,7 +130,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTendResult{Reason: BuildingMethodExhausted, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-tend")
+	id := domain.MintPlanID()
 	action, err := domain.NewTendAction(domain.ActionID(fmt.Sprintf("%s-0", id)), tend)
 	if err != nil {
 		return RoutineTendResult{}, err

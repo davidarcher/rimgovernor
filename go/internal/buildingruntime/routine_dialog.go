@@ -107,7 +107,7 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if slices.ContainsFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == method }) {
 		return RoutineDialogResult{Reason: BuildingMethodUsed}, nil
 	}
-	id := domain.MintPlanID("routine-dialog")
+	id := domain.MintPlanID()
 	value, err := domain.NewDialogAnswer(windowID, chosen.Index, chosen.Label)
 	if err != nil {
 		return RoutineDialogResult{}, err

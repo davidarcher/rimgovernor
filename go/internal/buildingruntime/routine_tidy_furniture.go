@@ -29,7 +29,7 @@ func (r *RoutineTidyPlanner) move(call, epoch context.Context, state ControlStat
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineTidyResult{}, err
 	}
-	id := domain.MintPlanID("routine-tidy")
+	id := domain.MintPlanID()
 	tick := read.Projection.Identity.Tick
 	actions := make([]domain.Action, 0, len(proposal.Moves))
 	var deps []domain.ActionDependency

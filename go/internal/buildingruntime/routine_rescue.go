@@ -131,7 +131,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineRescueResult{Reason: BuildingMethodExhausted, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-rescue")
+	id := domain.MintPlanID()
 	action, err := domain.NewRescueAction(domain.ActionID(fmt.Sprintf("%s-0", id)), rescue)
 	if err != nil {
 		return RoutineRescueResult{}, err

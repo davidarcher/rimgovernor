@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -344,7 +343,7 @@ func firstEnclosure(ctx context.Context, st *store.Store, known domain.Fact[doma
 		return known, err
 	}
 	for _, plan := range plans {
-		if !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell-") || len(plan.Progress) == 0 {
+		if !buildingruntime.IsShellMethod(plan.Method) || len(plan.Progress) == 0 {
 			continue
 		}
 		done, last := true, domain.Tick(0)

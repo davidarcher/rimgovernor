@@ -75,11 +75,14 @@ func TestReviewColonyGridDerivesOnceAndServesThePersistedGrid(t *testing.T) {
 		actions = append(actions, action)
 		census.Buildings = append(census.Buildings, policy.CurrentBuilding{ID: fmt.Sprintf("b-%d", i), Building: b, Cells: []domain.Cell{b.Cell()}})
 	}
-	plan, err := domain.NewPlan(shellPlanPrefix+"-starter", 1, actions)
+	plan, err := domain.NewPlan("starter", 1, actions)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = s.player.journal.CreatePlan(ctx, plan); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.player.journal.SeedPlanMethod(ctx, plan.ID(), "starter-shell"); err != nil {
 		t.Fatal(err)
 	}
 	projection := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load, Tick: 100}, Bounds: policy.Bounds{Width: 100, Height: 100}}

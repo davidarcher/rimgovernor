@@ -197,7 +197,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	// A single plan contains independent equip actions: no pawn waits for a
 	// preceding pawn's native postcondition before its order can dispatch.
 	method := domain.MethodID(fmt.Sprintf("equip-wave-%d", len(goal.Methods)))
-	id := domain.MintPlanID("routine-equip")
+	id := domain.MintPlanID()
 	actions := make([]domain.Action, 0, len(assignments))
 	for i, pair := range assignments {
 		equip, err := domain.NewEquip(pair.Pawn, pair.Weapon.Thing, pair.Weapon.Definition, pair.Weapon.Cell)

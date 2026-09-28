@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"

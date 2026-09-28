@@ -454,7 +454,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 				unsuccessful = append(unsuccessful, map[string]any{"action": string(view.Action), "kind": string(p.Action().Kind()), "reason": string(reason)})
 			}
 		}
-		described := map[string]any{"plan": string(method.Plan), "actions": len(plan.Spec.Actions()), "stages": stages, "kinds": kinds}
+		described := map[string]any{"plan": string(method.Plan), "method": string(method.Method), "actions": len(plan.Spec.Actions()), "stages": stages, "kinds": kinds}
 		if len(unsuccessful) > 0 {
 			described["unsuccessful"] = unsuccessful
 		}

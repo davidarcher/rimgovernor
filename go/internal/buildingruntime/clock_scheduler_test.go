@@ -2,11 +2,12 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"reflect"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"

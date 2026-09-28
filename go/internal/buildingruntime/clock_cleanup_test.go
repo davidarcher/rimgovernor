@@ -3,6 +3,9 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -10,8 +13,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"google.golang.org/protobuf/proto"
-	"testing"
-	"time"
 )
 
 func (f *clockCoreFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {

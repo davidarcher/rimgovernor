@@ -242,7 +242,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-haul")
+	id := domain.MintPlanID()
 	action, err := domain.NewHaulAction(domain.ActionID(fmt.Sprintf("%s-0", id)), haul)
 	if err != nil {
 		return PlanResult{}, err

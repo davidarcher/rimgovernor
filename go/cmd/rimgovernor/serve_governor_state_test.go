@@ -226,7 +226,7 @@ func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := domain.MintPlanID("orphan-test")
+	id := domain.MintPlanID()
 	action, err := domain.NewTradeAction(domain.ActionID(id+"-0"), end)
 	if err != nil {
 		t.Fatal(err)

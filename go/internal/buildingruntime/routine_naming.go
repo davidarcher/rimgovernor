@@ -86,7 +86,7 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if slices.ContainsFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == method }) {
 		return RoutineNamingResult{Reason: BuildingMethodUsed}, nil
 	}
-	id := domain.MintPlanID("routine-naming")
+	id := domain.MintPlanID()
 	value, err := domain.NewNamingConfirmation(windowID, factionName, settlementName)
 	if err != nil {
 		return RoutineNamingResult{}, err

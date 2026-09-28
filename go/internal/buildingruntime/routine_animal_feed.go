@@ -176,7 +176,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 			benches = nil
 		case len(choice.StorageCells) > 0:
 			clockSchedulerLog("%s: no reachable bench for %s; zoning %d feed storage cells inside the animals' area", goal.Goal.ID, choice.Resource, len(choice.StorageCells))
-			result, err := r.core.admitStorageZone(call, epoch, state, goal, review.Tick, choice.Resource, choice.StorageCells, started, "feed-storage", "routine-feed-zone")
+			result, err := r.core.admitStorageZone(call, epoch, state, goal, review.Tick, choice.Resource, choice.StorageCells, started, "feed-storage")
 			if err == nil && (result.Reason == BuildingMethodRefused || result.Reason == BuildingMethodNoSpace) {
 				// The footprint native offered was refused at preview (the
 				// roof or the ground changed): lend the same window the

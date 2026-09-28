@@ -149,7 +149,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		candidate := domain.MethodID(fmt.Sprintf("ingredient-storage-%x-%d", digest[:8], attempt))
 		bound, err := p.journal.LatestMethodPlan(call, goal.Goal.ID, candidate)
 		if errors.Is(err, store.ErrNotFound) {
-			id, method = domain.MintPlanID("routine-ingredient-storage"), candidate
+			id, method = domain.MintPlanID(), candidate
 			break
 		}
 		if err != nil {

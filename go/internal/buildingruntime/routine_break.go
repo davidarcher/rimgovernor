@@ -76,7 +76,7 @@ func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, incident 
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
 	fmt.Fprintf(h, "%s/%v", victim, chosen)
-	method, id := defenseMethodID("subdue", len(incident.Methods), h), domain.MintPlanID("routine-defense")
+	method, id := defenseMethodID("subdue", len(incident.Methods), h), domain.MintPlanID()
 	for i, pawn := range chosen {
 		draftID := domain.ActionID(fmt.Sprintf("%s-d%d", id, i))
 		d, err := domain.NewOwnedDraft(pawn)

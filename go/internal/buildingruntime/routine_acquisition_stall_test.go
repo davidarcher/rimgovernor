@@ -84,7 +84,7 @@ func TestStallWithdrawIsOneHashedWithdrawAction(t *testing.T) {
 	t.Parallel()
 	row := censusRow("deer", true, false, 100)
 	row.Resource, row.Cell = "Corpse_Deer", domain.Cell{X: 3, Z: 4}
-	method, plan, err := stallWithdraw(row, "routine-acquire-withdraw")
+	method, plan, err := stallWithdraw(row)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,9 +95,9 @@ func TestStallWithdrawIsOneHashedWithdrawAction(t *testing.T) {
 	if w, ok := actions[0].AcquisitionWithdraw(); !ok || w.Thing() != "deer" || w.Definition() != "Corpse_Deer" {
 		t.Fatal("withdraw payload", w)
 	}
-	again, _, _ := stallWithdraw(row, "routine-acquire-withdraw")
+	again, _, _ := stallWithdraw(row)
 	row.DesignatedTick = 200
-	later, _, _ := stallWithdraw(row, "routine-acquire-withdraw")
+	later, _, _ := stallWithdraw(row)
 	if again != method || later == method {
 		t.Fatal("method id must hash the source and its designation tick", method, again, later)
 	}

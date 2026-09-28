@@ -132,8 +132,8 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 			s.Report()["shrine_goal"] = goal
 		}
 		var states []string
-		for _, prefix := range []string{"routine-shrine-", "routine-clearance-"} {
-			plans, err := journal.PlanHistoryWithPrefix(ctx, prefix, 256)
+		for _, patterns := range [][]string{shrinePlanMethods, {"deconstruct-*"}} {
+			plans, err := journal.PlanHistoryWithMethods(ctx, 256, patterns...)
 			if err != nil {
 				return "", false, err
 			}
@@ -147,7 +147,7 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 					if v.Stage != domain.Completed {
 						continue
 					}
-					if _, ok := action.OwnedDraft(); ok && prefix == "routine-shrine-" {
+					if _, ok := action.OwnedDraft(); ok && patterns[0] == shrinePlanMethods[0] {
 						drafted = true
 					}
 					if d, ok := action.Deconstruction(); ok {
@@ -236,3 +236,7 @@ func holdReasons(holds []policy.ShrineHold) []string {
 	}
 	return out
 }
+
+// shrinePlanMethods match the shrine planner's claim, breach and open
+// methods (#987: plans are found by method, not plan id).
+var shrinePlanMethods = []string{"claim-*", "breach-*", "open-*"}

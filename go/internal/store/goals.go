@@ -380,6 +380,9 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 	if _, err = tx.ExecContext(ctx, "INSERT INTO goal_methods(goal_id,epoch,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?,?)", id, strconv.FormatUint(m.Epoch, 10), method, plan.ID(), g.Priority, sql.NullString{String: reason, Valid: reason != ""}); err != nil {
 		return GoalState{}, conflict(err)
 	}
+	if _, err = tx.ExecContext(ctx, "UPDATE plans SET method_id=? WHERE id=?", method, plan.ID()); err != nil {
+		return GoalState{}, err
+	}
 	state.Revision++
 	if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=? WHERE id=?", strconv.FormatUint(state.Revision, 10), id); err != nil {
 		return GoalState{}, err

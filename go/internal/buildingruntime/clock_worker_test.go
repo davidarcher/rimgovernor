@@ -3,14 +3,15 @@ package buildingruntime
 import (
 	"context"
 	"errors"
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 func clockLoopFixture(t *testing.T) *ClockWorker {

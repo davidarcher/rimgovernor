@@ -170,7 +170,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineMoodReliefResult{}, err
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		id := domain.MintPlanID("routine-mood-relief")
+		id := domain.MintPlanID()
 		action, err := domain.NewMoodReliefAction(domain.ActionID(fmt.Sprintf("%s-0", id)), relief)
 		if err != nil {
 			return RoutineMoodReliefResult{}, err

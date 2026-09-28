@@ -43,9 +43,9 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	var result RoutineBuildingResult
 	switch step.Kind {
 	case policy.TombShell:
-		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, tombMethod(step), "routine-waste-tomb", "")
+		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, tombMethod(step), "")
 	case policy.TombPlace:
-		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step), "routine-waste-tomb")
+		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step))
 	case policy.TombFull:
 		// The layout review grows another tomb; a grave only once a
 		// replan found no room for one; cremation goes on meanwhile.
@@ -77,7 +77,7 @@ func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state Cont
 			break
 		}
 		piece := policy.NewInteriorPiece("grave", policy.GraveDefinition, domain.Cell{X: 1, Z: 2}, domain.North, domain.Cell{X: site.X, Z: site.Z})
-		if result, err = r.building.placePiece(call, epoch, state, review, goal, reading, piece, method, "routine-waste-grave"); err != nil || result.Reason != BuildingMethodNoSpace {
+		if result, err = r.building.placePiece(call, epoch, state, review, goal, reading, piece, method); err != nil || result.Reason != BuildingMethodNoSpace {
 			return result, err
 		}
 	}
@@ -86,7 +86,7 @@ func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state Cont
 
 // placePiece previews and admits one interior piece: a sarcophagus (#832)
 // or the crematorium (#833).
-func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID, prefix string) (RoutineBuildingResult, error) {
+func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID) (RoutineBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -99,7 +99,7 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 		}
 	}
 	snapshot := state.Snapshot
-	snapshot.Plan = domain.MintPlanID(prefix)
+	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {

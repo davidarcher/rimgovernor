@@ -202,7 +202,7 @@ func openExcavation(ctx context.Context, s cases.Session, shape excavationShape)
 	// colonists, hostiles) that suspends every development goal; fail with
 	// the ranking instead of waiting out the whole run.
 	stage0Ctx, stage0Cancel := context.WithTimeout(ctx, 5*time.Minute)
-	goalID, stage0, err := waitMethod(stage0Ctx, run.store, "", buildingruntime.ExcavationStageMethod(0))
+	goalID, stage0, err := waitMethod(stage0Ctx, run.store, "", "stage 0", excavationStage(0))
 	stage0Cancel()
 	if err != nil {
 		if review, reviewErr := run.store.LoadRoutineReview(ctx); reviewErr == nil {
@@ -212,7 +212,7 @@ func openExcavation(ctx context.Context, s cases.Session, shape excavationShape)
 	}
 	run.goalID = goalID
 	report["goal_id"] = string(goalID)
-	if err := run.bindTarget(stage0.Plan, "target"); err != nil {
+	if err := run.bindTarget(stage0.Method, "target"); err != nil {
 		return run, err
 	}
 	return run, nil
@@ -228,12 +228,12 @@ func (run *excavationRun) close() {
 	}
 }
 
-// bindTarget reads the target a stage plan carries and checks it lies in
+// bindTarget reads the target a stage method carries and checks it lies in
 // the fixture block with its access cell outside.
-func (run *excavationRun) bindTarget(plan domain.PlanID, label string) error {
-	t, err := buildingruntime.ExcavationPlanTarget(plan)
-	if err != nil {
-		return fmt.Errorf("stage plan %s: %w", plan, err)
+func (run *excavationRun) bindTarget(method domain.MethodID, label string) error {
+	_, t, ok := buildingruntime.ExcavationMethod(method)
+	if !ok {
+		return fmt.Errorf("stage method %s carries no excavation target", method)
 	}
 	run.target, run.cells = t, t.Cells()
 	run.report[label] = map[string]any{"key": t.Key(), "access": t.Access, "door": t.Door, "corridor": t.Corridor, "shape": t.Shape, "interior": t.Interior, "interior_cells": len(t.InteriorCells())}
@@ -283,8 +283,8 @@ func runExcavation(ctx context.Context, s cases.Session, opts excavationOptions)
 	// Every stage: ≤8 excavation actions, all target cells, none repeated
 	// across stages, each plan Completed by the executor's own observation.
 	dug := map[domain.Cell]int{}
-	bindTarget := func(plan domain.PlanID, label string) error {
-		if err := run.bindTarget(plan, label); err != nil {
+	bindTarget := func(method domain.MethodID, label string) error {
+		if err := run.bindTarget(method, label); err != nil {
 			return err
 		}
 		target, targetCells = run.target, run.cells
@@ -312,13 +312,13 @@ func runExcavation(ctx context.Context, s cases.Session, opts excavationOptions)
 		var nextStage0 domain.GoalMethod
 		var err error
 		for next == "" || next == goalID {
-			if next, nextStage0, err = waitMethod(ctx, verifyStore, "", buildingruntime.ExcavationStageMethod(0)); err != nil {
+			if next, nextStage0, err = waitMethod(ctx, verifyStore, "", "stage 0", excavationStage(0)); err != nil {
 				return fmt.Errorf("stage 0 after goal %s was invalidated: %w", goalID, err)
 			}
 		}
 		previous := target.Key()
 		goalID = next
-		if err := bindTarget(nextStage0.Plan, "target"); err != nil {
+		if err := bindTarget(nextStage0.Method, "target"); err != nil {
 			return err
 		}
 		lineage = append(lineage, map[string]any{"goal": string(next), "target": target.Key(), "replaced": previous, "dug_before": len(dug)})
@@ -345,8 +345,8 @@ func runExcavation(ctx context.Context, s cases.Session, opts excavationOptions)
 			break
 		}
 		// Every stage plan, before and after the restart, resumes the key.
-		if t, err := buildingruntime.ExcavationPlanTarget(method.Plan); err != nil || t.Key() != target.Key() {
-			return fmt.Errorf("stage %d plan %s carries target %q, want %q (%v)", stage, method.Plan, t.Key(), target.Key(), err)
+		if _, t, ok := buildingruntime.ExcavationMethod(method.Method); !ok || t.Key() != target.Key() {
+			return fmt.Errorf("stage %d method %s carries target %q, want %q", stage, method.Method, t.Key(), target.Key())
 		}
 		cells, err := waitStageCompleted(ctx, verifyStore, method.Plan)
 		if err != nil && invalidated() {
@@ -414,7 +414,7 @@ func runExcavation(ctx context.Context, s cases.Session, opts excavationOptions)
 
 	// The door and furnishing follow the same lineage: whichever shelter
 	// goal is current commits them.
-	doorGoal, door, err := waitMethod(ctx, verifyStore, "", buildingruntime.ExcavationDoorMethod())
+	doorGoal, door, err := waitMethod(ctx, verifyStore, "", "door", excavationStage(-1))
 	if err != nil {
 		return fmt.Errorf("door method: %w", err)
 	}
@@ -437,7 +437,7 @@ func runExcavation(ctx context.Context, s cases.Session, opts excavationOptions)
 		return err
 	}
 	for _, m := range goal.Methods {
-		if strings.HasPrefix(string(m.Plan), "routine-shell-") {
+		if buildingruntime.IsShellMethod(m.Method) {
 			return fmt.Errorf("the open-site shell was committed alongside the excavation: %v", m)
 		}
 	}
@@ -526,9 +526,8 @@ func runExcavation(ctx context.Context, s cases.Session, opts excavationOptions)
 func storeWait() na.Wait { return na.Wait{Stall: na.StallBudget(), Interval: time.Second} }
 
 // waitMethod polls the routine review for the MaintainHousing binding
-// and the named committed method under it.
-
-func waitMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID, method domain.MethodID) (domain.GoalID, domain.GoalMethod, error) {
+// and a committed method under it that match accepts.
+func waitMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID, label string, match func(domain.MethodID) bool) (domain.GoalID, domain.GoalMethod, error) {
 	var foundGoal domain.GoalID
 	var found domain.GoalMethod
 	err := na.WaitProgress(ctx, storeWait(), func(ctx context.Context) (string, bool, error) {
@@ -551,23 +550,38 @@ func waitMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID, me
 			return "", false, err
 		}
 		for _, m := range goal.Methods {
-			if m.Method == method {
+			if match(m.Method) {
 				foundGoal, found = goalID, m
 				return "", true, nil
 			}
 		}
 		if err == nil {
-			if m, err := s.LoadGoalMethod(ctx, goalID, goal.Goal.Epoch, method); err == nil {
-				foundGoal, found = goalID, m
-				return "", true, nil
+			history, err := s.LoadGoalMethods(ctx, goalID, goal.Goal.Epoch)
+			if err != nil {
+				return "", false, err
+			}
+			for _, m := range history {
+				if match(m.Method) {
+					foundGoal, found = goalID, m
+					return "", true, nil
+				}
 			}
 		}
 		return na.Signature("goal", goalID, goal.Goal.Epoch, len(goal.Methods)), false, nil
 	})
 	if err != nil {
-		return "", domain.GoalMethod{}, fmt.Errorf("method %s: %w", method, err)
+		return "", domain.GoalMethod{}, fmt.Errorf("method %s: %w", label, err)
 	}
 	return foundGoal, found, nil
+}
+
+// excavationStage matches the excavation method of stage n, or the door
+// for n < 0 (the target key rides on the method id, #987).
+func excavationStage(n int) func(domain.MethodID) bool {
+	return func(method domain.MethodID) bool {
+		stage, _, ok := buildingruntime.ExcavationMethod(method)
+		return ok && (stage == n || n < 0 && stage < 0)
+	}
 }
 
 var errGoalInvalidated = errors.New("goal invalidated")
@@ -584,15 +598,23 @@ func waitStageMethod(ctx context.Context, s *store.Store, goalID domain.GoalID, 
 		if goal.Goal.Status == domain.GoalInvalidated {
 			return "", false, errGoalInvalidated
 		}
-		if m, err := s.LoadGoalMethod(ctx, goalID, goal.Goal.Epoch, buildingruntime.ExcavationStageMethod(stage)); err == nil {
-			found = &m
-			return "", true, nil
+		methods, err := s.LoadGoalMethods(ctx, goalID, goal.Goal.Epoch)
+		if err != nil {
+			return "", false, err
 		}
-		if _, err := s.LoadGoalMethod(ctx, goalID, goal.Goal.Epoch, buildingruntime.ExcavationDoorMethod()); err == nil {
-			return "", true, nil
+		for _, m := range methods {
+			if excavationStage(stage)(m.Method) {
+				found = &m
+				return "", true, nil
+			}
+		}
+		for _, m := range methods {
+			if excavationStage(-1)(m.Method) {
+				return "", true, nil
+			}
 		}
 		for _, m := range goal.Methods {
-			if !buildingruntime.IsExcavationPlan(m.Plan) {
+			if !buildingruntime.IsExcavationMethod(m.Method) {
 				return "", false, fmt.Errorf("a non-excavation method %s was committed before the project finished", m.Plan)
 			}
 		}
@@ -682,7 +704,7 @@ func waitFurnishing(ctx context.Context, s *store.Store, goalID domain.GoalID, i
 			return "", false, err
 		}
 		for _, m := range goal.Methods {
-			if buildingruntime.IsExcavationPlan(m.Plan) {
+			if buildingruntime.IsExcavationMethod(m.Method) {
 				continue
 			}
 			state, err := s.LoadPlan(ctx, m.Plan)

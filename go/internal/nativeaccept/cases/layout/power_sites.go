@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -43,7 +44,7 @@ func powerSites(ctx context.Context, s cases.Session) error {
 		WatchConfig: sustainedfood.WatchConfig{Watch: time.Minute, Extra: []policy.GoalID{policy.MaintainHousing}, Until: func(sample map[string]any) bool {
 			for _, goal := range []policy.GoalID{policy.MaintainHousing} {
 				capacity, _ := sample[string(goal)].(map[string]any)
-				if planned(capacity, shellPlanPrefix, false) {
+				if planned(capacity, buildingruntime.IsShellMethod, false) {
 					return true
 				}
 			}

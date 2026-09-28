@@ -2,12 +2,13 @@ package buildingruntime
 
 import (
 	"context"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"testing"
 )
 
 func TestClockEstablishesOnlyKnownExtent(t *testing.T) {

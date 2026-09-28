@@ -241,7 +241,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			return RoutineResourceResult{Reason: BuildingMethodNoSpace}, nil
 		}
 		if needed {
-			return r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "gear-spares-storage", "routine-resource-zone")
+			return r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "gear-spares-storage")
 		}
 	}
 	beer := resource == "Beer"
@@ -370,7 +370,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if !ok {
 		return RoutineResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: !ok", ErrControl)
 	}
-	id := domain.MintPlanID("routine-resource")
+	id := domain.MintPlanID()
 	targetCount := int32(choice.Target)
 	if int64(targetCount) != choice.Target {
 		return RoutineResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: int64(targetCount) != choice.Target", ErrControl)
@@ -603,7 +603,7 @@ func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context
 			return RoutineResourceResult{}, false, err
 		}
 	}
-	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage", "routine-resource-zone")
+	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage")
 	return result, true, err
 }
 
@@ -623,7 +623,7 @@ func (r *RoutineResourcePlanner) storageFloor(call, epoch context.Context, state
 		return RoutineResourceResult{}, false, err
 	}
 	clockSchedulerLog("%s: %s storage full under a %d deficit; stockpile on %d cells", goal.Goal.ID, resource, deficit, len(zone.Cells))
-	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage", "routine-resource-zone")
+	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage")
 	return result, true, err
 }
 
@@ -635,7 +635,7 @@ func (r *RoutineResourcePlanner) storageFloor(call, epoch context.Context, state
 // BuildingMethodUsed), and the zone is previewed against the live zone-map
 // token and admitted through AdmitBuildingMethod, since a zone carries
 // footprint like a building.
-func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, footprint []domain.Cell, started time.Time, methodPrefix, planPrefix string) (RoutineResourceResult, error) {
+func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, footprint []domain.Cell, started time.Time, methodPrefix string) (RoutineResourceResult, error) {
 	p := r.reviewer.player
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
@@ -662,7 +662,7 @@ func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, s
 	}
 	hash := sha256.Sum256([]byte(fmt.Sprintf("%s/%v", resource, cells)))
 	method := domain.MethodID(fmt.Sprintf("%s-%x", methodPrefix, hash[:16]))
-	return admitZoneMethod(r.reviewer, r.native, call, epoch, state, goal, reviewTick, value, method, planPrefix, started)
+	return admitZoneMethod(r.reviewer, r.native, call, epoch, state, goal, reviewTick, value, method, started)
 }
 
 // zoneMethodNative is the native surface a zone method admission needs: the
@@ -676,7 +676,7 @@ type zoneMethodNative interface {
 // method ID is the caller's (fingerprint dedup reports BuildingMethodUsed),
 // the zone is previewed against the live zone-map token and admitted through
 // AdmitBuildingMethod, since a zone carries footprint like a building.
-func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, value domain.ZoneCreate, method domain.MethodID, planPrefix string, started time.Time) (RoutineResourceResult, error) {
+func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, value domain.ZoneCreate, method domain.MethodID, started time.Time) (RoutineResourceResult, error) {
 	p := reviewer.player
 	cells := value.Cells()
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -684,7 +684,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResourceResult{}, err
 	}
-	id := domain.MintPlanID(planPrefix)
+	id := domain.MintPlanID()
 	last, _, err := native.Identity(call)
 	if err != nil {
 		return RoutineResourceResult{}, err
@@ -772,7 +772,7 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 		return RoutineResourceResult{}, false, err
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/mine/%s/%d/%d", goal.Goal.ID, goal.Goal.Epoch, source.ThingID, source.Cell.X, source.Cell.Z)))
-	id := domain.MintPlanID("routine-resource-mine")
+	id := domain.MintPlanID()
 	methodID := domain.MethodID(fmt.Sprintf("resource-mine-%x", digest[:16]))
 	target := bridge.AcquisitionTarget{Acquisition: acquisitionValue, Token: source.Token}
 	preview, _, err := r.native.PreviewAcquisition(call, boundary.Identity(state.Snapshot), target)

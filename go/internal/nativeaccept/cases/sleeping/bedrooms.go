@@ -26,8 +26,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// bedroomPlanPrefix is the plan id of a bedroom shell (buildingruntime).
-const bedroomPlanPrefix = "routine-sleeping-bedroom-"
+// bedroomShellPrefix starts a bedroom shell's method (buildingruntime
+// bedroomMethod); other bedroom- and sleeping- methods stage and assign
+// beds (#987: plans are recognised by method, not plan id).
+const bedroomShellPrefix = "bedroom-shell-"
+
+// sleepingBedMethod reports a bed staging or assignment method.
+func sleepingBedMethod(method string) bool {
+	return (strings.HasPrefix(method, "bedroom-") || strings.HasPrefix(method, "sleeping-")) && !strings.HasPrefix(method, bedroomShellPrefix) && !strings.HasPrefix(method, "sleeping-shell")
+}
 
 func init() {
 	cases.Register(cases.Case{
@@ -54,13 +61,13 @@ func moved(sample map[string]any) bool {
 	retired, _ := sample["retired_plans"].([]map[string]any)
 	shell, done := false, 0
 	for _, plan := range append(plans, retired...) {
-		id, _ := plan["plan"].(string)
+		method, _ := plan["method"].(string)
 		actions, _ := plan["actions"].(int)
 		stages, _ := plan["stages"].(map[string]int)
-		if strings.HasPrefix(id, bedroomPlanPrefix) && actions > 0 {
+		if strings.HasPrefix(method, bedroomShellPrefix) && actions > 0 {
 			shell = true
 		}
-		if shell && strings.HasPrefix(id, "routine-sleeping-") && !strings.HasPrefix(id, bedroomPlanPrefix) && actions == 1 && stages["completed"] == 1 {
+		if shell && sleepingBedMethod(method) && actions == 1 && stages["completed"] == 1 {
 			done++
 		}
 	}
@@ -85,19 +92,19 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 			defer journal.Close()
 			// The move retires once the colonist sleeps in the bed, so read
 			// history (newest first), not the active catalog.
-			plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-sleeping-", 256)
+			plans, err := journal.PlanHistoryWithMethods(ctx, 256, "bedroom-*", "sleeping-*")
 			if err != nil {
 				return err
 			}
 			slices.Reverse(plans)
 			shell := false
 			for _, plan := range plans {
-				id := string(plan.Spec.ID())
-				if strings.HasPrefix(id, bedroomPlanPrefix) {
+				method := string(plan.Method)
+				if strings.HasPrefix(method, bedroomShellPrefix) {
 					shell = true
 					continue
 				}
-				if !shell || !strings.HasPrefix(id, "routine-sleeping-") {
+				if !shell || !sleepingBedMethod(method) {
 					continue
 				}
 				for _, a := range plan.Spec.Actions() {

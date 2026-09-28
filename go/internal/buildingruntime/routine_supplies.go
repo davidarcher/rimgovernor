@@ -184,7 +184,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		fmt.Fprintf(hash, "%s/%s/%d/%d/%t\n", supply.Thing(), supply.Definition(), supply.Cell().X, supply.Cell().Z, supply.Forbidden())
 	}
 	method := domain.MethodID(fmt.Sprintf("supply-%x-%d", hash.Sum(nil)[:16], review.Revision))
-	id := domain.MintPlanID("routine-allow")
+	id := domain.MintPlanID()
 	var actions []domain.Action
 	for i, supply := range targets {
 		action, err := domain.NewSupplyAllowAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), supply)

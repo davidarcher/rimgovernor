@@ -19,7 +19,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 	state := p.session.State()
 	started := r.reviewer.clock.Now()
 	method := domain.MethodID(fmt.Sprintf("corpse-larder-%s-%s-%d", choice.Kind, choice.Stock.ID, goal.Revision))
-	id := domain.MintPlanID("routine-corpse")
+	id := domain.MintPlanID()
 	actionID := domain.ActionID(fmt.Sprintf("%s-0", id))
 	var action domain.Action
 	var err error

@@ -2,10 +2,11 @@ package buildingruntime
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"path/filepath"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 func TestShrineArrestPlanPersistsCoupledDraftAndExactBed(t *testing.T) {

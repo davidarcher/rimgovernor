@@ -85,7 +85,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 			if err != nil {
 				return RoutineFieldResult{}, false, err
 			}
-			id := domain.MintPlanID("routine-fishing")
+			id := domain.MintPlanID()
 			action, err := domain.NewZoneCreateAction(domain.ActionID(string(id)+"-0"), zone)
 			if err != nil {
 				return RoutineFieldResult{}, false, err

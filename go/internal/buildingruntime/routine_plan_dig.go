@@ -11,10 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// planDigPrefix names the plans that mine a planned room or cooler exhaust
-// out of rock ahead of its shell or cooler (#836).
-const planDigPrefix = "routine-plan-dig"
-
 // digPlanned designates rock the layout plan wants gone before building:
 // a dug room's interior and door, or a cooler's wall cell and exhaust shaft
 // (#836). access is the walkable cell a miner reaches the rock from. It
@@ -73,7 +69,7 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, false, err
 	}
-	snapshot.Plan = domain.MintPlanID(planDigPrefix)
+	snapshot.Plan = domain.MintPlanID()
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
 	var previews []policy.Preview
 	actions := make([]domain.Action, 0, len(excavations)+1)

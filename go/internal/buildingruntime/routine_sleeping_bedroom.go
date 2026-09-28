@@ -111,7 +111,7 @@ func bedroomRing(room policy.LayoutRoom, doors map[domain.Cell]bool, order []dom
 // shellBedroom previews and admits the planned room's walls and door. A
 // refused cell makes the slot no site this step.
 func (r *RoutineSleepingUpkeepPlanner) shellBedroom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.BedroomStep) (RoutineBuildingResult, error) {
-	return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, bedroomMethod(step.Kind, step.Room), "routine-sleeping-bedroom", bedroomShellReason(step))
+	return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, bedroomMethod(step.Kind, step.Room), bedroomShellReason(step))
 }
 
 // bedroomShellReason is a bedroom shell's short why: the colonists still
@@ -126,7 +126,7 @@ func bedroomShellReason(step policy.BedroomStep) string {
 // shellRoom previews and admits a planned room's walls and door once per
 // method; prefix names the plan (the tomb shares it, #832). reason is the
 // admission's short why for Operation.intent (#846).
-func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, prefix, reason string) (RoutineBuildingResult, error) {
+func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string) (RoutineBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -147,7 +147,7 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
 	snapshot := state.Snapshot
-	snapshot.Plan = domain.MintPlanID(prefix)
+	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
@@ -197,7 +197,7 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
-			clockSchedulerLog("%s: %s %d,%d refused at %d,%d", goal.Goal.ID, prefix, room.Interior.X, room.Interior.Z, cell.X, cell.Z)
+			clockSchedulerLog("%s: %s %d,%d refused at %d,%d", goal.Goal.ID, method, room.Interior.X, room.Interior.Z, cell.X, cell.Z)
 			return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
 		}
 		if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {

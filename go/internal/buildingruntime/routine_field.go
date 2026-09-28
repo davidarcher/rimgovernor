@@ -269,7 +269,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
 	}
-	id := domain.MintPlanID("routine-fields")
+	id := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
@@ -449,7 +449,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	if !arbiter.tryClaim(nil, "grower:"+choice.Grower) {
 		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, false, nil
 	}
-	id := domain.MintPlanID("routine-fields")
+	id := domain.MintPlanID()
 	action, err := domain.NewGrowerCropAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineFieldResult{}, false, err

@@ -44,7 +44,7 @@ func runSalvageRemote(ctx context.Context, s cases.Session) error {
 	}
 	defer journal.Close()
 	err = na.WaitProgress(ctx, wait(service), func(ctx context.Context) (string, bool, error) {
-		plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-clearance-", 256)
+		plans, err := journal.PlanHistoryWithMethods(ctx, 256, "deconstruct-*")
 		if err != nil {
 			return "", false, err
 		}

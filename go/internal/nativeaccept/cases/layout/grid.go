@@ -21,11 +21,13 @@ package layout
 import (
 	"context"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -294,10 +296,6 @@ func styledRing(g policy.ColonyGrid, hut policy.Rectangle, shell []shellCell, re
 	return nil
 }
 
-// shellPlanPrefix is the plan id every whole-shell plan a shelter-style
-// planner admits carries (buildingruntime).
-const shellPlanPrefix = "routine-shell-"
-
 // layoutPlanned reports a completed fields plan and a shell plan of the
 // shelter or capacity planner's own: the styled ring is read back from its
 // blueprints and frames, so the watch does not wait on the last wall.
@@ -307,7 +305,7 @@ func layoutPlanned(sample map[string]any) bool {
 	}
 	for _, goal := range []policy.GoalID{policy.MaintainHousing} {
 		capacity, _ := sample[string(goal)].(map[string]any)
-		if planned(capacity, shellPlanPrefix, false) {
+		if planned(capacity, buildingruntime.IsShellMethod, false) {
 			return true
 		}
 	}
@@ -316,19 +314,21 @@ func layoutPlanned(sample map[string]any) bool {
 
 // fieldsPlanned reports a fields plan, active or retired, with every action
 // completed.
-func fieldsPlanned(sample map[string]any) bool { return planned(sample, "routine-fields-", true) }
+func fieldsPlanned(sample map[string]any) bool {
+	return planned(sample, func(m domain.MethodID) bool { return strings.HasPrefix(string(m), "fields-") }, true)
+}
 
-// planned reports a plan of the sampled goal, active or retired, whose id
-// carries the prefix: with complete set, every one of its actions has
+// planned reports a plan of the sampled goal, active or retired, whose
+// method matches (#987): with complete set, every one of its actions has
 // completed, otherwise it need only hold actions.
-func planned(sample map[string]any, prefix string, complete bool) bool {
+func planned(sample map[string]any, match func(domain.MethodID) bool, complete bool) bool {
 	plans, _ := sample["plans"].([]map[string]any)
 	retired, _ := sample["retired_plans"].([]map[string]any)
 	for _, plan := range append(plans, retired...) {
-		id, _ := plan["plan"].(string)
+		method, _ := plan["method"].(string)
 		actions, _ := plan["actions"].(int)
 		stages, _ := plan["stages"].(map[string]int)
-		if !strings.HasPrefix(id, prefix) || actions == 0 {
+		if !match(domain.MethodID(method)) || actions == 0 {
 			continue
 		}
 		if !complete || stages["completed"] == actions {

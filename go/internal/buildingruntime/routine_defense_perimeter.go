@@ -267,7 +267,7 @@ func defenseRemovalGone(tier store.DefenseTierRecord, census *defenseCensus) boo
 func (r *RoutineDefenseLayoutPlanner) remove(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, census *defenseCensus) (RoutineDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	key := defenseTierMethodID(tier)
-	id := domain.MintPlanID("routine-defense-layout")
+	id := domain.MintPlanID()
 	actions, pending, lost, err := defenseRemovalActions(id, tier, census)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err

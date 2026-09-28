@@ -118,7 +118,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
-	id := domain.MintPlanID("routine-prisoner-interaction")
+	id := domain.MintPlanID()
 	action, err := domain.NewPrisonerInteractionAction(domain.ActionID(fmt.Sprintf("%s-0", id)), interaction)
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
@@ -159,10 +159,10 @@ func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Contex
 	case policy.JailNone:
 		return RoutinePrisonerInteractionResult{}, false, nil
 	case policy.JailShell:
-		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, plannedRoomMethod(step.Room), "routine-planned-jail", "")
+		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, plannedRoomMethod(step.Room), "")
 	case policy.JailPlace:
 		method := domain.MethodID(fmt.Sprintf("jail-place-%d-%d-%s", step.Room.Interior.X, step.Room.Interior.Z, step.Piece.Slot))
-		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, method, "routine-jail-bed")
+		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, method)
 	case policy.JailMark:
 		result, err = r.markJailBed(call, epoch, state, goal, reading.Projection, step.Bed)
 	}
@@ -214,7 +214,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	id := domain.MintPlanID("routine-jail-mark")
+	id := domain.MintPlanID()
 	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err

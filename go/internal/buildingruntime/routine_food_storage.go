@@ -177,7 +177,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineFoodStorageResult{}, err
 		}
-		id = domain.MintPlanID("routine-food-storage")
+		id = domain.MintPlanID()
 		snapshot = state.Snapshot
 		snapshot.Plan = id
 		snapshot.Revision = 1

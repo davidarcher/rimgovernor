@@ -194,7 +194,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		id := domain.MintPlanID("routine-population-custody")
+		id := domain.MintPlanID()
 		action, err = domain.NewRescueAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 		if err != nil {
 			return RoutinePopulationCustodyResult{}, err
@@ -222,7 +222,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		id := domain.MintPlanID("routine-population-custody")
+		id := domain.MintPlanID()
 		action, err = domain.NewCaptureAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 		if err != nil {
 			return RoutinePopulationCustodyResult{}, err

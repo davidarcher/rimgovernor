@@ -263,7 +263,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineWorkResult{}, err
 	}
-	id := domain.MintPlanID("routine-work")
+	id := domain.MintPlanID()
 	var actions []domain.Action
 	for i, w := range work {
 		action, err := domain.NewWorkAssignmentAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), w)

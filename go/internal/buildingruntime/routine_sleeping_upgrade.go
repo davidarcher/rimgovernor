@@ -110,7 +110,7 @@ func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context,
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
 	snapshot := state.Snapshot
-	snapshot.Plan = domain.MintPlanID("routine-sleeping-replace")
+	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
@@ -158,7 +158,7 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 		}
 	}
 	snapshot := state.Snapshot
-	snapshot.Plan = domain.MintPlanID("routine-sleeping-upgrade")
+	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {

@@ -243,7 +243,7 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted}, true, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseCoverPrefix, tick))
-	id := domain.MintPlanID("routine-defense-cover")
+	id := domain.MintPlanID()
 	actions := make([]domain.Action, 0, len(clearances))
 	for i, clearance := range clearances {
 		action, err := domain.NewCoverClearanceAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), clearance)

@@ -72,7 +72,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 	for _, order := range loadout {
 		fmt.Fprintf(hash, "loadout %s/%s/%t\n", order.Pawn, order.Thing, order.Wear)
 	}
-	method, id := defenseMethodID(strings.TrimSuffix(combatMethodPrefix, "-"), len(incident.Methods), hash), domain.MintPlanID("routine-defense")
+	method, id := defenseMethodID(strings.TrimSuffix(combatMethodPrefix, "-"), len(incident.Methods), hash), domain.MintPlanID()
 	actions, held, err := loadoutActions(id, loadout)
 	if err != nil {
 		return RoutineDefenseResult{}, err

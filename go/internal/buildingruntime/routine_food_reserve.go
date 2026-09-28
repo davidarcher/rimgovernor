@@ -63,7 +63,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Contex
 		wanted[id] = false
 	}
 	method := domain.MethodID(fmt.Sprintf("food-reserve-%d", goal.Revision))
-	id := domain.MintPlanID("routine-reserve")
+	id := domain.MintPlanID()
 	started := r.reviewer.clock.Now()
 	native, ok := r.native.(interface {
 		ReadFoodReserveSupplies(context.Context, *c.Identity, bool) (bridge.SupplyRead, bridge.Result, error)

@@ -2,14 +2,15 @@ package buildingruntime
 
 import (
 	"context"
+	"path/filepath"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"path/filepath"
-	"testing"
 )
 
 func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {

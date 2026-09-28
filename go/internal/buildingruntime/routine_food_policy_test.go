@@ -2,12 +2,13 @@ package buildingruntime
 
 import (
 	"context"
+	"slices"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"slices"
-	"testing"
 )
 
 func TestRoutineFoodPolicyReplansRepeatedSettingsAndRoundTrips(t *testing.T) {

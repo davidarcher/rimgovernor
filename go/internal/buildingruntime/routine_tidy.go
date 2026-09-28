@@ -171,7 +171,7 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineTidyResult{}, err
 	}
-	id := domain.MintPlanID("routine-tidy")
+	id := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	kind := domain.GrowingZone
@@ -343,7 +343,7 @@ func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlSt
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}
-	id := domain.MintPlanID("routine-tidy")
+	id := domain.MintPlanID()
 	action, err := domain.NewZoneDeleteAction(domain.ActionID(fmt.Sprintf("%s-0", id)), del)
 	if err != nil {
 		return RoutineTidyResult{}, err
@@ -407,7 +407,7 @@ func (r *RoutineTidyPlanner) deconstruct(call, epoch context.Context, state Cont
 	onRing := func(c domain.Cell) bool {
 		return c.X >= ring.X && c.X < ring.X+ring.Width && c.Z >= ring.Z && c.Z < ring.Z+ring.Height && (c.X == ring.X || c.Z == ring.Z || c.X == ring.X+ring.Width-1 || c.Z == ring.Z+ring.Height-1)
 	}
-	id := domain.MintPlanID("routine-tidy")
+	id := domain.MintPlanID()
 	var actions []domain.Action
 	for _, b := range census.Buildings {
 		if len(b.Cells) == 0 || !onRing(b.Cells[0]) || !claimed[b.Cells[0]] {

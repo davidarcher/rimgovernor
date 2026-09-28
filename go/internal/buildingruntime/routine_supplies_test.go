@@ -3,13 +3,14 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 // forbiddenSupplyRows seeds count forbidden starting stacks item-00.. at one cell.

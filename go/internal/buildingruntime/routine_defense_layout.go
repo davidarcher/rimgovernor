@@ -447,7 +447,7 @@ func (r *RoutineDefenseLayoutPlanner) rearm(call, epoch context.Context, goal st
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodUsed, Tier: policy.TierTurrets}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseRearmPrefix(order.Turret), tick))
-	id := domain.MintPlanID("routine-defense-rearm")
+	id := domain.MintPlanID()
 	service, err := domain.NewRecoveryService(domain.PawnID(order.Pawn), order.Turret, domain.RecoveryServiceRefuel)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
@@ -988,7 +988,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, buildings []domain.Building, key domain.MethodID) (RoutineDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	projection := read.Projection
-	id := domain.MintPlanID("routine-defense-layout")
+	id := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	var actions []domain.Action

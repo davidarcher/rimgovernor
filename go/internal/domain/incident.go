@@ -12,7 +12,7 @@ type IncidentID string
 
 // MintIncidentID mints a fresh incident id when an occurrence opens.
 func MintIncidentID() IncidentID {
-	return IncidentID(MintPlanID("incident"))
+	return IncidentID("incident-" + string(MintPlanID()))
 }
 
 // Incident is one occurrence of a Response: opened by a review assessment,

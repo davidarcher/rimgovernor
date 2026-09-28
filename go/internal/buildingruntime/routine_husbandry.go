@@ -137,7 +137,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}
-	id := domain.MintPlanID("routine-husbandry")
+	id := domain.MintPlanID()
 	action, err := domain.NewHusbandryAction(domain.ActionID(fmt.Sprintf("%s-0", id)), husbandry)
 	if err != nil {
 		return RoutineHusbandryResult{}, err

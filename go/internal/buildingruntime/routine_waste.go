@@ -178,7 +178,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineWasteResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-waste")
+	id := domain.MintPlanID()
 	action, err := domain.NewWasteAction(domain.ActionID(fmt.Sprintf("%s-0", id)), waste)
 	if err != nil {
 		return RoutineWasteResult{}, err

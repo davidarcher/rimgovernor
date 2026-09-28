@@ -391,7 +391,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			// (#936); a shell already tried this epoch, or refused, leaves
 			// the cooling to go on.
 			if closet, owed := plannedMealCloset(facts); positiveFact(owed) {
-				result, err := r.shellRoom(call, epoch, state, review, goal, reading, closet, plannedRoomMethod(closet), "routine-planned-meal-closet", "cold meal shelf")
+				result, err := r.shellRoom(call, epoch, state, review, goal, reading, closet, plannedRoomMethod(closet), "cold meal shelf")
 				if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
 					return result, err
 				}
@@ -508,7 +508,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// shell already tried this epoch, or refused, leaves the usual
 		// placement to go on.
 		if room, owed := plannedRoomOwed(facts, module); owed {
-			result, err := r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "routine-planned-"+string(module), "")
+			result, err := r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "")
 			if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
 				return result, err
 			}
@@ -627,50 +627,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if roofingOnly {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
-	prefix := "routine-sleep"
-	if r.goal == policy.EnsureTemperatureSafety {
-		prefix = "routine-temperature"
-	}
-	if r.goal == policy.EnsureCooking {
-		prefix = "routine-cook"
-	}
-	if r.goal == policy.EnsureBasicPower {
-		prefix = "routine-power"
-	}
-	if r.phase == policy.ComfortRanked {
-		prefix = "routine-comfort"
-	}
-	if r.phase == policy.ComfortBasic {
-		prefix = "routine-basic-comfort"
-	}
-	if r.goal == policy.MaintainRefrigeration {
-		prefix = "routine-refrigeration"
-	}
-	if r.goal == policy.MaintainLighting {
-		prefix = "routine-lighting"
-	}
-	if r.goal == policy.MaintainFlooring {
-		prefix = "routine-flooring"
-	}
-	if r.goal == policy.MaintainRoutes {
-		prefix = "routine-routes"
-	}
-	if r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment {
-		prefix = "routine-workshop"
-	}
-	if r.goal == policy.MaintainMedicalReserves {
-		prefix = "routine-hospital"
-	}
-	if r.phase == policy.HousingSleeping {
-		prefix = "routine-sleeping"
-	}
-	if r.goal == policy.EnsureResearch {
-		prefix = "routine-laboratory"
-	}
-	if r.shelter {
-		prefix = shellPlanPrefix
-	}
-	planID := domain.MintPlanID(prefix)
+	planID := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1

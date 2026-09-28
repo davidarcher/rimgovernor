@@ -219,7 +219,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineCleanResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-clean")
+	id := domain.MintPlanID()
 	action, err := domain.NewCleanAction(domain.ActionID(fmt.Sprintf("%s-0", id)), clean)
 	if err != nil {
 		return RoutineCleanResult{}, err

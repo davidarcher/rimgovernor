@@ -91,7 +91,7 @@ func (r *RoutinePopulationCustodyPlanner) stepLance(call, epoch context.Context,
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, false, err
 	}
-	id := domain.MintPlanID("routine-population-custody")
+	id := domain.MintPlanID()
 	action, err := domain.NewUseItemAction(domain.ActionID(fmt.Sprintf("%s-0", id)), use)
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, false, err

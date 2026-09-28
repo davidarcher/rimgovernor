@@ -103,7 +103,7 @@ func (r *RoutineResourcePlanner) removeExhaustedDrill(call, epoch context.Contex
 			continue
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		planID := domain.MintPlanID("routine-drill-removal")
+		planID := domain.MintPlanID()
 		value, err := domain.NewDeconstruction(drill.ID, drill.Definition, drill.Position)
 		if err != nil {
 			return RoutineResourceResult{}, true, err
@@ -241,7 +241,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineResourceResult{}, true, err
 		}
-		planID := domain.MintPlanID("routine-deep-drill")
+		planID := domain.MintPlanID()
 		snapshot := state.Snapshot
 		snapshot.Plan, snapshot.Revision = planID, 1
 		building, err := domain.NewBuilding("DeepDrill", site.Centre, domain.North, "")

@@ -41,7 +41,7 @@ func (r *RoutinePopulationCustodyPlanner) commitArrest(call, epoch context.Conte
 		return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-population-custody")
+	id := domain.MintPlanID()
 	plan, err := shrineArrestPlan(id, performer, target, bed)
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, err

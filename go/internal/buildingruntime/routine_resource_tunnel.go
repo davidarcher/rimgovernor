@@ -52,7 +52,7 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 	finish := func(result RoutineBuildingResult) (RoutineResourceResult, bool, error) {
 		out := RoutineResourceResult{Reason: result.Reason}
 		for _, m := range result.Decision.Goal.Methods {
-			if IsExcavationPlan(m.Plan) {
+			if IsExcavationMethod(m.Method) {
 				out.Plan = m.Plan
 			}
 		}

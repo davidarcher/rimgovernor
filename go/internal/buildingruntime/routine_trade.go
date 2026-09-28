@@ -521,7 +521,7 @@ func (r *RoutineTradePlanner) cancel(call, epoch context.Context, state ControlS
 func (r *RoutineTradePlanner) commit(call, epoch context.Context, state ControlState, incident store.IncidentState, kind domain.TradeOperationKind, attempt int, trader string, value domain.Trade, started time.Time) (RoutineTradeResult, error) {
 	p := r.reviewer.player
 	method := tradeMethod(kind, trader, attempt)
-	id := domain.MintPlanID("routine-trade")
+	id := domain.MintPlanID()
 	tradeID := domain.ActionID(fmt.Sprintf("%s-trade", id))
 	action, err := domain.NewTradeAction(tradeID, value)
 	if err != nil {

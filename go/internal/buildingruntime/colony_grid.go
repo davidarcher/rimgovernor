@@ -64,7 +64,7 @@ func (r *RoutineReviewer) starterShell(ctx context.Context, bounds policy.Bounds
 		}
 	}
 	unknown := domain.Unknown[domain.RoomFootprint]()
-	history, err := r.player.journal.PlanHistoryWithPrefix(ctx, shellPlanPrefix+"-", shellHistoryLimit)
+	history, err := r.player.journal.PlanHistoryWithMethods(ctx, shellHistoryLimit, shellMethodPatterns...)
 	if err != nil {
 		return unknown, err
 	}

@@ -115,7 +115,7 @@ func (r *RoutineDefenseLayoutPlanner) harden(call, epoch context.Context, goal s
 func (r *RoutineDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, buildings []domain.Building, tier policy.DefenseTierName) (RoutineDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	tick := read.Projection.Identity.Tick
-	id := domain.MintPlanID("routine-defense-" + string(tier))
+	id := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	var actions []domain.Action

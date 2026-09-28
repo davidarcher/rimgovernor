@@ -146,7 +146,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
-	id := domain.MintPlanID("routine-home")
+	id := domain.MintPlanID()
 	action, err := domain.NewHomeCoverageAction(domain.ActionID(fmt.Sprintf("%s-0", id)), coverage)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err

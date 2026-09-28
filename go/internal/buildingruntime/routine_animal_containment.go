@@ -314,7 +314,7 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
-	planID := domain.MintPlanID("routine-pen-shell")
+	planID := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1
@@ -442,7 +442,7 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 			cells = append(cells, c)
 		}
 	}
-	planID := domain.MintPlanID("routine-pen-marker")
+	planID := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1

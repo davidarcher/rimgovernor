@@ -174,8 +174,8 @@ func haulPairWave(t *testing.T, held string) []domain.PlanID {
 	var admitted []domain.PlanID
 	for _, outcome := range outcomes {
 		if outcome.Admitted {
-			// Plan ids are minted (#985): compare the planner prefix only.
-			admitted = append(admitted, outcome.Plan[:len(outcome.Plan)-37])
+			// Plan ids are bare minted UUIDs (#985, #987): compare planners.
+			admitted = append(admitted, domain.PlanID(outcome.Planner))
 		}
 	}
 	sort.Slice(admitted, func(i, j int) bool { return admitted[i] < admitted[j] })

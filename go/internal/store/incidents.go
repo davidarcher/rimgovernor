@@ -290,6 +290,9 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 	if _, err = tx.ExecContext(ctx, "INSERT INTO goal_methods(incident_id,epoch,method_id,plan_id,priority,reason) VALUES(?,'0',?,?,?,?)", id, method, plan.ID(), state.Incident.Priority, sql.NullString{String: reason, Valid: reason != ""}); err != nil {
 		return IncidentState{}, conflict(err)
 	}
+	if _, err = tx.ExecContext(ctx, "UPDATE plans SET method_id=? WHERE id=?", method, plan.ID()); err != nil {
+		return IncidentState{}, err
+	}
 	return loadIncident(ctx, tx, id)
 }
 

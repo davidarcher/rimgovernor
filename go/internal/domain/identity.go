@@ -84,15 +84,15 @@ func validID(s string) bool {
 	return utf8.ValidString(s) && strings.TrimSpace(s) != "" && len(s) <= 256 && !strings.ContainsRune(s, '\x00')
 }
 
-// MintPlanID mints a fresh plan id at admission (#985): prefix, then a
-// random version-4 UUID. Nothing re-derives it; a plan is found again by
+// MintPlanID mints a fresh plan id at admission (#985): a bare random
+// version-4 UUID (#987). Nothing re-derives it; a plan is found again by
 // its stored (goal, epoch, method) key.
-func MintPlanID(prefix string) PlanID {
+func MintPlanID() PlanID {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		panic(err)
 	}
 	b[6] = b[6]&0x0f | 0x40
 	b[8] = b[8]&0x3f | 0x80
-	return PlanID(fmt.Sprintf("%s-%x-%x-%x-%x-%x", prefix, b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]))
+	return PlanID(fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]))
 }

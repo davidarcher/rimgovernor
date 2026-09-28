@@ -275,7 +275,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-secure-supplies")
+	id := domain.MintPlanID()
 	action, err := domain.NewHaulAction(domain.ActionID(fmt.Sprintf("%s-0", id)), haul)
 	if err != nil {
 		return PlanResult{}, err
@@ -444,7 +444,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 		return PlanResult{}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", secureSuppliesZonePrefix, zoneAttempts))
-	id := domain.MintPlanID("routine-secure-supplies-zone")
+	id := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
@@ -518,7 +518,7 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 	if value, err = value.WithRole("general"); err != nil {
 		return PlanResult{}, err
 	}
-	id := domain.MintPlanID("routine-general-store")
+	id := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
@@ -709,7 +709,7 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	if sites, err = benchCentralSites(call, r.native, boundary.Identity(state.Snapshot), projection.Cells, sites); err != nil {
 		return PlanResult{}, err
 	}
-	planID := domain.MintPlanID("routine-supply-room-shell")
+	planID := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1

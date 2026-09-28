@@ -239,7 +239,7 @@ func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context,
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	id := domain.MintPlanID("routine-refrigeration")
+	id := domain.MintPlanID()
 	action, err := domain.NewBuildingTemperatureAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err

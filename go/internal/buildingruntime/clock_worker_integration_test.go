@@ -2,15 +2,16 @@ package buildingruntime
 
 import (
 	"context"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"sync"
-	"testing"
-	"time"
 )
 
 // Every native surface shares this lock, including shutdown identity reads.

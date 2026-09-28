@@ -131,7 +131,7 @@ func tunnelStage(t *testing.T, db *store.Store) (domain.PlanID, []domain.Cell) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !IsExcavationPlan(m.Plan) || !store.PlanOpen(plan) {
+			if !IsExcavationMethod(m.Method) || !store.PlanOpen(plan) {
 				continue
 			}
 			var cells []domain.Cell
@@ -188,9 +188,13 @@ func TestBuriedSteelTunnelsThenMines(t *testing.T) {
 	if result.Reason != BuildingMethodAdmitted || id == "" || len(native.acquisitions) != 0 {
 		t.Fatal(result, id, native.acquisitions)
 	}
-	target, err := ExcavationPlanTarget(id)
-	if err != nil || target.Shape.Kind != policy.ExcavationCorridor || !strings.Contains(string(id), ".c-") {
-		t.Fatal(target, err, id)
+	stage, err := db.LoadPlan(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, target, ok := ExcavationMethod(stage.Method)
+	if !ok || target.Shape.Kind != policy.ExcavationCorridor || !strings.HasSuffix(string(stage.Method), ".c") {
+		t.Fatal(target, stage.Method)
 	}
 	if dx, dz := target.Door.X-buriedOreCell.X, target.Door.Z-buriedOreCell.Z; dx*dx+dz*dz != 1 || len(cells) == 0 {
 		t.Fatal(target, cells)

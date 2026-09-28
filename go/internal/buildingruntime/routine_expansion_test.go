@@ -2,12 +2,13 @@ package buildingruntime
 
 import (
 	"context"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {

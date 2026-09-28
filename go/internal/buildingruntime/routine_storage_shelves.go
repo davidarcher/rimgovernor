@@ -224,7 +224,7 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 		}
 	}
 	snapshot := state.Snapshot
-	snapshot.Plan = domain.MintPlanID("routine-storage-shelf")
+	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {

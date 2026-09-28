@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
@@ -231,9 +230,6 @@ func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, def
 				if err != nil {
 					return "", false, err
 				}
-				if !strings.HasPrefix(string(plan.Spec.ID()), buildingruntime.BunkPlanPrefix+"-") {
-					return "", false, fmt.Errorf("%s bound to %s, not a bunk plan", method, plan.Spec.ID())
-				}
 				var bunks []bunk
 				done := true
 				for i, a := range plan.Spec.Actions() {
@@ -274,7 +270,7 @@ func noShellYet(ctx context.Context, st *store.Store, after string) error {
 		return err
 	}
 	for _, plan := range plans {
-		if strings.HasPrefix(string(plan.Spec.ID()), "routine-shell-") {
+		if buildingruntime.IsShellMethod(plan.Method) {
 			return fmt.Errorf("shell plan %s admitted before the %s", plan.Spec.ID(), after)
 		}
 	}

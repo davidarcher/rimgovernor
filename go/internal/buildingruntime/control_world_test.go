@@ -3,8 +3,9 @@ package buildingruntime
 import (
 	"context"
 	"errors"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 func TestControlCloseRetiresOnlyPositivelyReplacedWorld(t *testing.T) {

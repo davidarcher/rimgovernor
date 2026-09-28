@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -39,29 +41,32 @@ const (
 	shelterSpotsMethod   domain.MethodID = "shelter-spots"
 	shelterBedsMethod    domain.MethodID = "shelter-beds"
 	shelterBedDefinition                 = "Bed"
-	bunkPlanPrefix                       = "routine-bunks"
 )
 
 // shelterMineMethod digs the natural rock out of the shell's interior
-// (#700), after the bunks and before the ring, under its own plan prefix
-// so no shell or excavation history mistakes it for theirs.
-const (
-	shelterMineMethod   domain.MethodID = "shelter-mine"
-	shellMinePlanPrefix string          = "routine-shelter-mine"
-)
+// (#700), after the bunks and before the ring, under its own method so no
+// shell or excavation history mistakes it for theirs.
+const shelterMineMethod domain.MethodID = "shelter-mine"
 
 // shelterClearMethod claims the ruin walls of the ring's kind standing on
 // the shell's ring (#718) and deconstructs the other ruins there (#709),
 // after the bunks and before the ring, which is then raised on the ring's
 // other cells and closed by adoption once the ruins are gone.
-const (
-	shelterClearMethod   domain.MethodID = "shelter-clear"
-	shellClearPlanPrefix string          = "routine-shelter-clear"
-)
+const shelterClearMethod domain.MethodID = "shelter-clear"
 
-// BunkPlanPrefix names the plans the shelter's bunk rungs admit, for
-// acceptance tooling reading the journal.
-const BunkPlanPrefix = bunkPlanPrefix
+// ShellMethodPatterns are the GLOB patterns matching every whole-shell
+// method, for acceptance tooling reading the journal (#987).
+func ShellMethodPatterns() []string { return slices.Clone(shellMethodPatterns) }
+
+// IsShellMethod reports a whole-shell method (shellMethodPatterns).
+func IsShellMethod(method domain.MethodID) bool {
+	for _, p := range shellMethodPatterns {
+		if ok, _ := path.Match(p, string(method)); ok {
+			return true
+		}
+	}
+	return false
+}
 
 // ShelterSpotsMethod and ShelterBedsMethod name the bunk rungs' methods
 // under the initial shelter goal.
@@ -282,7 +287,7 @@ func (r *RoutineBuildingPlanner) admitShellMining(call, epoch context.Context, s
 		clockSchedulerLog("%s: %s: interior not diggable now: support=%d (%s) collapse=%v worker=%v", r.goal, shelterMineMethod, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
 		return RoutineBuildingResult{}, false, nil
 	}
-	snapshot.Plan = domain.MintPlanID(shellMinePlanPrefix)
+	snapshot.Plan = domain.MintPlanID()
 	var actions []domain.Action
 	for _, cell := range site.Cells {
 		if !cell.Eligible || cell.MineDesignated || cell.Definition == "" {
@@ -379,7 +384,7 @@ func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context,
 	if !known {
 		return RoutineBuildingResult{}, false, nil
 	}
-	snapshot.Plan = domain.MintPlanID(shellClearPlanPrefix)
+	snapshot.Plan = domain.MintPlanID()
 	var actions []domain.Action
 	claims := policy.ShellClaims(census.Targets, layout.Claimed)
 	if reader, ok := r.native.(shellClaimReader); ok {
@@ -457,7 +462,7 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 		}
 	}
 	snapshot := s.state.Snapshot
-	snapshot.Plan = domain.MintPlanID(bunkPlanPrefix)
+	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1
 	actions := make([]domain.Action, 0, len(anchors))
 	for i, anchor := range anchors {

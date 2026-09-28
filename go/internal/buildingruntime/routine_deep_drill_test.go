@@ -1,10 +1,11 @@
 package buildingruntime
 
 import (
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"testing"
 )
 
 func drillFacts() observation.ColonyProjection {

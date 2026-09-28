@@ -167,7 +167,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			}
 			for _, row := range stalledDesignations(projection.Acquisition, hunt, expected.Tick, contract, mine) {
 				stalledSources[row.ID] = true
-				method, plan, err := stallWithdraw(row, "routine-acquire-withdraw")
+				method, plan, err := stallWithdraw(row)
 				if err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
@@ -296,17 +296,17 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	for _, row := range selected {
 		fmt.Fprintf(hash, "%s/%s/%s/%d/%d\n", row.ID, row.Resource, row.Token, row.Cell.X, row.Cell.Z)
 	}
-	prefix, planPrefix := "acquire", "routine-acquire"
+	prefix := "acquire"
 	if pest {
 		// Every admission the goal ever made salts the pest method: a
 		// cancelled hunt of an animal that came back to the same cell in
 		// the same state rehashes to a fresh method instead of reading as
 		// already used (#214).
 		fmt.Fprintf(hash, "#%d\n", goal.Admitted)
-		prefix, planPrefix = "pest-hunt", "routine-pest-hunt"
+		prefix = "pest-hunt"
 	}
 	if stockGoal {
-		prefix, planPrefix = "resource-acquire", "routine-resource-acquire"
+		prefix = "resource-acquire"
 	}
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -314,7 +314,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineAcquisitionResult{}, err
 	}
-	id := domain.MintPlanID(planPrefix)
+	id := domain.MintPlanID()
 	var actions []domain.Action
 	for i, row := range selected {
 		value, err := domain.NewAcquisition(row.ID, row.Resource, row.Cell)
@@ -512,7 +512,7 @@ func stalledDesignations(sources domain.Fact[[]policy.AcquisitionSource], hunt b
 // (#1046). Its method id hashes the source and the designation's first-seen
 // tick: a withdraw not yet read back is not filed twice, and a later
 // re-designation of the same source rehashes.
-func stallWithdraw(row policy.AcquisitionSource, planPrefix string) (domain.MethodID, domain.PlanSpec, error) {
+func stallWithdraw(row policy.AcquisitionSource) (domain.MethodID, domain.PlanSpec, error) {
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%s/%d/%d/%d\n", row.ID, row.Resource, row.Cell.X, row.Cell.Z, row.DesignatedTick)
 	method := domain.MethodID(fmt.Sprintf("withdraw-%x", hash.Sum(nil)[:16]))
@@ -520,7 +520,7 @@ func stallWithdraw(row policy.AcquisitionSource, planPrefix string) (domain.Meth
 	if err != nil {
 		return "", domain.PlanSpec{}, err
 	}
-	id := domain.MintPlanID(planPrefix)
+	id := domain.MintPlanID()
 	action, err := domain.NewAcquisitionWithdrawAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {
 		return "", domain.PlanSpec{}, err

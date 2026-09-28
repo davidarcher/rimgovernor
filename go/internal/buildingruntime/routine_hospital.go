@@ -217,7 +217,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
-	id := domain.MintPlanID("routine-hospital")
+	id := domain.MintPlanID()
 	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err

@@ -109,7 +109,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
-	id := domain.MintPlanID("routine-population-joiner")
+	id := domain.MintPlanID()
 	action, err := domain.NewQuestAcceptAction(domain.ActionID(fmt.Sprintf("%s-0", id)), accept)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
@@ -139,7 +139,7 @@ func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID("routine-joiner-letter")
+	id := domain.MintPlanID()
 	value, err := domain.NewJoinerLetterAnswer(letter.ID, letter.Label, letter.Token)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err

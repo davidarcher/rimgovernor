@@ -97,7 +97,7 @@ var excavationTestTarget = policy.ExcavationTarget{Access: domain.Cell{X: 8, Z: 
 func methodPlan(t *testing.T, decision store.BuildingMethodDecision, method domain.MethodID) domain.PlanID {
 	t.Helper()
 	for _, m := range decision.Goal.Methods {
-		if m.Method == method {
+		if matchesMethod(m.Method, method) {
 			return m.Plan
 		}
 	}
@@ -165,18 +165,18 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(0))
-	if !excavationPlanFor(planID, excavationTestTarget, "0") || len(cells) != 2 || cells[0] != (domain.Cell{X: 9, Z: 4}) || cells[1] != (domain.Cell{X: 10, Z: 4}) {
+	planID, cells := excavationCells(t, db, result.Decision, stageStub(0))
+	if !excavationPlanFor(db, planID, excavationTestTarget, "0") || len(cells) != 2 || cells[0] != (domain.Cell{X: 9, Z: 4}) || cells[1] != (domain.Cell{X: 10, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
-	if result.Decision.Goal.Methods[0].Method != excavationStageMethod(0) || x.sleepingNative.previews != 0 || x.reads < 1 {
+	if !matchesMethod(result.Decision.Goal.Methods[0].Method, stageStub(0)) || x.sleepingNative.previews != 0 || x.reads < 1 {
 		t.Fatal(result.Decision.Goal.Methods, x.sleepingNative.previews, x.reads)
 	}
 	if again, err := r.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
 		t.Fatal(again, err)
 	}
 	// Corridor cleared; the first interior column is now visible rock.
-	completeExcavation(t, db, result.Decision, excavationStageMethod(0), x)
+	completeExcavation(t, db, result.Decision, stageStub(0), x)
 	for z := int32(1); z <= 7; z++ {
 		delete(x.fogged, domain.Cell{X: 11, Z: z})
 		x.rock[domain.Cell{X: 11, Z: z}] = "Granite"
@@ -185,15 +185,15 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	planID, cells = excavationCells(t, db, result.Decision, excavationStageMethod(1))
-	if !excavationPlanFor(planID, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
+	planID, cells = excavationCells(t, db, result.Decision, stageStub(1))
+	if !excavationPlanFor(db, planID, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
 	if x.sleepingNative.previews != 0 {
 		t.Fatal("stage previewed the shell", x.sleepingNative.previews)
 	}
 	// Every remaining interior cell becomes visible; stages are capped at 8.
-	completeExcavation(t, db, result.Decision, excavationStageMethod(1), x)
+	completeExcavation(t, db, result.Decision, stageStub(1), x)
 	for gx := int32(12); gx <= 17; gx++ {
 		for z := int32(1); z <= 7; z++ {
 			delete(x.fogged, domain.Cell{X: gx, Z: z})
@@ -206,11 +206,11 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 		if err != nil || result.Reason != BuildingMethodAdmitted {
 			t.Fatal(stage, result, err)
 		}
-		planID, cells = excavationCells(t, db, result.Decision, excavationStageMethod(stage))
-		if !excavationPlanFor(planID, excavationTestTarget, strconv.Itoa(stage)) || len(cells) == 0 || len(cells) > excavationStageLimit {
+		planID, cells = excavationCells(t, db, result.Decision, stageStub(stage))
+		if !excavationPlanFor(db, planID, excavationTestTarget, strconv.Itoa(stage)) || len(cells) == 0 || len(cells) > excavationStageLimit {
 			t.Fatal(planID, cells)
 		}
-		completeExcavation(t, db, result.Decision, excavationStageMethod(stage), x)
+		completeExcavation(t, db, result.Decision, stageStub(stage), x)
 		remaining := 0
 		for _, cell := range excavationTestTarget.Cells() {
 			if x.rock[cell] != "" {
@@ -229,9 +229,9 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	doorPlan := methodPlan(t, result.Decision, excavationDoorMethod)
+	doorPlan := methodPlan(t, result.Decision, doorStub)
 	plan, err := db.LoadPlan(ctx, doorPlan)
-	if err != nil || !excavationPlanFor(doorPlan, excavationTestTarget, "door") || len(plan.Spec.Actions()) != 1 {
+	if err != nil || !excavationPlanFor(db, doorPlan, excavationTestTarget, "door") || len(plan.Spec.Actions()) != 1 {
 		t.Fatal(doorPlan, plan, err)
 	}
 	door, _ := plan.Spec.Actions()[0].Building()
@@ -241,7 +241,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 	if again, err := r.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
 		t.Fatal(again, err)
 	}
-	completeExcavation(t, db, result.Decision, excavationDoorMethod, x)
+	completeExcavation(t, db, result.Decision, doorStub, x)
 	// Census-aware retirement closes the applied door (#856).
 	if _, err := r.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -254,7 +254,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range plans {
-		if strings.HasPrefix(string(p.Spec.ID()), "routine-shell") {
+		if IsShellMethod(p.Method) {
 			t.Fatal("shell admitted beside excavation", p.Spec.ID())
 		}
 	}
@@ -284,7 +284,7 @@ func TestRoutineExcavationPrefersNearerShell(t *testing.T) {
 		t.Fatal(result, err, x.sleepingNative.previews)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
-	if err != nil || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell") || len(plan.Progress) != 32 {
+	if err != nil || !IsShellMethod(plan.Method) || len(plan.Progress) != 32 {
 		t.Fatal(plan, err)
 	}
 }
@@ -313,7 +313,7 @@ func TestRoutineExcavationNeverStartsWithoutNativeSupportOrMiner(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			plan, loadErr := loadMethodPlan(db, result.Decision.Goal.Goal.ID, excavationStageMethod(0))
+			plan, loadErr := loadMethodPlan(db, result.Decision.Goal.Goal.ID, stageStub(0))
 			switch change {
 			case "unknown-support":
 				// Unknown support is not a refusal for the site choice; the
@@ -337,7 +337,7 @@ func TestRoutineExcavationHoldsWhenFrontierUnknown(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	completeExcavation(t, db, result.Decision, excavationStageMethod(0), x)
+	completeExcavation(t, db, result.Decision, stageStub(0), x)
 	// The interior stays fogged: nothing can be designated and the project
 	// waits for the next observation rather than falling back to a shell.
 	next, err := r.Step(context.Background())
@@ -346,29 +346,24 @@ func TestRoutineExcavationHoldsWhenFrontierUnknown(t *testing.T) {
 	}
 }
 
-func TestExcavationPlanTargetRoundTrip(t *testing.T) {
+func TestExcavationMethodTargetRoundTrip(t *testing.T) {
 	t.Parallel()
-	// A successor goal re-adopting the same target gets distinct plans.
-	a := mintExcavationPlan(excavationTestTarget, "0")
-	b := mintExcavationPlan(excavationTestTarget, "0")
-	if a == b || !IsExcavationPlan(a) {
-		t.Fatal(a, b)
-	}
-	for _, suffix := range []string{"0", "17", "door"} {
-		target, err := excavationPlanTarget(mintExcavationPlan(excavationTestTarget, suffix))
-		if err != nil || target.Key() != excavationTestTarget.Key() || target.Door != excavationTestTarget.Door {
-			t.Fatal(suffix, target, err)
+	// The target key rides on the method id (#987).
+	for _, method := range []domain.MethodID{excavationStageMethod(0, excavationTestTarget), excavationStageMethod(17, excavationTestTarget), excavationDoorMethod(excavationTestTarget)} {
+		stage, target, ok := ExcavationMethod(method)
+		if !ok || target.Key() != excavationTestTarget.Key() || target.Door != excavationTestTarget.Door || (method == excavationDoorMethod(excavationTestTarget)) != (stage < 0) {
+			t.Fatal(method, stage, target, ok)
 		}
 	}
 	west, err := policy.ParseExcavationKey("20.15.-1.0.3.10.12.7.7")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if back, err := excavationPlanTarget(mintExcavationPlan(west, "4")); err != nil || back.Key() != west.Key() || back.Corridor[0] != (domain.Cell{X: 19, Z: 15}) {
-		t.Fatal(back, err)
+	if stage, back, ok := ExcavationMethod(excavationStageMethod(4, west)); !ok || stage != 4 || back.Key() != west.Key() || back.Corridor[0] != (domain.Cell{X: 19, Z: 15}) {
+		t.Fatal(back, ok)
 	}
-	for _, bad := range []domain.PlanID{"routine-shell-abc", "routine-excavation-", "routine-excavation-x-0"} {
-		if _, err := excavationPlanTarget(bad); err == nil {
+	for _, bad := range []domain.MethodID{"starter-shell", "excavation-stage-0", "excavation-stage-x@" + domain.MethodID(west.Key()), "excavation-stage-01@" + domain.MethodID(west.Key()), "excavation-door@x"} {
+		if IsExcavationMethod(bad) {
 			t.Fatal("accepted", bad)
 		}
 	}
@@ -397,8 +392,8 @@ func TestRoutineExcavationReadoptsHalfDugTarget(t *testing.T) {
 	if result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result)
 	}
-	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(0))
-	if !excavationPlanFor(planID, excavationTestTarget, "0") {
+	planID, cells := excavationCells(t, db, result.Decision, stageStub(0))
+	if !excavationPlanFor(db, planID, excavationTestTarget, "0") {
 		t.Fatal("re-planned a different target", planID)
 	}
 	if len(cells) != 1 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
@@ -421,7 +416,7 @@ func TestRoutineExcavationResumesProjectOutsideColonyWindow(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	first := result.Decision.Goal.Goal.ID
-	completeExcavation(t, db, result.Decision, excavationStageMethod(0), x)
+	completeExcavation(t, db, result.Decision, stageStub(0), x)
 	for z := int32(1); z <= 7; z++ {
 		delete(x.fogged, domain.Cell{X: 11, Z: z})
 		x.rock[domain.Cell{X: 11, Z: z}] = "Granite"
@@ -453,8 +448,8 @@ func TestRoutineExcavationResumesProjectOutsideColonyWindow(t *testing.T) {
 	if result.Decision.Goal.Goal.ID != first {
 		t.Fatal("goal was replaced by a re-acquire")
 	}
-	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(1))
-	if !excavationPlanFor(planID, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
+	planID, cells := excavationCells(t, db, result.Decision, stageStub(1))
+	if !excavationPlanFor(db, planID, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
 }
@@ -470,7 +465,7 @@ func TestRoutineExcavationResumedProjectStillOwesDoor(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	completeExcavation(t, db, result.Decision, excavationStageMethod(0), x)
+	completeExcavation(t, db, result.Decision, stageStub(0), x)
 	for gx := int32(11); gx <= 17; gx++ {
 		for z := int32(1); z <= 7; z++ {
 			delete(x.fogged, domain.Cell{X: gx, Z: z})
@@ -491,11 +486,11 @@ func TestRoutineExcavationResumedProjectStillOwesDoor(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	if plan := methodPlan(t, result.Decision, excavationDoorMethod); !excavationPlanFor(plan, excavationTestTarget, "door") {
+	if plan := methodPlan(t, result.Decision, doorStub); !excavationPlanFor(db, plan, excavationTestTarget, "door") {
 		t.Fatal(plan)
 	}
 	// Once the door plan completed, a later shelter need starts afresh.
-	completeExcavation(t, db, result.Decision, excavationDoorMethod, x)
+	completeExcavation(t, db, result.Decision, doorStub, x)
 	if previous, err := r.previousExcavation(ctx); err != nil || previous != nil {
 		t.Fatal(previous, err)
 	}
@@ -516,10 +511,10 @@ func digExcavation(t *testing.T, r *RoutineBuildingPlanner, db *store.Store, x *
 		if result.Reason != BuildingMethodAdmitted {
 			return result, dug
 		}
-		method := excavationStageMethod(stage)
+		method := stageStub(stage)
 		found := false
 		for _, m := range result.Decision.Goal.Methods {
-			found = found || m.Method == method
+			found = found || matchesMethod(m.Method, method)
 		}
 		if !found {
 			return result, dug
@@ -567,8 +562,8 @@ func TestRoutineExcavationDigsAroundRevealedHazard(t *testing.T) {
 	if result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result)
 	}
-	doorPlan := methodPlan(t, result.Decision, excavationDoorMethod)
-	if !excavationPlanFor(doorPlan, excavationTestTarget, "door") {
+	doorPlan := methodPlan(t, result.Decision, doorStub)
+	if !excavationPlanFor(db, doorPlan, excavationTestTarget, "door") {
 		t.Fatal(doorPlan)
 	}
 	for _, h := range hazards {
@@ -608,7 +603,7 @@ func TestRoutineExcavationBlockedEntranceIsResited(t *testing.T) {
 	}
 	result = finishShelterBunks(t, r, db, result)
 	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[len(result.Decision.Goal.Methods)-1].Plan)
-	if err != nil || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell") {
+	if err != nil || !IsShellMethod(plan.Method) {
 		t.Fatal(plan.Spec.ID(), err)
 	}
 }
@@ -632,10 +627,10 @@ func TestRoutineExcavationBreachedRoofAbandonsTheDig(t *testing.T) {
 	result = finishShelterBunks(t, r, db, result)
 	var shell bool
 	for _, m := range result.Decision.Goal.Methods {
-		if strings.HasPrefix(string(m.Plan), "routine-shell") {
+		if IsShellMethod(m.Method) {
 			shell = true
 		}
-		if m.Method == excavationStageMethod(1) {
+		if matchesMethod(m.Method, stageStub(1)) {
 			t.Fatal("stage admitted under a breached target", m)
 		}
 	}
@@ -648,7 +643,7 @@ func TestRoutineExcavationBreachedRoofAbandonsTheDig(t *testing.T) {
 	if err != nil || first.Reason != BuildingMethodAdmitted {
 		t.Fatal(first, err)
 	}
-	completeExcavation(t, db2, first.Decision, excavationStageMethod(0), x2)
+	completeExcavation(t, db2, first.Decision, stageStub(0), x2)
 	revealInterior(x2)
 	x2.support = policy.ExcavationSupportUnsupported
 	x2.collapse = true
@@ -687,13 +682,13 @@ func TestRoutineExcavationSealedAccessIsResited(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stage1, err := db.LoadGoalMethod(context.Background(), goal.Goal.ID, goal.Goal.Epoch, excavationStageMethod(1))
+	stage1, err := loadMethodPlan(db, goal.Goal.ID, stageStub(1))
 	if err != nil {
 		t.Fatal(err)
 	}
-	target, err := excavationPlanTarget(stage1.Plan)
-	if err != nil || target.Key() == excavationTestTarget.Key() || target.Access == excavationTestTarget.Access {
-		t.Fatal("stage 1 not re-sited", stage1.Plan, err)
+	_, target, ok := ExcavationMethod(stage1.Method)
+	if !ok || target.Key() == excavationTestTarget.Key() || target.Access == excavationTestTarget.Access {
+		t.Fatal("stage 1 not re-sited", stage1.Method)
 	}
 	for _, c := range target.Corridor {
 		if _, ok := dug[c]; !ok {
@@ -701,7 +696,7 @@ func TestRoutineExcavationSealedAccessIsResited(t *testing.T) {
 		}
 	}
 	for _, m := range goal.Methods {
-		if strings.HasPrefix(string(m.Plan), "routine-shell") {
+		if IsShellMethod(m.Method) {
 			t.Fatal("shell sited while another face verified", m)
 		}
 	}
@@ -730,7 +725,7 @@ func TestCancelStalledExcavation(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	planID, _ := excavationCells(t, db, result.Decision, excavationStageMethod(0))
+	planID, _ := excavationCells(t, db, result.Decision, stageStub(0))
 	action := domain.ActionID(fmt.Sprintf("%s-%d", planID, 0))
 	if _, err := db.Hold(ctx, planID, action, []domain.HeldReason{domain.HeldNotReady}, 7); err != nil {
 		t.Fatal(err)
@@ -763,10 +758,7 @@ func TestCancelStalledExcavation(t *testing.T) {
 func finishShelterBunks(t *testing.T, r *RoutineBuildingPlanner, db *store.Store, result RoutineBuildingResult) RoutineBuildingResult {
 	t.Helper()
 	for rung := 0; rung < 2; rung++ {
-		method := methodPlan(t, result.Decision, []domain.MethodID{shelterSpotsMethod, shelterBedsMethod}[rung])
-		if !strings.HasPrefix(string(method), bunkPlanPrefix+"-") {
-			t.Fatal("the shell went up before its bunks", rung, method)
-		}
+		methodPlan(t, result.Decision, []domain.MethodID{shelterSpotsMethod, shelterBedsMethod}[rung])
 		completeRoutineBuildingMethod(t, db, result)
 		var err error
 		if result, err = r.Step(context.Background()); err != nil || result.Reason != BuildingMethodAdmitted {
@@ -792,18 +784,44 @@ func fogRest(cells *o.CellsSnapshot) {
 	}
 }
 
-// excavationPlanFor reports whether id is a minted stage plan for target
-// with suffix (#985: ids carry the target key, not a derivable hash).
-func excavationPlanFor(id domain.PlanID, target policy.ExcavationTarget, suffix string) bool {
-	back, err := excavationPlanTarget(id)
-	return err == nil && back.Key() == target.Key() && strings.HasSuffix(string(id), "-"+suffix)
+// excavationPlanFor reports whether id is a plan admitted under the stage
+// (or "door") method for target: the key rides on the stored method (#987).
+func excavationPlanFor(db *store.Store, id domain.PlanID, target policy.ExcavationTarget, suffix string) bool {
+	plan, err := db.LoadPlan(context.Background(), id)
+	if err != nil {
+		return false
+	}
+	stage, back, ok := ExcavationMethod(plan.Method)
+	return ok && back.Key() == target.Key() && (suffix == "door" && stage < 0 || strconv.Itoa(stage) == suffix)
 }
 
-// loadMethodPlan loads the plan goal last bound to method.
+// stageStub and doorStub name an excavation method without its target key;
+// matchesMethod accepts the stub for any target.
+func stageStub(stage int) domain.MethodID {
+	return domain.MethodID(fmt.Sprintf("%s%d", excavationStagePrefix, stage))
+}
+
+const doorStub domain.MethodID = excavationDoorPrefix
+
+func matchesMethod(method, want domain.MethodID) bool {
+	return method == want || strings.HasPrefix(string(method), string(want)+"@")
+}
+
+// loadMethodPlan loads the plan goal's current epoch bound to method.
 func loadMethodPlan(db *store.Store, goal domain.GoalID, method domain.MethodID) (store.PlanState, error) {
-	id, err := db.LatestMethodPlan(context.Background(), goal, method)
+	ctx := context.Background()
+	state, err := db.LoadGoal(ctx, goal)
 	if err != nil {
 		return store.PlanState{}, err
 	}
-	return db.LoadPlan(context.Background(), id)
+	methods, err := db.LoadGoalMethods(ctx, goal, state.Goal.Epoch)
+	if err != nil {
+		return store.PlanState{}, err
+	}
+	for _, m := range methods {
+		if matchesMethod(m.Method, method) {
+			return db.LoadPlan(ctx, m.Plan)
+		}
+	}
+	return store.PlanState{}, store.ErrNotFound
 }

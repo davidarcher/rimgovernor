@@ -375,10 +375,12 @@ func shellStands(standing map[domain.Cell]string, building domain.Building) bool
 	return def == building.Definition() || shellDoor(def) && shellDoor(building.Definition())
 }
 
-// shellPlanPrefix names every whole-shell plan a shelter-style planner
-// admits (initial shelter, expansion, workshop and hospital shells alike);
-// adoptShell reads them back as the durable record of the rings it ordered.
-const shellPlanPrefix = "routine-shell"
+// shellMethodPatterns match every whole-shell method a shelter-style
+// planner admits (selection's "*-shell" methods and their "-repair-N"
+// successors: initial shelter, expansion, workshop and hospital shells
+// alike); adoptShell reads their plans back as the durable record of the
+// rings it ordered.
+var shellMethodPatterns = []string{"starter-shell*", "expansion-starter-shell*", "comfort-shell*", "workshop-shell*", "hospital-shell*", "laboratory-shell*", "sleeping-shell*"}
 
 // shellHistoryLimit bounds how many earlier shell plans adoption consults.
 // A world orders a handful of shells over its life and each interruption
@@ -590,7 +592,7 @@ func shellEncloses(perimeter []domain.Building, rooms domain.Fact[policy.RoomObs
 // Only doors within the census window count, so a ring the census cannot
 // see is never matched against it.
 func (r *RoutineBuildingPlanner) earlierShells(ctx context.Context, minimum, maximum domain.Cell) (map[domain.Cell][][]domain.Building, error) {
-	history, err := r.reviewer.player.journal.PlanHistoryWithPrefix(ctx, shellPlanPrefix+"-", shellHistoryLimit)
+	history, err := r.reviewer.player.journal.PlanHistoryWithMethods(ctx, shellHistoryLimit, shellMethodPatterns...)
 	if err != nil {
 		return nil, err
 	}

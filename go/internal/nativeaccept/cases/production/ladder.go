@@ -20,10 +20,11 @@ package production
 import (
 	"context"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -175,23 +176,32 @@ const baselineKey = "baseline_count"
 
 // billProduced reports a sample whose MaintainResource goal holds or held a
 // production bill plan with every action completed: the first product landed.
-func billProduced(sample map[string]any) bool { return planCompleted(sample, "routine-resource-") }
+func billProduced(sample map[string]any) bool {
+	return planCompleted(sample, func(_ string, kinds map[string]int, actions int) bool {
+		return kinds[string(domain.ProductionBillAction)] == actions
+	})
+}
 
 // benchBuilt reports a sample whose MaintainResource goal holds or held
 // (retired_plans: a completed method leaves the goal at the next review) a
 // workshop bench plan with every action completed: the bench stands.
-func benchBuilt(sample map[string]any) bool { return planCompleted(sample, "routine-workshop-") }
+func benchBuilt(sample map[string]any) bool {
+	return planCompleted(sample, func(method string, _ map[string]int, _ int) bool {
+		return strings.HasPrefix(method, "workshop-") && !strings.HasPrefix(method, "workshop-shell")
+	})
+}
 
-// planCompleted reports a plan of the prefix, active or retired, with every
-// action completed.
-func planCompleted(sample map[string]any, prefix string) bool {
+// planCompleted reports a plan match accepts (by its method, action kinds
+// and count; #987), active or retired, with every action completed.
+func planCompleted(sample map[string]any, match func(method string, kinds map[string]int, actions int) bool) bool {
 	plans, _ := sample["plans"].([]map[string]any)
 	retired, _ := sample["retired_plans"].([]map[string]any)
 	for _, plan := range append(plans, retired...) {
-		id, _ := plan["plan"].(string)
+		method, _ := plan["method"].(string)
+		kinds, _ := plan["kinds"].(map[string]int)
 		actions, _ := plan["actions"].(int)
 		stages, _ := plan["stages"].(map[string]int)
-		if strings.HasPrefix(id, prefix) && actions > 0 && stages["completed"] == actions {
+		if actions > 0 && match(method, kinds, actions) && stages["completed"] == actions {
 			return true
 		}
 	}
