@@ -37,7 +37,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 		source, priority := domain.PlayerGoal, 3
 		world := World{}
 		admitted := 0
-		err = tx.QueryRowContext(ctx, "SELECT goal_id,priority FROM goal_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&goalID, &admitted)
+		err = tx.QueryRowContext(ctx, "SELECT goal_id,priority FROM goal_methods WHERE plan_id=? AND goal_id IS NOT NULL", plan.Spec.ID()).Scan(&goalID, &admitted)
 		if err == nil {
 			g, e := loadGoal(ctx, tx, goalID)
 			if e != nil {

@@ -47,7 +47,7 @@ func fieldOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan d
 	return true, nil
 }
 
-func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {
+func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
 	hasWork := false
 	stockpile := false
 	for _, action := range plan.Actions() {
@@ -82,24 +82,21 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 		limit = 1
 		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.MaintainFoodStorage, policy.ClearHomeObstructions, policy.TidyLayout, policy.MaintainStockpiles}
 	}
-	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() {
 		return ErrConflict
 	}
 	bound := false
 	social := false
-	for _, binding := range review.Goals {
-		if binding.Goal != goal.Goal.ID {
-			continue
+	if need, ok := owner.ownerNeed(review); ok {
+		for _, n := range needs {
+			bound = bound || need == n
 		}
-		for _, need := range needs {
-			bound = bound || binding.Need == need
-		}
-		social = binding.Need == policy.MaintainResource && !stockpile
+		social = need == policy.MaintainResource && !stockpile
 		// MaintainStockpiles creates the missing fixed-role zones and the
 		// opening stockpiles (general, food, dump, weapons) together as one
 		// method (routine_stockpiles.go create). Unbound here, every opening
 		// create failed this admission with ErrConflict on a live colony.
-		if stockpile && binding.Need == policy.MaintainStockpiles {
+		if stockpile && need == policy.MaintainStockpiles {
 			limit = 16
 		}
 	}

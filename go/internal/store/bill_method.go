@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {
+func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
 	has := false
 	for _, a := range plan.Actions() {
 		has = has || a.Kind() == domain.ProductionBillAction
@@ -20,7 +20,7 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > 4 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() || len(plan.Actions()) > 4 {
 		return fmt.Errorf("%w: bill method needs a current autopilot review and at most four actions", ErrConflict)
 	}
 	// Bills serve the cooking/food goals, the resource-target goals whose
@@ -29,12 +29,10 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	// replacement (RoutineGearPlanner, GearProduce) is a StockTarget bill on
 	// a standing bench (#233), and the refrigeration goal whose solar-flare
 	// answer is a cook-ahead bill (#408).
-	bound := false
-	for _, b := range review.Goals {
-		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply || b.Need == policy.MaintainFoodStorage || b.Need == policy.MaintainResource || b.Need == policy.MaintainAnimalFeed || b.Need == policy.MaintainEquipment || b.Need == policy.MaintainRefrigeration)
-	}
+	need, bound := owner.ownerNeed(review)
+	bound = bound && (need == policy.EnsureCooking || need == policy.EnsureFoodSupply || need == policy.MaintainFoodStorage || need == policy.MaintainResource || need == policy.MaintainAnimalFeed || need == policy.MaintainEquipment || need == policy.MaintainRefrigeration)
 	if !bound {
-		return fmt.Errorf("%w: goal %s does not admit production bills", ErrConflict, goal.Goal.ID)
+		return fmt.Errorf("%w: %s does not admit production bills", ErrConflict, owner.ownerLabel())
 	}
 	benches := map[string]bool{}
 	for _, a := range plan.Actions() {
@@ -44,7 +42,7 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 		}
 		benches[b.Bench()] = true
 		var n int
-		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM bill_claims WHERE colony=? AND load_token=? AND map_id=? AND bench=? AND recipe=?", goal.Goal.Snapshot.Colony, goal.Goal.Snapshot.Load, goal.Goal.Snapshot.Map, b.Bench(), b.ClaimRecipe()).Scan(&n); err != nil {
+		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM bill_claims WHERE colony=? AND load_token=? AND map_id=? AND bench=? AND recipe=?", owner.ownerSnapshot().Colony, owner.ownerSnapshot().Load, owner.ownerSnapshot().Map, b.Bench(), b.ClaimRecipe()).Scan(&n); err != nil {
 			return err
 		}
 		// Finite batches expire. Fresh stack CAS and active-bill census guard

@@ -79,7 +79,7 @@ func acquisitionIndependentWork(action domain.Action) bool {
 	return ok && zone.Kind() == domain.GrowingZone
 }
 
-func admitAcquisitionMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {
+func admitAcquisitionMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
 	hasAcquisition := false
 	for _, action := range plan.Actions() {
 		hasAcquisition = hasAcquisition || action.Kind() == domain.AcquisitionAction
@@ -91,13 +91,11 @@ func admitAcquisitionMethod(ctx context.Context, tx *sql.Tx, goal GoalState, pla
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > 8 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() || len(plan.Actions()) > 8 {
 		return ErrConflict
 	}
-	bound := false
-	for _, binding := range review.Goals {
-		bound = bound || (binding.Need == policy.EnsureFoodSupply || binding.Need == policy.MaintainMedicalReserves || binding.Need == policy.ClearPests || binding.Need == policy.MaintainResource) && binding.Goal == goal.Goal.ID
-	}
+	need, bound := owner.ownerNeed(review)
+	bound = bound && (need == policy.EnsureFoodSupply || need == policy.MaintainMedicalReserves || need == policy.ClearPests || need == policy.MaintainResource)
 	if !bound {
 		return ErrConflict
 	}

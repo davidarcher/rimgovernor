@@ -73,7 +73,7 @@ func supplyClaims(ctx context.Context, tx *sql.Tx, world World) (map[string]bool
 
 // admitSupplyMethod admits only stacks the review's cohort still lists, each
 // at the cell the census last reported, in bounded batches.
-func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {
+func admitSupplyMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
 	hasSupply := false
 	for _, action := range plan.Actions() {
 		hasSupply = hasSupply || action.Kind() == domain.SupplyAllowAction || action.Kind() == domain.SupplyForbidAction
@@ -85,27 +85,25 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan dom
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > 8 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() || len(plan.Actions()) > 8 {
 		return ErrConflict
 	}
 	bound := false
 	reserve := map[string]ReserveSupply{}
 	var cohort []policy.StartingSupply
-	for _, binding := range review.Goals {
-		if binding.Goal == goal.Goal.ID {
-			switch binding.Need {
-			case policy.AllowStartingSupplies:
-				bound = true
-				cohort = review.StartingSupplies.Pending
-			case policy.ManageSupplySafety:
-				bound = true
-				cohort = review.EventLoot.Pending
-			case policy.MaintainFoodStorage:
-				bound = true
-				cohort = review.LarderSupplies
-				for _, row := range review.ReserveSupplies {
-					reserve[row.Thing] = row
-				}
+	if need, ok := owner.ownerNeed(review); ok {
+		switch need {
+		case policy.AllowStartingSupplies:
+			bound = true
+			cohort = review.StartingSupplies.Pending
+		case policy.ManageSupplySafety:
+			bound = true
+			cohort = review.EventLoot.Pending
+		case policy.MaintainFoodStorage:
+			bound = true
+			cohort = review.LarderSupplies
+			for _, row := range review.ReserveSupplies {
+				reserve[row.Thing] = row
 			}
 		}
 	}

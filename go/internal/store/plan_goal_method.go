@@ -16,10 +16,11 @@ type PlanMethod struct {
 }
 
 // PlanGoalMethod names the goal method a plan executes, retired or not; ok is
-// false for a plan no goal admitted (a player building submission).
+// false for a plan no goal admitted (a player building submission, or an
+// incident's method, #1019).
 func (s *Store) PlanGoalMethod(ctx context.Context, plan domain.PlanID) (method PlanMethod, ok bool, err error) {
 	var reason sql.NullString
-	err = s.db.QueryRowContext(ctx, "SELECT goal_id, epoch, method_id, reason FROM goal_methods WHERE plan_id=?", plan).Scan(&method.Goal, &method.Epoch, &method.Method, &reason)
+	err = s.db.QueryRowContext(ctx, "SELECT goal_id, epoch, method_id, reason FROM goal_methods WHERE plan_id=? AND goal_id IS NOT NULL", plan).Scan(&method.Goal, &method.Epoch, &method.Method, &reason)
 	if errors.Is(err, sql.ErrNoRows) {
 		return PlanMethod{}, false, nil
 	}

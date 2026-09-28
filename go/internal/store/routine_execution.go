@@ -2,12 +2,10 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // AuthorizeRoutinePlan verifies a method under the existing player direction.
@@ -34,7 +32,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 		return ErrConflict
 	}
 	var goalID domain.GoalID
-	if err = tx.QueryRowContext(ctx, "SELECT goal_id FROM goal_methods WHERE plan_id=?", target.Plan).Scan(&goalID); err != nil {
+	if err = tx.QueryRowContext(ctx, "SELECT goal_id FROM goal_methods WHERE plan_id=? AND goal_id IS NOT NULL", target.Plan).Scan(&goalID); err != nil {
 		return err
 	}
 	if _, bound := review.Need(goalID); !bound {
@@ -115,19 +113,5 @@ func (r RoutineReview) Veto(g domain.Goal) string {
 	if !bound {
 		return ""
 	}
-	return policy.VetoProposal(policy.RuleContext{Enabled: r.Enabled, Emergency: r.Emergency}, policy.RuleProposal{Need: need, Priority: g.Priority})
-}
-
-// admitRoutineRules is method admission's backstop for the Rules the
-// planner already asked: a vetoed proposal is ErrNotAdmitted with the
-// Rule's reason.
-func admitRoutineRules(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
-	review, err := loadRoutine(ctx, tx)
-	if err != nil {
-		return err
-	}
-	if reason := review.Veto(g); reason != "" {
-		return fmt.Errorf("%w: goal %s: %s", ErrNotAdmitted, g.ID, reason)
-	}
-	return nil
+	return r.vetoNeed(need, g.Priority)
 }

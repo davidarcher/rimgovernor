@@ -54,7 +54,7 @@ func settledRetirementOutcome(progress domain.Progress) bool {
 // Only settled autopilot methods retire. The current root plan, unresolved effects,
 // cleanup and unsuccessful work keep their complete catalog entries.
 func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick, census domain.Fact[policy.CurrentConstruction]) error {
-	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257")
+	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.goal_id IS NOT NULL ORDER BY p.id LIMIT 257")
 	if err != nil {
 		return err
 	}

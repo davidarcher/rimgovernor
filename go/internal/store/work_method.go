@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func admitWorkMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {
+func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
 	hasWork := false
 	for _, action := range plan.Actions() {
 		hasWork = hasWork || action.Kind() == domain.WorkAssignmentAction
@@ -19,7 +19,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > 8 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() || len(plan.Actions()) > 8 {
 		return ErrConflict
 	}
 	bound := false
@@ -29,9 +29,9 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	if medical {
 		need = policy.MaintainMedicalReserves
 	}
-	for _, binding := range review.Goals {
-		bound = bound || binding.Need == need && binding.Goal == goal.Goal.ID
-		areaOnly = areaOnly || binding.Need == policy.RecoverDisasterServices && binding.Goal == goal.Goal.ID
+	if served, ok := owner.ownerNeed(review); ok {
+		bound = served == need
+		areaOnly = served == policy.RecoverDisasterServices
 	}
 	if !bound && !areaOnly {
 		return ErrConflict

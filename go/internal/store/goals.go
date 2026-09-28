@@ -46,7 +46,11 @@ const maxActiveGoals = 512
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_goals ON goals(id) WHERE retired=0;
-CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), priority INTEGER NOT NULL, reason TEXT, PRIMARY KEY(goal_id,epoch,method_id)) STRICT;
+CREATE TABLE incidents(id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, started_tick INTEGER NOT NULL, ended_tick INTEGER, payload BLOB NOT NULL) STRICT;
+CREATE UNIQUE INDEX open_incidents ON incidents(colony,load_token,map_id,kind,subject) WHERE ended_tick IS NULL;
+CREATE TABLE goal_methods(goal_id TEXT REFERENCES goals(id), incident_id TEXT REFERENCES incidents(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), priority INTEGER NOT NULL, reason TEXT, CHECK((goal_id IS NULL) <> (incident_id IS NULL))) STRICT;
+CREATE UNIQUE INDEX goal_method_keys ON goal_methods(goal_id,epoch,method_id) WHERE goal_id IS NOT NULL;
+CREATE UNIQUE INDEX incident_method_keys ON goal_methods(incident_id,method_id) WHERE incident_id IS NOT NULL;
 CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
@@ -214,17 +218,17 @@ func saveGoal(ctx context.Context, tx *sql.Tx, previous GoalState, g domain.Goal
 	return previous, nil
 }
 
-func goalOpenWork(ctx context.Context, tx *sql.Tx, state GoalState) (bool, error) {
+func goalOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, error) {
 	open := false
-	for _, m := range state.Methods {
-		p, err := load(ctx, tx, m.Plan)
+	for _, plan := range owner.ownerPlans() {
+		p, err := load(ctx, tx, plan)
 		if err != nil {
 			return false, err
 		}
 		open = open || PlanOpen(p)
 		if !open {
 			// A fight's drafts are its open work (#910).
-			if open, err = combatFightHolds(ctx, tx, m.Plan); err != nil {
+			if open, err = combatFightHolds(ctx, tx, plan); err != nil {
 				return false, err
 			}
 		}
@@ -311,7 +315,7 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 	if g.Status != domain.GoalActive || g.Need != domain.NeedDeficit {
 		return GoalState{}, errors.New("goal does not admit a method")
 	}
-	if err = admitRoutineRules(ctx, tx, g); err != nil {
+	if err = admitRoutineRules(ctx, tx, state); err != nil {
 		return GoalState{}, err
 	}
 	if err = admitRoutineDevelopment(ctx, tx, g, plan); err != nil {
@@ -379,22 +383,7 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 	if len(state.Methods) >= 256 || state.Revision == ^uint64(0) {
 		return GoalState{}, ErrCapacity
 	}
-	if err = admitBillMethod(ctx, tx, state, plan); err != nil {
-		return GoalState{}, err
-	}
-	if err = admitZoneMethod(ctx, tx, state, plan); err != nil {
-		return GoalState{}, err
-	}
-	if err = admitAcquisitionMethod(ctx, tx, state, plan); err != nil {
-		return GoalState{}, err
-	}
-	if err = admitWorkMethod(ctx, tx, state, plan); err != nil {
-		return GoalState{}, err
-	}
-	if err = admitSupplyMethod(ctx, tx, state, plan); err != nil {
-		return GoalState{}, err
-	}
-	if err = createPlan(ctx, tx, plan); err != nil {
+	if err = admitOwnerMethod(ctx, tx, state, plan); err != nil {
 		return GoalState{}, err
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO goal_methods(goal_id,epoch,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?,?)", id, strconv.FormatUint(m.Epoch, 10), method, plan.ID(), g.Priority, sql.NullString{String: reason, Valid: reason != ""}); err != nil {
@@ -460,9 +449,9 @@ func cancelGoalState(ctx context.Context, tx *sql.Tx, state GoalState, revision 
 // Active and never authorized: the worker refuses a recovered goal's fresh
 // write on every step, and nothing else ever retires the plan (#290). Work
 // already dispatched keeps its own settlement path.
-func cancelUndispatchedGoalMethods(ctx context.Context, tx *sql.Tx, state GoalState) error {
-	for _, m := range state.Methods {
-		p, err := load(ctx, tx, m.Plan)
+func cancelUndispatchedGoalMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
+	for _, plan := range owner.ownerPlans() {
+		p, err := load(ctx, tx, plan)
 		if err != nil {
 			return err
 		}
@@ -484,7 +473,7 @@ func cancelUndispatchedGoalMethods(ctx context.Context, tx *sql.Tx, state GoalSt
 			if v.Stage == domain.Cancelled {
 				continue
 			}
-			if _, err = advanceInTransaction(ctx, tx, m.Plan, v.Action, transition{Kind: "cancel"}); err != nil {
+			if _, err = advanceInTransaction(ctx, tx, plan, v.Action, transition{Kind: "cancel"}); err != nil {
 				return err
 			}
 		}
@@ -527,16 +516,20 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current 
 	if err := guardRetirementFloor(ctx, tx, current, tick); err != nil {
 		return err
 	}
-	var id domain.GoalID
+	var id sql.NullString
+	var incident sql.NullString
 	var epoch string
-	err := tx.QueryRowContext(ctx, "SELECT goal_id,epoch FROM goal_methods WHERE plan_id=?", plan).Scan(&id, &epoch)
+	err := tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,epoch FROM goal_methods WHERE plan_id=?", plan).Scan(&id, &incident, &epoch)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	state, err := loadGoal(ctx, tx, id)
+	if incident.Valid {
+		return guardIncidentWork(ctx, tx, domain.IncidentID(incident.String), current, tick)
+	}
+	state, err := loadGoal(ctx, tx, domain.GoalID(id.String))
 	if err != nil {
 		return err
 	}
@@ -548,5 +541,5 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current 
 	}
 	// A prepared plan does not prepare or dispatch while a Rule vetoes its
 	// goal (#1017).
-	return admitRoutineRules(ctx, tx, g)
+	return admitRoutineRules(ctx, tx, state)
 }
