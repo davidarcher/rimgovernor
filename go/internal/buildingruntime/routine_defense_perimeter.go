@@ -29,6 +29,9 @@ const (
 	defenseMoistureResearch = "MoisturePump"
 	// defenseMoisturePumpW is a moisture pump's draw (#983).
 	defenseMoisturePumpW = 150.0
+	// defenseRoomLamp lights the planned rooms against infestations
+	// (#1067).
+	defenseRoomLamp = "StandingLamp"
 )
 
 // defensePerimeterTiers anchors a fresh record on the layout plan's
@@ -119,6 +122,17 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 	if err != nil {
 		return false, err
 	}
+	// Infestation prevention (#1067): small overhead-mountain pockets
+	// walled solid and every planned room lit, with the wall.
+	pockets, err := policy.PocketSections(plan, defenseDefinitions.Wall)
+	if err != nil {
+		return false, err
+	}
+	lights, err := policy.LightSections(plan, defenseRoomLamp)
+	if err != nil {
+		return false, err
+	}
+	sections = append(append(sections, pockets...), lights...)
 	// A later pump's run may ride an earlier one's, so the cut stops at the
 	// first new pump spare power cannot carry.
 	for i, s := range pumps {

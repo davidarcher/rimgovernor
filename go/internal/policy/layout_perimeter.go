@@ -43,7 +43,7 @@ const (
 )
 
 // perimeterKinds are the reservations PlanPerimeter owns.
-var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveTurret: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true}
+var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveTurret: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true}
 
 const (
 	perimeterThick int32 = 3
