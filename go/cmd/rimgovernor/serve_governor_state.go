@@ -154,6 +154,9 @@ func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, da
 		if err = database.RebuildGoals(ctx, saved, reconcileGoalOrphans); err != nil {
 			return fmt.Errorf("rebuild goals: %w", err)
 		}
+		if err = database.RebuildFamilies(ctx, saved); err != nil {
+			return fmt.Errorf("rebuild families: %w", err)
+		}
 		blobs, err := database.GovernorStateBlobs(ctx)
 		if err != nil {
 			return err
