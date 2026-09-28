@@ -36,6 +36,9 @@ type Pawn struct {
 	WeaponStuff string `json:"weaponStuff,omitempty"`
 	// Downed stages the pawn downed under anesthetic (#867).
 	Downed bool `json:"downed,omitempty"`
+	// Hediffs are extra HediffDef names added at staging, e.g. a drug
+	// high or addiction (#1056).
+	Hediffs []string `json:"hediffs,omitempty"`
 	// Apparel is one worn apparel def, staged charged if a shield (#1049).
 	Apparel string `json:"apparel,omitempty"`
 	// Trained names the TrainableDefs an Animal has learned (#1057).

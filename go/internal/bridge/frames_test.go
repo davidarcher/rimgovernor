@@ -392,6 +392,15 @@ func TestFramesServeCombat(t *testing.T) {
 	if err != nil || len(state.Pawns) != 1 || len(state.Events) != 2 || CombatEventID(state.Events[1]) != "10.1" {
 		t.Fatalf("%+v %v", state, err)
 	}
+	// Enemy drug facts (#1056) ride the row: absent reads false.
+	if state.Pawns[0].GoJuiceHigh != nil || state.Pawns[0].GetLuciferiumAddicted() {
+		t.Fatalf("drug facts on a clean row: %v", state.Pawns[0])
+	}
+	v.CombatPawns[0].GoJuiceHigh, v.CombatPawns[0].LuciferiumAddicted = proto.Bool(true), proto.Bool(true)
+	ring.publish(t, v, 0)
+	if state, err = client.ReadCombat(context.Background(), pbIdentity()); err != nil || !state.Pawns[0].GetGoJuiceHigh() || !state.Pawns[0].GetLuciferiumAddicted() {
+		t.Fatalf("drug facts lost: %+v %v", state.Pawns, err)
+	}
 	v.CombatEvents[0], v.CombatEvents[1] = v.CombatEvents[1], v.CombatEvents[0]
 	ring.publish(t, v, 0)
 	if _, err := client.ReadCombat(context.Background(), pbIdentity()); !errors.Is(err, ErrContract) {

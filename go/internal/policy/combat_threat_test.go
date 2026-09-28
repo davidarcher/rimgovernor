@@ -137,3 +137,29 @@ func TestDecideCombatRetargetsOnlyWhenTargetGone(t *testing.T) {
 		t.Fatalf("%+v", orders)
 	}
 }
+
+// Five plain raiders, one on go-juice (#1056): it ranks first, not the
+// lowest id, since pain will not down it.
+func TestGoJuiceFocus(t *testing.T) {
+	view := threatView()
+	for i := 3; i < len(view.Pawns); i++ {
+		view.Pawns[i].Kind, view.Pawns[i].Weapon, view.Pawns[i].Stance, view.Pawns[i].Target = "Pirate", "Gun_AssaultRifle", StanceUnknown, ""
+	}
+	view.Pawns[5].GoJuice = true
+	if ranked := rankThreats(view); len(ranked) == 0 || ranked[0].ID != "h3" {
+		t.Fatalf("go-juice raider not ranked first: %+v", ranked)
+	}
+	if threatTier(CombatPawnState{GoJuice: true, Sapper: true}, nil) != threatSapper {
+		t.Fatal("a go-juiced sapper left the sapper tier")
+	}
+}
+
+// A luciferium addict (#1056) is not worth capturing; anyone else is.
+func TestLuciferiumNotCaptured(t *testing.T) {
+	if CaptureWorthy(CombatPawnState{ID: "h1", Downed: true, Luciferium: true}) {
+		t.Fatal("luciferium addict marked worth capturing")
+	}
+	if !CaptureWorthy(CombatPawnState{ID: "h2", Downed: true}) || !CaptureWorthy(CombatPawnState{ID: "h3", Downed: true, GoJuice: true}) {
+		t.Fatal("a clean or go-juiced raider marked not worth capturing")
+	}
+}

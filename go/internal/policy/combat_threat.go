@@ -13,13 +13,17 @@ import (
 // anything in melee with a colonist, then sappers (a breaching termite
 // among them), then the other mechs (inferno-cannon centipede > scyther >
 // termite > the rest; a termite strips our cover, #927), then everyone
-// else. Among tribals (#1055) a berserker, fast and melee, ranks ahead of
-// a pila thrower, whose volley hits hard at short range; both come after
-// sappers and ahead of the mechs they never raid with.
+// else. A go-juice raider (#1056) does not go down from pain, so it ranks
+// just after the sappers, ahead of the tribal tiers: gunners focus it to
+// the kill instead of spreading shots that would down anyone else. Among
+// tribals (#1055) a berserker, fast and melee, ranks ahead of a pila
+// thrower, whose volley hits hard at short range; both come after sappers
+// and ahead of the mechs they never raid with.
 const (
 	threatExplosive = iota
 	threatMeleeColonist
 	threatSapper
+	threatGoJuice
 	threatBerserker
 	threatPila
 	threatInfernoCentipede
@@ -46,6 +50,8 @@ func threatTier(h CombatPawnState, colonists map[domain.PawnID]bool) int {
 	switch {
 	case h.Sapper:
 		return threatSapper
+	case h.GoJuice:
+		return threatGoJuice
 	case h.Kind == "Tribal_Berserker":
 		return threatBerserker
 	case h.Weapon == "Pila":
@@ -61,6 +67,11 @@ func threatTier(h CombatPawnState, colonists map[domain.PawnID]bool) int {
 	}
 	return threatOther
 }
+
+// CaptureWorthy says a downed hostile is worth taking prisoner: a
+// luciferium addict dies without a supply we would have to keep up
+// (#1056), so the after-combat step strips or finishes it instead (#1079).
+func CaptureWorthy(h CombatPawnState) bool { return !h.Luciferium }
 
 // rankThreats is the live hostile pawns (not buildings) by threat score,
 // ties by id: the order gunners focus fire in.

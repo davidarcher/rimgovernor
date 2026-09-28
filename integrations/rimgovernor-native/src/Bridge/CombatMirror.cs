@@ -242,6 +242,13 @@ namespace HomeBridge.BridgeTools
 
         private static double Step(double value, double step) => Math.Round(value / step) * step;
 
+        // A hediff by def name; false when the def is not loaded.
+        private static bool HasHediff(Pawn pawn, string defName)
+        {
+            var def = DefDatabase<HediffDef>.GetNamedSilentFail(defName);
+            return def != null && pawn.health?.hediffSet?.HasHediff(def) == true;
+        }
+
         internal static Mirror.CombatPawn Project(Pawn pawn, Mirror.CombatSide side)
         {
             var row = new Mirror.CombatPawn { Id = LoadId(pawn), Side = side, Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z }, Downed = pawn.Downed, Dead = pawn.Dead };
@@ -274,6 +281,9 @@ namespace HomeBridge.BridgeTools
                 row.MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1);
             }
             catch { }
+            // Enemy drugs (#1056).
+            row.GoJuiceHigh = HasHediff(pawn, "GoJuiceHigh");
+            row.LuciferiumAddicted = HasHediff(pawn, "LuciferiumAddiction");
             var shield = pawn.apparel?.WornApparel.Select(a => a.GetComp<CompShield>()).FirstOrDefault(c => c != null);
             if (shield != null)
             {

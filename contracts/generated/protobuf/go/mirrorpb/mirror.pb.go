@@ -267,9 +267,13 @@ type CombatPawn struct {
 	ShieldBelt   *bool  `protobuf:"varint,27,opt,name=shield_belt,json=shieldBelt,proto3,oneof" json:"shield_belt,omitempty"`
 	MedicalSkill *int32 `protobuf:"varint,28,opt,name=medical_skill,json=medicalSkill,proto3,oneof" json:"medical_skill,omitempty"`
 	// Melee strength (#969): the MeleeDPS stat, to 0.1.
-	MeleePower    *float64 `protobuf:"fixed64,30,opt,name=melee_power,json=meleePower,proto3,oneof" json:"melee_power,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	MeleePower *float64 `protobuf:"fixed64,30,opt,name=melee_power,json=meleePower,proto3,oneof" json:"melee_power,omitempty"`
+	// Enemy drugs (#1056): a GoJuiceHigh hediff (the pawn fights on past
+	// the pain that would down it) and a LuciferiumAddiction hediff.
+	GoJuiceHigh        *bool `protobuf:"varint,31,opt,name=go_juice_high,json=goJuiceHigh,proto3,oneof" json:"go_juice_high,omitempty"`
+	LuciferiumAddicted *bool `protobuf:"varint,32,opt,name=luciferium_addicted,json=luciferiumAddicted,proto3,oneof" json:"luciferium_addicted,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CombatPawn) Reset() {
@@ -510,6 +514,20 @@ func (x *CombatPawn) GetMeleePower() float64 {
 		return *x.MeleePower
 	}
 	return 0
+}
+
+func (x *CombatPawn) GetGoJuiceHigh() bool {
+	if x != nil && x.GoJuiceHigh != nil {
+		return *x.GoJuiceHigh
+	}
+	return false
+}
+
+func (x *CombatPawn) GetLuciferiumAddicted() bool {
+	if x != nil && x.LuciferiumAddicted != nil {
+		return *x.LuciferiumAddicted
+	}
+	return false
 }
 
 // A damaged player door (BundleSnapshot.combat_doors, #900): hit points
@@ -2229,7 +2247,7 @@ var File_mirror_proto protoreflect.FileDescriptor
 
 const file_mirror_proto_rawDesc = "" +
 	"\n" +
-	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xa7\f\n" +
+	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xb0\r\n" +
 	"\n" +
 	"CombatPawn\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12:\n" +
@@ -2268,7 +2286,9 @@ const file_mirror_proto_rawDesc = "" +
 	"shieldBelt\x88\x01\x01\x12(\n" +
 	"\rmedical_skill\x18\x1c \x01(\x05H\x1aR\fmedicalSkill\x88\x01\x01\x12$\n" +
 	"\vmelee_power\x18\x1e \x01(\x01H\x1bR\n" +
-	"meleePower\x88\x01\x01B\x05\n" +
+	"meleePower\x88\x01\x01\x12'\n" +
+	"\rgo_juice_high\x18\x1f \x01(\bH\x1cR\vgoJuiceHigh\x88\x01\x01\x124\n" +
+	"\x13luciferium_addicted\x18  \x01(\bH\x1dR\x12luciferiumAddicted\x88\x01\x01B\x05\n" +
 	"\x03_idB\a\n" +
 	"\x05_sideB\r\n" +
 	"\v_faction_idB\n" +
@@ -2300,7 +2320,9 @@ const file_mirror_proto_rawDesc = "" +
 	"\x06_armorB\x0e\n" +
 	"\f_shield_beltB\x10\n" +
 	"\x0e_medical_skillB\x0e\n" +
-	"\f_melee_power\"\xcd\x01\n" +
+	"\f_melee_powerB\x10\n" +
+	"\x0e_go_juice_highB\x16\n" +
+	"\x14_luciferium_addicted\"\xcd\x01\n" +
 	"\rCombatDoorRow\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\"\n" +

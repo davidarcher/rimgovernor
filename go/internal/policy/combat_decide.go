@@ -239,6 +239,9 @@ type CombatPawnState struct {
 	Shield domain.Fact[float64]
 	// MoveSpeed is the pawn's MoveSpeed stat in cells/s, 0 unknown (#898).
 	MoveSpeed float64
+	// Enemy drugs (#1056): a go-juice high (fights on past the pain that
+	// would down it) and a luciferium addiction.
+	GoJuice, Luciferium bool
 	// Animal is a colony animal (mirror side colony_animal, #1058).
 	Animal bool `json:",omitempty"`
 	// Health summary (#1035): BloodLoss severity, the bleed rate per day

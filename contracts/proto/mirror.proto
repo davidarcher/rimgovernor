@@ -67,6 +67,10 @@ message CombatPawn {
   optional int32 medical_skill = 28;
   // Melee strength (#969): the MeleeDPS stat, to 0.1.
   optional double melee_power = 30;
+  // Enemy drugs (#1056): a GoJuiceHigh hediff (the pawn fights on past
+  // the pain that would down it) and a LuciferiumAddiction hediff.
+  optional bool go_juice_high = 31;
+  optional bool luciferium_addicted = 32;
 }
 
 // A damaged player door (BundleSnapshot.combat_doors, #900): hit points
