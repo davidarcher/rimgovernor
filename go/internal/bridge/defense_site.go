@@ -34,9 +34,12 @@ func (r CellRect) Cells() int64 {
 // native ground reachability to a map edge without opening doors (the walk-in
 // raid approach), and NaturalRock/Door/PlayerOwned describe the edifice.
 type DefenseCell struct {
-	Cell                            domain.Cell
-	Fogged                          bool
-	Terrain, EdificeDefName         string
+	Cell                    domain.Cell
+	Fogged                  bool
+	Terrain, EdificeDefName string
+	// EdificeStuff is the edifice's stuff def, empty for a stuffless one
+	// (#1065: a wooden door is upgraded to plasteel).
+	EdificeStuff                    string
 	Walkable, Passable, BlocksSight bool
 	CoverFill                       float64
 	PlayerOwned, NaturalRock, Door  bool
@@ -250,7 +253,7 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 		if out.Fogged {
 			// Unknown geometry carries no facts; a fogged cell claiming
 			// traversal or cover would be an invented observation.
-			if row.Walkable != nil || row.Passable != nil || row.CoverFill != nil || row.EdgeReachable != nil || row.EdificeDefName != nil {
+			if row.Walkable != nil || row.Passable != nil || row.CoverFill != nil || row.EdgeReachable != nil || row.EdificeDefName != nil || row.EdificeStuffDefName != nil {
 				return DefenseSite{}, contract("fogged defense cell carries facts")
 			}
 			site.Cells = append(site.Cells, out)
@@ -262,13 +265,16 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 		if row.EdificeDefName != nil && validID(row.GetEdificeDefName()) != nil {
 			return DefenseSite{}, contract("invalid defense cell edifice")
 		}
+		if row.EdificeStuffDefName != nil && (row.EdificeDefName == nil || validID(row.GetEdificeStuffDefName()) != nil) {
+			return DefenseSite{}, contract("invalid defense cell edifice stuff")
+		}
 		if row.EdificeDefName == nil && (row.GetPlayerOwned() || row.GetNaturalRock() || row.GetDoor()) {
 			return DefenseSite{}, contract("edifice facts without an edifice")
 		}
 		if row.GetWalkable() && !row.GetPassable() || row.GetEdgeReachable() && !row.GetPassable() {
 			return DefenseSite{}, contract("contradictory defense cell traversal")
 		}
-		out.Terrain, out.EdificeDefName = row.GetTerrain(), row.GetEdificeDefName()
+		out.Terrain, out.EdificeDefName, out.EdificeStuff = row.GetTerrain(), row.GetEdificeDefName(), row.GetEdificeStuffDefName()
 		out.Walkable, out.Passable, out.BlocksSight = row.GetWalkable(), row.GetPassable(), row.GetBlocksSight()
 		out.CoverFill = row.GetCoverFill()
 		out.PlayerOwned, out.NaturalRock, out.Door = row.GetPlayerOwned(), row.GetNaturalRock(), row.GetDoor()

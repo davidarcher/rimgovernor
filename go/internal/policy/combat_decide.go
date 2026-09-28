@@ -34,7 +34,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// (#867, combat_rescue.go).
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
 	formed := false // a formation this stop picks the potshot door (#900, #1059)
-	manhunterWaitTurn(view, &next)
+	waitTurn(view, &next)
 	siegeTurn(view, &next)
 	if pods, ok := view.Pods.Value(); ok && next.Pods == nil {
 		// The arrival row may leave a later frame; the fight keeps it (#891).
@@ -115,7 +115,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	sapperIntercept(view, &next)
 	sapperRush(view, stop, &next)
 	doorPotshot(view, formed, &next)
-	manhunterShelter(view, &next)
+	shelter(view, &next)
 	counterBattery(view, &next)
 	rocketClumps(view, &next)
 	flank(view, &next)
@@ -438,10 +438,15 @@ type CombatMemory struct {
 	// chaser past the line (#901).
 	Kiter   domain.PawnID `json:",omitempty"`
 	Leading bool          `json:",omitempty"`
-	// ManhunterWait is a manhunter fight sheltering, outmatched, behind
-	// the doors WaitDoors closes and forbids (#902).
-	ManhunterWait bool      `json:",omitempty"`
-	WaitDoors     []PodDoor `json:",omitempty"`
+	// Wait is a manhunter fight or humanoid raid sheltering, outmatched,
+	// behind the doors WaitDoors closes and forbids (#902, #1065), since
+	// WaitSince.
+	Wait      bool        `json:",omitempty"`
+	WaitSince domain.Tick `json:",omitempty"`
+	WaitDoors []PodDoor   `json:",omitempty"`
+	// WaitRooms pairs each sheltering room door with its floor cell
+	// behind it, for the layout planner's hardening (#1065).
+	WaitRooms []WaitDoor `json:",omitempty"`
 	// SapperBreach is the wall cell a sapper formation guards (#913).
 	SapperBreach *domain.Cell `json:",omitempty"`
 	// Intercept is a sapper fight whose gunners went out to the diggers (#914).

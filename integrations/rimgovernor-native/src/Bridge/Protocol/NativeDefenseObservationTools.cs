@@ -127,7 +127,7 @@ namespace HomeBridge.BridgeTools
                     row.CoverKind = NativeClearCover.KindOf(giver); row.CoverDesignated = NativeClearCover.Designated(giver);
                 }
                 if (edifice != null) {
-                    row.EdificeDefName = Identifier(edifice.def.defName);
+                    row.EdificeDefName = Identifier(edifice.def.defName); if (edifice.Stuff != null) row.EdificeStuffDefName = Identifier(edifice.Stuff.defName);
                     row.PlayerOwned = edifice.Faction == player;
                     row.NaturalRock = edifice.def.building?.isNaturalRock == true || edifice.def.mineable;
                     row.Door = edifice is Building_Door;

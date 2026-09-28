@@ -2,6 +2,7 @@ package policy
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -23,6 +24,9 @@ func threatView() CombatView {
 		cell := domain.Cell{X: 8 + int32(i), Z: 10}
 		h.Cell = domain.Known(cell)
 		s, d := combatRaider(PawnID(h.ID), cell)
+		if strings.HasPrefix(h.Kind, "Mech_") {
+			s.Humanlike, d.Humanlike = domain.Known(false), domain.Known(false)
+		}
 		view.Threats, view.Positional = append(view.Threats, s), append(view.Positional, d)
 		view.Pawns = append(view.Pawns, h)
 	}

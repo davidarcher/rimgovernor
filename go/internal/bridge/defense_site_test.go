@@ -20,7 +20,7 @@ func defenseSiteFixture() *o.DefenseSiteSnapshot {
 	open := &o.DefenseCell{Cell: &c.Cell{X: proto.Int32(4), Z: proto.Int32(6)}, Fogged: proto.Bool(false), Terrain: proto.String("Soil"), Walkable: proto.Bool(true), Passable: proto.Bool(true),
 		CoverFill: proto.Float64(0), BlocksSight: proto.Bool(false), PlayerOwned: proto.Bool(false), NaturalRock: proto.Bool(false), Door: proto.Bool(false), EdgeReachable: proto.Bool(true), HomeArea: proto.Bool(false)}
 	sandbag := &o.DefenseCell{Cell: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}, Fogged: proto.Bool(false), Terrain: proto.String("Soil"), Walkable: proto.Bool(false), Passable: proto.Bool(true),
-		CoverFill: proto.Float64(0.57), BlocksSight: proto.Bool(false), EdificeDefName: proto.String("Sandbags"), PlayerOwned: proto.Bool(true), NaturalRock: proto.Bool(false), Door: proto.Bool(false), EdgeReachable: proto.Bool(true), HomeArea: proto.Bool(true)}
+		CoverFill: proto.Float64(0.57), BlocksSight: proto.Bool(false), EdificeDefName: proto.String("Sandbags"), EdificeStuffDefName: proto.String("WoodLog"), PlayerOwned: proto.Bool(true), NaturalRock: proto.Bool(false), Door: proto.Bool(false), EdgeReachable: proto.Bool(true), HomeArea: proto.Bool(true)}
 	return &o.DefenseSiteSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(250), Height: proto.Uint32(250)},
 		Region: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(4), Z: proto.Int32(6)}, Maximum: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}},
 		Cells:  []*o.DefenseCell{open, sandbag}, CoverThreshold: proto.Float64(0),
@@ -48,7 +48,7 @@ func TestDefenseSiteReadsCompleteCensus(t *testing.T) {
 	if site.Width != 250 || site.Region != defenseRegion() || len(site.Cells) != 2 {
 		t.Fatalf("%+v", site)
 	}
-	if got := site.Cells[1]; got.EdificeDefName != "Sandbags" || !got.PlayerOwned || got.CoverFill != 0.57 || got.Walkable || !got.Passable || !got.EdgeReachable || !got.HomeArea {
+	if got := site.Cells[1]; got.EdificeDefName != "Sandbags" || got.EdificeStuff != "WoodLog" || !got.PlayerOwned || got.CoverFill != 0.57 || got.Walkable || !got.Passable || !got.EdgeReachable || !got.HomeArea {
 		t.Fatalf("%+v", got)
 	}
 	if got := site.Cells[0]; got.EdificeDefName != "" || got.PlayerOwned || got.CoverFill != 0 || !got.Walkable || got.Cover != nil {

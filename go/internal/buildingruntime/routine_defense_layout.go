@@ -168,7 +168,16 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
+	if !found || goal.Goal.Status != domain.GoalActive {
+		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
+	}
+	// A fight waiting behind its rooms' doors (#1065) hardens them whether
+	// or not the layout itself is short.
+	wait, err := defenseWaitingFight(call, p.journal, world)
+	if err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
+	if wait == nil && (goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "") {
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
@@ -179,6 +188,9 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		if store.PlanOpen(plan) {
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodExistingWork}, nil
 		}
+	}
+	if wait != nil {
+		return r.harden(call, epoch, goal, state, *wait)
 	}
 	// EnsureDefensiveLayout competes for the bounded concurrent-project
 	// capacity with the other priority>=3 autopilot goals; admission would
