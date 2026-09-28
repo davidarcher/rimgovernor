@@ -390,12 +390,6 @@ func (s *Session) ReleaseClosedFights(ctx context.Context) error {
 	}
 	return s.drafts.releaseClosedFights(ctx)
 }
-func (s *Session) Run(ctx context.Context, plan domain.PlanID, action domain.ActionID) (executor.Result, error) {
-	if s.journal != nil {
-		ctx = withPlanIntent(ctx, s.journal, plan)
-	}
-	return s.executor.Run(ctx, plan, action)
-}
 
 // RunBatch dispatches a plan's actions in one native Apply (#1042).
 func (s *Session) RunBatch(ctx context.Context, plan domain.PlanID, actions []domain.ActionID) ([]executor.BatchItem, error) {

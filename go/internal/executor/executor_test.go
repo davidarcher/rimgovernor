@@ -126,7 +126,7 @@ func newFixtureAt(t *testing.T, path string) *fixture {
 	return &fixture{executor, journal, env, clock, plan, action, authority, path}
 }
 func (f *fixture) run() (Result, error) {
-	return f.executor.Run(context.Background(), f.plan.ID(), f.action.ID())
+	return f.executor.runOne(context.Background(), f.plan.ID(), f.action.ID())
 }
 func (f *fixture) progress(t *testing.T) domain.ProgressView {
 	t.Helper()
@@ -271,7 +271,7 @@ func TestCancellationAndWriterQueue(t *testing.T) {
 	<-entered
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
-	if _, err := f.executor.Run(ctx, f.plan.ID(), f.action.ID()); !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := f.executor.runOne(ctx, f.plan.ID(), f.action.ID()); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal("writer wait ignored cancellation", err)
 	}
 	if _, err := f.executor.Cancel(context.Background(), f.plan.ID(), f.action.ID()); err != nil {
@@ -322,4 +322,13 @@ func TestManualRoundTripStillInvalidatesActiveGeneration(t *testing.T) {
 	if result, err := f.run(); err == nil || result.NativeCalled {
 		t.Fatal("old generation survived authority roundtrip")
 	}
+}
+
+// runOne runs one action through RunBatch.
+func (e *Executor) runOne(ctx context.Context, plan domain.PlanID, action domain.ActionID) (Result, error) {
+	items, err := e.RunBatch(ctx, plan, []domain.ActionID{action})
+	if err != nil || len(items) == 0 {
+		return Result{}, err
+	}
+	return items[0].Result, items[0].Err
 }

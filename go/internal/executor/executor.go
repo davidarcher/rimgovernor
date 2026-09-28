@@ -222,19 +222,6 @@ func (e *Executor) Cancel(ctx context.Context, plan domain.PlanID, action domain
 	return e.journal.Cancel(ctx, plan, action)
 }
 
-// Run dispatches at most one native placement OR consumes one later observation.
-// It never polls and never retries within the same call. Every invocation reloads
-// durable state, so restart and caller cancellation cannot erase uncertainty.
-func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.ActionID) (Result, error) {
-	var result Result
-	err := e.withPlan(ctx, plan, []domain.ActionID{actionID}, func(ctx context.Context, state store.PlanState, authority Authority, generation context.Context) error {
-		var err error
-		result, err = e.runLoaded(ctx, state, actionID, authority, generation)
-		return err
-	})
-	return result, err
-}
-
 // withPlan takes the writer slot for actions, reloads plan once and runs fn
 // under the run timeout, cancelled when authority changes.
 func (e *Executor) withPlan(ctx context.Context, plan domain.PlanID, actions []domain.ActionID, fn func(context.Context, store.PlanState, Authority, context.Context) error) error {
@@ -297,10 +284,6 @@ func (e *Executor) runLoaded(ctx context.Context, state store.PlanState, actionI
 	action, progress := find(state, actionID)
 	if action.Kind().IntentMode() && progress.View().Unresolved {
 		return e.settleIntent(progress)
-	}
-	if plainIntents[action.Kind()] {
-		out := e.runIntents(ctx, []intentItem{{action: action, progress: progress}}, authority, generation)
-		return out[0].Result, out[0].Err
 	}
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)

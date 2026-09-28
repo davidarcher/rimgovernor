@@ -173,7 +173,7 @@ func BenchmarkExecutorScheduling(b *testing.B) {
 				journal.progress = initial
 				env.inspections, env.placements = 0, 0
 				b.StartTimer()
-				result, err := executor.Run(ctx, plan.ID(), action.ID())
+				result, err := executor.runOne(ctx, plan.ID(), action.ID())
 				b.StopTimer()
 				if err != nil {
 					b.Fatal(err)

@@ -66,8 +66,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.GearReplaceAction:         true,
 }
 
-// BatchItem is one action's outcome of RunBatch: what Run would have
-// returned for it.
+// BatchItem is one action's outcome of RunBatch: its dispatch result and error.
 type BatchItem struct {
 	Action domain.ActionID
 	Result Result
@@ -79,10 +78,11 @@ type intentItem struct {
 	progress domain.Progress
 }
 
-// RunBatch dispatches a plan's plain intents in one native Actions/Apply
-// call (#1041): one writer slot, one plan load, one inspection whose
+// RunBatch is the executor's one entry point. It dispatches a plan's plain
+// intents in one native Actions/Apply call (#1041): one writer slot, one plan load, one inspection whose
 // snapshot and tick anchor every action, one journal transaction per stage.
-// An unresolved attempt is settled as Run settles it. The returned error is
+// An unresolved attempt is settled from the journal. Other kinds run their own
+// flow per action, in input order, before the plain intents dispatch. The returned error is
 // the batch's own (stopped, cancelled, plan load); per-action errors are in
 // the items, in input order.
 func (e *Executor) RunBatch(ctx context.Context, plan domain.PlanID, actions []domain.ActionID) ([]BatchItem, error) {
@@ -90,6 +90,7 @@ func (e *Executor) RunBatch(ctx context.Context, plan domain.PlanID, actions []d
 	err := e.withPlan(ctx, plan, actions, func(ctx context.Context, state store.PlanState, authority Authority, generation context.Context) error {
 		var items []intentItem
 		var at []int
+		flowed := false
 		for i, id := range actions {
 			out[i].Action = id
 			action, progress := find(state, id)
@@ -97,8 +98,22 @@ func (e *Executor) RunBatch(ctx context.Context, plan domain.PlanID, actions []d
 				out[i].Result, out[i].Err = e.settleIntent(progress)
 				continue
 			}
-			items = append(items, intentItem{action, progress})
-			at = append(at, i)
+			if plainIntents[action.Kind()] {
+				items = append(items, intentItem{action, progress})
+				at = append(at, i)
+				continue
+			}
+			// A kind with its own flow (admission, prerequisites) runs
+			// alone, in input order, on durable state reloaded after any
+			// earlier flow wrote to it.
+			if flowed {
+				var err error
+				if state, err = e.journal.LoadPlan(ctx, plan); err != nil {
+					return err
+				}
+			}
+			out[i].Result, out[i].Err = e.runLoaded(ctx, state, id, authority, generation)
+			flowed = true
 		}
 		for j, item := range e.runIntents(ctx, items, authority, generation) {
 			out[at[j]].Result, out[at[j]].Err = item.Result, item.Err
@@ -111,7 +126,7 @@ func (e *Executor) RunBatch(ctx context.Context, plan domain.PlanID, actions []d
 // runIntents dispatches plain intents of one plan. Each receipt is terminal:
 // applied (the blueprint is placed, or the setting holds) is done, refused is
 // over and the owning routine replans, and a lost reply is sent again under
-// a new attempt. Run is the one-element case.
+// a new attempt.
 func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority Authority, generation context.Context) []BatchItem {
 	out := make([]BatchItem, len(items))
 	fail := func(at []int, err error) {
@@ -291,3 +306,7 @@ func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Plac
 		}
 	}
 }
+
+// PlainIntent reports whether kind dispatches with its plan's other plain
+// intents in one native Apply; other kinds run their own flow per action.
+func PlainIntent(kind domain.ActionKind) bool { return plainIntents[kind] }

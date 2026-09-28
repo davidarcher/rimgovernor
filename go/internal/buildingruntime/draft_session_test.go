@@ -133,7 +133,7 @@ func TestDraftSessionManualDrainsWithoutPermanentlyStopping(t *testing.T) {
 	if native.Releases != 1 {
 		t.Fatal(native.Releases)
 	}
-	if _, err := session.Run(context.Background(), "plan", "action"); errors.Is(err, executor.ErrStopped) {
+	if _, err := session.runOne(context.Background(), "plan", "action"); errors.Is(err, executor.ErrStopped) {
 		t.Fatal("Manual permanently stopped executor")
 	}
 }
@@ -211,4 +211,13 @@ func TestCancelledSessionAttachmentDoesNotStrandOwnerOnExistingDraft(t *testing.
 	if cleanup.Stage != domain.DraftAwaitingClaim || native.Identities != 0 || native.Releases != 0 {
 		t.Fatal("construction drained existing work", cleanup)
 	}
+}
+
+// runOne runs one action through RunBatch.
+func (s *Session) runOne(ctx context.Context, plan domain.PlanID, action domain.ActionID) (executor.Result, error) {
+	items, err := s.RunBatch(ctx, plan, []domain.ActionID{action})
+	if err != nil || len(items) == 0 {
+		return executor.Result{}, err
+	}
+	return items[0].Result, items[0].Err
 }

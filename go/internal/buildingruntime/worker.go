@@ -91,7 +91,6 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 
 type workerSession interface {
 	playerSession
-	Run(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
 	RunBatch(context.Context, domain.PlanID, []domain.ActionID) ([]executor.BatchItem, error)
 	CleanupDraft(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
 	ReleaseClosedFights(context.Context) error
@@ -539,17 +538,8 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 		} else if lead.cleanup {
 			results[0], resultErrs[0] = w.session.CleanupDraft(run, lead.view.Plan, lead.view.Action)
-		} else if workerBatched(lead) {
-			results, resultErrs = w.runBatch(call, run, lead.view.Plan, group)
 		} else {
-			results[0], resultErrs[0] = w.session.Run(run, lead.view.Plan, lead.view.Action)
-			// A dispatch cancelled by its own context (an authority
-			// generation turned over under it) while the step's is live
-			// retries once under the step's: Run reloads durable state,
-			// so the retry cannot lose a receipt (#671).
-			if workerOwnCancel(call, resultErrs[0]) {
-				results[0], resultErrs[0] = w.session.Run(run, lead.view.Plan, lead.view.Action)
-			}
+			results, resultErrs = w.runBatch(call, run, lead.view.Plan, group)
 		}
 		longest = max(longest, time.Since(dispatchStarted))
 		for _, result := range results {
@@ -651,13 +641,14 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	return errors.Join(append([]error{worldErr}, errs...)...)
 }
 
-// workerBatched reports whether candidate dispatches in its plan's batched
-// Apply (#1042); other kinds and cleanups keep the per-action path.
+// workerBatched reports whether candidate joins its plan's other plain
+// intents in one batched Apply (#1042); other kinds dispatch alone and
+// cleanups keep their own path.
 func workerBatched(candidate workerCandidate) bool {
-	return !candidate.cleanup && candidate.kind == domain.BuildingAction
+	return !candidate.cleanup && executor.PlainIntent(candidate.kind)
 }
 
-// runBatch sends group, one plan's building candidates, as one RunBatch and
+// runBatch sends group, one plan's candidates, as one RunBatch and
 // returns each member's result and error in group order. A batch cancelled
 // by its own context while the step's is live retries once, whole (#671).
 func (w *Worker) runBatch(call, run context.Context, plan domain.PlanID, group []workerCandidate) ([]executor.Result, []error) {

@@ -54,11 +54,11 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	if err = f.executor.UpdateAuthority(f.authority); err != nil {
 		t.Fatal(err)
 	}
-	result, err := f.executor.Run(ctx, plan.ID(), "finish")
+	result, err := f.executor.runOne(ctx, plan.ID(), "finish")
 	if err == nil || result.NativeCalled {
 		t.Fatal("dependency permitted native call", result, err)
 	}
-	result, err = f.executor.Run(ctx, plan.ID(), "foundation")
+	result, err = f.executor.runOne(ctx, plan.ID(), "foundation")
 	if err != nil || !result.NativeCalled {
 		t.Fatal("upfront reservation could not enter Hands", result, err)
 	}
@@ -68,7 +68,7 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 		t.Fatal("applied intent did not complete", result)
 	}
 	f.env.tick = 101
-	if result, err = f.executor.Run(ctx, plan.ID(), "finish"); err == nil || result.NativeCalled {
+	if result, err = f.executor.runOne(ctx, plan.ID(), "finish"); err == nil || result.NativeCalled {
 		t.Fatal("blueprint released its successor", result, err)
 	}
 	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "Wall1", IntentKey: "foundation/1"}}}
@@ -76,7 +76,7 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.env.tick = 102
-	result, err = f.executor.Run(ctx, plan.ID(), "finish")
+	result, err = f.executor.runOne(ctx, plan.ID(), "finish")
 	if err != nil || !result.NativeCalled {
 		t.Fatal("completed dependency did not release successor", result, err)
 	}

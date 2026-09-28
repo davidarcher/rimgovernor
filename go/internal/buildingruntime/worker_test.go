@@ -33,7 +33,7 @@ type workerFake struct {
 	batches                          atomic.Int32
 }
 
-func (f *workerFake) Run(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+func (f *workerFake) runOne(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
 	f.runs.Add(1)
 	return f.run(ctx, p, a)
 }
@@ -47,7 +47,7 @@ func (f *workerFake) RunBatch(ctx context.Context, p domain.PlanID, ids []domain
 	out := make([]executor.BatchItem, len(ids))
 	for i, a := range ids {
 		out[i].Action = a
-		out[i].Result, out[i].Err = f.Run(ctx, p, a)
+		out[i].Result, out[i].Err = f.runOne(ctx, p, a)
 	}
 	return out, nil
 }

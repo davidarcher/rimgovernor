@@ -69,7 +69,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	if !workerEligible(state, state.Progress[1].View(), s.State(), playerWorld(snapshot)) || workerCleanupEligible(state, state.Progress[0].View(), s.State(), playerWorld(snapshot)) {
 		t.Fatal("pending melee did not retain draft")
 	}
-	r, err := s.Run(ctx, plan.ID(), dispatch.Action.ID())
+	r, err := s.runOne(ctx, plan.ID(), dispatch.Action.ID())
 	if err != nil || !r.NativeCalled || f.Applies != 1 || r.Progress.View().Stage != domain.Completed {
 		t.Fatal(r, err)
 	}

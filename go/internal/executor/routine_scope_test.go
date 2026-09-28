@@ -37,7 +37,7 @@ func TestRoutineScopeRecheckedBeforeDispatchWithoutChangingAuthority(t *testing.
 			}
 			return in
 		}
-		result, err := f.executor.Run(context.Background(), f.plan.ID(), f.action.ID())
+		result, err := f.executor.runOne(context.Background(), f.plan.ID(), f.action.ID())
 		if revoke {
 			if !errors.Is(err, ErrAuthority) || result.NativeCalled {
 				t.Fatal(result, err)
