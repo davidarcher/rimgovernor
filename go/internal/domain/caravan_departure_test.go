@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -75,13 +74,6 @@ func TestCaravanDepartureRejectsInvalidInputs(t *testing.T) {
 	}
 	if _, err := NewCaravanDeparture([]PawnID{"alpha"}, []CargoItem{{"Silver", 0}}, 1); err == nil {
 		t.Fatal("zero cargo count accepted")
-	}
-	many := make([]PawnID, 65)
-	for i := range many {
-		many[i] = PawnID(fmt.Sprintf("pawn-%d", i))
-	}
-	if _, err := NewCaravanDeparture(many, nil, 1); err == nil {
-		t.Fatal("oversized crew accepted")
 	}
 }
 

@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools {
   internal static bool CorpseRecipe(string recipe)=>recipe=="ButcherCorpseFlesh"||recipe=="CremateCorpse";
   internal static bool ValidIngredients(Operations.FilterPatch? filter){
    if(filter==null)return true;
-   if(filter.Allow.Count!=0||filter.Disallow.Count!=0||filter.HasHitPointsMin||filter.HasHitPointsMax||filter.HasQualityMin||filter.HasQualityMax||filter.Replace==null||filter.Replace.Selectors.Count==0||filter.Replace.Selectors.Count>256||!filter.Equals(new Operations.FilterPatch{Replace=filter.Replace.Clone()}))return false;
+   if(filter.Allow.Count!=0||filter.Disallow.Count!=0||filter.HasHitPointsMin||filter.HasHitPointsMax||filter.HasQualityMin||filter.HasQualityMax||filter.Replace==null||filter.Replace.Selectors.Count==0||!filter.Equals(new Operations.FilterPatch{Replace=filter.Replace.Clone()}))return false;
    string? previous=null;
    foreach(var selector in filter.Replace.Selectors){
     if(selector.DefinitionCase!=Operations.FilterSelector.DefinitionOneofCase.ThingDef||!ProtoBoundary.IsIdentifier(selector.ThingDef)||!selector.Equals(new Operations.FilterSelector{ThingDef=selector.ThingDef})||previous!=null&&StringComparer.Ordinal.Compare(previous,selector.ThingDef)>=0)return false;

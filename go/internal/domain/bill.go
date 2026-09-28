@@ -40,7 +40,7 @@ func NewProductionBill(bench, recipe string, mode BillMode, target int32, ingred
 	if !validID(bench) || !validID(recipe) || (mode != FoodTarget && mode != ButcherForever && mode != StockTarget && mode != BeerReserve && mode != GearBatch) || mode == FoodTarget && (target < 1 || target > 10000 || recipe == "ButcherCorpseFlesh") || mode == ButcherForever && (recipe != "ButcherCorpseFlesh" || target != 0) || (mode == StockTarget || mode == BeerReserve || mode == GearBatch) && (target < 1 || target > 10000) {
 		return ProductionBill{}, errors.New("invalid production bill")
 	}
-	if len(ingredients) > 256 || mode == ButcherForever && len(ingredients) > 0 {
+	if mode == ButcherForever && len(ingredients) > 0 {
 		return ProductionBill{}, errors.New("invalid bill ingredient override")
 	}
 	filter := ""

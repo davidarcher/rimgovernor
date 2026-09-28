@@ -11,6 +11,9 @@ namespace HomeBridge.BridgeTools
 {
     internal static class ExtractionDevelopment
     {
+        internal static object WorkTypeMetadata(WorkTypeDef type) => new {
+            name = type.defName, skills = (type.relevantSkills ?? new List<SkillDef>()).Select(s => s.defName).ToArray()
+        };
         internal static WorkTypeDef? FlickWork => DefDatabase<WorkGiverDef>.AllDefs.FirstOrDefault(d => d.giverClass == typeof(WorkGiver_Flick))?.workType;
         internal static bool Worker(Pawn p, WorkTypeDef? work) => work != null && !p.Downed && !p.Drafted && !p.InMentalState
             && !p.WorkTypeIsDisabled(work) && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation);
@@ -59,7 +62,7 @@ namespace HomeBridge.BridgeTools
                         || !GenConstruct.CanPlaceBlueprintAt(def, cell, Rot4.North, map, false).Accepted) continue;
                     result.Add(new { defName = def.defName, x = cell.x, z = cell.z, rotation = "north", eligible = true,
                         resource = scanning ? resource : null, powerW = power.PowerConsumption, sparePowerW = surplus,
-                        workTypes = new[] { HomeBillsTools.WorkTypeMetadata(work), HomeBillsTools.WorkTypeMetadata(WorkTypeDefOf.Construction) } });
+                        workTypes = new[] { WorkTypeMetadata(work), WorkTypeMetadata(WorkTypeDefOf.Construction) } });
                     if (result.Count >= 8) return result;
                 }
             }

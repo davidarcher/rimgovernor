@@ -4,8 +4,8 @@
 // letter that does not pause under the profile's AutomaticPauseMode leaves
 // the window untouched; an unexpected threat letter still interrupts, and a
 // strict window (WithExpectedLetters()) interrupts on an informational one.
-// It also checks rimgovernor/presentation_notifications (#79) against the
-// home/status letter stack while a letter is up.
+// It also checks rimgovernor/presentation_notifications (#79) while a
+// letter is up.
 package letter
 
 import (
@@ -18,16 +18,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// notificationsMatch reads rimgovernor/presentation_notifications and checks
-// it against home/status: the letter under test is listed with its def, the
-// letter listing counts agree, messages and alerts are observed, and an
-// explicit include_letters:false leaves the letter section absent.
+// notificationsMatch reads rimgovernor/presentation_notifications: the
+// letter under test is listed with its def, the letter listing describes
+// every row, messages and alerts are observed, and an explicit
+// include_letters:false leaves the letter section absent.
 func notificationsMatch(ctx context.Context, h *na.Harness, identity map[string]any, letterID string) (map[string]any, error) {
-	status, err := h.Call(ctx, "notifications-status", "home/status", map[string]any{})
-	if err != nil {
-		return nil, err
-	}
-	statusLetters := na.AsSlice(status["letters"])
 	reply, err := h.Wire(ctx, "notifications", "presentation_notifications", map[string]any{"identity": identity})
 	if err != nil {
 		return nil, err
@@ -52,9 +47,6 @@ func notificationsMatch(ctx context.Context, h *na.Harness, identity map[string]
 		return nil, err
 	}
 	rows := na.AsSlice(letters["letters"])
-	if len(rows) != len(statusLetters) {
-		return nil, fmt.Errorf("typed letters %d, home/status letters %d", len(rows), len(statusLetters))
-	}
 	listing, _ := na.AsMap(letters["listing"])
 	if int(na.AsNumber(listing["totalCount"])) != len(rows) || int(na.AsNumber(listing["returnedCount"])) != len(rows) || listing["complete"] != true {
 		return nil, fmt.Errorf("typed letter listing does not describe %d rows: %#v", len(rows), listing)
@@ -144,12 +136,12 @@ func run(ctx context.Context, s cases.Session) error {
 		return na.AsString(reply["letterId"]), nil
 	}
 	onStack := func(label, letterID string) (bool, error) {
-		status, err := h.Call(ctx, label, "home/status", map[string]any{})
+		letters, err := na.ReadLetters(ctx, h.WireFunc(), label, identity)
 		if err != nil {
 			return false, err
 		}
-		for _, raw := range na.AsSlice(status["letters"]) {
-			if row, ok := na.AsMap(raw); ok && na.AsString(row["id"]) == letterID {
+		for _, row := range letters {
+			if na.AsString(row["id"]) == letterID {
 				return true, nil
 			}
 		}
@@ -288,7 +280,7 @@ func run(ctx context.Context, s cases.Session) error {
 	} else if !stacked {
 		return fmt.Errorf("strict window dismissed letter %s", strictID)
 	}
-	// 5. The typed notifications read (#79) sees the same stack as home/status
+	// 5. The typed notifications read (#79) lists the letter under test
 	// and answers every section; an explicit include_letters:false omits only
 	// the letter section.
 	typed, err := notificationsMatch(ctx, h, identity, strictID)

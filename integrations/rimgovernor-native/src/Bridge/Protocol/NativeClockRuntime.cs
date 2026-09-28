@@ -104,8 +104,8 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 if (_state != null && _state.Active) return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A clock epoch is already active.");
-                if (HomePlayUntilEventTools.ShortGuardRunning || !HomePlayUntilEventTools.CoreWatchersAvailable)
-                    return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native safety watchers are unavailable or another short guard is running.");
+                if (!GameWatchReads.CoreWatchersAvailable)
+                    return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native safety watchers are unavailable.");
                 if (LongEventHandler.AnyEventNowOrWaiting || ForcePausingWindows().Count > 0)
                     return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native long event or modal pause prevents starting owned play.");
                 try
@@ -471,7 +471,7 @@ namespace HomeBridge.BridgeTools
                         || !payload.TryGetValue("letterId", out id) || !(id is string) || !ProtoBoundary.IsIdentifier((string)id))
                         throw new InvalidOperationException("Letter pause lacks exact native callback attribution");
                     result.Stopped.Pause.Letter = new Clock.Letter { Id = (string)id };
-                    var letter = HomePlayUntilEventTools.Letters().SingleOrDefault(value => value.GetUniqueLoadID() == (string)id);
+                    var letter = GameWatchReads.Letters().SingleOrDefault(value => value.GetUniqueLoadID() == (string)id);
                     if (letter != null)
                     {
                         result.Stopped.Pause.Letter.Label = Text(letter.Label.ToString());

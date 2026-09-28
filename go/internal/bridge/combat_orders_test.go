@@ -40,7 +40,6 @@ func TestValidateCombatOrders(t *testing.T) {
 	}
 	for name, edit := range map[string]func(*o.CombatOrders){
 		"empty":           func(v *o.CombatOrders) { v.Orders = nil },
-		"too many":        func(v *o.CombatOrders) { v.Orders = make([]*o.CombatOrder, MaxCombatOrders+1) },
 		"nil order":       func(v *o.CombatOrders) { v.Orders[0] = nil },
 		"no order":        func(v *o.CombatOrders) { v.Orders[0].Order = nil },
 		"no pawn":         func(v *o.CombatOrders) { v.Orders[1].Pawn = nil },

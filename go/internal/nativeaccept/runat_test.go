@@ -14,11 +14,7 @@ func pausedStatus(letters []map[string]any, windows []map[string]any, forcePause
 	for _, w := range windows {
 		wins = append(wins, w)
 	}
-	return map[string]any{
-		"time":    map[string]any{"paused": true, "forcePaused": forcePaused},
-		"letters": rows,
-		"ui":      map[string]any{"windows": wins},
-	}
+	return map[string]any{"paused": true, "forcePaused": forcePaused, "letters": rows, "windows": wins}
 }
 
 func TestClassifyPause(t *testing.T) {
@@ -28,7 +24,7 @@ func TestClassifyPause(t *testing.T) {
 	dialog := map[string]any{"type": "Dialog_NodeTree", "title": "Trade request", "forcePause": true}
 
 	// Running again: a transient the wait continues past.
-	if cause, dismiss := classifyPause(map[string]any{"time": map[string]any{"paused": false}}, tools, "observe", 5, false); cause != nil || dismiss != nil {
+	if cause, dismiss := classifyPause(map[string]any{"paused": false}, tools, "observe", 5, false); cause != nil || dismiss != nil {
 		t.Fatalf("running game: cause=%v dismiss=%v", cause, dismiss)
 	}
 	// Benign letters only, with the fixture: dismissed.

@@ -94,14 +94,12 @@ namespace HomeBridge.BridgeTools
         private static bool SafeCanTradeNow(Pawn p) { try { return p.CanTradeNow; } catch { return false; } }
         private static int Chebyshev(IntVec3 a, IntVec3 b) => Math.Max(Math.Abs(a.x - b.x), Math.Abs(a.z - b.z));
 
-        // Mirrors HomeTradeTools.IsPawnRow.
         private static bool IsPawnRow(Tradeable t)
         {
             try { var def = SafeDef(t); if (def != null && def.category == ThingCategory.Pawn) return true; } catch { }
             try { return t.AnyThing is Pawn; } catch { return false; }
         }
 
-        // Mirrors HomeTradeTools.WouldGiveAway.
         private static bool WouldGiveAway(Tradeable t, int target)
         {
             bool gift; try { gift = TradeSession.giftMode; } catch { gift = false; }
@@ -125,7 +123,7 @@ namespace HomeBridge.BridgeTools
 
         private static string SafeString(Pawn? p) { try { return p?.GetUniqueLoadID() ?? ""; } catch { return ""; } }
 
-        // Exact port of HomeTradeTools.StageSignature: every staged row, its
+        // Every staged row, its
         // computed prices, and the backing thing ids/stackcounts behind it.
         private static string DealSignature()
         {
@@ -179,10 +177,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // ---------------------------------------------------- session guard
-        // Mirrors HomeTradeTools.RequireSession exactly, less the
-        // ColonyIdentity GameComponent reference-equality check (replaced by
-        // the identity's own colony/load token, which this framework
-        // already carries). Adjacency is the physical act of opening, which
+        // The session is bound to the identity's own colony/load token. Adjacency is the physical act of opening, which
         // OpenTrade enforces at the moment the session is set up; once open,
         // the session binds its participants the way the vanilla dialog
         // does, and the sheet, line staging, accept and end need only both

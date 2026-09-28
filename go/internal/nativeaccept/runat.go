@@ -41,7 +41,7 @@ func (h *Harness) Tick(ctx context.Context) (uint64, error) {
 }
 
 // PauseCause is why the game stopped ticking under RunUntil (#353): what
-// home/status showed when a probe found the game paused although the
+// ReadPauseState showed when a probe found the game paused although the
 // harness asked for RunSpeed. Letters are the stack's rows (id, label,
 // letterDef), Windows the open windows that force a pause (type, title).
 // A wait fails with it at once instead of burning its stall budget.
@@ -64,16 +64,79 @@ func (c *PauseCause) Error() string {
 	}
 	cause := strings.Join(parts, ", ")
 	if cause == "" {
-		cause = "no letter or force-pausing window on home/status"
+		cause = "no letter or force-pausing window"
 	}
 	return fmt.Sprintf("%s: game paused at tick %d while running (forcePaused=%t): %s", c.Label, c.Tick, c.ForcePaused, cause)
 }
 
+// ReadPauseState is the game's pause state and its visible causes:
+// lifecycle_read_tick's paused, forcePaused, timeSpeed, tick and
+// force-pausing windows ({type, title}), and presentation_notifications'
+// letter stack ({id, label, letterDef}).
+func ReadPauseState(ctx context.Context, wire WireFunc, label string) (map[string]any, error) {
+	reply, err := wire(ctx, label+"-tick", "lifecycle_read_tick", map[string]any{})
+	if err != nil {
+		return nil, err
+	}
+	_, loaded, err := Outcome(reply, "loaded")
+	if err != nil {
+		return nil, fmt.Errorf("%s: lifecycle_read_tick: %w", label, err)
+	}
+	loadedContext, _ := AsMap(loaded["context"])
+	paused, _ := AsBool(loaded["paused"])
+	forcePaused, _ := AsBool(loaded["forcePaused"])
+	windows := []any{}
+	for _, raw := range AsSlice(loaded["pausingWindows"]) {
+		if row, ok := AsMap(raw); ok {
+			windows = append(windows, map[string]any{"type": row["nativeType"], "title": row["title"]})
+		}
+	}
+	letters, err := ReadLetters(ctx, wire, label, loadedContext["identity"])
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]any, 0, len(letters))
+	for _, letter := range letters {
+		rows = append(rows, letter)
+	}
+	return map[string]any{
+		"tick": AsNumber(loadedContext["tick"]), "paused": paused, "forcePaused": forcePaused,
+		"timeSpeed": loaded["timeSpeed"], "windows": windows, "letters": rows,
+	}, nil
+}
+
+// ReadLetters is presentation_notifications' letter stack, newest first,
+// as {id, label, letterDef} rows.
+func ReadLetters(ctx context.Context, wire WireFunc, label string, identity any) ([]map[string]any, error) {
+	reply, err := wire(ctx, label+"-letters", "presentation_notifications", map[string]any{
+		"identity": identity, "includeMessages": false, "includeAlerts": false,
+	})
+	if err != nil {
+		return nil, err
+	}
+	_, snapshot, err := Outcome(reply, "notifications")
+	if err != nil {
+		return nil, fmt.Errorf("%s: presentation_notifications: %w", label, err)
+	}
+	section, _ := AsMap(snapshot["letters"])
+	_, observed, err := Outcome(section, "observed")
+	if err != nil {
+		return nil, fmt.Errorf("%s: letter section: %w", label, err)
+	}
+	var out []map[string]any
+	for _, raw := range AsSlice(observed["letters"]) {
+		if row, ok := AsMap(raw); ok {
+			out = append(out, map[string]any{"id": row["id"], "label": row["label"], "letterDef": row["defName"]})
+		}
+	}
+	return out, nil
+}
+
 // resolvePause is RunUntil's answer to a probe that found the game paused:
-// it reads home/status and either clears the cause and resumes RunSpeed,
-// or returns the *PauseCause classifyPause found.
+// it reads ReadPauseState and either clears the cause and resumes
+// RunSpeed, or returns the *PauseCause classifyPause found.
 func (h *Harness) resolvePause(ctx context.Context, label string, tick uint64) error {
-	status, err := h.Call(ctx, label+"-paused", "home/status", map[string]any{"colonists": false, "threats": false})
+	status, err := ReadPauseState(ctx, h.WireFunc(), label+"-paused")
 	if err != nil {
 		return err
 	}
@@ -102,7 +165,7 @@ func (h *Harness) resolvePause(ctx context.Context, label string, tick uint64) e
 	return err
 }
 
-// classifyPause decides what a paused home/status means for a running
+// classifyPause decides what a paused ReadPauseState means for a running
 // wait. A status that shows the game running again is a transient (nil,
 // nil). A stack of letters that are all in AcknowledgedLetterDefs is
 // returned to dismiss (DismissLetterTool, when tools carries it), as the
@@ -112,23 +175,19 @@ func (h *Harness) resolvePause(ctx context.Context, label string, tick uint64) e
 // A force-pausing window, any other letter, or a pause with no
 // visible cause is the *PauseCause that fails the wait.
 func classifyPause(status map[string]any, tools []string, label string, tick uint64, quiet bool) (cause *PauseCause, dismiss []map[string]any) {
-	timeStatus, _ := AsMap(status["time"])
-	if paused, _ := AsBool(timeStatus["paused"]); !paused {
+	if paused, _ := AsBool(status["paused"]); !paused {
 		return nil, nil
 	}
 	cause = &PauseCause{Label: label, Tick: tick, Status: status}
-	cause.ForcePaused, _ = AsBool(timeStatus["forcePaused"])
+	cause.ForcePaused, _ = AsBool(status["forcePaused"])
 	for _, raw := range AsSlice(status["letters"]) {
 		if row, ok := AsMap(raw); ok {
-			cause.Letters = append(cause.Letters, map[string]any{"id": row["id"], "label": row["label"], "letterDef": row["letterDef"]})
+			cause.Letters = append(cause.Letters, row)
 		}
 	}
-	ui, _ := AsMap(status["ui"])
-	for _, raw := range AsSlice(ui["windows"]) {
+	for _, raw := range AsSlice(status["windows"]) {
 		if row, ok := AsMap(raw); ok {
-			if force, _ := AsBool(row["forcePause"]); force {
-				cause.Windows = append(cause.Windows, map[string]any{"type": row["type"], "title": row["title"]})
-			}
+			cause.Windows = append(cause.Windows, row)
 		}
 	}
 	if len(cause.Windows) > 0 || len(cause.Letters) == 0 || !Contains(tools, DismissLetterTool) {

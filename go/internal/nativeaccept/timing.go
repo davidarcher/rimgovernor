@@ -94,7 +94,7 @@ func parseReportTime(value any) (time.Time, bool) {
 }
 
 // tickStats accumulates the game ticks the process has seen pass: every
-// Harness reply that carries the game tick (an identity read, home/status,
+// Harness reply that carries the game tick (an identity read,
 // home/colony_facts, the supervised clock) feeds observeTick, which sums
 // the forward deltas between consecutive observations. A load
 // (resetTickBaseline) starts a new baseline so a save's tick is not
@@ -150,15 +150,11 @@ func observeReplyTick(tool string, tick *uint64) {
 }
 
 // replyTick is the game tick a decoded reply carries, when it does:
-// home/status, home/colony_facts, and any
+// home/colony_facts, and any
 // rimgovernor/* ProtoJSON reply whose payload is a lifecycle "loaded"
 // context (an identity read, a load, an authority acquisition).
 func replyTick(tool string, payload map[string]any) (uint64, bool) {
 	switch tool {
-	case "home/status":
-		if t, ok := AsMap(payload["time"]); ok {
-			return asUint64(t["ticksGame"])
-		}
 	case "home/colony_facts":
 		return asUint64(payload["tick"])
 	}

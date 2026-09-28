@@ -9,16 +9,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// farm/calendar reads the typed colony facts' growing calendar (#229) off
-// the baseline save and holds it to the game's own readouts: the season
-// and day of year the legacy home/status time block prints, the growing
-// period home/world reads off the tile, and the seasonal-temperature walks
-// (days remaining, days until, the non-growing stretch) agreeing with each
-// other and at the frost: the harvest gap the last growing day phases in is
+// farm/calendar reads the typed colony facts' growing calendar (#229) and
+// holds its seasonal-temperature walks (days remaining, days until, the
+// non-growing stretch) to agree with each other and at the frost: the harvest gap the last growing day phases in is
 // the gap the first non-growing day reads (#317). The report records the
 // seasonal food and wood thresholds a review would derive from it.
 // Read-only: no game orders and no clock advance.
@@ -26,8 +22,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "farm/calendar",
 		Scope: "The typed colony read's growing calendar (season, day of year, growing period, days until the crop range is left " +
-			"and re-entered, the non-growing stretch) agrees with home/status and home/world on the " + sustained.BaselineSave +
-			" save, and the harvest gap it phases in meets the gap the first frost day reads; read-only (#229, #317).",
+			"and re-entered, the non-growing stretch) is in range and self-consistent, and the harvest gap it phases in meets the gap the first frost day reads; read-only (#229, #317).",
 		Start:  cases.LabStart(),
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
@@ -115,27 +110,6 @@ func runCalendar(ctx context.Context, s cases.Session) error {
 	if stretch > 0 && math.Abs(before-after) > 1e-9 {
 		return fmt.Errorf("harvest gap jumps at the frost: %v on the last growing day, %v on the first non-growing day", before, after)
 	}
-
-	status, err := h.Call(ctx, "status", "home/status", map[string]any{"colonists": false, "threats": false})
-	if err != nil {
-		return err
-	}
-	clock, _ := na.AsMap(status["time"])
-	if season := na.AsString(clock["season"]); season != calendar.Season {
-		return fmt.Errorf("season %q disagrees with home/status %q", calendar.Season, season)
-	}
-	if day := na.AsNumber(clock["dayOfYear"]); day != float64(calendar.DayOfYear) {
-		return fmt.Errorf("day of year %d disagrees with home/status %v", calendar.DayOfYear, day)
-	}
-	world, err := h.Call(ctx, "world", "home/world", map[string]any{})
-	if err != nil {
-		return err
-	}
-	if period := na.AsNumber(world["growingPeriodDays"]); period != calendar.GrowingDays {
-		return fmt.Errorf("growing period %v disagrees with home/world %v", calendar.GrowingDays, period)
-	}
-	report["biome"] = world["biomeDefName"]
-	report["growing_period_label"] = world["growingPeriodLabel"]
 
 	gap, _ := policy.HarvestGapDays(domain.Known(calendar), domain.Unknown[[]policy.DisasterCondition]()).Value()
 	seasonal := policy.DefaultRoutinePolicy().Seasonal(domain.Known(calendar), domain.Unknown[[]policy.DisasterCondition]())

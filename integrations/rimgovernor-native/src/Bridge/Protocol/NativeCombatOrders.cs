@@ -21,11 +21,9 @@ namespace HomeBridge.BridgeTools
     // taken; observing the fight is the caller's next read.
     internal static class NativeCombatOrders
     {
-        internal const int MaximumOrders = 64;
-
         internal static bool Valid(Operations.CombatOrders? command)
         {
-            if (command == null || command.Orders.Count < 1 || command.Orders.Count > MaximumOrders) return false;
+            if (command == null || command.Orders.Count < 1) return false;
             foreach (var order in command.Orders)
             {
                 if (order == null) return false;
@@ -61,7 +59,7 @@ namespace HomeBridge.BridgeTools
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
             var command = request.Operation.CombatOrders; var pre = request.Precondition;
-            if (!Valid(command)) return Refuse(Common.FailureCode.InvalidRequest, "Combat orders need 1.." + MaximumOrders + " orders, each an exact pawn (none for a door) and one supported order with explicit cells and modes.");
+            if (!Valid(command)) return Refuse(Common.FailureCode.InvalidRequest, "Combat orders need at least one order, each an exact pawn (none for a door) and one supported order with explicit cells and modes.");
             if (!NativePawnControlState.IsReady) return Refuse(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try

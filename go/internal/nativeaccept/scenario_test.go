@@ -499,11 +499,11 @@ func TestLetterApproval(t *testing.T) {
 
 func TestAdvanceGameCombatContinuesPastColonistHealthStop(t *testing.T) {
 	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
-	standing := map[string]any{
-		"blocks": map[string]any{"colonists": true, "threats": true}, "skipped": []any{},
-		"colonists": []any{map[string]any{"dead": false, "downed": false, "bleeding": true}},
-	}
+	standing := map[string]any{"observed": map[string]any{
+		"colonists": map[string]any{"pawns": []any{map[string]any{"dead": false, "downed": false, "health": map[string]any{"bleeding": true}}}},
+	}}
 	fw := &fakeWire{replies: map[string][]map[string]any{
+		"observations_read_status": {standing},
 		"clock_read_status": {
 			{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}},
 			{"status": stoppedStatus("owner-1", 1, 0, 20, 60, 0, "STOP_REASON_COLONIST_HEALTH", true)},
@@ -519,7 +519,6 @@ func TestAdvanceGameCombatContinuesPastColonistHealthStop(t *testing.T) {
 	}}
 	fq := &fakeQuery{byTool: map[string][]map[string]any{
 		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
-		"home/status":          {standing},
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, CombatTargets: []string{"hare-1"},
@@ -545,11 +544,11 @@ func TestAdvanceGameCombatContinuesPastColonistHealthStop(t *testing.T) {
 
 func TestAdvanceGameCombatHealthStopInterruptsWhenColonistDowned(t *testing.T) {
 	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
-	downed := map[string]any{
-		"blocks": map[string]any{"colonists": true, "threats": true}, "skipped": []any{},
-		"colonists": []any{map[string]any{"dead": false, "downed": true}},
-	}
+	downed := map[string]any{"observed": map[string]any{
+		"colonists": map[string]any{"pawns": []any{map[string]any{"dead": false, "downed": true}}},
+	}}
 	fw := &fakeWire{replies: map[string][]map[string]any{
+		"observations_read_status": {downed},
 		"clock_read_status": {
 			{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}},
 			{"status": stoppedStatus("owner-1", 1, 0, 20, 60, 0, "STOP_REASON_COLONIST_HEALTH", true)},
@@ -560,7 +559,6 @@ func TestAdvanceGameCombatHealthStopInterruptsWhenColonistDowned(t *testing.T) {
 	}}
 	fq := &fakeQuery{byTool: map[string][]map[string]any{
 		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
-		"home/status":          {downed},
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, CombatTargets: []string{"hare-1"},
@@ -589,7 +587,8 @@ func TestAdvanceGameFreshEpochDiagnosesFromStartReceipt(t *testing.T) {
 			// The failure's cleanup re-reads the (already stopped) clock.
 			{"status": stoppedStatus("owner-1", 11, 0, 20, 60, 12, "STOP_REASON_LETTER_PAUSE", true)},
 		},
-		"clock_start": {receipt},
+		"clock_start":              {receipt},
+		"observations_read_status": {{}},
 		"clock_read_events": {{"page": eventPage(scenarioIdentity(), 12, []map[string]any{
 			{"cursor": float64(11), "context": scenarioContext(0), "owner": map[string]any{"controllerSessionId": "owner-1", "epoch": float64(11)}, "started": map[string]any{}},
 			letterPauseEvent(12, 11, "owner-1", "letter-1"),
@@ -597,7 +596,6 @@ func TestAdvanceGameFreshEpochDiagnosesFromStartReceipt(t *testing.T) {
 	}}
 	fq := &fakeQuery{byTool: map[string][]map[string]any{
 		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
-		"home/status":          {{}},
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},

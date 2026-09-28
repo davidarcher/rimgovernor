@@ -182,7 +182,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 	// Record the undocumented tool schemas up front so they are on disk even
 	// if the run dies.
 	schemas := map[string]any{}
-	for _, name := range []string{"rimworld/play_for", "rimworld/step_game_ticks", "rimworld/set_time_speed", "rimbridge/list_logs", "rimbridge/get_bridge_status", "home/status"} {
+	for _, name := range []string{"rimworld/play_for", "rimworld/step_game_ticks", "rimworld/set_time_speed", "rimbridge/list_logs", "rimbridge/get_bridge_status"} {
 		res, err := client.Describe(ctx, name)
 		if err != nil {
 			schemas[name] = map[string]any{"error": err.Error()}
@@ -204,12 +204,16 @@ func runSoak(ctx context.Context, s cases.Session) error {
 	tl.row("game-ready", map[string]any{"status": gameStatus(ctx, client), "proc": processSample()})
 
 	tick := func(label string) (float64, error) {
-		status, err := h.Call(ctx, label, "home/status", map[string]any{"colonists": false, "threats": false})
+		reply, err := h.Wire(ctx, label, "lifecycle_read_tick", map[string]any{})
 		if err != nil {
 			return 0, err
 		}
-		t, _ := na.AsMap(status["time"])
-		return na.AsNumber(t["ticksGame"]), nil
+		_, loaded, err := na.Outcome(reply, "loaded")
+		if err != nil {
+			return 0, err
+		}
+		loadedContext, _ := na.AsMap(loaded["context"])
+		return na.AsNumber(loadedContext["tick"]), nil
 	}
 	sample := func(label string, nativeErr error, extra map[string]any) {
 		fields := map[string]any{"label": label, "status": gameStatus(ctx, client), "proc": processSample()}

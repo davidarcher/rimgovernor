@@ -667,13 +667,27 @@ func (s *ScenarioClock) Poll(ctx context.Context) ([]any, error) {
 	return AsSlice(batch["events"]), nil
 }
 
+// readSafetyStatus is observations_read_status with colonists and threats
+// on the clock's identity; complete is false when the read is not observed
+// or carries an issue.
+func readSafetyStatus(ctx context.Context, clock *ScenarioClock, label string) (observed map[string]any, complete bool, err error) {
+	reply, err := clock.Wire(ctx, label, "observations_read_status", map[string]any{
+		"scope": map[string]any{"expectedIdentity": clock.Identity}, "colonists": true, "threats": true,
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	_, observed, outcomeErr := Outcome(reply, "observed")
+	return observed, outcomeErr == nil && len(AsSlice(observed["issues"])) == 0, nil
+}
+
 // ScenarioRuntime is the minimal advance_game(rt, ...) surface a Go acceptance
 // binary needs.
 // It has no review-task/decision-loop concurrency: every acceptance binary drives
 // its scenario from one goroutine.
 type ScenarioRuntime struct {
 	// Query issues a generic native/MCP tool call (e.g. Harness.Call) for the
-	// game-observation reads AdvanceGame needs (home/colony_identity, home/status)
+	// game-observation reads AdvanceGame needs (home/colony_identity)
 	// outside the rimgovernor/* protobuf surface ScenarioClock.Wire covers.
 	Query  func(ctx context.Context, label, tool string, arguments any) (map[string]any, error)
 	Clock  *ScenarioClock
@@ -996,18 +1010,17 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 				if err := require(healthStops <= combatHealthStopsPerAdvance, "Combat health stops exhausted"); err != nil {
 					return err
 				}
-				status, err := rt.Query(ctx, "scenario-status", "home/status", map[string]any{"colonists": true, "threats": true})
+				status, complete, err := readSafetyStatus(ctx, supervisor, "scenario-status")
 				if err != nil {
 					return err
 				}
 				detail["status"] = status
-				blocks, _ := AsMap(status["blocks"])
-				colonistsBlocked, _ := blocks["colonists"].(bool)
-				if err := require(len(AsSlice(status["skipped"])) == 0 && colonistsBlocked, "Safety observation incomplete"); err != nil {
+				if err := require(complete, "Safety observation incomplete"); err != nil {
 					return err
 				}
-				standing := len(AsSlice(status["colonists"])) > 0
-				for _, raw := range AsSlice(status["colonists"]) {
+				colonists := AsSlice(dig(status, "colonists", "pawns"))
+				standing := len(colonists) > 0
+				for _, raw := range colonists {
 					pawn, ok := AsMap(raw)
 					dead, _ := pawn["dead"].(bool)
 					downed, _ := pawn["downed"].(bool)
@@ -1073,21 +1086,21 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 				"Letter attribution unavailable or repeated"); err != nil {
 				return err
 			}
-			status, err := rt.Query(ctx, "scenario-status", "home/status", map[string]any{"colonists": true, "threats": true})
+			status, complete, err := readSafetyStatus(ctx, supervisor, "scenario-status")
 			if err != nil {
 				return err
 			}
 			detail["status"] = status
-			blocks, _ := AsMap(status["blocks"])
-			colonistsBlocked, _ := blocks["colonists"].(bool)
-			threatsBlocked, _ := blocks["threats"].(bool)
-			if err := require(len(AsSlice(status["skipped"])) == 0 && colonistsBlocked && threatsBlocked, "Safety observation incomplete"); err != nil {
+			if err := require(complete, "Safety observation incomplete"); err != nil {
+				return err
+			}
+			letters, err := ReadLetters(ctx, supervisor.Wire, "scenario-status", supervisor.Identity)
+			if err != nil {
 				return err
 			}
 			var matchedLetters []map[string]any
-			for _, raw := range AsSlice(status["letters"]) {
-				row, ok := AsMap(raw)
-				if ok && AsString(row["id"]) == letterID {
+			for _, row := range letters {
+				if AsString(row["id"]) == letterID {
 					matchedLetters = append(matchedLetters, row)
 				}
 			}
@@ -1099,21 +1112,21 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 			if err := require(approved, "Letter is not approved for this scenario"); err != nil {
 				return err
 			}
-			ui, _ := AsMap(status["ui"])
-			timeStatus, _ := AsMap(status["time"])
-			modalOpen, _ := ui["modalOpen"].(bool)
-			timePaused, _ := timeStatus["paused"].(bool)
-			if err := require(!modalOpen && timePaused, "Modal or unverified pause"); err != nil {
+			pause, err := ReadPauseState(ctx, supervisor.Wire, "scenario-pause")
+			if err != nil {
 				return err
 			}
-			counts, _ := AsMap(status["counts"])
-			hostileCount, hunting := AsNumber(counts["hostileCount"]), AsNumber(counts["huntingPredatorCount"])
-			if err := require(hostileCount == 0 && hunting == 0, "Active threat"); err != nil {
+			detail["pause"] = pause
+			timePaused, _ := AsBool(pause["paused"])
+			if err := require(len(AsSlice(pause["windows"])) == 0 && timePaused, "Modal or unverified pause"); err != nil {
 				return err
 			}
-			pawns := AsSlice(status["colonists"])
+			hostiles, hunting := AsSlice(dig(status, "threats", "hostiles")), AsSlice(dig(status, "threats", "huntingPredators"))
+			if err := require(len(hostiles) == 0 && len(hunting) == 0, "Active threat"); err != nil {
+				return err
+			}
+			pawns := AsSlice(dig(status, "colonists", "pawns"))
 			allSafe := len(pawns) > 0
-			downedCount := 0
 			for _, raw := range pawns {
 				pawn, ok := AsMap(raw)
 				if !ok {
@@ -1121,17 +1134,13 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 					break
 				}
 				dead, _ := pawn["dead"].(bool)
-				bleeding, _ := pawn["bleeding"].(bool)
 				downed, _ := pawn["downed"].(bool)
-				if dead || bleeding {
-					allSafe = false
-				}
-				if downed {
-					downedCount++
+				bleeding, _ := AsBool(dig(pawn, "health", "bleeding"))
+				if dead || bleeding || downed {
 					allSafe = false
 				}
 			}
-			if err := require(allSafe && int(AsNumber(counts["downedCount"])) == downedCount && downedCount == 0, "Colonist safety unverified"); err != nil {
+			if err := require(allSafe, "Colonist safety unverified"); err != nil {
 				return err
 			}
 			now, err = rt.identityNow(ctx)

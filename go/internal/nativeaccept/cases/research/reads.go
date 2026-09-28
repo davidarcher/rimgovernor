@@ -1,5 +1,5 @@
-// The research/reads case proves typed research-project reads against the
-// legacy home/research getter and a private fingerprint fixture that proves
+// The research/reads case proves typed research-project reads, with a
+// private fingerprint fixture that proves
 // the typed read never mutates saved research state.
 package research
 
@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -188,26 +187,6 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["saved_state_unchanged"] = true
 
-	// Separate native getter audit; called only after the invariant proof above.
-	legacy, err := h.Call(ctx, "separate-native-getter-audit", "home/research", map[string]any{
-		"locked": true, "finished": true, "unlocks": true,
-	})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(legacy["success"]); !success {
-		return fmt.Errorf("legacy home/research getter refused")
-	}
-	if applied, _ := na.AsBool(legacy["applied"]); applied {
-		return fmt.Errorf("legacy home/research getter unexpectedly applied a mutation")
-	}
-	if err := compareProjects(observed, legacy); err != nil {
-		return err
-	}
-	if err := compareCapability(observed, legacy); err != nil {
-		return err
-	}
-
 	identityAfterReply, err := h.Wire(ctx, "identity-after", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return err
@@ -248,139 +227,4 @@ func fingerprintState(v map[string]any) (map[string]any, error) {
 		out[field] = val
 	}
 	return out, nil
-}
-
-func compareProjects(observed map[string]any, legacy map[string]any) error {
-	rows := na.AsSlice(observed["projects"])
-	native := map[string]map[string]any{}
-	for _, key := range []string{"available", "locked"} {
-		for _, raw := range na.AsSlice(legacy[key]) {
-			row, _ := na.AsMap(raw)
-			native[na.AsString(row["defName"])] = row
-		}
-	}
-	finished := map[string]bool{}
-	for _, raw := range na.AsSlice(legacy["finished"]) {
-		finished[na.AsString(raw)] = true
-	}
-	seen := map[string]bool{}
-	for _, raw := range rows {
-		row, _ := na.AsMap(raw)
-		project, _ := na.AsMap(row["project"])
-		name := na.AsString(project["defName"])
-		seen[name] = true
-		isFinished, _ := na.AsBool(row["finished"])
-		if isFinished != finished[name] {
-			return fmt.Errorf("project %s finished mismatch", name)
-		}
-		if isFinished {
-			canStart, _ := na.AsBool(row["canStart"])
-			available, _ := na.AsBool(row["available"])
-			if canStart || available {
-				return fmt.Errorf("finished project %s must report canStart=false and available=false", name)
-			}
-			continue
-		}
-		source, ok := native[name]
-		if !ok {
-			return fmt.Errorf("project %s missing from legacy home/research getter", name)
-		}
-		canStart, _ := na.AsBool(row["canStart"])
-		if sourceCanStart, _ := na.AsBool(source["canStartNow"]); canStart != sourceCanStart {
-			// The typed row demands a research bench the colony owns where
-			// native CanStartNow only demands one for a project that names
-			// one (#254): a benchless colony (the Core-only debug start,
-			// #332) reads locked on that reason alone.
-			if !canStart && sourceCanStart && lockedOnlyByBench(row) {
-				continue
-			}
-			return fmt.Errorf("project %s canStart mismatch", name)
-		}
-	}
-	// The typed project set must exactly account for every legacy available/locked
-	// and finished defName -- not merely a subset -- so a finished project the typed
-	// read silently dropped (or a phantom typed entry) cannot pass unnoticed.
-	for name := range native {
-		if !seen[name] {
-			return fmt.Errorf("legacy project %s missing from typed read", name)
-		}
-	}
-	for name := range finished {
-		if !seen[name] {
-			return fmt.Errorf("legacy finished project %s missing from typed read", name)
-		}
-	}
-	return nil
-}
-
-func compareCapability(observed map[string]any, legacy map[string]any) error {
-	capability, ok := na.AsMap(legacy["researchBenches"])
-	if !ok {
-		return fmt.Errorf("legacy researchBenches capability missing")
-	}
-	if readable, _ := na.AsBool(capability["readable"]); !readable {
-		return fmt.Errorf("legacy researchBenches capability not readable")
-	}
-	benches := na.AsSlice(observed["benches"])
-	nativeBenches := na.AsSlice(capability["benches"])
-	count := na.AsNumber(capability["count"])
-	if len(benches) != len(nativeBenches) || float64(len(benches)) != count {
-		return fmt.Errorf("bench count mismatch: typed=%d legacy=%d capability.count=%v", len(benches), len(nativeBenches), capability["count"])
-	}
-	benchNames := make([]string, 0, len(benches))
-	for _, raw := range benches {
-		row, _ := na.AsMap(raw)
-		building, _ := na.AsMap(row["building"])
-		def, _ := na.AsMap(building["building"])
-		benchNames = append(benchNames, na.AsString(def["defName"]))
-	}
-	nativeBenchNames := make([]string, 0, len(nativeBenches))
-	for _, raw := range nativeBenches {
-		row, _ := na.AsMap(raw)
-		nativeBenchNames = append(nativeBenchNames, na.AsString(row["defName"]))
-	}
-	sort.Strings(benchNames)
-	sort.Strings(nativeBenchNames)
-	if !na.DeepEqual(benchNames, nativeBenchNames) {
-		return fmt.Errorf("bench defName sets differ: typed=%v legacy=%v", benchNames, nativeBenchNames)
-	}
-	researchers := na.AsSlice(observed["researchers"])
-	nativeResearchers := na.AsSlice(capability["researchers"])
-	if len(researchers) != len(nativeResearchers) || len(researchers) == 0 {
-		return fmt.Errorf("researcher count mismatch or empty: typed=%d legacy=%d", len(researchers), len(nativeResearchers))
-	}
-	byPawnID := map[string]map[string]any{}
-	for _, raw := range researchers {
-		row, _ := na.AsMap(raw)
-		pawn, _ := na.AsMap(row["pawn"])
-		byPawnID[na.AsString(pawn["id"])] = row
-	}
-	for _, raw := range nativeResearchers {
-		native, _ := na.AsMap(raw)
-		// Native GetUniqueLoadID() is Thing_ + the ThingID exposed by home/research.
-		id := "Thing_" + na.AsString(native["thingId"])
-		row, ok := byPawnID[id]
-		if !ok {
-			return fmt.Errorf("researcher %s missing from typed read", id)
-		}
-		for _, field := range []string{"intellectual", "priority", "disabled", "everWork", "active"} {
-			// A legacy null (a priority never read because the pawn cannot
-			// research or has no priority table) is an unset optional on
-			// the typed side, which ProtoJSON leaves out of the row.
-			if _, present := row[field]; !present && native[field] != nil {
-				return fmt.Errorf("researcher %s missing typed field %q", id, field)
-			}
-			if !na.DeepEqual(row[field], native[field]) {
-				return fmt.Errorf("researcher %s field %q mismatch: typed=%#v legacy=%#v", id, field, row[field], native[field])
-			}
-		}
-	}
-	return nil
-}
-
-// lockedOnlyByBench reports whether the typed row's only lock reason is
-// the missing research bench (research_building_or_facilities).
-func lockedOnlyByBench(row map[string]any) bool {
-	reasons := na.AsSlice(row["lockReasons"])
-	return len(reasons) == 1 && na.AsString(reasons[0]) == "research_building_or_facilities"
 }

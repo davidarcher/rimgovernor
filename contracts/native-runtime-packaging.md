@@ -19,8 +19,7 @@ Normal startup leaves headless suppression inactive. Fixture build properties
 include only explicitly requested test sources and must produce separately
 identified artifacts. Production discovery must contain no test tools.
 
-The old projects and excluded duplicate PawnSettingsRead/StockpileFilter sources
-are removed. Active helper implementations remain in PawnConfigTool/ZoneCellsTool.
+The old projects are removed. PawnSettingsRead.cs and StockpileFilter.cs are compiled helpers.
 Native state is still owned by its current runtime components until N01.06 wires
 replacement consumers; assembly consolidation alone does not move bookkeeping
 into SQLite or establish typed contracts.

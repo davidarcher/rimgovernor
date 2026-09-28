@@ -165,8 +165,8 @@ internal static class NativeClockProbe
     private static void EventProjection()
     {
         Reset(); Start(Request()); Find.CurrentMap.mapPawns.AllPawns.Add(new Pawn { thingIDNumber = 7 });
-        HomePlayUntilEventTools.LiveLetters.Clear();
-        HomePlayUntilEventTools.LiveLetters.Add(new Letter { Id = "Letter_1", Label = "Ancient danger", def = new LetterDef { defName = "ThreatBig" } });
+        GameWatchReads.LiveLetters.Clear();
+        GameWatchReads.LiveLetters.Add(new Letter { Id = "Letter_1", Label = "Ancient danger", def = new LetterDef { defName = "ThreatBig" } });
         Supervisor.FixtureEvent("letter_pause", new() { ["letterId"] = "Letter_1", ["source"] = "LetterStack.ReceiveLetter" });
         var letter = Events().Page.Events.Last().Stopped.Pause.Letter;
         Check(letter.Id == "Letter_1" && letter.Label == "Ancient danger" && letter.DefName == "ThreatBig", "trigger letter attribution");

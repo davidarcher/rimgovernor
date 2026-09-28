@@ -51,7 +51,7 @@ type ZoneCreate struct {
 }
 
 func canonicalConnectedCells(cells []Cell) (string, error) {
-	if len(cells) == 0 || len(cells) > 256 {
+	if len(cells) == 0 {
 		return "", errors.New("invalid zone configuration")
 	}
 	rows := append([]Cell(nil), cells...)

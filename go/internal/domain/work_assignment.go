@@ -59,9 +59,6 @@ func newWorkAssignment(pawn PawnID, manual bool, settings []WorkSetting, hasArea
 		}
 		encodedSchedule = string(data)
 	}
-	if len(settings) > 256 {
-		return WorkAssignment{}, errors.New("invalid work assignment")
-	}
 	if hasArea {
 		if areaClear && areaID != "" {
 			return WorkAssignment{}, errors.New("invalid area assignment")
@@ -88,9 +85,6 @@ func newWorkAssignment(pawn PawnID, manual bool, settings []WorkSetting, hasArea
 	}
 	encodedFood := ""
 	if len(food) > 0 {
-		if len(food) > 256 {
-			return WorkAssignment{}, errors.New("food assignment exceeds bound")
-		}
 		defs := append([]string(nil), food...)
 		sort.Strings(defs)
 		for i, def := range defs {

@@ -33,9 +33,20 @@ message IdentityReply {
 // ReadIdentity reports, without its capability list, for callers that only
 // need the current load, map, tick and generation.
 message TickRequest {}
+// An open window that force-pauses the game (Window.forcePause).
+message PausingWindow {
+  optional string native_type = 1;
+  optional string title = 2;
+}
+// paused is TickManager.Paused: the speed control at Paused, or
+// force_paused (a window or other native force-pause request). time_speed
+// is TickManager.CurTimeSpeed's name.
 message LoadedTick {
   rimgovernor.common.v1.ObservationContext context = 1;
   optional bool paused = 2;
+  optional bool force_paused = 3;
+  optional string time_speed = 4;
+  repeated PausingWindow pausing_windows = 5;
 }
 message TickReply {
   oneof outcome {

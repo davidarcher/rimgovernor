@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
         }
         internal static bool Valid(Operations.CreateZone? command)
         {
-            if (command == null || command.Cells?.ExplicitCells == null || command.Cells.ExplicitCells.Cells.Count == 0 || command.Cells.ExplicitCells.Cells.Count > 256) return false;
+            if (command == null || command.Cells?.ExplicitCells == null || command.Cells.ExplicitCells.Cells.Count == 0) return false;
             var cells = command.Cells.ExplicitCells.Cells;
             if (!cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
             if (command.Type == Operations.ZoneType.Fishing)

@@ -22,10 +22,9 @@ namespace HomeBridge.BridgeTools
     internal static class NativeCaravanOperations
     {
         private static bool Valid(Operations.FormCaravanIntent? command) => command != null
-            && command.PawnIds.Count > 0 && command.PawnIds.Count <= 64
+            && command.PawnIds.Count > 0
             && command.PawnIds.All(ProtoBoundary.IsIdentifier)
             && command.PawnIds.Distinct().Count() == command.PawnIds.Count
-            && command.Cargo.Count <= 256
             && command.Cargo.All(c => c.HasDefName && ProtoBoundary.IsIdentifier(c.DefName) && c.HasCount && c.Count > 0)
             && command.Cargo.Select(c => c.DefName).Distinct().Count() == command.Cargo.Count
             && command.HasDestinationTile && command.DestinationTile >= 0;

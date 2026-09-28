@@ -60,7 +60,7 @@ namespace HomeBridge.BridgeTools
             var filter = settings.Filter;
             if (filter == null) return settings.HasPriority || settings.HasPreset;
             var selectors = filter.Allow.Concat(filter.Disallow).Concat(filter.Replace?.Selectors ?? Enumerable.Empty<Operations.FilterSelector>()).ToList();
-            if (selectors.Count > 256 || selectors.Any(s => !ValidSelector(s))) return false;
+            if (selectors.Any(s => !ValidSelector(s))) return false;
             if (filter.HasHitPointsMin != filter.HasHitPointsMax || filter.HasQualityMin != filter.HasQualityMax) return false;
             if (filter.HasHitPointsMin && (double.IsNaN(filter.HitPointsMin) || double.IsNaN(filter.HitPointsMax)
                 || filter.HitPointsMin < 0 || filter.HitPointsMax > 1 || filter.HitPointsMin > filter.HitPointsMax)) return false;

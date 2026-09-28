@@ -11,7 +11,7 @@ namespace HomeBridge.BridgeTools
     public sealed class ProtoIdentityTools
     {
         [Tool("rimgovernor/lifecycle_read_tick", Title = "Read native tick",
-            Description = "Read the current colony, load, map, tick, generation and pause state without the capability list.")]
+            Description = "Read the current colony, load, map, tick, generation and pause state (force pause, time speed, force-pausing windows) without the capability list.")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.TickReply.", Always = true)]
         public async Task<object> ReadTick(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle TickRequest ProtoJSON string.")] object? request = null)
@@ -24,7 +24,25 @@ namespace HomeBridge.BridgeTools
             {
                 if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
                     return new Lifecycle.TickReply { Unavailable = unavailable };
-                return new Lifecycle.TickReply { Loaded = new Lifecycle.LoadedTick { Context = context, Paused = Find.TickManager.Paused } };
+                var tickManager = Find.TickManager;
+                var loaded = new Lifecycle.LoadedTick
+                {
+                    Context = context, Paused = tickManager.Paused, ForcePaused = tickManager.ForcePaused,
+                    TimeSpeed = tickManager.CurTimeSpeed.ToString()
+                };
+                var windows = Find.WindowStack?.Windows;
+                if (windows != null)
+                {
+                    foreach (var window in windows)
+                    {
+                        if (window == null || !window.forcePause) continue;
+                        loaded.PausingWindows.Add(new Lifecycle.PausingWindow
+                        {
+                            NativeType = window.GetType().FullName ?? "", Title = window.optionalTitle ?? ""
+                        });
+                    }
+                }
+                return new Lifecycle.TickReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);
         }
 

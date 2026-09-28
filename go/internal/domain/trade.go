@@ -144,8 +144,8 @@ func newTrade(kind TradeOperationKind, trader, negotiator string, giftMode bool,
 		if giftMode || expectedDealSignature != "" || len(floors) != 0 || allowEmpty || endKind != "" || receiveQuest {
 			return Trade{}, errors.New("set trade lines carries no other operation's fields")
 		}
-		if len(lines) == 0 || len(lines) > 256 {
-			return Trade{}, errors.New("set trade lines requires a nonempty bounded line list")
+		if len(lines) == 0 {
+			return Trade{}, errors.New("set trade lines requires a nonempty line list")
 		}
 	case TradeAccept:
 		if giftMode || len(lines) != 0 || allowPawns || endKind != "" {
@@ -153,9 +153,6 @@ func newTrade(kind TradeOperationKind, trader, negotiator string, giftMode bool,
 		}
 		if !validID(expectedDealSignature) {
 			return Trade{}, errors.New("accept trade requires an expected deal signature")
-		}
-		if len(floors) > 256 {
-			return Trade{}, errors.New("accept trade economic floors exceed bound")
 		}
 	case TradeEnd:
 		if giftMode || len(lines) != 0 || allowPawns || expectedDealSignature != "" || len(floors) != 0 || allowEmpty {

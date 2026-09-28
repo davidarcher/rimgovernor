@@ -81,9 +81,6 @@ type StockpileFilter struct {
 }
 
 func canonicalSelectors(rows []FilterSelector) (string, []FilterSelector, error) {
-	if len(rows) > 32 {
-		return "", nil, errors.New("too many filter selectors")
-	}
 	if len(rows) == 0 {
 		return "", nil, nil
 	}

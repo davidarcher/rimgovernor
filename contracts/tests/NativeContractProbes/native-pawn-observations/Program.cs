@@ -222,7 +222,7 @@ internal static class NativePawnObservationsProbe
         // Regression guard: Social() must never mutate the underlying relation/thought
         // fixtures (i.e. never call Pawn_RelationsTracker.OpinionOf or recalculate
         // situational thoughts, both of which delete/recreate memories as a side effect
-        // in real RimWorld -- see PawnConfigTool's class remarks).
+        // in real RimWorld -- see PawnSettingsRead's class remarks).
         Check(adaDirectRelations.Count==1&&ReferenceEquals(((IList)relTrackerT.GetField("directRelations",Flags)!.GetValue(adaTracker)!)[0],rivalRelation),"direct relation fixture is unchanged after Social()");
         Check(ReferenceEquals(memHandlerT.GetField("memories",Flags)!.GetValue(memHandlerInst),memoriesList)&&memoriesList is IList{Count:0},"memories list reference and emptiness unchanged after Social()");
         Check(ReferenceEquals(sitHandlerT.GetField("cachedThoughts",Flags)!.GetValue(sitHandlerInst),cachedThoughtsList)&&cachedThoughtsList is IList{Count:0},"cached situational thoughts reference and emptiness unchanged after Social()");

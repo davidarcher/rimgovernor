@@ -30,8 +30,5 @@ func FoodPolicyChanges(pawn WorkPawn) []string {
 	}
 	slices.Sort(defs)
 	defs = slices.Compact(defs)
-	if len(defs) > 256 {
-		defs = defs[:256]
-	}
 	return defs
 }

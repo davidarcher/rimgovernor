@@ -83,7 +83,7 @@ namespace HomeBridge.BridgeTools
                         && p.CanReach(b, PathEndMode.Touch, Danger.None)).Select(p => p.ThingID).ToList(),
                     progress = b.GetComp<CompDeepDrill>().ProgressToNextPortionPercent }).ToList();
             return new { definitions, scannersActive, scanners, deposits, drills,
-                flickWorkType = ExtractionDevelopment.FlickWork == null ? null : HomeBillsTools.WorkTypeMetadata(ExtractionDevelopment.FlickWork),
+                flickWorkType = ExtractionDevelopment.FlickWork == null ? null : ExtractionDevelopment.WorkTypeMetadata(ExtractionDevelopment.FlickWork),
                 sites = development ? ExtractionDevelopment.Sites(map, resource) : new List<object>(),
                 owned = MiningGuard.State().Drills.Where(r => r.MapId == map.uniqueID && r.Resource == resource)
                     .Select(r => new { defName = r.Definition, thingId = r.ThingId, pendingId = r.PendingId, x = r.X, z = r.Z, recovered = r.Recovered,
@@ -120,7 +120,7 @@ namespace HomeBridge.BridgeTools
                 deepPortion = (int)Math.Ceiling(def.deepCountPerPortion * map.mapPawns.FreeColonistsSpawned
                     .Where(p => ExtractionDevelopment.Worker(p, WorkTypeDefOf.Mining)).Select(p => p.GetStatValue(StatDefOf.MiningYield)).DefaultIfEmpty(1f).Max()),
                 candidates = candidates.Select(c => new { x = c.x, z = c.z }).ToList(),
-                workType = HomeBillsTools.WorkTypeMetadata(WorkTypeDefOf.Hauling) };
+                workType = ExtractionDevelopment.WorkTypeMetadata(WorkTypeDefOf.Hauling) };
         }
         [Tool("home/resource_sources", Title = "Reachable native resource sources",
             Description = "Up to 40 visible nearby safely reachable native mining or mature wild-plant sources for an exact output resource. Normal yields are estimates; pawn work must produce actual stock. Existing growing zones are excluded.")]
@@ -138,7 +138,7 @@ namespace HomeBridge.BridgeTools
                 var rows = eligible.OrderByDescending(t => Designated(t)).ThenBy(Distance)
                     .ThenBy(t => t.thingIDNumber).Take(40).Select(t => new { thingId = t.ThingID,
                         sourceId = MiningGuard.State().Records.FirstOrDefault(r => r.MapId == map.uniqueID && r.ThingId == t.ThingID)?.SourceId ?? t.ThingID,
-                        resource, workTypes = new[] { HomeBillsTools.WorkTypeMetadata(
+                        resource, workTypes = new[] { ExtractionDevelopment.WorkTypeMetadata(
                             t is Mineable ? WorkTypeDefOf.Mining : WorkTypeDefOf.PlantCutting) },
                         distance = Distance(t), safety = t is Mineable ? "open_surface" : "native_eligible",
                         x = t.Position.x, z = t.Position.z, designated = Designated(t), hitPoints = t.HitPoints,

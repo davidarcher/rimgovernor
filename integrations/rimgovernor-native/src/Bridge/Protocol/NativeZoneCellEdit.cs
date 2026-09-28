@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
             if (intent == null || !intent.HasZoneId || !ProtoBoundary.IsIdentifier(intent.ZoneId)) return false;
             if (!intent.HasEdit || (intent.Edit != Operations.CellEdit.Add && intent.Edit != Operations.CellEdit.Remove)) return false;
             var cells = intent.Cells?.ExplicitCells?.Cells;
-            if (cells == null || cells.Count == 0 || cells.Count > 256) return false;
+            if (cells == null || cells.Count == 0) return false;
             if (!cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0)) return false;
             return cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() == cells.Count;
         }

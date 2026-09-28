@@ -110,8 +110,8 @@ func TestFinalizeWithoutABudgetPasses(t *testing.T) {
 
 func TestTickObservationCountsForwardProgressOnly(t *testing.T) {
 	ResetTickStats()
-	observeReply(t, "home/status", map[string]any{"time": map[string]any{"ticksGame": 500.0}})
-	observeReply(t, "home/status", map[string]any{"time": map[string]any{"ticksGame": 800.0}})
+	observeReply(t, "home/colony_facts", map[string]any{"tick": 500.0})
+	observeReply(t, "home/colony_facts", map[string]any{"tick": 800.0})
 	// A rewind (an older save loaded without a load tool passing through
 	// the harness) re-baselines without counting.
 	observeReply(t, "home/colony_facts", map[string]any{"tick": 100.0})
@@ -170,7 +170,7 @@ func wireReply(message string) map[string]any { return map[string]any{"payload":
 
 func TestReplyTickIgnoresRepliesWithoutOne(t *testing.T) {
 	for tool, payload := range map[string]map[string]any{
-		"home/status":                           {"time": map[string]any{}},
+		"home/colony_facts":                     {},
 		"rimworld/set_time_speed":               {"success": true},
 		"rimgovernor/authority_read_status":     wireReply(`{"status":{"owner":"controller"}}`),
 		"rimgovernor/lifecycle_read_identity":   {"payload": 7},

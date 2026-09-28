@@ -66,14 +66,6 @@ func allowListZone(priority StockpilePriority, allow []string, cells []Cell) (Zo
 	return NewFilteredStockpileZone(f, priority, cells)
 }
 
-func thirtyThree() []string {
-	var out []string
-	for i := 0; i < 33; i++ {
-		out = append(out, "Def"+string(rune('A'+i)))
-	}
-	return out
-}
-
 func allowOf(z ZoneCreate) []string {
 	names, _ := z.Filter().AllowOnlyDefinitions()
 	return names
@@ -138,7 +130,6 @@ func TestAllowListStockpileZoneCanonicalAndBounded(t *testing.T) {
 	}{
 		{"urgent", names},
 		{ImportantPriority, nil},
-		{ImportantPriority, thirtyThree()},
 	} {
 		if _, err := allowListZone(bad.priority, bad.allow, cells); err == nil {
 			t.Fatal(bad)

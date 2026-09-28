@@ -194,19 +194,13 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 }
 
 // sendCombatBatch sends one combat.orders batch under action: a draft
-// order for each of drafts (#910), then orders, cut to the batch bound.
+// order for each of drafts (#910), then orders.
 // It returns every order's result in that order (nil for an uncertain
 // receipt) and the orders sent.
 func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state ControlState, action string, drafts []domain.PawnID, orders []policy.CombatOrder) ([]bridge.CombatOrderResult, []policy.CombatOrder, error) {
 	session, err := r.reviewer.player.journal.Identity(call)
 	if err != nil {
 		return nil, nil, err
-	}
-	if len(drafts) > bridge.MaxCombatOrders {
-		return nil, nil, fmt.Errorf("%w: sendCombatBatch: len(drafts) > bridge.MaxCombatOrders", ErrControl)
-	}
-	if room := bridge.MaxCombatOrders - len(drafts); len(orders) > room {
-		orders = orders[:room]
 	}
 	command := &op.CombatOrders{}
 	for _, pawn := range drafts {

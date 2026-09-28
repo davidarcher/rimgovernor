@@ -1,11 +1,11 @@
 // The rooms/reads case proves typed room reads (geometry, native stats,
-// contents, cells) against the legacy home/list_rooms getter on the lab.
+// contents, cells) on the lab: CAS snapshots, exact-id, cell and boundary
+// lookups agree with each other and each room's cells with its own extents.
 package rooms
 
 import (
 	"context"
 	"fmt"
-	"math"
 	"os"
 	"sort"
 	"time"
@@ -45,19 +45,6 @@ func run(ctx context.Context, s cases.Session) error {
 	identity, _ := beforeContext["identity"].(map[string]any)
 	scope := map[string]any{"scope": map[string]any{"expectedIdentity": identity}}
 
-	legacy, err := h.Call(ctx, "native-default", "home/list_rooms", map[string]any{"cells": true})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(legacy["success"]); !success {
-		return fmt.Errorf("legacy home/list_rooms refused")
-	}
-	nativeByID := map[string]map[string]any{}
-	for _, raw := range na.AsSlice(legacy["rooms"]) {
-		row, _ := na.AsMap(raw)
-		nativeByID[fmt.Sprint(row["id"])] = row
-	}
-
 	defaultReply, err := h.Wire(ctx, "typed-default", "observations_list_rooms", scope)
 	if err != nil {
 		return err
@@ -67,17 +54,13 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	rooms := na.AsSlice(defaultObserved["rooms"])
-	if len(rooms) != len(nativeByID) {
-		return fmt.Errorf("typed room count %d does not match legacy count %d", len(rooms), len(nativeByID))
+	if len(rooms) == 0 {
+		return fmt.Errorf("typed room read returned no rooms")
 	}
 	var candidates []map[string]any
 	for _, raw := range rooms {
 		row, _ := na.AsMap(raw)
-		native, ok := nativeByID[na.AsString(row["id"])]
-		if !ok {
-			return fmt.Errorf("typed room %s missing from legacy home/list_rooms", row["id"])
-		}
-		if err := compareRoom(row, native, false); err != nil {
+		if err := checkRoom(row, false); err != nil {
 			return err
 		}
 		properRoom, _ := na.AsBool(row["properRoom"])
@@ -114,7 +97,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("exact room selection did not return exactly one room")
 	}
 	selectedRow, _ := na.AsMap(selectedRows[0])
-	if err := compareRoom(selectedRow, nativeByID[targetID], true); err != nil {
+	if err := checkRoom(selectedRow, true); err != nil {
 		return err
 	}
 	repeatReply, err := h.Wire(ctx, "repeat", "observations_list_rooms", exactRequest)
@@ -153,21 +136,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("unknown room id unexpectedly matched a room")
 	}
 
-	nativeBoundaryReply, err := h.Call(ctx, "native-boundary", "home/list_rooms", map[string]any{"includeBoundary": true, "cells": true})
-	if err != nil {
-		return err
-	}
-	nativeBoundaryByID := map[string]map[string]any{}
-	for _, raw := range na.AsSlice(nativeBoundaryReply["rooms"]) {
-		row, _ := na.AsMap(raw)
-		// legacy home/list_rooms encodes id as a raw JSON number (Room.ID is an int
-		// counter per the tool's own "ids" note), not a string like the typed proto
-		// read's id field. na.AsString only unwraps JSON strings and silently returns
-		// "" for a number, which collapsed every room here onto one empty-string key
-		// and made every real lookup miss. fmt.Sprint normalizes either JSON shape,
-		// matching how nativeByID is keyed above.
-		nativeBoundaryByID[fmt.Sprint(row["id"])] = row
-	}
 	boundaryReply, err := h.Wire(ctx, "typed-boundary", "observations_list_rooms", na.Merge(exactRequest, map[string]any{"includeBoundary": true}))
 	if err != nil {
 		return err
@@ -181,7 +149,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("typed boundary read did not return exactly one room")
 	}
 	boundaryRow, _ := na.AsMap(boundaryRows[0])
-	if err := compareRoom(boundaryRow, nativeBoundaryByID[targetID], true); err != nil {
+	if err := checkRoom(boundaryRow, true); err != nil {
 		return err
 	}
 	if sumUnits(boundaryRow["contents"]) <= sumUnits(target["contents"]) {
@@ -225,7 +193,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := na.CheckStartupLog(string(logData), s.Config().Headless); err != nil {
 		return err
 	}
-	report["rooms"] = len(nativeByID)
+	report["rooms"] = len(rooms)
 	report["indoor_room"] = targetID
 	report["indoor_cells"] = int(na.AsNumber(target["cellCount"]))
 	return nil
@@ -240,54 +208,23 @@ func sumUnits(v any) float64 {
 	return total
 }
 
-// compareRoom validates one typed room row's CAS snapshot and its native-comparable
-// fields against home/list_rooms's legacy row. Cell-level geometry is only compared
-// when includeCells/includeBoundary was requested (cells param true).
-func compareRoom(row, native map[string]any, cells bool) error {
-	if native == nil {
-		return fmt.Errorf("legacy room row missing for comparison")
-	}
+// checkRoom validates one typed room row's CAS snapshot and, when
+// includeCells/includeBoundary was requested, its cell geometry against its
+// own cellCount, center and extents.
+func checkRoom(row map[string]any, cells bool) error {
 	if err := na.RequireSnapshot(row["snapshot"]); err != nil {
 		return fmt.Errorf("room %v missing a populated CAS snapshot: %w", row["id"], err)
 	}
-	pairs := map[string]string{
-		"role": "role", "properRoom": "properRoom", "doorway": "isDoorway", "outdoors": "outdoors",
-		"psychologicallyOutdoors": "psychologicallyOutdoors", "touchesMapEdge": "touchesMapEdge",
-		"fogged": "fogged", "openRoofCount": "openRoofCount", "cellCount": "cellCount",
-	}
-	for typedKey, nativeKey := range pairs {
-		if !equalLoose(row[typedKey], native[nativeKey]) {
-			return fmt.Errorf("room %v field %s mismatch: typed=%v native=%v", row["id"], typedKey, row[typedKey], native[nativeKey])
+	for _, field := range []string{"role", "properRoom", "doorway", "outdoors", "psychologicallyOutdoors", "touchesMapEdge", "fogged", "openRoofCount", "cellCount", "temperatureC"} {
+		if _, ok := row[field]; !ok {
+			return fmt.Errorf("room %v lacks %s", row["id"], field)
 		}
-	}
-	temperature := na.AsNumber(row["temperatureC"])
-	nativeTemperature := na.AsNumber(native["temperature"])
-	if math.Abs(temperature-nativeTemperature) > 0.050001 {
-		return fmt.Errorf("room %v temperature mismatch: typed=%v native=%v", row["id"], temperature, nativeTemperature)
-	}
-	if na.AsNumber(native["contentsNotListed"]) != 0 {
-		return fmt.Errorf("room %v native contentsNotListed must be zero for a comparable read", row["id"])
-	}
-	if len(na.AsSlice(row["beds"])) != int(na.AsNumber(native["bedCount"])) {
-		return fmt.Errorf("room %v bed count mismatch", row["id"])
-	}
-	if len(na.AsSlice(row["pawns"])) != int(na.AsNumber(native["pawnCount"])) {
-		return fmt.Errorf("room %v pawn count mismatch", row["id"])
 	}
 	if cells {
-		if complete, _ := na.AsBool(native["cellsComplete"]); !complete {
-			return fmt.Errorf("room %v native cellsComplete must be true for a comparable read", row["id"])
-		}
-		if na.AsNumber(native["cellsNotListed"]) != 0 {
-			return fmt.Errorf("room %v native cellsNotListed must be zero for a comparable read", row["id"])
-		}
 		actual := na.AsSlice(row["cells"])
 		actualCoords := roomCoordinates(actual)
 		if len(actual) != int(na.AsNumber(row["cellCount"])) {
 			return fmt.Errorf("room %v returned cell count does not match cellCount", row["id"])
-		}
-		if !equalCoordSets(actualCoords, roomCoordinates(na.AsSlice(native["cells"]))) {
-			return fmt.Errorf("room %v typed cells do not match native cells", row["id"])
 		}
 		if len(actualCoords) != len(dedupeCoords(actualCoords)) {
 			return fmt.Errorf("room %v returned cells contain a duplicate coordinate", row["id"])
@@ -346,29 +283,6 @@ func containsCoord(coords [][2]float64, want [2]float64) bool {
 	return false
 }
 
-func equalCoordSets(a, b [][2]float64) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	sortCoords := func(s [][2]float64) [][2]float64 {
-		out := append([][2]float64{}, s...)
-		sort.Slice(out, func(i, j int) bool {
-			if out[i][0] != out[j][0] {
-				return out[i][0] < out[j][0]
-			}
-			return out[i][1] < out[j][1]
-		})
-		return out
-	}
-	sa, sb := sortCoords(a), sortCoords(b)
-	for i := range sa {
-		if sa[i] != sb[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func roomExtent(coords [][2]float64) (minX, minZ, maxX, maxZ float64) {
 	if len(coords) == 0 {
 		return 0, 0, 0, 0
@@ -390,24 +304,4 @@ func roomExtent(coords [][2]float64) (minX, minZ, maxX, maxZ float64) {
 		}
 	}
 	return minX, minZ, maxX, maxZ
-}
-
-func equalLoose(a, b any) bool {
-	if af, aok := numeric(a); aok {
-		if bf, bok := numeric(b); bok {
-			return af == bf
-		}
-	}
-	return na.DeepEqual(a, b)
-}
-
-func numeric(v any) (float64, bool) {
-	switch n := v.(type) {
-	case float64:
-		return n, true
-	case int:
-		return float64(n), true
-	default:
-		return 0, false
-	}
 }

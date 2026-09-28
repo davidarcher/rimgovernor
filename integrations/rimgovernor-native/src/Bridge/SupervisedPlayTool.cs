@@ -128,9 +128,7 @@ namespace HomeBridge.BridgeTools
                 EnsureJournal();
                 if (_state != null && _state.Active)
                     return Failure("A supervisor is already active; pause it with its owner and epoch first.");
-                if (HomePlayUntilEventTools.ShortGuardRunning)
-                    return Failure("play_until_event is active; wait for that short guard to return before starting supervision.");
-                if (!HomePlayUntilEventTools.CoreWatchersAvailable)
+                if (!GameWatchReads.CoreWatchersAvailable)
                     return Failure("Alert or transient-message reflection watcher is unavailable; refusing blind play.");
                 if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
                     return Failure("No playable map is loaded.");
@@ -179,11 +177,11 @@ namespace HomeBridge.BridgeTools
                 { InjuryStops.Clear(); _priorEpochConsciousHostiles = 0; _injuryStopsSession = Current.Game; }
                 // Alerts are baselined like letters and messages, by the stable
                 // key, so a count suffix moving cannot look like a new alert.
-                foreach (var a in HomePlayUntilEventTools.ActiveAlertKeys(AlertPriority.High, null))
+                foreach (var a in GameWatchReads.ActiveAlertKeys(AlertPriority.High, null))
                     if (s.AlertKeys.Add(a.Key)) s.BaselineAlerts.Add(AlertRow(a));
-                foreach (var l in HomePlayUntilEventTools.Letters()) s.Letters.Add(HomePlayUntilEventTools.SafeLetterId(l));
-                foreach (var m in HomePlayUntilEventTools.LiveMessages()) s.Messages.Add(HomePlayUntilEventTools.SafeMessageId(m));
-                foreach (var p in HomePlayUntilEventTools.SpawnedPawns(Find.CurrentMap).Where(HomePlayUntilEventTools.SafeIsColonist))
+                foreach (var l in GameWatchReads.Letters()) s.Letters.Add(GameWatchReads.SafeLetterId(l));
+                foreach (var m in GameWatchReads.LiveMessages()) s.Messages.Add(GameWatchReads.SafeMessageId(m));
+                foreach (var p in GameWatchReads.SpawnedPawns(Find.CurrentMap).Where(GameWatchReads.SafeIsColonist))
                 {
                     s.Injuries[p.thingIDNumber] = InjurySnapshot.Capture(p);
                     var owed = InjuryCooldownRemainingMs(p.thingIDNumber, s.InjuryStopCooldownMs);
@@ -191,7 +189,7 @@ namespace HomeBridge.BridgeTools
                     if (owed <= 0 && !acked) continue;
                     s.SuppressedInjuries.Add(new Dictionary<string, object?> {
                         { "pawnId", p.thingIDNumber },
-                        { "pawnName", HomePlayUntilEventTools.SafeName(p) },
+                        { "pawnName", GameWatchReads.SafeName(p) },
                         { "reason", owed > 0 ? "cooldown" : "acknowledged" },
                         { "secondsRemaining", (int)((owed + 999) / 1000) } });
                 }
@@ -443,9 +441,9 @@ namespace HomeBridge.BridgeTools
         {
             var stack = Find.LetterStack;
             if (stack == null) return;
-            foreach (var l in HomePlayUntilEventTools.Letters())
+            foreach (var l in GameWatchReads.Letters())
             {
-                if (!DismissibleLetter(l.GetType() == typeof(StandardLetter), s.Letters.Contains(HomePlayUntilEventTools.SafeLetterId(l)),
+                if (!DismissibleLetter(l.GetType() == typeof(StandardLetter), s.Letters.Contains(GameWatchReads.SafeLetterId(l)),
                     tm.TicksGame, SafeArrivalTick(l))) continue;
                 stack.RemoveLetter(l);
             }
@@ -558,7 +556,7 @@ namespace HomeBridge.BridgeTools
             {
                 var tm = Find.TickManager;
                 if (tm == null) return result;
-                foreach (var l in HomePlayUntilEventTools.Letters())
+                foreach (var l in GameWatchReads.Letters())
                 {
                     if (l == null || l.def == null) continue;
                     if ((int)Prefs.AutomaticPauseMode < (int)l.def.pauseMode) continue;
@@ -798,9 +796,9 @@ namespace HomeBridge.BridgeTools
         private static Hit? Probe(State s)
         {
             var newLetters = new List<Dictionary<string, object?>>();
-            foreach (var l in HomePlayUntilEventTools.Letters())
+            foreach (var l in GameWatchReads.Letters())
             {
-                var id = HomePlayUntilEventTools.SafeLetterId(l);
+                var id = GameWatchReads.SafeLetterId(l);
                 if (!s.Letters.Add(id)) continue;
                 var label = l.Label.ToString();
                 // Ordinary announcements -- neutral, positive AND negative (a
@@ -821,14 +819,14 @@ namespace HomeBridge.BridgeTools
                     { "letterDef", l.def != null ? l.def.defName : null }, { "arrivalTick", SafeArrivalTick(l) } });
             }
             var newMessages = new List<Dictionary<string, object?>>();
-            foreach (var m in HomePlayUntilEventTools.LiveMessages())
+            foreach (var m in GameWatchReads.LiveMessages())
             {
-                var id = HomePlayUntilEventTools.SafeMessageId(m);
+                var id = GameWatchReads.SafeMessageId(m);
                 if (!s.Messages.Add(id)) continue;
-                var type = HomePlayUntilEventTools.SafeMessageType(m);
-                var text = HomePlayUntilEventTools.SafeMessageText(m) ?? "Transient message";
+                var type = GameWatchReads.SafeMessageType(m);
+                var text = GameWatchReads.SafeMessageText(m) ?? "Transient message";
                 var payload = new Dictionary<string, object?> { { "id", id }, { "messageType", type },
-                    { "text", text }, { "startingTick", HomePlayUntilEventTools.SafeMessageTick(m) } };
+                    { "text", text }, { "startingTick", GameWatchReads.SafeMessageTick(m) } };
                 // Same rule for the transient top-left messages: only
                 // ThreatBig, ThreatSmall, PawnDeath and an unknown type stop.
                 if (type != null && NonStoppingMessageTypes.Contains(type))
@@ -856,10 +854,10 @@ namespace HomeBridge.BridgeTools
             }
             // An alert never stops play; a new one is a message. The key set only
             // grows within an epoch, so an alert that flaps cannot re-report.
-            foreach (var a in HomePlayUntilEventTools.ActiveAlertKeys(AlertPriority.High, null))
+            foreach (var a in GameWatchReads.ActiveAlertKeys(AlertPriority.High, null))
                 if (s.AlertKeys.Add(a.Key)) Add("alert_new", a.Value, s, AlertRow(a));
-            var pawns = HomePlayUntilEventTools.SpawnedPawns(Find.CurrentMap);
-            var colonists = pawns.Where(HomePlayUntilEventTools.SafeIsColonist).ToList();
+            var pawns = GameWatchReads.SpawnedPawns(Find.CurrentMap);
+            var colonists = pawns.Where(GameWatchReads.SafeIsColonist).ToList();
             // A resting patient who is no longer eligible needs a fresh
             // medical review, not a stopped clock (#584): the watch is
             // discharged, the medical facts are invalidated and the planner
@@ -876,23 +874,23 @@ namespace HomeBridge.BridgeTools
             foreach (var p in pawns)
             {
                 string why;
-                if (!HomePlayUntilEventTools.SafeIsColonist(p)
-                    && !HomePlayUntilEventTools.SafeDowned(p) && !HomePlayUntilEventTools.SafeDead(p)
-                    && HomePlayUntilEventTools.IsHostile(p, out why)
+                if (!GameWatchReads.SafeIsColonist(p)
+                    && !GameWatchReads.SafeDowned(p) && !GameWatchReads.SafeDead(p)
+                    && GameWatchReads.IsHostile(p, out why)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= s.HostileWithin))
                     return PawnHit("hostile", p, why, SpawnedTick(p));
-                if (HomePlayUntilEventTools.SafeIsColonist(p)
-                    && (HomePlayUntilEventTools.SafeDowned(p) || HomePlayUntilEventTools.SafeDead(p))
+                if (GameWatchReads.SafeIsColonist(p)
+                    && (GameWatchReads.SafeDowned(p) || GameWatchReads.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber)
                     && !SafeSurgicalRecovery(s, p)
                     && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p)))
-                    return PawnHit("colonist_downed", p, HomePlayUntilEventTools.SafeDead(p) ? "dead" : "downed", DownedTick(p));
+                    return PawnHit("colonist_downed", p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
                 if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= 40))
                     return PawnHit("predator_hunt", p, "PredatorHunt targeting colony property or unreadable prey within 40 cells", JobStartTick(p));
-                if (HomePlayUntilEventTools.SafeIsColonist(p))
+                if (GameWatchReads.SafeIsColonist(p))
                 {
                     if (p.CurJobDef == JobDefOf.Hunt)
                     {
@@ -906,7 +904,7 @@ namespace HomeBridge.BridgeTools
                         if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey)
                             && HuntingSafety.Withdraw(p, prey))
                             Add("observation_invalidated", "Observed facts changed: unsafe hunt of "
-                                + HomePlayUntilEventTools.SafeName(prey) + " withdrawn.", s,
+                                + GameWatchReads.SafeName(prey) + " withdrawn.", s,
                                 new Dictionary<string, object?> {
                                     { "families", new List<string> { "colony", "pawns" } },
                                     { "reason", "hunting route unsafe; hunt of " + prey.thingIDNumber + " by " + p.thingIDNumber + " withdrawn" } });
@@ -938,12 +936,12 @@ namespace HomeBridge.BridgeTools
                         && HealthThresholdCrossed(s, before, after))
                     {
                         var health = new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
-                                { "pawnName", HomePlayUntilEventTools.SafeName(p) },
+                                { "pawnName", GameWatchReads.SafeName(p) },
                                 { "position", Position(p) }, { "healthAtStart", before.Health },
                                 { "healthNow", after.Health }, { "minHealthFraction", s.MinHealthFraction },
                                 { "healthDropFraction", s.HealthDropFraction } };
                         if (after.NewestWoundAgeTicks != int.MaxValue) health["occurrenceTick"] = tick - after.NewestWoundAgeTicks;
-                        return new Hit("colonist_health", HomePlayUntilEventTools.SafeName(p)
+                        return new Hit("colonist_health", GameWatchReads.SafeName(p)
                             + " crossed a combat health threshold.", health);
                     }
                     if (before != null
@@ -953,7 +951,7 @@ namespace HomeBridge.BridgeTools
                             || after.BloodLoss > before.BloodLoss + 0.001f))
                     {
                         var payload = new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
-                                { "pawnName", HomePlayUntilEventTools.SafeName(p) },
+                                { "pawnName", GameWatchReads.SafeName(p) },
                                 { "position", Position(p) }, { "injuryCountBefore", before.Count },
                                 { "injuryCountAfter", after.Count }, { "severityBefore", before.Severity },
                                 { "severityAfter", after.Severity }, { "bleedRateBefore", before.BleedRate },
@@ -1003,7 +1001,7 @@ namespace HomeBridge.BridgeTools
                             RecordInjuryStop(p);
                             return new Hit("colonist_injury", InjuryDetail(s, p, before, after), payload);
                         }
-                        Add("injury_observed", HomePlayUntilEventTools.SafeName(p)
+                        Add("injury_observed", GameWatchReads.SafeName(p)
                             + (suppressed
                                 ? (acknowledged
                                     ? " took another injury; play continues under the configured injury acknowledgement."
@@ -1015,7 +1013,7 @@ namespace HomeBridge.BridgeTools
                                         ? " took a sub-threshold combat injury; play continues."
                                         : " has a known wound worsening (blood loss/severity creep); play continues.")), s, payload);
                         if (demoted) InvalidateMedicalFacts(s, p.thingIDNumber,
-                            HomePlayUntilEventTools.SafeName(p) + " took a new wound under the severity floor");
+                            GameWatchReads.SafeName(p) + " took a new wound under the severity floor");
                         // Both modes deliberately coalesce ordinary damage into
                         // durable observations instead of pause storms.
                         after.Health = before.Health; // retain start-of-session health baseline
@@ -1043,14 +1041,14 @@ namespace HomeBridge.BridgeTools
         {
             var conscious = 0;
             var downed = new List<Pawn>();
-            var colonistsNear = pawns.Where(HomePlayUntilEventTools.SafeIsColonist).ToList();
+            var colonistsNear = pawns.Where(GameWatchReads.SafeIsColonist).ToList();
             foreach (var p in pawns)
             {
                 string why;
-                if (p == null || HomePlayUntilEventTools.SafeIsColonist(p)) continue;
-                if (HomePlayUntilEventTools.SafeDead(p)) continue;
-                var hostile = HomePlayUntilEventTools.IsHostile(p, out why);
-                if (HomePlayUntilEventTools.SafeDowned(p))
+                if (p == null || GameWatchReads.SafeIsColonist(p)) continue;
+                if (GameWatchReads.SafeDead(p)) continue;
+                var hostile = GameWatchReads.IsHostile(p, out why);
+                if (GameWatchReads.SafeDowned(p))
                 {
                     // A downed manhunter loses its mental state and a wild animal
                     // has no faction, so IsHostile can read false on the ground.
@@ -1070,8 +1068,8 @@ namespace HomeBridge.BridgeTools
             _priorEpochConsciousHostiles = conscious;
             if (conscious > 0) { s.HostilesCleared = false; return; }
             if (before <= 0 || s.HostilesCleared) return;
-            var drafted = pawns.Where(p => p != null && HomePlayUntilEventTools.SafeIsColonist(p)
-                && !HomePlayUntilEventTools.SafeDowned(p) && !HomePlayUntilEventTools.SafeDead(p)
+            var drafted = pawns.Where(p => p != null && GameWatchReads.SafeIsColonist(p)
+                && !GameWatchReads.SafeDowned(p) && !GameWatchReads.SafeDead(p)
                 && SafeDrafted(p)).ToList();
             // Across a restart, only fire when there is something left to do.
             if (first && downed.Count == 0 && drafted.Count == 0) return;
@@ -1079,22 +1077,22 @@ namespace HomeBridge.BridgeTools
             var parts = new List<string>();
             if (downed.Count > 0)
                 parts.Add(downed.Count + " downed (" + string.Join("; ", downed
-                    .Select(p => HomePlayUntilEventTools.SafeName(p) + " at "
+                    .Select(p => GameWatchReads.SafeName(p) + " at "
                         + p.Position.x + "," + p.Position.z).ToArray())
                     + ")");
             if (drafted.Count > 0)
                 parts.Add(drafted.Count + " colonist" + (drafted.Count == 1 ? "" : "s")
                     + " still drafted (" + string.Join(", ", drafted
-                        .Select(HomePlayUntilEventTools.SafeName).ToArray()) + ")");
+                        .Select(GameWatchReads.SafeName).ToArray()) + ")");
             Add("hostiles_cleared", "No conscious hostiles remain: "
                 + (parts.Count > 0 ? string.Join("; ", parts.ToArray())
                     : "nothing downed and nobody drafted") + ".", s,
                 new Dictionary<string, object?> {
                     { "downedHostiles", downed.Select(p => (object)new Dictionary<string, object?> {
-                        { "thingId", p.thingIDNumber }, { "name", HomePlayUntilEventTools.SafeName(p) },
+                        { "thingId", p.thingIDNumber }, { "name", GameWatchReads.SafeName(p) },
                         { "x", p.Position.x }, { "z", p.Position.z } }).ToList() },
                     { "draftedColonists", drafted.Select(p => (object)new Dictionary<string, object?> {
-                        { "thingId", p.thingIDNumber }, { "name", HomePlayUntilEventTools.SafeName(p) } }).ToList() },
+                        { "thingId", p.thingIDNumber }, { "name", GameWatchReads.SafeName(p) } }).ToList() },
                     { "consciousHostilesBefore", before },
                     { "acrossRestart", first } });
         }
@@ -1135,13 +1133,13 @@ namespace HomeBridge.BridgeTools
                 InjuryStops.Remove(id);
             InjuryStops[pawn.thingIDNumber] = new InjuryStop {
                 AtMs = now, Tick = Find.TickManager != null ? Find.TickManager.TicksGame : 0,
-                Name = HomePlayUntilEventTools.SafeName(pawn) };
+                Name = GameWatchReads.SafeName(pawn) };
         }
 
         /// Observations only: the controller decides how to respond.
         private static string InjuryDetail(State s, Pawn p, InjurySnapshot before, InjurySnapshot after)
         {
-            var name = HomePlayUntilEventTools.SafeName(p);
+            var name = GameWatchReads.SafeName(p);
             return name + " was injured (injuries " + before.Count + " -> " + after.Count
                 + ", bleed " + Num(before.BleedRate) + " -> " + Num(after.BleedRate)
                 + "/day, blood loss " + Num(before.BloodLoss) + " -> " + Num(after.BloodLoss)
@@ -1164,12 +1162,12 @@ namespace HomeBridge.BridgeTools
         private static Hit PawnHit(string kind, Pawn pawn, string reason, int? occurrenceTick = null)
         {
             var payload = new Dictionary<string, object?> { { "pawnId", pawn.thingIDNumber },
-                    { "pawnName", HomePlayUntilEventTools.SafeName(pawn) }, { "position", Position(pawn) },
+                    { "pawnName", GameWatchReads.SafeName(pawn) }, { "position", Position(pawn) },
                     { "reason", reason } };
             // The tick the hazard arose where the game records one (#626), for
             // the stop's detect_ticks; absent when it does not.
             if (occurrenceTick.HasValue && occurrenceTick.Value >= 0) payload["occurrenceTick"] = occurrenceTick.Value;
-            return new Hit(kind, HomePlayUntilEventTools.SafeName(pawn) + " (" + reason + ")", payload);
+            return new Hit(kind, GameWatchReads.SafeName(pawn) + " (" + reason + ")", payload);
         }
         private static int SafeArrivalTick(Letter letter) { try { return letter.arrivalTick; } catch { return -1; } }
         private static int? JobStartTick(Pawn pawn) { try { var job = pawn.CurJob; return job != null && job.startTick >= 0 ? job.startTick : (int?)null; } catch { return null; } }
@@ -1218,7 +1216,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!PredatorHunting(p) || p.Faction == Faction.OfPlayer) return false;
             Pawn? prey;
-            var ours = HomeStatusTools.PreyBelongsToPlayer(p, out prey);
+            var ours = GameWatchReads.PreyBelongsToPlayer(p, out prey);
             // Share the status reader's native ownership test. Re-evaluate each
             // probe, so a predator changing targets never gets a lasting exemption.
             return ours || prey == null;

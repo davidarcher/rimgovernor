@@ -112,15 +112,14 @@ func run(ctx context.Context, s cases.Session) error {
 			if na.AsNumber(end["tickDeadline"]) != na.AsNumber(start["startTick"])+float64(budget) {
 				return fmt.Errorf("%s: tick deadline did not match start tick plus budget: start=%#v end=%#v", label, start, end)
 			}
-			observed, err := h.Call(ctx, "readback-"+label, "home/status", map[string]any{"colonists": false, "threats": false})
+			observed, err := na.ReadPauseState(ctx, h.WireFunc(), "readback-"+label)
 			if err != nil {
 				return err
 			}
-			observedTime, _ := na.AsMap(observed["time"])
-			if na.AsNumber(observedTime["ticksGame"]) != na.AsNumber(end["tickDeadline"]) {
-				return fmt.Errorf("%s: readback ticksGame did not match tickDeadline: %#v", label, observed)
+			if na.AsNumber(observed["tick"]) != na.AsNumber(end["tickDeadline"]) {
+				return fmt.Errorf("%s: readback tick did not match tickDeadline: %#v", label, observed)
 			}
-			if paused, _ := na.AsBool(observedTime["paused"]); !paused {
+			if paused, _ := na.AsBool(observed["paused"]); !paused {
 				return fmt.Errorf("%s: readback was not paused: %#v", label, observed)
 			}
 			select {
@@ -128,12 +127,11 @@ func run(ctx context.Context, s cases.Session) error {
 				return ctx.Err()
 			case <-time.After(250 * time.Millisecond):
 			}
-			stable, err := h.Call(ctx, "stable-"+label, "home/status", map[string]any{"colonists": false, "threats": false})
+			stable, err := na.ReadPauseState(ctx, h.WireFunc(), "stable-"+label)
 			if err != nil {
 				return err
 			}
-			stableTime, _ := na.AsMap(stable["time"])
-			if na.AsNumber(stableTime["ticksGame"]) != na.AsNumber(end["tickDeadline"]) {
+			if na.AsNumber(stable["tick"]) != na.AsNumber(end["tickDeadline"]) {
 				return fmt.Errorf("%s: game ticks moved after the verified pause: %#v", label, stable)
 			}
 			events, err := clock.Poll(ctx)

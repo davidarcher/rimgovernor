@@ -277,9 +277,6 @@ func clockPolicy(p *k.WatchPolicy, budget int64) error {
 		return contract("clock policy numeric bounds")
 	}
 	for _, ids := range [][]string{p.AcknowledgedHostileIds, p.AcknowledgedDownedColonistIds, p.AcknowledgedInjuredColonistIds, p.SurgicalRecoveryIds, p.MedicalRestIds} {
-		if len(ids) > 256 {
-			return contract("clock policy ID bound")
-		}
 		seen := map[string]bool{}
 		for _, id := range ids {
 			if validID(id) != nil || seen[id] {

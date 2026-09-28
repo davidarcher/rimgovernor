@@ -12,9 +12,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// MaxCombatOrders bounds one combat.orders batch (#850), matching native.
-const MaxCombatOrders = 64
-
 // Combat order refusal reasons, one per CombatOrderResult.refusal.
 // DraftOwnership is policy.DraftOwnership: the pawn is not an eligible
 // drafted pawn under an existing native draft claim.
@@ -91,8 +88,8 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 	if err := buildingUnknown(command); err != nil {
 		return err
 	}
-	if len(command.Orders) < 1 || len(command.Orders) > MaxCombatOrders {
-		return contract("combat orders outside 1..%d", MaxCombatOrders)
+	if len(command.Orders) < 1 {
+		return contract("combat orders need at least one order")
 	}
 	for i, order := range command.Orders {
 		if order == nil {

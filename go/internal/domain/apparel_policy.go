@@ -21,7 +21,7 @@ type ApparelPolicySpec struct {
 type ApparelPolicy struct{ encoded string }
 
 func NewApparelPolicy(v ApparelPolicySpec) (ApparelPolicy, error) {
-	if !validID(string(v.Pawn)) || !validID(v.Token) || !validID(v.Name) || len(v.Definitions) == 0 || len(v.Definitions) > 512 || math.IsNaN(v.MinHP) || math.IsNaN(v.MaxHP) || v.MinHP < 0 || v.MaxHP > 1 || v.MinHP > v.MaxHP || v.MinQuality < 0 || v.MaxQuality > 6 || v.MinQuality > v.MaxQuality {
+	if !validID(string(v.Pawn)) || !validID(v.Token) || !validID(v.Name) || len(v.Definitions) == 0 || math.IsNaN(v.MinHP) || math.IsNaN(v.MaxHP) || v.MinHP < 0 || v.MaxHP > 1 || v.MinHP > v.MaxHP || v.MinQuality < 0 || v.MaxQuality > 6 || v.MinQuality > v.MaxQuality {
 		return ApparelPolicy{}, errors.New("invalid apparel policy")
 	}
 	v.Definitions = append([]string{}, v.Definitions...)
@@ -32,8 +32,8 @@ func NewApparelPolicy(v ApparelPolicySpec) (ApparelPolicy, error) {
 		}
 	}
 	b, err := json.Marshal(v)
-	if err != nil || len(b) > 32768 {
-		return ApparelPolicy{}, errors.New("apparel policy exceeds bound")
+	if err != nil {
+		return ApparelPolicy{}, err
 	}
 	return ApparelPolicy{string(b)}, nil
 }

@@ -51,9 +51,8 @@ namespace HomeBridge.BridgeTools
 {
     public class ColonyIdentity { public string ColonyId = "colony"; public string LoadToken = "load"; }
 
-    internal static class HomePlayUntilEventTools
+    internal static class GameWatchReads
     {
-        internal static bool ShortGuardRunning;
         internal static bool CoreWatchersAvailable = true;
         internal static List<Verse.Letter> LiveLetters = new List<Verse.Letter>();
         internal static IEnumerable<Verse.Letter> Letters() => LiveLetters;

@@ -51,7 +51,7 @@ namespace HomeBridge.BridgeTools
                 || !c.HasMinHitPoints || !c.HasMaxHitPoints || float.IsNaN(c.MinHitPoints) || float.IsNaN(c.MaxHitPoints)
                 || c.MinHitPoints < 0 || c.MaxHitPoints > 1 || c.MinHitPoints > c.MaxHitPoints
                 || !c.HasMinQuality || !c.HasMaxQuality || c.MinQuality < 0 || c.MaxQuality > 6 || c.MinQuality > c.MaxQuality
-                || c.AllowedDefs.Count == 0 || c.AllowedDefs.Count > 512 || c.AllowedDefs.Distinct().Count() != c.AllowedDefs.Count
+                || c.AllowedDefs.Count == 0 || c.AllowedDefs.Distinct().Count() != c.AllowedDefs.Count
                 || c.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d)?.IsApparel != true))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a RimGovernor name, apparel definitions and valid bounds.");
             p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.FirstOrDefault(v => v.GetUniqueLoadID() == c.PawnId)!;

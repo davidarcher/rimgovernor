@@ -26,8 +26,8 @@ type CaravanDeparture struct {
 }
 
 func NewCaravanDeparture(crew []PawnID, cargo []CargoItem, destinationTile int32) (CaravanDeparture, error) {
-	if len(crew) == 0 || len(crew) > 64 || destinationTile < 0 {
-		return CaravanDeparture{}, errors.New("caravan departure requires a nonempty bounded crew and a valid destination tile")
+	if len(crew) == 0 || destinationTile < 0 {
+		return CaravanDeparture{}, errors.New("caravan departure requires a nonempty crew and a valid destination tile")
 	}
 	rows := append([]PawnID(nil), crew...)
 	sort.Slice(rows, func(i, j int) bool { return rows[i] < rows[j] })
@@ -40,9 +40,6 @@ func NewCaravanDeparture(crew []PawnID, cargo []CargoItem, destinationTile int32
 	}
 	items := append([]CargoItem(nil), cargo...)
 	sort.Slice(items, func(i, j int) bool { return items[i].Definition < items[j].Definition })
-	if len(items) > 256 {
-		return CaravanDeparture{}, errors.New("caravan cargo exceeds storage bound")
-	}
 	seenCargo := make(map[string]bool, len(items))
 	for _, item := range items {
 		if !validID(item.Definition) || item.Count == 0 || item.Count > math.MaxInt32 || seenCargo[item.Definition] {

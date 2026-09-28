@@ -21,7 +21,7 @@ const (
 
 // ZoneCellEdit grows or shrinks one exact zone (native EditZoneCells).
 // The zone keeps its native id, so a zone_create claim on it survives the edit.
-// Cells are canonical (sorted, deduplicated, 1..256); the result must stay
+// Cells are canonical (sorted, deduplicated, nonempty); the result must stay
 // contiguous (native refuses a split).
 type ZoneCellEdit struct {
 	zone  string
@@ -30,7 +30,7 @@ type ZoneCellEdit struct {
 }
 
 func NewZoneCellEdit(zone string, mode CellEditMode, cells []Cell) (ZoneCellEdit, error) {
-	if !validID(zone) || mode != AddZoneCells && mode != RemoveZoneCells || len(cells) == 0 || len(cells) > 256 {
+	if !validID(zone) || mode != AddZoneCells && mode != RemoveZoneCells || len(cells) == 0 {
 		return ZoneCellEdit{}, errors.New("invalid zone cell edit")
 	}
 	rows := append([]Cell(nil), cells...)

@@ -1,7 +1,7 @@
 // The bills/census case proves the typed bench census behind
 // rimgovernor/observations_read_bills and observations_read_recipes (#77)
-// against the legacy home/bills listing on a loaded save: every player bench
-// appears once with a CAS token, its bill stack matches, the census token
+// on a loaded save: every player bench appears once with a CAS token, each
+// bill names its recipe, the census token
 // agrees with the colony-facts production token for the same bench, and each
 // bench's recipe catalog is complete with products and ingredient counts.
 // A fixture build's test/routine_production_prepare seeds a fueled campfire
@@ -21,7 +21,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name:   "bills/census",
-		Scope:  "Typed bench/bill census and per-bench recipe catalog against the legacy home/bills listing; read-only, no bill changes or gameplay orders.",
+		Scope:  "Typed bench/bill census and per-bench recipe catalog; read-only, no bill changes or gameplay orders.",
 		Start:  cases.Fixture{Op: "test/routine_production_prepare", On: cases.LabStart()},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
@@ -49,23 +49,6 @@ func run(ctx context.Context, s cases.Session) error {
 	identity, _ := beforeContext["identity"].(map[string]any)
 	scope := map[string]any{"expectedIdentity": identity}
 
-	legacy, err := h.Call(ctx, "legacy-bills", "home/bills", map[string]any{"action": "list"})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(legacy["success"]); !success {
-		return fmt.Errorf("legacy home/bills refused")
-	}
-	legacyBenches := map[string]map[string]any{}
-	for _, raw := range na.AsSlice(legacy["benches"]) {
-		row, _ := na.AsMap(raw)
-		legacyBenches["Thing_"+na.AsString(row["thingId"])] = row
-	}
-	if len(legacyBenches) == 0 {
-		return fmt.Errorf("save has no player bench; the census assertion would be vacuous")
-	}
-	report["legacy_bench_count"] = len(legacyBenches)
-
 	billsReply, err := h.Wire(ctx, "typed-bills", "observations_read_bills", map[string]any{"scope": scope})
 	if err != nil {
 		return err
@@ -78,9 +61,10 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("bills context drifted mid-run")
 	}
 	benches := na.AsSlice(observed["benches"])
-	if len(benches) != len(legacyBenches) {
-		return fmt.Errorf("expected %d bench rows, found %d", len(legacyBenches), len(benches))
+	if len(benches) == 0 {
+		return fmt.Errorf("save has no player bench; the census assertion would be vacuous")
 	}
+	report["bench_count"] = len(benches)
 	facts, err := h.Wire(ctx, "colony-facts", "observations_read_colony_facts", map[string]any{"scope": scope})
 	if err != nil {
 		return err
@@ -105,9 +89,8 @@ func run(ctx context.Context, s cases.Session) error {
 		row, _ := na.AsMap(raw)
 		bench, _ := na.AsMap(row["bench"])
 		id := na.AsString(bench["id"])
-		source, ok := legacyBenches[id]
-		if !ok || seen[id] {
-			return fmt.Errorf("typed bench %q missing from or duplicated against the legacy listing", id)
+		if id == "" || seen[id] {
+			return fmt.Errorf("typed bench %q missing an id or duplicated", id)
 		}
 		seen[id] = true
 		snapshot, _ := na.AsMap(row["snapshot"])
@@ -122,21 +105,11 @@ func run(ctx context.Context, s cases.Session) error {
 			tokenAgreements++
 		}
 		bills := na.AsSlice(row["bills"])
-		if int(na.AsNumber(source["billCount"])) != len(bills) {
-			return fmt.Errorf("bench %s: legacy lists %v bills, typed census %d", id, source["billCount"], len(bills))
-		}
-		if usable, _ := na.AsBool(row["usable"]); usable {
-			if legacyUsable, _ := na.AsBool(source["usableForBills"]); !legacyUsable {
-				return fmt.Errorf("bench %s: typed usable but legacy not usable for bills", id)
-			}
-		}
-		legacyBills := na.AsSlice(source["bills"])
 		for index, rawBill := range bills {
 			bill, _ := na.AsMap(rawBill)
 			recipe, _ := na.AsMap(bill["recipe"])
-			legacyBill, _ := na.AsMap(legacyBills[index])
-			if na.AsString(recipe["defName"]) != na.AsString(legacyBill["recipe"]) {
-				return fmt.Errorf("bench %s bill %d: recipe %v vs legacy %v", id, index, recipe["defName"], legacyBill["recipe"])
+			if na.AsString(recipe["defName"]) == "" {
+				return fmt.Errorf("bench %s bill %d: recipe def name missing", id, index)
 			}
 			if _, ok := bill["suspended"]; !ok {
 				return fmt.Errorf("bench %s bill %d: suspended fact missing", id, index)
