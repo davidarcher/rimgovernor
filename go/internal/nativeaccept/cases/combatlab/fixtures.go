@@ -45,6 +45,8 @@ type Pawn struct {
 	Trained []string `json:"trained,omitempty"`
 	// Injured stages the pawn with a blunt bruise (#1080).
 	Injured bool `json:"injured,omitempty"`
+	// StunTicks stuns the pawn directly for that many ticks (#1118).
+	StunTicks int `json:"stunTicks,omitempty"`
 }
 
 // Fixture is one staged combat. Colonists is the lab wipe's colonist
@@ -106,6 +108,9 @@ const (
 	// Insect is an insect Kind of the insects' faction under an assault
 	// lord (#1071).
 	Insect = "insect"
+	// Mech is a mechanoid Kind of the mechanoids' faction under an assault
+	// lord (#1118).
+	Mech = "mech"
 
 	rifle     = "Gun_AssaultRifle"
 	longsword = "MeleeWeapon_LongSword"
@@ -115,10 +120,10 @@ const (
 )
 
 // Names are the fixtures in landing order; #854 lands the first three and
-// reserves lab-breach, lab-mech and lab-manhunter for the first #845 child
-// that needs each. lab-pods (#870) joins with its rooms (#897).
+// reserves lab-breach for the first #845 child
+// that needs it. lab-pods (#870) joins with its rooms (#897).
 // The metrics baselines run Names; lab-manhunter (#1057), lab-infestation
-// (#1071) and lab-siege
+// (#1071), lab-mech (#1118) and lab-siege
 // (#1051) build but have no metrics baseline yet.
 var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods"}
 
@@ -141,9 +146,23 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return prison(cx, cz), nil
 	case "lab-infestation":
 		return infestation(cx, cz), nil
+	case "lab-mech":
+		return mech(cx, cz), nil
 	}
 	return Fixture{}, fmt.Errorf("combatlab: no fixture %q", name)
 }
+
+// mech (#1118): one rifleman and a scyther 25 cells north, stunned for
+// mechStunTicks at staging.
+func mech(cx, cz int) Fixture {
+	return Fixture{Name: "lab-mech", Colonists: 1, Pawns: []Pawn{
+		{Side: Colonist, Index: 0, X: cx, Z: cz - 12, Weapon: rifle},
+		{Side: Mech, Kind: "Mech_Scyther", X: cx, Z: cz + 13, StunTicks: mechStunTicks},
+	}}
+}
+
+// mechStunTicks is lab-mech's staged stun.
+const mechStunTicks = 600
 
 // open: three riflemen on an open field behind four stone chunks, three
 // club raiders 20 cells north. The smoke fixture for the combat clock,

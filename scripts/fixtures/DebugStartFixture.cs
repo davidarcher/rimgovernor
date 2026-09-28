@@ -350,6 +350,7 @@ namespace HomeBridge.BridgeTools
             var hostiles = new List<Pawn>();
             var prisoners = new List<Pawn>();
             var insects = new List<Pawn>();
+            var mechs = new List<Pawn>();
             Rand.PushState(Seed);
             try
             {
@@ -426,6 +427,14 @@ namespace HomeBridge.BridgeTools
                         GenSpawn.Spawn(pawn, cell, map);
                         insects.Add(pawn);
                     }
+                    else if ((string)p["side"] == "mech")
+                    {
+                        // #1118: a mechanoid of the mechanoids' faction, assaulting the colony.
+                        var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
+                        pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, Faction.OfMechanoids, forceGenerateNewPawn: true, canGeneratePawnRelations: false));
+                        GenSpawn.Spawn(pawn, cell, map);
+                        mechs.Add(pawn);
+                    }
                     else if ((string)p["side"] == "animal" || (string)p["side"] == "manhunter" || (string)p["side"] == "wild")
                     {
                         // #1116: "wild" is a factionless animal left calm.
@@ -462,6 +471,8 @@ namespace HomeBridge.BridgeTools
                         pawn.health.AddHediff(DefDatabase<HediffDef>.GetNamedSilentFail(name) ?? throw new ArgumentException($"No HediffDef {name}."));
                     // injured (#1080): a blunt blow bruises without bleeding.
                     if ((bool?)p["injured"] == true) pawn.TakeDamage(new DamageInfo(DamageDefOf.Blunt, 8f));
+                    // stunTicks (#1118): stun the pawn directly for that many ticks.
+                    if ((int?)p["stunTicks"] is int stun && stun > 0) pawn.stances.stunner.StunFor(stun, null, addBattleLog: false);
                     pawns.Add(pawn);
                     if (arrival != null && pawn.Faction != Faction.OfPlayer && arrivalCenter == null) arrivalCenter = cell;
                 }
@@ -476,6 +487,8 @@ namespace HomeBridge.BridgeTools
                 LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, hostiles);
             if (insects.Count > 0)
                 LordMaker.MakeNewLord(Faction.OfInsects, new LordJob_AssaultColony(Faction.OfInsects, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, insects);
+            if (mechs.Count > 0)
+                LordMaker.MakeNewLord(Faction.OfMechanoids, new LordJob_AssaultColony(Faction.OfMechanoids, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, mechs);
             // prisonBreak (#1080): the game's own break, started by the first prisoner.
             if ((bool?)spec["prisonBreak"] == true)
             {
@@ -484,7 +497,7 @@ namespace HomeBridge.BridgeTools
                 if (escaping == null || escaping.Count == 0) throw new InvalidOperationException("The prison break freed no prisoner.");
             }
             var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(),
-                side = p.Faction == Faction.OfInsects ? "insect" : p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : p.InMentalState ? "manhunter" : "wild") : p.Faction == Faction.OfPlayer ? "colonist" : p.HostFaction == Faction.OfPlayer ? "prisoner" : "hostile", kind = p.kindDef.defName,
+                side = p.Faction == Faction.OfInsects ? "insect" : p.Faction == Faction.OfMechanoids ? "mech" : p.RaceProps.Animal ? (p.Faction == Faction.OfPlayer ? "animal" : p.InMentalState ? "manhunter" : "wild") : p.Faction == Faction.OfPlayer ? "colonist" : p.HostFaction == Faction.OfPlayer ? "prisoner" : "hostile", kind = p.kindDef.defName,
                 x = p.PositionHeld.x, z = p.PositionHeld.z, inPod = !p.Spawned, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
                 lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0,
                 worn = p.apparel?.WornApparel.Select(a => new { id = a.GetUniqueLoadID(), def = a.def.defName }).ToList() }).ToList();
