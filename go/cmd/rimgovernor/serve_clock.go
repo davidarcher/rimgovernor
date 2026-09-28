@@ -835,6 +835,14 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 // and the planner never runs.
 func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.RoutineCapabilities) {
 	thresholds := policy.DefaultRoutinePolicy()
+	if !sc.footholdComposed() {
+		// Foothold's exit criteria (shelter, cooking, food storage, basic
+		// defense) have no planner in this composition, so the measured
+		// stage could never climb and every staged family composed here
+		// would never be raised: its goals, planners and the clock's work
+		// all wait on a stage nothing can reach. Apply every stage's goals.
+		thresholds.Stage.Floor = policy.StageDevelopment
+	}
 	capabilities := buildingruntime.RoutineCapabilities{LayoutOverlay: sc.layoutOverlay}
 	if sc.routineAcquisitionPlans || sc.routineFieldPlans || sc.routineBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)

@@ -301,6 +301,14 @@ func routineFamilies(c *serveConfig) []routineFamily {
 	}
 }
 
+// footholdComposed reports whether the composition plans every Foothold
+// exit criterion (policy.ReviewColonyStage): shelter, cooking, food storage
+// and basic defense. Only then can the measured colony stage climb.
+func (c serveConfig) footholdComposed() bool {
+	return (c.routineSleepingPlans || c.routineShelterPlans) && (c.routineBillPlans || c.routineCookingPlans) &&
+		c.routineFoodStoragePlans && (c.routineDefensePlans || c.routineEquipPlans)
+}
+
 // researchPlans reports whether EnsureResearch is composed: with the research
 // family, which always has the default research ladder (#230).
 func (c serveConfig) researchPlans() bool {

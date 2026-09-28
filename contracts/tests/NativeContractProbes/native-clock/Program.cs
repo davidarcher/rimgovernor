@@ -157,7 +157,9 @@ internal static class NativeClockProbe
         Check(beyond != null && !beyond.Gap, "legacy row kept refusing past its own cursor");
         Check(Events(long.MaxValue).Failure.Code == Common.FailureCode.InvalidRequest, "cursor overflow accepted");
         Reset(); Start(Request());
-        File.Delete(Path.Combine(GenFilePaths.SaveDataFolderPath, "RimGovernorClockEvents", "00000000000000000001.xml"));
+        // Resolve the row through the fixture seam: it evicts the decoded
+        // copy the journal caches (#984), so the read reaches the disk.
+        File.Delete(Supervisor.RetainedJournalRowPath(1));
         var lost = Events(0, 1).Page;
         Check(lost.Gap && lost.LostCount == 1 && lost.NextCursor == 1 && lost.Events.Count == 0 && !lost.HasOldestCursor, "missing event was silently dropped or oldest cursor fabricated");
         Check(!Events(1, 1).Page.Gap, "gap repeated outside requested window");
@@ -253,7 +255,7 @@ internal static class NativeClockProbe
         {
             Reset(); Start(Request());
             Supervisor.FixtureEvent("alert_new", new() { ["alertKey"] = "food", ["label"] = "Low food", ["priority"] = "High" });
-            var path = Path.Combine(GenFilePaths.SaveDataFolderPath, "RimGovernorClockEvents", "00000000000000000002.xml");
+            var path = Supervisor.RetainedJournalRowPath(2);
             var file = XElement.Load(path);
             var encoded = file.Elements("item").Single(item => (string)item.Attribute("key") == "canonicalClockEvent").Elements().Single();
             var value = Clock.Event.Parser.ParseJson(encoded.Value); corrupt(value); encoded.Value = JsonFormatter.Default.Format(value); file.Save(path);

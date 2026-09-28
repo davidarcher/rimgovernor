@@ -89,3 +89,21 @@ func TestRoutineCapabilitiesValidateAtStartup(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A composition without the Foothold families cannot climb the stage, so
+// its staged families apply at every stage (light/dark stalled at Foothold
+// with MaintainLighting never raised); the full autopilot keeps the ladder.
+func TestRoutineCapabilitiesStageFloor(t *testing.T) {
+	t.Parallel()
+	lighting := serveConfig{routineLightingPlans: true, routineWorkPlans: true}
+	if thresholds, _ := routineCapabilities(lighting); thresholds.Stage.Floor != policy.StageDevelopment {
+		t.Fatalf("lighting slice floor = %v, want Development", thresholds.Stage.Floor)
+	}
+	var full serveConfig
+	for _, f := range routineFamilies(&full) {
+		*f.Enabled = true
+	}
+	if thresholds, _ := routineCapabilities(full); thresholds.Stage.Floor != policy.StageFoothold {
+		t.Fatalf("full autopilot floor = %v, want Foothold", thresholds.Stage.Floor)
+	}
+}
