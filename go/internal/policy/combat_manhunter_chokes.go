@@ -20,15 +20,47 @@ type waveChoke struct {
 	nearest domain.PawnID
 }
 
-// waveChokes are the doors a psychic wave approaches (#899): each live
-// animal counts toward the planned-room door nearest it; with at least
-// waveMinAnimals animals, no exploder, and two or more doors approached,
-// every approached door is a choke, most animals first. Nil otherwise.
+// waveChokes are the doors a psychic wave approaches (#899): at least
+// waveMinAnimals animals and no exploder, then spreadChokes.
 func waveChokes(view CombatView) []waveChoke {
 	ranked := rankThreats(view)
 	if len(ranked) < waveMinAnimals || len(liveExploders(view)) > 0 {
 		return nil
 	}
+	return spreadChokes(view, ranked)
+}
+
+// chargeChokes are the doors a shielded melee charge approaches (#1053):
+// when most live hostiles are melee with a worn shield, every door they
+// approach is a choke, so the charge splits across them. Nil otherwise.
+func chargeChokes(view CombatView) []waveChoke {
+	ranked := rankThreats(view)
+	shielded := 0
+	for _, h := range ranked {
+		if _, ok := h.Shield.Value(); ok && meleeHostile(h) {
+			shielded++
+		}
+	}
+	if 2*shielded <= len(ranked) {
+		return nil
+	}
+	return spreadChokes(view, ranked)
+}
+
+// meleeHostile is a hostile whose weapon reaches about one cell: the known
+// range, else the weapon's profile.
+func meleeHostile(h CombatPawnState) bool {
+	reach := h.WeaponRange
+	if reach <= 0 {
+		reach = ProfileWeapon(EquipCandidateWeapon{Definition: h.Weapon}).Range
+	}
+	return reach <= 1.5
+}
+
+// spreadChokes counts each ranked hostile toward the planned-room door
+// nearest it; with two or more doors approached, every approached door is
+// a choke, most hostiles first. Nil otherwise.
+func spreadChokes(view CombatView, ranked []CombatPawnState) []waveChoke {
 	var doors []domain.Cell
 	for _, r := range view.Rooms {
 		for _, d := range r.Doors {

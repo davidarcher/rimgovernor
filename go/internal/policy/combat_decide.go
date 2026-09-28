@@ -816,7 +816,13 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 				cell := p.Cell
 				roles = append(roles, CombatRole{Pawn: p.Defender, Cell: &cell, Target: domain.PawnID(p.Target), Ranged: true})
 			}
-			roles = append(roles, brawlerRoles(view, defenders, blocking, geometry, relieved)...)
+			if chokes := chargeChokes(view); len(chokes) > 0 {
+				// A shielded melee charge is split across every door it
+				// approaches (#1053, the #899 rule).
+				roles = append(roles, waveBlockers(chokes, rotated(brawlers(defenders), relieved))...)
+			} else {
+				roles = append(roles, brawlerRoles(view, defenders, blocking, geometry, relieved)...)
+			}
 			roles = append(roles, tankRoles(tanks, positions, layout.Toward, geometry)...)
 			return TacticHold, sortRoles(roles), ""
 		}
