@@ -26,6 +26,7 @@ tasks:
 
   test:
     desc: Pure geometry and phase-accounting checks; game-dependent probes run through native acceptance
+    deps: [build]
     cmds:
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-roof-support'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-home-coverage'
