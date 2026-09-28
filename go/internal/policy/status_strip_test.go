@@ -25,6 +25,7 @@ func TestStatusRowsSeverityAndOrder(t *testing.T) {
 		{"goal", "goal EnsureShelter: build (3 pawns)", StatusInfo, false},
 		{"food", "food 1.5 days", StatusCritical, false},
 		{"wood", "wood 40/100", StatusWarning, false},
+		{"population", "population ?/100, intent ?, downed raiders die ?, unrecruitable ?", StatusInfo, false},
 		{"emergency", "EMERGENCY ManageSupplySafety", StatusCritical, false},
 		{"refusal", "refused Building no_path", StatusWarning, false},
 		{"goal.MaintainFood", "MaintainFood: hunt - no_target", StatusWarning, true},
@@ -39,8 +40,8 @@ func TestStatusRowsSeverityAndOrder(t *testing.T) {
 			t.Fatalf("row %d = %+v, want %+v", i, r, w)
 		}
 	}
-	if cell, ok := rows[4].Target.Value(); !ok || cell != (domain.Cell{X: 4, Z: 5}) {
-		t.Fatalf("refusal target %+v", rows[4].Target)
+	if cell, ok := rows[5].Target.Value(); !ok || cell != (domain.Cell{X: 4, Z: 5}) {
+		t.Fatalf("refusal target %+v", rows[5].Target)
 	}
 	if rows := StatusRows(StatusInput{FoodDays: domain.Known(4.0)}); rows[0].Severity != StatusWarning {
 		t.Fatalf("%+v", rows)
@@ -69,6 +70,22 @@ func statusRow(rows []StatusRow, key string) (StatusRow, bool) {
 		}
 	}
 	return StatusRow{}, false
+}
+
+func TestStatusRowsPopulationOutlook(t *testing.T) {
+	r, ok := statusRow(StatusRows(StatusInput{Outlook: PopulationOutlook{
+		Intent:              domain.Known(0.35),
+		AdjustedPopulation:  domain.Known(9.5),
+		DeathOnDownedChance: domain.Known(0.62),
+		UnrecruitableChance: domain.Known(0.12),
+	}}), "population")
+	if !ok || r.Text != "population 9.5/100, intent 0.35, downed raiders die 62%, unrecruitable 12%" || r.Detail {
+		t.Fatalf("%+v", r)
+	}
+	r, ok = statusRow(StatusRows(StatusInput{Outlook: PopulationOutlook{Intent: domain.Known(-0.2)}}), "population")
+	if !ok || r.Text != "population ?/100, intent -0.20, downed raiders die ?, unrecruitable ?" {
+		t.Fatalf("%+v", r)
+	}
 }
 
 func TestStatusRowsPause(t *testing.T) {

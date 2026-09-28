@@ -67,7 +67,7 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 	// An invalid reserve read leaves Stock unknown and drops the row.
 	medicine, _ := policy.ReviewMedicalReserve(f.MedicalReserve, false, r.policy.MedicalReserve)
 	target, _ := medicine.Target.Value()
-	rows := policy.StatusRows(policy.StatusInput{Stage: result.Review.Stage, Progress: result.Review.Progress, Colonists: f.Colonists, FoodDays: f.FoodDays, Wood: f.Wood, WoodFloor: result.Review.WoodFloor, Emergency: result.Emergency, Refusals: refusals, Pause: r.pause, Medicine: medicine.Stock, MedicineTarget: target, GoalCells: cells})
+	rows := policy.StatusRows(policy.StatusInput{Stage: result.Review.Stage, Progress: result.Review.Progress, Colonists: f.Colonists, FoodDays: f.FoodDays, Wood: f.Wood, WoodFloor: result.Review.WoodFloor, Emergency: result.Emergency, Refusals: refusals, Pause: r.pause, Medicine: medicine.Stock, MedicineTarget: target, GoalCells: cells, Outlook: f.Outlook})
 	layoutRows, actions := r.layoutPanel(projection)
 	rows = append(rows, layoutRows...)
 	key := fmt.Sprint(rows, refusals, actions)

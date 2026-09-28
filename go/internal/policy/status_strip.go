@@ -56,6 +56,26 @@ type StatusInput struct {
 	MedicineTarget int64
 	// GoalCells are the cells the goals' active plans target (#847).
 	GoalCells map[GoalID]domain.Cell
+	// Outlook is the storyteller's population and capture outlook (#1033);
+	// each unknown fact renders as "?".
+	Outlook PopulationOutlook
+}
+
+// populationRow is the headline population and capture outlook row
+// (#1033) against the bot's own domain.PopulationTarget.
+func populationRow(o PopulationOutlook) StatusRow {
+	num := func(f domain.Fact[float64], format string, scale float64) string {
+		if v, known := f.Value(); known {
+			return fmt.Sprintf(format, v*scale)
+		}
+		return "?"
+	}
+	text := fmt.Sprintf("population %s/%d, intent %s, downed raiders die %s, unrecruitable %s",
+		num(o.AdjustedPopulation, "%.1f", 1), domain.PopulationTarget,
+		num(o.Intent, "%.2f", 1),
+		num(o.DeathOnDownedChance, "%.0f%%", 100),
+		num(o.UnrecruitableChance, "%.0f%%", 100))
+	return StatusRow{Key: "population", Text: text, Severity: StatusInfo}
 }
 
 // ClockPause names who stopped the clock ("player", "letter", "hold",
@@ -85,7 +105,7 @@ const (
 const RefusalMarkerTTL domain.Tick = 60000
 
 // StatusRows builds the strip rows: goal, pause, food, wood, medicine,
-// emergency, refusal, then one detail row per active goal. Pure; same
+// population, emergency, refusal, then one detail row per active goal. Pure; same
 // input, same rows.
 func StatusRows(in StatusInput) []StatusRow {
 	var rows []StatusRow
@@ -149,6 +169,7 @@ func StatusRows(in StatusInput) []StatusRow {
 		}
 		rows = append(rows, StatusRow{Key: "medicine", Text: fmt.Sprintf("medicine %d/%d", stock, in.MedicineTarget), Severity: severity})
 	}
+	rows = append(rows, populationRow(in.Outlook))
 	if len(in.Emergency) > 0 {
 		names := make([]string, len(in.Emergency))
 		for i, id := range in.Emergency {
