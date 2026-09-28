@@ -26,6 +26,17 @@ type PrisonerPolicy struct {
 	FoodTargetDays   float64
 }
 
+// PopulationOutlook is the storyteller's colony-level population state read
+// with the population census (#1031): StorytellerUtilityPopulation's intent
+// and adjusted population, the chance a non-colony humanlike downed by
+// violence dies now, and the chance a new prisoner is unrecruitable.
+type PopulationOutlook struct {
+	Intent              domain.Fact[float64]
+	AdjustedPopulation  domain.Fact[float64]
+	DeathOnDownedChance domain.Fact[float64]
+	UnrecruitableChance domain.Fact[float64]
+}
+
 // PrisonerSkill and PrisonerTrait are one pawn's native skill and trait rows.
 type PrisonerSkill struct {
 	Name     string

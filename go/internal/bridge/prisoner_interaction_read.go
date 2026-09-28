@@ -36,6 +36,8 @@ type PrisonerCensus struct {
 	// Custody carries the same read's capture/rescue candidate census: every
 	// observed humanlike, not only prisoners. See ReadRoutinePopulation.
 	Custody domain.Fact[[]policy.CustodyFacts]
+	// Outlook is the snapshot's storyteller population outlook (#1031).
+	Outlook policy.PopulationOutlook
 	// Colony is the colony side of each prisoner's use: the free
 	// colonists' best skills and the snapshot's Ideology facts.
 	Colony domain.Fact[policy.PrisonerColony]
@@ -161,5 +163,23 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		}
 		rows = append(rows, f)
 	}
-	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody), Colony: domain.Known(colony)}, nil
+	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody), Colony: domain.Known(colony), Outlook: decodeOutlook(observed)}, nil
+}
+
+// decodeOutlook reads the snapshot's storyteller fields; an absent field is Unknown.
+func decodeOutlook(observed *o.PopulationSnapshot) policy.PopulationOutlook {
+	var out policy.PopulationOutlook
+	if observed.PopulationIntent != nil {
+		out.Intent = domain.Known(observed.GetPopulationIntent())
+	}
+	if observed.AdjustedPopulation != nil {
+		out.AdjustedPopulation = domain.Known(observed.GetAdjustedPopulation())
+	}
+	if observed.DeathOnDownedChance != nil {
+		out.DeathOnDownedChance = domain.Known(observed.GetDeathOnDownedChance())
+	}
+	if observed.UnrecruitableChance != nil {
+		out.UnrecruitableChance = domain.Known(observed.GetUnrecruitableChance())
+	}
+	return out
 }

@@ -16255,8 +16255,15 @@ type PopulationSnapshot struct {
 	ClassicIdeoMode *bool   `protobuf:"varint,6,opt,name=classic_ideo_mode,json=classicIdeoMode,proto3,oneof" json:"classic_ideo_mode,omitempty"`
 	ColonyIdeoId    *string `protobuf:"bytes,7,opt,name=colony_ideo_id,json=colonyIdeoId,proto3,oneof" json:"colony_ideo_id,omitempty"`
 	SlaveryPrecept  *string `protobuf:"bytes,8,opt,name=slavery_precept,json=slaveryPrecept,proto3,oneof" json:"slavery_precept,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Storyteller population outlook (#1031): StorytellerUtilityPopulation intent and
+	// adjusted population, and the capture odds that intent sets for a non-colony
+	// humanlike downed by violence (death chance) and for a new prisoner (unrecruitable).
+	PopulationIntent    *float64 `protobuf:"fixed64,9,opt,name=population_intent,json=populationIntent,proto3,oneof" json:"population_intent,omitempty"`
+	AdjustedPopulation  *float64 `protobuf:"fixed64,10,opt,name=adjusted_population,json=adjustedPopulation,proto3,oneof" json:"adjusted_population,omitempty"`
+	DeathOnDownedChance *float64 `protobuf:"fixed64,11,opt,name=death_on_downed_chance,json=deathOnDownedChance,proto3,oneof" json:"death_on_downed_chance,omitempty"`
+	UnrecruitableChance *float64 `protobuf:"fixed64,12,opt,name=unrecruitable_chance,json=unrecruitableChance,proto3,oneof" json:"unrecruitable_chance,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PopulationSnapshot) Reset() {
@@ -16336,6 +16343,34 @@ func (x *PopulationSnapshot) GetSlaveryPrecept() string {
 		return *x.SlaveryPrecept
 	}
 	return ""
+}
+
+func (x *PopulationSnapshot) GetPopulationIntent() float64 {
+	if x != nil && x.PopulationIntent != nil {
+		return *x.PopulationIntent
+	}
+	return 0
+}
+
+func (x *PopulationSnapshot) GetAdjustedPopulation() float64 {
+	if x != nil && x.AdjustedPopulation != nil {
+		return *x.AdjustedPopulation
+	}
+	return 0
+}
+
+func (x *PopulationSnapshot) GetDeathOnDownedChance() float64 {
+	if x != nil && x.DeathOnDownedChance != nil {
+		return *x.DeathOnDownedChance
+	}
+	return 0
+}
+
+func (x *PopulationSnapshot) GetUnrecruitableChance() float64 {
+	if x != nil && x.UnrecruitableChance != nil {
+		return *x.UnrecruitableChance
+	}
+	return 0
 }
 
 type PopulationRequest struct {
@@ -36171,7 +36206,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_ideo_idB\v\n" +
 	"\t_wild_manB\x11\n" +
-	"\x0f_health_summary\"\x94\x04\n" +
+	"\x0f_health_summary\"\xd0\x06\n" +
 	"\x12PopulationSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
 	"\apersons\x18\x02 \x03(\v2-.rimgovernor.observations.v1.PopulationPersonR\apersons\x12a\n" +
@@ -36179,11 +36214,20 @@ const file_observations_proto_rawDesc = "" +
 	"\x0fideology_active\x18\x05 \x01(\bH\x00R\x0eideologyActive\x88\x01\x01\x12/\n" +
 	"\x11classic_ideo_mode\x18\x06 \x01(\bH\x01R\x0fclassicIdeoMode\x88\x01\x01\x12)\n" +
 	"\x0ecolony_ideo_id\x18\a \x01(\tH\x02R\fcolonyIdeoId\x88\x01\x01\x12,\n" +
-	"\x0fslavery_precept\x18\b \x01(\tH\x03R\x0eslaveryPrecept\x88\x01\x01B\x12\n" +
+	"\x0fslavery_precept\x18\b \x01(\tH\x03R\x0eslaveryPrecept\x88\x01\x01\x120\n" +
+	"\x11population_intent\x18\t \x01(\x01H\x04R\x10populationIntent\x88\x01\x01\x124\n" +
+	"\x13adjusted_population\x18\n" +
+	" \x01(\x01H\x05R\x12adjustedPopulation\x88\x01\x01\x128\n" +
+	"\x16death_on_downed_chance\x18\v \x01(\x01H\x06R\x13deathOnDownedChance\x88\x01\x01\x126\n" +
+	"\x14unrecruitable_chance\x18\f \x01(\x01H\aR\x13unrecruitableChance\x88\x01\x01B\x12\n" +
 	"\x10_ideology_activeB\x14\n" +
 	"\x12_classic_ideo_modeB\x11\n" +
 	"\x0f_colony_ideo_idB\x12\n" +
-	"\x10_slavery_preceptJ\x04\b\x04\x10\x05\"W\n" +
+	"\x10_slavery_preceptB\x14\n" +
+	"\x12_population_intentB\x16\n" +
+	"\x14_adjusted_populationB\x19\n" +
+	"\x17_death_on_downed_chanceB\x17\n" +
+	"\x15_unrecruitable_chanceJ\x04\b\x04\x10\x05\"W\n" +
 	"\x11PopulationRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scopeJ\x04\b\x02\x10\x03\"\xef\x01\n" +
 	"\x0fPopulationReply\x12M\n" +

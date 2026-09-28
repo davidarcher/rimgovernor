@@ -117,9 +117,9 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	p.BuildTier = policy.SelectBuildTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel)
 	p.Facts.Traders = frameTraders(frame.Traders)
 	p.Facts.QuestOffers = frameQuests(frame.Quests)
-	p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony = domain.Fact[[]policy.PrisonerFacts]{}, domain.Fact[[]policy.CustodyFacts]{}, domain.Fact[policy.PrisonerColony]{}
+	p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony, p.Facts.Outlook = domain.Fact[[]policy.PrisonerFacts]{}, domain.Fact[[]policy.CustodyFacts]{}, domain.Fact[policy.PrisonerColony]{}, policy.PopulationOutlook{}
 	if frame.Population != nil {
-		p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony = frame.Population.Prisoners, frame.Population.Custody, frame.Population.Colony
+		p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony, p.Facts.Outlook = frame.Population.Prisoners, frame.Population.Custody, frame.Population.Colony, frame.Population.Outlook
 	}
 	var roomCensus *o.RoomsSnapshot
 	if rooms {

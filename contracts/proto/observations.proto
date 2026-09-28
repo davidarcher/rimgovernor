@@ -716,7 +716,12 @@ message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 
   // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
   // primary ideoligion load id and the defName of its Slavery-issue precept
   // (Slavery_Abhorrent .. Slavery_Honorable); absent without Ideology.
-  optional bool ideology_active = 5; optional bool classic_ideo_mode = 6; optional string colony_ideo_id = 7; optional string slavery_precept = 8; }
+  optional bool ideology_active = 5; optional bool classic_ideo_mode = 6; optional string colony_ideo_id = 7; optional string slavery_precept = 8;
+  // Storyteller population outlook (#1031): StorytellerUtilityPopulation intent and
+  // adjusted population, and the capture odds that intent sets for a non-colony
+  // humanlike downed by violence (death chance) and for a new prisoner (unrecruitable).
+  optional double population_intent = 9; optional double adjusted_population = 10;
+  optional double death_on_downed_chance = 11; optional double unrecruitable_chance = 12; }
 message PopulationRequest { ReadScope scope = 1; reserved 2; }
 message PopulationReply { oneof outcome { PopulationSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message Settlement { optional string id = 1; optional string label = 2; optional string faction_id = 3; optional string faction_def_name = 4; optional string relation = 5; optional int32 goodwill = 6; optional int32 tile = 7; optional double distance_tiles = 8; optional bool player = 9; SnapshotRef snapshot = 10; SnapshotRef faction_snapshot = 11; }

@@ -285,6 +285,8 @@ type RoutineFacts struct {
 	// uses, broadened past prisoners alone so RoutinePopulationCustodyPlanner
 	// can detect and select a downed hostile or unadmitted guest to dispatch.
 	Custody domain.Fact[[]CustodyFacts]
+	// Outlook is the same population read's storyteller outlook (#1031).
+	Outlook PopulationOutlook
 	// QuestOffers carries MaintainPopulation's joiner census: every visible
 	// quest row (rimgovernor/observations_read_world_progression), read per
 	// cycle by a RoutineSource offering RoutineQuestSource, for JoinerDeficit

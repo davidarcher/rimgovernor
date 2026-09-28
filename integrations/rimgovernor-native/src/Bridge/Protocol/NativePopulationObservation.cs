@@ -113,8 +113,23 @@ namespace HomeBridge.BridgeTools
                 var def = DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
                 if (def != null) snapshot.SupportedInteractions.Add(new Obs.DefinitionRef { DefName = NativePawnObservationTools.Id(def.defName), Label = NativePawnObservationTools.Text(def.label) });
             }
+            // Storyteller population outlook (#1031).
+            var intent = StorytellerUtilityPopulation.PopulationIntent;
+            var difficulty = Find.Storyteller.difficulty;
+            snapshot.PopulationIntent = Number(intent);
+            snapshot.AdjustedPopulation = Number(StorytellerUtilityPopulation.AdjustedPopulation);
+            snapshot.DeathOnDownedChance = Number(DeathOnDownedChance(intent, difficulty.unwaveringPrisoners, difficulty.enemyDeathOnDownedChanceFactor));
+            snapshot.UnrecruitableChance = Number(UnrecruitableChance(intent));
             return snapshot;
         }
+
+        // The humanlike branch of Pawn_HealthTracker's death-on-downed roll for a
+        // non-colony pawn downed by violence, with no per-pawn override.
+        internal static float DeathOnDownedChance(float intent, bool unwaveringPrisoners, float enemyFactor) =>
+            (unwaveringPrisoners ? HealthTuning.DeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve
+                : HealthTuning.DeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve_WaveringPrisoners).Evaluate(intent) * enemyFactor;
+
+        internal static float UnrecruitableChance(float intent) => HealthTuning.NonRecruitableChanceOverPopulationIntentCurve.Evaluate(intent);
 
         private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
