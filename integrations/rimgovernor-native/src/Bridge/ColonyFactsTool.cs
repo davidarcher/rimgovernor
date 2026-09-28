@@ -190,7 +190,7 @@ namespace HomeBridge.BridgeTools
                 ["foodRunwayDays"] = demand > 0 ? (object)(nutrition / demand) : null,
                 ["foodSupply"] = FoodSupplyFacts.Read(people, things.Where(FoodSupplyFacts.SharedFood).ToList()),
                 ["nativeForecastInputs"] = ForecastFacts.Read(map, people, things),
-                ["gearUpkeep"] = planning ? GearUpkeepTools.Run(null, null, null, true) : null,
+                ["gearUpkeep"] = planning ? GearUpkeepTools.Census() : null,
                 ["upkeep"] = UpkeepFacts.Read(map, people, things),
                 ["pendingFoodNutrition"] = things.OfType<Plant>().Where(p => p.HarvestableNow
                     && humanFood(p.def.plant.harvestedThingDef) && !(map.zoneManager.ZoneAt(p.Position) is Zone_Growing)

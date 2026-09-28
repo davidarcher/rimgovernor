@@ -346,15 +346,6 @@ namespace HomeBridge.BridgeTools
             return letterOf.TryGetValue(def, out s) ? s : "?";
         }
 
-        internal static TimeAssignmentDef? AssignmentForLetter(string letter)
-        {
-            if (letter == null || letter.Length == 0)
-                return null;
-            var byLetter = EnsureLetters().ByLetter;
-            TimeAssignmentDef def;
-            return byLetter.TryGetValue(letter, out def) ? def : null;
-        }
-
         /// <summary>letter -> defName, emitted with every schedule so the
         /// 24-character string is self-describing.</summary>
         internal static Dictionary<string, object?> LetterKey()

@@ -39,9 +39,6 @@ namespace HomeBridge.BridgeTools
     {
         internal const int SampleSize = 10;
 
-        internal static readonly string[] PresetNames =
-            { "everything", "nothing", "food", "perishables", "nonperishables", "outdoorSafe" };
-
         // ------------------------------------------------------------ universe
 
         /// <summary>
@@ -102,18 +99,6 @@ namespace HomeBridge.BridgeTools
         }
 
         // ------------------------------------------------------------- presets
-
-        /// <summary>The canonical preset name, or null when the text names none.</summary>
-        internal static string? NormalizePreset(string? text)
-        {
-            if (text == null || text.Length == 0)
-                return null;
-            var trimmed = text.Trim();
-            foreach (var name in PresetNames)
-                if (string.Equals(name, trimmed, StringComparison.OrdinalIgnoreCase))
-                    return name;
-            return null;
-        }
 
         /// <summary>Carries a rot timer. HasComp&lt;T&gt; matches subclasses of
         /// CompRottable too; HasComp(Type) compares compClass by reference and
@@ -277,14 +262,6 @@ namespace HomeBridge.BridgeTools
             }
             catch { }
             return null;
-        }
-
-        /// <summary>Whether the thing-category tree is up. SetAllow on a
-        /// ThingCategoryDef calls Log.Error when it is not, and Log.Error pauses
-        /// the game, so a call naming a category is refused instead.</summary>
-        internal static bool CategoryTreeReady()
-        {
-            return BridgeCommon.Try(() => ThingCategoryNodeDatabase.initialized, false);
         }
 
         // --------------------------------------------------------------- apply

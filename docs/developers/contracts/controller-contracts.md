@@ -262,10 +262,10 @@ Starter heating is suppressed only by a usable campfire inside the selected room
 not by an arbitrary stove or a campfire elsewhere on the map.
 An existing unfueled campfire is not duplicated. `RecoverDisasterServices` selects
 bounded refueling, structural repair and breakdown-repair jobs through native
-WorkGivers. `home/recovery_state` observes exact building health, fuel, breakdown
+WorkGivers. `Observations.ReadRecovery` observes exact building health, fuel, breakdown
 and electrical state. Native definitions that do not use hit points, including
 sleeping and butcher spots, do not require structural repair; unknown definitions
-retain damage risk. `home/recover_service` preserves work permissions, allowed
+retain damage risk. A `RecoverIntent` on Actions/Apply preserves work permissions, allowed
 areas, forbidden supplies, reservations and player-forced jobs. Hands previews
 again at dispatch; `service_recovered` requires fresh target health, breakdown or
 fuel evidence. Missing targets and interrupted labor never count as completion.
@@ -275,14 +275,11 @@ rebuilding work. Power recovery requires actual service from enabled consumers,
 excluding player-switched-off loads and generators. Solar flares defer generation changes while the cooking fallback remains
 available.
 
-During native toxic fallout, `home/recovery_area` can lease an existing wholly
-roofed, reachable allowed area. It refuses unsafe areas and any widening of a
-player restriction. The saved lease expires after 600 ticks, condition expiry or
-a load change. Any later area setter drops the stale claim immediately, including
-a change and reversal between observations; there is no permanent "player owns
-this pawn's work area" record any more, so the controller may issue a fresh lease
-for that pawn right away. Leases belong to one map; a returning pawn's expired
-lease is released without changing another map's area setting. These areas
+During native toxic fallout, `RecoverDisasterServices` can move a colonist
+restricted outside every roofed area into an existing wholly roofed, reachable
+allowed area (`Observations.ReadRecovery` lists them) with an allowed-area
+`WorkSettingsIntent` on Actions/Apply. Proposals are re-derived each 600-tick
+window from the current hazard and restriction; native keeps no lease. These areas
 restrict work destinations; they do not make travel paths or every environmental
 hazard safe. No observed refuge produces a blocker. Outdoor acquisition and field
 expansion pause during the roof-sensitive hazard and become eligible again after
@@ -372,7 +369,7 @@ reason; `farm/select-greenhouse` and `farm/select-hydroponics` stage a lit, heat
 snap through `FarmEnvironmentFixture` and audits the zones or basin placements inside
 it, and `-environment hydroponics -unavailable-crops Plant_Rice -expect-crop
 Plant_Potato` proves a built basin re-cropped to the winner. `farm/calendar` holds the typed read's growing
-calendar to `home/status` and `home/world` and records the seasonal thresholds a review derives from it.
+calendar to `Observations.ReadStatus` and `Observations.ReadWorld` and records the seasonal thresholds a review derives from it.
 Expansion also charges native harvest work per nutrition against the observed
 number of enabled growers and the delay before the first harvest: scarce growers
 favor corn, while sufficient growers favor rice. With an observed absence of
@@ -505,7 +502,7 @@ Native events or a pause arriving during method selection retain a pending
 review; neither a refusal nor a no-op acknowledges newer evidence from an old read.
 Invalid templates have a bounded alternative-site search; unknown or failed native actions
 become explicit blockers. A no-progress watchdog prevents silent indefinite waiting.
-Structured `home/order` refusals from unapplied dry-run previews block the affected
+Structured `PawnOrderIntent` refusals from unapplied dry-run previews block the affected
 goal while subsequent reviews continue. Changed worker jobs, cargo, health, work
 settings, equipment, stock or upkeep evidence permit a fresh selection; a
 2,500-tick window also rechecks routes. Unknown failures and dispatched writes
@@ -619,8 +616,8 @@ Wild-plant acquisition limits new orders by the remaining per-colonist nutrition
 and already designated native harvest yield. Pending yield limits duplicate acquisition
 but never counts as stored food or clears food risk. Individual plants are indivisible,
 so a batch can exceed its remaining target by one plant's yield.
-Food and wood methods use `home/acquire_resource` with the observed plant identity,
-output resource, location and colony/load/map. Native eligibility is checked again
+Food and wood methods issue a `DesignateIntent` (`HARVEST_PLANT`) on the exact observed plant
+within the observed colony/load/map. Native eligibility is checked again
 before designation. A fresh regrowth observation can renew a confirmed completed
 designation under the same maintained goal; its prior action and receipt remain in
 history. Pending, uncertain and cancelled acquisition orders prevent renewal at

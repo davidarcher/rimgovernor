@@ -19,9 +19,9 @@ no method: `EnsureBasicPower` with every generator definition unavailable and
 `MaintainStoneShell` with no replacement material report
 `waiting_on_research:<project>` (`policy.ResearchGate`).
 
-`home/research` supplies the installed prerequisite graph. Its optional `capability`
-argument resolves an exact `ThingDef:name` or `RecipeDef:name` and returns research
-requirements and current availability. Unknown or ambiguous definitions remain
+`Observations.ReadResearch` supplies the installed prerequisite graph; `include_unlocks` lists
+the definitions each project unlocks and `include_capability` adds research benches,
+their facilities and eligible researchers. Unknown or ambiguous definitions remain
 unknown. Both ordinary and hidden prerequisites participate in traversal; missing,
 hidden and knowledge-category projects block ordinary research. Traversal visits
 at most 128 unfinished nodes and retains at most eight queued projects and eight

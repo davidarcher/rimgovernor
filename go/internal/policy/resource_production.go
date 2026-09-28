@@ -50,7 +50,7 @@ type ResourceSourceMethod string
 
 const ResourceSourceMine ResourceSourceMethod = "mine"
 
-// ResourceSource mirrors one native home/resource_sources row.
+// ResourceSource mirrors one Observations.ListResourceSources row.
 type ResourceSource struct {
 	ThingID    string
 	Yield      int64
@@ -196,7 +196,7 @@ func SelectResourceSources(sources []ResourceSource, target, stock, pending int6
 	return selected
 }
 
-// ResourceStorage mirrors one native home/resource_sources "storage" payload
+// ResourceStorage mirrors one Observations.ListResourceSources storage payload
 // (NativeResourceSourcesTool.Storage): the storage branch keys off
 // exactly these fields (haulers/capacity/stackLimit/candidates) to decide
 // whether hauling a selected mine source's yield needs a new covered

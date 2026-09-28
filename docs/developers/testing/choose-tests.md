@@ -710,7 +710,7 @@ quiet span was p90 6s, p99 39s (#353): a stall is a broken run, and a wait
 that legitimately needs the game to do more than a minute of work is
 bounded in ticks (`Wait.Ticks`, `RunUntil`), not by a longer stall.
 `RunUntil` also reads `paused` with every tick probe: a game that stopped
-under a running speed is resolved through `home/status` at once, letters
+under a running speed is resolved through the typed status read at once, letters
 in `AcknowledgedLetterDefs` dismissed and the run resumed. Quiet starts also
 dismiss the exact `Ancient danger` / `ThreatBig` shrine discovery warning,
 which bypasses the storyteller. Successful dismissals are recorded under
@@ -1039,8 +1039,8 @@ Process reuse carries the same static-state caveat as an `Owned` case's
 found. Cases asserting on statics or prefs declare `NoKeep`.
 
 Reuse does **not** reset mod static state: process-scoped statics such as
-`OrderedWorkHistory`, `PlayerFrame`, the `Supervisor` journal and
-`PawnConfigTool`'s letter maps survive a reload (see
+`OrderedWorkHistory`, `PlayerUiRevision` and the `Supervisor` journal
+survive a reload (see
 [native-static-state.md](../../../contracts/native-static-state.md)). Any
 case whose assertion depends on one of those, and any case run as static-
 state or fresh-Go-session evidence, declares `NoKeep` and runs with

@@ -33,7 +33,6 @@ namespace HomeBridge.BridgeTools
             internal readonly StockpileFilter.Resolved Disallow = new StockpileFilter.Resolved();
             internal FloatRange? HitPoints;
             internal QualityRange? Quality;
-            internal bool ChangesFilter => Preset != null || Replace != null || Allow.Any || Disallow.Any || HitPoints.HasValue || Quality.HasValue;
         }
 
         internal static string? PresetName(Operations.FilterPreset preset)

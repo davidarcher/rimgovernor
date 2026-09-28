@@ -15,8 +15,8 @@ loadout planner consumes. The role apparel policies are the
 
 ## Native observations and selection
 
-Planning `home/colony_facts` includes `gearUpkeep`. The separate
-`home/gear_upkeep` preview reports current-map pawn identities, outfit/loadout
+Planning `home/colony_facts` includes `gearUpkeep`. The separate typed
+`Observations.ReadGear` read reports current-map pawn identities, outfit/loadout
 signatures, worn and primary item identities, condition, quality, armor and thermal
 stats, comfortable temperature bounds, candidates and replacement needs.
 

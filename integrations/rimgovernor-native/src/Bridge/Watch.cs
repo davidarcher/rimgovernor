@@ -68,7 +68,6 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     internal static class Watch
     {
-        internal const int DefaultSeconds = 8;
         internal const int DefaultLeadMs = 1500;
 
         /// <summary>Close-after bounds. A zero would close inside the same frame
@@ -128,23 +127,11 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         internal static Session Open(IRimBridgeContext ctx, object? target, Type? inspectTab, MainButtonDef? mainTab, bool camera)
         {
-            return OpenCore(ctx, target, inspectTab, mainTab, camera, IntVec3.Invalid);
-        }
-
-        /// <summary>
-        /// Main thread. A session that shows a bare map cell: nothing is selected
-        /// and no menu opens, the camera just goes there. For a write whose
-        /// target does not exist yet - a blueprint about to be placed - so the
-        /// viewer sees the empty spot before it fills. Hand the new thing to
-        /// SelectNow once the write has made it.
-        /// </summary>
-        internal static Session OpenAtCell(IRimBridgeContext ctx, IntVec3 cell)
-        {
-            return OpenCore(ctx, null, null, null, true, cell);
+            return OpenCore(ctx, target, inspectTab, mainTab, camera);
         }
 
         private static Session OpenCore(IRimBridgeContext ctx, object? target, Type? inspectTab, MainButtonDef? mainTab,
-                                        bool camera, IntVec3 explicitCell)
+                                        bool camera)
         {
             var session = new Session
             {
@@ -191,7 +178,7 @@ namespace HomeBridge.BridgeTools
                 }
 
                 if (camera)
-                    JumpCamera(session, explicitCell.IsValid ? explicitCell : CellOf(target), notes);
+                    JumpCamera(session, CellOf(target), notes);
             }
             catch (Exception ex)
             {
@@ -477,24 +464,6 @@ namespace HomeBridge.BridgeTools
         }
 
         // ================================================== additions for hop 2
-
-        /// <summary>
-        /// Main thread only. Select something that did not exist when Open ran —
-        /// a blueprint the write just placed — and hand the close the job of
-        /// deselecting it. Returns whether it is now selected.
-        /// </summary>
-        internal static bool SelectNow(Session session, object target)
-        {
-            if (session == null || target == null)
-                return false;
-            var notes = new List<string>();
-            Select(session, target, notes);
-            if (notes.Count > 0)
-                session.Note = Join(session.Note, string.Join(" ", notes.ToArray()));
-            if (session.Selected)
-                session.AnythingShown = true;
-            return session.Selected;
-        }
 
         /// <summary>
         /// The MainButtonDef with this defName, or null. MainButtonDefOf carries

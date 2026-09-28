@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md) · [Plans and Hands](plans-and-hands.md)
 
-`home/world_progression` exposes a scoped, read-only census of player caravans,
+`Observations.ReadWorldProgression` is a scoped, read-only census of player caravans,
 their pawn needs and inventory, active assembly lords and visible quest states.
 World outcome predicates require later ticks, matching colony/load/map, exact
 caravan membership and native terminal states. Missing map pawns, accepted

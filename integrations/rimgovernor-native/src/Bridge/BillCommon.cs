@@ -316,71 +316,6 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.TryN(() => production.recipe.WorkerCounter.CountProducts(production));
         }
 
-        /// <summary>
-        /// The single def a TargetCount bill counts toward, or null. A recipe with
-        /// no product, or several, has no one number to widen, and guessing one
-        /// would be worse than the null.
-        /// </summary>
-        private static ThingDef? ProductDef(Bill_Production? production)
-        {
-            try
-            {
-                if (production == null || production.recipe == null)
-                    return null;
-                var products = production.recipe.products;
-                if (products == null || products.Count != 1 || products[0] == null)
-                    return null;
-                return products[0].thingDef;
-            }
-            catch { return null; }
-        }
-
-        private static string? ProductDefName(Bill_Production? production)
-        {
-            var def = ProductDef(production);
-            return def == null ? null : BridgeCommon.SafeString(() => def.defName);
-        }
-
-        /// <summary>The product sitting in any storage, bill zone or not.</summary>
-        private static int? ProductCountStored(Bill_Production? production)
-        {
-            return ProductTotal(production, storedOnly: true);
-        }
-
-        /// <summary>Every spawned stack of the product on the map.</summary>
-        private static int? ProductCountOnMap(Bill_Production? production)
-        {
-            return ProductTotal(production, storedOnly: false);
-        }
-
-        private static int? ProductTotal(Bill_Production? production, bool storedOnly)
-        {
-            try
-            {
-                var def = ProductDef(production);
-                if (production == null || def == null)
-                    return null;
-                var map = production.Map;
-                if (map == null || map.listerThings == null)
-                    return null;
-                var things = map.listerThings.ThingsOfDef(def);
-                if (things == null)
-                    return null;
-                var total = 0;
-                for (var i = 0; i < things.Count; i++)
-                {
-                    var t = things[i];
-                    if (t == null || !t.Spawned)
-                        continue;
-                    if (storedOnly && !t.IsInAnyStorage())
-                        continue;
-                    total += Math.Max(1, t.stackCount);
-                }
-                return total;
-            }
-            catch { return null; }
-        }
-
         /// <summary>Which of power, fuel or breakdown stopped the bench. Only ever
         /// reached when the game already said the bench is unusable.</summary>
         private static string BenchBlockReason(Thing? bench)
@@ -951,83 +886,6 @@ namespace HomeBridge.BridgeTools
                 && def.ingestible.sourceDef.race.Humanlike, false);
         }
 
-        // ========================================================= config block
-
-        /// <summary>
-        /// Every field the bill-config dialog writes, read off the bill. A field
-        /// that only exists on Bill_Production is null on any other bill kind
-        /// rather than absent.
-        /// </summary>
-        internal static Dictionary<string, object?> ConfigBlock(Bill bill)
-        {
-            var production = bill as Bill_Production;
-            var skill = BridgeCommon.TryN(() => bill.allowedSkillRange);
-            var hp = production == null ? null : BridgeCommon.TryN(() => production.hpRange);
-            var quality = production == null ? null : BridgeCommon.TryN(() => production.qualityRange);
-            var restriction = BridgeCommon.Try(() => bill.PawnRestriction, (Pawn?)null);
-
-            return new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                { "repeatMode", production == null ? null
-                    : BridgeCommon.SafeString(() => production.repeatMode == null ? null : production.repeatMode.defName) },
-                { "repeatCount", production == null ? null : BridgeCommon.TryN(() => production.repeatCount) },
-                { "targetCount", production == null ? null : BridgeCommon.TryN(() => production.targetCount) },
-                // The "N/M" the bill's own label draws. NULL for any bill that is
-                // not TargetCount, and for one the counter cannot count.
-                { "productCount", ProductCount(production) },
-                // productCount is CountProducts: the bill's own counted storage,
-                // which excludes carried, floor-lying and out-of-zone stock. On
-                // their own the reader cannot tell "we have none" from "none is
-                // where the bill looks", so both wider counts go beside it.
-                { "productDefName", ProductDefName(production) },
-                { "productCountStored", ProductCountStored(production) },
-                { "productCountOnMap", ProductCountOnMap(production) },
-                { "pauseWhenSatisfied", production == null ? null : (object?)BridgeCommon.Try(() => production.pauseWhenSatisfied, false) },
-                { "unpauseWhenYouHave", production == null ? null : BridgeCommon.TryN(() => production.unpauseWhenYouHave) },
-                { "ingredientSearchRadius", BridgeCommon.TryN(() => bill.ingredientSearchRadius) },
-                { "ingredientSearchRadiusUnlimited",
-                    BridgeCommon.Try(() => bill.ingredientSearchRadius >= UnlimitedRadius, false) },
-                { "skillRange", skill == null ? null : new Dictionary<string, object?>
-                    { { "min", skill.Value.min }, { "max", skill.Value.max } } },
-                { "pawnRestriction", restriction == null ? null : BridgeCommon.SafeString(() => restriction.LabelShortCap) },
-                { "slavesOnly", BridgeCommon.Try(() => bill.SlavesOnly, false) },
-                { "mechsOnly", BridgeCommon.Try(() => bill.MechsOnly, false) },
-                { "nonMechsOnly", BridgeCommon.Try(() => bill.NonMechsOnly, false) },
-                { "storeMode", StoreModeName(bill) },
-                { "storeZone", StoreZoneName(bill) },
-                { "hpRange", hp == null ? null : new Dictionary<string, object?>
-                    { { "min", hp.Value.min }, { "max", hp.Value.max } } },
-                { "qualityRange", quality == null ? null : new Dictionary<string, object?>
-                    { { "min", quality.Value.min.ToString() }, { "max", quality.Value.max.ToString() } } },
-                { "limitToAllowedStuff", production == null ? null : (object?)BridgeCommon.Try(() => production.limitToAllowedStuff, false) },
-                { "includeEquipped", production == null ? null : (object?)BridgeCommon.Try(() => production.includeEquipped, false) },
-                { "includeTainted", production == null ? null : (object?)BridgeCommon.Try(() => production.includeTainted, false) }
-            };
-        }
-
-        internal static string? StoreModeName(Bill bill)
-        {
-            return BridgeCommon.SafeString(() =>
-            {
-                var mode = bill.GetStoreMode();
-                return mode == null ? null : mode.defName;
-            });
-        }
-
-        internal static string? StoreZoneName(Bill bill)
-        {
-            return BridgeCommon.SafeString(() =>
-            {
-                var group = bill.GetSlotGroup();
-                if (group == null)
-                    return null;
-                var slot = group as SlotGroup;
-                if (slot != null && slot.parent is Zone_Stockpile)
-                    return ((Zone_Stockpile)slot.parent).label;
-                return SlotGroup.GetGroupLabel(group);
-            });
-        }
-
         // ============================================================ small reads
 
         /// <summary>A "Do X times" bill whose remaining count has reached zero.
@@ -1058,11 +916,6 @@ namespace HomeBridge.BridgeTools
                    ?? BridgeCommon.SafeString(() => bill.recipe == null ? null : bill.recipe.defName);
         }
 
-        internal static string? RepeatInfo(Bill_Production? production)
-        {
-            return production == null ? null : BridgeCommon.SafeString(() => production.RepeatInfoText);
-        }
-
         /// <summary>
         /// RecipeDef.AvailableNow, or null when asking would call
         /// Faction.OfPlayer with no player faction to answer. Three fields reach
@@ -1087,16 +940,6 @@ namespace HomeBridge.BridgeTools
             }
 
             return BridgeCommon.TryN(() => recipe.AvailableNow);
-        }
-
-        /// <summary>RecipeDef.AvailableOnNow(thing) — the second half of the Bills
-        /// tab's own filter. Its default worker returns true; a surgery worker
-        /// looks at the pawn.</summary>
-        internal static bool? RecipeAvailableOnNow(RecipeDef recipe, Thing? bench)
-        {
-            if (recipe == null || bench == null)
-                return null;
-            return BridgeCommon.TryN(() => recipe.AvailableOnNow(bench, null));
         }
     }
 }

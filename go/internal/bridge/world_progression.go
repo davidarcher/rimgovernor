@@ -147,10 +147,6 @@ type WorldProgressionRead struct {
 	Quests   []QuestOffer
 }
 
-// ReadWorldProgression reads native's world progression census. As of this
-// writing native implements this handler (NativeWorldProgressionObservation.cs,
-// ported from the legacy home/world_progression JSON tool); this wrapper is
-// the first Go consumer of it.
 // worldProgressionRequest is the census read, shared with the bundle's
 // world progression family (#593).
 func worldProgressionRequest(identity *c.Identity, includeStorage bool) *o.WorldProgressionRequest {

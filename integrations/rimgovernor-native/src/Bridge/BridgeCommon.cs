@@ -393,19 +393,6 @@ namespace HomeBridge.BridgeTools
             return new Dictionary<string, object?> { { "x", cell.x }, { "z", cell.z } };
         }
 
-        /// <summary>A thing's cell as {x, z}, or null if the getter throws (an
-        /// unspawned or despawning thing does).</summary>
-        internal static Dictionary<string, object?>? PositionOf(Thing? thing)
-        {
-            if (thing == null) return null;
-            try
-            {
-                var p = thing.Position;
-                return new Dictionary<string, object?> { { "x", p.x }, { "z", p.z } };
-            }
-            catch { return null; }
-        }
-
         /// <summary>The standard "is there a map to read" gate. The error text is
         /// the caller's, not an exception's, and names the tool that refused.</summary>
         internal static bool TryGetMap(string toolName, [NotNullWhen(true)] out Map? map, out string error)
@@ -480,12 +467,6 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        /// <summary>A private instance property, same contract.</summary>
-        internal static PropertyInfo? PrivateInstanceProperty(Type type, string name)
-        {
-            try { return type == null ? null : type.GetProperty(name, BindingFlags.NonPublic | BindingFlags.Instance); }
-            catch { return null; }
-        }
 
         // ------------------------------------------------------------------
         // Reading values back out of a payload dictionary
@@ -499,13 +480,6 @@ namespace HomeBridge.BridgeTools
             return d != null && d.TryGetValue(key, out v) && v is bool && (bool)v;
         }
 
-        /// <summary>A boxed int this companion wrote into the payload itself; a
-        /// missing or differently typed value is a programming error, not an
-        /// unobserved fact.</summary>
-        internal static int Int(IDictionary<string, object?> d, string key)
-        {
-            return d[key] is int value ? value : throw new InvalidOperationException(key + " is not a boxed int.");
-        }
 
         /// <summary>A double out of a payload dictionary; absent or another type
         /// reads as 0.</summary>
@@ -579,55 +553,6 @@ namespace HomeBridge.BridgeTools
         {
             try { return constructible is RimWorld.Blueprint_Install; }
             catch { return false; }
-        }
-
-        internal static Dictionary<ThingDef, int> OutstandingConstructionDeficit(Map? map)
-        {
-            var totals = new Dictionary<ThingDef, int>();
-            if (map == null)
-                return totals;
-
-            var sites = new List<Thing>();
-            try
-            {
-                foreach (var group in new[] { ThingRequestGroup.Blueprint, ThingRequestGroup.BuildingFrame })
-                {
-                    var found = map.listerThings.ThingsInGroup(group);
-                    if (found == null)
-                        continue;
-                    for (var i = 0; i < found.Count; i++)
-                        if (found[i] != null && !sites.Contains(found[i]))
-                            sites.Add(found[i]);
-                }
-            }
-            catch { return totals; }
-
-            foreach (var thing in sites)
-            {
-                var constructible = thing as RimWorld.IConstructible;
-                if (constructible == null || IsInstallBlueprint(constructible))
-                    continue;
-
-                List<ThingDefCountClass> cost;
-                try { cost = constructible.TotalMaterialCost(); }
-                catch { continue; }
-                if (cost == null)
-                    continue;
-
-                foreach (var item in cost)
-                {
-                    if (item == null || item.thingDef == null)
-                        continue;
-                    var stillNeeded = ConstructibleStillNeeded(constructible, item.thingDef, item.count);
-                    if (stillNeeded <= 0)
-                        continue;
-                    int running;
-                    totals[item.thingDef] = totals.TryGetValue(item.thingDef, out running)
-                        ? running + stillNeeded
-                        : stillNeeded;
-                }
-            }
-            return totals;
         }
     }
 }

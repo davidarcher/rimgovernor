@@ -16,11 +16,11 @@ Non-damageable markers such as sleeping spots cannot become repair targets.
 
 | Need | Available native evidence and action boundary |
 | --- | --- |
-| Supplies | Per-item identity, location, quantity, condition, deterioration stat, roof, valid storage, rot deadline and forbidden status. `home/order` hauling previews native storage access. `requireSafeStorage` rechecks enabled hauling, safe reach and covered storage during dispatch. |
+| Supplies | Per-item identity, location, quantity, condition, deterioration stat, roof, valid storage, rot deadline and forbidden status. A `HaulIntent` previews native storage access. `requireSafeStorage` rechecks enabled hauling, safe reach and covered storage during dispatch. |
 | Storage | Existing slot cells, roof, occupancy and item-specific native filtered capacity. Native hauling separately decides worker access and delivery; cell count alone is not usable capacity. |
 | Sleeping | Bed definition, slots, owners, current users, pawn-specific access, roof and temperature. Capacity does not establish actual use or suitable worn protection. |
-| Home and structures | Exact occupied/protected cells with home coverage; building condition, material, roof and native construction lineage. `home/roof_support` checks existing roof connectivity with one exact wall excluded. This does not prove enclosure, escape routes or replacement admission. |
-| Fire, cleaning, repair | Exact native targets and condition. `home/order` repair/clean use the installed WorkGivers and their normal eligibility. These methods require current home coverage, safe access and enabled work. The installed firefighting WorkGiver is not directly orderable: enabled workers respond normally while the controller watches at most three home fires of size at most one. |
+| Home and structures | Exact occupied/protected cells with home coverage; building condition, material, roof and native construction lineage. `Observations.ReadRoofSupport` checks existing roof connectivity with one exact wall excluded. This does not prove enclosure, escape routes or replacement admission. |
+| Fire, cleaning, repair | Exact native targets and condition. `PawnOrderIntent` repair/clean use the installed WorkGivers and their normal eligibility. These methods require current home coverage, safe access and enabled work. The installed firefighting WorkGiver is not directly orderable: enabled workers respond normally while the controller watches at most three home fires of size at most one. |
 | People | Current rest, recreation, mood, worn apparel condition and native comfortable temperature range. `home/list_pawns` supplies medical, work, settings and schedule reads. |
 | Animals | Owned animal census, diet and food need; native rope-management eligibility, current enclosed pen and suitable pen identity. Pets have no pen-containment predicate. Reachable stored feed follows native eating eligibility and allowed-area access; it excludes drugs and does not count pasture or future harvest. Existing combined-demand food forecasts account for animal shares separately. |
 | Medicine, season, power | Medicine is identified through native item definitions. Existing forecast/status tools supply patient, crop and power inputs; no future production or season is credited as stock. |
@@ -280,7 +280,7 @@ loaded designations remain untouched until explicitly adopted. Revoking
 authority releases exactly the controller-owned pending designations; player
 replacements survive.
 
-`home/upkeep_wall` creates an ordinary native deconstruction designation. Completion
+A `RemoveWallIntent` on Actions/Apply creates an ordinary native deconstruction designation. Completion
 comes from the actual native deconstruction job, not disappearance of a wall. The
 guard rechecks exact supporting identities, enclosure, roofs, remaining materials
 and resource policies before completion. Jobs require active supervised simulation.

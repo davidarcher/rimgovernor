@@ -344,8 +344,8 @@ and a waiting control call is admitted before any waiting read when a slot
 frees, so a renew or stop never queues behind a burst of bundle reads. The
 class rides beside `request` and `trace` on the wire and
 the companion's `ProtoBoundary.OnMainThread` runs queued control hops before
-observation hops within a frame (`MainThreadAdmission`); legacy
-`home/*` tools that call the host's main thread directly stay outside that
+observation hops within a frame (`MainThreadAdmission`); the few remaining
+`home/*` tools call the host's main thread directly and stay outside that
 ordering. `bridge.WithAdmissionClass` overrides a call's class for a caller
 whose use differs from the method's default.
 

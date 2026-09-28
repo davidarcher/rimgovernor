@@ -149,7 +149,7 @@ cannot supply screenshots.
 
 ## Native gesture admission
 
-`home/player_input` is explicit player infrastructure outside model capabilities.
+PlayerInput `LeaseInput`/`SendInput` is explicit player infrastructure outside model capabilities.
 Only a private Linux display and its process-owned game window admit direct input.
 The bridge session establishes ownership; an ordered shared-memory mailbox dispatches events on the
 native main thread without another game-order owner. Frame age, source, map/load,

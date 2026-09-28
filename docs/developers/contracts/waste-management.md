@@ -19,7 +19,7 @@ missing or protected targets. Replacing policy requires observing or cancelling
 pending work. Explicitly renewing a blocked goal retains old receipts and starts a
 new method generation; it never silently retries an uncertain write.
 
-`home/waste_state` returns current-map item identities, native rot stage, protection
+`Observations.ReadWaste` returns current-map item identities, native rot stage, protection
 reason, position and containment. Grave occupants remain visible as protected
 `buried` bodies. Held possessions and fogged targets are never hauling candidates.
 Forbidden items, quest-tagged objects, packed buildings, and native dissolution,

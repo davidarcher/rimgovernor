@@ -76,9 +76,6 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        internal static Building? ColonistWallById(Map map, string id) =>
-            map.listerBuildings.allBuildingsColonist.FirstOrDefault(b => b.def == ThingDefOf.Wall && b.Spawned && b.GetUniqueLoadID() == id);
-
         internal static bool Validate(Obs.WallUpgradeSitesRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, optional target id are required.");

@@ -25,8 +25,7 @@ namespace HomeBridge.BridgeTools
                 areas = map.areaManager.AllAreas.OfType<Area_Allowed>().Where(a => a.TrueCount > 0
                     && a.ActiveCells.All(c => c.Roofed(map) && !c.Fogged(map))).Select(a => new { id = a.ID, label = a.Label, cells = a.TrueCount }).ToList(),
                 restrictions = map.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(),
-                    area = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.ID,
-                    leased = Current.Game.GetComponent<RecoveryAreas>().Claims.Any(c => c.Pawn == p && c.Assigned?.Map == map) }).ToList(),
+                    area = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.ID }).ToList(),
                 buildings = map.listerBuildings.allBuildingsColonist.Where(b => !b.Position.Fogged(map))
                     .OrderBy(b => b.thingIDNumber).Select(b => new {
                         thingId = b.GetUniqueLoadID(), defName = b.def.defName, position = BridgeCommon.Pos(b.Position),

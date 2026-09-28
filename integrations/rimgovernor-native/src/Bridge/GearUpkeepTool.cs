@@ -187,37 +187,13 @@ namespace HomeBridge.BridgeTools
             return needs;
         }
 
-        internal static object Run(string? pawn, string? target, string? expected, bool dryRun)
+        internal static object Census()
         {
             var map = Find.CurrentMap;
             if (map == null) return new { success = false, error = "No current map" };
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-            if (target != null || !dryRun) {
-                var p = people.SingleOrDefault(v => v.GetUniqueLoadID() == pawn);
-                if (p == null || target == null || string.IsNullOrEmpty(expected)) return new { success = false, error = "Exact pawn, target and signature required" };
-                if (!Find.TickManager.Paused) return new { success = false, error = "Pause before preparing apparel work" };
-                if (Identity(p) != expected) return new { success = false, error = "Loadout or apparel assignment changed" };
-                var weapon = map.listerThings.ThingsInGroup(ThingRequestGroup.Weapon).OfType<ThingWithComps>().SingleOrDefault(v => v.GetUniqueLoadID() == target);
-                if (weapon != null) {
-                    var blocked = Available(p) ?? WeaponEligible(p, weapon);
-                    if (blocked != null) return new { success = false, error = blocked };
-                    if (dryRun) return new { success = true, pawn, target, expectedLoadout = expected };
-                    var equip = JobMaker.MakeJob(JobDefOf.Equip, weapon);
-                    p.jobs.StartJob(equip, JobCondition.InterruptForced);
-                    return new { success = p.CurJob == equip, pawn, target, job = p.CurJob?.def.defName, outcome = "ordered" };
-                }
-                var a = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().SingleOrDefault(v => v.GetUniqueLoadID() == target);
-                var refusal = Available(p) ?? (a == null ? "Apparel unavailable" : Eligible(p, a));
-                if (refusal != null) return new { success = false, error = refusal };
-                if (Gain(p, a) < .05f) return new { success = false, error = "No material native apparel improvement" };
-                if (dryRun) return new { success = true, pawn, target, expectedLoadout = expected };
-                var job = JobMaker.MakeJob(JobDefOf.Wear, a);
-                // Autonomous ordinary work must not create a player forced outfit entry.
-                p.jobs.StartJob(job, JobCondition.InterruptForced);
-                return new { success = p.CurJob == job, pawn, target, job = p.CurJob?.def.defName, outcome = "ordered" };
-            }
             var rows = new List<object>();
-            foreach (var p in people.Where(p => pawn == null || p.GetUniqueLoadID() == pawn)) {
+            foreach (var p in people) {
                 var refusal = Available(p);
                 var candidates = new List<object>();
                 if (refusal == null)

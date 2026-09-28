@@ -96,7 +96,7 @@ both and only they go to NormalOrWorse) is a colony snapshot test,
 
 ## Surgery
 
-`home/medical_operations` discovers current patient recipes, body-part indices,
+`Observations.ReadMedicalCatalog` discovers current patient recipes, body-part indices,
 native ingredient definitions and counts, practitioner skill requirements, and
 current operation bills. Its catalog is patient-specific. Available ingredients
 and doctors do not certify bed access, sufficient reachable medicine or eventual

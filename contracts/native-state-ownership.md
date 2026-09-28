@@ -188,36 +188,6 @@ controller's dispatch receipt is the only record of who ordered an equip; the
 equipped item itself is observable. Native equip work can finish while
 disconnected.
 
-## Recovery areas
-
-Sources: [saved claims and cleanup](../integrations/rimgovernor-native/src/Runtime/Persistence/RecoveryAreas.cs),
-[setter ownership invalidation](../integrations/rimgovernor-native/src/Bridge/RecoveryAreaOwnership.cs).
-
-| Field/key | Sole target owner | Reconstructible? |
-| --- | --- | --- |
-| `RecoveryAreas.Claims/rimgovernorRecoveryAreas` (deep `RecoveryAreaClaim`) | Native minimal cleanup obligation; SQL owns intent/history | No for previous settings. |
-| `RecoveryAreaClaim.Pawn/pawn` (reference) | Native cleanup target | Fresh pawn, not cleanup association. |
-| `Before/before`, `Assigned/assigned` (area references) | Native compare-and-restore obligation | Current area is fresh; prior area and assignment provenance are not. |
-| `Owner/owner`, `Until/until` | Native cleanup expiry discriminator | No; must not grant resumed automation authority. |
-
-There is no `Overrides` list any more: an area-restriction change is no longer
-remembered as a permanent "player owns this pawn's work area" refusal. Current
-tick cleanup restores only an unchanged assigned area on the matching map, when
-the tick deadline expires, load token changes or toxic fallout ends. A pawn on
-another map waits until return. Missing pawn/settings/assigned area, or an
-observed changed assignment, simply drops the stale claim; the controller may
-issue a fresh lease for that pawn immediately afterward. Patched setters also
-drop claims on any change, including a same-value setter, which is ordinary
-staleness handling rather than a player-ownership record.
-
-Proposed native exception: the remaining claim fields are a bounded cleanup
-obligation needed when the controller is absent, not a second decision ledger.
-Migrate cleanup history to SQL through durable change events; a missing database
-must not allow old claims to be reacquired. Required acceptance: absent controller,
-load before expiry, same-value setter, removed area/pawn, map departure/return
-and fallout ending while disconnected. Test the retained cleanup path without any
-bridge tool discovery. Existing entry point: `scripts/disaster_recovery_acceptance.py`.
-
 ## Home coverage
 
 Sources: [saved map state](../integrations/rimgovernor-native/src/Runtime/Persistence/HomeCoverageState.cs),

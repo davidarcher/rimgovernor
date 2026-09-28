@@ -49,7 +49,7 @@ projected geometry; surviving objects remain part of native map observations.
 
 ## Native pawn access
 
-`home/spatial_access` compares each mobile colonist's current safe, unfogged,
+`Observations.ReadSpatialAccess` compares each mobile colonist's current safe, unfogged,
 allowed-area four-neighbor component with projected building/terrain obstruction.
 Every previously reachable cell outside the footprint must remain reachable,
 including observed rooms whose old actions have been retired. Native door opening

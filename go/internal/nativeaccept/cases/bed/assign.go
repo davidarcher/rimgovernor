@@ -2,8 +2,8 @@
 // (issues #34, #941): BedAssignActionHandler
 // (integrations/rimgovernor-native/src/Bridge/Protocol/
 // NativeBedAssignOperations.cs) drives the same
-// CompAssignableToPawn.TryAssignPawn write the legacy JSON home/upkeep_bed
-// tool (UpkeepBedTool.cs) used. A colonist who genuinely owns one bed
+// CompAssignableToPawn.TryAssignPawn write the Assign tab uses. A
+// colonist who genuinely owns one bed
 // actually has their bed ownership reassigned to a different, real,
 // previously-unclaimed compliant bed, observed via a real
 // rimgovernor/observations_list_pawns readback (not just a result).

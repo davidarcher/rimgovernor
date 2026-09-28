@@ -66,7 +66,7 @@ native job-giver choices. Thoughts without a measured eligible corrective method
 produce an explicit blocker, including relationship and ideology choices requiring
 player direction. A facility placement is never a mood or need postcondition.
 
-`home/relieve_need` offers one ordinary food, rest or recreation job. It checks an
+A `NeedReliefIntent` on Actions/Apply offers one ordinary food, rest or recreation job. It checks an
 exact pawn and current job identity, current timetable assignment,
 draft/mental/medical state, carried cargo, fire, native priority,
 target restrictions, safe reachability and reservations. It uses the installed
