@@ -36,10 +36,11 @@ func TestFormationChecksGoComputedCells(t *testing.T) {
 			t.Fatalf("%v not named: %+v", c, ask)
 		}
 	}
-	// (9,22), in front of a, and (8,24), behind b, are not standable: the
-	// first tank stands before b with no pull-back cell, the second
-	// before c with (10,24) behind it.
-	_, memory := answerWithout(t, view, GeometryReply{}, domain.Cell{X: 9, Z: 22}, domain.Cell{X: 8, Z: 24})
+	// (9,22), in front of a, is cover and (9,24), behind a, is not
+	// standable: the first tank takes the nearest standable cell ahead of
+	// a, (8,22), with no pull-back cell (#1153); b's front cell is then
+	// taken, so the second stands at (7,22) with (8,24) behind b.
+	_, memory := answerWithout(t, view, GeometryReply{}, domain.Cell{X: 9, Z: 22}, domain.Cell{X: 9, Z: 24})
 	tanks := map[domain.PawnID]CombatRole{}
 	for _, r := range memory.Roles {
 		if r.Duty == DutyTank {
@@ -48,7 +49,7 @@ func TestFormationChecksGoComputedCells(t *testing.T) {
 	}
 	s, u := tanks["s"], tanks["t"]
 	if s.Cell == nil || *s.Cell != (domain.Cell{X: 8, Z: 22}) || s.Home != nil ||
-		u.Cell == nil || *u.Cell != (domain.Cell{X: 10, Z: 22}) || u.Home == nil || *u.Home != (domain.Cell{X: 10, Z: 24}) {
+		u.Cell == nil || *u.Cell != (domain.Cell{X: 7, Z: 22}) || u.Home == nil || *u.Home != (domain.Cell{X: 8, Z: 24}) {
 		t.Fatalf("%+v", tanks)
 	}
 	// Its shield broken, the tank without a pull-back cell holds where it

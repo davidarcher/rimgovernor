@@ -851,8 +851,9 @@ func formationAsk(view CombatView) *GeometryRequest {
 }
 
 // formationChecks are the cells Formation computes itself and names for
-// the game to check (#881): the peeler's home, and in front of and behind
-// each firing cell (a tank's cell and its pull-back cell).
+// the game to check (#881): the peeler's home, the cell in front of each
+// firing cell (every cell a tank may take ahead of it when a pawn wears a
+// shield, #1153) and the one behind it (its pull-back cell).
 func formationChecks(view CombatView, layout CombatLayout) []domain.Cell {
 	var out []domain.Cell
 	add := func(c domain.Cell) {
@@ -863,9 +864,17 @@ func formationChecks(view CombatView, layout CombatLayout) []domain.Cell {
 	if home := peelerHome(view); home != nil {
 		add(*home)
 	}
+	belted := slices.ContainsFunc(view.Pawns, func(p CombatPawnState) bool { _, ok := p.Shield.Value(); return ok })
 	if v, ok := towardVector(layout.Toward); ok {
 		for _, f := range layout.Firing {
-			add(domain.Cell{X: f.X - v.X, Z: f.Z - v.Z})
+			ahead := tankCells(f, v)
+			if !belted {
+				// No shield in the fight: the front cell is only a line check.
+				ahead = ahead[:1]
+			}
+			for _, c := range ahead {
+				add(c)
+			}
 			add(domain.Cell{X: f.X + v.X, Z: f.Z + v.Z})
 		}
 	}
@@ -920,7 +929,13 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 			} else {
 				roles = append(roles, brawlerRoles(view, defenders, blocking, geometry, relieved)...)
 			}
-			roles = append(roles, tankRoles(tanks, positions, layout.Toward, geometry)...)
+			var taken []domain.Cell
+			for _, r := range roles {
+				if r.Cell != nil {
+					taken = append(taken, *r.Cell)
+				}
+			}
+			roles = append(roles, tankRoles(view, tanks, positions, layout.Toward, geometry, taken)...)
 			return TacticHold, sortRoles(roles), ""
 		}
 	}

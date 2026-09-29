@@ -3,6 +3,7 @@ package combatlab
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -121,5 +122,22 @@ func TestRangedLineIsSpacedBehindCover(t *testing.T) {
 func TestBuildRefusesUnknownFixture(t *testing.T) {
 	if _, err := Build("lab-nope", 50, 50); err == nil {
 		t.Fatal("want an error")
+	}
+}
+
+// lab-ranged-shield (#1153) is lab-ranged unchanged plus a fifth,
+// melee-armed colonist in a shield belt.
+func TestRangedShieldAddsBeltedBrawler(t *testing.T) {
+	cx, cz := labCenter()
+	plain, shield := ranged(cx, cz), rangedShield(cx, cz)
+	if !slices.Equal(plain.Things, shield.Things) || !reflect.DeepEqual(plain.Layout, shield.Layout) {
+		t.Fatal("lab-ranged-shield changes lab-ranged's line")
+	}
+	if len(shield.Pawns) != len(plain.Pawns)+1 || !reflect.DeepEqual(shield.Pawns[:len(plain.Pawns)], plain.Pawns) {
+		t.Fatalf("pawns %+v, want lab-ranged's plus one", shield.Pawns)
+	}
+	tank := shield.Pawns[len(plain.Pawns)]
+	if tank.Side != Colonist || tank.Index != 4 || shield.Colonists != 5 || tank.Apparel != "Apparel_ShieldBelt" || tank.Weapon != longsword {
+		t.Errorf("tank %+v, colonists %d", tank, shield.Colonists)
 	}
 }

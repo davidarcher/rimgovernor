@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "fixture": "lab-ranged-shield",
+  "ticks": 1556,
+  "colonistDamage": 95,
+  "colonistDowns": 0,
+  "colonistDeaths": 0,
+  "enemyDowns": 1,
+  "enemyDeaths": 0,
+  "enemyFled": 3,
+  "firstContactTick": 148,
+  "resolvedTick": 1583,
+  "contactToResolutionTicks": 1435,
+  "winner": "colonist",
+  "friendlyFireHits": 0,
+  "ordersIssued": 11,
+  "ordersRefused": 0,
+  "stepLatencyP95Ms": 1881
+}

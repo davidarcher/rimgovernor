@@ -12,6 +12,9 @@ import (
 // through its belt) and t (armor .4, a melee weapon).
 func tankView() CombatView {
 	view := holdView()
+	for i := range view.Threats {
+		view.Threats[i].RangedEquipped = domain.Known(true)
+	}
 	s := combatRifleman("s")
 	s.Armor = domain.Known(.8)
 	view.Defenders = append(view.Defenders, s, combatBrawler("t", .4))
@@ -60,5 +63,44 @@ func TestDecideCombatTankPullsBackOnShieldBreak(t *testing.T) {
 	want := []CombatOrder{{Pawn: "s", Kind: OrderMove, Cell: domain.Cell{X: 9, Z: 24}, Reason: ReasonRetreat}}
 	if !reflect.DeepEqual(orders, want) || next.Tactic != TacticHold {
 		t.Fatalf("%+v", orders)
+	}
+}
+
+func tankCellsOf(m CombatMemory) map[domain.PawnID]domain.Cell {
+	out := map[domain.PawnID]domain.Cell{}
+	for _, r := range m.Roles {
+		if r.Duty == DutyTank && r.Cell != nil {
+			out[r.Pawn] = *r.Cell
+		}
+	}
+	return out
+}
+
+// {front cell is cover, a covered cell ahead} → the tank takes the
+// covered cell over nearer open ground (#1153).
+func TestTankPrefersCoveredCellAhead(t *testing.T) {
+	reply := GeometryReply{Scored: []ScoredCell{{Cell: domain.Cell{X: 10, Z: 22}, Lines: []CoverLine{{Hostile: "r1", Cover: .4, LineOfFire: true}}}}}
+	_, memory := answerWithout(t, tankView(), reply, domain.Cell{X: 9, Z: 22})
+	if got := tankCellsOf(memory); got["s"] != (domain.Cell{X: 10, Z: 22}) {
+		t.Fatalf("%+v", got)
+	}
+}
+
+// {mostly melee raiders} or {an EMP carrier} → no tank is placed (#1153).
+func TestTankGating(t *testing.T) {
+	melee := tankView()
+	for i := range melee.Threats {
+		melee.Threats[i].RangedEquipped = domain.Known(false)
+	}
+	emp := tankView()
+	emp.Pawns = append(emp.Pawns, CombatPawnState{ID: "r1", Cell: domain.Known(domain.Cell{X: 9, Z: 5}), Weapon: "Gun_EmpLauncher"})
+	for name, view := range map[string]CombatView{"melee": melee, "emp": emp} {
+		_, memory := decideStop(t, view, StopEvent{}, CombatMemory{})
+		if got := tankCellsOf(memory); len(got) != 0 {
+			t.Errorf("%s: tanks %+v", name, got)
+		}
+	}
+	if !tankThreat(tankView()) {
+		t.Error("ranged raiders: want a tank")
 	}
 }

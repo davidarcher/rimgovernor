@@ -167,3 +167,71 @@ func TestCombatReplayLabMech(t *testing.T) {
 		}
 	}
 }
+
+// lab-ranged-shield (#866, #1153): lab-ranged plus a fifth colonist, a
+// longsword fighter in a charged shield belt. The belt makes it the
+// fight's tank: its formation cell lies between the gunners and the
+// approach, within two cells ahead of a gunner (the sandbags fill the
+// front cells) and nearer every raider than that gunner.
+func TestCombatReplayLabRangedShield(t *testing.T) {
+	t.Parallel()
+	stops := checkCombat(t, "testdata/combat/lab-ranged-shield.json.gz",
+		formsTactic(firstStop, policy.TacticHold),
+		ordersOwnedDrafts(),
+		changesOnly(),
+		combatAssertion{name: "no attack through a colonist", check: func(s combatReplayStop) error {
+			return noColonistInLine(s, s.Orders)
+		}},
+	)
+	first := stops[0]
+	var shielded []domain.PawnID
+	for _, p := range first.View.Pawns {
+		if c, ok := p.Shield.Value(); ok && c > 0 {
+			shielded = append(shielded, p.ID)
+		}
+	}
+	if len(shielded) != 1 {
+		t.Fatalf("shielded pawns %v, want the one belted brawler", shielded)
+	}
+	cells := map[domain.PawnID]domain.Cell{}
+	for _, p := range first.View.Pawns {
+		if c, ok := p.Cell.Value(); ok {
+			cells[p.ID] = c
+		}
+	}
+	var hostiles []domain.Cell
+	for _, h := range first.Ask.Hostiles {
+		if c, ok := cells[h]; ok {
+			hostiles = append(hostiles, c)
+		}
+	}
+	if len(hostiles) == 0 {
+		t.Fatal("no raider cell at the first stop")
+	}
+	var tank *domain.Cell
+	var gunners []domain.Cell
+	for _, r := range first.Memory.Roles {
+		switch {
+		case r.Pawn == shielded[0]:
+			if r.Duty != policy.DutyTank || r.Ranged {
+				t.Errorf("shielded pawn's role %+v, want a tank", r)
+			}
+			tank = r.Cell
+		case r.Ranged && r.Cell != nil:
+			gunners = append(gunners, *r.Cell)
+		}
+	}
+	if tank == nil {
+		t.Fatalf("shielded pawn has no formation cell: roles %+v", first.Memory.Roles)
+	}
+	dist2 := func(a, b domain.Cell) int32 { return (a.X-b.X)*(a.X-b.X) + (a.Z-b.Z)*(a.Z-b.Z) }
+	between := slices.ContainsFunc(gunners, func(g domain.Cell) bool {
+		if max(abs32(g.X-tank.X), abs32(g.Z-tank.Z)) > 2 {
+			return false
+		}
+		return !slices.ContainsFunc(hostiles, func(h domain.Cell) bool { return dist2(*tank, h) >= dist2(g, h) })
+	})
+	if !between {
+		t.Errorf("tank cell %v is not in front of a gunner %v toward the raiders %v", *tank, gunners, hostiles)
+	}
+}

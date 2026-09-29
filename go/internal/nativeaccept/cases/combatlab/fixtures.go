@@ -138,9 +138,9 @@ const (
 // Names are the fixtures in landing order; #854 lands the first three,
 // lab-pods (#870) joins with its rooms (#897), lab-breach with its sapper
 // raid (#1149), lab-siege with its siege lord (#1154), lab-manhunter and
-// lab-mech with #1146. lab-infestation (#1071) builds but has no metrics
+// lab-mech with #1146, lab-ranged-shield with #1153. lab-infestation (#1071) builds but has no metrics
 // baseline yet.
-var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech"}
+var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech", "lab-ranged-shield"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
 func Build(name string, cx, cz int) (Fixture, error) {
@@ -151,6 +151,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return choke(cx, cz), nil
 	case "lab-ranged":
 		return ranged(cx, cz), nil
+	case "lab-ranged-shield":
+		return rangedShield(cx, cz), nil
 	case "lab-pods":
 		return pods(cx, cz), nil
 	case "lab-siege":
@@ -356,6 +358,20 @@ func ranged(cx, cz int) Fixture {
 		f.Layout.Firing = append(f.Layout.Firing, Cell{cx + dx, cz - 9})
 		f.Layout.Retreat = append(f.Layout.Retreat, Cell{cx + dx, cz - 14})
 	}
+	return f
+}
+
+// rangedShield (#866, #1153): lab-ranged plus a fifth colonist, a
+// longsword fighter in a charged shield belt, two cells behind the line's
+// middle. The four riflemen are unchanged (a belted pawn cannot fire).
+// The belt makes it the fight's tank: its formation cell lies ahead of a
+// gunner, toward the raiders; the sandbags fill the gunners' front cells,
+// so it is the nearest standable cell ahead.
+func rangedShield(cx, cz int) Fixture {
+	f := ranged(cx, cz)
+	f.Name = "lab-ranged-shield"
+	f.Colonists = 5
+	f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: 4, X: cx, Z: cz - 11, Weapon: longsword, Apparel: "Apparel_ShieldBelt"})
 	return f
 }
 
