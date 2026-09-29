@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"math"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -10,7 +11,17 @@ import (
 
 // PackedItem is one spawned, unheld packed (minified) item and the building
 // inside it; a RelocateIntent on Inner installs it (#830).
-type PackedItem struct{ ID, Inner, InnerDef string }
+// Quality (QualityCategory ordinal, QualityKnown false without one) and
+// MarketValue rank art stock for the trade selector (#1194).
+type PackedItem struct {
+	ID, Inner, InnerDef string
+	Quality             int32
+	QualityKnown        bool
+	MarketValue         float64
+}
+
+// validQuality is a QualityCategory ordinal, Awful (0) to Legendary (6).
+func validQuality(q int32) bool { return q >= 0 && q <= 6 }
 
 // ReadPackedItems lists the colony's spawned, unheld packed items of one
 // packed definition.
@@ -48,10 +59,12 @@ func (client *Client) ReadPackedItems(ctx context.Context, identity *c.Identity,
 			return nil, raw, contract("invalid packed items row")
 		}
 		for _, item := range row.Items {
-			if validID(item.GetId()) != nil || validID(item.GetInnerId()) != nil || validID(item.GetInnerDefName()) != nil {
+			if validID(item.GetId()) != nil || validID(item.GetInnerId()) != nil || validID(item.GetInnerDefName()) != nil ||
+				item.Quality != nil && !validQuality(item.GetQuality()) || math.IsNaN(item.GetMarketValue()) || math.IsInf(item.GetMarketValue(), 0) || item.GetMarketValue() < 0 {
 				return nil, raw, contract("invalid packed item")
 			}
-			out = append(out, PackedItem{item.GetId(), item.GetInnerId(), item.GetInnerDefName()})
+			out = append(out, PackedItem{ID: item.GetId(), Inner: item.GetInnerId(), InnerDef: item.GetInnerDefName(),
+				Quality: item.GetQuality(), QualityKnown: item.Quality != nil, MarketValue: item.GetMarketValue()})
 		}
 	}
 	return out, raw, nil

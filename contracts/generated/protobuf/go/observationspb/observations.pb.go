@@ -2057,8 +2057,12 @@ type EntityRef struct {
 	Position *commonpb.Cell         `protobuf:"bytes,5,opt,name=position,proto3" json:"position,omitempty"`
 	Snapshot *SnapshotRef           `protobuf:"bytes,6,opt,name=snapshot,proto3" json:"snapshot,omitempty"` // Required when usable as an operation EntityPrecondition.
 	// A packed (minified) item's inner building, for a RelocateIntent install.
-	InnerId       *string `protobuf:"bytes,7,opt,name=inner_id,json=innerId,proto3,oneof" json:"inner_id,omitempty"`
-	InnerDefName  *string `protobuf:"bytes,8,opt,name=inner_def_name,json=innerDefName,proto3,oneof" json:"inner_def_name,omitempty"`
+	InnerId      *string `protobuf:"bytes,7,opt,name=inner_id,json=innerId,proto3,oneof" json:"inner_id,omitempty"`
+	InnerDefName *string `protobuf:"bytes,8,opt,name=inner_def_name,json=innerDefName,proto3,oneof" json:"inner_def_name,omitempty"`
+	// A packed item's quality (QualityCategory ordinal, 0 Awful .. 6
+	// Legendary; absent without one) and market value (#1194).
+	Quality       *int32   `protobuf:"varint,9,opt,name=quality,proto3,oneof" json:"quality,omitempty"`
+	MarketValue   *float64 `protobuf:"fixed64,10,opt,name=market_value,json=marketValue,proto3,oneof" json:"market_value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2147,6 +2151,20 @@ func (x *EntityRef) GetInnerDefName() string {
 		return *x.InnerDefName
 	}
 	return ""
+}
+
+func (x *EntityRef) GetQuality() int32 {
+	if x != nil && x.Quality != nil {
+		return *x.Quality
+	}
+	return 0
+}
+
+func (x *EntityRef) GetMarketValue() float64 {
+	if x != nil && x.MarketValue != nil {
+		return *x.MarketValue
+	}
+	return 0
 }
 
 type TargetRef struct {
@@ -20523,6 +20541,8 @@ type TradeLine struct {
 	Skills            []*Skill               `protobuf:"bytes,23,rep,name=skills,proto3" json:"skills,omitempty"`
 	ViolenceCapable   *bool                  `protobuf:"varint,24,opt,name=violence_capable,json=violenceCapable,proto3,oneof" json:"violence_capable,omitempty"`
 	PawnId            *string                `protobuf:"bytes,25,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
+	ThingId           *string                `protobuf:"bytes,26,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`
+	Quality           *int32                 `protobuf:"varint,27,opt,name=quality,proto3,oneof" json:"quality,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -20730,6 +20750,20 @@ func (x *TradeLine) GetPawnId() string {
 		return *x.PawnId
 	}
 	return ""
+}
+
+func (x *TradeLine) GetThingId() string {
+	if x != nil && x.ThingId != nil {
+		return *x.ThingId
+	}
+	return ""
+}
+
+func (x *TradeLine) GetQuality() int32 {
+	if x != nil && x.Quality != nil {
+		return *x.Quality
+	}
+	return 0
 }
 
 // TradeSession is the adapter's one live trade (#856): the negotiator
@@ -33971,7 +34005,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01B\v\n" +
 	"\t_def_nameB\b\n" +
-	"\x06_label\"\x8a\x03\n" +
+	"\x06_label\"\xee\x03\n" +
 	"\tEntityRef\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12\x19\n" +
@@ -33980,13 +34014,19 @@ const file_observations_proto_rawDesc = "" +
 	"\bposition\x18\x05 \x01(\v2\x1b.rimgovernor.common.v1.CellR\bposition\x12D\n" +
 	"\bsnapshot\x18\x06 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12\x1e\n" +
 	"\binner_id\x18\a \x01(\tH\x04R\ainnerId\x88\x01\x01\x12)\n" +
-	"\x0einner_def_name\x18\b \x01(\tH\x05R\finnerDefName\x88\x01\x01B\x05\n" +
+	"\x0einner_def_name\x18\b \x01(\tH\x05R\finnerDefName\x88\x01\x01\x12\x1d\n" +
+	"\aquality\x18\t \x01(\x05H\x06R\aquality\x88\x01\x01\x12&\n" +
+	"\fmarket_value\x18\n" +
+	" \x01(\x01H\aR\vmarketValue\x88\x01\x01B\x05\n" +
 	"\x03_idB\v\n" +
 	"\t_def_nameB\b\n" +
 	"\x06_labelB\t\n" +
 	"\a_map_idB\v\n" +
 	"\t_inner_idB\x11\n" +
-	"\x0f_inner_def_name\"\xd2\x01\n" +
+	"\x0f_inner_def_nameB\n" +
+	"\n" +
+	"\b_qualityB\x0f\n" +
+	"\r_market_value\"\xd2\x01\n" +
 	"\tTargetRef\x12@\n" +
 	"\x06entity\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefH\x00R\x06entity\x121\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x00R\x04cell\x12F\n" +
@@ -36646,8 +36686,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2,.rimgovernor.observations.v1.TradersSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xfa\n" +
-	"\n" +
+	"\aoutcome\"\xd2\v\n" +
 	"\tTradeLine\x12\x19\n" +
 	"\x05index\x18\x01 \x01(\rH\x00R\x05index\x88\x01\x01\x12J\n" +
 	"\n" +
@@ -36678,7 +36717,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x04food\x18\x16 \x01(\v2+.rimgovernor.observations.v1.TradeFoodFactsR\x04food\x12:\n" +
 	"\x06skills\x18\x17 \x03(\v2\".rimgovernor.observations.v1.SkillR\x06skills\x12.\n" +
 	"\x10violence_capable\x18\x18 \x01(\bH\x13R\x0fviolenceCapable\x88\x01\x01\x12\x1c\n" +
-	"\apawn_id\x18\x19 \x01(\tH\x14R\x06pawnId\x88\x01\x01B\b\n" +
+	"\apawn_id\x18\x19 \x01(\tH\x14R\x06pawnId\x88\x01\x01\x12\x1e\n" +
+	"\bthing_id\x18\x1a \x01(\tH\x15R\athingId\x88\x01\x01\x12\x1d\n" +
+	"\aquality\x18\x1b \x01(\x05H\x16R\aquality\x88\x01\x01B\b\n" +
 	"\x06_indexB\b\n" +
 	"\x06_stuffB\v\n" +
 	"\t_categoryB\x0f\n" +
@@ -36702,7 +36743,10 @@ const file_observations_proto_rawDesc = "" +
 	"\b_line_idB\x13\n" +
 	"\x11_violence_capableB\n" +
 	"\n" +
-	"\b_pawn_id\"\xe1\x01\n" +
+	"\b_pawn_idB\v\n" +
+	"\t_thing_idB\n" +
+	"\n" +
+	"\b_quality\"\xe1\x01\n" +
 	"\fTradeSession\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12 \n" +
 	"\ttrader_id\x18\x02 \x01(\tH\x00R\btraderId\x88\x01\x01\x12(\n" +

@@ -40,6 +40,10 @@ type TradeSheetRowFact struct {
 	Skills               []ProfileSkill
 	ViolenceCapable      bool
 	ViolenceCapableKnown bool
+
+	// ThingID is a non-pawn row's first colony thing (#1194): a packed
+	// sculpture's row names its packed item.
+	ThingID string
 }
 
 // TradeSelectionFacts is everything SelectTrade reads: the complete unfiltered
@@ -63,6 +67,12 @@ type TradeSelectionFacts struct {
 	Floors            map[string]int64
 	Stopped           []string
 	MaxSilverSpend    int64
+
+	// SaleArt is the packed art the colony may sell (SaleSculptures, by
+	// packed item id, #1194); ArtFirst sells it before the targets, when
+	// the wealth headroom is negative.
+	SaleArt  map[string]bool
+	ArtFirst bool
 }
 
 // TradeSelectionLine is one selected row adjustment: the native line id
@@ -122,8 +132,13 @@ const (
 // buildingruntime/trade_economy.go).
 func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeSelection {
 	refuse := func(reason string) TradeSelection { return TradeSelection{Refused: true, Reason: reason} }
-	if err := p.Validate(); err != nil {
-		return refuse(err.Error())
+	// Art alone (#1194) sells without a catalog target.
+	if len(p.Targets) > 0 || len(facts.SaleArt) == 0 {
+		if err := p.Validate(); err != nil {
+			return refuse(err.Error())
+		}
+	} else if p.SilverReserve < 0 {
+		return refuse("economic silver reserve out of range")
 	}
 	if !facts.Complete {
 		return refuse("Economic selection requires an unfiltered complete trade sheet")
@@ -146,6 +161,9 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 	// earlier one had already committed.
 	budget, traderCash := float64(budgetCap), float64(facts.TraderSilver)
 	out := TradeSelection{SilverReserve: reserve, Budget: budgetCap}
+	if facts.ArtFirst {
+		sellArt(&out, facts, stopped, &traderCash)
+	}
 	for _, target := range p.Targets {
 		var row *TradeSheetRowFact
 		ambiguous := false
@@ -223,8 +241,55 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 			out.Selected = append(out.Selected, TradeSelectionLine{LineID: row.LineID, DefName: row.DefName, Count: count})
 		}
 	}
+	if !facts.ArtFirst {
+		sellArt(&out, facts, stopped, &traderCash)
+	}
 	return out
 }
+
+// sellArt is the art-sale step (#1194): each row whose thing is sale art
+// sells that one piece, line by line, under the same rules as a surplus
+// sale -- a tradeable unprotected row, a known positive price (surplus
+// MinSellPrice) and the trader's remaining cash. A line already selected
+// is left alone.
+func sellArt(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]bool, traderCash *float64) {
+	if len(facts.SaleArt) == 0 {
+		return
+	}
+	selected := map[string]bool{}
+	for _, line := range out.Selected {
+		selected[line.LineID] = true
+	}
+	for _, row := range facts.Rows {
+		if row.ThingID == "" || !facts.SaleArt[row.ThingID] || selected[row.LineID] {
+			continue
+		}
+		evidence := TradeSelectionEvidence{Item: row.DefName}
+		switch {
+		case !row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn || !row.CurrencyKnown || row.Currency || stopped[row.DefName]:
+			evidence.Blocker = tradeBlockerRow
+		case !row.ProtectedExportKnown || row.ProtectedExport:
+			evidence.Blocker = tradeBlockerProtected
+		case row.ColonyCount < 1 || !row.SellPriceKnown || !finite(row.SellPrice) || row.SellPrice < 0:
+			evidence.Blocker = tradeBlockerUnknown
+		}
+		if evidence.Blocker != "" {
+			out.Evidence = append(out.Evidence, evidence)
+			continue
+		}
+		evidence.Matched, evidence.EligibleStock, evidence.ExportCapacity = true, 1, 1
+		if price := row.SellPrice; price >= artMinSellPrice && price <= *traderCash {
+			evidence.Count = -1
+			*traderCash -= price
+			out.Selected = append(out.Selected, TradeSelectionLine{LineID: row.LineID, DefName: row.DefName, Count: -1})
+		}
+		out.Evidence = append(out.Evidence, evidence)
+	}
+}
+
+// artMinSellPrice is the surplus sale's MinSellPrice (RoutineTradeTargets):
+// any positive price.
+const artMinSellPrice = math.SmallestNonzeroFloat64
 
 // TradeReserveFacts is what EconomicReserves folds into economic floors: the
 // player's own per-resource reserves and spending restrictions

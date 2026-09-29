@@ -396,7 +396,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		return RoutineTradeResult{}, err
 	}
 	selection := policy.SelectTrade(economic, facts)
-	if len(economic.Targets) == 0 {
+	if len(economic.Targets) == 0 && len(facts.SaleArt) == 0 {
 		// Nothing to buy or sell by the resource catalog: only a pawn
 		// purchase can still stage, against the same silver reserve.
 		selection = policy.TradeSelection{SilverReserve: max(economic.SilverReserve, facts.Floors["Silver"])}
@@ -514,6 +514,11 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
+	if facts.SaleArt, err = r.saleArt(call, identity, projection); err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
+	headroom, hk := projection.Facts.WealthBudget().Value()
+	facts.ArtFirst = hk && headroom < 0
 	capacity, _ := policy.JoinerCapacity(projection.Facts.JoinerCapacity()).Value()
 	return economic, facts, capacity, nil
 }
@@ -583,7 +588,7 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow) []policy.TradeSheetRowFact 
 			BuyPrice: row.BuyPrice, BuyPriceKnown: row.BuyPriceKnown, SellPrice: row.SellPrice, SellPriceKnown: row.SellPriceKnown,
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,
 			Currency: row.Currency, CurrencyKnown: row.CurrencyKnown, Pawn: row.Pawn, PawnKnown: row.PawnKnown,
-			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown,
+			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID,
 			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
 		})
 	}

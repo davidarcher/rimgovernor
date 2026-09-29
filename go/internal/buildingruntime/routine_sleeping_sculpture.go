@@ -56,10 +56,9 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	packed := make([]policy.PackedSculpture, 0, len(items))
+	packed := packedSculptures(items)
 	inner := map[string]bridge.PackedItem{}
 	for _, item := range items {
-		packed = append(packed, policy.PackedSculpture{ID: item.ID, Def: item.InnerDef})
 		inner[item.ID] = item
 	}
 	step, due := policy.NextSculpture(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed)
@@ -97,4 +96,38 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	}
 	clockSchedulerLog("%s: bedroom %s: sculpture install (weakest beauty)", goal.Goal.ID, step.Room)
 	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, true, nil
+}
+
+// packedSculptures is the policy view of packed sculpture stock.
+func packedSculptures(items []bridge.PackedItem) []policy.PackedSculpture {
+	out := make([]policy.PackedSculpture, 0, len(items))
+	for _, item := range items {
+		quality := -1
+		if item.QualityKnown {
+			quality = int(item.Quality)
+		}
+		out = append(out, policy.PackedSculpture{ID: item.ID, Def: item.InnerDef, Quality: quality, MarketValue: item.MarketValue})
+	}
+	return out
+}
+
+// saleArt is the packed art the trade selector may sell (#1194): every
+// packed sculpture but those the install lever would put in owed rooms.
+// Nil (no art sale) when the source cannot read packed items or a room
+// input is unknown.
+func (r *RoutineTradePlanner) saleArt(call context.Context, identity *c.Identity, facts observation.ColonyProjection) (map[string]bool, error) {
+	native, ok := r.native.(sculptureSource)
+	obs, sk := facts.Facts.Sleeping.Value()
+	rooms, rk := facts.Rooms.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	traits := sleepingTraits(facts)
+	if !ok || !sk || !rk || !ck || !census.Colony || traits == nil {
+		return nil, nil
+	}
+	items, _, err := native.ReadPackedItems(call, identity, policy.PackedSculptureDefinition)
+	if err != nil {
+		return nil, err
+	}
+	tier, _ := facts.BuildTier.Value()
+	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packedSculptures(items)), nil
 }

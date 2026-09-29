@@ -48,6 +48,12 @@ type TradeSheetRow struct {
 	Skills               []TradeSheetSkill
 	ViolenceCapable      bool
 	ViolenceCapableKnown bool
+
+	// A non-pawn row's first colony thing and its quality (#1194): a
+	// packed sculpture's row matches its packed item by ThingID.
+	ThingID      string
+	Quality      int32
+	QualityKnown bool
 }
 
 // TradeSheetSkill is one skill of an offered pawn.
@@ -185,6 +191,9 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 	if !v.GetPawn() && (len(v.Skills) != 0 || v.ViolenceCapable != nil || v.GetPawnId() != "") {
 		return TradeSheetRow{}, contract("pawn facts on a non-pawn trade line")
 	}
+	if v.GetPawn() && (v.ThingId != nil || v.Quality != nil) || !diagnostic(v.ThingId) || v.Quality != nil && !validQuality(v.GetQuality()) {
+		return TradeSheetRow{}, contract("invalid trade sheet thing facts")
+	}
 	if !diagnostic(v.PawnId) {
 		return TradeSheetRow{}, contract("trade sheet pawn id invalid")
 	}
@@ -197,7 +206,7 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 	}
 	return TradeSheetRow{
 		PawnID: v.GetPawnId(), Skills: skills, ViolenceCapable: v.GetViolenceCapable(), ViolenceCapableKnown: v.ViolenceCapable != nil,
-		Food:   food,
+		Food: food, ThingID: v.GetThingId(), Quality: v.GetQuality(), QualityKnown: v.Quality != nil,
 		LineID: v.GetLineId(), DefName: v.Definition.GetDefName(), Stuff: v.GetStuff(),
 		ColonyCount: v.GetColonyCount(), TraderCount: v.GetTraderCount(),
 		BuyPrice: v.GetBuyPrice(), SellPrice: v.GetSellPrice(), MarketValue: v.GetMarketValue(),

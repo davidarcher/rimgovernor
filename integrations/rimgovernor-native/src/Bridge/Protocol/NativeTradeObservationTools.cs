@@ -115,6 +115,18 @@ namespace HomeBridge.BridgeTools
                 ProtectedExport = def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn,
                 Food = pawn ? null : NativeTradeFoodFacts.Read(def),
             };
+            if (!pawn)
+            {
+                // One colony thing and its quality (#1194): a packed
+                // sculpture sells line by line, matched to its stock id.
+                Thing? thing; try { thing = t.FirstThingColony; } catch { thing = null; }
+                if (thing != null)
+                {
+                    var id = SafeText(() => thing.GetUniqueLoadID());
+                    if (id != "") line.ThingId = id;
+                    try { if (thing.GetInnerIfMinified().TryGetQuality(out var quality)) line.Quality = (int)quality; } catch { }
+                }
+            }
             if (pawn)
             {
                 line.PawnDescription = SafeText(() => t.Label);

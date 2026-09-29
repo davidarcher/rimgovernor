@@ -78,28 +78,79 @@ type SculptureStep struct {
 	Rot    domain.Rotation
 }
 
-// PackedSculpture is a packed sculpture in stock: its id and the
-// sculpture definition inside.
-type PackedSculpture struct{ ID, Def string }
+// PackedSculpture is a packed sculpture in stock: its id, the sculpture
+// definition inside, its quality (QualityCategory ordinal, -1 unknown) and
+// market value (#1194).
+type PackedSculpture struct {
+	ID, Def     string
+	Quality     int
+	MarketValue float64
+}
+
+// rankSculptures orders packed best first: quality, then market value,
+// then id.
+func rankSculptures(packed []PackedSculpture) []PackedSculpture {
+	out := append([]PackedSculpture(nil), packed...)
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.Quality != b.Quality {
+			return a.Quality > b.Quality
+		}
+		if a.MarketValue != b.MarketValue {
+			return a.MarketValue > b.MarketValue
+		}
+		return a.ID < b.ID
+	})
+	return out
+}
 
 // NextSculpture returns the install due for the first (by room id) bedroom
-// below target whose weakest stat is beauty, of the first packed sculpture
-// (in stock order) whose footprint has a free spot there (#1191: a large
+// below target whose weakest stat is beauty, of the best packed sculpture
+// (rankSculptures) whose footprint has a free spot there (#1191: a large
 // sculpture needs a free multi-cell spot); the caller asks only once
 // NextBeautyUpgrade has nothing.
 func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, packed []PackedSculpture) (SculptureStep, bool) {
 	for _, room := range sculptureRooms(obs, targets, rooms) {
-		for _, p := range packed {
-			size, ok := SculptureSize(p.Def)
-			if !ok {
-				continue
-			}
-			if cell, rot, ok := freeSpot(room.Room, size); ok {
-				return SculptureStep{Room: room.ID, Packed: p.ID, Anchor: cell, Rot: rot}, true
-			}
+		if p, cell, rot, ok := fitSculpture(room.Room, rankSculptures(packed), nil); ok {
+			return SculptureStep{Room: room.ID, Packed: p.ID, Anchor: cell, Rot: rot}, true
 		}
 	}
 	return SculptureStep{}, false
+}
+
+// fitSculpture is the first of ranked, not in taken, with a free spot in
+// room.
+func fitSculpture(room TidyRoom, ranked []PackedSculpture, taken map[string]bool) (PackedSculpture, domain.Cell, domain.Rotation, bool) {
+	for _, p := range ranked {
+		size, ok := SculptureSize(p.Def)
+		if !ok || taken[p.ID] {
+			continue
+		}
+		if cell, rot, ok := freeSpot(room, size); ok {
+			return p, cell, rot, true
+		}
+	}
+	return PackedSculpture{}, domain.Cell{}, domain.North, false
+}
+
+// SaleSculptures is the packed art the trade selector may sell (#1194):
+// every piece but those NextSculpture would install, one per owed room,
+// best first.
+func SaleSculptures(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, packed []PackedSculpture) map[string]bool {
+	ranked := rankSculptures(packed)
+	reserved := map[string]bool{}
+	for _, room := range sculptureRooms(obs, targets, rooms) {
+		if p, _, _, ok := fitSculpture(room.Room, ranked, reserved); ok {
+			reserved[p.ID] = true
+		}
+	}
+	out := map[string]bool{}
+	for _, p := range packed {
+		if !reserved[p.ID] {
+			out[p.ID] = true
+		}
+	}
+	return out
 }
 
 // beautyRooms are the target rooms (by id) below target whose weakest
