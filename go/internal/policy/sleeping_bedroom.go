@@ -29,6 +29,9 @@ const (
 	// BedroomShell: raise the walls and door of Room, a planned bedroom not
 	// standing yet.
 	BedroomShell BedroomStepKind = "shell"
+	// BedroomClear: deconstruct Bed, a vacant sleeping spot left in the
+	// starter shell (the planned storage room) at Cells[0] (#1182).
+	BedroomClear BedroomStepKind = "clear"
 )
 
 // BedroomStep is one bounded step towards individual bedrooms.
@@ -53,11 +56,24 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	if len(sleeping.People) == 0 || len(sleeping.People) != sleeping.Colonists {
 		return BedroomStep{}
 	}
+	// The starter shell stands on the planned storage room (#1177): the
+	// last spot left in it reads as a bedroom but is still the shell.
+	shell := map[string]bool{}
+	for _, r := range plan.Rooms {
+		if r.Role != ModuleStorage {
+			continue
+		}
+		if room, ok := PlannedRoomStanding(r, rooms); ok {
+			for _, b := range room.Beds {
+				shell[b] = true
+			}
+		}
+	}
 	bedroomBed := map[string]bool{}
 	for _, room := range rooms.Rooms {
 		if role, known := room.Role.Value(); known && role == RoomRoleBedroom {
 			for _, b := range room.Beds {
-				bedroomBed[b] = true
+				bedroomBed[b] = !shell[b]
 			}
 		}
 	}
@@ -85,13 +101,26 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			unhoused = append(unhoused, p)
 		}
 	}
+	// A spot its owner left behind in the shell is taken down (#1182), so
+	// the shell ends with no bunks.
+	var left []string
+	for id := range shell {
+		if b, ok := beds[id]; ok && b.Definition == SleepingSpotDefinition && len(b.Owners) == 0 {
+			left = append(left, id)
+		}
+	}
+	if len(left) > 0 {
+		sort.Strings(left)
+		b := beds[left[0]]
+		return BedroomStep{Kind: BedroomClear, Bed: b.ID, Cells: []domain.Cell{b.Cell}, Unhoused: len(unhoused)}
+	}
 	if len(unhoused) == 0 {
 		return BedroomStep{}
 	}
 	vacant := []string{}
-	for id := range bedroomBed {
+	for id, housed := range bedroomBed {
 		b, ok := beds[id]
-		if !ok || len(b.Owners) > 0 {
+		if !housed || !ok || len(b.Owners) > 0 {
 			continue
 		}
 		human, hk := b.Humanlike.Value()

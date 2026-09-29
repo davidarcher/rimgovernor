@@ -133,7 +133,7 @@ func TestSelectSleepingMethodBedLadder(t *testing.T) {
 	}{
 		{"bed available", true, map[string]bool{"Bedroll": true}, false, "Bed"},
 		{"bed locked, cloth or leather on hand", false, map[string]bool{"Bedroll": true, "BedrollDouble": true}, false, "Bedroll"},
-		{"bed locked, no stuff", false, nil, false, "SleepingSpot"},
+		{"bed locked, no stuff", false, nil, false, ""},
 		{"couple, bed available", true, nil, true, "DoubleBed"},
 		{"couple, bed locked, stuff on hand", false, map[string]bool{"Bedroll": true, "BedrollDouble": true}, true, "BedrollDouble"},
 	} {
@@ -142,7 +142,7 @@ func TestSelectSleepingMethodBedLadder(t *testing.T) {
 			tg = domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUpgrade, Partner: "p2"}})
 		}
 		choice, err := SelectSleepingMethod(SleepingRequest{Targets: tg, Sleeping: sleeping, Rooms: rooms, Definitions: ladder(c.bed), Stocked: c.stocked})
-		if err != nil || choice.Method != SleepingBuild || choice.Definition != c.want {
+		if want := map[bool]SleepingMethod{true: SleepingBuild, false: SleepingUnavailable}[c.want != ""]; err != nil || choice.Method != want || choice.Definition != c.want {
 			t.Fatal(c.name, choice, err)
 		}
 	}

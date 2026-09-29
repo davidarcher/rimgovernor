@@ -105,7 +105,7 @@ func TestSleepingBedrollSuitableUntilBedBuildable(t *testing.T) {
 		{"Bedroll", domain.Known(false), true},
 		{"Bedroll", domain.Known(true), false},
 		{"BedrollDouble", domain.Known(true), false},
-		{"SleepingSpot", domain.Known(false), true},
+		{"SleepingSpot", domain.Known(false), false},
 		{"SleepingSpot", domain.Known(true), false},
 		{"SleepingSpot", domain.Unknown[bool](), false},
 		{"Bedroll", domain.Unknown[bool](), true},

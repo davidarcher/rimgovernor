@@ -83,3 +83,53 @@ func TestBedroomStepNeverSplitsACouple(t *testing.T) {
 		t.Fatalf("couple = %+v, want neither moved into a single bedroom (#838)", got)
 	}
 }
+
+// Spot owners in the starter shell (the planned storage room) move out one
+// by one into doored bedrooms; each spot left behind is cleared, and the
+// last spot in the shell never reads as a bedroom (#1182).
+func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
+	plan, _, sleeping := bedroomFixture()
+	plan.Rooms[0] = LayoutRoom{Role: ModuleStorage, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}
+	room := func(id string, x int32, beds ...string) Room {
+		var cells []domain.Cell
+		for cx := x; cx < x+5; cx++ {
+			for z := int32(0); z < 5; z++ {
+				cells = append(cells, domain.Cell{X: cx, Z: z})
+			}
+		}
+		role := RoomRole("None")
+		if len(beds) > 0 {
+			role = RoomRoleBedroom
+		}
+		return Room{ID: id, Role: domain.Known(role), Enclosed: domain.Known(true), Beds: beds, Cells: cells}
+	}
+	spot := func(id string, owners ...PawnID) SleepingBed {
+		return SleepingBed{ID: id, Definition: SleepingSpotDefinition, Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Owners: owners, AccessibleTo: []PawnID{"a", "b"}, Cell: domain.Cell{X: 1, Z: 1}}
+	}
+	sleeping.Beds = []SleepingBed{spot("b1", "a"), spot("b2", "b")}
+	rooms := RoomObservation{Rooms: []Room{{ID: "shell", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
+		t.Fatalf("spot owners = %+v, want the first bedroom shelled", got)
+	}
+	rooms.Rooms = append(rooms.Rooms, room("r1", 10))
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind != BedroomFurnish {
+		t.Fatalf("empty bedroom = %+v, want furnish", got)
+	}
+	rooms.Rooms[1] = room("r1", 10, "s1")
+	sleeping.Beds = append(sleeping.Beds, spot("s1"))
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind != BedroomMove || got.Pawn != "a" || got.Bed != "s1" {
+		t.Fatalf("spot in the bedroom = %+v, want a moved in", got)
+	}
+	sleeping.People[0].OwnedBed = domain.Known("s1")
+	sleeping.Beds[0].Owners, sleeping.Beds[2].Owners = nil, []PawnID{"a"}
+	// One spot left in the shell: RimWorld reads it as a bedroom.
+	rooms.Rooms[0].Role = domain.Known(RoomRoleBedroom)
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind != BedroomClear || got.Bed != "b1" {
+		t.Fatalf("vacated shell spot = %+v, want it cleared", got)
+	}
+	rooms.Rooms[0].Beds = []string{"b2"}
+	sleeping.Beds = sleeping.Beds[1:]
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind != BedroomShell || got.Room.Interior.X != 16 {
+		t.Fatalf("last shell spot owner = %+v, want the second bedroom shelled", got)
+	}
+}

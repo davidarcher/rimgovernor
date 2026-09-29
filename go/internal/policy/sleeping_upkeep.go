@@ -49,9 +49,8 @@ type SleepingObservation struct {
 	// Rooms is the room quality census, unknown when its section is.
 	Rooms domain.Fact[[]UpkeepRoom]
 	// BedBuildable is Bed's native availability (#1181): while it is known
-	// false a bedroll or sleeping spot is a suitable bed, and while it is
-	// true both are upgrade targets. Unknown keeps a bedroll suitable and a
-	// spot not.
+	// false a bedroll is a suitable bed, and while it is true an upgrade
+	// target. Unknown keeps a bedroll suitable. A spot is never suitable.
 	BedBuildable domain.Fact[bool]
 }
 type SleepingUse struct {
@@ -356,12 +355,13 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 }
 
 // sleepingRung reports whether a bed of this definition is a suitable bed
-// on the ladder (#1181): a bedroll or spot only while Bed is unavailable.
+// on the ladder (#1181): a bedroll only while Bed is unavailable, a spot
+// never, so a spot owner stays a bedroom and bedroll target (#1182).
 func sleepingRung(definition Resource, bed domain.Fact[bool]) bool {
 	buildable, known := bed.Value()
 	switch definition {
 	case SleepingSpotDefinition:
-		return known && !buildable
+		return false
 	case SleepingBedrollDefinition, SleepingCoupleBedrollDefinition:
 		return !known || !buildable
 	}

@@ -177,9 +177,10 @@ assigned is one bed staged in a Bedroom-hosting room (Bedroom, Barracks or
 generic Room) whose observed temperature lies inside the comfortable band of
 every colonist still unhoused, one bed per method, assigned on a later review.
 The bed is the best rung available (#1181): `Bed`, else a `Bedroll` built from
-the first native stuff option the colony has in stock, else a `SleepingSpot`
-(a couple's `DoubleBed` or `BedrollDouble` first). A bedroll or spot is a
-suitable bed only while `Bed` is unavailable; neither the
+the first native stuff option the colony has in stock (a couple's `DoubleBed`
+or `BedrollDouble` first); a bedroom furnished for a spot owner falls back to a
+`SleepingSpot` (#1182). A bedroll is a suitable bed only while `Bed` is
+unavailable and a spot never, so spot owners walk into bedrooms first; neither the
 assignment nor the construction receipt clears the deficit, only the
 colonist's observed sleep in the owned bed does.
 

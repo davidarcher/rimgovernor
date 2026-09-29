@@ -96,6 +96,14 @@ func bedroomSwap(facts observation.ColonyProjection) (policy.BedroomSwap, bool) 
 	return policy.NextBedroomSwap(obs, traits)
 }
 
+// bedroomsFirst reports whether the bedroom ladder answers a sleeping
+// choice: with no demand, and ahead of a barracks bed while colonists own
+// only spots or no bed is buildable (#1182, bedrooms before bedrolls).
+// policy.NextBedroomStep still waits until every colonist owns some bed.
+func bedroomsFirst(method policy.SleepingMethod) bool {
+	return method == policy.SleepingNoDemand || method == policy.SleepingBuild || method == policy.SleepingUnavailable
+}
+
 // selectSleeping resolves the building ladder's definition and site from
 // the same census the sleeping planner chose from: only a SleepingBuild
 // choice furnishes; every other outcome is reported, never built around.
@@ -108,10 +116,11 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 	if err != nil {
 		return nil, "", err
 	}
-	if choice.Method == policy.SleepingNoDemand {
-		// A planned bedroom standing empty takes one bed (#786).
+	if bedroomsFirst(choice.Method) {
+		// A planned bedroom standing empty takes one bed (#786): the best
+		// on the ladder, else a spot its owner moves into (#1182).
 		if step := bedroomStep(facts); step.Kind == policy.BedroomFurnish {
-			definition, method := policy.SleepingDefinition(request.Definitions, request.Stocked, false)
+			definition, method := policy.SleepingDefinition(request.Definitions, request.Stocked, false, true)
 			if method != policy.SleepingBuild {
 				return nil, BuildingSleepingUnavailable, nil
 			}
@@ -293,6 +302,9 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 			return result, err
 		}
 	}
+	if bedroomsFirst(choice.Method) && bedroomStep(facts).Kind != policy.BedroomNone {
+		choice.Method = policy.SleepingNoDemand
+	}
 	switch choice.Method {
 	case policy.SleepingUnknown:
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
@@ -318,6 +330,8 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 			return indoor.step(call, epoch, arbiter)
 		case policy.BedroomShell:
 			return r.shellBedroom(call, epoch, state, review, goal, reading, step)
+		case policy.BedroomClear:
+			return r.removeOldBed(call, epoch, state, review, goal, reading, policy.BedReplacement{Room: "shell", Bed: step.Bed, Def: policy.SleepingSpotDefinition, Cell: step.Cells[0]})
 		default:
 			swap, ok := bedroomSwap(facts)
 			if !ok {

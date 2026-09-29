@@ -460,9 +460,13 @@ Construction uses shared resource admission and exact native placement/access
 previews, one bed per method, and the staged bed is assigned on a later review.
 The staged bed is the best available rung: `Bed`, else a `Bedroll` whose
 stuff (the planning definition's first `stuff_options` entry the stock covers)
-is on hand, else a `SleepingSpot`. A bedroll or spot is a suitable bed only
-while `Bed` is unavailable; once it is buildable their owners are upgrade
-targets.
+is on hand. A bedroll is a suitable bed only while `Bed` is unavailable; once
+it is buildable its owners are upgrade targets. A sleeping spot is never
+suitable (#1182): its owner stays an upgrade target, and while every colonist
+owns some bed the bedroom ladder (shell with a door, furnish, move) runs ahead
+of any barracks bed, at every build tier. Furnishing a bedroom falls back to a
+`SleepingSpot` its owner moves into; the vacated spot in the starter shell (the
+planned storage room) is deconstructed.
 
 Assignment and construction receipts do not complete sleeping upkeep. Recovery
 requires observed use by the assigned pawn in a suitable bed, retained only for

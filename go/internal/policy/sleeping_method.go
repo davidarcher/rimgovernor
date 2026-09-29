@@ -37,8 +37,8 @@ const (
 
 // SleepingBedDefinitions lists, in preference order, the bed definitions the
 // sleeping planner may stage (#1181): a bed, a bedroll once its stuff is on
-// hand, else a sleeping spot. A bedroll or spot is suitable only while Bed
-// is unavailable (ReviewSleeping).
+// hand, else a sleeping spot (bedroom furnishing only, #1182). A bedroll is
+// suitable only while Bed is unavailable, a spot never (ReviewSleeping).
 var SleepingBedDefinitions = []string{"Bed", SleepingBedrollDefinition, SleepingSpotDefinition}
 
 // SleepingCoupleBedDefinition is staged first when a waiting colonist has a
@@ -65,14 +65,19 @@ func SleepingLadder(couple bool) []string {
 
 // SleepingDefinition is the best buildable rung of the ladder: the first
 // available definition, a bedroll only when Stocked names it. Unknown is
-// returned when an unknown row precedes it and nothing is buildable.
-func SleepingDefinition(definitions []BenchDefinition, stocked map[string]bool, couple bool) (string, SleepingMethod) {
+// returned when an unknown row precedes it and nothing is buildable. A
+// sleeping spot is never a suitable bed (#1182), so only spot true, a
+// bedroom furnished to move a spot owner in, walks down to it.
+func SleepingDefinition(definitions []BenchDefinition, stocked map[string]bool, couple, spot bool) (string, SleepingMethod) {
 	byName := map[string]BenchDefinition{}
 	for _, d := range definitions {
 		byName[d.Name] = d
 	}
 	unknown := false
 	for _, name := range SleepingLadder(couple) {
+		if name == SleepingSpotDefinition && !spot {
+			continue
+		}
 		d, exists := byName[name]
 		available, ak := d.Available.Value()
 		if !exists || !ak {
@@ -284,7 +289,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		}
 		choice.Cells = append(choice.Cells, room.Cells...)
 	}
-	choice.Definition, choice.Method = SleepingDefinition(r.Definitions, r.Stocked, couple)
+	choice.Definition, choice.Method = SleepingDefinition(r.Definitions, r.Stocked, couple, false)
 	return choice, nil
 }
 

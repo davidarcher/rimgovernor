@@ -14,12 +14,10 @@ import (
 // bedroom step is due; the sleeping planner answers it once every colonist
 // owns a bed: move, furnish, then shell (policy.NextBedroomStep).
 
-// bedroomStep is the projection's next bedroom step: none below Masonry or
-// without the layout plan, the room census or the sleeping census.
+// bedroomStep is the projection's next bedroom step: none without the
+// layout plan, the room census or the sleeping census. A tribe builds its
+// wood bedrooms at Camp tier too (#1182).
 func bedroomStep(facts observation.ColonyProjection) policy.BedroomStep {
-	if tier, known := facts.BuildTier.Value(); !known || tier < policy.BuildTierMasonry {
-		return policy.BedroomStep{}
-	}
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
 	sleeping, sk := facts.Facts.Sleeping.Value()
@@ -44,10 +42,7 @@ func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTa
 // bedroomsOwed is the review's BedroomsOwed fact for the projection.
 // A due room quality swap (#813) owes a bedroom too.
 func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	owed := domain.Known(false)
-	if tier, known := facts.BuildTier.Value(); known && tier >= policy.BuildTierMasonry {
-		owed = policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts))
-	}
+	owed := policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts))
 	if v, known := owed.Value(); known && !v {
 		if _, swap := bedroomSwap(facts); swap {
 			return domain.Known(true)
