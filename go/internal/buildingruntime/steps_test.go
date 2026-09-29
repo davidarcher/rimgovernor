@@ -156,6 +156,15 @@ func (r *RoutineFoodStorageUpkeepPlanner) Step(ctx context.Context) (RoutineFood
 	return r.step(call, epoch, newStepArbiter())
 }
 
+func (r *RoutineArmoryPlanner) Step(ctx context.Context) (RoutineArmoryResult, error) {
+	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	if err != nil {
+		return RoutineArmoryResult{}, err
+	}
+	defer done()
+	return r.step(call, epoch, newStepArbiter())
+}
+
 func (r *RoutineGearPlanner) Step(ctx context.Context) (RoutineGearResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
 	if err != nil {

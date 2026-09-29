@@ -30,7 +30,7 @@ const (
 	stoneTarget  = policy.DefaultStoneBlockTarget
 )
 
-const stoneFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,resource,workshop,research,gear,dialog,naming"
+const stoneFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,resource,workshop,research,gear,armory,dialog,naming"
 
 func init() {
 	cases.Register(cases.Case{

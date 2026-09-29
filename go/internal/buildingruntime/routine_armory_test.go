@@ -9,7 +9,9 @@ import (
 // skeleton reads the colony, selects a tier and admits no plan (#1201).
 func TestRoutineArmoryPlannerAssessesWithoutActions(t *testing.T) {
 	t.Parallel()
-	reviewer, db, _, _, _ := routineFixture(t)
+	reviewer, db, _, _, native := routineFixture(t)
+	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native}}}
+	reviewer.native = n
 	ctx := context.Background()
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -18,7 +20,7 @@ func TestRoutineArmoryPlannerAssessesWithoutActions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	planner, err := NewRoutineArmoryPlanner(reviewer)
+	planner, err := NewRoutineArmoryPlanner(reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}

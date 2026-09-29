@@ -102,38 +102,9 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
-	limit := review.Development.Capacity - len(review.Development.Committed)
-	open := 0
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainEquipment {
-			continue
-		}
-		goal, err := r.reviewer.player.journal.LoadGoal(call, binding.Goal)
-		if err != nil {
-			return RoutineGearResult{}, err
-		}
-		for _, method := range goal.Methods {
-			plan, err := r.reviewer.player.journal.LoadPlan(call, method.Plan)
-			if err != nil {
-				return RoutineGearResult{}, err
-			}
-			// An apparel policy write holds no development slot (#660).
-			if store.PlanOpen(plan) && !apparelPolicyPlan(plan.Spec) {
-				open++
-			}
-		}
-	}
-	for _, goal := range review.Development.Committed {
-		if goal == policy.MaintainEquipment {
-			limit++
-		}
-	}
-	limit -= open
-	if limit <= 0 {
-		if open > 0 {
-			return RoutineGearResult{Reason: BuildingMethodExistingWork}, nil
-		}
-		return RoutineGearResult{Reason: BuildingMethodRefused}, nil
+	limit, refused, err := equipmentSlots(call, r.reviewer.player, review)
+	if err != nil || refused != "" {
+		return RoutineGearResult{Reason: refused}, err
 	}
 	var admitted RoutineGearResult
 	for i := 0; i < limit; i++ {
@@ -150,6 +121,46 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		admitted = result
 	}
 	return admitted, nil
+}
+
+// equipmentSlots is the development slots MaintainEquipment methods may still
+// take, shared by the gear and armory planners whose methods both bind to
+// that goal; a non-empty reason refuses the step.
+func equipmentSlots(call context.Context, p *Player, review store.RoutineReview) (int, RoutineBuildingReason, error) {
+	limit := review.Development.Capacity - len(review.Development.Committed)
+	open := 0
+	for _, binding := range review.Goals {
+		if binding.Need != policy.MaintainEquipment {
+			continue
+		}
+		goal, err := p.journal.LoadGoal(call, binding.Goal)
+		if err != nil {
+			return 0, "", err
+		}
+		for _, method := range goal.Methods {
+			plan, err := p.journal.LoadPlan(call, method.Plan)
+			if err != nil {
+				return 0, "", err
+			}
+			// An apparel policy write holds no development slot (#660).
+			if store.PlanOpen(plan) && !apparelPolicyPlan(plan.Spec) {
+				open++
+			}
+		}
+	}
+	for _, goal := range review.Development.Committed {
+		if goal == policy.MaintainEquipment {
+			limit++
+		}
+	}
+	limit -= open
+	if limit <= 0 {
+		if open > 0 {
+			return 0, BuildingMethodExistingWork, nil
+		}
+		return 0, BuildingMethodRefused, nil
+	}
+	return limit, "", nil
 }
 
 func apparelPolicyPlan(spec domain.PlanSpec) bool {
@@ -339,14 +350,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		}
 		benchesFact = domain.Known(benches)
 	}
-	var weaponDemand []policy.Amount
-	if benches, known := benchesFact.Value(); known {
-		weaponDemand, err = r.weaponDemand(call, state, gear, benches)
-		if err != nil {
-			return RoutineGearResult{}, err
-		}
-	}
-	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, WeaponDemand: weaponDemand}
+	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock}
 	snap.NoteGearMethod(call, request)
 	choice, err := policy.SelectGearMethod(request)
 	if err != nil {

@@ -4,26 +4,31 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // RoutineArmoryPlanner owns military production (#1198). The skeleton
 // (#1201) selects the armory tier from the storyteller's raid points and
-// finished research and logs it; it dispatches nothing yet.
+// finished research and logs it. Weapon bills moved here from the gear
+// planner (#1203) and still bind to MaintainEquipment; the tier does not
+// gate them yet (#1204).
 type RoutineArmoryPlanner struct {
 	reviewer *RoutineReviewer
+	native   RoutineGearSource
 }
 
 type RoutineArmoryResult struct {
 	Reason     RoutineBuildingReason
 	Assessment policy.ArmoryAssessment
+	Plan       domain.PlanID
 }
 
-func NewRoutineArmoryPlanner(reviewer *RoutineReviewer) (*RoutineArmoryPlanner, error) {
-	if reviewer == nil {
-		return nil, fmt.Errorf("%w: NewRoutineArmoryPlanner: reviewer == nil", ErrControl)
+func NewRoutineArmoryPlanner(reviewer *RoutineReviewer, native RoutineGearSource) (*RoutineArmoryPlanner, error) {
+	if reviewer == nil || native == nil {
+		return nil, fmt.Errorf("%w: NewRoutineArmoryPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoutineArmoryPlanner{reviewer}, nil
+	return &RoutineArmoryPlanner{reviewer, native}, nil
 }
 
 func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineArmoryResult, error) {
@@ -57,5 +62,7 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	facts := read.Projection.Facts
 	assessment := policy.AssessArmory(facts.RaidPoints, facts.Research)
 	clockSchedulerLog("Armory.step tier=%s threat=%s research=%s", assessment.Tier, assessment.Threat, assessment.Research)
-	return RoutineArmoryResult{Reason: BuildingMethodNoDeficit, Assessment: assessment}, nil
+	result, err := r.craftWeapons(call, epoch, state, review)
+	result.Assessment = assessment
+	return result, err
 }

@@ -496,7 +496,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if armory {
-			config.Armory, err = buildingruntime.NewRoutineArmoryPlanner(reviewer)
+			armoryNative, ok := reads.(buildingruntime.RoutineGearSource)
+			if !ok {
+				return nil, errors.New("armory plans require typed colony observations")
+			}
+			config.Armory, err = buildingruntime.NewRoutineArmoryPlanner(reviewer, armoryNative)
 			if err != nil {
 				return nil, err
 			}

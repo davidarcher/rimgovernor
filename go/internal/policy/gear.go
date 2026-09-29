@@ -326,12 +326,11 @@ type RecipeHost struct {
 	Research []string
 }
 type GearPlanningRequest struct {
-	WeaponDemand []Amount
-	Observation  domain.Fact[GearObservation]
-	Seen         []domain.MethodID
-	Benches      domain.Fact[[]GearBench]
-	Stock        []Stock
-	Holds        []Amount
+	Observation domain.Fact[GearObservation]
+	Seen        []domain.MethodID
+	Benches     domain.Fact[[]GearBench]
+	Stock       []Stock
+	Holds       []Amount
 }
 
 func gearMethodID(kind string, p GearPawn, target string, need GearReplacement) domain.MethodID {
@@ -366,15 +365,12 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 	if _, known := review.Recovered.Value(); !known {
 		return GearMethod{Kind: GearUnknown}, nil
 	}
-	if positive(review.Recovered) && len(r.WeaponDemand) == 0 {
+	if positive(review.Recovered) {
 		return GearMethod{Kind: GearRecovered}, nil
 	}
-	seen := map[domain.MethodID]bool{}
-	for _, id := range r.Seen {
-		if !foodID(string(id)) || seen[id] {
-			return GearMethod{}, errors.New("invalid gear method history")
-		}
-		seen[id] = true
+	seen, err := gearSeen(r.Seen)
+	if err != nil {
+		return GearMethod{}, err
 	}
 	v, _ := r.Observation.Value()
 	v = modeledGearObservation(v, review.Loadouts)
@@ -422,11 +418,7 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 	if existing {
 		return GearMethod{Kind: GearBlocked}, nil
 	}
-	type replacement struct {
-		pawn GearPawn
-		need GearReplacement
-	}
-	needs := []replacement{}
+	needs := []gearNeed{}
 	for _, p := range v.Pawns {
 		if p.Blocked {
 			continue
@@ -436,17 +428,34 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 			return GearMethod{Kind: GearUnknown}, nil
 		}
 		for _, n := range ns {
-			needs = append(needs, replacement{p, n})
+			needs = append(needs, gearNeed{p, n})
 		}
 	}
-	for _, d := range r.WeaponDemand {
-		if !validResource(d.Resource) || d.Count <= 0 || d.Count > 256 {
-			return GearMethod{}, errors.New("invalid weapon demand")
+	return produceGear(needs, v, review, seen, r)
+}
+
+// gearSeen indexes a goal's method history, refusing a malformed one.
+func gearSeen(ids []domain.MethodID) (map[domain.MethodID]bool, error) {
+	seen := map[domain.MethodID]bool{}
+	for _, id := range ids {
+		if !foodID(string(id)) || seen[id] {
+			return nil, errors.New("invalid gear method history")
 		}
-		for i := int64(0); i < d.Count; i++ {
-			needs = append(needs, replacement{GearPawn{Pawn: "weapon-batch", Loadout: "colony"}, GearReplacement{Definition: d.Resource, Reason: "unarmed"}})
-		}
+		seen[id] = true
 	}
+	return seen, nil
+}
+
+// gearNeed is one definition to produce, attributed to a pawn or to the
+// armory's colony weapon batch.
+type gearNeed struct {
+	pawn GearPawn
+	need GearReplacement
+}
+
+// produceGear proposes one demand-sized bill for the first need a funded
+// recipe covers after netting stored stock, or waits on an existing bill.
+func produceGear(needs []gearNeed, v GearObservation, review GearReview, seen map[domain.MethodID]bool, r GearPlanningRequest) (GearMethod, error) {
 	if len(needs) == 0 {
 		return GearMethod{Kind: GearBlocked}, nil
 	}

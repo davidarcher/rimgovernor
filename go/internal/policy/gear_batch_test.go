@@ -40,9 +40,11 @@ func TestGearWeaponBatch(t *testing.T) {
 	v, _ := r.Observation.Value()
 	v.Pawns[0].Replacements = domain.Known([]GearReplacement{})
 	r.Observation = domain.Known(v)
-	r.WeaponDemand = []Amount{{"Parka", 3}}
 	r.Stock = []Stock{{"Cloth", domain.Known(int64(240))}, {"Synthread", domain.Known(int64(0))}}
-	m, err := SelectGearMethod(r)
+	if m, err := SelectGearMethod(r); err != nil || m.Kind == GearProduce {
+		t.Fatal("gear planned weapon work", m, err)
+	}
+	m, err := SelectArmoryMethod(r, []Amount{{"Parka", 3}})
 	if err != nil || m.Kind != GearProduce || m.Count != 3 {
 		t.Fatal(m, err)
 	}
