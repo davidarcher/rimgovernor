@@ -48,11 +48,11 @@ func TestStarterRoomRecoversNineByNineFromThirtyTwoCellPerimeter(t *testing.T) {
 	}
 }
 
-// concaveClaims builds the Wall/Door claims of the east-west connector shell
-// template centred on c.
+// concaveClaims builds the Wall/Door claims of two 4x4 chambers joined by
+// a one-cell connector, centred on c.
 func concaveClaims(t *testing.T, plan domain.PlanID, c domain.Cell) ([]policy.ConstructionClaim, domain.RoomFootprint) {
 	t.Helper()
-	shell, err := policy.ShellTemplates()[4].Shape(c)
+	shell, err := domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 5, Z: c.Z - 2, Width: 4, Height: 4}, {X: c.X - 1, Z: c.Z, Width: 3, Height: 1}, {X: c.X + 2, Z: c.Z - 2, Width: 4, Height: 4}}, domain.South)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,21 +69,6 @@ func concaveClaims(t *testing.T, plan domain.PlanID, c domain.Cell) ([]policy.Co
 		claims = append(claims, policy.ConstructionClaim{Plan: plan, Building: b})
 	}
 	return claims, shell
-}
-
-func TestStarterRoomRecoversConcaveShellBounds(t *testing.T) {
-	claims, shell := concaveClaims(t, "starter-shell", domain.Cell{X: 40, Z: 40})
-	if len(claims) == 32 {
-		t.Fatal("concave template is not distinguishable from the rectangle")
-	}
-	room, known := starterRoom(domain.Known(claims))
-	b := shell.Bounds()
-	if !known || room != (policy.Rectangle{X: b.X, Z: b.Z, Width: b.Width, Height: b.Height}) {
-		t.Fatal(room, known, b)
-	}
-	if _, known := starterRoom(domain.Known(claims[:len(claims)-1])); known {
-		t.Fatal("incomplete concave shell recognized as a room")
-	}
 }
 
 func TestStarterRoomRejectsWrongCellCount(t *testing.T) {

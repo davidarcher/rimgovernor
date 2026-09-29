@@ -60,7 +60,35 @@ func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *s
 	if err != nil {
 		t.Fatal(err)
 	}
+	recordStoreroom(t, planner, db, policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7})
 	return planner, db, n
+}
+
+// recordStoreroom records a layout plan whose only room is a storeroom
+// with the given interior and a south door mid-wall: the initial shelter's
+// planned room (#1231).
+func recordStoreroom(t *testing.T, r *RoutineBuildingPlanner, db *store.Store, interior policy.Rectangle) policy.LayoutRoom {
+	t.Helper()
+	room := policy.LayoutRoom{Role: policy.ModuleStorage, Interior: interior, Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
+	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{room}})
+	return room
+}
+
+// recordLayout records plan and serves it to the planner's next read: the
+// fixture's review already ran without one.
+func recordLayout(t *testing.T, r *RoutineBuildingPlanner, db *store.Store, plan policy.LayoutPlan) {
+	t.Helper()
+	if err := db.RecordLayoutPlan(context.Background(), r.reviewer.player.session.State().Snapshot, 0, plan); err != nil {
+		t.Fatal(err)
+	}
+	census := &r.reviewer.census
+	census.mu.Lock()
+	if census.latest != nil {
+		census.latest.reading.Projection.LayoutPlan = domain.Known(plan)
+		census.latest.reading.Sections.Colony.Value.LayoutPlan = domain.Known(plan)
+	}
+	census.layout = domain.Known(plan)
+	census.mu.Unlock()
 }
 
 // shelterFixture is the site with its spots and beds already staged, so the
@@ -511,6 +539,7 @@ func TestRoutineShelterRaisesTheStarterRectangle(t *testing.T) {
 	r, db, n := shelterFixture(t)
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(n, 21, func(int32, int32) bool { return true })
+	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 	result, err := r.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
@@ -559,43 +588,19 @@ func TestRoutineShelterRaisesTheStarterRectangle(t *testing.T) {
 	}
 }
 
-func TestRoutineShelterGrowsIrregularShellOverConstrainedTerrain(t *testing.T) {
+// The planned storeroom's slot crosses unlit ground: the shelter refuses
+// with no space and searches nowhere else, though open ground lies beside
+// it (#1231).
+func TestRoutineShelterRefusesABlockedPlannedStoreroom(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	// An L-shaped lit strip five cells wide: no rectangle or concave template
-	// fits, so a concave connected footprint is grown and admitted whole.
 	lit := func(x, z int32) bool { return x >= 8 && x <= 12 && z >= 1 || z >= 8 && z <= 12 && x >= 8 }
 	hutCells(n, 21, lit)
+	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Reason != BuildingMethodNoSpace {
 		t.Fatal(result, err)
-	}
-	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, cells := shellCells(t, plan)
-	if len(cells) < 20 || n.previews != len(cells) {
-		t.Fatal(len(cells), n.previews)
-	}
-	minX, maxX, minZ, maxZ := int32(99), int32(0), int32(99), int32(0)
-	for cell := range cells {
-		if !lit(cell.X, cell.Z) {
-			t.Fatal("wall placed on unlit ground", cell)
-		}
-		minX, maxX, minZ, maxZ = min(minX, cell.X), max(maxX, cell.X), min(minZ, cell.Z), max(maxZ, cell.Z)
-	}
-	// The room bends around the corner of the L: its bounding box spans both
-	// arms yet contains unlit ground no wall was placed on.
-	concave := false
-	for x := minX; x <= maxX; x++ {
-		for z := minZ; z <= maxZ; z++ {
-			concave = concave || !lit(x, z)
-		}
-	}
-	if maxX-minX+1 <= 5 || maxZ-minZ+1 <= 5 || !concave {
-		t.Fatal("grown shell is not the concave corner room", minX, maxX, minZ, maxZ)
 	}
 }
 
@@ -634,6 +639,7 @@ func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T)
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
+	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)
@@ -711,6 +717,7 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	// An interrupted shell's blueprints and frames are cancelled natively;
 	// only the door it had finished survives, and it is the shell's record.
 	door := domain.Cell{X: 4, Z: 3}
+	room := recordStoreroom(t, r, db, policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7})
 	n := &adoptingNative{sleepingNative: base, standing: []bridge.Structure{{ID: "door", Definition: "Door", Cell: door, Status: "built"}}}
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
 	if err != nil {
@@ -725,7 +732,7 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := policy.ShellShapesAtDoor(door)[0]
+	want, _ := room.Footprint()
 	got := map[domain.Cell]bool{}
 	for _, action := range plan.Spec.Actions() {
 		b, ok := action.Building()
@@ -753,7 +760,14 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	door := domain.Cell{X: 4, Z: 3}
-	shapes := policy.ShellShapesAtDoor(door)
+	// Two planned storerooms share the door: the square one and a taller one.
+	square := policy.LayoutRoom{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7}, Door: door, DoorRot: domain.South}
+	tall := square
+	tall.Interior.Height = 9
+	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{square, tall}})
+	shapes := make([]domain.RoomFootprint, 2)
+	shapes[0], _ = square.Footprint()
+	shapes[1], _ = tall.Footprint()
 	first, second := map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for _, w := range shapes[0].Walls() {
 		first[w] = true
@@ -851,9 +865,6 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 	shell, ok := domain.GrowFootprint(domain.Cell{X: 10, Z: 10}, lit, 49)
 	if !ok {
 		t.Fatal("no grown shell over the strip")
-	}
-	if len(policy.ShellShapesAtDoor(shell.Door())) == 0 {
-		t.Fatal("fixture door has no template shapes to be confused with")
 	}
 	ring := map[domain.Cell]domain.Building{}
 	var actions []domain.Action
@@ -1112,6 +1123,9 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	snapshot.Plan, snapshot.Revision = "routine-shell-test", 1
 	n.last = snapshot
 	facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 21, Height: 21}, Center: domain.Cell{X: 10, Z: 10}, Identity: observation.Identity{Tick: domain.Tick(base.reply.GetObserved().Context.GetTick())}}
+	// The ring is the planned barracks these planners build (#1231).
+	barracks, _ := policy.LayoutModule(policy.RoomRoleBarracks)
+	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7}, Door: ring.Door(), DoorRot: domain.South}}})
 	inside := policy.Room{ID: "hut", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: []domain.Cell{{X: 10, Z: 10}, {X: 11, Z: 10}}}
 	unroofed := inside
 	unroofed.Enclosed = domain.Known(false)

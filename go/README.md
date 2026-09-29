@@ -251,8 +251,8 @@ Unavailable methods can yield their slot within the same review. A commitment
 whose labor idles (`RoutineLaborUse`: no pawn on any of its profile's work types
 while one enabled for them idles or works for another type) across reviews spanning
 `DevelopmentIdleTicks` releases its slot and reads `labor_idle` until the work is
-picked up again (#445). `StarterLayouts`
-proposes bounded shelter and disjoint crop patches while respecting observed
+picked up again (#445). `PlannedLayout`
+stands each shell on its layout plan room while respecting observed
 geometry and player exclusions; proposals still require native preflight.
 The service supplies its configured method set to each review. Disabled optional
 planners retain their need assessments with `method_unavailable` and cannot occupy

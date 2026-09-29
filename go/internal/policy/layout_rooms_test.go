@@ -26,77 +26,74 @@ func TestPlannedShellsKeepThePlanRectangleAndDoor(t *testing.T) {
 	}
 }
 
-func TestStarterLayoutsBuildTheFirstBuildablePlannedRoom(t *testing.T) {
-	bounds := Bounds{Width: 60, Height: 60}
-	taken := coreRoom(ModuleWorkshop, 20, 30, 7, 5, true)
-	next := coreRoom(ModuleWorkshop, 20, 30, 7, 5, false)
+// plannedGround is a bounds-sized open lit field and the spine hallway
+// the planned rooms' doors open onto, protected.
+func plannedGround(bounds Bounds, edit func(*SiteCell)) ([]SiteCell, []domain.Cell) {
 	var cells []SiteCell
 	for x := int32(0); x < bounds.Width; x++ {
 		for z := int32(0); z < bounds.Height; z++ {
-			c := domain.Cell{X: x, Z: z}
-			occupied := x >= taken.Interior.X && x < taken.Interior.X+taken.Interior.Width && z >= taken.Interior.Z && z < taken.Interior.Z+taken.Interior.Height
-			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(occupied), Zone: domain.Known(false), SupportsLight: domain.Known(true)})
+			c := SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)}
+			if edit != nil {
+				edit(&c)
+			}
+			cells = append(cells, c)
 		}
 	}
-	// The spine hallway is protected; the door's threshold stands on it.
 	var hallway []domain.Cell
 	for x := int32(10); x < 40; x++ {
 		for z := int32(29); z <= 31; z++ {
 			hallway = append(hallway, domain.Cell{X: x, Z: z})
 		}
 	}
+	return cells, hallway
+}
+
+// #1231: a shell builds the first buildable planned room of its role, and
+// with none buildable (or none planned) there is no site at all.
+func TestPlannedLayoutBuildsTheFirstBuildablePlannedRoom(t *testing.T) {
+	bounds := Bounds{Width: 60, Height: 60}
+	taken := coreRoom(ModuleWorkshop, 20, 30, 7, 5, true)
+	next := coreRoom(ModuleWorkshop, 20, 30, 7, 5, false)
+	cells, hallway := plannedGround(bounds, func(c *SiteCell) {
+		in := taken.Interior
+		c.Occupied = domain.Known(c.Cell.X >= in.X && c.Cell.X < in.X+in.Width && c.Cell.Z >= in.Z && c.Cell.Z < in.Z+in.Height)
+	})
 	plan := LayoutPlan{Rooms: []LayoutRoom{taken, next}}
-	layouts, err := StarterLayouts(StarterRequest{Bounds: bounds, Anchor: domain.Cell{X: 5, Z: 5}, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleWorkshop)})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(layouts) != 1 {
-		t.Fatalf("%d layouts, want only the planned room", len(layouts))
+	layout, ok, err := PlannedLayout(StarterRequest{Bounds: bounds, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleWorkshop)})
+	if err != nil || !ok {
+		t.Fatalf("no planned layout: %v", err)
 	}
 	want, _ := next.Footprint()
-	if !domain.SameRoomFootprint(layouts[0].Shell, want) || layouts[0].Shell.Door() != next.Door {
-		t.Fatalf("built %+v door %v, want the planned room door %v", layouts[0].Shell.Bounds(), layouts[0].Shell.Door(), next.Door)
+	if !domain.SameRoomFootprint(layout.Shell, want) || layout.Shell.Door() != next.Door || layout.Planned != 1 {
+		t.Fatalf("built %+v door %v index %d, want the planned room door %v", layout.Shell.Bounds(), layout.Shell.Door(), layout.Planned, next.Door)
 	}
-	// Nothing planned is buildable: the search runs as before.
-	blocked := StarterRequest{Bounds: bounds, Anchor: domain.Cell{X: 5, Z: 5}, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleWorkshop)[:1]}
-	if layouts, err := StarterLayouts(blocked); err != nil || len(layouts) == 0 {
-		t.Fatalf("fallback search: %d layouts, %v", len(layouts), err)
+	if _, ok, err := PlannedLayout(StarterRequest{Bounds: bounds, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleWorkshop)[:1]}); err != nil || ok {
+		t.Fatalf("a blocked planned room was sited (%v)", err)
+	}
+	if _, ok, err := PlannedLayout(StarterRequest{Bounds: bounds, Cells: cells, Protected: hallway}); err != nil || ok {
+		t.Fatalf("a shell was sited with no planned room (%v)", err)
 	}
 }
 
-// The starter shell is the plan's storage room (#1177): its rectangle and
-// spine door, bunks clear of the door aisle; blocked, the search runs.
-func TestStarterShellStandsOnThePlannedStorageRoom(t *testing.T) {
+// The initial shelter is the plan's storeroom at Camp (#1177, #1231): its
+// rectangle and spine door, bunks clear of the door aisle; blocked, it is
+// refused rather than searched for elsewhere.
+func TestShelterStandsOnThePlannedStoreroom(t *testing.T) {
 	bounds := Bounds{Width: 60, Height: 60}
 	storage := coreRoom(ModuleStorage, 20, 30, 9, 7, true)
-	cells := func(blocked bool) []SiteCell {
-		var cells []SiteCell
-		for x := int32(0); x < bounds.Width; x++ {
-			for z := int32(0); z < bounds.Height; z++ {
-				in := blocked && x == storage.Interior.X+3 && z == storage.Interior.Z+3
-				cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(in), Zone: domain.Known(false), SupportsLight: domain.Known(true)})
-			}
-		}
-		return cells
-	}
-	var hallway []domain.Cell
-	for x := int32(10); x < 40; x++ {
-		for z := int32(29); z <= 31; z++ {
-			hallway = append(hallway, domain.Cell{X: x, Z: z})
-		}
-	}
 	plan := LayoutPlan{Rooms: []LayoutRoom{coreRoom(ModuleKitchen, 10, 30, 6, 5, true), storage}}
-	request := StarterRequest{Bounds: bounds, Anchor: domain.Cell{X: 5, Z: 5}, Cells: cells(false), Protected: hallway, Planned: plan.PlannedShells(RoomRoleStoreroom)}
-	layouts, err := StarterLayouts(request)
-	if err != nil || len(layouts) != 1 {
-		t.Fatalf("%d layouts, %v", len(layouts), err)
+	cells, hallway := plannedGround(bounds, nil)
+	request := StarterRequest{Bounds: bounds, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleStoreroom)}
+	layout, ok, err := PlannedLayout(request)
+	if err != nil || !ok {
+		t.Fatalf("no storeroom layout: %v", err)
 	}
 	want, _ := storage.Footprint()
-	if !domain.SameRoomFootprint(layouts[0].Shell, want) || layouts[0].Shell.Door() != storage.Door {
-		t.Fatalf("shell %+v door %v, want storage %+v door %v", layouts[0].Shell.Bounds(), layouts[0].Shell.Door(), want.Bounds(), storage.Door)
+	if !domain.SameRoomFootprint(layout.Shell, want) || layout.Shell.Door() != storage.Door {
+		t.Fatalf("shell %+v door %v, want storage %+v door %v", layout.Shell.Bounds(), layout.Shell.Door(), want.Bounds(), storage.Door)
 	}
 	inward := domain.Cell{X: storage.Door.X, Z: storage.Door.Z + 1}
-	bunks := PlanShelterBunks(layouts[0], 3, 3, nil)
+	bunks := PlanShelterBunks(layout, 3, 3, nil)
 	if len(bunks.Spots) != 3 {
 		t.Fatalf("%d spots fit", len(bunks.Spots))
 	}
@@ -107,13 +104,52 @@ func TestStarterShellStandsOnThePlannedStorageRoom(t *testing.T) {
 			}
 		}
 	}
-	request.Cells = cells(true)
-	layouts, err = StarterLayouts(request)
-	if err != nil || len(layouts) == 0 {
-		t.Fatalf("fallback: %d layouts, %v", len(layouts), err)
+	request.Cells, _ = plannedGround(bounds, func(c *SiteCell) {
+		c.Occupied = domain.Known(c.Cell == domain.Cell{X: storage.Interior.X + 3, Z: storage.Interior.Z + 3})
+	})
+	if _, ok, err := PlannedLayout(request); err != nil || ok {
+		t.Fatalf("a blocked storeroom was sited (%v)", err)
 	}
-	if domain.SameRoomFootprint(layouts[0].Shell, want) {
-		t.Fatal("a blocked storage room was still sited")
+}
+
+// #718, #1231: any planned room's ring claims a claimable ruin of its own
+// wall kind and keeps rock as wall; rock inside is left to plan dig; a ruin
+// of another kind, or one under an ancient danger, blocks the room until
+// home clearance removes it.
+func TestPlannedLayoutClaimsMatchingRuinsAndMarksRock(t *testing.T) {
+	bounds := Bounds{Width: 60, Height: 60}
+	room := coreRoom(ModuleWorkshop, 20, 30, 7, 5, true)
+	shell, _ := room.Footprint()
+	b := shell.Bounds()
+	ruin := domain.Cell{X: b.X + 2, Z: b.Z + b.Height - 1}
+	rock := domain.Cell{X: b.X + b.Width - 1, Z: b.Z + 2}
+	inner := domain.Cell{X: room.Interior.X + 1, Z: room.Interior.Z + 1}
+	ground := func(def, hold string) []SiteCell {
+		cells, _ := plannedGround(bounds, func(c *SiteCell) {
+			switch c.Cell {
+			case ruin:
+				c.Occupied, c.Ruin, c.ClaimableRuin, c.RuinHold = domain.Known(true), domain.Known(true), domain.Known(def), hold
+			case rock, inner:
+				c.Walkable, c.Occupied, c.NaturalRock = domain.Known(false), domain.Known(true), domain.Known(true)
+			}
+		})
+		return cells
+	}
+	_, hallway := plannedGround(bounds, nil)
+	plan := LayoutPlan{Rooms: []LayoutRoom{room}}
+	request := StarterRequest{Bounds: bounds, Cells: ground("Wall", ""), Protected: hallway, WallDef: "Wall", Planned: plan.PlannedShells(RoomRoleWorkshop)}
+	layout, ok, err := PlannedLayout(request)
+	if err != nil || !ok {
+		t.Fatalf("no layout: %v", err)
+	}
+	if len(layout.Claimed) != 1 || layout.Claimed[0] != ruin || len(layout.Reused) != 1 || layout.Reused[0] != rock || len(layout.Mined) != 1 || layout.Mined[0] != inner {
+		t.Fatalf("claimed %v reused %v mined %v", layout.Claimed, layout.Reused, layout.Mined)
+	}
+	for _, blocked := range []struct{ def, hold string }{{"Wall", "ancient_danger"}, {"SandbagWall", ""}, {"", ""}} {
+		request.Cells = ground(blocked.def, blocked.hold)
+		if _, ok, err := PlannedLayout(request); err != nil || ok {
+			t.Fatalf("ruin %+v on the ring did not block the room (%v)", blocked, err)
+		}
 	}
 }
 

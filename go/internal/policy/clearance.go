@@ -209,20 +209,6 @@ func SelectChunkDump(rows []ClearanceChunk, sites []domain.Cell, protected []dom
 	return cells, allow, true
 }
 
-// ShellRuins is the census rows a starter ring clears (#709): each building
-// covering one of the ring's ruin cells whose only hold, if any, is lying
-// outside Home, which the ring's own site need not be. Ordered by identity.
-func ShellRuins(rows []ClearanceTarget, cells []domain.Cell) []ClearanceTarget {
-	var out []ClearanceTarget
-	for _, row := range rows {
-		if coversAny(row, cells) && shellRuinHold(row) == "" {
-			out = append(out, row)
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].EntityID < out[j].EntityID })
-	return out
-}
-
 // ShellClaims is the census rows a starter ring claims as wall (#718): each
 // building covering one of the ring's claimable ruin cells, outside any
 // ancient danger. Ordered by identity.
@@ -256,8 +242,8 @@ func shellRuinHold(row ClearanceTarget) string {
 func claimHold(hold string) bool { return hold == "ancient_danger" || hold == "casket" }
 
 // ShellRuinHolds stamps each site cell a census building covers with that
-// building's shell hold (#718), so the site search counts a ruin cleared or
-// claimed exactly where ShellRuins and ShellClaims would act on it. A cell
+// building's shell hold (#718), so the planned ring counts a ruin
+// claimed exactly where PlannedLayout and ShellClaims would act on it. A cell
 // under several buildings keeps a claim-refusing hold over any other, and
 // otherwise the first in identity order.
 func ShellRuinHolds(rows []ClearanceTarget, cells []SiteCell) []SiteCell {

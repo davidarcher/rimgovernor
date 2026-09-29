@@ -277,6 +277,7 @@ func TestRoutineExcavationPrefersNearerShell(t *testing.T) {
 		}
 	}
 	fogRest(planning.Cells)
+	recordStoreroom(t, r, db, policy.Rectangle{X: 1, Z: 37, Width: 7, Height: 7})
 	// The surface site takes the bunks first, then the ring around them.
 	stageShelterBunks(t, r, db, x.sleepingNative)
 	result, err := r.Step(context.Background())

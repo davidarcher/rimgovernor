@@ -284,7 +284,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 // buildShell proposes the durable Fence-then-FenceGate perimeter for the
 // nearest legal 6x6 enclosure. Every candidate site is fully previewed before
 // any is admitted; a site whose native preview refuses a cell is abandoned in
-// favor of the next, exactly like previewShell abandons a StarterLayouts
+// favor of the next, exactly like previewShell abandons a planned room
 // candidate that fails partway through its perimeter.
 func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading) (RoutineAnimalContainmentResult, error) {
 	p := r.reviewer.player

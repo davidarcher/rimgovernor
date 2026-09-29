@@ -263,8 +263,8 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 }
 
 // classify recovers the interior as the cells the wall ring encloses and
-// names the shape: one of the concave shell templates, or an
-// irregular grown shell.
+// classify recovers the interior as the cells the wall ring encloses; every
+// shell stands on a planned room (#1231).
 func classify(plan store.PlanState) (*shell, error) {
 	actions := plan.Spec.Actions()
 	door, _ := actions[0].Building()
@@ -313,19 +313,7 @@ func classify(plan store.PlanState) (*shell, error) {
 	if len(footprint.Walls()) != len(cells) {
 		return nil, fmt.Errorf("plan places %d shell cells but the footprint needs %d", len(cells), len(footprint.Walls()))
 	}
-	sh := &shell{footprint: footprint, cells: cells, shape: "irregular"}
-	b := footprint.Bounds()
-	for x := b.X; x < b.X+b.Width; x++ {
-		for z := b.Z; z < b.Z+b.Height; z++ {
-			for _, t := range policy.ShellTemplates() {
-				if shell, err := t.Shape(domain.Cell{X: x, Z: z}); err == nil && domain.SameRoomFootprint(shell, footprint) {
-					sh.shape = t.Name
-					return sh, nil
-				}
-			}
-		}
-	}
-	return sh, nil
+	return &shell{footprint: footprint, cells: cells, shape: "planned"}, nil
 }
 
 // allowSupplies has test/hut_shell_fixture unforbid the starting supplies

@@ -136,6 +136,7 @@ func TestRoutineShelterAdoptionSkipsBunks(t *testing.T) {
 	r, db, base := shelterSiteFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
+	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 	want, err := domain.RectangleFootprint(domain.RoomBounds{X: 6, Z: 6, Width: 9, Height: 9}, domain.South)
 	if err != nil {
 		t.Fatal(err)

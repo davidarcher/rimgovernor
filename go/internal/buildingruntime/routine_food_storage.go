@@ -229,11 +229,9 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 
 // starterRoom recovers the completed starter shell's footprint from durable
 // construction claims rather than recomputing candidate sites: once walls
-// exist, StarterLayouts' own site-legality scan would no longer treat that
-// ground as free, so the built room can only be identified by what is there.
-// A plan's Wall/Door cells are matched against every starter shell shape
-// whose south door stands on the plan's door: the 9x9 rectangle and the
-// concave templates.
+// exist the site-legality scan would no longer treat that ground as free,
+// so the built room can only be identified by what is there: the plan whose
+// Wall/Door claims are exactly one rectangle's ring.
 func starterRoom(claims domain.Fact[[]policy.ConstructionClaim]) (policy.Rectangle, bool) {
 	rows, known := claims.Value()
 	if !known {
@@ -264,33 +262,9 @@ func starterRoom(claims domain.Fact[[]policy.ConstructionClaim]) (policy.Rectang
 		plans = append(plans, id)
 	}
 	sort.Slice(plans, func(i, j int) bool { return plans[i] < plans[j] })
-	for _, id := range plans {
-		r := byPlan[id]
-		for _, door := range r.doors {
-			for _, shell := range policy.ShellShapesAtDoor(door) {
-				walls := shell.Walls()
-				if len(walls) != len(r.cells) {
-					continue
-				}
-				match := true
-				for _, cell := range walls {
-					if !r.cells[cell] {
-						match = false
-						break
-					}
-				}
-				if !match {
-					continue
-				}
-				b := shell.Bounds()
-				return policy.Rectangle{X: b.X, Z: b.Z, Width: b.Width, Height: b.Height}, true
-			}
-		}
-	}
-	// A layout-plan room builder (#787) raises the planned rectangle at
-	// whatever size the plan chose (the 11x11 starter shelter), which no
-	// starter template reproduces: any plan whose Wall/Door claims are
-	// exactly a door-bearing rectangle's ring is a room too.
+	// Every shell stands on a planned rectangle (#1231): any plan whose
+	// Wall/Door claims are exactly a door-bearing rectangle's ring is the
+	// room.
 	for _, id := range plans {
 		if b, ok := rectangleRing(byPlan[id].cells, len(byPlan[id].doors) > 0); ok {
 			return b, true
@@ -470,7 +444,7 @@ func shellInteriors(plans []store.PlanState, claims []policy.ConstructionClaim) 
 	return cells
 }
 
-// foodStorageSites prefers the same back-of-room 3x3 spot StarterLayouts
+// foodStorageSites prefers the same back-of-room 3x3 spot PlannedLayout
 // reserves for this room (Storage: {room.X+3, room.Z+5, 3, 3} on the 9x9;
 // the same upper-middle patch of any other shell's bounds), then searches
 // outward. Smaller blocks are never offered: the colony's food-storage fact

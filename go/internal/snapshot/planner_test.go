@@ -14,7 +14,7 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(DirEnv, dir)
 	ctx, finish := StartPlanner(context.Background(), policy.MaintainHousing)
-	shelter := policy.StarterRequest{Anchor: domain.Cell{X: 4, Z: 5},
+	shelter := policy.StarterRequest{WallDef: "Wall",
 		Cells: []policy.SiteCell{{Cell: domain.Cell{X: 1, Z: 2}, Walkable: domain.Known(true)}}}
 	NoteShelter(ctx, shelter)
 	target := policy.ExcavationTarget{Access: domain.Cell{X: 9, Z: 9}}

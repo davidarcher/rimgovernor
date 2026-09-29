@@ -11,8 +11,7 @@ boundary, one honest end-to-end path, and staged fixtures for recovery.
 | Claim | Check |
 | --- | --- |
 | Style selection by build tier, unknowns included | `buildingruntime.TestShelterStylePicksByTier` |
-| Template shape per terrain (rectangle, concave L, connector, grown footprint), deterministic and input-order independent | `policy` `starter_layout_test.go` |
-| Shape-blind properties of every sited shell over a table of sites: distinct in-bounds cells on offered ground, one door, a connected enclosed interior, roof support, a threshold on free ground, protected cells preserved | `policy.TestStarterShellInvariantsAcrossSites` |
+| Every shell stands on its planned room (the shelter on the planned storeroom at every tier), refuses a blocked slot or a missing plan, reuses rock and player walls, marks rock for plan dig and claims matching ruins | `policy` `layout_rooms_test.go` (`TestPlannedLayout…`, `TestShelterStandsOnThePlannedStoreroom`), `buildingruntime.TestRoutineShelterRefusesABlockedPlannedStoreroom`, `…TestExpansionClaimsAMatchingRuinOnItsPlannedRing` |
 | Shape-blind properties of every admitted ring: census-offered ground only, previewed whole, encloses the staged beds with an aisle to spare, opens south off its own shell | `buildingruntime.TestRoutineShelterShellInvariantsAcrossSites` |
 | Bunk rungs before the ring; refused beds fall through to the shell | `buildingruntime` `routine_shelter_bunks_test.go` |
 | Whole-ring admission in one wave, no stock gate, spending rules and reserves | `buildingruntime.TestRoutineShelterAdmitsWholeShellInOneWave`, `…AdmitsShellWithoutStockCheck` |

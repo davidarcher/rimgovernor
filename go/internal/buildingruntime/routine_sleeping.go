@@ -726,7 +726,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}()
 	}
 	if r.shelter && r.phase != policy.HousingShelter {
-		if result, handled, err := r.digPlannedShells(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, check); err != nil || handled {
+		if result, handled, err := r.prepareShellRoom(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
 			return result, err
 		}
 	}

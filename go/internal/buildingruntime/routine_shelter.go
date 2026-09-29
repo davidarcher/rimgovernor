@@ -55,9 +55,9 @@ func (r *RoutineBuildingPlanner) roomRole() policy.RoomRole {
 	return policy.RoomRoleBarracks
 }
 
-// shellShapesAtDoor lists every shell shape whose door would stand on
-// door: the planned rooms the shell search tries (shellPlan), then the starter templates,
-// which a ring begun at Camp still matches.
+// shellShapesAtDoor lists the planned rooms (shellPlan) whose door would
+// stand on door: the shapes adoption matches a standing ring against
+// besides the journal's earlier rings.
 func shellShapesAtDoor(planned []domain.RoomFootprint, door domain.Cell) []domain.RoomFootprint {
 	var shells []domain.RoomFootprint
 	for _, shell := range planned {
@@ -65,46 +65,118 @@ func shellShapesAtDoor(planned []domain.RoomFootprint, door domain.Cell) []domai
 			shells = append(shells, shell)
 		}
 	}
-	return append(shells, policy.ShellShapesAtDoor(door)...)
+	return shells
 }
 
-// plannedShells is the v2 layout plan's rooms for role (#787): at Masonry
-// and above, where the plan anchors site searches (#785), a shell builder
-// raises these exact rectangles and doors before searching.
-func plannedShells(facts observation.ColonyProjection, role policy.RoomRole) []domain.RoomFootprint {
-	plan, known := facts.LayoutPlan.Value()
-	if tier, ok := facts.BuildTier.Value(); !known || !ok || tier < policy.BuildTierMasonry {
-		return nil
-	}
-	return plan.PlannedShells(role)
-}
-
-// shellPlan is the planned rooms this planner's shell search tries first.
-// The initial shelter stands on the layout plan's storage room at every
-// tier, Camp included (#1177): it becomes the storeroom once everyone has
-// moved out to bedrooms. Any other shell keeps its own role's rooms.
-func (r *RoutineBuildingPlanner) shellPlan(facts observation.ColonyProjection) []domain.RoomFootprint {
+// plannedRole is the room role whose planned rooms this planner builds
+// (#1231): the initial shelter stands on the layout plan's storeroom at
+// every tier, Camp included (#1177), and becomes the storeroom once
+// everyone has moved out to bedrooms; any other shell builds its own
+// role's rooms.
+func (r *RoutineBuildingPlanner) plannedRole() policy.RoomRole {
 	if r.shelter && r.phase == policy.HousingShelter {
-		if plan, known := facts.LayoutPlan.Value(); known {
-			return plan.PlannedShells(policy.RoomRoleStoreroom)
-		}
-		return nil
+		return policy.RoomRoleStoreroom
 	}
-	return plannedShells(facts, r.roomRole())
+	return r.roomRole()
 }
 
-// plannedSite reports whether layouts is the planned room alone, the
-// search's answer when a planned room is buildable.
-func plannedSite(layouts []policy.StarterLayout, planned []domain.RoomFootprint) bool {
-	if len(layouts) == 0 {
-		return false
+// plannedRooms is the layout plan's rooms for this planner's role, in plan
+// order, with their footprints (#787). No plan means none: there is no
+// free search (#1231).
+func (r *RoutineBuildingPlanner) plannedRooms(facts observation.ColonyProjection) ([]policy.LayoutRoom, []domain.RoomFootprint) {
+	plan, known := facts.LayoutPlan.Value()
+	want, ok := policy.LayoutModule(r.plannedRole())
+	if !known || !ok {
+		return nil, nil
 	}
-	for _, shell := range planned {
-		if domain.SameRoomFootprint(layouts[0].Shell, shell) && layouts[0].Shell.Door() == shell.Door() {
-			return true
+	var rooms []policy.LayoutRoom
+	var shells []domain.RoomFootprint
+	for _, room := range plan.AllRooms() {
+		if room.Role != want {
+			continue
+		}
+		if shell, err := room.Footprint(); err == nil {
+			rooms, shells = append(rooms, room), append(shells, shell)
 		}
 	}
-	return false
+	return rooms, shells
+}
+
+// shellPlan is the planned rooms this planner's shell stands on.
+func (r *RoutineBuildingPlanner) shellPlan(facts observation.ColonyProjection) []domain.RoomFootprint {
+	_, shells := r.plannedRooms(facts)
+	return shells
+}
+
+// plannedShell is this review's planned room for the shell (#1231): the
+// first of the planner's planned rooms that can stand now, its ring cells
+// reused, claimed or free and its rock marked for plan dig. free are cells
+// offered as unoccupied whatever the census says (the shelter's own bunks,
+// #612). ok is false, logged with why, when there is no plan or every
+// planned room is blocked; the caller then refuses.
+func (r *RoutineBuildingPlanner) plannedShell(call context.Context, facts observation.ColonyProjection, protected, free []domain.Cell, check func() error) (policy.StarterLayout, policy.LayoutRoom, bool, error) {
+	rooms, shells := r.plannedRooms(facts)
+	if len(shells) == 0 {
+		_, known := facts.LayoutPlan.Value()
+		clockSchedulerLog("%s: no planned %s room in the layout plan (plan known=%v); the shell waits for one", r.goal, r.plannedRole(), known)
+		return policy.StarterLayout{}, policy.LayoutRoom{}, false, nil
+	}
+	cells, err := r.shellRuinHolds(call, facts, shellSiteCells(facts, free), check)
+	if err != nil {
+		return policy.StarterLayout{}, policy.LayoutRoom{}, false, err
+	}
+	request := policy.StarterRequest{Bounds: facts.Bounds, Cells: cells, Protected: protected, WallDef: shellStyle(facts).WallDef, Planned: shells}
+	snap.NoteShelter(call, request)
+	layout, ok, err := policy.PlannedLayout(request)
+	if err != nil || !ok {
+		if err == nil {
+			b := shells[0].Bounds()
+			clockSchedulerLog("%s: planned %s room %dx%d at (%d,%d) door %v is blocked (of %d planned); the shell waits for it", r.goal, r.plannedRole(), b.Width, b.Height, b.X, b.Z, shells[0].Door(), len(shells))
+		}
+		return policy.StarterLayout{}, policy.LayoutRoom{}, false, err
+	}
+	return layout, rooms[layout.Planned], true, nil
+}
+
+// prepareShell readies a planned room's ground before its ring (#1231):
+// plan dig mines the rock inside it and in its door (#836), then the
+// claimable ruins of the ring's kind on its ring are claimed as wall
+// (#718). handled is false when there is nothing to prepare, so the ring
+// is sited this review.
+func (r *RoutineBuildingPlanner) prepareShell(call, epoch context.Context, s excavationStep, layout policy.StarterLayout, room policy.LayoutRoom, check func() error) (RoutineBuildingResult, bool, error) {
+	if len(layout.Mined) > 0 {
+		plan, _ := s.facts.LayoutPlan.Value()
+		result, handled, err := r.digPlannedRoom(call, epoch, s, plan, room, check)
+		if err != nil || handled {
+			return result, handled, err
+		}
+	}
+	if len(layout.Claimed) > 0 {
+		return r.admitShellClaims(call, epoch, s, layout, check)
+	}
+	return RoutineBuildingResult{}, false, nil
+}
+
+// prepareShellRoom sites a non-shelter shell's planned room and prepares
+// it (prepareShell); a room that cannot be sited is refused later, by
+// previewShell.
+func (r *RoutineBuildingPlanner) prepareShellRoom(call, epoch context.Context, s excavationStep, protected []domain.Cell, check func() error) (RoutineBuildingResult, bool, error) {
+	layout, room, ok, err := r.plannedShell(call, s.facts, protected, nil, check)
+	if err != nil || !ok {
+		return RoutineBuildingResult{}, false, err
+	}
+	return r.prepareShell(call, epoch, s, layout, room, check)
+}
+
+// previewPlannedRing previews the planned room's ring (#1231). A room
+// still holding rock plan dig could not mine now is refused: a ring
+// cannot stand on it.
+func (r *RoutineBuildingPlanner) previewPlannedRing(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, layout policy.StarterLayout, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	if len(layout.Mined) > 0 {
+		clockSchedulerLog("%s: planned room at %+v still holds %d rock cells plan dig cannot mine now; the ring waits", r.goal, layout.Room, len(layout.Mined))
+		return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
+	}
+	return r.previewFreshShell(call, snapshot, facts, []policy.StarterLayout{layout}, check)
 }
 
 // A completed starter shell may trigger RimWorld's normal automatic roofing.
@@ -191,20 +263,18 @@ type structureReader interface {
 // colony centre's neighbourhood, where the starter search sites shells.
 const shellAdoptionReach int32 = 64
 
+// previewShell previews a shell's ring on its planned room (#1231),
+// after adopting a ring begun earlier; no plan or a blocked planned room
+// is refused as no space.
 func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	if selected, stock, reason, adopted, err := r.adoptShell(ctx, snapshot, facts, protected, check); err != nil || adopted {
 		return selected, stock, reason, err
 	}
-	request := policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, WallDef: shellStyle(facts).WallDef, Planned: r.shellPlan(facts)}
-	snap.NoteShelter(ctx, request)
-	layouts, err := policy.StarterLayouts(request)
-	if err != nil {
-		return nil, policy.StockObservation{}, "", err
+	layout, _, ok, err := r.plannedShell(ctx, facts, protected, nil, check)
+	if err != nil || !ok {
+		return nil, policy.StockObservation{}, BuildingMethodNoSpace, err
 	}
-	// Only the initial shelter's rungs mine a shell's interior or clear
-	// ruins off its ring; any other shell stands on ground it need not dig
-	// or clear (#700, #709).
-	return r.previewFreshShell(ctx, snapshot, facts, uncleared(unmined(layouts)), check)
+	return r.previewPlannedRing(ctx, snapshot, facts, layout, check)
 }
 
 // shellSiteCells is the ground a starter shell may stand on: the observed
@@ -244,7 +314,7 @@ func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot
 		if len(perimeter) == 0 {
 			return nil, policy.StockObservation{}, "", fmt.Errorf("%w: previewFreshShell: len(perimeter) == 0", ErrControl)
 		}
-		perimeter = unreused(perimeter, append(append(append([]domain.Cell(nil), layout.Reused...), layout.Claimed...), layout.Cleared...))
+		perimeter = unreused(perimeter, append(append([]domain.Cell(nil), layout.Reused...), layout.Claimed...))
 		ids := make([]domain.ActionID, len(perimeter))
 		for i := range perimeter {
 			ids[i] = domain.ActionID(fmt.Sprintf("%s-%d-%d", snapshot.Plan, candidate, i))
@@ -272,9 +342,8 @@ func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot
 }
 
 // unreused drops the placements on ring cells natural rock, a player wall
-// or a claimed ruin wall already walls (#700, #709, #718), and on ring cells
-// a ruin still holds: the shelter's clear rung deconstructs it, and
-// adoption closes that gap once the ground is open.
+// or a claimable ruin wall already walls (#700, #709, #718). A ruin home
+// clearance deconstructs before its claim leaves a gap adoption closes.
 func unreused(perimeter []domain.Building, reused []domain.Cell) []domain.Building {
 	if len(reused) == 0 {
 		return perimeter
@@ -287,28 +356,6 @@ func unreused(perimeter []domain.Building, reused []domain.Cell) []domain.Buildi
 	for _, b := range perimeter {
 		if !rock[b.Cell()] {
 			kept = append(kept, b)
-		}
-	}
-	return kept
-}
-
-// uncleared keeps the layouts with no ruin on their ring to clear or claim.
-func uncleared(layouts []policy.StarterLayout) []policy.StarterLayout {
-	kept := make([]policy.StarterLayout, 0, len(layouts))
-	for _, l := range layouts {
-		if len(l.Cleared) == 0 && len(l.Claimed) == 0 {
-			kept = append(kept, l)
-		}
-	}
-	return kept
-}
-
-// unmined keeps the layouts with no interior rock to dig.
-func unmined(layouts []policy.StarterLayout) []policy.StarterLayout {
-	kept := make([]policy.StarterLayout, 0, len(layouts))
-	for _, l := range layouts {
-		if len(l.Mined) == 0 {
-			kept = append(kept, l)
 		}
 	}
 	return kept
@@ -421,8 +468,8 @@ const shellHistoryLimit = 64
 // The shapes considered at a door are, first, the rings this controller
 // itself ordered in this world -- every earlier shell plan carrying a door
 // at that cell, read back from the journal, which is how a grown irregular
-// shell with no template is recognised -- and then the template shapes the
-// starter search issues at that door (policy.ShellShapesAtDoor), which are
+// shell with no template is recognised -- and then the planned rooms of the
+// layout plan with their door there (shellShapesAtDoor), which are
 // all that remains when the journal did not survive the restart. A door is
 // a candidate when it stands natively or when an earlier plan ordered it: a
 // ring whose door was cancelled but whose walls stand is still one ring, and

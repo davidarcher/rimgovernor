@@ -58,17 +58,6 @@ func shelterBeds(facts observation.ColonyProjection, anchors []domain.Cell) (str
 	return shelterBedDefinition, anchors
 }
 
-// shelterMineMethod digs the natural rock out of the shell's interior
-// (#700), after the bunks and before the ring, under its own method so no
-// shell or excavation history mistakes it for theirs.
-const shelterMineMethod domain.MethodID = "shelter-mine"
-
-// shelterClearMethod claims the ruin walls of the ring's kind standing on
-// the shell's ring (#718) and deconstructs the other ruins there (#709),
-// after the bunks and before the ring, which is then raised on the ring's
-// other cells and closed by adoption once the ruins are gone.
-const shelterClearMethod domain.MethodID = "shelter-clear"
-
 // ShellMethodPatterns are the GLOB patterns matching every whole-shell
 // method, for acceptance tooling reading the journal (#987).
 func ShellMethodPatterns() []string { return slices.Clone(shellMethodPatterns) }
@@ -150,10 +139,11 @@ func (r *RoutineBuildingPlanner) shelterBunks(call context.Context, goal store.G
 	return record, nil
 }
 
-// stepShelterSite sites the initial shelter for this review. It returns the
-// ring's previews for the caller to admit as the shell method, or a handled
-// result: an adopted ring's own outcome, an excavation stage, or a bunk rung
-// admitted (or refused) this review.
+// stepShelterSite sites the initial shelter for this review on the layout
+// plan's storeroom (#1231). It returns the ring's previews for the caller
+// to admit as the shell method, or a handled result: an adopted ring's own
+// outcome, an excavation stage, the room's plan dig or ruin claims, or a
+// bunk rung admitted (or refused) this review.
 func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s shelterSite) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, *RoutineBuildingResult, error) {
 	none := policy.StockObservation{}
 	if selected, stock, reason, adopted, err := r.adoptShell(call, s.snapshot, s.facts, s.protected, s.check); err != nil || adopted {
@@ -174,72 +164,44 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 			protected = append(protected, c)
 		}
 	}
-	sites, err := r.shellRuinHolds(call, s, shellSiteCells(s.facts, free))
+	layout, room, sited, err := r.plannedShell(call, s.facts, protected, free, s.check)
 	if err != nil {
 		return nil, none, "", nil, err
 	}
-	planned := r.shellPlan(s.facts)
-	search := func(anchor domain.Cell, planned []domain.RoomFootprint) ([]policy.StarterLayout, error) {
-		request := policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, WallDef: shellStyle(s.facts).WallDef, Planned: planned}
-		snap.NoteShelter(call, request)
-		return policy.StarterLayouts(request)
-	}
-	layouts, err := search(layoutAnchor(s.facts, r.district()), planned)
-	if err != nil {
-		return nil, none, "", nil, err
-	}
-	if len(planned) > 0 && !plannedSite(layouts, planned) {
-		b := planned[0].Bounds()
-		clockSchedulerLog("%s: planned storage room %dx%d at (%d,%d) door %v is not buildable (blocked or off-map); the starter shell falls back to the search", r.goal, b.Width, b.Height, b.X, b.Z, planned[0].Door())
-	}
-	if _, ok := policy.BunkLayout(layouts, record.beds, record.spots); len(free) > 0 && !ok {
-		// The colony centre is where the pawns stand this tick, so it drifts
-		// between reviews and can push the site the bunks stand on out of
-		// the capped candidates (#672): search again from the bunks.
-		rescue, err := search(bunkAnchor(free), planned)
+	step := excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read}
+	// Digging in is weighed against the planned room before anything is
+	// previewed. Bunks already placed commit the colony to the planned
+	// room: the dig is never chosen once colonists sleep where the ring
+	// will rise.
+	if r.excavation != nil && len(free) == 0 {
+		target, err := r.excavationCandidate(call, s.snapshot, s.facts, s.protected, s.check)
 		if err != nil {
 			return nil, none, "", nil, err
 		}
-		if _, ok := policy.BunkLayout(rescue, record.beds, record.spots); ok {
-			layouts = rescue
-		}
-	}
-	// Digging in is weighed against the best layout before anything is
-	// previewed; a layout the native previews then refuse whole yields to
-	// the dig below, as the previewed shell used to. Bunks already placed
-	// commit the colony to the surface site: the dig is never chosen once
-	// colonists sleep where the ring will rise.
-	var target *policy.ExcavationTarget
-	if r.excavation != nil && len(free) == 0 {
-		if target, err = r.excavationCandidate(call, s.snapshot, s.facts, s.protected, s.check); err != nil {
-			return nil, none, "", nil, err
-		}
 		var shell *policy.StarterLayout
-		if len(layouts) > 0 {
-			shell = &layouts[0]
+		if sited {
+			shell = &layout
 		}
 		excavate := policy.ChooseExcavation(s.facts.Center, shell, target)
 		snap.NoteChoice(call, snap.ExcavationChoice{Anchor: s.facts.Center, Shell: shell, Target: target, Excavate: excavate})
 		if excavate {
-			result, err := r.stepExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read, target: *target})
+			step.target = *target
+			result, err := r.stepExcavation(call, epoch, step)
 			return nil, none, "", &result, err
 		}
 	}
+	if !sited {
+		return nil, none, BuildingMethodNoSpace, nil, nil
+	}
 	if len(free) > 0 {
-		if layout, ok := policy.BunkLayout(layouts, record.beds, record.spots); ok {
-			ordered := []policy.StarterLayout{layout}
-			for _, other := range layouts {
-				if other.Room != layout.Room || !domain.SameRoomFootprint(other.Shell, layout.Shell) {
-					ordered = append(ordered, other)
-				}
-			}
-			layouts = ordered
-		} else {
-			clockSchedulerLog("%s: no layout encloses the bunks placed earlier (beds=%v spots=%v); the shell is sited afresh", r.goal, record.beds, record.spots)
+		if _, ok := policy.BunkLayout([]policy.StarterLayout{layout}, record.beds, record.spots); !ok {
+			clockSchedulerLog("%s: the planned room does not enclose the bunks placed earlier (beds=%v spots=%v)", r.goal, record.beds, record.spots)
 		}
 	}
-	if len(layouts) == 0 {
-		return nil, none, BuildingMethodNoSpace, nil, nil
+	// The planned room's rock is dug and its ruins claimed before the bunks
+	// stand on it; either holds the first roof, and says so in its log.
+	if result, handled, err := r.prepareShell(call, epoch, step, layout, room, s.check); err != nil || handled {
+		return nil, none, "", &result, err
 	}
 	indoor := *r
 	indoor.shelter, indoor.definition = false, "SleepingSpot"
@@ -248,112 +210,29 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		return nil, none, reason, nil, nil
 	}
 	if !record.spotsBound && !record.bedsBound {
-		bunks := policy.PlanShelterBunks(layouts[0], int(owed), int(owed), nil)
+		bunks := policy.PlanShelterBunks(layout, int(owed), int(owed), nil)
 		result, admitted, err := r.admitBunks(call, epoch, s, shelterSpotsMethod, "SleepingSpot", bunks.Spots)
 		if err != nil || admitted {
 			return nil, none, "", &result, err
 		}
 	}
 	if !record.bedsBound {
-		bunks := policy.PlanShelterBunks(layouts[0], int(owed), 0, record.cells())
+		bunks := policy.PlanShelterBunks(layout, int(owed), 0, record.cells())
 		definition, anchors := shelterBeds(s.facts, bunks.Beds)
 		result, admitted, err := r.admitBunks(call, epoch, s, shelterBedsMethod, definition, anchors)
 		if err != nil || admitted {
 			return nil, none, "", &result, err
 		}
 	}
-	if r.excavation == nil {
-		layouts = unmined(layouts)
-	} else if len(layouts) > 0 && len(layouts[0].Mined) > 0 {
-		result, admitted, err := r.admitShellMining(call, epoch, s, layouts[0])
-		if err != nil || admitted {
-			return nil, none, "", &result, err
-		}
-	}
-	if len(layouts) > 0 && len(layouts[0].Cleared)+len(layouts[0].Claimed) > 0 {
-		result, admitted, err := r.admitShellClearing(call, epoch, s, layouts[0])
-		if err != nil || admitted {
-			return nil, none, "", &result, err
-		}
-	}
-	selected, stock, reason, err := r.previewFreshShell(call, s.snapshot, s.facts, layouts, s.check)
-	if err == nil && reason == BuildingMethodNoSpace && plannedSite(layouts, planned) {
-		// The native previews refused the planned storage room whole: the
-		// ring falls back to the search this review (#1177).
-		clockSchedulerLog("%s: native previews refused the planned storage room at %+v whole; the starter shell falls back to the search", r.goal, layouts[0].Room)
-		fallback, ferr := search(layoutAnchor(s.facts, r.district()), nil)
-		if ferr != nil {
-			return nil, none, "", nil, ferr
-		}
-		selected, stock, reason, err = r.previewFreshShell(call, s.snapshot, s.facts, uncleared(unmined(fallback)), s.check)
-	}
-	if err == nil && reason == BuildingMethodNoSpace && target != nil {
-		result, err := r.stepExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read, target: *target})
-		return nil, none, "", &result, err
-	}
+	selected, stock, reason, err := r.previewPlannedRing(call, s.snapshot, s.facts, layout, s.check)
 	return selected, stock, reason, nil, err
 }
 
-// admitShellMining designates the natural rock inside the sited shell for
-// mining (#700) once per goal epoch, as the shelter-mine rung. It reports
-// admitted=false, without error, when the rung is spent, the site cannot be
-// dug now (no support, a collapse pending, no miner) or nothing in it is
-// eligible, so the ring is still raised this review; the rock left standing
-// inside only shrinks the room until a later epoch digs it.
-func (r *RoutineBuildingPlanner) admitShellMining(call, epoch context.Context, s shelterSite, layout policy.StarterLayout) (RoutineBuildingResult, bool, error) {
-	if _, err := r.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, shelterMineMethod); err == nil {
-		return RoutineBuildingResult{}, false, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineBuildingResult{}, false, err
-	}
-	snapshot := s.state.Snapshot
-	snapshot.Revision = 1
-	site, err := r.readExcavationSite(call, snapshot, s.facts.Identity.Tick, "shell-mine", policy.ExcavationTarget{}, layout.Mined, layout.Shell.Threshold(), s.check)
-	if err != nil {
-		return RoutineBuildingResult{}, false, err
-	}
-	if site.CollapsePending || site.Support == policy.ExcavationSupportUnsupported || !site.WorkerAvailable {
-		clockSchedulerLog("%s: %s: interior not diggable now: support=%d (%s) collapse=%v worker=%v", r.goal, shelterMineMethod, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
-		return RoutineBuildingResult{}, false, nil
-	}
-	snapshot.Plan = domain.MintPlanID()
-	var actions []domain.Action
-	for _, cell := range site.Cells {
-		if !cell.Eligible || cell.MineDesignated || cell.Definition == "" {
-			continue
-		}
-		excavation, err := domain.NewExcavation(cell.Cell, cell.Definition)
-		if err != nil {
-			return RoutineBuildingResult{}, false, err
-		}
-		action, err := domain.NewExcavationAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), excavation)
-		if err != nil {
-			return RoutineBuildingResult{}, false, err
-		}
-		actions = append(actions, action)
-	}
-	if len(actions) == 0 {
-		clockSchedulerLog("%s: %s: none of %d interior rock cells eligible", r.goal, shelterMineMethod, len(layout.Mined))
-		return RoutineBuildingResult{}, false, nil
-	}
-	plan, err := domain.NewPlan(snapshot.Plan, 1, actions)
-	if err != nil {
-		return RoutineBuildingResult{}, false, err
-	}
-	result, err := r.admitExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read}, snapshot, shelterMineMethod, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, s.check)
-	if err != nil {
-		return result, false, err
-	}
-	clockSchedulerLog("%s: %s: %d rock cells reason=%s", r.goal, shelterMineMethod, len(actions), result.Reason)
-	return result, result.Reason == BuildingMethodAdmitted, nil
-}
-
-// shellRuinHolds stamps the site cells with the clearance census holds the
-// shelter-clear rung honours (#718), so the search never sites a ring on a
-// ruin the rung would leave standing. Without ruins on the site, a census
-// source or a known census, the cells are returned unchanged: the rung then
-// clears nothing either, and adoption waits as before.
-func (r *RoutineBuildingPlanner) shellRuinHolds(call context.Context, s shelterSite, cells []policy.SiteCell) ([]policy.SiteCell, error) {
+// shellRuinHolds stamps the site cells with the clearance census holds a
+// claim honours (#718), so a ring never counts on claiming a ruin the claim
+// would leave alone. Without ruins on the site, a census source or a known
+// census, the cells are returned unchanged.
+func (r *RoutineBuildingPlanner) shellRuinHolds(call context.Context, facts observation.ColonyProjection, cells []policy.SiteCell, check func() error) ([]policy.SiteCell, error) {
 	ruins := false
 	for _, c := range cells {
 		ruins = ruins || positiveFact(c.Ruin)
@@ -362,11 +241,11 @@ func (r *RoutineBuildingPlanner) shellRuinHolds(call context.Context, s shelterS
 	if !ruins || !ok {
 		return cells, nil
 	}
-	read, err := observation.ObserveClearanceCensus(call, source, s.facts.Identity, false)
+	read, err := observation.ObserveClearanceCensus(call, source, facts.Identity, false)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.check(); err != nil {
+	if err := check(); err != nil {
 		return nil, err
 	}
 	census, known := read.Value()
@@ -381,23 +260,29 @@ type shellClaimReader interface {
 	ReadClaimBuildingTarget(context.Context, *c.Identity, string) (bridge.ClaimBuildingTarget, bridge.Result, error)
 }
 
-// admitShellClearing claims the ruin walls on the sited shell's ring that
-// it keeps as wall (#718) and designates its other ruins for deconstruction
-// (#709), once per goal epoch, as the shelter-clear rung. The clearance
-// census names each ruin's building; a ruin to clear that the census holds
-// for a reason other than lying outside Home (a roof it carries, an ancient
-// danger) is left standing, and the ring's gap there waits on adoption. It
-// reports admitted=false, without error, when the rung is spent or nothing
-// on the ring is claimable or clearable, so the ring is still raised this
-// review.
-func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context, s shelterSite, layout policy.StarterLayout) (RoutineBuildingResult, bool, error) {
-	if _, err := r.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, shelterClearMethod); err == nil {
+// shellClaimMethod is the per-epoch method that claims the ruin walls on a
+// planned room's ring (#718, #1231).
+func shellClaimMethod(room domain.Cell) domain.MethodID {
+	return domain.MethodID(fmt.Sprintf("shell-claim-%d-%d", room.X, room.Z))
+}
+
+// admitShellClaims claims the ruin walls of the ring's kind standing on
+// the planned room's ring (#718), once per goal epoch, before the ring,
+// which is then raised on the ring's other cells. Home clearance may still
+// deconstruct such a ruin first (#1024); the next siting then finds open
+// ground there and the ring walls it as any other cell. It reports
+// handled=false, without error, when the method is spent or nothing on the
+// ring is still claimable, so the ring is raised this review.
+func (r *RoutineBuildingPlanner) admitShellClaims(call, epoch context.Context, s excavationStep, layout policy.StarterLayout, check func() error) (RoutineBuildingResult, bool, error) {
+	method := shellClaimMethod(domain.Cell{X: layout.Room.X, Z: layout.Room.Z})
+	if _, err := r.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{}, false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, false, err
 	}
 	source, ok := r.native.(observation.ClearanceSource)
-	if !ok {
+	reader, readable := r.native.(shellClaimReader)
+	if !ok || !readable {
 		return RoutineBuildingResult{}, false, nil
 	}
 	snapshot := s.state.Snapshot
@@ -406,7 +291,7 @@ func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context,
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	if err := s.check(); err != nil {
+	if err := check(); err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
 	census, known := read.Value()
@@ -415,56 +300,40 @@ func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context,
 	}
 	snapshot.Plan = domain.MintPlanID()
 	var actions []domain.Action
-	claims := policy.ShellClaims(census.Targets, layout.Claimed)
-	if reader, ok := r.native.(shellClaimReader); ok {
-		for _, target := range claims {
-			current, _, err := reader.ReadClaimBuildingTarget(call, boundary.Identity(snapshot), target.EntityID)
-			if err != nil {
-				return RoutineBuildingResult{}, false, err
-			}
-			if current.PlayerOwned {
-				continue
-			}
-			value, err := domain.NewClaimBuilding(target.EntityID)
-			if err != nil {
-				return RoutineBuildingResult{}, false, err
-			}
-			action, err := domain.NewClaimBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), value)
-			if err != nil {
-				return RoutineBuildingResult{}, false, err
-			}
-			actions = append(actions, action)
-		}
-		if err := s.check(); err != nil {
-			return RoutineBuildingResult{}, false, err
-		}
-	}
-	claimed := len(actions)
-	targets := policy.ShellRuins(census.Targets, layout.Cleared)
-	for _, target := range targets {
-		value, err := domain.NewDeconstruction(target.EntityID, target.DefName, target.Minimum)
+	for _, target := range policy.ShellClaims(census.Targets, layout.Claimed) {
+		current, _, err := reader.ReadClaimBuildingTarget(call, boundary.Identity(snapshot), target.EntityID)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
-		action, err := domain.NewDeconstructionAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), value)
+		if current.PlayerOwned {
+			continue
+		}
+		value, err := domain.NewClaimBuilding(target.EntityID)
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+		action, err := domain.NewClaimBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), value)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
 		actions = append(actions, action)
 	}
+	if err := check(); err != nil {
+		return RoutineBuildingResult{}, false, err
+	}
 	if len(actions) == 0 {
-		clockSchedulerLog("%s: %s: none of %d ring ruins claimable or clearable", r.goal, shelterClearMethod, len(layout.Claimed)+len(layout.Cleared))
+		clockSchedulerLog("%s: %s: none of %d ring ruins still claimable", r.goal, method, len(layout.Claimed))
 		return RoutineBuildingResult{}, false, nil
 	}
 	plan, err := domain.NewPlan(snapshot.Plan, 1, actions)
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	result, err := r.admitExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read}, snapshot, shelterClearMethod, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, s.check)
+	result, err := r.admitExcavation(call, epoch, s, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, check)
 	if err != nil {
 		return result, false, err
 	}
-	clockSchedulerLog("%s: %s: %d claims, %d ruins reason=%s", r.goal, shelterClearMethod, claimed, len(actions)-claimed, result.Reason)
+	clockSchedulerLog("%s: %s: %d claims reason=%s", r.goal, method, len(actions), result.Reason)
 	return result, result.Reason == BuildingMethodAdmitted, nil
 }
 
@@ -558,14 +427,4 @@ func sameBunkFootprint(anchor domain.Cell, footprint []domain.Cell) bool {
 	}
 	want := policy.BunkFootprint(anchor)
 	return footprint[0] == want[0] && footprint[1] == want[1] || footprint[0] == want[1] && footprint[1] == want[0]
-}
-
-// bunkAnchor is the cell at the centre of the bunks' bounding box.
-func bunkAnchor(cells []domain.Cell) domain.Cell {
-	lo, hi := cells[0], cells[0]
-	for _, c := range cells[1:] {
-		lo.X, lo.Z = min(lo.X, c.X), min(lo.Z, c.Z)
-		hi.X, hi.Z = max(hi.X, c.X), max(hi.Z, c.Z)
-	}
-	return domain.Cell{X: (lo.X + hi.X) / 2, Z: (lo.Z + hi.Z) / 2}
 }

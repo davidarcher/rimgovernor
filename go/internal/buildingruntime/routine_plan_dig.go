@@ -127,27 +127,6 @@ func (b *RoutineBuildingPlanner) digPlannedRoom(call, epoch context.Context, s e
 	return b.digPlanned(call, epoch, s, plan.RoomDig(room, s.facts.Cells), shell.Threshold(), digMethod("room", room), nil, check)
 }
 
-// digPlannedShells mines the first planned room of this builder's role
-// still in rock (#836), where plannedShells anchors the shell search; the
-// search skips a layout with rock inside, so the room is dug before it.
-func (b *RoutineBuildingPlanner) digPlannedShells(call, epoch context.Context, s excavationStep, check func() error) (RoutineBuildingResult, bool, error) {
-	plan, known := s.facts.LayoutPlan.Value()
-	if tier, ok := s.facts.BuildTier.Value(); !known || !ok || tier < policy.BuildTierMasonry {
-		return RoutineBuildingResult{}, false, nil
-	}
-	want, ok := policy.LayoutModule(b.roomRole())
-	if !ok {
-		return RoutineBuildingResult{}, false, nil
-	}
-	for _, room := range plan.AllRooms() {
-		if room.Role != want || !room.Dug || len(plan.RoomDig(room, s.facts.Cells)) == 0 {
-			continue
-		}
-		return b.digPlannedRoom(call, epoch, s, plan, room, check)
-	}
-	return RoutineBuildingResult{}, false, nil
-}
-
 // digExhaust mines the planned exhaust shaft of the room the refrigeration
 // proposal cools (#836), reached from inside the room; until it is open
 // the proposal falls back to any vented wall. A cooler wall cell still in

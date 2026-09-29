@@ -15,7 +15,7 @@ import (
 // The invariants every shell the planner admits must hold, whatever shape
 // the site and the style lead it to (#615). The named-shape expectations
 // live in routine_shelter_test.go; this check is shape-blind, so it covers
-// a new template or a change to the growth path without a native run. The
+// a change to the planned ring without a native run. The
 // interior is flood-filled from the staged beds rather than read from the
 // footprint helpers the planner used.
 
@@ -35,8 +35,6 @@ func TestRoutineShelterShellInvariantsAcrossSites(t *testing.T) {
 	variants := []shellVariant{
 		{name: "9x9 rectangle site"},
 		{name: "open rectangle", side: 21, center: domain.Cell{X: 10, Z: 10}},
-		{name: "grown shell on constrained terrain", side: 21, center: domain.Cell{X: 10, Z: 10},
-			lit: func(x, z int32) bool { return x >= 8 && x <= 12 && z >= 1 || z >= 8 && z <= 12 && x >= 8 }},
 	}
 	for _, variant := range variants {
 		t.Run(variant.name, func(t *testing.T) {
@@ -50,6 +48,7 @@ func TestRoutineShelterShellInvariantsAcrossSites(t *testing.T) {
 					lit = func(int32, int32) bool { return true }
 				}
 				hutCells(n, variant.side, lit)
+				recordStoreroom(t, planner, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 			}
 			bunks := stageShelterBunks(t, planner, db, n)
 			beds := bunkCellsOf(t, bunks[len(bunks)-1])
