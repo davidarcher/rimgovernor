@@ -117,3 +117,32 @@ func TestAcquisitionKindsBuildAcquireIntent(t *testing.T) {
 		}
 	}
 }
+
+// A surgery builds one SurgeryIntent (#1162); a whole-body recipe leaves
+// part_index absent.
+func TestSurgeryBuildsSurgeryIntent(t *testing.T) {
+	for _, tc := range []struct {
+		part int
+		ack  bool
+	}{{4, false}, {domain.NoSurgeryPart, true}} {
+		value, err := domain.NewSurgery("Human1", "InstallPegLeg", tc.part, tc.ack)
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err := domain.NewSurgeryAction("a1", value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !action.Kind().IntentMode() {
+			t.Fatal("surgery is not an intent kind")
+		}
+		wire, err := IntentAction("plan/1", action)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := wire.GetSurgery()
+		if s.GetPawnId() != "Human1" || s.GetRecipeDef() != "InstallPegLeg" || (s.PartIndex != nil) != (tc.part >= 0) || int(s.GetPartIndex()) != max(tc.part, 0) || s.GetAcknowledgeViolation() != tc.ack {
+			t.Fatalf("%v", wire)
+		}
+	}
+}

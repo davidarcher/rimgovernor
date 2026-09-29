@@ -101,8 +101,9 @@ current operation bills. Its catalog is patient-specific. Available ingredients
 and doctors do not certify bed access, sufficient reachable medicine or eventual
 success; normal native work selection still checks those conditions.
 
-There is no surgery operation: the controller never queues an operation bill;
-surgery stays a player action.
+`SurgeryIntent` on Actions/Apply (#1162) queues one operation bill; see the
+`surgery` row of [action contracts](action-contracts.md). No planner sends it
+yet (epic #1160).
 
 The native setup used by medical acceptance
 is excluded from production builds and from the model execution surface.

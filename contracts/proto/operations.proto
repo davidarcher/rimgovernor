@@ -277,8 +277,19 @@ message Action {
     DraftIntent draft = 44;
     CombatOrders combat_orders = 45;
     AcquireIntent acquire = 46;
+    SurgeryIntent surgery = 47;
   }
 }
+// Queue one medical operation bill on one patient (#1162): the recipe on the
+// body part at part_index in the race body's AllParts (absent for a
+// whole-body recipe). Native re-checks the patient, the recipe and the part
+// live and refuses a recipe that is a violation on the patient unless
+// acknowledge_violation is set. Other bills on the patient never block; a
+// recipe whose hediff already stands on the part is refused.
+// Evidence is the SurgeryEffect: QUEUED with the Bill_Medical id; the same
+// recipe and part already queued applies again. Native doctor jobs choose
+// the surgeon; applied means queued, and the health read decides success.
+message SurgeryIntent { optional string pawn_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional bool acknowledge_violation = 4; }
 // Designate one census source for its resource: a plant harvest or cut, a
 // hunt (the animal wherever it is now, cell the hint) or a mine cell. With
 // withdraw, remove that designation instead (the planner's stall withdraw,

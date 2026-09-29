@@ -12,6 +12,36 @@ namespace HomeBridge.BridgeTools
     {
         private static int surgicalId;
 
+        // SurgeryIntent probe (#1162): one colonist missing a leg (InstallPegLeg's
+        // precondition) with an unrelated bill already on it, and one colony
+        // prisoner of a non-player faction, on whom RemoveBodyPart is a violation.
+        [Tool("test/surgery_intent_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Remove one colonist's leg, queue an unrelated bill on them, and hold one non-player pawn prisoner. Never installs anything.")]
+        public async Task<object> SurgeryIntent(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) return new { success = false, reason = "A paused colony map is required." };
+                var patient = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).FirstOrDefault(p => !p.Dead
+                    && !p.health.hediffSet.hediffs.Any(h => h.def == HediffDefOf.MissingBodyPart)
+                    && p.health.hediffSet.GetNotMissingParts().Any(part => part.def.defName == "Leg"));
+                if (patient == null) return new { success = false, reason = "No colonist with an intact leg." };
+                var leg = patient.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == "Leg");
+                patient.health.AddHediff(HediffDefOf.MissingBodyPart, leg);
+                HealthCardUtility.CreateSurgeryBill(patient, patient.def.AllRecipes.First(r => r.defName == "Anesthetize"), null);
+                var faction = Find.FactionManager.AllFactionsListForReading.First(f => !f.IsPlayer && !f.Hidden && f.def.humanlikeFaction);
+                var prisoner = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Villager, faction, forceGenerateNewPawn: true,
+                    canGeneratePawnRelations: false, developmentalStages: DevelopmentalStage.Adult));
+                GenSpawn.Spawn(prisoner, CellFinder.StandableCellNear(patient.Position, map, 8), map);
+                prisoner.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
+                var kidney = prisoner.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == "Kidney");
+                return new
+                {
+                    success = true, patientId = patient.GetUniqueLoadID(), part = patient.RaceProps.body.AllParts.IndexOf(leg),
+                    prisonerId = prisoner.GetUniqueLoadID(), kidney = prisoner.RaceProps.body.AllParts.IndexOf(kidney),
+                };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         [Tool("test/medical_plague_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add Plague to two disposable colonists, one untended and one tended, for native disease readback.")]
         public async Task<object> Plague(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Stage the disease survival case: both untended, five herbal and five industrial medicine, medical sleeping spots.", DefaultValue = false)] bool survival = false)

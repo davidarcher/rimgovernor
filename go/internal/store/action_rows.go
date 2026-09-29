@@ -136,6 +136,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
+	} else if surgery, ok := a.Surgery(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,x,stuff) VALUES(?,?,?,'surgery',?,?,?,?)", a.ID(), plan, ordinal, string(surgery.Pawn()), surgery.Recipe(), surgery.Part(), strconv.FormatBool(surgery.AcknowledgeViolation()))
 	} else if refuel, ok := a.AutoRefuel(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'auto_refuel',?,?)", a.ID(), plan, ordinal, refuel.Thing(), strconv.FormatBool(refuel.Allow()))
 	} else if claim, ok := a.ClaimBuilding(); ok {
@@ -738,6 +740,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewResearchSelectAction(id, v)
+		return a, ordinal, err
+	}
+	if kind == "surgery" && pawn.Valid && def.Valid && x.Valid && x.Int64 >= domain.NoSurgeryPart && x.Int64 <= 2147483647 && (stuff.String == "true" || stuff.String == "false") && !target.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		surgery, err := domain.NewSurgery(domain.PawnID(pawn.String), def.String, int(x.Int64), stuff.String == "true")
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewSurgeryAction(id, surgery)
 		return a, ordinal, err
 	}
 	if kind == "auto_refuel" && target.Valid && def.Valid && (def.String == "true" || def.String == "false") && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {

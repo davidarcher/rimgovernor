@@ -65,6 +65,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.NeedRelief] = new NeedReliefActionHandler(),
             [Operations.Action.IntentOneofCase.Acquire] = new AcquireActionHandler(),
             [Operations.Action.IntentOneofCase.UseItem] = new UseItemActionHandler(),
+            [Operations.Action.IntentOneofCase.Surgery] = new SurgeryActionHandler(),
         };
 
         private const int ReplayCapacity = 256;
