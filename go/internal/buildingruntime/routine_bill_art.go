@@ -32,7 +32,10 @@ func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlSta
 	if err != nil {
 		return policy.BillSelection{}, false, err
 	}
-	bills := policy.SelectArtBills(domain.Known(artBenches(reads)), projection.Facts.Colonists, policy.Artists(policy.Profiles(pawns)))
+	profiles := policy.Profiles(pawns)
+	benches := domain.Known(artBenches(reads))
+	// An inspired artist's large sculpture comes first (#1192).
+	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles)), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles))...)
 	if len(bills) == 0 {
 		return policy.BillSelection{}, false, nil
 	}
@@ -51,7 +54,7 @@ func artBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
 		}
 		bench := policy.ProductionBench{ID: read.Bench.ID, Token: domain.Known(read.Token), Usable: domain.Known(true)}
 		for _, recipe := range recipes {
-			if recipe.Definition != policy.SculptureRecipe {
+			if recipe.Definition != policy.SculptureRecipe && recipe.Definition != policy.InspiredArtRecipe {
 				continue
 			}
 			available, ak := recipe.Available.Value()

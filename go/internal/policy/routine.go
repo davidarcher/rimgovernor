@@ -1185,8 +1185,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// Art is a ranked upkeep project too (#1190): owed only while a room
 	// needs a sculpture and a qualifying artist exists; unknown raises
 	// nothing.
+	// An inspired artist holds it open without a room (#1192).
 	artRecovered := domain.Unknown[bool]()
-	if owed, known := f.SculptureRoomsOwed.Value(); known && !owed {
+	if profiles, pk := f.WorkProfiles.Value(); pk && len(InspiredArtists(profiles)) > 0 {
+		artRecovered = domain.Known(false)
+	} else if owed, known := f.SculptureRoomsOwed.Value(); known && !owed {
 		artRecovered = domain.Known(true)
 	} else if profiles, pk := f.WorkProfiles.Value(); known && pk {
 		artRecovered = domain.Known(len(Artists(profiles)) == 0)

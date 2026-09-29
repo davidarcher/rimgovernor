@@ -65,3 +65,40 @@ func TestMaintainArtNeedsARoomAndAnArtist(t *testing.T) {
 		t.Fatal("unknown rooms:", got)
 	}
 }
+
+func TestInspiredArtistGetsPriorityBill(t *testing.T) {
+	bench := artBench()
+	bench.Recipes = append(bench.Recipes, ProductionRecipe{Name: InspiredArtRecipe, Available: domain.Known(true)})
+	inspired := artProfile("b", 8, "")
+	inspired.Inspiration = domain.Known(InspiredCreativity)
+	plain := artProfile("a", 8, "")
+	plain.Inspiration = domain.Known("")
+	notArtist := artProfile("c", 2, "")
+	notArtist.Inspiration = domain.Known(InspiredCreativity)
+	profiles := []PawnProfile{plain, inspired, notArtist}
+	benches := domain.Known([]ProductionBench{bench})
+	got := SelectInspiredArtBills(benches, InspiredArtists(profiles))
+	if len(got) != 1 || got[0].Worker != "b" || got[0].Recipe != InspiredArtRecipe || got[0].Target != 1 || got[0].Mode != domain.GearBatch {
+		t.Fatalf("inspired: %+v", got)
+	}
+	// An active large bill pinned to the artist stands.
+	bench.Bills = []ExistingProductionBill{{ID: "Bill_1", Recipe: InspiredArtRecipe, Worker: domain.Known("b"), Active: domain.Known(true)}}
+	if got := SelectInspiredArtBills(domain.Known([]ProductionBench{bench}), InspiredArtists(profiles)); len(got) != 0 {
+		t.Fatalf("active: %+v", got)
+	}
+	// An uninspired colony is unchanged.
+	if got := InspiredArtists([]PawnProfile{plain, artProfile("d", 9, "")}); len(got) != 0 {
+		t.Fatalf("uninspired: %v", got)
+	}
+	// The inspired artist holds MaintainArt open with no room owed.
+	f := stableRoutine()
+	f.SculptureRoomsOwed = domain.Known(false)
+	f.WorkProfiles = domain.Known(profiles)
+	if got := assessment(t, needs(t, f, RoutineLatches{}), MaintainArt); got != domain.NeedDeficit {
+		t.Fatal("inspired, no room:", got)
+	}
+	f.WorkProfiles = domain.Known([]PawnProfile{plain})
+	if got := assessment(t, needs(t, f, RoutineLatches{}), MaintainArt); got != domain.NeedRecovered {
+		t.Fatal("uninspired, no room:", got)
+	}
+}

@@ -54,9 +54,57 @@ func SelectArtBills(benches domain.Fact[[]ProductionBench], colonists domain.Fac
 	return out
 }
 
+// InspiredCreativity is the InspirationDef an inspired artist carries
+// (#1192); their next art piece gets a quality boost.
+const InspiredCreativity = "Inspired_Creativity"
+
+// InspiredArtRecipe is the priority bill an inspired artist gets: a large
+// sculpture. Grand sculptures wait for the stuff choice (#1191).
+const InspiredArtRecipe = "Make_SculptureLarge"
+
+// InspiredArtists lists the qualifying artists with Inspired_Creativity, in
+// ID order.
+func InspiredArtists(profiles []PawnProfile) []PawnID {
+	var out []PawnID
+	for _, p := range profiles {
+		if inspiration, known := p.Inspiration.Value(); known && inspiration == InspiredCreativity && Artist(p) {
+			out = append(out, p.ID)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+// SelectInspiredArtBills returns one large sculpture bill pinned to every
+// inspired artist lacking an active one (#1192). The caller orders these
+// ahead of SelectArtBills so the inspiration is spent before it expires.
+func SelectInspiredArtBills(benches domain.Fact[[]ProductionBench], inspired []PawnID) []BillSelection {
+	rows, known := benches.Value()
+	if !known {
+		return nil
+	}
+	var out []BillSelection
+	for _, artist := range inspired {
+		if !foodID(string(artist)) {
+			continue
+		}
+		if s, ok := selectPinnedSculpture(rows, artist, InspiredArtRecipe); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 // selectArtBill picks the art bench for one artist's sculpture bill, none
 // while the artist already has an active sculpture bill pinned to them.
 func selectArtBill(benches []ProductionBench, artist PawnID) (BillSelection, bool) {
+	return selectPinnedSculpture(benches, artist, SculptureRecipe)
+}
+
+// selectPinnedSculpture picks the art bench for one artist's recipe bill,
+// none while the artist already has an active bill for recipe pinned to
+// them.
+func selectPinnedSculpture(benches []ProductionBench, artist PawnID, recipeName string) (BillSelection, bool) {
 	if !foodID(string(artist)) {
 		return BillSelection{}, false
 	}
@@ -65,7 +113,7 @@ func selectArtBill(benches []ProductionBench, artist PawnID) (BillSelection, boo
 		for _, bill := range bench.Bills {
 			worker, wk := bill.Worker.Value()
 			active, ak := bill.Active.Value()
-			if bill.Recipe == SculptureRecipe && wk && worker == string(artist) && (!ak || active) {
+			if bill.Recipe == recipeName && wk && worker == string(artist) && (!ak || active) {
 				return BillSelection{}, false
 			}
 		}
@@ -75,8 +123,8 @@ func selectArtBill(benches []ProductionBench, artist PawnID) (BillSelection, boo
 			continue
 		}
 		for _, recipe := range bench.Recipes {
-			if available, ak := recipe.Available.Value(); recipe.Name == SculptureRecipe && ak && available {
-				options = append(options, BillSelection{Bench: bench.ID, Recipe: SculptureRecipe, Token: token, Mode: domain.GearBatch, Target: 1, Worker: string(artist)})
+			if available, ak := recipe.Available.Value(); recipe.Name == recipeName && ak && available {
+				options = append(options, BillSelection{Bench: bench.ID, Recipe: recipeName, Token: token, Mode: domain.GearBatch, Target: 1, Worker: string(artist)})
 			}
 		}
 	}
