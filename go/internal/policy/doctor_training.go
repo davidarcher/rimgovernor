@@ -227,7 +227,11 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 		recipe, _ := op.Recipe.Value()
 		part, _ := op.PartIndex.Value()
 		violation, _ := op.Violation.Value()
-		out = append(out, OrganHarvest{Prisoner: row.Pawn, Recipe: recipe, Part: part, Gain: gain, Cost: cost, Violation: violation, Step: kind})
+		var surgeon domain.PawnID
+		if kind == PegTraining {
+			surgeon = trainingSurgeon(op, c)
+		}
+		out = append(out, OrganHarvest{Prisoner: row.Pawn, Recipe: recipe, Part: part, Gain: gain, Cost: cost, Violation: violation, Step: kind, Surgeon: surgeon})
 	}
 	if legsMissing >= 2 && !controlled {
 		for _, op := range installs {
@@ -300,6 +304,25 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 		}
 	}
 	return out
+}
+
+// trainingSurgeon is the doctor a training step's bill is restricted to
+// (#1253): the lowest-Medicine doctor below DoctorTrainingFloor whose
+// chance on the operation clears RestoreFailureCap, then pawn id. Empty
+// when none does, which keeps vanilla's choice.
+func trainingSurgeon(op SurgeryOperation, c PrisonerColony) domain.PawnID {
+	var pick domain.PawnID
+	pickLevel := DoctorTrainingFloor
+	for doctor, chance := range op.DoctorChances {
+		level, ok := c.Medicine[doctor]
+		if !ok || level >= DoctorTrainingFloor || !finite(chance) || 1-chance > RestoreFailureCap+1e-9 {
+			continue
+		}
+		if level < pickLevel || (level == pickLevel && doctor < pick) {
+			pick, pickLevel = doctor, level
+		}
+	}
+	return pick
 }
 
 // medicineUnit is one medicine's value from an operation's medicine value:

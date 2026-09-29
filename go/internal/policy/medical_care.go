@@ -69,6 +69,9 @@ type SurgeryOperation struct {
 	// CareLimited: medicine the recipe takes is stocked but the patient's
 	// medical care forbids it (#1239); IngredientsOnMap is then false.
 	CareLimited domain.Fact[bool]
+	// DoctorChances is each eligible doctor's SuccessChance by pawn (#1253);
+	// nil when unread.
+	DoctorChances map[domain.PawnID]float64
 }
 
 // CareCondition retains native disease evidence without estimating missing values.

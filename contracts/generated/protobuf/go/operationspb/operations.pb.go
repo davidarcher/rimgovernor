@@ -4379,12 +4379,15 @@ func (*Action_Surgery) isAction_Intent() {}
 // Evidence is the SurgeryEffect: QUEUED with the Bill_Medical id; the same
 // recipe and part already queued applies again. Native doctor jobs choose
 // the surgeon; applied means queued, and the health read decides success.
+// surgeon_id, when set, restricts the bill to that colonist (Bill_Medical
+// pawn restriction, #1253); unset keeps vanilla's choice of surgeon.
 type SurgeryIntent struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	PawnId               *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
 	RecipeDef            *string                `protobuf:"bytes,2,opt,name=recipe_def,json=recipeDef,proto3,oneof" json:"recipe_def,omitempty"`
 	PartIndex            *int32                 `protobuf:"varint,3,opt,name=part_index,json=partIndex,proto3,oneof" json:"part_index,omitempty"`
 	AcknowledgeViolation *bool                  `protobuf:"varint,4,opt,name=acknowledge_violation,json=acknowledgeViolation,proto3,oneof" json:"acknowledge_violation,omitempty"`
+	SurgeonId            *string                `protobuf:"bytes,5,opt,name=surgeon_id,json=surgeonId,proto3,oneof" json:"surgeon_id,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -4445,6 +4448,13 @@ func (x *SurgeryIntent) GetAcknowledgeViolation() bool {
 		return *x.AcknowledgeViolation
 	}
 	return false
+}
+
+func (x *SurgeryIntent) GetSurgeonId() string {
+	if x != nil && x.SurgeonId != nil {
+		return *x.SurgeonId
+	}
+	return ""
 }
 
 // Designate one census source for its resource: a plant harvest or cut, a
@@ -7065,19 +7075,22 @@ const file_operations_proto_rawDesc = "" +
 	"\x06intentB\x06\n" +
 	"\x04_keyB\n" +
 	"\n" +
-	"\b_purposeJ\x04\b\x0e\x10\x0fR\x05melee\"\xf3\x01\n" +
+	"\b_purposeJ\x04\b\x0e\x10\x0fR\x05melee\"\xa6\x02\n" +
 	"\rSurgeryIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"recipe_def\x18\x02 \x01(\tH\x01R\trecipeDef\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"part_index\x18\x03 \x01(\x05H\x02R\tpartIndex\x88\x01\x01\x128\n" +
-	"\x15acknowledge_violation\x18\x04 \x01(\bH\x03R\x14acknowledgeViolation\x88\x01\x01B\n" +
+	"\x15acknowledge_violation\x18\x04 \x01(\bH\x03R\x14acknowledgeViolation\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"surgeon_id\x18\x05 \x01(\tH\x04R\tsurgeonId\x88\x01\x01B\n" +
 	"\n" +
 	"\b_pawn_idB\r\n" +
 	"\v_recipe_defB\r\n" +
 	"\v_part_indexB\x18\n" +
-	"\x16_acknowledge_violation\"\xe5\x01\n" +
+	"\x16_acknowledge_violationB\r\n" +
+	"\v_surgeon_id\"\xe5\x01\n" +
 	"\rAcquireIntent\x12 \n" +
 	"\tsource_id\x18\x01 \x01(\tH\x00R\bsourceId\x88\x01\x01\x12/\n" +
 	"\x11resource_def_name\x18\x02 \x01(\tH\x01R\x0fresourceDefName\x88\x01\x01\x12/\n" +

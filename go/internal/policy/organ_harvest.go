@@ -171,6 +171,9 @@ type OrganHarvest struct {
 	Gain, Cost float64
 	Violation  bool
 	Step       PegCycleStep // a peg-leg cycling step (#1236); zero otherwise
+	// Surgeon restricts a training step's bill to the doctor who needs the
+	// XP (#1253); empty keeps vanilla's choice.
+	Surgeon domain.PawnID
 }
 
 // SelectOrganHarvest picks at most one harvest: nothing while any prisoner

@@ -8,7 +8,7 @@ import (
 )
 
 // A surgery action (#1162) persists its patient, recipe, part and
-// violation acknowledgment, including a whole-body recipe's absent part.
+// violation acknowledgment and surgeon, including a whole-body recipe's absent part.
 func TestSurgeryActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -21,6 +21,11 @@ func TestSurgeryActionRoundTrips(t *testing.T) {
 		value, err := domain.NewSurgery("Human7", "InstallPegLeg", want.part, want.ack)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if i == 0 {
+			if value, err = value.WithSurgeon("Human8"); err != nil { // #1253
+				t.Fatal(err)
+			}
 		}
 		a, err := domain.NewSurgeryAction(domain.ActionID([]string{"leg", "harvest"}[i]), value)
 		if err != nil {

@@ -73,9 +73,10 @@ type PrisonerColony struct {
 	// OrganUsePrecept is the defName of the ideoligion's OrganUse-issue
 	// precept (#1169); empty reads as OrganUse_Classic.
 	OrganUsePrecept string
-	// Medicine is each free colonist's Medicine level, doctors only (the
-	// skill not disabled): the doctor training floor counts it (#1236).
-	Medicine []int
+	// Medicine is each free colonist's Medicine level by pawn, doctors only
+	// (the skill not disabled): the doctor training floor counts it (#1236)
+	// and the training step names its surgeon from it (#1253).
+	Medicine map[domain.PawnID]int
 }
 
 // SlaveryAllowed reports whether the colony's ideoligion lets it enslave

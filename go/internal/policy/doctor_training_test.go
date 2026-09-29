@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -36,7 +37,42 @@ func pegPrisoner(id string, goodwill int, missing []MissingPart, ops ...SurgeryO
 }
 
 func doctors(colonists int, medicine ...int) PrisonerColony {
-	return PrisonerColony{Colonists: colonists, BestSkill: core.BestSkill, Medicine: medicine}
+	levels := map[domain.PawnID]int{}
+	for i, level := range medicine {
+		levels[domain.PawnID(fmt.Sprintf("d%d", i))] = level
+	}
+	return PrisonerColony{Colonists: colonists, BestSkill: core.BestSkill, Medicine: levels}
+}
+
+// The training step names the lowest-Medicine doctor below the floor whose
+// chance clears RestoreFailureCap (#1253); others keep vanilla's choice.
+func TestPegTrainingNamesSurgeon(t *testing.T) {
+	colony := doctors(8, 12, 3, 5, 1)
+	for _, c := range []struct {
+		name    string
+		chances map[domain.PawnID]float64
+		want    domain.PawnID
+	}{
+		{"lowest below the floor", map[domain.PawnID]float64{"d0": 0.99, "d1": 0.9, "d2": 0.9, "d3": 0.95}, "d3"},
+		{"a doctor over the cap is skipped", map[domain.PawnID]float64{"d0": 0.99, "d1": 0.9, "d2": 0.9, "d3": 0.7}, "d1"},
+		{"a doctor at the floor is never named", map[domain.PawnID]float64{"d0": 0.99}, ""},
+		{"unread chances keep vanilla's choice", nil, ""},
+	} {
+		op := installPeg
+		op.DoctorChances = c.chances
+		got, ok := SelectPegCycle(domain.Known([]PrisonerFacts{pegPrisoner("p", 0, []MissingPart{missingLeg}, op)}), domain.Known(colony), pegFood, pegPolicy, nil, nil)
+		if !ok || got.Step != PegTraining || got.Surgeon != c.want {
+			t.Fatalf("%s: ok %v %+v", c.name, ok, got)
+		}
+	}
+	// Control and reinstall steps never name a surgeon.
+	op := removePeg
+	op.DoctorChances = map[domain.PawnID]float64{"d1": 0.9}
+	row := pegPrisoner("p", 0, []MissingPart{missingLeg}, op)
+	row.Withdrawal = domain.Known(true)
+	if got, ok := SelectPegCycle(domain.Known([]PrisonerFacts{row}), domain.Known(doctors(4, 12, 3)), pegFood, pegPolicy, nil, nil); !ok || got.Step != PegControl || got.Surgeon != "" {
+		t.Fatalf("control: ok %v %+v", ok, got)
+	}
 }
 
 func TestTrainingValue(t *testing.T) {

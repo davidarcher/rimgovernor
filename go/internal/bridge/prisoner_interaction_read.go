@@ -92,7 +92,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		return PrisonerCensus{}, ErrUnavailable
 	}
 	seen := map[string]bool{}
-	colony := policy.PrisonerColony{BestSkill: map[string]int{}, IdeologyActive: observed.GetIdeologyActive(), ClassicIdeo: observed.GetClassicIdeoMode(), Ideo: observed.GetColonyIdeoId(), SlaveryPrecept: observed.GetSlaveryPrecept(), OrganUsePrecept: observed.GetOrganUsePrecept()}
+	colony := policy.PrisonerColony{BestSkill: map[string]int{}, Medicine: map[domain.PawnID]int{}, IdeologyActive: observed.GetIdeologyActive(), ClassicIdeo: observed.GetClassicIdeoMode(), Ideo: observed.GetColonyIdeoId(), SlaveryPrecept: observed.GetSlaveryPrecept(), OrganUsePrecept: observed.GetOrganUsePrecept()}
 	rows := make([]policy.PrisonerFacts, 0, len(observed.Persons))
 	custody := make([]policy.CustodyFacts, 0, len(observed.Persons))
 	for _, person := range observed.Persons {
@@ -142,7 +142,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 					colony.BestSkill[name] = int(s.GetLevel())
 				}
 				if s.GetDefinition().GetDefName() == "Medicine" && !s.GetDisabled() {
-					colony.Medicine = append(colony.Medicine, int(s.GetLevel()))
+					colony.Medicine[domain.PawnID(id)] = int(s.GetLevel())
 				}
 			}
 		}

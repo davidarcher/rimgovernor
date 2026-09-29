@@ -63,9 +63,14 @@ namespace HomeBridge.BridgeTools
                 GenSpawn.Spawn(prisoner, CellFinder.StandableCellNear(patient.Position, map, 8), map);
                 prisoner.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
                 var kidney = prisoner.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == "Kidney");
+                // #1253: a colonist who can doctor, for the surgeon restriction.
+                var surgeon = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
+                    .FirstOrDefault(p => p != patient && !p.Dead && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor));
+                if (surgeon == null) return new { success = false, reason = "No second colonist who can doctor." };
                 return new
                 {
                     success = true, patientId = patient.GetUniqueLoadID(), part = patient.RaceProps.body.AllParts.IndexOf(leg),
+                    surgeonId = surgeon.GetUniqueLoadID(),
                     prisonerId = prisoner.GetUniqueLoadID(), kidney = prisoner.RaceProps.body.AllParts.IndexOf(kidney),
                 };
             }, cancellationToken).ConfigureAwait(false);

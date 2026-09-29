@@ -254,7 +254,9 @@ namespace HomeBridge.BridgeTools
                     }
                     if(def.surgeryOutcomeEffect!=null && doctors.Count>0) {
                         float? real=pawn.InBed()?(float?)null:bestBed?.GetStatValue(StatDefOf.SurgerySuccessChanceFactor) ?? 1f;
-                        op.SuccessChance=Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,real)));
+                        // #1253: each doctor's chance, so training can name one.
+                        foreach(var d in doctors) op.DoctorChances[d.GetUniqueLoadID()]=Number(Chance(def,d,pawn,part,medicine,real));
+                        op.SuccessChance=op.DoctorChances.Values.Max();
                         op.DoctorSuccessChance=Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,idealFactor)));
                     }
                     row.Operations.Add(op);

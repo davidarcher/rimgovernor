@@ -14,7 +14,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "medical/surgery-intent",
 		Scope: "SurgeryIntent on Actions/Apply (#1162): a peg-leg bill on a colonist missing a leg is QUEUED past an " +
-			"unrelated bill, a resent intent applies again with the same Bill_Medical, and organ removal on a " +
+			"unrelated bill, a resent intent applies again with the same Bill_Medical, a surgeon-restricted resend (#1253) applies again twice, and organ removal on a " +
 			"prisoner is refused without acknowledge_violation.",
 		Start:  cases.Fixture{Op: "test/surgery_intent_prepare", On: cases.LabStart()},
 		Budget: 2 * time.Minute,
@@ -24,8 +24,8 @@ func init() {
 
 func surgeryIntent(ctx context.Context, s cases.Session) error {
 	h, identity, prepared, report := s.Harness(), s.Identity(), s.Prepared(), s.Report()
-	patient, prisoner := na.AsString(prepared["patientId"]), na.AsString(prepared["prisonerId"])
-	if patient == "" || prisoner == "" {
+	patient, prisoner, surgeon := na.AsString(prepared["patientId"]), na.AsString(prepared["prisonerId"]), na.AsString(prepared["surgeonId"])
+	if patient == "" || prisoner == "" || surgeon == "" {
 		return fmt.Errorf("prepare: missing patient or prisoner: %#v", prepared)
 	}
 	// The fixture edits health outside authority, so authority is granted after it.
@@ -44,8 +44,12 @@ func surgeryIntent(ctx context.Context, s cases.Session) error {
 		result, _ := na.AsMap(results[0])
 		return result, nil
 	}
-	queued := func(key string) (string, error) {
-		result, err := apply(key, map[string]any{"pawnId": patient, "recipeDef": "InstallPegLeg", "partIndex": prepared["part"]})
+	queued := func(key, surgeon string) (string, error) {
+		intent := map[string]any{"pawnId": patient, "recipeDef": "InstallPegLeg", "partIndex": prepared["part"]}
+		if surgeon != "" {
+			intent["surgeonId"] = surgeon
+		}
+		result, err := apply(key, intent)
 		if err != nil {
 			return "", err
 		}
@@ -59,16 +63,27 @@ func surgeryIntent(ctx context.Context, s cases.Session) error {
 		}
 		return bill, nil
 	}
-	first, err := queued("surgery-queue")
+	first, err := queued("surgery-queue", "")
 	if err != nil {
 		return err
 	}
-	again, err := queued("surgery-requeue")
+	again, err := queued("surgery-requeue", "")
 	if err != nil {
 		return err
 	}
 	if again != first {
 		return fmt.Errorf("re-apply queued a second bill %s beside %s", again, first)
+	}
+	// #1253: a surgeon restricts the queued bill; the same surgeon again
+	// applies again with the same bill.
+	for _, key := range []string{"surgery-surgeon", "surgery-surgeon-again"} {
+		bill, err := queued(key, surgeon)
+		if err != nil {
+			return err
+		}
+		if bill != first {
+			return fmt.Errorf("%s: surgeon re-apply queued bill %s beside %s", key, bill, first)
+		}
 	}
 	report["bill"] = first
 	result, err := apply("surgery-violation", map[string]any{"pawnId": prisoner, "recipeDef": "RemoveBodyPart", "partIndex": prepared["kidney"]})

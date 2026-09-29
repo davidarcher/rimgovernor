@@ -269,6 +269,10 @@ message SurgeryOperation {
   // medical care level forbids all of it (#1239); ingredients_on_map is
   // then false.
   optional bool medicine_care_limited = 15;
+  // Each eligible doctor's chance on this operation, the same score as
+  // success_chance, keyed by pawn id (#1253); empty when success_chance is
+  // absent.
+  map<string, double> doctor_chances = 16;
 }
 message GearItem {
   EntityRef thing = 1; optional string stuff = 2; optional string quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;

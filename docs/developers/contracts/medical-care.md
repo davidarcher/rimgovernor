@@ -115,7 +115,10 @@ foot) on colony prisoners:
   hour and the removal's goodwill (-70 via `harvest_goodwill_change`, no mood), so
   it runs on factionless, pirate or -100 prisoners. With no wood slot open a
   natural hand, foot or leg (never a second leg) is amputated, its `HarvestCost`
-  spread over the cycles the slot supports until the doctor reaches 10.
+  spread over the cycles the slot supports until the doctor reaches 10. The
+  bill is restricted (SurgeryIntent `surgeon_id`, #1253) to the lowest-Medicine
+  doctor below 10 whose `doctor_chances` entry clears the failure cap; with none,
+  vanilla picks. Other surgeries never name a surgeon.
 - Prisoner control: a legless prisoner is downed, so no mental, withdrawal or
   prison break. The last peg legs come off a HarvestEligible prisoner not due for
   release, or one in withdrawal, never one being recruited, converted or enslaved,

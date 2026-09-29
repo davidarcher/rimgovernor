@@ -22,5 +22,8 @@ func surgeryAction(action domain.Action) (*o.Action, error) {
 	if v.Part() != domain.NoSurgeryPart {
 		intent.PartIndex = proto.Int32(int32(v.Part()))
 	}
+	if v.Surgeon() != "" {
+		intent.SurgeonId = proto.String(string(v.Surgeon()))
+	}
 	return &o.Action{Intent: &o.Action_Surgery{Surgery: intent}}, nil
 }

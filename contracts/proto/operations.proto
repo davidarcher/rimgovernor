@@ -297,7 +297,9 @@ message Action {
 // Evidence is the SurgeryEffect: QUEUED with the Bill_Medical id; the same
 // recipe and part already queued applies again. Native doctor jobs choose
 // the surgeon; applied means queued, and the health read decides success.
-message SurgeryIntent { optional string pawn_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional bool acknowledge_violation = 4; }
+// surgeon_id, when set, restricts the bill to that colonist (Bill_Medical
+// pawn restriction, #1253); unset keeps vanilla's choice of surgeon.
+message SurgeryIntent { optional string pawn_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional bool acknowledge_violation = 4; optional string surgeon_id = 5; }
 // Designate one census source for its resource: a plant harvest or cut, a
 // hunt (the animal wherever it is now, cell the hint) or a mine cell. With
 // withdraw, remove that designation instead (the planner's stall withdraw,

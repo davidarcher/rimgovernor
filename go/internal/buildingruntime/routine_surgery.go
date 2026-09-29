@@ -166,7 +166,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 		fmt.Fprintf(hash, "%s/%s/%d\n", choice.Pawn, choice.Recipe, choice.Part)
 	}
 	if harvesting {
-		fmt.Fprintf(hash, "harvest/%s/%s/%d\n", harvest.Prisoner, harvest.Recipe, harvest.Part)
+		fmt.Fprintf(hash, "harvest/%s/%s/%d/%s\n", harvest.Prisoner, harvest.Recipe, harvest.Part, harvest.Surgeon)
 	}
 	for _, pin := range pins {
 		fmt.Fprintf(hash, "care/%s\n", pin.Pawn())
@@ -193,6 +193,9 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	if harvesting {
 		cut, err := domain.NewSurgery(harvest.Prisoner, harvest.Recipe, harvest.Part, harvest.Violation)
+		if err == nil && harvest.Surgeon != "" {
+			cut, err = cut.WithSurgeon(harvest.Surgeon) // peg-leg training's doctor (#1253)
+		}
 		if err != nil {
 			return RoutineSurgeryResult{}, err
 		}

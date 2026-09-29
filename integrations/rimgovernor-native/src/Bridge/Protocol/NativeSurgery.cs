@@ -16,13 +16,14 @@ namespace HomeBridge.BridgeTools
     // part's current hediffs live; a recipe that is a violation on the
     // patient needs acknowledge_violation. Other bills never block. The same
     // recipe already queued on the same part applies again. Native doctor
-    // jobs choose the surgeon; applied means queued.
+    // jobs choose the surgeon unless surgeon_id names one (#1253): the bill's
+    // pawn restriction, set on an already queued bill too. Applied means queued.
     internal static class NativeSurgery
     {
         private static Common.Failure? Resolve(Operations.SurgeryIntent? intent, Common.ObservationContext context,
-            out Pawn? pawn, out RecipeDef? recipe, out BodyPartRecord? part)
+            out Pawn? pawn, out RecipeDef? recipe, out BodyPartRecord? part, out Pawn? surgeon)
         {
-            pawn = null; recipe = null; part = null;
+            pawn = null; recipe = null; part = null; surgeon = null;
             if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.RecipeDef)
                 || (intent.HasPartIndex && intent.PartIndex < 0))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Surgery requires an exact patient, an exact recipe and a whole-body or exact part index.");
@@ -31,6 +32,13 @@ namespace HomeBridge.BridgeTools
             if (pawn == null || pawn.Dead || !pawn.RaceProps.Humanlike
                 || !(pawn.Faction == Faction.OfPlayer || pawn.IsPrisonerOfColony))
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living humanlike colony patient is not spawned on this map.");
+            if (intent.HasSurgeonId)
+            {
+                var id = intent.SurgeonId;
+                surgeon = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
+                if (surgeon == null || surgeon == pawn || surgeon.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
+                    return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Surgeon " + id + " is not a spawned free colonist who can doctor.");
+            }
             recipe = pawn.def.AllRecipes?.FirstOrDefault(r => r.defName == intent.RecipeDef);
             if (recipe == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + intent.RecipeDef + " is not offered for this patient.");
             var parts = pawn.RaceProps.body.AllParts;
@@ -60,11 +68,11 @@ namespace HomeBridge.BridgeTools
         private static Bill_Medical? Queued(Pawn pawn, RecipeDef recipe, BodyPartRecord? part) =>
             pawn.BillStack?.Bills.OfType<Bill_Medical>().FirstOrDefault(b => b.recipe == recipe && b.Part == part);
 
-        internal static Common.Failure? Validate(Operations.SurgeryIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static Common.Failure? Validate(Operations.SurgeryIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _, out _);
 
         internal static Receipts.EffectEvidence Apply(Operations.SurgeryIntent intent, Common.ObservationContext context)
         {
-            var failure = Resolve(intent, context, out var pawn, out var recipe, out var part);
+            var failure = Resolve(intent, context, out var pawn, out var recipe, out var part, out var surgeon);
             if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
             var bill = Queued(pawn!, recipe!, part);
             if (bill == null)
@@ -73,6 +81,7 @@ namespace HomeBridge.BridgeTools
                 bill = Queued(pawn!, recipe!, part);
                 if (bill == null) throw new InvalidOperationException("Native surgery bill was not queued.");
             }
+            if (surgeon != null && bill.PawnRestriction != surgeon) bill.SetPawnRestriction(surgeon);
             var effect = new Receipts.SurgeryEffect
             {
                 PawnId = pawn!.GetUniqueLoadID(), RecipeDef = recipe!.defName, BillId = bill.GetUniqueLoadID(),

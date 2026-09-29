@@ -51,6 +51,12 @@ func SurgeryFacts(h *o.PawnHealth) (domain.Fact[[]policy.MissingPart], domain.Fa
 			if op.EligibleDoctors != nil {
 				row.EligibleDoctors = domain.Known(int(op.GetEligibleDoctors()))
 			}
+			for doctor, chance := range op.GetDoctorChances() {
+				if row.DoctorChances == nil {
+					row.DoctorChances = map[domain.PawnID]float64{}
+				}
+				row.DoctorChances[domain.PawnID(doctor)] = chance
+			}
 			rows = append(rows, row)
 		}
 		ops = domain.Known(rows)
