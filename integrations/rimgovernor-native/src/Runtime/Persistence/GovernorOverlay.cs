@@ -234,18 +234,22 @@ namespace HomeBridge.BridgeTools
     }
 
     /// <summary>
-    /// Player-side overlay visibility: a master switch and one switch per
-    /// layer group (the layer id up to its first '.', ':' or '/'), both on
-    /// the play-settings bar. Session only.
+    /// Player-side overlay visibility: a master switch, a pawn traffic heat
+    /// switch (the "heat" group, off by default: it is busy) and one switch
+    /// per other layer group (the layer id up to its first '.', ':' or '/'),
+    /// all on the play-settings bar. Session only.
     /// </summary>
     [StaticConstructorOnStartup]
     public static class OverlayVisibility
     {
         public static bool Master = true;
+        public static bool Traffic;
+        private const string TrafficGroup = "heat";
         private static readonly SortedSet<string> groups = new SortedSet<string>(StringComparer.Ordinal);
         private static readonly HashSet<string> hidden = new HashSet<string>(StringComparer.Ordinal);
         private static readonly Texture2D MasterIcon = ContentFinder<Texture2D>.Get("UI/Buttons/ShowZones", false) ?? BaseContent.BadTex;
         private static readonly Texture2D GroupsIcon = ContentFinder<Texture2D>.Get("UI/Buttons/ShowRoomStats", false) ?? BaseContent.BadTex;
+        private static readonly Texture2D TrafficIcon = ContentFinder<Texture2D>.Get("UI/Buttons/ShowBeauty", false) ?? BaseContent.BadTex;
 
         static OverlayVisibility()
         {
@@ -269,15 +273,22 @@ namespace HomeBridge.BridgeTools
         }
 
         public static void Known(string id) => groups.Add(Group(id));
-        public static bool Shown(string id) => !hidden.Contains(Group(id));
+        public static bool Shown(string id)
+        {
+            var group = Group(id);
+            return group == TrafficGroup ? Traffic : !hidden.Contains(group);
+        }
 
         private static void Controls(WidgetRow row, bool worldView)
         {
             if (worldView || row == null) return;
             row.ToggleableIcon(ref Master, MasterIcon, "Show the RimGovernor overlay.", SoundDefOf.Mouseover_ButtonToggle);
-            if (!Master || groups.Count == 0) return;
+            if (!Master) return;
+            row.ToggleableIcon(ref Traffic, TrafficIcon, "Show the RimGovernor pawn traffic heat map.", SoundDefOf.Mouseover_ButtonToggle);
+            var others = groups.Where(g => g != TrafficGroup).ToList();
+            if (others.Count == 0) return;
             if (row.ButtonIcon(GroupsIcon, "Choose which RimGovernor overlay layers are shown."))
-                Find.WindowStack.Add(new FloatMenu(groups.Select(g => new FloatMenuOption(
+                Find.WindowStack.Add(new FloatMenu(others.Select(g => new FloatMenuOption(
                     (hidden.Contains(g) ? "Show " : "Hide ") + g,
                     () => { if (!hidden.Remove(g)) hidden.Add(g); })).ToList()));
         }
