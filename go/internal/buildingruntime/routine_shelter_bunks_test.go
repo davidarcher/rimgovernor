@@ -148,7 +148,7 @@ func TestRoutineShelterAdoptionSkipsBunks(t *testing.T) {
 			n.standing = append(n.standing, bridge.Structure{ID: "frame", Definition: "Wall", Cell: w, Status: "frame"})
 		}
 	}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +233,7 @@ func TestRoutineShelterRestartKeepsBunks(t *testing.T) {
 			t.Fatal(result, err)
 		}
 	}
-	restarted, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	restarted, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}

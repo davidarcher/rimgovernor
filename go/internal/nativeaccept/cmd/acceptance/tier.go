@@ -213,7 +213,7 @@ func smokeCases(all []cases.Case) ([]cases.Case, error) {
 var endToEnd = map[string]bool{
 	"campaign/foothold": true, "campaign/recovery": true, "clearance/shrine-breach": true,
 	"defense/perimeter": true, "food/reserve": true, "production/ladder": true,
-	"shelter/bunks-first": true, "shelter/excavation": true, "startup/labor": true,
+	"shelter/bunks-first": true, "startup/labor": true,
 	"sustained/colony-stable": true, "sustained/winter": true, "upkeep/campaign": true, "sleeping/suites": true,
 }
 

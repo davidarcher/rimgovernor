@@ -42,7 +42,7 @@ func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 	base, db, _, request, n := sleepingFixture(t)
 	ctx := context.Background()
 	prepareExpansionReview(t, db, n)
-	r, err := NewRoutineExpansionPlanner(base.reviewer, n, nil)
+	r, err := NewRoutineExpansionPlanner(base.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 	// later phases.
 	base, db, n := shelterSiteFixture(t)
 	prepareExpansionReview(t, db, n)
-	r, err := NewRoutineExpansionPlanner(base.reviewer, n, nil)
+	r, err := NewRoutineExpansionPlanner(base.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
 	}
 	row := &o.ClearanceTarget{EntityId: proto.String("ruin"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(ruin.X), Z: proto.Int32(ruin.Z)}, Maximum: &c.Cell{X: proto.Int32(ruin.X), Z: proto.Int32(ruin.Z)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(true), AncientDanger: proto.Bool(false), Designated: proto.Bool(false)}
 	native := &ruinNative{sleepingNative: n, rows: []*o.ClearanceTarget{row}}
-	r, err := NewRoutineExpansionPlanner(base.reviewer, native, nil)
+	r, err := NewRoutineExpansionPlanner(base.reviewer, native)
 	if err != nil {
 		t.Fatal(err)
 	}

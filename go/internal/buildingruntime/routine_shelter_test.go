@@ -56,7 +56,7 @@ func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *s
 		v.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: cost}})
 		v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(180))}}
 	}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +275,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 func TestRoutineShelterPrefersExistingRoom(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := sleepingFixture(t)
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -668,7 +668,7 @@ func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T)
 		}
 	}
 	// The planner reads the census through the same source it previews with.
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -719,7 +719,7 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	door := domain.Cell{X: 4, Z: 3}
 	room := recordStoreroom(t, r, db, policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7})
 	n := &adoptingNative{sleepingNative: base, standing: []bridge.Structure{{ID: "door", Definition: "Door", Cell: door, Status: "built"}}}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -804,7 +804,7 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 			}
 		}
 	}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -911,7 +911,7 @@ func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 		standing[cell] = true
 		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: ring[cell].Definition(), Cell: cell, Status: "built"})
 	}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -964,7 +964,7 @@ func TestRoutineShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 		standing[cell] = true
 		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: "Wall", Cell: cell, Status: "built"})
 	}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1001,7 +1001,7 @@ func TestRoutineShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) 
 	// journal alone and the planner sites afresh.
 	shell, _ := earlierGrownShell(t, db, "earlier-shell")
 	n := &adoptingNative{sleepingNative: base}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1035,7 +1035,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	for i, b := range placements[:len(placements)-1] {
 		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: "built"})
 	}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}

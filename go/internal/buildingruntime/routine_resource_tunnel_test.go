@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -199,7 +198,7 @@ func TestBuriedSteelTunnelsThenMines(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, target, ok := ExcavationMethod(stage.Method)
-	if !ok || target.Shape.Kind != policy.ExcavationCorridor || !strings.HasSuffix(string(stage.Method), ".c") {
+	if !ok {
 		t.Fatal(target, stage.Method)
 	}
 	if dx, dz := target.Door.X-buriedOreCell.X, target.Door.Z-buriedOreCell.Z; dx*dx+dz*dz != 1 || len(cells) == 0 {

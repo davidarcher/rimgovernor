@@ -19,7 +19,6 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	NoteShelter(ctx, shelter)
 	target := policy.ExcavationTarget{Access: domain.Cell{X: 9, Z: 9}}
 	NoteSite(ctx, "verify", target, []domain.Cell{{X: 1, Z: 1}}, bridge.ExcavationSite{AccessReachable: true, Cells: []bridge.ExcavationSiteCell{{Cell: domain.Cell{X: 1, Z: 1}, Eligible: true}}})
-	NoteChoice(ctx, ExcavationChoice{Anchor: domain.Cell{X: 3, Z: 3}, Target: &target, Excavate: true})
 	if err := finish(domain.GenerationSnapshot{Colony: "c"}, 120); err != nil {
 		t.Fatal(err)
 	}
@@ -30,8 +29,8 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	if len(p.Shelter) != 1 || !reflect.DeepEqual(p.Shelter[0].Cells, shelter.Cells) {
 		t.Fatalf("shelter %+v", p.Shelter)
 	}
-	if len(p.Sites) != 1 || p.Sites[0].Purpose != "verify" || !p.Sites[0].Site.AccessReachable || len(p.Choices) != 1 || !p.Choices[0].Excavate {
-		t.Fatalf("sites %+v choices %+v", p.Sites, p.Choices)
+	if len(p.Sites) != 1 || p.Sites[0].Purpose != "verify" || !p.Sites[0].Site.AccessReachable {
+		t.Fatalf("sites %+v", p.Sites)
 	}
 }
 

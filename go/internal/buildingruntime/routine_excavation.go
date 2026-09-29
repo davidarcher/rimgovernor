@@ -27,30 +27,15 @@ type RoutineExcavationSource interface {
 
 const (
 	excavationStagePrefix = "excavation-stage-"
-	excavationDoorPrefix  = "excavation-door"
 	excavationStageLimit  = 8
 	excavationStageBound  = 64
 	// excavationStallTicks bounds how long a stage action may stay held
 	// (unsupported, changed geometry, no way in) before the planner cancels
 	// it so the project can be reviewed against the geometry that changed
 	// under it; an in-flight stage otherwise reads as open work forever.
-	excavationStallTicks   = 2500
-	excavationCandidates   = 4
-	excavationInteriorSize = 7
-	// excavationRoundRadius sizes the round fallback room:
-	// 49 cells like the 7×7 rectangle, within the roof support radius.
-	excavationRoundRadius = 4
+	excavationStallTicks = 2500
+	excavationCandidates = 4
 )
-
-// excavationShapes prefers the 7x7 rectangle and falls back to a round
-// room where the rectangle is blocked; the shapes are tried at every face in
-// this order.
-func excavationShapes() []policy.ExcavationShape {
-	return []policy.ExcavationShape{
-		policy.RectangleShape(excavationInteriorSize, excavationInteriorSize),
-		policy.EllipseShape(excavationRoundRadius, excavationRoundRadius, domain.EllipseNorthSouth),
-	}
-}
 
 // excavationStageMethod names stage n of the project on target. The target
 // key rides on the method id (#987), the goal_methods key, so an
@@ -60,68 +45,50 @@ func excavationStageMethod(stage int, target policy.ExcavationTarget) domain.Met
 	return domain.MethodID(fmt.Sprintf("%s%d@%s", excavationStagePrefix, stage, target.Key()))
 }
 
-// excavationDoorMethod names the door that closes the project on target.
-func excavationDoorMethod(target policy.ExcavationTarget) domain.MethodID {
-	return domain.MethodID(excavationDoorPrefix + "@" + target.Key())
-}
-
-// ExcavationMethod parses an excavation method id: its stage (-1 for the
-// door) and the target it carries. ok is false for any other method.
+// ExcavationMethod parses a tunnel stage method id: its stage and the
+// target it carries. ok is false for any other method.
 func ExcavationMethod(method domain.MethodID) (stage int, target policy.ExcavationTarget, ok bool) {
 	head, key, found := strings.Cut(string(method), "@")
 	if !found {
 		return 0, policy.ExcavationTarget{}, false
 	}
-	if head == excavationDoorPrefix {
-		stage = -1
-	} else if n, cut := strings.CutPrefix(head, excavationStagePrefix); !cut {
+	n, cut := strings.CutPrefix(head, excavationStagePrefix)
+	v, err := strconv.Atoi(n)
+	if !cut || err != nil || v < 0 || strconv.Itoa(v) != n {
 		return 0, policy.ExcavationTarget{}, false
-	} else if v, err := strconv.Atoi(n); err != nil || v < 0 || strconv.Itoa(v) != n {
-		return 0, policy.ExcavationTarget{}, false
-	} else {
-		stage = v
 	}
-	target, err := policy.ParseExcavationKey(key)
+	target, err = policy.ParseExcavationKey(key)
 	if err != nil {
 		return 0, policy.ExcavationTarget{}, false
 	}
-	return stage, target, true
+	return v, target, true
 }
 
-// IsExcavationMethod reports whether method belongs to the routine
-// excavation planner (stage or door).
+// IsExcavationMethod reports whether method is a tunnel stage.
 func IsExcavationMethod(method domain.MethodID) bool {
 	_, _, ok := ExcavationMethod(method)
 	return ok
 }
 
-// excavationProgress reads a goal epoch's excavation methods: the target the
-// latest (highest) stage carries, the next stage number and whether the
-// door is bound.
-func excavationProgress(methods []domain.GoalMethod) (latest *policy.ExcavationTarget, next int, door bool) {
+// excavationProgress reads a goal epoch's tunnel stages: the target the
+// latest (highest) stage carries and the next stage number.
+func excavationProgress(methods []domain.GoalMethod) (latest *policy.ExcavationTarget, next int) {
 	for _, m := range methods {
-		stage, target, ok := ExcavationMethod(m.Method)
-		switch {
-		case !ok:
-		case stage < 0:
-			door = true
-		case stage >= next:
+		if stage, target, ok := ExcavationMethod(m.Method); ok && stage >= next {
 			next, latest = stage+1, &target
 		}
 	}
-	return latest, next, door
+	return latest, next
 }
 
-// excavationProject reports the target of the goal's current excavation
-// project: the one the most recently admitted stage under this goal epoch
-// carries, since a re-sited project continues its stage count under a new
-// target key.
+// excavationProject reports the target of the goal's current tunnel: the
+// one the most recently admitted stage under this goal epoch carries.
 func (r *RoutineBuildingPlanner) excavationProject(call context.Context, goal store.GoalState) (*policy.ExcavationTarget, error) {
 	methods, err := r.reviewer.player.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
 	if err != nil {
 		return nil, err
 	}
-	latest, _, _ := excavationProgress(methods)
+	latest, _ := excavationProgress(methods)
 	return latest, nil
 }
 
@@ -147,163 +114,30 @@ func (r *RoutineBuildingPlanner) readExcavationSite(call context.Context, snapsh
 	return site, nil
 }
 
-// excavationCandidate verifies the best geometric target against the live
-// map. A target is acceptable when every visible cell is eligible rock, the
-// counterfactual removal is not known to be unsupported, and a miner can
-// reach the access cell now.
-func (r *RoutineBuildingPlanner) excavationCandidate(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) (*policy.ExcavationTarget, error) {
-	// A project whose goal was replaced mid-way is resumed from its durable
-	// stage plans before any fresh face is considered: the colony window
-	// follows the pawns, so a half-dug room can fall outside the geometry
-	// search entirely while the native site read still verifies it.
-	if previous, err := r.previousExcavation(call); err != nil {
-		return nil, err
-	} else if previous != nil {
-		verified, err := r.verifyExcavation(call, snapshot, facts.Identity.Tick, *previous, true, check)
-		if err != nil {
-			return nil, err
-		}
-		if verified {
-			return previous, nil
-		}
-	}
-	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Shapes: excavationShapes(), MinCorridor: 2, MaxCorridor: 4}
-	snap.NoteExcavation(call, request)
-	targets, err := policy.ExcavationSites(request)
-	if err != nil {
-		return nil, err
-	}
-	for i, target := range targets {
-		if i >= excavationCandidates {
-			break
-		}
-		verified, err := r.verifyExcavation(call, snapshot, facts.Identity.Tick, target, false, check)
-		if err != nil {
-			return nil, err
-		}
-		if verified {
-			return &target, nil
-		}
-	}
-	return nil, nil
-}
-
-// previousExcavation is the target of the most recently planned excavation
-// plan under any goal, or nil when none was ever planned or the latest is a
-// door plan whose every action completed: that project is finished, and a
-// later shelter need starts a new one.
-func (r *RoutineBuildingPlanner) previousExcavation(call context.Context) (*policy.ExcavationTarget, error) {
-	journal := r.reviewer.player.journal
-	history, err := journal.PlanHistoryWithMethods(call, 1, excavationStagePrefix+"*@*", excavationDoorPrefix+"@*")
-	if err != nil {
-		return nil, err
-	}
-	if len(history) == 0 {
-		return nil, nil
-	}
-	state := history[0]
-	stage, target, ok := ExcavationMethod(state.Method)
-	if !ok {
-		return nil, fmt.Errorf("%w: previousExcavation: method %s", ErrControl, state.Method)
-	}
-	if target.Shape.Kind == policy.ExcavationCorridor {
-		// A MaintainResource tunnel to ore (#1074) is no shelter to resume.
-		return nil, nil
-	}
-	if stage < 0 {
-		finished := len(state.Progress) > 0
-		for _, progress := range state.Progress {
-			if effect, known := progress.View().Effect.Value(); !known || effect != domain.EffectCompleted {
-				finished = false
-			}
-		}
-		if finished {
-			return nil, nil
-		}
-	}
-	return &target, nil
-}
-
-// verifyExcavation reads the target under the current observation. A fresh
-// candidate is acceptable when every visible cell is eligible rock or
+// verifyExcavation reads a fresh tunnel candidate under the current
+// observation: acceptable when every visible cell is eligible rock or
 // already cleared, the counterfactual removal is not known to be
-// unsupported, and a miner can reach the access cell now. A resumed project
-// is judged by what still lets it finish: its way in must be open (access
-// reachable, corridor and entrance cleared or diggable) and its roof still
-// held; hazards the fog revealed inside the room are dug around, and a
-// missing miner is waited for rather than a reason to abandon the dig. A
-// resumed project may be fully cleared (its door is still owed); a fresh
-// candidate is only proposed by geometry that saw rock.
-func (r *RoutineBuildingPlanner) verifyExcavation(call context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, target policy.ExcavationTarget, resumed bool, check func() error) (bool, error) {
-	purpose := "verify"
-	if resumed {
-		purpose = "verify-resumed"
-	}
-	site, err := r.readExcavationSite(call, snapshot, tick, purpose, target, target.Cells(), target.Access, check)
+// unsupported, and a miner can reach the access cell now.
+func (r *RoutineBuildingPlanner) verifyExcavation(call context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, target policy.ExcavationTarget, check func() error) (bool, error) {
+	site, err := r.readExcavationSite(call, snapshot, tick, "verify", target, target.Cells(), target.Access, check)
 	if err != nil {
 		return false, err
 	}
-	return excavationVerified(target, resumed, site), nil
+	return excavationVerified(target, site), nil
 }
 
 // excavationVerified is verifyExcavation's judgement of one site read.
-func excavationVerified(target policy.ExcavationTarget, resumed bool, site bridge.ExcavationSite) bool {
-	if site.Support == policy.ExcavationSupportUnsupported && !site.CollapsePending || !site.AccessReachable || !resumed && !site.WorkerAvailable {
+func excavationVerified(target policy.ExcavationTarget, site bridge.ExcavationSite) bool {
+	if site.Support == policy.ExcavationSupportUnsupported && !site.CollapsePending || !site.AccessReachable || !site.WorkerAvailable {
 		clockSchedulerLog("excavation target %s rejected: support=%d (%s) worker=%v access=%v", target.Key(), site.Support, site.SupportBlocker, site.WorkerAvailable, site.AccessReachable)
 		return false
 	}
 	review := policy.ReviewExcavation(target, excavationStates(site), excavationStageLimit)
-	if !resumed && len(review.Kept) > 0 || !review.Corridor {
+	if len(review.Kept) > 0 || !review.Corridor {
 		clockSchedulerLog("excavation target %s rejected: kept=%v corridor=%v", target.Key(), review.Kept, review.Corridor)
 		return false
 	}
 	return true
-}
-
-// previewShelter chooses between the open-site starter shell and an
-// excavated room. It returns the shell's previews when the shell wins, or a
-// non-nil target when excavation does.
-func (r *RoutineBuildingPlanner) previewShelter(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, *policy.ExcavationTarget, error) {
-	target, err := r.excavationCandidate(call, snapshot, facts, protected, check)
-	if err != nil {
-		return nil, policy.StockObservation{}, "", nil, err
-	}
-	selected, stock, reason, err := r.previewShell(call, snapshot, facts, protected, check)
-	if err != nil {
-		return nil, policy.StockObservation{}, "", nil, err
-	}
-	var shell *policy.StarterLayout
-	if reason == "" {
-		shell = &policy.StarterLayout{Room: previewRectangle(selected)}
-	}
-	excavate := policy.ChooseExcavation(facts.Center, shell, target)
-	snap.NoteChoice(call, snap.ExcavationChoice{Anchor: facts.Center, Shell: shell, Target: target, Excavate: excavate})
-	if excavate {
-		return nil, policy.StockObservation{}, "", target, nil
-	}
-	return selected, stock, reason, nil, nil
-}
-
-// previewRectangle is the bounding box of the previews' footprints: for a
-// starter shell, exactly the room.
-func previewRectangle(previews []policy.Preview) policy.Rectangle {
-	var min, max domain.Cell
-	first := true
-	for _, p := range previews {
-		footprint, _ := p.Footprint.Value()
-		for _, cell := range footprint {
-			if first {
-				min, max, first = cell, cell, false
-				continue
-			}
-			min.X, min.Z = minInt32(min.X, cell.X), minInt32(min.Z, cell.Z)
-			max.X, max.Z = maxInt32(max.X, cell.X), maxInt32(max.Z, cell.Z)
-		}
-	}
-	if first {
-		return policy.Rectangle{}
-	}
-	return policy.Rectangle{X: min.X, Z: min.Z, Width: max.X - min.X + 1, Height: max.Z - min.Z + 1}
 }
 
 func minInt32(a, b int32) int32 {
@@ -343,13 +177,11 @@ func excavationStates(site bridge.ExcavationSite) []policy.ExcavationCellState {
 	return states
 }
 
-// stepExcavation decides what the bound project owes next from a fresh site
-// read: the next frontier stage while diggable rock remains, the door once
-// every cell is cleared or kept, nothing once the door exists. Three changes
-// end the project instead (BuildingExcavationBlocked, after which the caller
-// re-plans from the geometry the pawns actually opened -- another dig, or the
-// open-site shell): a roof no longer held once the remaining rock is gone
-// (the room was breached from outside; nothing sound can be finished), a
+// stepExcavation decides what the bound tunnel owes next from a fresh site
+// read: the next frontier stage while diggable rock remains, nothing once
+// every cell is cleared or kept. Three changes end the tunnel instead
+// (BuildingExcavationBlocked, after which the caller re-sites it): a roof no
+// longer held once the remaining rock is gone, a
 // way in that closed (the access cell walled off, a corridor cell that
 // unfogged into something that cannot be mined), and a stage whose own
 // removal native reports unsupported. A pending collapse and an unknown
@@ -363,17 +195,9 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	_, stage, door := excavationProgress(methods)
-	if door {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
-	}
+	_, stage := excavationProgress(methods)
 	if stage > excavationStageBound {
 		return RoutineBuildingResult{Reason: BuildingMethodExhausted}, nil
-	}
-	// A corridor-only tunnel to buried ore (#1074) owes no door.
-	corridor := s.target.Shape.Kind == policy.ExcavationCorridor
-	if !corridor && !routineDefinitionsAvailable(s.facts, []string{"Door"}, true) {
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
@@ -396,12 +220,8 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	}
 	review, reason, door := excavationNext(s.target, site)
 	clockSchedulerLog("excavation stage %d for %s: next=%v kept=%v remaining=%d unknown=%v complete=%v corridor=%v support=%d (%s) collapse=%v worker=%v access=%v", stage, s.target.Key(), review.Stage, review.Kept, review.Remaining, review.Unknown, review.Complete, review.Corridor, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable, site.AccessReachable)
-	if door && corridor {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
-	}
 	if door {
-		snapshot.Plan = domain.MintPlanID()
-		return r.admitExcavationDoor(call, epoch, s, snapshot, check)
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
 	if reason != "" {
 		return RoutineBuildingResult{Reason: reason}, nil
@@ -450,7 +270,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 }
 
 // excavationNext is stepExcavation's judgement of the project's site read:
-// the door once the room is complete, a reason that holds or ends the
+// done once the tunnel is complete, a reason that holds or ends the
 // project, or neither, when review.Stage is the next stage to designate
 // (its own support still to be read unless the whole site is supported).
 func excavationNext(target policy.ExcavationTarget, site bridge.ExcavationSite) (policy.ExcavationReview, RoutineBuildingReason, bool) {
@@ -511,46 +331,6 @@ func cancelStalledExcavation(ctx context.Context, journal *store.Store, goal sto
 		}
 	}
 	return nil
-}
-
-// admitExcavationDoor closes the finished room with one wooden door at the
-// corridor's end so the interior becomes a proper indoor room.
-func (r *RoutineBuildingPlanner) admitExcavationDoor(call, epoch context.Context, s excavationStep, snapshot domain.GenerationSnapshot, check func() error) (RoutineBuildingResult, error) {
-	building, err := domain.NewBuilding("Door", s.target.Door, domain.North, "WoodLog")
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	action, err := domain.NewBuildingAction(domain.ActionID(snapshot.Plan+"-0"), building)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	if err := check(); err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	preview, _, err := r.native.PreviewBuilding(call, action, snapshot)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	v := preview.Preview
-	stuff, known := v.MadeFromStuff.Value()
-	if !known || !stuff {
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
-	}
-	footprint, known := v.Footprint.Value()
-	can, canKnown := v.CanPlace.Value()
-	safe, safeKnown := v.SafeToPlace.Value()
-	if !known || len(footprint) != 1 || footprint[0] != s.target.Door || !canKnown || !can || !safeKnown || !safe {
-		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
-	}
-	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
-	if err := mergeRoutineStock(&stock, preview.Stock, true); err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	plan, err := domain.NewPlan(snapshot.Plan, 1, []domain.Action{action})
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	return r.admitExcavation(call, epoch, s, snapshot, excavationDoorMethod(s.target), plan, []policy.Preview{v}, stock, check)
 }
 
 // admitExcavation repeats step's boundary, staleness and review checks before

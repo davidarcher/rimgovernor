@@ -33,12 +33,9 @@ documented radius in the test itself.
 | --- | --- | --- |
 | `shelter/bunks-first` | The complete path: an unhoused colony, the controller discovers the deficit, places spots, builds beds, raises the whole ring by ordinary pawn work, the game roofs it, and the native census then holds one bed per colonist inside. The precondition is asserted not to satisfy the outcome. | nothing |
 
-The staged-shell variants, `shelter/excavation-{breach,hazard,reroute,round}` and the
-`startup/composed-*` cases were converted to colony snapshot tests (#745):
+The `startup/composed-*` cases were converted to colony snapshot tests (#745):
 `buildingruntime.TestShelterSitingSnapshots` replays each terrain's recorded
-starter search, the `TestExcavationSnapshot*` tests replay the round dig's
-site reads (edited for the hazard, sealed-corridor and breach variants),
-and `snapshot.TestReplay*Shelter*` replays which goals open beside the
+starter search, and `snapshot.TestReplay*Shelter*` replays which goals open beside the
 initial shelter. Shell adoption through a wood shortage is not replayed.
 
 ## Composition and the shortage fixture

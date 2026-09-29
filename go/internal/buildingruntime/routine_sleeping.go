@@ -55,9 +55,9 @@ const (
 	// BuildingShelterPending: the foothold comfort goal has no room to
 	// furnish until the initial shelter stands; the next review re-reads it.
 	BuildingShelterPending RoutineBuildingReason = "initial_shelter_pending"
-	// BuildingExcavationBlocked: the goal's excavation project cannot be
+	// BuildingExcavationBlocked: the goal's ore tunnel cannot be
 	// finished as planned (its roof no longer held, its way in closed); the
-	// same step re-plans the shelter from the geometry the pawns opened.
+	// tunnel is re-sited from the geometry the pawns opened.
 	BuildingExcavationBlocked RoutineBuildingReason = "excavation_blocked"
 	BuildingMethodAdmitted    RoutineBuildingReason = "admitted"
 	// BuildingMethodSeparation defers a butcher bill while the separated
@@ -204,13 +204,6 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.phase == policy.ComfortRanked || r.phase == policy.HousingExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) || r.phase == policy.HousingSleeping {
 		if !developmentSelects(review.Development.Rows, r.goal) {
 			return RoutineBuildingResult{Reason: BuildingMethodRefused}, nil
-		}
-	}
-	if r.shelter && r.excavation != nil {
-		// A stage held against geometry that changed under it closes here
-		// so the project below is reviewed instead of waiting on it.
-		if err := cancelStalledExcavation(call, p.journal, goal, review.Tick); err != nil {
-			return RoutineBuildingResult{}, err
 		}
 	}
 	bunksOpen := false
@@ -540,24 +533,6 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			}
 		}
 	}
-	if r.shelter && r.excavation != nil {
-		// An excavation project in progress under this goal epoch continues
-		// stage by stage before any open-site shell is reconsidered.
-		target, err := r.excavationProject(call, goal)
-		if err != nil {
-			return RoutineBuildingResult{}, err
-		}
-		if target != nil {
-			result, err := r.stepExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading, target: *target})
-			if err != nil || result.Reason != BuildingExcavationBlocked {
-				return result, err
-			}
-			// The project cannot be finished as planned: the shelter is
-			// re-sited below from the geometry the pawns actually opened,
-			// as another dig (a fresh face, or a verified way back into
-			// the same room) or the open-site shell.
-		}
-	}
 	if r.goal == policy.EnsureCooking {
 		definitions = []string{r.definition}
 		if len(r.paste) > 0 {
@@ -746,12 +721,6 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				handled = &RoutineBuildingResult{}
 			}
 			return *handled, err
-		}
-	} else if r.shelter && r.excavation != nil {
-		var target *policy.ExcavationTarget
-		selected, stock, reason, target, err = r.previewShelter(call, snapshot, facts, protected, check)
-		if err == nil && target != nil {
-			return r.stepExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading, target: *target})
 		}
 	} else {
 		selected, stock, reason, err = r.previewMethod(call, snapshot, facts, protected, missing, check)

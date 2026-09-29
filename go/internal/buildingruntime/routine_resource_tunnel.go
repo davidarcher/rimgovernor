@@ -63,8 +63,8 @@ func (m *tunnelMemory) forget(resource policy.Resource) {
 // tunnelToBuriedOre is MaintainResource's corridor dig (#1074): when no mine
 // source could be dispatched directly and the resource's nearest deposit is
 // buried and in resource reach, a corridor-only excavation
-// (policy.CorridorExcavationSites) is driven to it through the shelter's
-// excavation routine (stepExcavation), stage by stage under this goal. Once
+// (policy.CorridorExcavationSites) is driven to it through the
+// tunnel routine (stepExcavation), stage by stage under this goal. Once
 // the corridor opens, native reports the deposit reachable and the ordinary
 // mine acquisition takes over. A project already under way continues before
 // any new corridor is sited, and so does a sited corridor whose first stage
@@ -181,7 +181,7 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 		if i >= excavationCandidates {
 			break
 		}
-		verified, err := dig.verifyExcavation(call, snapshot, facts.Identity.Tick, target, false, check)
+		verified, err := dig.verifyExcavation(call, snapshot, facts.Identity.Tick, target, check)
 		if err != nil {
 			return RoutineResourceResult{}, false, err
 		}

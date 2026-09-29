@@ -63,9 +63,7 @@ func ReviewExcavation(target ExcavationTarget, states []ExcavationCellState, sta
 		}
 		return false
 	}
-	// The entrance (the interior cell past the door) is part of the way in:
-	// kept, it would leave the door facing a wall.
-	corridor := map[domain.Cell]bool{{X: target.Door.X + target.Direction.X, Z: target.Door.Z + target.Direction.Z}: true}
+	corridor := map[domain.Cell]bool{}
 	for _, c := range target.Corridor {
 		corridor[c] = true
 	}

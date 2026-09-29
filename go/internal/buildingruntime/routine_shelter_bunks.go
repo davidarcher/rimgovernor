@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -169,27 +168,6 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		return nil, none, "", nil, err
 	}
 	step := excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read}
-	// Digging in is weighed against the planned room before anything is
-	// previewed. Bunks already placed commit the colony to the planned
-	// room: the dig is never chosen once colonists sleep where the ring
-	// will rise.
-	if r.excavation != nil && len(free) == 0 {
-		target, err := r.excavationCandidate(call, s.snapshot, s.facts, s.protected, s.check)
-		if err != nil {
-			return nil, none, "", nil, err
-		}
-		var shell *policy.StarterLayout
-		if sited {
-			shell = &layout
-		}
-		excavate := policy.ChooseExcavation(s.facts.Center, shell, target)
-		snap.NoteChoice(call, snap.ExcavationChoice{Anchor: s.facts.Center, Shell: shell, Target: target, Excavate: excavate})
-		if excavate {
-			step.target = *target
-			result, err := r.stepExcavation(call, epoch, step)
-			return nil, none, "", &result, err
-		}
-	}
 	if !sited {
 		return nil, none, BuildingMethodNoSpace, nil, nil
 	}

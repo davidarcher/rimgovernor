@@ -11,7 +11,6 @@ import (
 // fixture case starts on cases.LabStart() and spawns what it needs at
 // known coordinates.
 var unpinnedStartExempt = map[string]string{
-	"shelter/excavation":     "real terrain: digs into a mountain fixture",
 	"speedmatrix/plain":      "hand-run diagnostic outside every tier (#739)",
 	"medical/stable-patient": "hand-run diagnostic outside every tier (#739)",
 }

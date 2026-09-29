@@ -26,12 +26,10 @@ type Planner struct {
 	Goal     policy.GoalID
 	// Shelter is every starter search the step ran, in order.
 	Shelter []policy.StarterRequest
-	// Excavation is the geometric dig search the step ran, if any.
+	// Excavation is the tunnel corridor search the step ran, if any.
 	Excavation []policy.ExcavationSiteRequest
 	// Sites is every native excavation site read, in order.
 	Sites []ExcavationRead
-	// Choices is every dig-or-shell choice the step made.
-	Choices []ExcavationChoice
 	// ChunkDumps is every policy.SelectChunkDump call: the census chunks,
 	// native dump sites and reserved footprints it chose among (#746).
 	ChunkDumps []ChunkDumpCall
@@ -78,14 +76,6 @@ type ExcavationRead struct {
 	Site    bridge.ExcavationSite
 }
 
-// ExcavationChoice is one policy.ChooseExcavation call and its answer.
-type ExcavationChoice struct {
-	Anchor   domain.Cell
-	Shell    *policy.StarterLayout
-	Target   *policy.ExcavationTarget
-	Excavate bool
-}
-
 type plannerKey struct{}
 
 // plannerRecorder collects one step's Planner; nil when not recording.
@@ -107,7 +97,7 @@ func StartPlanner(ctx context.Context, goal policy.GoalID) (context.Context, fun
 		rec.mu.Lock()
 		defer rec.mu.Unlock()
 		p := rec.p
-		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.Choices)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.SecureSupplies)+len(p.ShrineSquads)+len(p.ShrineReadiness)+len(p.CoveredStorage)+
+		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.SecureSupplies)+len(p.ShrineSquads)+len(p.ShrineReadiness)+len(p.CoveredStorage)+
 			len(p.ResourceMethods)+len(p.Workshops)+len(p.GearMethods)+len(p.Research) == 0 {
 			return nil
 		}
@@ -136,7 +126,7 @@ func NoteShelter(ctx context.Context, r policy.StarterRequest) {
 	recorder(ctx).add(func(p *Planner) { p.Shelter = append(p.Shelter, r) })
 }
 
-// NoteExcavation records a geometric dig search's request.
+// NoteExcavation records a tunnel corridor search's request.
 func NoteExcavation(ctx context.Context, r policy.ExcavationSiteRequest) {
 	recorder(ctx).add(func(p *Planner) { p.Excavation = append(p.Excavation, r) })
 }
@@ -147,11 +137,6 @@ func NoteSite(ctx context.Context, purpose string, target policy.ExcavationTarge
 	recorder(ctx).add(func(p *Planner) {
 		p.Sites = append(p.Sites, ExcavationRead{Purpose: purpose, Target: target, Cells: append([]domain.Cell(nil), cells...), Site: site})
 	})
-}
-
-// NoteChoice records a dig-or-shell choice.
-func NoteChoice(ctx context.Context, c ExcavationChoice) {
-	recorder(ctx).add(func(p *Planner) { p.Choices = append(p.Choices, c) })
 }
 
 // ChunkDumpCall is one policy.SelectChunkDump call's inputs.

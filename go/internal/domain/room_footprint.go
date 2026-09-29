@@ -288,66 +288,6 @@ func RectangleFootprint(bounds RoomBounds, entrance Rotation) (RoomFootprint, er
 	return NewRoomFootprint(interior, door, entrance)
 }
 
-// EllipseOrientation names the direction of an ellipse's radiusZ axis:
-// straight along the map's z axis, along x, or along one of the two
-// diagonals. A circle is the same under every orientation.
-type EllipseOrientation string
-
-const (
-	// EllipseNorthSouth keeps radiusX along x and radiusZ along z.
-	EllipseNorthSouth EllipseOrientation = "north_south"
-	// EllipseEastWest swaps the axes: radiusZ runs along x.
-	EllipseEastWest EllipseOrientation = "east_west"
-	// EllipseNorthEast runs radiusZ along the x+z diagonal.
-	EllipseNorthEast EllipseOrientation = "north_east"
-	// EllipseNorthWest runs radiusZ along the x-z diagonal.
-	EllipseNorthWest EllipseOrientation = "north_west"
-)
-
-func (o EllipseOrientation) Validate() error {
-	switch o {
-	case EllipseNorthSouth, EllipseEastWest, EllipseNorthEast, EllipseNorthWest:
-		return nil
-	}
-	return errors.New("unsupported ellipse orientation")
-}
-
-// EllipseInterior is an ellipse's interior cell set, generated from integer
-// arithmetic alone: the cells whose centres lie on or inside the ellipse, in z-outer,
-// x-inner order. Radii below one, above 30 or an unknown orientation yield
-// nil. Excavation uses it to carve round rooms out of rock, where the
-// surrounding rock is the wall.
-func EllipseInterior(center Cell, radiusX, radiusZ int32, orientation EllipseOrientation) []Cell {
-	if orientation.Validate() != nil || radiusX < 1 || radiusX > 30 || radiusZ < 1 || radiusZ > 30 {
-		return nil
-	}
-	rx, rz := int64(radiusX), int64(radiusZ)
-	if orientation == EllipseEastWest {
-		rx, rz = rz, rx
-	}
-	reach := max(rx, rz)
-	var interior []Cell
-	for dz := -reach; dz <= reach; dz++ {
-		for dx := -reach; dx <= reach; dx++ {
-			var inside bool
-			switch orientation {
-			case EllipseNorthEast:
-				u, v := dx-dz, dx+dz
-				inside = u*u*rz*rz+v*v*rx*rx <= 2*rx*rx*rz*rz
-			case EllipseNorthWest:
-				u, v := dx+dz, dx-dz
-				inside = u*u*rz*rz+v*v*rx*rx <= 2*rx*rx*rz*rz
-			default:
-				inside = dx*dx*rz*rz+dz*dz*rx*rx <= rx*rx*rz*rz
-			}
-			if inside {
-				interior = append(interior, Cell{X: center.X + int32(dx), Z: center.Z + int32(dz)})
-			}
-		}
-	}
-	return interior
-}
-
 // GrowFootprint carves a connected interior over constrained terrain: a
 // breadth-first walk from seed, in east, north, west, south order, until
 // target interior cells are held. A cell joins the interior only when it and
