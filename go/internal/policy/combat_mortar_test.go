@@ -139,6 +139,45 @@ func TestMortarCounterBattery(t *testing.T) {
 	}
 }
 
+// TestMortarSiegeFire (#1208): {the siege camped, no structure} -> HE on
+// the camp; {the siege still travelling in} -> no mortar order; {a
+// colonist within 10 cells of the camp} -> no mortar order; {a camp of
+// mechs} -> EMP.
+func TestMortarSiegeFire(t *testing.T) {
+	camp := domain.Cell{X: 9, Z: -20}
+	view := func(toil string) CombatView {
+		v := withBrawlers(siegeView(toil), combatBrawler("m", 0.5))
+		v.Mortars = mortarView().Mortars
+		return v
+	}
+	orders, _ := decideStop(t, view(siegeCampToil), StopEvent{}, CombatMemory{})
+	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != camp || got[0].Shell != ShellHE {
+		t.Fatalf("camped: %+v", got)
+	}
+	if orders, _ := decideStop(t, view(siegeTravel), StopEvent{}, CombatMemory{}); len(mortarOrders(orders)) != 0 {
+		t.Fatalf("shelled a moving siege: %+v", mortarOrders(orders))
+	}
+	near := view(siegeCampToil)
+	for i, p := range near.Pawns {
+		if p.ID == "a" {
+			near.Pawns[i].Cell = domain.Known(domain.Cell{X: 9, Z: -12})
+		}
+	}
+	if orders, _ := decideStop(t, near, StopEvent{}, CombatMemory{}); len(mortarOrders(orders)) != 0 {
+		t.Fatalf("shelled beside a colonist: %+v", mortarOrders(orders))
+	}
+	mechs := view(siegeCampToil)
+	for i, p := range mechs.Pawns {
+		if p.ID == "r1" || p.ID == "r2" {
+			mechs.Pawns[i].Kind = "Mech_Lancer"
+		}
+	}
+	orders, _ = decideStop(t, mechs, StopEvent{}, CombatMemory{})
+	if got := mortarOrders(orders); len(got) != 1 || got[0].Shell != ShellEMP {
+		t.Fatalf("mechs: %+v", got)
+	}
+}
+
 // TestMortarHECentipede (#1051): {a centipede walking in 50 cells out, no
 // structure, no siege} -> HE on it; {the centipede within 10 cells of a
 // colonist} -> no mortar order.

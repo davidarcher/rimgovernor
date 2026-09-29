@@ -41,9 +41,10 @@ const (
 // clump around a besieger the mortar aims at.
 const campClumpRadius = 5.0
 
-// centipedeSafeRadius: a centipede with a colonist this close has arrived,
-// and a mortar's scatter would land on our own.
-const centipedeSafeRadius = 10.0
+// mortarSafeRadius is the friendly danger radius (#1051, #1208): a target
+// with a colonist this close has arrived, and a mortar's scatter would
+// land on our own.
+const mortarSafeRadius = 10.0
 
 // HostileStructure is a standing hostile building in the census (#930,
 // #931): a crashed ship part, a mech-cluster piece, a siege or mech
@@ -187,6 +188,9 @@ func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, string, bool)
 		return c, ShellEMP, true
 	}
 	if c, ok := campClump(view, inRange); ok {
+		if mechAt(view, c) {
+			return c, ShellEMP, true
+		}
 		return c, ShellHE, true
 	}
 	if c, ok := nearest(approachingCentipedes(view)); ok {
@@ -198,13 +202,18 @@ func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, string, bool)
 	return domain.Cell{}, "", false
 }
 
-// besiegerCells are the cells of the live besiegers (#776).
+// besiegerCells are the cells of the live besiegers camped at the siege
+// (#776, #1208): a siege still travelling in is a moving raid the mortar
+// leaves alone, and one that breaks camp to assault drops out, so the
+// crew stops. A besieger within mortarSafeRadius of a colonist is never
+// aimed at.
 func besiegerCells(view CombatView) []domain.Cell {
 	besiegers := liveBesiegers(view)
+	ours := colonistCells(view)
 	var out []domain.Cell
 	for _, p := range view.Pawns {
 		if c, ok := p.Cell.Value(); ok {
-			if _, besieger := besiegers[p.ID]; besieger {
+			if toil, besieger := besiegers[p.ID]; besieger && toil == siegeCampToil && !nearAny(ours, c) {
 				out = append(out, c)
 			}
 		}
@@ -248,7 +257,23 @@ func approachingCentipedes(view CombatView) []domain.Cell {
 	for _, t := range view.Threats {
 		hostile[domain.PawnID(t.ID)] = !t.Building && !positive(t.Dead) && !positive(t.Downed)
 	}
-	var ours, out []domain.Cell
+	ours := colonistCells(view)
+	var out []domain.Cell
+	for _, p := range view.Pawns {
+		c, ok := p.Cell.Value()
+		if !ok || !hostile[p.ID] || p.Dead || p.Downed || !strings.HasPrefix(p.Kind, "Mech_Centipede") {
+			continue
+		}
+		if !nearAny(ours, c) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// colonistCells are the defenders' known cells.
+func colonistCells(view CombatView) []domain.Cell {
+	var ours []domain.Cell
 	for _, d := range view.Defenders {
 		for _, p := range view.Pawns {
 			if c, ok := p.Cell.Value(); ok && p.ID == d.ID {
@@ -256,16 +281,21 @@ func approachingCentipedes(view CombatView) []domain.Cell {
 			}
 		}
 	}
-	for _, p := range view.Pawns {
-		c, ok := p.Cell.Value()
-		if !ok || !hostile[p.ID] || p.Dead || p.Downed || !strings.HasPrefix(p.Kind, "Mech_Centipede") {
-			continue
-		}
-		if !slices.ContainsFunc(ours, func(o domain.Cell) bool { return dist(o, c) <= centipedeSafeRadius }) {
-			out = append(out, c)
-		}
-	}
-	return out
+	return ours
+}
+
+// nearAny reports a cell within mortarSafeRadius of one of ours.
+func nearAny(ours []domain.Cell, c domain.Cell) bool {
+	return slices.ContainsFunc(ours, func(o domain.Cell) bool { return dist(o, c) <= mortarSafeRadius })
+}
+
+// mechAt reports a mechanoid standing on c (#1208): EMP, not HE, on a
+// camp of mechs.
+func mechAt(view CombatView, c domain.Cell) bool {
+	return slices.ContainsFunc(view.Pawns, func(p CombatPawnState) bool {
+		at, ok := p.Cell.Value()
+		return ok && at == c && strings.HasPrefix(p.Kind, "Mech_")
+	})
 }
 
 func dist(a, b domain.Cell) float64 {
