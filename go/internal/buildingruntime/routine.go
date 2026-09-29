@@ -303,7 +303,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.TombsWarm = warmTombs(reading.Projection)
 	reading.Projection.Facts.MealClosetOwed = mealClosetOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRetireOwed = campfireRetireOwed(reading.Projection)
-	reading.Projection.Facts.CampfireRefuelOwed = campfireRefuelOwed(reading.Projection)
+	reading.Projection.Facts.TemperatureOwed = temperatureOwed(reading.Projection)
 	if targets, err := shellTargets(ctx, p.journal, state.Snapshot, reading.Projection); err != nil {
 		return store.RoutineReviewResult{}, err
 	} else {

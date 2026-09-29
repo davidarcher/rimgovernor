@@ -26,14 +26,16 @@ const (
 	TemperatureCoolPowered TemperatureMethod = "Cooler"
 	// TemperatureRefuelOff and TemperatureRefuelOn switch a heat
 	// campfire's auto-refuel (#1180): off once its sleeping room reaches
-	// ComfortMaxC, so the fire burns out, and on again below ComfortMinC.
+	// its sleepers' comfort maximum, so the fire burns out, and on again
+	// below their comfort minimum (sleepersBand, #1199).
 	TemperatureRefuelOff TemperatureMethod = "campfire_refuel_off"
 	TemperatureRefuelOn  TemperatureMethod = "campfire_refuel_on"
 )
 
 // ComfortMinC and ComfortMaxC are a colonist's vanilla comfortable
-// temperature range. A campfire pushes heat up to 28 C, past ComfortMaxC,
-// and burns its wood regardless of the room.
+// temperature range, the band of a sleeping room whose sleepers' own
+// ranges are unknown. A campfire pushes heat up to 28 C and burns its wood
+// regardless of the room.
 const (
 	ComfortMinC = 16.0
 	ComfortMaxC = 26.0
@@ -73,18 +75,77 @@ type TemperatureCooling struct {
 	// HeatCampfires are the campfires standing as room heat, whose
 	// auto-refuel the method switches (#1180).
 	HeatCampfires []HeatCampfire
+	// Sleepers are the colonists and slaves whose owned beds and
+	// comfortable ranges band each sleeping room (#1199).
+	Sleepers []SleepingPerson
+}
+
+// sleepersBand is the intersection of the comfortable ranges of the people
+// owning a bed in room (#1199): apparel, traits and genes shift each one.
+// Without a sleeper whose range is known it is ComfortMinC to ComfortMaxC
+// and banded is false.
+func sleepersBand(room Room, sleepers []SleepingPerson) (low, high float64, banded bool) {
+	beds := map[string]bool{}
+	for _, id := range room.Beds {
+		beds[id] = true
+	}
+	low, high = math.Inf(-1), math.Inf(1)
+	for _, p := range sleepers {
+		bed, bk := p.OwnedBed.Value()
+		min, mk := p.ComfortableMin.Value()
+		max, xk := p.ComfortableMax.Value()
+		if !bk || !mk || !xk || !beds[bed] {
+			continue
+		}
+		low, high, banded = math.Max(low, min), math.Min(high, max), true
+	}
+	if !banded {
+		return ComfortMinC, ComfortMaxC, false
+	}
+	return low, high, true
+}
+
+// TemperatureOwed holds EnsureTemperatureSafety open past the fixed
+// thresholds: a heat campfire owes its refuel switch (#1180), or a sleeping
+// room with no campfire or heater sits below its sleepers' comfort minimum
+// (#1199).
+func TemperatureOwed(fact domain.Fact[RoomObservation], cooling TemperatureCooling) bool {
+	if _, owed := CampfireRefuel(fact, cooling); owed {
+		return true
+	}
+	v, known := fact.Value()
+	if !known {
+		return false
+	}
+	for _, room := range v.Rooms {
+		temperature, tk := room.Temperature.Value()
+		contents, ck := room.Contents.Value()
+		low, _, banded := sleepersBand(room, cooling.Sleepers)
+		if !tk || !ck || !banded || temperature >= low {
+			continue
+		}
+		heated := false
+		for _, q := range contents {
+			heated = heated || q.Count > 0 && (q.Resource == "Campfire" || q.Resource == "Heater")
+		}
+		if !heated {
+			return true
+		}
+	}
+	return false
 }
 
 // CampfireRefuel is the auto-refuel switch a heat campfire in a sleeping
-// room owes (#1180): off at ComfortMaxC or warmer while it refuels, on
-// below ComfortMinC while it does not. A campfire whose room, temperature
-// or toggle is unknown owes nothing.
-func CampfireRefuel(fact domain.Fact[RoomObservation], campfires []HeatCampfire) (TemperatureProposal, bool) {
+// room owes (#1180): off at its sleepers' comfort maximum or warmer while
+// it refuels, on below their comfort minimum while it does not
+// (sleepersBand, #1199). A campfire whose room, temperature or toggle is
+// unknown owes nothing.
+func CampfireRefuel(fact domain.Fact[RoomObservation], cooling TemperatureCooling) (TemperatureProposal, bool) {
 	v, known := fact.Value()
 	if !known {
 		return TemperatureProposal{}, false
 	}
-	sorted := append([]HeatCampfire{}, campfires...)
+	sorted := append([]HeatCampfire{}, cooling.HeatCampfires...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].ID < sorted[j].ID })
 	for _, campfire := range sorted {
 		id, rk := campfire.Room.Value()
@@ -97,10 +158,11 @@ func CampfireRefuel(fact domain.Fact[RoomObservation], campfires []HeatCampfire)
 		if !tk {
 			continue
 		}
+		low, high, _ := sleepersBand(room, cooling.Sleepers)
 		method := TemperatureNoMethod
-		if on && temperature >= ComfortMaxC {
+		if on && temperature >= high {
 			method = TemperatureRefuelOff
-		} else if !on && temperature < ComfortMinC {
+		} else if !on && temperature < low {
 			method = TemperatureRefuelOn
 		}
 		if method == TemperatureNoMethod {
@@ -310,7 +372,7 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 	if err := v.Validate(); err != nil {
 		return TemperatureProposal{}, err
 	}
-	if proposal, owed := CampfireRefuel(fact, cooling.HeatCampfires); owed {
+	if proposal, owed := CampfireRefuel(fact, cooling); owed {
 		return proposal, nil
 	}
 	eligible, known := v.EligibleBeds.Value()
@@ -356,7 +418,13 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 			continue
 		}
 		method := TemperatureNoMethod
-		if temperature < limits.ColdEnter || latches.Cold && temperature < limits.ColdExit {
+		// Known sleepers' comfort minimum replaces the fixed cold
+		// thresholds (#1199): a parka wearer needs no heat at 10 C.
+		cold := temperature < limits.ColdEnter || latches.Cold && temperature < limits.ColdExit
+		if low, _, banded := sleepersBand(room, cooling.Sleepers); banded {
+			cold = temperature < low
+		}
+		if cold {
 			method = TemperatureHeat
 		} else if temperature > limits.HotEnter || latches.Hot && temperature > limits.HotExit {
 			method = TemperatureCool

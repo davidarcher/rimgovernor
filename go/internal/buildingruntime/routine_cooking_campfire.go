@@ -110,10 +110,9 @@ func heatCampfires(facts observation.ColonyProjection) []policy.HeatCampfire {
 	return out
 }
 
-// campfireRefuelOwed is the review's CampfireRefuelOwed fact.
-func campfireRefuelOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	_, owed := policy.CampfireRefuel(facts.Rooms, heatCampfires(facts))
-	return domain.Known(owed)
+// temperatureOwed is the review's TemperatureOwed fact.
+func temperatureOwed(facts observation.ColonyProjection) domain.Fact[bool] {
+	return domain.Known(policy.TemperatureOwed(facts.Rooms, temperatureCooling(facts)))
 }
 
 // commitCampfireRefuel binds a one-action auto-refuel plan for the heat

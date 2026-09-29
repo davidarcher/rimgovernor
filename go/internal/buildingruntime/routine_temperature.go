@@ -75,9 +75,13 @@ func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProje
 
 // temperatureCooling assembles the powered cooler evidence from the rooms
 // reading: the Cooler planning definition (availability, draw), the colony
-// power topology and the site cells the vented-wall search walks.
+// power topology, the site cells the vented-wall search walks, and the
+// sleepers whose comfortable ranges band each room (#1199).
 func temperatureCooling(facts observation.ColonyProjection) policy.TemperatureCooling {
 	cooling := policy.TemperatureCooling{CoolerAvailable: domain.Unknown[bool](), CoolerDrawW: domain.Unknown[float64](), Power: facts.PowerPlanning, Cells: facts.Cells, HeatCampfires: heatCampfires(facts)}
+	if sleeping, known := facts.Facts.Sleeping.Value(); known {
+		cooling.Sleepers = append(append([]policy.SleepingPerson{}, sleeping.People...), sleeping.Slaves...)
+	}
 	for _, d := range facts.Definitions {
 		if d.Name == "Cooler" {
 			cooling.CoolerAvailable, cooling.CoolerDrawW = d.Available, d.PowerW

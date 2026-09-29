@@ -270,9 +270,10 @@ type RoutineFacts struct {
 	// CampfireRetireOwed: a cooking campfire stands in a sleeping room or a
 	// stove kitchen supersedes it (#1179); it keeps EnsureCooking open.
 	CampfireRetireOwed domain.Fact[bool]
-	// CampfireRefuelOwed: a heat campfire's auto-refuel should switch
-	// (CampfireRefuel, #1180); it holds EnsureTemperatureSafety open.
-	CampfireRefuelOwed domain.Fact[bool]
+	// TemperatureOwed: a heat campfire's auto-refuel should switch, or a
+	// sleeping room sits unheated below its sleepers' comfort minimum
+	// (TemperatureOwed, #1180/#1199); it holds EnsureTemperatureSafety open.
+	TemperatureOwed domain.Fact[bool]
 	// SculptureRoomsOwed: a bedroom below target, weakest in beauty, has a
 	// free cell for a sculpture (SculptureRoomsOwed, #1190); with a
 	// qualifying artist it holds MaintainArt open.
@@ -711,8 +712,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	count := footholdCount(f)
 	sleepingMet, shelterMet, productionMet := footholdSleeping(f), footholdShelter(f), footholdProduction(f)
 	foodMet, temperatureMet, powerMet := footholdFood(f, p), footholdTemperature(f, p), footholdPower(f)
-	if positive(f.CampfireRefuelOwed) {
-		// A heat campfire's refuel switch holds the goal open (#1180).
+	if positive(f.TemperatureOwed) {
+		// A refuel switch or a room below its sleepers' band holds the
+		// goal open (#1180, #1199).
 		temperatureMet = domain.Known(false)
 	}
 	medicalMet := measured(f.CriticalPatients, func(v int64) bool { return v == 0 })
