@@ -27,7 +27,7 @@ func legShort() []SurgeryPart {
 		restoreOp("InstallBionicLeg", "Leg", 30, 0.9, 1, false),
 	}
 	eye := restoreOp("InstallBionicEye", "Eye", 5, 0.9, 1, false)
-	return SurgeryParts(SelectSurgery(domain.Known([]CarePawn{surgeryPawn("a", 0, append(leg, eye)...)}), nil).Wants)
+	return SurgeryParts(SelectSurgery(domain.Known([]CarePawn{surgeryPawn("a", 0, append(leg, eye)...)}), nil, SurgeryContext{}).Wants)
 }
 
 func TestSurgeryParts(t *testing.T) {

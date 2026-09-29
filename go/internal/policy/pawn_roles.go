@@ -1,6 +1,9 @@
 package policy
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
 // Situational roles: pure answers to the questions other goals ask of the
 // roster (who operates, who wardens, who trades, who tames, who holds the
@@ -108,6 +111,34 @@ func HunterFor(profiles []PawnProfile) (PawnID, bool) {
 		candidates = append(candidates, roleCandidate{p.ID, float64(p.Skill("Shooting").Level) + 5*p.Effects.MoveSpeed})
 	}
 	return bestRole(candidates)
+}
+
+// UpgradeRoleWeight scales a body part's surgery value by the pawn's role
+// (#1167): shooters' eyes by Shooting, workers' arms and hands by their
+// best manual skill (Construction, Mining, Crafting), haulers' legs and
+// feet by half again. Any other part, or a pawn outside the role, is 1.
+func UpgradeRoleWeight(p PawnProfile, part string) float64 {
+	switch {
+	case strings.Contains(part, "Eye"):
+		if s := p.Skill("Shooting"); p.Ranged && !s.Disabled {
+			return 1 + float64(s.Level)/10
+		}
+	case strings.Contains(part, "Arm"), strings.Contains(part, "Hand"), strings.Contains(part, "Shoulder"):
+		best := -1
+		for _, name := range []string{"Construction", "Mining", "Crafting"} {
+			if s := p.Skill(name); !s.Disabled && s.Level > best {
+				best = s.Level
+			}
+		}
+		if best >= 0 {
+			return 1 + float64(best)/10
+		}
+	case strings.Contains(part, "Leg"), strings.Contains(part, "Foot"):
+		if p.Capable(WorkHauling, 0) {
+			return 1.5
+		}
+	}
+	return 1
 }
 
 // FrontLine and RearRanged split a defending roster: melee pawns (Tough,

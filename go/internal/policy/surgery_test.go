@@ -47,7 +47,7 @@ func TestSelectSurgery(t *testing.T) {
 		{"not a restore", []CarePawn{surgeryPawn("a", 0, SurgeryOperation{Recipe: domain.Known("Anesthetize"), PartIndex: domain.Known(-1), Kind: SurgeryOther})}, nil, nil, nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			got := SelectSurgery(domain.Known(c.pawns), c.inFlight)
+			got := SelectSurgery(domain.Known(c.pawns), c.inFlight, SurgeryContext{})
 			if len(got.Queue) != len(c.recipes) {
 				t.Fatalf("queue %+v", got.Queue)
 			}
@@ -112,7 +112,7 @@ func TestSelectSurgeryChronic(t *testing.T) {
 			kindOp(SurgeryInstall, "InstallBionicEye", "Eye", 5, 0.9, true), kindOp(SurgeryInstall, "InstallBionicSpine", "Spine", 3, 0.9, true)), "InstallBionicSpine", 1.25 * 0.8, nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			got := SelectSurgery(domain.Known([]CarePawn{c.pawn}), nil)
+			got := SelectSurgery(domain.Known([]CarePawn{c.pawn}), nil, SurgeryContext{})
 			if c.recipe == "" && len(got.Queue) != 0 || c.recipe != "" && (len(got.Queue) != 1 || got.Queue[0].Recipe != c.recipe || got.Queue[0].Value != c.value) {
 				t.Fatalf("queue %+v", got.Queue)
 			}
@@ -141,5 +141,75 @@ func TestSurgeryRecovered(t *testing.T) {
 	dead.Dead = domain.Known(true)
 	if v, k := SurgeryRecovered(domain.Known([]CarePawn{dead, surgeryPawn("b", 0)})).Value(); !k || !v {
 		t.Fatal("healthy colony not recovered")
+	}
+}
+
+// wholePawn reads no chronic condition, so an install is not a cure.
+func wholePawn(id PawnID, queued int, ops ...SurgeryOperation) CarePawn {
+	p := surgeryPawn(id, queued, ops...)
+	p.Conditions = domain.Known([]CareCondition(nil))
+	return p
+}
+
+func electiveOp(recipe, part string, index int, chance float64) SurgeryOperation {
+	op := restoreOp(recipe, part, index, chance, 1, true)
+	op.Kind = SurgeryInstall
+	return op
+}
+
+func TestElectiveSurgery(t *testing.T) {
+	shooter := PawnProfile{ID: "a", Ranged: true, Skills: map[string]ProfileSkill{"Shooting": {Name: "Shooting", Level: 12}, "Construction": {Name: "Construction", Level: 2}}}
+	builder := PawnProfile{ID: "a", Skills: map[string]ProfileSkill{"Shooting": {Name: "Shooting", Level: 12}, "Construction": {Name: "Construction", Level: 14}}}
+	upgrades := func() CarePawn {
+		return wholePawn("a", 0, electiveOp("InstallBionicEye", "Eye", 5, 0.97), electiveOp("InstallBionicArm", "Arm", 20, 0.97))
+	}
+	ward := SurgeryContext{HospitalBed: true}
+	for _, c := range []struct {
+		name    string
+		pawns   []CarePawn
+		ctx     SurgeryContext
+		recipes []string
+		wants   int
+	}{
+		{"shooter gets the eye", []CarePawn{upgrades()}, SurgeryContext{HospitalBed: true, Profiles: []PawnProfile{shooter}}, []string{"InstallBionicEye"}, 0},
+		{"worker gets the arm", []CarePawn{upgrades()}, SurgeryContext{HospitalBed: true, Profiles: []PawnProfile{builder}}, []string{"InstallBionicArm"}, 0},
+		{"one elective, to the shooter", []CarePawn{wholePawn("0", 0, electiveOp("InstallBionicEye", "Eye", 5, 0.97)), upgrades()},
+			SurgeryContext{HospitalBed: true, Profiles: []PawnProfile{shooter}}, []string{"InstallBionicEye"}, 0},
+		{"no hospital bed", []CarePawn{upgrades()}, SurgeryContext{}, nil, 0},
+		{"over the 5% cap", []CarePawn{wholePawn("a", 0, electiveOp("InstallBionicEye", "Eye", 5, 0.94))}, ward, nil, 0},
+		{"5% cap holds", []CarePawn{wholePawn("a", 0, electiveOp("InstallBionicEye", "Eye", 5, 0.95))}, ward, []string{"InstallBionicEye"}, 0},
+		{"not an upgrade", []CarePawn{wholePawn("a", 0, electiveOp("InstallSimpleProstheticArm", "Arm", 20, 0.99), electiveOp("InstallJoywire", "Brain", 1, 0.99))}, ward, nil, 0},
+		{"restore pending elsewhere", []CarePawn{upgrades(), wholePawn("b", 0, restoreOp("InstallPegLeg", "Leg", 30, 0.5, 1, true))}, ward, nil, 1},
+		{"restore blocks electives", []CarePawn{upgrades(), wholePawn("b", 0, restoreOp("InstallPegLeg", "Leg", 30, 0.9, 1, true))}, ward, []string{"InstallPegLeg"}, 0},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := SelectSurgery(domain.Known(c.pawns), nil, c.ctx)
+			if len(got.Queue) != len(c.recipes) || len(got.Wants) != c.wants {
+				t.Fatalf("queue %+v wants %+v", got.Queue, got.Wants)
+			}
+			for i, r := range c.recipes {
+				if got.Queue[i].Recipe != r {
+					t.Fatalf("queue %+v", got.Queue)
+				}
+			}
+			owed, _ := ElectiveSurgeryOwed(domain.Known(c.pawns), domain.Known(c.ctx.HospitalBed)).Value()
+			if elective := len(got.Queue) > 0 && got.Queue[0].Kind == SurgeryInstall; owed != elective {
+				t.Fatalf("owed %v, queue %+v", owed, got.Queue)
+			}
+		})
+	}
+}
+
+func TestHospitalBedReady(t *testing.T) {
+	bed := func(medical, prisoners bool) SleepingBed {
+		return SleepingBed{Humanlike: domain.Known(true), Medical: domain.Known(medical), Prisoners: domain.Known(prisoners)}
+	}
+	for _, c := range []struct {
+		beds []SleepingBed
+		want bool
+	}{{nil, false}, {[]SleepingBed{bed(false, false)}, false}, {[]SleepingBed{bed(true, true)}, false}, {[]SleepingBed{bed(false, false), bed(true, false)}, true}} {
+		if v, k := HospitalBedReady(domain.Known(SleepingObservation{Beds: c.beds})).Value(); !k || v != c.want {
+			t.Fatalf("%+v: %v", c.beds, v)
+		}
 	}
 }

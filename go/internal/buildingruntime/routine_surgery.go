@@ -82,7 +82,11 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if _, known := read.Projection.Facts.MedicalPawns.Value(); !known {
 		return RoutineSurgeryResult{Reason: BuildingMethodUnknown}, nil
 	}
-	selection := policy.SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight)
+	surgery := policy.SurgeryContext{HospitalBed: positiveFact(policy.HospitalBedReady(read.Projection.Facts.Sleeping))}
+	if pawns, known := read.Projection.WorkPawns.Value(); known {
+		surgery.Profiles = policy.Profiles(pawns)
+	}
+	selection := policy.SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight, surgery)
 	result := RoutineSurgeryResult{Wants: selection.Wants}
 	var queue []policy.SurgeryChoice
 	for _, choice := range selection.Queue {

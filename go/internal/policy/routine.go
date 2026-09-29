@@ -954,7 +954,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// the caravan leaves or nothing is left worth trading.
 	// Restore parts stand the goal whether or not a bench could make them:
 	// the bench census is the trade planner's read (#1168).
-	tradeNeed := SurgeryTradeNeed(ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), SurgeryParts(SelectSurgery(f.MedicalPawns, nil).Wants))
+	tradeNeed := SurgeryTradeNeed(ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants))
 	tradeRecovered := TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity())))
 	addAssessment(TradeWithCaravan, 3, tradeRecovered)
 	defensiveLayoutRecovered := domain.Known(!p.DefensiveLayout)
@@ -1074,7 +1074,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainMedicalReserves, medicalUpkeepPriority, medicalRecovered)
 	// MaintainSurgery (#1164): an operation the planner serves stands on a
 	// living colonist until the health change removes it.
-	surgeryRecovered := SurgeryRecovered(f.MedicalPawns)
+	// An actionable elective upgrade (#1167) keeps it open too.
+	surgeryRecovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, HospitalBedReady(f.Sleeping)), func(owed bool) bool { return !owed }))
 	addAssessment(MaintainSurgery, surgeryPriority, surgeryRecovered)
 	if !positive(surgeryRecovered) {
 		addGoal(MaintainSurgery, surgeryPriority)

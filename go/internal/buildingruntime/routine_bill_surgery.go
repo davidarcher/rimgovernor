@@ -14,7 +14,7 @@ import (
 // that could fabricate them. A native without the gear bench census, or a
 // bench whose recipes or bills are unknown, fabricates nothing.
 func surgeryPartDemand(call context.Context, native any, identity *c.Identity, pawns domain.Fact[[]policy.CarePawn]) ([]policy.SurgeryPart, []policy.ProductionBench, error) {
-	parts := policy.SurgeryParts(policy.SelectSurgery(pawns, nil).Wants)
+	parts := policy.SurgeryParts(policy.SelectSurgery(pawns, nil, policy.SurgeryContext{}).Wants)
 	source, ok := native.(artBenchSource)
 	if len(parts) == 0 || !ok {
 		return parts, nil, nil
