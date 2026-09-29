@@ -158,7 +158,7 @@ func (r *RoutineDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Conte
 		return RoutineDefenseLayoutResult{}, defenseControlErr(122)
 	}
 	method := domain.MethodID(fmt.Sprintf("defense-%s-%d", tier, tick))
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(read.Projection.Bounds), Stock: stockSeen, Previews: previews, Purpose: policy.Defense})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(read.Projection.Bounds), Stock: stockSeen, Previews: previews, Purpose: policy.Defense})
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}

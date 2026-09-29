@@ -345,7 +345,7 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 		if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 			return RoutineAnimalContainmentResult{}, observation.ErrStale
 		}
-		decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: animalShellMethod, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Shelter})
+		decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: animalShellMethod, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Shelter})
 		if err != nil {
 			return RoutineAnimalContainmentResult{}, err
 		}
@@ -508,7 +508,7 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoutineAnimalContainmentResult{}, observation.ErrStale
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: animalMarkerMethod, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: chosenStock, Previews: []policy.Preview{chosen}, Purpose: policy.Routine})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: animalMarkerMethod, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: chosenStock, Previews: []policy.Preview{chosen}, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}

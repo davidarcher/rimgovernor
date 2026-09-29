@@ -321,7 +321,7 @@ func (r *RoutineSecureSuppliesPlanner) admitBuilding(epoch context.Context, stat
 		if elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return "", "", fmt.Errorf("%w: admitBuilding: elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
-		decision, err := p.journal.AdmitBuildingMethod(ctx, request)
+		decision, err := admitMethod(ctx, p.journal, request)
 		if err != nil {
 			return "", "", err
 		}

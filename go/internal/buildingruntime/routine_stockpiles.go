@@ -513,7 +513,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), value)
 		var refused *bridge.NativeFailure
 		if errors.As(err, &refused) {
-			clockSchedulerLog("Stockpiles: create %s refused code=%v detail=%q", e.Role, refused.Value.GetCode(), refused.Value.GetDetail())
+			clockEvent(call, "layout", "stockpiles", "stockpile create preview refused", "role", e.Role, "code", refused.Value.GetCode().String(), "detail", refused.Value.GetDetail())
 			continue
 		}
 		if err != nil {
@@ -521,6 +521,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		}
 		v := reply.GetEvaluated()
 		if v == nil || !v.GetAccepted() {
+			clockEvent(call, "layout", "stockpiles", "stockpile create preview not accepted", "role", e.Role)
 			continue
 		}
 		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < tick {
@@ -548,7 +549,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	if p.session.State() != state || now.Before(started) || now.Sub(started) > r.reviewer.maxAge {
 		return RoutineStockpileResult{}, fmt.Errorf("%w: create: p.session.State() != state || now.Before(started) || now.Sub(started) > r.reviewer.maxAge", ErrControl)
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Previews: previews, Purpose: policy.Routine})
+	decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Previews: previews, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}

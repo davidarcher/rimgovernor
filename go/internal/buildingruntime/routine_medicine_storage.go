@@ -239,7 +239,7 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return "", fmt.Errorf("%w: medicineStorage: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
-		decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+		decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 		if err != nil {
 			return "", err
 		}

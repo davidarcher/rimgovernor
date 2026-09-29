@@ -126,7 +126,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 			snapshot := state.Snapshot
 			snapshot.Plan, snapshot.Revision = id, 1
 			preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: p.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(zone.Cells()), Costs: domain.Known([]policy.Amount{})}
-			decision, err := journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: spec, Current: snapshot, Tick: p.Identity.Tick, Bounds: domain.Known(p.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: p.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+			decision, err := admitMethod(call, journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: spec, Current: snapshot, Tick: p.Identity.Tick, Bounds: domain.Known(p.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: p.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 			if err != nil {
 				return RoutineFieldResult{}, false, err
 			}
