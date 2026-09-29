@@ -64,15 +64,12 @@ func SelectMedicineTier(conditions domain.Fact[[]CareCondition], lifeThreatening
 		if name == "Plague" || name == "Malaria" && severity >= 0.5 {
 			urgent = true
 		}
-		sr, srk := row.SeverityPerDay.Value()
-		ir, irk := row.ImmunityPerDay.Value()
-		if !srk || !irk || math.IsNaN(sr) || math.IsNaN(ir) || math.IsInf(sr, 0) || math.IsInf(ir, 0) {
+		losing, known := LosingImmunityRace(row)
+		if !known {
 			incomplete = true
 			continue
 		}
-		// Ties leave no safety margin; nonpositive immunity gain loses against
-		// progressing disease. Nonprogressing severity has no projected deadline.
-		if sr > 0 && (ir <= 0 || (1-severity)/sr <= (1-immunity)/ir) {
+		if losing {
 			urgent = true
 		}
 	}

@@ -60,6 +60,46 @@ func countPatients(snapshot EmergencySnapshot, tending bool) int64 {
 	return patients
 }
 
+// AmputationNeeds adds the colonists a life-saving amputation would save
+// (LifeSavingAmputations, #1166) to the critical and urgent patient counts
+// EmergencyNeeds and UrgentPatients report, never counting a colonist either
+// already includes. Losing an immunity race is an emergency: the amputation
+// runs at CriticalMedical's priority. Unknown care facts add nobody; an
+// unknown count stays unknown.
+func AmputationNeeds(snapshot EmergencySnapshot, medical domain.Fact[[]CarePawn], patients, urgent domain.Fact[int64]) (domain.Fact[int64], domain.Fact[int64]) {
+	pawns, ok := medical.Value()
+	if !ok {
+		return patients, urgent
+	}
+	byID := map[PawnID]EmergencyPawn{}
+	for _, pawn := range snapshot.facts.Colonists {
+		byID[pawn.ID] = pawn
+	}
+	var critical, pressing int64
+	for _, pawn := range pawns {
+		if len(LifeSavingAmputations(pawn)) == 0 {
+			continue
+		}
+		row, found := byID[pawn.ID]
+		downed, _ := row.Downed.Value()
+		bleeding, _ := row.Bleeding.Value()
+		needsTend, _ := row.NeedsTend.Value()
+		if !found || !urgentPatient(row) {
+			pressing++
+		}
+		if !found || !(downed || bleeding || needsTend) {
+			critical++
+		}
+	}
+	add := func(f domain.Fact[int64], n int64) domain.Fact[int64] {
+		if v, k := f.Value(); k {
+			return domain.Known(v + n)
+		}
+		return f
+	}
+	return add(patients, critical), add(urgent, pressing)
+}
+
 func known[T any](f domain.Fact[T]) bool {
 	_, k := f.Value()
 	return k

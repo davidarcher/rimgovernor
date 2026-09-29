@@ -354,3 +354,83 @@ func urgentPatient(pawn EmergencyPawn) bool {
 	}
 	return bleeding
 }
+
+// LosingImmunityRace projects an immunizable condition at its current
+// rates: losing when severity reaches 1 no later than immunity does. Ties
+// leave no safety margin; nonpositive immunity gain loses against
+// progressing severity, and nonprogressing severity has no deadline.
+// Known is false when any value is missing or not finite.
+func LosingImmunityRace(c CareCondition) (losing, known bool) {
+	severity, sk := c.Severity.Value()
+	immunity, ik := c.Immunity.Value()
+	sr, srk := c.SeverityPerDay.Value()
+	ir, irk := c.ImmunityPerDay.Value()
+	if !sk || !ik || !srk || !irk {
+		return false, false
+	}
+	for _, v := range []float64{severity, immunity, sr, ir} {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return false, false
+		}
+	}
+	if immunity >= 1 || sr <= 0 {
+		return false, true
+	}
+	return ir <= 0 || (1-severity)/sr <= (1-immunity)/ir, true
+}
+
+// woundInfection is the limb infection an amputation removes (#1166);
+// non-limb infections are out of scope.
+const woundInfection = "WoundInfection"
+
+// LifeSavingAmputations lists, for a living colonist, the amputation of the
+// part carrying each wound infection that is losing its immunity race
+// (#1166). The infected part itself is the smallest part whose removal
+// takes the infection with it; a part native offers no amputation on (a
+// torso, an organ) is not a limb and yields nothing. A projected loss is a
+// projected death, so the operation needs no failure cap beyond a failure
+// chance below certain death: vanilla's success chance must be known and
+// positive, with an eligible doctor, no violation and no lethal outcome.
+// Rows are ordered by part index.
+func LifeSavingAmputations(pawn CarePawn) []domain.Surgery {
+	if dead, known := pawn.Dead.Value(); !known || dead {
+		return nil
+	}
+	conditions, ck := pawn.Conditions.Value()
+	operations, ok := pawn.Operations.Value()
+	if !ck || !ok {
+		return nil
+	}
+	var out []domain.Surgery
+	seen := map[int]bool{}
+	for _, c := range conditions {
+		name, nk := c.DefName.Value()
+		part, pk := c.PartIndex.Value()
+		if !nk || name != woundInfection || !pk || seen[part] {
+			continue
+		}
+		if losing, known := LosingImmunityRace(c); !known || !losing {
+			continue
+		}
+		for _, op := range operations {
+			recipe, rk := op.Recipe.Value()
+			at, ak := op.PartIndex.Value()
+			success, sk := op.SuccessChance.Value()
+			doctors, dk := op.EligibleDoctors.Value()
+			violation, vk := op.Violation.Value()
+			lethal, lk := op.Lethal.Value()
+			if op.Kind != SurgeryAmputate || !rk || !ak || at != part || !sk || math.IsNaN(success) || success <= 0 || !dk || doctors <= 0 || !vk || violation || !lk || lethal {
+				continue
+			}
+			s, err := domain.NewSurgery(domain.PawnID(pawn.ID), recipe, part, false)
+			if err != nil {
+				continue
+			}
+			seen[part] = true
+			out = append(out, s)
+			break
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Part() < out[j].Part() })
+	return out
+}

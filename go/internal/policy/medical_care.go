@@ -61,6 +61,9 @@ type CareCondition struct {
 	Severity, SeverityPerDay, Immunity, ImmunityPerDay domain.Fact[float64]
 	Tended                                             domain.Fact[bool]
 	TendQuality                                        domain.Fact[float64]
+	// PartIndex is the condition's part in the race body's AllParts;
+	// unknown for a whole-body condition (#1166).
+	PartIndex domain.Fact[int]
 }
 
 // MedicalCareHistory retains unresolved patient identities across reviews and

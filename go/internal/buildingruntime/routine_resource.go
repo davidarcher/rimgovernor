@@ -558,6 +558,7 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 	}
 	f.Hostiles, _ = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
 	f.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
+	_, f.UrgentPatients = policy.AmputationNeeds(emergency, f.MedicalPawns, domain.Unknown[int64](), f.UrgentPatients)
 	extent, err := policy.DeriveColonyExtent(policy.ColonyExtentRequest{Bounds: f.MapBounds,
 		Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage})
 	if err != nil {

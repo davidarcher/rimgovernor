@@ -338,6 +338,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
 	reading.Projection.Facts.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
+	reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients = policy.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients)
 	// RestoreWorkers stands while a drafted colonist no live plan needs
 	// waits for the undraft sweep (#939). A draft its plan still holds is
 	// working, not stranded (#679).

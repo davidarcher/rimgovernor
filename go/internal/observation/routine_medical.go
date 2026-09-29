@@ -48,6 +48,7 @@ func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFac
 						Severity: optional(condition.Severity), SeverityPerDay: optional(condition.SeverityPerDay),
 						Immunity: optional(condition.Immunity), ImmunityPerDay: optional(condition.ImmunityPerDay),
 						Tended: optional(condition.Tended), TendQuality: optional(condition.TendQuality),
+						PartIndex: optionalInt(condition.PartIndex),
 					}
 					if condition.Definition != nil {
 						detail.DefName = optional(condition.Definition.DefName)

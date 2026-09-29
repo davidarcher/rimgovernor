@@ -145,6 +145,9 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineMedicalResult{Reason: BuildingMethodNoReview}, nil
 	}
+	if result, err := r.planAmputation(call, epoch, state, review); err != nil || result.Plan != "" {
+		return result, err
+	}
 	if result, err := r.planMedicineTier(call, epoch, state, review, arbiter); err != nil || result.Plan != "" || result.Reason == BuildingMethodExistingWork {
 		return result, err
 	}
@@ -374,4 +377,68 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 		return RoutineMedicalResult{}, err
 	}
 	return RoutineMedicalResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// planAmputation is CriticalMedical's life-saving amputation (#1166): while
+// the deficit stands, the first colonist whose limb infection is losing its
+// immunity race gets one surgery bill on the infected part. Native doctor
+// jobs choose the surgeon. Queueing is idempotent natively, and a failed
+// operation consumes the bill, so the bill is re-sent once per
+// amputationRequeueTicks window while the infection is still projected to
+// win; there is no attempt cap, only vanilla's success chance against the
+// projected death (policy.LifeSavingAmputations).
+const amputationRequeueTicks = 2500
+
+func (r *RoutineMedicalPlanner) planAmputation(call, epoch context.Context, state ControlState, review store.RoutineReview) (RoutineMedicalResult, error) {
+	p := r.reviewer.player
+	incident, found, err := incidentDeficit(call, p.journal, review, policy.CriticalMedicine)
+	if err != nil || !found {
+		return RoutineMedicalResult{}, err
+	}
+	expected, err := routineScope(call, r.reviewer.native)
+	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		return RoutineMedicalResult{}, fmt.Errorf("%w: planAmputation: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
+	}
+	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
+	if err != nil {
+		return RoutineMedicalResult{}, err
+	}
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
+	if err != nil {
+		return RoutineMedicalResult{}, err
+	}
+	pawns, _ := read.Projection.Facts.MedicalPawns.Value()
+	window := int64(expected.Tick) / amputationRequeueTicks
+	for _, pawn := range pawns {
+		for _, surgery := range policy.LifeSavingAmputations(pawn) {
+			method := domain.MethodID(fmt.Sprintf("amputate-%s-%d-%d", surgery.Pawn(), surgery.Part(), window))
+			queued := false
+			for _, m := range incident.Methods {
+				queued = queued || m.Method == method
+			}
+			if queued {
+				continue
+			}
+			id := domain.MintPlanID()
+			action, err := domain.NewSurgeryAction(domain.ActionID(fmt.Sprintf("%s-0", id)), surgery)
+			if err != nil {
+				return RoutineMedicalResult{}, err
+			}
+			plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+			if err != nil {
+				return RoutineMedicalResult{}, err
+			}
+			if err = p.current(call, epoch); err != nil {
+				return RoutineMedicalResult{}, err
+			}
+			if p.session.State() != state {
+				return RoutineMedicalResult{}, fmt.Errorf("%w: planAmputation: p.session.State() != state", ErrControl)
+			}
+			if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
+				return RoutineMedicalResult{}, err
+			}
+			return RoutineMedicalResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+		}
+	}
+	return RoutineMedicalResult{}, nil
 }
