@@ -9,7 +9,7 @@ import (
 func perimeterPlan(t *testing.T, cell func(x, z int32) SurveyCell) LayoutPlan {
 	t.Helper()
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(PlanCore(Zone(s), 3), s)
+	p := PlanPerimeter(PlanCore(Zone(s), 3, BuildTierCamp), s)
 	if !p.Valid() {
 		t.Fatal("invalid plan")
 	}
@@ -187,7 +187,7 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 		return SurveyCell{Walkable: true, Fertility: 1}
 	}
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(PlanCore(Zone(s), 3), s)
+	p := PlanPerimeter(PlanCore(Zone(s), 3, BuildTierCamp), s)
 	if !p.Valid() {
 		t.Fatal("invalid plan")
 	}
@@ -407,7 +407,7 @@ func TestPerimeterUnbridgeableGapIsFlagged(t *testing.T) {
 		return SurveyCell{Walkable: true, Fertility: 1}
 	}
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(PlanCore(Zone(s), 3), s)
+	p := PlanPerimeter(PlanCore(Zone(s), 3, BuildTierCamp), s)
 	if len(reserved(p, ReservePerimeterGap)) == 0 {
 		t.Fatal("ground nothing closes is flagged")
 	}

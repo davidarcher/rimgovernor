@@ -175,7 +175,7 @@ func (r *RoutineReviewer) proposeLayout(ctx context.Context, snapshot domain.Gen
 		return
 	}
 	topology, _ := projection.PowerPlanning.Value()
-	next, known := policy.ReplanFresh(layout.Plan, survey, built, int(pawns), layout.Plan.TombRooms(), topology.Geysers).Value()
+	next, known := policy.ReplanFresh(layout.Plan, survey, built, int(pawns), layout.Plan.TombRooms(), layoutTier(*projection), topology.Geysers).Value()
 	if !known {
 		refuse("no room for a core")
 		return

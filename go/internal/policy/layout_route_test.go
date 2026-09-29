@@ -8,7 +8,7 @@ import (
 )
 
 func TestCheckRoutesPlannedCore(t *testing.T) {
-	p := PlanCore(coreTestZones(), 6)
+	p := PlanCore(coreTestZones(), 6, BuildTierCamp)
 	traffic, err := CheckRoutes(p)
 	if err != nil {
 		t.Fatal(err)

@@ -26,9 +26,19 @@ type Wing struct {
 	Rooms    []LayoutRoom
 }
 
-// wingRoomSize is a standard room's interior: width along the corridor,
-// depth away from it. A placeholder until sizing by tier (#1214).
-var wingRoomSize = [2]int32{3, 4}
+// WingRoomSize is a standard room's interior for tier (#1214, epic #1200):
+// width along the corridor, depth away from it. Camp and Masonry rooms are
+// 3x4, Powered and Industrial 4x4, Spacer 4x5. A new wing takes the
+// current tier's size; an existing wing keeps the size of its rooms.
+func WingRoomSize(tier BuildTier) [2]int32 {
+	switch {
+	case tier >= BuildTierSpacer:
+		return [2]int32{4, 5}
+	case tier >= BuildTierPowered:
+		return [2]int32{4, 4}
+	}
+	return [2]int32{3, 4}
+}
 
 // wingGrowthReserve is how many rooms past the wanted count the wing keeps
 // ground for at its open end, so other rooms do not block it.
@@ -60,14 +70,24 @@ func (p LayoutPlan) Hallways() []SpineSegment {
 
 // wingFrame places a wing: v counts cells away from the main hallway's
 // centre row z0 (sign +1 north, -1 south) along the corridor at column cx.
-type wingFrame struct{ cx, z0, sign int32 }
+// size is a standard wing's room interior, as WingRoomSize.
+type wingFrame struct {
+	cx, z0, sign int32
+	size         [2]int32
+}
 
+// frameOf is w's frame; a standard wing's rooms keep the size of its first.
 func frameOf(w Wing) wingFrame {
 	sign := int32(1)
 	if w.Corridor.To.Z < w.Corridor.From.Z {
 		sign = -1
 	}
-	return wingFrame{cx: w.Corridor.From.X, z0: w.Corridor.From.Z - 2*sign, sign: sign}
+	size := WingRoomSize(BuildTierCamp)
+	if w.Purpose == WingBedrooms && len(w.Rooms) > 0 {
+		in := w.Rooms[0].Interior
+		size = [2]int32{in.Height, in.Width}
+	}
+	return wingFrame{cx: w.Corridor.From.X, z0: w.Corridor.From.Z - 2*sign, sign: sign, size: size}
 }
 
 func (f wingFrame) z(v int32) int32 { return f.z0 + f.sign*v }
@@ -83,8 +103,8 @@ func (f wingFrame) span(v0, n int32) (int32, int32) {
 // room is the wing's k-th room: even k east of the corridor, odd west,
 // k/2 slots out from the main hallway.
 func (f wingFrame) room(k int) LayoutRoom {
-	w := wingRoomSize[0]
-	return f.roomAt(k%2 == 0, 3+int32(k/2)*(w+1), w, wingRoomSize[1], ModuleBedroom)
+	w := f.size[0]
+	return f.roomAt(k%2 == 0, 3+int32(k/2)*(w+1), w, f.size[1], ModuleBedroom)
 }
 
 // roomAt is a role room of interior w along the corridor by d away from
@@ -133,7 +153,7 @@ func (f wingFrame) ground(n, d int32) Rectangle {
 
 // corridor is the corridor's floor serving slots standard room pairs.
 func (f wingFrame) corridor(slots int32) Rectangle {
-	z, h := f.span(2, slots*(wingRoomSize[0]+1)+1)
+	z, h := f.span(2, slots*(f.size[0]+1)+1)
 	return Rectangle{X: f.cx - SpineWidth/2, Z: z, Width: SpineWidth, Height: h}
 }
 
@@ -144,7 +164,8 @@ func wingReserve(w Wing, want int) Rectangle {
 		return suiteReserve(w, want)
 	}
 	n := int32((max(want, len(w.Rooms)) + wingGrowthReserve + 1) / 2)
-	return frameOf(w).ground(n*(wingRoomSize[0]+1)+1, wingRoomSize[1])
+	f := frameOf(w)
+	return f.ground(n*(f.size[0]+1)+1, f.size[1])
 }
 
 // carve takes r out of the core candidates.
@@ -169,10 +190,10 @@ func wingOf(wings []Wing, purpose WingPurpose) int {
 
 // growWing sites the bedroom wing off the main hallway if there is none
 // (the column nearest the storage room's door, #1178, among those fitting
-// the most rooms) and extends it at its open end to pawns rooms. g is the
-// core before any wing ground is carved out of it. Rooms that do not fit
-// are left out.
-func (g coreGrid) growWing(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, pawns int) ([]SpineSegment, []Wing) {
+// the most rooms) and extends it at its open end to pawns rooms. A new
+// wing's rooms take tier's size (#1214). g is the core before any wing
+// ground is carved out of it. Rooms that do not fit are left out.
+func (g coreGrid) growWing(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, pawns int, tier BuildTier) ([]SpineSegment, []Wing) {
 	if len(spine) == 0 || !alongX(spine[0]) {
 		return spine, wings
 	}
@@ -188,7 +209,9 @@ func (g coreGrid) growWing(spine []SpineSegment, rooms []LayoutRoom, wings []Win
 			return spine, wings
 		}
 		var ok bool
+		size := WingRoomSize(tier)
 		f, ok = g.siteWing(spine, rooms, func(try wingFrame) int {
+			try.size = size
 			n := 0
 			for n < pawns && fits(try, n) {
 				n++
@@ -198,6 +221,7 @@ func (g coreGrid) growWing(spine []SpineSegment, rooms []LayoutRoom, wings []Win
 		if !ok {
 			return spine, wings
 		}
+		f.size = size
 		spine = openWing(spine, f)
 		base := domain.Cell{X: f.cx, Z: f.z(2)}
 		wings = append(wings, Wing{Purpose: WingBedrooms, Corridor: SpineSegment{From: base, To: base}})

@@ -15,11 +15,11 @@ func freshSurvey() MapSurvey {
 // #957: with nothing built the fresh replan is the derived plan.
 func TestReplanFreshWithNothingBuiltDerives(t *testing.T) {
 	s := freshSurvey()
-	plan, ok := DeriveLayoutPlan(s, 3, nil).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
-	fresh, ok := ReplanFresh(plan, s, nil, 3, plan.TombRooms(), nil).Value()
+	fresh, ok := ReplanFresh(plan, s, nil, 3, plan.TombRooms(), BuildTierCamp, nil).Value()
 	if !ok || !reflect.DeepEqual(fresh, plan) {
 		t.Fatalf("fresh replan of an unbuilt plan differs: ok=%t\n%s\n%s", ok, fresh.Summary(), plan.Summary())
 	}
@@ -29,7 +29,7 @@ func TestReplanFreshWithNothingBuiltDerives(t *testing.T) {
 // hallway its door opens onto; unstarted rooms re-grow, off built cells.
 func TestReplanFreshKeepsBuiltRoomsAndRegrowsTheRest(t *testing.T) {
 	s := freshSurvey()
-	plan, ok := DeriveLayoutPlan(s, 3, nil).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -54,7 +54,7 @@ func TestReplanFreshKeepsBuiltRoomsAndRegrowsTheRest(t *testing.T) {
 	stale := LayoutRoom{Role: ModuleReserve, Interior: Rectangle{X: 20, Z: 20, Width: 3, Height: 3}, Door: domain.Cell{X: 21, Z: 19}, DoorRot: domain.South}
 	current := plan
 	current.Rooms = append(slices.Clone(plan.Rooms), stale)
-	fresh, ok := ReplanFresh(current, s, cells, 5, current.TombRooms(), nil).Value()
+	fresh, ok := ReplanFresh(current, s, cells, 5, current.TombRooms(), BuildTierCamp, nil).Value()
 	if !ok || !fresh.Valid() {
 		t.Fatal("no fresh plan", ok)
 	}
@@ -82,7 +82,7 @@ func TestReplanFreshKeepsBuiltRoomsAndRegrowsTheRest(t *testing.T) {
 // A built cell no kept room covers keeps new rooms off it.
 func TestReplanFreshKeepsNewRoomsOffBuiltGround(t *testing.T) {
 	s := freshSurvey()
-	plan, ok := DeriveLayoutPlan(s, 3, nil).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -95,7 +95,7 @@ func TestReplanFreshKeepsNewRoomsOffBuiltGround(t *testing.T) {
 	}
 	current := plan
 	current.Rooms = plan.Rooms[:1]
-	fresh, ok := ReplanFresh(current, s, cells, 3, 1, nil).Value()
+	fresh, ok := ReplanFresh(current, s, cells, 3, 1, BuildTierCamp, nil).Value()
 	if !ok {
 		t.Fatal("no fresh plan")
 	}

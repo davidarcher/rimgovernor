@@ -64,9 +64,9 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 			r.planChecked, r.planSurveyed = tick, true
 			if !haveLayout {
 				topology, _ := projection.PowerPlanning.Value()
-				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), topology.Geysers)
+				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers)
 			} else {
-				err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, outgrown)
+				err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, layoutTier(*projection), outgrown)
 			}
 			if err != nil {
 				return err
@@ -160,8 +160,8 @@ func (r *RoutineReviewer) layoutPlan(ctx context.Context, snapshot domain.Genera
 
 // deriveLayoutPlan lays a fresh v2 plan over survey and the reported
 // geysers and records it.
-func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, geysers []policy.PowerGeyser) error {
-	plan, known := policy.DeriveLayoutPlan(survey, pawns, geysers).Value()
+func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.BuildTier, geysers []policy.PowerGeyser) error {
+	plan, known := policy.DeriveLayoutPlan(survey, pawns, tier, geysers).Value()
 	if !known {
 		clockSchedulerLog("map survey holds no core for the layout plan")
 		return nil
@@ -175,8 +175,8 @@ func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, outgrown bool) error {
-	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs)
+func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, tier policy.BuildTier, outgrown bool) error {
+	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs, tier)
 	if next.TombRooms() < tombs {
 		clockSchedulerLog("layout plan holds no room for tomb %d", tombs)
 	}
@@ -228,4 +228,11 @@ func (r *RoutineReviewer) drawHeatOverlay(ctx context.Context, native LayoutOver
 // the survey tick the reviewer already keeps.
 func (r *RoutineReviewer) tombGrowthRefused(tick domain.Tick) bool {
 	return r.planSurveyed && r.planChecked <= tick && tick-r.planChecked < layoutReplanEvery
+}
+
+// layoutTier is the build tier new bedroom wings are sized for (#1214); an
+// unknown tier reads Camp.
+func layoutTier(projection observation.ColonyProjection) policy.BuildTier {
+	tier, _ := projection.BuildTier.Value()
+	return tier
 }

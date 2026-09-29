@@ -19,8 +19,8 @@ var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 // DeriveLayoutPlan lays a fresh v2 plan over the survey for pawns
 // colonists, with a geothermal enclosure on each reported steam geyser
 // (#834). Unknown when the survey holds no room for a core.
-func DeriveLayoutPlan(s MapSurvey, pawns int, geysers []PowerGeyser) domain.Fact[LayoutPlan] {
-	plan := PlanCore(Zone(s), pawns)
+func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGeyser) domain.Fact[LayoutPlan] {
+	plan := PlanCore(Zone(s), pawns, tier)
 	if len(plan.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()
 	}
@@ -45,7 +45,7 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, geysers []PowerGeyser) domain.Fact
 // changes the plan when the ground on or near the ring did (ground a
 // moisture pump dried, a mined-out ring cell). It reports whether the plan
 // changed.
-func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int) (LayoutPlan, bool) {
+func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) (LayoutPlan, bool) {
 	zones := Zone(s)
 	noGo := map[domain.Cell]bool{}
 	for _, z := range zones {
@@ -69,7 +69,7 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int) (LayoutPlan, b
 	next.Rooms, next.Wings, next.Zones = kept, wings, zones
 	before := len(next.AllRooms())
 	dropped := before != len(plan.AllRooms())
-	next = Grow(next, pawns, tombs)
+	next = Grow(next, pawns, tombs, tier)
 	if !dropped && len(next.AllRooms()) == before {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
 		return fresh, !samePerimeter(plan, fresh)

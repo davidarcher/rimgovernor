@@ -20,7 +20,7 @@ import (
 // built cell; utilities and the perimeter are then laid again, as
 // DeriveLayoutPlan lays them. Nothing built moves or loses its room.
 // Unknown when the survey holds no room for a core.
-func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns, tombs int, geysers []PowerGeyser) domain.Fact[LayoutPlan] {
+func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns, tombs int, tier BuildTier, geysers []PowerGeyser) domain.Fact[LayoutPlan] {
 	var rooms []LayoutRoom
 	for _, r := range plan.Rooms {
 		if rectHits(roomWalls(r), built) {
@@ -94,7 +94,7 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 			blocked[c] = true
 		}
 	}
-	next := Grow(LayoutPlan{Spine: spine, Rooms: rooms, Wings: wings, Zones: coreWithout(Zone(s), blocked), Reservations: kept}, pawns, tombs)
+	next := Grow(LayoutPlan{Spine: spine, Rooms: rooms, Wings: wings, Zones: coreWithout(Zone(s), blocked), Reservations: kept}, pawns, tombs, tier)
 	if len(next.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()
 	}

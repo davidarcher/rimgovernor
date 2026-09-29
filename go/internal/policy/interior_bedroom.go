@@ -21,6 +21,29 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // Only the bed is required; the end table, dresser and lamp are placed in
 // that order when they fit and keep the room walkable, so a cramped room
 // gets a bare bed rather than no plan.
+//
+// Sizing by tier (#1214): the Camp/Masonry standard room is 3x4 and holds
+// the bed and end table only; the 4x4 and 4x5 rooms of later tiers hold the
+// full set. The set follows the room's size, so a wing that keeps its old
+// size keeps its old set. No optional piece is placed that would take the
+// room's space below bedroomMinSpace.
+
+// Space stat terms: each interior tile adds bedroomSpacePerTile, each tile
+// a blocking piece stands on takes bedroomSpacePerBlocked off again.
+const (
+	bedroomSpacePerTile    = 1.4
+	bedroomSpacePerBlocked = 0.9
+	bedroomMinSpace        = 12.5
+	// bedroomFullSetTiles is the smallest interior that holds the full set;
+	// smaller rooms get the bed and end table only.
+	bedroomFullSetTiles = 16
+)
+
+// bedroomSpace is the planned space of a width x depth room with blocked
+// tiles under furniture.
+func bedroomSpace(width, depth int32, blocked int) float64 {
+	return bedroomSpacePerTile*float64(width*depth) - bedroomSpacePerBlocked*float64(blocked)
+}
 
 func init() {
 	RegisterInteriorTemplate(RoomRoleBedroom, InteriorTemplate{Name: "bedroom", Plan: planBedroom})
@@ -70,6 +93,9 @@ func planBedroomWith(f InteriorFrame, bedDef string, size domain.Cell) ([]Interi
 			return false
 		}
 		cells := rectCells(p.Rect)
+		if bedroomSpace(f.Width, f.Depth, len(blocked)+len(cells)) < bedroomMinSpace {
+			return false
+		}
 		for _, c := range cells {
 			if blocked[c] {
 				return false
@@ -95,6 +121,9 @@ func planBedroomWith(f InteriorFrame, bedDef string, size domain.Cell) ([]Interi
 		tableU, dresserU = right, x-dresserSize.X
 	}
 	try(NewInteriorPiece("end_table", "EndTable", endTableSize, domain.South, domain.Cell{X: tableU, Z: back}))
+	if f.Width*f.Depth < bedroomFullSetTiles {
+		return pieces, true
+	}
 	try(NewInteriorPiece("dresser", "Dresser", dresserSize, domain.South, domain.Cell{X: dresserU, Z: back}))
 	for _, u := range []int32{f.Width - 1, 0} {
 		if try(NewInteriorPiece("lamp", "StandingLamp", standLampSize, domain.South, domain.Cell{X: u, Z: back})) {

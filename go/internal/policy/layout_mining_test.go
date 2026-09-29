@@ -44,7 +44,7 @@ func TestMiningFollowsTheLayoutPlanTiers(t *testing.T) {
 // cell and shaft ahead of the ring; a standing room digs only its shaft,
 // and nothing while its back wall is still rock.
 func TestPlannedDig(t *testing.T) {
-	p := PlanUtilities(PlanCore(coreTestZones(), 3), UtilityWants{})
+	p := PlanUtilities(PlanCore(coreTestZones(), 3, BuildTierCamp), UtilityWants{})
 	var freezer LayoutRoom
 	for _, r := range p.Rooms {
 		if r.Role == ModuleFreezer {

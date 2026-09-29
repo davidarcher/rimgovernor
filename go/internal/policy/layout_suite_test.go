@@ -42,18 +42,18 @@ func testSuiteWing(t *testing.T, p LayoutPlan) Wing {
 }
 
 func TestSuiteWingOnlyOnceASuiteIsWanted(t *testing.T) {
-	p := PlanCore(coreTestZones(), 3)
+	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
 	if wingOf(p.Wings, WingSuites) >= 0 {
 		t.Fatal("suite wing with no suite wanted")
 	}
-	if g := Grow(p, 3, 1); wingOf(g.Wings, WingSuites) >= 0 {
+	if g := Grow(p, 3, 1, BuildTierCamp); wingOf(g.Wings, WingSuites) >= 0 {
 		t.Fatal("suite wing grown with no suite wanted")
 	}
 }
 
 func TestSuiteWingIsSeparateFromTheStandardWing(t *testing.T) {
 	targets := []float64{ImpressivenessSlightlyImpressive, ImpressivenessDull, ImpressivenessDecent}
-	p := Grow(PlanCore(coreTestZones(), 3), 3, 1, targets...)
+	p := Grow(PlanCore(coreTestZones(), 3, BuildTierCamp), 3, 1, BuildTierCamp, targets...)
 	std := checkWing(t, p, 3)
 	suites := testSuiteWing(t, p)
 	if len(suites.Rooms) != len(targets) {
@@ -98,9 +98,9 @@ func TestSuiteWingIsSeparateFromTheStandardWing(t *testing.T) {
 // never move.
 func TestSuiteGrowthGroundIsReserved(t *testing.T) {
 	targets := []float64{ImpressivenessDull, ImpressivenessDull}
-	p := Grow(PlanCore(coreTestZones(), 2), 2, 1, targets...)
+	p := Grow(PlanCore(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, targets...)
 	before := testSuiteWing(t, p)
-	g := Grow(p, 10, 2, append(targets, ImpressivenessDecent)...)
+	g := Grow(p, 10, 2, BuildTierCamp, append(targets, ImpressivenessDecent)...)
 	after := testSuiteWing(t, g)
 	for i, r := range before.Rooms {
 		if after.Rooms[i] != r {

@@ -10,7 +10,7 @@ import (
 func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)
-	plan, ok := DeriveLayoutPlan(s, 3, nil).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
 	if !ok || !plan.Valid() || plan.LayoutOutgrown(3) {
 		t.Fatal(ok, plan.Valid())
 	}
@@ -22,14 +22,14 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	if sum := plan.Summary(); !strings.Contains(sum, "bedroom:3") || !strings.Contains(sum, "routes=ok") || !strings.Contains(sum, "perimeter_wall:") {
 		t.Fatal(sum)
 	}
-	if _, changed := ReplanLayout(plan, s, 3, 1); changed {
+	if _, changed := ReplanLayout(plan, s, 3, 1, BuildTierCamp); changed {
 		t.Fatal("a sound plan replanned")
 	}
-	tombs, changed := ReplanLayout(plan, s, 3, 2)
+	tombs, changed := ReplanLayout(plan, s, 3, 2, BuildTierCamp)
 	if !changed || tombs.TombRooms() != 2 || plan.TombRooms() != 1 {
 		t.Fatal("a full tomb grew no second one", changed, tombs.TombRooms())
 	}
-	grown, changed := ReplanLayout(plan, s, 5, 1)
+	grown, changed := ReplanLayout(plan, s, 5, 1, BuildTierCamp)
 	if !changed || grown.LayoutOutgrown(5) {
 		t.Fatal(changed)
 	}
@@ -45,7 +45,7 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 func TestReplanPerimeterOnDriedGround(t *testing.T) {
 	var ring Rectangle
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	first, _ := DeriveLayoutPlan(s, 3, nil).Value()
+	first, _ := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
 	for _, r := range reserved(first, ReservePerimeter) {
 		ring = unionRect(ring, r)
 	}
@@ -62,15 +62,15 @@ func TestReplanPerimeterOnDriedGround(t *testing.T) {
 			return c
 		})
 	}
-	plan, ok := DeriveLayoutPlan(survey(false, nil), 3, nil).Value()
+	plan, ok := DeriveLayoutPlan(survey(false, nil), 3, BuildTierCamp, nil).Value()
 	if !ok || len(reserved(plan, ReservePerimeterLight)) == 0 || len(reserved(plan, ReserveMoisturePump)) == 0 {
 		t.Fatal("no wooden stretch", ok)
 	}
 	walls := reservedCells(plan, ReservePerimeter)
-	if _, changed := ReplanLayout(plan, survey(false, walls), 3, 1); changed {
+	if _, changed := ReplanLayout(plan, survey(false, walls), 3, 1, BuildTierCamp); changed {
 		t.Fatal("standing walls replanned the perimeter")
 	}
-	next, changed := ReplanLayout(plan, survey(true, walls), 3, 1)
+	next, changed := ReplanLayout(plan, survey(true, walls), 3, 1, BuildTierCamp)
 	if !changed || len(reserved(next, ReservePerimeterLight)) != 0 || len(reserved(next, ReserveMoisturePump)) != 0 {
 		t.Fatal("dried ground kept its wooden wall", changed)
 	}

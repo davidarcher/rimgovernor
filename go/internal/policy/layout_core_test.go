@@ -67,13 +67,13 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 }
 
 func TestPlanCore(t *testing.T) {
-	p := PlanCore(coreTestZones(), 3)
+	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
 	checkCore(t, p, 3)
 }
 
 func TestGrowKeepsRooms(t *testing.T) {
-	p := PlanCore(coreTestZones(), 3)
-	g := Grow(p, 12, 1)
+	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
+	g := Grow(p, 12, 1, BuildTierCamp)
 	checkCore(t, g, 12)
 	for i, r := range p.Rooms {
 		if g.Rooms[i] != r {
@@ -90,7 +90,7 @@ func TestGrowKeepsRooms(t *testing.T) {
 }
 
 func TestGrowStopsAtEdge(t *testing.T) {
-	g := PlanCore(coreTestZones(), 500)
+	g := PlanCore(coreTestZones(), 500, BuildTierCamp)
 	if n := len(g.AllRooms()); n < 20 || n > 500 {
 		t.Fatal("rooms", len(g.AllRooms()))
 	}
@@ -104,7 +104,7 @@ func TestGrowStopsAtEdge(t *testing.T) {
 // The freezer shares a wall with the kitchen: its hallway door takes the
 // haulers, its link door the cook (#819).
 func TestFreezerLinksToTheKitchen(t *testing.T) {
-	p := PlanCore(coreTestZones(), 3)
+	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
 	var kitchen, freezer LayoutRoom
 	for _, r := range p.Rooms {
 		switch r.Role {
@@ -138,7 +138,7 @@ func TestFreezerLinksToTheKitchen(t *testing.T) {
 // (#936), so the meal stockpile can sit in the cold one door from the
 // table; no meal closet is planned then.
 func TestDiningOpensIntoTheFreezer(t *testing.T) {
-	p := PlanCore(coreTestZones(), 3)
+	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
 	var dining LayoutRoom
 	for _, r := range p.Rooms {
 		if r.Role == ModuleDining {
@@ -160,13 +160,13 @@ func TestDiningOpensIntoTheFreezer(t *testing.T) {
 // meal closet behind its back wall, its door in that wall and its cooler
 // site in the closet's own back wall, venting away from the dining room.
 func TestMealClosetBehindTheDiningRoom(t *testing.T) {
-	p := PlanCore(coreTestZones(), 3)
+	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
 	for i := range p.Rooms {
 		if p.Rooms[i].Role == ModuleDining {
 			p.Rooms[i].Link = nil
 		}
 	}
-	grown := Grow(p, 3, 1)
+	grown := Grow(p, 3, 1, BuildTierCamp)
 	var dining, closet LayoutRoom
 	for _, r := range grown.Rooms {
 		switch r.Role {
@@ -190,7 +190,7 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 	if closet.Door.Z != back {
 		t.Fatalf("closet %+v is not behind the dining room's back wall %d", closet, back)
 	}
-	if again := Grow(grown, 3, 1); len(again.Rooms) != len(grown.Rooms) {
+	if again := Grow(grown, 3, 1, BuildTierCamp); len(again.Rooms) != len(grown.Rooms) {
 		t.Fatal("second closet planned")
 	}
 	withExhaust := PlanUtilities(grown, UtilityWants{})
@@ -203,7 +203,7 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 // A fresh core reserves its centre crossing: the main hallway grows out
 // from it on both sides and no room takes its column (#952).
 func TestCoreReservesCentreCrossing(t *testing.T) {
-	p := PlanCore(coreTestZones(), 3)
+	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
 	if len(p.Spine) != 2 || alongX(p.Spine[1]) {
 		t.Fatal("spine", p.Spine)
 	}
@@ -224,10 +224,10 @@ func TestCoreReservesCentreCrossing(t *testing.T) {
 // and every door opens on a hallway (#952).
 func TestGrowBranchesIntoCrossings(t *testing.T) {
 	zones := coreTestZones()
-	p := PlanCore(zones, 3)
+	p := PlanCore(zones, 3, BuildTierCamp)
 	// Bedrooms live in the wing (#1213); tomb rooms fill the hallways.
 	for _, tombs := range []int{10, 20, 30} {
-		g := Grow(p, 3, tombs)
+		g := Grow(p, 3, tombs, BuildTierCamp)
 		for i, r := range p.Rooms {
 			if g.Rooms[i] != r {
 				t.Fatal("moved", r, g.Rooms[i])

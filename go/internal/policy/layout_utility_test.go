@@ -7,7 +7,7 @@ import (
 )
 
 func TestPlannedPowerSites(t *testing.T) {
-	p := PlanUtilities(PlanCore(coreTestZones(), 3), UtilityWants{TurbinePairs: 1, Solar: 1})
+	p := PlanUtilities(PlanCore(coreTestZones(), 3, BuildTierCamp), UtilityWants{TurbinePairs: 1, Solar: 1})
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 || batteries[0].Block != (Rectangle{}) || batteries[1].Block != (Rectangle{}) {
 		t.Fatal(batteries)
@@ -42,7 +42,7 @@ func TestPlannedPowerSites(t *testing.T) {
 // with the cold side in the room and the hot side on the exhaust (#791),
 // on either hallway (#952): the freezer and the soil tomb both get one.
 func TestPlannedCoolerSites(t *testing.T) {
-	p := PlanUtilities(PlanCore(coreTestZones(), 0), UtilityWants{})
+	p := PlanUtilities(PlanCore(coreTestZones(), 0, BuildTierCamp), UtilityWants{})
 	sites := PlannedCoolerSites(p)
 	if len(sites) != 2 {
 		t.Fatal(sites)
@@ -152,7 +152,7 @@ func TestTurbineWindCells(t *testing.T) {
 
 func TestPlanUtilities(t *testing.T) {
 	zones := coreTestZones()
-	core := PlanCore(zones, 0)
+	core := PlanCore(zones, 0, BuildTierCamp)
 	p := PlanUtilities(core, UtilityWants{TurbinePairs: 2, Solar: 2, Geysers: []Rectangle{{X: 20, Z: 100, Width: 2, Height: 2}}})
 	if !p.Valid() {
 		t.Fatal("invalid")
@@ -239,7 +239,7 @@ func TestPlanUtilities(t *testing.T) {
 		}
 	}
 	// Grow never builds over a reservation.
-	grown := Grow(p, 20, 1)
+	grown := Grow(p, 20, 1, BuildTierCamp)
 	for _, r := range grown.Rooms {
 		for _, res := range p.Reservations {
 			w := roomWalls(r)

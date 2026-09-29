@@ -11,13 +11,13 @@ import (
 func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)
-	base, _ := DeriveLayoutPlan(s, 3, nil).Value()
+	base, _ := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
 	mid := base.Spine[0].From
 	for dz := int32(14); dz <= 40; dz += 2 {
 		for _, sign := range []int32{1, -1} {
 			at := domain.Cell{X: mid.X, Z: mid.Z + sign*dz}
 			g := PowerGeyser{ID: "g", Cell: at, Cells: []domain.Cell{at, {X: at.X + 1, Z: at.Z}, {X: at.X, Z: at.Z + 1}, {X: at.X + 1, Z: at.Z + 1}}}
-			plan, ok := DeriveLayoutPlan(s, 3, []PowerGeyser{g}).Value()
+			plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, []PowerGeyser{g}).Value()
 			if !ok {
 				t.Fatal("no plan")
 			}

@@ -126,3 +126,57 @@ func TestBedroomPlansTheRequestedBed(t *testing.T) {
 		}
 	}
 }
+
+func plannedSpace(plan InteriorPlan) float64 {
+	blocked := 0
+	for _, p := range plan.Canonical {
+		blocked += int(p.Rect.Width * p.Rect.Height)
+	}
+	return bedroomSpace(plan.Frame.Width, plan.Frame.Depth, blocked)
+}
+
+// The standard room by build tier (#1214): its size, its furniture set, and
+// planned space at or above bedroomMinSpace.
+func TestBedroomStandardRoomByTier(t *testing.T) {
+	cases := []struct {
+		tier BuildTier
+		size [2]int32
+		set  []string
+	}{
+		{BuildTierCamp, [2]int32{3, 4}, []string{"bed", "end_table"}},
+		{BuildTierMasonry, [2]int32{3, 4}, []string{"bed", "end_table"}},
+		{BuildTierPowered, [2]int32{4, 4}, []string{"bed", "end_table", "dresser"}},
+		{BuildTierIndustrial, [2]int32{4, 4}, []string{"bed", "end_table", "dresser"}},
+		{BuildTierSpacer, [2]int32{4, 5}, []string{"bed", "end_table", "dresser"}},
+	}
+	for _, c := range cases {
+		size := WingRoomSize(c.tier)
+		if size != c.size {
+			t.Errorf("%s: room %v, want %v", c.tier, size, c.size)
+			continue
+		}
+		plan := assertInteriorRepeatable(t, RoomRoleBedroom, size[0], size[1], size[0]/2)
+		s := bedroomSlots(plan.Canonical)
+		for _, slot := range c.set {
+			if _, ok := s[slot]; !ok {
+				t.Errorf("%s %v: no %s in %+v", c.tier, size, slot, plan.Canonical)
+			}
+		}
+		if len(plan.Canonical) != len(c.set) {
+			t.Errorf("%s %v: pieces %+v, want %v", c.tier, size, plan.Canonical, c.set)
+		}
+		if space := plannedSpace(plan); space < bedroomMinSpace {
+			t.Errorf("%s %v: space %.1f below %.1f", c.tier, size, space, bedroomMinSpace)
+		}
+	}
+}
+
+// Optional pieces never take a room below the space floor; only the bed may.
+func TestBedroomSpaceBudgetDropsOptionalPieces(t *testing.T) {
+	for _, size := range [][2]int32{{3, 4}, {4, 4}, {4, 5}, {3, 3}, {5, 4}, {5, 5}} {
+		plan := assertInteriorRepeatable(t, RoomRoleBedroom, size[0], size[1], size[0]/2)
+		if space := plannedSpace(plan); space < bedroomMinSpace && len(plan.Canonical) > 1 {
+			t.Errorf("%v: space %.1f with %+v", size, space, plan.Canonical)
+		}
+	}
+}
