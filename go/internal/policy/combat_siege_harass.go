@@ -128,7 +128,7 @@ func tribalStandoff(view CombatView, m *CombatMemory) {
 func shipPartHitAndRun(view CombatView, m *CombatMemory) {
 	var parts []CombatPawnState
 	for _, s := range view.Structures {
-		if strings.Contains(s.Def, "ShipPart") {
+		if ShipPart(s.Def) {
 			parts = append(parts, CombatPawnState{ID: s.ID, Cell: domain.Known(s.Cell)})
 		}
 	}

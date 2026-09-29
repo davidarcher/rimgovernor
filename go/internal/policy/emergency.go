@@ -104,11 +104,21 @@ func (t EmergencyThreat) Building() bool { return t.Kind == HostileBuilding }
 const DistantThreatCells = 50.0
 
 // DistantThreat reports a hostile or hunting animal, or a hostile building,
-// known to be at least DistantThreatCells from every colonist.
+// known to be at least DistantThreatCells from every colonist. A crashed
+// ship part is never distant (#1174): a defoliator's radius grows until it
+// reaches the fields and a psychic droner's drone covers the whole map, so
+// waiting for either to come closer loses the crops or the mood.
 func (t EmergencyThreat) DistantThreat() bool {
 	animal, ak := t.Animal.Value()
 	distance, dk := t.Distance.Value()
-	return (t.Building() || ak && animal) && dk && distance >= DistantThreatCells
+	return (t.Building() && !ShipPart(t.Definition) || ak && animal) && dk && distance >= DistantThreatCells
+}
+
+// ShipPart reports a crashed ship part's definition (DefoliatorShipPart,
+// PsychicDronerShipPart): a gunless hostile building that harms the colony
+// from wherever it lands until destroyed (#1061, #1174).
+func ShipPart(definition string) bool {
+	return strings.Contains(definition, "ShipPart")
 }
 
 // Undiscovered reports a threat the colony has not found: a hostile standing
