@@ -147,9 +147,9 @@ the reviewed tick, `WorkCoverage` rows (demand, owners, capable per work type), 
 `DecayingSkill` rows and every work pawn's `PawnProfile` with its trait effects, learn
 factor per skill and forbidden and incapable work types, which the Colony view's
 dossier joins by pawn id (#448). Native labor forecasts remain
-evidence with unknown completion times. The `service/development` case samples this record
-from a resumed controller across a kill-and-restart pair and asserts the bounds,
-reasons, review-time research measurement and retained waiting ages above; pawn
+evidence with unknown completion times. Colony snapshots recorded from a resumed controller either side of a
+kill-and-restart (`internal/snapshot/development_test.go`) assert the bounds,
+reasons, stage hold on research and retained waiting ages above; pawn
 progress on the admitted projects is campaign evidence from the `sustained/matrix-*` cases,
 tracked in [issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
 
