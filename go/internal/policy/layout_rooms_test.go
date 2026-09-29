@@ -64,6 +64,59 @@ func TestStarterLayoutsBuildTheFirstBuildablePlannedRoom(t *testing.T) {
 	}
 }
 
+// The starter shell is the plan's storage room (#1177): its rectangle and
+// spine door, bunks clear of the door aisle; blocked, the search runs.
+func TestStarterShellStandsOnThePlannedStorageRoom(t *testing.T) {
+	bounds := Bounds{Width: 60, Height: 60}
+	storage := coreRoom(ModuleStorage, 20, 30, 9, 7, true)
+	cells := func(blocked bool) []SiteCell {
+		var cells []SiteCell
+		for x := int32(0); x < bounds.Width; x++ {
+			for z := int32(0); z < bounds.Height; z++ {
+				in := blocked && x == storage.Interior.X+3 && z == storage.Interior.Z+3
+				cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(in), Zone: domain.Known(false), SupportsLight: domain.Known(true)})
+			}
+		}
+		return cells
+	}
+	var hallway []domain.Cell
+	for x := int32(10); x < 40; x++ {
+		for z := int32(29); z <= 31; z++ {
+			hallway = append(hallway, domain.Cell{X: x, Z: z})
+		}
+	}
+	plan := LayoutPlan{Rooms: []LayoutRoom{coreRoom(ModuleKitchen, 10, 30, 6, 5, true), storage}}
+	request := StarterRequest{Bounds: bounds, Anchor: domain.Cell{X: 5, Z: 5}, Cells: cells(false), Protected: hallway, Planned: plan.PlannedShells(RoomRoleStoreroom)}
+	layouts, err := StarterLayouts(request)
+	if err != nil || len(layouts) != 1 {
+		t.Fatalf("%d layouts, %v", len(layouts), err)
+	}
+	want, _ := storage.Footprint()
+	if !domain.SameRoomFootprint(layouts[0].Shell, want) || layouts[0].Shell.Door() != storage.Door {
+		t.Fatalf("shell %+v door %v, want storage %+v door %v", layouts[0].Shell.Bounds(), layouts[0].Shell.Door(), want.Bounds(), storage.Door)
+	}
+	inward := domain.Cell{X: storage.Door.X, Z: storage.Door.Z + 1}
+	bunks := PlanShelterBunks(layouts[0], 3, 3, nil)
+	if len(bunks.Spots) != 3 {
+		t.Fatalf("%d spots fit", len(bunks.Spots))
+	}
+	for _, anchor := range append(bunks.Beds, bunks.Spots...) {
+		for _, c := range BunkFootprint(anchor) {
+			if c == inward {
+				t.Fatalf("bunk at %v blocks the door aisle %v", anchor, inward)
+			}
+		}
+	}
+	request.Cells = cells(true)
+	layouts, err = StarterLayouts(request)
+	if err != nil || len(layouts) == 0 {
+		t.Fatalf("fallback: %d layouts, %v", len(layouts), err)
+	}
+	if domain.SameRoomFootprint(layouts[0].Shell, want) {
+		t.Fatal("a blocked storage room was still sited")
+	}
+}
+
 func TestShellDoorsPutTheFreezerLinkInBothRings(t *testing.T) {
 	kitchen := coreRoom(ModuleKitchen, 10, 30, 6, 5, true)
 	freezer := coreRoom(ModuleFreezer, 17, 30, 5, 5, true)

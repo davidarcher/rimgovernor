@@ -8,6 +8,23 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// The initial shelter tries the plan's storage room at Camp (#1177); the
+// expansion shell keeps its Masonry-gated barracks rooms.
+func TestStarterShellPlansTheStorageRoomAtCamp(t *testing.T) {
+	storage := policy.LayoutRoom{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 116, Z: 130, Width: 9, Height: 7}, Door: domain.Cell{X: 120, Z: 129}, DoorRot: domain.South}
+	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{storage}}), BuildTier: domain.Known(policy.BuildTierCamp)}
+	starter := &RoutineBuildingPlanner{shelter: true, phase: policy.HousingShelter}
+	shells := starter.shellPlan(facts)
+	want, _ := storage.Footprint()
+	if len(shells) != 1 || !domain.SameRoomFootprint(shells[0], want) || shells[0].Door() != storage.Door {
+		t.Fatalf("starter shells %v, want the storage room", shells)
+	}
+	expansion := &RoutineBuildingPlanner{shelter: true, phase: policy.HousingExpansion}
+	if got := expansion.shellPlan(facts); len(got) != 0 {
+		t.Fatalf("expansion shells %v at Camp", got)
+	}
+}
+
 func TestPlannedRoomOwedOnlyFromMasonryUntilTheRoomStands(t *testing.T) {
 	kitchen := policy.LayoutRoom{Role: policy.ModuleKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{kitchen}}), Rooms: domain.Known(policy.RoomObservation{}), BuildTier: domain.Known(policy.BuildTierCamp)}

@@ -56,11 +56,11 @@ func (r *RoutineBuildingPlanner) roomRole() policy.RoomRole {
 }
 
 // shellShapesAtDoor lists every shell shape whose door would stand on
-// door: the layout plan's rooms for the role, then the starter templates,
+// door: the planned rooms the shell search tries (shellPlan), then the starter templates,
 // which a ring begun at Camp still matches.
-func shellShapesAtDoor(facts observation.ColonyProjection, door domain.Cell, role policy.RoomRole) []domain.RoomFootprint {
+func shellShapesAtDoor(planned []domain.RoomFootprint, door domain.Cell) []domain.RoomFootprint {
 	var shells []domain.RoomFootprint
-	for _, shell := range plannedShells(facts, role) {
+	for _, shell := range planned {
 		if shell.Door() == door {
 			shells = append(shells, shell)
 		}
@@ -77,6 +77,34 @@ func plannedShells(facts observation.ColonyProjection, role policy.RoomRole) []d
 		return nil
 	}
 	return plan.PlannedShells(role)
+}
+
+// shellPlan is the planned rooms this planner's shell search tries first.
+// The initial shelter stands on the layout plan's storage room at every
+// tier, Camp included (#1177): it becomes the storeroom once everyone has
+// moved out to bedrooms. Any other shell keeps its own role's rooms.
+func (r *RoutineBuildingPlanner) shellPlan(facts observation.ColonyProjection) []domain.RoomFootprint {
+	if r.shelter && r.phase == policy.HousingShelter {
+		if plan, known := facts.LayoutPlan.Value(); known {
+			return plan.PlannedShells(policy.RoomRoleStoreroom)
+		}
+		return nil
+	}
+	return plannedShells(facts, r.roomRole())
+}
+
+// plannedSite reports whether layouts is the planned room alone, the
+// search's answer when a planned room is buildable.
+func plannedSite(layouts []policy.StarterLayout, planned []domain.RoomFootprint) bool {
+	if len(layouts) == 0 {
+		return false
+	}
+	for _, shell := range planned {
+		if domain.SameRoomFootprint(layouts[0].Shell, shell) && layouts[0].Shell.Door() == shell.Door() {
+			return true
+		}
+	}
+	return false
 }
 
 // A completed starter shell may trigger RimWorld's normal automatic roofing.
@@ -167,7 +195,7 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 	if selected, stock, reason, adopted, err := r.adoptShell(ctx, snapshot, facts, protected, check); err != nil || adopted {
 		return selected, stock, reason, err
 	}
-	request := policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, WallDef: shellStyle(facts).WallDef, Planned: plannedShells(facts, r.roomRole())}
+	request := policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, WallDef: shellStyle(facts).WallDef, Planned: r.shellPlan(facts)}
 	snap.NoteShelter(ctx, request)
 	layouts, err := policy.StarterLayouts(request)
 	if err != nil {
@@ -467,7 +495,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 	expanded := shellStyle(facts)
 	for d, door := range doors {
 		shapes := earlier[door]
-		for _, shell := range shellShapesAtDoor(facts, door, r.roomRole()) {
+		for _, shell := range shellShapesAtDoor(r.shellPlan(facts), door) {
 			shapes = append(shapes, shell.StyledPlacements(expanded))
 		}
 		best, bestMatched := -1, 0

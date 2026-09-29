@@ -178,20 +178,25 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 	if err != nil {
 		return nil, none, "", nil, err
 	}
-	search := func(anchor domain.Cell) ([]policy.StarterLayout, error) {
-		request := policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, WallDef: shellStyle(s.facts).WallDef, Planned: plannedShells(s.facts, r.roomRole())}
+	planned := r.shellPlan(s.facts)
+	search := func(anchor domain.Cell, planned []domain.RoomFootprint) ([]policy.StarterLayout, error) {
+		request := policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, WallDef: shellStyle(s.facts).WallDef, Planned: planned}
 		snap.NoteShelter(call, request)
 		return policy.StarterLayouts(request)
 	}
-	layouts, err := search(layoutAnchor(s.facts, r.district()))
+	layouts, err := search(layoutAnchor(s.facts, r.district()), planned)
 	if err != nil {
 		return nil, none, "", nil, err
+	}
+	if len(planned) > 0 && !plannedSite(layouts, planned) {
+		b := planned[0].Bounds()
+		clockSchedulerLog("%s: planned storage room %dx%d at (%d,%d) door %v is not buildable (blocked or off-map); the starter shell falls back to the search", r.goal, b.Width, b.Height, b.X, b.Z, planned[0].Door())
 	}
 	if _, ok := policy.BunkLayout(layouts, record.beds, record.spots); len(free) > 0 && !ok {
 		// The colony centre is where the pawns stand this tick, so it drifts
 		// between reviews and can push the site the bunks stand on out of
 		// the capped candidates (#672): search again from the bunks.
-		rescue, err := search(bunkAnchor(free))
+		rescue, err := search(bunkAnchor(free), planned)
 		if err != nil {
 			return nil, none, "", nil, err
 		}
@@ -272,6 +277,16 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		}
 	}
 	selected, stock, reason, err := r.previewFreshShell(call, s.snapshot, s.facts, layouts, s.check)
+	if err == nil && reason == BuildingMethodNoSpace && plannedSite(layouts, planned) {
+		// The native previews refused the planned storage room whole: the
+		// ring falls back to the search this review (#1177).
+		clockSchedulerLog("%s: native previews refused the planned storage room at %+v whole; the starter shell falls back to the search", r.goal, layouts[0].Room)
+		fallback, ferr := search(layoutAnchor(s.facts, r.district()), nil)
+		if ferr != nil {
+			return nil, none, "", nil, ferr
+		}
+		selected, stock, reason, err = r.previewFreshShell(call, s.snapshot, s.facts, uncleared(unmined(fallback)), s.check)
+	}
 	if err == nil && reason == BuildingMethodNoSpace && target != nil {
 		result, err := r.stepExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read, target: *target})
 		return nil, none, "", &result, err
