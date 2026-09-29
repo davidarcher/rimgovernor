@@ -363,6 +363,20 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	facts := reading.Projection
 	recordStepRead("building", r.goal, state.Snapshot, facts)
 	if r.goal == policy.EnsureCooking {
+		// A cooking campfire in a sleeping room, or one a stove kitchen
+		// supersedes, is deconstructed first (#1179).
+		claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		if known, ok := claims.Value(); ok {
+			if campfire, owed := campfireRetirement(facts, known); owed {
+				result, err := r.retireCampfire(call, epoch, state, review, goal, reading, campfire)
+				if err != nil || result.Reason != BuildingMethodUsed {
+					return result, err
+				}
+			}
+		}
 		resolved, reason := r.selectPaste(facts)
 		if reason != "" {
 			return RoutineBuildingResult{Reason: reason}, nil
@@ -862,6 +876,11 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	}
 	if r.definition == "ButcherSpot" || r.goal == policy.EnsureCooking {
 		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "ButcherSpot")...)
+	}
+	if r.goal == policy.EnsureCooking && r.definition == "Campfire" {
+		// The cooking campfire stands outdoors or in a non-sleeping room,
+		// never beside a bed or spot (#1179).
+		protected = append(append([]domain.Cell(nil), protected...), sleepingRoomCells(facts.Rooms)...)
 	}
 	var cells []policy.SiteCell
 	adjacent := map[domain.Cell]bool{}

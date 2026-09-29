@@ -266,10 +266,13 @@ type RoutineFacts struct {
 	TombsWarm domain.Fact[[]string]
 	// MealClosetOwed: the planned meal closet waits to be shelled while its
 	// dining room stands (#936); it keeps MaintainRefrigeration open.
-	MealClosetOwed    domain.Fact[bool]
-	AnimalUpkeep      AnimalUpkeepObservation
-	FoodStorageUpkeep FoodStorageObservation
-	MedicalReserve    MedicalReserveObservation
+	MealClosetOwed domain.Fact[bool]
+	// CampfireRetireOwed: a cooking campfire stands in a sleeping room or a
+	// stove kitchen supersedes it (#1179); it keeps EnsureCooking open.
+	CampfireRetireOwed domain.Fact[bool]
+	AnimalUpkeep       AnimalUpkeepObservation
+	FoodStorageUpkeep  FoodStorageObservation
+	MedicalReserve     MedicalReserveObservation
 	// Prisoners carries Population-*'s recruit/maintain census: unlike
 	// AnimalUpkeep, this has no generic per-tick colony read to piggyback on
 	// (recruitable/current-interaction facts live only on the dedicated
@@ -776,7 +779,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if l.Cold || l.Hot || !positive(temperatureMet) {
 		addGoal(EnsureTemperatureSafety, 2)
 	}
-	if !positive(f.Cooking) {
+	if !positive(cookingMet(f)) {
 		addGoal(EnsureCooking, 2)
 	}
 	// A solar flare with a known remaining duration switches every powered
@@ -872,7 +875,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureFoodSupply, 2, allFacts(domain.Known(!HumanFoodPending(f.FoodPlan)), foodMet, productionMet, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 }), latchRecovered(l.Food, f.FoodDays)))
 	addAssessment(MaintainHousing, housing.Priority, housing.Recovered)
 	addAssessment(EnsureTemperatureSafety, 2, allFacts(temperatureMet, latchRecovered(l.Cold, fallback(f.SleepingMin, f.OutdoorTemperature)), latchRecovered(l.Hot, fallback(f.SleepingMax, f.OutdoorTemperature))))
-	addAssessment(EnsureCooking, 2, f.Cooking)
+	addAssessment(EnsureCooking, 2, cookingMet(f))
 	addAssessment(EnsureBasicPower, 2, powerMet)
 	addAssessment(EnsureBasicDefense, 3, defense)
 	addAssessment(EnsureComfort, comfortPriority, comfortRecovered)
@@ -1451,4 +1454,13 @@ func raisedAtStage(goals []DevelopmentGoal, f RoutineFacts, p RoutinePolicy, l R
 func stonecuttingUnfinished(research domain.Fact[ResearchFacts]) bool {
 	r, known := research.Value()
 	return known && !slices.Contains(r.Finished, "Stonecutting")
+}
+
+// cookingMet is EnsureCooking's recovery: cooking ready and no cooking
+// campfire owed its retirement (#1179).
+func cookingMet(f RoutineFacts) domain.Fact[bool] {
+	if positive(f.CampfireRetireOwed) {
+		return domain.Known(false)
+	}
+	return f.Cooking
 }

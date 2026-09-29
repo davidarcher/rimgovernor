@@ -26,7 +26,7 @@ func NewRoutineCookingPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineCookingPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureCooking, definition: "Campfire"}, nil
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureCooking, definition: "Campfire", environment: policy.PlacementAnywhere}, nil
 }
 
 func NewRoutineButcherPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
