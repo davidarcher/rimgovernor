@@ -84,9 +84,18 @@ func fromRange(view CombatView, m *CombatMemory) {
 // other non-hive structure. The crew is
 // the pawn that manned it at the last stop while still orderable, else
 // the nearest orderable free pawn; its role keeps its cell and target
-// for when the mortar has nothing to shoot.
-func counterBattery(view CombatView, m *CombatMemory) {
+// for when the mortar has nothing to shoot. It returns the mortars crewed
+// at the last stop that now have nothing to aim at (#1235), each with its
+// last crew, so the fight clears their forced target and releases the crew.
+func counterBattery(view CombatView, prev []CombatRole, m *CombatMemory) []mortarStand {
 	crewed := map[domain.Cell]domain.PawnID{}
+	for _, r := range prev {
+		// The last stop's crews, which a re-formation this stop (a siege
+		// breaking camp) has already dropped from m (#1235).
+		if r.Mortar != nil {
+			crewed[*r.Mortar] = r.Pawn
+		}
+	}
 	for i := range m.Roles {
 		if r := &m.Roles[i]; r.Mortar != nil {
 			crewed[*r.Mortar] = r.Pawn
@@ -108,9 +117,13 @@ func counterBattery(view CombatView, m *CombatMemory) {
 	mortars := slices.Clone(view.Mortars)
 	sort.Slice(mortars, func(i, j int) bool { return mortars[i].ID < mortars[j].ID })
 	shelled := map[domain.Cell]bool{} // camp aims HE already falls on
+	var stood []mortarStand
 	for _, mortar := range mortars {
 		aim, shell, ok := mortarAim(view, mortar)
 		if !ok {
+			if crew, was := crewed[mortar.Cell]; was {
+				stood = append(stood, mortarStand{Cell: mortar.Cell, Crew: crew})
+			}
 			continue
 		}
 		if shell == ShellHE && campAim(view, aim) {
@@ -155,6 +168,30 @@ func counterBattery(view CombatView, m *CombatMemory) {
 		m.Roles[i].Mortar, m.Roles[i].Aim, m.Roles[i].Shell = &cell, &target, shell
 	}
 	m.Roles = sortRoles(m.Roles)
+	return stood
+}
+
+// mortarStand is a mortar stood down (#1235): its aim is gone (the siege
+// broke camp, the target died), so its forced target is cleared and Crew,
+// its last crew, is released to its role.
+type mortarStand struct {
+	Cell domain.Cell
+	Crew domain.PawnID
+}
+
+// standDown is the orders of the mortars stood down (#1235): a pawnless
+// mortar_fire with no target clears each forced target, and a crew still
+// manning it with no other order this stop is stopped, ending ManTurret;
+// its role (the Mortar fields cleared by counterBattery) orders it on.
+func standDown(stood []mortarStand, orders []CombatOrder, orderable map[domain.PawnID]bool, state map[domain.PawnID]CombatPawnState) []CombatOrder {
+	for _, s := range stood {
+		orders = append(orders, CombatOrder{Kind: OrderMortarFire, Cell: s.Cell, Clear: true, Reason: ReasonCounterBattery})
+		ordered := slices.ContainsFunc(orders, func(o CombatOrder) bool { return o.Pawn == s.Crew })
+		if orderable[s.Crew] && !ordered && state[s.Crew].Job == "ManTurret" {
+			orders = append(orders, CombatOrder{Pawn: s.Crew, Kind: OrderStop, Reason: ReasonCounterBattery})
+		}
+	}
+	return orders
 }
 
 // mortarAim is the cell mortar fires at and the shell: EMP on the nearest

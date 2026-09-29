@@ -2971,6 +2971,8 @@ namespace RimGovernor.Protocol.Operations {
   /// it retakes ManTurret to load it. Refusals: unknown_shell (not a shell
   /// this mortar accepts), no_shell (no unforbidden stack of it, in the
   /// manning pawn's reach when one mans it).
+  /// No target (#1235) clears the mortar's forced target, as the vanilla
+  /// stop-forced-attack gizmo; it names no shell. Refusal: not_a_mortar.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class CombatMortarFire : pb::IMessage<CombatMortarFire>

@@ -55,6 +55,53 @@ func TestDecideCombatCounterBatteryCrewsTheMortar(t *testing.T) {
 	}
 }
 
+// {a crewed mortar whose aim disappears} -> a pawnless mortar_fire with no
+// target clears the forced target, and the crew is released: moved on by
+// its role, or stopped off ManTurret when the role orders nothing (#1235).
+// A later stop sends neither again.
+func TestDecideCombatMortarStandsDownWhenTheAimGoes(t *testing.T) {
+	view := mortarView()
+	_, m := decideStop(t, view, StopEvent{}, CombatMemory{})
+	for i := range view.Pawns {
+		if view.Pawns[i].ID == "m" {
+			view.Pawns[i].Job, view.Pawns[i].Cell = "ManTurret", domain.Known(domain.Cell{X: 5, Z: 29})
+		}
+	}
+	view.Structures = nil
+	for i := range view.Positional {
+		view.Positional[i].LordJobClass = domain.Known("LordJob_AssaultColony")
+	}
+	view.Tick += 60
+	orders, m := decideStop(t, view, StopEvent{}, m)
+	clear := CombatOrder{Kind: OrderMortarFire, Cell: domain.Cell{X: 5, Z: 30}, Clear: true, Reason: ReasonCounterBattery}
+	if !slices.Contains(orders, clear) {
+		t.Fatalf("no clearing mortar_fire: %+v", orders)
+	}
+	if !slices.ContainsFunc(orders, func(o CombatOrder) bool { return o.Pawn == "m" && o.Kind != OrderManMortar }) {
+		t.Fatalf("crew not released: %+v", orders)
+	}
+	view.Tick += 60
+	if orders, _ := decideStop(t, view, StopEvent{}, m); slices.ContainsFunc(orders, func(o CombatOrder) bool { return o.Kind == OrderMortarFire }) {
+		t.Fatalf("cleared again: %+v", orders)
+	}
+}
+
+// {the aim gone, the crew's role orders nothing} -> standDown stops the
+// crew still manning (#1235); a crew already ordered is left alone.
+func TestStandDownStopsIdleCrew(t *testing.T) {
+	stood := []mortarStand{{Cell: domain.Cell{X: 5, Z: 30}, Crew: "m"}}
+	orderable := map[domain.PawnID]bool{"m": true}
+	state := map[domain.PawnID]CombatPawnState{"m": {ID: "m", Job: "ManTurret"}}
+	got := standDown(stood, nil, orderable, state)
+	if len(got) != 2 || !got[0].Clear || got[1] != (CombatOrder{Pawn: "m", Kind: OrderStop, Reason: ReasonCounterBattery}) {
+		t.Fatalf("%+v", got)
+	}
+	moved := []CombatOrder{{Pawn: "m", Kind: OrderMove, Cell: domain.Cell{X: 1, Z: 1}}}
+	if got := standDown(stood, moved, orderable, state); len(got) != 2 || !got[1].Clear {
+		t.Fatalf("%+v", got)
+	}
+}
+
 // {only the ship part in range, no siege} -> the mortar fires HE at the
 // part (#930).
 func TestDecideCombatMortarShellsTheShipPart(t *testing.T) {

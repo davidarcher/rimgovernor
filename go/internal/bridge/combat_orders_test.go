@@ -271,9 +271,16 @@ func TestValidateCombatMortar(t *testing.T) {
 	if err := ValidateCombatOrders(mortar()); err != nil {
 		t.Fatal(err)
 	}
+	clear := mortar()
+	clear.Orders[0].GetMortarFire().Target, clear.Orders[0].GetMortarFire().Shell = nil, nil
+	if err := ValidateCombatOrders(clear); err != nil {
+		t.Fatalf("clear (#1235): %v", err)
+	}
 	for name, edit := range map[string]func(*o.CombatOrders){
 		"nil fire":       func(v *o.CombatOrders) { v.Orders[0].Order = &o.CombatOrder_MortarFire{} },
-		"no target":      func(v *o.CombatOrders) { v.Orders[0].GetMortarFire().Target = nil },
+		"clear w/ shell": func(v *o.CombatOrders) { v.Orders[0].GetMortarFire().Target = nil },
+		"no mortar":      func(v *o.CombatOrders) { v.Orders[0].GetMortarFire().Mortar = nil },
+		"bad target":     func(v *o.CombatOrders) { v.Orders[0].GetMortarFire().Target = combatCell(-1, 4) },
 		"bad cell":       func(v *o.CombatOrders) { v.Orders[0].GetMortarFire().Mortar = combatCell(-1, 4) },
 		"fire with pawn": func(v *o.CombatOrders) { v.Orders[0].Pawn = combatPawn("p0") },
 		"man no pawn":    func(v *o.CombatOrders) { v.Orders[1].Pawn = nil },

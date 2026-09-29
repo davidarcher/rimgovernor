@@ -257,7 +257,11 @@ func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state Cont
 			wire.Order = &op.CombatOrder_ManMortar{ManMortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
 		case policy.OrderMortarFire:
 			wire.Pawn = nil
-			fire := &op.CombatMortarFire{Mortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Target: &c.Cell{X: proto.Int32(order.Aim.X), Z: proto.Int32(order.Aim.Z)}}
+			fire := &op.CombatMortarFire{Mortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
+			if !order.Clear {
+				// No target clears the forced target (#1235).
+				fire.Target = &c.Cell{X: proto.Int32(order.Aim.X), Z: proto.Int32(order.Aim.Z)}
+			}
 			if order.Shell != "" {
 				fire.Shell = proto.String(order.Shell)
 			}

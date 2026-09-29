@@ -1542,6 +1542,8 @@ func (x *CombatRepair) GetCell() *commonpb.Cell {
 // it retakes ManTurret to load it. Refusals: unknown_shell (not a shell
 // this mortar accepts), no_shell (no unforbidden stack of it, in the
 // manning pawn's reach when one mans it).
+// No target (#1235) clears the mortar's forced target, as the vanilla
+// stop-forced-attack gizmo; it names no shell. Refusal: not_a_mortar.
 type CombatMortarFire struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Mortar        *commonpb.Cell         `protobuf:"bytes,1,opt,name=mortar,proto3" json:"mortar,omitempty"`

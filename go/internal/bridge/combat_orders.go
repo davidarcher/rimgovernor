@@ -156,7 +156,10 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 				return contract("combat order %d man_mortar: %v", i, err)
 			}
 		case *o.CombatOrder_MortarFire:
-			if v.MortarFire == nil || movementCell(v.MortarFire.Mortar) != nil || movementCell(v.MortarFire.Target) != nil {
+			// No target clears the forced target (#1235), and names no shell.
+			if v.MortarFire == nil || movementCell(v.MortarFire.Mortar) != nil ||
+				(v.MortarFire.Target != nil && movementCell(v.MortarFire.Target) != nil) ||
+				(v.MortarFire.Target == nil && v.MortarFire.Shell != nil) {
 				return contract("combat order %d mortar_fire mortar or target cell missing or invalid", i)
 			}
 		case *o.CombatOrder_Release:

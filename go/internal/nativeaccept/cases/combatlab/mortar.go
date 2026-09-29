@@ -14,7 +14,7 @@ func init() {
 		Scope: "combat.orders on buildings (#930, #931), native op contracts no snapshot can prove: on lab-open plus a hostile crashed ship part 30 cells north, " +
 			"a player mortar with one HE shell behind the line and a stone chunk, one call orders an attack on the ship part, a mortar_fire at the part " +
 			"with a man_mortar crew, and the same pair on the chunk; the first three apply (AttackStatic, the aim, ManTurret) and the chunk pair refuses not_a_mortar (#1202). One tick later the rifleman " +
-			"shoots the part and the crew mans the mortar.",
+			"shoots the part and the crew mans the mortar; then a mortar_fire with no target applies on the mortar (clearing its forced target) and refuses not_a_mortar on the chunk (#1235).",
 		Start:       cases.Lab{Colonists: 3},
 		RequiredOps: []string{na.LabStartTool, StageTool},
 		QuietWorld:  true,
@@ -87,6 +87,20 @@ func runMortar(ctx context.Context, s cases.Session) error {
 	}
 	if p := after.pawns[colonists[1]]; na.AsString(p["job"]) != "ManTurret" || na.AsString(p["jobThing"]) != things[len(things)-2] {
 		return fmt.Errorf("crew does not man the mortar: %v", p)
+	}
+	// A mortar_fire with no target clears the forced target (#1235).
+	cleared, err := issue(ctx, h, identity, "combat-mortar-2", []any{
+		map[string]any{"mortarFire": map[string]any{"mortar": mortar}},
+		map[string]any{"mortarFire": map[string]any{"mortar": chunk}}})
+	if err != nil {
+		return err
+	}
+	report["cleared"] = cleared
+	if applied, _ := na.AsBool(cleared[0]["applied"]); !applied {
+		return fmt.Errorf("clear on the mortar: want applied, got %v", cleared[0])
+	}
+	if applied, _ := na.AsBool(cleared[1]["applied"]); applied || na.AsString(cleared[1]["refusal"]) != "not_a_mortar" {
+		return fmt.Errorf("clear on the chunk: want refusal not_a_mortar, got %v", cleared[1])
 	}
 	return nil
 }

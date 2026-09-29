@@ -152,7 +152,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	doorPotshot(view, formed, &next)
 	shelter(view, &next)
 	scatter(view, &next)
-	counterBattery(view, &next)
+	stood := counterBattery(view, memory.Roles, &next)
 	rocketClumps(view, &next)
 	flank(view, &next)
 	groupSquads(view, &next)
@@ -193,6 +193,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		}
 		orders = append(orders, want)
 	}
+	orders = standDown(stood, orders, orderable, state)
 	orders = holdFire(view, slices.DeleteFunc(slices.Clone(next.Roles), func(r CombatRole) bool {
 		return next.Rescue.carrying(r.Pawn) || next.Flank.waiting(r.Pawn)
 	}), orders, memory, onlySpared(view, spared))
@@ -481,6 +482,9 @@ type CombatOrder struct {
 	// so a new aim sends the pair again; only mortar_fire puts them on the
 	// wire.
 	Aim domain.Cell `json:",omitzero"`
+	// Clear is a mortar_fire order with no target (#1235): it clears the
+	// mortar's forced target; Aim and Shell are unset.
+	Clear bool `json:",omitempty"`
 	// Shell is a mortar order's shell def (#1051), "" whatever is loaded.
 	Shell string `json:",omitempty"`
 }

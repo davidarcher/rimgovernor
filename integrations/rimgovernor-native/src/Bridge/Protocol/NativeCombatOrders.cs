@@ -45,7 +45,8 @@ namespace HomeBridge.BridgeTools
                             || order.Rescue.Dest != null && !ValidCell(order.Rescue.Dest)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.Repair: if (!ValidCell(order.Repair.Cell)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.ManMortar: if (!ValidCell(order.ManMortar)) return false; break;
-                    case Operations.CombatOrder.OrderOneofCase.MortarFire: if (!ValidCell(order.MortarFire.Mortar) || !ValidCell(order.MortarFire.Target)) return false; break;
+                    case Operations.CombatOrder.OrderOneofCase.MortarFire: if (!ValidCell(order.MortarFire.Mortar) || order.MortarFire.Target != null && !ValidCell(order.MortarFire.Target)
+                        || order.MortarFire.Target == null && order.MortarFire.HasShell) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.Release:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(order.Release) || order.Release.EntityId == order.Pawn!.EntityId) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.AnimalArea:
@@ -322,6 +323,14 @@ namespace HomeBridge.BridgeTools
             job = null;
             var mortar = Mortar(map, order.Mortar);
             if (mortar == null) return "not_a_mortar";
+            if (order.Target == null)
+            {
+                // No target (#1235): the gizmo's stop-forced-attack, the
+                // aim gone when the siege breaks camp. An invalid target
+                // resets the forced target (vanilla OrderAttack).
+                mortar.OrderAttack(LocalTargetInfo.Invalid);
+                return "";
+            }
             var target = new IntVec3(order.Target.X, 0, order.Target.Z);
             var verb = mortar.AttackVerb;
             var distance = (target - mortar.Position).LengthHorizontal;
