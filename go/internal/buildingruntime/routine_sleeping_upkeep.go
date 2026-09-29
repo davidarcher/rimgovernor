@@ -321,6 +321,10 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		}
 		// Everyone owns a bed: walk them into planned bedrooms (#786).
 		step := bedroomStep(facts)
+		if step.Kind == policy.BedroomNone {
+			// Then pawns leave a Retiring wing, one per step (#1219).
+			step = migrateStep(facts)
+		}
 		switch step.Kind {
 		case policy.BedroomMove:
 			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: step.Pawn, Bed: step.Bed, PreviousBed: step.PreviousBed}

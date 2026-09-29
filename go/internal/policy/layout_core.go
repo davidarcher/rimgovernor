@@ -96,7 +96,7 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 	}
 	rooms := append([]LayoutRoom(nil), plan.Rooms...)
 	spine := append([]SpineSegment(nil), plan.Spine...)
-	wings := plan.Wings
+	wings := retireWings(plan.Wings, tier)
 	// Other rooms stay off the wing's ground and its growth reserve.
 	base := newCoreGrid(plan.Zones, plan.Reservations)
 	if i := wingOf(wings, WingSuites); i >= 0 {

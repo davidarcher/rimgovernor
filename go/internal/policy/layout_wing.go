@@ -16,7 +16,27 @@ type WingPurpose string
 const (
 	WingBedrooms WingPurpose = "bedrooms"
 	WingSuites   WingPurpose = "suites"
+	// WingBedroomsRetiring is a standard wing whose rooms are smaller than
+	// the tier's WingRoomSize (#1219): it stops growing, keeps its ground,
+	// and its pawns migrate to an active wing (NextMigrateStep).
+	WingBedroomsRetiring WingPurpose = "bedrooms_retiring"
 )
+
+// retireWings marks every bedroom wing whose rooms are smaller than tier's
+// WingRoomSize Retiring (#1219); the next wing sited takes the new size.
+func retireWings(wings []Wing, tier BuildTier) []Wing {
+	want := WingRoomSize(tier)
+	var out []Wing
+	for _, w := range wings {
+		if w.Purpose == WingBedrooms && len(w.Rooms) > 0 {
+			if s := frameOf(w).size; s[0]*s[1] < want[0]*want[1] {
+				w.Purpose = WingBedroomsRetiring
+			}
+		}
+		out = append(out, w)
+	}
+	return out
+}
 
 // Wing is a corridor off the main hallway with its rooms. Corridor.From is
 // its centre cell in the main hallway's wall row, Corridor.To the open end.
@@ -98,7 +118,7 @@ func frameOf(w Wing) wingFrame {
 		sign = -1
 	}
 	size := WingRoomSize(BuildTierCamp)
-	if w.Purpose == WingBedrooms && len(w.Rooms) > 0 {
+	if (w.Purpose == WingBedrooms || w.Purpose == WingBedroomsRetiring) && len(w.Rooms) > 0 {
 		in := w.Rooms[0].Interior
 		size = [2]int32{in.Height, in.Width}
 	}
@@ -178,6 +198,11 @@ func wingReserve(w Wing, want int) Rectangle {
 	if w.Purpose == WingSuites {
 		return suiteReserve(w, want)
 	}
+	if w.Purpose == WingBedroomsRetiring {
+		// Its rooms' ground out to the end wall, and no more.
+		f := frameOf(w)
+		return f.ground(f.sign*(f.reach(w.Rooms).Z-f.z0)-1, f.size[1])
+	}
 	n := int32((min(max(want, len(w.Rooms))+wingGrowthReserve, max(wingMaxRooms, len(w.Rooms))) + 1) / 2)
 	f := frameOf(w)
 	return f.ground(n*(f.size[0]+1)+1, f.size[1])
@@ -206,6 +231,16 @@ func bedroomWings(wings []Wing) []int {
 func (g coreGrid) carveBedroomWings(wings []Wing, pawns int) {
 	for i, n := range wingShares(wings, pawns) {
 		g.carve(wingReserve(wings[i], n))
+	}
+	g.carveRetiring(wings)
+}
+
+// carveRetiring takes every Retiring wing's ground out of g.
+func (g coreGrid) carveRetiring(wings []Wing) {
+	for _, w := range wings {
+		if w.Purpose == WingBedroomsRetiring {
+			g.carve(wingReserve(w, 0))
+		}
 	}
 }
 
@@ -239,6 +274,7 @@ func (g coreGrid) growWings(spine []SpineSegment, rooms []LayoutRoom, wings []Wi
 				o.carve(wingReserve(wings[i], n))
 			}
 		}
+		o.carveRetiring(wings)
 		return o
 	}
 	owed := pawns

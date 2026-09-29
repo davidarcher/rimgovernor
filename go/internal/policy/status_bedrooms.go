@@ -36,9 +36,13 @@ func BedroomRows(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 	wing := 0
 	for _, w := range plan.Wings {
 		switch w.Purpose {
-		case WingBedrooms:
+		case WingBedrooms, WingBedroomsRetiring:
 			if len(w.Rooms) == 0 {
 				continue
+			}
+			retiring := ""
+			if w.Purpose == WingBedroomsRetiring {
+				retiring = ", retiring"
 			}
 			taken := 0
 			for _, r := range w.Rooms {
@@ -46,7 +50,7 @@ func BedroomRows(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 					taken++
 				}
 			}
-			rows = append(rows, StatusRow{Key: fmt.Sprintf("bedrooms.%d", wing), Text: fmt.Sprintf("Bedrooms %d/%d, %s", taken, len(w.Rooms), size(w.Rooms[0])), Severity: StatusInfo, Target: domain.Known(w.Corridor.From)})
+			rows = append(rows, StatusRow{Key: fmt.Sprintf("bedrooms.%d", wing), Text: fmt.Sprintf("Bedrooms %d/%d, %s%s", taken, len(w.Rooms), size(w.Rooms[0]), retiring), Severity: StatusInfo, Target: domain.Known(w.Corridor.From)})
 			wing++
 		case WingSuites:
 			for _, r := range w.Rooms {

@@ -136,16 +136,12 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			}
 		}
 	}
+	retiringBed := retiringBeds(plan, rooms)
 	vacant := []string{}
 	for id, housed := range bedroomBed {
 		b, ok := beds[id]
-		if !housed || !ok || len(b.Owners) > 0 || suiteBed[id] {
-			continue
-		}
-		human, hk := b.Humanlike.Value()
-		medical, mk := b.Medical.Value()
-		prisoner, pk := b.Prisoners.Value()
-		if hk && human && mk && !medical && pk && !prisoner && !b.Slaves {
+		// A Retiring room's bed takes no one new (#1219).
+		if housed && ok && !suiteBed[id] && vacantColonistBed(b) && !retiringBed[id] {
 			vacant = append(vacant, id)
 		}
 	}
@@ -162,8 +158,10 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	var empty []LayoutRoom
 	var emptyCells [][]domain.Cell
 	var unbuilt []LayoutRoom
+	retiring := retiringRooms(plan)
 	for _, r := range plan.AllRooms() {
-		if r.Role != ModuleBedroom {
+		// A Retiring wing is never built out further (#1219).
+		if r.Role != ModuleBedroom || retiring[r.Interior] {
 			continue
 		}
 		room, ok := standing(r)

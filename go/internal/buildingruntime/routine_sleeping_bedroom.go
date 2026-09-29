@@ -27,6 +27,18 @@ func bedroomStep(facts observation.ColonyProjection) policy.BedroomStep {
 	return policy.NextBedroomStep(plan, rooms, sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts))
 }
 
+// migrateStep is the projection's next wing migration step (#1219): none
+// without the layout plan, the room census or the sleeping census.
+func migrateStep(facts observation.ColonyProjection) policy.BedroomStep {
+	plan, pk := facts.LayoutPlan.Value()
+	rooms, rk := facts.Rooms.Value()
+	sleeping, sk := facts.Facts.Sleeping.Value()
+	if !pk || !rk || !sk {
+		return policy.BedroomStep{}
+	}
+	return policy.NextMigrateStep(plan, rooms, sleeping)
+}
+
 // bedroomTargets is the rooms' quality targets, so a bedroom move leaves an
 // ascetic's NeverUpgrade room alone (#826); nil while the census is unknown.
 func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTarget {

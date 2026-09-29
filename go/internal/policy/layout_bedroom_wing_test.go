@@ -183,8 +183,13 @@ func TestBedroomWingRoomSizeByTier(t *testing.T) {
 		size(t, checkWing(t, p, 4), WingRoomSize(tier))
 	}
 	camp := PlanCore(coreTestZones(), 3, BuildTierCamp)
+	// A later tier retires the smaller wing and sites a new one (#1219).
 	grown := Grow(camp, 6, 1, BuildTierSpacer)
-	size(t, checkWing(t, grown, 6), WingRoomSize(BuildTierCamp))
+	size(t, grown.Wings[0], WingRoomSize(BuildTierCamp))
+	if grown.Wings[0].Purpose != WingBedroomsRetiring {
+		t.Fatal("camp wing not retiring", grown.Wings[0].Purpose)
+	}
+	size(t, checkWing(t, grown, 6), WingRoomSize(BuildTierSpacer))
 }
 
 // A room the survey drops leaves a hole; the wing is refilled around it and
