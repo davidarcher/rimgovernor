@@ -79,14 +79,18 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 	for _, r := range plan.Rooms {
 		have[r.Role]++
 	}
+	// The bedrooms queue right behind the storage room, so the wing takes
+	// the slots beside it before the later base rooms do (#1178).
 	var want []ModuleRole
 	for _, role := range coreBaseRooms {
 		if have[role] == 0 {
 			want = append(want, role)
 		}
-	}
-	for i := have[ModuleBedroom]; i < pawns; i++ {
-		want = append(want, ModuleBedroom)
+		if role == ModuleStorage {
+			for i := have[ModuleBedroom]; i < pawns; i++ {
+				want = append(want, ModuleBedroom)
+			}
+		}
 	}
 	for i := max(have[ModuleTomb], 1); i < tombs; i++ {
 		want = append(want, ModuleTomb)
@@ -101,8 +105,12 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 	}
 	for _, role := range want {
 		placed, fit := false, false
+		pg := g
+		if role == ModuleBedroom {
+			pg.near, pg.hasNear = wingAnchor(rooms)
+		}
 		for !placed {
-			for i := range spine {
+			for _, i := range segmentOrder(spine, rooms, role) {
 				var next SpineSegment
 				var room LayoutRoom
 				ok := false
@@ -112,7 +120,7 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 					room, ok = local.beside(&next, rooms, role)
 				}
 				if !ok {
-					next, room, ok = g.placeOn(spine, i, rooms, role, coreRoomSize[role])
+					next, room, ok = pg.placeOn(spine, i, rooms, role, coreRoomSize[role])
 				}
 				if !ok {
 					continue
@@ -160,6 +168,10 @@ type coreGrid struct {
 	// the hallway): rooms go to whichever end stays nearer it.
 	junction    int32
 	hasJunction bool
+	// near, when set, pulls rooms to whichever end keeps their door nearest
+	// it (the bedroom wing hugs the storage room, #1178).
+	near    domain.Cell
+	hasNear bool
 }
 
 // newCoreGrid takes reserved sites out of the core candidates.
@@ -283,6 +295,10 @@ func (g coreGrid) placeSized(seg *SpineSegment, rooms []LayoutRoom, role ModuleR
 		grow := hi - lo - (seg.To.X - seg.From.X)
 		if g.hasJunction {
 			grow = max(hi-g.junction, g.junction-lo)
+		}
+		if g.hasNear {
+			dx, dz := int64(best.Door.X-g.near.X), int64(best.Door.Z-g.near.Z)
+			grow = int32(min(dx*dx+dz*dz, 1<<30))
 		}
 		if !picked || grow < pickGrow {
 			pick, picked, pickGrow = best, true, grow
