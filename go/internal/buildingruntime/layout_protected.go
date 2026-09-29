@@ -6,10 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// protectedCellLimit is the bound every policy site search places on its
-// Protected set; a request past it is refused outright.
-const protectedCellLimit = 65536
-
 // layoutAnchor is the cell a routine anchors its site search on. At
 // Masonry and above it reads the v2 layout plan first (#785): the centre of
 // the district's planned room (or field zone run) whose cells are all

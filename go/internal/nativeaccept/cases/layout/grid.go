@@ -124,6 +124,7 @@ func grid(ctx context.Context, s cases.Session) error {
 	}
 	var described []map[string]any
 	var rects []policy.Rectangle
+	var zoned []domain.Cell
 	for _, row := range zones {
 		zone, _ := na.AsMap(row)
 		cells := cellsOf(zone["cells"])
@@ -138,6 +139,7 @@ func grid(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("zone %v %+v lies in the hut %+v", zone["id"], rect, room)
 		}
 		rects = append(rects, rect)
+		zoned = append(zoned, cells...)
 	}
 	report["zones"] = described
 	if len(rects) == 0 {
@@ -162,6 +164,13 @@ func grid(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	if laid {
+		// Fields fill the plan field blocks, not a square search (#1227).
+		fields := layout.Plan.FieldCells()
+		for _, c := range zoned {
+			if !fields[c] {
+				return fmt.Errorf("growing zone cell %v lies outside the plan field blocks", c)
+			}
+		}
 		return plannedRing(layout.Plan, shell, report)
 	}
 	return nil

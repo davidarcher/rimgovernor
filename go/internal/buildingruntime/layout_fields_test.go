@@ -150,11 +150,3 @@ func TestFieldBlockHayClaimsItsOwnBlock(t *testing.T) {
 		t.Fatalf("hay should grow its own zone: %+v %v", edit, ok)
 	}
 }
-
-// Camp tier protects everything outside the plan's field cells too.
-func TestLayoutFieldProtectedAtCamp(t *testing.T) {
-	facts := blockFacts()
-	if got := layoutFieldProtected(facts, nil); len(got) != 4 {
-		t.Fatalf("protected %v", got)
-	}
-}

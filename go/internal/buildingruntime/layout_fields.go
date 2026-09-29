@@ -23,21 +23,6 @@ func layoutFieldCells(facts observation.ColonyProjection) (map[domain.Cell]bool,
 	return fields, len(fields) > 0
 }
 
-// layoutFieldProtected protects every observed cell outside the plan's
-// field zones, so outdoor fields grow only on the planned blocks.
-func layoutFieldProtected(facts observation.ColonyProjection, protected []domain.Cell) []domain.Cell {
-	fields, ok := layoutFieldCells(facts)
-	if !ok {
-		return protected
-	}
-	for _, c := range facts.Cells {
-		if !fields[c.Cell] && len(protected) < protectedCellLimit {
-			protected = append(protected, c.Cell)
-		}
-	}
-	return protected
-}
-
 // fieldBlockEdit is the next outdoor field step: Zone empty creates a
 // growing zone of Crop on Cells; otherwise Cells are added to Zone, which
 // grows Crop.

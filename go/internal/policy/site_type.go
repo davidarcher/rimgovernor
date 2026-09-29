@@ -41,7 +41,7 @@ type Infrastructure struct {
 }
 
 // SiteTypeWeights price infrastructure in normal-soil cells of the crop's
-// daily nutrition, like FarmSiteWeights, so a lamp is only worth building
+// daily nutrition, like siteTravelWeight, so a lamp is only worth building
 // when the soil it lights outgrows its cost.
 type SiteTypeWeights struct {
 	// Construction is charged per 100 steel-equivalent of a new building's
@@ -571,11 +571,7 @@ func siteHydroponics(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnviron
 	}
 	n := len(c.Buildings)
 	c.Cells = n * siteBasinCells
-	weights := r.Field.Site.Weights
-	if weights == (FarmSiteWeights{}) {
-		weights = DefaultFarmSiteWeights()
-	}
-	c.Terms = []FarmSiteTerm{{"yield", cropRate(v.crop, fertility) * float64(c.Cells)}, {"travel", -weights.Travel * unit * float64(walk)}, {"construction", siteConstructionCharge(w, unit, basin, n)}, {"power", -w.Power * unit * draw * float64(n) / 1000}}
+	c.Terms = []FarmSiteTerm{{"yield", cropRate(v.crop, fertility) * float64(c.Cells)}, {"travel", -siteTravelWeight * unit * float64(walk)}, {"construction", siteConstructionCharge(w, unit, basin, n)}, {"power", -w.Power * unit * draw * float64(n) / 1000}}
 	total := 0.0
 	for _, t := range c.Terms {
 		total += t.Value
@@ -706,10 +702,6 @@ func sitePick(site FarmSiteRequest, v viableCrop, keep func(SiteCell) bool, prot
 			picked[c] = true
 		}
 	}
-	weights := site.Weights
-	if weights == (FarmSiteWeights{}) {
-		weights = DefaultFarmSiteWeights()
-	}
 	unit := cropRate(v.crop, 1)
 	plan := FarmSitePlan{}
 	for _, patch := range siteMergeRects(picked) {
@@ -718,7 +710,7 @@ func sitePick(site FarmSiteRequest, v viableCrop, keep func(SiteCell) bool, prot
 			reward += cropRate(v.crop, soil[c])
 			walk += siteManhattan(c, anchor)
 		}
-		terms := []FarmSiteTerm{{"yield", reward}, {"travel", -weights.Travel * unit * float64(walk)}}
+		terms := []FarmSiteTerm{{"yield", reward}, {"travel", -siteTravelWeight * unit * float64(walk)}}
 		n := float64(patch.Width * patch.Height)
 		plan.Patches = append(plan.Patches, patch)
 		plan.Selected = append(plan.Selected, FarmSiteCandidate{Patch: patch, Score: terms[0].Value + terms[1].Value, Density: (terms[0].Value + terms[1].Value) / n, Terms: terms})

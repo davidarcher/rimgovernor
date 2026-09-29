@@ -2,60 +2,30 @@ package policy
 
 import (
 	"fmt"
-	"math"
-	"sort"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// FarmZone is an existing growing zone the site census can see. A candidate
-// patch touching a zone growing the same crop is a contiguous addition rather
-// than a new fragment, whoever zoned it (#719: the autopilot extends player
-// fields too).
-type FarmZone struct {
-	ID, Crop string
-}
+// siteTravelWeight charges a picked cell per step from the anchor, as a
+// fraction of one normal-soil cell's daily nutrition for the crop.
+const siteTravelWeight = 0.015
 
-// FarmSiteWeights express every penalty as a fraction of one normal-soil
-// cell's daily nutrition for the crop, so the balance between yield and cost
-// is the same for fast rice and slow corn. A distant rich patch loses to
-// suitable local soil once its walk, haul and fragmentation costs exceed its
-// extra yield.
-type FarmSiteWeights struct {
-	// Travel is charged per patch cell per walked step from the anchor.
-	Travel float64
-	// Hauling is charged per patch cell per walked step to the storage cell.
-	Hauling float64
-	// Fragment is a fixed charge per separate patch; Perimeter per edge cell.
-	Fragment, Perimeter float64
-	// Contiguity is credited per cell of a patch that adjoins a compatible
-	// zone, and such a patch is not charged the fixed Fragment cost.
-	Contiguity float64
-	// Blight charges each edge shared with another field; Firebreak credits
-	// an intervening roofed empty cell or impassable occupied cell.
-	Blight, Firebreak float64
-}
+// farmSitePatchLimit bounds a new greenhouse's lamps.
+const farmSitePatchLimit = 32
 
-// DefaultFarmSiteWeights make rich soil (+40% yield) worth about 27 extra
-// walked steps and a separate patch cost half a cell's output.
-func DefaultFarmSiteWeights() FarmSiteWeights {
-	return FarmSiteWeights{Travel: 0.015, Hauling: 0.005, Fragment: 0.5, Perimeter: 0.04, Contiguity: 0.1, Blight: .8, Firebreak: .1}
-}
-
+// FarmSiteRequest is the cell census a site kind picks from (#1227: the
+// square search is gone; every kind uses the rectangle picker).
 type FarmSiteRequest struct {
-	Bounds  Bounds
-	Anchor  domain.Cell
-	Storage domain.Fact[domain.Cell]
-	Cells   []SiteCell
+	Bounds Bounds
+	Anchor domain.Cell
+	Cells  []SiteCell
 	// Protected cells are never planted: accepted footprints,
 	// walkways, entrances and reserved routes.
-	Protected    []domain.Cell
-	Zones        []FarmZone
-	Crop         CropChoice
-	Needed       int
-	StrictTarget bool
-	Weights      FarmSiteWeights
+	Protected []domain.Cell
+	// Fields, when non-nil, are the only cells an outdoor candidate
+	// scores: the layout plan's field blocks.
+	Fields map[domain.Cell]bool
 }
 
 type FarmSiteTerm struct {
@@ -64,316 +34,29 @@ type FarmSiteTerm struct {
 }
 
 // FarmSiteCandidate records why a patch scored as it did. Score is the sum of
-// Terms; Density is Score per cell and orders selection.
+// Terms; Density is Score per cell.
 type FarmSiteCandidate struct {
 	Patch          Rectangle
 	Score, Density float64
 	Terms          []FarmSiteTerm
-	// Adjacent names the compatible zone the patch touches, if any.
-	Adjacent string
 }
 
 type FarmSitePlan struct {
 	Patches   []Rectangle
 	Selected  []FarmSiteCandidate
 	Cells     int
-	Fallback  bool
 	Unplanted int
 }
 
 // Explain renders the selection for logs and acceptance evidence.
 func (p FarmSitePlan) Explain() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%d cells in %d patches (fallback=%t unplanted=%d)", p.Cells, len(p.Patches), p.Fallback, p.Unplanted)
+	fmt.Fprintf(&b, "%d cells in %d patches (unplanted=%d)", p.Cells, len(p.Patches), p.Unplanted)
 	for _, c := range p.Selected {
 		fmt.Fprintf(&b, "\n  %dx%d@%d,%d score=%.4f density=%.4f", c.Patch.Width, c.Patch.Height, c.Patch.X, c.Patch.Z, c.Score, c.Density)
 		for _, t := range c.Terms {
 			fmt.Fprintf(&b, " %s=%.4f", t.Name, t.Value)
 		}
-		if c.Adjacent != "" {
-			fmt.Fprintf(&b, " adjacent=%s", c.Adjacent)
-		}
 	}
 	return b.String()
-}
-
-const farmSitePatchLimit = 32
-
-// PlanFarmSites chooses up to 32 disjoint square patches for one crop by a
-// bounded, explainable score shared by the starter template and expansion.
-// Reward is the crop's fertility-adjusted nutrition rate over the patch;
-// penalties are walked travel from the anchor, hauling to storage and
-// fragmentation. Patches touching a compatible zone are contiguous
-// additions. Isolated 1x1 cells are only used once no larger patch can meet
-// the crop's fertility floor. Missing, unreachable, occupied, zoned, roofed
-// and protected cells never become free land. Output is independent of
-// census order.
-func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
-	w := r.Weights
-	if w == (FarmSiteWeights{}) {
-		w = DefaultFarmSiteWeights()
-	}
-	minimum, mk := r.Crop.FertilityMin.Value()
-	sensitivity, sk := r.Crop.FertilitySensitivity.Value()
-	days, dk := r.Crop.GrowDays.Value()
-	yield, yk := r.Crop.HarvestNutrition.Value()
-	if units, known := r.Crop.HarvestUnits.Value(); known {
-		yield, yk = units, true
-	}
-	if r.Needed <= 0 || r.Needed > 65536 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || !mk || !fieldPositive(minimum) || !sk || !foodNumber(sensitivity) || !dk || !fieldPositive(days) || !yk || !fieldPositive(yield) {
-		return FarmSitePlan{}
-	}
-	for _, v := range []float64{w.Travel, w.Hauling, w.Fragment, w.Perimeter, w.Contiguity, w.Blight, w.Firebreak} {
-		if !foodNumber(v) || v < 0 {
-			return FarmSitePlan{}
-		}
-	}
-	inBounds := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < r.Bounds.Width && c.Z < r.Bounds.Height }
-	if !inBounds(r.Anchor) {
-		return FarmSitePlan{}
-	}
-	census := make(map[domain.Cell]SiteCell, len(r.Cells))
-	for _, c := range r.Cells {
-		if _, dup := census[c.Cell]; dup || !inBounds(c.Cell) {
-			return FarmSitePlan{}
-		}
-		census[c.Cell] = c
-	}
-	blocked := map[domain.Cell]bool{}
-	for _, c := range r.Protected {
-		blocked[c] = true
-	}
-	compatible := map[string]bool{}
-	for _, z := range r.Zones {
-		if z.Crop == r.Crop.Name && z.ID != "" {
-			compatible[z.ID] = true
-		}
-	}
-	walkable := func(c domain.Cell) bool {
-		s, ok := census[c]
-		return ok && positive(s.Walkable)
-	}
-	// Walked steps over the walkable census, four-connected. Cells the census
-	// does not describe are walls for planning purposes.
-	distanceFrom := func(origin domain.Cell) map[domain.Cell]int {
-		dist := map[domain.Cell]int{}
-		if !walkable(origin) {
-			return dist
-		}
-		dist[origin] = 0
-		queue := []domain.Cell{origin}
-		for len(queue) > 0 {
-			c := queue[0]
-			queue = queue[1:]
-			for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
-				if _, seen := dist[n]; seen || !walkable(n) {
-					continue
-				}
-				dist[n] = dist[c] + 1
-				queue = append(queue, n)
-			}
-		}
-		return dist
-	}
-	travel := distanceFrom(r.Anchor)
-	haul := travel
-	if storage, known := r.Storage.Value(); known && inBounds(storage) {
-		if d := distanceFrom(storage); len(d) > 0 {
-			haul = d
-		}
-	}
-	free := map[domain.Cell]float64{}
-	for c, s := range census {
-		if _, reachable := travel[c]; !reachable {
-			continue
-		}
-		if soil, ok := freeCropSoil(s, minimum, blocked); ok && cropSoilCompatible(r.Crop, s) {
-			free[c] = soil
-		}
-	}
-	rate := func(soil float64) float64 { return yield * math.Max(0, 1+(soil-1)*sensitivity) / days }
-	unit := rate(1)
-	if !fieldPositive(unit) {
-		return FarmSitePlan{}
-	}
-	target := r.Needed
-	fields := map[string]bool{}
-	for _, zone := range r.Zones {
-		fields[zone.ID] = zone.ID != ""
-	}
-	edges, breaks := map[domain.Cell]int{}, map[domain.Cell]int{}
-	addField := func(c domain.Cell) {
-		for _, n := range farmNeighbors(c) {
-			edges[n]++
-			middle, known := census[n]
-			if !known || !(positive(middle.Roofed) && siteKnownFalse(middle.Occupied) && siteKnownFalse(middle.Zone) || positive(middle.Occupied) && siteKnownFalse(middle.Walkable)) {
-				continue
-			}
-			beyond := domain.Cell{X: 2*n.X - c.X, Z: 2*n.Z - c.Z}
-			breaks[beyond]++
-		}
-	}
-	for cell, s := range census {
-		if id, known := s.ZoneID.Value(); known && fields[id] {
-			addField(cell)
-		}
-	}
-	taken := map[domain.Cell]bool{}
-	// A zoned census cell adjoining the patch is a contiguity partner only if
-	// it belongs to a compatible zone.
-	adjacentZone := func(patch Rectangle) string {
-		best := ""
-		for _, c := range rectCells(patch) {
-			for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
-				s, ok := census[n]
-				if !ok {
-					continue
-				}
-				id, known := s.ZoneID.Value()
-				if known && compatible[id] && (best == "" || id < best) {
-					best = id
-				}
-			}
-		}
-		return best
-	}
-	// contiguityTerms are the terms selection re-scores: touching fields
-	// (blight, firebreak), contiguity and fragment.
-	contiguityTerms := func(patch Rectangle) ([]FarmSiteTerm, string, bool) {
-		shared, firebreak := 0, 0
-		for _, c := range rectCells(patch) {
-			if taken[c] {
-				return nil, "", false
-			}
-			shared += edges[c]
-			firebreak += breaks[c]
-		}
-		n := float64(patch.Width * patch.Height)
-		terms := []FarmSiteTerm{{"blight", -w.Blight * unit * float64(shared)}, {"firebreak", w.Firebreak * unit * float64(firebreak)}}
-		adjacent := ""
-		if adjacent = adjacentZone(patch); adjacent == "" {
-			terms = append(terms, FarmSiteTerm{"fragment", -w.Fragment * unit})
-		} else {
-			terms = append(terms, FarmSiteTerm{"contiguity", w.Contiguity * unit * n})
-		}
-		return terms, adjacent, true
-	}
-	// fixedTerms is how many leading terms of a candidate selection never
-	// re-scores: yield, travel, hauling and perimeter.
-	const fixedTerms = 4
-	score := func(patch Rectangle) (FarmSiteCandidate, bool) {
-		cells := rectCells(patch)
-		reward, walk, carry := 0.0, 0.0, 0.0
-		for _, c := range cells {
-			soil, ok := free[c]
-			if !ok {
-				return FarmSiteCandidate{}, false
-			}
-			reward += rate(soil)
-			walk += float64(travel[c])
-			carry += float64(haul[c])
-		}
-		n := float64(len(cells))
-		terms := []FarmSiteTerm{{"yield", reward}, {"travel", -w.Travel * unit * walk}, {"hauling", -w.Hauling * unit * carry}, {"perimeter", -w.Perimeter * unit * float64(2*(patch.Width+patch.Height))}}
-		rest, adjacent, ok := contiguityTerms(patch)
-		if !ok {
-			return FarmSiteCandidate{}, false
-		}
-		terms = append(terms, rest...)
-		total := 0.0
-		for _, t := range terms {
-			total += t.Value
-		}
-		if !foodNumber(total) {
-			return FarmSiteCandidate{}, false
-		}
-		return FarmSiteCandidate{Patch: patch, Score: total, Density: total / n, Terms: terms, Adjacent: adjacent}, true
-	}
-	ordered := make([]domain.Cell, 0, len(free))
-	for c := range free {
-		ordered = append(ordered, c)
-	}
-	sort.Slice(ordered, func(i, j int) bool { return cellLess(ordered[i], ordered[j]) })
-	order := func(out []FarmSiteCandidate) []FarmSiteCandidate {
-		sort.Slice(out, func(i, j int) bool {
-			a, b := out[i], out[j]
-			if a.Density != b.Density {
-				return a.Density > b.Density
-			}
-			if a.Patch.Width != b.Patch.Width {
-				return a.Patch.Width > b.Patch.Width
-			}
-			return cellLess(domain.Cell{X: a.Patch.X, Z: a.Patch.Z}, domain.Cell{X: b.Patch.X, Z: b.Patch.Z})
-		})
-		return out
-	}
-	candidates := func(sizes []int32) []FarmSiteCandidate {
-		var out []FarmSiteCandidate
-		for _, size := range sizes {
-			for _, c := range ordered {
-				if c.X+size > r.Bounds.Width || c.Z+size > r.Bounds.Height {
-					continue
-				}
-				if cand, ok := score(Rectangle{c.X, c.Z, size, size}); ok {
-					out = append(out, cand)
-				}
-			}
-		}
-		return order(out)
-	}
-	plan := FarmSitePlan{}
-	pick := func(pool []FarmSiteCandidate) {
-		for len(pool) > 0 {
-			if plan.Cells >= target || len(plan.Patches) >= farmSitePatchLimit {
-				return
-			}
-			// Re-score after each selection: a second patch also pays for
-			// touching a field admitted in this same batch.
-			best := -1
-			for i := range pool {
-				if r.StrictTarget && int(pool[i].Patch.Width*pool[i].Patch.Height) > target-plan.Cells {
-					continue
-				}
-				rest, adjacent, clear := contiguityTerms(pool[i].Patch)
-				if !clear {
-					continue
-				}
-				candidate := &pool[i]
-				candidate.Terms = append(candidate.Terms[:fixedTerms:fixedTerms], rest...)
-				candidate.Adjacent = adjacent
-				candidate.Score = 0
-				for _, term := range candidate.Terms {
-					candidate.Score += term.Value
-				}
-				candidate.Density = candidate.Score / float64(candidate.Patch.Width*candidate.Patch.Height)
-				if best < 0 || pool[i].Density > pool[best].Density {
-					best = i
-				}
-			}
-			if best < 0 {
-				return
-			}
-			cand := pool[best]
-			pool = append(pool[:best], pool[best+1:]...)
-			cells := rectCells(cand.Patch)
-			for _, c := range cells {
-				taken[c] = true
-				addField(c)
-			}
-			plan.Patches = append(plan.Patches, cand.Patch)
-			plan.Selected = append(plan.Selected, cand)
-			plan.Cells += len(cells)
-		}
-	}
-	// Fallback is lone cells once the size ladder runs out.
-	if plan.Cells < target {
-		pick(candidates([]int32{4, 3, 2}))
-	}
-	before := len(plan.Patches)
-	if plan.Cells < target {
-		pick(candidates([]int32{1}))
-	}
-	plan.Fallback = len(plan.Patches) > before
-	plan.Unplanted = max(0, target-plan.Cells)
-	return plan
 }

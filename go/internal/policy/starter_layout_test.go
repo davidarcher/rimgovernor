@@ -12,8 +12,7 @@ import (
 
 // Recorded from colony_policy.starter_layouts at db2223f0 with starterFixture's
 // exact 40x40 native facts. This checks every retained site's room and storage
-// geometry and order; farms come from the shared PlanFarmSites score instead
-// of the recorded distance-first packing.
+// geometry and order.
 func TestStarterRecordedReplay(t *testing.T) {
 	data, err := os.ReadFile("testdata/starter-recorded.json")
 	if err != nil {

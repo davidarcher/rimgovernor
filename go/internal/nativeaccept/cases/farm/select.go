@@ -54,8 +54,8 @@ type selection struct {
 
 func init() {
 	for name, sel := range map[string]selection{
-		"outdoor":     {expect: farmselect.Expectation{Kind: "outdoor", MinCells: 1, Terms: []string{"blight", "firebreak"}}},
-		"greenhouse":  {environment: "greenhouse", expect: farmselect.Expectation{Kind: "greenhouse-reuse", MinCells: 1, Terms: []string{"blight", "firebreak", "risk-frost"}}},
+		"outdoor":     {expect: farmselect.Expectation{Kind: "outdoor", MinCells: 1, Terms: []string{"yield", "travel"}}},
+		"greenhouse":  {environment: "greenhouse", expect: farmselect.Expectation{Kind: "greenhouse-reuse", MinCells: 1, Terms: []string{"yield", "travel", "risk-frost"}}},
 		"hydroponics": {environment: "hydroponics", unavailableCrops: "Plant_Rice,Plant_Strawberry", expect: farmselect.Expectation{Kind: "hydroponics", Crop: "Plant_Potato", MinCells: 1, Terms: []string{"risk-frost"}}},
 	} {
 		cases.Register(sel.register("farm/select-" + name))

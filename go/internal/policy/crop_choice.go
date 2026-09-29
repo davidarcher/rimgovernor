@@ -76,7 +76,8 @@ func (p FieldPlan) Explain() string {
 
 // PlanField chooses the crop and patches jointly. Every available edible crop
 // with complete native facts is a candidate; its patches come from
-// PlanFarmSites over the crop's own fertility floor, so a fertility-tolerant
+// sitePick over unroofed free soil (the plan field blocks when set) at
+// the crop own fertility floor, so a fertility-tolerant
 // crop wins on poor soil where a richer crop would find no land. A remaining
 // season shorter than 2.5 grow cycles excludes a crop; an unknown remaining
 // season while sowing is possible is treated as short, so the fastest crop
@@ -180,9 +181,7 @@ func planField(r FieldRequest, indoor bool) (FieldPlan, bool) {
 	plan.Urgent = urgent
 	for _, v := range viables {
 		site := r.Site
-		site.Crop = v.crop
-		site.Needed = v.needed
-		sites := PlanFarmSites(site)
+		sites := sitePick(site, v, func(s SiteCell) bool { return siteKnownFalse(s.Roofed) && (site.Fields == nil || site.Fields[s.Cell]) }, nil, false)
 		c := FieldCandidate{Crop: v.crop, Needed: v.needed, Sites: sites, Urgent: urgent}
 		if sites.Cells == 0 {
 			c.Reason = "no plantable soil"

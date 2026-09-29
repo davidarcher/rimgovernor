@@ -165,11 +165,10 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	reserveDays := r.reviewer.seasonal(projection.Facts).FoodTargetDays
 	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays)
-	var zones []policy.FarmZone
-	for _, farm := range projection.Farms {
-		zones = append(zones, policy.FarmZone{ID: farm.ID, Crop: farm.Crop})
+	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictFields), Cells: projection.Cells, Protected: protected}
+	if fields, ok := layoutFieldCells(projection); ok {
+		site.Fields = fields
 	}
-	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictFields), Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: layoutFieldProtected(projection, protected), Zones: zones}
 	growers, cooks := policy.CropWorkers(projection.WorkPawns)
 	request := policy.SiteTypeRequest{Field: policy.FieldRequest{Growers: growers, Cooks: cooks, Calendar: projection.Facts.Calendar, Conditions: projection.Facts.DisasterConditions, Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: reserveDays, Coverage: coverage, Site: site}, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius}
 	for _, d := range projection.Definitions {
@@ -205,7 +204,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: wait}, nil
 	}
 	if !known {
-		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, coverage, len(zones), selection.Explain())
+		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, coverage, len(projection.Farms), selection.Explain())
 		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
 	}
 	// The winner's cells: basin kinds carry them on the candidate, not a site plan.

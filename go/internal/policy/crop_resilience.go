@@ -97,7 +97,3 @@ func siteRiskTerms(r FieldRequest, crop CropChoice, cells int) []FarmSiteTerm {
 	}
 	return terms
 }
-
-func farmNeighbors(c domain.Cell) [4]domain.Cell {
-	return [4]domain.Cell{{X: c.X - 1, Z: c.Z}, {X: c.X + 1, Z: c.Z}, {X: c.X, Z: c.Z - 1}, {X: c.X, Z: c.Z + 1}}
-}
