@@ -86,7 +86,9 @@ namespace HomeBridge.BridgeTools
                 var shooting = shooter.skills.GetSkill(SkillDefOf.Shooting);
                 if (shooting.TotallyDisabled) return new { success = false, reason = "Shooter cannot shoot." };
                 shooting.Level = 15;
-                shooter.equipment.DestroyAllEquipment();
+                // Only the shooter is ranged: a start pawn with a gun and more
+                // Shooting would outrank it for the one eye.
+                foreach (var pawn in map.mapPawns.FreeColonistsSpawned) pawn.equipment.DestroyAllEquipment();
                 shooter.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(ThingDef.Named("Gun_Autopistol")));
                 var medicine = doctor.skills.GetSkill(SkillDefOf.Medicine);
                 if (medicine.TotallyDisabled) return new { success = false, reason = "Doctor cannot doctor." };
@@ -99,12 +101,9 @@ namespace HomeBridge.BridgeTools
                         return new { success = false, reason = name + " placement failed." };
                     item.SetForbidden(false, false);
                 }
-                var bedDef = ThingDef.Named("Bed");
-                var cell = GenRadial.RadialCellsAround(doctor.Position, 12, true).FirstOrDefault(c => c.InBounds(map) && !c.Fogged(map)
-                    && GenAdj.OccupiedRect(c, Rot4.North, bedDef.size).Cells.All(o => o.InBounds(map) && o.Standable(map) && o.GetEdifice(map) == null && map.thingGrid.ThingsListAt(o).Count == 0));
-                if (!cell.IsValid) return new { success = false, reason = "No bed cell." };
-                var bed = (Building_Bed)ThingMaker.MakeThing(bedDef, ThingDefOf.WoodLog);
-                bed.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(bed, cell, map, Rot4.North); bed.Medical = true;
+                // Electives cap failure at 5%: an outdoor bed scores ~38% even
+                // for a Medicine 20 doctor, so the bed stands in a sterile room.
+                SurgeryRoom(map, doctor.Position + new IntVec3(4, 0, -2), false);
                 var eye = shooter.health.hediffSet.GetNotMissingParts().FirstOrDefault(p => p.def.defName == "Eye");
                 return new
                 {
@@ -180,7 +179,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Disable routine Doctor work to exercise repeated explicit native tending.", DefaultValue = false)] bool manualTending = false,
             [ToolParameter(Description = "Force the surgical patient into the high-severity withdrawal stage of GoJuiceAddiction, instead of waiting on real decay/timing.", DefaultValue = false)] bool withdrawal = false,
             [ToolParameter(Description = "Hospital planning variant: flu patients start tended, no medical sleeping spots are placed and PatientBedRest stays enabled, so the patients need a hosted medical bed the service must provide.", DefaultValue = false)] bool hospital = false,
-            [ToolParameter(Description = "Surgery cases (#1170): give the second colonist cataract, infectedHand or missingKidney; missingKidney also holds one unrecruitable non-player prisoner on a prisoner sleeping spot. missingKidneyIndustrial is missingKidney without the herbal stock, so industrial medicine is the only medicine (#1239). pegTraining (#1236) instead drops every doctor to Medicine 8 and holds one unrecruitable factionless prisoner missing a leg. Empty adds nothing.", DefaultValue = "")] string condition = "")
+            [ToolParameter(Description = "Surgery cases (#1170): give the second colonist cataract, infectedHand, missingKidney or missingArm; missingKidney and missingArm also hold one unrecruitable non-player prisoner on a prisoner sleeping spot, under missingArm with a BionicArm. missingKidneyIndustrial is missingKidney without the herbal stock, so industrial medicine is the only medicine (#1239). pegTraining (#1236) instead drops every doctor to Medicine 8 and holds one unrecruitable factionless prisoner missing a leg. Empty adds nothing.", DefaultValue = "")] string condition = "")
         {
             var industrialOnly = condition == "missingKidneyIndustrial";
             if (industrialOnly) condition = "missingKidney";
@@ -216,7 +215,7 @@ namespace HomeBridge.BridgeTools
                 if (condition != "") {
                     stage = "surgery room";
                     SurgeryRoom(map, center + new IntVec3(4, 0, -2), false);
-                    if (condition == "missingKidney" || condition == "pegTraining") prisonCell = SurgeryRoom(map, center + new IntVec3(-9, 0, -2), true);
+                    if (condition == "missingKidney" || condition == "missingArm" || condition == "pegTraining") prisonCell = SurgeryRoom(map, center + new IntVec3(-9, 0, -2), true);
                 }
                 foreach (var item in new[] { ("MealSurvivalPack", 200), ("MedicineIndustrial", 60), ("WoodLog", 100), ("SimpleProstheticLeg", 1) }) {
                     stage = "stock "+item.Item1;
@@ -291,13 +290,14 @@ namespace HomeBridge.BridgeTools
                     case "cataract": partDef = "Eye"; stock = "BionicEye"; break;
                     case "infectedHand": partDef = "Hand"; break;
                     case "missingKidney": partDef = "Kidney"; break;
+                    case "missingArm": partDef = "Shoulder"; break;
                     case "pegTraining": partDef = null; break;
                     default: throw new InvalidOperationException("Unknown condition " + condition);
                     }
                     var part = partDef == null ? null : patient.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == partDef);
                     conditionPart = part == null ? -1 : patient.RaceProps.body.AllParts.IndexOf(part);
                     if (condition == "cataract") patient.health.AddHediff(HediffDef.Named("Cataract"), part);
-                    if (condition == "missingKidney") patient.health.AddHediff(HediffDefOf.MissingBodyPart, part);
+                    if (condition == "missingKidney" || condition == "missingArm") patient.health.AddHediff(HediffDefOf.MissingBodyPart, part);
                     if (condition == "infectedHand") {
                         // Losing its immunity race even once tended: tended severity
                         // rises 0.84-0.53 = 0.31/day, so 0.7 reaches 1 in ~1 day while
@@ -315,7 +315,7 @@ namespace HomeBridge.BridgeTools
                         if (!GenPlace.TryPlaceThing(item, center, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Part placement failed");
                         item.SetForbidden(false, false);
                     }
-                    if (condition == "missingKidney" || condition == "pegTraining") {
+                    if (condition == "missingKidney" || condition == "missingArm" || condition == "pegTraining") {
                         stage = "prisoner";
                         // Peg-leg training runs on a factionless prisoner: its removal
                         // costs no goodwill.
@@ -325,6 +325,10 @@ namespace HomeBridge.BridgeTools
                         GenSpawn.Spawn(prisoner, prisonCell, map);
                         prisoner.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
                         prisoner.guest.Recruitable = false;
+                        if (condition == "missingArm") {
+                            var shoulder = prisoner.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == "Shoulder");
+                            prisoner.health.AddHediff(HediffDef.Named("BionicArm"), shoulder);
+                        }
                         if (condition == "pegTraining") {
                             var prisonerLeg = prisoner.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == "Leg");
                             prisoner.health.AddHediff(HediffDefOf.MissingBodyPart, prisonerLeg);

@@ -205,6 +205,7 @@ func TestElectiveSurgery(t *testing.T) {
 		{"5% cap holds", []CarePawn{wholePawn("a", 0, electiveOp("InstallBionicEye", "Eye", 5, 0.95))}, ward, []string{"InstallBionicEye"}, 0},
 		{"not an upgrade", []CarePawn{wholePawn("a", 0, electiveOp("InstallSimpleProstheticArm", "Arm", 20, 0.99), electiveOp("InstallJoywire", "Brain", 1, 0.99))}, ward, nil, 0},
 		{"restore pending elsewhere", []CarePawn{upgrades(), wholePawn("b", 0, restoreOp("InstallPegLeg", "Leg", 30, 0.5, 1, true))}, ward, nil, 1},
+		{"a queued bill holds the next elective", []CarePawn{wholePawn("0", 1), upgrades()}, SurgeryContext{HospitalBed: true, Profiles: []PawnProfile{shooter}}, nil, 0},
 		{"restore blocks electives", []CarePawn{upgrades(), wholePawn("b", 0, restoreOp("InstallPegLeg", "Leg", 30, 0.9, 1, true))}, ward, []string{"InstallPegLeg"}, 0},
 	} {
 		t.Run(c.name, func(t *testing.T) {

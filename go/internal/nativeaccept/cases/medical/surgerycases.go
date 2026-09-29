@@ -55,6 +55,13 @@ func init() {
 			"false. Native: the population read contract; the refusal and herbal want are policy snapshot tests.",
 		Start: setup("missingKidneyIndustrial"), Budget: 3 * time.Minute, Run: surgeryHarvestCareLimit,
 	})
+	cases.Register(cases.Case{
+		Name: "medical/surgery-part-recovery",
+		Scope: "Artificial part recovery (#1232): with an unrecruitable low-worth prisoner wearing a BionicArm and a colonist " +
+			"missing an arm with none stocked, MaintainSurgery removes the arm from the prisoner, then installs it with " +
+			"InstallBionicArm. Native: the vanilla removal yielding the BionicArm item.",
+		Start: setup("missingArm"), Service: true, Budget: 10 * time.Minute, Run: surgeryPartRecovery,
+	})
 }
 
 func surgeryHarvestCareLimit(ctx context.Context, s cases.Session) error {
@@ -380,7 +387,6 @@ func surgeryAmputation(ctx context.Context, s cases.Session) error {
 }
 
 func surgeryHarvest(ctx context.Context, s cases.Session) error {
-	report := s.Report()
 	patient, part, err := conditionFixture(s)
 	if err != nil {
 		return err
@@ -392,7 +398,27 @@ func surgeryHarvest(ctx context.Context, s cases.Session) error {
 	if err = harvestFacts(ctx, s, prisoner); err != nil {
 		return err
 	}
-	run, err := startSurgeryRun(ctx, s, "surgery-harvest")
+	return transferPart(ctx, s, "surgery-harvest", prisoner, patient, part, "InstallNaturalKidney")
+}
+
+func surgeryPartRecovery(ctx context.Context, s cases.Session) error {
+	patient, part, err := conditionFixture(s)
+	if err != nil {
+		return err
+	}
+	prisoner := na.AsString(s.Prepared()["prisonerId"])
+	if prisoner == "" {
+		return fmt.Errorf("medical_management_setup reply lacks prisonerId: %#v", s.Prepared())
+	}
+	return transferPart(ctx, s, "surgery-part-recovery", prisoner, patient, part, "InstallBionicArm")
+}
+
+// transferPart waits for the RemoveBodyPart intent on the prisoner, lets
+// native doctors complete it, then waits for a second service to install
+// the yielded part on the patient.
+func transferPart(ctx context.Context, s cases.Session, label, prisoner, patient string, part int, recipe string) error {
+	report := s.Report()
+	run, err := startSurgeryRun(ctx, s, label)
 	if err != nil {
 		return err
 	}
@@ -405,11 +431,11 @@ func surgeryHarvest(ctx context.Context, s cases.Session) error {
 	}); err != nil {
 		return err
 	}
-	report["harvest_intent"] = map[string]any{"prisoner": prisoner, "part": cut.Part()}
+	report["removal_intent"] = map[string]any{"prisoner": prisoner, "part": cut.Part()}
 	// The queued cut is clock work (#1238): the same service runs it and
-	// then sees the kidney in stock.
+	// then sees the part in stock.
 	return run.until(ctx, 6*time.Minute, func(ctx context.Context, surgeries []domain.Surgery) (string, bool, error) {
-		_, ok := findSurgery(surgeries, patient, part, "InstallNaturalKidney")
+		_, ok := findSurgery(surgeries, patient, part, recipe)
 		if ok {
 			report["install_intent"] = map[string]any{"pawn": patient, "part": part}
 		}

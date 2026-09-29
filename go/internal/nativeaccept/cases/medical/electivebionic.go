@@ -10,8 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-const electivePrefix = "elective-bionic"
-
 func init() {
 	cases.Register(cases.Case{
 		Name: "medical/elective-bionic",
@@ -25,54 +23,30 @@ func init() {
 }
 
 func electiveBionic(ctx context.Context, s cases.Session) error {
-	report, identity, prepared := s.Report(), s.Identity(), s.Prepared()
-	shooter := na.AsString(prepared["shooterId"])
+	shooter := na.AsString(s.Prepared()["shooterId"])
 	if shooter == "" {
-		return fmt.Errorf("prepare: missing shooter: %#v", prepared)
+		return fmt.Errorf("prepare: missing shooter: %#v", s.Prepared())
 	}
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"medical", "work"}, Extra: na.ClockSpeedArgs()})
+	run, err := startSurgeryRun(ctx, s, "elective-bionic")
 	if err != nil {
 		return err
 	}
-	defer service.Stop()
-	token, err := service.SessionToken()
-	if err != nil {
-		return err
-	}
-	if _, err = service.WaitAttached(identity, 90*time.Second); err != nil {
-		return err
-	}
-	if _, err = service.Resume(electivePrefix, identity, token, report); err != nil {
-		return err
-	}
-	keepAlive := &na.AuthorityKeepAlive{Service: service, Prefix: electivePrefix, Identity: identity, Token: token}
-	stopKeepAlive := keepAlive.Start(ctx)
-	defer func() { report["authority_reacquisitions"] = stopKeepAlive() }()
-	journal, err := na.OpenStoreWithRetry(ctx, service.StatePath)
-	if err != nil {
-		return err
-	}
-	defer journal.Close()
-	waitCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
-	defer cancel()
-	return na.WaitProgress(waitCtx, na.Wait{Stall: na.StallBudget(), Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
-		plans, err := journal.LoadPlans(ctx, 256)
-		if err != nil {
-			return "", false, err
-		}
-		for _, plan := range plans {
-			for _, progress := range plan.Progress {
-				surgery, ok := progress.Action().Surgery()
-				if !ok || surgery.Recipe() != "InstallBionicEye" {
-					continue
-				}
-				if surgery.Pawn() != domain.PawnID(shooter) {
-					return "", false, fmt.Errorf("bionic eye elective went to %s, not the shooter %s", surgery.Pawn(), shooter)
-				}
-				report["elective"] = map[string]any{"plan": string(plan.Spec.ID()), "pawn": shooter, "part": surgery.Part()}
-				return "", true, nil
+	defer run.stop()
+	return run.until(ctx, 3*time.Minute, func(ctx context.Context, surgeries []domain.Surgery) (string, bool, error) {
+		for _, surgery := range surgeries {
+			if surgery.Recipe() != "InstallBionicEye" {
+				continue
 			}
+			if string(surgery.Pawn()) != shooter {
+				var all []string
+				for _, x := range surgeries {
+					all = append(all, string(x.Pawn())+"/"+x.Recipe())
+				}
+				return "", false, fmt.Errorf("bionic eye elective went to %s, not the shooter %s (all %v)", surgery.Pawn(), shooter, all)
+			}
+			s.Report()["elective"] = map[string]any{"pawn": shooter, "part": surgery.Part()}
+			return "", true, nil
 		}
-		return na.Signature(len(plans)), false, nil
+		return na.Signature(len(surgeries)), false, nil
 	})
 }

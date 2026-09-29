@@ -149,7 +149,8 @@ var chronicWeight = map[string]float64{
 }
 
 // electivesAllowed: a medical bed stands and no living colonist has a
-// served operation (restore, cure or chronic replacement) offered (#1167).
+// surgery bill queued or a served operation (restore, cure or chronic
+// replacement) offered (#1167, #1241).
 func electivesAllowed(rows []CarePawn, hospital bool) bool {
 	if !hospital {
 		return false
@@ -157,6 +158,11 @@ func electivesAllowed(rows []CarePawn, hospital bool) bool {
 	for _, pawn := range rows {
 		if dead, dk := pawn.Dead.Value(); dk && dead {
 			continue
+		}
+		// The stock read is a bool: one surgery bill anywhere holds
+		// electives, or a later review books the same part twice.
+		if queued, qk := pawn.QueuedSurgeries.Value(); !qk || queued > 0 {
+			return false
 		}
 		ops, known := pawn.Operations.Value()
 		if !known {
