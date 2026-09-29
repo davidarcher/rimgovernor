@@ -224,7 +224,9 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 			}
 			pre := byID[d.Prerequisite]
 			next := append(append([]GoalID(nil), chain...), d.Prerequisite)
-			if origin.Priority >= pre.Priority {
+			// A structural edge (no resource) orders its prerequisite first
+			// at equal priority too: the dependent cannot act until it lands.
+			if origin.Priority > pre.Priority || origin.Priority == pre.Priority && d.Resource != "" {
 				if !blocked[pair] && len(chain) == 1 {
 					blocked[pair] = true
 					block(d, DependencyNotUrgent)

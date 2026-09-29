@@ -165,3 +165,66 @@ func TestRoutineClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 		t.Fatal(next, err)
 	}
 }
+
+// A chunk-haul batch retires once its designations land, while ordinary
+// hauling may leave the chunks standing: the next step reads the batch as
+// ordered and waits, rather than re-committing the same method (a journal
+// conflict on every step).
+func TestRoutineClearanceChunkHaulBatchIsOrderedOnce(t *testing.T) {
+	reviewer, db, _, _, native := routineFixture(t)
+	v := native.reply.GetObserved()
+	v.ColonistCount = proto.Uint32(2)
+	v.WorkerCount = proto.Uint32(2)
+	missing := func(field string) *o.ReadIssue {
+		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
+	}
+	newRow := func(id string) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	}
+	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{newRow("cutter"), newRow("cutter2")}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
+
+	source := &routineClearanceNative{routineBlightNative: &routineBlightNative{routineNative: native}}
+	source.chunks = []*o.ClearanceChunk{clearanceChunk("haulable", 42, 40, false, false, true)}
+	reviewer.native = source
+	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearHomeObstructions})
+	ctx := context.Background()
+	review, err := reviewer.Step(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineClearancePlanner(reviewer, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err, review.Review.Development.Rows)
+	}
+	plan, err := db.LoadPlan(ctx, result.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := reviewer.player.session.State().Snapshot
+	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	for _, action := range plan.Spec.Actions() {
+		if _, err = db.Prepare(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.RecordReceipt(ctx, plan.Spec.ID(), action.ID(), 1, domain.ReceiptAccepted); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if plan, err = db.LoadPlan(ctx, result.Plan); err != nil || !plan.Retired {
+		t.Fatal("the ordered batch should retire", plan.Retired, err)
+	}
+	next, err := planner.Step(ctx)
+	if err != nil || next.Reason != BuildingMethodUsed || next.NativeWorkTicks != chunkHaulWorkTicks {
+		t.Fatal(next, err)
+	}
+}

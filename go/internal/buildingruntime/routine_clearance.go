@@ -216,7 +216,9 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 	}
 	hash := sha256.Sum256([]byte(key.String()))
 	method := domain.MethodID(fmt.Sprintf("chunk-haul-%x", hash[:16]))
-	for _, m := range goal.Methods {
+	// History, not Methods: the ordered batch's plan retires as soon as the
+	// designations land, and re-committing the same method is a conflict.
+	for _, m := range goal.History {
 		if m.Method == method {
 			return RoutineClearanceResult{Reason: BuildingMethodUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
 		}

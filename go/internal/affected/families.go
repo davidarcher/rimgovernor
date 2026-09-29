@@ -69,6 +69,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_food_storage_upkeep.go":  {"food-storage-upkeep"},
 	"routine_corpse_larder.go":        {"food-storage-upkeep"},
 	"routine_gear.go":                 {"gear"},
+	"routine_armory.go":               {"armory", "gear"},
 	"routine_armory_weapons.go":       {"armory", "gear"},
 	"routine_haul.go":                 {"haul"},
 	"routine_haul_stale.go":           {"haul"},

@@ -138,9 +138,17 @@ func TestDependencyCyclesDepthAndInactiveBlock(t *testing.T) {
 		long = append(long, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: 3})
 		chain = append(chain, DevelopmentDependency{Dependent: long[i-1].ID, Prerequisite: id})
 	}
+	// Equal-priority structural links donate from mid-chain origins too;
+	// G0's own donation stops at the depth bound.
 	d, blockers = ResolveDonations(long, chain)
-	if len(d) != MaxDependencyChain-1 || !hasBlocker(blockers, DependencyDepth) {
-		t.Fatalf("depth: %d donations, %+v", len(d), blockers)
+	fromOrigin := 0
+	for _, don := range d {
+		if don.Chain[0] == "G0" {
+			fromOrigin++
+		}
+	}
+	if fromOrigin != MaxDependencyChain-1 || !hasBlocker(blockers, DependencyDepth) {
+		t.Fatalf("depth: %d donations from G0, %+v", fromOrigin, blockers)
 	}
 	// A prerequisite with no executable method donates nothing, explicitly.
 	r := woodShortage()
