@@ -10,11 +10,82 @@ import (
 // bedroomWing returns p's bedroom wing, failing the test without one.
 func testBedroomWing(t *testing.T, p LayoutPlan) Wing {
 	t.Helper()
-	i := bedroomWing(p.Wings)
-	if i < 0 {
+	i := bedroomWings(p.Wings)
+	if len(i) == 0 {
 		t.Fatalf("no bedroom wing: spine %+v rooms %d", p.Spine, len(p.Rooms))
 	}
-	return p.Wings[i]
+	return p.Wings[i[0]]
+}
+
+// wingCounts is the room count of each bedroom wing, in order.
+func wingCounts(p LayoutPlan) []int {
+	var out []int
+	for _, i := range bedroomWings(p.Wings) {
+		out = append(out, len(p.Wings[i].Rooms))
+	}
+	return out
+}
+
+// Several bedroom wings, each capped at wingMaxRooms (#1237).
+func TestBedroomWingsCapAtTenRooms(t *testing.T) {
+	p := PlanCore(coreTestZones(), 25, BuildTierCamp)
+	if got := wingCounts(p); len(got) != 3 || got[0] != 10 || got[1] != 10 || got[2] != 5 {
+		t.Fatalf("wings %v, want [10 10 5]", got)
+	}
+	if _, err := CheckRoutes(p); err != nil {
+		t.Fatal("routes:", err)
+	}
+	all := map[Rectangle]bool{}
+	for _, i := range bedroomWings(p.Wings) {
+		w := p.Wings[i]
+		// Each wing keeps its own reserve: no other wing's room is on it.
+		res := wingReserve(w, wingShares(p.Wings, 25)[i])
+		for _, j := range bedroomWings(p.Wings) {
+			if j == i {
+				continue
+			}
+			for _, r := range p.Wings[j].Rooms {
+				if rectsOverlap(roomWalls(r), res) {
+					t.Fatalf("wing %d room %+v on wing %d reserve %+v", j, r.Interior, i, res)
+				}
+			}
+		}
+		for _, r := range w.Rooms {
+			if all[r.Interior] {
+				t.Fatal("room in two wings", r.Interior)
+			}
+			all[r.Interior] = true
+		}
+	}
+	// Growing keeps every existing wing and room in place.
+	g := Grow(p, 28, 1, BuildTierCamp)
+	if got := wingCounts(g); len(got) != 3 || got[2] != 8 {
+		t.Fatalf("grown wings %v, want [10 10 8]", got)
+	}
+	for k, i := range bedroomWings(p.Wings) {
+		for n, r := range p.Wings[i].Rooms {
+			if g.Wings[bedroomWings(g.Wings)[k]].Rooms[n] != r {
+				t.Fatal("room moved", r)
+			}
+		}
+	}
+	// A trim in the first wing is refilled there, not in the last.
+	first := p.Wings[bedroomWings(p.Wings)[0]]
+	drop := first.Rooms[len(first.Rooms)-1].Interior
+	p.Wings = keepWingRooms(p.Wings, func(r LayoutRoom) bool { return r.Interior != drop })
+	if got := wingCounts(p); got[0] != 9 {
+		t.Fatalf("trimmed %v", got)
+	}
+	r := Grow(p, 25, 1, BuildTierCamp)
+	if got := wingCounts(r); len(got) != 3 || got[0] != 10 || got[2] != 5 {
+		t.Fatalf("refilled %v, want [10 10 5]", got)
+	}
+	if !containsRoom(r.Wings[bedroomWings(r.Wings)[0]].Rooms, drop) {
+		t.Fatal("dropped room not refilled in its wing")
+	}
+	if _, err := CheckRoutes(r); err != nil {
+		t.Fatal("routes:", err)
+	}
 }
 
 // checkWing asserts the wing's shape (#1213): pawns rooms, every door in

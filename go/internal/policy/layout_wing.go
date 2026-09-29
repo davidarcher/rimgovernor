@@ -44,6 +44,21 @@ func WingRoomSize(tier BuildTier) [2]int32 {
 // ground for at its open end, so other rooms do not block it.
 const wingGrowthReserve = 8
 
+// wingMaxRooms caps a bedroom wing (#1237, epic #1200): once every wing is
+// full, a new one is sited.
+const wingMaxRooms = 10
+
+// wingShares is each bedroom wing's share of pawns rooms, by index: in
+// order, up to wingMaxRooms each and never below the rooms it has.
+func wingShares(wings []Wing, pawns int) map[int]int {
+	out := map[int]int{}
+	for _, i := range bedroomWings(wings) {
+		n := max(min(pawns, wingMaxRooms), len(wings[i].Rooms))
+		out[i], pawns = n, max(pawns-n, 0)
+	}
+	return out
+}
+
 // AllRooms is every planned room: the spine's, then each wing's.
 func (p LayoutPlan) AllRooms() []LayoutRoom {
 	if len(p.Wings) == 0 {
@@ -163,7 +178,7 @@ func wingReserve(w Wing, want int) Rectangle {
 	if w.Purpose == WingSuites {
 		return suiteReserve(w, want)
 	}
-	n := int32((max(want, len(w.Rooms)) + wingGrowthReserve + 1) / 2)
+	n := int32((min(max(want, len(w.Rooms))+wingGrowthReserve, max(wingMaxRooms, len(w.Rooms))) + 1) / 2)
 	f := frameOf(w)
 	return f.ground(n*(f.size[0]+1)+1, f.size[1])
 }
@@ -175,8 +190,24 @@ func (g coreGrid) carve(r Rectangle) {
 	}
 }
 
-// bedroomWing is the index of plan's bedroom wing, or -1.
-func bedroomWing(wings []Wing) int { return wingOf(wings, WingBedrooms) }
+// bedroomWings is the indexes of the bedroom wings, in order.
+func bedroomWings(wings []Wing) []int {
+	var out []int
+	for i, w := range wings {
+		if w.Purpose == WingBedrooms {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// carveBedroomWings takes every bedroom wing's reserve for its share of
+// pawns rooms out of g.
+func (g coreGrid) carveBedroomWings(wings []Wing, pawns int) {
+	for i, n := range wingShares(wings, pawns) {
+		g.carve(wingReserve(wings[i], n))
+	}
+}
 
 // wingOf is the index of the wing for purpose, or -1.
 func wingOf(wings []Wing, purpose WingPurpose) int {
@@ -188,48 +219,82 @@ func wingOf(wings []Wing, purpose WingPurpose) int {
 	return -1
 }
 
-// growWing sites the bedroom wing off the main hallway if there is none
-// (the column nearest the storage room's door, #1178, among those fitting
-// the most rooms) and extends it at its open end to pawns rooms. A new
-// wing's rooms take tier's size (#1214). g is the core before any wing
-// ground is carved out of it. Rooms that do not fit are left out.
-func (g coreGrid) growWing(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, pawns int, tier BuildTier) ([]SpineSegment, []Wing) {
+// growWings grows the bedroom wings to pawns rooms (#1237): each existing
+// wing, in order, extends at its open end to its share (wingShares); while
+// rooms are still owed, a new wing is sited off the main hallway (the
+// column nearest the storage room's door, #1178, among those fitting the
+// most rooms) with tier's room size (#1214). g is the core before any
+// bedroom wing ground is carved out of it; each wing grows clear of the
+// others' reserves. Rooms that do not fit are left out.
+func (g coreGrid) growWings(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, pawns int, tier BuildTier) ([]SpineSegment, []Wing) {
 	if len(spine) == 0 || !alongX(spine[0]) {
 		return spine, wings
 	}
-	free := g.wingGround(spine, rooms)
-	fits := func(f wingFrame, k int) bool {
-		return free(roomWalls(f.room(k))) && free(f.corridor(int32(k/2)+1))
-	}
 	wings = append([]Wing(nil), wings...)
-	idx := bedroomWing(wings)
-	var f wingFrame
-	if idx < 0 {
-		if pawns < 1 {
-			return spine, wings
+	// others is g less every bedroom wing's reserve but wings[skip]'s.
+	others := func(skip int) coreGrid {
+		o := g.clone()
+		for i, n := range wingShares(wings, pawns) {
+			if i != skip {
+				o.carve(wingReserve(wings[i], n))
+			}
 		}
-		var ok bool
+		return o
+	}
+	owed := pawns
+	for _, i := range bedroomWings(wings) {
+		o := others(i)
+		// An existing wing has rooms, so fillWing never drops it.
+		wings = o.fillWing(spine, rooms, wings, i, frameOf(wings[i]), wingShares(wings, pawns)[i], o.wingFits(spine, rooms))
+		owed -= len(wings[i].Rooms)
+	}
+	for owed > 0 {
+		o := others(-1)
+		fits := o.wingFits(spine, rooms)
+		want := min(owed, wingMaxRooms)
 		size := WingRoomSize(tier)
-		f, ok = g.siteWing(spine, rooms, func(try wingFrame) int {
+		f, ok := o.siteWing(spine, rooms, func(try wingFrame) int {
 			try.size = size
 			n := 0
-			for n < pawns && fits(try, n) {
+			for n < want && fits(try, n) {
 				n++
 			}
 			return n
 		})
 		if !ok {
-			return spine, wings
+			break
 		}
 		f.size = size
-		spine = openWing(spine, f)
+		grown := openWing(spine, f)
 		base := domain.Cell{X: f.cx, Z: f.z(2)}
-		wings = append(wings, Wing{Purpose: WingBedrooms, Corridor: SpineSegment{From: base, To: base}})
-		idx = len(wings) - 1
-	} else {
-		f = frameOf(wings[idx])
+		next := append(append([]Wing(nil), wings...), Wing{Purpose: WingBedrooms, Corridor: SpineSegment{From: base, To: base}})
+		next = o.fillWing(grown, rooms, next, len(next)-1, f, want, fits)
+		if len(next) == len(wings) {
+			break
+		}
+		spine, wings = grown, next
+		owed -= len(wings[len(wings)-1].Rooms)
 	}
-	return spine, g.fillWing(spine, rooms, wings, idx, f, pawns, fits)
+	return spine, wings
+}
+
+// wingFits is whether a wing framed f fits its k-th room and the corridor
+// serving it on g.
+func (g coreGrid) wingFits(spine []SpineSegment, rooms []LayoutRoom) func(wingFrame, int) bool {
+	free := g.wingGround(spine, rooms)
+	return func(f wingFrame, k int) bool {
+		return free(roomWalls(f.room(k))) && free(f.corridor(int32(k/2)+1))
+	}
+}
+
+// clone is a copy of g whose core can be carved on its own.
+func (g coreGrid) clone() coreGrid {
+	c := g
+	c.core = make(map[domain.Cell]bool, len(g.core))
+	for k, v := range g.core {
+		c.core[k] = v
+	}
+	return c
 }
 
 // wingGround is whether a rectangle is core ground clear of rooms' walls
