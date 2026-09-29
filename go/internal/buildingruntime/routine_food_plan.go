@@ -144,7 +144,7 @@ func foodPlanSupport(p domain.Fact[policy.FoodPlan], kind policy.FoodChannelKind
 	return false
 }
 
-// foodPlanAdditionalField counts only open zone actions; completed zones are
+// foodPlanAdditionalField counts only open zone creates and add-cells; completed zones are
 // already in the native field census. Infrastructure without a known crop yield
 // keeps the existing work barrier rather than guessing its future production.
 func foodPlanAdditionalField(p observation.ColonyProjection, plans []store.PlanState) bool {
@@ -158,8 +158,21 @@ func foodPlanAdditionalField(p observation.ColonyProjection, plans []store.PlanS
 			if !domain.GoalWorkOpen([]domain.Progress{progress}) {
 				continue
 			}
-			zone, ok := progress.Action().ZoneCreate()
-			if !ok {
+			crop, cells := "", 0
+			if zone, ok := progress.Action().ZoneCreate(); ok {
+				crop, cells = zone.Crop(), len(zone.Cells())
+			} else if edit, ok := progress.Action().ZoneCellEdit(); ok && edit.Mode() == domain.AddZoneCells {
+				// A field block grown by add-cells yields its zone's crop.
+				for _, farm := range p.Farms {
+					if farm.ID == edit.Zone() {
+						crop = farm.Crop
+					}
+				}
+				if crop == "" {
+					continue
+				}
+				cells = len(edit.Cells())
+			} else {
 				if b, building := progress.Action().Building(); building && b.Definition() != "ButcherSpot" {
 					return false
 				}
@@ -167,7 +180,7 @@ func foodPlanAdditionalField(p observation.ColonyProjection, plans []store.PlanS
 			}
 			found := false
 			for _, d := range p.Definitions {
-				if d.Name != zone.Crop() {
+				if d.Name != crop {
 					continue
 				}
 				yield, yk := d.HarvestNutrition.Value()
@@ -175,7 +188,7 @@ func foodPlanAdditionalField(p observation.ColonyProjection, plans []store.PlanS
 				if !yk || !dk || yield < 0 || days <= 0 {
 					return false
 				}
-				gap -= yield * float64(len(zone.Cells())) / days
+				gap -= yield * float64(cells) / days
 				found = true
 				break
 			}

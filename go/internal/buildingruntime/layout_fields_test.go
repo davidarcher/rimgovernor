@@ -8,34 +8,101 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Two planned fields at x 0-2 and 5-7 with a firebreak at x 3-4; the left
-// field is planted. Fields stay on the planned zones and the break is
-// floored in the flagstone the stock can pay for.
-func TestFirebreakFloorsBesidePlantedField(t *testing.T) {
+// blockFacts is a Camp-tier colony with two 4x2 plan field blocks at
+// x 0-3 and x 6-9 on rows 0-1, fertile open ground everywhere else.
+func blockFacts() observation.ColonyProjection {
 	plan := policy.LayoutPlan{Zones: []policy.LayoutZone{
-		{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 0, X: 0, Length: 3}}},
-		{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 0, X: 5, Length: 3}}},
+		{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 0, X: 0, Length: 4}, {Z: 1, X: 0, Length: 4}}},
+		{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 0, X: 6, Length: 4}, {Z: 1, X: 6, Length: 4}}},
 	}}
-	facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierMasonry), LayoutPlan: domain.Known(plan)}
-	for x := int32(0); x < 9; x++ {
-		zoned := x < 3
-		facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(zoned), Fertility: domain.Known(1.0)})
+	facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierCamp), LayoutPlan: domain.Known(plan)}
+	for z := int32(0); z < 2; z++ {
+		for x := int32(0); x < 10; x++ {
+			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(1.0)})
+		}
 	}
-	facts.Cells[4].Fertility = domain.Known(0.0) // already floored
-	facts.Resources = domain.Known(map[policy.Resource]int64{"BlocksGranite": 50, "BlocksSlate": 5})
-	for _, d := range []struct{ name, block string }{{"FlagstoneSlate", "BlocksSlate"}, {"FlagstoneGranite", "BlocksGranite"}} {
-		facts.Definitions = append(facts.Definitions, observation.PlanningDefinition{Name: d.name, Available: domain.Known(true), Terrain: domain.Known(true), Costs: domain.Known([]policy.Amount{{Resource: policy.Resource(d.block), Count: 4}})})
+	return facts
+}
+
+func zoneBlockCells(facts *observation.ColonyProjection, zone string, cells ...domain.Cell) {
+	for i := range facts.Cells {
+		for _, c := range cells {
+			if facts.Cells[i].Cell == c {
+				facts.Cells[i].Zone, facts.Cells[i].ZoneID = domain.Known(true), domain.Known(zone)
+			}
+		}
 	}
-	candidate, ok := firebreakCandidate(facts)
-	if !ok || len(candidate.Buildings) != 1 || candidate.Buildings[0] != (policy.SiteBuilding{Definition: "FlagstoneGranite", Cell: domain.Cell{X: 3}, Rotation: domain.North}) {
-		t.Fatalf("candidate %+v %v", candidate, ok)
+}
+
+var riceChoice = policy.CropChoice{Name: "Plant_Rice", FertilityMin: domain.Known(0.5)}
+
+func TestFieldBlockCreatesThenGrows(t *testing.T) {
+	facts := blockFacts()
+	anchor := domain.Cell{X: 0, Z: 0}
+	edit, reason, ok := planFieldBlock(facts, anchor, riceChoice, 4, nil)
+	if !ok || edit.Zone != "" || edit.Crop != "Plant_Rice" || len(edit.Cells) != 4 {
+		t.Fatalf("create %+v %q %v", edit, reason, ok)
 	}
-	protected := layoutFieldProtected(facts, nil)
-	if len(protected) != 3 || protected[0] != (domain.Cell{X: 3}) {
-		t.Fatalf("protected %v", protected)
+	for _, c := range edit.Cells {
+		if c.X > 3 {
+			t.Fatalf("created outside the first block: %v", edit.Cells)
+		}
 	}
-	facts.BuildTier = domain.Known(policy.BuildTierCamp)
-	if _, ok := firebreakCandidate(facts); ok || len(layoutFieldProtected(facts, nil)) != 0 {
-		t.Fatal("camp uses the plan")
+	zoneBlockCells(&facts, "Zone_1", edit.Cells...)
+	facts.Farms = []observation.FarmZoneFact{{ID: "Zone_1", Crop: "Plant_Potato"}}
+	grow, reason, ok := planFieldBlock(facts, anchor, riceChoice, 4, nil)
+	if !ok || grow.Zone != "Zone_1" || grow.Crop != "Plant_Potato" || len(grow.Cells) != 4 {
+		t.Fatalf("grow %+v %q %v", grow, reason, ok)
+	}
+	for _, c := range grow.Cells {
+		if c.X > 3 {
+			t.Fatalf("grew outside the block: %v", grow.Cells)
+		}
+	}
+}
+
+func TestFieldBlockNextOnlyWhenFull(t *testing.T) {
+	facts := blockFacts()
+	anchor := domain.Cell{X: 0, Z: 0}
+	facts.Farms = []observation.FarmZoneFact{{ID: "Zone_1", Crop: "Plant_Rice"}}
+	var first []domain.Cell
+	for z := int32(0); z < 2; z++ {
+		for x := int32(0); x < 3; x++ {
+			first = append(first, domain.Cell{X: x, Z: z})
+		}
+	}
+	zoneBlockCells(&facts, "Zone_1", first...)
+	edit, _, ok := planFieldBlock(facts, anchor, riceChoice, 8, nil)
+	if !ok || edit.Zone != "Zone_1" || len(edit.Cells) != 2 {
+		t.Fatalf("partial block should grow first: %+v %v", edit, ok)
+	}
+	zoneBlockCells(&facts, "Zone_1", edit.Cells...)
+	next, _, ok := planFieldBlock(facts, anchor, riceChoice, 8, nil)
+	if !ok || next.Zone != "" || len(next.Cells) != 8 || next.Cells[0].X != 6 {
+		t.Fatalf("full block should open the next: %+v %v", next, ok)
+	}
+	zoneBlockCells(&facts, "Zone_2", next.Cells...)
+	if _, reason, ok := planFieldBlock(facts, anchor, riceChoice, 8, nil); ok || reason != "every field block is full" {
+		t.Fatalf("all full: %q %v", reason, ok)
+	}
+}
+
+func TestFieldBlockRefusesWithoutBlocks(t *testing.T) {
+	facts := blockFacts()
+	facts.LayoutPlan = domain.Known(policy.LayoutPlan{})
+	if _, reason, ok := planFieldBlock(facts, domain.Cell{}, riceChoice, 4, nil); ok || reason != "layout plan has no field blocks" {
+		t.Fatalf("%q %v", reason, ok)
+	}
+	facts.LayoutPlan = domain.Unknown[policy.LayoutPlan]()
+	if _, reason, ok := planFieldBlock(facts, domain.Cell{}, riceChoice, 4, nil); ok || reason != "no layout plan" {
+		t.Fatalf("%q %v", reason, ok)
+	}
+}
+
+// Camp tier protects everything outside the plan's field cells too.
+func TestLayoutFieldProtectedAtCamp(t *testing.T) {
+	facts := blockFacts()
+	if got := layoutFieldProtected(facts, nil); len(got) != 4 {
+		t.Fatalf("protected %v", got)
 	}
 }

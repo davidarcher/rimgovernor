@@ -49,6 +49,12 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Every census cell is one plan field block (#1223).
+	var runs []policy.RowRun
+	for _, cell := range planning.Cells.Cells {
+		runs = append(runs, policy.RowRun{Z: cell.GetCell().GetZ(), X: cell.GetCell().GetX(), Length: 1})
+	}
+	reviewer.census.rememberLayout(reviewer.census.layoutScope, domain.Known(policy.LayoutPlan{Zones: []policy.LayoutZone{{Kind: policy.ZoneField, Runs: runs}}}))
 	planner, err := NewRoutineFieldPlanner(reviewer, &fieldTestNative{routineNative: n.routineNative})
 	if err != nil {
 		t.Fatal(err)

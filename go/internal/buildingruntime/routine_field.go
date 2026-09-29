@@ -88,7 +88,6 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	definitions := append(routineProjectDefinitions(plans, state.Snapshot, playerPlans), "Plant_Rice", "Plant_Potato", "Plant_Corn", "Plant_Strawberry", "Plant_Toxipotato", "Plant_Nutrifungus", "SunLamp", "HydroponicsBasin", "Heater")
-	definitions = append(definitions, firebreakFloors...)
 	definitions = uniqueFieldDefinitions(definitions)
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
@@ -207,7 +206,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	if !known {
 		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, coverage, len(zones), selection.Explain())
-		return r.firebreaks(call, epoch, state, goal, projection, read, wait, BuildingMethodUnknown)
+		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
 	}
 	// The winner's cells: basin kinds carry them on the candidate, not a site plan.
 	clockSchedulerLog("Fields select: kind=%s crop=%s cells=%d buildings=%d | %s", selection.Kind, selection.Crop.Name, selection.Candidates[0].Cells, len(selection.Buildings), selection.Explain())
@@ -220,25 +219,21 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 			break
 		}
 		attempts++
-		result, tried, err := r.enact(call, epoch, state, goal, projection, read, wait, candidate)
+		// Outdoor soil fields fill the plan's field blocks (#1223).
+		var result RoutineFieldResult
+		var tried bool
+		var err error
+		if candidate.Kind == policy.SiteOutdoor && len(candidate.Buildings) == 0 {
+			result, tried, err = r.enactBlock(call, epoch, state, goal, projection, read, wait, candidate, site.Anchor, protected)
+		} else {
+			result, tried, err = r.enact(call, epoch, state, goal, projection, read, wait, candidate)
+		}
 		if err != nil || tried {
 			return result, err
 		}
 		clockSchedulerLog("Fields: %s %s refused (%s), trying next candidate", candidate.Kind, candidate.Crop.Name, result.Reason)
 	}
-	return r.firebreaks(call, epoch, state, goal, projection, read, wait, BuildingMethodRefused)
-}
-
-// firebreaks floors the plan's firebreaks beside planted fields (#790) once
-// the step has no field to lay; reason is the step's result otherwise.
-func (r *RoutineFieldPlanner) firebreaks(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, reason RoutineBuildingReason) (RoutineFieldResult, error) {
-	if candidate, ok := firebreakCandidate(projection); ok {
-		clockSchedulerLog("Fields: firebreak %s cells=%d", candidate.Buildings[0].Definition, candidate.Cells)
-		if result, tried, err := r.enact(call, epoch, state, goal, projection, read, wait, candidate); err != nil || tried {
-			return result, err
-		}
-	}
-	return RoutineFieldResult{Reason: reason, NativeWorkTicks: wait}, nil
+	return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, nil
 }
 
 const (
@@ -361,6 +356,12 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 			previews = append(previews, policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})})
 		}
 	}
+	return r.admit(call, epoch, state, goal, projection, read, wait, method, id, snapshot, stock, actions, previews, string(candidate.Kind)+" "+crop.Name)
+}
+
+// admit admits one field method's actions with their previews.
+func (r *RoutineFieldPlanner) admit(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, method domain.MethodID, id domain.PlanID, snapshot domain.GenerationSnapshot, stock policy.StockObservation, actions []domain.Action, previews []policy.Preview, what string) (RoutineFieldResult, bool, error) {
+	p := r.reviewer.player
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
 		return RoutineFieldResult{}, false, err
@@ -384,13 +385,89 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 		return RoutineFieldResult{}, false, err
 	}
 	if !decision.Admitted {
-		clockSchedulerLog("Fields: %s %s not admitted: %+v", candidate.Kind, crop.Name, decision.Refused)
+		clockSchedulerLog("Fields: %s not admitted: %+v", what, decision.Refused)
 		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
 	}
 	return RoutineFieldResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
 }
 
 const fieldBatchPatches = 6
+
+// enactBlock takes the next plan field block step (#1223): create the
+// block's growing zone, or grow it with add-cells until the block is full.
+// No plan field blocks is a refusal with its reason; nothing is sited
+// outside the plan.
+func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, candidate policy.SiteTypeCandidate, anchor domain.Cell, protected []domain.Cell) (RoutineFieldResult, bool, error) {
+	p := r.reviewer.player
+	edit, reason, ok := planFieldBlock(projection, anchor, candidate.Crop, candidate.Needed, protected)
+	if !ok {
+		clockEvent(call, "layout", "fields", "outdoor field refused: "+reason, "crop", candidate.Crop.Name)
+		return RoutineFieldResult{Reason: BuildingMethodNoSpace, NativeWorkTicks: wait}, false, nil
+	}
+	hash := sha256.New()
+	fmt.Fprintf(hash, "block/%s/%s/%v", edit.Zone, edit.Crop, edit.Cells)
+	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, true, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineFieldResult{}, false, err
+	}
+	id := domain.MintPlanID()
+	snapshot := state.Snapshot
+	snapshot.Plan = id
+	snapshot.Revision = 1
+	if edit.Zone != "" {
+		// Growing a standing zone needs no worker or reservation, like a
+		// stockpile grow: committed directly.
+		value, err := domain.NewZoneCellEdit(edit.Zone, domain.AddZoneCells, edit.Cells)
+		if err != nil {
+			return RoutineFieldResult{}, false, err
+		}
+		action, err := domain.NewZoneCellEditAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+		if err != nil {
+			return RoutineFieldResult{}, false, err
+		}
+		plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+		if err != nil {
+			return RoutineFieldResult{}, false, err
+		}
+		if err = p.current(call, epoch); err != nil {
+			return RoutineFieldResult{}, false, err
+		}
+		now := r.reviewer.clock.Now()
+		if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
+			return RoutineFieldResult{}, false, fmt.Errorf("%w: enactBlock: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
+		}
+		if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+			return RoutineFieldResult{}, false, err
+		}
+		clockEvent(call, "layout", "fields", "field block grown", "zone", edit.Zone, "crop", edit.Crop, "cells", len(edit.Cells), "plan", string(id))
+		return RoutineFieldResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+	}
+	value, err := domain.NewZoneCreate(domain.GrowingZone, edit.Crop, edit.Cells)
+	if err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	if err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	reply, refused, err := previewZone(call, r.native, boundary.Identity(snapshot), value)
+	if err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	if refused != "" {
+		clockSchedulerLog("Fields: %s block zone refused: %s", edit.Crop, refused)
+		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
+	}
+	v := reply.GetEvaluated()
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
+		return RoutineFieldResult{}, false, fmt.Errorf("%w: enactBlock: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
+	}
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}
+	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(edit.Cells), Costs: domain.Known([]policy.Amount{})}
+	return r.admit(call, epoch, state, goal, projection, read, wait, method, id, snapshot, stock, []domain.Action{action}, []policy.Preview{preview}, "block "+edit.Crop)
+}
 
 // recrop commits one grower's crop change as a one-shot
 // GrowerCrop plan, once per grower per goal epoch: a method that already
@@ -481,10 +558,11 @@ func fieldAffordable(spent map[policy.Resource]int64, v policy.Preview, stock po
 func fieldBlockingWork(progress []domain.Progress) bool {
 	for _, p := range progress {
 		_, zone := p.Action().ZoneCreate()
+		_, grow := p.Action().ZoneCellEdit()
+		zone = zone || grow
 		building, isBuilding := p.Action().Building()
-		// The butcher spot shares the goal but not the field (#260); nor
-		// do firebreak floors (#790).
-		if isBuilding && (building.Definition() == "ButcherSpot" || isFirebreakFloor(building.Definition())) {
+		// The butcher spot shares the goal but not the field (#260).
+		if isBuilding && building.Definition() == "ButcherSpot" {
 			continue
 		}
 		if (zone || isBuilding) && pendingWork(p) {
