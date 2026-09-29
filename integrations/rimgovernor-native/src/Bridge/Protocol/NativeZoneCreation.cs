@@ -120,12 +120,9 @@ namespace HomeBridge.BridgeTools
             {
                 var resolved = NativeStockpileSettings.Resolve(command.Stockpile, StockpileFilter.StorableDefs(null));
                 if (resolved == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires resolvable stockpile settings."); return false; }
-                // A protected store needs a roof and clear, empty, walkable floor;
-                // the caller (a verified room) is responsible for the roof already
-                // existing -- this only refuses ground that is not actually safe.
-                // A filter admitting only things that never deteriorate (a chunk
-                // dump, #394) needs no roof: vanilla dumps sit outdoors.
-                var outdoorSafe = OutdoorSafe(resolved);
+                // Vanilla stockpiles need no roof, and where one belongs is
+                // controller policy: a new colony's opening stockpiles sit on
+                // open ground because no roof stands yet.
                 // "Empty" is the cell census's own StorageEmpty: filth, a pawn or
                 // a mote on the floor never made a stockpile cell unusable, and a
                 // stricter check here refused every site the controller picked
@@ -134,28 +131,16 @@ namespace HomeBridge.BridgeTools
                 foreach (var cell in cells)
                 {
                     var c = cell;
-                    rules.Require(() => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && (outdoorSafe || c.Roofed(map))
+                    rules.Require(() => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map)
                         && c.GetEdifice(map) == null && StorageEmpty(c, map)
                         && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
                         && !map.roofCollapseBuffer.IsMarkedToCollapse(c),
-                        outdoorSafe ? "fresh free ground required: cell " + At(c) + " is not walkable, unzoned, empty storage ground"
-                            : "fresh free ground required: cell " + At(c) + " is not roofed, walkable, unzoned, empty storage ground");
+                        "fresh free ground required: cell " + At(c) + " is not walkable, unzoned, empty storage ground");
                 }
             }
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             ground = false;
             return true;
-        }
-        // OutdoorSafe projects the desired filter onto a scratch stockpile and
-        // reports whether every def it admits has no deterioration rate, the
-        // one case where a roof protects nothing. An empty allowance is not
-        // outdoor-safe: it says nothing about what the zone will hold.
-        internal static bool OutdoorSafe(NativeStockpileSettings.Resolved resolved)
-        {
-            var scratch = new ThingFilter();
-            NativeStockpileSettings.Apply(scratch, resolved, StockpileFilter.ParentFilter(null), StockpileFilter.StorableDefs(null));
-            var allowed = StockpileFilter.AllowedSet(scratch);
-            return allowed.Count > 0 && allowed.All(d => d.GetStatValueAbstract(StatDefOf.DeteriorationRate) <= 0f);
         }
         // StorageEmpty is the one definition of a cell with nothing stored or
         // built on it, shared by the cell census (CellState.StorageEmpty,
@@ -183,7 +168,9 @@ namespace HomeBridge.BridgeTools
         {
             var accepted = Prepare(command, context, out _, out var failure, out var ground);
             if (!accepted && !ground) return new Operations.ZonePreviewReply { Failure = failure };
-            return new Operations.ZonePreviewReply { Evaluated = new Operations.ZonePreview { Context = context.Clone(), Accepted = accepted } };
+            var evaluated = new Operations.ZonePreview { Context = context.Clone(), Accepted = accepted };
+            if (!accepted) evaluated.Reason = failure.Detail;
+            return new Operations.ZonePreviewReply { Evaluated = evaluated };
         }
 
         // Standing is the zone that already is the request: the zone on the

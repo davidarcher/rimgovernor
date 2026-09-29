@@ -521,7 +521,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		}
 		v := reply.GetEvaluated()
 		if v == nil || !v.GetAccepted() {
-			clockEvent(call, "layout", "stockpiles", "stockpile create preview not accepted", "role", e.Role)
+			clockEvent(call, "layout", "stockpiles", "stockpile create preview not accepted", "role", e.Role, "reason", v.GetReason())
 			continue
 		}
 		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < tick {

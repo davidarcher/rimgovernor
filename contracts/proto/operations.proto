@@ -214,7 +214,8 @@ service Zones {
   rpc Preview(ZonePreviewRequest) returns (ZonePreviewReply);
 }
 message ZonePreviewRequest { rimgovernor.common.v1.Identity identity = 1; CreateZone zone = 2; }
-message ZonePreview { rimgovernor.common.v1.ObservationContext context = 1; optional bool accepted = 2; }
+// reason names the ground rule a refused (accepted false) zone broke.
+message ZonePreview { rimgovernor.common.v1.ObservationContext context = 1; optional bool accepted = 2; optional string reason = 3; }
 message ZonePreviewReply {
   oneof outcome {
     ZonePreview evaluated = 1;

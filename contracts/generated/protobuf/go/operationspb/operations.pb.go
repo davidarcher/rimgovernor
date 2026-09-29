@@ -3509,10 +3509,12 @@ func (x *ZonePreviewRequest) GetZone() *CreateZone {
 	return nil
 }
 
+// reason names the ground rule a refused (accepted false) zone broke.
 type ZonePreview struct {
 	state         protoimpl.MessageState       `protogen:"open.v1"`
 	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	Accepted      *bool                        `protobuf:"varint,2,opt,name=accepted,proto3,oneof" json:"accepted,omitempty"`
+	Reason        *string                      `protobuf:"bytes,3,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3559,6 +3561,13 @@ func (x *ZonePreview) GetAccepted() bool {
 		return *x.Accepted
 	}
 	return false
+}
+
+func (x *ZonePreview) GetReason() string {
+	if x != nil && x.Reason != nil {
+		return *x.Reason
+	}
+	return ""
 }
 
 type ZonePreviewReply struct {
@@ -6983,11 +6992,13 @@ const file_operations_proto_rawDesc = "" +
 	"\x0e_receive_questJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\ttrader_idR\rnegotiator_id\"\x8c\x01\n" +
 	"\x12ZonePreviewRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x129\n" +
-	"\x04zone\x18\x02 \x01(\v2%.rimgovernor.operations.v1.CreateZoneR\x04zone\"\x80\x01\n" +
+	"\x04zone\x18\x02 \x01(\v2%.rimgovernor.operations.v1.CreateZoneR\x04zone\"\xa8\x01\n" +
 	"\vZonePreview\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1f\n" +
-	"\baccepted\x18\x02 \x01(\bH\x00R\baccepted\x88\x01\x01B\v\n" +
-	"\t_accepted\"\xa1\x01\n" +
+	"\baccepted\x18\x02 \x01(\bH\x00R\baccepted\x88\x01\x01\x12\x1b\n" +
+	"\x06reason\x18\x03 \x01(\tH\x01R\x06reason\x88\x01\x01B\v\n" +
+	"\t_acceptedB\t\n" +
+	"\a_reason\"\xa1\x01\n" +
 	"\x10ZonePreviewReply\x12F\n" +
 	"\tevaluated\x18\x01 \x01(\v2&.rimgovernor.operations.v1.ZonePreviewH\x00R\tevaluated\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +

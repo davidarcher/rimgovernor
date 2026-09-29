@@ -192,7 +192,7 @@ func run(ctx context.Context, s cases.Session) error {
 		"label": "RimGovernor apply refusal", "type": "ZONE_TYPE_STOCKPILE",
 		"cells":     map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{freeCells[0]}}},
 		"stockpile": map[string]any{"priority": "STORAGE_PRIORITY_NORMAL", "preset": "FILTER_PRESET_NOTHING"},
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Zone creation refused: fresh free ground required: cell "+at(freeCells[0])+" is not roofed, walkable, unzoned, empty storage ground"); err != nil {
+	}}, "FAILURE_CODE_INVALID_REQUEST", "Zone creation refused: fresh free ground required: cell "+at(freeCells[0])+" is not walkable, unzoned, empty storage ground"); err != nil {
 		return err
 	}
 
