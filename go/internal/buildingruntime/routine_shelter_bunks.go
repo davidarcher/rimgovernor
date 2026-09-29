@@ -156,8 +156,7 @@ func (r *RoutineBuildingPlanner) shelterBunks(call context.Context, goal store.G
 // admitted (or refused) this review.
 func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s shelterSite) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, *RoutineBuildingResult, error) {
 	none := policy.StockObservation{}
-	style := shelterStyle(s.facts)
-	if selected, stock, reason, adopted, err := r.adoptShell(call, s.snapshot, s.facts, s.protected, style, s.check); err != nil || adopted {
+	if selected, stock, reason, adopted, err := r.adoptShell(call, s.snapshot, s.facts, s.protected, s.check); err != nil || adopted {
 		return selected, stock, reason, nil, err
 	}
 	record, err := r.shelterBunks(call, s.goal)
@@ -175,13 +174,12 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 			protected = append(protected, c)
 		}
 	}
-	grid, _ := layoutAlignment(s.facts)
 	sites, err := r.shellRuinHolds(call, s, shellSiteCells(s.facts, free))
 	if err != nil {
 		return nil, none, "", nil, err
 	}
 	search := func(anchor domain.Cell) ([]policy.StarterLayout, error) {
-		request := policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts), WallDef: shellStyle(s.facts).WallDef, Planned: plannedShells(s.facts, r.roomRole())}
+		request := policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, WallDef: shellStyle(s.facts).WallDef, Planned: plannedShells(s.facts, r.roomRole())}
 		snap.NoteShelter(call, request)
 		return policy.StarterLayouts(request)
 	}

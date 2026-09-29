@@ -24,7 +24,7 @@ func Args(ctx context.Context, h *na.Harness) (map[string]any, error) {
 // south-west corner and door of the rectangle the initial shelter's starter
 // search ranks first on the loaded game, as the siteX/siteZ/doorX/doorZ
 // arguments FixtureHut takes; an error when no such rectangle fits. The hut then stands where the controller
-// would have raised it, so the colony grid a case derives from it is the
+// would have raised it, so the layout a case reads from it is the
 // one real play would have, and natural rock there is reused as wall.
 func ArgsFor(size int32) func(context.Context, *na.Harness) (map[string]any, error) {
 	return func(ctx context.Context, h *na.Harness) (map[string]any, error) {

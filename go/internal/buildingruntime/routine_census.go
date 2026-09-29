@@ -46,12 +46,11 @@ type routineCensusStore struct {
 	foodPlan            domain.Fact[policy.FoodPlan]
 	foodGeneration      uint64
 	foodMin, foodTarget float64
-	// grid is the colony grid the latest review served for gridScope (#667):
-	// a planner whose read misses the census plans on it too, so a fresh
-	// read never drops the grid the review already fixed.
-	grid      domain.Fact[policy.ColonyGrid]
-	layout    domain.Fact[policy.LayoutPlan]
-	gridScope observation.Identity
+	// layout is the v2 layout plan the latest review served for layoutScope
+	// (#667): a planner whose read misses the census plans on it too, so a
+	// fresh read never drops the plan the review already derived.
+	layout      domain.Fact[policy.LayoutPlan]
+	layoutScope observation.Identity
 	// benches is the mirror version of the bench table the latest review
 	// refreshed (0: it read none), which planners of its census serve.
 	benches uint64
@@ -87,26 +86,24 @@ func (s *routineCensusStore) benchTable(m *mirror.Mirror, scope mirror.Scope, ex
 	return table, ok && table.Version == version
 }
 
-// rememberGrid keeps the grid and v2 layout plan the review served under its identity.
-func (s *routineCensusStore) rememberGrid(identity observation.Identity, grid domain.Fact[policy.ColonyGrid], layout domain.Fact[policy.LayoutPlan]) {
+// rememberLayout keeps the v2 layout plan the review served under its identity.
+func (s *routineCensusStore) rememberLayout(identity observation.Identity, layout domain.Fact[policy.LayoutPlan]) {
 	s.mu.Lock()
-	s.grid, s.layout, s.gridScope = grid, layout, identity
+	s.layout, s.layoutScope = layout, identity
 	s.mu.Unlock()
 }
 
-// serveGrid sets the remembered grid on a fresh projection of the same
-// colony, map and load; the grid never moves once established, so a later
-// tick of the same load plans on it as the review did.
-func (s *routineCensusStore) serveGrid(projection *observation.ColonyProjection) {
-	if _, known := projection.ColonyGrid.Value(); known {
+// serveLayout sets the remembered layout plan on a fresh projection of the
+// same colony, map and load.
+func (s *routineCensusStore) serveLayout(projection *observation.ColonyProjection) {
+	if _, known := projection.LayoutPlan.Value(); known {
 		return
 	}
 	s.mu.Lock()
-	grid, layout, scope := s.grid, s.layout, s.gridScope
+	layout, scope := s.layout, s.layoutScope
 	s.mu.Unlock()
 	id := projection.Identity
-	if _, known := grid.Value(); known && scope.Colony == id.Colony && scope.Map == id.Map && scope.Load == id.Load {
-		projection.ColonyGrid = grid
+	if _, known := layout.Value(); known && scope.Colony == id.Colony && scope.Map == id.Map && scope.Load == id.Load {
 		projection.LayoutPlan = layout
 	}
 }
@@ -193,7 +190,7 @@ func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.R
 	}
 	reading, err := observation.ObserveRoutineOwned(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
 	if err == nil {
-		r.census.serveGrid(&reading.Projection)
+		r.census.serveLayout(&reading.Projection)
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
@@ -249,7 +246,7 @@ func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.R
 	}
 	reading, err := observation.ObserveRoutineRooms(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
 	if err == nil {
-		r.census.serveGrid(&reading.Projection)
+		r.census.serveLayout(&reading.Projection)
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
@@ -275,7 +272,7 @@ func (r *RoutineReviewer) observeColony(ctx context.Context, source observation.
 	}
 	reading, err := observation.ObserveColony(ctx, source, r.clock, expected, r.maxAge, true)
 	if err == nil {
-		r.census.serveGrid(&reading.Projection)
+		r.census.serveLayout(&reading.Projection)
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)

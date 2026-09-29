@@ -40,12 +40,6 @@ paired backups, manifests or archive tables.
   restorable state, not player vetoes. Ownership and the consumer contract:
   [colony extent contract](colony-extent.md).
 
-- **Colony grid.** The layout grid (`store.EstablishColonyGrid`,
-  `ColonyGrid`) is one row per world (colony, map), a session cache fixed
-  from the live world and visible at or after its tick; a world change
-  empties it, and another colony or map sees none.
-  A visible grid is never replaced: `EstablishColonyGrid` returns it and
-  reports nothing established.
 - **Layout tidies.** The re-sites `TidyLayout` moved or is moving
   (`store.RecordLayoutTidy`, `LayoutTidies`, #611) are a session cache per
   world (colony, map), rebuilt from the save's `family/tidies` blob on a

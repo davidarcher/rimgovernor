@@ -410,7 +410,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	for _, h := range held {
 		protected = append(protected, h.Footprint...)
 	}
-	storage := policy.CoveredStorageRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictStorage), Cells: projection.Cells, Protected: layoutProtected(projection, protected)}
+	storage := policy.CoveredStorageRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictStorage), Cells: projection.Cells, Protected: protected}
 	snap.NoteCoveredStorage(call, storage)
 	sites, err := policy.CoveredStorageSites(storage)
 	if err != nil {
@@ -678,7 +678,7 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	if !known {
 		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Reason: BuildingMethodUnknown}, nil
 	}
-	sites, err := policy.SupplyRoomEnclosureSites(policy.SupplyRoomEnclosureRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictStorage), Cells: projection.Cells, Protected: layoutProtected(projection, protected)})
+	sites, err := policy.SupplyRoomEnclosureSites(policy.SupplyRoomEnclosureRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictStorage), Cells: projection.Cells, Protected: protected})
 	if err != nil {
 		return PlanResult{}, err
 	}

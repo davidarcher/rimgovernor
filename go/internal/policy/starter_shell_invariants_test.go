@@ -63,8 +63,8 @@ func shellSites() []shellSite {
 }
 
 // site builds the request for one table row.
-func (s shellSite) request(style ShelterStyle) StarterRequest {
-	r := StarterRequest{Bounds: s.bounds, Anchor: s.anchor, Protected: s.protected, Shelter: style,
+func (s shellSite) request() StarterRequest {
+	r := StarterRequest{Bounds: s.bounds, Anchor: s.anchor, Protected: s.protected,
 		NutritionPerDay: domain.Known(5.0), CropGrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0), FertilityMin: domain.Known(.7)}
 	for x := int32(0); x < s.bounds.Width; x++ {
 		for z := int32(0); z < s.bounds.Height; z++ {
@@ -80,10 +80,10 @@ func (s shellSite) request(style ShelterStyle) StarterRequest {
 func TestStarterShellInvariantsAcrossSites(t *testing.T) {
 	t.Parallel()
 	for _, site := range shellSites() {
-		for _, style := range []ShelterStyle{ShelterRectangle} {
-			t.Run(fmt.Sprintf("%s/%s", site.name, style), func(t *testing.T) {
+		{
+			t.Run(site.name, func(t *testing.T) {
 				t.Parallel()
-				request := site.request(style)
+				request := site.request()
 				layouts, err := StarterLayouts(request)
 				if err != nil {
 					t.Fatal(err)

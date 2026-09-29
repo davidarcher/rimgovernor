@@ -42,15 +42,6 @@ type SiteCell struct {
 	RuinHold string
 }
 
-// ShelterStyle selects the starter shell's shape family. The rectangle is
-// the 9x9 template with the concave fallbacks; the module style (ShelterModule, #609) fills the colony grid's modules
-// and falls back to the rectangle without a grid or a free module.
-type ShelterStyle string
-
-const (
-	ShelterRectangle ShelterStyle = "rectangle"
-)
-
 type StarterRequest struct {
 	Bounds Bounds
 	Anchor domain.Cell
@@ -58,15 +49,6 @@ type StarterRequest struct {
 	// Protected contains accepted footprints and walkways.
 	Protected                                                     []domain.Cell
 	NutritionPerDay, CropGrowDays, HarvestNutrition, FertilityMin domain.Fact[float64]
-	// Shelter is the preferred shape family; empty means the rectangle.
-	Shelter ShelterStyle
-	// Grid is the colony grid the module style places its templates on;
-	// unknown, the module style searches as the rectangle.
-	Grid domain.Fact[ColonyGrid]
-	// Shape is the tier and room role's shape family (#637), tried on each
-	// module ahead of the single-module templates; empty is the single
-	// family.
-	Shape ShapeFamily
 	// Crop, when known, replaces the bare crop facts above for farm scoring.
 	Crop domain.Fact[CropChoice]
 	// Zones lists existing growing zones so farms can extend managed ones.
@@ -402,21 +384,6 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		_, observed := cells[shell.Threshold()]
 		return !observed || free(shell.Threshold())
 	}
-	// A module's door opens onto an aisle, which the caller protects from
-	// building: its threshold need only be open ground, not unprotected. A
-	// hall builds over the aisle bay it absorbs (#673), so those cells need
-	// only be open, unzoned ground too.
-	moduleBuildable := func(shell domain.RoomFootprint, absorbs Rectangle) bool {
-		for _, p := range shell.Cells() {
-			c := cells[p]
-			open := free(p) || containsCell(absorbs, p) && positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v })) && positive(measured(c.Zone, func(v bool) bool { return !v }))
-			if !open || !positive(cells[p].SupportsLight) {
-				return false
-			}
-		}
-		c, observed := cells[shell.Threshold()]
-		return !observed || positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))
-	}
 	// A site scores by its centre's distance to the anchor plus three per
 	// blocked cell in the three-row yard beyond the shell's entrance side,
 	// less the wall work rock on its ring saves, plus the labour of
@@ -461,9 +428,6 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 			sites = append(sites, site{0, score(shell), shell})
 			break
 		}
-	}
-	if grid, known := r.Grid.Value(); len(sites) == 0 && r.Shelter == ShelterModule && known && grid.Valid() {
-		sites = moduleSites(grid, r.Shape, ordered, moduleBuildable, score)
 	}
 	templated := func(templates []ShellTemplate) {
 		for _, c := range ordered {

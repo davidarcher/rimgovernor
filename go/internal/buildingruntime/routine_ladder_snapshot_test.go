@@ -3,7 +3,6 @@ package buildingruntime
 import (
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
@@ -90,27 +89,6 @@ func TestSnapshotDrillRemovalSelectsTheExhaustedDrill(t *testing.T) {
 	}
 	if drills := exhaustedDrills(deep); len(drills) != 1 || drills[0].Definition != "DeepDrill" {
 		t.Fatalf("exhausted drills %+v of %+v, want the one depleted drill", drills, deep.Drills)
-	}
-}
-
-// layout/tidy: the field family's Camp-tier rice patch lies off the grid;
-// with Stonecutting finished (Masonry) the review's tidy proposal re-sites
-// it onto a Fields sub-cell on the grid with its crop kept, and TidyLayout
-// opens a deficit on it. The review's zone read is not recorded, so the
-// proposal is the recorded one; the goal is replayed.
-func TestSnapshotTidyResitesCampField(t *testing.T) {
-	t.Parallel()
-	r := loadRecorded(t, "tidy-camp-field-resite")
-	review, known := r.Facts.LayoutTidy.Value()
-	if !known || !review.Active || review.Proposal == nil {
-		t.Fatalf("tidy review %+v: want an active proposal", review)
-	}
-	p := review.Proposal
-	if p.Item.Kind != policy.TidyField || p.Item.Crop != "Plant_Rice" || p.Gain <= 0 {
-		t.Fatalf("tidy proposal %+v: want the rice field re-sited with an alignment gain", p)
-	}
-	if a, err := r.Assessment(policy.TidyLayout); err != nil || a.Need != domain.NeedDeficit {
-		t.Fatalf("TidyLayout assessment %+v err %v, want a deficit", a, err)
 	}
 }
 

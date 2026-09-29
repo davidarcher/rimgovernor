@@ -283,9 +283,6 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 		if err = initializeColonyExtent(ctx, tx); err != nil {
 			return err
 		}
-		if err = initializeColonyGrid(ctx, tx); err != nil {
-			return err
-		}
 		if err = initializeLayoutPlan(ctx, tx); err != nil {
 			return err
 		}
@@ -334,9 +331,6 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 		return err
 	}
 	if err = checkColonyExtentSchema(ctx, tx); err != nil {
-		return err
-	}
-	if err = checkColonyGridSchema(ctx, tx); err != nil {
 		return err
 	}
 	if err = checkLayoutPlanSchema(ctx, tx); err != nil {

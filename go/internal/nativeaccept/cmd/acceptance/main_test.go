@@ -204,7 +204,7 @@ func TestWhyPrintsDigestForCaseDirectory(t *testing.T) {
 		t.Fatalf("why -json exit %d: %s", code, stderr.String())
 	}
 	var digest postmortem.Digest
-	if err := json.Unmarshal(stdout.Bytes(), &digest); err != nil || digest.Case != "a/b" || len(digest.Sections) != 10 {
+	if err := json.Unmarshal(stdout.Bytes(), &digest); err != nil || digest.Case != "a/b" || len(digest.Sections) != 9 {
 		t.Fatalf("why -json: %v %+v", err, digest)
 	}
 	if code := run([]string{"why", filepath.Join(dir, "missing")}, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "no result.json") {

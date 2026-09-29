@@ -193,7 +193,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 			benchCell = b.Cell
 		}
 	}
-	sites, err := ingredientStorageSites(rooms.Rooms, benchCell, projection.Bounds, projection.Cells, layoutProtected(projection, protected))
+	sites, err := ingredientStorageSites(rooms.Rooms, benchCell, projection.Bounds, projection.Cells, protected)
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}

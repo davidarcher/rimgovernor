@@ -31,52 +31,16 @@ type FarmSiteWeights struct {
 	Fragment, Perimeter float64
 	// Contiguity is credited per cell of a patch that adjoins a compatible
 	// zone, and such a patch is not charged the fixed Fragment cost.
-	// On the colony grid (#608) the same weight credits a module patch
-	// sharing a full co-linear edge with an aligned compatible zone (the
-	// "row" term) and touch-based contiguity is not scored.
 	Contiguity float64
 	// Blight charges each edge shared with another field; Firebreak credits
 	// an intervening roofed empty cell or impassable occupied cell.
 	Blight, Firebreak float64
-	// Alignment is a fixed charge per corner cell the patch sits off the
-	// colony grid (#607); it applies only when the request carries a grid.
-	Alignment float64
 }
 
 // DefaultFarmSiteWeights make rich soil (+40% yield) worth about 27 extra
-// walked steps and a separate patch cost half a cell's output. The
-// alignment charge (FarmSiteWeightsFor) is zero at Camp.
+// walked steps and a separate patch cost half a cell's output.
 func DefaultFarmSiteWeights() FarmSiteWeights {
 	return FarmSiteWeights{Travel: 0.015, Hauling: 0.005, Fragment: 0.5, Perimeter: 0.04, Contiguity: 0.1, Blight: .8, Firebreak: .1}
-}
-
-// FarmSiteWeightsFor are the default weights with the alignment charge for
-// a build tier (#607): zero at Camp, and above it a charge that makes one
-// corner cell of grid error on a 4x4 patch worth about 1.5 walked steps
-// (travel and hauling together) for every cell of the patch, so a patch on a
-// grid intersection 8 steps further out beats a 4x4 six cells off the grid,
-// while one a whole module (16 steps) further out does not.
-func FarmSiteWeightsFor(tier BuildTier) FarmSiteWeights {
-	w := DefaultFarmSiteWeights()
-	if tier >= BuildTierMasonry {
-		w.Alignment = 0.5
-	}
-	return w
-}
-
-// DefaultPlacementAlignment is the placement search's alignment weight for
-// a build tier (#607): zero at Camp, and above it one corner cell of grid
-// error is worth one cell of distance. Moving a footprint one cell toward a
-// grid line removes one cell of error, so the nearest intersection wins
-// whenever its footprint is free (a diagonal step removes two cells of
-// error for 1.41 of distance; along an axis the tie falls to the nearer
-// site), while the next intersection along, a whole module (16 cells)
-// further out, never beats a nearby off-grid site.
-func DefaultPlacementAlignment(tier BuildTier) float64 {
-	if tier < BuildTierMasonry {
-		return 0
-	}
-	return 1
 }
 
 type FarmSiteRequest struct {
@@ -92,9 +56,6 @@ type FarmSiteRequest struct {
 	Needed       int
 	StrictTarget bool
 	Weights      FarmSiteWeights
-	// Grid is the colony grid the alignment term measures against (#607);
-	// unknown, no patch pays it.
-	Grid domain.Fact[ColonyGrid]
 }
 
 type FarmSiteTerm struct {
@@ -118,21 +79,12 @@ type FarmSitePlan struct {
 	Cells     int
 	Fallback  bool
 	Unplanted int
-	// Module is the field module planted on the colony grid (#608), width
-	// and height only; zero when the plan did not plan on the grid. Target
-	// is the demand rounded up to whole modules (FieldModuleCells), the
-	// cell count the plan set out to meet.
-	Module Rectangle
-	Target int
 }
 
 // Explain renders the selection for logs and acceptance evidence.
 func (p FarmSitePlan) Explain() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%d cells in %d patches (fallback=%t unplanted=%d)", p.Cells, len(p.Patches), p.Fallback, p.Unplanted)
-	if p.Module.Width > 0 {
-		fmt.Fprintf(&b, " module=%dx%d target=%d", p.Module.Width, p.Module.Height, p.Target)
-	}
 	for _, c := range p.Selected {
 		fmt.Fprintf(&b, "\n  %dx%d@%d,%d score=%.4f density=%.4f", c.Patch.Width, c.Patch.Height, c.Patch.X, c.Patch.Z, c.Score, c.Density)
 		for _, t := range c.Terms {
@@ -156,19 +108,6 @@ const farmSitePatchLimit = 32
 // the crop's fertility floor. Missing, unreachable, occupied, zoned, roofed
 // and protected cells never become free land. Output is independent of
 // census order.
-//
-// On the colony grid (#608: a known Grid and a positive Alignment weight,
-// which layoutAlignment and FarmSiteWeightsFor set together from Masonry
-// up) demand is rounded up to whole field modules (FieldModuleCells) and
-// the candidates are module patches: the 11x11 interior of a grid module,
-// offsets 1..11 from its corner, so the wall ring (offsets 0 and 12) stays
-// free for the Spacer hydroponics room and the aisle beyond it for
-// hauling; under a whole module's demand the two 11x5 halves. A module
-// patch sharing a full co-linear edge with an aligned compatible zone,
-// one pitch away or across the half divider, earns the row term in place
-// of touch contiguity. The size ladder is the fallback when no module
-// patch meets the fertility floor, its patches starting on the module's
-// sub-cell corners. At Camp nothing of this applies.
 func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	w := r.Weights
 	if w == (FarmSiteWeights{}) {
@@ -184,7 +123,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	if r.Needed <= 0 || r.Needed > 65536 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || !mk || !fieldPositive(minimum) || !sk || !foodNumber(sensitivity) || !dk || !fieldPositive(days) || !yk || !fieldPositive(yield) {
 		return FarmSitePlan{}
 	}
-	for _, v := range []float64{w.Travel, w.Hauling, w.Fragment, w.Perimeter, w.Contiguity, w.Blight, w.Firebreak, w.Alignment} {
+	for _, v := range []float64{w.Travel, w.Hauling, w.Fragment, w.Perimeter, w.Contiguity, w.Blight, w.Firebreak} {
 		if !foodNumber(v) || v < 0 {
 			return FarmSitePlan{}
 		}
@@ -257,12 +196,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	if !fieldPositive(unit) {
 		return FarmSitePlan{}
 	}
-	grid, aligned := r.Grid.Value()
-	aligned = aligned && grid.Valid() && w.Alignment > 0
 	target := r.Needed
-	if aligned {
-		target = FieldModuleCells(r.Needed)
-	}
 	fields := map[string]bool{}
 	for _, zone := range r.Zones {
 		fields[zone.ID] = zone.ID != ""
@@ -303,70 +237,8 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		}
 		return best
 	}
-	// rowPartner names the aligned compatible zone (or "plan" for a patch
-	// admitted in this batch) whose facing edge, one pitch away along either
-	// axis or across a half module's divider row, is fully zoned: a full
-	// co-linear shared edge (#608). Touching is not enough on the grid.
-	partnerAt := func(c domain.Cell) string {
-		if taken[c] {
-			return "plan"
-		}
-		if s, ok := census[c]; ok {
-			if zone, known := s.ZoneID.Value(); known && compatible[zone] {
-				return zone
-			}
-		}
-		return ""
-	}
-	rowPartner := func(patch Rectangle) string {
-		shifts := []domain.Cell{{X: grid.Pitch}, {X: -grid.Pitch}, {Z: grid.Pitch}, {Z: -grid.Pitch}}
-		if patch.Height == ColonyGridSubCell {
-			shifts = append(shifts, domain.Cell{Z: ColonyGridSubCell + 1}, domain.Cell{Z: -(ColonyGridSubCell + 1)})
-		}
-		if patch.Width == ColonyGridSubCell {
-			shifts = append(shifts, domain.Cell{X: ColonyGridSubCell + 1}, domain.Cell{X: -(ColonyGridSubCell + 1)})
-		}
-		best := ""
-		for _, shift := range shifts {
-			edge := Rectangle{X: patch.X + shift.X, Z: patch.Z + shift.Z, Width: patch.Width, Height: patch.Height}
-			switch {
-			case shift.X > 0:
-				edge.Width = 1
-			case shift.X < 0:
-				edge.X, edge.Width = edge.X+edge.Width-1, 1
-			case shift.Z > 0:
-				edge.Height = 1
-			default:
-				edge.Z, edge.Height = edge.Z+edge.Height-1, 1
-			}
-			partner := ""
-			for _, c := range rectCells(edge) {
-				id := partnerAt(c)
-				if id == "" || partner != "" && partner != id {
-					partner = ""
-					break
-				}
-				partner = id
-			}
-			// A full co-linear edge ends where the patch's does: a partner
-			// running past either end is a larger field, not a row mate.
-			ends := []domain.Cell{{X: edge.X - 1, Z: edge.Z}, {X: edge.X + edge.Width, Z: edge.Z}}
-			if shift.X != 0 {
-				ends = []domain.Cell{{X: edge.X, Z: edge.Z - 1}, {X: edge.X, Z: edge.Z + edge.Height}}
-			}
-			for _, c := range ends {
-				if partner != "" && partnerAt(c) == partner {
-					partner = ""
-				}
-			}
-			if partner != "" && (best == "" || partner < best) {
-				best = partner
-			}
-		}
-		return best
-	}
 	// contiguityTerms are the terms selection re-scores: touching fields
-	// (blight, firebreak) and, on the grid, the row partner and fragment.
+	// (blight, firebreak), contiguity and fragment.
 	contiguityTerms := func(patch Rectangle) ([]FarmSiteTerm, string, bool) {
 		shared, firebreak := 0, 0
 		for _, c := range rectCells(patch) {
@@ -379,14 +251,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		n := float64(patch.Width * patch.Height)
 		terms := []FarmSiteTerm{{"blight", -w.Blight * unit * float64(shared)}, {"firebreak", w.Firebreak * unit * float64(firebreak)}}
 		adjacent := ""
-		if aligned {
-			adjacent = rowPartner(patch)
-			if adjacent == "" {
-				terms = append(terms, FarmSiteTerm{"row", 0}, FarmSiteTerm{"fragment", -w.Fragment * unit})
-			} else {
-				terms = append(terms, FarmSiteTerm{"row", w.Contiguity * unit * n})
-			}
-		} else if adjacent = adjacentZone(patch); adjacent == "" {
+		if adjacent = adjacentZone(patch); adjacent == "" {
 			terms = append(terms, FarmSiteTerm{"fragment", -w.Fragment * unit})
 		} else {
 			terms = append(terms, FarmSiteTerm{"contiguity", w.Contiguity * unit * n})
@@ -394,12 +259,8 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		return terms, adjacent, true
 	}
 	// fixedTerms is how many leading terms of a candidate selection never
-	// re-scores: yield, travel, hauling, perimeter and, on the grid,
-	// alignment.
-	fixedTerms := 4
-	if aligned {
-		fixedTerms = 5
-	}
+	// re-scores: yield, travel, hauling and perimeter.
+	const fixedTerms = 4
 	score := func(patch Rectangle) (FarmSiteCandidate, bool) {
 		cells := rectCells(patch)
 		reward, walk, carry := 0.0, 0.0, 0.0
@@ -414,11 +275,6 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		}
 		n := float64(len(cells))
 		terms := []FarmSiteTerm{{"yield", reward}, {"travel", -w.Travel * unit * walk}, {"hauling", -w.Hauling * unit * carry}, {"perimeter", -w.Perimeter * unit * float64(2*(patch.Width+patch.Height))}}
-		if aligned {
-			// Every grid candidate is snapped, so the alignment charge
-			// is moot; the row term explains the grid instead.
-			terms = append(terms, FarmSiteTerm{"alignment", 0})
-		}
 		rest, adjacent, ok := contiguityTerms(patch)
 		if !ok {
 			return FarmSiteCandidate{}, false
@@ -438,9 +294,6 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		ordered = append(ordered, c)
 	}
 	sort.Slice(ordered, func(i, j int) bool { return cellLess(ordered[i], ordered[j]) })
-	inRect := func(p Rectangle) bool {
-		return p.X >= 0 && p.Z >= 0 && p.X+p.Width <= r.Bounds.Width && p.Z+p.Height <= r.Bounds.Height
-	}
 	order := func(out []FarmSiteCandidate) []FarmSiteCandidate {
 		sort.Slice(out, func(i, j int) bool {
 			a, b := out[i], out[j]
@@ -454,55 +307,10 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		})
 		return out
 	}
-	// Grid candidates (#608): every module some free cell falls in, as its
-	// whole interior or its two 11x5 halves; ladder patches at these tiers
-	// start only on a module's sub-cell corners.
-	subCells := func() []Rectangle {
-		seen := map[Rectangle]bool{}
-		var out []Rectangle
-		for _, c := range ordered {
-			module := grid.Module(c)
-			if seen[module] {
-				continue
-			}
-			seen[module] = true
-			out = append(out, grid.SubCells(module)...)
-		}
-		return out
-	}
-	moduleCandidates := func(half bool) []FarmSiteCandidate {
-		var out []FarmSiteCandidate
-		seen := map[Rectangle]bool{}
-		for i, p := range subCells() {
-			if k := i % 9; half && (k < 3 || k > 4) || !half && k != 0 {
-				continue
-			}
-			if seen[p] || !inRect(p) {
-				continue
-			}
-			seen[p] = true
-			if cand, ok := score(p); ok {
-				out = append(out, cand)
-			}
-		}
-		return order(out)
-	}
 	candidates := func(sizes []int32) []FarmSiteCandidate {
-		origins := ordered
-		if aligned {
-			seen := map[domain.Cell]bool{}
-			origins = nil
-			for _, p := range subCells() {
-				if c := (domain.Cell{X: p.X, Z: p.Z}); !seen[c] {
-					seen[c] = true
-					origins = append(origins, c)
-				}
-			}
-			sort.Slice(origins, func(i, j int) bool { return cellLess(origins[i], origins[j]) })
-		}
 		var out []FarmSiteCandidate
 		for _, size := range sizes {
-			for _, c := range origins {
+			for _, c := range ordered {
 				if c.X+size > r.Bounds.Width || c.Z+size > r.Bounds.Height {
 					continue
 				}
@@ -513,29 +321,14 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		}
 		return order(out)
 	}
-	plan := FarmSitePlan{Target: target}
-	// paired reports a same-size clear candidate one pitch away in pool.
-	paired := func(pool []FarmSiteCandidate, p Rectangle) bool {
-		for _, q := range pool {
-			dx, dz := q.Patch.X-p.X, q.Patch.Z-p.Z
-			if q.Patch.Width != p.Width || q.Patch.Height != p.Height || !(dz == 0 && (dx == grid.Pitch || dx == -grid.Pitch) || dx == 0 && (dz == grid.Pitch || dz == -grid.Pitch)) {
-				continue
-			}
-			if _, _, clear := contiguityTerms(q.Patch); clear {
-				return true
-			}
-		}
-		return false
-	}
-	pick := func(pool []FarmSiteCandidate, ladder bool) {
-		ladder = ladder && aligned
+	plan := FarmSitePlan{}
+	pick := func(pool []FarmSiteCandidate) {
 		for len(pool) > 0 {
 			if plan.Cells >= target || len(plan.Patches) >= farmSitePatchLimit {
 				return
 			}
 			// Re-score after each selection: a second patch also pays for
-			// touching a field admitted in this same batch, and on the grid
-			// earns the row term for lining up with one.
+			// touching a field admitted in this same batch.
 			best := -1
 			for i := range pool {
 				if r.StrictTarget && int(pool[i].Patch.Width*pool[i].Patch.Height) > target-plan.Cells {
@@ -553,18 +346,6 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 					candidate.Score += term.Value
 				}
 				candidate.Density = candidate.Score / float64(candidate.Patch.Width*candidate.Patch.Height)
-				// On the grid ladder a row partner always beats a new row,
-				// and a new row starts only where its partner can follow
-				// (#982).
-				if ladder && adjacent == "" && !paired(pool, candidate.Patch) {
-					continue
-				}
-				if ladder && best >= 0 && (adjacent != "") != (pool[best].Adjacent != "") {
-					if adjacent != "" {
-						best = i
-					}
-					continue
-				}
 				if best < 0 || pool[i].Density > pool[best].Density {
 					best = i
 				}
@@ -584,27 +365,13 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 			plan.Cells += len(cells)
 		}
 	}
-	if aligned {
-		plan.Module = Rectangle{Width: ColonyGridInterior, Height: ColonyGridInterior}
-		if target < FieldModuleCellCount {
-			plan.Module.Height = ColonyGridSubCell
-		} else {
-			pick(moduleCandidates(false), false)
-		}
-		if plan.Cells < target {
-			pick(moduleCandidates(true), false)
-		}
+	// Fallback is lone cells once the size ladder runs out.
+	if plan.Cells < target {
+		pick(candidates([]int32{4, 3, 2}))
 	}
-	// Fallback is the size ladder on the grid, or lone cells off it.
 	before := len(plan.Patches)
 	if plan.Cells < target {
-		pick(candidates([]int32{4, 3, 2}), true)
-	}
-	if !aligned {
-		before = len(plan.Patches)
-	}
-	if plan.Cells < target {
-		pick(candidates([]int32{1}), false)
+		pick(candidates([]int32{1}))
 	}
 	plan.Fallback = len(plan.Patches) > before
 	plan.Unplanted = max(0, target-plan.Cells)

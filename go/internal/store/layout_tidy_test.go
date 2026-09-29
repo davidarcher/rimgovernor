@@ -16,11 +16,11 @@ func TestLayoutTidiesKeepTheLatestStatePerWorld(t *testing.T) {
 	if _, err := db.EstablishColonyExtent(ctx, first, 100, []policy.ExtentRegion{extentRegion("a", domain.Cell{X: 0, Z: 0})}); err != nil {
 		t.Fatal(err)
 	}
-	moving := LayoutTidy{Item: "Zone_7", Kind: policy.TidyField, Status: LayoutTidyMoving, From: policy.Rectangle{X: 20, Z: 5, Width: 2, Height: 2}, To: policy.Rectangle{X: 17, Z: 7, Width: 11, Height: 5}, Crop: "Plant_Rice", NewZone: "Zone_9", Explanation: "field Zone_7 -> 11x5 at 17,7"}
+	moving := LayoutTidy{Item: "Zone_7", Kind: policy.TidyFurniture, Status: LayoutTidyMoving, From: policy.Rectangle{X: 20, Z: 5, Width: 2, Height: 2}, To: policy.Rectangle{X: 17, Z: 7, Width: 11, Height: 5}, Crop: "Plant_Rice", NewZone: "Zone_9", Explanation: "field Zone_7 -> 11x5 at 17,7"}
 	if err := db.RecordLayoutTidy(ctx, first, 250, moving); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.RecordLayoutTidy(ctx, first, 250, LayoutTidy{Kind: policy.TidyField, Status: LayoutTidyMoving}); err == nil {
+	if err := db.RecordLayoutTidy(ctx, first, 250, LayoutTidy{Kind: policy.TidyFurniture, Status: LayoutTidyMoving}); err == nil {
 		t.Fatal("an item-less tidy was accepted")
 	}
 	if _, err := db.EstablishColonyExtent(ctx, first, 300, []policy.ExtentRegion{extentRegion("b", domain.Cell{X: 1, Z: 0})}); err != nil {
@@ -58,7 +58,7 @@ func TestLayoutTidiesIgnoreRetiredStockpileRows(t *testing.T) {
 	if _, err := db.EstablishColonyExtent(ctx, world, 100, []policy.ExtentRegion{extentRegion("a", domain.Cell{X: 0, Z: 0})}); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.RecordLayoutTidy(ctx, world, 200, LayoutTidy{Item: "Zone_7", Kind: policy.TidyField, Status: LayoutTidyDone}); err != nil {
+	if err := db.RecordLayoutTidy(ctx, world, 200, LayoutTidy{Item: "Zone_7", Kind: policy.TidyFurniture, Status: LayoutTidyDone}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.db.ExecContext(ctx, "INSERT INTO layout_tidies(colony,map_id,tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation) VALUES(?,?,210,'Zone_5','stockpile','done',0,0,3,3,0,0,3,3,'','','','')", world.Colony, world.Map); err != nil {

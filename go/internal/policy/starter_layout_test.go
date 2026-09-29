@@ -252,9 +252,8 @@ func TestStarterConcaveTemplatesWrapAnObstacle(t *testing.T) {
 	// Lit ground only inside an L-shaped clearing around the anchor: no 9x9
 	// rectangle fits, so the L template with the matching notch is sited
 	// before any footprint is grown.
-	for _, style := range []ShelterStyle{ShelterRectangle} {
+	{
 		r := starterFixture()
-		r.Shelter = style
 		want, _ := concaveTemplates[1].Shape(domain.Cell{X: 20, Z: 20})
 		clearing := map[domain.Cell]bool{}
 		for _, c := range want.Cells() {
@@ -268,10 +267,10 @@ func TestStarterConcaveTemplatesWrapAnObstacle(t *testing.T) {
 		}
 		layouts, err := StarterLayouts(r)
 		if err != nil || len(layouts) != 1 {
-			t.Fatal(style, layouts, err)
+			t.Fatal(layouts, err)
 		}
 		if !domain.SameRoomFootprint(layouts[0].Shell, want) {
-			t.Fatalf("%s: expected %s, got %v with %d cells", style, concaveTemplates[1].Name, layouts[0].Room, len(layouts[0].Shell.Interior()))
+			t.Fatalf("expected %s, got %v with %d cells", concaveTemplates[1].Name, layouts[0].Room, len(layouts[0].Shell.Interior()))
 		}
 		inside := map[domain.Cell]bool{}
 		for _, c := range want.Interior() {

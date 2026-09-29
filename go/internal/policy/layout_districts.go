@@ -116,10 +116,3 @@ func (p LayoutPlan) District(c domain.Cell) District {
 	}
 	return ""
 }
-
-// module returns a cell's module coordinates on the colony grid: the
-// origin module is (0,0) and each pitch square along an axis counts one.
-func (g ColonyGrid) module(c domain.Cell) (mu, mv int32) {
-	u, v := g.local(c)
-	return floorDiv(u, g.Pitch), floorDiv(v, g.Pitch)
-}

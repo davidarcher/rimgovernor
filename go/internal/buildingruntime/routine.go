@@ -290,13 +290,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 	reading.Projection.Facts.ConstructionClaims = claims
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
-	if err = r.reviewColonyGrid(ctx, state.Snapshot, &reading.Projection); err != nil {
-		clockSchedulerLog("routine.step: colony grid err=%v", err)
+	if err = r.reviewLayoutPlan(ctx, state.Snapshot, &reading.Projection); err != nil {
+		clockSchedulerLog("routine.step: layout plan err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
-	reading.Sections.Colony.Value.ColonyGrid = reading.Projection.ColonyGrid
 	reading.Sections.Colony.Value.LayoutPlan = reading.Projection.LayoutPlan
-	r.census.rememberGrid(reading.Projection.Identity, reading.Projection.ColonyGrid, reading.Projection.LayoutPlan)
+	r.census.rememberLayout(reading.Projection.Identity, reading.Projection.LayoutPlan)
 	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection)
 	reading.Projection.Facts.CorpsesOwed = corpsesOwed(reading.Projection)
 	reading.Projection.Facts.TombsWarm = warmTombs(reading.Projection)

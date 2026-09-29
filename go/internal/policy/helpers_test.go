@@ -21,12 +21,6 @@ func GearMaterialBudget(stock []Stock, holds []Amount) []Amount {
 	return out
 }
 
-// ModuleShapes lists every shell template for one module under a tier and
-// role: the shape family's shells first, then C6's single-module templates.
-func ModuleShapes(g ColonyGrid, module Rectangle, tier BuildTier, role RoomRole) []ModuleShell {
-	return append(ShapeFamilyShells(g, module, ModuleShapeFamily(tier, role)), ModuleShells(g, module)...)
-}
-
 // TierStyleStockOf folds a stock census into the map the rules read,
 // summing repeated rows and ignoring negative counts.
 func TierStyleStockOf(rows []Amount) TierStyleStock {
@@ -90,22 +84,6 @@ func TurbineWindCells(center domain.Cell, rot domain.Rotation) []domain.Cell {
 		}
 	}
 	return out
-}
-
-// ModuleShellsAtDoor returns every module template whose door stands on
-// door, the module-style counterpart of ShellShapesAtDoor: a shell planner
-// recognises a module it began earlier from the door still standing.
-func ModuleShellsAtDoor(g ColonyGrid, door domain.Cell) []domain.RoomFootprint {
-	if !g.Valid() {
-		return nil
-	}
-	var shells []domain.RoomFootprint
-	for _, t := range ModuleShells(g, g.Module(door)) {
-		if t.Shell.Door() == door {
-			shells = append(shells, t.Shell)
-		}
-	}
-	return shells
 }
 
 // MoodUnownedThought reports whether the thought is removable environment

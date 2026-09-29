@@ -68,17 +68,13 @@ type ColonyProjection struct {
 	PowerPlanning                          domain.Fact[policy.PowerTopology]
 	Rooms                                  domain.Fact[policy.RoomObservation]
 	Identity                               Identity
-	// PlayerTechLevel is the player faction's native TechLevel name, which
-	// selects the starter shelter's shape family.
+	// PlayerTechLevel is the player faction's native TechLevel name, the
+	// faction's tech level.
 	PlayerTechLevel domain.Fact[string]
 	// BuildTier is the construction tier derived from finished research
 	// with PlayerTechLevel as its floor (#604); unknown until a routine
 	// reading served the research census.
 	BuildTier domain.Fact[policy.BuildTier]
-	// ColonyGrid is the persisted layout grid (#605), served by the routine
-	// review from the journal; unknown until one is established. At tier
-	// >= Masonry its aisles are protected cells in every site search (#606).
-	ColonyGrid domain.Fact[policy.ColonyGrid]
 	// LayoutPlan is the persisted v2 layout (#783), served by the routine
 	// review; unknown until one is derived. layoutAnchor reads it (#785).
 	LayoutPlan domain.Fact[policy.LayoutPlan]
@@ -246,7 +242,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.BuildTier = domain.Unknown[policy.BuildTier]()
-	r.ColonyGrid = domain.Unknown[policy.ColonyGrid]()
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.DeepResources = colonyDeepResources(v.DeepResources)

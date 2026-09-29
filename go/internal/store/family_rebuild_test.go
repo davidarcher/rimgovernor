@@ -24,9 +24,9 @@ func TestRebuildFamiliesRoundTripsEachFamily(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, tidy := range []LayoutTidy{
-		{Item: "Zone_7", Kind: policy.TidyField, Status: LayoutTidyMoving, To: policy.Rectangle{X: 17, Z: 7, Width: 11, Height: 5}, Crop: "Plant_Rice"},
-		{Item: "Zone_3", Kind: policy.TidyField, Status: LayoutTidyDone},
-		{Item: "Zone_7", Kind: policy.TidyField, Status: LayoutTidyDone, To: policy.Rectangle{X: 17, Z: 7, Width: 11, Height: 5}, Crop: "Plant_Rice"},
+		{Item: "Zone_7", Kind: policy.TidyFurniture, Status: LayoutTidyMoving, To: policy.Rectangle{X: 17, Z: 7, Width: 11, Height: 5}, Crop: "Plant_Rice"},
+		{Item: "Zone_3", Kind: policy.TidyFurniture, Status: LayoutTidyDone},
+		{Item: "Zone_7", Kind: policy.TidyFurniture, Status: LayoutTidyDone, To: policy.Rectangle{X: 17, Z: 7, Width: 11, Height: 5}, Crop: "Plant_Rice"},
 	} {
 		if err := source.RecordLayoutTidy(ctx, w, domain.Tick(200+i*50), tidy); err != nil {
 			t.Fatal(err)

@@ -58,8 +58,7 @@ func (r *RoutineAnimalFeedPlanner) planHay(call, epoch context.Context, state Co
 	}
 	claimed, _ := claims.Value()
 	protected = append(protected, shellInteriors(plans, claimed)...)
-	hayGrid := policy.FarmSiteRequest{Bounds: p.Bounds, Anchor: layoutAnchor(p, policy.DistrictFields), Cells: p.Cells, Zones: zones, Protected: layoutProtected(p, protected), Weights: layoutFarmWeights(p)}
-	hayGrid.Grid, _ = layoutAlignment(p)
+	hayGrid := policy.FarmSiteRequest{Bounds: p.Bounds, Anchor: layoutAnchor(p, policy.DistrictFields), Cells: p.Cells, Zones: zones, Protected: protected}
 	plan, ok := policy.PlanHayField(domain.Known(need), crop, p.CropClimate, hayGrid)
 	if !ok {
 		return RoutineResourceResult{}, false, nil

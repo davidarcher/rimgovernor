@@ -26,12 +26,6 @@ type PlacementSearchRequest struct {
 	Environment PlacementEnvironment
 	Radius      int32
 	Limit       int
-	// Grid and Alignment score a footprint's distance from the colony
-	// grid (#607): Alignment is the cells of distance one corner-cell of
-	// error is worth. An unknown grid or a zero weight leaves Select the
-	// nearest-site choice.
-	Grid      domain.Fact[ColonyGrid]
-	Alignment float64
 	// Anchors, when non-nil, limits the sites to these cells; footprints
 	// may still cover any free cell.
 	Anchors []domain.Cell
@@ -40,24 +34,19 @@ type PlacementSearchRequest struct {
 // PlacementSearch is a bounded native-grounded proposal set. It owns a copy
 // of free geometry; callers cannot widen it after native previews are requested.
 type PlacementSearch struct {
-	snapshot  domain.GenerationSnapshot
-	tick      domain.Tick
-	center    domain.Cell
-	sites     []domain.Cell
-	free      map[domain.Cell]bool
-	grid      ColonyGrid
-	alignment float64
+	snapshot domain.GenerationSnapshot
+	tick     domain.Tick
+	center   domain.Cell
+	sites    []domain.Cell
+	free     map[domain.Cell]bool
 }
 
 // PlacementScore explains why Select chose a footprint: Distance is the
-// anchor's distance from the search center in cells, Alignment the weighted
-// corner error, Score their sum. Alignment is zero without a grid.
+// anchor's distance from the search center in cells, and Score equals it.
 type PlacementScore struct {
-	Anchor      domain.Cell
-	Distance    float64
-	CornerError int
-	Alignment   float64
-	Score       float64
+	Anchor   domain.Cell
+	Distance float64
+	Score    float64
 }
 
 // NewPlacementSearch ports development.placement's nearest-cell ordering and
@@ -68,9 +57,6 @@ func NewPlacementSearch(r PlacementSearchRequest) (PlacementSearch, error) {
 	}
 	if r.Environment != PlacementAnywhere && r.Environment != PlacementIndoors && r.Environment != PlacementOutdoors {
 		return PlacementSearch{}, errors.New("invalid placement environment")
-	}
-	if math.IsNaN(r.Alignment) || math.IsInf(r.Alignment, 0) || r.Alignment < 0 {
-		return PlacementSearch{}, errors.New("invalid placement alignment weight")
 	}
 	inside := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < r.Bounds.Width && c.Z < r.Bounds.Height }
 	if !inside(r.Center) {
@@ -84,9 +70,6 @@ func NewPlacementSearch(r PlacementSearchRequest) (PlacementSearch, error) {
 		blocked[c] = true
 	}
 	s := PlacementSearch{snapshot: r.Snapshot, tick: r.Tick, center: r.Center, free: map[domain.Cell]bool{}}
-	if grid, known := r.Grid.Value(); known && grid.Valid() && r.Alignment > 0 {
-		s.grid, s.alignment = grid, r.Alignment
-	}
 	var anchors map[domain.Cell]bool
 	if r.Anchors != nil {
 		anchors = map[domain.Cell]bool{}
@@ -156,9 +139,7 @@ func DoorwayAisles(bounds Bounds, cells []SiteCell) []domain.Cell {
 func (s PlacementSearch) Candidates() []domain.Cell { return append([]domain.Cell(nil), s.sites...) }
 
 // Select chooses the fully inspected footprint for the requested native
-// definition/stuff with the lowest score: the anchor's distance from the
-// search center plus Alignment times the footprint's corner error on the
-// colony grid (#607). Without a grid or weight that is the nearest site;
+// definition/stuff nearest the search center;
 // ties fall to the nearest-site rank, then the lowest action id. Resource
 // admission and authoritative competing holds still belong to the shared
 // method store; a selected preview grants no execution.
@@ -168,14 +149,10 @@ func (s PlacementSearch) Select(definition, stuff string, previews []Preview) (P
 }
 
 // Score is the score Select gives a footprint anchored at the cell, for
-// logs and tests; the footprint's bounding rectangle sets the corner error.
+// logs and tests.
 func (s PlacementSearch) Score(anchor domain.Cell, footprint []domain.Cell) PlacementScore {
 	score := PlacementScore{Anchor: anchor, Distance: math.Sqrt(float64(squaredDistance(anchor, s.center)))}
-	if s.alignment > 0 && len(footprint) > 0 {
-		score.CornerError = s.grid.CornerError(cellsRectangle(footprint))
-		score.Alignment = s.alignment * float64(score.CornerError)
-	}
-	score.Score = score.Distance + score.Alignment
+	score.Score = score.Distance
 	return score
 }
 

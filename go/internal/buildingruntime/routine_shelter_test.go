@@ -1137,7 +1137,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 			}
 			facts := facts
 			facts.Rooms = test.rooms
-			selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, facts, nil, policy.ShelterRectangle, func() error { return nil })
+			selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, facts, nil, func() error { return nil })
 			if err != nil || len(selected) != 0 || adopted != test.adopted {
 				t.Fatal(selected, reason, adopted, err)
 			}
@@ -1158,7 +1158,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 		adopted bool
 	}{{policy.MaintainHousing, true}, {policy.MaintainResource, false}} {
 		planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: gap, goal: test.goal, definition: "Wall", shelter: true}
-		selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, roomed, nil, policy.ShelterRectangle, func() error { return nil })
+		selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, roomed, nil, func() error { return nil })
 		if err != nil || reason != "" || adopted != test.adopted || (len(selected) == 1) != test.adopted {
 			t.Fatal(test.goal, selected, reason, adopted, err)
 		}

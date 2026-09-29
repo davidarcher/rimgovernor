@@ -1,21 +1,16 @@
 // Package layout holds the tiered colony layout cases (#603). layout/grid
-// (#607, #608) runs the field and capacity families on the tribal baseline
-// with Stonecutting finished, so the build tier reads Masonry, from a
-// fixture hut whose south-west corner the controller fixes the colony grid
-// on: the hut ring reads back natively with its corner on a grid line, every
-// growing zone the planner sites is a module patch on the grid (a module
-// interior, an 11x5 half, or a ladder patch on a sub-cell corner), no
-// field cell lies in an aisle, the second field shares a full co-linear
-// edge with the first, and the hut and the fields sit in different
-// districts of the grid (#609): the hut on the plaza, every field outside
-// it.
+// runs the field and capacity families on the tribal baseline with
+// Stonecutting finished, so the build tier reads Masonry, from a fixture hut:
+// the field planner sites growing zones outside the hut.
 //
 // The fixture leaves a bed deficit and stone blocks of the map's own stone
 // beside the hut door, so the capacity planner raises a second ring beside
 // the wood hut and the tier style reads back natively (#637): every wall and
 // door of that ring, finished or still a blueprint or frame, is built from
 // one stone block definition and its door is a stone Door, the Masonry rungs
-// of policy's WallStuff and DoorDef.
+// of policy's WallStuff and DoorDef. With a layout plan recorded the ring is
+// exactly a planned room's walls and its door opens onto a spine hallway
+// (#787).
 package layout
 
 import (
@@ -58,20 +53,17 @@ const (
 func init() {
 	cases.Register(cases.Case{
 		Name: "layout/grid",
-		Scope: "Issue #607: on the tribal " + sustained.BaselineSave + " colony with Stonecutting finished (build tier Masonry) and " +
-			"a fixture hut standing, the controller fixes the colony grid on the hut's south-west corner and the field planner " +
-			"sites module fields on the grid: the hut ring reads back natively with its corner on a grid line, every growing " +
-			"zone is a module patch on the grid outside the hut's module, no zone cell lies in an aisle, the second field " +
-			"shares a full co-linear edge with the first (#608), and the hut and the fields lie in different districts (#609). " +
-			"With a bed deficit and stone blocks stocked the capacity planner's ring reads back in the Masonry tier style: " +
-			"stone walls of one block definition and a stone Door (#637). With a v2 layout plan recorded the ring is exactly a " +
-			"planned room's walls and its door opens onto a spine hallway (#787).",
+		Scope: "On the tribal " + sustained.BaselineSave + " colony with Stonecutting finished (build tier Masonry) and " +
+			"a fixture hut standing, the field planner sites growing zones outside the hut. With a bed deficit and stone " +
+			"blocks stocked the capacity planner's ring reads back in the Masonry tier style: stone walls of one block " +
+			"definition and a stone Door (#637). With a v2 layout plan recorded the ring is exactly a planned room's walls " +
+			"and its door opens onto a spine hallway (#787).",
 		Start: cases.Fixture{Op: gridPrepare, ArgsFrom: startersite.Args, Args: map[string]any{"sleepingSpots": bunks, "stoneBlocks": blocks},
 			On: cases.Save{Name: sustained.BaselineSave}},
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  &cases.ServeSpec{Families: []string{"field", "shelter", "expansion"}, NativeTimeout: 30 * time.Second, Prefix: "layout-grid"},
 		Budget: 10 * time.Minute,
-		Reason: "one watch over a staged hut: the grid derivation, the first fields plan and the styled capacity ring run on every start",
+		Reason: "one watch over a staged hut: the first fields plan and the styled capacity ring run on every start",
 		Run:    grid,
 	})
 }
@@ -83,9 +75,6 @@ func grid(ctx context.Context, s cases.Session) error {
 	if finished, _ := na.AsBool(prepared["finished"]); !finished {
 		return fmt.Errorf("fixture did not finish Stonecutting: %#v", prepared)
 	}
-	hutOrigin, _ := na.AsMap(prepared["hutOrigin"])
-	origin := domain.Cell{X: int32(na.AsNumber(hutOrigin["x"])), Z: int32(na.AsNumber(hutOrigin["z"]))}
-	var record store.ColonyGridRecord
 	var layout store.LayoutPlanRecord
 	var laid bool
 	var audit map[string]any
@@ -101,18 +90,10 @@ func grid(ctx context.Context, s cases.Session) error {
 			if err != nil {
 				return fmt.Errorf("load routine review: %w", err)
 			}
-			var ok bool
-			if record, ok, err = journal.ColonyGrid(ctx, review.Snapshot, review.Tick); err != nil {
-				return err
-			}
 			if layout, laid, err = journal.LayoutPlan(ctx, review.Snapshot, review.Tick); err != nil {
 				return err
 			}
 			report["layout_plan"] = map[string]any{"recorded": laid, "rooms": len(layout.Plan.Rooms)}
-			report["colony_grid"] = map[string]any{"recorded": ok, "origin_x": record.Grid.Origin.X, "origin_z": record.Grid.Origin.Z, "pitch": record.Grid.Pitch, "source": string(record.Grid.Source)}
-			if !ok {
-				return fmt.Errorf("no colony grid recorded by the review at tick %d", review.Tick)
-			}
 			if audit, err = h.Call(ctx, "layout-audit", gridAudit, map[string]any{}); err != nil {
 				return err
 			}
@@ -122,10 +103,6 @@ func grid(ctx context.Context, s cases.Session) error {
 	})
 	if err != nil {
 		return err
-	}
-	g := record.Grid
-	if !g.Valid() || g.Origin != origin || g.Source != policy.ColonyGridFromRoom {
-		return fmt.Errorf("grid %+v was not fixed on the fixture hut's corner %v from the largest room", g, origin)
 	}
 	// The room: the wood fixture hut's finished ring, bounding box.
 	shell := append(shellCellsOf(audit["walls"], false), shellCellsOf(audit["planned"], true)...)
@@ -139,15 +116,8 @@ func grid(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("no finished wood player walls read back: %#v", audit)
 	}
 	room := bounding(walls)
-	report["room"] = describe(room, g)
-	if !g.OnGridLine(room) {
-		return fmt.Errorf("the room's south-west corner %d,%d is %d cells off the grid", room.X, room.Z, g.CornerError(room))
-	}
-	module := g.Module(domain.Cell{X: room.X, Z: room.Z})
-	// The fields: every zone off the aisles, each a module patch (#608)
-	// outside the room's module, and the second sharing a full co-linear
-	// edge with the first: one pitch away along an axis, or across the
-	// half-module divider.
+	report["room"] = describe(room)
+	// The fields: every zone outside the hut.
 	zones := na.AsSlice(audit["zones"])
 	if len(zones) == 0 {
 		return fmt.Errorf("no growing zone read back after the fields plan: %#v", audit)
@@ -161,30 +131,19 @@ func grid(ctx context.Context, s cases.Session) error {
 			continue
 		}
 		rect := bounding(cells)
-		d := describe(rect, g)
+		d := describe(rect)
 		d["id"], d["crop"], d["cells"] = zone["id"], zone["crop"], len(cells)
 		described = append(described, d)
-		for _, c := range cells {
-			if u, v := gridOffsets(g, c); u >= policy.ColonyGridModule || v >= policy.ColonyGridModule {
-				return fmt.Errorf("zone %v plants aisle cell %d,%d (grid offsets %d,%d)", zone["id"], c.X, c.Z, u, v)
-			}
-		}
-		if !modulePatch(g, rect) {
-			return fmt.Errorf("zone %v %+v is not a module patch on the grid: %v", zone["id"], rect, described)
-		}
-		if intersects(rect, module) {
-			return fmt.Errorf("zone %v %+v lies in the room's module %+v", zone["id"], rect, module)
+		if intersects(rect, room) {
+			return fmt.Errorf("zone %v %+v lies in the hut %+v", zone["id"], rect, room)
 		}
 		rects = append(rects, rect)
 	}
 	report["zones"] = described
-	if len(rects) < 2 {
-		return fmt.Errorf("one field only; the module rows need a second: %v", described)
+	if len(rects) == 0 {
+		return fmt.Errorf("no field read back: %v", described)
 	}
-	if !rowPartners(g, rects[0], rects[1]) {
-		return fmt.Errorf("the second field %+v shares no full co-linear edge with the first %+v", rects[1], rects[0])
-	}
-	// The planner explained the choice with the alignment and row terms.
+	// The planner explained the choice.
 	f, err := os.Open(filepath.Join(s.Config().Output, "service", "stderr.log"))
 	if err != nil {
 		return err
@@ -194,12 +153,12 @@ func grid(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	last, err := farmselect.Check(selections, farmselect.Expectation{Kind: "outdoor", MinCells: 1, Terms: []string{"alignment", "row"}})
+	last, err := farmselect.Check(selections, farmselect.Expectation{Kind: "outdoor", MinCells: 1})
 	report["selection"] = last
 	if err != nil {
 		return err
 	}
-	if err := styledRing(g, module, shell, report, laid); err != nil {
+	if err := styledRing(room, shell, report); err != nil {
 		return err
 	}
 	if laid {
@@ -252,9 +211,9 @@ func plannedRing(plan policy.LayoutPlan, shell []shellCell, report na.Report) er
 
 // styledRing checks the Masonry tier style on the ring the capacity planner
 // raised beside the wood hut (#637): every wall and door of it, finished or
-// still a blueprint or frame, is built from one stone block definition, its
-// door is a stone Door, and no cell of it stands in an aisle.
-func styledRing(g policy.ColonyGrid, hut policy.Rectangle, shell []shellCell, report na.Report, planned bool) error {
+// still a blueprint or frame, is built from one stone block definition and its
+// door is a stone Door.
+func styledRing(hut policy.Rectangle, shell []shellCell, report na.Report) error {
 	stuffs := map[string]int{}
 	var stone []shellCell
 	for _, c := range shell {
@@ -281,17 +240,13 @@ func styledRing(g policy.ColonyGrid, hut policy.Rectangle, shell []shellCell, re
 	}
 	var ring []domain.Cell
 	for _, c := range stone {
-		// A planned room follows the spine, not the lattice (#787).
-		if u, v := gridOffsets(g, c.cell); !planned && (u >= policy.ColonyGridModule || v >= policy.ColonyGridModule) {
-			return fmt.Errorf("the stone ring builds aisle cell %d,%d (grid offsets %d,%d)", c.cell.X, c.cell.Z, u, v)
-		}
 		ring = append(ring, c.cell)
 	}
 	bounds := bounding(ring)
-	described := describe(bounds, g)
+	described := describe(bounds)
 	report["styled_room"] = described
 	if intersects(bounds, hut) {
-		return fmt.Errorf("the stone ring %+v stands in the hut's module %+v", bounds, hut)
+		return fmt.Errorf("the stone ring %+v stands in the hut %+v", bounds, hut)
 	}
 	return nil
 }
@@ -375,52 +330,8 @@ func bounding(cells []domain.Cell) policy.Rectangle {
 	return policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}
 }
 
-func describe(r policy.Rectangle, g policy.ColonyGrid) map[string]any {
-	return map[string]any{"x": r.X, "z": r.Z, "width": r.Width, "height": r.Height, "corner_error": g.CornerError(r), "on_grid": g.OnGridLine(r)}
-}
-
-// gridOffsets are a cell's offsets within its pitch square along the
-// grid's axes, from the module corner: 0..12 module, 13..15 aisle.
-func gridOffsets(g policy.ColonyGrid, c domain.Cell) (int32, int32) {
-	m := g.Module(c)
-	u, v := c.X-m.X, c.Z-m.Z
-	if u < 0 {
-		u = -u
-	}
-	if v < 0 {
-		v = -v
-	}
-	return u, v
-}
-
-// modulePatch reports a module interior, an 11x5 half module, or a ladder
-// patch starting on one of the module's sub-cell corners (#608).
-func modulePatch(g policy.ColonyGrid, r policy.Rectangle) bool {
-	for _, sub := range g.SubCells(g.Module(domain.Cell{X: r.X, Z: r.Z})) {
-		if sub == r || sub.X == r.X && sub.Z == r.Z && r.Width <= 4 && r.Height <= 4 {
-			return true
-		}
-	}
-	return false
-}
-
-// rowPartners reports two equal patches facing each other with a full
-// co-linear edge: one pitch apart along an axis, or a half module's
-// divider apart along its short axis.
-func rowPartners(g policy.ColonyGrid, a, b policy.Rectangle) bool {
-	if a.Width != b.Width || a.Height != b.Height {
-		return false
-	}
-	dx, dz := b.X-a.X, b.Z-a.Z
-	abs := func(v int32) int32 {
-		if v < 0 {
-			return -v
-		}
-		return v
-	}
-	divider := policy.ColonyGridSubCell + 1
-	return dz == 0 && (abs(dx) == g.Pitch || a.Width == policy.ColonyGridSubCell && abs(dx) == divider) ||
-		dx == 0 && (abs(dz) == g.Pitch || a.Height == policy.ColonyGridSubCell && abs(dz) == divider)
+func describe(r policy.Rectangle) map[string]any {
+	return map[string]any{"x": r.X, "z": r.Z, "width": r.Width, "height": r.Height}
 }
 
 func intersects(a, b policy.Rectangle) bool {

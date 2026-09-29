@@ -13,10 +13,10 @@ namespace HomeBridge.BridgeTools
     // Issue #607: the layout/grid case proves the tiered colony layout on
     // the tribal baseline. Prepare finishes Stonecutting so the build tier
     // reads Masonry, stages the starter hut (FixtureHut) whose south-west
-    // corner the controller fixes the colony grid on, and drops wood beside
+    // corner anchors the layout, and drops wood beside
     // its door; the field the controller then plans is the case's own.
     // Audit reads every finished player wall ring and growing zone back
-    // with their cells so the case checks both footprints against the grid,
+    // with their cells so the case checks both footprints,
     // and every wall, door, blueprint and frame with its stuff, so the case
     // reads the tier's wall stuff and door def back natively (#637).
     public sealed class LayoutGridFixture

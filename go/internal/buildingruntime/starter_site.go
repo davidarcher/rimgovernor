@@ -14,8 +14,7 @@ import (
 // from the shell the controller would have raised, not the nearest clean
 // square. ok is false when no rectangle fits.
 func StarterSite(facts observation.ColonyProjection, size int32) (layout policy.StarterLayout, ok bool, err error) {
-	grid, _ := layoutAlignment(facts)
-	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, policy.RoomDistrict(policy.RoomRoleBarracks)), Cells: shellSiteCells(facts, nil), Protected: layoutProtected(facts, nil), Shelter: policy.ShelterRectangle, Grid: grid, WallDef: shellStyle(facts).WallDef, Size: size})
+	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, policy.RoomDistrict(policy.RoomRoleBarracks)), Cells: shellSiteCells(facts, nil), Protected: nil, WallDef: shellStyle(facts).WallDef, Size: size})
 	if err != nil {
 		return policy.StarterLayout{}, false, err
 	}

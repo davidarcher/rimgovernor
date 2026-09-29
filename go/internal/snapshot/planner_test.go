@@ -14,7 +14,7 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(DirEnv, dir)
 	ctx, finish := StartPlanner(context.Background(), policy.MaintainHousing)
-	shelter := policy.StarterRequest{Anchor: domain.Cell{X: 4, Z: 5}, Shelter: policy.ShelterRectangle, Grid: domain.Unknown[policy.ColonyGrid](),
+	shelter := policy.StarterRequest{Anchor: domain.Cell{X: 4, Z: 5},
 		Cells: []policy.SiteCell{{Cell: domain.Cell{X: 1, Z: 2}, Walkable: domain.Known(true)}}}
 	NoteShelter(ctx, shelter)
 	target := policy.ExcavationTarget{Access: domain.Cell{X: 9, Z: 9}}
@@ -27,7 +27,7 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.Shelter) != 1 || !reflect.DeepEqual(p.Shelter[0].Cells, shelter.Cells) || p.Shelter[0].Shelter != policy.ShelterRectangle {
+	if len(p.Shelter) != 1 || !reflect.DeepEqual(p.Shelter[0].Cells, shelter.Cells) {
 		t.Fatalf("shelter %+v", p.Shelter)
 	}
 	if len(p.Sites) != 1 || p.Sites[0].Purpose != "verify" || !p.Sites[0].Site.AccessReachable || len(p.Choices) != 1 || !p.Choices[0].Excavate {

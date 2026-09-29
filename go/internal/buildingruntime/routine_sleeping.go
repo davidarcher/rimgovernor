@@ -959,8 +959,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			cells = append(cells, c)
 		}
 	}
-	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: layoutProtected(facts, append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...)), Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
-	searchRequest.Grid, searchRequest.Alignment = layoutAlignment(facts)
+	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...), Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
 	if r.facility != nil {
 		// A facility furnishes the room nearest its district (#609); the
 		// radius still reaches the colony centre so the starter shell stays
@@ -1010,10 +1009,6 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		footprint, _ := pending.choice.Footprint.Value()
 		for _, c := range footprint {
 			usedCells[c] = true
-		}
-		if searchRequest.Alignment > 0 {
-			sc := pending.score
-			clockSchedulerLog("%s: %s site %d,%d distance=%.2f corner_error=%d alignment=%.2f score=%.2f", r.goal, r.definition, sc.Anchor.X, sc.Anchor.Z, sc.Distance, sc.CornerError, sc.Alignment, sc.Score)
 		}
 		pending = nil
 		return nil
@@ -1092,10 +1087,9 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		return false
 	}
 	// pass runs one search. Candidates come nearest first, and a
-	// footprint's score is its distance plus a non-negative alignment term,
-	// so once the next candidate's distance reaches the best valid score no
+	// footprint's score is its distance, so once the next candidate's distance reaches the best valid score no
 	// later candidate can beat it: the best is committed and the previews
-	// stop there. Without a grid every valid preview commits at once.
+	// stop there.
 	pass := func(search policy.PlacementSearch, tag string) (RoutineBuildingReason, error) {
 		for i, c := range search.Candidates() {
 			if int64(len(selected)) == missing {

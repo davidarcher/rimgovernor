@@ -161,7 +161,7 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 	for _, h := range held {
 		protected = append(protected, h.Footprint...)
 	}
-	site, err := medicineStorageSites(rooms, sleeping, facts.Bounds, facts.Cells, layoutProtected(facts, protected))
+	site, err := medicineStorageSites(rooms, sleeping, facts.Bounds, facts.Cells, protected)
 	if err != nil || site.Room == "" {
 		return "", err
 	}

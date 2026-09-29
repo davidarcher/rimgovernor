@@ -46,7 +46,7 @@ func TestStarterLayoutsBuildTheFirstBuildablePlannedRoom(t *testing.T) {
 		}
 	}
 	plan := LayoutPlan{Rooms: []LayoutRoom{taken, next}}
-	layouts, err := StarterLayouts(StarterRequest{Bounds: bounds, Anchor: domain.Cell{X: 5, Z: 5}, Cells: cells, Protected: hallway, Shelter: ShelterModule, Planned: plan.PlannedShells(RoomRoleWorkshop)})
+	layouts, err := StarterLayouts(StarterRequest{Bounds: bounds, Anchor: domain.Cell{X: 5, Z: 5}, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleWorkshop)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestStarterLayoutsBuildTheFirstBuildablePlannedRoom(t *testing.T) {
 		t.Fatalf("built %+v door %v, want the planned room door %v", layouts[0].Shell.Bounds(), layouts[0].Shell.Door(), next.Door)
 	}
 	// Nothing planned is buildable: the search runs as before.
-	blocked := StarterRequest{Bounds: bounds, Anchor: domain.Cell{X: 5, Z: 5}, Cells: cells, Protected: hallway, Shelter: ShelterModule, Planned: plan.PlannedShells(RoomRoleWorkshop)[:1]}
+	blocked := StarterRequest{Bounds: bounds, Anchor: domain.Cell{X: 5, Z: 5}, Cells: cells, Protected: hallway, Planned: plan.PlannedShells(RoomRoleWorkshop)[:1]}
 	if layouts, err := StarterLayouts(blocked); err != nil || len(layouts) == 0 {
 		t.Fatalf("fallback search: %d layouts, %v", len(layouts), err)
 	}

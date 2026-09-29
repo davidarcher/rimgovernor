@@ -310,8 +310,8 @@ type RoutineFacts struct {
 	// SelectBlightCuts to designate from.
 	Blight domain.Fact[[]BlightedPlant]
 	// LayoutTidy is the layout tidying review (#611) the reviewer measures
-	// from the zone census, the construction claims and the colony grid;
-	// unknown without a tier or grid.
+	// from the room census against each room's derived interior plan;
+	// unknown without a tier.
 	LayoutTidy domain.Fact[TidyReview]
 	// Stockpiles is the MaintainStockpiles review (#725): this cycle's
 	// stockpile edits within the haul budget, or why none stands.
@@ -1277,7 +1277,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addGoal(RemoveBlight, 3)
 	}
 	// TidyLayout (#611) is census-driven too: the layout review measures
-	// managed zones and Camp shells against the colony grid and stands a
+	// off-plan furniture against each room's interior plan and stands a
 	// proposal only while the colony is idle; a standing proposal is the
 	// deficit. It ranks last (tidyPriority, tidyDeficit), and its
 	// availability is gated below through AvailableMethods.

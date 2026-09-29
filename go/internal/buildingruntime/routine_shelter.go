@@ -38,17 +38,6 @@ func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildin
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.MaintainHousing, phase: policy.HousingExpansion, definition: "Wall", shelter: true}, nil
 }
 
-// shelterStyle maps the build tier
-// to a shell shape (#609): from Masonry up every room is a module of the
-// colony grid; at Camp every colony raises the rectangle, as does an unknown
-// tier.
-func shelterStyle(facts observation.ColonyProjection) policy.ShelterStyle {
-	if tier, known := facts.BuildTier.Value(); known && tier >= policy.BuildTierMasonry {
-		return policy.ShelterModule
-	}
-	return policy.ShelterRectangle
-}
-
 // district is the district this planner sites a shell in (#609): a
 // facility ladder's room role names it, the shelter and expansion
 // planners raise housing.
@@ -56,7 +45,7 @@ func (r *RoutineBuildingPlanner) district() policy.District {
 	return policy.RoomDistrict(r.roomRole())
 }
 
-// roomRole is the room role the shape family reads (#637): a facility
+// roomRole is the room role a planner sites for (#637): a facility
 // ladder's own role, and Barracks for the shelter and expansion planners,
 // which raise the colony's bunkrooms.
 func (r *RoutineBuildingPlanner) roomRole() policy.RoomRole {
@@ -66,27 +55,14 @@ func (r *RoutineBuildingPlanner) roomRole() policy.RoomRole {
 	return policy.RoomRoleBarracks
 }
 
-// shapeFamily is the shape family this planner's shells take at the
-// projection's build tier (#637): the single module at Camp and Masonry, the
-// tier's own shape above.
-func (r *RoutineBuildingPlanner) shapeFamily(facts observation.ColonyProjection) policy.ShapeFamily {
-	return policy.ModuleShapeFamily(styleTier(facts), r.roomRole())
-}
-
 // shellShapesAtDoor lists every shell shape whose door would stand on
-// door: the module templates on the grid for the module style, then the
-// starter templates, which a ring begun at Camp still matches.
-func shellShapesAtDoor(facts observation.ColonyProjection, door domain.Cell, style policy.ShelterStyle, family policy.ShapeFamily, role policy.RoomRole) []domain.RoomFootprint {
+// door: the layout plan's rooms for the role, then the starter templates,
+// which a ring begun at Camp still matches.
+func shellShapesAtDoor(facts observation.ColonyProjection, door domain.Cell, role policy.RoomRole) []domain.RoomFootprint {
 	var shells []domain.RoomFootprint
 	for _, shell := range plannedShells(facts, role) {
 		if shell.Door() == door {
 			shells = append(shells, shell)
-		}
-	}
-	if style == policy.ShelterModule {
-		grid, _ := layoutAlignment(facts)
-		if g, known := grid.Value(); known {
-			shells = policy.ModuleShapesAtDoor(g, door, family)
 		}
 	}
 	return append(shells, policy.ShellShapesAtDoor(door)...)
@@ -188,13 +164,10 @@ type structureReader interface {
 const shellAdoptionReach int32 = 64
 
 func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
-	style := shelterStyle(facts)
-	protected = layoutProtected(facts, protected)
-	if selected, stock, reason, adopted, err := r.adoptShell(ctx, snapshot, facts, protected, style, check); err != nil || adopted {
+	if selected, stock, reason, adopted, err := r.adoptShell(ctx, snapshot, facts, protected, check); err != nil || adopted {
 		return selected, stock, reason, err
 	}
-	grid, _ := layoutAlignment(facts)
-	request := policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(facts), WallDef: shellStyle(facts).WallDef, Planned: plannedShells(facts, r.roomRole())}
+	request := policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, WallDef: shellStyle(facts).WallDef, Planned: plannedShells(facts, r.roomRole())}
 	snap.NoteShelter(ctx, request)
 	layouts, err := policy.StarterLayouts(request)
 	if err != nil {
@@ -437,7 +410,7 @@ const shellHistoryLimit = 64
 // beside it; a facility ladder passes by any ring that already encloses a
 // room, whole or not, since its furnishing step found no site there (#218).
 // Doors are tried nearest the colony centre first.
-func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, style policy.ShelterStyle, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, bool, error) {
+func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, bool, error) {
 	reader, ok := r.native.(structureReader)
 	if !ok {
 		return nil, policy.StockObservation{}, "", false, nil
@@ -494,7 +467,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 	expanded := shellStyle(facts)
 	for d, door := range doors {
 		shapes := earlier[door]
-		for _, shell := range shellShapesAtDoor(facts, door, style, r.shapeFamily(facts), r.roomRole()) {
+		for _, shell := range shellShapesAtDoor(facts, door, r.roomRole()) {
 			shapes = append(shapes, shell.StyledPlacements(expanded))
 		}
 		best, bestMatched := -1, 0

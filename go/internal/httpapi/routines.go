@@ -55,10 +55,6 @@ type RoutineStatus struct {
 	// LootHolds are the safe forbidden stacks the last review's reach stage
 	// or demand kept forbidden, with reasons (#522).
 	LootHolds []policy.LootHold
-	// ColonyGrid is the persisted layout grid the held colony section
-	// carries (#605), with the map bounds the overlay draws it over.
-	ColonyGrid domain.Fact[policy.ColonyGrid]
-	Bounds     policy.Bounds
 }
 
 type routineStatusDTO struct {
@@ -77,7 +73,6 @@ type routineStatusDTO struct {
 	LayoutTidy        *layoutTidyDTO               `json:"layoutTidy"`
 	Sections          []routineSectionDTO          `json:"sections"`
 	LootHolds         []lootHoldDTO                `json:"lootHolds"`
-	ColonyGrid        *colonyGridDTO               `json:"colonyGrid"`
 }
 
 // layoutTidyDTO is the TidyLayout review for the development panel: the
@@ -117,33 +112,6 @@ func layoutTidy(v *policy.TidyReview) *layoutTidyDTO {
 		dto.Proposal = &tidyProposalDTO{Kind: string(p.Item.Kind), Item: p.Item.ID, From: rectangle(p.Item.Footprint), To: rectangle(p.Target), Crop: p.Item.Crop, Gain: p.Gain, Distance: p.Distance, Explanation: p.Explanation}
 	}
 	return dto
-}
-
-// colonyGridDTO is the persisted colony grid for the dashboard overlay:
-// origin and axes in map cells, the pitch, the evidence the origin came
-// from and the map bounds to draw the lines across.
-type colonyGridDTO struct {
-	Origin cellDTO    `json:"origin"`
-	Pitch  int32      `json:"pitch"`
-	Axes   [2]cellDTO `json:"axes"`
-	Source string     `json:"source"`
-	Bounds boundsDTO  `json:"bounds"`
-}
-type cellDTO struct {
-	X int32 `json:"x"`
-	Z int32 `json:"z"`
-}
-type boundsDTO struct {
-	Width  int32 `json:"width"`
-	Height int32 `json:"height"`
-}
-
-func colonyGrid(f domain.Fact[policy.ColonyGrid], bounds policy.Bounds) *colonyGridDTO {
-	g, known := f.Value()
-	if !known {
-		return nil
-	}
-	return &colonyGridDTO{Origin: cellDTO{X: g.Origin.X, Z: g.Origin.Z}, Pitch: g.Pitch, Axes: [2]cellDTO{{X: g.Axes[0].X, Z: g.Axes[0].Z}, {X: g.Axes[1].X, Z: g.Axes[1].Z}}, Source: string(g.Source), Bounds: boundsDTO{Width: bounds.Width, Height: bounds.Height}}
 }
 
 // routineRosterDTO is the roster planner's recorded report: the per-work-type
@@ -319,7 +287,6 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 	result.Extent = routineExtent(v.ResourceReach.Extent)
 	result.ExtentEligibility = policy.ExtentEligibility(v.ExtentEligibility)
 	result.LootHolds = lootHolds(v.LootHolds)
-	result.ColonyGrid = colonyGrid(v.ColonyGrid, v.Bounds)
 	result.Progress = goalProgress(v.Progress)
 	for _, section := range v.Sections {
 		result.Sections = append(result.Sections, routineSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano)})

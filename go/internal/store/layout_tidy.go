@@ -58,7 +58,7 @@ func checkLayoutTidySchema(ctx context.Context, tx *sql.Tx) error {
 
 func layoutTidyValid(t LayoutTidy) bool {
 	switch t.Kind {
-	case policy.TidyField, policy.TidyShell, policy.TidyFurniture:
+	case policy.TidyFurniture:
 	default:
 		return false
 	}

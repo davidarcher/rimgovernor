@@ -24,7 +24,7 @@ const DirEnv = "RIMGOVERNOR_SNAPSHOT_DIR"
 // Routine is one enabled routine review as recorded: the input the review
 // passed policy.DetectRoutine and, optionally, the journal's review cursor
 // it filed. Facts carry every census the planners of that tick read
-// (ColonyGrid, Upkeep, Research, ...).
+// (Upkeep, Research, ...).
 type Routine struct {
 	// Recorded is provenance: the world and tick, and whatever the
 	// recorder adds (a case name, a commit).

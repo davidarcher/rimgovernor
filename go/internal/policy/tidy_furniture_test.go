@@ -26,7 +26,7 @@ func swapInteriorTemplate(t *testing.T, role RoomRole, tmpl InteriorTemplate) {
 	})
 }
 
-// tidyFurnitureFixture is an idle colony with no zones and one 8x6 test
+// tidyFurnitureFixture is an idle colony with one 8x6 test
 // room at (0,0) whose door is south of (1,0), so canonical and world cells
 // coincide.
 func tidyFurnitureFixture(t *testing.T, slots []InteriorPiece, pieces ...TidyPiece) TidyRequest {
@@ -34,7 +34,6 @@ func tidyFurnitureFixture(t *testing.T, slots []InteriorPiece, pieces ...TidyPie
 		return append([]InteriorPiece(nil), slots...), len(slots) > 0
 	}})
 	r := tidyFixture()
-	r.Items = nil
 	r.Rooms = []TidyRoom{{ID: "Room_9", Room: InteriorRoom{Role: tidyTestRole, Interior: Rectangle{0, 0, 8, 6}, Doors: []domain.Cell{{X: 1, Z: -1}}}, Pieces: pieces}}
 	return r
 }
@@ -168,7 +167,7 @@ func TestTidyFurnitureRoomsPlanTheStandingBed(t *testing.T) {
 		t.Fatalf("rooms %+v", got)
 	}
 	r := tidyFixture()
-	r.Items, r.Rooms = nil, got
+	r.Rooms = got
 	if review := PlanTidyLayout(r); review.Active || review.Candidates != 0 {
 		t.Fatalf("double bed flagged off plan: %+v", review)
 	}

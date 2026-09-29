@@ -25,10 +25,7 @@ export type SectionStatus = {section: string; family: string; asOf: number; comp
 export type ResourceRunway = {resource: string; tick: number; windowDays: number; thresholdDays: number; reserve: number; stock: number | null; surfaceOre: number | null; consumptionPerDay: number | null; stockDays: number | null; daysLeft: number | null; deficit: boolean | null; target: number};
 export type ExtentRegion = {region: number; stage: string; cells: number; origins: string[]; facilities: string[]; activeFacilities: string[]; eligible: boolean; holdReasons: string[]};
 export type ExtentEligibility = {known: boolean; reason: string; regions: ExtentRegion[]};
-export type GridCell = {x: number; z: number};
-// The persisted colony grid (#605): origin and unit axes in map cells, the pitch, the evidence the origin came from and the map bounds the overlay draws it across.
-export type ColonyGrid = {origin: GridCell; pitch: number; axes: [GridCell, GridCell]; source: string; bounds: {width: number; height: number}};
-// The TidyLayout review (#611): whether a re-site proposal stands, why none does, how many managed items sit off the grid, and the pending proposal with its explanation.
+// The TidyLayout review (#611): whether a re-site proposal stands, why none does, how many rooms hold off-plan furniture, and the pending proposal with its explanation.
 export type TidyRect = {x: number; z: number; width: number; height: number};
 export type TidyProposal = {kind: string; item: string; from: TidyRect; to: TidyRect; crop: string; gain: number; distance: number; explanation: string};
 export type LayoutTidy = {active: boolean; reason: string; candidates: number; proposal: TidyProposal | null};
@@ -42,7 +39,7 @@ export type GoalProgress = {goal: string; method: string; expected: string; last
 // stage (blocker '' at Development) with the measured values, and whether
 // the Foothold hold refuses the comfort-class development.
 export type ColonyStage = {stage: string; since: number; blocker: string; reason: string; held: boolean};
-export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; progress: GoalProgress[]; stage: ColonyStage | null; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]; resourceReach: {stage: string; reason: string} | null; extentEligibility: ExtentEligibility | null; colonyGrid: ColonyGrid | null; layoutTidy: LayoutTidy | null};
+export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; progress: GoalProgress[]; stage: ColonyStage | null; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]; resourceReach: {stage: string; reason: string} | null; extentEligibility: ExtentEligibility | null; layoutTidy: LayoutTidy | null};
 
 function isObject(v: unknown): v is Record<string, unknown> {return typeof v === 'object' && v !== null && !Array.isArray(v);}
 function object(v: unknown, keys: readonly string[]): Record<string, unknown> {if (!isObject(v) || Object.keys(v).length !== keys.length || keys.some(key => !Object.hasOwn(v, key))) throw Error('Invalid routine fields'); return v;}
@@ -101,17 +98,7 @@ function readResourceRunway(value: unknown): ResourceRunway {
   const r = object(value, ['resource', 'tick', 'windowDays', 'thresholdDays', 'reserve', 'stock', 'surfaceOre', 'consumptionPerDay', 'stockDays', 'daysLeft', 'deficit', 'target']);
   return {resource: id(r.resource), tick: tick(r.tick), windowDays: nonnegative(r.windowDays), thresholdDays: nonnegative(r.thresholdDays), reserve: tick(r.reserve), stock: nullable(r.stock, tick), surfaceOre: nullable(r.surfaceOre, tick), consumptionPerDay: nullable(r.consumptionPerDay, nonnegative), stockDays: nullable(r.stockDays, nonnegative), daysLeft: nullable(r.daysLeft, nonnegative), deficit: nullable(r.deficit, bool), target: tick(r.target)};
 }
-function coordinate(v: unknown): number {const n = finite(v); if (!Number.isInteger(n) || n < -4096 || n > 4096) throw Error('Invalid grid coordinate'); return n;}
-function readGridCell(value: unknown): GridCell {const c = object(value, ['x', 'z']); return {x: coordinate(c.x), z: coordinate(c.z)};}
-function readColonyGrid(value: unknown): ColonyGrid {
-  const g = object(value, ['origin', 'pitch', 'axes', 'source', 'bounds']);
-  const axes = list(g.axes, 2).map(readGridCell);
-  const bounds = object(g.bounds, ['width', 'height']);
-  const grid = {origin: readGridCell(g.origin), pitch: count(g.pitch), axes: [axes[0], axes[1]] as [GridCell, GridCell], source: id(g.source), bounds: {width: count(bounds.width), height: count(bounds.height)}};
-  const unit = (a: GridCell) => Math.abs(a.x) + Math.abs(a.z) === 1;
-  if (axes.length !== 2 || grid.pitch === 0 || !unit(axes[0]) || !unit(axes[1]) || axes[0].x * axes[1].x + axes[0].z * axes[1].z !== 0) throw Error('Inconsistent colony grid');
-  return grid;
-}
+function coordinate(v: unknown): number {const n = finite(v); if (!Number.isInteger(n) || n < -4096 || n > 4096) throw Error('Invalid map coordinate'); return n;}
 function readTidyRect(value: unknown): TidyRect {const r = object(value, ['x', 'z', 'width', 'height']); return {x: coordinate(r.x), z: coordinate(r.z), width: count(r.width), height: count(r.height)};}
 function readLayoutTidy(value: unknown): LayoutTidy {
   const t = object(value, ['active', 'reason', 'candidates', 'proposal']);
@@ -139,8 +126,8 @@ function readColonyStage(v: unknown): ColonyStage {
 }
 
 export function readRoutineStatus(value: unknown): RoutineStatus {
-  // Older retained responses predate extent diagnostics, loot holds, the colony grid, goal progress, the colony stage and the layout tidy.
-  const optional = ['resourceReach', 'extent', 'extentEligibility', 'lootHolds', 'colonyGrid', 'progress', 'stage', 'layoutTidy'].filter(k => isObject(value) && Object.hasOwn(value, k));
+  // Older retained responses predate extent diagnostics, loot holds, goal progress, the colony stage and the layout tidy.
+  const optional = ['resourceReach', 'extent', 'extentEligibility', 'lootHolds', 'progress', 'stage', 'layoutTidy'].filter(k => isObject(value) && Object.hasOwn(value, k));
   const v = object(value, ['reviewsEnabled', 'methodsEnabled', 'activeFamilies', 'lastReviewTick', 'development', 'roster', 'sections', 'resourceRunways', ...optional]);
   let resourceReach = null;
   if (v.resourceReach !== undefined) {const r = object(v.resourceReach, ['stage', 'reason']); resourceReach = {stage: id(r.stage), reason: text(r.reason)};}
@@ -156,12 +143,11 @@ export function readRoutineStatus(value: unknown): RoutineStatus {
     })};
   }
   if (v.lootHolds !== undefined) list(v.lootHolds, 65536).forEach(h => object(h, ['thing', 'definition', 'x', 'z', 'reason']));
-  const colonyGrid = v.colonyGrid === undefined ? null : nullable(v.colonyGrid, readColonyGrid);
   const layoutTidy = v.layoutTidy === undefined ? null : nullable(v.layoutTidy, readLayoutTidy);
   const progress = v.progress === undefined ? [] : list(v.progress, 512).map(readGoalProgress);
   if (new Set(progress.map(p => p.goal)).size !== progress.length) throw Error('Duplicate goal progress');
   const stage = v.stage === undefined ? null : nullable(v.stage, readColonyStage);
-  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), progress, stage, roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway), resourceReach, extentEligibility, colonyGrid, layoutTidy};
+  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), progress, stage, roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway), resourceReach, extentEligibility, layoutTidy};
 }
 export class RoutineHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 export async function fetchRoutineStatus(signal: AbortSignal): Promise<RoutineStatus> {

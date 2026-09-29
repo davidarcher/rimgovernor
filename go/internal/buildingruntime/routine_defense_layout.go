@@ -677,7 +677,6 @@ func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state
 	}
 	request := defenseTurretRequest(read)
 	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
-	request.Protected = layoutProtected(projection, request.Protected)
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
 		request.Cells = append(request.Cells, defenseCellFacts(cell))
@@ -936,7 +935,6 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	// Observed arrivals rank the sectors; the bait tier stands only on a
 	// sector a raid used (#1063).
 	request.Arrivals, request.Tick = defenseArrivals(site.Raids, region), projection.Identity.Tick
-	request.Protected = layoutProtected(projection, request.Protected)
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
 		request.Cells = append(request.Cells, defenseCellFacts(cell))

@@ -13,7 +13,7 @@ millisecond unit test over the facts that colony really produced.
 - `Facts`: the `policy.RoutineFacts` the review passed
   `policy.DetectRoutine`, after the journal's enrichment (runways, claims,
   recovered comfort and sleep, filtered salvage). Every census a planner
-  of that tick reads rides in it: the colony grid, upkeep rooms and
+  of that tick reads rides in it: upkeep rooms and
   clearance, research, resources, work profiles.
 - `Latches` and `Policy`: the prior latches and the staged policy the
   review detected against, so replay reproduces hysteresis and stage

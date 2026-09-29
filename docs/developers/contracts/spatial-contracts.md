@@ -79,9 +79,7 @@ inward cell is interior with interior on both sides and one cell deeper, so a
 door never lands in a notch or on a connector's mouth, and the nearest such
 cell to the centre line wins.
 
-A shell's shape follows the build tier (`shelterStyle`, #609): from
-`Masonry` up every room is a module of the colony grid (the module style
-below); at `Camp` every colony raises the rectangle, in deterministic tiers.
+Every shell searches the same deterministic tiers.
 The search tries the 9x9 rectangle at each candidate centre; when it does not fit, the concave templates
 (`concave-l-ne/nw/se/sw`: an L of two three-wide arms, 33 cells in 9x9
 bounds, notch in each quadrant; `connector-ew/ns`: two 4x4 chambers joined
@@ -97,45 +95,6 @@ stopping at the rectangle's 49 interior cells or sooner when the terrain runs
 out (minimum nine), and walls its ring; that is how shapeless rooms in a
 corridor arise. Site score, reserved yard and indoor storage placement are
 computed from the footprint, not a fixed rectangle.
-
-The module style (`policy.ShelterModule`) fills the colony grid's modules
-instead of searching centres: `ModuleShells` places every template in one
-module — the two 5x11 and two 11x5 halves first (55 cells, nearest the
-starter interior), then the whole 11x11, then the four 5x5 quarters — each
-a rectangle on one `SubCells` interior so neighbours share their divider
-wall and a whole module roofs itself, with the door centred on every side
-that faces an aisle (four for the whole, three for a half, two for a
-quarter; `module-<w>x<h>-<sub-cell>-<side>`). The search tries every
-module the observed cells touch in corner order and sites each with its
-first buildable class, the door nearest the plaza (the origin module's
-centre) preferred, the class as the tier; a module's threshold is an aisle
-cell, so it need only be open ground, not unprotected. Without a known grid
-the style searches as the rectangle. `ModuleShellsAtDoor` is the module
-counterpart of `ShellShapesAtDoor` for adopting a ring begun earlier.
-
-Past `Masonry` a build tier also unlocks a shape family beyond the single
-module (`policy.ModuleShapeFamily`, a pure `f(tier, roomRole)`; #610, #637).
-The roles partition: the dining room and the production rooms take the
-double-module hall from `Powered`, the housing rooms paired wings from
-`Industrial`, and the plaza's own rooms the enclosed courtyard at `Spacer`;
-`Camp` and `Masonry`, storage and the fields keep the single module. The
-geometry is a pure `f(grid, module)` (`ShapeFamilyShells`):
-
-- the hall spans a module, the aisle bay and the neighbouring module along
-  one grid axis, an 11x27 interior whose own side walls support the roof, so
-  it needs no pillar row — one template per neighbouring module and side
-  (`hall-<w>x<h>-<du>,<dv>-<side>`);
-- a wing is a whole module opening onto the plaza, its twin the module
-  mirrored through the plaza (`PairedWingModule`), so housing grows as
-  symmetric pairs (`wings-11x11-<side>`);
-- the courtyard is a whole module whose central 5x5 sub-cell stays open to
-  the sky inside its own wall ring, leaving a two-wide roofed room around it
-  (`courtyard-11x11-<side>`).
-
-`ModuleShapes` offers the family's shells in a search class ahead of the
-halves and falls back to `ModuleShells`, so a module that cannot hold the
-shape is still filled; `ModuleShapesAtDoor` adopts either. The planners pass
-their room role's family (`StarterRequest.Shape`).
 
 On a fresh site the initial shelter runs three rungs under one goal epoch
 (#612): sleeping spots at the first review, one per colonist owed, on the
@@ -203,96 +162,27 @@ Indoor furnishing treats the four orthogonal neighbours of every observed
 doorway (a door, or a door blueprint or frame) as protected: the entrance
 aisle is never a furniture candidate.
 
-## Colony grid
+## Layout geometry
 
-`policy.ColonyGrid` is the shared layout geometry every site search can
-snap to (#605): an origin cell, a pitch and two perpendicular unit axes.
-The pitch is `policy.GridPitch` (16) at every build tier: an 11x11 module
-interior, its two walls and a 3-wide aisle. 11x11 is the largest interior
-the game roofs without a pillar and the lit disc of one sun lamp, and it
-subdivides 5+1+5 into two 5x11 halls or four 5x5 rooms (`SubCells`) with
-the divider walls on the module's own sub-grid; conduits run inside the
-walls, never in the aisle, so power never dictates the pitch. `Camp` simply
-ignores the grid and higher tiers fill module sub-cells. The pure helpers
-are `Snap` (nearest intersection), `OnGridLine` and `CornerError` (a
-rectangle's south-west corner offsets to the nearest lines, C4's penalty
-input), `Aisles`/`AislesWithin` (aisle cells at offsets 13-15 of each pitch
-along either axis) and `District` (below).
-
-Districts (#609) are the grid's coarse sectors: `policy.Districts` over a
-grid assigns the origin module to `plaza`, the ring of modules at the
-defense radius (three, or one module past the furthest module a known
-colony extent reaches, `DistrictsFor`) to `defense`, and every other module
-to the wedge of the axis it lies furthest along — `housing` along +axis1
-(north), `production` +axis0 (east), `storage` -axis0 (west), `fields`
--axis1 (south); ties go to the axis1 wedges. A known wind (the unit vector
-it blows toward) rotates the wedges so `fields` lie downwind, `storage`
-upwind and `production` a quarter turn on from the wind. `RoomDistrict`
-maps a room role to its district beside `FacilityCatalog` (sleeping and
-care in housing, benches and kitchens in production, storerooms in storage,
-barns with the fields, common rooms on the plaza). `Districts.Anchor`
-returns the centre of the district's module nearest the origin that a
-caller's free predicate accepts, ring by ring, and reports none when the
-district is full. Each routine declares its district and anchors its site
-search there (`layoutAnchor`: the shelter and expansion planners and the
-bedroom ladder in housing, the workshop and laboratory ladders in
-production, covered storage and the supply room in storage, farms, hay and
-pens in the fields); at `Camp`, without a grid, or when the district has no
-module whose cells are all observed free, the search anchors on the colony
-centre as before. Indoor furnishing keeps its radius reaching the colony
-centre from the district anchor, so the starter shell stays a candidate
-until a room stands in the district.
-
-`DeriveColonyGrid` fixes the origin at the starter shell's south-west
-exterior corner or, without a recorded starter shell, at the largest wall
-ring's corner in a complete construction census; neither known leaves it
-unknown, and identical inputs give identical grids. The routine review
-(`reviewColonyGrid`) serves the persisted grid on the colony projection
-(`ColonyProjection.ColonyGrid`) and derives one only when the timeline holds
-none; a grid once recorded never moves (persistence:
-[persistence contracts](persistence-contracts.md)). The routines API reports
-it as `colonyGrid` with the map bounds, the dashboard's development panel
-draws the overlay (grid lines and origin marker) and `acceptance why` lists
-the persisted rows.
+The layout plan is the only colony geometry (#1175): there is no colony
+grid, no snapping and no alignment term in any site search. Districts are
+the layout plan's sectors (`LayoutPlan.District`, `DistrictAnchor`);
+`RoomDistrict` maps a room role to its district. Each routine anchors its
+site search on its district (`layoutAnchor`) and on the colony centre when
+the plan has no free cell there.
 
 ### Layout tidy
 
-`TidyLayout` (#611) re-sites a settled colony's early sprawl one item at a
-time. It is a maintenance goal ranked below every production, upkeep and
-defense goal (the lowest priority, a nominal deficit) and is active only at
-tier >= `Masonry`, with a known grid, while the colony has no unfilled
-construction or hauling work: any open project definition or open building,
-haul, zone or clearance action, an incomplete zone census or unknown zone
-claims all read as busy. Candidates are managed items only: a zone the
-colony itself created (a completed `zone_create` under an autopilot goal,
-`store.ZoneClaims`) still listed by the zone census, or a `Camp` shell whose
-every ring cell stands on a construction claim. A managed field is a
-candidate when its corner is off the module sub-cell corners
-(`tidyAlignment`, offsets 1 and 7 from a grid line) or it holds fewer than
-a half module's cells; a shell when it is off the grid lines, not in use (no beds, no contents) and
-another empty enclosed room of the same role stands on the grid.
-`policy.PlanTidyLayout` proposes the candidate with the largest alignment
-gain (ties to the nearest free sub-cell, then the lowest id): a field moves
-to the nearest free fertile sub-cell of the C5 size in the Fields district
-(then any), a shell is deconstructed. Stockpiles are never re-sited here:
-MaintainStockpiles owns them (below). Player zones and buildings are never
-touched, one re-site is in flight at a time and a tidied item (moving, done
-or abandoned) is never proposed again; the set is journaled per world and
-timeline (`store.RecordLayoutTidy`, persistence contracts).
-
-The planner (`RoutineTidyPlanner`, family `tidy`) runs a zone re-site as two
-methods under the goal: `tidy-create-*` admits the new zone through the
-building admission family (a zone preview, no cost) and journals the tidy
-moving; once the new field reports planted cells `tidy-delete-*` commits a
-one-shot `zone_delete` of the old zone by its per-zone CAS token, and the
-tidy is journaled done when the census no longer lists it. A refused
-preview or admission, a create method that closed without a zone, or a new
-zone that vanished journals the tidy abandoned. A replaced shell is one
-`tidy-shell-*` method of deconstruction actions over its claimed ring. The
-review record carries the outcome (`RoutineReview.Layout`), the routines
-API reports it as `layoutTidy` (the pending proposal with its explanation,
-or why none stands), the dashboard's development panel shows it, and every
-proposal, start, deletion and completion is a `layout`/`tidy` clock event.
+`TidyLayout` (#611, #809) re-sites a settled colony's off-plan furniture
+onto each room's derived interior plan, one room at a time. It is a
+maintenance goal ranked below every production, upkeep and defense goal,
+active only at tier >= `Masonry` while the colony has no unfilled
+construction or hauling work. One re-site is in flight at a time and a
+tidied piece is never moved again; the set is journaled per world
+(`store.RecordLayoutTidy`). Stockpiles are MaintainStockpiles' (below).
+The review record carries the outcome (`RoutineReview.Layout`), the
+routines API reports it as `layoutTidy` and the dashboard's development
+panel shows it.
 
 ### Stockpile maintenance
 
