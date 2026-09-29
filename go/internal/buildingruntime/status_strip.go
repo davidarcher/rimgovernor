@@ -70,6 +70,13 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 	rows := policy.StatusRows(policy.StatusInput{Stage: result.Review.Stage, Progress: result.Review.Progress, Colonists: f.Colonists, FoodDays: f.FoodDays, Wood: f.Wood, WoodFloor: result.Review.WoodFloor, Emergency: result.Emergency, Refusals: refusals, Pause: r.pause, Medicine: medicine.Stock, MedicineTarget: target, GoalCells: cells, Outlook: f.Outlook, Incidents: openIncidents(result.Incidents)})
 	layoutRows, actions := r.layoutPanel(projection)
 	rows = append(rows, layoutRows...)
+	if plan, pk := projection.LayoutPlan.Value(); pk {
+		if rooms, rk := projection.Rooms.Value(); rk {
+			if sleeping, sk := f.Sleeping.Value(); sk {
+				rows = append(rows, policy.BedroomRows(plan, rooms, sleeping, bedroomTargets(*projection))...)
+			}
+		}
+	}
 	key := fmt.Sprint(rows, refusals, actions)
 	if key == r.strip.key && tick >= r.strip.drawn && tick-r.strip.drawn < statusRedrawEvery {
 		return
