@@ -37,6 +37,9 @@ type DefenseGeometry struct {
 	// and no turret or conduit ever stands on either.
 	Lanes    []domain.Cell
 	Reserved []domain.Cell
+	// Turrets are the turret tier's cells; the mortar tier keeps off and
+	// clear of them (#1206).
+	Turrets []domain.Cell `json:",omitempty"`
 }
 
 type TurretPosition struct {

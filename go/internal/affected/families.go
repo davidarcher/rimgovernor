@@ -50,6 +50,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_break.go":                {"defense"},
 	"routine_incident.go":             {"defense", "defensive-layout", "rescue", "tend"},
 	"routine_defense_layout.go":       {"defensive-layout"},
+	"routine_armory.go":               {"armory"},
 	"routine_defense_cover.go":        {"defensive-layout"},
 	"routine_defense_wait.go":         {"defensive-layout"},
 	"routine_defense_burn.go":         {"defensive-layout", "defense"},

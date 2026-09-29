@@ -569,6 +569,7 @@ type RoutineAssessment struct {
 }
 
 func positive(v domain.Fact[bool]) bool { b, k := v.Value(); return k && b }
+func negative(v domain.Fact[bool]) bool { b, k := v.Value(); return k && !b }
 func measured[T any](f domain.Fact[T], predicate func(T) bool) domain.Fact[bool] {
 	v, k := f.Value()
 	if !k {

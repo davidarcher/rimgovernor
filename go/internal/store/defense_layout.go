@@ -78,6 +78,8 @@ type DefenseLayoutRecord struct {
 	// against the stored geometry while it had nothing to place; the
 	// planner re-probes once per reverify interval, not every step.
 	TurretsProbedTick domain.Tick `json:",omitempty"`
+	// MortarsProbedTick is TurretsProbedTick for the mortar tier (#1206).
+	MortarsProbedTick domain.Tick `json:",omitempty"`
 	// FuelShortage is the fuel the tier's empty barrels need and the last
 	// census found no stock of (#205), per definition; the routine review
 	// raises it as a derived MaintainResource floor until a barrel is
@@ -108,7 +110,7 @@ func (r DefenseLayoutRecord) Validate() error {
 	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Tiers) > maxDefenseTiers || len(r.Firing) > 64 || len(r.Retreat) != 0 && len(r.Retreat) != len(r.Firing) || len(r.TrapLane) > 64 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
 		return errors.New("defense layout geometry out of bounds")
 	}
-	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || len(r.VerifiedCombat) > 512 || len(r.PerimeterKey) > 128 || r.PerimeterRevision < 0 {
+	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || r.MortarsProbedTick < 0 || len(r.VerifiedCombat) > 512 || len(r.PerimeterKey) > 128 || r.PerimeterRevision < 0 {
 		return errors.New("defense layout verification invalid")
 	}
 	if len(r.FuelShortage) > 16 {
@@ -153,15 +155,15 @@ func (r DefenseLayoutRecord) Tier(name policy.DefenseTierName) (DefenseTierRecor
 	return DefenseTierRecord{}, nil, false
 }
 
-// SetTurretTier replaces the turret tier with a fresh pending record of the
-// policy tier, appending it when the record predates turrets.
-func (r *DefenseLayoutRecord) SetTurretTier(tier policy.DefenseTier) {
-	t := DefenseTierRecord{Name: policy.TierTurrets, Reserved: append([]domain.Cell{}, tier.Reserved...)}
+// SetPolicyTier replaces the named tier (turrets, mortars) with a fresh pending
+// record of the policy tier, appending it when the record lacks one.
+func (r *DefenseLayoutRecord) SetPolicyTier(tier policy.DefenseTier) {
+	t := DefenseTierRecord{Name: tier.Name, Reserved: append([]domain.Cell{}, tier.Reserved...)}
 	for _, b := range tier.Buildings {
 		t.Buildings = append(t.Buildings, DefenseBuilding{Definition: b.Definition(), Cell: b.Cell(), Rotation: b.Rotation(), Stuff: b.Stuff()})
 	}
 	for i := range r.Tiers {
-		if r.Tiers[i].Name == policy.TierTurrets {
+		if r.Tiers[i].Name == tier.Name {
 			r.Tiers[i] = t
 			return
 		}

@@ -232,12 +232,12 @@ func TestDefenseRecordGeometryAndTurretTier(t *testing.T) {
 	}
 	turret, _ := domain.NewBuilding(defenseTurretDefinition, domain.Cell{X: 13, Z: 23}, domain.North, "")
 	record.Tiers[1].Built, record.Tiers[1].Attempts = true, 2
-	record.SetTurretTier(policy.DefenseTier{Name: policy.TierTurrets, Buildings: []domain.Building{turret}, Reserved: []domain.Cell{{X: 13, Z: 23}}})
+	record.SetPolicyTier(policy.DefenseTier{Name: policy.TierTurrets, Buildings: []domain.Building{turret}, Reserved: []domain.Cell{{X: 13, Z: 23}}})
 	if tier := record.Tiers[1]; tier.Built || tier.Attempts != 0 || len(tier.Buildings) != 1 || tier.Buildings[0].Cell != (domain.Cell{X: 13, Z: 23}) || len(record.Tiers) != 2 {
 		t.Fatalf("%+v", record.Tiers)
 	}
 	record.Tiers = record.Tiers[:1]
-	record.SetTurretTier(policy.DefenseTier{Name: policy.TierTurrets, Buildings: []domain.Building{turret}})
+	record.SetPolicyTier(policy.DefenseTier{Name: policy.TierTurrets, Buildings: []domain.Building{turret}})
 	if len(record.Tiers) != 2 || record.Tiers[1].Name != policy.TierTurrets {
 		t.Fatal(record.Tiers)
 	}
@@ -284,5 +284,34 @@ func TestDefenseRearmAttemptsCountTheTurretWithinTheWindow(t *testing.T) {
 	}
 	if got := defenseRearmAttempts(history, "T3", 3000); got != 0 {
 		t.Fatal(got)
+	}
+}
+
+// TestDefenseMortarRequestOpensAfterResearchAtRaidPoints proves the mortar
+// tier's gates (#1206): closed before mortar research or below the raid
+// points' budget, open with both, and the geometry carries the turret cells.
+func TestDefenseMortarRequestOpensAfterResearchAtRaidPoints(t *testing.T) {
+	t.Parallel()
+	read := turretReading()
+	read.Projection.Definitions = append(read.Projection.Definitions, observation.PlanningDefinition{Name: defenseMortarDefinition, Available: domain.Known(true), Stuff: domain.Known("Steel"), Research: []string{"Mortars"}, Costs: domain.Known([]policy.Amount{{Resource: "Steel", Count: 110}})})
+	read.Projection.Facts.RaidPoints = domain.Known(1200.0)
+	if defenseMortarRequest(read).MortarGatesOpen() {
+		t.Fatal("open before research")
+	}
+	read.Projection.Facts.Research = domain.Known(policy.ResearchFacts{Finished: []policy.ResearchProjectID{"Mortars"}})
+	request := defenseMortarRequest(read)
+	if !request.MortarGatesOpen() || request.Mortar.Max != 1 || request.Mortar.Stuff != "Steel" {
+		t.Fatalf("%+v", request.Mortar)
+	}
+	read.Projection.Facts.RaidPoints = domain.Known(200.0)
+	if defenseMortarRequest(read).MortarGatesOpen() {
+		t.Fatal("open below the budget's raid points")
+	}
+	record := store.DefenseLayoutRecord{Tiers: []store.DefenseTierRecord{{Name: policy.TierTurrets, Buildings: []store.DefenseBuilding{{Definition: defenseTurretDefinition, Cell: domain.Cell{X: 4, Z: 5}, Rotation: domain.North}}}}}
+	if g := defenseMortarGeometry(record); !reflect.DeepEqual(g.Turrets, []domain.Cell{{X: 4, Z: 5}}) {
+		t.Fatal(g.Turrets)
+	}
+	if !defenseMortarsDue(record, 10) {
+		t.Fatal("not due")
 	}
 }

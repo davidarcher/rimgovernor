@@ -40,9 +40,13 @@ var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", Sandbag
 const (
 	defenseTurretDefinition  = "Turret_MiniTurret"
 	defenseConduitDefinition = "HiddenConduit"
+	// defenseMortarDefinition is the mortar tier (#1206): research-gated
+	// through its planning definition, unpowered, budgeted by
+	// policy.MortarBudget.
+	defenseMortarDefinition = "Turret_Mortar"
 )
 
-var defenseExtraDefinitions = []string{defenseTurretDefinition, defenseConduitDefinition, policy.DefenseSandbags, policy.DefenseEmbrasure}
+var defenseExtraDefinitions = []string{defenseTurretDefinition, defenseMortarDefinition, defenseConduitDefinition, policy.DefenseSandbags, policy.DefenseEmbrasure}
 
 // defenseDefinitionAvailable reports a planning definition the census
 // observed as available, its research finished: a definition the game
@@ -68,7 +72,7 @@ func defenseDefinitionAvailable(read observation.RoutineReading, name string) bo
 
 // defenseTierOrder is the staged construction order; a tier without
 // placements (the chokepoint reuses existing geometry) is complete as-is.
-var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets, policy.TierBait}
+var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets, policy.TierMortars, policy.TierBait}
 
 // RoutineDefenseLayoutSource is the native read set the planner needs beyond
 // the reviewer's shared colony observation: the census rectangle, shooting
@@ -258,7 +262,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	// proposed: a fresh proposal, or a stored layout without turrets whose
 	// probe interval has elapsed.
 	var definitions []string
-	if !stored || defenseTurretsDue(record, expected.Tick) {
+	if !stored || defenseTurretsDue(record, expected.Tick) || defenseMortarsDue(record, expected.Tick) {
 		definitions = defenseExtraDefinitions
 	}
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, definitions...)
@@ -306,7 +310,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	tick := read.Projection.Identity.Tick
 	// A layout that stood before turrets could be placed (no research, no
 	// network, no steel) gains the tier once the observed gates open.
-	if len(definitions) > 0 && stored {
+	if len(definitions) > 0 && stored && defenseTurretsDue(record, expected.Tick) {
 		request := defenseTurretRequest(read)
 		if request.TurretGatesOpen() {
 			if err = r.proposeTurrets(call, state, read, &record); err != nil {
@@ -314,6 +318,15 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			}
 		} else {
 			clockSchedulerLog("defense-layout: turret gates closed %s", defenseTurretGates(request))
+		}
+	}
+	// The mortar tier follows the same way once mortar research and the
+	// raid points' budget open its gates (#1206).
+	if len(definitions) > 0 && defenseMortarsDue(record, expected.Tick) {
+		if request := defenseMortarRequest(read); request.MortarGatesOpen() {
+			if err = r.proposeMortars(call, state, read, &record); err != nil {
+				return RoutineDefenseLayoutResult{}, err
+			}
 		}
 	}
 	order := append([]policy.DefenseTierName{}, defenseTierOrder...)
@@ -509,6 +522,79 @@ func defenseTurretFacts(record store.DefenseLayoutRecord, census *defenseCensus)
 func defenseTurretsDue(record store.DefenseLayoutRecord, tick domain.Tick) bool {
 	turrets, _, ok := record.Tier(policy.TierTurrets)
 	return (!ok || len(turrets.Buildings) == 0) && (record.TurretsProbedTick == 0 || tick-record.TurretsProbedTick >= defenseReverifyTicks)
+}
+
+// defenseMortarsDue is defenseTurretsDue for the mortar tier.
+func defenseMortarsDue(record store.DefenseLayoutRecord, tick domain.Tick) bool {
+	mortars, _, ok := record.Tier(policy.TierMortars)
+	return (!ok || len(mortars.Buildings) == 0) && (record.MortarsProbedTick == 0 || tick-record.MortarsProbedTick >= defenseReverifyTicks)
+}
+
+// defenseMortarRequest is the mortar tier's observed gates: the mortar
+// planning definition's availability re-checked against finished research,
+// its stuff and cost, the stock census and the raid points' budget.
+func defenseMortarRequest(read observation.RoutineReading) policy.DefenseRequest {
+	projection := read.Projection
+	request := policy.DefenseRequest{Definitions: defenseDefinitions, UnitCosts: map[string][]policy.Amount{}}
+	request.Mortar = policy.DefenseMortarRequest{Definition: defenseMortarDefinition, Stock: projection.Resources, Max: policy.MortarBudget(projection.Facts.RaidPoints), Available: domain.Known(defenseDefinitionAvailable(read, defenseMortarDefinition))}
+	for _, d := range projection.Definitions {
+		if d.Name != defenseMortarDefinition {
+			continue
+		}
+		if costs, known := d.Costs.Value(); known {
+			request.UnitCosts[d.Name] = append([]policy.Amount{}, costs...)
+		}
+		if stuff, known := d.Stuff.Value(); known {
+			request.Mortar.Stuff = stuff
+		}
+	}
+	return request
+}
+
+// proposeMortars reads the census around the colony and sites the mortar
+// tier against the stored geometry and turret tier, recording it pending
+// when it places anything; the probe tick is recorded either way.
+func (r *RoutineDefenseLayoutPlanner) proposeMortars(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
+	projection := read.Projection
+	identity := boundary.Identity(state.Snapshot)
+	killbox, region, home, ok := defenseKillbox(projection)
+	if !ok {
+		return nil
+	}
+	site, _, err := r.native.ReadDefenseSite(call, identity, region)
+	if err != nil {
+		return err
+	}
+	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
+		return err
+	}
+	request := defenseMortarRequest(read)
+	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
+	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
+	for _, cell := range site.Cells {
+		request.Cells = append(request.Cells, defenseCellFacts(cell))
+	}
+	geometry := defenseMortarGeometry(*record)
+	record.MortarsProbedTick = projection.Identity.Tick
+	tier, err := policy.DefenseMortars(request, geometry)
+	clockSchedulerLog("defense-layout: mortar probe buildings=%d costs=%v max=%d err=%v", len(tier.Buildings), tier.Costs, request.Mortar.Max, err)
+	if err == nil && len(tier.Buildings) > 0 {
+		record.SetPolicyTier(tier)
+	}
+	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+}
+
+// defenseMortarGeometry is the stored layout with the turret tier's cells,
+// as the mortar tier sees it.
+func defenseMortarGeometry(record store.DefenseLayoutRecord) policy.DefenseGeometry {
+	g := defenseRecordGeometry(record)
+	if turrets, _, ok := record.Tier(policy.TierTurrets); ok {
+		g.Turrets = append(g.Turrets, turrets.Reserved...)
+		for _, b := range turrets.Buildings {
+			g.Turrets = append(g.Turrets, b.Cell)
+		}
+	}
+	return g
 }
 
 // defenseCensus is one same-tick observation of the layout's cells: the
@@ -713,7 +799,7 @@ func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state
 	if err != nil || len(tier.Buildings) == 0 {
 		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 	}
-	record.SetTurretTier(tier)
+	record.SetPolicyTier(tier)
 	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 }
 
@@ -1270,6 +1356,7 @@ func defenseCellFacts(cell bridge.DefenseCell) policy.DefenseCell {
 	out.Walkable, out.Passable, out.BlocksSight = domain.Known(cell.Walkable), domain.Known(cell.Passable), domain.Known(cell.BlocksSight)
 	out.PlayerOwned, out.NaturalRock, out.EdgeReachable = domain.Known(cell.PlayerOwned), domain.Known(cell.NaturalRock), domain.Known(cell.EdgeReachable)
 	out.HomeArea, out.Door, out.CoverFill, out.Edifice = domain.Known(cell.HomeArea), domain.Known(cell.Door), domain.Known(cell.CoverFill), cell.EdificeDefName
+	out.Roofed = domain.Known(cell.Roofed)
 	return out
 }
 

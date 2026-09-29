@@ -14,8 +14,11 @@ type DefenseCell struct {
 	Cell                                                                     domain.Cell
 	Walkable, Passable, BlocksSight, PlayerOwned, NaturalRock, EdgeReachable domain.Fact[bool]
 	HomeArea, Door                                                           domain.Fact[bool]
-	CoverFill                                                                domain.Fact[float64]
-	Edifice                                                                  string
+	// Roofed is the cell under any roof; the mortar tier needs it known
+	// false (#1206).
+	Roofed    domain.Fact[bool]
+	CoverFill domain.Fact[float64]
+	Edifice   string
 }
 
 // DefenseLine is one observations_read_lines_of_fire row: whether a firing
@@ -64,6 +67,8 @@ type DefenseRequest struct {
 	UnitCosts map[string][]Amount
 	// Turret asks for the powered turret tier; see DefenseTurretRequest.
 	Turret DefenseTurretRequest
+	// Mortar asks for the mortar tier; see DefenseMortarRequest.
+	Mortar DefenseMortarRequest
 	// Arrivals are distinct, observed ground-raid arrivals in this census.
 	// Tick bounds their recency; turret attack ticks alone are not arrivals.
 	Arrivals []DefenseArrival
