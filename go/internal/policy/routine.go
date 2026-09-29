@@ -281,11 +281,11 @@ type RoutineFacts struct {
 	// SaleArt counts the packed art no owed room reserves (SaleSculptures);
 	// read only while the wealth headroom is negative, it opens a trade as
 	// the shed_art need (#1247).
-	SaleArt           domain.Fact[int64]
+	SaleArt domain.Fact[int64]
 	// FabricableParts are the part items a usable gear bench has a researched
 	// recipe for, read only while a medical pawn wants a part (#1255); the
 	// caravan assessment counts only parts no bench can make.
-	FabricableParts map[Resource]bool
+	FabricableParts   map[Resource]bool
 	AnimalUpkeep      AnimalUpkeepObservation
 	FoodStorageUpkeep FoodStorageObservation
 	MedicalReserve    MedicalReserveObservation
