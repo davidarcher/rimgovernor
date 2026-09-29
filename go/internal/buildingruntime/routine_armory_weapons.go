@@ -15,7 +15,7 @@ import (
 // for the colonists no loose weapon arms (#1203). It moved here from the
 // gear planner unchanged: the gear planner still wears and replaces, and a
 // pending wear candidate or any open bill holds the armory back.
-func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, tier policy.ArmoryTier) (RoutineArmoryResult, error) {
+func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, tier policy.ArmoryTier, holds []policy.Amount) (RoutineArmoryResult, error) {
 	p := r.reviewer.player
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
 	if err != nil {
@@ -103,8 +103,15 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)
 	}
+	// MaintainResource holds (#1230) bind upgrades and armor, never arming
+	// the unarmed: an early wood floor would otherwise leave a tribal start
+	// without clubs.
 	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: domain.Known(benches), Stock: stock}
+	if unarmed == 0 {
+		request.Holds = holds
+	}
 	choice, err := policy.SelectArmoryMethod(request, weapons)
+	request.Holds = holds
 	if err != nil {
 		return RoutineArmoryResult{}, err
 	}

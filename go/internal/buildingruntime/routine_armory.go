@@ -66,9 +66,15 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	facts := read.Projection.Facts
 	assessment := policy.AssessArmory(facts.RaidPoints, facts.Research)
 	clockSchedulerLog("Armory.step tier=%s threat=%s research=%s", assessment.Tier, assessment.Threat, assessment.Research)
-	result, err := r.craftWeapons(call, epoch, arbiter, state, review, assessment.Tier)
+	// MaintainResource floors are held back from every armory bill (#1230).
+	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, facts.Resources)
+	if err != nil {
+		return RoutineArmoryResult{}, err
+	}
+	holds := policy.ResourceHolds(targets)
+	result, err := r.craftWeapons(call, epoch, arbiter, state, review, assessment.Tier, holds)
 	if err == nil && result.Reason != BuildingMethodAdmitted {
-		result, err = r.stockShells(call, epoch, state, review, read.Projection)
+		result, err = r.stockShells(call, epoch, state, review, read.Projection, holds)
 	}
 	result.Assessment = assessment
 	return result, err

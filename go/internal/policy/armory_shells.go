@@ -2,6 +2,7 @@ package policy
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -62,8 +63,10 @@ type ShellBill struct {
 // SelectShellBill picks the first target, in priority order, that no bench
 // bill already produces, on the first bench (by ID) with an available
 // recipe making it. ok is false when every shell has a bill or none can be
-// made; unknown bench rows count as unable.
-func SelectShellBill(benches []GearBench, targets []Amount) (ShellBill, bool) {
+// made; unknown bench rows count as unable. With holds (MaintainResource
+// floors, #1230), a recipe whose known stock less the holds cannot fund one
+// shell is skipped: its standing bill would spend the reserve.
+func SelectShellBill(benches []GearBench, targets []Amount, stock []Stock, holds []Amount) (ShellBill, bool) {
 	billed := map[Resource]bool{}
 	for _, b := range benches {
 		bills, _ := b.Bills.Value()
@@ -95,11 +98,36 @@ func SelectShellBill(benches []GearBench, targets []Amount) (ShellBill, bool) {
 			for _, r := range recipes {
 				available, ak := r.Available.Value()
 				on, ok := r.AvailableOn.Value()
-				if ak && available && ok && on && slices.Contains(r.Products, t.Resource) {
+				if ak && available && ok && on && slices.Contains(r.Products, t.Resource) && shellFunded(r, stock, holds) {
 					return ShellBill{Bench: b.ID, Recipe: r.Definition, Target: t.Count}, true
 				}
 			}
 		}
 	}
 	return ShellBill{}, false
+}
+
+// shellFunded reports whether a shell recipe may be billed under holds: no
+// holds, unknown ingredients or an unmeasured stock all fund it (native
+// waits for materials); only a known stock the holds leave short refuses.
+func shellFunded(r GearRecipe, stock []Stock, holds []Amount) bool {
+	slots, known := r.Ingredients.Value()
+	if len(holds) == 0 || !known {
+		return true
+	}
+	_, _, ok, unknown := gearIngredients(slots, "", GearPlanningRequest{Stock: stock, Holds: holds})
+	return ok || unknown
+}
+
+// ResourceHolds is the MaintainResource floors as armory holds, sorted by
+// resource.
+func ResourceHolds(targets map[Resource]int64) []Amount {
+	holds := make([]Amount, 0, len(targets))
+	for resource, count := range targets {
+		if count > 0 {
+			holds = append(holds, Amount{Resource: resource, Count: count})
+		}
+	}
+	slices.SortFunc(holds, func(a, b Amount) int { return strings.Compare(string(a.Resource), string(b.Resource)) })
+	return holds
 }

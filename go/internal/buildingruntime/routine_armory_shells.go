@@ -37,7 +37,7 @@ func shellTargets(ctx context.Context, journal *store.Store, snapshot domain.Gen
 // stockShells admits one stock-target shell bill under MaintainEquipment
 // for the first shell no bench bill produces (#1207). Native keeps the
 // stock from then on; the planner only adds missing bills.
-func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state ControlState, review store.RoutineReview, projection observation.ColonyProjection) (RoutineArmoryResult, error) {
+func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state ControlState, review store.RoutineReview, projection observation.ColonyProjection, holds []policy.Amount) (RoutineArmoryResult, error) {
 	p := r.reviewer.player
 	targets, err := shellTargets(call, p.journal, state.Snapshot, projection)
 	if err != nil || len(targets) == 0 {
@@ -60,15 +60,22 @@ func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state Co
 		}
 	}
 	started := r.reviewer.clock.Now()
-	census, _, err := r.native.ReadGearBenches(call, boundary.Identity(state.Snapshot))
+	identity := boundary.Identity(state.Snapshot)
+	census, _, err := r.native.ReadGearBenches(call, identity)
 	if err != nil {
 		return RoutineArmoryResult{}, err
+	}
+	var stock []policy.Stock
+	if names := recipeIngredientNames(census, ""); len(holds) > 0 && len(names) > 0 {
+		if stock, _, err = r.native.ReadSupplyStock(call, identity, names); err != nil {
+			return RoutineArmoryResult{}, err
+		}
 	}
 	benches := make([]policy.GearBench, 0, len(census))
 	for _, row := range census {
 		benches = append(benches, row.Bench)
 	}
-	choice, ok := policy.SelectShellBill(benches, targets)
+	choice, ok := policy.SelectShellBill(benches, targets, stock, holds)
 	if !ok {
 		return RoutineArmoryResult{Reason: BuildingMethodUsed}, nil
 	}
