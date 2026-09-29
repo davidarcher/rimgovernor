@@ -117,37 +117,32 @@ func TrainingValue(c PrisonerColony, wants []SurgeryWant) (perXP, cycles float64
 	return 0, 0
 }
 
-// PegCycleStep says why a peg-leg step is queued.
-type PegCycleStep string
+// PegCycleStep says why a peg-leg step is queued, in selection order; zero
+// is a plain harvest or part recovery.
+type PegCycleStep int
 
 const (
-	PegReinstall PegCycleStep = "reinstall"
-	PegControl   PegCycleStep = "control"
-	PegTraining  PegCycleStep = "training"
+	PegReinstall PegCycleStep = iota + 1
+	PegControl
+	PegTraining
 )
 
-// PegCycle is one peg-leg surgery to queue: the step, and the prisoner
-// removal or install as an OrganHarvest (Gain and Cost in silver).
-type PegCycle struct {
-	Step PegCycleStep
-	OrganHarvest
-}
-
 // SelectPegCycle picks at most one peg-leg step under the harvest's
-// in-flight rule: a reinstall first, then control, then training; then the
-// best gain less cost, then prisoner id. Unknown facts refuse.
-func SelectPegCycle(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], food domain.Fact[float64], p PrisonerPolicy, wants []SurgeryWant, inFlight map[PawnID]bool) (PegCycle, bool) {
+// in-flight rule, ranked by betterHarvest: a reinstall first, then control,
+// then training; then the best gain less cost, then prisoner id. Unknown
+// facts refuse.
+func SelectPegCycle(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], food domain.Fact[float64], p PrisonerPolicy, wants []SurgeryWant, inFlight map[PawnID]bool) (OrganHarvest, bool) {
 	rows, rk := prisoners.Value()
 	c, ck := colony.Value()
 	if !rk || !ck || surgeryInFlight(rows, inFlight) {
-		return PegCycle{}, false
+		return OrganHarvest{}, false
 	}
 	perXP, cycles := TrainingValue(c, wants)
-	var best PegCycle
+	var best OrganHarvest
 	found := false
 	for _, row := range rows {
 		for _, step := range pegCycleSteps(row, c, food, p, perXP, cycles) {
-			if !found || betterPegCycle(step, best) {
+			if !found || betterHarvest(step, best) {
 				best, found = step, true
 			}
 		}
@@ -160,18 +155,6 @@ func SelectPegCycle(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[P
 func PegCycleWanted(f RoutineFacts, p PrisonerPolicy) bool {
 	_, ok := SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants, nil)
 	return ok
-}
-
-var pegStepRank = map[PegCycleStep]int{PegReinstall: 0, PegControl: 1, PegTraining: 2}
-
-func betterPegCycle(h, best PegCycle) bool {
-	if pegStepRank[h.Step] != pegStepRank[best.Step] {
-		return pegStepRank[h.Step] < pegStepRank[best.Step]
-	}
-	if h.Gain-h.Cost != best.Gain-best.Cost {
-		return h.Gain-h.Cost > best.Gain-best.Cost
-	}
-	return h.Prisoner < best.Prisoner
 }
 
 // legless: every leg of a human body (two) is missing.
@@ -192,7 +175,7 @@ func countMissing(missing []MissingPart, part string) int {
 
 // pegCycleSteps are the row's acceptable steps: a reinstall, a control
 // removal and a training step, each only when it applies and pays off.
-func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64], p PrisonerPolicy, perXP, cycles float64) []PegCycle {
+func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64], p PrisonerPolicy, perXP, cycles float64) []OrganHarvest {
 	intent, unknown := prisonerIntent(row, c, food, p)
 	dead, dk := row.Dead.Value()
 	ops, ok := row.Operations.Value()
@@ -239,12 +222,12 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 			cuts = append(cuts, op)
 		}
 	}
-	var out []PegCycle
+	var out []OrganHarvest
 	step := func(kind PegCycleStep, op SurgeryOperation, gain, cost float64) {
 		recipe, _ := op.Recipe.Value()
 		part, _ := op.PartIndex.Value()
 		violation, _ := op.Violation.Value()
-		out = append(out, PegCycle{Step: kind, OrganHarvest: OrganHarvest{Prisoner: row.Pawn, Recipe: recipe, Part: part, Gain: gain, Cost: cost, Violation: violation}})
+		out = append(out, OrganHarvest{Prisoner: row.Pawn, Recipe: recipe, Part: part, Gain: gain, Cost: cost, Violation: violation, Step: kind})
 	}
 	if legsMissing >= 2 && !controlled {
 		for _, op := range installs {

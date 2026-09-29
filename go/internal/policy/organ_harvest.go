@@ -169,6 +169,7 @@ type OrganHarvest struct {
 	For        PawnID
 	Gain, Cost float64
 	Violation  bool
+	Step       PegCycleStep // a peg-leg cycling step (#1236); zero otherwise
 }
 
 // SelectOrganHarvest picks at most one harvest: nothing while any prisoner
@@ -245,11 +246,14 @@ func surgeryInFlight(rows []PrisonerFacts, inFlight map[PawnID]bool) bool {
 	return false
 }
 
-// betterHarvest: a colonist's need before a sale, then gain less cost,
-// then prisoner id.
+// betterHarvest: a colonist's need before a sale, then the earlier peg
+// step, then gain less cost, then prisoner id.
 func betterHarvest(h, best OrganHarvest) bool {
 	if (h.For != "") != (best.For != "") {
 		return h.For != ""
+	}
+	if h.Step != best.Step {
+		return h.Step < best.Step
 	}
 	if h.Gain-h.Cost != best.Gain-best.Cost {
 		return h.Gain-h.Cost > best.Gain-best.Cost
