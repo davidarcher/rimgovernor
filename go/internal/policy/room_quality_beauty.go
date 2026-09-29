@@ -63,11 +63,13 @@ func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, r
 
 // The sculpture lever (#830), after pots and floors: a finished packed
 // small sculpture installed on free floor in the room. The sculpture itself
-// is MaintainArt's pinned bill (#1190).
+// is MaintainArt's pinned bill (#1190). Sculptures pack as the generic
+// MinifiedThing (Buildings_Art.xml), so the packed read is filtered by
+// inner definition (#1195).
 const (
 	SculptureDefinition       = "SculptureSmall"
 	SculptureRecipe           = "Make_SculptureSmall"
-	PackedSculptureDefinition = "MinifiedSculpture"
+	PackedSculptureDefinition = "MinifiedThing"
 )
 
 // SculptureStep installs Packed (a packed item's id) at Anchor, Rot.
@@ -126,7 +128,7 @@ func fitSculpture(room TidyRoom, ranked []PackedSculpture, taken map[string]bool
 		if !ok || taken[p.ID] {
 			continue
 		}
-		if cell, rot, ok := freeSpot(room, size); ok {
+		if cell, rot, ok := freeSpotFacing(room, size, domain.North); ok {
 			return p, cell, rot, true
 		}
 	}

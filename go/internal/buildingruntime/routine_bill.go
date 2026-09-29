@@ -22,6 +22,9 @@ type RoutineBillPlanner struct {
 type RoutineBillResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// NativeWorkTicks asks for game time while a claimed art bill is still
+	// being sculpted: a placed bill is no work to the clock (#1195).
+	NativeWorkTicks uint32
 }
 
 // BillPlannerNative is the native reader behind a bill planner; the
@@ -136,11 +139,20 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	projection := read.Projection
 	recordStepRead("bill", r.need, state.Snapshot, projection)
 	if r.purpose == policy.ArtBill {
-		selected, known, err := r.artSelection(call, state, projection, review.Latches.MedicalReserve)
-		if err != nil || !known {
-			return RoutineBillResult{Reason: BuildingMethodUnknown}, err
+		selected, known, art, err := r.artSelection(call, state, projection, review.Latches.MedicalReserve)
+		// A placed sculpture bill is no work to the clock, but the
+		// sculpture takes days of game time (#1195).
+		var ticks uint32
+		if art.sculpting {
+			ticks = artNativeWorkTicks
 		}
-		return r.admit(call, epoch, arbiter, state, goal, read, selected)
+		clockSchedulerLog("art bill: selected=%+v known=%v art=%+v err=%v", selected, known, art, err)
+		if err != nil || !known {
+			return RoutineBillResult{Reason: BuildingMethodUnknown, NativeWorkTicks: ticks}, err
+		}
+		result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, art.finished[selected.Worker])
+		result.NativeWorkTicks = max(result.NativeWorkTicks, ticks)
+		return result, err
 	}
 	if r.purpose == policy.SurgeryPartBill {
 		parts, benches, err := surgeryPartDemand(call, r.native, boundary.Identity(state.Snapshot), projection.Facts.MedicalPawns)
@@ -151,7 +163,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if !known {
 			return RoutineBillResult{Reason: BuildingMethodNoDeficit}, nil
 		}
-		return r.admit(call, epoch, arbiter, state, goal, read, selected)
+		return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
 	}
 	if r.purpose == policy.CookFood && !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
@@ -254,12 +266,12 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !known {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 	}
-	return r.admit(call, epoch, arbiter, state, goal, read, selected)
+	return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
 }
 
 // admit commits the selected bill as the goal's method, once per goal
 // epoch and claim.
-func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArbiter, state ControlState, goal store.GoalState, read observation.RoutineReading, selected policy.BillSelection) (RoutineBillResult, error) {
+func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArbiter, state ControlState, goal store.GoalState, read observation.RoutineReading, selected policy.BillSelection, round int) (RoutineBillResult, error) {
 	p := r.reviewer.player
 	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Mode, selected.Target, selected.Ingredients...)
 	if selected.Mode == domain.HumanButcherForever {
@@ -274,7 +286,9 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
-	if claimed && selected.Replace == "" {
+	// Finite batches expire (store.checkBillMethod): a claim from an earlier
+	// batch does not bar the next one.
+	if claimed && selected.Replace == "" && selected.Mode != domain.GearBatch {
 		return RoutineBillResult{Reason: BuildingMethodUsed}, nil
 	}
 	// The bill planners of one step run concurrently and read the same
@@ -287,6 +301,12 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	fmt.Fprintf(hash, "%s/%s/%s/%d", selected.Bench, selected.Recipe, selected.Mode, selected.Target)
 	if selected.Worker != "" {
 		fmt.Fprintf(hash, "/%s", selected.Worker)
+	}
+	// A finished sculpture batch stays on the bench, inactive; the next
+	// piece of the same shape (a sale sculpture after the room's, #1195)
+	// is a new method, keyed by the finished batches before it.
+	if round > 0 {
+		fmt.Fprintf(hash, "/round%d", round)
 	}
 	if selected.Replace != "" {
 		fmt.Fprint(hash, "/", selected.Replace, "/", selected.Token)

@@ -27,4 +27,12 @@ func TestArtBenchesFromGearBenches(t *testing.T) {
 	if len(got) != 1 || got[0].Worker != "b" || got[0].Token != "t1" {
 		t.Fatalf("bills = %+v", got)
 	}
+
+	if art := artBills(benches); !art.sculpting || art.finished["a"] != 0 {
+		t.Fatalf("an active sculpture bill is sculpting (#1195): %+v", art)
+	}
+	benches[0].Bills[0].Active = domain.Known(false)
+	if art := artBills(benches); art.sculpting || art.finished["a"] != 1 {
+		t.Fatalf("a finished sculpture bill is a finished batch: %+v", art)
+	}
 }

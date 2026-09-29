@@ -22,27 +22,57 @@ var _ artBenchSource = (*bridge.Client)(nil)
 // artSelection is the next artist's pinned sculpture bill: the art benches
 // from ReadGearBenches, the qualifying artists from the pawn profiles, one
 // SelectProductionBill per artist lacking a bill; the first is admitted.
-func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlState, projection observation.ColonyProjection, medicineActive bool) (policy.BillSelection, bool, error) {
+// state is the art benches' sculpture bills.
+func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlState, projection observation.ColonyProjection, medicineActive bool) (selected policy.BillSelection, known bool, art artBenchState, err error) {
 	native, ok := r.native.(artBenchSource)
 	pawns, pk := projection.WorkPawns.Value()
 	if !ok || !pk {
-		return policy.BillSelection{}, false, nil
+		return policy.BillSelection{}, false, art, nil
 	}
 	reads, _, err := native.ReadGearBenches(call, boundary.Identity(state.Snapshot))
 	if err != nil {
-		return policy.BillSelection{}, false, err
+		return policy.BillSelection{}, false, art, err
 	}
 	profiles := policy.Profiles(pawns)
-	benches := domain.Known(artBenches(reads))
+	list := artBenches(reads)
+	art = artBills(list)
+	benches := domain.Known(list)
 	// An inspired artist's large sculpture comes first (#1192).
 	// Sale sculptures (#1193) are asked for while no room is owed.
 	demand := artDemand(projection, profiles)
 	demand.Sale = policy.RoutineArtForSale(projection.Facts, r.reviewer.policy, medicineActive)
 	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles)), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles), demand)...)
 	if len(bills) == 0 {
-		return policy.BillSelection{}, false, nil
+		return policy.BillSelection{}, false, art, nil
 	}
-	return bills[0], true, nil
+	return bills[0], true, art, nil
+}
+
+// artBenchState is the art benches' sculpture bills (#1195): sculpting
+// while one is active (the clock owes it game time), and each worker's
+// finished batches, which stay on the bench and key the next batch's
+// method apart from theirs.
+type artBenchState struct {
+	sculpting bool
+	finished  map[string]int
+}
+
+func artBills(benches []policy.ProductionBench) artBenchState {
+	out := artBenchState{finished: map[string]int{}}
+	for _, bench := range benches {
+		for _, bill := range bench.Bills {
+			active, known := bill.Active.Value()
+			if !known || !policy.IsSculptureRecipe(bill.Recipe) {
+				continue
+			}
+			if active {
+				out.sculpting = true
+			} else if worker, wk := bill.Worker.Value(); wk {
+				out.finished[worker]++
+			}
+		}
+	}
+	return out
 }
 
 // artDemand sizes the art bills (#1191) from the same bedroom census as
@@ -93,3 +123,7 @@ func artBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
 	}
 	return out
 }
+
+// artNativeWorkTicks is the window an active sculpture bill asks for per
+// step; the review re-reads the bench between windows (#1195).
+const artNativeWorkTicks = 2500

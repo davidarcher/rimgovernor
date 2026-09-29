@@ -48,6 +48,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	census, ck := facts.Facts.CurrentConstruction.Value()
 	traits := sleepingTraits(facts)
 	if !ok || !sk || !rk || !ck || !census.Colony || traits == nil {
+		clockSchedulerLog("%s: sculpture install: inputs unknown source=%v sleeping=%v rooms=%v census=%v traits=%v", goal.Goal.ID, ok, sk, rk, ck, traits != nil)
 		return RoutineBuildingResult{}, false, nil
 	}
 	tier, _ := facts.BuildTier.Value()
@@ -63,6 +64,9 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	}
 	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed)
 	if !due {
+		if len(packed) > 0 {
+			clockSchedulerLog("%s: sculpture install: no room fits %d packed %v (owed %v)", goal.Goal.ID, len(packed), packed, sculptureRoomsOwed(facts))
+		}
 		return RoutineBuildingResult{}, false, nil
 	}
 	p := r.reviewer.player
@@ -102,6 +106,9 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 func packedSculptures(items []bridge.PackedItem) []policy.PackedSculpture {
 	out := make([]policy.PackedSculpture, 0, len(items))
 	for _, item := range items {
+		if _, ok := policy.SculptureSize(item.InnerDef); !ok {
+			continue
+		}
 		quality := -1
 		if item.QualityKnown {
 			quality = int(item.Quality)
@@ -113,21 +120,41 @@ func packedSculptures(items []bridge.PackedItem) []policy.PackedSculpture {
 
 // saleArt is the packed art the trade selector may sell (#1194): every
 // packed sculpture but those the install lever would put in owed rooms.
-// Nil (no art sale) when the source cannot read packed items or a room
-// input is unknown.
-func (r *RoutineTradePlanner) saleArt(call context.Context, identity *c.Identity, facts observation.ColonyProjection) (map[string]bool, error) {
+// The trade's colony read carries no rooms, construction census or work
+// pawns, so the room inputs come from the routine read the install lever
+// uses (#1195). Nil (no art sale) when the source cannot read packed items
+// or a room input is unknown.
+func (r *RoutineTradePlanner) saleArt(call context.Context, identity *c.Identity, snapshot domain.GenerationSnapshot) (map[string]bool, error) {
 	native, ok := r.native.(sculptureSource)
+	if !ok {
+		return nil, nil
+	}
+	expected, err := routineScope(call, r.reviewer.native)
+	if err != nil {
+		return nil, err
+	}
+	claims, err := r.reviewer.player.journal.ConstructionClaims(call, snapshot, expected.Tick)
+	if err != nil {
+		return nil, err
+	}
+	read, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, claims)
+	if err != nil {
+		return nil, err
+	}
+	facts := read.Projection
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
 	traits := sleepingTraits(facts)
-	if !ok || !sk || !rk || !ck || !census.Colony || traits == nil {
+	if !sk || !rk || !ck || !census.Colony || traits == nil {
+		clockSchedulerLog("sale art: room inputs unknown sleeping=%v rooms=%v construction=%v colony=%v traits=%v", sk, rk, ck, census.Colony, traits != nil)
 		return nil, nil
 	}
 	items, _, err := native.ReadPackedItems(call, identity, policy.PackedSculptureDefinition)
 	if err != nil {
 		return nil, err
 	}
+	clockSchedulerLog("sale art: packed=%+v", packedSculptures(items))
 	tier, _ := facts.BuildTier.Value()
 	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packedSculptures(items)), nil
 }

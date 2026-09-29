@@ -231,11 +231,17 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			}
 			value, err = domain.NewCorpseBill(payload.Bench, payload.Recipe, payload.Corpses)
 		}
-		if payload.Mode != domain.HumanButcherForever && payload.Worker != "" {
+		if payload.Mode != domain.HumanButcherForever && payload.Mode != domain.GearBatch && payload.Worker != "" {
 			return domain.Action{}, 0, errors.New("worker on ordinary bill")
 		}
 		if err != nil {
 			return domain.Action{}, 0, err
+		}
+		// A pinned batch (#1190: one art bill per artist) reloads pinned.
+		if payload.Mode == domain.GearBatch && payload.Worker != "" {
+			if value, err = value.PinWorker(payload.Worker); err != nil {
+				return domain.Action{}, 0, err
+			}
 		}
 		if payload.Replace != "" {
 			value, err = value.ReplaceOwnedBill(payload.Replace)

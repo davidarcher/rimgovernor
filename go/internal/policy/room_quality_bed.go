@@ -251,6 +251,12 @@ func bedSpot(room TidyRoom, def Resource) (domain.Cell, domain.Rotation, bool) {
 // North size fits the room's floor clear of its furniture and keeps it
 // walkable.
 func freeSpot(room TidyRoom, size domain.Cell) (domain.Cell, domain.Rotation, bool) {
+	return freeSpotFacing(room, size, domain.South, domain.North)
+}
+
+// freeSpotFacing is freeSpot over the given rotations only: a sculpture is
+// not rotatable, so it faces North (#1195).
+func freeSpotFacing(room TidyRoom, size domain.Cell, rots ...domain.Rotation) (domain.Cell, domain.Rotation, bool) {
 	in := room.Room.Interior
 	blocked := map[domain.Cell]bool{}
 	for _, p := range room.Pieces {
@@ -260,7 +266,7 @@ func freeSpot(room TidyRoom, size domain.Cell) (domain.Cell, domain.Rotation, bo
 	}
 	for z := in.Z + in.Height - 1; z >= in.Z; z-- {
 		for x := in.X; x < in.X+in.Width; x++ {
-			for _, rot := range []domain.Rotation{domain.South, domain.North} {
+			for _, rot := range rots {
 				anchor := domain.Cell{X: x, Z: z}
 				r := OccupiedRect(anchor, size, rot)
 				if r.Width == 0 || r.X < in.X || r.Z < in.Z || r.X+r.Width > in.X+in.Width || r.Z+r.Height > in.Z+in.Height {

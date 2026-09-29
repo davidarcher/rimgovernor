@@ -27,7 +27,8 @@ func Artist(p PawnProfile) bool {
 		return false
 	}
 	s := p.Skill(WorkSkillName(WorkArt))
-	return !s.Disabled && (s.Level > 6 || s.Passion != "")
+	// The wire names no passion "None" (Passion.ToString()).
+	return !s.Disabled && (s.Level > 6 || s.Passion != "" && s.Passion != "None")
 }
 
 // Artists lists the qualifying artists in ID order.
@@ -244,7 +245,7 @@ func NewArtDemand(obs domain.Fact[SleepingObservation], targets map[string]RoomT
 	}
 	d.Gap, d.Fits = due[0].Gap, 1
 	for side := int32(3); side > 1; side-- {
-		if _, _, ok := freeSpot(due[0].Room, domain.Cell{X: side, Z: side}); ok {
+		if _, _, ok := freeSpotFacing(due[0].Room, domain.Cell{X: side, Z: side}, domain.North); ok {
 			d.Fits = side
 			break
 		}
@@ -279,7 +280,7 @@ func sculptureRooms(obs SleepingObservation, targets map[string]RoomTarget, room
 			if room.ID != id {
 				continue
 			}
-			if _, _, ok := freeSpot(room, domain.Cell{X: 1, Z: 1}); ok {
+			if _, _, ok := freeSpotFacing(room, domain.Cell{X: 1, Z: 1}, domain.North); ok {
 				out = append(out, sculptureRoom{ID: id, Room: room, Gap: gaps[id]})
 			}
 			break

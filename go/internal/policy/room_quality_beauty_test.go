@@ -19,7 +19,8 @@ func TestSculptureInstall(t *testing.T) {
 	}
 	// A packed sculpture in stock: install it on free floor.
 	s, ok := NextSculpture(obs, targets, rooms, []PackedSculpture{{ID: "Thing_MinifiedSculpture1", Def: SculptureDefinition}})
-	if !ok || s.Room != "Room_1" || s.Packed != "Thing_MinifiedSculpture1" || roomPieceOverlaps(rooms[0].Pieces, Rectangle{s.Anchor.X, s.Anchor.Z, 1, 1}) {
+	// Sculptures are not rotatable: the install faces North (#1195).
+	if !ok || s.Room != "Room_1" || s.Packed != "Thing_MinifiedSculpture1" || s.Rot != domain.North || roomPieceOverlaps(rooms[0].Pieces, Rectangle{s.Anchor.X, s.Anchor.Z, 1, 1}) {
 		t.Fatalf("install = %+v %v", s, ok)
 	}
 	// Beauty not the weakest stat: nothing.

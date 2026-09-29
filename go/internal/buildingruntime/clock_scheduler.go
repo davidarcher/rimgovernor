@@ -1270,6 +1270,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.SecureSupplies != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.SecureSupplies.NativeWorkTicks)
 	}
+	if out.ArtBills != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.ArtBills.NativeWorkTicks)
+	}
 	// A standing production bill past its first iteration needs game time,
 	// not another method (RoutineResourceResult.NativeWorkTicks).
 	for _, result := range []*RoutineResourceResult{out.Resource, out.AnimalFeed} {
@@ -1305,6 +1308,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if !work && s.config.RoutineMethods && nativeWorkTicks > 0 {
 		work = true
 		start.MaxTicks = min(start.MaxTicks, nativeWorkTicks, s.nativeWorkBudget())
+	}
+	// An admitted trade phase keeps the window short: the session's next
+	// phase lands in the stop after it, before the caravan leaves (#1195).
+	if out.Trade != nil && out.Trade.Plan != "" && out.Trade.NativeWorkTicks > 0 {
+		start.MaxTicks = min(start.MaxTicks, out.Trade.NativeWorkTicks)
 	}
 	if status.GetNeverStarted() != nil {
 		clockState = policy.ClockNeverStarted

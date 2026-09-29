@@ -66,7 +66,8 @@ namespace HomeBridge.BridgeTools {
    foreach(var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(f=>f.parentCategory?.defName=="CorpsesHumanlike"))
     bill.ingredientFilter.SetAllow(special,allowed.Contains(special.defName));
   }
-  internal static bool Product(ThingDef d)=>d!=null&&d.category==ThingCategory.Item&&!d.IsCorpse;
+  // An item, or a piece of art (a sculpture): vanilla makes it packed (#1195).
+  internal static bool Product(ThingDef d)=>d!=null&&(d.category==ThingCategory.Item&&!d.IsCorpse||d.category==ThingCategory.Building&&d.Minifiable&&d.HasComp(typeof(CompArt)));
   internal static Obs.BillState BillRow(Bill bill,int index){
    var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Index=(uint)index,Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
    row.WorkerId=bill.PawnRestriction?.GetUniqueLoadID()??"";
@@ -110,7 +111,8 @@ namespace HomeBridge.BridgeTools {
   // pinned worker when the intent pins one, #1190): the one a resent or
   // replanned intent finds standing.
   internal static bool Matching(IBillGiver giver,Bill? except,Operations.ProductionBillIntent intent)=>giver.BillStack.Bills.Any(b=>b!=except && Matches(b,intent));
-  internal static bool Matches(Bill b,Operations.ProductionBillIntent intent)=>b.recipe.defName==intent.RecipeDef && (!CorpseRecipe(intent.RecipeDef) || CorpseClass(b)==intent.Settings.CorpseClass) && (intent.Settings.Worker==null || b.PawnRestriction?.GetUniqueLoadID()==intent.Settings.Worker.EntityId);
+  // A finished "do X times" bill is spent, not standing: the next batch is a new bill (#1195).
+  internal static bool Matches(Bill b,Operations.ProductionBillIntent intent)=>b.recipe.defName==intent.RecipeDef && !BillCommon.IsFinished(b as Bill_Production) &&(!CorpseRecipe(intent.RecipeDef) || CorpseClass(b)==intent.Settings.CorpseClass) && (intent.Settings.Worker==null || b.PawnRestriction?.GetUniqueLoadID()==intent.Settings.Worker.EntityId);
   internal static bool Skilled(Pawn p,Thing bench,RecipeDef recipe,WorkTypeDef work)=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!bench.IsForbidden(p)&&p.Position.DistanceTo(bench.Position)<=40&&p.CanReach(bench,PathEndMode.InteractionCell,Danger.None)&&(recipe.skillRequirements==null||recipe.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel));
   // Each reason names the condition that failed: the production ladder's
   // bill rung reads only this message back (#155 M4 run 9 stalled on the

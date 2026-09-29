@@ -17,7 +17,7 @@ func artProfile(id PawnID, level int, passion string) PawnProfile {
 
 func TestSelectArtBills(t *testing.T) {
 	colonists := domain.Known[int64](3)
-	artists := Artists([]PawnProfile{artProfile("b", 2, "Minor"), artProfile("a", 8, ""), artProfile("c", 6, "")})
+	artists := Artists([]PawnProfile{artProfile("b", 2, "Minor"), artProfile("a", 8, ""), artProfile("c", 6, ""), artProfile("d", 3, "None")})
 	if len(artists) != 2 || artists[0] != "a" || artists[1] != "b" {
 		t.Fatalf("artists = %v", artists)
 	}

@@ -401,6 +401,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		// purchase can still stage, against the same silver reserve.
 		selection = policy.TradeSelection{SilverReserve: max(economic.SilverReserve, facts.Floors["Silver"])}
 	}
+	clockSchedulerLog("trade selection: phase=%v sale_art=%v refused=%v reason=%q selected=%+v evidence=%+v trader_silver=%d", phase, facts.SaleArt, selection.Refused, selection.Reason, selection.Selected, selection.Evidence, facts.TraderSilver)
 	r.bid(state, trader, selection, facts.Rows, review.Tick)
 	// A pawn buy is its own line beside the resource lines (#1037).
 	if !selection.Refused && facts.SilverKnown {
@@ -515,7 +516,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
-	if facts.SaleArt, err = r.saleArt(call, identity, projection); err != nil {
+	if facts.SaleArt, err = r.saleArt(call, identity, state.Snapshot); err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	headroom, hk := projection.Facts.WealthBudget().Value()
@@ -557,7 +558,13 @@ func (r *RoutineTradePlanner) commit(call, epoch context.Context, state ControlS
 	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineTradeResult{}, err
 	}
-	return RoutineTradeResult{Reason: BuildingMethodAdmitted, Plan: id, Trader: trader, Phase: kind}, nil
+	// The next phase lands in the stop after this window: a session left
+	// open under a full window outlasts the caravan's visit (#1195).
+	var ticks uint32
+	if kind != domain.TradeEnd {
+		ticks = tradeArrivalTicks
+	}
+	return RoutineTradeResult{Reason: BuildingMethodAdmitted, Plan: id, Trader: trader, Phase: kind, NativeWorkTicks: ticks}, nil
 }
 
 func tradeFoodFact(food *o.TradeFoodFacts) domain.Fact[policy.TradeFoodGood] {
