@@ -19,6 +19,9 @@ func bedAssignAction(action domain.Action) (*o.Action, error) {
 	if !v.PreviousBed().Clear() {
 		previous = &o.Assignment{Value: &o.Assignment_EntityId{EntityId: v.PreviousBed().ID()}}
 	}
-	return &o.Action{Intent: &o.Action_BedAssign{BedAssign: &o.BedAssignIntent{
-		PawnId: proto.String(string(v.Pawn())), BedId: proto.String(v.Bed()), ExpectedPreviousBed: previous}}}, nil
+	intent := &o.BedAssignIntent{PawnId: proto.String(string(v.Pawn())), BedId: proto.String(v.Bed()), ExpectedPreviousBed: previous}
+	if v.Swap() {
+		intent.Swap = proto.Bool(true)
+	}
+	return &o.Action{Intent: &o.Action_BedAssign{BedAssign: intent}}, nil
 }

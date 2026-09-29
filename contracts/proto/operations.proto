@@ -446,7 +446,7 @@ message WorkSettingsIntent {
 // when the planner chose (expected_previous_bed: that bed or clear). Native
 // checks the pawn, the bed and that ownership live; a pawn that already owns
 // the bed applies again.
-message BedAssignIntent { optional string pawn_id = 1; optional string bed_id = 2; Assignment expected_previous_bed = 3; }
+message BedAssignIntent { optional string pawn_id = 1; optional string bed_id = 2; Assignment expected_previous_bed = 3; optional bool swap = 4; }
 // Set one colony prisoner's exclusive interaction mode. Native checks the
 // prisoner and the mode's eligibility (recruitable, wild man, Ideology) live;
 // a prisoner already set to the mode applies again.

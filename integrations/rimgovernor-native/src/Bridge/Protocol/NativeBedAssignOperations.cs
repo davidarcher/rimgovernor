@@ -18,14 +18,15 @@ namespace HomeBridge.BridgeTools
     internal sealed class BedAssignActionHandler : IActionHandler
     {
         /// <summary>Why bed cannot be assigned to pawn right now, or null when it can; each gate names itself so a harness can tell them apart.</summary>
-        private static string? BedRefusal(Building_Bed bed, Pawn pawn, Map map)
+        internal static string? BedRefusal(Building_Bed bed, Pawn pawn, Map map, bool swap)
         {
             if (!bed.Spawned || bed.Faction != Faction.OfPlayerSilentFail || !bed.def.building.bed_humanlike)
                 return "Bed unavailable: not a spawned player-owned humanlike bed.";
             if (bed.Medical || bed.ForPrisoners) return "Bed unavailable: medical or prisoner bed.";
             // A willing love partner may join a partner's bed with a free
-            // slot (#812); nobody else is ever put in an owned bed.
-            if (bed.OwnersForReading.Any() && (!bed.AnyUnownedSleepingSlot || bed.OwnersForReading.Any(o => o == pawn
+            // slot (#812); a bedroom swap evicts the owners (#1243); nobody
+            // else is ever put in an owned bed.
+            if (!swap && bed.OwnersForReading.Any() && (!bed.AnyUnownedSleepingSlot || bed.OwnersForReading.Any(o => o == pawn
                     || !LovePartnerRelationUtility.LovePartnerRelationExists(pawn, o) || !BedUtility.WillingToShareBed(pawn, o))))
                 return "Bed unavailable: already assigned.";
             if (bed.IsForbidden(pawn)) return "Bed unavailable: forbidden to the pawn.";
@@ -72,7 +73,7 @@ namespace HomeBridge.BridgeTools
             var expectPrevious = intent!.ExpectedPreviousBed.ValueCase == Operations.Assignment.ValueOneofCase.EntityId ? intent.ExpectedPreviousBed.EntityId : "";
             if (previousID != expectPrevious)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Previous bed assignment changed; observe before recovery.");
-            var refusal = target == null ? "Bed unavailable: not found on the map." : BedRefusal(target, found, map);
+            var refusal = target == null ? "Bed unavailable: not found on the map." : BedRefusal(target, found, map, intent.HasSwap && intent.Swap);
             if (refusal != null || target == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, refusal ?? "Bed unavailable.");
             var comp = target.GetComp<CompAssignableToPawn>();
             if (comp == null || !comp.AssigningCandidates.Contains(found) || !comp.CanAssignTo(found).Accepted || comp.IdeoligionForbids(found))
@@ -88,6 +89,8 @@ namespace HomeBridge.BridgeTools
             var intent = action.BedAssign;
             var failure = Resolve(intent, context, out var pawn, out var bed, out var assignable);
             if (failure != null) throw new InvalidOperationException("Bed assignment prerequisites changed before apply: " + failure.Detail);
+            if (assignable != null && intent.HasSwap && intent.Swap)
+                foreach (var owner in bed.OwnersForReading.ToList()) owner.ownership?.UnclaimBed();
             assignable?.TryAssignPawn(pawn);
             if (pawn.ownership!.OwnedBed != bed) throw new InvalidOperationException("Native bed assignment did not take effect.");
             var effect = new Receipts.BedEffect { PawnId = pawn.GetUniqueLoadID(), BedId = bed.GetUniqueLoadID(), Assigned = true, Sleeping = pawn.CurrentBed() == bed };

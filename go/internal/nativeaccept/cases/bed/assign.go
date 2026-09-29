@@ -160,6 +160,74 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["bed_reassigned"] = true
 
+	// Swap (#1243): another colonist's plain claim on the now-owned bed is
+	// refused as already assigned; flagged as a swap it evicts the owner.
+	reply, err := h.Wire(ctx, "list-colonists", "observations_list_pawns", map[string]any{
+		"scope":   map[string]any{"expectedIdentity": identity},
+		"filter":  map[string]any{"colonist": true, "downed": false, "drafted": false},
+		"details": map[string]any{},
+	})
+	if err != nil {
+		return err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return err
+	}
+	otherID, otherBed := "", ""
+	for _, raw := range na.AsSlice(observed["pawns"]) {
+		row, _ := na.AsMap(raw)
+		pawn, _ := na.AsMap(row["pawn"])
+		if id := na.AsString(pawn["id"]); id != "" && id != pawnID {
+			otherID, otherBed = id, na.AsString(row["ownedBedId"])
+			break
+		}
+	}
+	if otherID == "" {
+		return fmt.Errorf("list-colonists: no second colonist to swap in: %#v", observed)
+	}
+	report["swap_pawn"] = otherID
+	claim := func(label, key string, swap bool) (map[string]any, error) {
+		previous := map[string]any{"clear": map[string]any{}}
+		if otherBed != "" {
+			previous = map[string]any{"entityId": otherBed}
+		}
+		intent := map[string]any{"pawnId": otherID, "bedId": bedID, "expectedPreviousBed": previous}
+		if swap {
+			intent["swap"] = true
+		}
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": key, "bedAssign": intent}}})
+		if err != nil {
+			return nil, err
+		}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return nil, fmt.Errorf("%s: expected one result, got %#v", label, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		return result, nil
+	}
+	plain, err := claim("apply-owned-plain", "bed-owned-plain", false)
+	if err != nil {
+		return err
+	}
+	if _, ok := na.AsMap(plain["refused"]); !ok {
+		return fmt.Errorf("apply-owned-plain: expected an already-assigned refusal, got %#v", plain)
+	}
+	swapped, err := claim("apply-owned-swap", "bed-owned-swap", true)
+	if err != nil {
+		return err
+	}
+	if _, ok := na.AsMap(swapped["applied"]); !ok {
+		return fmt.Errorf("apply-owned-swap: expected the swap to apply, got %#v", swapped)
+	}
+	if owned, err := ownedBed("pawn-after-swap"); err != nil {
+		return err
+	} else if owned == bedID {
+		return fmt.Errorf("pawn-after-swap: expected the evicted colonist to lose %q", bedID)
+	}
+	report["swap_evicted"] = true
+
 	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)

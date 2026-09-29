@@ -131,7 +131,7 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 		t.Fatal(plan, err)
 	}
 	assign, ok := plan.Progress[0].Action().BedAssign()
-	if !ok || assign.Pawn() != "patient" || assign.Bed() != "bed" || !assign.PreviousBed().Clear() {
+	if !ok || assign.Pawn() != "patient" || assign.Bed() != "bed" || !assign.PreviousBed().Clear() || assign.Swap() {
 		t.Fatal(plan.Progress[0].Action())
 	}
 	// Open assignment is existing work; once retired, the used method is not

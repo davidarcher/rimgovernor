@@ -300,6 +300,8 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
+	// swapping flags a bedroom swap: native evicts the bed's owner (#1243).
+	swapping := false
 	if clockDebug() {
 		clockSchedulerLog("sleeping: choice=%+v", choice)
 	}
@@ -368,6 +370,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 				return RoutineBuildingResult{Reason: BuildingSleepingUseNeeded}, nil
 			}
 			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: swap.Pawn, Bed: swap.Bed, PreviousBed: swap.PreviousBed}
+			swapping = true
 		}
 	case policy.SleepingUnavailable:
 		return RoutineBuildingResult{Reason: BuildingSleepingUnavailable}, nil
@@ -401,6 +404,9 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	assign, err := domain.NewBedAssign(domain.PawnID(choice.Pawn), choice.Bed, previous)
 	if err != nil {
 		return RoutineBuildingResult{}, err
+	}
+	if swapping {
+		assign = assign.AsSwap()
 	}
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil

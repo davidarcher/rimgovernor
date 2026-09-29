@@ -32,7 +32,13 @@ type BedAssign struct {
 	pawn     PawnID
 	bed      string
 	previous PreviousBed
+	swap     bool
 }
+
+// AsSwap flags the assignment as a bedroom swap (#1243): native evicts the
+// bed's current owner instead of refusing an owned bed.
+func (b BedAssign) AsSwap() BedAssign { b.swap = true; return b }
+func (b BedAssign) Swap() bool        { return b.swap }
 
 func NewBedAssign(pawn PawnID, bed string, previous PreviousBed) (BedAssign, error) {
 	if !validID(string(pawn)) || !validID(bed) || string(pawn) == bed || !previous.valid() {

@@ -168,7 +168,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		if !assign.PreviousBed().Clear() {
 			def = assign.PreviousBed().ID()
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'bed_assign',?,?,?)", a.ID(), plan, ordinal, assign.Pawn(), assign.Bed(), def)
+		// stuff carries "swap" for a bedroom swap (#1243).
+		var swap any
+		if assign.Swap() {
+			swap = "swap"
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition,stuff) VALUES(?,?,?,'bed_assign',?,?,?,?)", a.ID(), plan, ordinal, assign.Pawn(), assign.Bed(), def, swap)
 	} else if relief, ok := a.MoodRelief(); ok {
 		data, encodeErr := json.Marshal(moodReliefPayload{relief.Need()})
 		if encodeErr != nil {
@@ -801,7 +806,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewBedUseAction(id, medical)
 		return a, ordinal, err
 	}
-	if kind == "bed_assign" && pawn.Valid && target.Valid && def.Valid && !x.Valid && !z.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid {
+	if kind == "bed_assign" && pawn.Valid && target.Valid && def.Valid && !x.Valid && !z.Valid && !draftAction.Valid && !rotation.Valid && (!stuff.Valid || stuff.String == "swap") {
 		previous := domain.ClearPreviousBed()
 		if def.String != "" {
 			var err error
@@ -812,6 +817,9 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		assign, err := domain.NewBedAssign(domain.PawnID(pawn.String), target.String, previous)
 		if err != nil {
 			return domain.Action{}, 0, err
+		}
+		if stuff.Valid {
+			assign = assign.AsSwap()
 		}
 		a, err := domain.NewBedAssignAction(id, assign)
 		return a, ordinal, err

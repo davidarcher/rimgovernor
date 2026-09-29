@@ -5745,6 +5745,7 @@ type BedAssignIntent struct {
 	PawnId              *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
 	BedId               *string                `protobuf:"bytes,2,opt,name=bed_id,json=bedId,proto3,oneof" json:"bed_id,omitempty"`
 	ExpectedPreviousBed *Assignment            `protobuf:"bytes,3,opt,name=expected_previous_bed,json=expectedPreviousBed,proto3" json:"expected_previous_bed,omitempty"`
+	Swap                *bool                  `protobuf:"varint,4,opt,name=swap,proto3,oneof" json:"swap,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -5798,6 +5799,13 @@ func (x *BedAssignIntent) GetExpectedPreviousBed() *Assignment {
 		return x.ExpectedPreviousBed
 	}
 	return nil
+}
+
+func (x *BedAssignIntent) GetSwap() bool {
+	if x != nil && x.Swap != nil {
+		return *x.Swap
+	}
+	return false
 }
 
 // Set one colony prisoner's exclusive interaction mode. Native checks the
@@ -7214,14 +7222,16 @@ const file_operations_proto_rawDesc = "" +
 	"\n" +
 	"\b_pawn_idB\x0f\n" +
 	"\r_medical_careB\x0e\n" +
-	"\f_drug_policy\"\xbd\x01\n" +
+	"\f_drug_policy\"\xdf\x01\n" +
 	"\x0fBedAssignIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1a\n" +
 	"\x06bed_id\x18\x02 \x01(\tH\x01R\x05bedId\x88\x01\x01\x12Y\n" +
-	"\x15expected_previous_bed\x18\x03 \x01(\v2%.rimgovernor.operations.v1.AssignmentR\x13expectedPreviousBedB\n" +
+	"\x15expected_previous_bed\x18\x03 \x01(\v2%.rimgovernor.operations.v1.AssignmentR\x13expectedPreviousBed\x12\x17\n" +
+	"\x04swap\x18\x04 \x01(\bH\x02R\x04swap\x88\x01\x01B\n" +
 	"\n" +
 	"\b_pawn_idB\t\n" +
-	"\a_bed_id\"\xac\x01\n" +
+	"\a_bed_idB\a\n" +
+	"\x05_swap\"\xac\x01\n" +
 	"\x19PrisonerInteractionIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12U\n" +
 	"\vinteraction\x18\x02 \x01(\x0e2..rimgovernor.operations.v1.PrisonerInteractionH\x01R\vinteraction\x88\x01\x01B\n" +
