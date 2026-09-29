@@ -302,6 +302,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.MealClosetOwed = mealClosetOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRetireOwed = campfireRetireOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRefuelOwed = campfireRefuelOwed(reading.Projection)
+	if targets, err := shellTargets(ctx, p.journal, state.Snapshot, reading.Projection); err != nil {
+		return store.RoutineReviewResult{}, err
+	} else {
+		reading.Projection.Facts.ShellsShort = policy.ShellsShort(targets, reading.Projection.Resources)
+	}
 	if r.methodEnabled(policy.MaintainArt) {
 		reading.Projection.Facts.SculptureRoomsOwed = sculptureRoomsOwed(reading.Projection)
 	}

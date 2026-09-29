@@ -304,6 +304,9 @@ type RoutineFacts struct {
 	QuestOffers   domain.Fact[[]JoinerOffer]
 	JoinerLetters domain.Fact[[]JoinerLetterOffer]
 	RaidPoints    domain.Fact[float64]
+	// ShellsShort is the armory shell review (#1207): a built mortar's shell
+	// stock below half its target puts MaintainEquipment in deficit.
+	ShellsShort domain.Fact[bool]
 	// DefenseCapacity is the colonists' and powered turrets' observed
 	// combat strength in raid-point units (#1188, DefenseCapacity).
 	DefenseCapacity domain.Fact[float64]
@@ -895,7 +898,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureBasicDefense, 3, defense)
 	addAssessment(EnsureComfort, comfortPriority, comfortRecovered)
 	addAssessment(ClearPests, 2, pestsClear)
-	addAssessment(MaintainEquipment, 3, gear.Recovered)
+	equipped := gear.Recovered
+	if short, _ := f.ShellsShort.Value(); short {
+		equipped = domain.Known(false)
+	}
+	addAssessment(MaintainEquipment, 3, equipped)
 	// EnsureResearch and MaintainResource are operator-configured targets whose
 	// deficit is measured against native facts read in this review: no target
 	// configured is certain recovery, a configured target with missing facts is

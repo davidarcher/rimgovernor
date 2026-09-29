@@ -63,6 +63,9 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	assessment := policy.AssessArmory(facts.RaidPoints, facts.Research)
 	clockSchedulerLog("Armory.step tier=%s threat=%s research=%s", assessment.Tier, assessment.Threat, assessment.Research)
 	result, err := r.craftWeapons(call, epoch, state, review, assessment.Tier)
+	if err == nil && result.Reason != BuildingMethodAdmitted {
+		result, err = r.stockShells(call, epoch, state, review, read.Projection)
+	}
 	result.Assessment = assessment
 	return result, err
 }
