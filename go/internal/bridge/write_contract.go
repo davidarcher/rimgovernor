@@ -2,6 +2,7 @@ package bridge
 
 import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -28,8 +29,11 @@ func buildingUnknown(message proto.Message) error {
 	}
 	var visit func(protoreflect.Message, int) error
 	visit = func(m protoreflect.Message, depth int) error {
-		if depth > 64 || len(m.GetUnknown()) != 0 {
-			return contract("unknown building fields or excessive depth")
+		if depth > 64 {
+			return contract("excessive depth in %s", m.Descriptor().FullName())
+		}
+		if raw := m.GetUnknown(); len(raw) != 0 {
+			return contract("unknown fields %v in %s", unknownNumbers(raw), m.Descriptor().FullName())
 		}
 		var err error
 		m.Range(func(f protoreflect.FieldDescriptor, v protoreflect.Value) bool {
@@ -56,4 +60,19 @@ func buildingUnknown(message proto.Message) error {
 		return err
 	}
 	return visit(message.ProtoReflect(), 0)
+}
+
+// unknownNumbers lists the field numbers in raw unknown bytes, so a contract
+// failure names the field native sent that this build does not know.
+func unknownNumbers(raw protoreflect.RawFields) []protowire.Number {
+	var out []protowire.Number
+	for len(raw) > 0 {
+		number, _, n := protowire.ConsumeField(raw)
+		if n < 0 {
+			break
+		}
+		out = append(out, number)
+		raw = raw[n:]
+	}
+	return out
 }
