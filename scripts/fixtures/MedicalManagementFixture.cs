@@ -12,6 +12,35 @@ namespace HomeBridge.BridgeTools
     {
         private static int surgicalId;
 
+        // SurgeryRoom (#1170) raises a roofed 5x5 wood ring at origin (south-west
+        // corner, east door) with sterile tile, a fuelled torch and one medical
+        // hospital bed, for prisoners when asked. Returns a free interior cell.
+        private static IntVec3 SurgeryRoom(Map map, IntVec3 origin, bool prisoners)
+        {
+            var rect = new CellRect(origin.x, origin.z, 5, 5);
+            var door = new IntVec3(origin.x + 4, 0, origin.z + 2);
+            foreach (var c in rect.Cells) {
+                if (!c.InBounds(map)) throw new InvalidOperationException("Surgery room runs off the map at " + c);
+                foreach (var t in c.GetThingList(map).Where(t => !(t is Pawn)).ToList()) t.Destroy(DestroyMode.Vanish);
+                foreach (var p in c.GetThingList(map).OfType<Pawn>().ToList()) { p.Position = CellFinder.StandableCellNear(origin + new IntVec3(-3, 0, 0), map, 5); p.Notify_Teleported(true, true); }
+                map.terrainGrid.SetTerrain(c, TerrainDef.Named("SterileTile"));
+                if (rect.IsOnEdge(c)) {
+                    var wall = ThingMaker.MakeThing(ThingDef.Named(c == door ? "Door" : "Wall"), ThingDefOf.WoodLog);
+                    wall.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(wall, c, map);
+                }
+                map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+            }
+            var bed = (Building_Bed)ThingMaker.MakeThing(ThingDef.Named("HospitalBed"), GenStuff.DefaultStuffFor(ThingDef.Named("HospitalBed")));
+            bed.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(bed, origin + new IntVec3(1, 0, 1), map, Rot4.North);
+            if (prisoners) bed.ForPrisoners = true;
+            bed.Medical = true;
+            var torch = ThingMaker.MakeThing(ThingDef.Named("TorchLamp"), GenStuff.DefaultStuffFor(ThingDef.Named("TorchLamp")));
+            torch.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(torch, origin + new IntVec3(3, 0, 3), map);
+            torch.TryGetComp<CompRefuelable>()?.Refuel(1000f);
+            map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+            return origin + new IntVec3(3, 0, 1);
+        }
+
         // SurgeryIntent probe (#1162): one colonist missing a leg (InstallPegLeg's
         // precondition) with an unrelated bill already on it, and one colony
         // prisoner of a non-player faction, on whom RemoveBodyPart is a violation.
@@ -150,7 +179,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Set the disposable native recipe success factor to zero to exercise real surgical failure.", DefaultValue = false)] bool failSurgery = false,
             [ToolParameter(Description = "Disable routine Doctor work to exercise repeated explicit native tending.", DefaultValue = false)] bool manualTending = false,
             [ToolParameter(Description = "Force the surgical patient into the high-severity withdrawal stage of GoJuiceAddiction, instead of waiting on real decay/timing.", DefaultValue = false)] bool withdrawal = false,
-            [ToolParameter(Description = "Hospital planning variant: flu patients start tended, no medical sleeping spots are placed and PatientBedRest stays enabled, so the patients need a hosted medical bed the service must provide.", DefaultValue = false)] bool hospital = false)
+            [ToolParameter(Description = "Hospital planning variant: flu patients start tended, no medical sleeping spots are placed and PatientBedRest stays enabled, so the patients need a hosted medical bed the service must provide.", DefaultValue = false)] bool hospital = false,
+            [ToolParameter(Description = "Surgery cases (#1170): give the second colonist cataract, infectedHand or missingKidney; missingKidney also holds one unrecruitable non-player prisoner on a prisoner sleeping spot. Empty adds nothing.", DefaultValue = "")] string condition = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var stage = "colony";
@@ -172,6 +202,15 @@ namespace HomeBridge.BridgeTools
                         if (!pawn.WorkTypeIsDisabled(def)) pawn.workSettings.SetPriority(def, (disease && !hospital && work == "PatientBedRest") || (manualTending && work == "Doctor") ? 0 : 1);
                     }
                 }
+                // Surgery cases need a room within the 20% restore failure cap:
+                // outdoors on a sleeping spot vanilla scores ~38% even for
+                // Medicine 20 doctors.
+                var prisonCell = IntVec3.Invalid;
+                if (condition != "") {
+                    stage = "surgery room";
+                    SurgeryRoom(map, center + new IntVec3(4, 0, -2), false);
+                    if (condition == "missingKidney") prisonCell = SurgeryRoom(map, center + new IntVec3(-9, 0, -2), true);
+                }
                 foreach (var item in new[] { ("MealSurvivalPack", 200), ("MedicineIndustrial", 60), ("WoodLog", 100), ("SimpleProstheticLeg", 1) }) {
                     stage = "stock "+item.Item1;
                     var def = ThingDef.Named(item.Item1);
@@ -182,7 +221,7 @@ namespace HomeBridge.BridgeTools
                     }
                 }
                 foreach (var cell in GenRadial.RadialCellsAround(center, 12, true).Where(c => c.InBounds(map) && c.Standable(map)
-                    && !c.Fogged(map) && c.GetEdifice(map) == null && map.thingGrid.ThingsListAt(c).Count == 0).Take(hospital ? 0 : 4).ToArray()) {
+                    && !c.Fogged(map) && c.GetEdifice(map) == null && map.thingGrid.ThingsListAt(c).Count == 0).Take(hospital || condition != "" ? 0 : 4).ToArray()) {
                     stage = "bed";
                     var bed = (Building_Bed)ThingMaker.MakeThing(ThingDef.Named("SleepingSpot"));
                     bed.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(bed, cell, map); bed.Medical = true;
@@ -233,9 +272,61 @@ namespace HomeBridge.BridgeTools
                     addict.health.AddHediff(addiction);
                     withdrawalPatient = addict.GetUniqueLoadID();
                 }
+                string conditionPatient = null, prisonerId = null;
+                var conditionPart = -1;
+                if (condition != "") {
+                    stage = "condition " + condition;
+                    var patient = people[1];
+                    conditionPatient = patient.GetUniqueLoadID();
+                    string partDef, stock = null;
+                    switch (condition) {
+                    case "restore": partDef = null; break;
+                    case "cataract": partDef = "Eye"; stock = "BionicEye"; break;
+                    case "infectedHand": partDef = "Hand"; break;
+                    case "missingKidney": partDef = "Kidney"; break;
+                    default: throw new InvalidOperationException("Unknown condition " + condition);
+                    }
+                    var part = partDef == null ? null : patient.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == partDef);
+                    conditionPart = part == null ? -1 : patient.RaceProps.body.AllParts.IndexOf(part);
+                    if (condition == "cataract") patient.health.AddHediff(HediffDef.Named("Cataract"), part);
+                    if (condition == "missingKidney") patient.health.AddHediff(HediffDefOf.MissingBodyPart, part);
+                    if (condition == "infectedHand") {
+                        // Losing its immunity race even once tended: tended severity
+                        // rises 0.84-0.53 = 0.31/day, so 0.7 reaches 1 in ~1 day while
+                        // immunity from 0 needs ~1.55 days at 0.644/day.
+                        var def = HediffDef.Named("WoundInfection");
+                        var infection = HediffMaker.MakeHediff(def, patient, part); infection.Severity = .7f;
+                        patient.health.AddHediff(infection, part);
+                        typeof(HediffComp_Immunizable).GetField("severityPerDayNotImmuneRandomFactor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                            .SetValue(infection.TryGetComp<HediffComp_Immunizable>(), 1f);
+                        patient.health.immunity.TryAddImmunityRecord(def, def);
+                        patient.health.immunity.GetImmunityRecord(def).immunity = 0f;
+                    }
+                    if (stock != null) {
+                        var item = ThingMaker.MakeThing(ThingDef.Named(stock));
+                        if (!GenPlace.TryPlaceThing(item, center, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Part placement failed");
+                        item.SetForbidden(false, false);
+                    }
+                    if (condition == "missingKidney") {
+                        stage = "prisoner";
+                        var faction = Find.FactionManager.AllFactionsListForReading.First(f => !f.IsPlayer && !f.Hidden && f.def.humanlikeFaction && !f.HostileTo(Faction.OfPlayer));
+                        var prisoner = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Villager, faction, forceGenerateNewPawn: true,
+                            canGeneratePawnRelations: false, developmentalStages: DevelopmentalStage.Adult));
+                        GenSpawn.Spawn(prisoner, prisonCell, map);
+                        prisoner.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
+                        prisoner.guest.Recruitable = false;
+                        // A prisoner's default care allows herbal at best: stock it,
+                        // or the harvest reads ingredients_on_map false.
+                        var herbal = ThingMaker.MakeThing(ThingDef.Named("MedicineHerbal")); herbal.stackCount = 10;
+                        if (!GenPlace.TryPlaceThing(herbal, center, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Herbal placement failed");
+                        herbal.SetForbidden(false, false);
+                        prisonerId = prisoner.GetUniqueLoadID();
+                    }
+                }
                 return new { success = true, setupOnly = true, completedWorkInjected = false, failSurgery,
                     patients = people.Take(2).Select(p => p.GetUniqueLoadID()).ToArray(), surgical = surgical.GetUniqueLoadID(),
-                    part = surgical.RaceProps.body.AllParts.IndexOf(leg), withdrawalPatient, tick = Find.TickManager.TicksGame };
+                    part = surgical.RaceProps.body.AllParts.IndexOf(leg), withdrawalPatient, conditionPatient, conditionPart, prisonerId,
+                    tick = Find.TickManager.TicksGame };
                 } catch (Exception error) { return new { success = false, stage, error = error.ToString() }; }
             }, cancellationToken).ConfigureAwait(false);
         }
