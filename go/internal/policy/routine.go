@@ -282,6 +282,10 @@ type RoutineFacts struct {
 	// read only while the wealth headroom is negative, it opens a trade as
 	// the shed_art need (#1247).
 	SaleArt           domain.Fact[int64]
+	// FabricableParts are the part items a usable gear bench has a researched
+	// recipe for, read only while a medical pawn wants a part (#1255); the
+	// caravan assessment counts only parts no bench can make.
+	FabricableParts map[Resource]bool
 	AnimalUpkeep      AnimalUpkeepObservation
 	FoodStorageUpkeep FoodStorageObservation
 	MedicalReserve    MedicalReserveObservation
@@ -966,9 +970,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// visit, never a development goal. It needs a negotiator's
 	// conversation, not a development slot, and recovers by itself when
 	// the caravan leaves or nothing is left worth trading.
-	// Restore parts stand the goal whether or not a bench could make them:
-	// the bench census is the trade planner's read (#1168).
-	tradeNeed := ShedArtNeed(SurgeryTradeNeed(OrganSaleSurplus(ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), f.Resources, f.Colonists), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants)), f.WealthBudget(), f.SaleArt)
+	// Restore parts a bench could make do not stand the goal (#1255).
+	tradeNeed := ShedArtNeed(SurgeryTradeNeed(OrganSaleSurplus(ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), f.Resources, f.Colonists), TradeSurgeryParts(SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt)
 	tradeRecovered := TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity())))
 	addAssessment(TradeWithCaravan, 3, tradeRecovered)
 	defensiveLayoutRecovered := domain.Known(!p.DefensiveLayout)

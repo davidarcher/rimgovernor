@@ -101,3 +101,19 @@ func TestSurgeryPartTradeFallsBackToCarriedItem(t *testing.T) {
 		t.Fatalf("invalid policy %+v: %v", got, got.Validate())
 	}
 }
+
+// A part a bench can fabricate opens no caravan; one no bench can make does (#1255).
+func TestSurgeryPartCaravanSkipsFabricable(t *testing.T) {
+	f := stableRoutine()
+	f.Resources = domain.Known([]Amount{})
+	f.Traders = domain.Known([]TraderFacts{{ID: "trader", CanTrade: true}})
+	f.MedicalPawns = domain.Known([]CarePawn{surgeryPawn("a", 0, restoreOp("InstallBionicEye", "Eye", 5, 0.9, 1, false))})
+	f.FabricableParts = map[Resource]bool{"BionicEye": true}
+	if got := needs(t, f, RoutineLatches{}); assessedDeficit(got, TradeWithCaravan) {
+		t.Fatal("a fabricable part opened a caravan", got)
+	}
+	f.FabricableParts = nil
+	if got := needs(t, f, RoutineLatches{}); !assessedDeficit(got, TradeWithCaravan) {
+		t.Fatal("a part no bench can make opened no caravan", got)
+	}
+}

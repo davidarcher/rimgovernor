@@ -316,6 +316,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockSchedulerLog("routine.step: sale art err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
+	if parts, benches, err := surgeryPartDemand(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection.Facts.MedicalPawns); err != nil {
+		clockSchedulerLog("routine.step: surgery parts err=%v", err)
+		return store.RoutineReviewResult{}, err
+	} else if len(parts) > 0 {
+		reading.Projection.Facts.FabricableParts = policy.FabricableParts(benches)
+	}
 	if err = r.reviewTidy(ctx, state.Snapshot, &reading.Projection, tidyBusy(definitions, plans, state.Snapshot, playerPlans)); err != nil {
 		clockSchedulerLog("routine.step: tidy err=%v", err)
 		return store.RoutineReviewResult{}, err
