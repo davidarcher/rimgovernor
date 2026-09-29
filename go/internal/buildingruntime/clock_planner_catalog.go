@@ -342,6 +342,16 @@ var plannerCatalog = []plannerEntry{
 			out.CookAheadBills = &method
 			return method.Reason, nil
 		}},
+	{name: "artBills", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
+		configured: func(c *ClockSchedulerConfig) bool { return c.ArtBills != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.ArtBills.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.ArtBills = &method
+			return method.Reason, nil
+		}},
 	{name: "basicComfort", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.BasicComfort != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

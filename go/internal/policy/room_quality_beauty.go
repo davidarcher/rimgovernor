@@ -61,70 +61,32 @@ func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, r
 	return RoomUpgrade{}, false
 }
 
-// The sculpture lever (#830), after pots and floors: one small sculpture
-// bill at an art bench, then the finished packed sculpture installed on
-// free floor in the room.
+// The sculpture lever (#830), after pots and floors: a finished packed
+// small sculpture installed on free floor in the room. The sculpture itself
+// is MaintainArt's pinned bill (#1190).
 const (
 	SculptureDefinition       = "SculptureSmall"
 	SculptureRecipe           = "Make_SculptureSmall"
 	PackedSculptureDefinition = "MinifiedSculpture"
 )
 
-type SculptureKind string
-
-const (
-	SculptureBill    SculptureKind = "bill"
-	SculptureInstall SculptureKind = "install"
-)
-
-// SculptureStep is one change: a bill on Bench, or Packed (a packed item's
-// id) installed at Anchor, North.
+// SculptureStep installs Packed (a packed item's id) at Anchor, North.
 type SculptureStep struct {
-	Kind   SculptureKind
 	Room   string
-	Bench  string
 	Packed string
 	Anchor domain.Cell
 }
 
-// NextSculpture returns the sculpture step due for the first (by room id)
-// bedroom below target whose weakest stat is beauty and that has a free
-// cell; the caller asks only once NextBeautyUpgrade has nothing. A packed
-// sculpture in stock goes first; otherwise one bill, none while any bench
-// already carries one.
-func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, benches []GearBench, packed []string) (SculptureStep, bool) {
-	for _, id := range beautyRooms(obs, targets) {
-		for _, room := range rooms {
-			if room.ID != id {
-				continue
-			}
-			cell, _, ok := freeSpot(room, domain.Cell{X: 1, Z: 1})
-			if !ok {
-				continue
-			}
-			if len(packed) > 0 {
-				return SculptureStep{Kind: SculptureInstall, Room: id, Packed: packed[0], Anchor: cell}, true
-			}
-			for _, b := range benches {
-				bills, _ := b.Bills.Value()
-				for _, bill := range bills {
-					if bill.Recipe == SculptureRecipe {
-						return SculptureStep{}, false
-					}
-				}
-			}
-			for _, b := range benches {
-				recipes, _ := b.Recipes.Value()
-				for _, r := range recipes {
-					if avail, ok := r.Available.Value(); r.Definition == SculptureRecipe && ok && avail {
-						return SculptureStep{Kind: SculptureBill, Room: id, Bench: b.ID}, true
-					}
-				}
-			}
-			return SculptureStep{}, false
-		}
+// NextSculpture returns the install due for the first (by room id) bedroom
+// below target whose weakest stat is beauty and that has a free cell, while
+// a packed sculpture is in stock; the caller asks only once
+// NextBeautyUpgrade has nothing.
+func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, packed []string) (SculptureStep, bool) {
+	due := sculptureRooms(obs, targets, rooms)
+	if len(due) == 0 || len(packed) == 0 {
+		return SculptureStep{}, false
 	}
-	return SculptureStep{}, false
+	return SculptureStep{Room: due[0].ID, Packed: packed[0], Anchor: due[0].Cell}, true
 }
 
 // beautyRooms are the target rooms (by id) below target whose weakest

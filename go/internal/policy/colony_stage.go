@@ -455,6 +455,7 @@ var stageGoals = map[GoalID]ColonyStage{
 	MaintainHerd:              StageStable,
 	MaintainFlooring:          StageDevelopment,
 	MaintainLighting:          StageDevelopment,
+	MaintainArt:               StageDevelopment,
 }
 
 // StageGoalAllowed reports whether the review raises the goal at the stage.

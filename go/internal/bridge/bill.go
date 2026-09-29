@@ -34,7 +34,7 @@ func billIntent(bill domain.ProductionBill) *op.ProductionBillIntent {
 	if bill.Corpses() != "" {
 		settings.CorpseClass = CorpseClass(bill.Corpses()).Enum()
 	}
-	if bill.Mode() == domain.HumanButcherForever {
+	if bill.Worker() != "" {
 		settings.Worker = &op.Assignment{Value: &op.Assignment_EntityId{EntityId: bill.Worker()}}
 	}
 	if bill.Mode() == domain.ButcherForever || bill.Mode() == domain.HumanButcherForever {

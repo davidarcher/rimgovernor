@@ -24,6 +24,13 @@ internal static class NativeProductionBillSettingsProbe
         Check(NativeProductionBillSettings.Valid(batch), "finite batch rejected");
         batch.Settings.TargetCount = 2;
         Check(!NativeProductionBillSettings.Valid(batch), "finite batch with a target accepted");
+        batch.Settings.ClearTargetCount();
+        // A batch may pin one artist (#1190).
+        batch.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Artist" };
+        Check(NativeProductionBillSettings.Valid(batch), "pinned finite batch rejected");
+        batch.Settings.Worker.EntityId = "";
+        Check(!NativeProductionBillSettings.Valid(batch), "finite batch with an empty worker accepted");
+        batch.Settings.Worker = null;
         var filter = new Operations.FilterPatch { Replace = new Operations.SelectorList() };
         filter.Replace.Selectors.Add(new Operations.FilterSelector { ThingDef = "Leather_Plain" });
         bill.Settings.Ingredients = filter;

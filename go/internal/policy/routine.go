@@ -273,6 +273,10 @@ type RoutineFacts struct {
 	// CampfireRefuelOwed: a heat campfire's auto-refuel should switch
 	// (CampfireRefuel, #1180); it holds EnsureTemperatureSafety open.
 	CampfireRefuelOwed domain.Fact[bool]
+	// SculptureRoomsOwed: a bedroom below target, weakest in beauty, has a
+	// free cell for a sculpture (SculptureRoomsOwed, #1190); with a
+	// qualifying artist it holds MaintainArt open.
+	SculptureRoomsOwed domain.Fact[bool]
 	AnimalUpkeep       AnimalUpkeepObservation
 	FoodStorageUpkeep  FoodStorageObservation
 	MedicalReserve     MedicalReserveObservation
@@ -1177,6 +1181,20 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		if routes.Known {
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 		}
+	}
+	// Art is a ranked upkeep project too (#1190): owed only while a room
+	// needs a sculpture and a qualifying artist exists; unknown raises
+	// nothing.
+	artRecovered := domain.Unknown[bool]()
+	if owed, known := f.SculptureRoomsOwed.Value(); known && !owed {
+		artRecovered = domain.Known(true)
+	} else if profiles, pk := f.WorkProfiles.Value(); known && pk {
+		artRecovered = domain.Known(len(Artists(profiles)) == 0)
+	}
+	addAssessment(MaintainArt, artPriority, artRecovered)
+	if recovered, known := artRecovered.Value(); known && !recovered {
+		addGoal(MaintainArt, artPriority)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	animalContainment := domain.Unknown[bool]()
 	if targets, known := animals.Containment.Value(); known {

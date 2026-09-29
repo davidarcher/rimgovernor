@@ -106,9 +106,11 @@ namespace HomeBridge.BridgeTools {
      }
   }
   internal static bool Valid(Operations.ProductionBillIntent? intent)=>NativeProductionBillSettings.Valid(intent);
-  // A bench carries at most one bill per recipe (and corpse class): the one
-  // a resent or replanned intent finds standing.
-  internal static bool Matching(IBillGiver giver,Bill? except,Operations.ProductionBillIntent intent)=>giver.BillStack.Bills.Any(b=>b!=except && b.recipe.defName==intent.RecipeDef && (!CorpseRecipe(intent.RecipeDef) || CorpseClass(b)==intent.Settings.CorpseClass));
+  // A bench carries at most one bill per recipe (and corpse class, and
+  // pinned worker when the intent pins one, #1190): the one a resent or
+  // replanned intent finds standing.
+  internal static bool Matching(IBillGiver giver,Bill? except,Operations.ProductionBillIntent intent)=>giver.BillStack.Bills.Any(b=>b!=except && Matches(b,intent));
+  internal static bool Matches(Bill b,Operations.ProductionBillIntent intent)=>b.recipe.defName==intent.RecipeDef && (!CorpseRecipe(intent.RecipeDef) || CorpseClass(b)==intent.Settings.CorpseClass) && (intent.Settings.Worker==null || b.PawnRestriction?.GetUniqueLoadID()==intent.Settings.Worker.EntityId);
   internal static bool Skilled(Pawn p,Thing bench,RecipeDef recipe,WorkTypeDef work)=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!bench.IsForbidden(p)&&p.Position.DistanceTo(bench.Position)<=40&&p.CanReach(bench,PathEndMode.InteractionCell,Danger.None)&&(recipe.skillRequirements==null||recipe.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel));
   // Each reason names the condition that failed: the production ladder's
   // bill rung reads only this message back (#155 M4 run 9 stalled on the
@@ -134,11 +136,11 @@ namespace HomeBridge.BridgeTools {
    var map=ProtoBoundary.LoadedMap(context);var t=target;
    var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==intent!.BenchId);var giver=bench as IBillGiver;
    var replaced=intent!.HasReplaceOwnedBillId&&bench!=null?NativeProductionTracking.ReplaceableBill(intent.ReplaceOwnedBillId,bench,intent.RecipeDef):null;
-   if(giver!=null&&replaced==null&&NativeProductionBills.Matching(giver,null,intent)){t.Bench=bench!;t.Giver=giver;t.Standing=giver.BillStack.Bills.First(b=>b.recipe.defName==intent.RecipeDef&&(!NativeProductionBills.CorpseRecipe(intent.RecipeDef)||NativeProductionBills.CorpseClass(b)==intent.Settings.CorpseClass));return null;}
+   if(giver!=null&&replaced==null&&NativeProductionBills.Matching(giver,null,intent)){t.Bench=bench!;t.Giver=giver;t.Standing=giver.BillStack.Bills.First(b=>NativeProductionBills.Matches(b,intent));return null;}
    var recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(intent.RecipeDef);
    var work=bench!=null&&recipe!=null?NativeBillsObservationTools.WorkType(bench.def,recipe):null;
    var colonists=map.mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true).ToList();
-   if(intent.RecipeDef=="ButcherCorpseFlesh"&&intent.Settings.Worker!=null)colonists=colonists.Where(p=>p.GetUniqueLoadID()==intent.Settings.Worker.EntityId&&HumanFoodFacts.AcceptsButchery(p)).ToList();
+   if(intent.Settings.Worker!=null)colonists=colonists.Where(p=>p.GetUniqueLoadID()==intent.Settings.Worker.EntityId&&(intent.RecipeDef!="ButcherCorpseFlesh"||HumanFoodFacts.AcceptsButchery(p))).ToList();
    var rules=new ApplyPreconditions(Kind)
     .Present(()=>bench!=null&&giver!=null,"bench "+intent.BenchId+" is not a loaded bill giver")
     .Require(()=>NativeProductionTracking.Ready,"production tracking is unavailable")

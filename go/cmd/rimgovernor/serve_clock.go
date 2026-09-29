@@ -277,7 +277,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -319,6 +319,18 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, errors.New("bill prerequisites require building observations")
 			}
 			config.Butcher, err = buildingruntime.NewRoutineButcherPlanner(reviewer, buildingNative)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if sc.routineArtPlans {
+			// MaintainArt's pinned sculpture bills (#1190) are their own
+			// family, apart from the food bills.
+			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
+			if !ok {
+				return nil, errors.New("art bills require typed preview")
+			}
+			config.ArtBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.ArtBill)
 			if err != nil {
 				return nil, err
 			}
@@ -870,6 +882,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineLightingPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainLighting)
+	}
+	if sc.routineArtPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainArt)
 	}
 	if sc.routineFlooringPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFlooring)

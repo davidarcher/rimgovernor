@@ -38,6 +38,8 @@ func GoalLabor(id GoalID) LaborProfile {
 		return LaborProfile{WorkConstruction}
 	case RemoveBlight:
 		return LaborProfile{WorkPlantCutting}
+	case MaintainArt:
+		return LaborProfile{WorkArt}
 	case EnsureResearch:
 		return LaborProfile{WorkResearch}
 	case MaintainResource:

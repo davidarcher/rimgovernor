@@ -266,6 +266,11 @@ func gearBillsFromStack(stack *o.BillStack, recipes []policy.GearRecipe) ([]poli
 		if bill.Suspended != nil && bill.Finished != nil {
 			row.Active = domain.Known(!bill.GetSuspended() && !bill.GetFinished())
 		}
+		if bill.WorkerId != nil {
+			if worker := bill.GetWorkerId(); worker == "" || validID(worker) == nil {
+				row.Worker = domain.Known(worker)
+			}
+		}
 		if list, known := products[bill.Recipe.GetDefName()]; known {
 			row.Products = list
 		}

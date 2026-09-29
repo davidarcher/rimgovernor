@@ -29,9 +29,10 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	// bench and then a StockTarget bill on it, the equipment goal whose
 	// replacement (RoutineGearPlanner, GearProduce) is a StockTarget bill on
 	// a standing bench (#233), and the refrigeration goal whose solar-flare
-	// answer is a cook-ahead bill (#408).
+	// answer is a cook-ahead bill (#408), and the art goal's pinned sculpture
+	// bills (#1190).
 	need, bound := owner.ownerNeed(review)
-	bound = bound && (need == policy.EnsureCooking || need == policy.EnsureFoodSupply || need == policy.MaintainFoodStorage || need == policy.MaintainResource || need == policy.MaintainAnimalFeed || need == policy.MaintainEquipment || need == policy.MaintainRefrigeration)
+	bound = bound && (need == policy.EnsureCooking || need == policy.EnsureFoodSupply || need == policy.MaintainFoodStorage || need == policy.MaintainResource || need == policy.MaintainAnimalFeed || need == policy.MaintainEquipment || need == policy.MaintainRefrigeration || need == policy.MaintainArt)
 	if !bound {
 		return fmt.Errorf("%w: %s does not admit production bills", ErrConflict, owner.ownerLabel())
 	}

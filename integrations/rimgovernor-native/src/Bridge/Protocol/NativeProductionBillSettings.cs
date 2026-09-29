@@ -20,8 +20,9 @@ namespace HomeBridge.BridgeTools {
     return s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Worker=s.Worker?.Clone(),CorpseClass=s.CorpseClass});
    }
    // A finite batch (gear, sculpture): repeat a count of times, no target.
+   // It may pin one worker (#1190: an art bill per artist).
    if(s.RepeatMode==Operations.RepeatMode.Count)
-    return !s.HasBeerReserve&&s.HasRepeatCount&&s.RepeatCount>=1&&s.RepeatCount<=10000&&s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Count,RepeatCount=s.RepeatCount,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Ingredients=s.Ingredients?.Clone()});
+    return !s.HasBeerReserve&&s.HasRepeatCount&&s.RepeatCount>=1&&s.RepeatCount<=10000&&(s.Worker==null||s.Worker.ValueCase==Operations.Assignment.ValueOneofCase.EntityId&&ProtoBoundary.IsIdentifier(s.Worker.EntityId))&&s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Count,RepeatCount=s.RepeatCount,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Ingredients=s.Ingredients?.Clone(),Worker=s.Worker?.Clone()});
    return s.Equals(expected)&&s.RepeatMode==Operations.RepeatMode.Target&&s.HasTargetCount&&s.TargetCount>=1&&s.TargetCount<=10000&&s.HasUnpauseThreshold&&s.UnpauseThreshold==Math.Max(1,s.TargetCount/2)&&s.HasPauseWhenSatisfied&&s.PauseWhenSatisfied;
   }
   internal static bool CorpseRecipe(string recipe)=>recipe=="ButcherCorpseFlesh"||recipe=="CremateCorpse";

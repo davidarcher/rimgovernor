@@ -14,7 +14,7 @@ import (
 var plannerGoals = map[string]policy.GoalID{
 	"foodStorage": policy.MaintainFoodStorage, "foodAcquisition": policy.EnsureFoodSupply, "pestAcquisition": policy.ClearPests,
 	"resourceAcquisition": policy.MaintainResource, "resource": policy.MaintainResource, "power": policy.EnsureBasicPower,
-	"temperature": policy.EnsureTemperatureSafety, "refrigeration": policy.MaintainRefrigeration, "lighting": policy.MaintainLighting,
+	"temperature": policy.EnsureTemperatureSafety, "refrigeration": policy.MaintainRefrigeration, "lighting": policy.MaintainLighting, "artBills": policy.MaintainArt,
 	"flooring": policy.MaintainFlooring, "routes": policy.MaintainRoutes, "cooking": policy.EnsureCooking,
 	"basicComfort": policy.EnsureComfort, "comfort": policy.EnsureComfort, "expansion": policy.MaintainHousing,
 	"sleeping": policy.MaintainHousing, "sleepingUpkeep": policy.MaintainHousing,

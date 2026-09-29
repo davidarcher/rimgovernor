@@ -86,6 +86,8 @@ type ProductionBillContext struct {
 	Ingredients []string
 	Reserve     *FoodReserveReview
 	Meals       *MealTierRequest
+	// Artists is the one artist an ArtBill selection pins (#1190).
+	Artists []PawnID
 }
 
 // billAdequate preserves unknown fields, but any observed drift is enough
@@ -155,11 +157,17 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	if !known || !ck || count <= 0 || count > 256 || !fieldPositive(targetDays) || targetDays > 60 {
 		return BillSelection{}, false
 	}
-	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood && purpose != CookAheadFood {
+	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood && purpose != CookAheadFood && purpose != ArtBill {
 		return BillSelection{}, false
 	}
 	if len(context) > 1 {
 		return BillSelection{}, false
+	}
+	if purpose == ArtBill || len(context) == 1 && len(context[0].Artists) > 0 {
+		if purpose != ArtBill || len(context) != 1 || len(context[0].Artists) != 1 {
+			return BillSelection{}, false
+		}
+		return selectArtBill(rows, context[0].Artists[0])
 	}
 	if len(context) == 1 && (context[0].Meals != nil && purpose != CookFood || context[0].Reserve != nil && purpose != PreserveFood) {
 		return BillSelection{}, false

@@ -302,6 +302,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.MealClosetOwed = mealClosetOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRetireOwed = campfireRetireOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRefuelOwed = campfireRefuelOwed(reading.Projection)
+	if r.methodEnabled(policy.MaintainArt) {
+		reading.Projection.Facts.SculptureRoomsOwed = sculptureRoomsOwed(reading.Projection)
+	}
 	if err = r.reviewTidy(ctx, state.Snapshot, &reading.Projection, tidyBusy(definitions, plans, state.Snapshot, playerPlans)); err != nil {
 		clockSchedulerLog("routine.step: tidy err=%v", err)
 		return store.RoutineReviewResult{}, err

@@ -289,7 +289,9 @@ type GearMethod struct {
 type GearBill struct {
 	ID, Recipe string
 	Active     domain.Fact[bool]
-	Products   []Resource
+	// Worker is the pinned pawn, known "" when unrestricted (#1190).
+	Worker   domain.Fact[string]
+	Products []Resource
 }
 type GearRecipe struct {
 	Definition             string

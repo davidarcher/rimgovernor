@@ -58,7 +58,7 @@ func TestPlannerSelectionByReason(t *testing.T) {
 		{"timer tick advanced, nothing due", StepReason{Cause: StepTimer, TickAdvanced: true}, false, nil},
 		{"wake haul", StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "haul-1", Attempt: 1, Terminal: true}}}, true, []string{"secureSupplies", "haul", "foodStorageUpkeep"}},
 		{"wake research family", StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactResearch}}, true, []string{"research"}},
-		{"wake bills section", StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactColony}, Sections: []facts.Section{facts.Bills}}, true, []string{"cookingBills", "preservationBills", "butcherBills", "cookAheadBills", "resource"}},
+		{"wake bills section", StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactColony}, Sections: []facts.Section{facts.Bills}}, true, []string{"cookingBills", "preservationBills", "butcherBills", "cookAheadBills", "artBills", "resource"}},
 		{"wake unknown kind", StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "ghost", Attempt: 1}}}, true, all},
 		{"wake authority", StepReason{Cause: StepWake, Authority: true}, true, all},
 		{"wake empty", StepReason{Cause: StepWake}, true, all},

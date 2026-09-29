@@ -28,10 +28,11 @@ type RoutineBillResult struct {
 type BillPlannerNative interface{}
 
 // NewRoutineBillPlanner composes one bill purpose: cooking serves
-// EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, and the
-// cook-ahead bill MaintainRefrigeration under a solar flare (#408).
+// EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, the
+// cook-ahead bill MaintainRefrigeration under a solar flare (#408), and the
+// pinned sculpture bills MaintainArt (#1190).
 func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, purpose policy.BillPurpose) (*RoutineBillPlanner, error) {
-	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood) {
+	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill) {
 		return nil, fmt.Errorf("%w: NewRoutineBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
 	}
 	need := policy.EnsureFoodSupply
@@ -42,6 +43,8 @@ func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, 
 		need = policy.MaintainFoodStorage
 	case policy.CookAheadFood:
 		need = policy.MaintainRefrigeration
+	case policy.ArtBill:
+		need = policy.MaintainArt
 	}
 	return &RoutineBillPlanner{reviewer: reviewer, native: native, purpose: purpose, need: need}, nil
 }
@@ -128,6 +131,13 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	projection := read.Projection
 	recordStepRead("bill", r.need, state.Snapshot, projection)
+	if r.purpose == policy.ArtBill {
+		selected, known, err := r.artSelection(call, state, projection)
+		if err != nil || !known {
+			return RoutineBillResult{Reason: BuildingMethodUnknown}, err
+		}
+		return r.admit(call, epoch, arbiter, state, goal, read, selected)
+	}
 	if r.purpose == policy.CookFood && !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 	}
@@ -229,11 +239,23 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !known {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 	}
-	claimRecipe := selected.Recipe
+	return r.admit(call, epoch, arbiter, state, goal, read, selected)
+}
+
+// admit commits the selected bill as the goal's method, once per goal
+// epoch and claim.
+func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArbiter, state ControlState, goal store.GoalState, read observation.RoutineReading, selected policy.BillSelection) (RoutineBillResult, error) {
+	p := r.reviewer.player
+	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Mode, selected.Target, selected.Ingredients...)
 	if selected.Mode == domain.HumanButcherForever {
-		claimRecipe += "/humanlike"
+		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Worker)
+	} else if err == nil && selected.Worker != "" {
+		value, err = value.PinWorker(selected.Worker)
 	}
-	claimed, err := p.journal.BillClaimed(call, state.Snapshot, selected.Bench, claimRecipe)
+	if err != nil {
+		return RoutineBillResult{}, err
+	}
+	claimed, err := p.journal.BillClaimed(call, state.Snapshot, selected.Bench, value.ClaimRecipe())
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
@@ -261,13 +283,6 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	id := domain.MintPlanID()
-	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Mode, selected.Target, selected.Ingredients...)
-	if selected.Mode == domain.HumanButcherForever {
-		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Worker)
-	}
-	if err != nil {
-		return RoutineBillResult{}, err
-	}
 	if selected.Replace != "" {
 		value, err = value.ReplaceOwnedBill(selected.Replace)
 		if err != nil {

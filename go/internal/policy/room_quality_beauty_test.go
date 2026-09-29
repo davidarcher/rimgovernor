@@ -6,36 +6,29 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestSculptureBillThenInstall(t *testing.T) {
+func TestSculptureInstall(t *testing.T) {
 	ugly := RoomQuality{Wealth: 3000, Beauty: -1, Space: 25, Impressiveness: 35}
 	obs, rooms, _ := upgradeFixture(t, ugly)
 	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: ImpressivenessSlightlyImpressive}}
-	bench := GearBench{ID: "TableSculpting_1", Bills: domain.Known([]GearBill(nil)),
-		Recipes: domain.Known([]GearRecipe{{Definition: SculptureRecipe, Available: domain.Known(true)}})}
-
-	s, ok := NextSculpture(obs, targets, rooms, []GearBench{bench}, nil)
-	if !ok || s.Kind != SculptureBill || s.Bench != "TableSculpting_1" || s.Room != "Room_1" {
-		t.Fatalf("bill = %+v %v", s, ok)
+	// Nothing packed: the sculpture is MaintainArt's bill, not a step here.
+	if s, ok := NextSculpture(obs, targets, rooms, nil); ok {
+		t.Fatalf("no packed = %+v", s)
 	}
-	// A bill already queued: wait for the sculpture.
-	queued := bench
-	queued.Bills = domain.Known([]GearBill{{ID: "Bill_1", Recipe: SculptureRecipe}})
-	if s, ok := NextSculpture(obs, targets, rooms, []GearBench{queued}, nil); ok {
-		t.Fatalf("second bill = %+v", s)
+	if owed, _ := SculptureRoomsOwed(domain.Known(obs), targets, rooms).Value(); !owed {
+		t.Fatal("beauty room not owed a sculpture")
 	}
 	// A packed sculpture in stock: install it on free floor.
-	s, ok = NextSculpture(obs, targets, rooms, []GearBench{queued}, []string{"Thing_MinifiedSculpture1"})
-	if !ok || s.Kind != SculptureInstall || s.Packed != "Thing_MinifiedSculpture1" || roomPieceOverlaps(rooms[0].Pieces, Rectangle{s.Anchor.X, s.Anchor.Z, 1, 1}) {
+	s, ok := NextSculpture(obs, targets, rooms, []string{"Thing_MinifiedSculpture1"})
+	if !ok || s.Room != "Room_1" || s.Packed != "Thing_MinifiedSculpture1" || roomPieceOverlaps(rooms[0].Pieces, Rectangle{s.Anchor.X, s.Anchor.Z, 1, 1}) {
 		t.Fatalf("install = %+v %v", s, ok)
-	}
-	// No art bench: nothing.
-	if s, ok := NextSculpture(obs, targets, rooms, nil, nil); ok {
-		t.Fatalf("no bench = %+v", s)
 	}
 	// Beauty not the weakest stat: nothing.
 	obs2, _, _ := upgradeFixture(t, RoomQuality{Wealth: 100, Beauty: 3, Space: 25, Impressiveness: 35})
-	if s, ok := NextSculpture(obs2, targets, rooms, []GearBench{bench}, []string{"Thing_MinifiedSculpture1"}); ok {
+	if s, ok := NextSculpture(obs2, targets, rooms, []string{"Thing_MinifiedSculpture1"}); ok {
 		t.Fatalf("wealth weakest = %+v", s)
+	}
+	if owed, known := SculptureRoomsOwed(domain.Known(obs2), targets, rooms).Value(); !known || owed {
+		t.Fatalf("wealth weakest owed = %v %v", owed, known)
 	}
 }
 

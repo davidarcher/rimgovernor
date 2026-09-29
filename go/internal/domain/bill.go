@@ -72,6 +72,16 @@ func NewHumanButcherBill(bench, worker string) (ProductionBill, error) {
 	return b, nil
 }
 
+// PinWorker restricts a fixed-count batch to one pawn (#1190: one art bill
+// per artist). Other modes pin through their own constructors.
+func (b ProductionBill) PinWorker(worker string) (ProductionBill, error) {
+	if b.mode != GearBatch || !validID(worker) {
+		return ProductionBill{}, errors.New("invalid pinned batch bill")
+	}
+	b.worker = worker
+	return b, nil
+}
+
 // Corpse bill recipes (#833).
 const (
 	ButcherRecipe = "ButcherCorpseFlesh"
@@ -107,6 +117,9 @@ func (b ProductionBill) ClaimRecipe() string {
 	if b.recipe == CremateRecipe {
 		return b.recipe + "/" + string(b.corpses)
 	}
+	if b.mode == GearBatch && b.worker != "" {
+		return b.recipe + "/" + b.worker
+	}
 	return b.recipe
 }
 
@@ -138,6 +151,8 @@ func NewProductionBillAction(id ActionID, b ProductionBill) (Action, error) {
 		canonical, err = NewHumanButcherBill(b.bench, b.worker)
 	} else if b.recipe == CremateRecipe {
 		canonical, err = NewCorpseBill(b.bench, b.recipe, b.corpses)
+	} else if err == nil && b.worker != "" {
+		canonical, err = canonical.PinWorker(b.worker)
 	}
 	if err == nil && b.replace != "" {
 		canonical, err = canonical.ReplaceOwnedBill(b.replace)
