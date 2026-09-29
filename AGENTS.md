@@ -21,7 +21,7 @@ once acceptance passes, and land immediately.
    possible edit, so slow checks run once against meaningful progress.
 4. Landing needs no acceptance run. Affected areas are proven by `go test`
    and the on-demand full tier (#752); the scheduled nightly runs the
-   twelve end-to-end cases (`-tier nightly`, a signal, not a gate). Run a
+   thirteen end-to-end cases (`-tier nightly`, a signal, not a gate). Run a
    tier (`acceptance suite -tier smoke` or `-tier land`) only when you want
    the change proven before it lands, hand its output to `cmd/land
    -results`, and name the run in the commit message; never run the areas

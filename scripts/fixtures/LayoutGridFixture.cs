@@ -30,7 +30,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
             [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
             [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1,
-            [ToolParameter(Description = "Bedroom start (#838): enable Construction on every able colonist, lay wooden beds instead of sleeping spots, give each colonist one, drop 120 survival meals and raise every shell blueprint at once.")] bool builders = false)
+            [ToolParameter(Description = "Bedroom start (#838): enable Construction on every able colonist, lay wooden beds instead of sleeping spots, give each colonist one, drop 120 survival meals and raise every shell blueprint at once.")] bool builders = false,
+            [ToolParameter(Description = "Suite start (#1221): the first hut colonist turns Greedy (Ascetic removed), reported as greedyPawn.")] bool greedy = false)
         {
             var name = string.IsNullOrEmpty(project) ? "Stonecutting" : project;
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -62,6 +63,13 @@ namespace HomeBridge.BridgeTools
                     p.workSettings.SetPriority(WorkTypeDefOf.Construction, 3);
                     enabled++;
                 }
+                string greedyPawn = null;
+                if (greedy && hut.People.Count > 0) {
+                    var p = hut.People[0];
+                    if (p.story.traits.GetTrait(DefDatabase<TraitDef>.GetNamed("Ascetic")) is Trait ascetic) p.story.traits.RemoveTrait(ascetic);
+                    if (!p.story.traits.HasTrait(TraitDefOf.Greedy)) p.story.traits.GainTrait(new Trait(TraitDefOf.Greedy));
+                    greedyPawn = p.GetUniqueLoadID();
+                }
                 ThingDef blocks = null;
                 if (stoneBlocks > 0) {
                     blocks = StoneBlocks(map);
@@ -71,7 +79,35 @@ namespace HomeBridge.BridgeTools
                     hutOrigin = new { x = hut.Origin.x, z = hut.Origin.z }, hutSize = 9,
                     sleepingSpots = hut.SleepingSpots, colonists = hut.People.Count,
                     stoneBlocks = blocks == null ? 0 : stoneBlocks, stoneBlocksDef = blocks?.defName, builders = enabled, ownedBeds = owned,
-                    tick = Find.TickManager.TicksGame };
+                    greedyPawn, tick = Find.TickManager.TicksGame };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Suite growth (#1221): a royal title raises the pawn's bedroom
+        // target past what their suite was sized for. Needs Royalty; a save
+        // recorded without it holds no Empire, so one is generated.
+        [Tool("test/layout_grid_title", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: give an exact colonist an Empire royal title (default Baron) without rewards or letters, generating the Empire faction when the save holds none. Requires Royalty.")]
+        public async Task<object> Title(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Colonist unique load id.")] string pawn,
+            [ToolParameter(Description = "RoyalTitleDef to grant (default Baron).")] string title = "Baron")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (!ModsConfig.RoyaltyActive) throw new InvalidOperationException("Royalty is not active.");
+                var map = Find.CurrentMap;
+                var p = map?.mapPawns.FreeColonistsSpawned.SingleOrDefault(x => x.GetUniqueLoadID() == pawn)
+                    ?? throw new InvalidOperationException("No spawned colonist " + pawn + ".");
+                var def = DefDatabase<RoyalTitleDef>.GetNamed(string.IsNullOrEmpty(title) ? "Baron" : title);
+                var empire = Find.FactionManager.OfEmpire;
+                var generated = false;
+                if (empire == null) {
+                    empire = FactionGenerator.NewGeneratedFaction(new FactionGeneratorParms(FactionDefOf.Empire));
+                    Find.FactionManager.Add(empire);
+                    generated = true;
+                }
+                if (p.royalty == null) p.royalty = new Pawn_RoyaltyTracker(p);
+                p.royalty.SetTitle(empire, def, false, false, false);
+                var held = p.royalty.GetCurrentTitle(empire);
+                return new { success = held == def, pawn, title = held?.defName, empireGenerated = generated, tick = Find.TickManager.TicksGame };
             }, cancellationToken).ConfigureAwait(false);
         }
 

@@ -9,7 +9,7 @@ package main
 //     proven (#387). An area a
 //     harness change reaches through plumbing alone is sampled: one case
 //     (#348).
-//   - nightly: the twelve end-to-end cases (#738 bucket C); the scheduled
+//   - nightly: the thirteen end-to-end cases (#738 bucket C); the scheduled
 //     loop against main on CI, a signal rather than a gate (#752).
 //   - full: every other case outside the matrix tier, the native contracts
 //     and the planner cases not yet snapshot-converted; on demand (#752).
@@ -214,7 +214,7 @@ var endToEnd = map[string]bool{
 	"campaign/foothold": true, "campaign/recovery": true, "clearance/shrine-breach": true,
 	"defense/perimeter": true, "food/reserve": true, "production/ladder": true,
 	"shelter/bunks-first": true, "shelter/excavation": true, "startup/labor": true,
-	"sustained/colony-stable": true, "sustained/winter": true, "upkeep/campaign": true,
+	"sustained/colony-stable": true, "sustained/winter": true, "upkeep/campaign": true, "sleeping/suites": true,
 }
 
 // nightlyOnly excludes slow gameplay proofs from the landing and sampled
