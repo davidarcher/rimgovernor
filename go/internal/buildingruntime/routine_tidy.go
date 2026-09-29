@@ -130,7 +130,3 @@ func (r *RoutineTidyPlanner) commit(call, epoch context.Context, state ControlSt
 	_, err := p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan)
 	return err
 }
-
-func (r *RoutineTidyPlanner) record(call context.Context, state ControlState, tick domain.Tick, proposal policy.TidyProposal, status store.LayoutTidyStatus, newZone string) error {
-	return r.reviewer.player.journal.RecordLayoutTidy(call, state.Snapshot, tick, store.LayoutTidy{Item: proposal.Item.ID, Kind: proposal.Item.Kind, Status: status, From: proposal.Item.Footprint, To: proposal.Target, Crop: proposal.Item.Crop, NewZone: newZone, Explanation: proposal.Explanation, Tick: tick})
-}

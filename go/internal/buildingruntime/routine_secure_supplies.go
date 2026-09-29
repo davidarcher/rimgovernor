@@ -239,7 +239,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		if fallback.Kind != "" {
 			return fallback, nil
 		}
-		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, reading.Projection, started)
+		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, reading.Projection, item, started)
 		if err != nil {
 			return PlanResult{}, err
 		}
@@ -603,9 +603,9 @@ func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, ident
 	return domain.ZoneCreate{}, nil, nil, nil
 }
 
-// supplyRoomShellMethod names SecureSupplies' whole-room fallback method: a
-// small Wall/Door enclosure built only after coveredStorageFallback finds no
-// reusable roofed patch. It never places a stockpile zone itself — once the
+// supplyRoomShellMethod names SecureSupplies' whole-room fallback method:
+// the layout plan's storage room, raised only after coveredStorageFallback
+// finds no reusable roofed patch and no shell stands on the slot. It never places a stockpile zone itself — once the
 // shell is complete and its interior has been reported roofed by the
 // ordinary cell census, coveredStorageFallback's own site search naturally
 // selects a patch inside it on a later step, reusing the finished room.
@@ -628,17 +628,16 @@ func secureSuppliesRoomShellPlan(spec domain.PlanSpec) bool {
 	return false
 }
 
-// supplyRoomFallback is the supply_storeroom step: once
-// covered_storage can no longer reuse existing roofing, site and build one
-// small enclosed room (Wall perimeter, Door on the south wall's center) via
-// upkeep_sites.enclosure_site's free-cell search. It admits at most one such
-// room per goal episode (a `prior` dedup check): a completed
-// or pending room-shell method already present blocks a second one rather
-// than raising a duplicate-room refusal, since routine steps report "nothing
-// to do" here rather than an interactive skill-blocked error. A zero-value,
-// empty-Reason result means the fallback did not apply this step, and the
-// caller should report its own exhaustion reason instead.
-func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time) (PlanResult, error) {
+// supplyRoomFallback is the supply_storeroom step, run once covered_storage
+// finds no reusable roofed patch. SecureSupplies never raises an ad-hoc
+// shed (#1186); it stores in the layout plan's storage room. When the
+// starter shell already stands on that slot (#1177) it zones a covered
+// patch inside the shell beside the bunks; as the bunks move out, later
+// episodes zone the cells they free. Otherwise it raises the storage room
+// itself, its exact ring and its door onto the spine, at most once per goal
+// episode. A zero-value, empty-Reason result means the step did not apply,
+// and the caller reports its own exhaustion reason instead.
+func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time) (PlanResult, error) {
 	p := r.reviewer.player
 	zoneAttempts, err := haulAttemptCount(call, p.journal, goal, secureSuppliesZonePrefix)
 	if err != nil {
@@ -646,6 +645,17 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	}
 	if zoneAttempts >= maxSecureSuppliesZoneMethods {
 		return PlanResult{}, nil
+	}
+	storage, planned := plannedStorageRoom(projection)
+	if !planned {
+		return PlanResult{Kind: PlanWaiting, Dependency: "layout plan storage room", Reason: BuildingMethodUnknown}, nil
+	}
+	stockpile, perimeter := storageRoomStep(storage, projection.Cells)
+	if perimeter == nil {
+		if len(stockpile) == 0 {
+			return PlanResult{}, nil
+		}
+		return r.shellStockpile(call, epoch, state, goal, projection, item, stockpile, domain.MethodID(fmt.Sprintf("%s%d", secureSuppliesZonePrefix, zoneAttempts)), started)
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -660,9 +670,16 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	if err != nil {
 		return PlanResult{}, err
 	}
-	var protected []domain.Cell
+	reserved := map[domain.Cell]bool{}
 	for _, h := range held {
-		protected = append(protected, h.Footprint...)
+		for _, c := range h.Footprint {
+			reserved[c] = true
+		}
+	}
+	for _, c := range storage.Cells() {
+		if reserved[c] {
+			return PlanResult{Kind: PlanWaiting, Dependency: "storage room site", Reason: BuildingMethodNoSpace}, nil
+		}
 	}
 	wallDef, wok := animalContainmentDefinition(projection.Definitions, "Wall")
 	doorDef, dok := animalContainmentDefinition(projection.Definitions, "Door")
@@ -678,78 +695,134 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	if !known {
 		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Reason: BuildingMethodUnknown}, nil
 	}
-	sites, err := policy.SupplyRoomEnclosureSites(policy.SupplyRoomEnclosureRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictStorage), Cells: projection.Cells, Protected: protected})
-	if err != nil {
-		return PlanResult{}, err
-	}
-	if sites, err = benchCentralSites(call, r.native, boundary.Identity(state.Snapshot), projection.Cells, sites); err != nil {
-		return PlanResult{}, err
-	}
 	planID := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1
-	// The layout plan's storerooms come first, built to their exact
-	// rectangle and door (#787); the 6x6 search sites follow with the door
-	// on the south wall's centre.
-	type supplyRoomSite struct {
-		room policy.Rectangle
-		door domain.Cell
+	actions, previews, stock, reason, err := r.previewSupplyRoomShell(call, snapshot, perimeter, stuff, projection)
+	if err != nil {
+		return PlanResult{}, err
 	}
-	var candidates []supplyRoomSite
-	reserved := make(map[domain.Cell]bool, len(protected))
-	for _, c := range protected {
-		reserved[c] = true
+	if reason == BuildingMethodUnknown {
+		return PlanResult{Kind: PlanWaiting, Dependency: "shell preview", Reason: reason}, nil
 	}
-planned:
-	for _, shell := range plannedShells(projection, policy.RoomRoleStoreroom) {
-		for _, c := range shell.Cells() {
-			if reserved[c] {
-				continue planned
-			}
-		}
-		b := shell.Bounds()
-		candidates = append(candidates, supplyRoomSite{policy.Rectangle{X: b.X, Z: b.Z, Width: b.Width, Height: b.Height}, shell.Door()})
+	if reason != "" {
+		return PlanResult{Kind: PlanWaiting, Dependency: "storage room site", Reason: BuildingMethodNoSpace}, nil
 	}
-	for _, room := range sites {
-		candidates = append(candidates, supplyRoomSite{room, domain.Cell{X: room.X + room.Width/2, Z: room.Z}})
+	plan, err := domain.NewPlan(planID, 1, actions)
+	if err != nil {
+		return PlanResult{}, err
 	}
-	for _, site := range candidates {
-		actions, previews, stock, reason, err := r.previewSupplyRoomShell(call, snapshot, site.room, site.door, stuff, projection)
-		if err != nil {
-			return PlanResult{}, err
-		}
-		if reason == BuildingMethodUnknown {
-			return PlanResult{Kind: PlanWaiting, Dependency: "shell preview", Reason: reason}, nil
-		}
-		if reason != "" {
-			continue
-		}
-		plan, err := domain.NewPlan(planID, 1, actions)
-		if err != nil {
-			return PlanResult{}, err
-		}
-		proposal := r.proposal(call, planID, goal, state, projection.Identity.Tick, actions, previewClaims(previews))
-		proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
-		return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
-	}
-	return PlanResult{Kind: PlanWaiting, Dependency: "supply room site", Reason: BuildingMethodNoSpace}, nil
+	proposal := r.proposal(call, planID, goal, state, projection.Identity.Tick, actions, previewClaims(previews))
+	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
 }
 
-// previewSupplyRoomShell previews one candidate room's full perimeter (a
-// Door on door, Wall elsewhere), mirroring
-// previewPenShell. It never commits: a rejected or infeasible cell aborts
-// only this candidate.
-func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Context, snapshot domain.GenerationSnapshot, room policy.Rectangle, door domain.Cell, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
-	perimeter := []domain.Cell{door}
-	for x := room.X; x < room.X+room.Width; x++ {
-		for z := room.Z; z < room.Z+room.Height; z++ {
-			cell := domain.Cell{X: x, Z: z}
-			if cell != door && (x == room.X || x == room.X+room.Width-1 || z == room.Z || z == room.Z+room.Height-1) {
-				perimeter = append(perimeter, cell)
+// plannedStorageRoom is the layout plan's storage room, the slot the
+// starter shell stands on at every tier (#1177).
+func plannedStorageRoom(projection observation.ColonyProjection) (domain.RoomFootprint, bool) {
+	plan, known := projection.LayoutPlan.Value()
+	if !known {
+		return domain.RoomFootprint{}, false
+	}
+	shells := plan.PlannedShells(policy.RoomRoleStoreroom)
+	if len(shells) == 0 {
+		return domain.RoomFootprint{}, false
+	}
+	return shells[0], true
+}
+
+// storageRoomStep is the supply_storeroom step's pure choice for the
+// planned storage room. When a player wall or door stands on every cell of
+// its ring, stockpile is the interior a covered patch may take: roofed,
+// unoccupied (the bunks keep theirs), unzoned, and off the door aisle
+// (every cell within one step of the door). Otherwise perimeter is the
+// room's own ring to raise, door first.
+func storageRoomStep(room domain.RoomFootprint, cells []policy.SiteCell) (stockpile, perimeter []domain.Cell) {
+	at := make(map[domain.Cell]policy.SiteCell, len(cells))
+	for _, c := range cells {
+		at[c.Cell] = c
+	}
+	door := room.Door()
+	stands := true
+	for _, w := range room.Walls() {
+		c := at[w]
+		edifice, ek := c.PlayerEdifice.Value()
+		doorway, dk := c.Doorway.Value()
+		stands = stands && (ek && edifice != "" || dk && doorway)
+	}
+	if !stands {
+		perimeter = []domain.Cell{door}
+		for _, w := range room.Walls() {
+			if w != door {
+				perimeter = append(perimeter, w)
 			}
 		}
+		return nil, perimeter
 	}
+	for _, cell := range room.Interior() {
+		if max(cell.X-door.X, door.X-cell.X, cell.Z-door.Z, door.Z-cell.Z) <= 1 {
+			continue
+		}
+		c := at[cell]
+		roofed, rk := c.Roofed.Value()
+		occupied, ok := c.Occupied.Value()
+		zoned, zk := c.Zone.Value()
+		if rk && roofed && ok && !occupied && zk && !zoned {
+			stockpile = append(stockpile, cell)
+		}
+	}
+	return stockpile, nil
+}
+
+// shellStockpile proposes the item's allow-list stockpile on cells inside
+// the standing storage shell.
+func (r *RoutineSecureSuppliesPlanner) shellStockpile(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, cells []domain.Cell, method domain.MethodID, started time.Time) (PlanResult, error) {
+	value, err := allowListZone(domain.ImportantPriority, []string{item.Definition}, cells)
+	if err == nil {
+		value, err = value.WithRole(domain.CoveredRolePrefix + item.Definition)
+	}
+	if err != nil {
+		return PlanResult{}, err
+	}
+	id := domain.MintPlanID()
+	snapshot := state.Snapshot
+	snapshot.Plan = id
+	snapshot.Revision = 1
+	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), value)
+	var refused *bridge.NativeFailure
+	if errors.As(err, &refused) {
+		clockSchedulerLog("%s: storage shell stockpile refused code=%v detail=%q", goal.Goal.ID, refused.Value.GetCode(), refused.Value.GetDetail())
+		return PlanResult{}, nil
+	}
+	if err != nil {
+		return PlanResult{}, err
+	}
+	v := reply.GetEvaluated()
+	if v == nil || !v.GetAccepted() {
+		return PlanResult{}, nil
+	}
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
+		return PlanResult{}, fmt.Errorf("%w: shellStockpile: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
+	}
+	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	if err != nil {
+		return PlanResult{}, err
+	}
+	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return PlanResult{}, err
+	}
+	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
+	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+}
+
+// previewSupplyRoomShell previews the storage room's ring, perimeter door
+// first (a Door, Wall elsewhere), mirroring previewPenShell. It never
+// commits: a rejected or infeasible cell aborts the room.
+func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Context, snapshot domain.GenerationSnapshot, perimeter []domain.Cell, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	var actions []domain.Action
 	var previews []policy.Preview
