@@ -40,7 +40,7 @@ func SurgeryFacts(h *o.PawnHealth) (domain.Fact[[]policy.MissingPart], domain.Fa
 			}
 			row := policy.SurgeryOperation{
 				PartIndex: surgeryInt(op.PartIndex), PartDefName: surgeryFact(op.PartDefName), Kind: surgeryKinds[op.GetKind()],
-				SuccessChance: surgeryFact(op.SuccessChance), IngredientsOnMap: surgeryFact(op.IngredientsOnMap),
+				SuccessChance: surgeryFact(op.SuccessChance), DoctorSuccessChance: surgeryFact(op.DoctorSuccessChance), IngredientsOnMap: surgeryFact(op.IngredientsOnMap),
 				Violation: surgeryFact(op.Violation), Lethal: surgeryFact(op.Lethal), YieldValue: surgeryFact(op.YieldMarketValue),
 				AddedPart: surgeryFact(op.AddedPartHediff), YieldThing: surgeryFact(op.YieldThingDef), MedicineValue: surgeryFact(op.MedicineMarketValue),
 			}

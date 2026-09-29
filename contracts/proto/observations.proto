@@ -261,6 +261,10 @@ message SurgeryOperation {
   // BaseMarketValue x count of the medicine the operation would use (the
   // best permitted on the map); absent when it uses none or none is stocked.
   optional double medicine_market_value = 13;
+  // The best eligible doctor's chance with an ideal bed and room (#1240):
+  // success_chance with the bed factor replaced by a clean, roofed Bed's;
+  // absent exactly when success_chance is.
+  optional double doctor_success_chance = 14;
 }
 message GearItem {
   EntityRef thing = 1; optional string stuff = 2; optional string quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;

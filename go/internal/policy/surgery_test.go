@@ -238,3 +238,36 @@ func TestHospitalBedReady(t *testing.T) {
 		}
 	}
 }
+
+// #1240: a doctor who passes the cap with an ideal bed, held back by the
+// colony's bed, records surgery_bed_short and asks the hospital planner
+// for a Bed ward, never a sleeping spot.
+func TestSurgeryBedShort(t *testing.T) {
+	op := restoreOp("InstallPegLeg", "Leg", 30, 0.38, 1, true)
+	op.DoctorSuccessChance = domain.Known(0.9)
+	pawns := domain.Known([]CarePawn{surgeryPawn("a", 0, op)})
+	got := SelectSurgery(pawns, nil, SurgeryContext{})
+	if len(got.Queue) != 0 || len(got.Wants) != 1 || got.Wants[0].Reason != SurgeryBedShort {
+		t.Fatalf("%+v", got)
+	}
+	weak := op
+	weak.DoctorSuccessChance = domain.Known(0.5)
+	if got := SelectSurgery(domain.Known([]CarePawn{surgeryPawn("a", 0, weak)}), nil, SurgeryContext{}); got.Wants[0].Reason != SurgeryNoDoctor {
+		t.Fatalf("%+v", got)
+	}
+	surgical := SurgeryBedShortPatients(pawns)
+	if len(surgical) != 1 || surgical[0] != "a" {
+		t.Fatal(surgical)
+	}
+	patient := domain.Known([]CarePawn{{ID: "a", Dead: domain.Known(false), NeedsRest: domain.Known(false)}})
+	spot := domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("spot", true)}})
+	defs := []BenchDefinition{{Name: "Bed", Available: domain.Known(true)}, {Name: "SleepingSpot", Available: domain.Known(true)}}
+	choice, err := SelectHospitalBed(HospitalRequest{Patients: patient, Sleeping: spot, Rooms: hospitalRooms(RoomRoleBarracks, "spot"), Definitions: defs, Surgical: surgical})
+	if err != nil || choice.Method != HospitalBuild || choice.Definition != "Bed" || choice.Needed != 1 {
+		t.Fatal(choice, err)
+	}
+	choice, err = SelectHospitalBed(HospitalRequest{Patients: patient, Sleeping: spot, Rooms: hospitalRooms(RoomRoleBarracks, "spot"), Definitions: defs})
+	if err != nil || choice.Method != HospitalNoDemand {
+		t.Fatal(choice, err)
+	}
+}

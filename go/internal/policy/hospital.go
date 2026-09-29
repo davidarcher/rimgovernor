@@ -47,6 +47,10 @@ type HospitalRequest struct {
 	// Doctors is the count of Doctor-capable colonists; a known zero means
 	// nobody could treat a patient in the ward, so no hospital work runs.
 	Doctors domain.Fact[int]
+	// Surgical are patients whose operation waits on a better bed or room
+	// (SurgeryBedShortPatients, #1240): each needs a hosted medical bed,
+	// and while any waits a sleeping spot neither counts nor is staged.
+	Surgical []PawnID
 }
 
 type HospitalChoice struct {
@@ -94,6 +98,10 @@ func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
 			ill[p.ID] = true
 		}
 	}
+	for _, id := range r.Surgical {
+		ill[id] = true
+	}
+	surgical := len(r.Surgical) > 0
 	choice := HospitalChoice{Needed: len(ill)}
 	if choice.Needed == 0 {
 		choice.Method = HospitalNoDemand
@@ -132,7 +140,7 @@ func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
 	medical := 0
 	var spare, owned []SleepingBed
 	for _, bed := range sleeping.Beds {
-		if !hosted[bed.ID] {
+		if !hosted[bed.ID] || surgical && bed.Definition == "SleepingSpot" {
 			continue
 		}
 		humanlike, hk := bed.Humanlike.Value()
@@ -182,6 +190,9 @@ func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
 	}
 	unknown := false
 	for _, name := range HospitalBedDefinitions {
+		if surgical && name == "SleepingSpot" {
+			continue
+		}
 		d, exists := byName[name]
 		available, ak := d.Available.Value()
 		if !exists || !ak {

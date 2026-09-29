@@ -48,10 +48,13 @@ const (
 // SuccessChance is vanilla's, for the best eligible doctor, bed and medicine;
 // it is unknown when no doctor is eligible.
 type SurgeryOperation struct {
-	Recipe, PartDefName         domain.Fact[string]
-	PartIndex                   domain.Fact[int]
-	Kind                        SurgeryKind
-	SuccessChance               domain.Fact[float64]
+	Recipe, PartDefName domain.Fact[string]
+	PartIndex           domain.Fact[int]
+	Kind                SurgeryKind
+	SuccessChance       domain.Fact[float64]
+	// DoctorSuccessChance is the same doctor's chance with an ideal bed
+	// and room (#1240); above SuccessChance when the bed holds it back.
+	DoctorSuccessChance         domain.Fact[float64]
 	EligibleDoctors             domain.Fact[int]
 	IngredientsOnMap, Violation domain.Fact[bool]
 	Lethal                      domain.Fact[bool]

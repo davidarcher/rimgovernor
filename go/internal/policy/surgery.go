@@ -43,6 +43,10 @@ const (
 	// SurgeryNoDoctor: a stocked recipe exists but no eligible doctor
 	// clears the failure cap.
 	SurgeryNoDoctor SurgeryWantReason = "surgery_no_doctor"
+	// SurgeryBedShort: an eligible doctor clears the cap with an ideal bed
+	// and room but not with the colony's best medical bed (#1240); the
+	// hospital planner builds a Bed ward for it (SurgeryBedShortPatients).
+	SurgeryBedShort SurgeryWantReason = "surgery_bed_short"
 )
 
 // SurgeryChoice is one operation to queue as a SurgeryIntent.
@@ -345,8 +349,13 @@ func selectPartSurgery(pawn PawnID, part int, weight float64, ops []SurgeryOpera
 		if stocked, known := op.IngredientsOnMap.Value(); !known || !stocked {
 			continue
 		}
-		want.Reason = SurgeryNoDoctor
 		if !surgeryAcceptable(op, failureCap) {
+			if want.Reason != SurgeryBedShort {
+				want.Reason = SurgeryNoDoctor
+				if surgeryBedBlocked(op, failureCap) {
+					want.Reason = SurgeryBedShort
+				}
+			}
 			continue
 		}
 		recipe, _ := op.Recipe.Value()
@@ -372,6 +381,32 @@ func surgeryAcceptable(op SurgeryOperation, failureCap float64) bool {
 	violation, vk := op.Violation.Value()
 	lethal, lk := op.Lethal.Value()
 	return dk && ck && vk && lk && doctors > 0 && 1-chance <= failureCap+1e-9 && !violation && !lethal
+}
+
+// surgeryBedBlocked: the operation fails the cap as observed but passes it
+// with the doctor's ideal-bed chance, so the bed or room is the blocker.
+func surgeryBedBlocked(op SurgeryOperation, failureCap float64) bool {
+	ideal, known := op.DoctorSuccessChance.Value()
+	if !known {
+		return false
+	}
+	op.SuccessChance = domain.Known(ideal)
+	return surgeryAcceptable(op, failureCap)
+}
+
+// SurgeryBedShortPatients are the living colonists whose served operation
+// waits only on a better bed or room (#1240): the hospital planner's
+// surgical demand, which needs a Bed, not a sleeping spot.
+func SurgeryBedShortPatients(pawns domain.Fact[[]CarePawn]) []PawnID {
+	var ids []PawnID
+	seen := map[PawnID]bool{}
+	for _, want := range SelectSurgery(pawns, nil, SurgeryContext{}).Wants {
+		if want.Reason == SurgeryBedShort && !seen[want.Pawn] {
+			seen[want.Pawn] = true
+			ids = append(ids, want.Pawn)
+		}
+	}
+	return ids
 }
 
 // partTier is the capacity a restore recipe's part gives back, relative to

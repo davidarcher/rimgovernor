@@ -3304,6 +3304,10 @@ type SurgeryOperation struct {
 	// BaseMarketValue x count of the medicine the operation would use (the
 	// best permitted on the map); absent when it uses none or none is stocked.
 	MedicineMarketValue *float64 `protobuf:"fixed64,13,opt,name=medicine_market_value,json=medicineMarketValue,proto3,oneof" json:"medicine_market_value,omitempty"`
+	// The best eligible doctor's chance with an ideal bed and room (#1240):
+	// success_chance with the bed factor replaced by a clean, roofed Bed's;
+	// absent exactly when success_chance is.
+	DoctorSuccessChance *float64 `protobuf:"fixed64,14,opt,name=doctor_success_chance,json=doctorSuccessChance,proto3,oneof" json:"doctor_success_chance,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -3425,6 +3429,13 @@ func (x *SurgeryOperation) GetYieldThingDef() string {
 func (x *SurgeryOperation) GetMedicineMarketValue() float64 {
 	if x != nil && x.MedicineMarketValue != nil {
 		return *x.MedicineMarketValue
+	}
+	return 0
+}
+
+func (x *SurgeryOperation) GetDoctorSuccessChance() float64 {
+	if x != nil && x.DoctorSuccessChance != nil {
+		return *x.DoctorSuccessChance
 	}
 	return 0
 }
@@ -34305,7 +34316,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_part_def_nameB\x0f\n" +
 	"\r_parent_indexB\x12\n" +
 	"\x10_parent_def_nameB\b\n" +
-	"\x06_vital\"\xce\x06\n" +
+	"\x06_vital\"\xa1\a\n" +
 	"\x10SurgeryOperation\x12B\n" +
 	"\x06recipe\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\x06recipe\x12\"\n" +
 	"\n" +
@@ -34322,7 +34333,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x11added_part_hediff\x18\v \x01(\tH\bR\x0faddedPartHediff\x88\x01\x01\x12+\n" +
 	"\x0fyield_thing_def\x18\f \x01(\tH\tR\ryieldThingDef\x88\x01\x01\x127\n" +
 	"\x15medicine_market_value\x18\r \x01(\x01H\n" +
-	"R\x13medicineMarketValue\x88\x01\x01B\r\n" +
+	"R\x13medicineMarketValue\x88\x01\x01\x127\n" +
+	"\x15doctor_success_chance\x18\x0e \x01(\x01H\vR\x13doctorSuccessChance\x88\x01\x01B\r\n" +
 	"\v_part_indexB\x10\n" +
 	"\x0e_part_def_nameB\x11\n" +
 	"\x0f_success_chanceB\x13\n" +
@@ -34334,7 +34346,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_yield_market_valueB\x14\n" +
 	"\x12_added_part_hediffB\x12\n" +
 	"\x10_yield_thing_defB\x18\n" +
-	"\x16_medicine_market_value\"\x8e\b\n" +
+	"\x16_medicine_market_valueB\x18\n" +
+	"\x16_doctor_success_chance\"\x8e\b\n" +
 	"\bGearItem\x12<\n" +
 	"\x05thing\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05thing\x12\x19\n" +
 	"\x05stuff\x18\x02 \x01(\tH\x00R\x05stuff\x88\x01\x01\x12\x1d\n" +

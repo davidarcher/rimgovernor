@@ -216,6 +216,9 @@ namespace HomeBridge.BridgeTools
                 var f=bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor);
                 if(bestBed==null || f>bedFactor) {bestBed=bed;bedFactor=f;}
             }
+            // The ideal bed and room (#1240): a plain Bed's factor off the map
+            // (as if clean, roofed and lit), never below the neutral 1.
+            float idealFactor=System.Math.Max(1f,ThingDefOf.Bed.GetStatValueAbstract(StatDefOf.SurgerySuccessChanceFactor,GenStuff.DefaultStuffFor(ThingDefOf.Bed)));
             foreach(var def in pawn.def.AllRecipes) {
                 if(!def.AvailableNow || def.Worker==null || !def.Worker.AvailableReport(pawn).Accepted) continue;
                 var targets=def.targetsBodyPart?def.Worker.GetPartsToApplyOn(pawn,def).ToList()
@@ -246,8 +249,11 @@ namespace HomeBridge.BridgeTools
                         var count=def.ingredients.Where(i => i.filter.Allows(medicine)).Sum(i => i.CountRequiredOfFor(medicine,def));
                         if(count>0) op.MedicineMarketValue=Number(medicine.BaseMarketValue*count);
                     }
-                    if(def.surgeryOutcomeEffect!=null && doctors.Count>0)
-                        op.SuccessChance=Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,bestBed)));
+                    if(def.surgeryOutcomeEffect!=null && doctors.Count>0) {
+                        float? real=pawn.InBed()?(float?)null:bestBed?.GetStatValue(StatDefOf.SurgerySuccessChanceFactor) ?? 1f;
+                        op.SuccessChance=Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,real)));
+                        op.DoctorSuccessChance=Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,idealFactor)));
+                    }
                     row.Operations.Add(op);
                 }
             }
@@ -264,15 +270,17 @@ namespace HomeBridge.BridgeTools
 
         // Vanilla SurgeryOutcomeEffectDef.GetQuality, except a patient not yet
         // in bed is scored in the best colony medical bed it will lie in.
-        private static double Chance(RecipeDef def,Pawn surgeon,Pawn patient,BodyPartRecord? part,ThingDef? medicine,Building_Bed? bestBed)
+        // bedFactor, when set, replaces the bed and room factor (the best
+        // medical bed's, or the ideal one's, #1240); null keeps vanilla's.
+        private static double Chance(RecipeDef def,Pawn surgeon,Pawn patient,BodyPartRecord? part,ThingDef? medicine,float? bedFactor)
         {
             var bill=new Bill_Medical {recipe=def};
             if(medicine!=null) bill.consumedMedicine[medicine]=1;
             var ingredients=new System.Collections.Generic.List<Thing>();
             float quality=1f;
             foreach(var comp in def.surgeryOutcomeEffect.comps ?? new System.Collections.Generic.List<SurgeryOutcomeComp>()) {
-                if(comp is SurgeryOutcomeComp_BedAndRoomQuality && !patient.InBed()) {
-                    if(!def.surgeryIgnoreEnvironment && bestBed!=null) quality*=bestBed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor);
+                if(comp is SurgeryOutcomeComp_BedAndRoomQuality && bedFactor.HasValue) {
+                    if(!def.surgeryIgnoreEnvironment) quality*=bedFactor.Value;
                     continue;
                 }
                 if(comp.Affects(def,surgeon,patient,part)) comp.AffectQuality(def,surgeon,patient,ingredients,part,bill,ref quality);
