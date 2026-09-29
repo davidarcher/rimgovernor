@@ -318,6 +318,9 @@ message PawnState {
   // emergency -- the ancient-danger mechanoid behind a sealed wall held
   // every window and deselected every development goal for good (#659).
   optional bool fogged = 43;
+  // Current InspirationDef defName (#1187): empty when the pawn has no
+  // inspiration; absent from producers that do not read it (unknown).
+  optional string inspiration = 44;
 }
 message PawnTendDoctor {
   // NativePawnControlState eligibility: a drafter exists, the pawn is spawned,

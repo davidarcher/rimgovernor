@@ -28,6 +28,21 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, pawn = pawn.GetUniqueLoadID() };
             }, cancellationToken);
         }
+        [Tool("test/inspire_creativity", Description = "UNSAFE FOR MODEL EXECUTION. Give one paused disposable colonist Inspired_Creativity for inspiration readback.")]
+        public async Task<object> InspireCreativity(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var def = DefDatabase<InspirationDef>.GetNamed("Inspired_Creativity");
+                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
+                    .First(p => !p.Dead && !p.Downed && !p.InMentalState && p.mindState?.inspirationHandler != null && !p.Inspired);
+                if (!pawn.mindState.inspirationHandler.TryStartInspiration(def) || pawn.InspirationDef != def)
+                    throw new InvalidOperationException("Inspired_Creativity did not start.");
+                return new { success = true, pawn = pawn.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
         [Tool("test/mood_setup", Description = "Seed deficient needs in one disposable pawn; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "food, rest, joy, forced, schedule, mental or environment.")] string scenario)

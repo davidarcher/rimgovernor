@@ -42,6 +42,9 @@ type WorkPawn struct {
 	// Job is the pawn's current job; unknown when the read carried no job
 	// block.
 	Job domain.Fact[PawnJob]
+	// Inspiration is the current InspirationDef defName (#1187); known "" is
+	// no inspiration, unknown is a read that did not carry it.
+	Inspiration domain.Fact[string]
 }
 
 // PawnJob is one pawn's current job as the census saw it. Def is the

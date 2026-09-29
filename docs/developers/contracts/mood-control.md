@@ -155,6 +155,16 @@ including replies from older native builds, leave it unknown. Existing worker
 eligibility continues to use mental-state presence. `pawn/mental-state` uses
 the test-only `test/mental_state_berserk` fixture and verifies both reads.
 
+## Inspiration observation
+
+Pawn rows carry `inspiration`, the current `InspirationDef` defName (#1187).
+An empty string is a known "no inspiration"; the field is absent when the
+pawn has no inspiration handler or the producer predates it, and Go keeps
+that unknown. It reaches `policy.PawnProfile.Inspiration` through
+`WorkPawn.Inspiration`. Nothing acts on it yet. `pawn/inspiration` uses the
+test-only `test/inspire_creativity` fixture and reads `Inspired_Creativity`
+back through the profile.
+
 ## Native subdual
 
 PAWN_ORDER_KIND_SUBDUE accepts exact colonist snapshots and an aggressive,

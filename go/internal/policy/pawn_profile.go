@@ -2,6 +2,8 @@ package policy
 
 import (
 	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // PawnTrait is one native trait row: the TraitDef name and, for spectrum
@@ -169,6 +171,9 @@ type PawnProfile struct {
 	Child bool
 	// Ranged is whether the pawn's primary weapon is ranged.
 	Ranged bool
+	// Inspiration is the current InspirationDef defName; known "" is none
+	// and unknown stays distinct from none (#1187).
+	Inspiration domain.Fact[string]
 }
 
 // Skill returns the pawn's skill row; a skill absent from the read is level
@@ -247,6 +252,7 @@ func BuildProfile(pawn WorkPawn) PawnProfile {
 		profile.Child = age < 13
 	}
 	profile.Ranged, _ = pawn.Ranged.Value()
+	profile.Inspiration = pawn.Inspiration
 	return profile
 }
 

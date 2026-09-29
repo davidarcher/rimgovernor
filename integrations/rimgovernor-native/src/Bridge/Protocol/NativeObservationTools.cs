@@ -369,6 +369,10 @@ namespace HomeBridge.BridgeTools
                 row.MentalStateIsAggro=mental.def.IsAggro;
                 row.MentalStateTicks=mental.Age;
             }
+            // Inspiration (#1187): empty is a known "none"; a pawn without a
+            // mind state handler leaves the field absent (unknown).
+            if (pawn.mindState?.inspirationHandler != null)
+                row.Inspiration=pawn.mindState.inspirationHandler.CurStateDef?.defName ?? "";
             // Lord evidence is the game's own group-AI class names: a raid's job
             // (assault/siege/stage-then-attack) and its current toil (the sapper
             // and breach toils are distinct classes). No lord means no field.

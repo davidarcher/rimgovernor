@@ -4621,7 +4621,10 @@ type PawnState struct {
 	// discovered. A fogged hostile is undiscovered, unreachable and no
 	// emergency -- the ancient-danger mechanoid behind a sealed wall held
 	// every window and deselected every development goal for good (#659).
-	Fogged        *bool `protobuf:"varint,43,opt,name=fogged,proto3,oneof" json:"fogged,omitempty"`
+	Fogged *bool `protobuf:"varint,43,opt,name=fogged,proto3,oneof" json:"fogged,omitempty"`
+	// Current InspirationDef defName (#1187): empty when the pawn has no
+	// inspiration; absent from producers that do not read it (unknown).
+	Inspiration   *string `protobuf:"bytes,44,opt,name=inspiration,proto3,oneof" json:"inspiration,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4948,6 +4951,13 @@ func (x *PawnState) GetFogged() bool {
 		return *x.Fogged
 	}
 	return false
+}
+
+func (x *PawnState) GetInspiration() string {
+	if x != nil && x.Inspiration != nil {
+		return *x.Inspiration
+	}
+	return ""
 }
 
 type PawnTendDoctor struct {
@@ -34482,7 +34492,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_veneratedB\x19\n" +
 	"\x17_manhunter_on_tame_failB\b\n" +
-	"\x06_adult\"\xc7\x13\n" +
+	"\x06_adult\"\xfe\x13\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x12\"\n" +
@@ -34531,7 +34541,8 @@ const file_observations_proto_rawDesc = "" +
 	"raid_armor\x18) \x01(\x01H\x1bR\traidArmor\x88\x01\x01\x12L\n" +
 	"\vtend_doctor\x18* \x01(\v2+.rimgovernor.observations.v1.PawnTendDoctorR\n" +
 	"tendDoctor\x12\x1b\n" +
-	"\x06fogged\x18+ \x01(\bH\x1cR\x06fogged\x88\x01\x01B\x10\n" +
+	"\x06fogged\x18+ \x01(\bH\x1cR\x06fogged\x88\x01\x01\x12%\n" +
+	"\vinspiration\x18, \x01(\tH\x1dR\vinspiration\x88\x01\x01B\x10\n" +
 	"\x0e_kind_def_nameB\r\n" +
 	"\v_faction_idB\v\n" +
 	"\t_colonistB\x10\n" +
@@ -34565,7 +34576,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x16_mental_state_is_aggroB\x15\n" +
 	"\x13_mental_state_ticksB\r\n" +
 	"\v_raid_armorB\t\n" +
-	"\a_foggedJ\x04\b\"\x10#R\vdraft_claim\"\xef\x03\n" +
+	"\a_foggedB\x0e\n" +
+	"\f_inspirationJ\x04\b\"\x10#R\vdraft_claim\"\xef\x03\n" +
 	"\x0ePawnTendDoctor\x12.\n" +
 	"\x10control_eligible\x18\x01 \x01(\bH\x00R\x0fcontrolEligible\x88\x01\x01\x12\x1d\n" +
 	"\aspawned\x18\x02 \x01(\bH\x01R\aspawned\x88\x01\x01\x12$\n" +
