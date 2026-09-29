@@ -121,7 +121,8 @@ func ExpansionPackage(name string) (string, error) {
 	return folded, nil
 }
 
-// ExpansionsFromEnv parses ExpansionsEnv; unset or empty means no expansions.
+// ExpansionsFromEnv parses ExpansionsEnv; unset or empty returns nil, which the profile preparers
+// read as every installed expansion (#1258).
 func ExpansionsFromEnv() ([]string, error) {
 	raw := strings.TrimSpace(os.Getenv(ExpansionsEnv))
 	if raw == "" {
@@ -144,9 +145,8 @@ func ExpansionsFromEnv() ([]string, error) {
 // PrepareNativeModConfig rewrites ModsConfig.xml's activeMods to the core game,
 // only the requested expansions, and exactly brrainz.harmony,
 // brrainz.rimbridgeserver and NativePackage, removing every other official
-// expansion plus legacy or duplicate entries first. Acceptance runs are
-// Core-only by default (issue #91): each active expansion adds def loading and
-// per-tick systems no harness needs unless it tests that DLC.
+// expansion plus legacy or duplicate entries first. The profile
+// preparers pass every installed expansion when a run names none (#1258).
 //
 // knownExpansions is extended with installed (the official expansions the
 // game copy ships, InstalledExpansions) and the requested ones. RimWorld
@@ -647,6 +647,9 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 	if err != nil {
 		return "", err
 	}
+	if expansions == nil {
+		expansions = installed
+	}
 	profile := filepath.Join(root, "profile")
 	if err := RequireProfilePathFits(profile); err != nil {
 		return "", err
@@ -715,6 +718,9 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 	installed, err := InstalledExpansions(workingDir)
 	if err != nil {
 		return "", err
+	}
+	if expansions == nil {
+		expansions = installed
 	}
 	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), installed, expansions...); err != nil {
 		return "", err
@@ -862,7 +868,7 @@ func fileSHA256(path string) (string, error) {
 // root/profile/Saves/<saveName>.rws was recorded with (its <modIds> header).
 // A save refuses to load (save.missing_mods) under a profile missing any of
 // them, so a harness that loads a save passes its result to Config.Expansions
-// rather than relying on the Core-only default.
+// rather than relying on the all-installed default.
 func SaveExpansions(root, saveName string) ([]string, error) {
 	return saveExpansionsAt(filepath.Join(mustAbs(root), "profile", "Saves", saveName+".rws"), saveName)
 }
@@ -902,7 +908,7 @@ var saveModItem = regexp.MustCompile(`<li>\s*([^<\s]+)\s*</li>`)
 // UseSaveExpansions sets Expansions to the union of the official expansions
 // the named saves were recorded with, so PrepareConfig keeps exactly those
 // active. Empty names are skipped; when every name is empty Expansions is
-// left as it was (nil: the Core-only default or ExpansionsEnv).
+// left as it was (nil: ExpansionsEnv, else every installed expansion).
 func (c *Config) UseSaveExpansions(saveNames ...string) error {
 	seen := map[string]bool{}
 	var out []string

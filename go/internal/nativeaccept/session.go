@@ -189,8 +189,8 @@ type Config struct {
 	Timeout       time.Duration
 	Configuration string // resolved by Prepare/PrepareRendered
 	// Expansions are the official expansions to keep active (short names or
-	// package IDs); nil defers to ExpansionsEnv, and either way the default is
-	// Core-only. Harnesses that test DLC content set it explicitly.
+	// package IDs); nil defers to ExpansionsEnv, and when that is unset every installed
+	// expansion loads (#1258); an empty non-nil slice pins Core-only.
 	Expansions []string
 	// FixtureOps are the test ops the run's Start calls; OpenSession fills
 	// it from the start when unset. The stale-package check names their

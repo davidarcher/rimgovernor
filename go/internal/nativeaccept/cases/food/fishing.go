@@ -14,8 +14,8 @@ import (
 
 func init() {
 	cases.Register(cases.Case{Name: "food/fishing", Scope: "Odyssey: the live ledger opens fishing at min(regeneration nutrition, pawn capacity); the shared food goal creates a reachable zone on that water body at a 60% population floor, and two colonists feed on fishing for 15 days without soil.",
-		Start:      cases.Fixture{On: cases.DebugStart{Size: na.DebugStart{MapSize: 150, PlanetCoverage: 0.05, Biomes: "TropicalRainforest", Seed: "fishing-426"}}, Op: "test/fishing_prepare"},
-		Expansions: []string{"ludeon.rimworld.odyssey"}, NoKeep: true, NoCheckpoint: true, Service: true, Keep: []string{"Food", "Rest"},
+		Start:        cases.Fixture{On: cases.DebugStart{Size: na.DebugStart{MapSize: 150, PlanetCoverage: 0.05, Biomes: "TropicalRainforest", Seed: "fishing-426"}}, Op: "test/fishing_prepare"},
+		NoCheckpoint: true, Service: true, Keep: []string{"Food", "Rest"},
 		RequiredOps: []string{"test/fishing_observe"}, Budget: 20 * time.Minute, Reason: "15 native days of food consumption and water-body recovery; a programmatic no-soil coast starts ready to fish", Run: runFishing})
 }
 
