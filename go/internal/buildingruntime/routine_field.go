@@ -224,7 +224,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		var tried bool
 		var err error
 		if candidate.Kind == policy.SiteOutdoor && len(candidate.Buildings) == 0 {
-			result, tried, err = r.enactBlock(call, epoch, state, goal, projection, read, wait, candidate, site.Anchor, protected)
+			result, tried, err = r.enactBlock(call, epoch, state, goal, projection, read, wait, candidate, fieldBlockOptions(candidate, selection.Candidates), site.Anchor, protected)
 		} else {
 			result, tried, err = r.enact(call, epoch, state, goal, projection, read, wait, candidate)
 		}
@@ -397,9 +397,9 @@ const fieldBatchPatches = 6
 // block's growing zone, or grow it with add-cells until the block is full.
 // No plan field blocks is a refusal with its reason; nothing is sited
 // outside the plan.
-func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, candidate policy.SiteTypeCandidate, anchor domain.Cell, protected []domain.Cell) (RoutineFieldResult, bool, error) {
+func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, candidate policy.SiteTypeCandidate, options []policy.FieldBlockOption, anchor domain.Cell, protected []domain.Cell) (RoutineFieldResult, bool, error) {
 	p := r.reviewer.player
-	edit, reason, ok := planFieldBlock(projection, anchor, candidate.Crop, candidate.Needed, protected)
+	edit, reason, ok := planFieldBlock(projection, anchor, options, protected)
 	if !ok {
 		clockEvent(call, "layout", "fields", "outdoor field refused: "+reason, "crop", candidate.Crop.Name)
 		return RoutineFieldResult{Reason: BuildingMethodNoSpace, NativeWorkTicks: wait}, false, nil

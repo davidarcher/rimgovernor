@@ -237,6 +237,36 @@ func freeCropSoil(cell SiteCell, minimum float64, blocked map[domain.Cell]bool) 
 	return soil, !blocked[cell.Cell] && wk && walk && ok && !occupied && zk && !zone && rk && !roof && fk && foodNumber(soil) && soil >= minimum
 }
 
+// FieldBlockOption is one viable crop for a new outdoor field block and the
+// cells it still needs.
+type FieldBlockOption struct {
+	Crop   CropChoice
+	Needed int
+}
+
+// FieldBlockNeighbourRadius is how near (cells) a growing zone must be to a
+// new block for its crop to count as a neighbour.
+const FieldBlockNeighbourRadius = 11
+
+// BlockCropOrder orders the viable crops for a new field block (#1225):
+// options keep their preference order, so urgency's fastest crop still
+// leads the first block, but a crop growing in a neighbouring zone moves
+// behind every other crop. A sole viable crop is still allowed.
+func BlockCropOrder(options []FieldBlockOption, neighbours map[string]bool) []FieldBlockOption {
+	out := make([]FieldBlockOption, 0, len(options))
+	for _, o := range options {
+		if !neighbours[o.Crop.Name] {
+			out = append(out, o)
+		}
+	}
+	for _, o := range options {
+		if neighbours[o.Crop.Name] {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
 func FieldTarget(colonists domain.Fact[int64], crop CropChoice, reserve float64) domain.Fact[int] {
 	count, ck := colonists.Value()
 	demand, dk := crop.Demand.Value()

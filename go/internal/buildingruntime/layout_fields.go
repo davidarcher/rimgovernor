@@ -47,11 +47,14 @@ type fieldBlockEdit struct {
 }
 
 // planFieldBlock walks the plan's field blocks nearest anchor first and
-// returns the first block's step that still has free soil for crop: grow
-// the growing zone standing in the block, or create one when the block has
-// none. want bounds the cells taken. reason explains a refusal: no field
-// blocks, or every block full.
-func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, crop policy.CropChoice, want int, protected []domain.Cell) (fieldBlockEdit, string, bool) {
+// returns the first block's step that still has free soil: grow the
+// growing zone standing in the block (with the first option's fertility
+// floor and need), or create one when the block has none. A new block
+// takes the first option, in policy.BlockCropOrder, not growing within
+// FieldBlockNeighbourRadius of the block (#1225). options are the viable
+// crops in preference order. reason explains a refusal: no field blocks,
+// or every block full.
+func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, options []policy.FieldBlockOption, protected []domain.Cell) (fieldBlockEdit, string, bool) {
 	plan, ok := facts.LayoutPlan.Value()
 	if !ok {
 		return fieldBlockEdit{}, "no layout plan", false
@@ -60,7 +63,7 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, crop
 	if len(blocks) == 0 {
 		return fieldBlockEdit{}, "layout plan has no field blocks", false
 	}
-	if want <= 0 {
+	if len(options) == 0 || options[0].Needed <= 0 {
 		return fieldBlockEdit{}, "no field cells needed", false
 	}
 	blocked := make(map[domain.Cell]bool, len(protected))
@@ -75,9 +78,17 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, crop
 	for _, f := range facts.Farms {
 		growing[f.ID] = f.Crop
 	}
-	floor, _ := crop.FertilityMin.Value()
-	for _, block := range blocks {
+	freeFor := func(block map[domain.Cell]bool, crop policy.CropChoice) map[domain.Cell]bool {
+		floor, _ := crop.FertilityMin.Value()
 		free := map[domain.Cell]bool{}
+		for cell := range block {
+			if c, seen := census[cell]; seen && !blocked[cell] && freeFieldSoil(c, floor) {
+				free[cell] = true
+			}
+		}
+		return free
+	}
+	for _, block := range blocks {
 		zoneCells := map[string]map[domain.Cell]bool{}
 		for cell := range block {
 			c, seen := census[cell]
@@ -91,14 +102,7 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, crop
 					}
 					zoneCells[id][cell] = true
 				}
-				continue
 			}
-			if !blocked[cell] && freeFieldSoil(c, floor) {
-				free[cell] = true
-			}
-		}
-		if len(free) == 0 {
-			continue
 		}
 		zone := ""
 		for id, cells := range zoneCells {
@@ -106,14 +110,60 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, crop
 				zone = id
 			}
 		}
-		if zone == "" {
-			return fieldBlockEdit{Crop: crop.Name, Cells: policy.PickRect(free, anchor, want)}, "", true
+		if zone != "" {
+			if adds := growZoneCells(zoneCells[zone], freeFor(block, options[0].Crop), anchor, options[0].Needed); len(adds) > 0 {
+				return fieldBlockEdit{Zone: zone, Crop: growing[zone], Cells: adds}, "", true
+			}
+			continue
 		}
-		if adds := growZoneCells(zoneCells[zone], free, anchor, want); len(adds) > 0 {
-			return fieldBlockEdit{Zone: zone, Crop: growing[zone], Cells: adds}, "", true
+		neighbours := fieldBlockNeighbours(facts.Cells, block, growing)
+		for _, o := range policy.BlockCropOrder(options, neighbours) {
+			if free := freeFor(block, o.Crop); len(free) > 0 && o.Needed > 0 {
+				return fieldBlockEdit{Crop: o.Crop.Name, Cells: policy.PickRect(free, anchor, o.Needed)}, "", true
+			}
 		}
 	}
 	return fieldBlockEdit{}, "every field block is full", false
+}
+
+// fieldBlockOptions is the crops a new field block may take: candidate
+// first, then every other plantable outdoor soil candidate in score order.
+func fieldBlockOptions(candidate policy.SiteTypeCandidate, all []policy.SiteTypeCandidate) []policy.FieldBlockOption {
+	options := []policy.FieldBlockOption{{Crop: candidate.Crop, Needed: candidate.Needed}}
+	seen := map[string]bool{candidate.Crop.Name: true}
+	for _, c := range all {
+		if c.Kind == policy.SiteOutdoor && len(c.Buildings) == 0 && c.Cells > 0 && !seen[c.Crop.Name] {
+			seen[c.Crop.Name] = true
+			options = append(options, policy.FieldBlockOption{Crop: c.Crop, Needed: c.Needed})
+		}
+	}
+	return options
+}
+
+// fieldBlockNeighbours is the set of crops growing in a zone with a cell
+// within FieldBlockNeighbourRadius (Chebyshev) of block's bounding box.
+func fieldBlockNeighbours(cells []policy.SiteCell, block map[domain.Cell]bool, growing map[string]string) map[string]bool {
+	first := true
+	var lo, hi domain.Cell
+	for c := range block {
+		if first {
+			lo, hi, first = c, c, false
+			continue
+		}
+		lo.X, lo.Z = min(lo.X, c.X), min(lo.Z, c.Z)
+		hi.X, hi.Z = max(hi.X, c.X), max(hi.Z, c.Z)
+	}
+	r := int32(policy.FieldBlockNeighbourRadius)
+	out := map[string]bool{}
+	for _, c := range cells {
+		id, ok := c.ZoneID.Value()
+		crop, farm := growing[id]
+		if !ok || !farm || c.Cell.X < lo.X-r || c.Cell.X > hi.X+r || c.Cell.Z < lo.Z-r || c.Cell.Z > hi.Z+r {
+			continue
+		}
+		out[crop] = true
+	}
+	return out
 }
 
 // growZoneCells picks up to want free cells that extend zone as one
