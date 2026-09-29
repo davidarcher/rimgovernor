@@ -58,12 +58,13 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 	}
 	tomb = tomb && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
 	// A pawn owed a suite no planned suite answers (#1216): grow the suite
-	// wing, at most once a day.
+	// wing, or a suite below its owner's target outward (#1218), at most
+	// once a day.
 	var suites []float64
 	if haveLayout {
 		suites = suiteTargets(*projection, layout.Plan)
 	}
-	suite := haveLayout && len(suites) > layout.Plan.SuiteRooms() && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
+	suite := haveLayout && policy.SuitesOwed(layout.Plan, suites) && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
 	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || quadrum || tomb || suite) {
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)

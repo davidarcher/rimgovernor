@@ -68,10 +68,9 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier
 	wings := keepWingRooms(plan.Wings, func(r LayoutRoom) bool { return !rectHits(roomWalls(r), noGo) })
 	next := plan
 	next.Rooms, next.Wings, next.Zones = kept, wings, zones
-	before := len(next.AllRooms())
-	dropped := before != len(plan.AllRooms())
+	dropped := len(next.AllRooms()) != len(plan.AllRooms())
 	next = Grow(next, pawns, tombs, tier, suites...)
-	if !dropped && len(next.AllRooms()) == before {
+	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
 		return fresh, !samePerimeter(plan, fresh)
 	}
@@ -79,6 +78,20 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier
 		return plan, false
 	}
 	return withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(next, s), s), s)), true
+}
+
+// sameInteriors reports whether a and b hold the same rooms in order: a
+// grown suite (#1218) changes an interior without adding a room.
+func sameInteriors(a, b []LayoutRoom) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Interior != b[i].Interior {
+			return false
+		}
+	}
+	return true
 }
 
 // samePerimeter reports whether a and b hold the same perimeter

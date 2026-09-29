@@ -344,6 +344,10 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		case policy.BedroomClear:
 			return r.removeOldBed(call, epoch, state, review, goal, reading, policy.BedReplacement{Room: "shell", Bed: step.Bed, Def: policy.SleepingSpotDefinition, Cell: step.Cells[0]})
 		default:
+			// A suite grown in the plan is walked there (#1218).
+			if growth, due := suiteGrowth(facts); due {
+				return r.growSuite(call, epoch, state, review, goal, reading, growth)
+			}
 			swap, ok := bedroomSwap(facts)
 			if !ok {
 				if upgrade, due := titleFurniture(facts); due {

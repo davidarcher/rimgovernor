@@ -60,8 +60,9 @@ func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan) []
 	if !rk || !sk || traits == nil {
 		return nil
 	}
-	claims := policy.SuiteClaims(plan, rooms, sleeping, bedroomTargets(facts), traits, suitePressure(facts))
-	return policy.SuiteTargets(plan, rooms, sleeping, claims)
+	targets := bedroomTargets(facts)
+	claims := policy.SuiteClaims(plan, rooms, sleeping, targets, traits, suitePressure(facts))
+	return policy.SuiteTargets(plan, rooms, sleeping, targets, claims)
 }
 
 // BuildingSuiteStock: a suite's shell waits until its walls are in stock
@@ -81,6 +82,9 @@ func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 			return domain.Known(true)
 		}
 		if _, upgrade := roomUpgrade(facts); upgrade {
+			return domain.Known(true)
+		}
+		if _, grow := suiteGrowth(facts); grow {
 			return domain.Known(true)
 		}
 	}

@@ -66,7 +66,8 @@ func PlanCore(zones []LayoutZone, pawns int, tier BuildTier) LayoutPlan {
 // suites are the impressiveness targets of the suites wanted, in order;
 // the suite wing is sited and grown to one suite each (#1215); SuiteTargets
 // builds it from the pawns SuiteClaims finds (#1216), and none keeps a
-// plan's existing suite wing as it is.
+// plan's existing suite wing as it is. An existing suite's entry above
+// what its floor meets grows it outward (#1218).
 func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
 	if len(g.core) == 0 {
@@ -170,6 +171,7 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 	// or the bedroom wing claimed.
 	sg := newCoreGrid(plan.Zones, plan.Reservations)
 	sg.carveBedroomWings(wings, pawns)
+	wings = growSuitesOutward(plan, wings, suites)
 	spine, wings = sg.growSuites(spine, rooms, wings, suites)
 	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
 	return plan

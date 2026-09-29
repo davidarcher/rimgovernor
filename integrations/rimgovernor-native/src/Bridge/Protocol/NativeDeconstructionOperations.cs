@@ -108,12 +108,18 @@ namespace HomeBridge.BridgeTools
             if (target.OccupiedRect().Cells.Any(c => !c.InBounds(target.Map) || c.Fogged(target.Map))) return "Unknown target geometry.";
             if (target.IsForbidden(Faction.OfPlayer) || target.IsBurning()) return "Target is forbidden or burning.";
             // Colony enclosure demolition must use RemoveWall's replacement
-            // guards; generic deconstruction cannot bypass them.
-            if (target.Faction == Faction.OfPlayer && target.def == ThingDefOf.Wall &&
-                GenAdj.CardinalDirections.Select(d => target.Position + d).Any(c =>
-                    c.InBounds(target.Map) && c.GetRoom(target.Map) is Room room &&
-                    room.ProperRoom && !room.TouchesMapEdge))
-                return "Enclosing colony walls require guarded RemoveWall.";
+            // guards; generic deconstruction cannot bypass them. A wall with
+            // an enclosed room on every open side only joins rooms (a suite's
+            // old wall once its grown ring stands, #1218), so it is no
+            // enclosure.
+            if (target.Faction == Faction.OfPlayer && target.def == ThingDefOf.Wall)
+            {
+                var rooms = GenAdj.CardinalDirections.Select(d => target.Position + d)
+                    .Where(c => c.InBounds(target.Map)).Select(c => c.GetRoom(target.Map)).OfType<Room>().ToList();
+                bool Enclosed(Room r) => r.ProperRoom && !r.TouchesMapEdge;
+                if (rooms.Any(Enclosed) && !rooms.All(Enclosed))
+                    return "Enclosing colony walls require guarded RemoveWall.";
+            }
             if (!target.def.holdsRoof) return null;
             var shrineStructure = NativeShrineBreachSafety.StructuralCells(target);
             if (shrineStructure != null)

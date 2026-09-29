@@ -77,11 +77,11 @@ func TestSuiteClaimsQualifyOnlyOutgrownRooms(t *testing.T) {
 func TestSuiteTargetsAddOnlyUnansweredClaims(t *testing.T) {
 	plan, rooms, sleeping := suiteFixture()
 	claims := []SuiteClaim{{Pawn: "a", Bed: "ra", Target: 50}, {Pawn: "b", Bed: "rb", Target: 60}}
-	if got := SuiteTargets(plan, rooms, sleeping, claims); !slices.Equal(got, []float64{0, 60}) {
+	if got := SuiteTargets(plan, rooms, sleeping, nil, claims); !slices.Equal(got, []float64{0, 60}) {
 		t.Fatalf("targets = %v, want the kept suite and b's", got)
 	}
 	plan.Wings = plan.Wings[:1]
-	if got := SuiteTargets(plan, rooms, sleeping, claims); !slices.Equal(got, []float64{50, 60}) {
+	if got := SuiteTargets(plan, rooms, sleeping, nil, claims); !slices.Equal(got, []float64{50, 60}) {
 		t.Fatalf("no suite wing targets = %v", got)
 	}
 	grown := Grow(PlanCore(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, 50)
