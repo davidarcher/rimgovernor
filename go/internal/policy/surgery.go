@@ -42,12 +42,16 @@ type SurgeryChoice struct {
 }
 
 // SurgeryWant is an operation a patient needs that cannot be queued yet;
-// part wants feed demand later (#1168).
+// part-short wants feed bill and trade demand (#1168).
 type SurgeryWant struct {
 	Pawn   PawnID
 	Part   int
 	Recipe string // the best recipe wanted
 	Reason SurgeryWantReason
+	// Options are every candidate recipe for the part, best first; Value
+	// is the best one's rank, the same scale as SurgeryChoice.Value.
+	Options []string
+	Value   float64
 }
 
 // SurgerySelection is one review's queue (at most one per patient, best
@@ -180,7 +184,12 @@ func SelectSurgery(pawns domain.Fact[[]CarePawn], inFlight map[PawnID]bool) Surg
 func selectPartSurgery(pawn PawnID, part int, weight float64, ops []SurgeryOperation) (*SurgeryChoice, SurgeryWant) {
 	sort.SliceStable(ops, func(i, j int) bool { return opTier(ops[i]) > opTier(ops[j]) })
 	top, _ := ops[0].Recipe.Value()
-	want := SurgeryWant{Pawn: pawn, Part: part, Recipe: top, Reason: SurgeryPartShort}
+	topPart, _ := ops[0].PartDefName.Value()
+	want := SurgeryWant{Pawn: pawn, Part: part, Recipe: top, Reason: SurgeryPartShort, Value: partTier(top) * partWeight(topPart)}
+	for _, op := range ops {
+		recipe, _ := op.Recipe.Value()
+		want.Options = append(want.Options, recipe)
+	}
 	for _, op := range ops {
 		if stocked, known := op.IngredientsOnMap.Value(); !known || !stocked {
 			continue

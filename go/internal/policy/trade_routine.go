@@ -166,10 +166,13 @@ type TradeNeed struct {
 	// (JoinerCapacity): a caravan offering a slave or prisoner is worth
 	// opening for (#1037).
 	Population bool
+	// SurgeryParts are the restore parts no bench can fabricate (#1168),
+	// highest priority first: a trader selling one is worth opening for.
+	SurgeryParts []SurgeryPart
 }
 
 func (n TradeNeed) Any() bool {
-	return n.Population || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
+	return n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
 }
 
 // ReviewTradeNeed measures the trade need from the same facts the other
@@ -328,6 +331,12 @@ func routineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[R
 	for _, target := range out.Targets {
 		seen[target.Item] = true
 	}
+	for _, target := range surgeryPartTargets(need.SurgeryParts, rows, seen) {
+		if len(out.Targets) < tradeRoutineMaximumTargets {
+			seen[target.Item] = true
+			out.Targets = append(out.Targets, target)
+		}
+	}
 	for _, short := range need.Shortfall {
 		if seen[string(short.Resource)] || len(out.Targets) >= tradeRoutineMaximumTargets {
 			continue
@@ -340,6 +349,37 @@ func routineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[R
 			continue
 		}
 		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(surplus.Resource), Stock: min(max(targets[surplus.Resource], need.Retained[surplus.Resource]), tradeRoutineMaximumCount), MaxSell: min(surplus.Count, tradeRoutineMaximumCount), MinSellPrice: math.SmallestNonzeroFloat64})
+	}
+	return out
+}
+
+// surgeryPartTargets buys each part's best item the trader carries at a
+// known price, one unit per part, capped by surgeryPartPriceCeiling.
+func surgeryPartTargets(parts []SurgeryPart, rows []TradeSheetRowFact, seen map[string]bool) []domain.TradeTarget {
+	var out []domain.TradeTarget
+	index := map[string]int{}
+	for _, part := range parts {
+		for _, item := range part.Items {
+			var row *TradeSheetRowFact
+			for i := range rows {
+				r := &rows[i]
+				if r.DefName == string(item) && r.TraderCount > 0 && r.BuyPriceKnown && finite(r.BuyPrice) && r.BuyPrice > 0 && r.BuyPrice <= surgeryPartPriceCeiling {
+					row = r
+					break
+				}
+			}
+			if row == nil {
+				continue
+			}
+			if i, ok := index[row.DefName]; ok {
+				out[i].Stock = min(out[i].Stock+1, tradeRoutineMaximumCount)
+				out[i].MaxBuy = min(out[i].MaxBuy+1, row.TraderCount)
+			} else if !seen[row.DefName] {
+				index[row.DefName] = len(out)
+				out = append(out, domain.TradeTarget{Item: row.DefName, Stock: min(row.ColonyCount+1, tradeRoutineMaximumCount), MaxBuy: 1, MaxBuyPrice: surgeryPartPriceCeiling})
+			}
+			break
+		}
 	}
 	return out
 }

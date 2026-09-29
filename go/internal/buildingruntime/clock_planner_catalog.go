@@ -355,6 +355,16 @@ var plannerCatalog = []plannerEntry{
 			out.ArtBills = &method
 			return method.Reason, nil
 		}},
+	{name: "surgeryPartBills", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
+		configured: func(c *ClockSchedulerConfig) bool { return c.SurgeryPartBills != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.SurgeryPartBills.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.SurgeryPartBills = &method
+			return method.Reason, nil
+		}},
 	{name: "basicComfort", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.BasicComfort != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -30,9 +31,10 @@ type BillPlannerNative interface{}
 // NewRoutineBillPlanner composes one bill purpose: cooking serves
 // EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, the
 // cook-ahead bill MaintainRefrigeration under a solar flare (#408), and the
-// pinned sculpture bills MaintainArt (#1190).
+// pinned sculpture bills MaintainArt (#1190), and the part bills
+// MaintainSurgery (#1168).
 func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, purpose policy.BillPurpose) (*RoutineBillPlanner, error) {
-	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill) {
+	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill && purpose != policy.SurgeryPartBill) {
 		return nil, fmt.Errorf("%w: NewRoutineBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
 	}
 	need := policy.EnsureFoodSupply
@@ -45,6 +47,8 @@ func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, 
 		need = policy.MaintainRefrigeration
 	case policy.ArtBill:
 		need = policy.MaintainArt
+	case policy.SurgeryPartBill:
+		need = policy.MaintainSurgery
 	}
 	return &RoutineBillPlanner{reviewer: reviewer, native: native, purpose: purpose, need: need}, nil
 }
@@ -135,6 +139,17 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		selected, known, err := r.artSelection(call, state, projection, review.Latches.MedicalReserve)
 		if err != nil || !known {
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, err
+		}
+		return r.admit(call, epoch, arbiter, state, goal, read, selected)
+	}
+	if r.purpose == policy.SurgeryPartBill {
+		parts, benches, err := surgeryPartDemand(call, r.native, boundary.Identity(state.Snapshot), projection.Facts.MedicalPawns)
+		if err != nil {
+			return RoutineBillResult{}, err
+		}
+		selected, known := policy.SelectProductionBill(r.purpose, domain.Known(benches), projection.Facts.Colonists, domain.Fact[float64]{}, domain.Fact[float64]{}, 1, policy.ProductionBillContext{Parts: parts})
+		if !known {
+			return RoutineBillResult{Reason: BuildingMethodNoDeficit}, nil
 		}
 		return r.admit(call, epoch, arbiter, state, goal, read, selected)
 	}

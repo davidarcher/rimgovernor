@@ -550,6 +550,13 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			// Parts a restore lacks are fabricated where researched (#1168).
+			if nativeBills, ok := reads.(buildingruntime.BillPlannerNative); ok {
+				config.SurgeryPartBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.SurgeryPartBill)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 		if foodStorageUpkeep {
 			foodStorageNative, ok := reads.(buildingruntime.RoutineFoodStorageUpkeepSource)

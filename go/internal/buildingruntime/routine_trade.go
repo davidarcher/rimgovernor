@@ -500,7 +500,12 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	targets = policy.ResourceGoalTargets(targets, seasonal.ResourceTargets)
-	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)).Value()
+	// Restore parts no bench can fabricate are bought (#1168).
+	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
+	need, known := policy.SurgeryTradeNeed(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}

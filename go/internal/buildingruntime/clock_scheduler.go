@@ -37,12 +37,12 @@ type ClockWindowNative interface {
 	ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error)
 }
 type ClockSchedulerConfig struct {
-	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills *RoutineBillPlanner
-	Butcher                                                                 *RoutineBuildingPlanner
-	Fields                                                                  *RoutineFieldPlanner
-	FoodStorage                                                             *RoutineFoodStoragePlanner
-	Profile                                                                 string
-	Start                                                                   bridge.ClockStart
+	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills, SurgeryPartBills *RoutineBillPlanner
+	Butcher                                                                                   *RoutineBuildingPlanner
+	Fields                                                                                    *RoutineFieldPlanner
+	FoodStorage                                                                               *RoutineFoodStoragePlanner
+	Profile                                                                                   string
+	Start                                                                                     bridge.ClockStart
 	// PaceHorizonTicks is the safe horizon player acceleration's backoff
 	// keeps the critical evidence inside (issue #627); zero is
 	// DefaultPaceHorizonTicks. Unused unless Start.PlayerAccelerated.
@@ -149,13 +149,13 @@ type ClockSchedulerConfig struct {
 }
 type ClockSchedulerResult struct {
 	// Pacing is what the step's clock status said of the pace (#627).
-	Pacing                                                                  StepPacing
-	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills *RoutineBillResult
-	Butcher                                                                 *RoutineBuildingResult
-	Fields                                                                  *RoutineFieldResult
-	FoodStorage                                                             *RoutineFoodStorageResult
-	Attempt                                                                 *store.ClockAttempt
-	Decision                                                                policy.ClockWindowDecision
+	Pacing                                                                                    StepPacing
+	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills, SurgeryPartBills *RoutineBillResult
+	Butcher                                                                                   *RoutineBuildingResult
+	Fields                                                                                    *RoutineFieldResult
+	FoodStorage                                                                               *RoutineFoodStorageResult
+	Attempt                                                                                   *store.ClockAttempt
+	Decision                                                                                  policy.ClockWindowDecision
 	// Window is the colony window the admission tail sized (before any
 	// native-work or combat bound), zero when the tail did not run.
 	Window                       ClockWindowSize
@@ -389,7 +389,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Routine != nil && config.Routine.player != player {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Routine != nil && config.Routine.player != player", ErrControl)
 	}
-	for _, planner := range []*RoutineBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills, config.CookAheadBills, config.ArtBills} {
+	for _, planner := range []*RoutineBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills, config.CookAheadBills, config.ArtBills, config.SurgeryPartBills} {
 		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {
 			return nil, fmt.Errorf("%w: NewClockScheduler: planner != nil && (config.Routine == nil || planner.reviewer != config.Routine)", ErrControl)
 		}
