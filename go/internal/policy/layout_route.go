@@ -15,6 +15,7 @@ import (
 // the entrance.
 var routeTrips = [][2]ModuleRole{
 	{ModuleBedroom, ModuleDining},
+	{ModuleSuite, ModuleDining},
 	{ModuleKitchen, ModuleFreezer},
 	{"", ModuleFreezer},
 	{ModuleStorage, ModuleWorkshop},
@@ -24,7 +25,7 @@ var routeTrips = [][2]ModuleRole{
 
 // noThroughfare are the roles nobody may walk through.
 var noThroughfare = map[ModuleRole]bool{
-	ModuleBedroom: true, ModuleBarracks: true, ModulePrison: true,
+	ModuleBedroom: true, ModuleSuite: true, ModuleBarracks: true, ModulePrison: true,
 	ModuleKitchen: true, ModuleHospital: true, ModuleLab: true,
 }
 

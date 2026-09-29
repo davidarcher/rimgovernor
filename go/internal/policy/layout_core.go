@@ -62,7 +62,11 @@ func PlanCore(zones []LayoutZone, pawns int) LayoutPlan {
 // into it (#936); existing rooms never move.
 // A plan with no spine gets one near the core candidates' centre. Rooms
 // that no longer fit are left out.
-func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
+// suites are the impressiveness targets of the suites wanted, in order;
+// the suite wing is sited and grown to one suite each (#1215). Who gets
+// one is #1216; until then callers pass none and a plan's existing suite
+// wing is only kept.
+func Grow(plan LayoutPlan, pawns, tombs int, suites ...float64) LayoutPlan {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
 	if len(g.core) == 0 {
 		return plan
@@ -94,6 +98,10 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 	wings := plan.Wings
 	// Other rooms stay off the wing's ground and its growth reserve.
 	base := newCoreGrid(plan.Zones, plan.Reservations)
+	if i := wingOf(wings, WingSuites); i >= 0 {
+		g.carve(wingReserve(wings[i], len(suites)))
+		base.carve(wingReserve(wings[i], len(suites)))
+	}
 	if i := bedroomWing(wings); i >= 0 {
 		g.carve(wingReserve(wings[i], pawns))
 	}
@@ -159,6 +167,13 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 			rooms = trial
 		}
 	}
+	// The suite wing grows over its own ground and whatever no other room
+	// or the bedroom wing claimed.
+	sg := newCoreGrid(plan.Zones, plan.Reservations)
+	if i := bedroomWing(wings); i >= 0 {
+		sg.carve(wingReserve(wings[i], pawns))
+	}
+	spine, wings = sg.growSuites(spine, rooms, wings, suites)
 	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
 	return plan
 }

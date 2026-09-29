@@ -20,6 +20,7 @@ var zoneOverlay = map[ZoneKind]overlayStyle{
 
 var roomOverlay = map[ModuleRole]overlayStyle{
 	ModuleBedroom:    {planBlue, "bedroom"},
+	ModuleSuite:      {planBlue, "suite"},
 	ModuleBarracks:   {planLightBlue, "barracks"},
 	ModuleDining:     {planAmber, "dining"},
 	ModuleRec:        {planPink, "rec room"},

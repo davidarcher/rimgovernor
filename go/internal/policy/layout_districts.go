@@ -54,6 +54,7 @@ var districtRooms = map[District]ModuleRole{
 // roomDistricts is the district each planned room role belongs to.
 var roomDistricts = map[ModuleRole]District{
 	ModuleBedroom:    DistrictHousing,
+	ModuleSuite:      DistrictHousing,
 	ModuleBarracks:   DistrictHousing,
 	ModuleHospital:   DistrictHousing,
 	ModulePrison:     DistrictHousing,
