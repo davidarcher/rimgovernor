@@ -38,7 +38,9 @@ var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", Sandbag
 // tier by the observed raid points (#396); each turret costs steel and
 // components the colony may need first.
 const (
-	defenseTurretDefinition  = "Turret_MiniTurret"
+	// defenseTurretDefinition is the ladder's bottom rung; the tier places
+	// the highest rung the armory tier allows and its gates open (#1210).
+	defenseTurretDefinition  = policy.TurretMini
 	defenseConduitDefinition = "HiddenConduit"
 	// defenseMortarDefinition is the mortar tier (#1206): research-gated
 	// through its planning definition, unpowered, budgeted by
@@ -46,7 +48,7 @@ const (
 	defenseMortarDefinition = "Turret_Mortar"
 )
 
-var defenseExtraDefinitions = []string{defenseTurretDefinition, defenseMortarDefinition, defenseConduitDefinition, policy.DefenseSandbags, policy.DefenseEmbrasure}
+var defenseExtraDefinitions = []string{policy.TurretMini, policy.TurretAutocannon, policy.TurretSniper, defenseMortarDefinition, defenseConduitDefinition, policy.DefenseSandbags, policy.DefenseEmbrasure}
 
 // defenseDefinitionAvailable reports a planning definition the census
 // observed as available, its research finished: a definition the game
@@ -262,7 +264,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	// proposed: a fresh proposal, or a stored layout without turrets whose
 	// probe interval has elapsed.
 	var definitions []string
-	if !stored || defenseTurretsDue(record, expected.Tick) || defenseMortarsDue(record, expected.Tick) {
+	if !stored || defenseTurretsDue(record, expected.Tick) || defenseMortarsDue(record, expected.Tick) || defenseReplaceDue(record, expected.Tick) {
 		definitions = defenseExtraDefinitions
 	}
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, definitions...)
@@ -329,10 +331,21 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			}
 		}
 	}
+	// A standing turret below the armory's rung is replaced in place, one
+	// at a time (#1210).
+	if len(definitions) > 0 && stored && defenseReplaceDue(record, expected.Tick) {
+		if err = r.replaceTurret(call, state, read, &record); err != nil {
+			return RoutineDefenseLayoutResult{}, err
+		}
+	}
 	order := append([]policy.DefenseTierName{}, defenseTierOrder...)
 	for _, t := range record.Tiers {
 		if policy.IsPerimeterTier(t.Name) {
 			order = append(order, t.Name)
+		}
+		// A replacement's removal comes before the turret tier rebuilds.
+		if strings.HasPrefix(string(t.Name), defenseTurretReplacePrefix) {
+			order = slices.Insert(order, slices.Index(order, policy.TierTurrets), t.Name)
 		}
 	}
 	for _, name := range order {
@@ -634,20 +647,20 @@ func (c *defenseCensus) standing(definition string, cell domain.Cell) bool {
 func defenseTurretRequest(read observation.RoutineReading) policy.DefenseRequest {
 	projection := read.Projection
 	request := policy.DefenseRequest{Definitions: defenseDefinitions, UnitCosts: map[string][]policy.Amount{}}
-	request.Turret = policy.DefenseTurretRequest{Definition: defenseTurretDefinition, Conduit: defenseConduitDefinition, Stock: projection.Resources, Max: policy.TurretBudget(projection.Facts.RaidPoints)}
+	request.Turret = policy.DefenseTurretRequest{Definition: defenseTurretRung(read), Conduit: defenseConduitDefinition, Stock: projection.Resources, Max: policy.TurretBudget(projection.Facts.RaidPoints)}
 	research, rk := projection.Facts.Research.Value()
 	finished := map[policy.ResearchProjectID]bool{}
 	for _, id := range research.Finished {
 		finished[id] = true
 	}
 	for _, d := range projection.Definitions {
-		if d.Name != defenseTurretDefinition && d.Name != defenseConduitDefinition {
+		if d.Name != request.Turret.Definition && d.Name != defenseConduitDefinition {
 			continue
 		}
 		if costs, known := d.Costs.Value(); known {
 			request.UnitCosts[d.Name] = append([]policy.Amount{}, costs...)
 		}
-		if d.Name != defenseTurretDefinition {
+		if d.Name != request.Turret.Definition {
 			continue
 		}
 		available := d.Available
@@ -665,6 +678,9 @@ func defenseTurretRequest(read observation.RoutineReading) policy.DefenseRequest
 		}
 		if w, known := d.PowerW.Value(); known && w >= 0 {
 			request.Turret.DrawW = domain.Known(w)
+		}
+		if size, known := d.Size.Value(); known {
+			request.Turret.Size = size
 		}
 	}
 	topology, known := projection.PowerPlanning.Value()
@@ -685,6 +701,131 @@ func defenseTurretRequest(read observation.RoutineReading) policy.DefenseRequest
 	request.Turret.SpareW = domain.Known(spare)
 	request.Turret.Transmitters = defenseNetworkConduits(topology, best)
 	return request
+}
+
+// defenseTurretRung is the turret definition the tier places (#1210): the
+// highest rung the armory tier (raid points capped by research) allows
+// whose planning definition is observed available, else the mini turret.
+func defenseTurretRung(read observation.RoutineReading) string {
+	facts := read.Projection.Facts
+	for _, rung := range policy.TurretRungs(policy.AssessArmory(facts.RaidPoints, facts.Research).Tier) {
+		if defenseDefinitionAvailable(read, rung) {
+			return rung
+		}
+	}
+	return policy.TurretMini
+}
+
+// defenseTurretSize is a ladder definition's observed North footprint.
+func defenseTurretSize(read observation.RoutineReading, definition string) policy.Bounds {
+	for _, d := range read.Projection.Definitions {
+		if d.Name == definition {
+			size, _ := d.Size.Value()
+			return size
+		}
+	}
+	return policy.Bounds{}
+}
+
+// defenseTurretReplacePrefix names the removal tier that deconstructs one
+// standing turret for a higher rung rebuilt on its cell (#1210); the name
+// carries the cell and the new rung so each replacement's methods are
+// keyed apart.
+const defenseTurretReplacePrefix = "turrets-replace-"
+
+func defenseTurretReplacing(record store.DefenseLayoutRecord) bool {
+	for _, t := range record.Tiers {
+		if strings.HasPrefix(string(t.Name), defenseTurretReplacePrefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// defenseReplaceDue reports a built turret tier with nothing being
+// replaced whose probe interval has elapsed.
+func defenseReplaceDue(record store.DefenseLayoutRecord, tick domain.Tick) bool {
+	turrets, _, ok := record.Tier(policy.TierTurrets)
+	return ok && turrets.Built && len(turrets.Buildings) > 0 && !defenseTurretReplacing(record) && (record.TurretsProbedTick == 0 || tick-record.TurretsProbedTick >= defenseReverifyTicks)
+}
+
+// defenseReplaceTurret replaces one standing turret below the current rung
+// in place (#1210): never while a hostile is on the map (combat or a raid
+// on its way in), one at a time. The chosen turret goes into a removal tier
+// ordered before the turret tier, and the turret tier records the new rung
+// on the same anchor, so the census re-opens it and the missing building is
+// admitted once the old one is gone.
+func (r *RoutineDefenseLayoutPlanner) replaceTurret(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
+	projection := read.Projection
+	record.TurretsProbedTick = projection.Identity.Tick
+	if hostiles, known := projection.Facts.Hostiles.Value(); !known || hostiles > 0 {
+		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+	}
+	request := defenseTurretRequest(read)
+	tier, _, _ := record.Tier(policy.TierTurrets)
+	var standing []policy.StandingTurret
+	for _, b := range tier.Buildings {
+		if policy.TurretRank(b.Definition) < 0 {
+			continue
+		}
+		building, err := domain.NewBuilding(b.Definition, b.Cell, b.Rotation, b.Stuff)
+		if err != nil {
+			return err
+		}
+		standing = append(standing, policy.StandingTurret{Building: building, Cells: policy.TurretFootprint(b.Cell, defenseTurretSize(read, b.Definition))})
+	}
+	if len(standing) == 0 || slices.IndexFunc(standing, func(t policy.StandingTurret) bool {
+		return policy.TurretRank(t.Building.Definition()) < policy.TurretRank(request.Turret.Definition)
+	}) < 0 {
+		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+	}
+	identity := boundary.Identity(state.Snapshot)
+	killbox, region, home, ok := defenseKillbox(projection)
+	if !ok {
+		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+	}
+	site, _, err := r.native.ReadDefenseSite(call, identity, region)
+	if err != nil {
+		return err
+	}
+	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
+		return err
+	}
+	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
+	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
+	for _, cell := range site.Cells {
+		request.Cells = append(request.Cells, defenseCellFacts(cell))
+	}
+	old, replacement, ok, err := policy.TurretReplacement(request, defenseRecordGeometry(*record), standing)
+	clockSchedulerLog("defense-layout: turret replacement rung=%s ok=%v old=%v err=%v %s", request.Turret.Definition, ok, old.Cell(), err, defenseTurretGates(request))
+	if err != nil || !ok {
+		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+	}
+	applyTurretReplacement(record, old, replacement, standing, request.Turret.Size)
+	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+}
+
+// applyTurretReplacement records one in-place replacement: a removal tier
+// for the old turret and the new rung on its anchor in the turret tier,
+// whose reservation grows to the new footprint.
+func applyTurretReplacement(record *store.DefenseLayoutRecord, old, replacement domain.Building, standing []policy.StandingTurret, size policy.Bounds) {
+	tier, _, _ := record.Tier(policy.TierTurrets)
+	for i, b := range tier.Buildings {
+		if b.Cell == old.Cell() && b.Definition == old.Definition() {
+			tier.Buildings[i] = store.DefenseBuilding{Definition: replacement.Definition(), Cell: replacement.Cell(), Rotation: replacement.Rotation(), Stuff: replacement.Stuff()}
+		}
+	}
+	tier.Reserved = nil
+	for _, t := range standing {
+		if t.Building.Cell() == old.Cell() {
+			tier.Reserved = append(tier.Reserved, policy.TurretFootprint(old.Cell(), size)...)
+			continue
+		}
+		tier.Reserved = append(tier.Reserved, t.Cells...)
+	}
+	record.SetTier(tier)
+	name := policy.DefenseTierName(fmt.Sprintf("%s%d-%d-%d", defenseTurretReplacePrefix, old.Cell().X, old.Cell().Z, policy.TurretRank(replacement.Definition())))
+	record.Tiers = append(record.Tiers, store.DefenseTierRecord{Name: name, Remove: true, Buildings: []store.DefenseBuilding{{Definition: old.Definition(), Cell: old.Cell(), Rotation: old.Rotation(), Stuff: old.Stuff()}}})
 }
 
 // defenseTurretGates renders the turret request's gates for the scheduler
@@ -807,7 +948,7 @@ func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state
 func defenseRecordGeometry(record store.DefenseLayoutRecord) policy.DefenseGeometry {
 	g := policy.DefenseGeometry{Entry: record.Entry, Approach: append([]domain.Cell{}, record.TrapLane...), Toward: record.Toward, Firing: append([]domain.Cell{}, record.Firing...), Lanes: append(append([]domain.Cell{}, record.TrapLane...), record.SafeLane...)}
 	for _, tier := range record.Tiers {
-		if tier.Name == policy.TierTurrets || policy.IsPerimeterTier(tier.Name) {
+		if tier.Name == policy.TierTurrets || policy.IsPerimeterTier(tier.Name) || strings.HasPrefix(string(tier.Name), defenseTurretReplacePrefix) {
 			continue
 		}
 		g.Reserved = append(g.Reserved, tier.Reserved...)

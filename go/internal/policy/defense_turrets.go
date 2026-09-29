@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"math"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -20,6 +21,74 @@ type DefenseTurretRequest struct {
 	Stock                      domain.Fact[map[Resource]int64]
 	// Max bounds the turrets placed; zero or negative places none.
 	Max int
+	// Size is the definition's North footprint (#1210); zero is 1x1.
+	Size Bounds
+}
+
+// The turret ladder (#1210): the rung is the armory tier (AssessArmory),
+// Machining allowing the autocannon and Fabrication the uranium slug
+// turret. Each rung's own research and content still gate it through its
+// planning definition's availability. The foam turret is not a rung (#1228).
+const (
+	TurretMini       = "Turret_MiniTurret"
+	TurretAutocannon = "Turret_Autocannon"
+	TurretSniper     = "Turret_Sniper"
+)
+
+// TurretLadder lists the rungs bottom first.
+var TurretLadder = []string{TurretMini, TurretAutocannon, TurretSniper}
+
+var turretRungTier = map[string]ArmoryTier{TurretMini: ArmoryTierUnknown, TurretAutocannon: ArmoryTierMachining, TurretSniper: ArmoryTierFabrication}
+
+// TurretRungs are the ladder definitions the armory tier allows, highest
+// first; the mini turret is always allowed.
+func TurretRungs(tier ArmoryTier) []string {
+	var out []string
+	for i := len(TurretLadder) - 1; i >= 0; i-- {
+		if turretRungTier[TurretLadder[i]] <= tier {
+			out = append(out, TurretLadder[i])
+		}
+	}
+	return out
+}
+
+// TurretRank is a definition's rung on the ladder, -1 off it.
+func TurretRank(definition string) int {
+	for i, d := range TurretLadder {
+		if d == definition {
+			return i
+		}
+	}
+	return -1
+}
+
+// TurretFootprint is the cells a turret of the given North size occupies
+// anchored at a cell, rotation North (a zero size is 1x1).
+func TurretFootprint(anchor domain.Cell, size Bounds) []domain.Cell {
+	if size.Width < 1 || size.Height < 1 {
+		size = Bounds{Width: 1, Height: 1}
+	}
+	rect := OccupiedRect(anchor, domain.Cell{X: size.Width, Z: size.Height}, domain.North)
+	var out []domain.Cell
+	for x := rect.X; x < rect.X+rect.Width; x++ {
+		for z := rect.Z; z < rect.Z+rect.Height; z++ {
+			out = append(out, domain.Cell{X: x, Z: z})
+		}
+	}
+	return out
+}
+
+// footprintGap is the Chebyshev distance between the nearest cells of two
+// footprints: edge to edge, so a 2x2 turret keeps the same clearance a
+// 1x1 one does.
+func footprintGap(a, b []domain.Cell) int32 {
+	gap := int32(math.MaxInt32)
+	for _, x := range a {
+		for _, y := range b {
+			gap = min(gap, chebyshev(x, y))
+		}
+	}
+	return gap
 }
 
 // DefenseGeometry is the part of a layout the turret tier places against:
@@ -143,18 +212,22 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 		lines[[2]domain.Cell{l.From, l.To}] = l.LineOfSight
 	}
 	var candidates []TurretPosition
-	var chosen []domain.Cell
+	var chosen [][]domain.Cell
+	// Every occupied cell must be free and off the lanes and reservations,
+	// and the footprint keeps turret spacing edge to edge from the shooters
+	// and every other turret (#1210).
 	clear := func(c domain.Cell) bool {
-		if !s.free(c) || taken[c] {
-			return false
-		}
-		for _, f := range g.Firing {
-			if chebyshev(c, f) < turretSpacing {
+		fp := TurretFootprint(c, q.Size)
+		for _, x := range fp {
+			if !s.free(x) || taken[x] {
 				return false
 			}
 		}
+		if footprintGap(fp, g.Firing) < turretSpacing {
+			return false
+		}
 		for _, t := range chosen {
-			if chebyshev(c, t) < turretSpacing {
+			if footprintGap(fp, t) < turretSpacing {
 				return false
 			}
 		}
@@ -204,7 +277,7 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 			continue
 		}
 		candidates = append(candidates, TurretPosition{Cell: c, Verified: sees})
-		chosen = append(chosen, c)
+		chosen = append(chosen, TurretFootprint(c, q.Size))
 	}
 	var verified []domain.Cell
 	for _, c := range candidates {
@@ -234,6 +307,12 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 	for c := range transmitters {
 		allowed[c] = true
 	}
+	// No conduit runs under a turret's footprint.
+	for _, t := range verified[:n] {
+		for _, c := range TurretFootprint(t, q.Size) {
+			delete(allowed, c)
+		}
+	}
 	var buildings []domain.Building
 	for _, t := range verified[:n] {
 		b, err := domain.NewBuilding(q.Definition, t, domain.North, q.Stuff)
@@ -241,13 +320,11 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 			return DefenseTier{}, nil, err
 		}
 		buildings = append(buildings, b)
-		tier.Reserved = append(tier.Reserved, t)
 		chain, ok := s.conduitChain(t, transmitters, allowed)
 		if !ok {
 			// No route to the network: the turret would stand dark, so
 			// the tier stops at the turrets it can power.
 			buildings = buildings[:len(buildings)-1]
-			tier.Reserved = tier.Reserved[:len(tier.Reserved)-1]
 			break
 		}
 		for _, c := range chain {
@@ -263,7 +340,12 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 	// tier is re-checked against stock with them included.
 	for len(buildings) > 0 && !affordable(s.r, buildings) {
 		buildings = trimLastTurret(buildings, q.Definition)
-		tier.Reserved = tier.Reserved[:len(tier.Reserved)-1]
+	}
+	// Each turret reserves its whole footprint.
+	for _, b := range buildings {
+		if b.Definition() == q.Definition {
+			tier.Reserved = append(tier.Reserved, TurretFootprint(b.Cell(), q.Size)...)
+		}
 	}
 	tier.Buildings = buildings
 	tier.Costs = tierCosts(s.r.UnitCosts, buildings)
@@ -372,4 +454,64 @@ func (s defenseSite) conduitChain(turret domain.Cell, transmitters, allowed map[
 		}
 	}
 	return append([]domain.Cell{}, path[start:len(path)-1]...), true
+}
+
+// StandingTurret is one tier turret the census found standing, with the
+// cells it occupies.
+type StandingTurret struct {
+	Building domain.Building
+	Cells    []domain.Cell
+}
+
+// TurretReplacement picks the one standing turret to replace in place with
+// the request's higher rung (#1210): the first below the rung whose new
+// footprint, anchored on the same cell, covers only its own cells or free
+// ground off the lanes and reservations, keeps turret spacing from the
+// shooters and every other turret, and whose gates (availability, spare
+// watts for the new draw, stock for one) are open. The anchor keeps its
+// verified line of fire. ok false replaces nothing.
+func TurretReplacement(r DefenseRequest, g DefenseGeometry, standing []StandingTurret) (old, replacement domain.Building, ok bool, err error) {
+	q := r.Turret
+	rank := TurretRank(q.Definition)
+	if rank <= 0 || turretGate(r, 1) == 0 {
+		return old, replacement, false, nil
+	}
+	s, err := newDefenseSite(r)
+	if err != nil {
+		return old, replacement, false, err
+	}
+	taken := map[domain.Cell]bool{}
+	for _, cells := range [][]domain.Cell{g.Lanes, g.Reserved} {
+		for _, c := range cells {
+			taken[c] = true
+		}
+	}
+	for i, t := range standing {
+		if have := TurretRank(t.Building.Definition()); have < 0 || have >= rank {
+			continue
+		}
+		own := map[domain.Cell]bool{t.Building.Cell(): true}
+		for _, c := range t.Cells {
+			own[c] = true
+		}
+		fp := TurretFootprint(t.Building.Cell(), q.Size)
+		fits := footprintGap(fp, g.Firing) >= turretSpacing
+		for _, c := range fp {
+			fits = fits && (own[c] || s.free(c) && !taken[c])
+		}
+		for j, other := range standing {
+			if j != i && fits {
+				fits = footprintGap(fp, append([]domain.Cell{other.Building.Cell()}, other.Cells...)) >= turretSpacing
+			}
+		}
+		if !fits {
+			continue
+		}
+		b, err := domain.NewBuilding(q.Definition, t.Building.Cell(), domain.North, q.Stuff)
+		if err != nil {
+			return old, replacement, false, err
+		}
+		return t.Building, b, true, nil
+	}
+	return old, replacement, false, nil
 }
