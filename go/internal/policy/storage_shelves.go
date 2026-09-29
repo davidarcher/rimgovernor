@@ -18,7 +18,6 @@ import (
 // priority by MaintainStockpiles (StockpileShelfPatch).
 const (
 	ShelfDefinition   = "Shelf"
-	ShelfResearch     = "ComplexFurniture"
 	ShelfItemsPerCell = 3
 )
 

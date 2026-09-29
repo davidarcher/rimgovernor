@@ -163,7 +163,33 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	if len(unbuilt) > 0 {
 		return BedroomStep{Kind: BedroomShell, Room: unbuilt[0], Unhoused: len(unhoused)}
 	}
-	return BedroomStep{}
+	// No slot left: Unhoused still counts who stays outside a bedroom.
+	return BedroomStep{Unhoused: len(unhoused)}
+}
+
+// BedResearch unlocks Bed and DoubleBed.
+const BedResearch = "ComplexFurniture"
+
+// BedResearchRequest appends BedResearch to needs once every colonist owns a
+// bed in an individual bedroom (NextBedroomStep has no step left and nobody
+// is unhoused) while Bed is known unavailable (#1183). The bed ladder then
+// upgrades bedrolls and spots once it is researched (#1181).
+func BedResearchRequest(needs []string, plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget) []string {
+	if buildable, known := sleeping.BedBuildable.Value(); !known || buildable {
+		return needs
+	}
+	if len(sleeping.People) == 0 || len(sleeping.People) != sleeping.Colonists {
+		return needs
+	}
+	for _, p := range sleeping.People {
+		if bed, known := p.OwnedBed.Value(); !known || bed == "" {
+			return needs
+		}
+	}
+	if step := NextBedroomStep(plan, rooms, sleeping, targets); step.Kind != BedroomNone || step.Unhoused > 0 {
+		return needs
+	}
+	return append(append([]string(nil), needs...), BedResearch)
 }
 
 // BedroomsOwed is the review's bedroom deficit: known true while a bedroom

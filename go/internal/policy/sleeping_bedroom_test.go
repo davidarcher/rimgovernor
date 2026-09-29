@@ -133,3 +133,33 @@ func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 		t.Fatalf("last shell spot owner = %+v, want the second bedroom shelled", got)
 	}
 }
+
+func TestBedResearchRequestedOnceEveryoneHasABedroom(t *testing.T) {
+	plan, rooms, sleeping := bedroomFixture()
+	sleeping.BedBuildable = domain.Known(false)
+	// Both colonists still share the barracks.
+	if got := BedResearchRequest(nil, plan, rooms, sleeping, nil); len(got) != 0 {
+		t.Fatalf("barracks = %v, want no research", got)
+	}
+	rooms.Rooms = append(rooms.Rooms,
+		Room{ID: "r1", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"b1"}, Cells: []domain.Cell{{X: 12, Z: 2}}},
+		Room{ID: "r2", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"b2"}, Cells: []domain.Cell{{X: 18, Z: 2}}})
+	rooms.Rooms[0].Beds = []string{"b3"}
+	// One colonist moved, the other still in the barracks.
+	rooms.Rooms[2].Role = domain.Known(RoomRoleBarracks)
+	if got := BedResearchRequest(nil, plan, rooms, sleeping, nil); len(got) != 0 {
+		t.Fatalf("one still in barracks = %v, want no research", got)
+	}
+	rooms.Rooms[2].Role = domain.Known(RoomRoleBedroom)
+	if got := BedResearchRequest([]string{"Stonecutting"}, plan, rooms, sleeping, nil); len(got) != 2 || got[1] != BedResearch {
+		t.Fatalf("all in bedrooms = %v, want %s", got, BedResearch)
+	}
+	sleeping.BedBuildable = domain.Known(true)
+	if got := BedResearchRequest(nil, plan, rooms, sleeping, nil); len(got) != 0 {
+		t.Fatalf("bed available = %v, want no research", got)
+	}
+	sleeping.BedBuildable = domain.Unknown[bool]()
+	if got := BedResearchRequest(nil, plan, rooms, sleeping, nil); len(got) != 0 {
+		t.Fatalf("bed unknown = %v, want no research", got)
+	}
+}

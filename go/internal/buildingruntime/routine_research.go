@@ -151,7 +151,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
-	needs = r.reviewer.fishingResearchNeeds(needs)
+	needs = r.reviewer.censusResearchNeeds(needs)
 	needs = policy.DeepDrillingResearch(needs, review.ResourceRunwayState())
 	if len(needs) == 0 && len(staged.ResearchLadder) == 0 {
 		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil

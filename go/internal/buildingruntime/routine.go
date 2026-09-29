@@ -356,7 +356,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockSchedulerLog("routine.step: LoadProductionLadder err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
-	needs = r.fishingResearchNeeds(needs)
+	needs = r.censusResearchNeeds(needs)
 	reading.Projection.Facts.ResearchNeeds = needs
 	reading.Projection.Facts.DefensiveLayoutStanding, reading.Projection.Facts.ResourceNeeds, err = routineDefensiveLayoutStanding(ctx, p.journal, r.policy, state.Snapshot)
 	if err != nil {

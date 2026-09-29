@@ -25,7 +25,9 @@ func fishingWork(p observation.ColonyProjection) []policy.WorkRequirement {
 	return nil
 }
 
-func (r *RoutineReviewer) fishingResearchNeeds(needs []string) []string {
+// censusResearchNeeds adds the research the latest census asks for: the
+// fishing request and, once everyone has a bedroom, ComplexFurniture (#1183).
+func (r *RoutineReviewer) censusResearchNeeds(needs []string) []string {
 	r.census.mu.Lock()
 	defer r.census.mu.Unlock()
 	census := r.census.latest
@@ -42,8 +44,14 @@ func (r *RoutineReviewer) fishingResearchNeeds(needs []string) []string {
 	plan, pk := p.Facts.FoodPlan.Value()
 	if ck && wk && pk {
 		if target := policy.FishingResearchRequest(plan, w.FishingResearched); target != "" {
-			return append(needs, target)
+			needs = append(needs, target)
 		}
+	}
+	layout, lk := p.LayoutPlan.Value()
+	rooms, rk := p.Rooms.Value()
+	sleeping, sk := p.Facts.Sleeping.Value()
+	if lk && rk && sk {
+		needs = policy.BedResearchRequest(needs, layout, rooms, sleeping, bedroomTargets(p))
 	}
 	return needs
 }
