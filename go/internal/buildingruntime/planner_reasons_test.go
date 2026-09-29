@@ -30,3 +30,11 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 		t.Fatal("log not rate-limited on change")
 	}
 }
+
+func TestWavePlannerReasonsFilesSleepingRefusalOnHousing(t *testing.T) {
+	reasons := map[string]RoutineBuildingReason{"expansion": BuildingMethodNoDeficit, "sleepingUpkeep": BuildingSleepingUnavailable}
+	got := wavePlannerReasons([]string{"expansion", "sleepingUpkeep"}, func(n string) (RoutineBuildingReason, bool) { r, ok := reasons[n]; return r, ok })
+	if got[policy.MaintainHousing] != "sleeping_bed_unavailable" {
+		t.Fatalf("%v", got)
+	}
+}
