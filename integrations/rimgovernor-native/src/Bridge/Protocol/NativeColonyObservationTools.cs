@@ -438,6 +438,8 @@ namespace HomeBridge.BridgeTools
                 if (powerProps != null) row.PowerW = Finite(powerProps.PowerConsumption);
                 var glowProps = def.GetCompProperties<CompProperties_Glower>();
                 if (glowProps != null) row.GlowRadius = Finite(glowProps.glowRadius);
+                var explosiveProps = def.GetCompProperties<CompProperties_Explosive>();
+                if (explosiveProps != null) row.ExplosiveRadius = Nonnegative(explosiveProps.explosiveRadius);
                 if (def.building?.sowTag != null) { row.SowTag = def.building.sowTag; if (def.fertility >= 0f) row.GrowerFertility = Finite(def.fertility); }
                 if (def.plant != null) {
                     row.HarvestWork = Finite(def.plant.harvestWork);

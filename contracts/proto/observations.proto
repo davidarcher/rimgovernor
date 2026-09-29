@@ -954,6 +954,9 @@ message PlanningDefinition { DefinitionRef definition = 1; optional string stuff
   // Every native allowed stuff of a stuffed definition, ordered by defName,
   // with its cost list; empty for a definition not made from stuff.
   repeated StuffOption stuff_options = 34;
+  // Native explosive radius (CompProperties_Explosive) of an explosive
+  // building such as an IED trap; unset when the definition has none.
+  optional double explosive_radius = 35;
 }
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their

@@ -80,6 +80,12 @@ type DefenseRequest struct {
 	CoverThreshold domain.Fact[float64]
 	// Killbox is the layout plan's opening the corridor stands in.
 	Killbox DefenseKillbox
+	// IEDs are the IED traps the approach tier may place (#1209), in
+	// preference order; empty places none.
+	IEDs []DefenseIED
+	// FlammableStorage is every storage cell the IED tier's blast must not
+	// reach; unknown places no IED.
+	FlammableStorage domain.Fact[[]domain.Cell]
 }
 
 // DefenseKillbox is the layout plan's killbox opening (#789): Entry is the
@@ -463,6 +469,9 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	layout.Approaches = s.defenseApproaches(layout)
 	if bait := s.baitTier(layout); len(bait.Buildings) > 0 {
 		layout.Tiers = append(layout.Tiers, bait)
+	}
+	if ieds := s.iedTier(layout, costs); len(ieds.Buildings) > 0 {
+		layout.Tiers = append(layout.Tiers, ieds)
 	}
 	return layout, nil
 }

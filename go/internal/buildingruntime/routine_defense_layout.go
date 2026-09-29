@@ -48,7 +48,13 @@ const (
 	defenseMortarDefinition = "Turret_Mortar"
 )
 
-var defenseExtraDefinitions = []string{policy.TurretMini, policy.TurretAutocannon, policy.TurretSniper, defenseMortarDefinition, defenseConduitDefinition, policy.DefenseSandbags, policy.DefenseEmbrasure}
+// The approach IEDs (#1209), each gated on its own research and content.
+const (
+	defenseIEDHighExplosive = "TrapIED_HighExplosive"
+	defenseIEDIncendiary    = "TrapIED_Incendiary"
+)
+
+var defenseExtraDefinitions = []string{policy.TurretMini, policy.TurretAutocannon, policy.TurretSniper, defenseMortarDefinition, defenseConduitDefinition, policy.DefenseSandbags, policy.DefenseEmbrasure, defenseIEDHighExplosive, defenseIEDIncendiary}
 
 // defenseDefinitionAvailable reports a planning definition the census
 // observed as available, its research finished: a definition the game
@@ -74,7 +80,7 @@ func defenseDefinitionAvailable(read observation.RoutineReading, name string) bo
 
 // defenseTierOrder is the staged construction order; a tier without
 // placements (the chokepoint reuses existing geometry) is complete as-is.
-var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets, policy.TierMortars, policy.TierBait}
+var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets, policy.TierMortars, policy.TierBait, policy.TierIEDs}
 
 // RoutineDefenseLayoutSource is the native read set the planner needs beyond
 // the reviewer's shared colony observation: the census rectangle, shooting
@@ -1178,6 +1184,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	stock, stockKnown := projection.Resources.Value()
 	request.Definitions = policy.DefenseCoverChoice(request.Definitions, stock, stockKnown,
 		defenseDefinitionAvailable(read, policy.DefenseSandbags), defenseDefinitionAvailable(read, policy.DefenseEmbrasure), defenders)
+	defenseIEDRequest(read, &request)
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
 		return policy.DefenseLayout{}, nil, false, nil
@@ -1526,4 +1533,45 @@ func defenderRange(rows []*o.PawnState) (int, domain.Fact[float64]) {
 		count = 8
 	}
 	return count, domain.Known(shortest)
+}
+
+// defenseIEDRequest adds the approach IEDs (#1209) the census allows, each
+// gated independently and carrying its native explosive radius, and every
+// stockpile cell as the flammable storage their blast must avoid. A zone
+// census not yet held leaves storage unknown, which places no IED.
+func defenseIEDRequest(read observation.RoutineReading, request *policy.DefenseRequest) {
+	projection := read.Projection
+	for _, d := range projection.Definitions {
+		if d.Name != defenseIEDHighExplosive && d.Name != defenseIEDIncendiary {
+			continue
+		}
+		radius, known := d.ExplosiveRadius.Value()
+		if !known || !defenseDefinitionAvailable(read, d.Name) {
+			continue
+		}
+		request.IEDs = append(request.IEDs, policy.DefenseIED{Definition: d.Name, Radius: radius, Incendiary: d.Name == defenseIEDIncendiary})
+		if costs, known := d.Costs.Value(); known {
+			request.UnitCosts[d.Name] = append([]policy.Amount{}, costs...)
+		}
+	}
+	// The high-explosive IED is preferred where both fit.
+	slices.SortFunc(request.IEDs, func(a, b policy.DefenseIED) int {
+		return strings.Compare(a.Definition, b.Definition)
+	})
+	if !projection.Zones.Complete {
+		return
+	}
+	stockpiles := map[string]bool{}
+	for _, row := range projection.Zones.Value.Rows {
+		if row.GetType() == "stockpile" {
+			stockpiles[row.GetId()] = true
+		}
+	}
+	storage := []domain.Cell{}
+	for _, cell := range projection.Cells {
+		if id, known := cell.ZoneID.Value(); known && stockpiles[id] {
+			storage = append(storage, cell.Cell)
+		}
+	}
+	request.FlammableStorage = domain.Known(storage)
 }

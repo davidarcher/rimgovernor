@@ -24308,9 +24308,12 @@ type PlanningDefinition struct {
 	WorkToBuild       *float64 `protobuf:"fixed64,33,opt,name=work_to_build,json=workToBuild,proto3,oneof" json:"work_to_build,omitempty"` // Native WorkToBuild stat (work ticks) for the row's stuff.
 	// Every native allowed stuff of a stuffed definition, ordered by defName,
 	// with its cost list; empty for a definition not made from stuff.
-	StuffOptions  []*StuffOption `protobuf:"bytes,34,rep,name=stuff_options,json=stuffOptions,proto3" json:"stuff_options,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	StuffOptions []*StuffOption `protobuf:"bytes,34,rep,name=stuff_options,json=stuffOptions,proto3" json:"stuff_options,omitempty"`
+	// Native explosive radius (CompProperties_Explosive) of an explosive
+	// building such as an IED trap; unset when the definition has none.
+	ExplosiveRadius *float64 `protobuf:"fixed64,35,opt,name=explosive_radius,json=explosiveRadius,proto3,oneof" json:"explosive_radius,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PlanningDefinition) Reset() {
@@ -24579,6 +24582,13 @@ func (x *PlanningDefinition) GetStuffOptions() []*StuffOption {
 		return x.StuffOptions
 	}
 	return nil
+}
+
+func (x *PlanningDefinition) GetExplosiveRadius() float64 {
+	if x != nil && x.ExplosiveRadius != nil {
+		return *x.ExplosiveRadius
+	}
+	return 0
 }
 
 // Controlled-environment growing facts within the planning region: sun lamps
@@ -37309,7 +37319,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_edible_cropB\x1b\n" +
 	"\x19_harvest_lower_bound_daysB\x1d\n" +
 	"\x1b_nutrition_per_harvest_cellB\r\n" +
-	"\v_sowing_now\"\xe4\x0f\n" +
+	"\v_sowing_now\"\xa9\x10\n" +
 	"\x12PlanningDefinition\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -37350,7 +37360,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x12requires_pollution\x18\x1f \x01(\bH\x18R\x11requiresPollution\x88\x01\x01\x123\n" +
 	"\x13requires_clean_soil\x18  \x01(\bH\x19R\x11requiresCleanSoil\x88\x01\x01\x12'\n" +
 	"\rwork_to_build\x18! \x01(\x01H\x1aR\vworkToBuild\x88\x01\x01\x12M\n" +
-	"\rstuff_options\x18\" \x03(\v2(.rimgovernor.observations.v1.StuffOptionR\fstuffOptionsB\b\n" +
+	"\rstuff_options\x18\" \x03(\v2(.rimgovernor.observations.v1.StuffOptionR\fstuffOptions\x12.\n" +
+	"\x10explosive_radius\x18# \x01(\x01H\x1bR\x0fexplosiveRadius\x88\x01\x01B\b\n" +
 	"\x06_stuffB\f\n" +
 	"\n" +
 	"_availableB\x15\n" +
@@ -37383,7 +37394,8 @@ const file_observations_proto_rawDesc = "" +
 	"\r_diet_allowedB\x15\n" +
 	"\x13_requires_pollutionB\x16\n" +
 	"\x14_requires_clean_soilB\x10\n" +
-	"\x0e_work_to_build\"\xb0\x03\n" +
+	"\x0e_work_to_buildB\x13\n" +
+	"\x11_explosive_radius\"\xb0\x03\n" +
 	"\tGrowLight\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12\x1c\n" +
 	"\aroom_id\x18\x02 \x01(\tH\x00R\x06roomId\x88\x01\x01\x12\x1d\n" +

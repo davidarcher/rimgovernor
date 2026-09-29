@@ -116,6 +116,21 @@ func (s defenseSite) distances(k corridorCosts, sources []domain.Cell, reverse b
 // it plus the cost from it to the edge equals the best route cost. A tie
 // counts as a crossing, since A* breaks ties by expansion order.
 func (s defenseSite) colonistRouteAvoidsTraps(k corridorCosts, start domain.Cell) bool {
+	route, ok := s.colonistRoute(k, start)
+	if !ok {
+		return false
+	}
+	for t := range k.traps {
+		if route[t] {
+			return false
+		}
+	}
+	return true
+}
+
+// colonistRoute is every cell on some cheapest colonist route from start to
+// an edge-reachable border cell; ok is false when no such route exists.
+func (s defenseSite) colonistRoute(k corridorCosts, start domain.Cell) (map[domain.Cell]bool, bool) {
 	var goals []domain.Cell
 	for c, row := range s.cells {
 		if positive(row.EdgeReachable) && s.onBorder(c) {
@@ -130,15 +145,14 @@ func (s defenseSite) colonistRouteAvoidsTraps(k corridorCosts, start domain.Cell
 		}
 	}
 	if best == math.MaxInt {
-		return false
+		return nil, false
 	}
 	backward := s.distances(k, goals, true)
-	for t := range k.traps {
-		to, reached := forward[t]
-		from, leaves := backward[t]
-		if reached && leaves && to+from == best {
-			return false
+	route := map[domain.Cell]bool{}
+	for c, to := range forward {
+		if from, leaves := backward[c]; leaves && to+from == best {
+			route[c] = true
 		}
 	}
-	return true
+	return route, true
 }
