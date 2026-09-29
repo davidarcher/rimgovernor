@@ -10,7 +10,7 @@ import (
 )
 
 // Social fields follow food recovery and use a fixed nine-cell ceiling per
-// crop, counting existing player fields without changing their configuration.
+// crop in the layout plan's field blocks (#1226), counting existing player fields without changing their configuration.
 func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state ControlState, review store.RoutineReview) (RoutineFieldResult, error) {
 	if !review.BrewingFinished {
 		return RoutineFieldResult{Reason: BuildingMethodNoDeficit}, nil
@@ -70,12 +70,11 @@ func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state Co
 		for _, d := range projection.Definitions {
 			if d.Name == name {
 				crop := policy.CropChoice{Name: name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil}
-				socialSite := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictFields), Cells: projection.Cells, Protected: protected}
-				sites := policy.PlanSocialCrop(crop, projection.CropClimate, cells, socialSite)
-				if sites.Cells == 0 {
+				needed := policy.PlanSocialCrop(crop, projection.CropClimate, cells)
+				if needed == 0 {
 					continue
 				}
-				result, tried, err := r.enact(call, epoch, state, goal, projection, read, 0, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: crop, Sites: sites, Cells: sites.Cells})
+				result, tried, err := r.enactBlock(call, epoch, state, goal, projection, read, 0, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: crop, Needed: needed}, []policy.FieldBlockOption{{Crop: crop, Needed: needed}}, layoutAnchor(projection, policy.DistrictFields), protected)
 				if tried || err != nil {
 					return result, err
 				}

@@ -30,20 +30,19 @@ func SocialDrugTargets(research domain.Fact[ResearchFacts]) map[Resource]int64 {
 	return map[Resource]int64{"Beer": 12, "SmokeleafJoint": 12}
 }
 
-func PlanSocialCrop(crop CropChoice, climate CropClimate, existing int, site FarmSiteRequest) FarmSitePlan {
+// PlanSocialCrop is the cells a social crop still needs under its nine-cell
+// ceiling, zero when none or out of season; the caller sites them in the
+// layout plan's field blocks (#1226).
+func PlanSocialCrop(crop CropChoice, climate CropClimate, existing int) int {
 	if crop.Name != "Plant_Hops" && crop.Name != "Plant_Smokeleaf" || existing < 0 || existing >= 9 {
-		return FarmSitePlan{}
+		return 0
 	}
 	available, known := crop.Available.Value()
 	sowing, sk := climate.Sowing.Value()
 	days, dk := crop.GrowDays.Value()
 	season, remaining := climate.DaysRemaining.Value()
 	if !known || !available || !sk || !sowing || !dk || !fieldPositive(days) || !remaining || season < days*2.5 {
-		return FarmSitePlan{}
+		return 0
 	}
-	// Equal unit weighting ranks soil/travel costs without a food yield.
-	crop.HarvestUnits = domain.Known(1.0)
-	site.Crop, site.Needed = crop, 9-existing
-	site.StrictTarget = true
-	return PlanFarmSites(site)
+	return 9 - existing
 }

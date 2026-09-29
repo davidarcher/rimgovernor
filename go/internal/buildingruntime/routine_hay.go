@@ -26,9 +26,7 @@ func (r *RoutineAnimalFeedPlanner) planHay(call, epoch context.Context, state Co
 	if !yk {
 		return RoutineResourceResult{}, false, nil
 	}
-	var zones []policy.FarmZone
 	for _, zone := range p.Farms {
-		zones = append(zones, policy.FarmZone{ID: zone.ID, Crop: zone.Crop})
 		if zone.Crop == crop.Name {
 			cells, ck := zone.UsableCells.Value()
 			if !ck {
@@ -58,12 +56,11 @@ func (r *RoutineAnimalFeedPlanner) planHay(call, epoch context.Context, state Co
 	}
 	claimed, _ := claims.Value()
 	protected = append(protected, shellInteriors(plans, claimed)...)
-	hayGrid := policy.FarmSiteRequest{Bounds: p.Bounds, Anchor: layoutAnchor(p, policy.DistrictFields), Cells: p.Cells, Zones: zones, Protected: protected}
-	plan, ok := policy.PlanHayField(domain.Known(need), crop, p.CropClimate, hayGrid)
+	plan, ok := policy.PlanHayField(domain.Known(need), crop, p.CropClimate)
 	if !ok {
 		return RoutineResourceResult{}, false, nil
 	}
 	fields := &RoutineFieldPlanner{reviewer: r.reviewer, native: r.native}
-	result, tried, err := fields.enact(call, epoch, state, goal, p, read, 0, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: plan.Crop, Needed: plan.Needed, Sites: plan.Sites, Cells: plan.Sites.Cells})
+	result, tried, err := fields.enactBlock(call, epoch, state, goal, p, read, 0, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: plan.Crop, Needed: plan.Needed}, []policy.FieldBlockOption{{Crop: plan.Crop, Needed: plan.Needed}}, layoutAnchor(p, policy.DistrictFields), protected)
 	return RoutineResourceResult{Reason: result.Reason, Plan: result.Plan}, tried, err
 }

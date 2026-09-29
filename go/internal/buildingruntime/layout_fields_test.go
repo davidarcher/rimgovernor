@@ -127,6 +127,30 @@ func TestFieldBlockRefusesWithoutBlocks(t *testing.T) {
 	}
 }
 
+// Hay and social crops claim their own blocks (#1226): neither they nor
+// food grow into the other's zone.
+func TestFieldBlockHayClaimsItsOwnBlock(t *testing.T) {
+	facts := blockFacts()
+	anchor := domain.Cell{X: 0, Z: 0}
+	facts.Definitions = []observation.PlanningDefinition{{Name: "Plant_Haygrass", Edible: domain.Known(false)}}
+	zoneBlockCells(&facts, "Zone_1", domain.Cell{X: 0, Z: 0}, domain.Cell{X: 1, Z: 0})
+	facts.Farms = []observation.FarmZoneFact{{ID: "Zone_1", Crop: "Plant_Rice"}}
+	hay := policy.CropChoice{Name: "Plant_Haygrass", Edible: domain.Known(false), FertilityMin: domain.Known(0.5)}
+	edit, reason, ok := planFieldBlock(facts, anchor, []policy.FieldBlockOption{{Crop: hay, Needed: 4}}, nil)
+	if !ok || edit.Zone != "" || edit.Crop != "Plant_Haygrass" || edit.Cells[0].X != 6 {
+		t.Fatalf("hay grew the rice block: %+v %q %v", edit, reason, ok)
+	}
+	facts.Farms[0].Crop = "Plant_Haygrass"
+	edit, reason, ok = planFieldBlock(facts, anchor, rice(4), nil)
+	if !ok || edit.Zone != "" || edit.Crop != "Plant_Rice" || edit.Cells[0].X != 6 {
+		t.Fatalf("food grew the hay block: %+v %q %v", edit, reason, ok)
+	}
+	edit, _, ok = planFieldBlock(facts, anchor, []policy.FieldBlockOption{{Crop: hay, Needed: 4}}, nil)
+	if !ok || edit.Zone != "Zone_1" || edit.Crop != "Plant_Haygrass" {
+		t.Fatalf("hay should grow its own zone: %+v %v", edit, ok)
+	}
+}
+
 // Camp tier protects everything outside the plan's field cells too.
 func TestLayoutFieldProtectedAtCamp(t *testing.T) {
 	facts := blockFacts()

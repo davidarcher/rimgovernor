@@ -20,13 +20,9 @@ func TestHayOnlyForNegativeSeasonalGrazingBalance(t *testing.T) {
 			if !k || n != tc.want {
 				t.Fatal(need)
 			}
-			site := farmSiteFixture()
-			crop := site.Crop
-			crop.Name = "Plant_Haygrass"
-			crop.Available = domain.Known(true)
-			crop.Edible = domain.Known(false)
-			plan, ok := PlanHayField(need, crop, CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0)}, site)
-			if ok != (tc.want > 0) {
+			crop := CropChoice{Name: "Plant_Haygrass", Available: domain.Known(true), Edible: domain.Known(false), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(0.5)}
+			plan, ok := PlanHayField(need, crop, CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0)})
+			if ok != (tc.want > 0) || ok && plan.Needed != int(tc.want*2) {
 				t.Fatal(plan, ok)
 			}
 			if ok && len(CropChannels([]FoodField{{ID: "hay", Plan: plan}})) != 0 {

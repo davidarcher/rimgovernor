@@ -34,10 +34,10 @@ func HayNutritionNeed(pens domain.Fact[[]PenGrazing], gap domain.Fact[float64]) 
 	return domain.Known(need)
 }
 
-// PlanHayField uses the shared soil planner without declaring hay human-edible.
-// Existing hay capacity is subtracted by the caller; unknown or nonnegative
+// PlanHayField sizes a hay field without declaring hay human-edible; the
+// caller sites it in the layout plan's field blocks (#1226). Existing hay capacity is subtracted by the caller; unknown or nonnegative
 // grazing balance never opens a field.
-func PlanHayField(need domain.Fact[float64], crop CropChoice, climate CropClimate, site FarmSiteRequest) (FieldPlan, bool) {
+func PlanHayField(need domain.Fact[float64], crop CropChoice, climate CropClimate) (FieldPlan, bool) {
 	n, nk := need.Value()
 	yield, yk := crop.HarvestNutrition.Value()
 	days, dk := crop.GrowDays.Value()
@@ -48,9 +48,7 @@ func PlanHayField(need domain.Fact[float64], crop CropChoice, climate CropClimat
 		return FieldPlan{}, false
 	}
 	crop.Edible = domain.Known(false)
-	site.Crop, site.Needed = crop, int(math.Min(4096, math.Ceil(n/yield)))
-	sites := PlanFarmSites(site)
-	return FieldPlan{Crop: crop, Needed: site.Needed, Sites: sites}, sites.Cells > 0
+	return FieldPlan{Crop: crop, Needed: int(math.Min(4096, math.Ceil(n/yield)))}, true
 }
 
 type SlaughterFoodAnimal struct {

@@ -64,8 +64,7 @@ func shellSites() []shellSite {
 
 // site builds the request for one table row.
 func (s shellSite) request() StarterRequest {
-	r := StarterRequest{Bounds: s.bounds, Anchor: s.anchor, Protected: s.protected,
-		NutritionPerDay: domain.Known(5.0), CropGrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0), FertilityMin: domain.Known(.7)}
+	r := StarterRequest{Bounds: s.bounds, Anchor: s.anchor, Protected: s.protected}
 	for x := int32(0); x < s.bounds.Width; x++ {
 		for z := int32(0); z < s.bounds.Height; z++ {
 			cell := domain.Cell{X: x, Z: z}

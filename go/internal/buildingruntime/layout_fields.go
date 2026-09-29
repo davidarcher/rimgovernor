@@ -48,7 +48,7 @@ type fieldBlockEdit struct {
 
 // planFieldBlock walks the plan's field blocks nearest anchor first and
 // returns the first block's step that still has free soil: grow the
-// growing zone standing in the block (with the first option's fertility
+// growing zone standing in the block that options[0] adopts (with the first option's fertility
 // floor and need), or create one when the block has none. A new block
 // takes the first option, in policy.BlockCropOrder, not growing within
 // FieldBlockNeighbourRadius of the block (#1225). options are the viable
@@ -78,6 +78,12 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 	for _, f := range facts.Farms {
 		growing[f.ID] = f.Crop
 	}
+	inedible := map[string]bool{}
+	for _, d := range facts.Definitions {
+		if e, k := d.Edible.Value(); k && !e {
+			inedible[d.Name] = true
+		}
+	}
 	freeFor := func(block map[domain.Cell]bool, crop policy.CropChoice) map[domain.Cell]bool {
 		floor, _ := crop.FertilityMin.Value()
 		free := map[domain.Cell]bool{}
@@ -104,11 +110,20 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 				}
 			}
 		}
-		zone := ""
+		// One zone per block: a block holding only zones options[0] does not
+		// adopt belongs to another family (#1226).
+		zone, taken := "", false
 		for id, cells := range zoneCells {
+			if !adoptsZone(options[0].Crop, growing[id], inedible) {
+				taken = true
+				continue
+			}
 			if zone == "" || len(cells) > len(zoneCells[zone]) || len(cells) == len(zoneCells[zone]) && id < zone {
 				zone = id
 			}
+		}
+		if taken && zone == "" {
+			continue
 		}
 		if zone != "" {
 			if adds := growZoneCells(zoneCells[zone], freeFor(block, options[0].Crop), anchor, options[0].Needed); len(adds) > 0 {
@@ -164,6 +179,17 @@ func fieldBlockNeighbours(cells []policy.SiteCell, block map[domain.Cell]bool, g
 		out[crop] = true
 	}
 	return out
+}
+
+// adoptsZone reports whether a field of crop grows a zone of zoneCrop: its
+// own crop always; a food field also adopts any food zone, keeping the
+// zone's crop, but never a hay or social crop's zone (#1226).
+func adoptsZone(crop policy.CropChoice, zoneCrop string, inedible map[string]bool) bool {
+	if zoneCrop == crop.Name {
+		return true
+	}
+	edible, known := crop.Edible.Value()
+	return (!known || edible) && !inedible[zoneCrop]
 }
 
 // growZoneCells picks up to want free cells that extend zone as one

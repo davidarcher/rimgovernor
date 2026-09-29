@@ -50,12 +50,7 @@ type StarterRequest struct {
 	Anchor domain.Cell
 	Cells  []SiteCell
 	// Protected contains accepted footprints and walkways.
-	Protected                                                     []domain.Cell
-	NutritionPerDay, CropGrowDays, HarvestNutrition, FertilityMin domain.Fact[float64]
-	// Crop, when known, replaces the bare crop facts above for farm scoring.
-	Crop domain.Fact[CropChoice]
-	// Zones lists existing growing zones so farms can extend managed ones.
-	Zones []FarmZone
+	Protected []domain.Cell
 	// WallDef is the ring's wall definition: a player wall of it already
 	// standing on the ring is reused as wall (#709). Empty reuses none.
 	WallDef string
@@ -71,11 +66,7 @@ type StarterLayout struct {
 	// exact geometry, which for the rectangle style is Room's own perimeter.
 	Room, Storage Rectangle
 	Shell         domain.RoomFootprint
-	Farms         []Rectangle
-	FarmSites     FarmSitePlan
 	Score         int64
-	SelectedCells int
-	TargetCells   domain.Fact[int]
 	// Reused lists the ring cells natural rock already walls and Mined the
 	// interior cells of natural rock the shell digs out (#700); the shell
 	// places walls on the rest of its ring and nothing on Reused. Reused
@@ -261,8 +252,8 @@ func squaredDistance(a, b domain.Cell) int64 {
 	return x*x + z*z
 }
 
-// StarterLayouts ports the bounded 9x9 starter template and fragmented-field
-// ranking. These are proposals: native placement/access previews still decide
+// StarterLayouts ports the bounded 9x9 starter template ranking; fields are
+// the layout plan's field blocks, not the template's (#1226). These are proposals: native placement/access previews still decide
 // legality, and only admitted actions reserve geometry. Missing cells are blocked.
 func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 {
@@ -272,29 +263,6 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	if !inBounds(r.Anchor) {
 		return nil, errors.New("invalid colony anchor")
 	}
-	for _, f := range []domain.Fact[float64]{r.NutritionPerDay, r.CropGrowDays, r.HarvestNutrition, r.FertilityMin} {
-		if v, k := f.Value(); k && (math.IsNaN(v) || math.IsInf(v, 0) || v < 0) {
-			return nil, errors.New("invalid crop fact")
-		}
-	}
-	n, nk := r.NutritionPerDay.Value()
-	days, dk := r.CropGrowDays.Value()
-	yield, yk := r.HarvestNutrition.Value()
-	target := 0
-	targetFact := domain.Unknown[int]()
-	if nk && dk && yk && days > 0 && yield > 0 {
-		v := math.Ceil(n * days * 2.5 / yield)
-		if math.IsInf(v, 0) || v > 65536 {
-			return nil, errors.New("crop target exceeds bounded site search")
-		}
-		target = int(v)
-		targetFact = domain.Known(target)
-	}
-	crop, ck := r.Crop.Value()
-	if !ck {
-		crop = CropChoice{GrowDays: r.CropGrowDays, HarvestNutrition: r.HarvestNutrition, FertilityMin: r.FertilityMin, FertilitySensitivity: domain.Known(1.0)}
-	}
-	_, fk := crop.FertilityMin.Value()
 	cells := make(map[domain.Cell]SiteCell, len(r.Cells))
 	ordered := make([]domain.Cell, 0, len(r.Cells))
 	for _, c := range r.Cells {
@@ -500,30 +468,10 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	var layouts []StarterLayout
 	for _, site := range sites {
 		b := site.shell.Bounds()
-		x, z, room := b.X, b.Z, Rectangle{b.X, b.Z, b.Width, b.Height}
-		reserved := map[domain.Cell]bool{}
-		for _, r := range []Rectangle{{x - 1, z - 1, room.Width + 2, room.Height + 2}, {x, z - 5, room.Width, 4}} {
-			for _, p := range rectCells(r) {
-				reserved[p] = true
-			}
-		}
-		storage := starterStorage(site.shell)
-		layout := StarterLayout{Room: room, Storage: storage, Shell: site.shell, Score: site.score, TargetCells: targetFact}
+		room := Rectangle{b.X, b.Z, b.Width, b.Height}
+		layout := StarterLayout{Room: room, Storage: starterStorage(site.shell), Shell: site.shell, Score: site.score}
 		standing := shellRock(site.shell, wall, claim, ruin, mineable)
 		layout.Reused, layout.Claimed, layout.Cleared, layout.Mined = sortedCells(standing.reused), sortedCells(standing.claimed), sortedCells(standing.cleared), sortedCells(standing.mined)
-		chosen := 0
-		if fk && target > 0 {
-			protectedCells := append([]domain.Cell(nil), r.Protected...)
-			for p := range reserved {
-				protectedCells = append(protectedCells, p)
-			}
-			farms := PlanFarmSites(FarmSiteRequest{Bounds: r.Bounds, Anchor: domain.Cell{X: x + room.Width/2, Z: z + room.Height/2}, Storage: domain.Known(domain.Cell{X: storage.X + storage.Width/2, Z: storage.Z + storage.Height/2}), Cells: r.Cells, Protected: protectedCells, Zones: r.Zones, Crop: crop, Needed: target})
-			layout.Farms = farms.Patches
-			layout.FarmSites = farms
-			chosen = farms.Cells
-		}
-		layout.SelectedCells = chosen
-		layout.Score += int64(max(0, target-chosen)) * 2
 		layouts = append(layouts, layout)
 	}
 	sort.Slice(layouts, func(i, j int) bool {

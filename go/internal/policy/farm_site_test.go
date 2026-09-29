@@ -237,34 +237,6 @@ func TestFarmSiteDeterministicAndBounded(t *testing.T) {
 	}
 }
 
-func TestStarterFarmsUseSharedSiteScore(t *testing.T) {
-	// Rich soil on the far west edge is over 27 walked steps from a room on the
-	// east side, so suitable normal soil near the room wins.
-	r := starterFixture()
-	r.Anchor = domain.Cell{X: 35, Z: 20}
-	for i := range r.Cells {
-		if c := r.Cells[i].Cell; c.X < 6 {
-			r.Cells[i].Fertility = domain.Known(1.4)
-		}
-	}
-	layouts, err := StarterLayouts(r)
-	if err != nil || len(layouts) == 0 {
-		t.Fatal(err)
-	}
-	best := layouts[0]
-	if best.Room.X < 30 || best.SelectedCells < 38 || best.FarmSites.Cells != best.SelectedCells {
-		t.Fatal(best.FarmSites.Explain())
-	}
-	for _, patch := range best.Farms {
-		if patch.X < 6 {
-			t.Fatal("starter farms walked to distant rich soil", best.FarmSites.Explain())
-		}
-		if patch.Width < 2 {
-			t.Fatal("starter used single cells with open soil available", best.FarmSites.Explain())
-		}
-	}
-}
-
 func TestFieldLaborAndCookingTerms(t *testing.T) {
 	r := fieldRequest(1)
 	r.Choices = r.Choices[:2]
