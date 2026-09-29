@@ -240,6 +240,10 @@ message PawnEquipment {
   optional string primary_id = 1; repeated GearItem equipped = 2; repeated GearItem apparel = 3;
   repeated GearItem inventory_weapons = 4; optional string carried_thing_id = 5; optional uint32 inventory_item_count = 6;
   optional bool armed = 7; repeated ReadIssue issues = 8;
+  // Defense capacity (#1188): the primary ranged verb's damage per second
+  // (projectile damage x burst over aim-adjusted warmup, cooldown and burst
+  // gaps; 0 without a ranged primary) and the pawn's MeleeDPS stat.
+  optional double ranged_dps = 9; optional double melee_dps = 10;
 }
 message Skill { DefinitionRef definition = 1; optional int32 level = 2; optional double stored_level = 3; optional string passion = 4; optional bool disabled = 5; }
 message Trait { optional string def_name = 1; optional int32 degree = 2; }
@@ -880,7 +884,9 @@ message FeedDefinition { optional string def_name = 1; optional double nutrition
 // zone could be made; empty when no hauler exists or no cell qualifies.
 message AnimalFeedStorage { optional string zone_id = 1; repeated string accepts = 2; }
 message AnimalFeed { PawnState pawn = 1; optional string diet = 2; optional bool requires_pen = 3; optional string suitable_pen_id = 4; repeated FoodStock reachable_stored_feed = 5; repeated string reachable_bench_ids = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
-message DevelopmentPower { BuildingState building = 1; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool rain_vulnerable = 5; optional bool roofed = 6; }
+message DevelopmentPower { BuildingState building = 1; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool rain_vulnerable = 5; optional bool roofed = 6;
+  // A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
+  optional double turret_dps = 7; }
 message DevelopmentFurniture { EntityRef building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
 // One steam geyser on the map: geyser is the Building_SteamGeyser with its
 // anchor position, cells its 2x2 footprint, and occupied whether a harvester

@@ -58,3 +58,43 @@ func routineArmed(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts
 	}
 	return domain.Known(armed), domain.Known(unarmed)
 }
+
+// routineDefenders is each census colonist's defense capacity facts
+// (#1188) from the same pawn rows routineArmed compares: dead and downed
+// from the emergency census, violence from the biography, melee power as
+// the observed MeleeDPS times summary health and the observed ranged DPS.
+// A row the census does not match leaves the roster unknown; a missing
+// stat leaves that fact unknown.
+func routineDefenders(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, pawns *o.PawnSnapshot) domain.Fact[[]policy.SquadDefenderFacts] {
+	unknown := domain.Unknown[[]policy.SquadDefenderFacts]()
+	if colony == nil || colony.ColonistCount == nil || int(colony.GetColonistCount()) != len(emergency.Colonists) || len(pawns.Pawns) != len(emergency.Colonists) {
+		return unknown
+	}
+	byID := make(map[string]*o.PawnState, len(pawns.Pawns))
+	for _, row := range pawns.Pawns {
+		byID[row.Pawn.GetId()] = row
+	}
+	out := make([]policy.SquadDefenderFacts, 0, len(emergency.Colonists))
+	for _, pawn := range emergency.Colonists {
+		row := byID[string(pawn.ID)]
+		if row == nil {
+			return unknown
+		}
+		d := policy.SquadDefenderFacts{ID: domain.PawnID(pawn.ID), Dead: pawn.Dead, Downed: pawn.Downed}
+		if row.Biography != nil && !hasIssue(row.Biography.GetIssues(), "disabled_work_tags") {
+			violent := true
+			for _, tag := range row.Biography.GetDisabledWorkTags() {
+				violent = violent && tag != "Violent"
+			}
+			d.ViolenceCapable = domain.Known(violent)
+		}
+		if e := row.Equipment; e != nil {
+			d.RangedDPS = optional(e.RangedDps)
+			if e.MeleeDps != nil && row.Health != nil && row.Health.SummaryFraction != nil {
+				d.MeleePower = domain.Known(e.GetMeleeDps() * row.Health.GetSummaryFraction())
+			}
+		}
+		out = append(out, d)
+	}
+	return domain.Known(out)
+}

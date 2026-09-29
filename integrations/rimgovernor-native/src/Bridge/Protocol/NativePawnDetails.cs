@@ -202,6 +202,8 @@ namespace HomeBridge.BridgeTools
                 var list=pawn.equipment.AllEquipmentListForReading; 
                 foreach(var thing in list) row.Equipped.Add(Gear(thing));
                 row.Armed=pawn.equipment.Primary!=null;
+                // Defense capacity (#1188): observed damage per second.
+                try {row.RangedDps=NativeDefenseStats.PawnRangedDps(pawn);row.MeleeDps=pawn.GetStatValue(StatDefOf.MeleeDPS);} catch {}
                 if(pawn.equipment.Primary!=null) row.PrimaryId=Id(pawn.equipment.Primary.GetUniqueLoadID());
                 else row.Issues.Add(Issue("primary_id",Common.UnavailableReason.NotApplicable,"No equipped primary weapon."));
             }

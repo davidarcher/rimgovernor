@@ -17,6 +17,9 @@ type PowerBuilding struct {
 	OutOfFuel, BrokenDown domain.Fact[bool]
 	FuelDefinitions       []string
 	Stored, Capacity      domain.Fact[float64]
+	// TurretDPS is a turret gun's observed damage per second (#1188),
+	// unknown for every other consumer.
+	TurretDPS domain.Fact[float64]
 }
 
 // PowerWeatherSafe requires actual roof coverage of rain-sensitive equipment.

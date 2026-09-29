@@ -12,8 +12,11 @@ import (
 // refuelable comp as it does a generator's). Every field is an observation;
 // an unknown fuel state is neither a deficit nor a rearm.
 type DefenseTurretFacts struct {
-	ID               string
-	Cell             domain.Cell
+	ID         string
+	Definition string
+	Cell       domain.Cell
+	// DPS is the turret's observed damage per second (#1188).
+	DPS              domain.Fact[float64]
 	Powered          domain.Fact[bool]
 	OutOfFuel        domain.Fact[bool]
 	Fuel, TargetFuel domain.Fact[float64]

@@ -492,6 +492,7 @@ func defenseTurretFacts(record store.DefenseLayoutRecord, census *defenseCensus)
 			}
 			facts := policy.DefenseTurretFacts{Cell: b.Cell}
 			if site, ok := census.consumers[b.Cell]; ok {
+				facts.Definition, facts.DPS = site.Definition, site.TurretDPS
 				facts.ID, facts.Powered, facts.OutOfFuel, facts.Fuel, facts.TargetFuel = site.ID, site.Powered, site.OutOfFuel, site.Fuel, site.TargetFuel
 				for _, d := range site.FuelDefinitions {
 					facts.FuelDefinitions = append(facts.FuelDefinitions, policy.Resource(d))

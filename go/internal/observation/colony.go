@@ -66,8 +66,11 @@ type ColonyProjection struct {
 	FieldCapacityCrops                     domain.Fact[[]policy.FieldCrop]
 	CookingBenches                         domain.Fact[[]CookingBench]
 	PowerPlanning                          domain.Fact[policy.PowerTopology]
-	Rooms                                  domain.Fact[policy.RoomObservation]
-	Identity                               Identity
+	// DefenseTurrets is every built turret gun in the power census with its
+	// observed damage per second (#1188).
+	DefenseTurrets domain.Fact[[]policy.DefenseTurretFacts]
+	Rooms          domain.Fact[policy.RoomObservation]
+	Identity       Identity
 	// PlayerTechLevel is the player faction's native TechLevel name, the
 	// faction's tech level.
 	PlayerTechLevel domain.Fact[string]
@@ -266,6 +269,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		power := make([]policy.PowerBuilding, 0, len(development.Power))
 		topology := policy.PowerTopology{}
 		geometryKnown := true
+		turrets := []policy.DefenseTurretFacts{}
 		if !hasIssue(v.Issues, "environment") {
 			blackout, eclipse := false, false
 			for _, condition := range v.Environment {
@@ -278,7 +282,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			s := row.Building.Service
 			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(row.Building.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
 				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
-				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: optional(row.RainVulnerable), Roofed: optional(row.Roofed)})
+				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: optional(row.RainVulnerable), Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
 			ref := row.Building.Building
 			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(row.Building.OccupiedCells) > 0
 			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1]}
@@ -286,6 +290,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 				site.Occupied = append(site.Occupied, domain.Cell{X: c.GetX(), Z: c.GetZ()})
 			}
 			topology.Buildings = append(topology.Buildings, site)
+			if _, gun := site.TurretDPS.Value(); gun {
+				turrets = append(turrets, policy.DefenseTurretFacts{ID: site.ID, Definition: site.Definition, Cell: site.Cell, Powered: site.Powered, DPS: site.TurretDPS})
+			}
 		}
 		for _, row := range development.Furniture {
 			topology.Conduits = append(topology.Conduits, domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()})
@@ -307,6 +314,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		if geometryKnown {
 			r.PowerPlanning = domain.Known(topology)
 		}
+		r.DefenseTurrets = domain.Known(turrets)
 		r.Facts.PowerRequired, r.Facts.PowerHeadroom, r.Facts.DisabledConsumers = policy.PowerCoverage(domain.Known(power))
 		r.Facts.PowerWeatherSafe = policy.PowerWeatherSafe(power)
 		if len(topology.UnsafeConduits) > 0 {

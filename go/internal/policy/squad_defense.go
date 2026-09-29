@@ -60,6 +60,9 @@ type SquadDefenderFacts struct {
 	Armor domain.Fact[float64]
 	// MeleePower is the pawn's MeleeDPS scaled by health (#969).
 	MeleePower domain.Fact[float64]
+	// RangedDPS is the primary ranged weapon's damage per second, 0
+	// without one (#1188).
+	RangedDPS domain.Fact[float64]
 	// Warden is a pawn with Warden work enabled; a prison break ranks it
 	// first (#1080).
 	Warden bool `json:",omitempty"`

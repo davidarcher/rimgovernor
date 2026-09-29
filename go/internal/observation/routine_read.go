@@ -106,9 +106,10 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if err != nil {
 		return RoutineReading{}, err
 	}
-	p.Facts.Armed, p.Facts.Unarmed, p.WorkPawns, p.Facts.MedicalPawns, p.Facts.MoodPawns = domain.Fact[int64]{}, domain.Fact[int64]{}, domain.Fact[[]policy.WorkPawn]{}, domain.Fact[[]policy.CarePawn]{}, domain.Fact[[]policy.MoodPawn]{}
+	p.Facts.Armed, p.Facts.Unarmed, p.Facts.DefenseCapacity, p.WorkPawns, p.Facts.MedicalPawns, p.Facts.MoodPawns = domain.Fact[int64]{}, domain.Fact[int64]{}, domain.Fact[float64]{}, domain.Fact[[]policy.WorkPawn]{}, domain.Fact[[]policy.CarePawn]{}, domain.Fact[[]policy.MoodPawn]{}
 	if pawns != nil {
 		p.Facts.Armed, p.Facts.Unarmed = routineArmed(colony, emergency, pawns)
+		p.Facts.DefenseCapacity = policy.DefenseCapacity(routineDefenders(colony, emergency, pawns), p.DefenseTurrets)
 		p.WorkPawns = routineWork(colony, emergency, pawns)
 		p.Facts.MedicalPawns = routineMedical(colony, emergency, pawns)
 		p.Facts.MoodPawns = routineMood(colony, emergency, pawns)

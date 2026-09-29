@@ -255,8 +255,11 @@ namespace HomeBridge.BridgeTools
                     PowerOutputW = Finite(power.PowerOutput), SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
                 if (power.PowerNet != null) service.PowerNetId = NetId(power.PowerNet);
                 Service(building, service);
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = PowerState(map, building, service),
-                    RainVulnerable = power.Props.shortCircuitInRain, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) });
+                var row = new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = PowerState(map, building, service),
+                    RainVulnerable = power.Props.shortCircuitInRain, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
+                // A turret's observed damage per second (#1188).
+                try { var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row.TurretDps = Finite(dps.Value); } catch { }
+                result.Power.Add(row);
             }
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;

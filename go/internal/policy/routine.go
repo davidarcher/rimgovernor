@@ -300,6 +300,9 @@ type RoutineFacts struct {
 	QuestOffers   domain.Fact[[]JoinerOffer]
 	JoinerLetters domain.Fact[[]JoinerLetterOffer]
 	RaidPoints    domain.Fact[float64]
+	// DefenseCapacity is the colonists' and powered turrets' observed
+	// combat strength in raid-point units (#1188, DefenseCapacity).
+	DefenseCapacity domain.Fact[float64]
 	// Waste carries MaintainWaste's exposed/eligible native item census (the
 	// same WasteReply the generic per-tick colony read already carries), for
 	// pendingWaste/WasteDeficit to detect and, eventually, SelectWasteMethod

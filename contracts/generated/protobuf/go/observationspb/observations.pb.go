@@ -3319,8 +3319,13 @@ type PawnEquipment struct {
 	InventoryItemCount *uint32                `protobuf:"varint,6,opt,name=inventory_item_count,json=inventoryItemCount,proto3,oneof" json:"inventory_item_count,omitempty"`
 	Armed              *bool                  `protobuf:"varint,7,opt,name=armed,proto3,oneof" json:"armed,omitempty"`
 	Issues             []*ReadIssue           `protobuf:"bytes,8,rep,name=issues,proto3" json:"issues,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Defense capacity (#1188): the primary ranged verb's damage per second
+	// (projectile damage x burst over aim-adjusted warmup, cooldown and burst
+	// gaps; 0 without a ranged primary) and the pawn's MeleeDPS stat.
+	RangedDps     *float64 `protobuf:"fixed64,9,opt,name=ranged_dps,json=rangedDps,proto3,oneof" json:"ranged_dps,omitempty"`
+	MeleeDps      *float64 `protobuf:"fixed64,10,opt,name=melee_dps,json=meleeDps,proto3,oneof" json:"melee_dps,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PawnEquipment) Reset() {
@@ -3407,6 +3412,20 @@ func (x *PawnEquipment) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *PawnEquipment) GetRangedDps() float64 {
+	if x != nil && x.RangedDps != nil {
+		return *x.RangedDps
+	}
+	return 0
+}
+
+func (x *PawnEquipment) GetMeleeDps() float64 {
+	if x != nil && x.MeleeDps != nil {
+		return *x.MeleeDps
+	}
+	return 0
 }
 
 type Skill struct {
@@ -23670,8 +23689,10 @@ type DevelopmentPower struct {
 	CapacityWattDays *float64               `protobuf:"fixed64,4,opt,name=capacity_watt_days,json=capacityWattDays,proto3,oneof" json:"capacity_watt_days,omitempty"`
 	RainVulnerable   *bool                  `protobuf:"varint,5,opt,name=rain_vulnerable,json=rainVulnerable,proto3,oneof" json:"rain_vulnerable,omitempty"`
 	Roofed           *bool                  `protobuf:"varint,6,opt,name=roofed,proto3,oneof" json:"roofed,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
+	TurretDps     *float64 `protobuf:"fixed64,7,opt,name=turret_dps,json=turretDps,proto3,oneof" json:"turret_dps,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DevelopmentPower) Reset() {
@@ -23744,6 +23765,13 @@ func (x *DevelopmentPower) GetRoofed() bool {
 		return *x.Roofed
 	}
 	return false
+}
+
+func (x *DevelopmentPower) GetTurretDps() float64 {
+	if x != nil && x.TurretDps != nil {
+		return *x.TurretDps
+	}
+	return 0
 }
 
 type DevelopmentFurniture struct {
@@ -34280,7 +34308,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_insulation_heatB\b\n" +
 	"\x06_rangeB\x0e\n" +
 	"\f_biocoded_toB\v\n" +
-	"\t_biocoded\"\x93\x04\n" +
+	"\t_biocoded\"\xf6\x04\n" +
 	"\rPawnEquipment\x12\"\n" +
 	"\n" +
 	"primary_id\x18\x01 \x01(\tH\x00R\tprimaryId\x88\x01\x01\x12A\n" +
@@ -34290,11 +34318,18 @@ const file_observations_proto_rawDesc = "" +
 	"\x10carried_thing_id\x18\x05 \x01(\tH\x01R\x0ecarriedThingId\x88\x01\x01\x125\n" +
 	"\x14inventory_item_count\x18\x06 \x01(\rH\x02R\x12inventoryItemCount\x88\x01\x01\x12\x19\n" +
 	"\x05armed\x18\a \x01(\bH\x03R\x05armed\x88\x01\x01\x12>\n" +
-	"\x06issues\x18\b \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\r\n" +
+	"\x06issues\x18\b \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12\"\n" +
+	"\n" +
+	"ranged_dps\x18\t \x01(\x01H\x04R\trangedDps\x88\x01\x01\x12 \n" +
+	"\tmelee_dps\x18\n" +
+	" \x01(\x01H\x05R\bmeleeDps\x88\x01\x01B\r\n" +
 	"\v_primary_idB\x13\n" +
 	"\x11_carried_thing_idB\x17\n" +
 	"\x15_inventory_item_countB\b\n" +
-	"\x06_armed\"\x8a\x02\n" +
+	"\x06_armedB\r\n" +
+	"\v_ranged_dpsB\f\n" +
+	"\n" +
+	"_melee_dps\"\x8a\x02\n" +
 	"\x05Skill\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -37189,19 +37224,22 @@ const file_observations_proto_rawDesc = "" +
 	"\x12storage_candidates\x18\b \x03(\v2\x1b.rimgovernor.common.v1.CellR\x11storageCandidatesB\a\n" +
 	"\x05_dietB\x0f\n" +
 	"\r_requires_penB\x12\n" +
-	"\x10_suitable_pen_id\"\xf9\x02\n" +
+	"\x10_suitable_pen_id\"\xac\x03\n" +
 	"\x10DevelopmentPower\x12F\n" +
 	"\bbuilding\x18\x01 \x01(\v2*.rimgovernor.observations.v1.BuildingStateR\bbuilding\x12\x1a\n" +
 	"\x06base_w\x18\x02 \x01(\x01H\x00R\x05baseW\x88\x01\x01\x12-\n" +
 	"\x10stored_watt_days\x18\x03 \x01(\x01H\x01R\x0estoredWattDays\x88\x01\x01\x121\n" +
 	"\x12capacity_watt_days\x18\x04 \x01(\x01H\x02R\x10capacityWattDays\x88\x01\x01\x12,\n" +
 	"\x0frain_vulnerable\x18\x05 \x01(\bH\x03R\x0erainVulnerable\x88\x01\x01\x12\x1b\n" +
-	"\x06roofed\x18\x06 \x01(\bH\x04R\x06roofed\x88\x01\x01B\t\n" +
+	"\x06roofed\x18\x06 \x01(\bH\x04R\x06roofed\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"turret_dps\x18\a \x01(\x01H\x05R\tturretDps\x88\x01\x01B\t\n" +
 	"\a_base_wB\x13\n" +
 	"\x11_stored_watt_daysB\x15\n" +
 	"\x13_capacity_watt_daysB\x12\n" +
 	"\x10_rain_vulnerableB\t\n" +
-	"\a_roofed\"\xaa\x01\n" +
+	"\a_roofedB\r\n" +
+	"\v_turret_dps\"\xaa\x01\n" +
 	"\x14DevelopmentFurniture\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12\x1d\n" +
 	"\aindoors\x18\x02 \x01(\bH\x00R\aindoors\x88\x01\x01\x12\x19\n" +
