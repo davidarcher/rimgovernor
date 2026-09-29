@@ -14,6 +14,44 @@ type CarePawn struct {
 	LifeThreatening                           domain.Fact[bool]
 	Conditions                                domain.Fact[[]CareCondition]
 	Dead, NeedsRest, NeedsTend, BadConditions domain.Fact[bool]
+	// Surgery facts (#1161) ride on the same health read. Native computes
+	// every value through vanilla; nothing here is recomputed in Go.
+	MissingParts domain.Fact[[]MissingPart]
+	Operations   domain.Fact[[]SurgeryOperation]
+}
+
+// MissingPart is a missing or destroyed body part at its common missing
+// ancestor; its descendants are implied.
+type MissingPart struct {
+	PartIndex, ParentIndex     domain.Fact[int]
+	PartDefName, ParentDefName domain.Fact[string]
+	Vital                      domain.Fact[bool]
+}
+
+// SurgeryKind classifies an operation the way the surgery planner ranks it.
+type SurgeryKind string
+
+const (
+	SurgeryUnknown  SurgeryKind = ""
+	SurgeryRestore  SurgeryKind = "restore"
+	SurgeryCure     SurgeryKind = "cure"
+	SurgeryAmputate SurgeryKind = "amputate"
+	SurgeryInstall  SurgeryKind = "install"
+	SurgeryHarvest  SurgeryKind = "harvest"
+	SurgeryOther    SurgeryKind = "other"
+)
+
+// SurgeryOperation is one available medical recipe on one target part.
+// SuccessChance is vanilla's, for the best eligible doctor, bed and medicine;
+// it is unknown when no doctor is eligible.
+type SurgeryOperation struct {
+	Recipe, PartDefName         domain.Fact[string]
+	PartIndex                   domain.Fact[int]
+	Kind                        SurgeryKind
+	SuccessChance               domain.Fact[float64]
+	EligibleDoctors             domain.Fact[int]
+	IngredientsOnMap, Violation domain.Fact[bool]
+	Lethal                      domain.Fact[bool]
 }
 
 // CareCondition retains native disease evidence without estimating missing values.

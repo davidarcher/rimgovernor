@@ -147,9 +147,16 @@ a depleted drill for removal from the deep drill step's recorded read.
   player-forced/interruptibility/native priority, timetable, carry/fire/draft/
   mental/dead/downed and medical rest facts. PawnState/Settings/JobEvidence carries
   these; operation admission does not stand in for later recovered need levels.
-- BillStack, BuildingSettings, PawnSettings, ZoneState, GearLoadout, MedicalCatalog,
+- BillStack, BuildingSettings, PawnSettings, ZoneState, GearLoadout,
   ResearchSnapshot and TradeSheet expose SnapshotRef for exact
   compare-and-set. Read tokens cannot revive authority or prove successful writes.
+- PawnHealth carries surgery facts (#1161): `missing_parts` (each missing or
+  destroyed part at its common missing ancestor, its parent and the vital flag)
+  and `operations` (every available medical recipe per target part with its
+  kind, vanilla `success_chance` for the best eligible doctor, best colony
+  medical bed and best permitted medicine on the map, eligible doctor count,
+  `ingredients_on_map`, `violation` and `lethal`). Go never recomputes them.
+  `ReadMedicalCatalog` is retired.
 - Gear loadouts carry an explicitly present native deficit and an optional blocker;
   blocked pawns can still have equipment needs. Complete candidate and replacement
   lists belong to that exact loadout token. Planning read issues distinguish an
@@ -211,8 +218,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | SetTradeLines.line_id | ReadTradeSheet.lines.line_id, scoped to frozen sheet; not an inferred DefName/index |
 
 PlaceBuilding uses its placement preview and write authority precondition; it has
-no separate EntityPrecondition. Preview preparation return-storage/catalog tokens
-are also available from MedicalCatalog.
+no separate EntityPrecondition.
 
 Draft claims expose exact claim_id, original Owner (controller session, player
 direction) and pawn scope. Boolean drafted does not prove ownership; unowned and

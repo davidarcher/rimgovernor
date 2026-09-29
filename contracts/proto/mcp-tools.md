@@ -84,7 +84,6 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/observations_read_gear` | `rimgovernor.observations.v1.Observations/ReadGear` | `rimgovernor.observations.v1.GearRequest` | `rimgovernor.observations.v1.GearReply` |
 | `rimgovernor/observations_read_husbandry` | `rimgovernor.observations.v1.Observations/ReadHusbandry` | `rimgovernor.observations.v1.HusbandryRequest` | `rimgovernor.observations.v1.HusbandryReply` |
 | `rimgovernor/observations_read_lines_of_fire` | `rimgovernor.observations.v1.Observations/ReadLinesOfFire` | `rimgovernor.observations.v1.LinesOfFireRequest` | `rimgovernor.observations.v1.LinesOfFireReply` |
-| `rimgovernor/observations_read_medical_catalog` | `rimgovernor.observations.v1.Observations/ReadMedicalCatalog` | `rimgovernor.observations.v1.MedicalCatalogRequest` | `rimgovernor.observations.v1.MedicalCatalogReply` |
 | `rimgovernor/observations_read_observation_batch` | `rimgovernor.observations.v1.Observations/ReadObservationBatch` | `rimgovernor.observations.v1.ObservationBatchRequest` | `rimgovernor.observations.v1.ObservationBatchReply` |
 | `rimgovernor/observations_read_pawn_settings` | `rimgovernor.observations.v1.Observations/ReadPawnSettings` | `rimgovernor.observations.v1.PawnSettingsRequest` | `rimgovernor.observations.v1.PawnSettingsReply` |
 | `rimgovernor/observations_read_population` | `rimgovernor.observations.v1.Observations/ReadPopulation` | `rimgovernor.observations.v1.PopulationRequest` | `rimgovernor.observations.v1.PopulationReply` |

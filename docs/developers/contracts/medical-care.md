@@ -95,11 +95,15 @@ both and only they go to NormalOrWorse) is a colony snapshot test,
 
 ## Surgery
 
-`Observations.ReadMedicalCatalog` discovers current patient recipes, body-part indices,
-native ingredient definitions and counts, practitioner skill requirements, and
-current operation bills. Its catalog is patient-specific. Available ingredients
-and doctors do not certify bed access, sufficient reachable medicine or eventual
-success; normal native work selection still checks those conditions.
+Surgery facts ride on the per-pawn care read (`PawnHealth.missing_parts` and
+`PawnHealth.operations`, #1161); `ReadMedicalCatalog` is retired. Native
+discovers recipes through `RecipeWorker.GetPartsToApplyOn`/`AvailableOnNow` and
+computes `success_chance` with the recipe's own `SurgeryOutcomeEffectDef` comps
+for the best eligible doctor, substituting the best colony medical bed when the
+patient is not in bed and the best permitted medicine on the map. It also
+reports the eligible doctor count, whether ingredients and medicine are on the
+map, vanilla `IsViolationOnPawn`, and `lethal` (`WouldDieAfterAddingHediff`, or an
+execution). Go maps them into `policy.CarePawn` and does no surgery math.
 
 `SurgeryIntent` on Actions/Apply (#1162) queues one operation bill; see the
 `surgery` row of [action contracts](action-contracts.md). No planner sends it

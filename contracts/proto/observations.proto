@@ -225,6 +225,29 @@ message PawnHealth {
   optional bool urgent_medical_rest = 15; optional string bed_id = 16; repeated SurgeryBill surgery_bills = 17;
   repeated ReadIssue issues = 18;
   SnapshotRef snapshot = 19;
+  // Surgery facts (#1161). Native computes every value through vanilla; Go
+  // never recomputes them. Absent lists with a read issue are unknown.
+  repeated MissingBodyPart missing_parts = 20; repeated SurgeryOperation operations = 21;
+}
+// A missing or destroyed part at its common missing ancestor; descendants are implied.
+message MissingBodyPart { optional int32 part_index = 1; optional string part_def_name = 2; optional int32 parent_index = 3; optional string parent_def_name = 4; optional bool vital = 5; }
+enum SurgeryKind {
+  SURGERY_KIND_UNSPECIFIED = 0;
+  SURGERY_KIND_RESTORE = 1; // Installs a part where the body part is missing.
+  SURGERY_KIND_CURE = 2; // Removes a condition.
+  SURGERY_KIND_AMPUTATE = 3; // Removes a damaged or artificial part.
+  SURGERY_KIND_INSTALL = 4; // Installs over a present part, or an implant.
+  SURGERY_KIND_HARVEST = 5; // Removes a clean natural part.
+  SURGERY_KIND_OTHER = 6; // Any other medical recipe (administer, execute).
+}
+// One available operation on one part. success_chance is vanilla's
+// SurgeryOutcomeEffectDef quality with the best eligible doctor, the best
+// colony medical bed (or the current bed) and the best permitted medicine on
+// the map; absent when no doctor is eligible or the recipe has no outcome effect.
+message SurgeryOperation {
+  DefinitionRef recipe = 1; optional int32 part_index = 2; optional string part_def_name = 3; SurgeryKind kind = 4;
+  optional double success_chance = 5; optional uint32 eligible_doctors = 6; optional bool ingredients_on_map = 7;
+  optional bool violation = 8; optional bool lethal = 9;
 }
 message GearItem {
   EntityRef thing = 1; optional string stuff = 2; optional string quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
@@ -817,10 +840,6 @@ message GearWeatherCondition {
 }
 message GearRequest { ReadScope scope = 1; optional string pawn_id = 2; reserved 3; }
 message GearReply { oneof outcome { GearSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message MedicalRecipe { DefinitionRef recipe = 1; optional int32 part_index = 2; optional string part_label = 3; optional bool supported = 4; optional string adds_hediff = 5; optional string removes_hediff = 6; repeated EntityRef practitioners = 7; repeated IngredientRequirement ingredients = 8; repeated SkillRequirement skills = 9; optional bool requires_medicine = 10; optional bool has_permitted_medicine = 11; optional string confirmation = 12; repeated string missing_ingredients = 13; }
-message MedicalCatalog { SnapshotRef snapshot = 1; EntityRef patient = 2; optional string medical_care = 3; repeated MedicalRecipe recipes = 4; repeated ResourceStock permitted_medicine = 5; reserved 6; }
-message MedicalCatalogRequest { ReadScope scope = 1; optional string patient_id = 2; reserved 3; }
-message MedicalCatalogReply { oneof outcome { MedicalCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message Trader { EntityRef trader = 1; optional string kind = 2; optional string faction_id = 3; optional int64 ticks_until_departure = 4; optional bool can_trade = 5; optional string reason = 6; optional bool orbital = 7; optional uint32 goods_stacks = 8; optional bool travelling = 9; }
 message TradersSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Trader traders = 2; repeated EntityRef negotiators = 3; repeated BuildingState comms_consoles = 4; reserved 5; }
 message TradersRequest { ReadScope scope = 1; reserved 2; }
@@ -1295,7 +1314,7 @@ service Observations {
   rpc ReadPawnSettings(PawnSettingsRequest) returns (PawnSettingsReply);
   rpc ResolveTarget(ResolveTargetRequest) returns (ResolveTargetReply);
   rpc ReadGear(GearRequest) returns (GearReply);
-  rpc ReadMedicalCatalog(MedicalCatalogRequest) returns (MedicalCatalogReply);
+  // ReadMedicalCatalog retired (#1161): surgery facts ride on PawnHealth.
   rpc ListTraders(TradersRequest) returns (TradersReply);
   rpc ReadTradeSheet(TradeSheetRequest) returns (TradeSheetReply);
   rpc ReadTradeSession(TradeSessionRequest) returns (TradeSessionReply);

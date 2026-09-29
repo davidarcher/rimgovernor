@@ -180,6 +180,8 @@ namespace HomeBridge.BridgeTools
                     row.SurgeryBills.Add(b);
                 }
             }
+            if(pawn.Dead) {row.Issues.Add(Issue("missing_parts",Common.UnavailableReason.NotApplicable,"Dead pawn."));row.Issues.Add(Issue("operations",Common.UnavailableReason.NotApplicable,"Dead pawn."));}
+            else Surgery(pawn,row);
             row.Snapshot=NativeObservationSnapshot.Snapshot("pawn-health",context,pawn.GetUniqueLoadID(),w => {
                 w.Write(row.Pain);w.Write(row.LifeThreatening);w.Write(row.BloodLoss);
                 w.Write(row.ShouldSeekMedicalRest);w.Write(row.UrgentMedicalRest);w.Write(row.BedId??"");
@@ -190,6 +192,98 @@ namespace HomeBridge.BridgeTools
                     w.Write(h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1);
                 }
             });
+        }
+
+        // Surgery facts (#1161), all through vanilla: recipe discovery from the
+        // retired home/medical_operations tool, success chance from the recipe's
+        // own SurgeryOutcomeEffectDef comps. Go never recomputes any of it.
+        private static void Surgery(Pawn pawn,Obs.PawnHealth row)
+        {
+            var parts=pawn.RaceProps.body.AllParts;
+            foreach(var missing in pawn.health.hediffSet.GetMissingPartsCommonAncestors()) {
+                var part=missing.Part; if(part==null) continue;
+                var m=new Obs.MissingBodyPart {PartIndex=parts.IndexOf(part),PartDefName=Id(part.def.defName),
+                    Vital=part.def.tags!=null && part.def.tags.Any(t => t!=null && t.vital)};
+                if(part.parent!=null) {m.ParentIndex=parts.IndexOf(part.parent);m.ParentDefName=Id(part.parent.def.defName);}
+                row.MissingParts.Add(m);
+            }
+            var map=pawn.MapHeld;
+            if(map==null) {row.Issues.Add(Issue("operations",Common.UnavailableReason.NotApplicable,"Pawn is not on a map."));return;}
+            var colonists=map.mapPawns.FreeColonistsSpawned;
+            Building_Bed? bestBed=null; float bedFactor=0f;
+            foreach(var bed in map.listerBuildings.AllBuildingsColonistOfClass<Building_Bed>()) {
+                if(!bed.Medical) continue;
+                var f=bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor);
+                if(bestBed==null || f>bedFactor) {bestBed=bed;bedFactor=f;}
+            }
+            foreach(var def in pawn.def.AllRecipes) {
+                if(!def.AvailableNow || def.Worker==null || !def.Worker.AvailableReport(pawn).Accepted) continue;
+                var targets=def.targetsBodyPart?def.Worker.GetPartsToApplyOn(pawn,def).ToList()
+                    :new System.Collections.Generic.List<BodyPartRecord?>{null};
+                foreach(var part in targets) {
+                    if(!def.AvailableOnNow(pawn,part)) continue;
+                    var doctors=colonists.Where(p => p!=pawn && !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
+                        && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor) && def.PawnSatisfiesSkillRequirements(p)).ToList();
+                    var medicine=MedicineFor(pawn,def,map);
+                    var op=new Obs.SurgeryOperation {Recipe=Definition(def),Kind=Kind(pawn,def,part),
+                        EligibleDoctors=(uint)doctors.Count,
+                        IngredientsOnMap=!def.PotentiallyMissingIngredients(null,map).Any()
+                            && (!def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine)) || medicine!=null),
+                        Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer),Lethal=Lethal(pawn,def,part)};
+                    if(part!=null) {op.PartIndex=parts.IndexOf(part);op.PartDefName=Id(part.def.defName);}
+                    if(def.surgeryOutcomeEffect!=null && doctors.Count>0)
+                        op.SuccessChance=Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,bestBed)));
+                    row.Operations.Add(op);
+                }
+            }
+        }
+
+        // The best-potency medicine on the map that both the patient's care
+        // policy and the recipe allow; null when none.
+        private static ThingDef? MedicineFor(Pawn pawn,RecipeDef def,Map map)
+            => map.listerThings.ThingsInGroup(ThingRequestGroup.Medicine)
+                .Where(t => !t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map)
+                    && (pawn.playerSettings==null || pawn.playerSettings.medCare.AllowsMedicine(t.def))
+                    && def.ingredients.Any(i => i.filter.Allows(t)))
+                .Select(t => t.def).OrderByDescending(d => d.GetStatValueAbstract(StatDefOf.MedicalPotency)).FirstOrDefault();
+
+        // Vanilla SurgeryOutcomeEffectDef.GetQuality, except a patient not yet
+        // in bed is scored in the best colony medical bed it will lie in.
+        private static double Chance(RecipeDef def,Pawn surgeon,Pawn patient,BodyPartRecord? part,ThingDef? medicine,Building_Bed? bestBed)
+        {
+            var bill=new Bill_Medical {recipe=def};
+            if(medicine!=null) bill.consumedMedicine[medicine]=1;
+            var ingredients=new System.Collections.Generic.List<Thing>();
+            float quality=1f;
+            foreach(var comp in def.surgeryOutcomeEffect.comps ?? new System.Collections.Generic.List<SurgeryOutcomeComp>()) {
+                if(comp is SurgeryOutcomeComp_BedAndRoomQuality && !patient.InBed()) {
+                    if(!def.surgeryIgnoreEnvironment && bestBed!=null) quality*=bestBed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor);
+                    continue;
+                }
+                if(comp.Affects(def,surgeon,patient,part)) comp.AffectQuality(def,surgeon,patient,ingredients,part,bill,ref quality);
+            }
+            return quality;
+        }
+
+        private static Obs.SurgeryKind Kind(Pawn pawn,RecipeDef def,BodyPartRecord? part)
+        {
+            var worker=def.Worker;
+            if(worker is Recipe_RemoveBodyPart)
+                return part!=null && HealthUtility.PartRemovalIntent(pawn,part)==BodyPartRemovalIntent.Harvest
+                    && !pawn.health.hediffSet.HasDirectlyAddedPartFor(part)?Obs.SurgeryKind.Harvest:Obs.SurgeryKind.Amputate;
+            if(worker is Recipe_InstallArtificialBodyPart || worker is Recipe_InstallNaturalBodyPart)
+                return part!=null && pawn.health.hediffSet.PartIsMissing(part)?Obs.SurgeryKind.Restore:Obs.SurgeryKind.Install;
+            if(worker is Recipe_InstallImplant) return Obs.SurgeryKind.Install;
+            if(def.removesHediff!=null || worker is Recipe_RemoveHediff) return Obs.SurgeryKind.Cure;
+            return Obs.SurgeryKind.Other;
+        }
+
+        private static bool Lethal(Pawn pawn,RecipeDef def,BodyPartRecord? part)
+        {
+            if(def.Worker is Recipe_ExecuteByCut) return true;
+            if(def.Worker is Recipe_RemoveBodyPart && part!=null)
+                return pawn.health.WouldDieAfterAddingHediff(HediffDefOf.MissingBodyPart,part,1f);
+            return def.addsHediff!=null && pawn.health.WouldDieAfterAddingHediff(def.addsHediff,part,def.addsHediff.initialSeverity);
         }
 
         private static Obs.PawnEquipment Equipment(Pawn pawn)
