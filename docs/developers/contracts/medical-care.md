@@ -79,6 +79,31 @@ hearing loss, and similar). Its value is the capacity the condition costs times
 the recipe tier (a cure leaves the natural part, 1.0). Implants never count as a
 cure.
 
+Organ harvest (#1169) takes a kidney or a lung, never a heart, liver or last of a
+pair and never a harvest native reports lethal, from a prisoner the colony would
+not recruit (`PrisonerFacts.HarvestEligible`), within the same 20% cap, one at a
+time, and only for a concrete need:
+
+- a colonist's `surgery_part_short` want whose natural install recipe
+  (`InstallNaturalKidney`, `InstallNaturalLung`) has no stocked organ. The gain is
+  the install's capacity weight times `SilverPerCapacity` (1500 silver); the
+  harvested organ then feeds the existing restore or replacement install.
+- a silver runway deficit (`SilverShort`: a purchase need and silver below its
+  rough price plus the trade silver reserve) with no harvestable organ stocked.
+  The gain is the organ's native market value; the routine trade sells a stocked
+  organ as surplus while the deficit holds. A short silver runway with an
+  eligible prisoner holds the goal open.
+
+The cost is in silver: `SilverPerMoodPoint` (20) times the vanilla thought
+magnitude times the colonists it reaches, plus `SilverPerGoodwillPoint` (5) times
+the goodwill change native reports. Under `OrganUse_Classic` (no Ideology) every
+colonist takes -5; `OrganUse_Horrible*` -4 each and -15 on the surgeon, and
+`OrganUse_HorribleNoSell` adds the sale thoughts (-2 each, -8 on the seller) to a
+sale; `OrganUse_Acceptable` costs no mood; `OrganUse_Abhorrent` or any unknown
+precept refuses. At these prices a classic five-colonist colony harvests a kidney
+(900) from a prisoner whose faction loses 70 goodwill (850), and a colony of seven
+does not. The harvest queues a `SurgeryIntent` with `acknowledge_violation`.
+
 ## Medicine selection
 
 The medical routine chooses an autonomous care ceiling from usable stock and

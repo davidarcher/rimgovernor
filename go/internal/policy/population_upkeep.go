@@ -70,6 +70,9 @@ type PrisonerColony struct {
 	// the defName of its Slavery-issue precept. Empty without Ideology.
 	Ideo           string
 	SlaveryPrecept string
+	// OrganUsePrecept is the defName of the ideoligion's OrganUse-issue
+	// precept (#1169); empty reads as OrganUse_Classic.
+	OrganUsePrecept string
 }
 
 // SlaveryAllowed reports whether the colony's ideoligion lets it enslave
@@ -97,6 +100,13 @@ type PrisonerFacts struct {
 	Ideo     string
 	WildMan  bool
 	Prospect domain.Fact[PrisonerProspect]
+	// Organ harvest facts (#1169): the prisoner's operations and queued
+	// medical bills, its home faction's id (empty for none) and the goodwill
+	// change vanilla's harvest violation would make with it (<= 0).
+	Operations      domain.Fact[[]SurgeryOperation]
+	QueuedSurgeries domain.Fact[int]
+	Faction         string
+	HarvestGoodwill domain.Fact[int]
 }
 
 // PrisonerPlanReason names why RoutinePrisonerInteractionPlanner did or did

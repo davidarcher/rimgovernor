@@ -505,7 +505,8 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	need, known := policy.SurgeryTradeNeed(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))).Value()
+	// A harvested organ sells while the silver runway is short (#1169).
+	need, known := policy.SurgeryTradeNeed(policy.OrganSaleSurplus(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}

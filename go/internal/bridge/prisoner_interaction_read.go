@@ -92,7 +92,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		return PrisonerCensus{}, ErrUnavailable
 	}
 	seen := map[string]bool{}
-	colony := policy.PrisonerColony{BestSkill: map[string]int{}, IdeologyActive: observed.GetIdeologyActive(), ClassicIdeo: observed.GetClassicIdeoMode(), Ideo: observed.GetColonyIdeoId(), SlaveryPrecept: observed.GetSlaveryPrecept()}
+	colony := policy.PrisonerColony{BestSkill: map[string]int{}, IdeologyActive: observed.GetIdeologyActive(), ClassicIdeo: observed.GetClassicIdeoMode(), Ideo: observed.GetColonyIdeoId(), SlaveryPrecept: observed.GetSlaveryPrecept(), OrganUsePrecept: observed.GetOrganUsePrecept()}
 	rows := make([]policy.PrisonerFacts, 0, len(observed.Persons))
 	custody := make([]policy.CustodyFacts, 0, len(observed.Persons))
 	for _, person := range observed.Persons {
@@ -163,6 +163,14 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 			f.Will = domain.Known(person.GetWill())
 		}
 		f.Ideo, f.WildMan, f.Prospect = person.GetIdeoId(), person.GetWildMan(), prisonerProspect(person)
+		if h := person.GetSurgery(); h != nil {
+			_, f.Operations = SurgeryFacts(h)
+			f.QueuedSurgeries = QueuedSurgeries(h)
+		}
+		f.Faction = person.GetFactionId()
+		if person.HarvestGoodwillChange != nil {
+			f.HarvestGoodwill = domain.Known(int(person.GetHarvestGoodwillChange()))
+		}
 		if person.Interaction != nil {
 			if mode, ok := prisonerInteractionDefNames[person.GetInteraction()]; ok {
 				f.CurrentInteraction = domain.Known(mode)

@@ -1,0 +1,89 @@
+package bridge
+
+import (
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+)
+
+var surgeryKinds = map[o.SurgeryKind]policy.SurgeryKind{
+	o.SurgeryKind_SURGERY_KIND_RESTORE:  policy.SurgeryRestore,
+	o.SurgeryKind_SURGERY_KIND_CURE:     policy.SurgeryCure,
+	o.SurgeryKind_SURGERY_KIND_AMPUTATE: policy.SurgeryAmputate,
+	o.SurgeryKind_SURGERY_KIND_INSTALL:  policy.SurgeryInstall,
+	o.SurgeryKind_SURGERY_KIND_HARVEST:  policy.SurgeryHarvest,
+	o.SurgeryKind_SURGERY_KIND_OTHER:    policy.SurgeryOther,
+}
+
+// SurgeryFacts maps the native surgery facts (#1161) as observed, for a
+// colonist's care read and a prisoner's population row (#1169). A list
+// carrying a read issue is unknown; values are never recomputed here.
+func SurgeryFacts(h *o.PawnHealth) (domain.Fact[[]policy.MissingPart], domain.Fact[[]policy.SurgeryOperation]) {
+	parts, ops := domain.Unknown[[]policy.MissingPart](), domain.Unknown[[]policy.SurgeryOperation]()
+	if !surgeryIssue(h.Issues, "missing_parts") {
+		rows := make([]policy.MissingPart, 0, len(h.MissingParts))
+		for _, m := range h.MissingParts {
+			if m != nil {
+				rows = append(rows, policy.MissingPart{
+					PartIndex: surgeryInt(m.PartIndex), ParentIndex: surgeryInt(m.ParentIndex),
+					PartDefName: surgeryFact(m.PartDefName), ParentDefName: surgeryFact(m.ParentDefName), Vital: surgeryFact(m.Vital),
+				})
+			}
+		}
+		parts = domain.Known(rows)
+	}
+	if !surgeryIssue(h.Issues, "operations") {
+		rows := make([]policy.SurgeryOperation, 0, len(h.Operations))
+		for _, op := range h.Operations {
+			if op == nil {
+				continue
+			}
+			row := policy.SurgeryOperation{
+				PartIndex: surgeryInt(op.PartIndex), PartDefName: surgeryFact(op.PartDefName), Kind: surgeryKinds[op.GetKind()],
+				SuccessChance: surgeryFact(op.SuccessChance), IngredientsOnMap: surgeryFact(op.IngredientsOnMap),
+				Violation: surgeryFact(op.Violation), Lethal: surgeryFact(op.Lethal), YieldValue: surgeryFact(op.YieldMarketValue),
+			}
+			if op.Recipe != nil {
+				row.Recipe = surgeryFact(op.Recipe.DefName)
+			}
+			if op.EligibleDoctors != nil {
+				row.EligibleDoctors = domain.Known(int(op.GetEligibleDoctors()))
+			}
+			rows = append(rows, row)
+		}
+		ops = domain.Known(rows)
+	}
+	return parts, ops
+}
+
+// QueuedSurgeries counts the medical bills on the patient; unknown when the
+// bill stack carried a read issue.
+func QueuedSurgeries(h *o.PawnHealth) domain.Fact[int] {
+	if surgeryIssue(h.Issues, "surgery_bills") {
+		return domain.Unknown[int]()
+	}
+	return domain.Known(len(h.SurgeryBills))
+}
+
+func surgeryFact[T any](p *T) domain.Fact[T] {
+	if p == nil {
+		return domain.Unknown[T]()
+	}
+	return domain.Known(*p)
+}
+
+func surgeryInt(p *int32) domain.Fact[int] {
+	if p == nil {
+		return domain.Unknown[int]()
+	}
+	return domain.Known(int(*p))
+}
+
+func surgeryIssue(issues []*o.ReadIssue, field string) bool {
+	for _, issue := range issues {
+		if issue.GetField() == field {
+			return true
+		}
+	}
+	return false
+}

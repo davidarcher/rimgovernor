@@ -23,6 +23,8 @@ type RoutineSurgeryResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
 	Wants  []policy.SurgeryWant
+	// Harvest is set when the plan carries an organ harvest (#1169).
+	Harvest bool
 }
 
 func NewRoutineSurgeryPlanner(reviewer *RoutineReviewer) (*RoutineSurgeryPlanner, error) {
@@ -94,7 +96,20 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 			queue = append(queue, choice)
 		}
 	}
-	if len(queue) == 0 {
+	// Organ harvest (#1169): at most one, from a prisoner the colony would
+	// not recruit, for a colonist's part-short organ or a silver runway
+	// deficit, when its gain outweighs the mood and goodwill cost.
+	stock := map[policy.Resource]int64{}
+	resources, _ := read.Projection.Facts.Resources.Value()
+	for _, row := range resources {
+		stock[row.Resource] += row.Count
+	}
+	short, _ := policy.RoutineSilverShort(read.Projection.Facts, r.reviewer.policy, review.Latches.MedicalReserve).Value()
+	needs := policy.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, short, stock)
+	harvest, harvesting := policy.SelectOrganHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, inFlight)
+	harvesting = harvesting && arbiter.tryClaim([]domain.PawnID{harvest.Prisoner})
+	result.Harvest = harvesting
+	if len(queue) == 0 && !harvesting {
 		switch {
 		case len(inFlight) > 0:
 			result.Reason = BuildingMethodExistingWork
@@ -112,6 +127,9 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	for _, choice := range queue {
 		fmt.Fprintf(hash, "%s/%s/%d\n", choice.Pawn, choice.Recipe, choice.Part)
 	}
+	if harvesting {
+		fmt.Fprintf(hash, "harvest/%s/%s/%d\n", harvest.Prisoner, harvest.Recipe, harvest.Part)
+	}
 	method := domain.MethodID(fmt.Sprintf("restore-%x", hash.Sum(nil)[:16]))
 	for _, previous := range goal.Methods {
 		if previous.Method == method {
@@ -127,6 +145,17 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineSurgeryResult{}, err
 		}
 		action, err := domain.NewSurgeryAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), surgery)
+		if err != nil {
+			return RoutineSurgeryResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	if harvesting {
+		cut, err := domain.NewSurgery(harvest.Prisoner, harvest.Recipe, harvest.Part, true)
+		if err != nil {
+			return RoutineSurgeryResult{}, err
+		}
+		action, err := domain.NewSurgeryAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), cut)
 		if err != nil {
 			return RoutineSurgeryResult{}, err
 		}

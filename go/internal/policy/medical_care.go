@@ -55,6 +55,8 @@ type SurgeryOperation struct {
 	EligibleDoctors             domain.Fact[int]
 	IngredientsOnMap, Violation domain.Fact[bool]
 	Lethal                      domain.Fact[bool]
+	// YieldValue is a harvest's yield market value in silver (#1169).
+	YieldValue domain.Fact[float64]
 }
 
 // CareCondition retains native disease evidence without estimating missing values.

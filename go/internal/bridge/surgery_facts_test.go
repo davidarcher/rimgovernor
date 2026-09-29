@@ -1,4 +1,4 @@
-package observation
+package bridge
 
 import (
 	"reflect"
@@ -36,7 +36,7 @@ func TestRoutineSurgeryFactsMapping(t *testing.T) {
 			domain.Unknown[[]policy.MissingPart](), domain.Unknown[[]policy.SurgeryOperation]()},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			parts, ops := surgeryFacts(test.h)
+			parts, ops := SurgeryFacts(test.h)
 			if !reflect.DeepEqual(parts, test.parts) || !reflect.DeepEqual(ops, test.ops) {
 				t.Fatalf("parts %+v ops %+v", parts, ops)
 			}

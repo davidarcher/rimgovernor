@@ -34,6 +34,13 @@ player-only exemption (`policy.prisonerUse`). The read also carries each prisone
 will, ideoligion, wild-man flag, biography (skills, passions, traits, incapable work
 types, age) and summary health, the free colonists' biographies, and the snapshot's
 `ideology_active`, `classic_ideo_mode`, `colony_ideo_id` and `slavery_precept`.
+For organ harvest (#1169) each colony prisoner also carries `surgery` (its
+`missing_parts`, `operations`, with a harvest's `yield_market_value`, and
+`surgery_bills`, from the care read's producer), `faction_id`, and
+`harvest_goodwill_change`: the goodwill change vanilla's harvest violation report
+(-70) would make with its home faction after `CalculateAdjustedGoodwillChange` and
+the -100 floor, 0 when that goodwill cannot change. The snapshot carries
+`organ_use_precept`.
 A recruitable prisoner worth recruiting (`RecruitWorth` against the colonists' best
 skills, at least `RecruitThreshold` for the colony size) is converted first while
 Ideology is active outside classic mode and it holds another ideoligion, then

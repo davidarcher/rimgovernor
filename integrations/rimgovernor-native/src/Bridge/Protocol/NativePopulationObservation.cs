@@ -93,6 +93,32 @@ namespace HomeBridge.BridgeTools
                     person.LuciferiumAddicted = CombatMirror.HasHediff(p, "LuciferiumAddiction");
                     person.WearingApparel = p.apparel?.WornApparel.Count > 0;
                 }
+                // Organ harvest facts (#1169): a colony prisoner's surgery
+                // facts through the care read's own producer, its home faction
+                // and vanilla's harvest goodwill report (Recipe_RemoveBodyPart
+                // reports -70 to HomeFaction when the pawn has a faction).
+                if (p.IsPrisonerOfColony)
+                {
+                    var health = new Obs.PawnHealth();
+                    var bills = p.BillStack?.Bills;
+                    if (bills == null) health.Issues.Add(NativePawnObservationTools.Issue("surgery_bills", Common.UnavailableReason.NativeComponentMissing, "No bill stack."));
+                    else foreach (var bill in bills.OfType<Bill_Medical>())
+                    {
+                        var b = new Obs.SurgeryBill { Id = NativePawnObservationTools.Id(bill.GetUniqueLoadID()), Recipe = NativePawnObservationTools.Id(bill.recipe.defName), Suspended = bill.suspended };
+                        if (bill.Part != null) b.PartIndex = p.RaceProps.body.AllParts.IndexOf(bill.Part);
+                        health.SurgeryBills.Add(b);
+                    }
+                    NativePawnDetails.Surgery(p, health);
+                    person.Surgery = health;
+                    var home = p.Faction == null ? null : p.HomeFaction;
+                    person.HarvestGoodwillChange = 0;
+                    if (home != null && !home.IsPlayer)
+                    {
+                        person.FactionId = NativePawnObservationTools.Id(home.GetUniqueLoadID());
+                        if (player.CanChangeGoodwillFor(home, -70))
+                            person.HarvestGoodwillChange = Math.Max(player.CalculateAdjustedGoodwillChange(home, -70), -100 - player.GoodwillWith(home));
+                    }
+                }
                 if (p.ownership?.OwnedBed != null) person.OwnedBed = new Obs.BuildingState { Building = NativePawnObservationTools.Entity(p.ownership.OwnedBed) };
                 if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
                 // The prisoner custody and interaction settings token
@@ -101,6 +127,10 @@ namespace HomeBridge.BridgeTools
                 snapshot.Persons.Add(person);
             }
             snapshot.IdeologyActive = ModsConfig.IdeologyActive;
+            // OrganUse precept (#1169): every player ideoligion carries one;
+            // OrganUse_Classic stands without the Ideology DLC.
+            var organUse = player.ideos?.PrimaryIdeo?.PreceptsListForReading.FirstOrDefault(pr => pr.def.issue?.defName == "OrganUse");
+            if (organUse != null) snapshot.OrganUsePrecept = NativePawnObservationTools.Id(organUse.def.defName);
             if (ModsConfig.IdeologyActive)
             {
                 snapshot.ClassicIdeoMode = Find.IdeoManager.classicMode;

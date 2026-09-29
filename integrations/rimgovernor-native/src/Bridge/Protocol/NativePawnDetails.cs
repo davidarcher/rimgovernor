@@ -197,7 +197,7 @@ namespace HomeBridge.BridgeTools
         // Surgery facts (#1161), all through vanilla: recipe discovery from the
         // retired home/medical_operations tool, success chance from the recipe's
         // own SurgeryOutcomeEffectDef comps. Go never recomputes any of it.
-        private static void Surgery(Pawn pawn,Obs.PawnHealth row)
+        internal static void Surgery(Pawn pawn,Obs.PawnHealth row)
         {
             var parts=pawn.RaceProps.body.AllParts;
             foreach(var missing in pawn.health.hediffSet.GetMissingPartsCommonAncestors()) {
@@ -231,6 +231,7 @@ namespace HomeBridge.BridgeTools
                             && (!def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine)) || medicine!=null),
                         Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer),Lethal=Lethal(pawn,def,part)};
                     if(part!=null) {op.PartIndex=parts.IndexOf(part);op.PartDefName=Id(part.def.defName);}
+                    if(op.Kind==Obs.SurgeryKind.Harvest && part?.def.spawnThingOnRemoved!=null) op.YieldMarketValue=Number(part.def.spawnThingOnRemoved.BaseMarketValue);
                     if(def.surgeryOutcomeEffect!=null && doctors.Count>0)
                         op.SuccessChance=Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,bestBed)));
                     row.Operations.Add(op);

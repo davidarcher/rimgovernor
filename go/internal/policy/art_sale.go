@@ -54,39 +54,59 @@ func (n TradeNeed) PurchasePrice() (float64, bool) {
 	return price, any
 }
 
-// ArtSaleWanted reports whether sale sculpting runs: known positive wealth
-// headroom, a purchase need, and silver below its rough price plus
-// TradeSilverReserve. Anything unknown wants nothing.
-func ArtSaleWanted(headroom domain.Fact[float64], need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) bool {
-	h, hk := headroom.Value()
+// SilverShort is the silver runway deficit (#1169): a purchase need exists
+// and the silver on hand is below its rough price plus TradeSilverReserve.
+// Sale sculptures (#1193) and sale organ harvests (#1169) answer it; unknown
+// while any input is.
+func SilverShort(need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) domain.Fact[bool] {
 	n, nk := need.Value()
 	s, sk := silver.Value()
 	reserve, rk := TradeSilverReserve(colonists)
-	if !hk || !nk || !sk || !rk || !finite(h) || h <= 0 {
-		return false
+	if !nk || !sk || !rk {
+		return domain.Unknown[bool]()
 	}
 	price, any := n.PurchasePrice()
-	return any && float64(s) < price+float64(reserve)
+	return domain.Known(any && float64(s) < price+float64(reserve))
+}
+
+// ArtSaleWanted reports whether sale sculpting runs: known positive wealth
+// headroom and a known SilverShort. Anything unknown wants nothing.
+func ArtSaleWanted(headroom domain.Fact[float64], need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) bool {
+	h, hk := headroom.Value()
+	return hk && finite(h) && h > 0 && positive(SilverShort(need, silver, colonists))
+}
+
+// reviewSilverShort is SilverShort over the review's trade need.
+func reviewSilverShort(f RoutineFacts, p RoutinePolicy, medicine MedicalReserveReview) domain.Fact[bool] {
+	need := ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p))
+	return SilverShort(need, f.Silver(), f.Colonists)
 }
 
 // artForSale is ArtSaleWanted over the review's trade need.
 func artForSale(f RoutineFacts, p RoutinePolicy, medicine MedicalReserveReview) bool {
-	need := ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p))
-	return ArtSaleWanted(f.WealthBudget(), need, f.Silver(), f.Colonists)
+	h, hk := f.WealthBudget().Value()
+	return hk && finite(h) && h > 0 && positive(reviewSilverShort(f, p, medicine))
 }
 
-// RoutineArtForSale is the review's sale decision recomputed by the art
-// bill planner from its own read: the seasonal policy and the medical
-// reserve review with the review's latch, as DetectRoutine derives them.
-func RoutineArtForSale(f RoutineFacts, p RoutinePolicy, medicineActive bool) bool {
+// RoutineSilverShort is the review's silver runway deficit recomputed by a
+// planner from its own read: the seasonal policy and the medical reserve
+// review with the review's latch, as DetectRoutine derives them.
+func RoutineSilverShort(f RoutineFacts, p RoutinePolicy, medicineActive bool) domain.Fact[bool] {
 	p = p.Seasonal(f.Calendar, f.DisasterConditions)
 	facts := f.MedicalReserve
 	facts.Colonists = f.Colonists
 	medicine, err := ReviewMedicalReserve(facts, medicineActive, p.MedicalReserve)
 	if err != nil {
-		return false
+		return domain.Unknown[bool]()
 	}
-	return artForSale(f, p, medicine)
+	return reviewSilverShort(f, p, medicine)
+}
+
+// RoutineArtForSale is the review's sale decision recomputed by the art
+// bill planner from its own read.
+func RoutineArtForSale(f RoutineFacts, p RoutinePolicy, medicineActive bool) bool {
+	h, hk := f.WealthBudget().Value()
+	return hk && finite(h) && h > 0 && positive(RoutineSilverShort(f, p, medicineActive))
 }
 
 // Sculpture WorkToMake (vanilla Buildings_Art.xml) and the market value a

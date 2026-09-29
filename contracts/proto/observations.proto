@@ -252,6 +252,8 @@ message SurgeryOperation {
   DefinitionRef recipe = 1; optional int32 part_index = 2; optional string part_def_name = 3; SurgeryKind kind = 4;
   optional double success_chance = 5; optional uint32 eligible_doctors = 6; optional bool ingredients_on_map = 7;
   optional bool violation = 8; optional bool lethal = 9;
+  // A harvest's yield (#1169): BaseMarketValue of the part's spawnThingOnRemoved; absent otherwise.
+  optional double yield_market_value = 10;
 }
 message GearItem {
   EntityRef thing = 1; optional string stuff = 2; optional string quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
@@ -741,7 +743,14 @@ message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optio
   // After combat (#1079), for a hostile: a LuciferiumAddiction hediff (not
   // worth capturing: stripped and finished instead) and any worn apparel
   // (every downed raider is stripped before it is captured).
-  optional bool luciferium_addicted = 15; optional bool wearing_apparel = 16; }
+  optional bool luciferium_addicted = 15; optional bool wearing_apparel = 16;
+  // Organ harvest facts (#1169), for a prisoner of the colony only: its
+  // surgery facts (missing_parts, operations and surgery_bills filled as on
+  // the pawn care read, other PawnHealth fields absent), its faction's load
+  // id, and the goodwill change vanilla's Recipe_RemoveBodyPart violation
+  // report (-70) would make with it after CalculateAdjustedGoodwillChange and
+  // the -100 floor; 0 when the faction's goodwill cannot change or none.
+  PawnHealth surgery = 17; optional string faction_id = 18; optional int32 harvest_goodwill_change = 19; }
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; reserved 4;
   // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
   // primary ideoligion load id and the defName of its Slavery-issue precept
@@ -751,7 +760,10 @@ message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 
   // adjusted population, and the capture odds that intent sets for a non-colony
   // humanlike downed by violence (death chance) and for a new prisoner (unrecruitable).
   optional double population_intent = 9; optional double adjusted_population = 10;
-  optional double death_on_downed_chance = 11; optional double unrecruitable_chance = 12; }
+  optional double death_on_downed_chance = 11; optional double unrecruitable_chance = 12;
+  // The defName of the player ideoligion's OrganUse-issue precept (#1169):
+  // OrganUse_Classic without the Ideology DLC or in classic mode.
+  optional string organ_use_precept = 13; }
 message PopulationRequest { ReadScope scope = 1; reserved 2; }
 message PopulationReply { oneof outcome { PopulationSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message Settlement { optional string id = 1; optional string label = 2; optional string faction_id = 3; optional string faction_def_name = 4; optional string relation = 5; optional int32 goodwill = 6; optional int32 tile = 7; optional double distance_tiles = 8; optional bool player = 9; SnapshotRef snapshot = 10; SnapshotRef faction_snapshot = 11; }

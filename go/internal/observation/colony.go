@@ -196,6 +196,12 @@ func optional[T any](p *T) domain.Fact[T] {
 	}
 	return domain.Known(*p)
 }
+func optionalInt(p *int32) domain.Fact[int] {
+	if p == nil {
+		return domain.Unknown[int]()
+	}
+	return domain.Known(int(*p))
+}
 func countFact(p *uint32) domain.Fact[int64] {
 	if p == nil {
 		return domain.Unknown[int64]()

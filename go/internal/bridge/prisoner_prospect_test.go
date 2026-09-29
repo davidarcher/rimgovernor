@@ -7,6 +7,39 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// A colony prisoner's organ harvest facts (#1169) ride on its population
+// row; the snapshot carries the OrganUse precept.
+func TestPopulationDecodesHarvestFacts(t *testing.T) {
+	prisoner := prisonerPerson("p", "MaintainOnly")
+	prisoner.FactionId, prisoner.HarvestGoodwillChange = proto.String("Faction_3"), proto.Int32(-70)
+	prisoner.Surgery = &o.PawnHealth{SurgeryBills: []*o.SurgeryBill{{Id: proto.String("Bill_1")}}, Operations: []*o.SurgeryOperation{{
+		Recipe: &o.DefinitionRef{DefName: proto.String("RemoveBodyPart")}, PartIndex: proto.Int32(20), PartDefName: proto.String("Kidney"),
+		Kind: o.SurgeryKind_SURGERY_KIND_HARVEST, YieldMarketValue: proto.Float64(900)}}}
+	snapshot := populationReply(prisoner, prisonerPerson("q", "")).GetObserved()
+	snapshot.OrganUsePrecept = proto.String("OrganUse_Acceptable")
+	census, err := decodePopulation(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	colony, _ := census.Colony.Value()
+	rows, _ := census.Prisoners.Value()
+	if colony.OrganUsePrecept != "OrganUse_Acceptable" || len(rows) != 2 {
+		t.Fatalf("colony %+v rows %+v", colony, rows)
+	}
+	ops, ok := rows[0].Operations.Value()
+	queued, qk := rows[0].QueuedSurgeries.Value()
+	goodwill, gk := rows[0].HarvestGoodwill.Value()
+	if !ok || len(ops) != 1 || !qk || queued != 1 || !gk || goodwill != -70 || rows[0].Faction != "Faction_3" {
+		t.Fatalf("row %+v", rows[0])
+	}
+	if value, known := ops[0].YieldValue.Value(); !known || value != 900 {
+		t.Fatalf("op %+v", ops[0])
+	}
+	if _, known := rows[1].Operations.Value(); known {
+		t.Fatal("a producer without surgery facts leaves them unknown")
+	}
+}
+
 // The population read carries each prisoner's prospect and the colony side
 // MaintainPopulation weighs it against (#1036).
 func TestPopulationDecodesProspectAndColony(t *testing.T) {

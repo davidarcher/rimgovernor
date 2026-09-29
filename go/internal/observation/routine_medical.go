@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -32,8 +33,8 @@ func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFac
 			p.Care = optional(settings.MedicalCare)
 		}
 		if h := row.Health; h != nil && !hasIssue(row.Issues, "health") {
-			p.MissingParts, p.Operations = surgeryFacts(h)
-			p.QueuedSurgeries = domain.Known(len(h.SurgeryBills))
+			p.MissingParts, p.Operations = bridge.SurgeryFacts(h)
+			p.QueuedSurgeries = bridge.QueuedSurgeries(h)
 			p.LifeThreatening = optional(h.LifeThreatening)
 			p.NeedsRest, p.NeedsTend = optional(h.ShouldSeekMedicalRest), optional(h.NeedsTend)
 			c := h.HediffCompleteness
