@@ -83,12 +83,46 @@ func TestPrisonerUseDecisions(t *testing.T) {
 	}
 }
 
-func TestRecruitWorthWeighsColonyGaps(t *testing.T) {
+// TestPrisonerWorthGatesRecruitAndHarvest: a skilled prisoner is recruited
+// and not harvest-eligible; a worthless high-resistance one is released and
+// harvest-eligible; resistance alone can sink an average prospect.
+func TestPrisonerWorthGatesRecruitAndHarvest(t *testing.T) {
+	p := PrisonerPolicy{ReleaseAfterDays: 10, FoodTargetDays: 7}
+	average := PrisonerProspect{Age: 30, Health: 1, Skills: []PrisonerSkill{{"Cooking", 8, "Major", false}, {"Mining", 7, "None", false}}}
+	cases := []struct {
+		name    string
+		row     PrisonerFacts
+		want    domain.PrisonerInteractionMode
+		harvest bool
+	}{
+		{"skilled prisoner recruited", prisonerRow("p", true, domain.PrisonerInteractionMaintain, 20, 1, strong), domain.PrisonerInteractionRecruit, false},
+		{"worthless high-resistance prisoner released", prisonerRow("p", true, domain.PrisonerInteractionMaintain, 60, 1, weak), domain.PrisonerInteractionRelease, true},
+		{"average prospect recruited at low resistance", prisonerRow("p", true, domain.PrisonerInteractionMaintain, 2, 1, average), domain.PrisonerInteractionRecruit, false},
+		{"average prospect not recruited at high resistance", prisonerRow("p", true, domain.PrisonerInteractionMaintain, 40, 1, average), domain.PrisonerInteractionRelease, true},
+		{"unrecruitable skilled prisoner harvest-eligible", prisonerRow("p", false, domain.PrisonerInteractionMaintain, 0, 1, strong), domain.PrisonerInteractionRelease, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			choice := SelectPrisonerInteractionMethod(domain.Known([]PrisonerFacts{c.row}), domain.Known(core), domain.Known(3.0), p)
+			if choice.Interaction != c.want {
+				t.Fatalf("choice %+v, want %s", choice, c.want)
+			}
+			if h, ok := c.row.HarvestEligible(core).Value(); !ok || h != c.harvest {
+				t.Fatalf("harvest %v known %v, want %v", h, ok, c.harvest)
+			}
+			if _, ok := c.row.Worth(core).Value(); !ok {
+				t.Fatal("worth unknown")
+			}
+		})
+	}
+}
+
+func TestPrisonerWorthWeighsColonyGaps(t *testing.T) {
 	cook := PrisonerProspect{Age: 30, Health: 1, Skills: []PrisonerSkill{{"Cooking", 7, "None", false}}}
-	if w := RecruitWorth(cook, PrisonerColony{BestSkill: map[string]int{"Cooking": 3}}); w != 2 {
+	if w := PrisonerWorth(cook, 0, PrisonerColony{BestSkill: map[string]int{"Cooking": 3}}); w != 2 {
 		t.Fatalf("gap-filling cook worth %v, want 2", w)
 	}
-	if w := RecruitWorth(cook, PrisonerColony{BestSkill: map[string]int{"Cooking": 6}}); w != 0 {
+	if w := PrisonerWorth(cook, 0, PrisonerColony{BestSkill: map[string]int{"Cooking": 6}}); w != 0 {
 		t.Fatalf("redundant cook worth %v, want 0", w)
 	}
 	if RecruitThreshold(1) >= RecruitThreshold(4) || RecruitThreshold(4) >= RecruitThreshold(10) {

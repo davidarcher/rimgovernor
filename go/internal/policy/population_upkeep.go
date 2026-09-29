@@ -133,13 +133,15 @@ var (
 	}
 )
 
-// RecruitWorth scores a prospect against the colony: +1 per usable skill at
+// PrisonerWorth scores a prospect against the colony: +1 per usable skill at
 // 8+, +1 more at 12+, +1 per major and +0.5 per minor passion, +2 per skill
 // at 6+ that beats the colony's best by 3 or more (a gap the colony lacks),
 // +1 per good and -2 per bad trait, -0.5 per incapable work type, -1 under
-// 16 or over 60, -1 below half health.
-func RecruitWorth(p PrisonerProspect, c PrisonerColony) float64 {
-	score := 0.0
+// 16 or over 60, -1 below half health, and -1 per 10 points of native recruit
+// resistance still to break (0 when unknown). Recruiting needs
+// RecruitThreshold; organ harvest (#1169) considers only prisoners below it.
+func PrisonerWorth(p PrisonerProspect, resistance float64, c PrisonerColony) float64 {
+	score := -resistance / 10
 	for _, s := range p.Skills {
 		if s.Disabled {
 			continue
@@ -191,6 +193,35 @@ func RecruitThreshold(colonists int) float64 {
 	return 6
 }
 
+// Worth is the row's PrisonerWorth against the colony; Unknown without a
+// prospect.
+func (row PrisonerFacts) Worth(c PrisonerColony) domain.Fact[float64] {
+	p, ok := row.Prospect.Value()
+	if !ok {
+		return domain.Unknown[float64]()
+	}
+	resistance, _ := row.Resistance.Value()
+	return domain.Known(PrisonerWorth(p, resistance, c))
+}
+
+func (row PrisonerFacts) worthRecruiting(p PrisonerProspect, c PrisonerColony) bool {
+	resistance, _ := row.Resistance.Value()
+	return PrisonerWorth(p, resistance, c) >= RecruitThreshold(c.Colonists)
+}
+
+// HarvestEligible reports whether a living prisoner is one the colony would
+// not recruit: unrecruitable, or worth below RecruitThreshold. It only
+// gates organ harvest (#1169); Unknown when a needed fact is missing.
+func (row PrisonerFacts) HarvestEligible(c PrisonerColony) domain.Fact[bool] {
+	dead, dk := row.Dead.Value()
+	recruitable, rk := row.Recruitable.Value()
+	p, pk := row.Prospect.Value()
+	if !dk || !rk || !pk {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(!dead && (!recruitable || !row.worthRecruiting(p, c)))
+}
+
 // canLabor reports whether a prospect would be a useful slave: at least 13,
 // at least 40% health and incapable of at most four work types.
 func canLabor(p PrisonerProspect) bool {
@@ -204,7 +235,7 @@ func canLabor(p PrisonerProspect) bool {
 //
 //   - A recruitable prisoner whose resistance is broken and who is already
 //     being recruited keeps recruiting.
-//   - Worth recruiting (RecruitWorth >= RecruitThreshold) and recruitable:
+//   - Worth recruiting (PrisonerWorth >= RecruitThreshold) and recruitable:
 //     Convert first when Ideology is active outside classic mode and the
 //     prisoner holds another ideoligion, so the recruit joins without a
 //     foreign faith dragging mood and certainty; Recruit once it shares the
@@ -239,7 +270,7 @@ func prisonerUse(row PrisonerFacts, colony PrisonerColony, food domain.Fact[floa
 			return "", false
 		}
 	}
-	if recruitable && RecruitWorth(prospect, colony) >= RecruitThreshold(colony.Colonists) {
+	if recruitable && row.worthRecruiting(prospect, colony) {
 		if colony.IdeologyActive && !colony.ClassicIdeo && colony.Ideo != "" && row.Ideo != "" && row.Ideo != colony.Ideo {
 			return settle(domain.PrisonerInteractionConvert)
 		}
