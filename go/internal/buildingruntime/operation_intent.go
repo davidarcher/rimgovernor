@@ -28,6 +28,7 @@ var goalLabels = map[policy.GoalID]string{
 	policy.EnsureDefensiveLayout:    "Defense layout",
 	policy.CriticalMedicine:         "Medical",
 	policy.MaintainMedicalReserves:  "Medicine",
+	policy.MaintainSurgery:          "Surgery",
 	policy.MaintainRefrigeration:    "Refrigeration",
 	policy.EnsureComfort:            "Comfort",
 	policy.EnsureResearch:           "Research",

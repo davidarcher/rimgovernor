@@ -25,6 +25,7 @@ var plannerGoals = map[string]policy.GoalID{
 	"animalContainment": policy.MaintainAnimalContainment, "research": policy.EnsureResearch, "animalFeed": policy.MaintainAnimalFeed,
 	"homeCoverage": policy.MaintainHomeCoverage, "stoneShell": policy.MaintainStoneShell, "stockpiles": policy.MaintainStockpiles,
 	"defenseLayout": policy.EnsureDefensiveLayout, "work": policy.EnsureWorkAssignments, "medical": policy.MaintainMedicalReserves,
+	"surgery": policy.MaintainSurgery,
 }
 
 // plannerRecordReason is what a planner's reason files on its goal's

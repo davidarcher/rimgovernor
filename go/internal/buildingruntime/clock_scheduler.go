@@ -116,6 +116,7 @@ type ClockSchedulerConfig struct {
 	Haul                *RoutineHaulPlanner
 	Gear                *RoutineGearPlanner
 	Medical             *RoutineMedicalPlanner
+	Surgery             *RoutineSurgeryPlanner
 	FoodStorageUpkeep   *RoutineFoodStorageUpkeepPlanner
 	AnimalContainment   *RoutineAnimalContainmentPlanner
 	Recovery            *RoutineRecoveryPlanner
@@ -191,6 +192,7 @@ type ClockSchedulerResult struct {
 	Haul                         *RoutineHaulResult
 	Gear                         *RoutineGearResult
 	Medical                      *RoutineMedicalResult
+	Surgery                      *RoutineSurgeryResult
 	FoodStorageUpkeep            *RoutineFoodStorageUpkeepResult
 	AnimalContainment            *RoutineAnimalContainmentResult
 	Recovery                     *RoutineRecoveryResult
@@ -502,6 +504,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Medical != nil && (config.Routine == nil || config.Medical.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Medical != nil && (config.Routine == nil || config.Medical.reviewer != config.Routine)", ErrControl)
+	}
+	if config.Surgery != nil && (config.Routine == nil || config.Surgery.reviewer != config.Routine) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Surgery != nil && (config.Routine == nil || config.Surgery.reviewer != config.Routine)", ErrControl)
 	}
 	if config.FoodStorageUpkeep != nil && (config.Routine == nil || config.FoodStorageUpkeep.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.FoodStorageUpkeep != nil && (config.Routine == nil || config.FoodStorageUpkeep.reviewer != config.Ro", ErrControl)

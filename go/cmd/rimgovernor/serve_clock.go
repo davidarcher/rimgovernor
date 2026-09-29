@@ -539,6 +539,10 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			config.Surgery, err = buildingruntime.NewRoutineSurgeryPlanner(reviewer)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if foodStorageUpkeep {
 			foodStorageNative, ok := reads.(buildingruntime.RoutineFoodStorageUpkeepSource)
@@ -977,7 +981,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalFeed)
 	}
 	if sc.routineMedicalPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves)
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves, policy.MaintainSurgery)
 	}
 	if sc.routineTradePlans {
 		thresholds.Trade = policy.RoutineTradePolicy{ComponentTarget: policy.DefaultResourceTargets()[policy.ComponentResource]}

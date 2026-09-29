@@ -1,0 +1,146 @@
+package buildingruntime
+
+import (
+	"context"
+	"crypto/sha256"
+	"fmt"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+)
+
+// RoutineSurgeryPlanner composes MaintainSurgery's method (#1164): one plan
+// of SurgeryIntents, at most one per patient, from a fresh pawn care read.
+// A patient with a queued bill or an open surgery action is in flight. The
+// goal settles on the health change (the operation leaving the census),
+// never on the bill. When nothing can be queued the first want (part short
+// or no capable doctor) is the step's reason, filed on the goal record.
+type RoutineSurgeryPlanner struct {
+	reviewer *RoutineReviewer
+}
+
+type RoutineSurgeryResult struct {
+	Reason RoutineBuildingReason
+	Plan   domain.PlanID
+	Wants  []policy.SurgeryWant
+}
+
+func NewRoutineSurgeryPlanner(reviewer *RoutineReviewer) (*RoutineSurgeryPlanner, error) {
+	if reviewer == nil {
+		return nil, fmt.Errorf("%w: NewRoutineSurgeryPlanner: reviewer == nil", ErrControl)
+	}
+	return &RoutineSurgeryPlanner{reviewer}, nil
+}
+
+func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineSurgeryResult, error) {
+	p := r.reviewer.player
+	state := p.session.State()
+	if !state.Enabled {
+		return RoutineSurgeryResult{Reason: BuildingMethodDisabled}, nil
+	}
+	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
+		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
+	}
+	review, err := p.journal.LoadRoutineReview(call)
+	if err != nil {
+		return RoutineSurgeryResult{}, err
+	}
+	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
+		return RoutineSurgeryResult{Reason: BuildingMethodNoReview}, nil
+	}
+	goal, workable, err := p.journal.Workable(call, review, policy.MaintainSurgery)
+	if err != nil {
+		return RoutineSurgeryResult{}, err
+	}
+	if !workable {
+		return RoutineSurgeryResult{Reason: BuildingMethodNoDeficit}, nil
+	}
+	inFlight := map[policy.PawnID]bool{}
+	for _, method := range goal.Methods {
+		plan, err := p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return RoutineSurgeryResult{}, err
+		}
+		for _, progress := range plan.Progress {
+			if s, ok := progress.Action().Surgery(); ok && domain.GoalWorkOpen([]domain.Progress{progress}) {
+				inFlight[policy.PawnID(s.Pawn())] = true
+			}
+		}
+	}
+	expected, err := routineScope(call, r.reviewer.native)
+	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
+	}
+	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
+	if err != nil {
+		return RoutineSurgeryResult{}, err
+	}
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
+	if err != nil {
+		return RoutineSurgeryResult{}, err
+	}
+	if _, known := read.Projection.Facts.MedicalPawns.Value(); !known {
+		return RoutineSurgeryResult{Reason: BuildingMethodUnknown}, nil
+	}
+	selection := policy.SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight)
+	result := RoutineSurgeryResult{Wants: selection.Wants}
+	var queue []policy.SurgeryChoice
+	for _, choice := range selection.Queue {
+		if arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
+			queue = append(queue, choice)
+		}
+	}
+	if len(queue) == 0 {
+		switch {
+		case len(inFlight) > 0:
+			result.Reason = BuildingMethodExistingWork
+		case len(selection.Wants) > 0:
+			result.Reason = RoutineBuildingReason(selection.Wants[0].Reason)
+		default:
+			result.Reason = BuildingMethodUsed
+		}
+		return result, nil
+	}
+	// The tick keys the method: a failed surgery leaves the part missing,
+	// and the same recipe is queued again on a later review.
+	hash := sha256.New()
+	fmt.Fprintf(hash, "%s/%d/%d\n", goal.Goal.ID, goal.Goal.Epoch, expected.Tick)
+	for _, choice := range queue {
+		fmt.Fprintf(hash, "%s/%s/%d\n", choice.Pawn, choice.Recipe, choice.Part)
+	}
+	method := domain.MethodID(fmt.Sprintf("restore-%x", hash.Sum(nil)[:16]))
+	for _, previous := range goal.Methods {
+		if previous.Method == method {
+			result.Reason = BuildingMethodUsed
+			return result, nil
+		}
+	}
+	id := domain.MintPlanID()
+	actions := make([]domain.Action, 0, len(queue))
+	for i, choice := range queue {
+		surgery, err := domain.NewSurgery(domain.PawnID(choice.Pawn), choice.Recipe, choice.Part, false)
+		if err != nil {
+			return RoutineSurgeryResult{}, err
+		}
+		action, err := domain.NewSurgeryAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), surgery)
+		if err != nil {
+			return RoutineSurgeryResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	plan, err := domain.NewPlan(id, 1, actions)
+	if err != nil {
+		return RoutineSurgeryResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineSurgeryResult{}, err
+	}
+	if p.session.State() != state {
+		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineSurgeryResult{}, err
+	}
+	result.Reason, result.Plan = BuildingMethodAdmitted, id
+	return result, nil
+}

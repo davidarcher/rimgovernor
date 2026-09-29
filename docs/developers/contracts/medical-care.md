@@ -21,8 +21,7 @@ Existing tending is never interrupted. Changed patient/worker evidence can reope
 retend timing, care policy and medical-rest state. It enables ordinary Patient and
 PatientBedRest work when available and not disabled. Native jobs choose
 beds. Missing observations, unavailable work or player restrictions produce explicit
-blockers. Chronic conditions remain visible without automatically choosing elective
-operations. An absent tracked patient cannot certify recovery. Per-condition Go Facts preserve severity, immunity, tended state and tend quality,
+blockers. An absent tracked patient cannot certify recovery. Per-condition Go Facts preserve severity, immunity, tended state and tend quality,
 plus instantaneous severity/day and immunity/day (60000 game ticks). Severity/day
 includes native immunizable and tending modifiers; immunity/day uses the native
 immunity record. Missing fields remain unknown, including rates for conditions
@@ -59,6 +58,18 @@ missing or dead patients and incomplete condition lists cannot certify recovery.
 World replacement and tick rewind clear that history. The shared goal retains
 cancellation and renewed-deficit semantics. Go care orders, detailed clinical
 evidence and monitoring composition remain in G01.07a/e.
+
+## Surgery
+
+`MaintainSurgery` (priority 2, #1164) restores missing or destroyed parts from
+the surgery facts on the pawn care read. Per part it takes the best recipe whose
+ingredients are on the map (bionic, then prosthetic, then peg) that some eligible
+doctor performs with a native failure chance of 20% or less; each patient queues
+its most valuable part (capacity weight times part tier) as one `SurgeryIntent`,
+and no patient gets a second while a bill is queued or a surgery action is open.
+Otherwise the goal's reason names the want: `surgery_part_short` or
+`surgery_no_doctor`. The goal settles when the operation leaves the census (the
+health change), never when the bill disappears.
 
 ## Medicine selection
 

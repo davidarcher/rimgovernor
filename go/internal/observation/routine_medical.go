@@ -33,6 +33,7 @@ func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFac
 		}
 		if h := row.Health; h != nil && !hasIssue(row.Issues, "health") {
 			p.MissingParts, p.Operations = surgeryFacts(h)
+			p.QueuedSurgeries = domain.Known(len(h.SurgeryBills))
 			p.LifeThreatening = optional(h.LifeThreatening)
 			p.NeedsRest, p.NeedsTend = optional(h.ShouldSeekMedicalRest), optional(h.NeedsTend)
 			c := h.HediffCompleteness

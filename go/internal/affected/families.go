@@ -80,6 +80,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_ingredient_storage.go":   {"ingredient-storage"},
 	"routine_lighting.go":             {"lighting"},
 	"routine_medical.go":              {"medical"},
+	"routine_surgery.go":              {"medical"},
 	"routine_medicine_tier.go":        {"medical"},
 	"routine_medical_retry.go":        {"medical"},
 	"routine_mood_relief.go":          {"mood"},

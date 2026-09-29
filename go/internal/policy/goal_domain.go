@@ -51,6 +51,7 @@ var goalDomains = map[GoalID]Domain{
 
 	CriticalMedicine:        DomainMedical,
 	MaintainMedicalReserves: DomainMedical,
+	MaintainSurgery:         DomainMedical,
 
 	RestoreWorkers:        DomainPeople,
 	EnsureMood:            DomainPeople,

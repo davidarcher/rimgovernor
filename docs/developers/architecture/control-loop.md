@@ -90,7 +90,7 @@ Every GoalID in `go/internal/policy`:
 | Response | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
 | Project | `AllowStartingSupplies`, `EnsureCooking`, `EnsureBasicPower`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
 | Standard (chore) | `MaintainWaste`, `RemoveBlight`, `MaintainStockpiles`, `TidyLayout`, `ClearHomeObstructions` |
-| Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `SecureSupplies`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMedicalReserves`, `MaintainPopulation`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell`, `MaintainStorage` |
+| Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `SecureSupplies`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainPopulation`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell`, `MaintainStorage` |
 | Rule | none (see above) |
 
 `policy.GoalConcept` returns this classification, and a test fails on any
@@ -110,7 +110,7 @@ or budgets labor.
 | Shelter | `EnsureInitialShelter`, `EnsureBasicComfort`, `EnsureComfort`, `EnsureTemperatureSafety`, `EnsureExpansion`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainLighting`, `MaintainFlooring`, `MaintainHomeCoverage` |
 | Industry | `EnsureBasicPower`, `MaintainResource`, `EnsureResearch` |
 | Military | `ActiveCombat`, `EnsureBasicDefense`, `EnsureDefensiveLayout`, `ClearAncientShrine`, `ClearPests`, `MaintainEquipment` |
-| Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves` |
+| Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainSurgery` |
 | People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MoodGoal(pawn)`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment` |
 | Upkeep | `AllowStartingSupplies`, `SecureSupplies`, `ManageSupplySafety`, `MaintainStockpiles`, `MaintainStorage`, `TradeWithCaravan`, `MaintainWaste`, `TidyLayout`, `ClearHomeObstructions`, `MaintainCleanFacilities`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainRoutes`, `RecoverDisasterServices` |
 | System (no panel section) | `AnswerDialog`, `ConfirmColonyNames` |

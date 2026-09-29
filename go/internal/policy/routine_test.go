@@ -26,7 +26,7 @@ func stableRoutine() RoutineFacts {
 		FoodStorageUpkeep:    FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{})},
 		Upkeep:               emptyUpkeep(),
 		Gear:                 domain.Known(gear),
-		MedicalCareRecovered: domain.Known(true), ComfortRecovered: domain.Known(true),
+		MedicalCareRecovered: domain.Known(true), ComfortRecovered: domain.Known(true), MedicalPawns: domain.Known([]CarePawn{}),
 		BasicComfort: domain.Known(providedComfort("a", "b", "c")),
 		Colonists:    domain.Known(int64(3)), HousingTarget: domain.Known(int64(0)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(4)), GrowingCells: domain.Known(int64(30)), Armed: domain.Known(int64(2)),
 		FoodDays: domain.Known(8.0), FieldCoverage: domain.Known(1.0), SleepingMin: domain.Known(20.0), SleepingMax: domain.Known(20.0), Wood: domain.Known(int64(400)),

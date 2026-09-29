@@ -32,7 +32,7 @@ func TestPlannerCatalogClasses(t *testing.T) {
 			critical = append(critical, entry.name)
 		}
 	}
-	want := []string{"undraft", "supplies", "hospital", "sleepingUpkeep", "defense", "medical", "tend", "rescue", "fireSafety", "recovery", "populationCustody", "naming", "dialog"}
+	want := []string{"undraft", "supplies", "hospital", "sleepingUpkeep", "defense", "medical", "surgery", "tend", "rescue", "fireSafety", "recovery", "populationCustody", "naming", "dialog"}
 	if !reflect.DeepEqual(critical, want) {
 		t.Fatalf("critical planners %v, want %v", critical, want)
 	}

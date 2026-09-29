@@ -438,6 +438,16 @@ var plannerCatalog = []plannerEntry{
 			out.Medical = &method
 			return method.Reason, nil
 		}},
+	{name: "surgery", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.SurgeryAction}, sections: sectionsMedical,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Surgery != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.Surgery.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.Surgery = &method
+			return method.Reason, nil
+		}},
 	{name: "tend", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.TendAction}, sections: sectionsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Tend != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

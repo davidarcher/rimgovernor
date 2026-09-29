@@ -18,6 +18,9 @@ type CarePawn struct {
 	// every value through vanilla; nothing here is recomputed in Go.
 	MissingParts domain.Fact[[]MissingPart]
 	Operations   domain.Fact[[]SurgeryOperation]
+	// QueuedSurgeries counts the medical bills queued on the patient: the
+	// surgery planner's in-flight evidence (#1164).
+	QueuedSurgeries domain.Fact[int]
 }
 
 // MissingPart is a missing or destroyed body part at its common missing

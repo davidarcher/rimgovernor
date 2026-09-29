@@ -1069,6 +1069,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addGoal(MaintainMedicalReserves, medicalReservePriority)
 	}
 	addAssessment(MaintainMedicalReserves, medicalUpkeepPriority, medicalRecovered)
+	// MaintainSurgery (#1164): an operation the planner serves stands on a
+	// living colonist until the health change removes it.
+	surgeryRecovered := SurgeryRecovered(f.MedicalPawns)
+	addAssessment(MaintainSurgery, surgeryPriority, surgeryRecovered)
+	if !positive(surgeryRecovered) {
+		addGoal(MaintainSurgery, surgeryPriority)
+	}
 	reserve, reserveKnown := f.FoodReserve.Value()
 	reserveAccess := reserveKnown && (len(reserve.Hold) > 0 || len(reserve.Release) > 0)
 	reserveRefill := reserveKnown && !reserve.Emergency && reserve.DeficitNutrition > 0
