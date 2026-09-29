@@ -259,21 +259,25 @@ func TestValidateCombatRepair(t *testing.T) {
 	}
 }
 
-// TestValidateCombatMortar covers the #931 mortar order.
+// TestValidateCombatMortar covers the #1202 man_mortar (a pawn) and
+// mortar_fire (no pawn) orders.
 func TestValidateCombatMortar(t *testing.T) {
 	mortar := func() *o.CombatOrders {
 		return &o.CombatOrders{Orders: []*o.CombatOrder{
-			{Pawn: combatPawn("p0"), Order: &o.CombatOrder_Mortar{Mortar: &o.CombatMortar{Mortar: combatCell(3, 4), Target: combatCell(3, 50)}}},
+			{Order: &o.CombatOrder_MortarFire{MortarFire: &o.CombatMortarFire{Mortar: combatCell(3, 4), Target: combatCell(3, 50), Shell: proto.String("Shell_EMP")}}},
+			{Pawn: combatPawn("p0"), Order: &o.CombatOrder_ManMortar{ManMortar: combatCell(3, 4)}},
 		}}
 	}
 	if err := ValidateCombatOrders(mortar()); err != nil {
 		t.Fatal(err)
 	}
 	for name, edit := range map[string]func(*o.CombatOrders){
-		"nil":       func(v *o.CombatOrders) { v.Orders[0].Order = &o.CombatOrder_Mortar{} },
-		"no target": func(v *o.CombatOrders) { v.Orders[0].GetMortar().Target = nil },
-		"bad cell":  func(v *o.CombatOrders) { v.Orders[0].GetMortar().Mortar = combatCell(-1, 4) },
-		"no pawn":   func(v *o.CombatOrders) { v.Orders[0].Pawn = nil },
+		"nil fire":       func(v *o.CombatOrders) { v.Orders[0].Order = &o.CombatOrder_MortarFire{} },
+		"no target":      func(v *o.CombatOrders) { v.Orders[0].GetMortarFire().Target = nil },
+		"bad cell":       func(v *o.CombatOrders) { v.Orders[0].GetMortarFire().Mortar = combatCell(-1, 4) },
+		"fire with pawn": func(v *o.CombatOrders) { v.Orders[0].Pawn = combatPawn("p0") },
+		"man no pawn":    func(v *o.CombatOrders) { v.Orders[1].Pawn = nil },
+		"man bad cell":   func(v *o.CombatOrders) { v.Orders[1].Order = &o.CombatOrder_ManMortar{ManMortar: combatCell(-1, 4)} },
 	} {
 		v := mortar()
 		edit(v)
@@ -281,8 +285,9 @@ func TestValidateCombatMortar(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 		}
 	}
-	if _, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{combatResult(0, "p0", false, CombatRefusalNotAMortar, "")}), mortar()); err != nil {
-		t.Fatalf("mortar refusal: %v", err)
+	results := []*r.CombatOrderResult{combatResult(0, "", false, CombatRefusalNoShell, ""), combatResult(1, "p0", false, CombatRefusalNotAMortar, "")}
+	if _, err := CombatOrderResults(combatReceipt(results), mortar()); err != nil {
+		t.Fatalf("mortar refusals: %v", err)
 	}
 }
 

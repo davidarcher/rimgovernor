@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
             foreach (var order in command.Orders)
             {
                 if (order == null) return false;
-                bool door = order.OrderCase == Operations.CombatOrder.OrderOneofCase.Door;
+                bool door = order.OrderCase == Operations.CombatOrder.OrderOneofCase.Door || order.OrderCase == Operations.CombatOrder.OrderOneofCase.MortarFire;
                 if (door ? order.Pawn != null : !NativeDraftProtocol.ValidEntityTokenOptional(order.Pawn)) return false;
                 switch (order.OrderCase)
                 {
@@ -44,7 +44,8 @@ namespace HomeBridge.BridgeTools
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(order.Rescue.Downed) || order.Rescue.Downed.EntityId == order.Pawn!.EntityId
                             || order.Rescue.Dest != null && !ValidCell(order.Rescue.Dest)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.Repair: if (!ValidCell(order.Repair.Cell)) return false; break;
-                    case Operations.CombatOrder.OrderOneofCase.Mortar: if (!ValidCell(order.Mortar.Mortar) || !ValidCell(order.Mortar.Target)) return false; break;
+                    case Operations.CombatOrder.OrderOneofCase.ManMortar: if (!ValidCell(order.ManMortar)) return false; break;
+                    case Operations.CombatOrder.OrderOneofCase.MortarFire: if (!ValidCell(order.MortarFire.Mortar) || !ValidCell(order.MortarFire.Target)) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.Release:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(order.Release) || order.Release.EntityId == order.Pawn!.EntityId) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.AnimalArea:
@@ -79,6 +80,11 @@ namespace HomeBridge.BridgeTools
                 var result = new Receipts.CombatOrderResult { Index = (uint)i };
                 string refusal; string? job = null;
                 if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Door) refusal = Door(map, order.Door);
+                else if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.MortarFire)
+                {
+                    try { refusal = MortarFire(map, order.MortarFire, out job); }
+                    catch (Exception error) { refusal = "native_refused"; Log.Warning("[RimGovernor] combat order " + i + " mortar_fire failed: " + error.GetType().Name); }
+                }
                 else if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Release || order.OrderCase == Operations.CombatOrder.OrderOneofCase.AnimalArea)
                 {
                     // Animal orders (#1057): a player animal, never drafted.
@@ -218,40 +224,15 @@ namespace HomeBridge.BridgeTools
                     if (!pawn.CanReserveAndReach(building, PathEndMode.Touch, Danger.Deadly)) return "unreachable";
                     return Take(pawn, JobMaker.MakeJob(JobDefOf.Repair, building), out job);
                 }
-                case Operations.CombatOrder.OrderOneofCase.Mortar:
+                case Operations.CombatOrder.OrderOneofCase.ManMortar:
                 {
-                    // The vanilla mortar (#931): a manning pawn (ManTurret,
-                    // which loads shells) and the attack gizmo's forced target.
-                    var cell = new IntVec3(order.Mortar.Mortar.X, 0, order.Mortar.Mortar.Z);
-                    var target = new IntVec3(order.Mortar.Target.X, 0, order.Mortar.Target.Z);
-                    var mortar = cell.InBounds(map) ? cell.GetEdifice(map) as Building_TurretGun : null;
-                    if (mortar == null || mortar.Faction != Faction.OfPlayerSilentFail || mortar.def.building?.IsMortar != true
-                        || mortar.GetComp<CompMannable>() == null || map.roofGrid.Roofed(mortar.Position)) return "not_a_mortar";
-                    var verb = mortar.AttackVerb;
-                    var distance = (target - mortar.Position).LengthHorizontal;
-                    if (!target.InBounds(map) || verb == null || distance < verb.verbProps.EffectiveMinRange(target, mortar) || distance > verb.EffectiveRange) return "cannot_hit";
+                    // Crew the vanilla mortar (#1202): ManTurret, which loads
+                    // shells by the mortar's filter; the aim is mortar_fire's.
+                    var mortar = Mortar(map, order.ManMortar);
+                    if (mortar == null) return "not_a_mortar";
+                    if (mortar.GetComp<CompMannable>().ManningPawn == pawn) { job = JobDefOf.ManTurret.defName; return ""; }
                     if (!pawn.CanReserveAndReach(mortar, PathEndMode.InteractionCell, Danger.Deadly)) return "unreachable";
-                    var reload = false;
-                    if (order.Mortar.HasShell && order.Mortar.Shell.Length > 0)
-                    {
-                        // The requested shell (#1051): unload a different one
-                        // beside the mortar, allow only this one, and (re)take
-                        // ManTurret, whose ammo search honours the filter.
-                        var shells = mortar.gun?.TryGetComp<CompChangeableProjectile>();
-                        var shell = DefDatabase<ThingDef>.GetNamedSilentFail(order.Mortar.Shell);
-                        if (shells == null || shell == null || shells.GetParentStoreSettings()?.AllowedToAccept(shell) != true) return "unknown_shell";
-                        if (shells.LoadedShell != shell)
-                        {
-                            if (!map.listerThings.ThingsOfDef(shell).Any(t => t.Spawned && !t.IsForbidden(pawn) && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.Deadly))) return "no_shell";
-                            if (shells.Loaded) GenPlace.TryPlaceThing(shells.RemoveShell(), mortar.InteractionCell, map, ThingPlaceMode.Near);
-                            reload = true;
-                        }
-                        shells.allowedShellsSettings.filter.SetDisallowAll();
-                        shells.allowedShellsSettings.filter.SetAllow(shell, true);
-                    }
-                    var refusal = mortar.GetComp<CompMannable>().ManningPawn == pawn && !reload ? "" : Take(pawn, JobMaker.MakeJob(JobDefOf.ManTurret, mortar), out job);
-                    if (refusal.Length == 0) { mortar.OrderAttack(target); job ??= JobDefOf.ManTurret.defName; }
-                    return refusal;
+                    return Take(pawn, JobMaker.MakeJob(JobDefOf.ManTurret, mortar), out job);
                 }
                 case Operations.CombatOrder.OrderOneofCase.Stop:
                     pawn.jobs.ClearQueuedJobs();
@@ -322,6 +303,58 @@ namespace HomeBridge.BridgeTools
             return pawn.jobs.TryTakeOrderedJob(made, JobTag.Misc) ? "" : "native_refused";
         }
 
+        // The unroofed player mannable mortar on cell, else null.
+        private static Building_TurretGun? Mortar(Map map, Common.Cell at)
+        {
+            var cell = new IntVec3(at.X, 0, at.Z);
+            var mortar = cell.InBounds(map) ? cell.GetEdifice(map) as Building_TurretGun : null;
+            return mortar == null || mortar.Faction != Faction.OfPlayerSilentFail || mortar.def.building?.IsMortar != true
+                || mortar.GetComp<CompMannable>() == null || map.roofGrid.Roofed(mortar.Position) ? null : mortar;
+        }
+
+        // MortarFire (#1202, the #931 aim and #1051 shell): the attack
+        // gizmo's forced target, no pawn. A different loaded shell is
+        // unloaded beside the mortar and the filter allows only the asked
+        // one; a pawn manning it retakes ManTurret, whose ammo search
+        // honours the filter.
+        private static string MortarFire(Map map, Operations.CombatMortarFire order, out string? job)
+        {
+            job = null;
+            var mortar = Mortar(map, order.Mortar);
+            if (mortar == null) return "not_a_mortar";
+            var target = new IntVec3(order.Target.X, 0, order.Target.Z);
+            var verb = mortar.AttackVerb;
+            var distance = (target - mortar.Position).LengthHorizontal;
+            if (!target.InBounds(map) || verb == null || distance < verb.verbProps.EffectiveMinRange(target, mortar) || distance > verb.EffectiveRange) return "cannot_hit";
+            var crew = mortar.GetComp<CompMannable>().ManningPawn;
+            if (order.HasShell && order.Shell.Length > 0)
+            {
+                var shells = mortar.gun?.TryGetComp<CompChangeableProjectile>();
+                var shell = DefDatabase<ThingDef>.GetNamedSilentFail(order.Shell);
+                if (shells == null || shell == null || shells.GetParentStoreSettings()?.AllowedToAccept(shell) != true) return "unknown_shell";
+                if (shells.LoadedShell != shell)
+                {
+                    var player = Faction.OfPlayerSilentFail;
+                    if (!map.listerThings.ThingsOfDef(shell).Any(t => t.Spawned && (crew != null
+                        ? !t.IsForbidden(crew) && crew.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.Deadly)
+                        : player != null && !t.IsForbidden(player)))) return "no_shell";
+                }
+                shells.allowedShellsSettings.filter.SetDisallowAll();
+                shells.allowedShellsSettings.filter.SetAllow(shell, true);
+                if (shells.LoadedShell != shell)
+                {
+                    if (shells.Loaded) GenPlace.TryPlaceThing(shells.RemoveShell(), mortar.InteractionCell, map, ThingPlaceMode.Near);
+                    if (crew != null)
+                    {
+                        var refusal = Take(crew, JobMaker.MakeJob(JobDefOf.ManTurret, mortar), out job);
+                        if (refusal.Length > 0) return refusal;
+                    }
+                }
+            }
+            mortar.OrderAttack(target);
+            return "";
+        }
+
         // The vanilla hold-open toggle on a player door; close clears it so
         // the door shuts once nothing stands in it.
         private static string Door(Map map, Operations.CombatDoor order)
@@ -354,7 +387,7 @@ namespace HomeBridge.BridgeTools
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
             if (!NativeCombatOrders.Valid(action.CombatOrders))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Combat orders need at least one order, each an exact pawn (none for a door) and one supported order with explicit cells and modes.");
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Combat orders need at least one order, each an exact pawn (none for a door or mortar_fire) and one supported order with explicit cells and modes.");
             return NativePawnControlState.IsReady ? null : ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
         }
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>

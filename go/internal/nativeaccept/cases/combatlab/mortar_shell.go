@@ -15,9 +15,9 @@ const shellLoadTicks = 1800
 func init() {
 	cases.Register(cases.Case{
 		Name: "combatlab/mortar-shell",
-		Scope: "The combat.orders mortar shell op (#1051), a native op no snapshot can prove: on lab-siege, a crew ordered to fire HE at the siege camp " +
-			"loads Shell_HighExplosive (the combat_mortars row's loaded_shell), a second order naming Steel refuses unknown_shell, and a re-order " +
-			"naming Shell_EMP unloads the HE (if still loaded) and loads the EMP shell.",
+		Scope: "The combat.orders mortar shell op (#1051), a native op no snapshot can prove: on lab-siege, a mortar_fire order for HE at the siege camp " +
+			"and a man_mortar crew load Shell_HighExplosive (the combat_mortars row's loaded_shell), a mortar_fire naming Steel refuses unknown_shell, " +
+			"and a mortar_fire alone naming Shell_EMP unloads the HE (if still loaded) and the crew loads the EMP shell (#1202).",
 		Start:       cases.Lab{Colonists: 3},
 		RequiredOps: []string{na.LabStartTool, StageTool},
 		QuietWorld:  true,
@@ -49,21 +49,24 @@ func runMortarShell(ctx context.Context, s cases.Session) error {
 	colonists := staged.Colonists()
 	pawn := func(id string) map[string]any { return map[string]any{"entityId": id} }
 	mortar, target := cell(cx, cz+siegeOurMortar), cell(cx, cz+siegeCampMortar)
-	order := func(id, shell string) map[string]any {
-		return map[string]any{"pawn": pawn(id), "mortar": map[string]any{"mortar": mortar, "target": target, "shell": shell}}
+	fire := func(shell string) map[string]any {
+		return map[string]any{"mortarFire": map[string]any{"mortar": mortar, "target": target, "shell": shell}}
 	}
 	results, err := issue(ctx, h, s.Identity(), "combat-mortar-shell-1", []any{
 		map[string]any{"pawn": pawn(colonists[0]), "draft": map[string]any{}},
-		map[string]any{"pawn": pawn(colonists[1]), "draft": map[string]any{}},
-		order(colonists[0], "Shell_HighExplosive"),
-		order(colonists[1], "Steel"),
+		fire("Shell_HighExplosive"),
+		map[string]any{"pawn": pawn(colonists[0]), "manMortar": mortar},
+		fire("Steel"),
 	})
 	if err != nil {
 		return err
 	}
 	report["first"] = results
+	if applied, _ := na.AsBool(results[1]["applied"]); !applied {
+		return fmt.Errorf("the HE fire order: want applied, got %v", results[1])
+	}
 	if applied, _ := na.AsBool(results[2]["applied"]); !applied || na.AsString(results[2]["jobDef"]) != "ManTurret" {
-		return fmt.Errorf("the HE order: want applied ManTurret, got %v", results[2])
+		return fmt.Errorf("the crew order: want applied ManTurret, got %v", results[2])
 	}
 	if applied, _ := na.AsBool(results[3]["applied"]); applied || na.AsString(results[3]["refusal"]) != "unknown_shell" {
 		return fmt.Errorf("steel order: want refusal unknown_shell, got %v", results[3])
@@ -71,7 +74,8 @@ func runMortarShell(ctx context.Context, s cases.Session) error {
 	if err := awaitLoaded(ctx, h, frames, cx, cz+siegeOurMortar, "Shell_HighExplosive", report, "heTick"); err != nil {
 		return err
 	}
-	results, err = issue(ctx, h, s.Identity(), "combat-mortar-shell-2", []any{order(colonists[0], "Shell_EMP")})
+	// The crew still mans it: the fire order alone retakes ManTurret.
+	results, err = issue(ctx, h, s.Identity(), "combat-mortar-shell-2", []any{fire("Shell_EMP")})
 	if err != nil {
 		return err
 	}

@@ -99,9 +99,10 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 			return err
 		}
 		_, door := order.Order.(*o.CombatOrder_Door)
-		if door {
+		_, fire := order.Order.(*o.CombatOrder_MortarFire)
+		if door || fire {
 			if order.Pawn != nil {
-				return contract("combat order %d: a door order names no pawn", i)
+				return contract("combat order %d: a door or mortar_fire order names no pawn", i)
 			}
 		} else if err := optionalTokenEntity(order.Pawn); err != nil {
 			return contract("combat order %d pawn: %v", i, err)
@@ -150,9 +151,13 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 			if v.Repair == nil || movementCell(v.Repair.Cell) != nil {
 				return contract("combat order %d repair cell missing or invalid", i)
 			}
-		case *o.CombatOrder_Mortar:
-			if v.Mortar == nil || movementCell(v.Mortar.Mortar) != nil || movementCell(v.Mortar.Target) != nil {
-				return contract("combat order %d mortar or target cell missing or invalid", i)
+		case *o.CombatOrder_ManMortar:
+			if err := movementCell(v.ManMortar); err != nil {
+				return contract("combat order %d man_mortar: %v", i, err)
+			}
+		case *o.CombatOrder_MortarFire:
+			if v.MortarFire == nil || movementCell(v.MortarFire.Mortar) != nil || movementCell(v.MortarFire.Target) != nil {
+				return contract("combat order %d mortar_fire mortar or target cell missing or invalid", i)
 			}
 		case *o.CombatOrder_Release:
 			if err := optionalTokenEntity(v.Release); err != nil {

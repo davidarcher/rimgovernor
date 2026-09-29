@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -21,7 +22,7 @@ func mortarView() CombatView {
 func mortarOrders(orders []CombatOrder) []CombatOrder {
 	var out []CombatOrder
 	for _, o := range orders {
-		if o.Kind == OrderMortar {
+		if o.Kind == OrderManMortar {
 			out = append(out, o)
 		}
 	}
@@ -34,9 +35,14 @@ func mortarOrders(orders []CombatOrder) []CombatOrder {
 func TestDecideCombatCounterBatteryCrewsTheMortar(t *testing.T) {
 	view := mortarView()
 	orders, m := decideStop(t, view, StopEvent{}, CombatMemory{})
-	want := CombatOrder{Pawn: "m", Kind: OrderMortar, Cell: domain.Cell{X: 5, Z: 30}, Aim: domain.Cell{X: 9, Z: -20}, Shell: ShellEMP, Reason: ReasonCounterBattery}
+	want := CombatOrder{Pawn: "m", Kind: OrderManMortar, Cell: domain.Cell{X: 5, Z: 30}, Aim: domain.Cell{X: 9, Z: -20}, Shell: ShellEMP, Reason: ReasonCounterBattery}
 	if got := mortarOrders(orders); len(got) != 1 || got[0] != want {
 		t.Fatalf("%+v", got)
+	}
+	// The pawnless aim (#1202) leads its crew order.
+	fire := CombatOrder{Kind: OrderMortarFire, Cell: want.Cell, Aim: want.Aim, Shell: ShellEMP, Reason: ReasonCounterBattery}
+	if i := slices.Index(orders, fire); i < 0 || i+1 >= len(orders) || orders[i+1] != want {
+		t.Fatalf("no mortar_fire before the crew: %+v", orders)
 	}
 	for i := range view.Pawns {
 		if view.Pawns[i].ID == "m" {

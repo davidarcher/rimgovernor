@@ -20,7 +20,7 @@ message Cells { oneof selection { CellList explicit_cells = 1; Rectangle rectang
 // tick. Each pawn's snapshot token, when sent, is checked once, before any
 // order runs; a pawn may carry several orders (fire mode then move). A pawn
 // order needs an eligible drafted pawn, which a draft order earlier in the
-// batch may make. A door order names no pawn. Per-order refusals come back
+// batch may make. A door or mortar_fire order names no pawn. Per-order refusals come back
 // in CombatOrdersEffect; only a malformed batch refuses the whole action.
 enum CombatFireMode { COMBAT_FIRE_MODE_UNSPECIFIED = 0; COMBAT_FIRE_MODE_AT_WILL = 1; COMBAT_FIRE_MODE_HOLD = 2; }
 // FORBID and ALLOW (#867) set the door's forbidden flag, which every player
@@ -37,16 +37,16 @@ message CombatRescue { EntityPrecondition downed = 1; rimgovernor.common.v1.Cell
 // Refusals: cannot_repair (no damaged player building there, or the pawn
 // cannot construct), unreachable.
 message CombatRepair { rimgovernor.common.v1.Cell cell = 1; }
-// Mortar (#931): the drafted pawn mans the unroofed player mortar on
-// mortar (vanilla ManTurret, which loads shells from stock) and the mortar
-// force-targets target, as the vanilla attack gizmo (OrderAttack). Refusals:
-// not_a_mortar, cannot_hit (inside the minimum or past the maximum range),
-// unreachable. shell (#1051), when set, is the shell ThingDef to fire: a
-// different loaded shell is unloaded beside the mortar, the mortar's shell
-// filter allows only shell, and the crew (re)takes ManTurret to load it.
-// Refusals: unknown_shell (not a shell this mortar accepts), no_shell (no
-// unforbidden stack of it the pawn can reach).
-message CombatMortar { rimgovernor.common.v1.Cell mortar = 1; rimgovernor.common.v1.Cell target = 2; optional string shell = 3; }
+// MortarFire (#1202) names no pawn: the unroofed player mortar on mortar
+// force-targets target, as the vanilla attack gizmo (OrderAttack); a
+// man_mortar order crews it. Refusals: not_a_mortar, cannot_hit (inside
+// the minimum or past the maximum range). shell (#1051), when set, is the
+// shell ThingDef to fire: a different loaded shell is unloaded beside the
+// mortar, the mortar's shell filter allows only shell, and a pawn manning
+// it retakes ManTurret to load it. Refusals: unknown_shell (not a shell
+// this mortar accepts), no_shell (no unforbidden stack of it, in the
+// manning pawn's reach when one mans it).
+message CombatMortarFire { rimgovernor.common.v1.Cell mortar = 1; rimgovernor.common.v1.Cell target = 2; optional string shell = 3; }
 // Animal orders (#1057) name a player-faction animal, not a drafted pawn:
 // no draft claim is needed, and the animal carries no snapshot token.
 // Refusals: not_ours (not a spawned player animal), untrained (release
@@ -78,13 +78,18 @@ message CombatOrder {
     // again. The controller undrafts pawns no live plan needs (#939).
     // Refusal: cannot_draft (not eligible).
     Clear draft = 11;
-    CombatMortar mortar = 12;
+    // ManMortar (#1202): the drafted pawn mans the unroofed player mortar
+    // on the cell (vanilla ManTurret, which loads shells from stock); one
+    // already manning it applies. Refusals: not_a_mortar, unreachable.
+    rimgovernor.common.v1.Cell man_mortar = 15;
+    CombatMortarFire mortar_fire = 16;
     // Release (#1057): a release-trained player animal attacks one spawned
     // pawn by the vanilla melee attack job, as a released animal does.
     // Refusals: not_ours, untrained, not_found, cannot_hit, unreachable.
     EntityPrecondition release = 13;
     CombatAnimalArea animal_area = 14;
   }
+  reserved 12;
 }
 message CombatOrders { repeated CombatOrder orders = 1; }
 enum ThingDesignation {

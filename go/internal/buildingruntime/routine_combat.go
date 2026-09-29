@@ -217,7 +217,9 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 		if results != nil {
 			row.Applied, row.Refusal = results[i].Applied, results[i].Refusal
 		}
-		if !row.Applied && results != nil && order.Pawn != "" {
+		if !row.Applied && results != nil && order.Kind == policy.OrderMortarFire {
+			memory = memory.RefuseFire(order, row.Refusal == bridge.CombatRefusalNoShell || row.Refusal == bridge.CombatRefusalUnknownShell)
+		} else if !row.Applied && results != nil && order.Pawn != "" {
 			if policy.AnimalOrderKind(order.Kind) {
 				memory = memory.RefuseAnimal(order, row.Refusal)
 			} else if from, ok := cells[order.Pawn]; ok && row.Refusal == bridge.CombatRefusalCannotHit {
@@ -251,11 +253,15 @@ func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state Cont
 			wire.Order = &op.CombatOrder_Attack{Attack: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
 		case policy.OrderRescue:
 			wire.Order = &op.CombatOrder_Rescue{Rescue: &op.CombatRescue{Downed: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}}
-		case policy.OrderMortar:
-			wire.Order = &op.CombatOrder_Mortar{Mortar: &op.CombatMortar{Mortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Target: &c.Cell{X: proto.Int32(order.Aim.X), Z: proto.Int32(order.Aim.Z)}}}
+		case policy.OrderManMortar:
+			wire.Order = &op.CombatOrder_ManMortar{ManMortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
+		case policy.OrderMortarFire:
+			wire.Pawn = nil
+			fire := &op.CombatMortarFire{Mortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Target: &c.Cell{X: proto.Int32(order.Aim.X), Z: proto.Int32(order.Aim.Z)}}
 			if order.Shell != "" {
-				wire.GetMortar().Shell = proto.String(order.Shell)
+				fire.Shell = proto.String(order.Shell)
 			}
+			wire.Order = &op.CombatOrder_MortarFire{MortarFire: fire}
 		case policy.OrderAttackGround:
 			wire.Order = &op.CombatOrder_AttackGround{AttackGround: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
 		case policy.OrderRepair:

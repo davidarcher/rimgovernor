@@ -9,9 +9,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// OrderMortar sends a drafted pawn to man a colony mortar that fires at a
-// cell (#931).
-const OrderMortar CombatOrderKind = "mortar"
+// OrderManMortar sends a drafted pawn to man the colony mortar on Cell;
+// OrderMortarFire, which names no pawn, aims that mortar at Aim with
+// Shell (#931, #1202).
+const (
+	OrderManMortar  CombatOrderKind = "man_mortar"
+	OrderMortarFire CombatOrderKind = "mortar_fire"
+)
 
 // ReasonCounterBattery is a mortar order (#931).
 const ReasonCounterBattery CombatOrderReason = "counter_battery"

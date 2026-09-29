@@ -186,6 +186,11 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		if interruptsAim(state[role.Pawn]) && want.Reason != ReasonRetreat && want.Reason != ReasonRescue {
 			continue
 		}
+		if want.Kind == OrderManMortar {
+			// The pawnless aim leads its crew order (#1202): it sets the
+			// shell filter the crew's ManTurret then loads by.
+			orders = append(orders, CombatOrder{Kind: OrderMortarFire, Cell: want.Cell, Aim: want.Aim, Shell: want.Shell, Reason: ReasonCounterBattery})
+		}
 		orders = append(orders, want)
 	}
 	orders = holdFire(view, slices.DeleteFunc(slices.Clone(next.Roles), func(r CombatRole) bool {
@@ -471,7 +476,10 @@ type CombatOrder struct {
 	Reason   CombatOrderReason
 	// Door is a door order's mode (#867); a door order names no pawn.
 	Door DoorMode `json:",omitempty"`
-	// Aim is a mortar order's target cell (#931); Cell is the mortar's.
+	// Aim is a mortar_fire order's target cell (#931, #1202); Cell is the
+	// mortar's. Its man_mortar crew order carries the same Aim and Shell,
+	// so a new aim sends the pair again; only mortar_fire puts them on the
+	// wire.
 	Aim domain.Cell `json:",omitzero"`
 	// Shell is a mortar order's shell def (#1051), "" whatever is loaded.
 	Shell string `json:",omitempty"`
@@ -579,6 +587,23 @@ func (m CombatMemory) RefuseShell(order CombatOrder) CombatMemory {
 		m.NoShells = append(m.NoShells, order.Shell)
 	}
 	return m
+}
+
+// RefuseFire is a mortar_fire order native refused (#1202): the crew of
+// its mortar is forgotten so the next stop sends the pair again, and a
+// shell refusal is RefuseShell.
+func (m CombatMemory) RefuseFire(order CombatOrder, shell bool) CombatMemory {
+	var crew domain.PawnID
+	for _, r := range m.Roles {
+		if r.Mortar != nil && *r.Mortar == order.Cell {
+			crew = r.Pawn
+		}
+	}
+	if shell {
+		order.Pawn = crew
+		return m.RefuseShell(order)
+	}
+	return m.Forget(crew)
 }
 
 // HitRefusal is an attack native refused cannot_hit: Pawn could not hit
@@ -703,8 +728,9 @@ func (m CombatMemory) doing(want CombatOrder, s CombatPawnState) bool {
 		if s.Job == "Repair" {
 			return true
 		}
-	case OrderMortar:
-		// Manning the same mortar at the same aim; the stance of a crew
+	case OrderManMortar:
+		// Manning the same mortar at the same aim (the order carries the
+		// aim so a new one re-sends the pair); the stance of a crew
 		// waiting on its gun says nothing.
 		return s.Job == "ManTurret" && slices.ContainsFunc(m.Issued, func(o IssuedOrder) bool { return o.Pawn == want.Pawn && o.CombatOrder == want })
 	}
@@ -721,7 +747,7 @@ func (m CombatMemory) doing(want CombatOrder, s CombatPawnState) bool {
 // want is the order the role asks of a pawn in state s.
 func (r CombatRole) want(s CombatPawnState) (CombatOrder, bool) {
 	if r.Mortar != nil && r.Aim != nil {
-		return CombatOrder{Pawn: r.Pawn, Kind: OrderMortar, Cell: *r.Mortar, Aim: *r.Aim, Shell: r.Shell, Reason: ReasonCounterBattery}, true
+		return CombatOrder{Pawn: r.Pawn, Kind: OrderManMortar, Cell: *r.Mortar, Aim: *r.Aim, Shell: r.Shell, Reason: ReasonCounterBattery}, true
 	}
 	if r.Ground != nil {
 		return CombatOrder{Pawn: r.Pawn, Kind: OrderAttackGround, Cell: *r.Ground, Reason: ReasonRocketClump}, true
