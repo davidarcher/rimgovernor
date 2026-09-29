@@ -17,6 +17,10 @@ import (
 func init() {
 	// clearance/shrine-claim (claim=true) replays as a colony snapshot
 	// instead (internal/snapshot, #746).
+	// The repair family composes because the fight damages buildings: the
+	// breach waits on repairs (ClearAncientShrine is method_unavailable
+	// while the repairs latch holds), so without it recovery never comes
+	// (#1145).
 	for _, claim := range []bool{false} {
 		name := "clearance/shrine-breach"
 		if claim {
@@ -26,7 +30,7 @@ func init() {
 			Name: name, Scope: "Sealed shrine breach, ActiveCombat handoff and observed recovery; empty casket claim and default never-open protection.",
 			Start:       cases.Save{Name: "RimGovernor-tribal8-baseline"},
 			RequiredOps: []string{"test/shrine_prepare", "test/shrine_audit"},
-			Serve:       &cases.ServeSpec{Families: []string{"shrine", "defense", "clearance", "tend", "rescue"}, Prefix: "shrine-breach"},
+			Serve:       &cases.ServeSpec{Families: []string{"shrine", "defense", "clearance", "repair", "tend", "rescue"}, Prefix: "shrine-breach"},
 			Stages:      []string{"sealed-shrine-ready"}, Budget: 8 * time.Minute, Stall: 90 * time.Second,
 			Run: func(ctx context.Context, s cases.Session) error { return runShrineBreach(ctx, s, claim) },
 		})
