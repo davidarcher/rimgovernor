@@ -102,7 +102,7 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 					known = false
 					break
 				}
-				skills = append(skills, policy.WorkSkill{Name: entry.Definition.GetDefName(), Level: int(entry.GetLevel()), Stored: int(entry.GetStoredLevel()), Disabled: entry.GetDisabled(), Passion: entry.GetPassion()})
+				skills = append(skills, policy.WorkSkill{Name: entry.Definition.GetDefName(), Level: int(entry.GetLevel()), Stored: int(entry.GetStoredLevel()), Disabled: entry.GetDisabled(), Passion: skillPassion(entry.GetPassion())})
 			}
 			if known {
 				w.Skills = domain.Known(skills)
@@ -162,4 +162,13 @@ func jobTarget(t *o.TargetRef) domain.Fact[policy.JobTarget] {
 		return domain.Known(policy.JobTarget{})
 	}
 	return domain.Unknown[policy.JobTarget]()
+}
+
+// skillPassion normalises native Passion.ToString(): a pawn without passion
+// sends "None", which policy must read as "" (Passion != "" means passionate).
+func skillPassion(p string) string {
+	if p == "None" {
+		return ""
+	}
+	return p
 }
