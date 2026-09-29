@@ -72,11 +72,24 @@ const (
 	perimeterStacks = 120
 )
 
+// fixtureFunc calls one test/defense_setup op, refusing an unsuccessful one.
+type fixtureFunc func(label string, args map[string]any) (map[string]any, error)
+
 // variant is one case's scenario: the edge raid staged after the layout
-// (its RaidStrategyDef/PawnsArrivalModeDef).
+// (its RaidStrategyDef/PawnsArrivalModeDef), and the hooks a case built on
+// the perimeter campaign adds (#1211): gates stages extra layout gates
+// before the layout is built, layoutBuilt audits the built layout against
+// the native inspect after it, and raided compares that inspect with the
+// one taken as soon as the raid resolved.
 type variant struct {
 	strategy, arrival, threat string
+	gates                     func(fixture fixtureFunc, siteX, siteZ int) (map[string]any, error)
+	layoutBuilt               func(layout store.DefenseLayoutRecord, inspect map[string]any) error
+	raided                    func(afterLayout, afterRaid map[string]any) error
 }
+
+// perimeterFamilies are the families a perimeter campaign serves; see init.
+var perimeterFamilies = []string{"defensive-layout", "defense", "tend", "rescue", "fire", "supply"}
 
 func init() {
 	// The fire family belongs here: a raid can leave a home fire burning
@@ -90,7 +103,7 @@ func init() {
 	// priority-0 emergency that only the supplies planner clears by
 	// forbidding the stack; without it every development goal, the layout's
 	// cover clearance included, stays unselected after the raid (#620).
-	spec := &cases.ServeSpec{Families: []string{"defensive-layout", "defense", "tend", "rescue", "fire", "supply"}, Prefix: "defense"}
+	spec := &cases.ServeSpec{Families: perimeterFamilies, Prefix: "defense"}
 	// The baseline save keeps the site deterministic.
 	baseline := cases.Save{Name: sustained.BaselineSave}
 	v := variant{strategy: "ImmediateAttack", arrival: "EdgeWalkIn", threat: "raid"}
@@ -178,7 +191,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		}
 	}
 
-	fixture := func(label string, args map[string]any) (map[string]any, error) {
+	var fixture fixtureFunc = func(label string, args map[string]any) (map[string]any, error) {
 		out, err := h.Call(ctx, label, "test/defense_setup", args)
 		if err != nil {
 			return nil, err
@@ -218,28 +231,16 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 			return err
 		}
 		report["ranged"] = ranged
-		construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
-		if err != nil {
+		if siteX, siteZ, err = prepareSite(ctx, h, identity, report); err != nil {
 			return err
 		}
-		if success, _ := na.AsBool(construction["success"]); !success || !na.MatchesIdentity(construction, identity) {
-			return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
-		}
-		sites := na.AsSlice(construction["sites"])
-		if len(sites) != 1 {
-			return fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
-		}
-		site0, _ := na.AsMap(sites[0])
-		siteX, siteZ = int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
-		// The perimeter is stone: stock the blocks beside the colony's
-		// construction site so the wall's sections are admitted as fast as
-		// they are built.
-		for i := 0; i < perimeterStacks; i++ {
-			if _, _, err := na.LabSpawn(ctx, h, na.LabThing{Def: "BlocksGranite", X: siteX, Z: siteZ, Count: 75}); err != nil {
+		if v.gates != nil {
+			gates, err := v.gates(fixture, siteX, siteZ)
+			if err != nil {
 				return err
 			}
+			report["gates"] = gates
 		}
-		report["stone_blocks"] = perimeterStacks * 75
 		before, err := fixture("inspect-before", map[string]any{"op": "inspect"})
 		if err != nil {
 			return err
@@ -313,6 +314,11 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	}
 	if on := na.AsSlice(after["colonistsOnTraps"]); len(on) != 0 {
 		return fmt.Errorf("colonists standing on trap cells after layout: %v", on)
+	}
+	if v.layoutBuilt != nil {
+		if err := v.layoutBuilt(layout, after); err != nil {
+			return err
+		}
 	}
 	// Independent audit: with every wall, fence and barricade of the layout
 	// blocked (traps stay walkable for colonists, the safe lane's doors
@@ -474,6 +480,16 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	if err != nil {
 		return err
 	}
+	if v.raided != nil {
+		raided, err := fixture("inspect-raid-resolved", map[string]any{"op": "inspect"})
+		if err != nil {
+			return err
+		}
+		report["inspect_raid_resolved"] = raided
+		if err := v.raided(after, raided); err != nil {
+			return err
+		}
+	}
 	healed, err := fixture("heal-after-raid", map[string]any{"op": "heal"})
 	if err != nil {
 		return err
@@ -571,6 +587,33 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		return fmt.Errorf("raid did not resolve: no raider dead, downed or gone: %#v", final)
 	}
 	return nil
+}
+
+// prepareSite stages the colony's one guarded construction site, whose
+// building plan holds the routine arbitration slot, and stocks the
+// perimeter's stone blocks beside it so the wall's sections are admitted
+// as fast as they are built. It returns the site's cell.
+func prepareSite(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (int, int, error) {
+	construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
+	if err != nil {
+		return 0, 0, err
+	}
+	if success, _ := na.AsBool(construction["success"]); !success || !na.MatchesIdentity(construction, identity) {
+		return 0, 0, fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
+	}
+	sites := na.AsSlice(construction["sites"])
+	if len(sites) != 1 {
+		return 0, 0, fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
+	}
+	site0, _ := na.AsMap(sites[0])
+	siteX, siteZ := int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
+	for i := 0; i < perimeterStacks; i++ {
+		if _, _, err := na.LabSpawn(ctx, h, na.LabThing{Def: "BlocksGranite", X: siteX, Z: siteZ, Count: 75}); err != nil {
+			return 0, 0, err
+		}
+	}
+	report["stone_blocks"] = perimeterStacks * 75
+	return siteX, siteZ, nil
 }
 
 // edgeSide names the map side a corridor facing toward (the direction from

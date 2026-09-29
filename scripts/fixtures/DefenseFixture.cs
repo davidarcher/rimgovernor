@@ -35,7 +35,10 @@ namespace HomeBridge.BridgeTools
     // intrude (#118: arms DefenseBreachFixture, which teleports one live
     // raider to the cell near x,z once a colonist has stood drafted for
     // grace ticks -- the breach of a held line staged without a second
-    // bridge session). No completed-work injection: construction, movement
+    // bridge session), ieds (#1211: IEDs researched, HE shells near x,z),
+    // armory (#1211: raid points raised to points by the difficulty threat
+    // scale, Smithing/Machining/HeavyTurrets finished, a fuelled smithy and
+    // turret stock near x,z). No completed-work injection: construction, movement
     // and combat stay native.
     public sealed class DefenseFixture
     {
@@ -76,7 +79,7 @@ namespace HomeBridge.BridgeTools
             return fixtureCover;
         }
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|scaling|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth|intrude|cover.")]
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|scaling|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth|intrude|cover|ieds|armory.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "", int grace = 600, int dx = 0, int dz = 1, string side = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -107,7 +110,9 @@ namespace HomeBridge.BridgeTools
                     case "wealth": map.wealthWatcher.ForceRecount(); return new { success = true, threat = Threat(map), tick = Find.TickManager.TicksGame };
                     case "intrude": return Intrude(map, new IntVec3(x, 0, z), grace);
                     case "cover": return Cover(map, new IntVec3(x, 0, z), new IntVec3(dx, 0, dz));
-                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower, muster or empty.");
+                    case "ieds": return IedGates(map, new IntVec3(x, 0, z));
+                    case "armory": return Armory(map, new IntVec3(x, 0, z), points);
+                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower, muster, empty, hostile, wealth, intrude, cover, ieds or armory.");
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -734,6 +739,104 @@ namespace HomeBridge.BridgeTools
                 output = plant?.PowerOutput ?? 0f, network = plant?.PowerNet != null }, conduits, spawned, tick = Find.TickManager.TicksGame };
         }
 
+        // IedGates stages the IED tier's observed gates (#1211) without
+        // placing any IED: the IEDs research and its prerequisites are
+        // finished natively and high-explosive shells for the traps (two a
+        // trap, spares for the rebuild) are dropped near x,z. Where the IEDs
+        // go stays the layout planner's.
+        private static object IedGates(Map map, IntVec3 near)
+        {
+            if (!near.InBounds(map)) return Refuse("x and z must name a map cell for the shells.");
+            var finished = FinishResearch("IEDs");
+            if (finished == null) return Refuse("Research project IEDs not found.");
+            if (!DropStock(map, near, DefDatabase<ThingDef>.GetNamed("Shell_HighExplosive"), 24)) return Refuse("Shell placement failed.");
+            return new { success = true, finished, shells = 24, tick = Find.TickManager.TicksGame };
+        }
+
+        // Armory stages a threat-tier rise (#1211): the storyteller's
+        // difficulty threat scale steps up until DefaultThreatPointsNow
+        // reaches points, Smithing, Machining and HeavyTurrets are finished,
+        // a fuelled smithy stands on a reachable cell near x,z with steel,
+        // plasteel and components beside it, and the best builder is raised
+        // to the autocannon's construction skill. Which turret is replaced
+        // and what the armory crafts stays the controller's.
+        private static object Armory(Map map, IntVec3 near, int points)
+        {
+            if (!near.InBounds(map)) return Refuse("x and z must name a map cell for the smithy.");
+            if (points <= 0) return Refuse("points must name the raid points to reach.");
+            var finished = new List<string>();
+            foreach (var name in new[] { "Smithing", "Machining", "HeavyTurrets" })
+            {
+                var done = FinishResearch(name);
+                if (done == null) return Refuse("Research project " + name + " not found.");
+                finished.AddRange(done);
+            }
+            var difficulty = Find.Storyteller.difficulty;
+            var before = StorytellerUtility.DefaultThreatPointsNow(map);
+            for (var scale = Math.Max(1f, difficulty.threatScale); scale <= 50f && StorytellerUtility.DefaultThreatPointsNow(map) < points; scale += 0.5f)
+                difficulty.threatScale = scale;
+            if (StorytellerUtility.DefaultThreatPointsNow(map) < points) return Refuse("Threat scale 50 does not reach " + points + " raid points.");
+            var smithyDef = DefDatabase<ThingDef>.GetNamed("FueledSmithy");
+            IntVec3 anchor = IntVec3.Invalid;
+            foreach (var cell in GenRadial.RadialCellsAround(near, 10, true).Where(c => c.InBounds(map)))
+            {
+                if (!GenConstruct.CanPlaceBlueprintAt(smithyDef, cell, Rot4.North, map).Accepted) continue;
+                if (!map.mapPawns.FreeColonistsSpawned.Any(p => map.reachability.CanReach(p.Position, cell, Verse.AI.PathEndMode.Touch, TraverseMode.PassDoors, Danger.Deadly))) continue;
+                anchor = cell; break;
+            }
+            if (!anchor.IsValid) return Refuse("No placeable smithy anchor within 10 cells of the requested cell.");
+            var smithy = ThingMaker.MakeThing(smithyDef, GenStuff.DefaultStuffFor(smithyDef));
+            smithy.SetFactionDirect(Faction.OfPlayer);
+            GenSpawn.Spawn(smithy, anchor, map, Rot4.North);
+            var fuel = smithy.TryGetComp<CompRefuelable>();
+            fuel?.Refuel(fuel.Props.fuelCapacity);
+            if (!DropStock(map, near, ThingDefOf.Steel, 1200) || !DropStock(map, near, ThingDefOf.Plasteel, 200) || !DropStock(map, near, ThingDefOf.ComponentIndustrial, 30))
+                return Refuse("Armory stock placement failed.");
+            var autocannon = DefDatabase<ThingDef>.GetNamed("Turret_Autocannon");
+            var builder = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && p.skills != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction))
+                .OrderByDescending(p => p.skills.GetSkill(SkillDefOf.Construction).Level).FirstOrDefault();
+            if (builder == null) return Refuse("No colonist can construct.");
+            var construction = builder.skills.GetSkill(SkillDefOf.Construction);
+            if (construction.Level < autocannon.constructionSkillPrerequisite) construction.Level = autocannon.constructionSkillPrerequisite;
+            return new { success = true, finished, raidPointsBefore = before, threatScale = difficulty.threatScale, threat = Threat(map),
+                smithy = new { id = smithy.GetUniqueLoadID(), x = anchor.x, z = anchor.z, fuel = fuel?.Fuel ?? -1f },
+                builder = new { id = builder.GetUniqueLoadID(), construction = construction.Level }, tick = Find.TickManager.TicksGame };
+        }
+
+        // FinishResearch finishes a project and its prerequisites without a
+        // letter, returning the ones it finished; null for an unknown name.
+        private static List<string> FinishResearch(string name)
+        {
+            var project = DefDatabase<ResearchProjectDef>.GetNamedSilentFail(name);
+            if (project == null) return null;
+            var finished = new List<string>();
+            foreach (var prerequisite in Prerequisites(project))
+            {
+                if (prerequisite.IsFinished) continue;
+                Find.ResearchManager.FinishProject(prerequisite, doCompletionDialog: false, researcher: null, doCompletionLetter: false);
+                finished.Add(prerequisite.defName);
+            }
+            return finished;
+        }
+
+        // DropStock drops count of def, unforbidden, near a cell.
+        private static bool DropStock(Map map, IntVec3 near, ThingDef def, int count)
+        {
+            for (var left = count; left > 0;)
+            {
+                var thing = ThingMaker.MakeThing(def); thing.stackCount = Math.Min(def.stackLimit, left); left -= thing.stackCount;
+                if (!GenPlace.TryPlaceThing(thing, near, map, ThingPlaceMode.Near)) return false;
+                thing.SetForbidden(false, false);
+            }
+            return true;
+        }
+
+        // Ieds are the colony's IED traps (#1211): a sprung IED explodes and
+        // is gone, so a later inspect tells a sprung one by its missing id.
+        private static List<object> Ieds(Map map) =>
+            map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName.StartsWith("TrapIED_")).OrderBy(b => b.thingIDNumber)
+                .Select(b => (object)new { id = b.GetUniqueLoadID(), def = b.def.defName, x = b.Position.x, z = b.Position.z }).ToList();
+
         private static IEnumerable<ResearchProjectDef> Prerequisites(ResearchProjectDef project)
         {
             foreach (var p in project.prerequisites ?? new List<ResearchProjectDef>())
@@ -854,7 +957,7 @@ namespace HomeBridge.BridgeTools
             var walls = map.listerBuildings.allBuildingsColonist.Where(b => b.def == ThingDefOf.Wall)
                 .Select(b => new { id = b.GetUniqueLoadID(), x = b.Position.x, z = b.Position.z, hp = b.HitPoints, max = b.MaxHitPoints }).ToList();
             var colonists = map.mapPawns.FreeColonistsSpawned
-                .Select(p => new { id = p.GetUniqueLoadID(), x = p.Position.x, z = p.Position.z, drafted = p.Drafted, dead = p.Dead, downed = p.Downed }).ToList();
+                .Select(p => new { id = p.GetUniqueLoadID(), x = p.Position.x, z = p.Position.z, drafted = p.Drafted, dead = p.Dead, downed = p.Downed, primary = p.equipment?.Primary?.def.defName }).ToList();
             // The fixture predator's fate: gone (despawned or destroyed),
             // dead, downed, or still on the map with its current job and
             // whether that job is a PredatorHunt on a colonist -- the
@@ -900,7 +1003,7 @@ namespace HomeBridge.BridgeTools
                     x = t.Position.x, z = t.Position.z, designated = t.Spawned && t.Map == map && map.designationManager.AllDesignationsOn(t).Any(),
                     designation = t.Spawned && t.Map == map ? map.designationManager.AllDesignationsOn(t).Select(g => g.def.defName).FirstOrDefault() : null }).ToList();
             return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, hostileBuilding, walls,
-                turrets = Turrets(map), conduits, generators, threat = Threat(map), breach, cover, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+                ieds = Ieds(map), turrets = Turrets(map), conduits, generators, threat = Threat(map), breach, cover, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 
         // The wealth split and raid points the game itself computes (#395),
