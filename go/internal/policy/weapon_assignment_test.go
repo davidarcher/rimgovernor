@@ -114,23 +114,3 @@ func TestWeaponUpgradeThresholdAndArmor(t *testing.T) {
 		t.Fatal("role ignored")
 	}
 }
-
-func TestWeaponProductionDemandNetsAssignmentsAndResearch(t *testing.T) {
-	pawns := []EquipCandidatePawn{weaponPawn("a", 2), weaponPawn("b", 2), weaponPawn("c", 2)}
-	pawns[0].Profile.Skills["Melee"] = ProfileSkill{}
-	pawns[1].Profile.Skills["Melee"] = ProfileSkill{}
-	pawns[2].Profile.Effects.MeleeOnly = true
-	recipes := []GearRecipe{
-		{Products: []Resource{"Bow_Short"}, Available: domain.Known(true), AvailableOn: domain.Known(true)},
-		{Products: []Resource{"MeleeWeapon_Club"}, Available: domain.Known(true), AvailableOn: domain.Known(true)},
-		{Products: []Resource{"Gun_AssaultRifle"}, Available: domain.Known(false), AvailableOn: domain.Known(true)},
-	}
-	weapons := []EquipCandidateWeapon{{Thing: "bow", Definition: "Bow_Short", Class: WeaponRanged}}
-	want := []Amount{{Resource: "Bow_Short", Count: 1}, {Resource: "MeleeWeapon_Club", Count: 1}}
-	if got := WeaponProductionDemand(pawns, weapons, recipes); !reflect.DeepEqual(got, want) {
-		t.Fatal(got, want)
-	}
-	if got := WeaponProductionDemand(pawns, nil, nil); len(got) != 0 {
-		t.Fatal("invented recipe", got)
-	}
-}

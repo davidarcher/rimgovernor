@@ -25,9 +25,6 @@ type RoutineEquipSource interface {
 type RoutineEquipPlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineEquipSource
-	// spot places a crafting spot when no loose weapon or weapon bench can
-	// arm an unarmed colonist; nil when the source cannot build.
-	spot *RoutineBuildingPlanner
 }
 type RoutineEquipResult struct {
 	Reason RoutineBuildingReason
@@ -38,7 +35,7 @@ func NewRoutineEquipPlanner(reviewer *RoutineReviewer, native RoutineEquipSource
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineEquipPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoutineEquipPlanner{reviewer: reviewer, native: native, spot: newCraftingSpotPlanner(reviewer, native)}, nil
+	return &RoutineEquipPlanner{reviewer: reviewer, native: native}, nil
 }
 func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineEquipResult, error) {
 	p := r.reviewer.player
@@ -182,9 +179,9 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if exhausted {
 			return RoutineEquipResult{Reason: BuildingMethodExhausted}, nil
 		}
-		// No loose weapon fits an unarmed fighter: craft one (a tribal
-		// start: a crafting spot and a club or short bow bill).
-		return r.craftWeapons(call, epoch, arbiter, state, goal, identity, pool, available)
+		// No loose weapon fits an unarmed fighter: the armory crafts one
+		// (#1204).
+		return RoutineEquipResult{Reason: BuildingMethodUsed}, nil
 	}
 	// A single plan contains independent equip actions: no pawn waits for a
 	// preceding pawn's native postcondition before its order can dispatch.

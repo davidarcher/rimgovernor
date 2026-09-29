@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"math"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -105,7 +106,7 @@ func AssessArmory(raidPoints domain.Fact[float64], research domain.Fact[Research
 
 // SelectArmoryMethod proposes one demand-sized weapon bill for the colonists
 // no loose weapon arms (#1203): the armory owns military crafting, the gear
-// planner only wears and replaces. weapons is WeaponProductionDemand. A
+// planner only wears and replaces. weapons is ArmoryWeaponDemand. A
 // pending wear candidate defers the bill, as gear always wears an existing
 // item before anything is crafted.
 func SelectArmoryMethod(r GearPlanningRequest, weapons []Amount) (GearMethod, error) {
@@ -143,4 +144,136 @@ func SelectArmoryMethod(r GearPlanningRequest, weapons []Amount) (GearMethod, er
 		}
 	}
 	return produceGear(needs, v, review, seen, r)
+}
+
+// armoryWeaponTiers is the ladder rung each modelled weapon sits on (#1204):
+// crafting-spot neolithic arms, forged melee and the greatbow, machined
+// guns, fabricated charge weapons. A weapon off the table is never planned.
+var armoryWeaponTiers = map[string]ArmoryTier{
+	"MeleeWeapon_Club": ArmoryTierNeolithic, "MeleeWeapon_Knife": ArmoryTierNeolithic,
+	"Bow_Short": ArmoryTierNeolithic, "Bow_Recurve": ArmoryTierNeolithic,
+	"MeleeWeapon_Gladius": ArmoryTierSmithing, "MeleeWeapon_Longsword": ArmoryTierSmithing,
+	"MeleeWeapon_LongSword": ArmoryTierSmithing, "MeleeWeapon_Mace": ArmoryTierSmithing,
+	"MeleeWeapon_Spear": ArmoryTierSmithing, "Bow_Great": ArmoryTierSmithing,
+	"Gun_Revolver": ArmoryTierMachining, "Gun_Autopistol": ArmoryTierMachining,
+	"Gun_PumpShotgun": ArmoryTierMachining, "Gun_BoltActionRifle": ArmoryTierMachining,
+	"Gun_MachinePistol": ArmoryTierMachining, "Gun_HeavySMG": ArmoryTierMachining,
+	"Gun_AssaultRifle": ArmoryTierMachining, "Gun_SniperRifle": ArmoryTierMachining,
+	"Gun_ChainShotgun": ArmoryTierMachining,
+	"Gun_ChargeRifle":  ArmoryTierFabrication, "Gun_ChargeLance": ArmoryTierFabrication,
+}
+
+// ArmoryWeaponTier is the ladder rung of a weapon definition, and whether
+// the ladder models it.
+func ArmoryWeaponTier(definition Resource) (ArmoryTier, bool) {
+	tier, ok := armoryWeaponTiers[string(definition)]
+	return tier, ok
+}
+
+// WeaponQualityMultiplier scales a weapon's planning score by quality
+// (Awful=0 through Legendary=6), the weapon counterpart of
+// GearQualityMultipliers; out of range is 0.
+func WeaponQualityMultiplier(quality int) float64 {
+	if quality < 0 || quality > 6 {
+		return 0
+	}
+	return [...]float64{.8, .9, 1, 1.1, 1.2, 1.35, 1.5}[quality]
+}
+
+// ArmoryPrimary is a pawn's equipped primary weapon.
+type ArmoryPrimary struct {
+	Definition string
+	Ranged     bool
+	Quality    int
+}
+
+// ArmoryWeaponDemand is the armory's bill target (#1204): per colonist, the
+// best weapon a hosted, researched recipe at or under the tier makes. An
+// unarmed colonist the loose weapons cannot arm wants one (an unknown tier
+// arms at neolithic: arming the unarmed is never held on a guess); an armed
+// colonist wants one only at a known tier, only when it beats the
+// quality-scaled primary by WeaponSwapGain, and only when no loose weapon of
+// that definition is left for it. The gear planner's GearReplace wears the
+// upgrade once it is made.
+func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries map[domain.PawnID]ArmoryPrimary, weapons []EquipCandidateWeapon, recipes []GearRecipe) []Amount {
+	assigned := map[domain.PawnID]bool{}
+	for _, pair := range AssignEquip(pawns, weapons) {
+		assigned[pair.Pawn] = true
+	}
+	loose := map[Resource]int{}
+	for _, w := range weapons {
+		loose[Resource(w.Definition)]++
+	}
+	counts := map[Resource]int64{}
+	for _, p := range pawns {
+		armed, known := p.Armed.Value()
+		if !known || assigned[p.Pawn] || !armoryFighter(p) {
+			continue
+		}
+		reach, floor := tier, 0.0
+		if armed {
+			current, ok := primaries[p.Pawn]
+			if !ok || tier == ArmoryTierUnknown {
+				continue
+			}
+			class := WeaponMelee
+			if current.Ranged {
+				class = WeaponRanged
+			}
+			floor = ScoreWeapon(p, EquipCandidateWeapon{Definition: current.Definition, Class: class}) * WeaponQualityMultiplier(current.Quality) * (1 + WeaponSwapGain)
+		} else if reach == ArmoryTierUnknown {
+			reach = ArmoryTierNeolithic
+		}
+		best, score := armoryBestWeapon(p, reach, recipes)
+		if best == "" || score <= floor {
+			continue
+		}
+		if armed && loose[best] > 0 {
+			loose[best]--
+			continue
+		}
+		counts[best]++
+	}
+	demand := make([]Amount, 0, len(counts))
+	for def, count := range counts {
+		demand = append(demand, Amount{Resource: def, Count: count})
+	}
+	sort.Slice(demand, func(i, j int) bool { return demand[i].Resource < demand[j].Resource })
+	return demand
+}
+
+// armoryFighter is a present colonist capable of violence, armed or not.
+func armoryFighter(p EquipCandidatePawn) bool {
+	for _, f := range []domain.Fact[bool]{p.Dead, p.Downed, p.Drafted, p.MentalState, p.IncapableOfViolence} {
+		if value, known := f.Value(); !known || value {
+			return false
+		}
+	}
+	return true
+}
+
+func armoryBestWeapon(p EquipCandidatePawn, reach ArmoryTier, recipes []GearRecipe) (Resource, float64) {
+	var best Resource
+	bestScore := 0.0
+	for _, recipe := range recipes {
+		if !positive(recipe.Available) || !positive(recipe.AvailableOn) {
+			continue
+		}
+		for _, def := range recipe.Products {
+			rung, modelled := ArmoryWeaponTier(def)
+			profile, known := weaponProfiles[string(def)]
+			if !modelled || rung > reach || !known || profile.ForcedMiss {
+				continue
+			}
+			class := WeaponRanged
+			if profile.Range <= 1 {
+				class = WeaponMelee
+			}
+			score := ScoreWeapon(p, EquipCandidateWeapon{Definition: string(def), Class: class})
+			if score > bestScore || score > 0 && score == bestScore && def < best {
+				best, bestScore = def, score
+			}
+		}
+	}
+	return best, bestScore
 }

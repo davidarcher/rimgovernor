@@ -15,7 +15,7 @@ import (
 // for the colonists no loose weapon arms (#1203). It moved here from the
 // gear planner unchanged: the gear planner still wears and replaces, and a
 // pending wear candidate or any open bill holds the armory back.
-func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, state ControlState, review store.RoutineReview, tier policy.ArmoryTier) (RoutineArmoryResult, error) {
+func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, tier policy.ArmoryTier) (RoutineArmoryResult, error) {
 	p := r.reviewer.player
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
 	if err != nil {
@@ -92,9 +92,12 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, state C
 			return RoutineArmoryResult{}, err
 		}
 	}
-	weapons, err := r.weaponDemand(call, state, gear, benches)
+	weapons, unarmed, err := r.weaponDemand(call, state, gear, benches, tier)
 	if err != nil {
 		return RoutineArmoryResult{}, err
+	}
+	if unarmed > 0 && !weaponBenchHosted(benches) {
+		return r.placeCraftingSpot(call, epoch, arbiter)
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -147,10 +150,10 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, state C
 	return RoutineArmoryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
 }
 
-func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlState, gear *o.GearSnapshot, benches []policy.GearBench) ([]policy.Amount, error) {
+func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlState, gear *o.GearSnapshot, benches []policy.GearBench, tier policy.ArmoryTier) ([]policy.Amount, int, error) {
 	source, ok := r.native.(RoutineEquipSource)
 	if !ok {
-		return nil, nil
+		return nil, 0, nil
 	}
 	identity := boundary.Identity(state.Snapshot)
 	ids := []string{}
@@ -159,14 +162,14 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 	}
 	reply, _, err := source.ReadCombatPawns(ctx, identity, ids)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return nil, fmt.Errorf("%w: weaponDemand: observed == nil", ErrControl)
+		return nil, 0, fmt.Errorf("%w: weaponDemand: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < gear.Context.GetTick() {
-		return nil, fmt.Errorf("%w: weaponDemand: err != nil || observed.Context.GetTick() < gear.Context.GetTick()", ErrControl)
+		return nil, 0, fmt.Errorf("%w: weaponDemand: err != nil || observed.Context.GetTick() < gear.Context.GetTick()", ErrControl)
 	}
 	// An exact-ID census counts every other pawn on the map as filtered, so
 	// only the requested rows establish completeness: matched, returned and
@@ -177,25 +180,29 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 	// MaintainEquipment never planned a wear or bill method past its apparel
 	// policies and never recovered (#660).
 	if len(observed.Pawns) != len(ids) {
-		return nil, fmt.Errorf("%w: weaponDemand: len(observed.Pawns) != len(ids)", ErrControl)
+		return nil, 0, fmt.Errorf("%w: weaponDemand: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	pawns := []policy.EquipCandidatePawn{}
+	primaries := map[domain.PawnID]policy.ArmoryPrimary{}
 	for _, p := range observed.Pawns {
 		pawns = append(pawns, equipCandidatePawnFacts(p))
+		if primary, ok := armoryPrimary(p); ok {
+			primaries[domain.PawnID(p.Pawn.GetId())] = primary
+		}
 	}
 	bounds, _, err := source.ReadMapBounds(ctx, identity, domain.Cell{})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if _, err = boundary.Context(bounds.Context, state.Snapshot); err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0 {
-		return nil, fmt.Errorf("%w: weaponDemand: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0", ErrControl)
+		return nil, 0, fmt.Errorf("%w: weaponDemand: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0", ErrControl)
 	}
 	weapons, _, err := source.ReadEquipWeapons(ctx, identity, domain.Cell{}, domain.Cell{X: bounds.Bounds.Width - 1, Z: bounds.Bounds.Height - 1})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if _, err = boundary.Context(weapons.Context, state.Snapshot); err != nil {
-		return nil, fmt.Errorf("%w: weaponDemand: err != nil", ErrControl)
+		return nil, 0, fmt.Errorf("%w: weaponDemand: err != nil", ErrControl)
 	}
 	candidates := []policy.EquipCandidateWeapon{}
 	for _, w := range weapons.Targets {
@@ -205,9 +212,61 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 	for _, b := range benches {
 		rows, known := b.Recipes.Value()
 		if !known {
-			return nil, fmt.Errorf("%w: weaponDemand: !known", ErrControl)
+			return nil, 0, fmt.Errorf("%w: weaponDemand: !known", ErrControl)
 		}
 		recipes = append(recipes, rows...)
 	}
-	return policy.WeaponProductionDemand(pawns, candidates, recipes), nil
+	return policy.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes), policy.UnarmedFighters(pawns, candidates), nil
+}
+
+var armoryQualityRank = map[string]int{"Awful": 0, "Poor": 1, "Normal": 2, "Good": 3, "Excellent": 4, "Masterwork": 5, "Legendary": 6}
+
+// armoryPrimary is the pawn's equipped primary weapon; an unobserved
+// quality reads as normal.
+func armoryPrimary(row *o.PawnState) (policy.ArmoryPrimary, bool) {
+	equipment := row.GetEquipment()
+	id := equipment.GetPrimaryId()
+	if id == "" {
+		return policy.ArmoryPrimary{}, false
+	}
+	for _, item := range equipment.GetEquipped() {
+		if item.GetThing().GetId() != id || item.GetThing().GetDefName() == "" {
+			continue
+		}
+		quality, ok := armoryQualityRank[item.GetQuality()]
+		if !ok {
+			quality = 2
+		}
+		return policy.ArmoryPrimary{Definition: item.GetThing().GetDefName(), Ranged: item.GetRanged(), Quality: quality}, true
+	}
+	return policy.ArmoryPrimary{}, false
+}
+
+// weaponBenchHosted reports whether any bench hosts a modelled weapon recipe.
+func weaponBenchHosted(benches []policy.GearBench) bool {
+	for _, b := range benches {
+		rows, _ := b.Recipes.Value()
+		for _, recipe := range rows {
+			if policy.WeaponRecipe(recipe) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// placeCraftingSpot places a crafting spot for colonists nothing can arm;
+// the weapon bill follows on a later step once it stands.
+func (r *RoutineArmoryPlanner) placeCraftingSpot(call, epoch context.Context, arbiter *stepArbiter) (RoutineArmoryResult, error) {
+	if r.spot == nil {
+		return RoutineArmoryResult{Reason: BuildingNoWeaponBench}, nil
+	}
+	result, err := r.spot.step(call, epoch, arbiter)
+	if err != nil {
+		return RoutineArmoryResult{}, err
+	}
+	if result.Decision.Admitted {
+		return RoutineArmoryResult{Reason: BuildingMethodAdmitted}, nil
+	}
+	return RoutineArmoryResult{Reason: result.Reason}, nil
 }

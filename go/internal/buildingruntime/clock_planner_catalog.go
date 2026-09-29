@@ -481,7 +481,7 @@ var plannerCatalog = []plannerEntry{
 			out.Rescue = &method
 			return method.Reason, nil
 		}},
-	{name: "equip", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.EquipAction, domain.BuildingAction, domain.ProductionBillAction}, sections: sectionsMedical,
+	{name: "equip", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.EquipAction}, sections: sectionsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Equip != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Equip.step(ctx, epoch, arbiter)
@@ -567,7 +567,7 @@ var plannerCatalog = []plannerEntry{
 			out.Blight = &method
 			return method.Reason, nil
 		}},
-	{name: "armory", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsArmory,
+	{name: "armory", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.BuildingAction}, sections: sectionsArmory,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Armory != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Armory.step(ctx, epoch, arbiter)

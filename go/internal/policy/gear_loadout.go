@@ -343,6 +343,16 @@ func gearItemScore(p GearLoadoutInput, o GearOption) float64 {
 	low, high := p.Climate.TemperatureRange(p.Ambient)
 	thermal := math.Min(math.Max(0, p.ComfortableMin-low), o.Cold*i) + math.Min(math.Max(0, high-p.ComfortableMax), o.Heat*i)
 	score := armor + thermal + o.MoveSpeed*10 - o.Cost*.001
+	if o.Slot == GearPrimary {
+		// A primary is worth its quality-scaled damage (#1204), so the
+		// armory's crafted upgrade outscores the worn weapon and GearReplace
+		// swaps it in.
+		class := WeaponMelee
+		if o.Ranged {
+			class = WeaponRanged
+		}
+		score += ProfileWeapon(EquipCandidateWeapon{Definition: string(o.Definition), Class: class}).DPS * WeaponQualityMultiplier(o.Quality) * o.Condition
+	}
 	switch role {
 	case GearSoldier:
 		score += armor * 9

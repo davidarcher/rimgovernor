@@ -34,6 +34,11 @@ var weaponProfiles = map[string]WeaponProfile{
 	"MeleeWeapon_Knife":      {DPS: 6, AP: .18, Range: 1},
 	"MeleeWeapon_Gladius":    {DPS: 7, AP: .24, Range: 1},
 	"MeleeWeapon_Longsword":  {DPS: 9, AP: .3, Range: 1},
+	"MeleeWeapon_LongSword":  {DPS: 9, AP: .3, Range: 1},
+	"MeleeWeapon_Spear":      {DPS: 8, AP: .33, Range: 1},
+	"Gun_Autopistol":         {DPS: 5, AP: .12, Range: 24},
+	"Gun_ChargeRifle":        {DPS: 11, AP: .35, Range: 27},
+	"Gun_ChargeLance":        {DPS: 9, AP: .45, Range: 30, Precision: true},
 	"MeleeWeapon_Mace":       {DPS: 8, AP: .3, Range: 1},
 	"Gun_BoltActionRifle":    {DPS: 4, AP: .27, Range: 37, Precision: true},
 	"Gun_SniperRifle":        {DPS: 4, AP: .38, Range: 45, Precision: true},
@@ -127,55 +132,6 @@ func ScoreWeapon(p EquipCandidatePawn, w EquipCandidateWeapon) float64 {
 	return score
 }
 
-// WeaponProductionDemand is the weapon input to the gear bill batch: one unit
-// per still-unarmed pawn, net of the colony's loose-weapon assignment. Only
-// discovered, researched recipes hosted by an available bench are considered;
-// recipe ingredient funding and bill deduplication remain the production lane's.
-func WeaponProductionDemand(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon, recipes []GearRecipe) []Amount {
-	assigned := map[domain.PawnID]bool{}
-	for _, pair := range AssignEquip(pawns, weapons) {
-		assigned[pair.Pawn] = true
-	}
-	counts := map[Resource]int64{}
-	for _, p := range pawns {
-		armed, _ := p.Armed.Value()
-		if assigned[p.Pawn] || armed || !equipAvailable(p) {
-			continue
-		}
-		var best Resource
-		bestScore := 0.0
-		for _, recipe := range recipes {
-			if !positive(recipe.Available) || !positive(recipe.AvailableOn) {
-				continue
-			}
-			for _, def := range recipe.Products {
-				profile, known := weaponProfiles[string(def)]
-				if !known || profile.ForcedMiss {
-					continue
-				}
-				class := WeaponRanged
-				if profile.Range <= 1 {
-					class = WeaponMelee
-				}
-				score := ScoreWeapon(p, EquipCandidateWeapon{Definition: string(def), Class: class})
-				if score > bestScore || score > 0 && score == bestScore && def < best {
-					best, bestScore = def, score
-				}
-			}
-		}
-		if best != "" {
-			counts[best]++
-			assigned[p.Pawn] = true
-		}
-	}
-	var demand []Amount
-	for def, count := range counts {
-		demand = append(demand, Amount{Resource: def, Count: count})
-	}
-	sort.Slice(demand, func(i, j int) bool { return demand[i].Resource < demand[j].Resource })
-	return demand
-}
-
 // UnarmedFighters counts the available, fighting-capable unarmed pawns the
 // loose weapons cannot arm: the colonists a weapon must be crafted for.
 func UnarmedFighters(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon) int {
@@ -200,11 +156,6 @@ func WeaponRecipe(recipe GearRecipe) bool {
 		}
 	}
 	return false
-}
-
-// WeaponBill reports whether an existing bill makes a modelled weapon.
-func WeaponBill(bill GearBill) bool {
-	return WeaponRecipe(GearRecipe{Products: bill.Products})
 }
 
 type EquipAssignment struct {

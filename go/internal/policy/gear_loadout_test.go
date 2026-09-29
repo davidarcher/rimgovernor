@@ -25,6 +25,24 @@ func TestGearQualityMultipliers(t *testing.T) {
 	}
 }
 
+// The armory's crafted rifle outscores a worn normal revolver, so gear
+// plans the swap (#1204); quality scales the weapon's worth.
+func TestGearPrimaryWeaponScore(t *testing.T) {
+	p := GearLoadoutInput{}
+	revolver := loadoutOption("Gun_Revolver", GearPrimary)
+	revolver.Ranged, revolver.Source = true, GearWorn
+	rifle := loadoutOption("Gun_AssaultRifle", GearPrimary)
+	rifle.Ranged = true
+	if gearItemScore(p, rifle) <= gearItemScore(p, revolver) {
+		t.Fatal("rifle does not beat revolver")
+	}
+	legendary := revolver
+	legendary.Quality = 6
+	if gearItemScore(p, legendary) <= gearItemScore(p, revolver) {
+		t.Fatal("quality ignored")
+	}
+}
+
 func loadoutOption(id string, slot GearSlot) GearOption {
 	layer, group := "OnSkin", "Torso"
 	switch slot {

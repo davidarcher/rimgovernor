@@ -11,11 +11,15 @@ import (
 // RoutineArmoryPlanner owns military production (#1198). The skeleton
 // (#1201) selects the armory tier from the storyteller's raid points and
 // finished research and logs it. Weapon bills moved here from the gear
-// planner (#1203) and still bind to MaintainEquipment; the tier does not
-// gate them yet (#1204).
+// planner (#1203) and still bind to MaintainEquipment; the tier picks the
+// weapon and gates upgrades (#1204), and the equip planner's crafting-spot
+// fallback lives here too.
 type RoutineArmoryPlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineGearSource
+	// spot places a crafting spot when no bench hosts a weapon recipe for
+	// an unarmed colonist; nil when the source cannot build.
+	spot *RoutineBuildingPlanner
 }
 
 type RoutineArmoryResult struct {
@@ -28,7 +32,7 @@ func NewRoutineArmoryPlanner(reviewer *RoutineReviewer, native RoutineGearSource
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineArmoryPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoutineArmoryPlanner{reviewer, native}, nil
+	return &RoutineArmoryPlanner{reviewer: reviewer, native: native, spot: newCraftingSpotPlanner(reviewer, native)}, nil
 }
 
 func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineArmoryResult, error) {
@@ -62,10 +66,30 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	facts := read.Projection.Facts
 	assessment := policy.AssessArmory(facts.RaidPoints, facts.Research)
 	clockSchedulerLog("Armory.step tier=%s threat=%s research=%s", assessment.Tier, assessment.Threat, assessment.Research)
-	result, err := r.craftWeapons(call, epoch, state, review, assessment.Tier)
+	result, err := r.craftWeapons(call, epoch, arbiter, state, review, assessment.Tier)
 	if err == nil && result.Reason != BuildingMethodAdmitted {
 		result, err = r.stockShells(call, epoch, state, review, read.Projection)
 	}
 	result.Assessment = assessment
 	return result, err
+}
+
+// craftingSpotDefinition is the free, unpowered bench every tech level can
+// place at once; it hosts the club and short bow recipes a tribal start
+// arms itself with.
+const craftingSpotDefinition = "CraftingSpot"
+
+// BuildingNoWeaponBench: an unarmed colonist has no loose weapon and no bench
+// hosts a weapon recipe, and no crafting spot planner is wired to place one.
+const BuildingNoWeaponBench RoutineBuildingReason = "no_weapon_bench"
+
+// newCraftingSpotPlanner is the EnsureBasicDefense placement the armory
+// falls back to (moved from the equip planner, #1204); nil when the source
+// cannot serve a building step.
+func newCraftingSpotPlanner(reviewer *RoutineReviewer, native RoutineGearSource) *RoutineBuildingPlanner {
+	building, ok := native.(RoutineBuildingSource)
+	if !ok {
+		return nil
+	}
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: building, goal: policy.EnsureBasicDefense, definition: craftingSpotDefinition, environment: policy.PlacementAnywhere}
 }

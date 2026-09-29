@@ -8,7 +8,20 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
+
+func TestArmoryPrimary(t *testing.T) {
+	id, def, q := "r1", "Gun_Revolver", "Good"
+	ranged := true
+	row := &o.PawnState{Equipment: &o.PawnEquipment{PrimaryId: &id, Equipped: []*o.GearItem{{Thing: &o.EntityRef{Id: &id, DefName: &def}, Quality: &q, Ranged: &ranged}}}}
+	if got, ok := armoryPrimary(row); !ok || got != (policy.ArmoryPrimary{Definition: def, Ranged: true, Quality: 3}) {
+		t.Fatal(got, ok)
+	}
+	if _, ok := armoryPrimary(&o.PawnState{}); ok {
+		t.Fatal("unarmed pawn has a primary")
+	}
+}
 
 // clubBenchNative is the gear colony with a crafting spot hosting the club
 // recipe and wood to fund it.
