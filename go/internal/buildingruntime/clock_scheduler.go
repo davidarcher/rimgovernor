@@ -89,6 +89,7 @@ type ClockSchedulerConfig struct {
 	Work                *RoutineWorkPlanner
 	Supplies            *RoutineSupplyPlanner
 	Blight              *RoutineBlightPlanner
+	Armory              *RoutineArmoryPlanner
 	Clearance           *RoutineClearancePlanner
 	Shrine              *RoutineShrinePlanner
 	Sleeping            *RoutineBuildingPlanner
@@ -165,6 +166,7 @@ type ClockSchedulerResult struct {
 	Work                         *RoutineWorkResult
 	Supplies                     *RoutineSupplyResult
 	Blight                       *RoutineBlightResult
+	Armory                       *RoutineArmoryResult
 	Clearance                    *RoutineClearanceResult
 	Shrine                       *RoutineShrineResult
 	Sleeping                     *RoutineBuildingResult
@@ -417,6 +419,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Shrine != nil && (config.Routine == nil || config.Shrine.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Shrine != nil && (config.Routine == nil || config.Shrine.reviewer != config.Routine)", ErrControl)
+	}
+	if config.Armory != nil && (config.Routine == nil || config.Armory.reviewer != config.Routine) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Armory != nil && (config.Routine == nil || config.Armory.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine)", ErrControl)

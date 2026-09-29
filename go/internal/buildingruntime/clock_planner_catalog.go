@@ -68,6 +68,9 @@ var (
 	sectionsResearch = []facts.Section{facts.Research, facts.Colony, facts.Buildings, facts.Rooms}
 	sectionsFire     = []facts.Section{facts.Emergency, facts.Colony}
 	sectionsResource = []facts.Section{facts.Colony, facts.Bills, facts.Buildings, facts.Zones}
+	// sectionsArmory is the bills and threat sets plus the research census
+	// the armory tier is capped by (#1201).
+	sectionsArmory = []facts.Section{facts.Colony, facts.Bills, facts.Pawns, facts.Emergency, facts.Research}
 )
 
 // factsBuilding and factsColony are the fact families of the building and
@@ -552,6 +555,16 @@ var plannerCatalog = []plannerEntry{
 				return "", err
 			}
 			out.Blight = &method
+			return method.Reason, nil
+		}},
+	{name: "armory", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsArmory,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Armory != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.Armory.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.Armory = &method
 			return method.Reason, nil
 		}},
 	{name: "waste", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction, domain.BuildingAction, domain.ProductionBillAction}, sections: sectionsBuilding,

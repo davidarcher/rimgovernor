@@ -63,6 +63,7 @@ type serveConfig struct {
 	routineCleanPlans               bool
 	routineWastePlans               bool
 	routineBlightPlans              bool
+	routineArmoryPlans              bool
 	routineClearancePlans           bool
 	routineShrinePlans              bool
 	routineTidyPlans                bool
@@ -272,6 +273,7 @@ func routineFamilies(c *serveConfig) []routineFamily {
 		{"clean", &c.routineCleanPlans},
 		{"waste", &c.routineWastePlans},
 		{"blight", &c.routineBlightPlans},
+		{"armory", &c.routineArmoryPlans},
 		{"clearance", &c.routineClearancePlans},
 		{"shrine", &c.routineShrinePlans},
 		{"tidy", &c.routineTidyPlans},

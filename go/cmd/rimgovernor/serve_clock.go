@@ -248,6 +248,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	haul, waste, moodRelief, naming, dialog, trade := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
 	blight := sc.routineBlightPlans
+	armory := sc.routineArmoryPlans
 	clearance := sc.routineClearancePlans
 	shrine := sc.routineShrinePlans
 	tidy := sc.routineTidyPlans
@@ -277,7 +278,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -490,6 +491,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, errors.New("shrine plans require typed shrine observations")
 			}
 			config.Shrine, err = buildingruntime.NewRoutineShrinePlanner(reviewer, shrineNative)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if armory {
+			config.Armory, err = buildingruntime.NewRoutineArmoryPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
