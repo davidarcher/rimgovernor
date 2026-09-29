@@ -36,19 +36,66 @@ const (
 )
 
 // SleepingBedDefinitions lists, in preference order, the bed definitions the
-// sleeping planner may stage. A sleeping spot is never suitable
-// (ReviewSleeping), so it is not a fallback here.
-var SleepingBedDefinitions = []string{"Bed"}
+// sleeping planner may stage (#1181): a bed, a bedroll once its stuff is on
+// hand, else a sleeping spot. A bedroll or spot is suitable only while Bed
+// is unavailable (ReviewSleeping).
+var SleepingBedDefinitions = []string{"Bed", SleepingBedrollDefinition, SleepingSpotDefinition}
 
 // SleepingCoupleBedDefinition is staged first when a waiting colonist has a
 // couple partner (#812).
 const SleepingCoupleBedDefinition = "DoubleBed"
+
+const (
+	SleepingBedrollDefinition       = "Bedroll"
+	SleepingCoupleBedrollDefinition = "BedrollDouble"
+	SleepingSpotDefinition          = "SleepingSpot"
+)
+
+// sleepingBedrolls are the definitions staged only with their stuff on hand.
+var sleepingBedrolls = map[string]bool{SleepingBedrollDefinition: true, SleepingCoupleBedrollDefinition: true}
+
+// SleepingLadder is the definitions a bed step may stage, in preference
+// order; a couple's double of each rung comes first.
+func SleepingLadder(couple bool) []string {
+	if couple {
+		return []string{SleepingCoupleBedDefinition, "Bed", SleepingCoupleBedrollDefinition, SleepingBedrollDefinition, SleepingSpotDefinition}
+	}
+	return append([]string(nil), SleepingBedDefinitions...)
+}
+
+// SleepingDefinition is the best buildable rung of the ladder: the first
+// available definition, a bedroll only when Stocked names it. Unknown is
+// returned when an unknown row precedes it and nothing is buildable.
+func SleepingDefinition(definitions []BenchDefinition, stocked map[string]bool, couple bool) (string, SleepingMethod) {
+	byName := map[string]BenchDefinition{}
+	for _, d := range definitions {
+		byName[d.Name] = d
+	}
+	unknown := false
+	for _, name := range SleepingLadder(couple) {
+		d, exists := byName[name]
+		available, ak := d.Available.Value()
+		if !exists || !ak {
+			unknown = true
+			continue
+		}
+		if available && (!sleepingBedrolls[name] || stocked[name]) {
+			return name, SleepingBuild
+		}
+	}
+	if unknown {
+		return "", SleepingUnknown
+	}
+	return "", SleepingUnavailable
+}
 
 type SleepingRequest struct {
 	Targets     domain.Fact[[]SleepingTarget]
 	Sleeping    domain.Fact[SleepingObservation]
 	Rooms       domain.Fact[RoomObservation]
 	Definitions []BenchDefinition
+	// Stocked names the bedroll definitions whose stuff is on hand.
+	Stocked map[string]bool
 	// RoomTargets (RoomQualityTargets, keyed by room) and Traits order the
 	// beds an assignment offers (#813): a room marked NeverUpgrade is never
 	// left for a more impressive one, and an ascetic takes the plainest bed.
@@ -237,33 +284,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		}
 		choice.Cells = append(choice.Cells, room.Cells...)
 	}
-	byName := map[string]BenchDefinition{}
-	for _, d := range r.Definitions {
-		byName[d.Name] = d
-	}
-	unknown := false
-	names := SleepingBedDefinitions
-	if couple {
-		// A waiting couple stages one double bed before a single.
-		names = append([]string{SleepingCoupleBedDefinition}, names...)
-	}
-	for _, name := range names {
-		d, exists := byName[name]
-		available, ak := d.Available.Value()
-		if !exists || !ak {
-			unknown = true
-			continue
-		}
-		if available {
-			choice.Method, choice.Definition = SleepingBuild, name
-			return choice, nil
-		}
-	}
-	if unknown {
-		choice.Method = SleepingUnknown
-		return choice, nil
-	}
-	choice.Method = SleepingUnavailable
+	choice.Definition, choice.Method = SleepingDefinition(r.Definitions, r.Stocked, couple)
 	return choice, nil
 }
 

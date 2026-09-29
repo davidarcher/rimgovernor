@@ -249,6 +249,14 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 		if err := colonyQuantities(d.Costs); err != nil {
 			return err
 		}
+		for _, option := range d.StuffOptions {
+			if option == nil || validID(option.GetStuff()) != nil {
+				return contract("invalid planning definition stuff option")
+			}
+			if err := colonyQuantities(option.Costs); err != nil {
+				return err
+			}
+		}
 		if !presentationText(d.Definition.Label, 4096) || d.Stuff != nil && validID(d.GetStuff()) != nil || d.Size != nil && !colonySize(d.Size) || d.ConstructionSkill != nil && (d.GetConstructionSkill() < 0 || d.GetConstructionSkill() > 20) {
 			return contract("invalid planning definition facts")
 		}

@@ -255,6 +255,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		// The traffic tier prices its floor in the review (#950).
 		readDefinitions = append(append([]string(nil), readDefinitions...), r.policy.Flooring.Floors...)
 	}
+	if r.methodEnabled(policy.MaintainHousing) {
+		// Bed's availability decides which beds are suitable (#1181).
+		readDefinitions = append(append([]string(nil), readDefinitions...), policy.SleepingBedDefinitions[0])
+	}
 	if r.methodEnabled(policy.MaintainWaste) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), wasteDefinitions...)
 	}

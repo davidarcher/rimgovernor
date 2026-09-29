@@ -645,7 +645,9 @@ message ExcavationSiteSnapshot {
 }
 message ExcavationSiteRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell cells = 2; rimgovernor.common.v1.Cell access_cell = 3; }
 message ExcavationSiteReply { oneof outcome { ExcavationSiteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message WallMaterialOption { optional string stuff = 1; repeated Quantity costs = 2; }
+// One material a stuffed definition may be built from, with the native cost
+// list for that material.
+message StuffOption { optional string stuff = 1; repeated Quantity costs = 2; }
 message WallUpgradeSite {
   EntityRef target = 1; optional bool target_present = 2; reserved 3;
   repeated rimgovernor.common.v1.Cell backup_cells = 4; repeated Quantity costs = 5;
@@ -654,7 +656,7 @@ message WallUpgradeSite {
   SnapshotRef snapshot = 12; rimgovernor.common.v1.Cell normal = 13;
   BuildingState original = 14; BuildingState left_support = 15; BuildingState right_support = 16;
   repeated BuildingState completed_backups = 17; BuildingState replacement = 18;
-  repeated WallMaterialOption replacement_materials = 19;
+  repeated StuffOption replacement_materials = 19;
   CellsSnapshot geometry = 20; RoofSupportSnapshot roof_support = 21;
 }
 message WallUpgradeSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WallUpgradeSite sites = 2; reserved 3; }
@@ -905,6 +907,9 @@ message PlanningDefinition { DefinitionRef definition = 1; optional string stuff
   optional bool diet_allowed = 30; // No colonist ideology penalises this crop product.
   optional bool requires_pollution = 31; optional bool requires_clean_soil = 32;
   optional double work_to_build = 33; // Native WorkToBuild stat (work ticks) for the row's stuff.
+  // Every native allowed stuff of a stuffed definition, ordered by defName,
+  // with its cost list; empty for a definition not made from stuff.
+  repeated StuffOption stuff_options = 34;
 }
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their

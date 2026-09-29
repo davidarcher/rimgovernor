@@ -38,6 +38,15 @@ type PlanningDefinition struct {
 	// WorkToBuild is the native WorkToBuild stat (work ticks) for the row's
 	// stuff (#950).
 	WorkToBuild domain.Fact[float64]
+	// StuffOptions are every native allowed stuff with its cost list,
+	// ordered by defName; empty for a definition not made from stuff.
+	StuffOptions []StuffOption
+}
+
+// StuffOption is one material a stuffed definition may be built from.
+type StuffOption struct {
+	Stuff string
+	Costs []policy.Amount
 }
 type ColonyProjection struct {
 	DeepResources       domain.Fact[DeepResources]
@@ -108,6 +117,36 @@ func (r ColonyProjection) ResourceStock(name policy.Resource) domain.Fact[int64]
 		return domain.Unknown[int64]()
 	}
 	return domain.Known(stock[name])
+}
+
+// StockedStuff is the first of the definition's stuff options whose cost
+// list the colony stock covers, and how many of the definition that stock
+// builds. None is ok false, as is an unknown stock census.
+func (r ColonyProjection) StockedStuff(name string) (string, int64, bool) {
+	stock, known := r.Resources.Value()
+	if !known {
+		return "", 0, false
+	}
+	for _, d := range r.Definitions {
+		if d.Name != name {
+			continue
+		}
+		for _, option := range d.StuffOptions {
+			count := int64(-1)
+			for _, cost := range option.Costs {
+				if cost.Count <= 0 {
+					continue
+				}
+				if n := stock[cost.Resource] / cost.Count; count < 0 || n < count {
+					count = n
+				}
+			}
+			if count > 0 {
+				return option.Stuff, count, true
+			}
+		}
+	}
+	return "", 0, false
 }
 
 // DefinitionAvailable is one planning definition's native availability,
@@ -445,6 +484,13 @@ func planningDefinition(row *o.PlanningDefinition) PlanningDefinition {
 	}
 	if known {
 		d.Costs = domain.Known(costs)
+	}
+	for _, option := range row.StuffOptions {
+		entry := StuffOption{Stuff: option.GetStuff()}
+		for _, q := range option.Costs {
+			entry.Costs = append(entry.Costs, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
+		}
+		d.StuffOptions = append(d.StuffOptions, entry)
 	}
 	return d
 }

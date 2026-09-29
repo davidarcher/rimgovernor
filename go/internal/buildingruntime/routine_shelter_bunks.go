@@ -43,6 +43,21 @@ const (
 	shelterBedDefinition                 = "Bed"
 )
 
+// shelterBeds is the bed rung's definition and anchors on the ladder
+// (#1181): Bed when it is buildable, else as many bedrolls as the stock of
+// their first stocked stuff covers, else Bed (which admitBunks refuses).
+func shelterBeds(facts observation.ColonyProjection, anchors []domain.Cell) (string, []domain.Cell) {
+	if available, known := facts.DefinitionAvailable(shelterBedDefinition).Value(); known && available {
+		return shelterBedDefinition, anchors
+	}
+	if available, _ := facts.DefinitionAvailable(policy.SleepingBedrollDefinition).Value(); available {
+		if _, count, ok := facts.StockedStuff(policy.SleepingBedrollDefinition); ok {
+			return policy.SleepingBedrollDefinition, anchors[:min(int64(len(anchors)), count)]
+		}
+	}
+	return shelterBedDefinition, anchors
+}
+
 // shelterMineMethod digs the natural rock out of the shell's interior
 // (#700), after the bunks and before the ring, under its own method so no
 // shell or excavation history mistakes it for theirs.
@@ -238,7 +253,8 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 	}
 	if !record.bedsBound {
 		bunks := policy.PlanShelterBunks(layouts[0], int(owed), 0, record.cells())
-		result, admitted, err := r.admitBunks(call, epoch, s, shelterBedsMethod, shelterBedDefinition, bunks.Beds)
+		definition, anchors := shelterBeds(s.facts, bunks.Beds)
+		result, admitted, err := r.admitBunks(call, epoch, s, shelterBedsMethod, definition, anchors)
 		if err != nil || admitted {
 			return nil, none, "", &result, err
 		}
@@ -453,14 +469,7 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 		clockSchedulerLog("%s: %s: %s is not buildable now: %s", r.goal, method, definition, definitionRefusal(s.facts, definition))
 		return RoutineBuildingResult{}, false, nil
 	}
-	var stuff string
-	for _, d := range s.facts.Definitions {
-		if d.Name == definition {
-			if v, known := d.Stuff.Value(); known {
-				stuff = v
-			}
-		}
-	}
+	stuff := bedStuff(s.facts, definition)
 	snapshot := s.state.Snapshot
 	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1

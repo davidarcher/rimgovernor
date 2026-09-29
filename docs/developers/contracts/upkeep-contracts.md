@@ -458,7 +458,11 @@ a room too cold or hot for them is not a site, and with no such room the ladder
 falls to its starter shell, which waits while the initial shelter is owed.
 Construction uses shared resource admission and exact native placement/access
 previews, one bed per method, and the staged bed is assigned on a later review.
-A sleeping spot is never a suitable bed and is never staged by this goal.
+The staged bed is the best available rung: `Bed`, else a `Bedroll` whose
+stuff (the planning definition's first `stuff_options` entry the stock covers)
+is on hand, else a `SleepingSpot`. A bedroll or spot is a suitable bed only
+while `Bed` is unavailable; once it is buildable their owners are upgrade
+targets.
 
 Assignment and construction receipts do not complete sleeping upkeep. Recovery
 requires observed use by the assigned pawn in a suitable bed, retained only for

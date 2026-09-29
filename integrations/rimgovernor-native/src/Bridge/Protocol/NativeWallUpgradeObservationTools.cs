@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
             return edifice != null && edifice.def == ThingDefOf.Wall && edifice.Faction == Faction.OfPlayer ? edifice : null;
         }
 
-        internal static Obs.WallUpgradeSite? Replacement(Map map, Building wall, IntVec3 normal, List<Obs.WallMaterialOption> materials, Common.ObservationContext context)
+        internal static Obs.WallUpgradeSite? Replacement(Map map, Building wall, IntVec3 normal, List<Obs.StuffOption> materials, Common.ObservationContext context)
         {
             var origin = wall.Position;
             var outside = origin + normal;
@@ -182,12 +182,12 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        internal static List<Obs.WallMaterialOption> Materials()
+        internal static List<Obs.StuffOption> Materials()
         {
-            var options = new List<Obs.WallMaterialOption>();
+            var options = new List<Obs.StuffOption>();
             foreach (var stuff in GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Where(s => s.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) == true).OrderBy(s => s.defName, StringComparer.Ordinal))
             {
-                var option = new Obs.WallMaterialOption { Stuff = Id(stuff.defName) };
+                var option = new Obs.StuffOption { Stuff = Id(stuff.defName) };
                 foreach (var cost in ThingDefOf.Wall.CostListAdjusted(stuff))
                     option.Costs.Add(new Obs.Quantity { DefName = Id(cost.thingDef.defName), Units = cost.count });
                 options.Add(option);

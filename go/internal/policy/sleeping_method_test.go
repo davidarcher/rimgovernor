@@ -93,9 +93,10 @@ func TestSelectSleepingMethodBuildsInRoomWithinComfortBand(t *testing.T) {
 	if err != nil || choice.Method != SleepingBuild || len(choice.Cells) != 0 {
 		t.Fatal(choice, err)
 	}
-	// Bed not buildable: unavailable; unknown availability: unknown.
+	// Bed not buildable and the ladder's lower rungs unread: unknown;
+	// no definitions at all: unknown.
 	choice, err = SelectSleepingMethod(SleepingRequest{Targets: targets, Sleeping: sleeping, Rooms: rooms, Definitions: sleepingBedDefinition(false)})
-	if err != nil || choice.Method != SleepingUnavailable {
+	if err != nil || choice.Method != SleepingUnknown {
 		t.Fatal(choice, err)
 	}
 	choice, err = SelectSleepingMethod(SleepingRequest{Targets: targets, Sleeping: sleeping, Rooms: rooms})
@@ -107,5 +108,42 @@ func TestSelectSleepingMethodBuildsInRoomWithinComfortBand(t *testing.T) {
 	choice, err = SelectSleepingMethod(SleepingRequest{Targets: targets, Sleeping: unknownBand, Rooms: rooms, Definitions: sleepingBedDefinition(true)})
 	if err != nil || choice.Method != SleepingUnknown {
 		t.Fatal(choice, err)
+	}
+}
+
+// The bed ladder (#1181): Bed, then a bedroll with its stuff on hand, then a
+// sleeping spot; a couple's double of each rung first.
+func TestSelectSleepingMethodBedLadder(t *testing.T) {
+	targets := domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUpgrade}})
+	sleeping := domain.Known(SleepingObservation{People: []SleepingPerson{sleepingPerson("p1", 10, 30)}})
+	rooms := domain.Known(RoomObservation{Rooms: []Room{sleepingRoom("r", RoomRoleBedroom, 20, domain.Cell{X: 1, Z: 1})}})
+	ladder := func(bed bool) []BenchDefinition {
+		return []BenchDefinition{
+			{Name: "Bed", Available: domain.Known(bed)}, {Name: "DoubleBed", Available: domain.Known(bed)},
+			{Name: "Bedroll", Available: domain.Known(true)}, {Name: "BedrollDouble", Available: domain.Known(true)},
+			{Name: "SleepingSpot", Available: domain.Known(true)},
+		}
+	}
+	for _, c := range []struct {
+		name    string
+		bed     bool
+		stocked map[string]bool
+		couple  bool
+		want    string
+	}{
+		{"bed available", true, map[string]bool{"Bedroll": true}, false, "Bed"},
+		{"bed locked, cloth or leather on hand", false, map[string]bool{"Bedroll": true, "BedrollDouble": true}, false, "Bedroll"},
+		{"bed locked, no stuff", false, nil, false, "SleepingSpot"},
+		{"couple, bed available", true, nil, true, "DoubleBed"},
+		{"couple, bed locked, stuff on hand", false, map[string]bool{"Bedroll": true, "BedrollDouble": true}, true, "BedrollDouble"},
+	} {
+		tg := targets
+		if c.couple {
+			tg = domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUpgrade, Partner: "p2"}})
+		}
+		choice, err := SelectSleepingMethod(SleepingRequest{Targets: tg, Sleeping: sleeping, Rooms: rooms, Definitions: ladder(c.bed), Stocked: c.stocked})
+		if err != nil || choice.Method != SleepingBuild || choice.Definition != c.want {
+			t.Fatal(c.name, choice, err)
+		}
 	}
 }

@@ -292,7 +292,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		definitions = policy.HospitalBedDefinitions
 	}
 	if r.phase == policy.HousingSleeping && !r.shelter {
-		definitions = append([]string{policy.SleepingCoupleBedDefinition}, policy.SleepingBedDefinitions...)
+		definitions = policy.SleepingLadder(true)
 	}
 	if r.goal == policy.EnsureResearch && !r.shelter {
 		definitions = []string{policy.ResearchBenchDefinition}
@@ -331,7 +331,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	// availability is judged from the same read.
 	observed := definitions
 	if r.shelter && r.phase == policy.HousingShelter {
-		observed = append(append([]string(nil), definitions...), "SleepingSpot", shelterBedDefinition)
+		observed = append(append([]string(nil), definitions...), "SleepingSpot", shelterBedDefinition, policy.SleepingBedrollDefinition)
 	}
 	if r.goal == policy.EnsureCooking || r.goal == policy.MaintainRefrigeration {
 		// The planned kitchen or freezer is shelled first (#835).

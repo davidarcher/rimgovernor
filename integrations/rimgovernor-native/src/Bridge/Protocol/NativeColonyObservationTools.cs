@@ -421,6 +421,15 @@ namespace HomeBridge.BridgeTools
                     row.WorkToBuild = Nonnegative(def.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff));
                     if (def.building?.bed_humanlike == true) row.RestEffectiveness = Finite(def.GetStatValueAbstract(StatDefOf.BedRestEffectiveness, stuff));
                 }
+                // Every allowed material with its own cost list, so the
+                // planner picks one the colony has in stock.
+                if (def.MadeFromStuff) {
+                    foreach (var option in GenStuff.AllowedStuffsFor(def).OrderBy(s => s.defName, StringComparer.Ordinal)) {
+                        var entry = new Obs.StuffOption { Stuff = option.defName };
+                        foreach (var cost in def.CostListAdjusted(option, false)) entry.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
+                        row.StuffOptions.Add(entry);
+                    }
+                }
                 var powerProps = def.GetCompProperties<CompProperties_Power>();
                 if (powerProps != null) row.PowerW = Finite(powerProps.PowerConsumption);
                 var glowProps = def.GetCompProperties<CompProperties_Glower>();

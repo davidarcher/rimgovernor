@@ -48,6 +48,11 @@ type SleepingObservation struct {
 	Beds   []SleepingBed
 	// Rooms is the room quality census, unknown when its section is.
 	Rooms domain.Fact[[]UpkeepRoom]
+	// BedBuildable is Bed's native availability (#1181): while it is known
+	// false a bedroll or sleeping spot is a suitable bed, and while it is
+	// true both are upgrade targets. Unknown keeps a bedroll suitable and a
+	// spot not.
+	BedBuildable domain.Fact[bool]
 }
 type SleepingUse struct {
 	Pawn PawnID
@@ -67,7 +72,7 @@ const (
 )
 
 // SleepingDoubleBeds are the bed definitions two partners can own together.
-var SleepingDoubleBeds = map[Resource]bool{"DoubleBed": true, "RoyalBed": true}
+var SleepingDoubleBeds = map[Resource]bool{"DoubleBed": true, "RoyalBed": true, SleepingCoupleBedrollDefinition: true}
 
 // sleepingCouples maps each pawn to its couple partner: the lowest-ID love
 // partner that names it back, both willing to share a bed. Unknown
@@ -278,7 +283,7 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 		}
 		suitable := func(b SleepingBed) bool {
 			rest, _ := b.RestEffectiveness.Value()
-			return safe(b) && b.Definition != "SleepingSpot" && rest > 0
+			return safe(b) && sleepingRung(b.Definition, v.BedBuildable) && rest > 0
 		}
 		bedID, _ := p.OwnedBed.Value()
 		owned, exists := beds[bedID]
@@ -348,6 +353,19 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 	r.History.Uses = next
 	r.Targets = domain.Known(targets)
 	return r, nil
+}
+
+// sleepingRung reports whether a bed of this definition is a suitable bed
+// on the ladder (#1181): a bedroll or spot only while Bed is unavailable.
+func sleepingRung(definition Resource, bed domain.Fact[bool]) bool {
+	buildable, known := bed.Value()
+	switch definition {
+	case SleepingSpotDefinition:
+		return known && !buildable
+	case SleepingBedrollDefinition, SleepingCoupleBedrollDefinition:
+		return !known || !buildable
+	}
+	return true
 }
 
 func (r SleepingReview) Recovered() domain.Fact[bool] {

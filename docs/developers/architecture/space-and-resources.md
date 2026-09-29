@@ -173,10 +173,13 @@ completing never clears the deficit.
 The bedroom row works the same way for `MaintainHousing` (the `sleeping`
 family): a colonist without an owned suitable bed is first assigned a vacant
 one through the typed `bed_assign` operation, and only when nobody can be
-assigned is one `Bed` staged in a Bedroom-hosting room (Bedroom, Barracks or
+assigned is one bed staged in a Bedroom-hosting room (Bedroom, Barracks or
 generic Room) whose observed temperature lies inside the comfortable band of
 every colonist still unhoused, one bed per method, assigned on a later review.
-A sleeping spot is never suitable and never staged here; neither the
+The bed is the best rung available (#1181): `Bed`, else a `Bedroll` built from
+the first native stuff option the colony has in stock, else a `SleepingSpot`
+(a couple's `DoubleBed` or `BedrollDouble` first). A bedroll or spot is a
+suitable bed only while `Bed` is unavailable; neither the
 assignment nor the construction receipt clears the deficit, only the
 colonist's observed sleep in the owned bed does.
 

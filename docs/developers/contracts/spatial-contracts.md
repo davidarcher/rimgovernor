@@ -139,7 +139,8 @@ their room role's family (`StarterRequest.Shape`).
 
 On a fresh site the initial shelter runs three rungs under one goal epoch
 (#612): sleeping spots at the first review, one per colonist owed, on the
-chosen layout's interior; then the wooden beds (`Bed`, north-facing 1x2)
+chosen layout's interior; then the wooden beds (`Bed`, north-facing 1x2; bedrolls in stocked
+fabric or leather while `Bed` is locked, as many as the stock covers)
 as the first construction, off the ring's corner cells, the entrance aisle
 and the storage patch; then the ring around them. Each rung is one plan
 (`routine-bunks-*`, methods `shelter-spots` and `shelter-beds`), admitted one

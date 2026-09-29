@@ -88,6 +88,10 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		return RoutineReading{}, err
 	}
 	p.Definitions = append(p.Definitions, extra...)
+	if sleeping, known := p.Facts.Sleeping.Value(); known {
+		sleeping.BedBuildable = p.DefinitionAvailable(policy.SleepingBedDefinitions[0])
+		p.Facts.Sleeping = domain.Known(sleeping)
+	}
 	p.Facts.CurrentConstruction = domain.Unknown[policy.CurrentConstruction]()
 	if frame.Construction != nil {
 		if err := bridge.ValidateConstructionBuildings(frame.Construction, id, nil); err != nil {

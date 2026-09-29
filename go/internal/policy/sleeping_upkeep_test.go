@@ -93,3 +93,36 @@ func TestSleepingUpgradeOwnershipAndUnknownCensus(t *testing.T) {
 		t.Fatal("future use accepted")
 	}
 }
+
+// A bedroll or spot is a suitable bed only while Bed is unavailable
+// (#1181); once Bed is buildable its owner is an upgrade target.
+func TestSleepingBedrollSuitableUntilBedBuildable(t *testing.T) {
+	for _, c := range []struct {
+		definition Resource
+		bed        domain.Fact[bool]
+		suitable   bool
+	}{
+		{"Bedroll", domain.Known(false), true},
+		{"Bedroll", domain.Known(true), false},
+		{"BedrollDouble", domain.Known(true), false},
+		{"SleepingSpot", domain.Known(false), true},
+		{"SleepingSpot", domain.Known(true), false},
+		{"SleepingSpot", domain.Unknown[bool](), false},
+		{"Bedroll", domain.Unknown[bool](), true},
+		{"Bed", domain.Known(true), true},
+	} {
+		v := sleepingFixture(true)
+		v.Beds[0].Definition = c.definition
+		v.BedBuildable = c.bed
+		r, err := ReviewSleeping(domain.Known(v), SleepingHistory{}, 1)
+		recovered, known := r.Recovered().Value()
+		if err != nil || !known || recovered != c.suitable {
+			t.Fatal(c, r, err)
+		}
+		if !c.suitable {
+			if rows, _ := r.Targets.Value(); len(rows) != 1 || rows[0].Kind != SleepingUpgrade {
+				t.Fatal(c, rows)
+			}
+		}
+	}
+}

@@ -59,7 +59,11 @@ func sleepingRequest(facts observation.ColonyProjection, review store.RoutineRev
 	for _, d := range facts.Definitions {
 		definitions = append(definitions, policy.BenchDefinition{Name: d.Name, Available: d.Available, NeedsPower: d.NeedsPower, ConstructionSkill: d.ConstructionSkill})
 	}
-	request := policy.SleepingRequest{Targets: sleeping.Targets, Sleeping: facts.Facts.Sleeping, Rooms: facts.Rooms, Definitions: definitions, Traits: sleepingTraits(facts)}
+	stocked := map[string]bool{}
+	for _, name := range []string{policy.SleepingBedrollDefinition, policy.SleepingCoupleBedrollDefinition} {
+		_, _, stocked[name] = facts.StockedStuff(name)
+	}
+	request := policy.SleepingRequest{Targets: sleeping.Targets, Sleeping: facts.Facts.Sleeping, Rooms: facts.Rooms, Definitions: definitions, Stocked: stocked, Traits: sleepingTraits(facts)}
 	if obs, known := facts.Facts.Sleeping.Value(); known {
 		tier, _ := facts.BuildTier.Value()
 		request.RoomTargets = policy.RoomQualityTargets(obs, request.Traits, tier)
@@ -107,7 +111,11 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 	if choice.Method == policy.SleepingNoDemand {
 		// A planned bedroom standing empty takes one bed (#786).
 		if step := bedroomStep(facts); step.Kind == policy.BedroomFurnish {
-			choice.Method, choice.Cells, choice.Definition = policy.SleepingBuild, step.Cells, policy.SleepingBedDefinitions[0]
+			definition, method := policy.SleepingDefinition(request.Definitions, request.Stocked, false)
+			if method != policy.SleepingBuild {
+				return nil, BuildingSleepingUnavailable, nil
+			}
+			choice.Method, choice.Cells, choice.Definition = policy.SleepingBuild, step.Cells, definition
 			resolved, reason, err := r.resolveSleeping(facts, choice)
 			if resolved != nil {
 				resolved.bedroom = &step
@@ -143,14 +151,26 @@ func (r *RoutineBuildingPlanner) resolveSleeping(facts observation.ColonyProject
 	resolved.facility = &facility
 	resolved.cells = choice.Cells
 	resolved.sleeping = &choice
+	resolved.stuff = bedStuff(facts, resolved.definition)
+	return &resolved, "", nil
+}
+
+// bedStuff is the stuff a bed step builds definition from: a bedroll's
+// first stuff option in stock (#1181), else the row's native stuff.
+func bedStuff(facts observation.ColonyProjection, definition string) string {
+	if definition == policy.SleepingBedrollDefinition || definition == policy.SleepingCoupleBedrollDefinition {
+		if stuff, _, ok := facts.StockedStuff(definition); ok {
+			return stuff
+		}
+	}
 	for _, d := range facts.Definitions {
-		if d.Name == resolved.definition {
+		if d.Name == definition {
 			if stuff, known := d.Stuff.Value(); known {
-				resolved.stuff = stuff
+				return stuff
 			}
 		}
 	}
-	return &resolved, "", nil
+	return ""
 }
 
 func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBuildingResult, error) {
@@ -251,7 +271,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append([]string{"Wall", "Door", policy.SleepingCoupleBedDefinition}, policy.SleepingBedDefinitions...), policy.RoomUpgradeDefinitions...)...)
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append([]string{"Wall", "Door"}, policy.SleepingLadder(true)...), policy.RoomUpgradeDefinitions...)...)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
