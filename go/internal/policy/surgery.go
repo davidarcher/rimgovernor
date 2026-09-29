@@ -16,8 +16,8 @@ const MaintainSurgery GoalID = "MaintainSurgery"
 // queued bill is doctor work native assigns, not a reserved labor slot.
 const surgeryPriority = 2
 
-// RestoreFailureCap is the highest native failure chance a restore
-// operation may carry for the best eligible doctor.
+// RestoreFailureCap is the highest native failure chance a restore or a
+// chronic cure (#1165) may carry for the best eligible doctor.
 const RestoreFailureCap = 0.20
 
 // SurgeryWantReason says why a patient's operation was not queued.
@@ -73,7 +73,11 @@ func SurgeryRecovered(pawns domain.Fact[[]CarePawn]) domain.Fact[bool] {
 			return domain.Unknown[bool]()
 		}
 		for _, op := range ops {
-			if servedSurgery(op.Kind) {
+			served, known := servedSurgery(pawn, op)
+			if !known {
+				return domain.Unknown[bool]()
+			}
+			if served > 0 {
 				return domain.Known(false)
 			}
 		}
@@ -81,7 +85,45 @@ func SurgeryRecovered(pawns domain.Fact[[]CarePawn]) domain.Fact[bool] {
 	return domain.Known(true)
 }
 
-func servedSurgery(kind SurgeryKind) bool { return kind == SurgeryRestore }
+// servedSurgery is the capacity weight an operation gives back, zero when
+// the planner does not serve it: a restore weighs its part; a cure recipe or
+// a replacement part on a part carrying a chronic condition (#1165) weighs
+// the condition. known is false when a cure's conditions are unread.
+func servedSurgery(pawn CarePawn, op SurgeryOperation) (weight float64, known bool) {
+	name, _ := op.PartDefName.Value()
+	switch op.Kind {
+	case SurgeryRestore:
+		return partWeight(name), true
+	case SurgeryCure:
+	case SurgeryInstall:
+		if recipe, _ := op.Recipe.Value(); partTier(recipe) <= 0.5 {
+			return 0, true // an implant, not a replacement part
+		}
+	default:
+		return 0, true
+	}
+	conditions, known := pawn.Conditions.Value()
+	if !known {
+		return 0, false
+	}
+	part, partKnown := op.PartIndex.Value()
+	for _, c := range conditions {
+		def, _ := c.DefName.Value()
+		at, atKnown := c.PartIndex.Value()
+		if atKnown == partKnown && (!atKnown || at == part) {
+			weight = max(weight, chronicWeight[def])
+		}
+	}
+	return weight, true
+}
+
+// chronicWeight is the capacity a chronic condition costs, which its cure
+// or replacement gives back (#1165).
+var chronicWeight = map[string]float64{
+	"Cataract": 0.6, "Blindness": 0.6, "HearingLoss": 0.3,
+	"BadBack": 0.8, "Frail": 0.8, "Asthma": 0.8, "ChemicalDamageModerate": 0.8,
+	"Dementia": 1, "Alzheimers": 1, "HeartArteryBlockage": 1, "Cirrhosis": 1, "Carcinoma": 1, "ChemicalDamageSevere": 1,
+}
 
 // SelectSurgery ranks every living patient's served operations. A patient
 // with a queued bill or an open surgery action (inFlight) gets nothing new.
@@ -100,21 +142,27 @@ func SelectSurgery(pawns domain.Fact[[]CarePawn], inFlight map[PawnID]bool) Surg
 		}
 		ops, _ := pawn.Operations.Value()
 		parts := map[int][]SurgeryOperation{}
+		weights := map[int]float64{}
 		var order []int
 		for _, op := range ops {
 			part, pk := op.PartIndex.Value()
-			if _, rk := op.Recipe.Value(); !pk || !rk || !servedSurgery(op.Kind) {
+			if !pk {
+				part = -1 // whole-body cure
+			}
+			weight, _ := servedSurgery(pawn, op)
+			if _, rk := op.Recipe.Value(); !rk || weight <= 0 || !pk && op.Kind != SurgeryCure {
 				continue
 			}
 			if parts[part] == nil {
 				order = append(order, part)
 			}
 			parts[part] = append(parts[part], op)
+			weights[part] = max(weights[part], weight)
 		}
 		sort.Ints(order)
 		var best *SurgeryChoice
 		for _, part := range order {
-			choice, want := selectPartSurgery(pawn.ID, part, parts[part])
+			choice, want := selectPartSurgery(pawn.ID, part, weights[part], parts[part])
 			if choice == nil {
 				s.Wants = append(s.Wants, want)
 			} else if best == nil || choice.Value > best.Value {
@@ -129,12 +177,8 @@ func SelectSurgery(pawns domain.Fact[[]CarePawn], inFlight map[PawnID]bool) Surg
 	return s
 }
 
-func selectPartSurgery(pawn PawnID, part int, ops []SurgeryOperation) (*SurgeryChoice, SurgeryWant) {
-	sort.SliceStable(ops, func(i, j int) bool {
-		a, _ := ops[i].Recipe.Value()
-		b, _ := ops[j].Recipe.Value()
-		return partTier(a) > partTier(b)
-	})
+func selectPartSurgery(pawn PawnID, part int, weight float64, ops []SurgeryOperation) (*SurgeryChoice, SurgeryWant) {
+	sort.SliceStable(ops, func(i, j int) bool { return opTier(ops[i]) > opTier(ops[j]) })
 	top, _ := ops[0].Recipe.Value()
 	want := SurgeryWant{Pawn: pawn, Part: part, Recipe: top, Reason: SurgeryPartShort}
 	for _, op := range ops {
@@ -146,10 +190,18 @@ func selectPartSurgery(pawn PawnID, part int, ops []SurgeryOperation) (*SurgeryC
 			continue
 		}
 		recipe, _ := op.Recipe.Value()
-		name, _ := op.PartDefName.Value()
-		return &SurgeryChoice{Pawn: pawn, Recipe: recipe, Part: part, Kind: op.Kind, Value: partTier(recipe) * partWeight(name)}, want
+		return &SurgeryChoice{Pawn: pawn, Recipe: recipe, Part: part, Kind: op.Kind, Value: opTier(op) * weight}, want
 	}
 	return nil, want
+}
+
+// opTier: a cure leaves the natural part; a part recipe gives its tier.
+func opTier(op SurgeryOperation) float64 {
+	if op.Kind == SurgeryCure {
+		return 1
+	}
+	recipe, _ := op.Recipe.Value()
+	return partTier(recipe)
 }
 
 // surgeryAcceptable: some eligible doctor performs it within the failure
@@ -170,6 +222,8 @@ func partTier(recipe string) float64 {
 		return 1.5
 	case strings.Contains(recipe, "Bionic"):
 		return 1.25
+	case strings.Contains(recipe, "Natural"):
+		return 1
 	case strings.Contains(recipe, "Prosthetic"):
 		return 0.85
 	case strings.Contains(recipe, "Peg"), strings.Contains(recipe, "Wooden"), strings.Contains(recipe, "Denture"):

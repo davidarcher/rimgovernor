@@ -71,6 +71,14 @@ Otherwise the goal's reason names the want: `surgery_part_short` or
 `surgery_no_doctor`. The goal settles when the operation leaves the census (the
 health change), never when the bill disappears.
 
+Chronic conditions (#1165) join the same ranking under the same 20% cap: a
+`cure` recipe, or a replacement-part `install` recipe on the part carrying the
+condition (a bionic eye for a cataract), is served when the patient's conditions
+include a listed chronic defName (cataract, bad back, frail, dementia, asthma,
+hearing loss, and similar). Its value is the capacity the condition costs times
+the recipe tier (a cure leaves the natural part, 1.0). Implants never count as a
+cure.
+
 ## Medicine selection
 
 The medical routine chooses an autonomous care ceiling from usable stock and

@@ -68,6 +68,68 @@ func TestSelectSurgery(t *testing.T) {
 	}
 }
 
+func chronicPawn(id PawnID, conditions []CareCondition, ops ...SurgeryOperation) CarePawn {
+	p := surgeryPawn(id, 0, ops...)
+	p.Conditions = domain.Known(conditions)
+	return p
+}
+
+func chronic(def string, part int) CareCondition {
+	c := CareCondition{DefName: domain.Known(def)}
+	if part >= 0 {
+		c.PartIndex = domain.Known(part)
+	}
+	return c
+}
+
+func kindOp(kind SurgeryKind, recipe, part string, index int, chance float64, stocked bool) SurgeryOperation {
+	op := restoreOp(recipe, part, index, chance, 1, stocked)
+	op.Kind = kind
+	if index < 0 {
+		op.PartIndex, op.PartDefName = domain.Unknown[int](), domain.Unknown[string]()
+	}
+	return op
+}
+
+func TestSelectSurgeryChronic(t *testing.T) {
+	cataract := []CareCondition{chronic("Cataract", 5)}
+	for _, c := range []struct {
+		name   string
+		pawn   CarePawn
+		recipe string
+		value  float64
+		wants  []SurgeryWantReason
+	}{
+		{"cataract gets a bionic eye", chronicPawn("a", cataract, kindOp(SurgeryInstall, "InstallBionicEye", "Eye", 5, 0.9, true)), "InstallBionicEye", 1.25 * 0.6, nil},
+		{"healthy eye gets nothing", chronicPawn("a", nil, kindOp(SurgeryInstall, "InstallBionicEye", "Eye", 5, 0.9, true)), "", 0, nil},
+		{"other eye gets nothing", chronicPawn("a", cataract, kindOp(SurgeryInstall, "InstallBionicEye", "Eye", 6, 0.9, true)), "", 0, nil},
+		{"implant is no cure", chronicPawn("a", []CareCondition{chronic("Dementia", 2)}, kindOp(SurgeryInstall, "InstallJoywire", "Brain", 2, 0.9, true)), "", 0, nil},
+		{"part short", chronicPawn("a", cataract, kindOp(SurgeryInstall, "InstallBionicEye", "Eye", 5, 0.9, false)), "", 0, []SurgeryWantReason{SurgeryPartShort}},
+		{"cure over the 20% cap", chronicPawn("a", cataract, kindOp(SurgeryCure, "CureCataract", "Eye", 5, 0.7, true)), "", 0, []SurgeryWantReason{SurgeryNoDoctor}},
+		{"whole-body cure", chronicPawn("a", []CareCondition{chronic("Frail", -1)}, kindOp(SurgeryCure, "CureFrail", "", -1, 0.85, true)), "CureFrail", 0.8, nil},
+		{"non-chronic cure ignored", chronicPawn("a", []CareCondition{chronic("Flu", -1)}, kindOp(SurgeryCure, "CureFlu", "", -1, 0.9, true)), "", 0, nil},
+		{"bad back beats cataract", chronicPawn("a", []CareCondition{chronic("Cataract", 5), chronic("BadBack", 3)},
+			kindOp(SurgeryInstall, "InstallBionicEye", "Eye", 5, 0.9, true), kindOp(SurgeryInstall, "InstallBionicSpine", "Spine", 3, 0.9, true)), "InstallBionicSpine", 1.25 * 0.8, nil},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := SelectSurgery(domain.Known([]CarePawn{c.pawn}), nil)
+			if c.recipe == "" && len(got.Queue) != 0 || c.recipe != "" && (len(got.Queue) != 1 || got.Queue[0].Recipe != c.recipe || got.Queue[0].Value != c.value) {
+				t.Fatalf("queue %+v", got.Queue)
+			}
+			if len(got.Wants) != len(c.wants) || len(c.wants) == 1 && got.Wants[0].Reason != c.wants[0] {
+				t.Fatalf("wants %+v", got.Wants)
+			}
+			if v, k := SurgeryRecovered(domain.Known([]CarePawn{c.pawn})).Value(); !k || v != (c.recipe == "" && c.wants == nil) {
+				t.Fatalf("recovered %v %v", v, k)
+			}
+		})
+	}
+	unread := surgeryPawn("a", 0, kindOp(SurgeryCure, "CureCataract", "Eye", 5, 0.9, true))
+	if _, k := SurgeryRecovered(domain.Known([]CarePawn{unread})).Value(); k {
+		t.Fatal("unread conditions recovered")
+	}
+}
+
 func TestSurgeryRecovered(t *testing.T) {
 	if _, known := SurgeryRecovered(domain.Unknown[[]CarePawn]()).Value(); known {
 		t.Fatal("unknown census recovered")
