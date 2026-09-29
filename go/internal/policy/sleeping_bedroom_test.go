@@ -24,7 +24,7 @@ func bedroomFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 
 func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 	plan, rooms, sleeping := bedroomFixture()
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
 		t.Fatalf("first step = %+v, want the first slot's shell", got)
 	}
 	var cells []domain.Cell
@@ -34,18 +34,18 @@ func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 		}
 	}
 	rooms.Rooms = append(rooms.Rooms, Room{ID: "r1", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: cells})
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind != BedroomFurnish || len(got.Cells) != 25 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomFurnish || len(got.Cells) != 25 {
 		t.Fatalf("standing empty bedroom = %+v, want furnish", got)
 	}
 	rooms.Rooms[1].Role, rooms.Rooms[1].Beds = domain.Known(RoomRoleBedroom), []string{"r1bed"}
 	sleeping.Beds = append(sleeping.Beds, SleepingBed{ID: "r1bed", Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), AccessibleTo: []PawnID{"a", "b"}})
-	got := NextBedroomStep(plan, rooms, sleeping, nil, nil)
+	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil)
 	if got.Kind != BedroomMove || got.Pawn != "a" || got.Bed != "r1bed" || got.PreviousBed != "b1" {
 		t.Fatalf("vacant bedroom bed = %+v, want a moved from b1", got)
 	}
 	sleeping.People[0].OwnedBed = domain.Known("r1bed")
 	sleeping.Beds[3].Owners = []PawnID{"a"}
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind != BedroomShell || got.Room.Interior.X != 16 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomShell || got.Room.Interior.X != 16 {
 		t.Fatalf("second colonist = %+v, want the second slot's shell", got)
 	}
 }
@@ -53,10 +53,10 @@ func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 func TestBedroomStepWaitsForEveryoneToOwnABed(t *testing.T) {
 	plan, rooms, sleeping := bedroomFixture()
 	sleeping.People[1].OwnedBed = domain.Known("")
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind != BedroomNone {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomNone {
 		t.Fatalf("unbedded colonist = %+v, want barracks first", got)
 	}
-	if owed, known := BedroomsOwed(domain.Known(plan), domain.Unknown[RoomObservation](), domain.Known(sleeping), nil, nil).Value(); known || owed {
+	if owed, known := BedroomsOwed(domain.Known(plan), domain.Unknown[RoomObservation](), domain.Known(sleeping), nil, nil, nil).Value(); known || owed {
 		t.Fatal("unknown rooms must leave the deficit unknown")
 	}
 }
@@ -67,7 +67,7 @@ func TestBedroomStepKeepsNeverUpgradeOwner(t *testing.T) {
 	sleeping.Beds = append(sleeping.Beds, SleepingBed{ID: "r1bed", Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), AccessibleTo: []PawnID{"a", "b"}})
 	sleeping.Beds[0].Room = domain.Known("plain")
 	sleeping.Beds[1].Room = domain.Known("barracks")
-	got := NextBedroomStep(plan, rooms, sleeping, map[string]RoomTarget{"plain": {NeverUpgrade: true}}, nil)
+	got := NextBedroomStep(plan, rooms, sleeping, map[string]RoomTarget{"plain": {NeverUpgrade: true}}, nil, nil)
 	if got.Kind != BedroomMove || got.Pawn != "b" || got.Bed != "r1bed" {
 		t.Fatalf("ascetic in a never-upgrade room = %+v, want b moved instead (#826)", got)
 	}
@@ -79,7 +79,7 @@ func TestBedroomStepNeverSplitsACouple(t *testing.T) {
 	sleeping.Beds = append(sleeping.Beds, SleepingBed{ID: "r1bed", Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), AccessibleTo: []PawnID{"a", "b"}})
 	sleeping.People[0].Partners, sleeping.People[0].BedSharingAllowed = []PawnID{"b"}, domain.Known(true)
 	sleeping.People[1].Partners, sleeping.People[1].BedSharingAllowed = []PawnID{"a"}, domain.Known(true)
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind == BedroomMove {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind == BedroomMove {
 		t.Fatalf("couple = %+v, want neither moved into a single bedroom (#838)", got)
 	}
 }
@@ -108,28 +108,28 @@ func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	}
 	sleeping.Beds = []SleepingBed{spot("b1", "a"), spot("b2", "b")}
 	rooms := RoomObservation{Rooms: []Room{{ID: "shell", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
 		t.Fatalf("spot owners = %+v, want the first bedroom shelled", got)
 	}
 	rooms.Rooms = append(rooms.Rooms, room("r1", 10))
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind != BedroomFurnish {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomFurnish {
 		t.Fatalf("empty bedroom = %+v, want furnish", got)
 	}
 	rooms.Rooms[1] = room("r1", 10, "s1")
 	sleeping.Beds = append(sleeping.Beds, spot("s1"))
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind != BedroomMove || got.Pawn != "a" || got.Bed != "s1" {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomMove || got.Pawn != "a" || got.Bed != "s1" {
 		t.Fatalf("spot in the bedroom = %+v, want a moved in", got)
 	}
 	sleeping.People[0].OwnedBed = domain.Known("s1")
 	sleeping.Beds[0].Owners, sleeping.Beds[2].Owners = nil, []PawnID{"a"}
 	// One spot left in the shell: RimWorld reads it as a bedroom.
 	rooms.Rooms[0].Role = domain.Known(RoomRoleBedroom)
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind != BedroomClear || got.Bed != "b1" {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomClear || got.Bed != "b1" {
 		t.Fatalf("vacated shell spot = %+v, want it cleared", got)
 	}
 	rooms.Rooms[0].Beds = []string{"b2"}
 	sleeping.Beds = sleeping.Beds[1:]
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil); got.Kind != BedroomShell || got.Room.Interior.X != 16 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomShell || got.Room.Interior.X != 16 {
 		t.Fatalf("last shell spot owner = %+v, want the second bedroom shelled", got)
 	}
 }

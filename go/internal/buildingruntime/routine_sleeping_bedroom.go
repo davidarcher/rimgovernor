@@ -24,7 +24,7 @@ func bedroomStep(facts observation.ColonyProjection) policy.BedroomStep {
 	if !pk || !rk || !sk {
 		return policy.BedroomStep{}
 	}
-	return policy.NextBedroomStep(plan, rooms, sleeping, bedroomTargets(facts), sleepingTraits(facts))
+	return policy.NextBedroomStep(plan, rooms, sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts))
 }
 
 // bedroomTargets is the rooms' quality targets, so a bedroom move leaves an
@@ -48,7 +48,7 @@ func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan) []
 	if !rk || !sk || traits == nil {
 		return nil
 	}
-	claims := policy.SuiteClaims(plan, rooms, sleeping, bedroomTargets(facts), traits)
+	claims := policy.SuiteClaims(plan, rooms, sleeping, bedroomTargets(facts), traits, suitePressure(facts))
 	return policy.SuiteTargets(plan, rooms, sleeping, claims)
 }
 
@@ -59,7 +59,7 @@ const BuildingSuiteStock RoutineBuildingReason = "suite_materials_short"
 // bedroomsOwed is the review's BedroomsOwed fact for the projection.
 // A due room quality swap (#813) owes a bedroom too.
 func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	owed := policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts), sleepingTraits(facts))
+	owed := policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts))
 	if v, known := owed.Value(); known && !v {
 		if _, swap := bedroomSwap(facts); swap {
 			return domain.Known(true)
@@ -229,4 +229,15 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
 	}
 	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
+}
+
+// suitePressure orders the suite queue by the pawns' current bedroom,
+// space and jealousy thoughts (#1217); nil (pawn-id order) while the mood
+// census is unknown.
+func suitePressure(facts observation.ColonyProjection) map[policy.PawnID]float64 {
+	pawns, known := facts.Facts.MoodPawns.Value()
+	if !known {
+		return nil
+	}
+	return policy.SuitePressure(pawns)
 }

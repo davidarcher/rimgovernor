@@ -53,11 +53,11 @@ func SuiteRoomIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 	return out
 }
 
-// SuiteClaims is every pawn owed a suite, by pawn id: the sole owner of a
+// SuiteClaims is every pawn owed a suite, most suite pressure first (#1217): the sole owner of a
 // standing planned standard bedroom below its target's Min whose space is
 // the weakest stat, or whose target needs more floor than the room has
 // (Greedy, Jealous of a suite, a title). An ascetic never gets one.
-func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget, traits map[PawnID]TraitEffects) []SuiteClaim {
+func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget, traits map[PawnID]TraitEffects, pressure map[PawnID]float64) []SuiteClaim {
 	census, ok := sleeping.Rooms.Value()
 	if !ok {
 		return nil
@@ -82,7 +82,7 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 		}
 		out = append(out, SuiteClaim{Pawn: s.owner, Bed: s.bed, Target: t.Min})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Pawn < out[j].Pawn })
+	orderSuiteClaims(out, pressure)
 	return out
 }
 
