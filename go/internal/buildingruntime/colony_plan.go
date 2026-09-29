@@ -62,7 +62,9 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 	// once a day.
 	var suites []float64
 	if haveLayout {
-		suites = suiteTargets(*projection, layout.Plan)
+		var claims []policy.SuiteClaim
+		suites, claims = suiteTargets(*projection, layout.Plan)
+		r.logSuiteClaims(ctx, claims)
 	}
 	suite := haveLayout && policy.SuitesOwed(layout.Plan, suites) && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
 	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || quadrum || tomb || suite) {
@@ -196,6 +198,26 @@ func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.Gene
 	}
 	clockEvent(ctx, "layout", "layout_replan", fmt.Sprintf("layout plan replanned for %d colonists outgrown=%t %s", pawns, outgrown, next.Summary()), "colonists", pawns, "outgrown", outgrown)
 	return nil
+}
+
+// logSuiteClaims logs the suite claims (pawn, reason, target) whenever the
+// set changes (#1257), so a run shows who is owed a suite and why.
+func (r *RoutineReviewer) logSuiteClaims(ctx context.Context, claims []policy.SuiteClaim) {
+	line := "none"
+	if len(claims) > 0 {
+		line = ""
+		for i, c := range claims {
+			if i > 0 {
+				line += " "
+			}
+			line += fmt.Sprintf("%s:%s:%g", c.Pawn, c.Reason, c.Target)
+		}
+	}
+	if line == r.suiteClaimsLogged || r.suiteClaimsLogged == "" && line == "none" {
+		return
+	}
+	r.suiteClaimsLogged = line
+	clockEvent(ctx, "layout", "suite_claims", "suite claims "+line, "claims", len(claims))
 }
 
 // heatRedrawEvery is how often the traffic heat layers are redrawn (one

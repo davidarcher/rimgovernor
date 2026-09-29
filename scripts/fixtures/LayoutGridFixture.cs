@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
             [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1,
             [ToolParameter(Description = "Bedroom start (#838): enable Construction on every able colonist, lay wooden beds instead of sleeping spots, give each colonist one, drop 120 survival meals and raise every shell blueprint at once.")] bool builders = false,
-            [ToolParameter(Description = "Suite start (#1221): the first hut colonist turns Greedy (Ascetic removed), reported as greedyPawn.")] bool greedy = false)
+            [ToolParameter(Description = "Suite start (#1221): the first uncoupled hut colonist turns Greedy (Ascetic removed), reported as greedyPawn.")] bool greedy = false)
         {
             var name = string.IsNullOrEmpty(project) ? "Stonecutting" : project;
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -65,7 +65,10 @@ namespace HomeBridge.BridgeTools
                 }
                 string greedyPawn = null;
                 if (greedy && hut.People.Count > 0) {
-                    var p = hut.People[0];
+                    // A colonist with a lover, fiance or spouse is never split
+                    // into a single bedroom (#838), so never qualifies for a
+                    // suite (#1257): the first uncoupled one turns Greedy.
+                    var p = hut.People.FirstOrDefault(x => !LovePartnerRelationUtility.HasAnyLovePartner(x)) ?? hut.People[0];
                     if (p.story.traits.GetTrait(DefDatabase<TraitDef>.GetNamed("Ascetic")) is Trait ascetic) p.story.traits.RemoveTrait(ascetic);
                     if (!p.story.traits.HasTrait(TraitDefOf.Greedy)) p.story.traits.GainTrait(new Trait(TraitDefOf.Greedy));
                     greedyPawn = p.GetUniqueLoadID();

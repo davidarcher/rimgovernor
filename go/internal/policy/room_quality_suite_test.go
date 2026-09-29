@@ -52,7 +52,7 @@ func suiteTargetsFor(sleeping SleepingObservation, traits map[PawnID]TraitEffect
 func TestSuiteClaimsQualifyOnlyOutgrownRooms(t *testing.T) {
 	plan, rooms, sleeping := suiteFixture()
 	got := SuiteClaims(plan, rooms, sleeping, suiteTargetsFor(sleeping, suiteTraits), suiteTraits, nil)
-	if len(got) != 1 || got[0] != (SuiteClaim{Pawn: "a", Bed: "ra", Target: ImpressivenessSlightlyImpressive}) {
+	if len(got) != 1 || got[0] != (SuiteClaim{Pawn: "a", Bed: "ra", Target: ImpressivenessSlightlyImpressive, Reason: SuiteClaimFloor}) {
 		t.Fatalf("greedy claims = %+v, want a alone at 50", got)
 	}
 	// An ascetic never gets one, even a greedy one.
@@ -71,6 +71,37 @@ func TestSuiteClaimsQualifyOnlyOutgrownRooms(t *testing.T) {
 	sleeping.Rooms = domain.Known([]UpkeepRoom{{ID: "r1", Role: "Bedroom", Quality: domain.Known(RoomQuality{Wealth: 1500, Beauty: 3, Space: 5, Impressiveness: 21})}})
 	if got := SuiteClaims(plan, rooms, sleeping, suiteTargetsFor(sleeping, nil), nil, nil); len(got) != 0 {
 		t.Fatalf("met target claims = %+v", got)
+	}
+}
+
+// Suite first (#1257): a claimant's standard room gets no in-place
+// upgrade, and the suite step is due while an upgrade would be.
+func TestSuiteClaimantRoomGetsNoUpgrade(t *testing.T) {
+	low := RoomQuality{Wealth: 300, Beauty: 1, Space: 25, Cleanliness: 0, Impressiveness: 35}
+	obs, tidy, _ := upgradeFixture(t, low)
+	obs.Beds = []SleepingBed{{ID: "Bed_1", Room: domain.Known("Room_1"), Owners: []PawnID{"a"}}}
+	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: ImpressivenessSlightlyImpressive}}
+	all := func(string) bool { return true }
+	if _, ok := NextRoomUpgrade(obs, targets, tidy, all); !ok {
+		t.Fatal("no upgrade without a claim")
+	}
+	claims := []SuiteClaim{{Pawn: "a", Bed: "Bed_1", Target: ImpressivenessSlightlyImpressive, Reason: SuiteClaimFloor}}
+	if u, ok := NextRoomUpgrade(obs, UpgradeTargets(targets, obs, claims), tidy, all); ok {
+		t.Fatalf("claimant room upgrade = %+v", u)
+	}
+
+	plan, rooms, sleeping := suiteFixture()
+	owed := suiteTargetsFor(sleeping, suiteTraits)
+	claims = SuiteClaims(plan, rooms, sleeping, owed, suiteTraits, nil)
+	kept := UpgradeTargets(owed, sleeping, claims)
+	if _, ok := kept["r1"]; ok {
+		t.Fatalf("claimant r1 kept in upgrade targets: %+v", kept)
+	}
+	if _, ok := kept["r2"]; !ok {
+		t.Fatalf("b's r2 dropped: %+v", kept)
+	}
+	if step := NextBedroomStep(plan, rooms, sleeping, owed, suiteTraits, nil); step.Kind != BedroomShell || step.Room.Role != ModuleSuite {
+		t.Fatalf("step = %+v, want the suite's shell", step)
 	}
 }
 

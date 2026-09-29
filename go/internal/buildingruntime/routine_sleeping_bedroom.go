@@ -51,18 +51,33 @@ func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTa
 	return policy.RoomQualityTargets(obs, traits, tier)
 }
 
-// suiteTargets is the suites Grow keeps and adds for plan (#1216), nil
-// while the room, sleeping or work census is unknown.
-func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan) []float64 {
+// suiteTargets is the suites Grow keeps and adds for plan (#1216) and the
+// claims behind them; nil while the room, sleeping or work census is
+// unknown.
+func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan) ([]float64, []policy.SuiteClaim) {
 	rooms, rk := facts.Rooms.Value()
 	sleeping, sk := facts.Facts.Sleeping.Value()
 	traits := sleepingTraits(facts)
 	if !rk || !sk || traits == nil {
-		return nil
+		return nil, nil
 	}
 	targets := bedroomTargets(facts)
 	claims := policy.SuiteClaims(plan, rooms, sleeping, targets, traits, suitePressure(facts))
-	return policy.SuiteTargets(plan, rooms, sleeping, targets, claims)
+	return policy.SuiteTargets(plan, rooms, sleeping, targets, claims), claims
+}
+
+// upgradeTargets is targets less the rooms of pawns owed a suite (#1257,
+// suite first): those rooms get no in-place quality upgrade.
+func upgradeTargets(facts observation.ColonyProjection, targets map[string]policy.RoomTarget) map[string]policy.RoomTarget {
+	plan, pk := facts.LayoutPlan.Value()
+	rooms, rk := facts.Rooms.Value()
+	sleeping, sk := facts.Facts.Sleeping.Value()
+	traits := sleepingTraits(facts)
+	if !pk || !rk || !sk || traits == nil {
+		return targets
+	}
+	claims := policy.SuiteClaims(plan, rooms, sleeping, bedroomTargets(facts), traits, suitePressure(facts))
+	return policy.UpgradeTargets(targets, sleeping, claims)
 }
 
 // BuildingSuiteStock: a suite's shell waits until its walls are in stock

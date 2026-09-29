@@ -62,6 +62,8 @@ type RoutineReviewer struct {
 	// planSurveyed is set once any survey was read. See reviewLayoutPlan.
 	planChecked  domain.Tick
 	planSurveyed bool
+	// suiteClaimsLogged is the last suite claim set logged (#1257).
+	suiteClaimsLogged string
 	// layoutInvalidLogged: an invalid saved layout plan is logged once.
 	layoutInvalidLogged bool
 	// layoutOverlay draws the layout plan as a native overlay (#817); the

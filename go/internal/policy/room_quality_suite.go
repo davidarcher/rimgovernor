@@ -20,7 +20,22 @@ type SuiteClaim struct {
 	Pawn   PawnID
 	Bed    string
 	Target float64
+	// Reason is why the pawn qualifies, for the claim log line (#1257).
+	Reason SuiteClaimReason
 }
+
+// SuiteClaimReason is why a pawn is owed a suite.
+type SuiteClaimReason string
+
+const (
+	// SuiteClaimSpace: the standard room is below target and space is its
+	// weakest stat.
+	SuiteClaimSpace SuiteClaimReason = "space_weakest"
+	// SuiteClaimFloor: the target needs more floor than the room has.
+	SuiteClaimFloor SuiteClaimReason = "target_outgrows_room"
+	// SuiteClaimNoGrowth: the pawn's suite cannot grow outward to its target.
+	SuiteClaimNoGrowth SuiteClaimReason = "suite_cannot_grow"
+)
 
 // suiteCells is the interior area whose space alone meets target (see
 // SuiteSize), before snapping.
@@ -129,19 +144,48 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 					continue
 				}
 			}
-			out = append(out, SuiteClaim{Pawn: s.owner, Bed: s.bed, Target: t.Min})
+			out = append(out, SuiteClaim{Pawn: s.owner, Bed: s.bed, Target: t.Min, Reason: SuiteClaimNoGrowth})
 			continue
 		}
 		r, planned := standard[s.room]
 		if !planned {
 			continue
 		}
-		if WeakestRoomStat(q) != RoomStatSpace && suiteCells(t.Min) <= r.Interior.Width*r.Interior.Height {
+		reason := SuiteClaimSpace
+		if suiteCells(t.Min) > r.Interior.Width*r.Interior.Height {
+			reason = SuiteClaimFloor
+		} else if WeakestRoomStat(q) != RoomStatSpace {
 			continue
 		}
-		out = append(out, SuiteClaim{Pawn: s.owner, Bed: s.bed, Target: t.Min})
+		out = append(out, SuiteClaim{Pawn: s.owner, Bed: s.bed, Target: t.Min, Reason: reason})
 	}
 	orderSuiteClaims(out, pressure)
+	return out
+}
+
+// UpgradeTargets is targets without the rooms claims are leaving (#1257,
+// suite first): a pawn owed a suite gets no in-place quality upgrade of its
+// standard room; the suite steps walk it out instead.
+func UpgradeTargets(targets map[string]RoomTarget, sleeping SleepingObservation, claims []SuiteClaim) map[string]RoomTarget {
+	if len(claims) == 0 {
+		return targets
+	}
+	claimed := map[string]bool{}
+	for _, c := range claims {
+		claimed[c.Bed] = true
+	}
+	leaving := map[string]bool{}
+	for _, b := range sleeping.Beds {
+		if room, ok := b.Room.Value(); ok && claimed[b.ID] {
+			leaving[room] = true
+		}
+	}
+	out := make(map[string]RoomTarget, len(targets))
+	for id, t := range targets {
+		if !leaving[id] {
+			out[id] = t
+		}
+	}
 	return out
 }
 

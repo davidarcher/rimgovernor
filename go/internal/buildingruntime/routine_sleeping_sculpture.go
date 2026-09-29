@@ -33,7 +33,7 @@ func sculptureRoomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 		return domain.Unknown[bool]()
 	}
 	tier, _ := facts.BuildTier.Value()
-	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells))
+	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier)), policy.TidyFurnitureRooms(rooms, census, facts.Cells))
 }
 
 // sculptBedroom is the beauty lever after pots and floors (#830): a
@@ -61,7 +61,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	for _, item := range items {
 		inner[item.ID] = item
 	}
-	step, due := policy.NextSculpture(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed)
+	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed)
 	if !due {
 		return RoutineBuildingResult{}, false, nil
 	}
