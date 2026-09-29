@@ -507,7 +507,17 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	// A harvested organ sells while the silver runway is short (#1169).
-	need, known := policy.SurgeryTradeNeed(policy.OrganSaleSurplus(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))).Value()
+	saleArt, err := r.saleArt(call, identity, state.Snapshot)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
+	// Unreserved art under negative wealth headroom is shed_art (#1247).
+	headroom := projection.Facts.WealthBudget()
+	artCount := domain.Unknown[int64]()
+	if saleArt != nil {
+		artCount = domain.Known(int64(len(saleArt)))
+	}
+	need, known := policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.OrganSaleSurplus(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))), headroom, artCount).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
@@ -516,11 +526,9 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
-	if facts.SaleArt, err = r.saleArt(call, identity, state.Snapshot); err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
-	}
-	headroom, hk := projection.Facts.WealthBudget().Value()
-	facts.ArtFirst = hk && headroom < 0
+	facts.SaleArt = saleArt
+	h, hk := headroom.Value()
+	facts.ArtFirst = hk && h < 0
 	capacity, _ := policy.JoinerCapacity(projection.Facts.JoinerCapacity()).Value()
 	return economic, facts, capacity, nil
 }

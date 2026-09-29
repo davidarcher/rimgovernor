@@ -312,6 +312,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.methodEnabled(policy.MaintainArt) {
 		reading.Projection.Facts.SculptureRoomsOwed = sculptureRoomsOwed(reading.Projection)
 	}
+	if reading.Projection.Facts.SaleArt, err = reviewSaleArt(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection); err != nil {
+		clockSchedulerLog("routine.step: sale art err=%v", err)
+		return store.RoutineReviewResult{}, err
+	}
 	if err = r.reviewTidy(ctx, state.Snapshot, &reading.Projection, tidyBusy(definitions, plans, state.Snapshot, playerPlans)); err != nil {
 		clockSchedulerLog("routine.step: tidy err=%v", err)
 		return store.RoutineReviewResult{}, err

@@ -278,9 +278,13 @@ type RoutineFacts struct {
 	// free cell for a sculpture (SculptureRoomsOwed, #1190); with a
 	// qualifying artist it holds MaintainArt open.
 	SculptureRoomsOwed domain.Fact[bool]
-	AnimalUpkeep       AnimalUpkeepObservation
-	FoodStorageUpkeep  FoodStorageObservation
-	MedicalReserve     MedicalReserveObservation
+	// SaleArt counts the packed art no owed room reserves (SaleSculptures);
+	// read only while the wealth headroom is negative, it opens a trade as
+	// the shed_art need (#1247).
+	SaleArt           domain.Fact[int64]
+	AnimalUpkeep      AnimalUpkeepObservation
+	FoodStorageUpkeep FoodStorageObservation
+	MedicalReserve    MedicalReserveObservation
 	// Prisoners carries Population-*'s recruit/maintain census: unlike
 	// AnimalUpkeep, this has no generic per-tick colony read to piggyback on
 	// (recruitable/current-interaction facts live only on the dedicated
@@ -964,7 +968,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// the caravan leaves or nothing is left worth trading.
 	// Restore parts stand the goal whether or not a bench could make them:
 	// the bench census is the trade planner's read (#1168).
-	tradeNeed := SurgeryTradeNeed(OrganSaleSurplus(ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), f.Resources, f.Colonists), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants))
+	tradeNeed := ShedArtNeed(SurgeryTradeNeed(OrganSaleSurplus(ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), f.Resources, f.Colonists), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants)), f.WealthBudget(), f.SaleArt)
 	tradeRecovered := TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity())))
 	addAssessment(TradeWithCaravan, 3, tradeRecovered)
 	defensiveLayoutRecovered := domain.Known(!p.DefensiveLayout)

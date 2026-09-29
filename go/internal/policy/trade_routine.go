@@ -169,10 +169,27 @@ type TradeNeed struct {
 	// SurgeryParts are the restore parts no bench can fabricate (#1168),
 	// highest priority first: a trader selling one is worth opening for.
 	SurgeryParts []SurgeryPart
+	// ShedArt is the shed_art reason (#1247): the count of packed art no
+	// owed room reserves (SaleSculptures) while the wealth headroom is
+	// known and negative. The selection sells it first (ArtFirst).
+	ShedArt int64
+}
+
+// ShedArtNeed adds the shed_art reason to the need: known negative wealth
+// headroom and unreserved packed art. Anything unknown adds nothing.
+func ShedArtNeed(need domain.Fact[TradeNeed], headroom domain.Fact[float64], saleArt domain.Fact[int64]) domain.Fact[TradeNeed] {
+	n, nk := need.Value()
+	h, hk := headroom.Value()
+	art, ak := saleArt.Value()
+	if !nk || !hk || !ak || !finite(h) || h >= 0 || art <= 0 {
+		return need
+	}
+	n.ShedArt = art
+	return domain.Known(n)
 }
 
 func (n TradeNeed) Any() bool {
-	return n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
+	return n.ShedArt > 0 || n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
 }
 
 // ReviewTradeNeed measures the trade need from the same facts the other

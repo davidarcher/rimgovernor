@@ -141,7 +141,12 @@ func (r *RoutineTradePlanner) saleArt(call context.Context, identity *c.Identity
 	if err != nil {
 		return nil, err
 	}
-	facts := read.Projection
+	return saleSculptures(call, native, identity, read.Projection)
+}
+
+// saleSculptures is SaleSculptures over a routine projection and the packed
+// items read; nil when a room input is unknown.
+func saleSculptures(call context.Context, native sculptureSource, identity *c.Identity, facts observation.ColonyProjection) (map[string]bool, error) {
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -157,4 +162,23 @@ func (r *RoutineTradePlanner) saleArt(call context.Context, identity *c.Identity
 	clockSchedulerLog("sale art: packed=%+v", packedSculptures(items))
 	tier, _ := facts.BuildTier.Value()
 	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packedSculptures(items)), nil
+}
+
+// reviewSaleArt is the review's shed_art input (#1247): the unreserved
+// packed art count, read only while the wealth headroom is known and
+// negative (unknown otherwise, so the need adds nothing).
+func reviewSaleArt(call context.Context, source any, identity *c.Identity, facts observation.ColonyProjection) (domain.Fact[int64], error) {
+	native, ok := source.(sculptureSource)
+	h, hk := facts.Facts.WealthBudget().Value()
+	if !ok || !hk || h >= 0 {
+		return domain.Unknown[int64](), nil
+	}
+	if _, rk := facts.Rooms.Value(); !rk {
+		return domain.Unknown[int64](), nil
+	}
+	sale, err := saleSculptures(call, native, identity, facts)
+	if err != nil || sale == nil {
+		return domain.Unknown[int64](), err
+	}
+	return domain.Known(int64(len(sale))), nil
 }

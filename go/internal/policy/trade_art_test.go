@@ -72,6 +72,55 @@ func TestSelectTradeSellsSurplusArt(t *testing.T) {
 	}
 }
 
+// Unreserved art under known negative headroom is the shed_art need
+// (#1247); positive or unknown headroom, or no unreserved art, is none.
+func TestShedArtNeed(t *testing.T) {
+	base := ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{})
+	cases := []struct {
+		name     string
+		headroom domain.Fact[float64]
+		art      domain.Fact[int64]
+		want     int64
+	}{
+		{"negative headroom with unreserved art", domain.Known(-500.0), domain.Known(int64(2)), 2},
+		{"positive headroom", domain.Known(500.0), domain.Known(int64(2)), 0},
+		{"zero headroom", domain.Known(0.0), domain.Known(int64(2)), 0},
+		{"unknown headroom", domain.Unknown[float64](), domain.Known(int64(2)), 0},
+		{"all art reserved", domain.Known(-500.0), domain.Known(int64(0)), 0},
+		{"art unknown", domain.Known(-500.0), domain.Unknown[int64](), 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			n, known := ShedArtNeed(base, tc.headroom, tc.art).Value()
+			if !known || n.ShedArt != tc.want || n.Any() != (tc.want > 0) {
+				t.Fatalf("need = %+v known=%v, want ShedArt %d", n, known, tc.want)
+			}
+		})
+	}
+	if _, known := ShedArtNeed(domain.Unknown[TradeNeed](), domain.Known(-1.0), domain.Known(int64(1))).Value(); known {
+		t.Fatal("unknown need became known")
+	}
+}
+
+// The shed_art need alone opens a trade that sells the art first.
+func TestShedArtNeedAloneSellsArtFirst(t *testing.T) {
+	need, _ := ShedArtNeed(ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}), domain.Known(-500.0), domain.Known(int64(1))).Value()
+	if !need.Any() {
+		t.Fatal("shed_art need is no need")
+	}
+	if recovered, _ := TradeRecovered(domain.Known([]TraderFacts{{ID: "c", CanTrade: true}}), domain.Known(need)).Value(); recovered {
+		t.Fatal("trade recovered with a shed_art need and a caravan")
+	}
+	rows := []TradeSheetRowFact{artRow("#1", "Thing_A", 150), artRow("#2", "Thing_B", 400)}
+	economic := RoutineTradeTargets(need, rows, nil, RoutineTradePolicy{}, domain.Known(int64(3)))
+	facts := tradeFacts(rows, 0, 1000, 0)
+	facts.SaleArt, facts.ArtFirst = map[string]bool{"Thing_A": true}, true
+	s := SelectTrade(economic, facts)
+	if want := []TradeSelectionLine{{"#1", SculptureDefinition, -1}}; s.Refused || !reflect.DeepEqual(s.Selected, want) {
+		t.Fatalf("selected = %+v (%s)", s.Selected, s.Reason)
+	}
+}
+
 // Art alone sells without a catalog target; a protected or unpriced art
 // row does not.
 func TestSelectTradeArtWithoutTargets(t *testing.T) {
