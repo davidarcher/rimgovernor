@@ -119,7 +119,7 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 		neighbours := fieldBlockNeighbours(facts.Cells, block, growing)
 		for _, o := range policy.BlockCropOrder(options, neighbours) {
 			if free := freeFor(block, o.Crop); len(free) > 0 && o.Needed > 0 {
-				return fieldBlockEdit{Crop: o.Crop.Name, Cells: policy.PickRect(free, anchor, o.Needed)}, "", true
+				return fieldBlockEdit{Crop: o.Crop.Name, Cells: connectedPick(free, anchor, o.Needed)}, "", true
 			}
 		}
 	}
@@ -234,6 +234,79 @@ func connectedAdds(zone, set map[domain.Cell]bool, want int) []domain.Cell {
 	}
 	sortCells(out)
 	return out
+}
+
+// connectedPick picks up to want cells of free for a new growing zone as one
+// 4-connected footprint (#1252): native refuses a disconnected zone, and a
+// block's free soil is often split by rock, trees or buildings. It picks
+// inside free's largest component (ties to the one nearest anchor), then
+// keeps the picked cells connected to the picked cell nearest anchor.
+func connectedPick(free map[domain.Cell]bool, anchor domain.Cell, want int) []domain.Cell {
+	var best map[domain.Cell]bool
+	bestNear := int64(-1)
+	seen := map[domain.Cell]bool{}
+	for _, c := range sortedCells(free) {
+		if seen[c] {
+			continue
+		}
+		comp := cellComponent(free, c)
+		near := int64(-1)
+		for m := range comp {
+			seen[m] = true
+			if d := cellDist(m, anchor); near < 0 || d < near {
+				near = d
+			}
+		}
+		if len(comp) > len(best) || len(comp) == len(best) && near < bestNear {
+			best, bestNear = comp, near
+		}
+	}
+	picked := map[domain.Cell]bool{}
+	for _, c := range policy.PickRect(best, anchor, want) {
+		picked[c] = true
+	}
+	if len(picked) == 0 {
+		return nil
+	}
+	var start domain.Cell
+	near := int64(-1)
+	for _, c := range sortedCells(picked) {
+		if d := cellDist(c, anchor); near < 0 || d < near {
+			start, near = c, d
+		}
+	}
+	return sortedCells(cellComponent(picked, start))
+}
+
+// cellComponent is the 4-connected cells of set reachable from start.
+func cellComponent(set map[domain.Cell]bool, start domain.Cell) map[domain.Cell]bool {
+	out := map[domain.Cell]bool{start: true}
+	queue := []domain.Cell{start}
+	for len(queue) > 0 {
+		c := queue[0]
+		queue = queue[1:]
+		for _, n := range []domain.Cell{{X: c.X, Z: c.Z - 1}, {X: c.X - 1, Z: c.Z}, {X: c.X + 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}} {
+			if set[n] && !out[n] {
+				out[n] = true
+				queue = append(queue, n)
+			}
+		}
+	}
+	return out
+}
+
+func sortedCells(set map[domain.Cell]bool) []domain.Cell {
+	out := make([]domain.Cell, 0, len(set))
+	for c := range set {
+		out = append(out, c)
+	}
+	sortCells(out)
+	return out
+}
+
+func cellDist(a, b domain.Cell) int64 {
+	dx, dz := int64(a.X-b.X), int64(a.Z-b.Z)
+	return dx*dx + dz*dz
 }
 
 func sortCells(cells []domain.Cell) {

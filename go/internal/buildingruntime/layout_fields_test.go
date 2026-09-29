@@ -115,6 +115,25 @@ func TestFieldBlockNextOnlyWhenFull(t *testing.T) {
 	}
 }
 
+// A block whose free soil is split by a rock column still creates one
+// connected zone, in its largest free part, even when the need exceeds
+// the block (#1252).
+func TestFieldBlockCreateIsConnected(t *testing.T) {
+	facts := blockFacts()
+	for i := range facts.Cells {
+		if facts.Cells[i].Cell.X == 1 {
+			facts.Cells[i].Walkable = domain.Known(false)
+		}
+	}
+	edit, reason, ok := planFieldBlock(facts, domain.Cell{X: 0, Z: 0}, rice(100), nil)
+	if !ok || edit.Zone != "" || len(edit.Cells) != 4 || edit.Cells[0].X != 2 {
+		t.Fatalf("create %+v %q %v", edit, reason, ok)
+	}
+	if _, err := domain.NewZoneCreate(domain.GrowingZone, edit.Crop, edit.Cells); err != nil {
+		t.Fatalf("disconnected create %v: %v", edit.Cells, err)
+	}
+}
+
 func TestFieldBlockRefusesWithoutBlocks(t *testing.T) {
 	facts := blockFacts()
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{})

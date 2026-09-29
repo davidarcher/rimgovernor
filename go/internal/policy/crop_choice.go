@@ -37,7 +37,8 @@ type FieldRequest struct {
 	Growers, Cooks domain.Fact[int]
 	Calendar       domain.Fact[Calendar]
 	Conditions     domain.Fact[[]DisasterCondition]
-	// ReserveDays is the stored-food buffer FieldTarget budgets beyond one cycle.
+	// ReserveDays is the stored-food buffer FieldTarget budgets beyond one
+	// cycle, spread over the harvests left in the season.
 	ReserveDays float64
 	// Coverage is the fraction of the target already growing (FieldCoverage).
 	Coverage domain.Fact[float64]
@@ -138,7 +139,11 @@ func viableCrops(r FieldRequest, indoor bool) (viables []viableCrop, excluded []
 			exclude(crop, "season too short")
 			continue
 		}
-		count, known := FieldTarget(r.Colonists, crop, r.ReserveDays).Value()
+		left := r.Climate.DaysRemaining
+		if indoor {
+			left = domain.Known(fieldYearDays)
+		}
+		count, known := FieldTarget(r.Colonists, crop, r.ReserveDays, left).Value()
 		if !known {
 			exclude(crop, "field target unknown")
 			continue
@@ -266,7 +271,14 @@ func BlockCropOrder(options []FieldBlockOption, neighbours map[string]bool) []Fi
 	return out
 }
 
-func FieldTarget(colonists domain.Fact[int64], crop CropChoice, reserve float64) domain.Fact[int] {
+// fieldYearDays is a RimWorld year: an indoor field's reserve spreads over it.
+const fieldYearDays = 60.0
+
+// FieldTarget is the cells of crop that feed the colony (#1252): each cell
+// harvests yield every GrowDays, so steady state is demand*days/yield
+// cells, and the reserve stock is spread over the harvests left in the
+// season (one harvest when the season is unknown or shorter than a cycle).
+func FieldTarget(colonists domain.Fact[int64], crop CropChoice, reserve float64, season domain.Fact[float64]) domain.Fact[int] {
 	count, ck := colonists.Value()
 	demand, dk := crop.Demand.Value()
 	days, gk := crop.GrowDays.Value()
@@ -274,7 +286,11 @@ func FieldTarget(colonists domain.Fact[int64], crop CropChoice, reserve float64)
 	if !ck || count < 0 || !dk || !gk || !yk || !fieldPositive(demand) || !fieldPositive(days) || !fieldPositive(yield) || !fieldPositive(reserve) {
 		return domain.Unknown[int]()
 	}
-	target := math.Max(float64(count)*10, math.Ceil(demand*(days*2.5+reserve)/yield))
+	harvests := 1.0
+	if left, ok := season.Value(); ok && fieldPositive(left) {
+		harvests = math.Max(1, math.Floor(left/days))
+	}
+	target := math.Max(float64(count)*10, math.Ceil(demand*(days+reserve/harvests)/yield))
 	if !fieldPositive(target) || target > 65536 {
 		return domain.Unknown[int]()
 	}

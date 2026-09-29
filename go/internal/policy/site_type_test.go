@@ -67,6 +67,12 @@ func siteCandidateOf(p SiteTypePlan, kind SiteKind, crop string) SiteTypeCandida
 
 func TestPlanSiteTypeInSeasonOutdoorBeatsControlledSites(t *testing.T) {
 	r := siteFixture(1.0)
+	// Eight colonists: a need ten basins cannot cover (fields sized by
+	// yield per day since #1252 fit three colonists in the basins).
+	r.Field.Colonists = domain.Known(int64(8))
+	for i := range r.Field.Choices {
+		r.Field.Choices[i].Demand = domain.Known(12.8)
+	}
 	r.Environment = domain.Known(siteEnv(21, siteLamp(domain.Cell{X: 6, Z: 6}, true)))
 	plan, ok := PlanSiteType(r)
 	if !ok || plan.Kind != SiteOutdoor || plan.Crop.Name != "Plant_Corn" {
