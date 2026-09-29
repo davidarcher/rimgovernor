@@ -186,3 +186,62 @@ func TestGearUtilityExtras(t *testing.T) {
 		t.Fatal("foil helmet after a drone")
 	}
 }
+
+func armoryArmorFixture(stock ...Stock) GearPlanningRequest {
+	r := gearFixture()
+	v, _ := r.Observation.Value()
+	v.Pawns[0].Replacements = domain.Known([]GearReplacement{{Definition: "Apparel_PowerArmor", Reason: "loadout"}})
+	p := v.Pawns[0]
+	p.Pawn = "second"
+	v.Pawns = append(v.Pawns, p)
+	r.Observation = domain.Known(v)
+	recipe := func(def string, product Resource, slots [][]Amount) GearRecipe {
+		return GearRecipe{Definition: def, Products: []Resource{product}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known(slots), RequiredWork: domain.Known([]WorkRequirement{})}
+	}
+	r.Benches = domain.Known([]GearBench{{ID: "fab", Bills: domain.Known([]GearBill{}), Recipes: domain.Known([]GearRecipe{
+		recipe("Make_Apparel_PowerArmor", "Apparel_PowerArmor", [][]Amount{{{"Plasteel", 100}}, {{"ComponentSpacer", 2}}}),
+		recipe("Make_Apparel_ArmorRecon", "Apparel_ArmorRecon", [][]Amount{{{"Plasteel", 60}}}),
+		recipe("Make_Apparel_FlakVest", "Apparel_FlakVest", [][]Amount{{{"Steel", 60}}}),
+	})}})
+	r.Stock = stock
+	return r
+}
+
+func TestArmoryArmorLadderByTier(t *testing.T) {
+	full := []Stock{{"Plasteel", domain.Known(int64(400))}, {"ComponentSpacer", domain.Known(int64(4))}, {"Steel", domain.Known(int64(500))}}
+	for tier, want := range map[ArmoryTier]Resource{ArmoryTierFabrication: "Apparel_PowerArmor", ArmoryTierMachining: "Apparel_FlakVest", ArmoryTierSmithing: "", ArmoryTierNeolithic: ""} {
+		m, err := SelectArmoryArmorMethod(armoryArmorFixture(full...), tier)
+		if err != nil || want == "" && m.Kind != GearBlocked || want != "" && (m.Kind != GearProduce || m.Need.Definition != want || m.Count != 2) {
+			t.Fatal(tier, m, err)
+		}
+	}
+	if m, err := SelectArmoryArmorMethod(armoryArmorFixture(full...), ArmoryTierUnknown); err != nil || m.Kind != GearUnknown {
+		t.Fatal(m, err)
+	}
+}
+
+func TestArmoryArmorScarcityFallsBackATier(t *testing.T) {
+	// No advanced components: marine falls to recon.
+	m, err := SelectArmoryArmorMethod(armoryArmorFixture(Stock{"Plasteel", domain.Known(int64(400))}, Stock{"ComponentSpacer", domain.Known(int64(0))}, Stock{"Steel", domain.Known(int64(500))}), ArmoryTierFabrication)
+	if err != nil || m.Kind != GearProduce || m.Need.Definition != "Apparel_ArmorRecon" {
+		t.Fatal(m, err)
+	}
+	// No plasteel: flak, spending only steel.
+	m, err = SelectArmoryArmorMethod(armoryArmorFixture(Stock{"Plasteel", domain.Known(int64(0))}, Stock{"ComponentSpacer", domain.Known(int64(4))}, Stock{"Steel", domain.Known(int64(500))}), ArmoryTierFabrication)
+	if err != nil || m.Kind != GearProduce || m.Need.Definition != "Apparel_FlakVest" || len(m.Costs) != 1 || m.Costs[0] != (Amount{"Steel", 120}) {
+		t.Fatal(m, err)
+	}
+	// Plasteel held for MaintainResource is not spent.
+	r := armoryArmorFixture(Stock{"Plasteel", domain.Known(int64(400))}, Stock{"ComponentSpacer", domain.Known(int64(4))}, Stock{"Steel", domain.Known(int64(500))})
+	r.Holds = []Amount{{"Plasteel", 350}}
+	if m, err = SelectArmoryArmorMethod(r, ArmoryTierFabrication); err != nil || m.Need.Definition != "Apparel_FlakVest" {
+		t.Fatal(m, err)
+	}
+}
+
+func TestGearLeavesArmorBillsToArmory(t *testing.T) {
+	r := armoryArmorFixture(Stock{"Plasteel", domain.Known(int64(400))}, Stock{"ComponentSpacer", domain.Known(int64(4))}, Stock{"Steel", domain.Known(int64(500))})
+	if m, err := SelectGearMethod(r); err != nil || m.Kind == GearProduce {
+		t.Fatal(m, err)
+	}
+}

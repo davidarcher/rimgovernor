@@ -15,7 +15,7 @@ import (
 // for the colonists no loose weapon arms (#1203). It moved here from the
 // gear planner unchanged: the gear planner still wears and replaces, and a
 // pending wear candidate or any open bill holds the armory back.
-func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, state ControlState, review store.RoutineReview) (RoutineArmoryResult, error) {
+func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, state ControlState, review store.RoutineReview, tier policy.ArmoryTier) (RoutineArmoryResult, error) {
 	p := r.reviewer.player
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
 	if err != nil {
@@ -100,9 +100,16 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, state C
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)
 	}
-	choice, err := policy.SelectArmoryMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: domain.Known(benches), Stock: stock}, weapons)
+	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: domain.Known(benches), Stock: stock}
+	choice, err := policy.SelectArmoryMethod(request, weapons)
 	if err != nil {
 		return RoutineArmoryResult{}, err
+	}
+	// Armed colonists next get the armor ladder the tier allows (#1205).
+	if choice.Kind != policy.GearProduce {
+		if choice, err = policy.SelectArmoryArmorMethod(request, tier); err != nil {
+			return RoutineArmoryResult{}, err
+		}
 	}
 	if choice.Kind != policy.GearProduce {
 		return RoutineArmoryResult{Reason: BuildingMethodUsed}, nil

@@ -428,7 +428,10 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 			return GearMethod{Kind: GearUnknown}, nil
 		}
 		for _, n := range ns {
-			needs = append(needs, gearNeed{p, n})
+			// The armory crafts body armor and helmets (#1205).
+			if !ArmoryArmor(n.Definition) {
+				needs = append(needs, gearNeed{p, n})
+			}
 		}
 	}
 	return produceGear(needs, v, review, seen, r)

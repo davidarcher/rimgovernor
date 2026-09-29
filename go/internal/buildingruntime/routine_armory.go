@@ -62,7 +62,7 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	facts := read.Projection.Facts
 	assessment := policy.AssessArmory(facts.RaidPoints, facts.Research)
 	clockSchedulerLog("Armory.step tier=%s threat=%s research=%s", assessment.Tier, assessment.Threat, assessment.Research)
-	result, err := r.craftWeapons(call, epoch, state, review)
+	result, err := r.craftWeapons(call, epoch, state, review, assessment.Tier)
 	result.Assessment = assessment
 	return result, err
 }
