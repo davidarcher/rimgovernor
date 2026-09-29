@@ -164,7 +164,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		}
 		f.Ideo, f.WildMan, f.Prospect = person.GetIdeoId(), person.GetWildMan(), prisonerProspect(person)
 		if h := person.GetSurgery(); h != nil {
-			_, f.Operations = SurgeryFacts(h)
+			f.MissingParts, f.Operations = SurgeryFacts(h)
 			f.QueuedSurgeries = QueuedSurgeries(h)
 		}
 		f.Faction = person.GetFactionId()

@@ -1085,8 +1085,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// An actionable elective upgrade (#1167) keeps it open too.
 	surgeryRecovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, HospitalBedReady(f.Sleeping)), func(owed bool) bool { return !owed }))
 	// A sale organ harvest (#1169) holds it open while the silver runway
-	// is short and a prisoner's organ clears its cost.
-	if SaleHarvestWanted(f, reviewSilverShort(f, p, medicine)) {
+	// is short and a prisoner's organ clears its cost; a prisoner's
+	// recoverable artificial part (#1232) too.
+	if SaleHarvestWanted(f, reviewSilverShort(f, p, medicine)) || PartRecoveryWanted(f) {
 		surgeryRecovered = domain.Known(false)
 	}
 	addAssessment(MaintainSurgery, surgeryPriority, surgeryRecovered)

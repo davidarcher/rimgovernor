@@ -103,6 +103,8 @@ type PrisonerFacts struct {
 	// Organ harvest facts (#1169): the prisoner's operations and queued
 	// medical bills, its home faction's id (empty for none) and the goodwill
 	// change vanilla's harvest violation would make with it (<= 0).
+	// MissingParts: the prisoner's missing parts (#1232 keeps a second leg).
+	MissingParts    domain.Fact[[]MissingPart]
 	Operations      domain.Fact[[]SurgeryOperation]
 	QueuedSurgeries domain.Fact[int]
 	Faction         string

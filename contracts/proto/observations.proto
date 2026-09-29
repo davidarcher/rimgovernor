@@ -252,8 +252,15 @@ message SurgeryOperation {
   DefinitionRef recipe = 1; optional int32 part_index = 2; optional string part_def_name = 3; SurgeryKind kind = 4;
   optional double success_chance = 5; optional uint32 eligible_doctors = 6; optional bool ingredients_on_map = 7;
   optional bool violation = 8; optional bool lethal = 9;
-  // A harvest's yield (#1169): BaseMarketValue of the part's spawnThingOnRemoved; absent otherwise.
+  // A harvest's yield (#1169), or an added part's on removal (#1232):
+  // BaseMarketValue of the spawnThingOnRemoved; absent otherwise.
   optional double yield_market_value = 10;
+  // Artificial part removal (#1232): the removed Hediff_AddedPart's def and
+  // the thing it spawns; absent unless the target part carries an added part.
+  optional string added_part_hediff = 11; optional string yield_thing_def = 12;
+  // BaseMarketValue x count of the medicine the operation would use (the
+  // best permitted on the map); absent when it uses none or none is stocked.
+  optional double medicine_market_value = 13;
 }
 message GearItem {
   EntityRef thing = 1; optional string stuff = 2; optional string quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;

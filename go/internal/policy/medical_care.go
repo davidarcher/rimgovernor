@@ -55,8 +55,14 @@ type SurgeryOperation struct {
 	EligibleDoctors             domain.Fact[int]
 	IngredientsOnMap, Violation domain.Fact[bool]
 	Lethal                      domain.Fact[bool]
-	// YieldValue is a harvest's yield market value in silver (#1169).
+	// YieldValue is the market value in silver of what the removal spawns:
+	// a harvested organ (#1169) or a removed added part (#1232).
 	YieldValue domain.Fact[float64]
+	// AddedPart and YieldThing: the added part hediff on a removal's target
+	// and the thing it spawns (#1232); unknown on a natural part.
+	AddedPart, YieldThing domain.Fact[string]
+	// MedicineValue is the market value of the medicine the operation uses.
+	MedicineValue domain.Fact[float64]
 }
 
 // CareCondition retains native disease evidence without estimating missing values.

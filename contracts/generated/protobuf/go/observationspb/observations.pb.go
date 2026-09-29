@@ -3294,10 +3294,18 @@ type SurgeryOperation struct {
 	IngredientsOnMap *bool                  `protobuf:"varint,7,opt,name=ingredients_on_map,json=ingredientsOnMap,proto3,oneof" json:"ingredients_on_map,omitempty"`
 	Violation        *bool                  `protobuf:"varint,8,opt,name=violation,proto3,oneof" json:"violation,omitempty"`
 	Lethal           *bool                  `protobuf:"varint,9,opt,name=lethal,proto3,oneof" json:"lethal,omitempty"`
-	// A harvest's yield (#1169): BaseMarketValue of the part's spawnThingOnRemoved; absent otherwise.
+	// A harvest's yield (#1169), or an added part's on removal (#1232):
+	// BaseMarketValue of the spawnThingOnRemoved; absent otherwise.
 	YieldMarketValue *float64 `protobuf:"fixed64,10,opt,name=yield_market_value,json=yieldMarketValue,proto3,oneof" json:"yield_market_value,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Artificial part removal (#1232): the removed Hediff_AddedPart's def and
+	// the thing it spawns; absent unless the target part carries an added part.
+	AddedPartHediff *string `protobuf:"bytes,11,opt,name=added_part_hediff,json=addedPartHediff,proto3,oneof" json:"added_part_hediff,omitempty"`
+	YieldThingDef   *string `protobuf:"bytes,12,opt,name=yield_thing_def,json=yieldThingDef,proto3,oneof" json:"yield_thing_def,omitempty"`
+	// BaseMarketValue x count of the medicine the operation would use (the
+	// best permitted on the map); absent when it uses none or none is stocked.
+	MedicineMarketValue *float64 `protobuf:"fixed64,13,opt,name=medicine_market_value,json=medicineMarketValue,proto3,oneof" json:"medicine_market_value,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *SurgeryOperation) Reset() {
@@ -3396,6 +3404,27 @@ func (x *SurgeryOperation) GetLethal() bool {
 func (x *SurgeryOperation) GetYieldMarketValue() float64 {
 	if x != nil && x.YieldMarketValue != nil {
 		return *x.YieldMarketValue
+	}
+	return 0
+}
+
+func (x *SurgeryOperation) GetAddedPartHediff() string {
+	if x != nil && x.AddedPartHediff != nil {
+		return *x.AddedPartHediff
+	}
+	return ""
+}
+
+func (x *SurgeryOperation) GetYieldThingDef() string {
+	if x != nil && x.YieldThingDef != nil {
+		return *x.YieldThingDef
+	}
+	return ""
+}
+
+func (x *SurgeryOperation) GetMedicineMarketValue() float64 {
+	if x != nil && x.MedicineMarketValue != nil {
+		return *x.MedicineMarketValue
 	}
 	return 0
 }
@@ -34276,7 +34305,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_part_def_nameB\x0f\n" +
 	"\r_parent_indexB\x12\n" +
 	"\x10_parent_def_nameB\b\n" +
-	"\x06_vital\"\xf3\x04\n" +
+	"\x06_vital\"\xce\x06\n" +
 	"\x10SurgeryOperation\x12B\n" +
 	"\x06recipe\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\x06recipe\x12\"\n" +
 	"\n" +
@@ -34289,7 +34318,11 @@ const file_observations_proto_rawDesc = "" +
 	"\tviolation\x18\b \x01(\bH\x05R\tviolation\x88\x01\x01\x12\x1b\n" +
 	"\x06lethal\x18\t \x01(\bH\x06R\x06lethal\x88\x01\x01\x121\n" +
 	"\x12yield_market_value\x18\n" +
-	" \x01(\x01H\aR\x10yieldMarketValue\x88\x01\x01B\r\n" +
+	" \x01(\x01H\aR\x10yieldMarketValue\x88\x01\x01\x12/\n" +
+	"\x11added_part_hediff\x18\v \x01(\tH\bR\x0faddedPartHediff\x88\x01\x01\x12+\n" +
+	"\x0fyield_thing_def\x18\f \x01(\tH\tR\ryieldThingDef\x88\x01\x01\x127\n" +
+	"\x15medicine_market_value\x18\r \x01(\x01H\n" +
+	"R\x13medicineMarketValue\x88\x01\x01B\r\n" +
 	"\v_part_indexB\x10\n" +
 	"\x0e_part_def_nameB\x11\n" +
 	"\x0f_success_chanceB\x13\n" +
@@ -34298,7 +34331,10 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_violationB\t\n" +
 	"\a_lethalB\x15\n" +
-	"\x13_yield_market_value\"\x8e\b\n" +
+	"\x13_yield_market_valueB\x14\n" +
+	"\x12_added_part_hediffB\x12\n" +
+	"\x10_yield_thing_defB\x18\n" +
+	"\x16_medicine_market_value\"\x8e\b\n" +
 	"\bGearItem\x12<\n" +
 	"\x05thing\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05thing\x12\x19\n" +
 	"\x05stuff\x18\x02 \x01(\tH\x00R\x05stuff\x88\x01\x01\x12\x1d\n" +

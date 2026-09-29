@@ -232,6 +232,20 @@ namespace HomeBridge.BridgeTools
                         Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer),Lethal=Lethal(pawn,def,part)};
                     if(part!=null) {op.PartIndex=parts.IndexOf(part);op.PartDefName=Id(part.def.defName);}
                     if(op.Kind==Obs.SurgeryKind.Harvest && part?.def.spawnThingOnRemoved!=null) op.YieldMarketValue=Number(part.def.spawnThingOnRemoved.BaseMarketValue);
+                    // Artificial part removal (#1232): the added part on the
+                    // target and the thing its removal spawns.
+                    if(def.Worker is Recipe_RemoveBodyPart && part!=null) {
+                        var added=pawn.health.hediffSet.hediffs.OfType<Hediff_AddedPart>().FirstOrDefault(h => h.Part==part);
+                        if(added!=null) {
+                            op.AddedPartHediff=Id(added.def.defName);
+                            var spawn=added.def.spawnThingOnRemoved;
+                            if(spawn!=null) {op.YieldThingDef=Id(spawn.defName);op.YieldMarketValue=Number(spawn.BaseMarketValue);}
+                        }
+                    }
+                    if(medicine!=null) {
+                        var count=def.ingredients.Where(i => i.filter.Allows(medicine)).Sum(i => i.CountRequiredOfFor(medicine,def));
+                        if(count>0) op.MedicineMarketValue=Number(medicine.BaseMarketValue*count);
+                    }
                     if(def.surgeryOutcomeEffect!=null && doctors.Count>0)
                         op.SuccessChance=Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,bestBed)));
                     row.Operations.Add(op);

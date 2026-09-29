@@ -158,8 +158,9 @@ func OrganNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant, silverShort 
 	return out
 }
 
-// OrganHarvest is one harvest to queue as a SurgeryIntent with
-// acknowledge_violation.
+// OrganHarvest is one prisoner removal to queue as a SurgeryIntent: an
+// organ harvest, or an added part recovery (#1232, Organ the part item).
+// Violation sets acknowledge_violation.
 type OrganHarvest struct {
 	Prisoner   domain.PawnID
 	Recipe     string
@@ -167,6 +168,7 @@ type OrganHarvest struct {
 	Organ      string
 	For        PawnID
 	Gain, Cost float64
+	Violation  bool
 }
 
 // SelectOrganHarvest picks at most one harvest: nothing while any prisoner
@@ -180,30 +182,11 @@ type OrganHarvest struct {
 func SelectOrganHarvest(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], needs []OrganNeed, inFlight map[PawnID]bool) (OrganHarvest, bool) {
 	rows, rk := prisoners.Value()
 	c, ck := colony.Value()
-	if !rk || !ck || len(needs) == 0 {
+	if !rk || !ck || len(needs) == 0 || surgeryInFlight(rows, inFlight) {
 		return OrganHarvest{}, false
-	}
-	for _, row := range rows {
-		if queued, known := row.QueuedSurgeries.Value(); !known || queued > 0 || inFlight[PawnID(row.Pawn)] {
-			if dead, _ := row.Dead.Value(); !dead {
-				return OrganHarvest{}, false
-			}
-		}
 	}
 	var best OrganHarvest
 	found := false
-	better := func(h OrganHarvest) bool {
-		if !found {
-			return true
-		}
-		if (h.For != "") != (best.For != "") {
-			return h.For != ""
-		}
-		if h.Gain-h.Cost != best.Gain-best.Cost {
-			return h.Gain-h.Cost > best.Gain-best.Cost
-		}
-		return h.Prisoner < best.Prisoner
-	}
 	for _, row := range rows {
 		if eligible, known := row.HarvestEligible(c).Value(); !known || !eligible {
 			continue
@@ -239,14 +222,39 @@ func SelectOrganHarvest(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fa
 					gain = value
 				}
 				cost, ok := HarvestCost(c, goodwill, need.For == "")
-				h := OrganHarvest{Prisoner: row.Pawn, Recipe: recipe, Part: part, Organ: organ, For: need.For, Gain: gain, Cost: cost}
-				if ok && gain > cost && better(h) {
+				h := OrganHarvest{Prisoner: row.Pawn, Recipe: recipe, Part: part, Organ: organ, For: need.For, Gain: gain, Cost: cost, Violation: true}
+				if ok && gain > cost && (!found || betterHarvest(h, best)) {
 					best, found = h, true
 				}
 			}
 		}
 	}
 	return best, found
+}
+
+// surgeryInFlight: some living prisoner has a queued bill (or an unknown
+// bill stack) or an open surgery action, so no new cut is weighed.
+func surgeryInFlight(rows []PrisonerFacts, inFlight map[PawnID]bool) bool {
+	for _, row := range rows {
+		if queued, known := row.QueuedSurgeries.Value(); !known || queued > 0 || inFlight[PawnID(row.Pawn)] {
+			if dead, _ := row.Dead.Value(); !dead {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// betterHarvest: a colonist's need before a sale, then gain less cost,
+// then prisoner id.
+func betterHarvest(h, best OrganHarvest) bool {
+	if (h.For != "") != (best.For != "") {
+		return h.For != ""
+	}
+	if h.Gain-h.Cost != best.Gain-best.Cost {
+		return h.Gain-h.Cost > best.Gain-best.Cost
+	}
+	return h.Prisoner < best.Prisoner
 }
 
 // harvestAcceptable: a part harvest native reports non-lethal, with its
@@ -300,4 +308,149 @@ func OrganSaleSurplus(need domain.Fact[TradeNeed], resources domain.Fact[[]Amoun
 		}
 	}
 	return domain.Known(n)
+}
+
+// Artificial part recovery (#1232, epic #1160): MaintainSurgery removes an
+// added part (bionic, prosthetic, archotech) from a HarvestEligible
+// prisoner so the colony can install or sell it. The gain is a colonist's
+// capacity the part restores (a surgery_part_short want with an install
+// recipe for it, servedSurgery's weight x SilverPerCapacity) or else the
+// part's market value in stock, where the #1168 part demand and the trade
+// surplus use it. The prisoner's own market value is not a cost: vanilla's
+// price already counts the part, and nothing sells prisoners. The cost is
+// the medicine used, plus HarvestCost's mood and goodwill only when native
+// flags the removal a violation (then acknowledged). Shares the harvest's
+// one-surgery-at-a-time rule; SelectOrganHarvest's harvest goes first.
+
+// unrecoveredParts are added part hediffs never removed: worth nothing
+// (a peg leg or wooden hand/foot gives 1 wood, dentures nothing) or not
+// removable at all (joywire, death acidifier, mindscrew).
+var unrecoveredParts = map[string]bool{
+	"PegLeg": true, "WoodenHand": true, "WoodenFoot": true, "Denture": true,
+	"Joywire": true, "DeathAcidifier": true, "Mindscrew": true,
+}
+
+// keptBodyParts are body parts whose added part stays: a heart kills and a
+// spine leaves the prisoner helpless.
+var keptBodyParts = map[string]bool{"Heart": true, "Spine": true}
+
+// PartRecoveryNeeds lists the colonists' part-short wants an added part
+// could serve: one need per install option, Organ the part item.
+func PartRecoveryNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant) []OrganNeed {
+	rows, _ := pawns.Value()
+	byID := map[PawnID]CarePawn{}
+	for _, row := range rows {
+		byID[row.ID] = row
+	}
+	var out []OrganNeed
+	for _, want := range wants {
+		pawn, ok := byID[want.Pawn]
+		if want.Reason != SurgeryPartShort || !ok {
+			continue
+		}
+		ops, _ := pawn.Operations.Value()
+		for _, op := range ops {
+			part, pk := op.PartIndex.Value()
+			recipe, _ := op.Recipe.Value()
+			item, ik := SurgeryPartItem(recipe)
+			if !pk || part != want.Part || !ik || harvestOrgan(string(item)) {
+				continue
+			}
+			if weight, _ := servedSurgery(pawn, op); weight > 0 {
+				out = append(out, OrganNeed{Organ: string(item), For: pawn.ID, Gain: weight * SilverPerCapacity})
+			}
+		}
+	}
+	return out
+}
+
+// SelectPartRecovery picks at most one added part removal under the
+// harvest's in-flight rule: a colonist's need first, then the best gain
+// less cost, then prisoner id. A removal is skipped when its part is in
+// unrecoveredParts, sits on a keptBodyParts part, is a leg on a prisoner
+// already missing one, or fails harvestAcceptable (lethal included).
+func SelectPartRecovery(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], needs []OrganNeed, inFlight map[PawnID]bool) (OrganHarvest, bool) {
+	rows, rk := prisoners.Value()
+	c, ck := colony.Value()
+	if !rk || !ck || surgeryInFlight(rows, inFlight) {
+		return OrganHarvest{}, false
+	}
+	var best OrganHarvest
+	found := false
+	for _, row := range rows {
+		if eligible, known := row.HarvestEligible(c).Value(); !known || !eligible {
+			continue
+		}
+		ops, ok := row.Operations.Value()
+		missing, mk := row.MissingParts.Value()
+		if !ok || !mk {
+			continue
+		}
+		legless := false
+		for _, m := range missing {
+			if name, _ := m.PartDefName.Value(); name == "Leg" {
+				legless = true
+			}
+		}
+		for _, op := range ops {
+			hediff, hk := op.AddedPart.Value()
+			item, ik := op.YieldThing.Value()
+			value, vk := op.YieldValue.Value()
+			body, _ := op.PartDefName.Value()
+			if op.Kind != SurgeryAmputate || !hk || !ik || !vk || !finite(value) || unrecoveredParts[hediff] ||
+				keptBodyParts[body] || (body == "Leg" && legless) || !harvestAcceptable(op) {
+				continue
+			}
+			cost, ok := partRecoveryCost(op, row, c)
+			if !ok {
+				continue
+			}
+			recipe, _ := op.Recipe.Value()
+			part, _ := op.PartIndex.Value()
+			violation, _ := op.Violation.Value()
+			h := OrganHarvest{Prisoner: row.Pawn, Recipe: recipe, Part: part, Organ: item, Gain: value, Cost: cost, Violation: violation}
+			for _, need := range needs {
+				if need.Organ == item && need.For != "" && (h.For == "" || need.Gain > h.Gain) {
+					h.For, h.Gain = need.For, need.Gain
+				}
+			}
+			if h.Gain > h.Cost && (!found || betterHarvest(h, best)) {
+				best, found = h, true
+			}
+		}
+	}
+	return best, found
+}
+
+// partRecoveryCost is the medicine's value plus, when native flags the
+// removal a violation, HarvestCost's mood and goodwill. ok is false when a
+// needed fact is unknown or the precept refuses.
+func partRecoveryCost(op SurgeryOperation, row PrisonerFacts, c PrisonerColony) (float64, bool) {
+	cost := 0.0
+	if medicine, known := op.MedicineValue.Value(); known {
+		if !finite(medicine) {
+			return 0, false
+		}
+		cost = medicine
+	}
+	violation, vk := op.Violation.Value()
+	if !vk {
+		return 0, false
+	}
+	if violation {
+		goodwill, gk := row.HarvestGoodwill.Value()
+		extra, ok := HarvestCost(c, goodwill, false)
+		if !gk || !ok {
+			return 0, false
+		}
+		cost += extra
+	}
+	return cost, true
+}
+
+// PartRecoveryWanted reports whether a stock recovery would be queued now;
+// DetectRoutine holds MaintainSurgery open on it (#1232).
+func PartRecoveryWanted(f RoutineFacts) bool {
+	_, ok := SelectPartRecovery(f.Prisoners, f.PrisonerColony, nil, nil)
+	return ok
 }

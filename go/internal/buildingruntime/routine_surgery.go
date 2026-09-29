@@ -23,7 +23,8 @@ type RoutineSurgeryResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
 	Wants  []policy.SurgeryWant
-	// Harvest is set when the plan carries an organ harvest (#1169).
+	// Harvest is set when the plan carries an organ harvest (#1169)
+	// or an artificial part recovery (#1232).
 	Harvest bool
 }
 
@@ -107,6 +108,11 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	short, _ := policy.RoutineSilverShort(read.Projection.Facts, r.reviewer.policy, review.Latches.MedicalReserve).Value()
 	needs := policy.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, short, stock)
 	harvest, harvesting := policy.SelectOrganHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, inFlight)
+	if !harvesting {
+		// Artificial part recovery (#1232): the same one-at-a-time slot.
+		parts := policy.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants)
+		harvest, harvesting = policy.SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight)
+	}
 	harvesting = harvesting && arbiter.tryClaim([]domain.PawnID{harvest.Prisoner})
 	result.Harvest = harvesting
 	if len(queue) == 0 && !harvesting {
@@ -151,7 +157,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 		actions = append(actions, action)
 	}
 	if harvesting {
-		cut, err := domain.NewSurgery(harvest.Prisoner, harvest.Recipe, harvest.Part, true)
+		cut, err := domain.NewSurgery(harvest.Prisoner, harvest.Recipe, harvest.Part, harvest.Violation)
 		if err != nil {
 			return RoutineSurgeryResult{}, err
 		}
