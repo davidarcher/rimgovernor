@@ -1194,7 +1194,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// nothing.
 	// An inspired artist holds it open without a room (#1192).
 	artRecovered := domain.Unknown[bool]()
-	if profiles, pk := f.WorkProfiles.Value(); pk && len(InspiredArtists(profiles)) > 0 {
+	// Sale demand (#1193) holds it open the same way while an artist exists.
+	if profiles, pk := f.WorkProfiles.Value(); pk && (len(InspiredArtists(profiles)) > 0 || len(Artists(profiles)) > 0 && artForSale(f, p, medicine)) {
 		artRecovered = domain.Known(false)
 	} else if owed, known := f.SculptureRoomsOwed.Value(); known && !owed {
 		artRecovered = domain.Known(true)

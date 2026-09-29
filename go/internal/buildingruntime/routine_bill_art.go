@@ -22,7 +22,7 @@ var _ artBenchSource = (*bridge.Client)(nil)
 // artSelection is the next artist's pinned sculpture bill: the art benches
 // from ReadGearBenches, the qualifying artists from the pawn profiles, one
 // SelectProductionBill per artist lacking a bill; the first is admitted.
-func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlState, projection observation.ColonyProjection) (policy.BillSelection, bool, error) {
+func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlState, projection observation.ColonyProjection, medicineActive bool) (policy.BillSelection, bool, error) {
 	native, ok := r.native.(artBenchSource)
 	pawns, pk := projection.WorkPawns.Value()
 	if !ok || !pk {
@@ -35,7 +35,10 @@ func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlSta
 	profiles := policy.Profiles(pawns)
 	benches := domain.Known(artBenches(reads))
 	// An inspired artist's large sculpture comes first (#1192).
-	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles)), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles), artDemand(projection, profiles))...)
+	// Sale sculptures (#1193) are asked for while no room is owed.
+	demand := artDemand(projection, profiles)
+	demand.Sale = policy.RoutineArtForSale(projection.Facts, r.reviewer.policy, medicineActive)
+	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles)), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles), demand)...)
 	if len(bills) == 0 {
 		return policy.BillSelection{}, false, nil
 	}

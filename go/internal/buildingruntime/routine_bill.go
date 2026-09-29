@@ -132,7 +132,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	projection := read.Projection
 	recordStepRead("bill", r.need, state.Snapshot, projection)
 	if r.purpose == policy.ArtBill {
-		selected, known, err := r.artSelection(call, state, projection)
+		selected, known, err := r.artSelection(call, state, projection, review.Latches.MedicalReserve)
 		if err != nil || !known {
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, err
 		}
