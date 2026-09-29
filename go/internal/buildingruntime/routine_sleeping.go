@@ -488,6 +488,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		r = resolved
 		definitions = []string{r.definition}
 	}
+	if r.temperature != nil && r.temperature.Thing != "" {
+		return r.commitCampfireRefuel(call, goal, func() error {
+			if err := p.current(call, epoch); err != nil {
+				return err
+			}
+			if p.session.State() != state {
+				return fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
+			}
+			return nil
+		})
+	}
 	if r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationSetTarget {
 		result, err := r.commitRefrigerationTarget(call, goal, func() error {
 			if err := p.current(call, epoch); err != nil {

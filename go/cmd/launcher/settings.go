@@ -248,7 +248,7 @@ func LatestColonySave(savesDir, colony string) (string, error) {
 func ReloadSave(ctx context.Context, baseURL, save string) error {
 	client := &http.Client{Timeout: 40 * time.Second}
 	body, _ := json.Marshal(map[string]any{"requestId": "launcher-reload-" + strconv.FormatInt(time.Now().UnixNano(), 36), "saveName": save, "readiness": "map", "timeoutMs": 30000})
-	last := errors.New("not attempted")
+	var last error
 	for {
 		status, err := reloadOnce(ctx, client, baseURL, body)
 		switch {

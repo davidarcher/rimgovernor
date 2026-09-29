@@ -362,7 +362,7 @@ message RelocateIntent { optional string thing_id = 1; rimgovernor.common.v1.Cel
 // already-applied change applies again.
 message BuildingPatchIntent {
   optional string thing_id = 1;
-  oneof change { float target_temperature = 2; bool medical = 3; Clear for_prisoners = 4; string plant_def = 5; Clear claim = 6; Clear for_slaves = 7; }
+  oneof change { float target_temperature = 2; bool medical = 3; Clear for_prisoners = 4; string plant_def = 5; Clear claim = 6; Clear for_slaves = 7; bool auto_refuel = 8; }
 }
 message RecoverIntent { optional string pawn_id = 1; optional string thing_id = 2; optional ServiceMethod method = 3; }
 message WasteIntent { optional string pawn_id = 1; optional string thing_id = 2; optional bool unwanted = 3; }

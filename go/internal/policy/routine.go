@@ -270,6 +270,9 @@ type RoutineFacts struct {
 	// CampfireRetireOwed: a cooking campfire stands in a sleeping room or a
 	// stove kitchen supersedes it (#1179); it keeps EnsureCooking open.
 	CampfireRetireOwed domain.Fact[bool]
+	// CampfireRefuelOwed: a heat campfire's auto-refuel should switch
+	// (CampfireRefuel, #1180); it holds EnsureTemperatureSafety open.
+	CampfireRefuelOwed domain.Fact[bool]
 	AnimalUpkeep       AnimalUpkeepObservation
 	FoodStorageUpkeep  FoodStorageObservation
 	MedicalReserve     MedicalReserveObservation
@@ -697,6 +700,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	count := footholdCount(f)
 	sleepingMet, shelterMet, productionMet := footholdSleeping(f), footholdShelter(f), footholdProduction(f)
 	foodMet, temperatureMet, powerMet := footholdFood(f, p), footholdTemperature(f, p), footholdPower(f)
+	if positive(f.CampfireRefuelOwed) {
+		// A heat campfire's refuel switch holds the goal open (#1180).
+		temperatureMet = domain.Known(false)
+	}
 	medicalMet := measured(f.CriticalPatients, func(v int64) bool { return v == 0 })
 	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v }))
 	defenseMet := allFacts(footholdArmed(f), measured(f.Hostiles, func(v int64) bool { return v == 0 }))

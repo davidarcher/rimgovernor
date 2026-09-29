@@ -166,6 +166,7 @@ const (
 	SettingsField_SETTINGS_FIELD_FOOD_RESTRICTION SettingsField = 21
 	SettingsField_SETTINGS_FIELD_DRUG_POLICY      SettingsField = 22
 	SettingsField_SETTINGS_FIELD_SLAVE_BED        SettingsField = 23
+	SettingsField_SETTINGS_FIELD_AUTO_REFUEL      SettingsField = 24
 )
 
 // Enum value maps for SettingsField.
@@ -195,6 +196,7 @@ var (
 		21: "SETTINGS_FIELD_FOOD_RESTRICTION",
 		22: "SETTINGS_FIELD_DRUG_POLICY",
 		23: "SETTINGS_FIELD_SLAVE_BED",
+		24: "SETTINGS_FIELD_AUTO_REFUEL",
 	}
 	SettingsField_value = map[string]int32{
 		"SETTINGS_FIELD_UNSPECIFIED":      0,
@@ -221,6 +223,7 @@ var (
 		"SETTINGS_FIELD_FOOD_RESTRICTION": 21,
 		"SETTINGS_FIELD_DRUG_POLICY":      22,
 		"SETTINGS_FIELD_SLAVE_BED":        23,
+		"SETTINGS_FIELD_AUTO_REFUEL":      24,
 	}
 )
 
@@ -4776,7 +4779,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\x19INSTALLATION_STAGE_QUEUED\x10\x03\x12 \n" +
 	"\x1cINSTALLATION_STAGE_INSTALLED\x10\x04\x12!\n" +
 	"\x1dINSTALLATION_STAGE_UNVERIFIED\x10\x05\x12'\n" +
-	"#INSTALLATION_STAGE_UNINSTALL_QUEUED\x10\x06*\xed\x05\n" +
+	"#INSTALLATION_STAGE_UNINSTALL_QUEUED\x10\x06*\x8d\x06\n" +
 	"\rSettingsField\x12\x1e\n" +
 	"\x1aSETTINGS_FIELD_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SETTINGS_FIELD_FORBIDDEN\x10\x01\x12\x18\n" +
@@ -4802,7 +4805,8 @@ const file_receipts_proto_rawDesc = "" +
 	"\x14SETTINGS_FIELD_CLAIM\x10\x14\x12#\n" +
 	"\x1fSETTINGS_FIELD_FOOD_RESTRICTION\x10\x15\x12\x1e\n" +
 	"\x1aSETTINGS_FIELD_DRUG_POLICY\x10\x16\x12\x1c\n" +
-	"\x18SETTINGS_FIELD_SLAVE_BED\x10\x17*\x9b\x01\n" +
+	"\x18SETTINGS_FIELD_SLAVE_BED\x10\x17\x12\x1e\n" +
+	"\x1aSETTINGS_FIELD_AUTO_REFUEL\x10\x18*\x9b\x01\n" +
 	"\fFieldOutcome\x12\x1d\n" +
 	"\x19FIELD_OUTCOME_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17FIELD_OUTCOME_UNCHANGED\x10\x01\x12\x19\n" +

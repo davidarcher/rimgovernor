@@ -25299,13 +25299,15 @@ func (x *FoodProduction) GetProducts() []*FoodProduct {
 }
 
 type CookingFacts struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Bench         *EntityRef             `protobuf:"bytes,1,opt,name=bench,proto3" json:"bench,omitempty"`
-	Usable        *bool                  `protobuf:"varint,2,opt,name=usable,proto3,oneof" json:"usable,omitempty"`
-	Recipes       []*RecipeState         `protobuf:"bytes,3,rep,name=recipes,proto3" json:"recipes,omitempty"`
-	Bills         []*BillState           `protobuf:"bytes,4,rep,name=bills,proto3" json:"bills,omitempty"`
-	Production    []*FoodProduction      `protobuf:"bytes,5,rep,name=production,proto3" json:"production,omitempty"`
-	RoomId        *string                `protobuf:"bytes,6,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Bench      *EntityRef             `protobuf:"bytes,1,opt,name=bench,proto3" json:"bench,omitempty"`
+	Usable     *bool                  `protobuf:"varint,2,opt,name=usable,proto3,oneof" json:"usable,omitempty"`
+	Recipes    []*RecipeState         `protobuf:"bytes,3,rep,name=recipes,proto3" json:"recipes,omitempty"`
+	Bills      []*BillState           `protobuf:"bytes,4,rep,name=bills,proto3" json:"bills,omitempty"`
+	Production []*FoodProduction      `protobuf:"bytes,5,rep,name=production,proto3" json:"production,omitempty"`
+	RoomId     *string                `protobuf:"bytes,6,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
+	// auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel, #1180).
+	AutoRefuel    *bool `protobuf:"varint,7,opt,name=auto_refuel,json=autoRefuel,proto3,oneof" json:"auto_refuel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -25380,6 +25382,13 @@ func (x *CookingFacts) GetRoomId() string {
 		return *x.RoomId
 	}
 	return ""
+}
+
+func (x *CookingFacts) GetAutoRefuel() bool {
+	if x != nil && x.AutoRefuel != nil {
+		return *x.AutoRefuel
+	}
+	return false
 }
 
 // A blighted plant standing in a player growing zone or on home ground: the
@@ -37454,7 +37463,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bproducts\x18\x03 \x03(\v2(.rimgovernor.observations.v1.FoodProductR\bproductsB\t\n" +
 	"\a_recipeB\f\n" +
 	"\n" +
-	"_available\"\xed\x02\n" +
+	"_available\"\xa3\x03\n" +
 	"\fCookingFacts\x12<\n" +
 	"\x05bench\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05bench\x12\x1b\n" +
 	"\x06usable\x18\x02 \x01(\bH\x00R\x06usable\x88\x01\x01\x12B\n" +
@@ -37463,10 +37472,13 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"production\x18\x05 \x03(\v2+.rimgovernor.observations.v1.FoodProductionR\n" +
 	"production\x12\x1c\n" +
-	"\aroom_id\x18\x06 \x01(\tH\x01R\x06roomId\x88\x01\x01B\t\n" +
+	"\aroom_id\x18\x06 \x01(\tH\x01R\x06roomId\x88\x01\x01\x12$\n" +
+	"\vauto_refuel\x18\a \x01(\bH\x02R\n" +
+	"autoRefuel\x88\x01\x01B\t\n" +
 	"\a_usableB\n" +
 	"\n" +
-	"\b_room_id\"\xd3\x01\n" +
+	"\b_room_idB\x0e\n" +
+	"\f_auto_refuel\"\xd3\x01\n" +
 	"\rBlightedPlant\x12<\n" +
 	"\x05plant\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05plant\x12\x1c\n" +
 	"\azone_id\x18\x02 \x01(\tH\x00R\x06zoneId\x88\x01\x01\x12#\n" +

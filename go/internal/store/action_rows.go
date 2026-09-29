@@ -136,6 +136,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
+	} else if refuel, ok := a.AutoRefuel(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'auto_refuel',?,?)", a.ID(), plan, ordinal, refuel.Thing(), strconv.FormatBool(refuel.Allow()))
 	} else if claim, ok := a.ClaimBuilding(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target) VALUES(?,?,?,'claim_building',?)", a.ID(), plan, ordinal, claim.Thing())
 	} else if edit, ok := a.ZoneCellEdit(); ok {
@@ -736,6 +738,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewResearchSelectAction(id, v)
+		return a, ordinal, err
+	}
+	if kind == "auto_refuel" && target.Valid && def.Valid && (def.String == "true" || def.String == "false") && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		refuel, err := domain.NewAutoRefuel(target.String, def.String == "true")
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewAutoRefuelAction(id, refuel)
 		return a, ordinal, err
 	}
 	if kind == "claim_building" && target.Valid && !stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {

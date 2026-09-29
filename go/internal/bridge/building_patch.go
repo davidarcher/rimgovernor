@@ -58,6 +58,14 @@ func growerCropAction(action domain.Action) (*o.Action, error) {
 	})
 }
 
+func autoRefuelAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.AutoRefuel()
+	if !ok {
+		return nil, contract("not an auto refuel action")
+	}
+	return buildingPatch(v.Thing(), func(i *o.BuildingPatchIntent) { i.Change = &o.BuildingPatchIntent_AutoRefuel{AutoRefuel: v.Allow()} })
+}
+
 func claimBuildingAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.ClaimBuilding()
 	if !ok {

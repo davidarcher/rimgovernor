@@ -346,6 +346,7 @@ namespace HomeBridge.BridgeTools
                 for(var index=0;index<bench.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(bench.BillStack.Bills[index],index));
                 var cookingRoom = bench.GetRoom();
                 if (cookingRoom != null) row.RoomId = cookingRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (NativeAutoRefuel.Comp(bench) is CompRefuelable refuel) row.AutoRefuel = refuel.allowAutoRefuel;
                 result.Cooking.Add(row);
             }
             foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(r=>r.defName=="ButcherCorpseFlesh")).OrderBy(t=>t.thingIDNumber)){

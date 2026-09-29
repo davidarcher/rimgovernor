@@ -24,7 +24,29 @@ const (
 	// it outranks the passive cooler when the research is done and a
 	// power network has the spare capacity to run it (#406).
 	TemperatureCoolPowered TemperatureMethod = "Cooler"
+	// TemperatureRefuelOff and TemperatureRefuelOn switch a heat
+	// campfire's auto-refuel (#1180): off once its sleeping room reaches
+	// ComfortMaxC, so the fire burns out, and on again below ComfortMinC.
+	TemperatureRefuelOff TemperatureMethod = "campfire_refuel_off"
+	TemperatureRefuelOn  TemperatureMethod = "campfire_refuel_on"
 )
+
+// ComfortMinC and ComfortMaxC are a colonist's vanilla comfortable
+// temperature range. A campfire pushes heat up to 28 C, past ComfortMaxC,
+// and burns its wood regardless of the room.
+const (
+	ComfortMinC = 16.0
+	ComfortMaxC = 26.0
+)
+
+// HeatCampfire is a campfire the temperature family built as room heat
+// (its construction claim carries EnsureTemperatureSafety): its native
+// room and auto-refuel toggle.
+type HeatCampfire struct {
+	ID         string
+	Room       domain.Fact[string]
+	AutoRefuel domain.Fact[bool]
+}
 
 type TemperatureProposal struct {
 	Method TemperatureMethod
@@ -35,6 +57,8 @@ type TemperatureProposal struct {
 	// cooler (TemperatureCoolPowered); the passive methods search Cells.
 	Cell     domain.Cell
 	Rotation domain.Rotation
+	// Thing is the heat campfire a refuel switch targets.
+	Thing string
 }
 
 // TemperatureCooling is the evidence the powered cooler method reads beside
@@ -46,6 +70,46 @@ type TemperatureCooling struct {
 	CoolerDrawW     domain.Fact[float64]
 	Power           domain.Fact[PowerTopology]
 	Cells           []SiteCell
+	// HeatCampfires are the campfires standing as room heat, whose
+	// auto-refuel the method switches (#1180).
+	HeatCampfires []HeatCampfire
+}
+
+// CampfireRefuel is the auto-refuel switch a heat campfire in a sleeping
+// room owes (#1180): off at ComfortMaxC or warmer while it refuels, on
+// below ComfortMinC while it does not. A campfire whose room, temperature
+// or toggle is unknown owes nothing.
+func CampfireRefuel(fact domain.Fact[RoomObservation], campfires []HeatCampfire) (TemperatureProposal, bool) {
+	v, known := fact.Value()
+	if !known {
+		return TemperatureProposal{}, false
+	}
+	sorted := append([]HeatCampfire{}, campfires...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].ID < sorted[j].ID })
+	for _, campfire := range sorted {
+		id, rk := campfire.Room.Value()
+		on, ok := campfire.AutoRefuel.Value()
+		room, found := v.Room(id)
+		if !rk || !ok || !found || len(room.Beds) == 0 {
+			continue
+		}
+		temperature, tk := room.Temperature.Value()
+		if !tk {
+			continue
+		}
+		method := TemperatureNoMethod
+		if on && temperature >= ComfortMaxC {
+			method = TemperatureRefuelOff
+		} else if !on && temperature < ComfortMinC {
+			method = TemperatureRefuelOn
+		}
+		if method == TemperatureNoMethod {
+			continue
+		}
+		digest := sha256.Sum256([]byte(campfire.ID + "/" + string(method)))
+		return TemperatureProposal{Method: method, Key: domain.MethodID(fmt.Sprintf("thermal-%x", digest[:12])), Room: room.ID, Thing: campfire.ID}, true
+	}
+	return TemperatureProposal{}, false
 }
 
 // SpareW is the largest surplus of nominal producer capacity over consumer
@@ -229,7 +293,8 @@ func TemperatureRange(fact domain.Fact[RoomObservation]) (minimum, maximum domai
 	return
 }
 
-// SelectTemperatureMethod reuses existing thermal facilities before proposing
+// SelectTemperatureMethod first switches a heat campfire's auto-refuel
+// (CampfireRefuel), then reuses existing thermal facilities before proposing
 // one ordinary campfire, or one cooler for the hottest sleeping room: a
 // powered Cooler through a vented wall when cooling reports the research
 // done and a network with spare capacity for its draw, otherwise a passive
@@ -244,6 +309,9 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 	}
 	if err := v.Validate(); err != nil {
 		return TemperatureProposal{}, err
+	}
+	if proposal, owed := CampfireRefuel(fact, cooling.HeatCampfires); owed {
+		return proposal, nil
 	}
 	eligible, known := v.EligibleBeds.Value()
 	if !known {
@@ -340,7 +408,9 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 			if choice.method == TemperatureHeat {
 				exists = exists || q.Resource == "Campfire" || q.Resource == "Heater"
 			} else {
-				exists = exists || q.Resource == "PassiveCooler" || q.Resource == "Cooler"
+				// A campfire in a hot room is the heat's cause, not a
+				// cooling target: its refuel switch lets it burn out.
+				exists = exists || q.Resource == "PassiveCooler" || q.Resource == "Cooler" || q.Resource == "Campfire"
 			}
 		}
 		// A wall cooler stands in the room's boundary, outside its cell

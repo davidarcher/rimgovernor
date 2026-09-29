@@ -39,14 +39,7 @@ func campfireRetirement(facts observation.ColonyProjection, claims []policy.Cons
 	if !bk || !rk || !ck {
 		return policy.CurrentBuilding{}, false
 	}
-	heat := map[domain.Cell]bool{}
-	for _, claim := range claims {
-		if claim.Goal == policy.EnsureTemperatureSafety && claim.Building.Definition() == "Campfire" {
-			for _, c := range claim.Cells {
-				heat[c] = true
-			}
-		}
-	}
+	heat := heatCampfireCells(claims)
 	stove := false
 	for _, bench := range benches {
 		if bench.Definition != "FueledStove" && bench.Definition != "ElectricStove" {
@@ -77,6 +70,86 @@ func campfireRetirement(facts observation.ColonyProjection, claims []policy.Cons
 		}
 	}
 	return policy.CurrentBuilding{}, false
+}
+
+// heatCampfireCells are the cells of every campfire the temperature family
+// claimed: the marker of a campfire standing as room heat (#1179, #1180).
+func heatCampfireCells(claims []policy.ConstructionClaim) map[domain.Cell]bool {
+	heat := map[domain.Cell]bool{}
+	for _, claim := range claims {
+		if claim.Goal == policy.EnsureTemperatureSafety && claim.Building.Definition() == "Campfire" {
+			for _, c := range claim.Cells {
+				heat[c] = true
+			}
+		}
+	}
+	return heat
+}
+
+// heatCampfires are the standing campfires the temperature family claimed,
+// with the room and auto-refuel toggle the cooking census reads (#1180).
+func heatCampfires(facts observation.ColonyProjection) []policy.HeatCampfire {
+	claims, _ := facts.Facts.ConstructionClaims.Value()
+	benches, bk := facts.CookingBenches.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	heat := heatCampfireCells(claims)
+	if !bk || !ck || len(heat) == 0 {
+		return nil
+	}
+	var out []policy.HeatCampfire
+	for _, bench := range benches {
+		if bench.Definition != "Campfire" {
+			continue
+		}
+		for _, b := range census.Buildings {
+			if b.ID == bench.ID && len(b.Cells) > 0 && heat[b.Cells[0]] {
+				out = append(out, policy.HeatCampfire{ID: bench.ID, Room: bench.Room, AutoRefuel: bench.AutoRefuel})
+			}
+		}
+	}
+	return out
+}
+
+// campfireRefuelOwed is the review's CampfireRefuelOwed fact.
+func campfireRefuelOwed(facts observation.ColonyProjection) domain.Fact[bool] {
+	_, owed := policy.CampfireRefuel(facts.Rooms, heatCampfires(facts))
+	return domain.Known(owed)
+}
+
+// commitCampfireRefuel binds a one-action auto-refuel plan for the heat
+// campfire the temperature proposal switches.
+func (r *RoutineBuildingPlanner) commitCampfireRefuel(call context.Context, goal store.GoalState, check func() error) (RoutineBuildingResult, error) {
+	p := r.reviewer.player
+	proposal := r.temperature
+	if proposal == nil || proposal.Method != policy.TemperatureRefuelOff && proposal.Method != policy.TemperatureRefuelOn {
+		return RoutineBuildingResult{}, fmt.Errorf("%w: commitCampfireRefuel: not a refuel proposal", ErrControl)
+	}
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, proposal.Key); err == nil {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineBuildingResult{}, err
+	}
+	value, err := domain.NewAutoRefuel(proposal.Thing, proposal.Method == policy.TemperatureRefuelOn)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	id := domain.MintPlanID()
+	action, err := domain.NewAutoRefuelAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if err = check(); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	clockSchedulerLog("%s: campfire %s auto-refuel %v", goal.Goal.ID, proposal.Thing, value.Allow())
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, proposal.Key, plan); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
 }
 
 // campfireRetireOwed is the review's CampfireRetireOwed fact.

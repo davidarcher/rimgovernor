@@ -182,6 +182,9 @@ type CookingBench struct {
 	// Room is the native room census identity the bench stands in, unknown
 	// for a bench outdoors or when the native read left it out.
 	Room domain.Fact[string]
+	// AutoRefuel is a refuelable bench's auto-refuel toggle (#1180),
+	// unknown for a bench without one.
+	AutoRefuel domain.Fact[bool]
 }
 
 func optional[T any](p *T) domain.Fact[T] {
@@ -360,7 +363,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	if !hasIssue(v.Issues, "cooking") {
 		benches := []CookingBench{}
 		for _, bench := range v.Cooking {
-			benches = append(benches, CookingBench{ID: bench.Bench.GetId(), Definition: bench.Bench.GetDefName(), Usable: optional(bench.Usable), Room: optional(bench.RoomId)})
+			benches = append(benches, CookingBench{ID: bench.Bench.GetId(), Definition: bench.Bench.GetDefName(), Usable: optional(bench.Usable), Room: optional(bench.RoomId), AutoRefuel: optional(bench.AutoRefuel)})
 		}
 		r.CookingBenches = domain.Known(benches)
 	}

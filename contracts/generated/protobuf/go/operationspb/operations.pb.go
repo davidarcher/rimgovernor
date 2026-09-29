@@ -4974,6 +4974,7 @@ type BuildingPatchIntent struct {
 	//	*BuildingPatchIntent_PlantDef
 	//	*BuildingPatchIntent_Claim
 	//	*BuildingPatchIntent_ForSlaves
+	//	*BuildingPatchIntent_AutoRefuel
 	Change        isBuildingPatchIntent_Change `protobuf_oneof:"change"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5077,6 +5078,15 @@ func (x *BuildingPatchIntent) GetForSlaves() *Clear {
 	return nil
 }
 
+func (x *BuildingPatchIntent) GetAutoRefuel() bool {
+	if x != nil {
+		if x, ok := x.Change.(*BuildingPatchIntent_AutoRefuel); ok {
+			return x.AutoRefuel
+		}
+	}
+	return false
+}
+
 type isBuildingPatchIntent_Change interface {
 	isBuildingPatchIntent_Change()
 }
@@ -5105,6 +5115,10 @@ type BuildingPatchIntent_ForSlaves struct {
 	ForSlaves *Clear `protobuf:"bytes,7,opt,name=for_slaves,json=forSlaves,proto3,oneof"`
 }
 
+type BuildingPatchIntent_AutoRefuel struct {
+	AutoRefuel bool `protobuf:"varint,8,opt,name=auto_refuel,json=autoRefuel,proto3,oneof"`
+}
+
 func (*BuildingPatchIntent_TargetTemperature) isBuildingPatchIntent_Change() {}
 
 func (*BuildingPatchIntent_Medical) isBuildingPatchIntent_Change() {}
@@ -5116,6 +5130,8 @@ func (*BuildingPatchIntent_PlantDef) isBuildingPatchIntent_Change() {}
 func (*BuildingPatchIntent_Claim) isBuildingPatchIntent_Change() {}
 
 func (*BuildingPatchIntent_ForSlaves) isBuildingPatchIntent_Change() {}
+
+func (*BuildingPatchIntent_AutoRefuel) isBuildingPatchIntent_Change() {}
 
 type RecoverIntent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -6984,7 +7000,7 @@ const file_operations_proto_rawDesc = "" +
 	"\t_thing_idB\v\n" +
 	"\t_rotationB\f\n" +
 	"\n" +
-	"_uninstall\"\xfe\x02\n" +
+	"_uninstall\"\xa1\x03\n" +
 	"\x13BuildingPatchIntent\x12\x1e\n" +
 	"\bthing_id\x18\x01 \x01(\tH\x01R\athingId\x88\x01\x01\x12/\n" +
 	"\x12target_temperature\x18\x02 \x01(\x02H\x00R\x11targetTemperature\x12\x1a\n" +
@@ -6993,7 +7009,9 @@ const file_operations_proto_rawDesc = "" +
 	"\tplant_def\x18\x05 \x01(\tH\x00R\bplantDef\x128\n" +
 	"\x05claim\x18\x06 \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\x05claim\x12A\n" +
 	"\n" +
-	"for_slaves\x18\a \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\tforSlavesB\b\n" +
+	"for_slaves\x18\a \x01(\v2 .rimgovernor.operations.v1.ClearH\x00R\tforSlaves\x12!\n" +
+	"\vauto_refuel\x18\b \x01(\bH\x00R\n" +
+	"autoRefuelB\b\n" +
 	"\x06changeB\v\n" +
 	"\t_thing_id\"\xb8\x01\n" +
 	"\rRecoverIntent\x12\x1c\n" +
@@ -7662,6 +7680,7 @@ func file_operations_proto_init() {
 		(*BuildingPatchIntent_PlantDef)(nil),
 		(*BuildingPatchIntent_Claim)(nil),
 		(*BuildingPatchIntent_ForSlaves)(nil),
+		(*BuildingPatchIntent_AutoRefuel)(nil),
 	}
 	file_operations_proto_msgTypes[51].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[52].OneofWrappers = []any{}

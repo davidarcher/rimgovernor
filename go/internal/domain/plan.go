@@ -121,6 +121,7 @@ type Action struct {
 	bedUse              BedUse
 	growerCrop          GrowerCrop
 	claimBuilding       ClaimBuilding
+	autoRefuel          AutoRefuel
 	zoneDelete          ZoneDelete
 	zoneCellEdit        ZoneCellEdit
 	stockpilePatch      StockpilePatch
@@ -249,6 +250,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewGrowerCropAction(a.id, a.growerCrop)
 		case ClaimBuildingAction:
 			canonical, err = NewClaimBuildingAction(a.id, a.claimBuilding)
+		case AutoRefuelAction:
+			canonical, err = NewAutoRefuelAction(a.id, a.autoRefuel)
 		case ZoneDeleteAction:
 			canonical, err = NewZoneDeleteAction(a.id, a.zoneDelete)
 		case ZoneCellEditAction:

@@ -56,10 +56,13 @@ func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProje
 		clockSchedulerLog("temperature: proposal=%s room=%s coolerAvailable=%+v draw=%+v spare=%+v cells=%d", proposal.Method, proposal.Room, cooling.CoolerAvailable, cooling.CoolerDrawW, spare, len(cooling.Cells))
 	}
 	switch proposal.Method {
-	case policy.TemperatureHeat, policy.TemperatureCool, policy.TemperatureCoolPowered:
+	case policy.TemperatureHeat, policy.TemperatureCool, policy.TemperatureCoolPowered, policy.TemperatureRefuelOff, policy.TemperatureRefuelOn:
 		resolved := *r
 		resolved.temperature = &proposal
 		resolved.definition, resolved.environment = string(proposal.Method), policy.PlacementIndoors
+		if proposal.Thing != "" {
+			resolved.definition = "Campfire"
+		}
 		return &resolved, "", nil
 	case policy.TemperatureUnknown:
 		return nil, BuildingMethodUnknown, nil
@@ -74,7 +77,7 @@ func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProje
 // reading: the Cooler planning definition (availability, draw), the colony
 // power topology and the site cells the vented-wall search walks.
 func temperatureCooling(facts observation.ColonyProjection) policy.TemperatureCooling {
-	cooling := policy.TemperatureCooling{CoolerAvailable: domain.Unknown[bool](), CoolerDrawW: domain.Unknown[float64](), Power: facts.PowerPlanning, Cells: facts.Cells}
+	cooling := policy.TemperatureCooling{CoolerAvailable: domain.Unknown[bool](), CoolerDrawW: domain.Unknown[float64](), Power: facts.PowerPlanning, Cells: facts.Cells, HeatCampfires: heatCampfires(facts)}
 	for _, d := range facts.Definitions {
 		if d.Name == "Cooler" {
 			cooling.CoolerAvailable, cooling.CoolerDrawW = d.Available, d.PowerW

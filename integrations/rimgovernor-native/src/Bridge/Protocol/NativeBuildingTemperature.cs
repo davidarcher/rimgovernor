@@ -97,6 +97,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.BuildingPatchIntent.ChangeOneofCase.ForSlaves: return NativeBedUse.Validate(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.PlantDef: return NativeGrowerCrop.Validate(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.Claim: return NativeClaimBuilding.Validate(intent, context);
+                case Operations.BuildingPatchIntent.ChangeOneofCase.AutoRefuel: return NativeAutoRefuel.Validate(intent, context);
                 default: return Missing();
             }
         }
@@ -112,6 +113,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.BuildingPatchIntent.ChangeOneofCase.ForSlaves: return NativeBedUse.Apply(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.PlantDef: return NativeGrowerCrop.Apply(intent, context);
                 case Operations.BuildingPatchIntent.ChangeOneofCase.Claim: return NativeClaimBuilding.Apply(intent, context);
+                case Operations.BuildingPatchIntent.ChangeOneofCase.AutoRefuel: return NativeAutoRefuel.Apply(intent, context);
                 default: throw new InvalidOperationException(Missing().Detail);
             }
         }
