@@ -131,3 +131,17 @@ func TestOrganSaleSurplus(t *testing.T) {
 		t.Fatalf("silver held: %+v", got)
 	}
 }
+
+func TestReserveSurgeryStockKeepsOneKidneyPerWant(t *testing.T) {
+	need := domain.Known(TradeNeed{MedicineReplenish: 10})
+	stock := domain.Known([]Amount{{Resource: "Kidney", Count: 2}, {Resource: "Silver", Count: 0}})
+	sale := OrganSaleSurplus(need, stock, domain.Known[int64](3))
+	pawns := domain.Known([]CarePawn{surgeryPawn("a", 0, restoreOp("InstallNaturalKidney", "Kidney", 20, 0.9, 0, true))})
+	got, _ := ReserveSurgeryStock(sale, pawns).Value()
+	if len(got.Surplus) != 1 || got.Surplus[0] != (Amount{Resource: "Kidney", Count: 1}) || got.Retained["Kidney"] != 1 {
+		t.Fatalf("one kidney reserved, one sold: %+v", got)
+	}
+	if got, _ := ReserveSurgeryStock(sale, domain.Known([]CarePawn{})).Value(); got.Surplus[0].Count != 2 {
+		t.Fatalf("no want: %+v", got)
+	}
+}

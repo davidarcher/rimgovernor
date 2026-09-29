@@ -2,6 +2,7 @@ package policy
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -457,4 +458,60 @@ func partRecoveryCost(op SurgeryOperation, row PrisonerFacts, c PrisonerColony) 
 func PartRecoveryWanted(f RoutineFacts) bool {
 	_, ok := SelectPartRecovery(f.Prisoners, f.PrisonerColony, nil, nil)
 	return ok
+}
+
+// ReserveSurgeryStock keeps one stocked unit per open colonist restore or
+// install (#1254): each want and each choice this review would queue holds
+// back its best recipe item still in the surplus, so a harvested organ or
+// recovered part is not sold before its install is queued.
+func ReserveSurgeryStock(need domain.Fact[TradeNeed], pawns domain.Fact[[]CarePawn]) domain.Fact[TradeNeed] {
+	n, known := need.Value()
+	if !known || len(n.Surplus) == 0 {
+		return need
+	}
+	s := SelectSurgery(pawns, nil, SurgeryContext{})
+	options := make([][]string, 0, len(s.Wants)+len(s.Queue))
+	for _, want := range s.Wants {
+		options = append(options, want.Options)
+	}
+	for _, choice := range s.Queue {
+		options = append(options, []string{choice.Recipe})
+	}
+	surplus := append([]Amount(nil), n.Surplus...)
+	retained := map[Resource]int64{}
+	for resource, count := range n.Retained {
+		retained[resource] = count
+	}
+	reserved := false
+	for _, recipes := range options {
+	recipe:
+		for _, recipe := range recipes {
+			item, ok := SurgeryPartItem(recipe)
+			if organ, natural := strings.CutPrefix(recipe, harvestInstallRecipePref); natural {
+				item = Resource(organ) // InstallNaturalKidney consumes Kidney
+			}
+			if !ok {
+				continue
+			}
+			for i := range surplus {
+				if surplus[i].Resource == item && surplus[i].Count > 0 {
+					surplus[i].Count--
+					retained[item]++
+					reserved = true
+					break recipe
+				}
+			}
+		}
+	}
+	if !reserved {
+		return need
+	}
+	n.Surplus = surplus[:0]
+	for _, row := range surplus {
+		if row.Count > 0 {
+			n.Surplus = append(n.Surplus, row)
+		}
+	}
+	n.Retained = retained
+	return domain.Known(n)
 }
