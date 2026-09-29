@@ -66,6 +66,9 @@ type SurgeryOperation struct {
 	AddedPart, YieldThing domain.Fact[string]
 	// MedicineValue is the market value of the medicine the operation uses.
 	MedicineValue domain.Fact[float64]
+	// CareLimited: medicine the recipe takes is stocked but the patient's
+	// medical care forbids it (#1239); IngredientsOnMap is then false.
+	CareLimited domain.Fact[bool]
 }
 
 // CareCondition retains native disease evidence without estimating missing values.

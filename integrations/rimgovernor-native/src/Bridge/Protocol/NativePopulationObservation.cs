@@ -110,6 +110,7 @@ namespace HomeBridge.BridgeTools
                     }
                     NativePawnDetails.Surgery(p, health);
                     person.Surgery = health;
+                    if (p.playerSettings != null) person.MedicalCare = p.playerSettings.medCare.ToString();
                     var home = p.Faction == null ? null : p.HomeFaction;
                     person.HarvestGoodwillChange = 0;
                     if (home != null && !home.IsPlayer)

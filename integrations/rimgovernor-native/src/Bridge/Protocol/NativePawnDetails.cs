@@ -227,11 +227,14 @@ namespace HomeBridge.BridgeTools
                     if(!def.AvailableOnNow(pawn,part)) continue;
                     var doctors=colonists.Where(p => p!=pawn && !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
                         && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor) && def.PawnSatisfiesSkillRequirements(p)).ToList();
-                    var medicine=MedicineFor(pawn,def,map);
+                    var medicine=MedicineFor(pawn,def,map,true);
+                    var others=!def.PotentiallyMissingIngredients(null,map).Any();
+                    var usesMedicine=def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine));
                     var op=new Obs.SurgeryOperation {Recipe=Definition(def),Kind=Kind(pawn,def,part),
                         EligibleDoctors=(uint)doctors.Count,
-                        IngredientsOnMap=!def.PotentiallyMissingIngredients(null,map).Any()
-                            && (!def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine)) || medicine!=null),
+                        IngredientsOnMap=others && (!usesMedicine || medicine!=null),
+                        // #1239: medicine is stocked but the care level forbids all of it.
+                        MedicineCareLimited=others && usesMedicine && medicine==null && MedicineFor(pawn,def,map,false)!=null,
                         Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer),Lethal=Lethal(pawn,def,part)};
                     if(part!=null) {op.PartIndex=parts.IndexOf(part);op.PartDefName=Id(part.def.defName);}
                     if(op.Kind==Obs.SurgeryKind.Harvest && part?.def.spawnThingOnRemoved!=null) op.YieldMarketValue=Number(part.def.spawnThingOnRemoved.BaseMarketValue);
@@ -259,12 +262,12 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // The best-potency medicine on the map that both the patient's care
-        // policy and the recipe allow; null when none.
-        private static ThingDef? MedicineFor(Pawn pawn,RecipeDef def,Map map)
+        // The best-potency medicine on the map that the recipe allows and,
+        // when care is set, the patient's care policy too; null when none.
+        private static ThingDef? MedicineFor(Pawn pawn,RecipeDef def,Map map,bool care)
             => map.listerThings.ThingsInGroup(ThingRequestGroup.Medicine)
                 .Where(t => !t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map)
-                    && (pawn.playerSettings==null || pawn.playerSettings.medCare.AllowsMedicine(t.def))
+                    && (!care || pawn.playerSettings==null || pawn.playerSettings.medCare.AllowsMedicine(t.def))
                     && def.ingredients.Any(i => i.filter.Allows(t)))
                 .Select(t => t.def).OrderByDescending(d => d.GetStatValueAbstract(StatDefOf.MedicalPotency)).FirstOrDefault();
 

@@ -109,6 +109,8 @@ type PrisonerFacts struct {
 	QueuedSurgeries domain.Fact[int]
 	Faction         string
 	HarvestGoodwill domain.Fact[int]
+	// MedicalCare is the prisoner's MedicalCareCategory name (#1239).
+	MedicalCare domain.Fact[string]
 }
 
 // PrisonerPlanReason names why RoutinePrisonerInteractionPlanner did or did

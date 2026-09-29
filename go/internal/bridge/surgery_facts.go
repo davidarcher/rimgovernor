@@ -43,6 +43,7 @@ func SurgeryFacts(h *o.PawnHealth) (domain.Fact[[]policy.MissingPart], domain.Fa
 				SuccessChance: surgeryFact(op.SuccessChance), DoctorSuccessChance: surgeryFact(op.DoctorSuccessChance), IngredientsOnMap: surgeryFact(op.IngredientsOnMap),
 				Violation: surgeryFact(op.Violation), Lethal: surgeryFact(op.Lethal), YieldValue: surgeryFact(op.YieldMarketValue),
 				AddedPart: surgeryFact(op.AddedPartHediff), YieldThing: surgeryFact(op.YieldThingDef), MedicineValue: surgeryFact(op.MedicineMarketValue),
+				CareLimited: surgeryFact(op.MedicineCareLimited),
 			}
 			if op.Recipe != nil {
 				row.Recipe = surgeryFact(op.Recipe.DefName)

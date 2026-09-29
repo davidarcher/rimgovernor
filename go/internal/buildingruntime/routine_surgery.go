@@ -126,9 +126,23 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 		parts := policy.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants)
 		harvest, harvesting = policy.SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight)
 	}
+	if !harvesting {
+		// Prisoners stay on herbal (#1239): a cut only better medicine
+		// could serve is refused; the review asks for herbal instead.
+		if blocked, ok := policy.CareLimitedHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, policy.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants), inFlight); ok {
+			clockSchedulerLog("%s: surgery %s on prisoner %s refused: medicine care limit %s allows no stocked medicine; herbal wanted", goal.Goal.ID, blocked.Recipe, blocked.Prisoner, policy.PrisonerMedicalCare)
+		}
+	}
 	harvesting = harvesting && arbiter.tryClaim([]domain.PawnID{harvest.Prisoner})
 	result.Harvest = harvesting
-	if len(queue) == 0 && !harvesting {
+	// Pin each prisoner above herbal care back to herbal (#1239).
+	var pins []domain.WorkAssignment
+	for _, pawn := range policy.PrisonerCarePins(read.Projection.Facts.Prisoners) {
+		if w, err := domain.NewMedicalCareAssignment(pawn, policy.PrisonerMedicalCare); err == nil && arbiter.tryClaim([]domain.PawnID{pawn}) {
+			pins = append(pins, w)
+		}
+	}
+	if len(queue) == 0 && !harvesting && len(pins) == 0 {
 		switch {
 		case len(inFlight) > 0:
 			result.Reason = BuildingMethodExistingWork
@@ -148,6 +162,9 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	if harvesting {
 		fmt.Fprintf(hash, "harvest/%s/%s/%d\n", harvest.Prisoner, harvest.Recipe, harvest.Part)
+	}
+	for _, pin := range pins {
+		fmt.Fprintf(hash, "care/%s\n", pin.Pawn())
 	}
 	method := domain.MethodID(fmt.Sprintf("restore-%x", hash.Sum(nil)[:16]))
 	for _, previous := range goal.Methods {
@@ -175,6 +192,13 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineSurgeryResult{}, err
 		}
 		action, err := domain.NewSurgeryAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), cut)
+		if err != nil {
+			return RoutineSurgeryResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	for _, pin := range pins {
+		action, err := domain.NewWorkAssignmentAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), pin)
 		if err != nil {
 			return RoutineSurgeryResult{}, err
 		}

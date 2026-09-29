@@ -48,6 +48,54 @@ func init() {
 			"then installs it with InstallNaturalKidney. Native: the population read contract and the vanilla harvest yielding the kidney.",
 		Start: setup("missingKidney"), Service: true, Budget: 10 * time.Minute, Run: surgeryHarvest,
 	})
+	cases.Register(cases.Case{
+		Name: "medical/surgery-harvest-care-limit",
+		Scope: "Prisoner care limit (#1239): with industrial medicine the only stock, the population read reports the " +
+			"prisoner's HerbalOrWorse medical_care and its kidney harvest as medicine_care_limited with ingredients_on_map " +
+			"false. Native: the population read contract; the refusal and herbal want are policy snapshot tests.",
+		Start: setup("missingKidneyIndustrial"), Budget: 3 * time.Minute, Run: surgeryHarvestCareLimit,
+	})
+}
+
+func surgeryHarvestCareLimit(ctx context.Context, s cases.Session) error {
+	prisoner := na.AsString(s.Prepared()["prisonerId"])
+	reply, err := s.Harness().Wire(ctx, "surgery-care-limit-population", "observations_read_population", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
+	if err != nil {
+		return err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return err
+	}
+	for _, raw := range na.AsSlice(observed["persons"]) {
+		person, _ := na.AsMap(raw)
+		state, _ := na.AsMap(person["pawn"])
+		ref, _ := na.AsMap(state["pawn"])
+		if prisoner == "" || na.AsString(ref["id"]) != prisoner {
+			continue
+		}
+		s.Report()["medical_care"] = person["medicalCare"]
+		if care := na.AsString(person["medicalCare"]); care != "HerbalOrWorse" {
+			return fmt.Errorf("prisoner %s medical_care %q, want HerbalOrWorse", prisoner, care)
+		}
+		surgery, _ := na.AsMap(person["surgery"])
+		for _, raw := range na.AsSlice(surgery["operations"]) {
+			op, _ := na.AsMap(raw)
+			if na.AsString(op["kind"]) != "SURGERY_KIND_HARVEST" || na.AsString(op["partDefName"]) != "Kidney" {
+				continue
+			}
+			s.Report()["harvest_op"] = op
+			if limited, _ := op["medicineCareLimited"].(bool); !limited {
+				return fmt.Errorf("kidney harvest not medicine_care_limited: %#v", op)
+			}
+			if stocked, _ := op["ingredientsOnMap"].(bool); stocked {
+				return fmt.Errorf("kidney harvest reads ingredients_on_map true under the herbal limit: %#v", op)
+			}
+			return nil
+		}
+		return fmt.Errorf("prisoner %s has no kidney harvest operation: %#v", prisoner, surgery["operations"])
+	}
+	return fmt.Errorf("prisoner %q not in the population read", prisoner)
 }
 
 // surgeryRun hosts serve with the medical family and runs the clock.

@@ -265,6 +265,10 @@ message SurgeryOperation {
   // success_chance with the bed factor replaced by a clean, roofed Bed's;
   // absent exactly when success_chance is.
   optional double doctor_success_chance = 14;
+  // True when medicine the recipe accepts is on the map but the patient's
+  // medical care level forbids all of it (#1239); ingredients_on_map is
+  // then false.
+  optional bool medicine_care_limited = 15;
 }
 message GearItem {
   EntityRef thing = 1; optional string stuff = 2; optional string quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
@@ -761,7 +765,9 @@ message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optio
   // id, and the goodwill change vanilla's Recipe_RemoveBodyPart violation
   // report (-70) would make with it after CalculateAdjustedGoodwillChange and
   // the -100 floor; 0 when the faction's goodwill cannot change or none.
-  PawnHealth surgery = 17; optional string faction_id = 18; optional int32 harvest_goodwill_change = 19; }
+  PawnHealth surgery = 17; optional string faction_id = 18; optional int32 harvest_goodwill_change = 19;
+  // The prisoner's MedicalCareCategory name (#1239), for a colony prisoner.
+  optional string medical_care = 20; }
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; reserved 4;
   // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
   // primary ideoligion load id and the defName of its Slavery-issue precept

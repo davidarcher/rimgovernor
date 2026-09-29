@@ -3308,6 +3308,10 @@ type SurgeryOperation struct {
 	// success_chance with the bed factor replaced by a clean, roofed Bed's;
 	// absent exactly when success_chance is.
 	DoctorSuccessChance *float64 `protobuf:"fixed64,14,opt,name=doctor_success_chance,json=doctorSuccessChance,proto3,oneof" json:"doctor_success_chance,omitempty"`
+	// True when medicine the recipe accepts is on the map but the patient's
+	// medical care level forbids all of it (#1239); ingredients_on_map is
+	// then false.
+	MedicineCareLimited *bool `protobuf:"varint,15,opt,name=medicine_care_limited,json=medicineCareLimited,proto3,oneof" json:"medicine_care_limited,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -3438,6 +3442,13 @@ func (x *SurgeryOperation) GetDoctorSuccessChance() float64 {
 		return *x.DoctorSuccessChance
 	}
 	return 0
+}
+
+func (x *SurgeryOperation) GetMedicineCareLimited() bool {
+	if x != nil && x.MedicineCareLimited != nil {
+		return *x.MedicineCareLimited
+	}
+	return false
 }
 
 type GearItem struct {
@@ -16336,8 +16347,10 @@ type PopulationPerson struct {
 	Surgery               *PawnHealth `protobuf:"bytes,17,opt,name=surgery,proto3" json:"surgery,omitempty"`
 	FactionId             *string     `protobuf:"bytes,18,opt,name=faction_id,json=factionId,proto3,oneof" json:"faction_id,omitempty"`
 	HarvestGoodwillChange *int32      `protobuf:"varint,19,opt,name=harvest_goodwill_change,json=harvestGoodwillChange,proto3,oneof" json:"harvest_goodwill_change,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// The prisoner's MedicalCareCategory name (#1239), for a colony prisoner.
+	MedicalCare   *string `protobuf:"bytes,20,opt,name=medical_care,json=medicalCare,proto3,oneof" json:"medical_care,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PopulationPerson) Reset() {
@@ -16501,6 +16514,13 @@ func (x *PopulationPerson) GetHarvestGoodwillChange() int32 {
 		return *x.HarvestGoodwillChange
 	}
 	return 0
+}
+
+func (x *PopulationPerson) GetMedicalCare() string {
+	if x != nil && x.MedicalCare != nil {
+		return *x.MedicalCare
+	}
+	return ""
 }
 
 type PopulationSnapshot struct {
@@ -34316,7 +34336,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_part_def_nameB\x0f\n" +
 	"\r_parent_indexB\x12\n" +
 	"\x10_parent_def_nameB\b\n" +
-	"\x06_vital\"\xa1\a\n" +
+	"\x06_vital\"\xf4\a\n" +
 	"\x10SurgeryOperation\x12B\n" +
 	"\x06recipe\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\x06recipe\x12\"\n" +
 	"\n" +
@@ -34334,7 +34354,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x0fyield_thing_def\x18\f \x01(\tH\tR\ryieldThingDef\x88\x01\x01\x127\n" +
 	"\x15medicine_market_value\x18\r \x01(\x01H\n" +
 	"R\x13medicineMarketValue\x88\x01\x01\x127\n" +
-	"\x15doctor_success_chance\x18\x0e \x01(\x01H\vR\x13doctorSuccessChance\x88\x01\x01B\r\n" +
+	"\x15doctor_success_chance\x18\x0e \x01(\x01H\vR\x13doctorSuccessChance\x88\x01\x01\x127\n" +
+	"\x15medicine_care_limited\x18\x0f \x01(\bH\fR\x13medicineCareLimited\x88\x01\x01B\r\n" +
 	"\v_part_indexB\x10\n" +
 	"\x0e_part_def_nameB\x11\n" +
 	"\x0f_success_chanceB\x13\n" +
@@ -34347,7 +34368,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x12_added_part_hediffB\x12\n" +
 	"\x10_yield_thing_defB\x18\n" +
 	"\x16_medicine_market_valueB\x18\n" +
-	"\x16_doctor_success_chance\"\x8e\b\n" +
+	"\x16_doctor_success_chanceB\x18\n" +
+	"\x16_medicine_care_limited\"\x8e\b\n" +
 	"\bGearItem\x12<\n" +
 	"\x05thing\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05thing\x12\x19\n" +
 	"\x05stuff\x18\x02 \x01(\tH\x00R\x05stuff\x88\x01\x01\x12\x1d\n" +
@@ -36261,7 +36283,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2-.rimgovernor.observations.v1.RecoverySnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xf3\b\n" +
+	"\aoutcome\"\xac\t\n" +
 	"\x10PopulationPerson\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12\x1f\n" +
 	"\badmitted\x18\x02 \x01(\bH\x00R\badmitted\x88\x01\x01\x12\x19\n" +
@@ -36286,7 +36308,8 @@ const file_observations_proto_rawDesc = "" +
 	"\asurgery\x18\x11 \x01(\v2'.rimgovernor.observations.v1.PawnHealthR\asurgery\x12\"\n" +
 	"\n" +
 	"faction_id\x18\x12 \x01(\tH\rR\tfactionId\x88\x01\x01\x12;\n" +
-	"\x17harvest_goodwill_change\x18\x13 \x01(\x05H\x0eR\x15harvestGoodwillChange\x88\x01\x01B\v\n" +
+	"\x17harvest_goodwill_change\x18\x13 \x01(\x05H\x0eR\x15harvestGoodwillChange\x88\x01\x01\x12&\n" +
+	"\fmedical_care\x18\x14 \x01(\tH\x0fR\vmedicalCare\x88\x01\x01B\v\n" +
 	"\t_admittedB\b\n" +
 	"\x06_guestB\x0e\n" +
 	"\f_recruitableB\r\n" +
@@ -36302,7 +36325,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x14_luciferium_addictedB\x12\n" +
 	"\x10_wearing_apparelB\r\n" +
 	"\v_faction_idB\x1a\n" +
-	"\x18_harvest_goodwill_change\"\x97\a\n" +
+	"\x18_harvest_goodwill_changeB\x0f\n" +
+	"\r_medical_care\"\x97\a\n" +
 	"\x12PopulationSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
 	"\apersons\x18\x02 \x03(\v2-.rimgovernor.observations.v1.PopulationPersonR\apersons\x12a\n" +

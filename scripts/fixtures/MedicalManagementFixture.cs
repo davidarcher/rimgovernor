@@ -180,8 +180,10 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Disable routine Doctor work to exercise repeated explicit native tending.", DefaultValue = false)] bool manualTending = false,
             [ToolParameter(Description = "Force the surgical patient into the high-severity withdrawal stage of GoJuiceAddiction, instead of waiting on real decay/timing.", DefaultValue = false)] bool withdrawal = false,
             [ToolParameter(Description = "Hospital planning variant: flu patients start tended, no medical sleeping spots are placed and PatientBedRest stays enabled, so the patients need a hosted medical bed the service must provide.", DefaultValue = false)] bool hospital = false,
-            [ToolParameter(Description = "Surgery cases (#1170): give the second colonist cataract, infectedHand or missingKidney; missingKidney also holds one unrecruitable non-player prisoner on a prisoner sleeping spot. Empty adds nothing.", DefaultValue = "")] string condition = "")
+            [ToolParameter(Description = "Surgery cases (#1170): give the second colonist cataract, infectedHand or missingKidney; missingKidney also holds one unrecruitable non-player prisoner on a prisoner sleeping spot. missingKidneyIndustrial is missingKidney without the herbal stock, so industrial medicine is the only medicine (#1239). Empty adds nothing.", DefaultValue = "")] string condition = "")
         {
+            var industrialOnly = condition == "missingKidneyIndustrial";
+            if (industrialOnly) condition = "missingKidney";
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var stage = "colony";
                 try {
@@ -317,9 +319,11 @@ namespace HomeBridge.BridgeTools
                         prisoner.guest.Recruitable = false;
                         // A prisoner's default care allows herbal at best: stock it,
                         // or the harvest reads ingredients_on_map false.
-                        var herbal = ThingMaker.MakeThing(ThingDef.Named("MedicineHerbal")); herbal.stackCount = 10;
-                        if (!GenPlace.TryPlaceThing(herbal, center, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Herbal placement failed");
-                        herbal.SetForbidden(false, false);
+                        if (!industrialOnly) {
+                            var herbal = ThingMaker.MakeThing(ThingDef.Named("MedicineHerbal")); herbal.stackCount = 10;
+                            if (!GenPlace.TryPlaceThing(herbal, center, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Herbal placement failed");
+                            herbal.SetForbidden(false, false);
+                        }
                         prisonerId = prisoner.GetUniqueLoadID();
                     }
                 }

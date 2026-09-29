@@ -171,6 +171,9 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		if person.HarvestGoodwillChange != nil {
 			f.HarvestGoodwill = domain.Known(int(person.GetHarvestGoodwillChange()))
 		}
+		if person.MedicalCare != nil {
+			f.MedicalCare = domain.Known(person.GetMedicalCare())
+		}
 		if person.Interaction != nil {
 			if mode, ok := prisonerInteractionDefNames[person.GetInteraction()]; ok {
 				f.CurrentInteraction = domain.Known(mode)

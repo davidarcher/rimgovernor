@@ -126,12 +126,16 @@ namespace HomeBridge.BridgeTools
             if (!Valid(intent))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact pawn and a supported settings change.");
             var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent!.PawnId);
-            if (found != null && !found.Dead && found.IsFreeColonist && Holds(found, intent!)) { pawn = found; holds = true; return null; }
+            // A living colony prisoner takes a care-only change (#1239).
+            bool Target(Pawn p) => !p.Dead && (p.IsFreeColonist || CareOnly(intent!) && p.IsPrisonerOfColony);
+            if (found != null && Target(found) && Holds(found, intent!)) { pawn = found; holds = true; return null; }
             var manual = PawnSettingsRead.ManualPriorities();
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn is no longer spawned on this map")
-                .Require(() => found!.IsFreeColonist && !found.Dead, "the pawn is not a living free colonist");
-            if (intent!.HasDrugPolicy)
+                .Require(() => Target(found!), "the pawn is not a living free colonist or, for a care-only change, a living colony prisoner");
+            if (found != null && found.IsPrisonerOfColony)
+                rules.Require(() => found!.playerSettings != null, "the pawn has no medical care settings");
+            else if (intent!.HasDrugPolicy)
                 rules.Require(() => NativeDrugPolicy.Writable(found!), "the pawn has no drug policy");
             else
                 rules.Require(() => !found!.Downed || CareOnly(intent), "the pawn is downed")

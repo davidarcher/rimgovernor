@@ -1087,7 +1087,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// A sale organ harvest (#1169) holds it open while the silver runway
 	// is short and a prisoner's organ clears its cost; a prisoner's
 	// recoverable artificial part (#1232) too.
-	if SaleHarvestWanted(f, reviewSilverShort(f, p, medicine)) || PartRecoveryWanted(f) {
+	// A prisoner whose care allows better than herbal (#1239) too.
+	if SaleHarvestWanted(f, reviewSilverShort(f, p, medicine)) || PartRecoveryWanted(f) || len(PrisonerCarePins(f.Prisoners)) > 0 {
 		surgeryRecovered = domain.Known(false)
 	}
 	addAssessment(MaintainSurgery, surgeryPriority, surgeryRecovered)

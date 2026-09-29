@@ -41,6 +41,13 @@ For organ harvest (#1169) each colony prisoner also carries `surgery` (its
 (-70) would make with its home faction after `CalculateAdjustedGoodwillChange` and
 the -100 floor, 0 when that goodwill cannot change. The snapshot carries
 `organ_use_precept`.
+Each colony prisoner also carries `medical_care` (#1239), and an operation reads
+`medicine_care_limited` when medicine it takes is stocked but that care level
+forbids it. Prisoners stay at herbal care at most: MaintainSurgery pins a prisoner
+above `HerbalOrWorse` back to it through a care-only `WorkSettingsIntent` (which
+native accepts on a living colony prisoner) and never raises it. A harvest or part
+recovery blocked only by the limit is logged as refused and adds a
+`MedicineHerbal` want to MaintainResource's targets.
 A recruitable prisoner worth recruiting (`RecruitWorth` against the colonists' best
 skills, at least `RecruitThreshold` for the colony size) is converted first while
 Ideology is active outside classic mode and it holds another ideoligion, then
