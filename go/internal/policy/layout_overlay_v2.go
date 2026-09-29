@@ -163,3 +163,17 @@ func busiestSpineCells(p LayoutPlan, spine []Rectangle) []domain.Cell {
 	}
 	return out
 }
+
+// SplitFields moves o's field zone layers into their own overlay, so the
+// native can hide the busy field-block lattice on its own.
+func SplitFields(o LayoutOverlay) (rest, fields LayoutOverlay) {
+	rest.Labels = o.Labels
+	for _, l := range o.Layers {
+		if l.Label == zoneOverlay[ZoneField].label {
+			fields.Layers = append(fields.Layers, l)
+		} else {
+			rest.Layers = append(rest.Layers, l)
+		}
+	}
+	return rest, fields
+}

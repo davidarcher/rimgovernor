@@ -246,7 +246,8 @@ namespace HomeBridge.BridgeTools
         public static bool Traffic;
         private const string TrafficGroup = "heat";
         private static readonly SortedSet<string> groups = new SortedSet<string>(StringComparer.Ordinal);
-        private static readonly HashSet<string> hidden = new HashSet<string>(StringComparer.Ordinal);
+        // The plan's field-block lattice ("fields") is busy, so it starts hidden.
+        private static readonly HashSet<string> hidden = new HashSet<string>(StringComparer.Ordinal) { "fields" };
         private static readonly Texture2D MasterIcon = ContentFinder<Texture2D>.Get("UI/Buttons/ShowZones", false) ?? BaseContent.BadTex;
         private static readonly Texture2D GroupsIcon = ContentFinder<Texture2D>.Get("UI/Buttons/ShowRoomStats", false) ?? BaseContent.BadTex;
         private static readonly Texture2D TrafficIcon = ContentFinder<Texture2D>.Get("UI/Buttons/ShowBeauty", false) ?? BaseContent.BadTex;

@@ -90,8 +90,12 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 // (one game day).
 const overlayRedrawEvery domain.Tick = 60000
 
-// overlayLayer is the native overlay layer the layout plan draws on.
-const overlayLayer = "layout"
+// overlayLayer is the native overlay layer the layout plan draws on;
+// fieldLayer holds its field zones, hidden natively by default.
+const (
+	overlayLayer = "layout"
+	fieldLayer   = "fields"
+)
 
 // LayoutOverlayNative draws the layout plan as a native overlay layer
 // (#817, bridge.Client.DrawOverlay).
@@ -116,6 +120,10 @@ func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain
 				clockSchedulerLog("layout overlay not cleared: %v", err)
 				return
 			}
+			if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), fieldLayer, policy.LayoutOverlay{}, false); err != nil {
+				clockSchedulerLog("field overlay not cleared: %v", err)
+				return
+			}
 			r.overlayCleared = true
 		}
 		return
@@ -124,7 +132,12 @@ func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain
 	if key == r.overlayKey && tick >= r.overlayDrawn && tick-r.overlayDrawn < overlayRedrawEvery {
 		return
 	}
-	applied, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), overlayLayer, layout.Plan.Overlay(projection.Bounds), true)
+	layer, fields := policy.SplitFields(layout.Plan.Overlay(projection.Bounds))
+	if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), fieldLayer, fields, len(fields.Layers) > 0); err != nil {
+		clockSchedulerLog("field overlay not drawn: %v", err)
+		return
+	}
+	applied, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), overlayLayer, layer, true)
 	if err != nil {
 		clockSchedulerLog("layout overlay not drawn: %v", err)
 		return

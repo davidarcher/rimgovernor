@@ -66,3 +66,11 @@ func TestLayoutOverlayV2DrawsZonesSpineRoomsReservationsAndTraffic(t *testing.T)
 		}
 	}
 }
+
+func TestSplitFieldsMovesOnlyFieldLayers(t *testing.T) {
+	o := LayoutOverlay{Layers: []OverlayLayer{{Label: "field"}, {Label: "hallway"}, {Label: "field"}}, Labels: []OverlayLabel{{Text: "dining"}}}
+	rest, fields := SplitFields(o)
+	if len(fields.Layers) != 2 || len(rest.Layers) != 1 || rest.Layers[0].Label != "hallway" || len(rest.Labels) != 1 || len(fields.Labels) != 0 {
+		t.Fatalf("rest %+v fields %+v", rest, fields)
+	}
+}
