@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -226,5 +227,71 @@ func TestRoutineClearanceChunkHaulBatchIsOrderedOnce(t *testing.T) {
 	next, err := planner.Step(ctx)
 	if err != nil || next.Reason != BuildingMethodUsed || next.NativeWorkTicks != chunkHaulWorkTicks {
 		t.Fatal(next, err)
+	}
+}
+
+// A chunk the first batch ordered that ordinary hauling never moves does not
+// hold the rest of the census (#1234): the next batch takes the chunks no
+// batch has ordered.
+func TestRoutineClearanceNextChunkBatchSkipsOrderedChunks(t *testing.T) {
+	reviewer, db, _, _, native := routineFixture(t)
+	v := native.reply.GetObserved()
+	v.ColonistCount = proto.Uint32(2)
+	v.WorkerCount = proto.Uint32(2)
+	missing := func(field string) *o.ReadIssue {
+		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
+	}
+	newRow := func(id string) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	}
+	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{newRow("cutter"), newRow("cutter2")}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
+
+	source := &routineClearanceNative{routineBlightNative: &routineBlightNative{routineNative: native}}
+	for i := int32(0); i <= maxChunkHaulBatch; i++ {
+		source.chunks = append(source.chunks, clearanceChunk(fmt.Sprintf("chunk%d", i), 40+i, 40, false, false, true))
+	}
+	reviewer.native = source
+	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearHomeObstructions})
+	ctx := context.Background()
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineClearancePlanner(reviewer, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := planner.Step(ctx)
+	if err != nil || first.Reason != BuildingMethodAdmitted {
+		t.Fatal(first, err)
+	}
+	plan, err := db.LoadPlan(ctx, first.Plan)
+	if err != nil || len(plan.Spec.Actions()) != maxChunkHaulBatch {
+		t.Fatal(plan, err)
+	}
+	snapshot := reviewer.player.session.State().Snapshot
+	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	for _, action := range plan.Spec.Actions() {
+		if _, err = db.Prepare(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.RecordReceipt(ctx, plan.Spec.ID(), action.ID(), 1, domain.ReceiptAccepted); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	next, err := planner.Step(ctx)
+	if err != nil || next.Reason != BuildingMethodAdmitted {
+		t.Fatal(next, err)
+	}
+	if plan, err = db.LoadPlan(ctx, next.Plan); err != nil || len(plan.Spec.Actions()) != 1 {
+		t.Fatal(plan, err)
+	}
+	if c, ok := plan.Spec.Actions()[0].CoverClearance(); !ok || c.Thing() != fmt.Sprintf("chunk%d", maxChunkHaulBatch) {
+		t.Fatal(c, ok)
 	}
 }

@@ -203,7 +203,35 @@ const maxChunkHaulBatch = 8
 // it was designated is ordinary hauling's to finish.
 func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state ControlState, goal store.GoalState, census policy.ClearanceCensus, started time.Time) (RoutineClearanceResult, error) {
 	p := r.reviewer.player
-	chunks := policy.HaulableChunks(census.Chunks)
+	// A chunk an earlier batch of this epoch ordered is ordinary hauling's
+	// (#1234): one that never moves must not hold the batch after it.
+	ordered := map[string]domain.Cell{}
+	for _, m := range goal.History {
+		if !strings.HasPrefix(string(m.Method), "chunk-haul-") {
+			continue
+		}
+		plan, err := p.journal.LoadPlan(call, m.Plan)
+		if err != nil {
+			return RoutineClearanceResult{}, err
+		}
+		for _, a := range plan.Spec.Actions() {
+			if c, ok := a.CoverClearance(); ok {
+				ordered[c.Thing()] = c.Cell()
+			}
+		}
+	}
+	var chunks []policy.ClearanceChunk
+	waiting := false
+	for _, chunk := range policy.HaulableChunks(census.Chunks) {
+		if cell, ok := ordered[chunk.EntityID]; ok && cell == chunk.Cell {
+			waiting = true
+			continue
+		}
+		chunks = append(chunks, chunk)
+	}
+	if len(chunks) == 0 && waiting {
+		return RoutineClearanceResult{Reason: BuildingMethodUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
+	}
 	if len(chunks) > maxChunkHaulBatch {
 		chunks = chunks[:maxChunkHaulBatch]
 	}
