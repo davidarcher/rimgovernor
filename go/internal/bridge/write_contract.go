@@ -48,6 +48,11 @@ func buildingUnknown(message proto.Message) error {
 					}
 				}
 			} else if f.IsMap() {
+				// f.Message() is the map entry; a scalar-valued map
+				// (doctor_chances, #1253) has nothing to visit.
+				if f.MapValue().Message() == nil {
+					return true
+				}
 				v.Map().Range(func(_ protoreflect.MapKey, v protoreflect.Value) bool {
 					err = visit(v.Message(), depth+1)
 					return err == nil
