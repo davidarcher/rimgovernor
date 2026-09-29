@@ -16,6 +16,31 @@ func surgeryPawn(id PawnID, queued int, ops ...SurgeryOperation) CarePawn {
 	return CarePawn{ID: id, Dead: domain.Known(false), QueuedSurgeries: domain.Known(queued), Operations: domain.Known(ops)}
 }
 
+func TestSurgeryBillsQueued(t *testing.T) {
+	none := domain.Known([]PrisonerFacts{})
+	prisoner := func(dead bool, queued int) domain.Fact[[]PrisonerFacts] {
+		return domain.Known([]PrisonerFacts{{Dead: domain.Known(dead), QueuedSurgeries: domain.Known(queued)}})
+	}
+	dead := surgeryPawn("d", 1)
+	dead.Dead = domain.Known(true)
+	for _, c := range []struct {
+		name      string
+		pawns     domain.Fact[[]CarePawn]
+		prisoners domain.Fact[[]PrisonerFacts]
+		want      bool
+	}{
+		{"colonist bill", domain.Known([]CarePawn{surgeryPawn("a", 0), surgeryPawn("b", 1)}), none, true},
+		{"prisoner bill", domain.Known([]CarePawn{surgeryPawn("a", 0)}), prisoner(false, 1), true},
+		{"no bills", domain.Known([]CarePawn{surgeryPawn("a", 0)}), prisoner(false, 0), false},
+		{"dead patient", domain.Known([]CarePawn{dead}), prisoner(true, 1), false},
+		{"unknown census", domain.Unknown[[]CarePawn](), domain.Unknown[[]PrisonerFacts](), false},
+	} {
+		if got := SurgeryBillsQueued(c.pawns, c.prisoners); got != c.want {
+			t.Errorf("%s: got %v", c.name, got)
+		}
+	}
+}
+
 func TestSelectSurgery(t *testing.T) {
 	leg := func(chance float64, doctors int, peg, prosthetic, bionic bool) []SurgeryOperation {
 		return []SurgeryOperation{

@@ -218,6 +218,31 @@ func HospitalBedReady(sleeping domain.Fact[SleepingObservation]) domain.Fact[boo
 	return domain.Known(false)
 }
 
+// SurgeryBillsQueued reports whether a living colonist or prisoner has a
+// queued medical bill (#1238). A native doctor job carries the bill, so it
+// is clock work until the operation completes or the bill ends; an unknown
+// count is not work.
+func SurgeryBillsQueued(pawns domain.Fact[[]CarePawn], prisoners domain.Fact[[]PrisonerFacts]) bool {
+	queued := func(dead domain.Fact[bool], count domain.Fact[int]) bool {
+		d, dk := dead.Value()
+		n, nk := count.Value()
+		return dk && !d && nk && n > 0
+	}
+	rows, _ := pawns.Value()
+	for _, pawn := range rows {
+		if queued(pawn.Dead, pawn.QueuedSurgeries) {
+			return true
+		}
+	}
+	held, _ := prisoners.Value()
+	for _, row := range held {
+		if queued(row.Dead, row.QueuedSurgeries) {
+			return true
+		}
+	}
+	return false
+}
+
 // SelectSurgery ranks every living patient's served operations. A patient
 // with a queued bill or an open surgery action (inFlight) gets nothing new.
 // Each part picks its best stocked recipe (bionic, then prosthetic, then

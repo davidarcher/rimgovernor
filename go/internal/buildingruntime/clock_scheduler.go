@@ -1290,6 +1290,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Rescue != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Rescue.NativeWorkTicks)
 	}
+	// A queued surgery bill is native doctor work (#1238).
+	if out.Surgery != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Surgery.NativeWorkTicks)
+	}
 	// A planner that failed on a native refusal produced neither work nor a
 	// wait, and the same read is refused again next step while the game
 	// stands still; one window lets the world move under it (#219).

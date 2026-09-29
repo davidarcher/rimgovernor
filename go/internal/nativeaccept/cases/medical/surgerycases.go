@@ -54,6 +54,8 @@ func init() {
 type surgeryRun struct {
 	plans func(ctx context.Context) ([]domain.Surgery, error)
 	stop  func()
+	// tick is the journal's routine review tick.
+	tick func(ctx context.Context) (domain.Tick, error)
 }
 
 func startSurgeryRun(ctx context.Context, s cases.Session, prefix string) (*surgeryRun, error) {
@@ -103,6 +105,9 @@ func startSurgeryRun(ctx context.Context, s cases.Session, prefix string) (*surg
 			}
 		}
 		return out, nil
+	}, tick: func(ctx context.Context) (domain.Tick, error) {
+		review, err := journal.LoadRoutineReview(ctx)
+		return review.Tick, err
 	}}, nil
 }
 
@@ -219,40 +224,45 @@ func surgeryRestore(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["restore_intent"] = true
-	run.stop()
-	return completeNatively(ctx, s, "surgery-restore", patient, func(health map[string]any) bool { return !partMissing(health, part) })
+	return run.served(ctx, s, "surgery-restore", patient, func(health map[string]any) bool { return !partMissing(health, part) })
 }
 
-// completeNatively takes the game back from the stopped service and runs
-// it at Ultrafast until the patient's health read shows the operation
-// done: the native doctor job completes the bill the service queued.
-// Session.Advance cannot carry it: anesthesia downs the patient, and a
-// colonist_downed stop ends an advance.
-func completeNatively(ctx context.Context, s cases.Session, label, patient string, done func(health map[string]any) bool) error {
-	h, err := s.Reattach(ctx)
-	if err != nil {
-		return err
-	}
-	speed := func(key, value string) error {
-		_, err := h.Call(ctx, key, "rimworld/set_time_speed", map[string]any{"speed": value, "ultraSpeedBoost": false})
-		return err
-	}
-	defer speed(label+"-pause", "Paused")
+// surgeryServedTicks is how far the served clock must carry the game past
+// a queued bill for native doctors to finish the operation.
+const surgeryServedTicks = 15000
+
+// served keeps the service running until its review tick has moved
+// surgeryServedTicks past the first read: a queued bill is clock work
+// (#1238), so a clock parked on it stalls the wait. It then stops the
+// service and reads the patient's health once for the operation.
+func (r *surgeryRun) served(ctx context.Context, s cases.Session, label, patient string, done func(health map[string]any) bool) error {
 	waitCtx, cancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer cancel()
-	var health map[string]any
-	err = na.WaitProgress(waitCtx, na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second}, func(ctx context.Context) (string, bool, error) {
-		if err := speed(label+"-run", "Ultrafast"); err != nil {
+	from, at := domain.Tick(0), domain.Tick(0)
+	err := na.WaitProgress(waitCtx, na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second}, func(ctx context.Context) (string, bool, error) {
+		tick, err := r.tick(ctx)
+		if err != nil {
 			return "", false, err
 		}
-		var err error
-		if health, err = pawnHealth(ctx, s, label+"-after", patient); err != nil {
-			return "", false, err
+		if from == 0 {
+			from = tick
 		}
-		return na.Signature(health["missingParts"], health["surgeryBills"], health["hediffs"]), done(health), nil
+		at = tick
+		return na.Signature(tick), tick >= from+surgeryServedTicks, nil
 	})
 	if err != nil {
-		return fmt.Errorf("%s: operation not completed: %w (missing=%#v bills=%#v)", label, err, health["missingParts"], health["surgeryBills"])
+		return fmt.Errorf("%s: served clock stalled at tick %d (from %d): %w", label, at, from, err)
+	}
+	r.stop()
+	if _, err = s.Reattach(ctx); err != nil {
+		return err
+	}
+	health, err := pawnHealth(ctx, s, label+"-after", patient)
+	if err != nil {
+		return err
+	}
+	if !done(health) {
+		return fmt.Errorf("%s: operation not completed after %d served ticks (missing=%#v bills=%#v)", label, at-from, health["missingParts"], health["surgeryBills"])
 	}
 	return nil
 }
@@ -316,8 +326,7 @@ func surgeryAmputation(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["amputation_intent"] = true
-	run.stop()
-	return completeNatively(ctx, s, "surgery-amputation", patient, func(health map[string]any) bool {
+	return run.served(ctx, s, "surgery-amputation", patient, func(health map[string]any) bool {
 		return partMissing(health, part) && !hediffAt(health, "WoundInfection", part)
 	})
 }
@@ -349,18 +358,9 @@ func surgeryHarvest(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["harvest_intent"] = map[string]any{"prisoner": prisoner, "part": cut.Part()}
-	run.stop()
-	// A surgery bill is no clock work, so the harvest completes natively,
-	// then a second service sees the kidney in stock.
-	if err = completeNatively(ctx, s, "surgery-harvest-cut", prisoner, func(health map[string]any) bool { return partMissing(health, cut.Part()) }); err != nil {
-		return err
-	}
-	install, err := startSurgeryRun(ctx, s, "surgery-harvest-install")
-	if err != nil {
-		return err
-	}
-	defer install.stop()
-	return install.until(ctx, 4*time.Minute, func(ctx context.Context, surgeries []domain.Surgery) (string, bool, error) {
+	// The queued cut is clock work (#1238): the same service runs it and
+	// then sees the kidney in stock.
+	return run.until(ctx, 6*time.Minute, func(ctx context.Context, surgeries []domain.Surgery) (string, bool, error) {
 		_, ok := findSurgery(surgeries, patient, part, "InstallNaturalKidney")
 		if ok {
 			report["install_intent"] = map[string]any{"pawn": patient, "part": part}

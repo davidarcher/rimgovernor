@@ -26,7 +26,14 @@ type RoutineSurgeryResult struct {
 	// Harvest is set when the plan carries an organ harvest (#1169)
 	// or an artificial part recovery (#1232).
 	Harvest bool
+	// NativeWorkTicks lends a window while a surgery bill is queued
+	// (#1238): native doctors carry it, and no plan action stays open.
+	NativeWorkTicks uint32
 }
+
+// surgeryNativeWorkTicks is the window a queued bill lends per stop; the
+// next stop reads the bill again.
+const surgeryNativeWorkTicks = medicalWaitTicks
 
 func NewRoutineSurgeryPlanner(reviewer *RoutineReviewer) (*RoutineSurgeryPlanner, error) {
 	if reviewer == nil {
@@ -51,12 +58,30 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineSurgeryResult{Reason: BuildingMethodNoReview}, nil
 	}
+	expected, err := routineScope(call, r.reviewer.native)
+	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
+	}
+	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
+	if err != nil {
+		return RoutineSurgeryResult{}, err
+	}
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
+	if err != nil {
+		return RoutineSurgeryResult{}, err
+	}
+	// A queued bill is clock work whether or not the goal still stands
+	// (#1238): an elective's bill settles its goal before the operation.
+	var ticks uint32
+	if policy.SurgeryBillsQueued(read.Projection.Facts.MedicalPawns, read.Projection.Facts.Prisoners) {
+		ticks = surgeryNativeWorkTicks
+	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainSurgery)
 	if err != nil {
 		return RoutineSurgeryResult{}, err
 	}
 	if !workable {
-		return RoutineSurgeryResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineSurgeryResult{Reason: BuildingMethodNoDeficit, NativeWorkTicks: ticks}, nil
 	}
 	inFlight := map[policy.PawnID]bool{}
 	for _, method := range goal.Methods {
@@ -70,27 +95,15 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
-	expected, err := routineScope(call, r.reviewer.native)
-	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
-	}
-	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
-	if err != nil {
-		return RoutineSurgeryResult{}, err
-	}
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
-	if err != nil {
-		return RoutineSurgeryResult{}, err
-	}
 	if _, known := read.Projection.Facts.MedicalPawns.Value(); !known {
-		return RoutineSurgeryResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineSurgeryResult{Reason: BuildingMethodUnknown, NativeWorkTicks: ticks}, nil
 	}
 	surgery := policy.SurgeryContext{HospitalBed: positiveFact(policy.HospitalBedReady(read.Projection.Facts.Sleeping))}
 	if pawns, known := read.Projection.WorkPawns.Value(); known {
 		surgery.Profiles = policy.Profiles(pawns)
 	}
 	selection := policy.SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight, surgery)
-	result := RoutineSurgeryResult{Wants: selection.Wants}
+	result := RoutineSurgeryResult{Wants: selection.Wants, NativeWorkTicks: ticks}
 	var queue []policy.SurgeryChoice
 	for _, choice := range selection.Queue {
 		if arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
