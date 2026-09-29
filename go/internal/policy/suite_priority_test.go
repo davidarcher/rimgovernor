@@ -8,12 +8,12 @@ import (
 
 func TestSuitePressureSumsListedThoughts(t *testing.T) {
 	got := SuitePressure([]MoodPawn{
-		{ID: "a", Thoughts: domain.Known([]MoodThought{{Def: "NeedRoomSize", Offset: -5}, {Def: "Jealous", Offset: -3}, {Def: "Hungry", Offset: -20}})},
+		{ID: "a", Thoughts: domain.Known([]MoodThought{{Def: "NeedRoomSize", Offset: -5}, {Def: "Jealous", Offset: -3}, {Def: "SharedBed", Offset: -2}, {Def: "Hungry", Offset: -20}})},
 		{ID: "b", Thoughts: domain.Known([]MoodThought{{Def: "Hungry", Offset: -20}})},
 		{ID: "c", Thoughts: domain.Unknown[[]MoodThought]()},
 	})
-	if got["a"] != -8 || got["b"] != 0 || len(got) != 2 {
-		t.Fatalf("pressure = %v, want a -8, b 0, c absent", got)
+	if got["a"] != -10 || got["b"] != 0 || len(got) != 2 {
+		t.Fatalf("pressure = %v, want a -10, b 0, c absent", got)
 	}
 }
 

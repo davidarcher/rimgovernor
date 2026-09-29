@@ -121,7 +121,12 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 	if bedroomsFirst(choice.Method) {
 		// A planned bedroom standing empty takes one bed (#786): the best
 		// on the ladder, else a spot its owner moves into (#1182).
-		if step := bedroomStep(facts); step.Kind == policy.BedroomFurnish {
+		// A wing migration furnishes its active-wing room the same way (#1244).
+		step := bedroomStep(facts)
+		if step.Kind == policy.BedroomNone && choice.Method == policy.SleepingNoDemand {
+			step = migrateStep(facts)
+		}
+		if step.Kind == policy.BedroomFurnish {
 			definition, method := policy.SleepingDefinition(request.Definitions, request.Stocked, false, true)
 			if method != policy.SleepingBuild {
 				return nil, BuildingSleepingUnavailable, nil

@@ -19,6 +19,7 @@ var suitePressureThoughts = map[string]bool{
 	"Greedy":                         true, // ThoughtWorker_Greedy: bedroom impressiveness
 	"TitleBedroomRequirementsNotMet": true, // Royalty
 	"TitleNoPersonalBedroom":         true, // Royalty
+	"SharedBed":                      true, // couple made to share a bed (ThoughtDefOf.SharedBed)
 }
 
 // SuitePressure is each pawn's summed negative offset of the
