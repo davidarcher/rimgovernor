@@ -305,7 +305,7 @@ The durable review records each skipped target and its reason in `ClearanceHolds
 Chunks are hauls, not deconstructions (#394): a chunk stack in Home that is
 allowed, unstored and has no store cell ordinary hauling would take it to is a
 clearance deficit too, and once no building target remains the planner admits
-one low-priority `RimGovernor dumping` stockpile (allow list: the pending chunk
+one low-priority `Dumping` stockpile (allow list: the pending chunk
 definitions plus `ChunkSlagSteel`, so a smelter bill draws from the same dump)
 on the census's `dump_sites` footprint outside held building footprints, one
 cell per pending stack between 4 and 16. The method is content-addressed by

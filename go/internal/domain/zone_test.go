@@ -31,7 +31,7 @@ func TestStockpileZoneCanonicalAndClosedToFoodImportant(t *testing.T) {
 	if z.Kind() != StockpileZone || z.Filter() != FoodFilter() || z.Priority() != ImportantPriority || z.Crop() != "" {
 		t.Fatal("unexpected stockpile zone fields", z)
 	}
-	if z.Label() != "RimGovernor food storage" {
+	if z.Label() != "Food storage" {
 		t.Fatal("unexpected label", z.Label())
 	}
 	same, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, []Cell{{X: 1, Z: 1}, {X: 2, Z: 1}})
@@ -51,7 +51,9 @@ func TestStockpileLabelsFollowFilters(t *testing.T) {
 	larder, _ := NewFilteredStockpileZone(CorpseLarderFilter(), ImportantPriority, cells)
 	dump, _ := allowListZone(LowPriority, []string{"ChunkGranite"}, cells)
 	other, _ := NewFilteredStockpileZone(WornDumpFilter(), LowPriority, cells)
-	for z, want := range map[ZoneCreate]string{larder: "RimGovernor corpse larder", dump: "RimGovernor dumping", other: "RimGovernor stockpile"} {
+	supplies, _ := allowListZone(ImportantPriority, []string{"WoodLog", "Steel", "Cloth"}, cells)
+	many, _ := allowListZone(ImportantPriority, []string{"WoodLog", "Steel", "Cloth", "Silver", "Gold"}, cells)
+	for z, want := range map[ZoneCreate]string{larder: "Corpse larder", dump: "Dumping", other: "Worn gear dump", supplies: "Cloth, Steel, WoodLog", many: "Cloth, Gold, Silver +2 more"} {
 		if z.Label() != want {
 			t.Fatal(z.Label(), want)
 		}
@@ -86,7 +88,7 @@ func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
 		t.Fatal(err)
 	}
 	general, err := NewFilteredStockpileZone(GeneralFilter(), NormalPriority, cells)
-	if err != nil || general.Label() != "RimGovernor general store" {
+	if err != nil || general.Label() != "General store" {
 		t.Fatal(general, err)
 	}
 	for _, z := range []ZoneCreate{growing, stockpile, allowList, general} {
@@ -113,7 +115,7 @@ func TestAllowListStockpileZoneCanonicalAndBounded(t *testing.T) {
 	if z.Kind() != StockpileZone || z.Filter().Base() != BaseNothing || z.Priority() != ImportantPriority {
 		t.Fatal("unexpected allow-list zone fields", z)
 	}
-	if z.Label() != "RimGovernor supplies storage" {
+	if z.Label() != "MealFine, MealSimple" {
 		t.Fatal("unexpected label", z.Label())
 	}
 	names[0] = "Tampered"

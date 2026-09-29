@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
                     id = t.GetUniqueLoadID(), stored = t.GetSlotGroup()?.Settings.AllowedToAccept(t) == true,
                     zone = (t.Position.GetZone(map) as Zone_Stockpile)?.label
                 }).ToList();
-                var zones = map.zoneManager.AllZones.OfType<Zone_Stockpile>().Where(z => z.label == "RimGovernor dumping").Select(z => new {
+                var zones = map.zoneManager.AllZones.OfType<Zone_Stockpile>().Where(z => z.label == "Dumping").Select(z => new {
                     label = z.label, priority = z.GetStoreSettings().Priority.ToString(),
                     allow = z.GetStoreSettings().filter.AllowedThingDefs.Select(d => d.defName).OrderBy(n => n).ToList(),
                     cells = z.Cells.Select(c => new { x = c.x, z = c.z, home = map.areaManager.Home[c], roofed = c.Roofed(map), building = c.GetEdifice(map) != null }).ToList()

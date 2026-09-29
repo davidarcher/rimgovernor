@@ -152,7 +152,7 @@ func TestRoutineClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 		t.Fatal(plan, err)
 	}
 	zone, ok := plan.Spec.Actions()[0].ZoneCreate()
-	if !ok || zone.Priority() != domain.LowPriority || zone.Label() != "RimGovernor dumping" || len(zone.Cells()) != 4 || zone.Cells()[0] != (domain.Cell{X: 50, Z: 60}) {
+	if !ok || zone.Priority() != domain.LowPriority || zone.Label() != "Dumping" || len(zone.Cells()) != 4 || zone.Cells()[0] != (domain.Cell{X: 50, Z: 60}) {
 		t.Fatal(zone, ok)
 	}
 	if allow := allowOf(zone); len(allow) != 2 || allow[0] != "ChunkGranite" || allow[1] != "ChunkSlagSteel" {

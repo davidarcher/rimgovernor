@@ -3,6 +3,7 @@ package bridge
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -26,7 +27,7 @@ func TestPresetFiltersWireUnchanged(t *testing.T) {
 	cells := []domain.Cell{{X: 1, Z: 1}}
 	var zones []legacyZone
 	presets := map[string]domain.StockpileFilter{"food": domain.FoodFilter(), "corpse_larder": domain.CorpseLarderFilter(), "general": domain.GeneralFilter()}
-	labels := map[string]string{"food": "RimGovernor food storage", "corpse_larder": "RimGovernor corpse larder", "general": "RimGovernor general store"}
+	labels := map[string]string{"food": "Food storage", "corpse_larder": "Corpse larder", "general": "General store"}
 	for preset, filter := range presets {
 		for _, priority := range []domain.StockpilePriority{domain.CriticalPriority, domain.ImportantPriority, domain.PreferredPriority, domain.NormalPriority, domain.LowPriority} {
 			z, err := domain.NewFilteredStockpileZone(filter, priority, cells)
@@ -40,7 +41,7 @@ func TestPresetFiltersWireUnchanged(t *testing.T) {
 		}
 	}
 	for _, allow := range [][]string{{"Steel"}, {"Cloth", "Steel", "WoodLog"}} {
-		for priority, label := range map[domain.StockpilePriority]string{domain.LowPriority: "RimGovernor dumping", domain.ImportantPriority: "RimGovernor supplies storage"} {
+		for priority, label := range map[domain.StockpilePriority]string{domain.LowPriority: "Dumping", domain.ImportantPriority: strings.Join(allow, ", ")} {
 			f, err := domain.AllowOnlyFilter(allow)
 			if err != nil {
 				t.Fatal(err)

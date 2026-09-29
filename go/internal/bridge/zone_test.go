@@ -57,7 +57,7 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 	if s.GetType() != op.ZoneType_ZONE_TYPE_STOCKPILE || s.Growing != nil || s.GetStockpile().GetPriority() != op.StoragePriority_STORAGE_PRIORITY_IMPORTANT || s.GetStockpile().GetPreset() != op.FilterPreset_FILTER_PRESET_FOOD {
 		t.Fatal("unexpected stockpile zone configuration", s)
 	}
-	if s.GetLabel() != "RimGovernor food storage" || g.GetLabel() != "RimGovernor crops" {
+	if s.GetLabel() != "Food storage" || g.GetLabel() != "RimGovernor crops" {
 		t.Fatal("unexpected zone labels", g.GetLabel(), s.GetLabel())
 	}
 	allowList, _ := allowListZone(domain.ImportantPriority, []string{"MealSimple", "MealFine"}, cells)
@@ -69,7 +69,7 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 	if len(allow) != 2 || allow[0].GetThingDef() != "MealFine" || allow[1].GetThingDef() != "MealSimple" {
 		t.Fatal("unexpected allow-list filter selectors", allow)
 	}
-	if a.GetLabel() != "RimGovernor supplies storage" {
+	if a.GetLabel() != "MealFine, MealSimple" {
 		t.Fatal("unexpected allow-list zone label", a.GetLabel())
 	}
 	if s.GetStockpile().GetFilter() != nil {

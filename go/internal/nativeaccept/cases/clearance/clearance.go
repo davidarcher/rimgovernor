@@ -237,7 +237,7 @@ func checkDump(live, fixture map[string]any) error {
 	if zone == nil {
 		return fmt.Errorf("no dumping stockpile allows exactly %v: %v", want, live["zones"])
 	}
-	if zone["label"] != "RimGovernor dumping" || zone["priority"] != "Low" {
+	if zone["label"] != "Dumping" || zone["priority"] != "Low" {
 		return fmt.Errorf("incorrect dumping settings: %v", zone)
 	}
 	cells := na.AsSlice(zone["cells"])
@@ -256,7 +256,7 @@ func checkDump(live, fixture map[string]any) error {
 	}
 	for _, raw := range chunks {
 		c, _ := na.AsMap(raw)
-		if !boolean(c["stored"]) || c["zone"] != "RimGovernor dumping" {
+		if !boolean(c["stored"]) || c["zone"] != "Dumping" {
 			return fmt.Errorf("chunk not hauled to dump: %v", c)
 		}
 	}

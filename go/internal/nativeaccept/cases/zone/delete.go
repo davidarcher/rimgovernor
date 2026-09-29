@@ -210,7 +210,7 @@ func run(ctx context.Context, s cases.Session) error {
 			"hitPointsMin": 0.5, "hitPointsMax": 1, "qualityMin": "Normal", "qualityMax": "Legendary"}}
 	create := func() map[string]any {
 		return map[string]any{
-			"label":     "RimGovernor supplies storage",
+			"label":     "Steel, WoodLog",
 			"type":      "ZONE_TYPE_STOCKPILE",
 			"cells":     map[string]any{"explicitCells": map[string]any{"cells": cells}},
 			"stockpile": stockpileBody,

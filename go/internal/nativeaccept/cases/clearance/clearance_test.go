@@ -7,8 +7,8 @@ func TestDumpRequiresNativeStorageAndExactZone(t *testing.T) {
 		t.Run(fault, func(t *testing.T) {
 			fixture := map[string]any{"defs": []any{"ChunkGranite", "ChunkSlate", "ChunkSlagSteel"}}
 			cell := map[string]any{"home": true, "roofed": false, "building": false}
-			zone := map[string]any{"label": "RimGovernor dumping", "priority": "Low", "allow": fixture["defs"], "cells": []any{cell, cell, cell, cell}}
-			chunk := map[string]any{"stored": true, "zone": "RimGovernor dumping"}
+			zone := map[string]any{"label": "Dumping", "priority": "Low", "allow": fixture["defs"], "cells": []any{cell, cell, cell, cell}}
+			chunk := map[string]any{"stored": true, "zone": "Dumping"}
 			live := map[string]any{"zones": []any{zone}, "chunks": []any{chunk, chunk, chunk}}
 			switch fault {
 			case "missing_chunk":

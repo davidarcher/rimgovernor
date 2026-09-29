@@ -3,7 +3,9 @@ package domain
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
+	"strings"
 )
 
 const ZoneCreateAction ActionKind = "zone_create"
@@ -201,21 +203,43 @@ func (z ZoneCreate) Label() string {
 // stockpileLabel names a stockpile by its filter; the named filters keep the
 // labels their retired presets sent native.
 func stockpileLabel(f StockpileFilter, priority StockpilePriority) string {
-	_, allowOnly := f.AllowOnlyDefinitions()
+	definitions, allowOnly := f.AllowOnlyDefinitions()
 	switch {
 	case f == FoodFilter():
-		return "RimGovernor food storage"
+		return "Food storage"
 	case f == CorpseLarderFilter():
-		return "RimGovernor corpse larder"
+		return "Corpse larder"
 	case f == GeneralFilter():
-		return "RimGovernor general store"
+		return "General store"
+	case f == RawFoodFilter():
+		return "Raw food"
+	case f == ApparelFilter():
+		return "Apparel"
+	case f == WeaponsFilter():
+		return "Weapons"
+	case f == WornDumpFilter():
+		return "Worn gear dump"
+	case f == RottenDumpFilter():
+		return "Rotten dump"
+	case f == CorpseDumpFilter():
+		return "Corpse dump"
 	case allowOnly && priority == LowPriority:
-		return "RimGovernor dumping"
+		return "Dumping"
 	case allowOnly:
-		return "RimGovernor supplies storage"
+		return definitionList(definitions)
 	default:
-		return "RimGovernor stockpile"
+		return "Stockpile"
 	}
+}
+
+// definitionList names up to three definitions and counts the rest, so a
+// label stays short enough for the zone tab.
+func definitionList(definitions []string) string {
+	const shown = 3
+	if len(definitions) <= shown {
+		return strings.Join(definitions, ", ")
+	}
+	return fmt.Sprintf("%s +%d more", strings.Join(definitions[:shown], ", "), len(definitions)-shown)
 }
 
 func NewZoneCreateAction(id ActionID, z ZoneCreate) (Action, error) {
