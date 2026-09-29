@@ -40,12 +40,13 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 }
 
 // ReplanLayout grows plan for pawns colonists and tombs tomb rooms over a
-// fresh survey: rooms now on no-go ground are dropped, the rest never move.
+// fresh survey, with Grow's suites: rooms now on no-go ground are dropped,
+// the rest never move.
 // With the rooms unchanged the perimeter alone is replanned (#954), which
 // changes the plan when the ground on or near the ring did (ground a
 // moisture pump dried, a mined-out ring cell). It reports whether the plan
 // changed.
-func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) (LayoutPlan, bool) {
+func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, suites ...float64) (LayoutPlan, bool) {
 	zones := Zone(s)
 	noGo := map[domain.Cell]bool{}
 	for _, z := range zones {
@@ -69,7 +70,7 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier
 	next.Rooms, next.Wings, next.Zones = kept, wings, zones
 	before := len(next.AllRooms())
 	dropped := before != len(plan.AllRooms())
-	next = Grow(next, pawns, tombs, tier)
+	next = Grow(next, pawns, tombs, tier, suites...)
 	if !dropped && len(next.AllRooms()) == before {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
 		return fresh, !samePerimeter(plan, fresh)

@@ -204,6 +204,8 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 			}
 			continue
 		}
+		// A room short of space is its owner's suite claim (#1216), not a
+		// bigger bed's.
 		if !tk || !qk || t.NeverUpgrade || t.Min <= 0 || q.Impressiveness >= t.Min || (t.Max > 0 && q.Impressiveness >= t.Max) || WeakestRoomStat(q) == RoomStatSpace {
 			continue
 		}

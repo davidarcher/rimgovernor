@@ -24,7 +24,7 @@ func bedroomStep(facts observation.ColonyProjection) policy.BedroomStep {
 	if !pk || !rk || !sk {
 		return policy.BedroomStep{}
 	}
-	return policy.NextBedroomStep(plan, rooms, sleeping, bedroomTargets(facts))
+	return policy.NextBedroomStep(plan, rooms, sleeping, bedroomTargets(facts), sleepingTraits(facts))
 }
 
 // bedroomTargets is the rooms' quality targets, so a bedroom move leaves an
@@ -39,10 +39,27 @@ func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTa
 	return policy.RoomQualityTargets(obs, traits, tier)
 }
 
+// suiteTargets is the suites Grow keeps and adds for plan (#1216), nil
+// while the room, sleeping or work census is unknown.
+func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan) []float64 {
+	rooms, rk := facts.Rooms.Value()
+	sleeping, sk := facts.Facts.Sleeping.Value()
+	traits := sleepingTraits(facts)
+	if !rk || !sk || traits == nil {
+		return nil
+	}
+	claims := policy.SuiteClaims(plan, rooms, sleeping, bedroomTargets(facts), traits)
+	return policy.SuiteTargets(plan, rooms, sleeping, claims)
+}
+
+// BuildingSuiteStock: a suite's shell waits until its walls are in stock
+// (#1216).
+const BuildingSuiteStock RoutineBuildingReason = "suite_materials_short"
+
 // bedroomsOwed is the review's BedroomsOwed fact for the projection.
 // A due room quality swap (#813) owes a bedroom too.
 func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	owed := policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts))
+	owed := policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts), sleepingTraits(facts))
 	if v, known := owed.Value(); known && !v {
 		if _, swap := bedroomSwap(facts); swap {
 			return domain.Known(true)
@@ -106,6 +123,14 @@ func bedroomRing(room policy.LayoutRoom, doors map[domain.Cell]bool, order []dom
 // shellBedroom previews and admits the planned room's walls and door. A
 // refused cell makes the slot no site this step.
 func (r *RoutineSleepingUpkeepPlanner) shellBedroom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.BedroomStep) (RoutineBuildingResult, error) {
+	// A suite is only started with its whole ring in stock (#1216).
+	if step.Room.Role == policy.ModuleSuite {
+		in := step.Room.Interior
+		_, walls, _ := reading.Projection.StockedStuff("Wall")
+		if walls < int64(2*(in.Width+in.Height)+4) {
+			return RoutineBuildingResult{Reason: BuildingSuiteStock}, nil
+		}
+	}
 	return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, bedroomMethod(step.Kind, step.Room), bedroomShellReason(step))
 }
 

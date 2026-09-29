@@ -57,7 +57,14 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 		tombs = layout.Plan.TombRooms() + 1
 	}
 	tomb = tomb && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || quadrum || tomb) {
+	// A pawn owed a suite no planned suite answers (#1216): grow the suite
+	// wing, at most once a day.
+	var suites []float64
+	if haveLayout {
+		suites = suiteTargets(*projection, layout.Plan)
+	}
+	suite := haveLayout && len(suites) > layout.Plan.SuiteRooms() && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || quadrum || tomb || suite) {
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)
 		} else {
@@ -66,7 +73,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 				topology, _ := projection.PowerPlanning.Value()
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers)
 			} else {
-				err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, layoutTier(*projection), outgrown)
+				err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, layoutTier(*projection), outgrown, suites)
 			}
 			if err != nil {
 				return err
@@ -175,8 +182,8 @@ func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, tier policy.BuildTier, outgrown bool) error {
-	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs, tier)
+func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, tier policy.BuildTier, outgrown bool, suites []float64) error {
+	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs, tier, suites...)
 	if next.TombRooms() < tombs {
 		clockSchedulerLog("layout plan holds no room for tomb %d", tombs)
 	}

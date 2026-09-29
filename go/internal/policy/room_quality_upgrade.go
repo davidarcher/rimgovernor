@@ -13,6 +13,7 @@ import (
 // cleanliness decides whether a piece helps at all:
 //   - space weakest: nothing is added, since every furniture tile costs the
 //     room 0.9 space and the weakest stat carries about half the score;
+//     the owner is given a suite instead (SuiteClaims, #1216);
 //   - otherwise the slots go in lever order (end table, dresser, then the
 //     lamp), each adding wealth.
 //

@@ -38,7 +38,7 @@ func TestNextBedroomSwap(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got, ok := NextBedroomSwap(swapFixture(), c.traits)
+			got, ok := NextBedroomSwap(swapFixture(), c.traits, nil)
 			if ok != c.ok || got != c.want {
 				t.Fatalf("got %+v %v, want %+v %v", got, ok, c.want, c.ok)
 			}
@@ -46,7 +46,7 @@ func TestNextBedroomSwap(t *testing.T) {
 	}
 	obs := swapFixture()
 	obs.Beds[1].AccessibleTo = []PawnID{"b"}
-	if got, ok := NextBedroomSwap(obs, map[PawnID]TraitEffects{"a": {Jealous: true}}); !ok || got.Bed != "b3" {
+	if got, ok := NextBedroomSwap(obs, map[PawnID]TraitEffects{"a": {Jealous: true}}, nil); !ok || got.Bed != "b3" {
 		t.Fatalf("inaccessible best room: got %+v %v", got, ok)
 	}
 }

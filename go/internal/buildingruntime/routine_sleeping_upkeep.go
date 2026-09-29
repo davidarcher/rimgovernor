@@ -93,7 +93,9 @@ func bedroomSwap(facts observation.ColonyProjection) (policy.BedroomSwap, bool) 
 	if !known || traits == nil {
 		return policy.BedroomSwap{}, false
 	}
-	return policy.NextBedroomSwap(obs, traits)
+	plan, _ := facts.LayoutPlan.Value()
+	rooms, _ := facts.Rooms.Value()
+	return policy.NextBedroomSwap(obs, traits, policy.SuiteRoomIDs(plan, rooms))
 }
 
 // bedroomsFirst reports whether the bedroom ladder answers a sleeping

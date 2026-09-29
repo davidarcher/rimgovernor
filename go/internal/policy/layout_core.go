@@ -64,9 +64,9 @@ func PlanCore(zones []LayoutZone, pawns int, tier BuildTier) LayoutPlan {
 // that no longer fit are left out. A new bedroom wing takes tier's room
 // size (#1214).
 // suites are the impressiveness targets of the suites wanted, in order;
-// the suite wing is sited and grown to one suite each (#1215). Who gets
-// one is #1216; until then callers pass none and a plan's existing suite
-// wing is only kept.
+// the suite wing is sited and grown to one suite each (#1215); SuiteTargets
+// builds it from the pawns SuiteClaims finds (#1216), and none keeps a
+// plan's existing suite wing as it is.
 func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
 	if len(g.core) == 0 {

@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"math"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -45,8 +43,7 @@ func init() {
 // smallest area within 3-7 x 4-8 wins, then the squarer, then the
 // narrower; a target no suite reaches gets the largest.
 func SuiteSize(target float64) (int32, int32) {
-	space := 125 * max(target, 0) / 100
-	cells := int32(math.Ceil((space + 0.9*suiteFurnitureTiles) / 1.4))
+	cells := suiteCells(target)
 	bw, bd := suiteMaxWidth, suiteMaxDepth
 	for w := suiteMinWidth; w <= suiteMaxWidth; w++ {
 		for d := suiteMinDepth; d <= suiteMaxDepth; d++ {

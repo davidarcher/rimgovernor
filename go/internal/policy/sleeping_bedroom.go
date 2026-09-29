@@ -52,7 +52,7 @@ type BedroomStep struct {
 // fact it needs is unknown.
 // A colonist whose current room RoomTargets marks NeverUpgrade (an ascetic,
 // #826) counts as housed: the move never takes them from the plainest room.
-func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget) BedroomStep {
+func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget, traits map[PawnID]TraitEffects) BedroomStep {
 	if len(sleeping.People) == 0 || len(sleeping.People) != sleeping.Colonists {
 		return BedroomStep{}
 	}
@@ -114,13 +114,32 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		b := beds[left[0]]
 		return BedroomStep{Kind: BedroomClear, Bed: b.ID, Cells: []domain.Cell{b.Cell}, Unhoused: len(unhoused)}
 	}
+	// Once the standard rooms have nothing to do, a qualifying pawn is
+	// walked into a suite (#1216).
+	suiteStep := func() BedroomStep {
+		step := nextSuiteStep(plan, rooms, sleeping, SuiteClaims(plan, rooms, sleeping, targets, traits))
+		step.Unhoused = len(unhoused)
+		return step
+	}
 	if len(unhoused) == 0 {
-		return BedroomStep{}
+		return suiteStep()
+	}
+	// A suite's bed is its claimant's, never an unhoused pawn's.
+	suiteBed := map[string]bool{}
+	for _, r := range plan.AllRooms() {
+		if r.Role != ModuleSuite {
+			continue
+		}
+		if room, ok := PlannedRoomStanding(r, rooms); ok {
+			for _, b := range room.Beds {
+				suiteBed[b] = true
+			}
+		}
 	}
 	vacant := []string{}
 	for id, housed := range bedroomBed {
 		b, ok := beds[id]
-		if !housed || !ok || len(b.Owners) > 0 {
+		if !housed || !ok || len(b.Owners) > 0 || suiteBed[id] {
 			continue
 		}
 		human, hk := b.Humanlike.Value()
@@ -164,7 +183,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		return BedroomStep{Kind: BedroomShell, Room: unbuilt[0], Unhoused: len(unhoused)}
 	}
 	// No slot left: Unhoused still counts who stays outside a bedroom.
-	return BedroomStep{Unhoused: len(unhoused)}
+	return suiteStep()
 }
 
 // BedResearch unlocks Bed and DoubleBed.
@@ -186,7 +205,7 @@ func BedResearchRequest(needs []string, plan LayoutPlan, rooms RoomObservation, 
 			return needs
 		}
 	}
-	if step := NextBedroomStep(plan, rooms, sleeping, targets); step.Kind != BedroomNone || step.Unhoused > 0 {
+	if step := NextBedroomStep(plan, rooms, sleeping, targets, nil); step.Kind != BedroomNone && step.Room.Role != ModuleSuite || step.Unhoused > 0 {
 		return needs
 	}
 	return append(append([]string(nil), needs...), BedResearch)
@@ -194,14 +213,14 @@ func BedResearchRequest(needs []string, plan LayoutPlan, rooms RoomObservation, 
 
 // BedroomsOwed is the review's bedroom deficit: known true while a bedroom
 // step is due, unknown while the plan, room or sleeping census is.
-func BedroomsOwed(plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], sleeping domain.Fact[SleepingObservation], targets map[string]RoomTarget) domain.Fact[bool] {
+func BedroomsOwed(plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], sleeping domain.Fact[SleepingObservation], targets map[string]RoomTarget, traits map[PawnID]TraitEffects) domain.Fact[bool] {
 	p, pk := plan.Value()
 	r, rk := rooms.Value()
 	s, sk := sleeping.Value()
 	if !pk || !rk || !sk {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(NextBedroomStep(p, r, s, targets).Kind != BedroomNone)
+	return domain.Known(NextBedroomStep(p, r, s, targets, traits).Kind != BedroomNone)
 }
 
 func containsPawn(ids []PawnID, id PawnID) bool {

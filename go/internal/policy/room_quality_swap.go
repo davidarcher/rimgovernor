@@ -66,8 +66,17 @@ type BedroomSwap struct {
 // owner neither ascetic nor jealous. Each swap strictly moves the better room
 // to the colonist who wants it, so the ranking settles; two jealous
 // colonists are never displaced for each other.
-func NextBedroomSwap(obs SleepingObservation, traits map[PawnID]TraitEffects) (BedroomSwap, bool) {
-	rooms := soloBedrooms(obs)
+//
+// Suites (the census ids in suites, #1216) never swap: each is its
+// claimant's, so a Jealous colonist outdone by a suite earns a suite of
+// their own (SuiteClaims) and an ascetic is never moved into one.
+func NextBedroomSwap(obs SleepingObservation, traits map[PawnID]TraitEffects, suites map[string]bool) (BedroomSwap, bool) {
+	var rooms []soloBedroom
+	for _, r := range soloBedrooms(obs) {
+		if !suites[r.room] {
+			rooms = append(rooms, r)
+		}
+	}
 	accessible := map[string][]PawnID{}
 	for _, b := range obs.Beds {
 		accessible[b.ID] = b.AccessibleTo
