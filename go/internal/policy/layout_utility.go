@@ -62,11 +62,14 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	plan.Reservations = append([]LayoutReservation(nil), plan.Reservations...)
 	plan.Zones = append([]LayoutZone(nil), plan.Zones...)
 	has := false
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		has = has || r.Role == ModuleBattery
 	}
 	if !has {
 		g := newCoreGrid(plan.Zones, plan.Reservations)
+		for _, w := range plan.Wings {
+			g.carve(wingReserve(w, 0))
+		}
 		// The battery room stays on the main hallway (BatterySlots reads
 		// a north or south door), clear of the crossings.
 		if seg, room, ok := g.placeOn(plan.Spine, 0, plan.Rooms, ModuleBattery, batteryRoomSize); ok {
@@ -76,7 +79,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	}
 	u := newUtilityGrid(plan)
 	for _, role := range coolingRoles {
-		for _, r := range plan.Rooms {
+		for _, r := range plan.AllRooms() {
 			if r.Role != role {
 				continue
 			}
@@ -187,7 +190,7 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 	var out []PlannedPowerSite
 	switch definition {
 	case BatteryDefinition:
-		for _, r := range plan.Rooms {
+		for _, r := range plan.AllRooms() {
 			if r.Role != ModuleBattery {
 				continue
 			}
@@ -247,7 +250,7 @@ type PlannedCoolerSite struct {
 func PlannedCoolerSites(plan LayoutPlan) []PlannedCoolerSite {
 	var out []PlannedCoolerSite
 	for _, role := range coolingRoles {
-		for _, r := range plan.Rooms {
+		for _, r := range plan.AllRooms() {
 			if r.Role != role {
 				continue
 			}
@@ -335,10 +338,10 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 			}
 		}
 	}
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		u.mark(roomWalls(r))
 	}
-	for _, s := range plan.Spine {
+	for _, s := range plan.Hallways() {
 		x0, x1 := min(s.From.X, s.To.X), max(s.From.X, s.To.X)
 		z0, z1 := min(s.From.Z, s.To.Z), max(s.From.Z, s.To.Z)
 		u.mark(Rectangle{X: x0 - SpineWidth/2, Z: z0 - SpineWidth/2, Width: x1 - x0 + SpineWidth, Height: z1 - z0 + SpineWidth})

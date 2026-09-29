@@ -98,7 +98,7 @@ func (p LayoutPlan) DistrictAnchor(district District, free func(Rectangle) bool)
 // room whose interior holds it, Fields inside a field zone, and "" off
 // every room and field.
 func (p LayoutPlan) District(c domain.Cell) District {
-	for _, r := range p.Rooms {
+	for _, r := range p.AllRooms() {
 		in := r.Interior
 		if c.X >= in.X && c.X < in.X+in.Width && c.Z >= in.Z && c.Z < in.Z+in.Height {
 			return roomDistricts[r.Role]

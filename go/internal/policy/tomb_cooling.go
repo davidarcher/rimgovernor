@@ -41,7 +41,7 @@ func WarmTombs(coolers domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms do
 		}
 	}
 	var out []string
-	for _, planned := range p.Rooms {
+	for _, planned := range p.AllRooms() {
 		if planned.Role != ModuleTomb && planned.Role != ModuleMealCloset {
 			continue
 		}

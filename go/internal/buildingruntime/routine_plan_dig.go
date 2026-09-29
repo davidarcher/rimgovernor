@@ -139,7 +139,7 @@ func (b *RoutineBuildingPlanner) digPlannedShells(call, epoch context.Context, s
 	if !ok {
 		return RoutineBuildingResult{}, false, nil
 	}
-	for _, room := range plan.Rooms {
+	for _, room := range plan.AllRooms() {
 		if room.Role != want || !room.Dug || len(plan.RoomDig(room, s.facts.Cells)) == 0 {
 			continue
 		}
@@ -159,7 +159,7 @@ func (b *RoutineBuildingPlanner) digExhaust(call, epoch context.Context, s excav
 	if tier, ok := s.facts.BuildTier.Value(); !pk || !rk || !ok || tier < policy.BuildTierMasonry {
 		return RoutineBuildingResult{}, false, nil
 	}
-	for _, room := range plan.Rooms {
+	for _, room := range plan.AllRooms() {
 		site, _, ok := plan.CoolerExhaust(room)
 		if !ok {
 			continue

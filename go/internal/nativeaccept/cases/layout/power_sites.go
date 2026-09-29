@@ -112,7 +112,7 @@ func powerSites(ctx context.Context, s cases.Session) error {
 				}
 			}
 			report["sites"] = checked
-			for _, room := range layout.Plan.Rooms {
+			for _, room := range layout.Plan.AllRooms() {
 				if room.Role != policy.ModuleBattery {
 					continue
 				}

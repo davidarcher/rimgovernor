@@ -52,7 +52,7 @@ func plannedRoomCells(facts observation.ColonyProjection, module policy.ModuleRo
 	if !known {
 		return nil
 	}
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		if r.Role != module {
 			continue
 		}

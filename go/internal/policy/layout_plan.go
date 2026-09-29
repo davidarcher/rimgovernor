@@ -80,8 +80,10 @@ type LayoutReservation struct {
 
 // LayoutPlan is the v2 colony layout.
 type LayoutPlan struct {
-	Spine        []SpineSegment
+	Spine []SpineSegment
+	// Rooms are the rooms hung off the spine; a wing holds its own (#1213).
 	Rooms        []LayoutRoom
+	Wings        []Wing `json:",omitempty"`
 	Zones        []LayoutZone
 	Reservations []LayoutReservation
 }
@@ -93,7 +95,7 @@ type LayoutPlan struct {
 // slot.
 func (p LayoutPlan) Anchor(want ModuleRole, free func(room Rectangle) bool) (domain.Cell, bool) {
 	for _, role := range []ModuleRole{want, ModuleReserve} {
-		for _, r := range p.Rooms {
+		for _, r := range p.AllRooms() {
 			if r.Role == role && (free == nil || free(r.Interior)) {
 				return domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}, true
 			}
@@ -105,15 +107,20 @@ func (p LayoutPlan) Anchor(want ModuleRole, free func(room Rectangle) bool) (dom
 // Valid reports a plan a store may persist: at least one room, straight
 // spine segments, non-empty rectangles and runs, and a real door rotation.
 func (p LayoutPlan) Valid() bool {
-	if len(p.Rooms) == 0 {
+	if len(p.AllRooms()) == 0 {
 		return false
 	}
-	for _, s := range p.Spine {
+	for _, w := range p.Wings {
+		if w.Purpose == "" || len(w.Rooms) == 0 {
+			return false
+		}
+	}
+	for _, s := range p.Hallways() {
 		if s.From.X != s.To.X && s.From.Z != s.To.Z {
 			return false
 		}
 	}
-	for _, r := range p.Rooms {
+	for _, r := range p.AllRooms() {
 		if r.Role == "" || r.Interior.Width < 1 || r.Interior.Height < 1 {
 			return false
 		}

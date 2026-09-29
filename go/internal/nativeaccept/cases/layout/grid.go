@@ -177,7 +177,7 @@ func plannedRing(plan policy.LayoutPlan, shell []shellCell, report na.Report) er
 			ring[c.cell] = c.def
 		}
 	}
-	for _, room := range plan.Rooms {
+	for _, room := range plan.AllRooms() {
 		fp, err := room.Footprint()
 		if err != nil {
 			continue
@@ -198,13 +198,13 @@ func plannedRing(plan policy.LayoutPlan, shell []shellCell, report na.Report) er
 			return fmt.Errorf("the planned %s room's door cell %v holds %q, not a door", room.Role, room.Door, def)
 		}
 		threshold, half := fp.Threshold(), policy.SpineWidth/2
-		for _, s := range plan.Spine {
+		for _, s := range plan.Hallways() {
 			if threshold.X >= min(s.From.X, s.To.X)-half && threshold.X <= max(s.From.X, s.To.X)+half &&
 				threshold.Z >= min(s.From.Z, s.To.Z)-half && threshold.Z <= max(s.From.Z, s.To.Z)+half {
 				return nil
 			}
 		}
-		return fmt.Errorf("the planned %s room's door %v opens onto %v, off every spine hallway %v", room.Role, room.Door, threshold, plan.Spine)
+		return fmt.Errorf("the planned %s room's door %v opens onto %v, off every hallway %v", room.Role, room.Door, threshold, plan.Hallways())
 	}
 	return fmt.Errorf("the stone ring (%d cells) matches no planned room's walls", len(ring))
 }

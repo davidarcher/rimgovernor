@@ -102,10 +102,10 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 			label(style.label, centre(r.Area))
 		}
 	}
-	spine := spineRects(p.Spine)
+	spine := spineRects(p.Hallways())
 	add(overlayStyle{planGray, "hallway"}, OverlayFill, spine, nil)
 	add(overlayStyle{planYellow, "traffic"}, OverlayFill, nil, cellRuns(busiestSpineCells(p, spine)))
-	for _, r := range p.Rooms {
+	for _, r := range p.AllRooms() {
 		style, ok := roomOverlay[r.Role]
 		if !ok {
 			continue

@@ -27,7 +27,7 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 	if len(p.Spine) == 0 || !p.Valid() {
 		t.Fatalf("plan %+v", p)
 	}
-	halls := spineRects(p.Spine)
+	halls := spineRects(p.Hallways())
 	hall := func(c domain.Cell) bool {
 		for _, h := range halls {
 			if rectsOverlap(h, Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}) {
@@ -37,17 +37,15 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 		return false
 	}
 	count := map[ModuleRole]int{}
-	for i, a := range p.Rooms {
+	rooms := p.AllRooms()
+	for i, a := range rooms {
 		count[a.Role]++
 		// The door is in the wall and opens on a hallway.
 		step := map[domain.Rotation]domain.Cell{domain.North: {Z: 1}, domain.South: {Z: -1}, domain.East: {X: 1}, domain.West: {X: -1}}[a.DoorRot]
 		if !hall(domain.Cell{X: a.Door.X + step.X, Z: a.Door.Z + step.Z}) {
 			t.Fatal("room off the spine", a)
 		}
-		if a.Role == ModuleBedroom && a.Interior.Width*a.Interior.Height < 25 {
-			t.Fatal("small bedroom", a)
-		}
-		for j, b := range p.Rooms {
+		for j, b := range rooms {
 			if i == j {
 				continue
 			}
@@ -62,7 +60,7 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 		t.Fatal("bedrooms", count)
 	}
 	for _, role := range coreBaseRooms {
-		if count[role] != 1 {
+		if count[role] != 1 && (role != ModuleTomb || count[role] < 1) {
 			t.Fatal("missing", role)
 		}
 	}
@@ -93,8 +91,8 @@ func TestGrowKeepsRooms(t *testing.T) {
 
 func TestGrowStopsAtEdge(t *testing.T) {
 	g := PlanCore(coreTestZones(), 500)
-	if len(g.Rooms) < 20 || len(g.Rooms) > 500 {
-		t.Fatal("rooms", len(g.Rooms))
+	if n := len(g.AllRooms()); n < 20 || n > 500 {
+		t.Fatal("rooms", len(g.AllRooms()))
 	}
 	for _, r := range g.Rooms {
 		if r.Interior.X < LayoutEdgeMargin || r.Interior.X+r.Interior.Width > 120-LayoutEdgeMargin {
@@ -221,23 +219,24 @@ func TestCoreReservesCentreCrossing(t *testing.T) {
 	}
 }
 
-// A growing colony fills the main hallway, then its crossings, each on
+// A growing core fills the main hallway, then its crossings, each on
 // both sides of the main hallway, never one (no L or U); rooms never move
 // and every door opens on a hallway (#952).
 func TestGrowBranchesIntoCrossings(t *testing.T) {
 	zones := coreTestZones()
 	p := PlanCore(zones, 3)
-	for _, pawns := range []int{10, 20, 30} {
-		g := Grow(p, pawns, 1)
+	// Bedrooms live in the wing (#1213); tomb rooms fill the hallways.
+	for _, tombs := range []int{10, 20, 30} {
+		g := Grow(p, 3, tombs)
 		for i, r := range p.Rooms {
 			if g.Rooms[i] != r {
 				t.Fatal("moved", r, g.Rooms[i])
 			}
 		}
 		if _, err := CheckRoutes(g); err != nil {
-			t.Fatal(pawns, err)
+			t.Fatal(tombs, err)
 		}
-		checkCore(t, g, pawns)
+		checkCore(t, g, 3)
 		p = g
 	}
 	if len(p.Spine) < 3 {

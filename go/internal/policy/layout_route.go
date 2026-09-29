@@ -34,7 +34,8 @@ var noThroughfare = map[ModuleRole]bool{
 func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 	walk := map[domain.Cell]int{} // cell -> room index, -1 for hallway/door
 	var entrance []domain.Cell
-	for _, s := range p.Spine {
+	rooms := p.AllRooms()
+	for i, s := range p.Hallways() {
 		lo, hi := s.From, s.To
 		if lo.X > hi.X || lo.Z > hi.Z {
 			lo, hi = hi, lo
@@ -48,14 +49,15 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 						c = domain.Cell{X: x + d, Z: z}
 					}
 					walk[c] = -1
-					if alongX && (x == lo.X || x == hi.X) || !alongX && (z == lo.Z || z == hi.Z) {
+					// A wing corridor is a dead end, not an entrance.
+					if i < len(p.Spine) && (alongX && (x == lo.X || x == hi.X) || !alongX && (z == lo.Z || z == hi.Z)) {
 						entrance = append(entrance, c)
 					}
 				}
 			}
 		}
 	}
-	for i, r := range p.Rooms {
+	for i, r := range rooms {
 		in := r.Interior
 		for x := in.X; x < in.X+in.Width; x++ {
 			for z := in.Z; z < in.Z+in.Height; z++ {
@@ -63,7 +65,7 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 			}
 		}
 	}
-	for _, r := range p.Rooms {
+	for _, r := range rooms {
 		if _, ok := walk[r.Door]; !ok {
 			walk[r.Door] = -1
 		}
@@ -79,7 +81,7 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 			return [][]domain.Cell{entrance}
 		}
 		var out [][]domain.Cell
-		for _, r := range p.Rooms {
+		for _, r := range rooms {
 			if r.Role == role {
 				out = append(out, []domain.Cell{{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}})
 			}
@@ -100,8 +102,8 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 			ends := map[int]bool{walk[path[0]]: true, walk[path[len(path)-1]]: true}
 			for _, c := range path {
 				traffic[c]++
-				if i := walk[c]; i >= 0 && !ends[i] && noThroughfare[p.Rooms[i].Role] {
-					return nil, fmt.Errorf("%s -> %s crosses %s at %v", trip[0], trip[1], p.Rooms[i].Role, c)
+				if i := walk[c]; i >= 0 && !ends[i] && noThroughfare[rooms[i].Role] {
+					return nil, fmt.Errorf("%s -> %s crosses %s at %v", trip[0], trip[1], rooms[i].Role, c)
 				}
 			}
 		}

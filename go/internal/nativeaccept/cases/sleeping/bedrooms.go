@@ -2,7 +2,7 @@
 // starts from the layout/grid fixture (tribal baseline, Stonecutting
 // finished so the tier reads Masonry, a fixture hut with sleeping spots and
 // stone blocks beside it): the sleeping planner first beds everyone in the
-// hut, then orders the layout plan's first 5x5 bedroom (the fixture
+// hut, then orders the layout plan's first bedroom-wing room (the fixture
 // raises its ring as soon as it is ordered), stages a bed in it and moves a colonist's ownership there. The case asserts that move
 // natively: the colonist owns the new bed, and the barracks bed they left
 // still stands as a spare.
@@ -40,7 +40,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "sleeping/bedrooms",
 		Scope: "Issue #786: on the tribal " + sustained.BaselineSave + " colony at Masonry with a fixture hut, once every colonist " +
-			"owns a bed the sleeping planner builds the layout plan's first 5x5 bedroom and moves a colonist from the barracks " +
+			"owns a bed the sleeping planner builds the layout plan's first bedroom-wing room and moves a colonist from the barracks " +
 			"into it: the native pawn read shows the colonist owning the bedroom bed, and the barracks bed they left still " +
 			"stands as a spare. A snapshot test cannot cover it: the move is proven by native bed ownership after real " +
 			"construction encloses the planned room.",

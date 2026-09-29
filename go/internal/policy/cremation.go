@@ -59,7 +59,7 @@ func NextCremationStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem
 	if step.Kind == CremationBill {
 		return step
 	}
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		if r.Role != ModuleWorkshop {
 			continue
 		}

@@ -24,9 +24,8 @@ const (
 )
 
 // coreRoomSize is a role's interior: width along the spine, depth away
-// from it. Bedrooms are 5x5 (25 cells, the very-impressive floor).
+// from it. Bedrooms live in the wing (layout_wing.go).
 var coreRoomSize = map[ModuleRole][2]int32{
-	ModuleBedroom:  {5, 5},
 	ModuleBarracks: {7, 5},
 	ModuleKitchen:  {6, 5},
 	ModuleFreezer:  {5, 5},
@@ -58,7 +57,7 @@ func PlanCore(zones []LayoutZone, pawns int) LayoutPlan {
 }
 
 // Grow adds whatever rooms plan lacks for pawns colonists (the base set,
-// then one bedroom each, then tomb rooms up to tombs, #857) by extending the
+// then the bedroom wing to one room each, then tomb rooms up to tombs, #857) by extending the
 // spine, and a meal closet behind the dining room when no freezer opens
 // into it (#936); existing rooms never move.
 // A plan with no spine gets one near the core candidates' centre. Rooms
@@ -79,17 +78,12 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 	for _, r := range plan.Rooms {
 		have[r.Role]++
 	}
-	// The bedrooms queue right behind the storage room, so the wing takes
-	// the slots beside it before the later base rooms do (#1178).
+	// The bedroom wing is sited right behind the storage room, so it takes
+	// the ground beside it before the later base rooms do (#1178).
 	var want []ModuleRole
 	for _, role := range coreBaseRooms {
-		if have[role] == 0 {
+		if have[role] == 0 || role == ModuleStorage {
 			want = append(want, role)
-		}
-		if role == ModuleStorage {
-			for i := have[ModuleBedroom]; i < pawns; i++ {
-				want = append(want, ModuleBedroom)
-			}
 		}
 	}
 	for i := max(have[ModuleTomb], 1); i < tombs; i++ {
@@ -97,6 +91,12 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 	}
 	rooms := append([]LayoutRoom(nil), plan.Rooms...)
 	spine := append([]SpineSegment(nil), plan.Spine...)
+	wings := plan.Wings
+	// Other rooms stay off the wing's ground and its growth reserve.
+	base := newCoreGrid(plan.Zones, plan.Reservations)
+	if i := bedroomWing(wings); i >= 0 {
+		g.carve(wingReserve(wings[i], pawns))
+	}
 	if len(spine) == 1 {
 		// The centre crossing is laid first so no room takes its column (#952).
 		if next, ok := g.addCrossing(spine, rooms); ok {
@@ -104,13 +104,13 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 		}
 	}
 	for _, role := range want {
-		placed, fit := false, false
-		pg := g
-		if role == ModuleBedroom {
-			pg.near, pg.hasNear = wingAnchor(rooms)
+		if role == ModuleStorage && have[role] > 0 {
+			spine, wings = growWing(g, base, spine, rooms, wings, pawns)
+			continue
 		}
+		placed, fit := false, false
 		for !placed {
-			for _, i := range segmentOrder(spine, rooms, role) {
+			for i := range spine {
 				var next SpineSegment
 				var room LayoutRoom
 				ok := false
@@ -120,7 +120,7 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 					room, ok = local.beside(&next, rooms, role)
 				}
 				if !ok {
-					next, room, ok = pg.placeOn(spine, i, rooms, role, coreRoomSize[role])
+					next, room, ok = g.placeOn(spine, i, rooms, role, coreRoomSize[role])
 				}
 				if !ok {
 					continue
@@ -131,7 +131,7 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 				trial := append(append([]LayoutRoom(nil), rooms...), room)
 				grown := append([]SpineSegment(nil), spine...)
 				grown[i] = next
-				if _, err := CheckRoutes(LayoutPlan{Spine: grown, Rooms: trial}); err != nil {
+				if _, err := CheckRoutes(LayoutPlan{Spine: grown, Rooms: trial, Wings: wings}); err != nil {
 					continue
 				}
 				spine, rooms, placed = grown, trial, true
@@ -149,15 +149,28 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 		if !fit {
 			break
 		}
+		if role == ModuleStorage {
+			spine, wings = growWing(g, base, spine, rooms, wings, pawns)
+		}
 	}
 	if closet, ok := g.mealCloset(rooms); ok {
 		trial := append(append([]LayoutRoom(nil), rooms...), closet)
-		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Rooms: trial}); err == nil {
+		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Rooms: trial, Wings: wings}); err == nil {
 			rooms = trial
 		}
 	}
-	plan.Spine, plan.Rooms = spine, rooms
+	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
 	return plan
+}
+
+// growWing grows the bedroom wing over base (the core with no wing ground
+// carved out) and carves its ground out of g.
+func growWing(g, base coreGrid, spine []SpineSegment, rooms []LayoutRoom, wings []Wing, pawns int) ([]SpineSegment, []Wing) {
+	spine, wings = base.growWing(spine, rooms, wings, pawns)
+	if i := bedroomWing(wings); i >= 0 {
+		g.carve(wingReserve(wings[i], pawns))
+	}
+	return spine, wings
 }
 
 type coreGrid struct {
@@ -168,10 +181,6 @@ type coreGrid struct {
 	// the hallway): rooms go to whichever end stays nearer it.
 	junction    int32
 	hasJunction bool
-	// near, when set, pulls rooms to whichever end keeps their door nearest
-	// it (the bedroom wing hugs the storage room, #1178).
-	near    domain.Cell
-	hasNear bool
 }
 
 // newCoreGrid takes reserved sites out of the core candidates.
@@ -295,10 +304,6 @@ func (g coreGrid) placeSized(seg *SpineSegment, rooms []LayoutRoom, role ModuleR
 		grow := hi - lo - (seg.To.X - seg.From.X)
 		if g.hasJunction {
 			grow = max(hi-g.junction, g.junction-lo)
-		}
-		if g.hasNear {
-			dx, dz := int64(best.Door.X-g.near.X), int64(best.Door.Z-g.near.Z)
-			grow = int32(min(dx*dx+dz*dz, 1<<30))
 		}
 		if !picked || grow < pickGrow {
 			pick, picked, pickGrow = best, true, grow

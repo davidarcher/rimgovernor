@@ -8,8 +8,8 @@ import (
 
 // Individual bedrooms (#786, C2). Once every colonist owns a bed (the
 // initial shelter and its barracks stand), the sleeping planner walks each
-// colonist into a planned 5x5 bedroom of their own, in the plan's slot
-// order along the spine: raise the room's shell, stage one bed in it, then
+// colonist into a room of their own in the bedroom wing, in the wing's slot
+// order (#1213): raise the room's shell, stage one bed in it, then
 // move the colonist's ownership there. The barracks bed left behind stays
 // as a spare for joiners (MaintainHousing keeps one beyond the population).
 
@@ -59,7 +59,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	// The starter shell stands on the planned storage room (#1177): the
 	// last spot left in it reads as a bedroom but is still the shell.
 	shell := map[string]bool{}
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		if r.Role != ModuleStorage {
 			continue
 		}
@@ -143,7 +143,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	var empty []LayoutRoom
 	var emptyCells [][]domain.Cell
 	var unbuilt []LayoutRoom
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		if r.Role != ModuleBedroom {
 			continue
 		}

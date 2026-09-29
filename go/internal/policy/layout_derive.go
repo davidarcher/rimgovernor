@@ -21,7 +21,7 @@ var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 // (#834). Unknown when the survey holds no room for a core.
 func DeriveLayoutPlan(s MapSurvey, pawns int, geysers []PowerGeyser) domain.Fact[LayoutPlan] {
 	plan := PlanCore(Zone(s), pawns)
-	if len(plan.Rooms) == 0 {
+	if len(plan.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()
 	}
 	want := layoutUtilities
@@ -64,16 +64,17 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int) (LayoutPlan, b
 			kept = append(kept, r)
 		}
 	}
-	dropped := len(kept) != len(plan.Rooms)
-	before := len(kept)
+	wings := keepWingRooms(plan.Wings, func(r LayoutRoom) bool { return !rectHits(roomWalls(r), noGo) })
 	next := plan
-	next.Rooms, next.Zones = kept, zones
+	next.Rooms, next.Wings, next.Zones = kept, wings, zones
+	before := len(next.AllRooms())
+	dropped := before != len(plan.AllRooms())
 	next = Grow(next, pawns, tombs)
-	if !dropped && len(next.Rooms) == before {
+	if !dropped && len(next.AllRooms()) == before {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
 		return fresh, !samePerimeter(plan, fresh)
 	}
-	if len(next.Rooms) == 0 {
+	if len(next.AllRooms()) == 0 {
 		return plan, false
 	}
 	return withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(next, s), s), s)), true
@@ -104,7 +105,7 @@ func samePerimeter(a, b LayoutPlan) bool {
 // LayoutOutgrown reports fewer bedrooms than colonists.
 func (p LayoutPlan) LayoutOutgrown(pawns int) bool {
 	n := 0
-	for _, r := range p.Rooms {
+	for _, r := range p.AllRooms() {
 		if r.Role == ModuleBedroom {
 			n++
 		}
@@ -117,7 +118,7 @@ func (p LayoutPlan) LayoutOutgrown(pawns int) bool {
 // count, or the rejection).
 func (p LayoutPlan) Summary() string {
 	rooms, zones, reserved := map[string]int{}, map[string]int{}, map[string]int{}
-	for _, r := range p.Rooms {
+	for _, r := range p.AllRooms() {
 		rooms[string(r.Role)]++
 	}
 	for _, z := range p.Zones {

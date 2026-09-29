@@ -59,12 +59,12 @@ func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	if ring.Width == 0 {
 		return plan
 	}
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		for _, c := range rectCells(roomWalls(r)) {
 			used[c] = true
 		}
 	}
-	for _, sg := range plan.Spine {
+	for _, sg := range plan.Hallways() {
 		for _, c := range rectCells(pad(rectOf(sg.From, sg.To), SpineWidth/2)) {
 			used[c] = true
 		}
@@ -157,7 +157,7 @@ func PocketSections(plan LayoutPlan, wall string) ([]PerimeterSection, error) {
 // than lampReach from any floor cell. Rooms keep plan order.
 func BaseRoomLamps(plan LayoutPlan) []domain.Cell {
 	var out []domain.Cell
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		if r.Role == ModuleReserve {
 			continue
 		}

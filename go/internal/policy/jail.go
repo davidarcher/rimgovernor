@@ -84,7 +84,7 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 			taken[c] = true
 		}
 	}
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		if r.Role != ModulePrison {
 			continue
 		}

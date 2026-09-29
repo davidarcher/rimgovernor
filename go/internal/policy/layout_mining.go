@@ -20,7 +20,7 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 			return MineTierOre
 		}
 	}
-	for _, r := range p.Rooms {
+	for _, r := range p.AllRooms() {
 		in := r.Interior
 		if r.Dug && cell.X >= in.X-1 && cell.X <= in.X+in.Width && cell.Z >= in.Z-1 && cell.Z <= in.Z+in.Height {
 			return MineTierCore

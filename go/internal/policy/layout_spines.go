@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"sort"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -16,38 +14,6 @@ func wingAnchor(rooms []LayoutRoom) (domain.Cell, bool) {
 		}
 	}
 	return domain.Cell{}, false
-}
-
-// segmentOrder is the order hallways are tried for role. Bedrooms form one
-// wing: the hallway already holding bedrooms first, else the storage
-// room's, then the rest nearest the storage door first (#1178). Other roles
-// keep spine order.
-func segmentOrder(spine []SpineSegment, rooms []LayoutRoom, role ModuleRole) []int {
-	order := make([]int, len(spine))
-	for i := range order {
-		order[i] = i
-	}
-	anchor, ok := wingAnchor(rooms)
-	if role != ModuleBedroom || !ok {
-		return order
-	}
-	rank := func(i int) int64 {
-		for _, r := range rooms {
-			if r.Role == ModuleBedroom && onSegment(r, spine[i]) {
-				return -2
-			}
-		}
-		for _, r := range rooms {
-			if r.Role == ModuleStorage && onSegment(r, spine[i]) {
-				return -1
-			}
-		}
-		s := spine[i]
-		dx, dz := int64((s.From.X+s.To.X)/2-anchor.X), int64((s.From.Z+s.To.Z)/2-anchor.Z)
-		return dx*dx + dz*dz
-	}
-	sort.SliceStable(order, func(a, b int) bool { return rank(order[a]) < rank(order[b]) })
-	return order
 }
 
 // Spines and crossings (#952). Spine[0] is the main east-west hallway; every
@@ -90,7 +56,7 @@ func (g coreGrid) segmentGrid(spine []SpineSegment, i int, rooms []LayoutRoom) (
 		}
 		return c.X >= own.From.X-SpineWidth/2 && c.X <= own.From.X+SpineWidth/2
 	}
-	local := coreGrid{core: make(map[domain.Cell]bool, len(g.core)), rock: g.rock, maxLen: spineMaxLen, near: g.near, hasNear: g.hasNear}
+	local := coreGrid{core: make(map[domain.Cell]bool, len(g.core)), rock: g.rock, maxLen: spineMaxLen}
 	for c := range g.core {
 		local.core[c] = true
 	}
@@ -135,7 +101,7 @@ func (g coreGrid) segmentGrid(spine []SpineSegment, i int, rooms []LayoutRoom) (
 	if alongX(own) {
 		return local, own, mine
 	}
-	t := coreGrid{core: transposeSet(local.core), rock: transposeSet(local.rock), maxLen: local.maxLen, junction: local.junction, hasJunction: true, near: transposeCell(local.near), hasNear: local.hasNear}
+	t := coreGrid{core: transposeSet(local.core), rock: transposeSet(local.rock), maxLen: local.maxLen, junction: local.junction, hasJunction: true}
 	for k := range mine {
 		mine[k] = transposeRoom(mine[k])
 	}

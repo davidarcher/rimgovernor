@@ -97,10 +97,10 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		x1, z1 := max(core.X+core.Width, r.X+r.Width), max(core.Z+core.Height, r.Z+r.Height)
 		core = Rectangle{X: x0, Z: z0, Width: x1 - x0, Height: z1 - z0}
 	}
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		grow(pad(r.Interior, 1))
 	}
-	for _, sg := range plan.Spine {
+	for _, sg := range plan.Hallways() {
 		grow(pad(rectOf(sg.From, sg.To), SpineWidth/2))
 	}
 	reach := pad(core, perimeterFieldReach)
@@ -151,12 +151,12 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 	// built is a cell the core's rooms or hallway hold.
 	built := func(c domain.Cell) bool {
-		for _, r := range plan.Rooms {
+		for _, r := range plan.AllRooms() {
 			if contains(pad(r.Interior, 1), c) {
 				return true
 			}
 		}
-		for _, sg := range plan.Spine {
+		for _, sg := range plan.Hallways() {
 			if contains(pad(rectOf(sg.From, sg.To), SpineWidth/2), c) {
 				return true
 			}

@@ -60,12 +60,12 @@ func PlanBaitRoom(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	if ring.Width == 0 {
 		return plan
 	}
-	for _, r := range plan.Rooms {
+	for _, r := range plan.AllRooms() {
 		for _, c := range rectCells(roomWalls(r)) {
 			used[c] = true
 		}
 	}
-	for _, sg := range plan.Spine {
+	for _, sg := range plan.Hallways() {
 		for _, c := range rectCells(pad(rectOf(sg.From, sg.To), SpineWidth/2)) {
 			used[c] = true
 		}

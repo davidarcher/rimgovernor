@@ -268,7 +268,7 @@ func roomCellSites(room []domain.Cell, anchor domain.Cell, cells []policy.SiteCe
 // Link; the outer Door on plans saved before #819). A zero room means no
 // planned freezer stands yet.
 func rawFoodStockSites(layout policy.LayoutPlan, rooms policy.RoomObservation, bounds policy.Bounds, cells []policy.SiteCell, protected []domain.Cell) (policy.Room, [][]domain.Cell, error) {
-	for _, planned := range layout.Rooms {
+	for _, planned := range layout.AllRooms() {
 		if planned.Role != policy.ModuleFreezer {
 			continue
 		}

@@ -27,8 +27,13 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 			rooms = append(rooms, r)
 		}
 	}
+	wings := keepWingRooms(plan.Wings, func(r LayoutRoom) bool { return rectHits(roomWalls(r), built) })
 	var spine []SpineSegment
 	for i, sg := range plan.Spine {
+		if i == 0 && len(wings) > 0 {
+			spine = append(spine, sg)
+			continue
+		}
 		for _, r := range rooms {
 			if i == 0 || onSegment(r, sg) {
 				spine = append(spine, sg)
@@ -73,12 +78,12 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 	// New rooms stay off built cells, except the kept rooms' walls (a
 	// neighbour shares them) and the kept hallways.
 	open := map[domain.Cell]bool{}
-	for _, r := range rooms {
+	for _, r := range (LayoutPlan{Rooms: rooms, Wings: wings}).AllRooms() {
 		for _, c := range RectangleCells(roomWalls(r)) {
 			open[c] = true
 		}
 	}
-	for _, r := range spineRects(spine) {
+	for _, r := range spineRects((LayoutPlan{Spine: spine, Wings: wings}).Hallways()) {
 		for _, c := range RectangleCells(r) {
 			open[c] = true
 		}
@@ -89,8 +94,8 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 			blocked[c] = true
 		}
 	}
-	next := Grow(LayoutPlan{Spine: spine, Rooms: rooms, Zones: coreWithout(Zone(s), blocked), Reservations: kept}, pawns, tombs)
-	if len(next.Rooms) == 0 {
+	next := Grow(LayoutPlan{Spine: spine, Rooms: rooms, Wings: wings, Zones: coreWithout(Zone(s), blocked), Reservations: kept}, pawns, tombs)
+	if len(next.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()
 	}
 	return domain.Known(withoutCore(PlanPerimeter(PlanUtilities(next, want), s)))
@@ -146,16 +151,16 @@ func LayoutProposalDiff(current, proposal LayoutPlan) (added, removed int) {
 func roomDiff(current, proposal LayoutPlan) (added, removed []LayoutRoom) {
 	key := func(r LayoutRoom) string { return fmt.Sprint(r.Role, r.Interior) }
 	have, next := map[string]bool{}, map[string]bool{}
-	for _, r := range current.Rooms {
+	for _, r := range current.AllRooms() {
 		have[key(r)] = true
 	}
-	for _, r := range proposal.Rooms {
+	for _, r := range proposal.AllRooms() {
 		next[key(r)] = true
 		if !have[key(r)] {
 			added = append(added, r)
 		}
 	}
-	for _, r := range current.Rooms {
+	for _, r := range current.AllRooms() {
 		if !next[key(r)] {
 			removed = append(removed, r)
 		}
@@ -172,7 +177,7 @@ func ProposalOverlay(current, proposal LayoutPlan, bounds Bounds) LayoutOverlay 
 	added, removed := roomDiff(current, proposal)
 	hallway := func(p LayoutPlan) map[domain.Cell]bool {
 		cells := map[domain.Cell]bool{}
-		for _, r := range spineRects(p.Spine) {
+		for _, r := range spineRects(p.Hallways()) {
 			for _, c := range RectangleCells(r) {
 				cells[c] = true
 			}

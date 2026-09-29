@@ -76,7 +76,7 @@ func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
 		return nil
 	}
 	var shells []domain.RoomFootprint
-	for _, r := range p.Rooms {
+	for _, r := range p.AllRooms() {
 		if r.Role != want {
 			continue
 		}
@@ -91,7 +91,7 @@ func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
 // room standing in it yet (#835): the kitchen, freezer or jail its owning
 // goal shells before furnishing. A dug room is mined out first (#836).
 func (p LayoutPlan) NextPlannedRoom(role ModuleRole, rooms RoomObservation) (LayoutRoom, bool) {
-	for _, r := range p.Rooms {
+	for _, r := range p.AllRooms() {
 		if r.Role != role {
 			continue
 		}
@@ -111,7 +111,7 @@ func (p LayoutPlan) ShellDoors(r LayoutRoom) []domain.Cell {
 		doors = append(doors, *r.Link)
 	}
 	in := r.Interior
-	for _, o := range p.Rooms {
+	for _, o := range p.AllRooms() {
 		if o.Link == nil || o.Interior == in {
 			continue
 		}
