@@ -6,15 +6,18 @@
 ColonyPlan. It sizes each race itself (#875); there are no operator flags.
 
 - **Cap.** Every observed race is capped at the smaller of
-  `HerdWealthCap(colony wealth)` —
-  `clamp(floor(30 × 50000 / max(wealth, 50000)), 6, 30)`, i.e. 30 per race up
-  to 50k wealth, 15 at 100k, 6 from 250k — and, for pen animals, the pasture
+  the wealth-budget cap (#1189) — 30 per race while `WealthBudget(raid
+  points, defense capacity, wealth)` has non-negative headroom, else
+  `clamp(floor(30 × (wealth + headroom) / wealth), 6, 30)`, i.e. 30 × defense
+  capacity / raid points: 15 when capacity is half the raid points, 6 at a
+  fifth or less — and, for pen animals, the pasture
   cap `floor(n × B / D)`: `B` is the pens' worst-quadrum pasture plus stored
   feed spread over 15 days, `D` their grazing demand, `n` the race's penned
   count. RimWorld's pen capacity is this same nutrition balance
   (`PenFoodCalculator`), so there is no separate density term. Predators are
   never penned; they eat meat and stay under the stored-food feed gate.
-  Unknown wealth or pen facts leave that term out.
+  An unknown budget (raid points, capacity or wealth) or pen facts leave
+  that term out.
 - **Floor.** The food plan's productive-animal floor (`FoodHerdPolicy`), and a
   breeding pair for any race producing milk, wool, chemfuel or eggs, clipped
   to the cap. Below it, the lowest-ID tameable wild animal of that race is

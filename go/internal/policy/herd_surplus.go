@@ -15,24 +15,22 @@ const (
 	herdPairSize    = herdPairMales + herdPairFemales
 )
 
-// Wealth-scaled per-race herd cap: herdCapCeiling animals at or below
-// herdCapWealth colony wealth, shrinking in inverse proportion as wealth
-// grows (raid points scale with wealth, and a bigger herd is more to feed and
-// defend), never below herdCapFloor.
+// Budget-scaled per-race herd cap (#1189): herdCapCeiling animals while the
+// wealth budget has headroom, shrinking with the share of wealth the defense
+// can hold when it is negative, never below herdCapFloor.
 const (
 	herdCapCeiling = 30
 	herdCapFloor   = 6
-	herdCapWealth  = 50000.0
 )
 
-// HerdWealthCap is the per-race population cap for colony wealth total:
-// clamp(floor(30 * 50000 / max(total, 50000)), 6, 30). 50k wealth or less
-// keeps 30 per race, 100k keeps 15, 250k and above keeps 6.
-func HerdWealthCap(total float64) int64 {
-	if math.IsNaN(total) || total < herdCapWealth {
-		total = herdCapWealth
+// herdBudgetCap is the per-race cap for wealth budget headroom over colony
+// wealth total: 30 at non-negative headroom, else
+// clamp(floor(30 × (total + headroom) / total), 6, 30).
+func herdBudgetCap(headroom, total float64) int64 {
+	if headroom >= 0 || total <= 0 {
+		return herdCapCeiling
 	}
-	return int64(math.Max(herdCapFloor, math.Floor(herdCapCeiling*herdCapWealth/total)))
+	return int64(math.Max(herdCapFloor, math.Floor(herdCapCeiling*(total+headroom)/total)))
 }
 
 // HerdFacts are the per-animal facts MaintainHerd sizes and culls by
@@ -87,7 +85,8 @@ func herdDangerous(a UpkeepAnimal) bool {
 }
 
 // HerdFor derives MaintainHerd's population band with no operator input.
-// Every observed race's max is min(HerdWealthCap(wealth), feed cap). The feed
+// Every observed race's max is min(budget cap, feed cap); the budget cap is
+// herdBudgetCap of the WealthBudget headroom (30 unless defense lags wealth). The feed
 // cap applies to pen animals only: with pasture supply B = Σ worst-quadrum
 // pasture + Σ stored feed / 15 days and demand D = Σ pen grazing demand, a
 // race with n penned animals keeps floor(n × B/D). Pen capacity in RimWorld
@@ -95,16 +94,17 @@ func herdDangerous(a UpkeepAnimal) bool {
 // term. Predators are never penned and eat meat: they stay under the stored
 // food feed gate, not the pasture cap. B < D sets FeedShort, which lets
 // juveniles be culled. Product races (milk, wool, chemfuel, eggs) get a
-// breeding pair as their min. Unknown wealth or pens leave that term out,
+// breeding pair as their min. Unknown budget, wealth or pens leave that term out,
 // so nothing is culled on a guess; FoodHerdPolicy adds food floors.
-func HerdFor(animals domain.Fact[[]UpkeepAnimal], wealth domain.Fact[WealthFacts], pens domain.Fact[[]PenGrazing]) HerdPolicy {
+func HerdFor(animals domain.Fact[[]UpkeepAnimal], budget domain.Fact[float64], wealth domain.Fact[WealthFacts], pens domain.Fact[[]PenGrazing]) HerdPolicy {
 	herd := HerdPolicy{PopulationMin: map[Resource]int64{}, PopulationMax: map[Resource]int64{}}
 	rows, rk := animals.Value()
 	if !rk {
 		return herd
 	}
-	if w, wk := wealth.Value(); wk {
-		limit := HerdWealthCap(w.Total)
+	headroom, bk := budget.Value()
+	if w, wk := wealth.Value(); bk && wk && finite(headroom) && finite(w.Total) {
+		limit := herdBudgetCap(headroom, w.Total)
 		for _, a := range rows {
 			herd.PopulationMax[a.Definition] = limit
 		}

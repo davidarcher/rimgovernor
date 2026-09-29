@@ -14,18 +14,23 @@ func playerAnimal(id string, def Resource, safeRelease bool) UpkeepAnimal {
 	return UpkeepAnimal{ID: PawnID(id), Definition: def, Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(safeRelease)}
 }
 
-func TestHerdWealthCap(t *testing.T) {
-	for wealth, want := range map[float64]int64{0: 30, 50000: 30, 100000: 15, 150000: 10, 250000: 6, 1e7: 6} {
-		if got := HerdWealthCap(wealth); got != want {
-			t.Errorf("%v: %d want %d", wealth, got, want)
+func TestHerdForBudgetCap(t *testing.T) {
+	animals := domain.Known([]UpkeepAnimal{herdAnimal("a", "Male", true, true)})
+	wealth := func(total float64) domain.Fact[WealthFacts] { return domain.Known(WealthFacts{Total: total}) }
+	// Low wealth with capacity ahead of raid points keeps the ceiling.
+	if h := HerdFor(animals, WealthBudget(domain.Known(35.0), domain.Known(200.0), wealth(8000)), wealth(8000), domain.Unknown[[]PenGrazing]()); h.PopulationMax["Muffalo"] != 30 {
+		t.Fatal("low wealth", h)
+	}
+	for _, c := range []struct {
+		points, capacity float64
+		want             int64
+	}{{1000, 1000, 30}, {1000, 500, 15}, {1000, 333, 9}, {1000, 100, 6}, {1000, 0, 6}} {
+		if h := HerdFor(animals, WealthBudget(domain.Known(c.points), domain.Known(c.capacity), wealth(100000)), wealth(100000), domain.Unknown[[]PenGrazing]()); h.PopulationMax["Muffalo"] != c.want {
+			t.Errorf("%+v: %v", c, h.PopulationMax)
 		}
 	}
-	animals := domain.Known([]UpkeepAnimal{herdAnimal("a", "Male", true, true)})
-	if h := HerdFor(animals, domain.Unknown[WealthFacts](), domain.Unknown[[]PenGrazing]()); len(h.PopulationMax) != 0 {
-		t.Fatal("unknown wealth caps nothing", h)
-	}
-	if h := HerdFor(animals, domain.Known(WealthFacts{Total: 100000}), domain.Unknown[[]PenGrazing]()); h.PopulationMax["Muffalo"] != 15 {
-		t.Fatal(h)
+	if h := HerdFor(animals, domain.Unknown[float64](), wealth(100000), domain.Unknown[[]PenGrazing]()); len(h.PopulationMax) != 0 {
+		t.Fatal("unknown budget caps nothing", h)
 	}
 }
 
@@ -124,12 +129,12 @@ func TestHerdForFeedCapAndProducts(t *testing.T) {
 	}
 	rows[0].Herd.Product = true
 	pens := domain.Known([]PenGrazing{{ID: "pen", DemandPerDay: domain.Known(4.0), PasturePerDay: domain.Known(2.0), StoredNutrition: domain.Known(15.0)}})
-	h := HerdFor(domain.Known(rows), domain.Known(WealthFacts{Total: 0}), pens)
+	h := HerdFor(domain.Known(rows), domain.Known(0.0), domain.Known(WealthFacts{Total: 0}), pens)
 	// B = 2 + 15/15 = 3 against D = 4: floor(4 × 0.75) = 3.
 	if h.PopulationMax["Muffalo"] != 3 || !h.FeedShort || h.PopulationMin["Muffalo"] != herdPairSize {
 		t.Fatal(h)
 	}
-	if h := HerdFor(domain.Known(rows), domain.Known(WealthFacts{Total: 0}), domain.Unknown[[]PenGrazing]()); h.PopulationMax["Muffalo"] != 30 || h.FeedShort {
+	if h := HerdFor(domain.Known(rows), domain.Known(0.0), domain.Known(WealthFacts{Total: 0}), domain.Unknown[[]PenGrazing]()); h.PopulationMax["Muffalo"] != 30 || h.FeedShort {
 		t.Fatal("unknown pens cap nothing", h)
 	}
 }
