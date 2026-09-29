@@ -19,6 +19,7 @@ func siteFixture(outdoor float64) SiteTypeRequest {
 		c.Glow = domain.Known(0.0)
 		if indoor {
 			c.Fertility = domain.Known(1.0)
+			c.Room = domain.Known("room")
 		}
 	}
 	// Rice and potato carry the vanilla Hydroponic tag; corn is soil-only.

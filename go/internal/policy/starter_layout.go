@@ -23,6 +23,9 @@ type SiteCell struct {
 	Roof domain.Fact[string]
 	// ZoneID names the native zone covering the cell when Zone is true.
 	ZoneID domain.Fact[string]
+	// Room names the native room holding the cell (#1224): growing-room
+	// kinds pick a block per room interior.
+	Room domain.Fact[string]
 	// NaturalRock reports the cell's edifice is natural rock (#700): a
 	// starter shell reuses it as wall or mines it from the interior.
 	NaturalRock domain.Fact[bool]

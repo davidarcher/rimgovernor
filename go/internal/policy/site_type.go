@@ -387,8 +387,7 @@ func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironme
 			c.Reason = "no running sun lamp"
 			return c
 		}
-		site := siteRestricted(r.Field.Site, func(s SiteCell) bool { _, ok := lit[s.Cell]; return ok && positive(s.Roofed) }, nil)
-		c.Sites = siteFarm(site, v)
+		c.Sites = sitePick(r.Field.Site, v, func(s SiteCell) bool { _, ok := lit[s.Cell]; return ok && positive(s.Roofed) }, nil, true)
 		c.Cells = c.Sites.Cells
 		if c.Cells == 0 {
 			c.Reason = "no free lit soil"
@@ -419,8 +418,7 @@ func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironme
 			c.Reason = "crop needs light"
 			return c
 		}
-		site := siteRestricted(r.Field.Site, func(s SiteCell) bool { _, isLit := lit[s.Cell]; return roofedIndoorSoil(s) && !isLit }, nil)
-		c.Sites = siteFarm(site, v)
+		c.Sites = sitePick(r.Field.Site, v, func(s SiteCell) bool { _, isLit := lit[s.Cell]; return roofedIndoorSoil(s) && !isLit }, nil, true)
 		c.Cells = c.Sites.Cells
 		if c.Cells == 0 {
 			c.Reason = "no free unlit roofed soil"
@@ -457,8 +455,7 @@ func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironme
 		disc := func(s SiteCell) bool {
 			return eligible[s.Cell] && s.Cell != center && siteWithin(s.Cell, center, r.LampGrowthRadius)
 		}
-		site := siteRestricted(r.Field.Site, disc, []domain.Cell{center})
-		c.Sites = siteFarm(site, v)
+		c.Sites = sitePick(r.Field.Site, v, disc, []domain.Cell{center}, false)
 		c.Cells = c.Sites.Cells
 		if c.Cells == 0 {
 			c.Reason = "no free unlit roofed soil"
@@ -646,28 +643,125 @@ func siteUnroofed(s SiteCell) SiteCell {
 	return s
 }
 
-// siteRestricted rewrites the census so only cells the kind supports are
-// plantable: they are presented as unroofed so PlanFarmSites accepts them,
-// every other cell keeps its walkability for travel but has no soil.
-func siteRestricted(site FarmSiteRequest, keep func(SiteCell) bool, protected []domain.Cell) FarmSiteRequest {
-	out := site
-	out.Cells = make([]SiteCell, 0, len(site.Cells))
+// sitePick sites a growing-room kind with the rectangle picker (#1224,
+// epic #1212): candidates are the free soil cells keep accepts that meet the
+// crop's fertility floor. byRoom groups them by native room so each block
+// stays inside one room interior, rooms nearest the anchor first; otherwise
+// (a new lamp's growth circle) they form one set. Picked cells merge into
+// rectangles so the plan keeps its patch shape.
+func sitePick(site FarmSiteRequest, v viableCrop, keep func(SiteCell) bool, protected []domain.Cell, byRoom bool) FarmSitePlan {
+	minimum, _ := v.crop.FertilityMin.Value()
+	blocked := map[domain.Cell]bool{}
+	for _, c := range append(append([]domain.Cell{}, site.Protected...), protected...) {
+		blocked[c] = true
+	}
+	soil := map[domain.Cell]float64{}
+	groups := map[string]map[domain.Cell]bool{}
 	for _, s := range site.Cells {
-		if keep(s) {
-			out.Cells = append(out.Cells, siteUnroofed(s))
-		} else {
-			s.Fertility = domain.Known(0.0)
-			out.Cells = append(out.Cells, s)
+		if !keep(s) || !cropSoilCompatible(v.crop, s) {
+			continue
+		}
+		f, ok := freeCropSoil(siteUnroofed(s), minimum, blocked)
+		if !ok {
+			continue
+		}
+		key := ""
+		if byRoom {
+			room, known := s.Room.Value()
+			if !known || room == "" {
+				continue
+			}
+			key = room
+		}
+		if groups[key] == nil {
+			groups[key] = map[domain.Cell]bool{}
+		}
+		groups[key][s.Cell] = true
+		soil[s.Cell] = f
+	}
+	anchor := site.Anchor
+	keys := make([]string, 0, len(groups))
+	near := map[string]int64{}
+	for k, g := range groups {
+		keys = append(keys, k)
+		near[k] = -1
+		for c := range g {
+			if d := rectDist(c, anchor); near[k] < 0 || d < near[k] {
+				near[k] = d
+			}
 		}
 	}
-	out.Protected = append(append([]domain.Cell{}, site.Protected...), protected...)
-	return out
+	sort.Slice(keys, func(i, j int) bool {
+		if near[keys[i]] != near[keys[j]] {
+			return near[keys[i]] < near[keys[j]]
+		}
+		return keys[i] < keys[j]
+	})
+	picked := map[domain.Cell]bool{}
+	for _, k := range keys {
+		if len(picked) >= v.needed {
+			break
+		}
+		for _, c := range PickRect(groups[k], anchor, v.needed-len(picked)) {
+			picked[c] = true
+		}
+	}
+	weights := site.Weights
+	if weights == (FarmSiteWeights{}) {
+		weights = DefaultFarmSiteWeights()
+	}
+	unit := cropRate(v.crop, 1)
+	plan := FarmSitePlan{}
+	for _, patch := range siteMergeRects(picked) {
+		reward, walk := 0.0, 0
+		for _, c := range rectCells(patch) {
+			reward += cropRate(v.crop, soil[c])
+			walk += siteManhattan(c, anchor)
+		}
+		terms := []FarmSiteTerm{{"yield", reward}, {"travel", -weights.Travel * unit * float64(walk)}}
+		n := float64(patch.Width * patch.Height)
+		plan.Patches = append(plan.Patches, patch)
+		plan.Selected = append(plan.Selected, FarmSiteCandidate{Patch: patch, Score: terms[0].Value + terms[1].Value, Density: (terms[0].Value + terms[1].Value) / n, Terms: terms})
+		plan.Cells += int(n)
+	}
+	if plan.Cells < v.needed {
+		plan.Unplanted = v.needed - plan.Cells
+	}
+	return plan
 }
 
-func siteFarm(site FarmSiteRequest, v viableCrop) FarmSitePlan {
-	site.Crop = v.crop
-	site.Needed = v.needed
-	return PlanFarmSites(site)
+// siteMergeRects covers a cell set with disjoint rectangles: row-major, each
+// seed runs as far right as the set allows, then down while every row below
+// holds the same run.
+func siteMergeRects(cells map[domain.Cell]bool) []Rectangle {
+	done := map[domain.Cell]bool{}
+	var out []Rectangle
+	for _, c := range rectSorted(cells) {
+		if done[c] {
+			continue
+		}
+		w := int32(1)
+		for cells[domain.Cell{X: c.X + w, Z: c.Z}] && !done[domain.Cell{X: c.X + w, Z: c.Z}] {
+			w++
+		}
+		h := int32(1)
+	grow:
+		for {
+			for x := c.X; x < c.X+w; x++ {
+				n := domain.Cell{X: x, Z: c.Z + h}
+				if !cells[n] || done[n] {
+					break grow
+				}
+			}
+			h++
+		}
+		r := Rectangle{c.X, c.Z, w, h}
+		for _, rc := range rectCells(r) {
+			done[rc] = true
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 func siteKnownFalse(f domain.Fact[bool]) bool { v, k := f.Value(); return k && !v }
