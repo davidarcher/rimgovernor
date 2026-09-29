@@ -11,7 +11,7 @@ import (
 // row; the snapshot carries the OrganUse precept.
 func TestPopulationDecodesHarvestFacts(t *testing.T) {
 	prisoner := prisonerPerson("p", "MaintainOnly")
-	prisoner.FactionId, prisoner.HarvestGoodwillChange = proto.String("Faction_3"), proto.Int32(-70)
+	prisoner.FactionId, prisoner.HarvestGoodwillChange, prisoner.Withdrawal = proto.String("Faction_3"), proto.Int32(-70), proto.Bool(true)
 	prisoner.Surgery = &o.PawnHealth{SurgeryBills: []*o.SurgeryBill{{Id: proto.String("Bill_1")}}, Operations: []*o.SurgeryOperation{{
 		Recipe: &o.DefinitionRef{DefName: proto.String("RemoveBodyPart")}, PartIndex: proto.Int32(20), PartDefName: proto.String("Kidney"),
 		Kind: o.SurgeryKind_SURGERY_KIND_HARVEST, YieldMarketValue: proto.Float64(900)}}}
@@ -34,6 +34,9 @@ func TestPopulationDecodesHarvestFacts(t *testing.T) {
 	}
 	if value, known := ops[0].YieldValue.Value(); !known || value != 900 {
 		t.Fatalf("op %+v", ops[0])
+	}
+	if withdrawal, known := rows[0].Withdrawal.Value(); !known || !withdrawal {
+		t.Fatalf("withdrawal %+v", rows[0].Withdrawal)
 	}
 	if _, known := rows[1].Operations.Value(); known {
 		t.Fatal("a producer without surgery facts leaves them unknown")
@@ -59,7 +62,7 @@ func TestPopulationDecodesProspectAndColony(t *testing.T) {
 		t.Fatal(err)
 	}
 	colony, known := census.Colony.Value()
-	if !known || colony.Colonists != 1 || colony.BestSkill["Cooking"] != 4 || colony.BestSkill["Mining"] != 11 || !colony.SlaveryAllowed() || colony.Ideo != "Ideo_1" {
+	if !known || colony.Colonists != 1 || colony.BestSkill["Cooking"] != 4 || colony.BestSkill["Mining"] != 11 || len(colony.Medicine) != 0 || !colony.SlaveryAllowed() || colony.Ideo != "Ideo_1" {
 		t.Fatalf("colony %+v", colony)
 	}
 	rows, _ := census.Prisoners.Value()

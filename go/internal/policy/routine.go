@@ -1086,9 +1086,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	surgeryRecovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, HospitalBedReady(f.Sleeping)), func(owed bool) bool { return !owed }))
 	// A sale organ harvest (#1169) holds it open while the silver runway
 	// is short and a prisoner's organ clears its cost; a prisoner's
-	// recoverable artificial part (#1232) too.
+	// recoverable artificial part (#1232) too, and a peg-leg step: doctor
+	// training below the Medicine floor, prisoner control or a reinstall
+	// before release (#1236).
 	// A prisoner whose care allows better than herbal (#1239) too.
-	if SaleHarvestWanted(f, reviewSilverShort(f, p, medicine)) || PartRecoveryWanted(f) || len(PrisonerCarePins(f.Prisoners)) > 0 {
+	if SaleHarvestWanted(f, reviewSilverShort(f, p, medicine)) || PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()) || len(PrisonerCarePins(f.Prisoners)) > 0 {
 		surgeryRecovered = domain.Known(false)
 	}
 	addAssessment(MaintainSurgery, surgeryPriority, surgeryRecovered)

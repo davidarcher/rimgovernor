@@ -48,6 +48,9 @@ above `HerbalOrWorse` back to it through a care-only `WorkSettingsIntent` (which
 native accepts on a living colony prisoner) and never raises it. A harvest or part
 recovery blocked only by the limit is logged as refused and adds a
 `MedicineHerbal` want to MaintainResource's targets.
+For peg-leg control (#1236) a colony prisoner carries
+`withdrawal`: it has a drug addiction, which a prisoner cannot feed. A legless
+prisoner is never released until MaintainSurgery puts a peg leg back.
 A recruitable prisoner worth recruiting (`RecruitWorth` against the colonists' best
 skills, at least `RecruitThreshold` for the colony size) is converted first while
 Ideology is active outside classic mode and it holds another ideoligion, then

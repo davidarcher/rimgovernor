@@ -767,7 +767,11 @@ message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optio
   // the -100 floor; 0 when the faction's goodwill cannot change or none.
   PawnHealth surgery = 17; optional string faction_id = 18; optional int32 harvest_goodwill_change = 19;
   // The prisoner's MedicalCareCategory name (#1239), for a colony prisoner.
-  optional string medical_care = 20; }
+  optional string medical_care = 20;
+  // Peg-leg control (#1236), for a prisoner of the colony only: it carries a
+  // drug addiction (Hediff_Addiction). A prisoner gets no drugs, so an
+  // addiction is withdrawal now or soon, until the addiction clears.
+  optional bool withdrawal = 21; }
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; reserved 4;
   // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
   // primary ideoligion load id and the defName of its Slavery-issue precept

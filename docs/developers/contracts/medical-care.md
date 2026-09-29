@@ -104,6 +104,29 @@ precept refuses. At these prices a classic five-colonist colony harvests a kidne
 (900) from a prisoner whose faction loses 70 goodwill (850), and a colony of seven
 does not. The harvest queues a `SurgeryIntent` with `acknowledge_violation`.
 
+Peg-leg cycling (#1236) takes the same one-surgery slot after harvest and part
+recovery. It installs and removes cheap wood parts (peg leg, wooden hand, wooden
+foot) on colony prisoners:
+
+- Doctor training: a surgery teaches 1.6 Medicine XP per work tick, 5600 for a
+  peg-leg cycle. While fewer doctors than wanted (one, two from eight colonists)
+  reach Medicine 10, a cycle is worth 280 silver; above that, 112 while a restore
+  waits on a doctor within the failure cap. It costs three medicine, the doctor's
+  hour and the removal's goodwill (-70 via `harvest_goodwill_change`, no mood), so
+  it runs on factionless, pirate or -100 prisoners. With no wood slot open a
+  natural hand, foot or leg (never a second leg) is amputated, its `HarvestCost`
+  spread over the cycles the slot supports until the doctor reaches 10.
+- Prisoner control: a legless prisoner is downed, so no mental, withdrawal or
+  prison break. The last peg legs come off a HarvestEligible prisoner not due for
+  release, or one in withdrawal, never one being recruited, converted or enslaved,
+  when the risk avoided (200, 400 in withdrawal) outweighs the removals,
+  hand-feeding (25) and putting both pegs back later.
+- Release: a legless prisoner no longer controlled gets a peg leg back first;
+  MaintainPopulation holds Release until then, since vanilla cannot release a
+  downed pawn.
+
+A pending step holds MaintainSurgery open.
+
 ## Medicine selection
 
 The medical routine chooses an autonomous care ceiling from usable stock and

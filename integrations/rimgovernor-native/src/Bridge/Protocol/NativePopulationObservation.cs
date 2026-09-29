@@ -111,6 +111,8 @@ namespace HomeBridge.BridgeTools
                     NativePawnDetails.Surgery(p, health);
                     person.Surgery = health;
                     if (p.playerSettings != null) person.MedicalCare = p.playerSettings.medCare.ToString();
+                    // Peg-leg control (#1236): an addiction a prisoner cannot feed.
+                    person.Withdrawal = p.health?.hediffSet?.hediffs?.Any(h => h is Hediff_Addiction) == true;
                     var home = p.Faction == null ? null : p.HomeFaction;
                     person.HarvestGoodwillChange = 0;
                     if (home != null && !home.IsPlayer)

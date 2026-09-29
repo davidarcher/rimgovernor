@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Disable routine Doctor work to exercise repeated explicit native tending.", DefaultValue = false)] bool manualTending = false,
             [ToolParameter(Description = "Force the surgical patient into the high-severity withdrawal stage of GoJuiceAddiction, instead of waiting on real decay/timing.", DefaultValue = false)] bool withdrawal = false,
             [ToolParameter(Description = "Hospital planning variant: flu patients start tended, no medical sleeping spots are placed and PatientBedRest stays enabled, so the patients need a hosted medical bed the service must provide.", DefaultValue = false)] bool hospital = false,
-            [ToolParameter(Description = "Surgery cases (#1170): give the second colonist cataract, infectedHand or missingKidney; missingKidney also holds one unrecruitable non-player prisoner on a prisoner sleeping spot. missingKidneyIndustrial is missingKidney without the herbal stock, so industrial medicine is the only medicine (#1239). Empty adds nothing.", DefaultValue = "")] string condition = "")
+            [ToolParameter(Description = "Surgery cases (#1170): give the second colonist cataract, infectedHand or missingKidney; missingKidney also holds one unrecruitable non-player prisoner on a prisoner sleeping spot. missingKidneyIndustrial is missingKidney without the herbal stock, so industrial medicine is the only medicine (#1239). pegTraining (#1236) instead drops every doctor to Medicine 8 and holds one unrecruitable factionless prisoner missing a leg. Empty adds nothing.", DefaultValue = "")] string condition = "")
         {
             var industrialOnly = condition == "missingKidneyIndustrial";
             if (industrialOnly) condition = "missingKidney";
@@ -198,7 +198,12 @@ namespace HomeBridge.BridgeTools
                     pawn.drafter.Drafted = false;
                     pawn.playerSettings.medCare = MedicalCareCategory.Best;
                     pawn.workSettings.EnableAndInitialize();
-                    foreach (var skill in pawn.skills.skills.Where(s => s.def == SkillDefOf.Medicine)) skill.Level = 20;
+                    foreach (var skill in pawn.skills.skills.Where(s => s.def == SkillDefOf.Medicine)) {
+                        skill.Level = condition == "pegTraining" ? 8 : 20;
+                        // The pawn read carries levels, not XP: start 1000 XP short
+                        // of level 9 so one peg-leg cycle shows as a level.
+                        if (condition == "pegTraining") { skill.passion = Passion.Major; skill.xpSinceLastLevel = skill.XpRequiredForLevelUp - 1000f; }
+                    }
                     foreach (var work in new[] { "Doctor", "Patient", "PatientBedRest" }) {
                         var def = DefDatabase<WorkTypeDef>.GetNamed(work);
                         if (!pawn.WorkTypeIsDisabled(def)) pawn.workSettings.SetPriority(def, (disease && !hospital && work == "PatientBedRest") || (manualTending && work == "Doctor") ? 0 : 1);
@@ -211,7 +216,7 @@ namespace HomeBridge.BridgeTools
                 if (condition != "") {
                     stage = "surgery room";
                     SurgeryRoom(map, center + new IntVec3(4, 0, -2), false);
-                    if (condition == "missingKidney") prisonCell = SurgeryRoom(map, center + new IntVec3(-9, 0, -2), true);
+                    if (condition == "missingKidney" || condition == "pegTraining") prisonCell = SurgeryRoom(map, center + new IntVec3(-9, 0, -2), true);
                 }
                 foreach (var item in new[] { ("MealSurvivalPack", 200), ("MedicineIndustrial", 60), ("WoodLog", 100), ("SimpleProstheticLeg", 1) }) {
                     stage = "stock "+item.Item1;
@@ -286,6 +291,7 @@ namespace HomeBridge.BridgeTools
                     case "cataract": partDef = "Eye"; stock = "BionicEye"; break;
                     case "infectedHand": partDef = "Hand"; break;
                     case "missingKidney": partDef = "Kidney"; break;
+                    case "pegTraining": partDef = null; break;
                     default: throw new InvalidOperationException("Unknown condition " + condition);
                     }
                     var part = partDef == null ? null : patient.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == partDef);
@@ -309,14 +315,21 @@ namespace HomeBridge.BridgeTools
                         if (!GenPlace.TryPlaceThing(item, center, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Part placement failed");
                         item.SetForbidden(false, false);
                     }
-                    if (condition == "missingKidney") {
+                    if (condition == "missingKidney" || condition == "pegTraining") {
                         stage = "prisoner";
-                        var faction = Find.FactionManager.AllFactionsListForReading.First(f => !f.IsPlayer && !f.Hidden && f.def.humanlikeFaction && !f.HostileTo(Faction.OfPlayer));
+                        // Peg-leg training runs on a factionless prisoner: its removal
+                        // costs no goodwill.
+                        var faction = condition == "pegTraining" ? null : Find.FactionManager.AllFactionsListForReading.First(f => !f.IsPlayer && !f.Hidden && f.def.humanlikeFaction && !f.HostileTo(Faction.OfPlayer));
                         var prisoner = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Villager, faction, forceGenerateNewPawn: true,
                             canGeneratePawnRelations: false, developmentalStages: DevelopmentalStage.Adult));
                         GenSpawn.Spawn(prisoner, prisonCell, map);
                         prisoner.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
                         prisoner.guest.Recruitable = false;
+                        if (condition == "pegTraining") {
+                            var prisonerLeg = prisoner.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == "Leg");
+                            prisoner.health.AddHediff(HediffDefOf.MissingBodyPart, prisonerLeg);
+                            conditionPart = prisoner.RaceProps.body.AllParts.IndexOf(prisonerLeg);
+                        }
                         // A prisoner's default care allows herbal at best: stock it,
                         // or the harvest reads ingredients_on_map false.
                         if (!industrialOnly) {

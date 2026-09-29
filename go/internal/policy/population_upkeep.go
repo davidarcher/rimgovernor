@@ -73,6 +73,9 @@ type PrisonerColony struct {
 	// OrganUsePrecept is the defName of the ideoligion's OrganUse-issue
 	// precept (#1169); empty reads as OrganUse_Classic.
 	OrganUsePrecept string
+	// Medicine is each free colonist's Medicine level, doctors only (the
+	// skill not disabled): the doctor training floor counts it (#1236).
+	Medicine []int
 }
 
 // SlaveryAllowed reports whether the colony's ideoligion lets it enslave
@@ -111,6 +114,9 @@ type PrisonerFacts struct {
 	HarvestGoodwill domain.Fact[int]
 	// MedicalCare is the prisoner's MedicalCareCategory name (#1239).
 	MedicalCare domain.Fact[string]
+	// Withdrawal: the prisoner carries a drug addiction it cannot feed, so
+	// it is in or near withdrawal (#1236 peg-leg control).
+	Withdrawal domain.Fact[bool]
 }
 
 // PrisonerPlanReason names why RoutinePrisonerInteractionPlanner did or did
@@ -243,9 +249,25 @@ func canLabor(p PrisonerProspect) bool {
 }
 
 // prisonerUse is the interaction one living prisoner should have, or ""
-// when the row is settled. unknown reports a fact the decision needed but
-// the census did not carry; an unknown fact is never evidence of a settled
-// prisoner. The rules, in order:
+// when the row is settled: prisonerIntent's use when the prisoner does not
+// already have it. A legless prisoner is not released: vanilla cannot
+// release a downed pawn, and MaintainSurgery puts a peg leg back first
+// (#1236). unknown reports a fact the decision needed but the census did
+// not carry; an unknown fact is never evidence of a settled prisoner.
+func prisonerUse(row PrisonerFacts, colony PrisonerColony, food domain.Fact[float64], p PrisonerPolicy) (want domain.PrisonerInteractionMode, unknown bool) {
+	intent, unknown := prisonerIntent(row, colony, food, p)
+	current, _ := row.CurrentInteraction.Value()
+	if unknown || intent == "" || intent == current {
+		return "", unknown
+	}
+	if intent == domain.PrisonerInteractionRelease && row.legless() {
+		return "", false
+	}
+	return intent, false
+}
+
+// prisonerIntent is the use the colony has for one living prisoner, or ""
+// while it is simply held. The rules, in order:
 //
 //   - A recruitable prisoner whose resistance is broken and who is already
 //     being recruited keeps recruiting.
@@ -256,9 +278,9 @@ func canLabor(p PrisonerProspect) bool {
 //     colony's ideoligion (or without Ideology).
 //   - Otherwise, able to labor, not a wild man and the ideoligion allows
 //     slavery without mood cost: Enslave.
-//   - Otherwise Release: at once while the food runway is below target,
-//     else after ReleaseAfterDays in custody.
-func prisonerUse(row PrisonerFacts, colony PrisonerColony, food domain.Fact[float64], p PrisonerPolicy) (want domain.PrisonerInteractionMode, unknown bool) {
+//   - Otherwise Release: once chosen it stays, else at once while the food
+//     runway is below target, else after ReleaseAfterDays in custody.
+func prisonerIntent(row PrisonerFacts, colony PrisonerColony, food domain.Fact[float64], p PrisonerPolicy) (intent domain.PrisonerInteractionMode, unknown bool) {
 	dead, dk := row.Dead.Value()
 	if !dk {
 		return "", true
@@ -272,29 +294,23 @@ func prisonerUse(row PrisonerFacts, colony PrisonerColony, food domain.Fact[floa
 	if !rk || !ck || !pk {
 		return "", true
 	}
-	settle := func(mode domain.PrisonerInteractionMode) (domain.PrisonerInteractionMode, bool) {
-		if current == mode {
-			return "", false
-		}
-		return mode, false
-	}
 	if recruitable && current == domain.PrisonerInteractionRecruit {
 		resistance, known := row.Resistance.Value()
 		if known && resistance <= 0 {
-			return "", false
+			return domain.PrisonerInteractionRecruit, false
 		}
 	}
 	if recruitable && row.worthRecruiting(prospect, colony) {
 		if colony.IdeologyActive && !colony.ClassicIdeo && colony.Ideo != "" && row.Ideo != "" && row.Ideo != colony.Ideo {
-			return settle(domain.PrisonerInteractionConvert)
+			return domain.PrisonerInteractionConvert, false
 		}
-		return settle(domain.PrisonerInteractionRecruit)
+		return domain.PrisonerInteractionRecruit, false
 	}
 	if colony.SlaveryAllowed() && !row.WildMan && canLabor(prospect) {
-		return settle(domain.PrisonerInteractionEnslave)
+		return domain.PrisonerInteractionEnslave, false
 	}
 	if current == domain.PrisonerInteractionRelease {
-		return "", false
+		return domain.PrisonerInteractionRelease, false
 	}
 	days, fk := food.Value()
 	if !fk {

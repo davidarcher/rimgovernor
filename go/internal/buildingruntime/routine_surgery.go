@@ -24,7 +24,7 @@ type RoutineSurgeryResult struct {
 	Plan   domain.PlanID
 	Wants  []policy.SurgeryWant
 	// Harvest is set when the plan carries an organ harvest (#1169)
-	// or an artificial part recovery (#1232).
+	// or an artificial part recovery (#1232), or a peg-leg step (#1236).
 	Harvest bool
 	// NativeWorkTicks lends a window while a surgery bill is queued
 	// (#1238): native doctors carry it, and no plan action stays open.
@@ -132,6 +132,13 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 		if blocked, ok := policy.CareLimitedHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, policy.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants), inFlight); ok {
 			clockSchedulerLog("%s: surgery %s on prisoner %s refused: medicine care limit %s allows no stocked medicine; herbal wanted", goal.Goal.ID, blocked.Recipe, blocked.Prisoner, policy.PrisonerMedicalCare)
 		}
+	}
+	if !harvesting {
+		// Peg-leg cycling (#1236): training, control or a reinstall.
+		facts := read.Projection.Facts
+		var peg policy.PegCycle
+		peg, harvesting = policy.SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, r.reviewer.policy.Prisoners(), selection.Wants, inFlight)
+		harvest = peg.OrganHarvest
 	}
 	harvesting = harvesting && arbiter.tryClaim([]domain.PawnID{harvest.Prisoner})
 	result.Harvest = harvesting

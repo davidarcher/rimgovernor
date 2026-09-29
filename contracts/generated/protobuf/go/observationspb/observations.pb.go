@@ -16348,7 +16348,11 @@ type PopulationPerson struct {
 	FactionId             *string     `protobuf:"bytes,18,opt,name=faction_id,json=factionId,proto3,oneof" json:"faction_id,omitempty"`
 	HarvestGoodwillChange *int32      `protobuf:"varint,19,opt,name=harvest_goodwill_change,json=harvestGoodwillChange,proto3,oneof" json:"harvest_goodwill_change,omitempty"`
 	// The prisoner's MedicalCareCategory name (#1239), for a colony prisoner.
-	MedicalCare   *string `protobuf:"bytes,20,opt,name=medical_care,json=medicalCare,proto3,oneof" json:"medical_care,omitempty"`
+	MedicalCare *string `protobuf:"bytes,20,opt,name=medical_care,json=medicalCare,proto3,oneof" json:"medical_care,omitempty"`
+	// Peg-leg control (#1236), for a prisoner of the colony only: it carries a
+	// drug addiction (Hediff_Addiction). A prisoner gets no drugs, so an
+	// addiction is withdrawal now or soon, until the addiction clears.
+	Withdrawal    *bool `protobuf:"varint,21,opt,name=withdrawal,proto3,oneof" json:"withdrawal,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -16521,6 +16525,13 @@ func (x *PopulationPerson) GetMedicalCare() string {
 		return *x.MedicalCare
 	}
 	return ""
+}
+
+func (x *PopulationPerson) GetWithdrawal() bool {
+	if x != nil && x.Withdrawal != nil {
+		return *x.Withdrawal
+	}
+	return false
 }
 
 type PopulationSnapshot struct {
@@ -36283,7 +36294,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2-.rimgovernor.observations.v1.RecoverySnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xac\t\n" +
+	"\aoutcome\"\xe0\t\n" +
 	"\x10PopulationPerson\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12\x1f\n" +
 	"\badmitted\x18\x02 \x01(\bH\x00R\badmitted\x88\x01\x01\x12\x19\n" +
@@ -36309,7 +36320,10 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"faction_id\x18\x12 \x01(\tH\rR\tfactionId\x88\x01\x01\x12;\n" +
 	"\x17harvest_goodwill_change\x18\x13 \x01(\x05H\x0eR\x15harvestGoodwillChange\x88\x01\x01\x12&\n" +
-	"\fmedical_care\x18\x14 \x01(\tH\x0fR\vmedicalCare\x88\x01\x01B\v\n" +
+	"\fmedical_care\x18\x14 \x01(\tH\x0fR\vmedicalCare\x88\x01\x01\x12#\n" +
+	"\n" +
+	"withdrawal\x18\x15 \x01(\bH\x10R\n" +
+	"withdrawal\x88\x01\x01B\v\n" +
 	"\t_admittedB\b\n" +
 	"\x06_guestB\x0e\n" +
 	"\f_recruitableB\r\n" +
@@ -36326,7 +36340,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_wearing_apparelB\r\n" +
 	"\v_faction_idB\x1a\n" +
 	"\x18_harvest_goodwill_changeB\x0f\n" +
-	"\r_medical_care\"\x97\a\n" +
+	"\r_medical_careB\r\n" +
+	"\v_withdrawal\"\x97\a\n" +
 	"\x12PopulationSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
 	"\apersons\x18\x02 \x03(\v2-.rimgovernor.observations.v1.PopulationPersonR\apersons\x12a\n" +

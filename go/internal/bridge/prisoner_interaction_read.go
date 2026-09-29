@@ -141,6 +141,9 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 				if name := s.GetDefinition().GetDefName(); !s.GetDisabled() && int(s.GetLevel()) > colony.BestSkill[name] {
 					colony.BestSkill[name] = int(s.GetLevel())
 				}
+				if s.GetDefinition().GetDefName() == "Medicine" && !s.GetDisabled() {
+					colony.Medicine = append(colony.Medicine, int(s.GetLevel()))
+				}
 			}
 		}
 		if pawn.Prisoner == nil || !pawn.GetPrisoner() {
@@ -173,6 +176,9 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		}
 		if person.MedicalCare != nil {
 			f.MedicalCare = domain.Known(person.GetMedicalCare())
+		}
+		if person.Withdrawal != nil {
+			f.Withdrawal = domain.Known(person.GetWithdrawal())
 		}
 		if person.Interaction != nil {
 			if mode, ok := prisonerInteractionDefNames[person.GetInteraction()]; ok {
