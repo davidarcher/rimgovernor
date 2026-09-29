@@ -70,23 +70,36 @@ const (
 	PackedSculptureDefinition = "MinifiedSculpture"
 )
 
-// SculptureStep installs Packed (a packed item's id) at Anchor, North.
+// SculptureStep installs Packed (a packed item's id) at Anchor, Rot.
 type SculptureStep struct {
 	Room   string
 	Packed string
 	Anchor domain.Cell
+	Rot    domain.Rotation
 }
 
+// PackedSculpture is a packed sculpture in stock: its id and the
+// sculpture definition inside.
+type PackedSculpture struct{ ID, Def string }
+
 // NextSculpture returns the install due for the first (by room id) bedroom
-// below target whose weakest stat is beauty and that has a free cell, while
-// a packed sculpture is in stock; the caller asks only once
+// below target whose weakest stat is beauty, of the first packed sculpture
+// (in stock order) whose footprint has a free spot there (#1191: a large
+// sculpture needs a free multi-cell spot); the caller asks only once
 // NextBeautyUpgrade has nothing.
-func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, packed []string) (SculptureStep, bool) {
-	due := sculptureRooms(obs, targets, rooms)
-	if len(due) == 0 || len(packed) == 0 {
-		return SculptureStep{}, false
+func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, packed []PackedSculpture) (SculptureStep, bool) {
+	for _, room := range sculptureRooms(obs, targets, rooms) {
+		for _, p := range packed {
+			size, ok := SculptureSize(p.Def)
+			if !ok {
+				continue
+			}
+			if cell, rot, ok := freeSpot(room.Room, size); ok {
+				return SculptureStep{Room: room.ID, Packed: p.ID, Anchor: cell, Rot: rot}, true
+			}
+		}
 	}
-	return SculptureStep{Room: due[0].ID, Packed: packed[0], Anchor: due[0].Cell}, true
+	return SculptureStep{}, false
 }
 
 // beautyRooms are the target rooms (by id) below target whose weakest

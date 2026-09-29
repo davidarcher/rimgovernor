@@ -88,6 +88,9 @@ type ProductionBillContext struct {
 	Meals       *MealTierRequest
 	// Artists is the one artist an ArtBill selection pins (#1190).
 	Artists []PawnID
+	// Art sizes the ArtBill selection (#1191); nil chooses a small
+	// sculpture in any stuff.
+	Art *ArtDemand
 }
 
 // billAdequate preserves unknown fields, but any observed drift is enough
@@ -167,7 +170,11 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 		if purpose != ArtBill || len(context) != 1 || len(context[0].Artists) != 1 {
 			return BillSelection{}, false
 		}
-		return selectArtBill(rows, context[0].Artists[0])
+		var demand ArtDemand
+		if context[0].Art != nil {
+			demand = *context[0].Art
+		}
+		return selectArtBill(rows, context[0].Artists[0], demand)
 	}
 	if len(context) == 1 && (context[0].Meals != nil && purpose != CookFood || context[0].Reserve != nil && purpose != PreserveFood) {
 		return BillSelection{}, false

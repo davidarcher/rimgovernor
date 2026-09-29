@@ -35,15 +35,31 @@ func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlSta
 	profiles := policy.Profiles(pawns)
 	benches := domain.Known(artBenches(reads))
 	// An inspired artist's large sculpture comes first (#1192).
-	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles)), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles))...)
+	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles)), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles), artDemand(projection, profiles))...)
 	if len(bills) == 0 {
 		return policy.BillSelection{}, false, nil
 	}
 	return bills[0], true, nil
 }
 
-// artBenches converts the gear benches offering the small sculpture recipe
-// into production benches; a bench whose bills are unknown is left out.
+// artDemand sizes the art bills (#1191) from the same bedroom census as
+// sculptureRoomsOwed, the colony stock and the artists' skills; an unknown
+// census leaves only the small sculpture.
+func artDemand(facts observation.ColonyProjection, profiles []policy.PawnProfile) policy.ArtDemand {
+	stock, _ := facts.Resources.Value()
+	rooms, rk := facts.Rooms.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	obs, sk := facts.Facts.Sleeping.Value()
+	traits := sleepingTraits(facts)
+	if !rk || !ck || !sk || !census.Colony || traits == nil {
+		return policy.NewArtDemand(domain.Unknown[policy.SleepingObservation](), nil, nil, stock, profiles)
+	}
+	tier, _ := facts.BuildTier.Value()
+	return policy.NewArtDemand(facts.Facts.Sleeping, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), stock, profiles)
+}
+
+// artBenches converts the gear benches offering a sculpture recipe into
+// production benches; a bench whose bills are unknown is left out.
 func artBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
 	var out []policy.ProductionBench
 	for _, read := range reads {
@@ -54,7 +70,7 @@ func artBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
 		}
 		bench := policy.ProductionBench{ID: read.Bench.ID, Token: domain.Known(read.Token), Usable: domain.Known(true)}
 		for _, recipe := range recipes {
-			if recipe.Definition != policy.SculptureRecipe && recipe.Definition != policy.InspiredArtRecipe {
+			if !policy.IsSculptureRecipe(recipe.Definition) {
 				continue
 			}
 			available, ak := recipe.Available.Value()

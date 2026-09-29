@@ -23,7 +23,7 @@ func TestArtBenchesFromGearBenches(t *testing.T) {
 	if len(benches) != 1 || benches[0].ID != "TableSculpting_1" || len(benches[0].Bills) != 1 {
 		t.Fatalf("benches = %+v", benches)
 	}
-	got := policy.SelectArtBills(domain.Known(benches), domain.Known[int64](2), []policy.PawnID{"a", "b"})
+	got := policy.SelectArtBills(domain.Known(benches), domain.Known[int64](2), []policy.PawnID{"a", "b"}, policy.ArtDemand{})
 	if len(got) != 1 || got[0].Worker != "b" || got[0].Token != "t1" {
 		t.Fatalf("bills = %+v", got)
 	}

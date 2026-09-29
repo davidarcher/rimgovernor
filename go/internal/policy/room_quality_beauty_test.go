@@ -18,17 +18,41 @@ func TestSculptureInstall(t *testing.T) {
 		t.Fatal("beauty room not owed a sculpture")
 	}
 	// A packed sculpture in stock: install it on free floor.
-	s, ok := NextSculpture(obs, targets, rooms, []string{"Thing_MinifiedSculpture1"})
+	s, ok := NextSculpture(obs, targets, rooms, []PackedSculpture{{ID: "Thing_MinifiedSculpture1", Def: SculptureDefinition}})
 	if !ok || s.Room != "Room_1" || s.Packed != "Thing_MinifiedSculpture1" || roomPieceOverlaps(rooms[0].Pieces, Rectangle{s.Anchor.X, s.Anchor.Z, 1, 1}) {
 		t.Fatalf("install = %+v %v", s, ok)
 	}
 	// Beauty not the weakest stat: nothing.
 	obs2, _, _ := upgradeFixture(t, RoomQuality{Wealth: 100, Beauty: 3, Space: 25, Impressiveness: 35})
-	if s, ok := NextSculpture(obs2, targets, rooms, []string{"Thing_MinifiedSculpture1"}); ok {
+	if s, ok := NextSculpture(obs2, targets, rooms, []PackedSculpture{{ID: "Thing_MinifiedSculpture1", Def: SculptureDefinition}}); ok {
 		t.Fatalf("wealth weakest = %+v", s)
 	}
 	if owed, known := SculptureRoomsOwed(domain.Known(obs2), targets, rooms).Value(); !known || owed {
 		t.Fatalf("wealth weakest owed = %v %v", owed, known)
+	}
+}
+
+// A large sculpture installs only on a free multi-cell spot (#1191); one
+// that fits nowhere gives way to a smaller one in stock.
+func TestSculptureInstallNeedsItsFootprint(t *testing.T) {
+	obs, rooms, _ := upgradeFixture(t, RoomQuality{Wealth: 3000, Beauty: -1, Space: 25, Impressiveness: 35})
+	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: ImpressivenessSlightlyImpressive}}
+	large := PackedSculpture{ID: "Thing_MinifiedSculpture2", Def: "SculptureLarge"}
+	s, ok := NextSculpture(obs, targets, rooms, []PackedSculpture{large})
+	if !ok || s.Packed != large.ID || roomPieceOverlaps(rooms[0].Pieces, OccupiedRect(s.Anchor, domain.Cell{X: 2, Z: 2}, s.Rot)) {
+		t.Fatalf("large = %+v %v", s, ok)
+	}
+	// Block every other column: no 2x2 spot is left.
+	in := rooms[0].Room.Interior
+	for x := in.X + 1; x < in.X+in.Width; x += 2 {
+		rooms[0].Pieces = append(rooms[0].Pieces, TidyPiece{Def: "Wall", Rect: Rectangle{x, in.Z, 1, in.Height}})
+	}
+	if s, ok := NextSculpture(obs, targets, rooms, []PackedSculpture{large}); ok {
+		t.Fatalf("large without space = %+v", s)
+	}
+	small := PackedSculpture{ID: "Thing_MinifiedSculpture1", Def: SculptureDefinition}
+	if s, ok := NextSculpture(obs, targets, rooms, []PackedSculpture{large, small}); !ok || s.Packed != small.ID {
+		t.Fatalf("small after large = %+v %v", s, ok)
 	}
 }
 

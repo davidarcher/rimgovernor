@@ -56,10 +56,10 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	packed := make([]string, 0, len(items))
+	packed := make([]policy.PackedSculpture, 0, len(items))
 	inner := map[string]bridge.PackedItem{}
 	for _, item := range items {
-		packed = append(packed, item.ID)
+		packed = append(packed, policy.PackedSculpture{ID: item.ID, Def: item.InnerDef})
 		inner[item.ID] = item
 	}
 	step, due := policy.NextSculpture(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed)
@@ -73,12 +73,8 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, true, nil
 	}
 	item := inner[step.Packed]
-	if item.InnerDef != policy.SculptureDefinition {
-		clockSchedulerLog("%s: bedroom %s: packed sculpture %s not installable at %d,%d", goal.Goal.ID, step.Room, step.Packed, step.Anchor.X, step.Anchor.Z)
-		return RoutineBuildingResult{Reason: BuildingMethodRefused}, true, nil
-	}
 	id := domain.MintPlanID()
-	move, err := domain.NewMoveBuilding(item.Inner, item.InnerDef, step.Anchor, domain.North)
+	move, err := domain.NewMoveBuilding(item.Inner, item.InnerDef, step.Anchor, step.Rot)
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
