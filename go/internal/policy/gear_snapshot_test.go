@@ -146,8 +146,7 @@ func TestGearWinterLookaheadAsksForWinterWearBeforeWinter(t *testing.T) {
 // the equip step first planned (the case failed: nobody ended armed or
 // armored), so the recording hands the guns to others; the test stands
 // the soldiers back up and asserts the fit the case asserted. The armor
-// ladder half is not converted: that run's census carried no loadout
-// model, so no recorded review planned a flak vest or helmet.
+// half is snapshot.TestGearSoldierDraftedPlansFlakVestAndHelmet (#979).
 func TestGearSoldierWeaponFitBySkill(t *testing.T) {
 	var in struct {
 		Pawns       []policy.EquipCandidatePawn
