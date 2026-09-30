@@ -64,6 +64,23 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, pawn = pawn.GetUniqueLoadID(), backstory = backstory.defName };
             }, cancellationToken);
         }
+        [Tool("test/lone_self_tend_off", Description = "UNSAFE FOR MODEL EXECUTION. Vanish every free colonist but one paused disposable doctor-capable colonist and turn its self-tend off (#1305).")]
+        public async Task<object> LoneSelfTendOff(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
+                    .First(p => !p.Dead && !p.Downed && p.playerSettings != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor));
+                foreach (var other in map.mapPawns.FreeColonistsSpawned.Where(p => p != pawn).ToList())
+                    other.Destroy(DestroyMode.Vanish);
+                pawn.playerSettings.selfTend = false;
+                if (map.mapPawns.FreeColonistsSpawned.Count != 1)
+                    throw new InvalidOperationException("More than one colonist remains.");
+                return new { success = true, pawn = pawn.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
         [Tool("test/mood_setup", Description = "Seed deficient needs in one disposable pawn; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "food, rest, joy, forced, schedule, mental or environment.")] string scenario)

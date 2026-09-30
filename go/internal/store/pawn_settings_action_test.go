@@ -20,7 +20,15 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a})
+	tend, err := domain.NewSelfTendSetting("Human7", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := domain.NewPawnSettingsAction("self-tend", tend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,10 +42,13 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := loaded.Spec.Actions()
-	if len(got) != 1 {
+	if len(got) != 2 {
 		t.Fatal(got)
 	}
 	if v, ok := got[0].PawnSettings(); !ok || v != value {
 		t.Fatal(v, value)
+	}
+	if v, ok := got[1].PawnSettings(); !ok || v != tend {
+		t.Fatal(v, tend)
 	}
 }

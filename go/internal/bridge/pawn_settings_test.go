@@ -29,3 +29,22 @@ func TestPawnSettingsBuildsHostilityIntent(t *testing.T) {
 		t.Fatalf("%v", wire)
 	}
 }
+
+// A self-tend setting builds the self_tend arm (#1305).
+func TestPawnSettingsBuildsSelfTendIntent(t *testing.T) {
+	value, err := domain.NewSelfTendSetting("Human1", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewPawnSettingsAction("a1", value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := IntentAction("plan/1", action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := wire.GetPawnSettings(); s.GetPawnId() != "Human1" || !s.GetSelfTend() || s.GetHostilityResponse() != "" {
+		t.Fatalf("%v", wire)
+	}
+}

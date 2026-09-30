@@ -54,6 +54,9 @@ type WorkPawn struct {
 	ViolenceCapable domain.Fact[bool]
 	BloodLoss       domain.Fact[float64]
 	Health          domain.Fact[float64]
+	// SelfTend is playerSettings.selfTend (#1305); unknown when the read
+	// carried no care settings.
+	SelfTend domain.Fact[bool]
 	// Rest, Joy and Mood are need levels from the pawn needs block; unknown
 	// when the read carried no readable needs (#1312).
 	Rest, Joy, Mood domain.Fact[float64]

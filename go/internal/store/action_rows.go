@@ -143,7 +143,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,target,zone_payload) VALUES(?,?,?,'area',?,NULLIF(?,''),?)", a.ID(), plan, ordinal, string(area.Operation()), area.Key(), data)
 	} else if settings, ok := a.PawnSettings(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition) VALUES(?,?,?,'pawn_settings',?,?)", a.ID(), plan, ordinal, string(settings.Pawn()), string(settings.Hostility()))
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition) VALUES(?,?,?,'pawn_settings',?,?)", a.ID(), plan, ordinal, string(settings.Pawn()), pawnSettingDefinition(settings))
 	} else if prune, ok := a.PolicyPrune(); ok {
 		// definition is the database, zone_payload the canonical ids (#1298).
 		data, encodeErr := json.Marshal(prune.IDs())
@@ -787,7 +787,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		return a, ordinal, err
 	}
 	if kind == "pawn_settings" && pawn.Valid && def.Valid && !target.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid {
-		settings, err := domain.NewHostilitySetting(domain.PawnID(pawn.String), domain.HostilityResponse(def.String))
+		settings, err := parsePawnSetting(domain.PawnID(pawn.String), def.String)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -1055,4 +1055,21 @@ func legacyZoneFilter(payload zonePayload) (domain.StockpileFilter, error) {
 		return domain.AllowOnlyFilter(payload.Allow)
 	}
 	return domain.StockpileFilter{}, errors.New("unsupported stockpile preset")
+}
+
+// pawnSettingDefinition is a pawn_settings row's definition column: the
+// hostility mode, or "self_tend:<bool>" for a self-tend setting (#1305).
+func pawnSettingDefinition(s domain.PawnSettings) string {
+	if s.Kind() == domain.SettingSelfTend {
+		return "self_tend:" + strconv.FormatBool(s.SelfTend())
+	}
+	return string(s.Hostility())
+}
+
+func parsePawnSetting(pawn domain.PawnID, def string) (domain.PawnSettings, error) {
+	switch def {
+	case "self_tend:true", "self_tend:false":
+		return domain.NewSelfTendSetting(pawn, def == "self_tend:true")
+	}
+	return domain.NewHostilitySetting(pawn, domain.HostilityResponse(def))
 }

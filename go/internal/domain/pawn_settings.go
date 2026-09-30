@@ -4,10 +4,10 @@ import "errors"
 
 // PawnSettingsAction sets one per-pawn Assign-tab setting on one colony pawn
 // (#1299, epic #1292): a PawnSettingsIntent on Actions/Apply, one setting
-// per intent. Only the hostility response is carried so far; the other
-// intent arms (self-tend, reading policy, medicine carry, nickname) land
-// with their epic issues. Native treats a setting that already holds as
-// applied.
+// per intent. The hostility response (#1299) and self-tend (#1305) are
+// carried so far; the other intent arms (reading policy, medicine carry,
+// nickname) land with their epic issues. Native treats a setting that
+// already holds as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
 
 // HostilityResponse is a vanilla HostilityResponseMode name.
@@ -24,28 +24,58 @@ func (h HostilityResponse) Valid() bool {
 	return h == HostilityIgnore || h == HostilityAttack || h == HostilityFlee
 }
 
+// SettingKind names the PawnSettingsIntent arm a PawnSettings carries.
+type SettingKind string
+
+const (
+	SettingHostility SettingKind = "hostility"
+	SettingSelfTend  SettingKind = "self_tend"
+)
+
 // PawnSettings is an immutable, comparable value: the pawn and the one
 // setting it should hold.
 type PawnSettings struct {
 	pawn      PawnID
+	kind      SettingKind
 	hostility HostilityResponse
+	selfTend  bool
 }
 
 func NewHostilitySetting(pawn PawnID, mode HostilityResponse) (PawnSettings, error) {
 	if !validID(string(pawn)) || !mode.Valid() {
 		return PawnSettings{}, errors.New("a hostility setting requires a pawn and Ignore, Attack or Flee")
 	}
-	return PawnSettings{pawn: pawn, hostility: mode}, nil
+	return PawnSettings{pawn: pawn, kind: SettingHostility, hostility: mode}, nil
+}
+
+// NewSelfTendSetting sets playerSettings.selfTend (#1305).
+func NewSelfTendSetting(pawn PawnID, on bool) (PawnSettings, error) {
+	if !validID(string(pawn)) {
+		return PawnSettings{}, errors.New("a self-tend setting requires a pawn")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingSelfTend, selfTend: on}, nil
 }
 
 func (s PawnSettings) Pawn() PawnID                 { return s.pawn }
+func (s PawnSettings) Kind() SettingKind            { return s.kind }
 func (s PawnSettings) Hostility() HostilityResponse { return s.hostility }
+func (s PawnSettings) SelfTend() bool               { return s.selfTend }
+
+func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
+	switch s.kind {
+	case SettingHostility:
+		return NewHostilitySetting(s.pawn, s.hostility)
+	case SettingSelfTend:
+		return NewSelfTendSetting(s.pawn, s.selfTend)
+	}
+	return PawnSettings{}, errors.New("unknown pawn setting")
+}
 
 func NewPawnSettingsAction(id ActionID, s PawnSettings) (Action, error) {
 	if !validID(string(id)) {
 		return Action{}, errors.New("invalid action identity")
 	}
-	canonical, err := NewHostilitySetting(s.pawn, s.hostility)
+	canonical, err := canonicalPawnSettings(s)
 	if err != nil || canonical != s {
 		return Action{}, errors.New("invalid pawn settings")
 	}

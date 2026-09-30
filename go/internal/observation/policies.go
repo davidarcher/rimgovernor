@@ -75,6 +75,7 @@ func pawnPolicyInputs(p *o.PawnPolicyInputs) domain.Fact[policy.PawnPolicyInputs
 		DependencyChemicals: p.DependencyChemicals, RoyalTitle: p.GetRoyalTitle(), TitleApparel: apparelRequirements(p.TitleApparel),
 		Ideo: p.GetIdeoId(), Precepts: p.Precepts, IdeoRole: p.GetIdeoRole(), RoleApparel: apparelRequirements(p.RoleApparel), PreceptApparel: p.PreceptApparel,
 		GuestStatus: p.GetGuestStatus(), PrisonerInteraction: p.GetPrisonerInteraction(), SlaveInteraction: p.GetSlaveInteraction(),
+		TendQuality: optional(p.MedicalTendQuality),
 	}
 	for _, s := range p.InventoryStock {
 		r.InventoryStock = append(r.InventoryStock, policy.InventoryStock{Group: s.GetGroup(), Thing: s.GetThingDef(), Count: int(s.GetCount())})

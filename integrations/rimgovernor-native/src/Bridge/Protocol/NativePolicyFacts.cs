@@ -106,6 +106,8 @@ namespace HomeBridge.BridgeTools
                 if (guest.IsPrisoner && guest.ExclusiveInteractionMode != null) row.PrisonerInteraction = Id(guest.ExclusiveInteractionMode.defName);
                 if (guest.IsSlave && guest.slaveInteractionMode != null) row.SlaveInteraction = Id(guest.slaveInteractionMode.defName);
             }
+            if (!pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
+                row.MedicalTendQuality = Number(pawn.GetStatValue(StatDefOf.MedicalTendQuality));
             return row;
         }
     }

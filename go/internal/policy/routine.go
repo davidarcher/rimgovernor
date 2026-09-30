@@ -441,6 +441,9 @@ type RoutineFacts struct {
 	// HostilityOwed is a colonist whose hostility response differs from
 	// the one it should hold (#1299); EnsureWorkAssignments writes it.
 	HostilityOwed domain.Fact[bool]
+	// SelfTendOwed is a colonist whose self-tend setting differs from the
+	// one it should hold (#1305); EnsureWorkAssignments writes it.
+	SelfTendOwed domain.Fact[bool]
 	// ChoiceDialog is true while the game is force-paused by a choice dialog
 	// it opened by itself (#156); AnswerDialog is the goal that answers it.
 	ChoiceDialog                                                         domain.Fact[bool]
@@ -730,7 +733,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	medicalMet := measured(f.CriticalPatients, func(v int64) bool { return v == 0 })
 	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v }))
-	if positive(f.HostilityOwed) {
+	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) {
 		workMet = domain.Known(false)
 	}
 	defenseMet := allFacts(footholdArmed(f), measured(f.Hostiles, func(v int64) bool { return v == 0 }))

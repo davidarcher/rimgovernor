@@ -4563,7 +4563,8 @@ func (*Action_PolicyPrune) isAction_Intent() {}
 // HostilityResponseMode name (Ignore, Attack, Flee); native refuses a
 // violence-incapable pawn set to Attack. A setting that already holds
 // applies again. Evidence is a SettingsEffect on the pawn with the arm's
-// field. self_tend, reading_policy, medicine_carry and nickname are
+// field. self_tend (#1305) is playerSettings.selfTend, refused for a pawn
+// that cannot doctor. reading_policy, medicine_carry and nickname are
 // reserved for their epic issues and refused natively until they land.
 type PawnSettingsIntent struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`

@@ -349,6 +349,9 @@ message PawnPolicyInputs {
   // GuestStatus name (Guest, Prisoner, Slave) and the prisoner/slave
   // interaction mode defNames; absent for a pawn that is no guest.
   optional string guest_status = 14; optional string prisoner_interaction = 15; optional string slave_interaction = 16;
+  // StatDefOf.MedicalTendQuality of the pawn as a doctor, before vanilla's
+  // 0.7 self-tend factor (#1305); absent for a pawn that cannot doctor.
+  optional double medical_tend_quality = 17;
 }
 message InventoryStockSetting { optional string group = 1; optional string thing_def = 2; optional int32 count = 3; }
 // addiction: Hediff_Addiction severity, absent without one; withdrawal: the

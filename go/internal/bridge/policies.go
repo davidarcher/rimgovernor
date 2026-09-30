@@ -71,6 +71,9 @@ func validatePolicyInputs(p *o.PawnPolicyInputs) error {
 			return contract("invalid policy input identifier")
 		}
 	}
+	if !combatNumber(p.MedicalTendQuality, true) {
+		return contract("invalid medical tend quality")
+	}
 	groups := map[string]bool{}
 	for _, s := range p.InventoryStock {
 		if s == nil || validID(s.GetGroup()) != nil || groups[s.GetGroup()] || validID(s.GetThingDef()) != nil || s.Count == nil || s.GetCount() < 0 {

@@ -24,6 +24,9 @@ type PawnPolicyInputs struct {
 	PreceptApparel []string
 	// GuestStatus is Guest, Prisoner or Slave; empty for a free pawn.
 	GuestStatus, PrisonerInteraction, SlaveInteraction string
+	// TendQuality is the MedicalTendQuality stat (#1305); unknown for a
+	// pawn that cannot doctor.
+	TendQuality domain.Fact[float64]
 }
 
 type InventoryStock struct {

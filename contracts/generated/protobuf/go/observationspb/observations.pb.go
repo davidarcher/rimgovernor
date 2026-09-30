@@ -4637,8 +4637,11 @@ type PawnPolicyInputs struct {
 	GuestStatus         *string `protobuf:"bytes,14,opt,name=guest_status,json=guestStatus,proto3,oneof" json:"guest_status,omitempty"`
 	PrisonerInteraction *string `protobuf:"bytes,15,opt,name=prisoner_interaction,json=prisonerInteraction,proto3,oneof" json:"prisoner_interaction,omitempty"`
 	SlaveInteraction    *string `protobuf:"bytes,16,opt,name=slave_interaction,json=slaveInteraction,proto3,oneof" json:"slave_interaction,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// StatDefOf.MedicalTendQuality of the pawn as a doctor, before vanilla's
+	// 0.7 self-tend factor (#1305); absent for a pawn that cannot doctor.
+	MedicalTendQuality *float64 `protobuf:"fixed64,17,opt,name=medical_tend_quality,json=medicalTendQuality,proto3,oneof" json:"medical_tend_quality,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PawnPolicyInputs) Reset() {
@@ -4781,6 +4784,13 @@ func (x *PawnPolicyInputs) GetSlaveInteraction() string {
 		return *x.SlaveInteraction
 	}
 	return ""
+}
+
+func (x *PawnPolicyInputs) GetMedicalTendQuality() float64 {
+	if x != nil && x.MedicalTendQuality != nil {
+		return *x.MedicalTendQuality
+	}
+	return 0
 }
 
 type InventoryStockSetting struct {
@@ -35511,7 +35521,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_work_appliesB\x19\n" +
 	"\x17_manual_work_prioritiesB\x17\n" +
 	"\x15_drug_policy_writableB\x13\n" +
-	"\x11_drug_policy_nameJ\x04\b\x01\x10\x02R\bsnapshot\"\x8e\b\n" +
+	"\x11_drug_policy_nameJ\x04\b\x01\x10\x02R\bsnapshot\"\xde\b\n" +
 	"\x10PawnPolicyInputs\x12-\n" +
 	"\x10outfit_policy_id\x18\x01 \x01(\tH\x00R\x0eoutfitPolicyId\x88\x01\x01\x12)\n" +
 	"\x0edrug_policy_id\x18\x02 \x01(\tH\x01R\fdrugPolicyId\x88\x01\x01\x12/\n" +
@@ -35530,7 +35540,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x0fprecept_apparel\x18\r \x03(\tR\x0epreceptApparel\x12&\n" +
 	"\fguest_status\x18\x0e \x01(\tH\x06R\vguestStatus\x88\x01\x01\x126\n" +
 	"\x14prisoner_interaction\x18\x0f \x01(\tH\aR\x13prisonerInteraction\x88\x01\x01\x120\n" +
-	"\x11slave_interaction\x18\x10 \x01(\tH\bR\x10slaveInteraction\x88\x01\x01B\x13\n" +
+	"\x11slave_interaction\x18\x10 \x01(\tH\bR\x10slaveInteraction\x88\x01\x01\x125\n" +
+	"\x14medical_tend_quality\x18\x11 \x01(\x01H\tR\x12medicalTendQuality\x88\x01\x01B\x13\n" +
 	"\x11_outfit_policy_idB\x11\n" +
 	"\x0f_drug_policy_idB\x14\n" +
 	"\x12_reading_policy_idB\x0e\n" +
@@ -35541,7 +35552,8 @@ const file_observations_proto_rawDesc = "" +
 	"_ideo_roleB\x0f\n" +
 	"\r_guest_statusB\x17\n" +
 	"\x15_prisoner_interactionB\x14\n" +
-	"\x12_slave_interaction\"\x91\x01\n" +
+	"\x12_slave_interactionB\x17\n" +
+	"\x15_medical_tend_quality\"\x91\x01\n" +
 	"\x15InventoryStockSetting\x12\x19\n" +
 	"\x05group\x18\x01 \x01(\tH\x00R\x05group\x88\x01\x01\x12 \n" +
 	"\tthing_def\x18\x02 \x01(\tH\x01R\bthingDef\x88\x01\x01\x12\x19\n" +

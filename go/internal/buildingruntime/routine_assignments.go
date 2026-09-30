@@ -219,7 +219,9 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	// Hostility responses (#1299) ride the same goal: one PawnSettingsIntent
 	// per colonist whose response differs from the one it should hold.
+	// Self-tend (#1305) rides it too.
 	settings := policy.HostilityChanges(hostilityRows(pawns), read.Emergency.Threats)
+	settings = append(settings, policy.SelfTendChanges(selfTendRows(pawns))...)
 	for _, plan := range open {
 		if err := cancelStaleWorkActions(call, p.journal, plan, work, settings); err != nil {
 			return RoutineWorkResult{}, err
@@ -259,7 +261,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	for _, s := range settings {
-		fmt.Fprintf(hash, "hostility/%s/%s/%d\n", s.Pawn(), s.Hostility(), len(goal.Methods))
+		fmt.Fprintf(hash, "%s/%s/%s/%t/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), len(goal.Methods))
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -371,6 +373,24 @@ func hostilityRows(pawns []policy.WorkPawn) []policy.HostilityPawn {
 		out = append(out, p.HostilityPawn())
 	}
 	return out
+}
+
+// selfTendRows are the work census's self-tend inputs (#1305).
+func selfTendRows(pawns []policy.WorkPawn) []policy.SelfTendPawn {
+	out := make([]policy.SelfTendPawn, 0, len(pawns))
+	for _, p := range pawns {
+		out = append(out, p.SelfTendPawn())
+	}
+	return out
+}
+
+// selfTendPawns lifts the work census into the review's self-tend rows.
+func selfTendPawns(pawns domain.Fact[[]policy.WorkPawn]) domain.Fact[[]policy.SelfTendPawn] {
+	rows, known := pawns.Value()
+	if !known {
+		return domain.Unknown[[]policy.SelfTendPawn]()
+	}
+	return domain.Known(selfTendRows(rows))
 }
 
 // hostilityPawns lifts the work census into the review's hostility rows.

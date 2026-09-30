@@ -130,6 +130,9 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 	if s := row.Settings; s != nil && s.HostilityResponse != nil && !hasIssue(s.Issues, "hostility_response") {
 		w.Hostility = domain.Known(domain.HostilityResponse(s.GetHostilityResponse()))
 	}
+	if s := row.Settings; s != nil && s.SelfTend != nil && !hasIssue(s.Issues, "self_tend") {
+		w.SelfTend = domain.Known(s.GetSelfTend())
+	}
 	if b := row.Biography; b != nil && !hasIssue(b.Issues, "disabled_work_tags") {
 		violent := true
 		for _, tag := range b.DisabledWorkTags {
