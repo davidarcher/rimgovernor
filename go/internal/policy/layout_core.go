@@ -193,6 +193,46 @@ type coreGrid struct {
 	// the hallway): rooms go to whichever end stays nearer it.
 	junction    int32
 	hasJunction bool
+	// soil is each surveyed cell's build cost (#1284); nil costs nothing.
+	soil map[domain.Cell]int
+}
+
+// Soil build costs per cell (#1279/#1284): rich soil costs more than
+// plain soil, which costs more than anything else (bare ground, rock).
+// Rich soil is a cost, not a ban.
+const (
+	soilCostRich   = 4
+	soilCostNormal = 2
+	soilCostOther  = 0
+)
+
+// withSoil gives g a per-cell build cost from the survey's fertility.
+func (g coreGrid) withSoil(s MapSurvey) coreGrid {
+	g.soil = make(map[domain.Cell]int, len(s.Cells))
+	for _, c := range s.Cells {
+		switch {
+		case c.Rock:
+			g.soil[c.Cell] = soilCostOther
+		case c.Fertility > zoneRichFertility:
+			g.soil[c.Cell] = soilCostRich
+		case c.Fertility >= zoneFieldFertility:
+			g.soil[c.Cell] = soilCostNormal
+		default:
+			g.soil[c.Cell] = soilCostOther
+		}
+	}
+	return g
+}
+
+// soilCost sums the build cost of r's cells.
+func (g coreGrid) soilCost(r Rectangle) int {
+	n := 0
+	for x := r.X; x < r.X+r.Width; x++ {
+		for z := r.Z; z < r.Z+r.Height; z++ {
+			n += g.soil[domain.Cell{X: x, Z: z}]
+		}
+	}
+	return n
 }
 
 // newCoreGrid takes reserved sites out of the core candidates.
