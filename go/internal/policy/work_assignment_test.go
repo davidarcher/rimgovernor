@@ -61,8 +61,8 @@ func coverageOf(t *testing.T, d WorkDecision, work WorkType) WorkCoverage {
 	return WorkCoverage{}
 }
 func TestWorkAssignmentSpecialistsModesAndReadback(t *testing.T) {
-	for _, manual := range []bool{false, true} {
-		team := workTeam(manual)
+	{
+		team := workTeam(true)
 		decision, err := AssignWork(team, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -85,13 +85,6 @@ func TestWorkAssignmentSpecialistsModesAndReadback(t *testing.T) {
 		}
 		for i := range team {
 			values := append([]WorkPriority(nil), decision.Assignments[i].Priorities...)
-			if !manual {
-				for j := range values {
-					if values[j].Priority > 0 {
-						values[j].Priority = 3
-					}
-				}
-			}
 			team[i].Work = domain.Known(values)
 		}
 		next, err := AssignWork(team, nil)
@@ -376,5 +369,26 @@ func TestWorkAssignmentOverridesPlayerEdits(t *testing.T) {
 	after, err := AssignWork(team, nil)
 	if err != nil || workValue(t, after, "builder", WorkConstruction) != want {
 		t.Fatal("player edit survived the plan", after, err)
+	}
+}
+
+// Numbered priorities are the only mode (#1277): planned 1/2/4 go out as
+// exactly those numbers, and a checkbox-mode readback yields no write.
+func TestWorkChangesExactNumbers(t *testing.T) {
+	pawn := testWorkPawn("p", true, false, nil)
+	plan := PawnWorkAssignment{Pawn: "p", Priorities: []WorkPriority{{Work: "Construction", Priority: 1}, {Work: "Growing", Priority: 2}, {Work: "Cooking", Priority: 4}}}
+	changed, ok := WorkChanges(pawn, plan)
+	want := []domain.WorkSetting{{Definition: "Construction", Priority: 1}, {Definition: "Growing", Priority: 2}, {Definition: "Cooking", Priority: 4}}
+	if !ok || len(changed) != len(want) {
+		t.Fatal(changed, ok)
+	}
+	for i := range want {
+		if changed[i] != want[i] {
+			t.Fatal(changed)
+		}
+	}
+	pawn.Manual = domain.Known(false)
+	if changed, ok := WorkChanges(pawn, plan); ok || changed != nil {
+		t.Fatal("checkbox readback wrote", changed)
 	}
 }

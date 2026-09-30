@@ -65,10 +65,9 @@ func TestWorkPlannerRestoresPlayerDisabledWork(t *testing.T) {
 	}
 }
 
-// Checkbox mode (manual priorities off) reports every enabled work type as
-// 3; the planner must emit 0/3 there, not the policy's numbered ranks, or
-// domain.NewWorkAssignment refuses the plan and the family never assigns.
-func TestWorkPlannerCollapsesRanksInCheckboxMode(t *testing.T) {
+// A pawn whose readback still says checkbox mode (native has not flipped
+// numbered priorities on yet, #1276) is unknown this round: no write.
+func TestWorkPlannerSkipsPawnInCheckboxMode(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := routineFixture(t)
 	r.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: n}}
@@ -99,17 +98,10 @@ func TestWorkPlannerCollapsesRanksInCheckboxMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Reason == BuildingMethodAdmitted || result.Plan != "" {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	work, ok := plan.Spec.Actions()[0].WorkAssignment()
-	if !ok || work.Manual() || len(work.Settings()) != 1 || work.Settings()[0].Definition != "Construction" || work.Settings()[0].Priority != 3 {
-		t.Fatal(work)
-	}
+	_ = db
 }
 
 // A pending work assignment whose premise moved is cancelled by the next

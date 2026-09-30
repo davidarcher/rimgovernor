@@ -246,7 +246,6 @@ type workWorker struct {
 	pawn    WorkPawn
 	profile PawnProfile
 	work    map[WorkType]WorkPriority
-	manual  bool
 	load    int
 	owns    map[WorkType]int // planned priority per work type
 }
@@ -254,7 +253,7 @@ type workWorker struct {
 // PlanWork is the roster planner: every work type native reports gets owners
 // by fitness (level, passion, trait work speed, incumbency), growth
 // secondaries (a passion within five levels of the weakest owner) and, under
-// manual priorities, every capable pawn at 3 or 4, never what a trait
+// numbered priorities, every capable pawn at 3 or 4, never what a trait
 // forbids. A temporary disease rest hold zeroes a resting pawn's work.
 // Autopilot owns every priority (#719): no player edit is exempt.
 // This is a proposal/readback comparison,
@@ -298,7 +297,8 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 		skills, sk := pawn.Skills.Value()
 		work, wk := pawn.Work.Value()
 		_, rk := pawn.Ranged.Value()
-		if !mk || !sk || !wk || !rk {
+		// A checkbox-mode readback (native not yet flipped, #1276) is unknown.
+		if !mk || !manual || !sk || !wk || !rk {
 			known = false
 			continue
 		}
@@ -312,7 +312,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 			}
 			names[s.Name] = true
 		}
-		w := &workWorker{pawn: pawn, manual: manual, work: map[WorkType]WorkPriority{}, owns: map[WorkType]int{}, profile: BuildProfile(pawn)}
+		w := &workWorker{pawn: pawn, work: map[WorkType]WorkPriority{}, owns: map[WorkType]int{}, profile: BuildProfile(pawn)}
 		for _, value := range work {
 			if !validResource(Resource(value.Work)) || value.Priority < 0 || value.Priority > 4 {
 				return WorkDecision{}, errors.New("invalid work priority")
@@ -594,8 +594,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 				priority = w.owns[name]
 				if priority == 0 && able(w, name) {
 					// Everyone capable: 3 with a working level, 4 while
-					// still low, under manual priorities; enabled either
-					// way in checkbox mode.
+					// still low.
 					priority = 4
 					if skill := skillOf(name); skill == "" || w.profile.Skill(skill).Level >= 8 {
 						priority = 3
@@ -609,11 +608,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 				}
 			}
 			assignment.Priorities = append(assignment.Priorities, WorkPriority{Work: name, Priority: priority})
-			if w.manual {
-				matches = matches && observed.Priority == priority
-			} else {
-				matches = matches && ((observed.Priority > 0) == (priority > 0))
-			}
+			matches = matches && observed.Priority == priority
 		}
 		sort.Slice(assignment.Priorities, func(i, j int) bool { return assignment.Priorities[i].Work < assignment.Priorities[j].Work })
 		result.Assignments = append(result.Assignments, assignment)
@@ -647,15 +642,13 @@ func RoutineWorkDemand(facts RoutineFacts, building bool) WorkDemand {
 }
 
 // WorkChanges is the WorkSettingsIntent work rows an assignment needs on a pawn:
-// the priorities the readback does not already hold. Checkbox mode
-// (manual priorities off) only knows enabled (3) or disabled (0), so the
-// numbered ranks collapse to that pair, matching how PlanWork judges
-// Matches and what domain.NewWorkAssignment admits for a non-manual
-// pawn. ok is false when the pawn's readback lacks a planned work type.
+// the exact priorities the readback does not already hold. ok is false when
+// the pawn's readback lacks a planned work type or native has not yet
+// switched the pawn to numbered priorities (#1276): unknown, wait.
 func WorkChanges(pawn WorkPawn, assignment PawnWorkAssignment) (changed []domain.WorkSetting, ok bool) {
 	manual, mk := pawn.Manual.Value()
 	current, ck := pawn.Work.Value()
-	if !mk || !ck {
+	if !mk || !ck || !manual {
 		return nil, false
 	}
 	values := map[WorkType]int{}
@@ -668,9 +661,6 @@ func WorkChanges(pawn WorkPawn, assignment PawnWorkAssignment) (changed []domain
 			return nil, false
 		}
 		want := setting.Priority
-		if !manual && want > 0 {
-			want = 3
-		}
 		if old != want {
 			changed = append(changed, domain.WorkSetting{Definition: string(setting.Work), Priority: int32(want)})
 		}

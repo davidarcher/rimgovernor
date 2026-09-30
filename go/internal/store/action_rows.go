@@ -47,7 +47,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if m, ok := a.Subdue(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'subdue',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
 	} else if work, ok := a.WorkAssignment(); ok {
-		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings(), work.HasArea(), work.AreaClear(), work.Area(), work.Schedule(), work.FoodAllow(), work.MedicalCare(), work.DrugPolicy()})
+		data, encodeErr := json.Marshal(workPayload{work.Settings(), work.HasArea(), work.AreaClear(), work.Area(), work.Schedule(), work.FoodAllow(), work.MedicalCare(), work.DrugPolicy()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -339,17 +339,17 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		var w domain.WorkAssignment
 		var err error
 		if payload.DrugPolicy != "" {
-			if payload.MedicalCare != "" || payload.HasArea || payload.AreaClear || payload.Area != "" || len(payload.Schedule) > 0 || len(payload.Settings) > 0 || payload.Manual || len(payload.FoodAllow) > 0 {
+			if payload.MedicalCare != "" || payload.HasArea || payload.AreaClear || payload.Area != "" || len(payload.Schedule) > 0 || len(payload.Settings) > 0 || len(payload.FoodAllow) > 0 {
 				return domain.Action{}, 0, errors.New("mixed drug policy payload")
 			}
 			w, err = domain.NewDrugPolicyAssignment(domain.PawnID(pawn.String), payload.DrugPolicy)
 		} else if payload.MedicalCare != "" {
-			if payload.DrugPolicy != "" || payload.Manual || len(payload.Settings) != 0 || payload.HasArea || payload.AreaClear || payload.Area != "" || len(payload.Schedule) != 0 || len(payload.FoodAllow) != 0 {
+			if payload.DrugPolicy != "" || len(payload.Settings) != 0 || payload.HasArea || payload.AreaClear || payload.Area != "" || len(payload.Schedule) != 0 || len(payload.FoodAllow) != 0 {
 				return domain.Action{}, 0, errors.New("mixed medical care payload")
 			}
 			w, err = domain.NewMedicalCareAssignment(domain.PawnID(pawn.String), payload.MedicalCare)
 		} else if len(payload.FoodAllow) > 0 {
-			if payload.HasArea || len(payload.Schedule) > 0 || len(payload.Settings) > 0 || payload.Manual {
+			if payload.HasArea || len(payload.Schedule) > 0 || len(payload.Settings) > 0 {
 				return domain.Action{}, 0, errors.New("mixed food payload")
 			}
 			w, err = domain.NewFoodAssignment(domain.PawnID(pawn.String), payload.FoodAllow)
@@ -359,9 +359,9 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			}
 			w, err = domain.NewAreaAssignment(domain.PawnID(pawn.String), payload.AreaClear, payload.Area)
 		} else if len(payload.Schedule) != 0 {
-			w, err = domain.NewScheduleAssignment(domain.PawnID(pawn.String), payload.Manual, payload.Settings, payload.Schedule)
+			w, err = domain.NewScheduleAssignment(domain.PawnID(pawn.String), payload.Settings, payload.Schedule)
 		} else {
-			w, err = domain.NewWorkAssignment(domain.PawnID(pawn.String), payload.Manual, payload.Settings)
+			w, err = domain.NewWorkAssignment(domain.PawnID(pawn.String), payload.Settings)
 		}
 		if err != nil {
 			return domain.Action{}, 0, err
@@ -875,7 +875,6 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 }
 
 type workPayload struct {
-	Manual    bool
 	Settings  []domain.WorkSetting
 	HasArea   bool   `json:",omitempty"`
 	AreaClear bool   `json:",omitempty"`

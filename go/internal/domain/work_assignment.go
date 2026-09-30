@@ -25,7 +25,6 @@ const ScheduleHours = 24
 // at the domain boundary rather than splitting into further action kinds.
 type WorkAssignment struct {
 	pawn      PawnID
-	manual    bool
 	settings  string
 	hasArea   bool
 	areaClear bool
@@ -36,7 +35,7 @@ type WorkAssignment struct {
 	care      string
 }
 
-func newWorkAssignment(pawn PawnID, manual bool, settings []WorkSetting, hasArea, areaClear bool, areaID string, schedule []string, food ...string) (WorkAssignment, error) {
+func newWorkAssignment(pawn PawnID, settings []WorkSetting, hasArea, areaClear bool, areaID string, schedule []string, food ...string) (WorkAssignment, error) {
 	if !validID(string(pawn)) {
 		return WorkAssignment{}, errors.New("invalid work assignment")
 	}
@@ -72,7 +71,7 @@ func newWorkAssignment(pawn PawnID, manual bool, settings []WorkSetting, hasArea
 	rows := append([]WorkSetting(nil), settings...)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Definition < rows[j].Definition })
 	for i, row := range rows {
-		if !validID(row.Definition) || row.Priority < 0 || row.Priority > 4 || !manual && row.Priority != 0 && row.Priority != 3 || i > 0 && rows[i-1].Definition == row.Definition {
+		if !validID(row.Definition) || row.Priority < 0 || row.Priority > 4 || i > 0 && rows[i-1].Definition == row.Definition {
 			return WorkAssignment{}, errors.New("invalid work priority")
 		}
 	}
@@ -98,7 +97,7 @@ func newWorkAssignment(pawn PawnID, manual bool, settings []WorkSetting, hasArea
 		}
 		encodedFood = string(data)
 	}
-	return WorkAssignment{pawn: pawn, manual: manual, settings: string(data), hasArea: hasArea, areaClear: areaClear, areaID: areaID, schedule: encodedSchedule, food: encodedFood}, nil
+	return WorkAssignment{pawn: pawn, settings: string(data), hasArea: hasArea, areaClear: areaClear, areaID: areaID, schedule: encodedSchedule, food: encodedFood}, nil
 }
 
 // NewMedicalCareAssignment changes only the medicine ceiling through WorkSettingsIntent.
@@ -122,7 +121,7 @@ func (w WorkAssignment) DrugPolicy() string { return w.drug }
 
 // NewFoodAssignment carries a bounded diet expansion through the pawn settings CAS.
 func NewFoodAssignment(pawn PawnID, defs []string) (WorkAssignment, error) {
-	return newWorkAssignment(pawn, false, nil, false, false, "", nil, defs...)
+	return newWorkAssignment(pawn, nil, false, false, "", nil, defs...)
 }
 func (w WorkAssignment) FoodAllow() []string {
 	var defs []string
@@ -132,18 +131,18 @@ func (w WorkAssignment) FoodAllow() []string {
 	return defs
 }
 
-func NewWorkAssignment(pawn PawnID, manual bool, settings []WorkSetting) (WorkAssignment, error) {
-	return newWorkAssignment(pawn, manual, settings, false, false, "", nil)
+func NewWorkAssignment(pawn PawnID, settings []WorkSetting) (WorkAssignment, error) {
+	return newWorkAssignment(pawn, settings, false, false, "", nil)
 }
 
 // NewScheduleAssignment builds a timetable write, alone or beside work
 // priorities (settings may be empty): schedule holds one TimeAssignmentDef
 // name per hour, hour 0 first.
-func NewScheduleAssignment(pawn PawnID, manual bool, settings []WorkSetting, schedule []string) (WorkAssignment, error) {
+func NewScheduleAssignment(pawn PawnID, settings []WorkSetting, schedule []string) (WorkAssignment, error) {
 	if len(schedule) == 0 {
 		return WorkAssignment{}, errors.New("invalid schedule assignment")
 	}
-	return newWorkAssignment(pawn, manual, settings, false, false, "", schedule)
+	return newWorkAssignment(pawn, settings, false, false, "", schedule)
 }
 
 // NewAreaAssignment builds a work-free allowed-area assignment: clear=true
@@ -151,11 +150,10 @@ func NewScheduleAssignment(pawn PawnID, manual bool, settings []WorkSetting, sch
 // area's identity (as published in the same identifier space native
 // observation and native admission both accept for this field).
 func NewAreaAssignment(pawn PawnID, clear bool, area string) (WorkAssignment, error) {
-	return newWorkAssignment(pawn, false, nil, true, clear, area, nil)
+	return newWorkAssignment(pawn, nil, true, clear, area, nil)
 }
 
 func (w WorkAssignment) Pawn() PawnID { return w.pawn }
-func (w WorkAssignment) Manual() bool { return w.manual }
 func (w WorkAssignment) Settings() []WorkSetting {
 	var rows []WorkSetting
 	_ = json.Unmarshal([]byte(w.settings), &rows)
@@ -192,7 +190,7 @@ func (w WorkAssignment) Canonical() (WorkAssignment, error) {
 	if w.care != "" {
 		return NewMedicalCareAssignment(w.pawn, w.care)
 	}
-	return newWorkAssignment(w.pawn, w.manual, w.Settings(), w.hasArea, w.areaClear, w.areaID, w.Schedule(), w.FoodAllow()...)
+	return newWorkAssignment(w.pawn, w.Settings(), w.hasArea, w.areaClear, w.areaID, w.Schedule(), w.FoodAllow()...)
 }
 
 func NewWorkAssignmentAction(id ActionID, w WorkAssignment) (Action, error) {

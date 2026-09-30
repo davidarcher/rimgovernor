@@ -55,6 +55,7 @@ func TestRoutineWorkReadbackRecoversInBothModesAndPreservesUnknown(t *testing.T)
 					w.Priority = proto.Int32(3)
 				}
 			}
+			want = domain.NeedUnknown
 		}
 		out, err := r.Step(context.Background())
 		if err != nil {

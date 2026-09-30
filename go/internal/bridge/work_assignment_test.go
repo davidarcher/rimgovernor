@@ -24,7 +24,7 @@ func workTestIntent(t *testing.T, w domain.WorkAssignment, err error) *op.WorkSe
 }
 
 func TestWorkSettingsIntent(t *testing.T) {
-	w, err := domain.NewWorkAssignment("pawn", true, []domain.WorkSetting{{Definition: "Cooking", Priority: 1}})
+	w, err := domain.NewWorkAssignment("pawn", []domain.WorkSetting{{Definition: "Cooking", Priority: 1}})
 	if v := workTestIntent(t, w, err); len(v.Work) != 1 || v.Work[0].GetWorkTypeDef() != "Cooking" || v.Work[0].GetPriority() != 1 || v.MedicalCare != nil || v.DrugPolicy != nil {
 		t.Fatal(v)
 	}

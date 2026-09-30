@@ -83,8 +83,8 @@ func TestDiseaseRestRetainedUntilAllConditionsImmune(t *testing.T) {
 }
 
 func TestDiseaseWorkRestAndRestore(t *testing.T) {
-	for _, manual := range []bool{true, false} {
-		team := workTeam(manual)
+	{
+		team := workTeam(true)
 		work, _ := team[0].Work.Value()
 		team[0].Work = domain.Known(append(work, WorkPriority{Work: WorkPatient}, WorkPriority{Work: WorkBedRest}))
 		demand := WorkDemand{Resting: []DiseaseRest{{Pawn: "builder", Conditions: []string{"Plague"}}}}
@@ -114,7 +114,7 @@ func TestDiseaseWorkRestAndRestore(t *testing.T) {
 			t.Fatal("missing rest patch")
 		}
 		for _, w := range changes {
-			if w.Definition == string(WorkBedRest) && (manual && w.Priority != 1 || !manual && w.Priority != 3) {
+			if w.Definition == string(WorkBedRest) && w.Priority != 1 {
 				t.Fatal(w)
 			}
 		}
