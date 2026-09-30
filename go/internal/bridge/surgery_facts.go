@@ -73,6 +73,21 @@ func QueuedSurgeries(h *o.PawnHealth) domain.Fact[int] {
 	return domain.Known(len(h.SurgeryBills))
 }
 
+// QueuedSurgeryRecipes lists each medical bill's recipe on the patient
+// (#1261); nil when the bill stack carried a read issue.
+func QueuedSurgeryRecipes(h *o.PawnHealth) []string {
+	if surgeryIssue(h.Issues, "surgery_bills") {
+		return nil
+	}
+	var recipes []string
+	for _, bill := range h.SurgeryBills {
+		if recipe := bill.GetRecipe(); recipe != "" {
+			recipes = append(recipes, recipe)
+		}
+	}
+	return recipes
+}
+
 func surgeryFact[T any](p *T) domain.Fact[T] {
 	if p == nil {
 		return domain.Unknown[T]()

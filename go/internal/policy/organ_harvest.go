@@ -464,7 +464,8 @@ func PartRecoveryWanted(f RoutineFacts) bool {
 }
 
 // ReserveSurgeryStock keeps one stocked unit per open colonist restore or
-// install (#1254): each want and each choice this review would queue holds
+// install (#1254): each want, each choice this review would queue and each
+// bill already queued (#1261) holds
 // back its best recipe item still in the surplus, so a harvested organ or
 // recovered part is not sold before its install is queued.
 func ReserveSurgeryStock(need domain.Fact[TradeNeed], pawns domain.Fact[[]CarePawn]) domain.Fact[TradeNeed] {
@@ -479,6 +480,15 @@ func ReserveSurgeryStock(need domain.Fact[TradeNeed], pawns domain.Fact[[]CarePa
 	}
 	for _, choice := range s.Queue {
 		options = append(options, []string{choice.Recipe})
+	}
+	rows, _ := pawns.Value()
+	for _, pawn := range rows {
+		if dead, _ := pawn.Dead.Value(); dead {
+			continue
+		}
+		for _, recipe := range pawn.QueuedRecipes {
+			options = append(options, []string{recipe}) // queued bill (#1261)
+		}
 	}
 	surplus := append([]Amount(nil), n.Surplus...)
 	retained := map[Resource]int64{}

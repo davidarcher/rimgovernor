@@ -132,6 +132,18 @@ func TestOrganSaleSurplus(t *testing.T) {
 	}
 }
 
+func TestReserveSurgeryStockHoldsQueuedInstallPart(t *testing.T) {
+	need := domain.Known(TradeNeed{MedicineReplenish: 10})
+	stock := domain.Known([]Amount{{Resource: "Kidney", Count: 1}, {Resource: "Silver", Count: 0}})
+	sale := OrganSaleSurplus(need, stock, domain.Known[int64](3))
+	pawn := surgeryPawn("a", 1, restoreOp("InstallNaturalKidney", "Kidney", 20, 0.9, 0, true))
+	pawn.QueuedRecipes = []string{"InstallNaturalKidney"}
+	got, _ := ReserveSurgeryStock(sale, domain.Known([]CarePawn{pawn})).Value()
+	if len(got.Surplus) != 0 || got.Retained["Kidney"] != 1 {
+		t.Fatalf("queued install keeps its kidney: %+v", got)
+	}
+}
+
 func TestReserveSurgeryStockKeepsOneKidneyPerWant(t *testing.T) {
 	need := domain.Known(TradeNeed{MedicineReplenish: 10})
 	stock := domain.Known([]Amount{{Resource: "Kidney", Count: 2}, {Resource: "Silver", Count: 0}})

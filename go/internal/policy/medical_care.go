@@ -21,6 +21,9 @@ type CarePawn struct {
 	// QueuedSurgeries counts the medical bills queued on the patient: the
 	// surgery planner's in-flight evidence (#1164).
 	QueuedSurgeries domain.Fact[int]
+	// QueuedRecipes names each queued bill's recipe; ReserveSurgeryStock
+	// holds their parts back from sale until the surgery runs (#1261).
+	QueuedRecipes []string
 }
 
 // MissingPart is a missing or destroyed body part at its common missing
