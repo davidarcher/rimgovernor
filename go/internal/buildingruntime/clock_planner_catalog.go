@@ -780,6 +780,16 @@ var plannerCatalog = []plannerEntry{
 			out.AnimalFeed = &method
 			return method.Reason, nil
 		}},
+	{name: "maintainShelter", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.AreaAction}, sections: sectionsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.MaintainShelter != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.MaintainShelter.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.MaintainShelter = &method
+			return method.Reason, nil
+		}},
 	{name: "homeCoverage", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.AreaAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.HomeCoverage != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

@@ -278,6 +278,10 @@ type RoutineFacts struct {
 	// free cell for a sculpture (SculptureRoomsOwed, #1190); with a
 	// qualifying artist it holds MaintainArt open.
 	SculptureRoomsOwed domain.Fact[bool]
+	// SafeAreaOwed: the Safe allowed area differs from the enclosed roofed
+	// rooms (PlanSafeArea, #1325); it holds MaintainShelter open. Unknown
+	// unless the MaintainShelter method is composed.
+	SafeAreaOwed domain.Fact[bool]
 	// SaleArt counts the packed art no owed room reserves (SaleSculptures);
 	// read only while the wealth headroom is negative, it opens a trade as
 	// the shed_art need (#1247).
@@ -1252,6 +1256,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainArt, artPriority, artRecovered)
 	if recovered, known := artRecovered.Value(); known && !recovered {
 		addGoal(MaintainArt, artPriority)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+	}
+	// MaintainShelter (#1325): a Safe area edit is owed. A settings write,
+	// ranked with the upkeep projects; unknown raises nothing.
+	addAssessment(MaintainShelter, 3, measured(f.SafeAreaOwed, func(owed bool) bool { return !owed }))
+	if owed, known := f.SafeAreaOwed.Value(); known && owed {
+		addGoal(MaintainShelter, 3)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	animalContainment := domain.Unknown[bool]()

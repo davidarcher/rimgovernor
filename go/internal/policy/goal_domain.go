@@ -37,6 +37,7 @@ var goalDomains = map[GoalID]Domain{
 	MaintainArt:             DomainShelter,
 	MaintainFlooring:        DomainShelter,
 	MaintainHomeCoverage:    DomainShelter,
+	MaintainShelter:         DomainShelter,
 
 	EnsureBasicPower: DomainIndustry,
 	MaintainResource: DomainIndustry,

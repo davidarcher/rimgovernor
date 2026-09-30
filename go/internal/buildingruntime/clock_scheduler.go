@@ -131,6 +131,7 @@ type ClockSchedulerConfig struct {
 	Resource            *RoutineResourcePlanner
 	AnimalFeed          *RoutineAnimalFeedPlanner
 	HomeCoverage        *RoutineHomeCoveragePlanner
+	MaintainShelter     *MaintainShelterPlanner
 	StoneShell          *RoutineStoneShellPlanner
 	Tidy                *RoutineTidyPlanner
 	Stockpiles          *RoutineStockpilePlanner
@@ -208,6 +209,7 @@ type ClockSchedulerResult struct {
 	Resource                     *RoutineResourceResult
 	AnimalFeed                   *RoutineResourceResult
 	HomeCoverage                 *RoutineHomeCoverageResult
+	MaintainShelter              *MaintainShelterResult
 	StoneShell                   *RoutineStoneShellResult
 	Tidy                         *RoutineTidyResult
 	Stockpiles                   *RoutineStockpileResult
@@ -554,6 +556,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.AnimalFeed != nil && (config.Routine == nil || config.AnimalFeed.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.AnimalFeed != nil && (config.Routine == nil || config.AnimalFeed.reviewer != config.Routine)", ErrControl)
+	}
+	if config.MaintainShelter != nil && (config.Routine == nil || config.MaintainShelter.reviewer != config.Routine) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.MaintainShelter != nil && (config.Routine == nil || config.MaintainShelter.reviewer != config.Routine)", ErrControl)
 	}
 	if config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine)", ErrControl)

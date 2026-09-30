@@ -47,6 +47,8 @@ type RoutineReviewer struct {
 	// tunnels remembers the buried-ore corridor each resource last sited
 	// until a stage is admitted under it (#1124); see tunnelMemory.
 	tunnels tunnelMemory
+	// safeArea is MaintainShelter's Safe area memory (#1325).
+	safeArea safeAreaMemory
 	// stage is the colony stage of the review the last step loaded (#630):
 	// the stage the store holds that step's review to, so the planners'
 	// targets (staged) agree with the review's. Foothold before any
@@ -323,6 +325,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	} else {
 		reading.Projection.Facts.ShellsShort = policy.ShellsShort(targets, reading.Projection.Resources)
+	}
+	if r.methodEnabled(policy.MaintainShelter) {
+		if reading.Projection.Facts.SafeAreaOwed, err = r.safeArea.review(stockpileWorld(state.Snapshot), reading.Projection); err != nil {
+			return store.RoutineReviewResult{}, err
+		}
 	}
 	if r.methodEnabled(policy.MaintainArt) {
 		reading.Projection.Facts.SculptureRoomsOwed = sculptureRoomsOwed(reading.Projection)

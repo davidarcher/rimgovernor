@@ -1,0 +1,99 @@
+package policy
+
+import (
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
+
+// MaintainShelter is the standing goal that keeps the colony's shelter
+// settings current (#1294): the bot-owned "Safe" allowed area (#1325), and
+// later sheltering pawns in it (#1326) and the killbox restriction (#1327).
+const MaintainShelter GoalID = "MaintainShelter"
+
+// SafeAreaKey is the bot area key of the Safe allowed area.
+const SafeAreaKey = "Safe"
+
+// SafeAreaCells is the union of the enclosed, fully roofed rooms (every
+// role: workshops keep sheltered pawns working) minus the killbox cells;
+// a room with an enemy-facing door is left out. Sorted, deduplicated.
+func SafeAreaCells(rooms RoomObservation, killbox []domain.Cell) []domain.Cell {
+	excluded := map[domain.Cell]bool{}
+	for _, c := range killbox {
+		excluded[c] = true
+	}
+	set := map[domain.Cell]bool{}
+	for _, room := range rooms.Rooms {
+		if enclosed, known := room.Enclosed.Value(); !known || !enclosed {
+			continue
+		}
+		if roofed, known := room.Roofed.Value(); !known || !roofed {
+			continue
+		}
+		enemy := false
+		for _, d := range room.Doors {
+			enemy = enemy || d.EnemyFacing
+		}
+		if enemy {
+			continue
+		}
+		for _, c := range room.Cells {
+			if !excluded[c] {
+				set[c] = true
+			}
+		}
+	}
+	return sortedCells(set)
+}
+
+// PlanSafeArea returns the AreaIntent edits that bring the Safe area from
+// current to the planned cells, and the planned cells. With current
+// unknown (process start or reload) it resets: delete, then create with
+// the full set. Otherwise it sends only real diffs (set_cells for added
+// cells, clear_cells for removed ones); none when the area is stable.
+func PlanSafeArea(rooms RoomObservation, killbox []domain.Cell, current []domain.Cell, currentKnown bool) ([]domain.Area, []domain.Cell, error) {
+	want := SafeAreaCells(rooms, killbox)
+	if !currentKnown {
+		del, err := domain.NewArea(domain.AreaDelete, SafeAreaKey, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+		create, err := domain.NewArea(domain.AreaCreate, SafeAreaKey, want)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []domain.Area{del, create}, want, nil
+	}
+	have := map[domain.Cell]bool{}
+	for _, c := range current {
+		have[c] = true
+	}
+	wanted := map[domain.Cell]bool{}
+	var added []domain.Cell
+	for _, c := range want {
+		wanted[c] = true
+		if !have[c] {
+			added = append(added, c)
+		}
+	}
+	removed := map[domain.Cell]bool{}
+	for c := range have {
+		if !wanted[c] {
+			removed[c] = true
+		}
+	}
+	var out []domain.Area
+	if len(added) > 0 {
+		a, err := domain.NewArea(domain.AreaSetCells, SafeAreaKey, added)
+		if err != nil {
+			return nil, nil, err
+		}
+		out = append(out, a)
+	}
+	if len(removed) > 0 {
+		a, err := domain.NewArea(domain.AreaClearCells, SafeAreaKey, sortedCells(removed))
+		if err != nil {
+			return nil, nil, err
+		}
+		out = append(out, a)
+	}
+	return out, want, nil
+}
