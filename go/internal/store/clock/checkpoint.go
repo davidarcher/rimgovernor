@@ -183,3 +183,42 @@ func CompactHistory(ctx context.Context, tx *sql.Tx, profile string) (HistoryCom
 	}
 	return out, nil
 }
+
+// AdoptBacklog starts a journal that has never read the profile at cursor:
+// native rows through it are history this journal records as compacted,
+// reviewed and acknowledged, so a fresh journal against a long-lived native
+// profile reads one page instead of replaying every earlier session (#1251).
+// It reports false, changing nothing, once the journal holds any history.
+func AdoptBacklog(ctx context.Context, tx *sql.Tx, profile string, cursor int64) (bool, error) {
+	path, err := canonicalClockProfile(profile)
+	if err != nil {
+		return false, err
+	}
+	if cursor <= 0 {
+		return false, nil
+	}
+	replay, err := loadClockReview(ctx, tx, path)
+	if err != nil {
+		return false, err
+	}
+	if replay.inbox.checkpoint != (clockHistoryCheckpoint{}) || len(replay.inbox.Pages) != 0 || len(replay.entries) != 0 || replay.head != (clockReviewHead{}) {
+		return false, nil
+	}
+	var archived int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM clock_acknowledgements").Scan(&archived); err != nil || archived != 0 {
+		return false, err
+	}
+	checkpoint := clockHistoryCheckpoint{Pages: 1, Cursor: cursor, Review: clockReviewHead{Revision: 1, Reviewed: cursor, Acknowledged: cursor}, ReviewInboxCursor: cursor}
+	data, _ := json.Marshal(checkpoint)
+	if _, err = tx.ExecContext(ctx, "UPDATE clock_history_checkpoint SET payload=? WHERE singleton=1", data); err != nil {
+		return false, err
+	}
+	head, _ := json.Marshal(checkpoint.Review)
+	if _, err = tx.ExecContext(ctx, "UPDATE clock_review SET payload=? WHERE singleton=1", head); err != nil {
+		return false, err
+	}
+	if _, err = loadClockReview(ctx, tx, path); err != nil {
+		return false, err
+	}
+	return true, nil
+}

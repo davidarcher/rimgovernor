@@ -86,6 +86,21 @@ func (s *Store) RecordClockReply(ctx context.Context, id string, reply *k.Contro
 	return v, tx.Commit()
 }
 
+// AdoptClockBacklog starts a journal that never read the profile at cursor
+// (see clock.AdoptBacklog); false once it holds any history.
+func (s *Store) AdoptClockBacklog(ctx context.Context, profile string, cursor int64) (bool, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	v, err := clock.AdoptBacklog(ctx, tx, profile, cursor)
+	if err != nil {
+		return false, err
+	}
+	return v, tx.Commit()
+}
+
 // CompactClockHistory keeps a recent page tail and every unreviewed or
 // unacknowledged interruption/gap. Acknowledgement replies move to an indexed
 // archive; routine polling never loads that growing archive into memory.

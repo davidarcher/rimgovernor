@@ -93,18 +93,42 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	}
 	var request *k.EventsRequest
 	var reply *k.EventsReply
-	for attempt := 0; ; attempt++ {
-		request = &k.EventsRequest{Identity: proto.Clone(identity).(*c.Identity), AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
-		if wait > 0 {
-			request.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+	read := func() {
+		for attempt := 0; ; attempt++ {
+			request = &k.EventsRequest{Identity: proto.Clone(identity).(*c.Identity), AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
+			if wait > 0 {
+				request.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+			}
+			reply, _, err = native.ReadClockEvents(call, request)
+			var stale *bridge.NativeFailure
+			if attempt == 0 && errors.As(err, &stale) && stale.Value.GetCode() == c.FailureCode_FAILURE_CODE_STALE_IDENTITY && stale.Value.GetObservedContext().GetIdentity() != nil {
+				identity = stale.Value.GetObservedContext().GetIdentity()
+				continue
+			}
+			break
 		}
-		reply, _, err = native.ReadClockEvents(call, request)
-		var stale *bridge.NativeFailure
-		if attempt == 0 && errors.As(err, &stale) && stale.Value.GetCode() == c.FailureCode_FAILURE_CODE_STALE_IDENTITY && stale.Value.GetObservedContext().GetIdentity() != nil {
-			identity = stale.Value.GetObservedContext().GetIdentity()
-			continue
+	}
+	read()
+	// A journal that never read this profile (a controller started on a
+	// fresh state file) adopts the native backlog but its newest page as
+	// history instead of replaying every earlier session a page per poll
+	// (#1251): the watermark below treats those rows as history anyway.
+	if first := reply.GetPage(); err == nil && review.InboxCursor == 0 && !s.history.known && !first.GetGap() && first.GetNewestCursor()-int64(limit) > 0 && first.GetNewestCursor() > clockPollLastCursor(first) {
+		skip := first.GetNewestCursor() - int64(limit)
+		adopted, e := s.player.journal.AdoptClockBacklog(call, s.config.Profile, skip)
+		if e != nil {
+			return fail(e)
 		}
-		break
+		if adopted {
+			clockEvent(call, "clock-scheduler", "backlog_adopted", "clock journal adopted native backlog", "through_cursor", skip, "newest_cursor", first.GetNewestCursor())
+			if review, err = s.player.journal.ReadClockReview(call, s.config.Profile); err != nil {
+				return fail(err)
+			}
+			if fc := first.GetContext(); fc.GetIdentity() != nil {
+				identity = fc.GetIdentity()
+			}
+			read()
+		}
 	}
 	if err != nil {
 		s.pollIdentity = nil

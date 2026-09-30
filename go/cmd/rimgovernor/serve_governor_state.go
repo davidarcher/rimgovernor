@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
@@ -103,10 +105,16 @@ func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native g
 	if r.count != 0 && sameWorld {
 		return nil
 	}
+	// Start and end are logged with each phase's wall time (#1251): the
+	// rebuild runs before the first review, so a slow one reads as a hang.
+	began := time.Now()
+	log := slog.With(telemetry.ComponentKey, "world-rebuild")
+	log.InfoContext(ctx, "world rebuild started", "colony", world.Colony, "map", world.Map, "load", world.Load)
 	saved, err := native.GovernorState(ctx)
 	if err != nil {
 		return err
 	}
+	read := time.Since(began)
 	var pass store.GoalOrphanPass
 	if r.orphans != nil {
 		pass = orphanSweep(r.orphans, world, r.out)
@@ -114,14 +122,17 @@ func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native g
 	if err = r.database.RebuildGoals(ctx, saved, pass); err != nil {
 		return fmt.Errorf("rebuild goals: %w", err)
 	}
+	goals := time.Since(began) - read
 	if err = r.database.RebuildFamilies(ctx, saved); err != nil {
 		return fmt.Errorf("rebuild families: %w", err)
 	}
+	families := time.Since(began) - read - goals
 	if err = r.database.ResetRoutineReview(ctx); err != nil {
 		return fmt.Errorf("reset routine review: %w", err)
 	}
 	r.world = world
 	r.count++
+	log.InfoContext(ctx, "world rebuild done", "keys", len(saved), "elapsed", time.Since(began).Round(time.Millisecond), "read", read.Round(time.Millisecond), "goals", goals.Round(time.Millisecond), "families", families.Round(time.Millisecond))
 	return nil
 }
 

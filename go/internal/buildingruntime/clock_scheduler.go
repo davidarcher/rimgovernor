@@ -901,6 +901,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			return out, errors.Join(err, s.session.Disable())
 		}
 	}
+	if s.config.Routine != nil {
+		s.config.Routine.drawReviewing(call, loaded.Context.GetIdentity())
+	}
 	if s.config.WorldReady != nil {
 		reset, e := s.config.WorldReady(call, loaded.Context)
 		if e != nil {

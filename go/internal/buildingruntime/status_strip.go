@@ -93,6 +93,27 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 	r.strip = statusStripState{key: key, drawn: tick}
 }
 
+// drawReviewing shows "reviewing colony..." on the panel until the first
+// review draws its rows (#1251): startup rebuilds and reviews for a while
+// before the panel has anything to say, which otherwise reads as a hang.
+// ASCII only (#600). Output only: a failure is logged, never fatal.
+func (r *RoutineReviewer) drawReviewing(ctx context.Context, identity *c.Identity) {
+	strip, ok := r.native.(StatusStripNative)
+	if !ok || !r.layoutOverlay || r.strip.key != "" || identity == nil {
+		return
+	}
+	rows := []policy.StatusRow{{Key: "reviewing", Text: "reviewing colony..."}}
+	if _, _, err := strip.DrawStatusStrip(ctx, identity, rows, nil, true); err != nil {
+		clockSchedulerLog("status strip not drawn: %v", err)
+		return
+	}
+	r.strip.key = reviewingKey
+}
+
+// reviewingKey marks the strip as holding only the startup row; it never
+// equals a review's key, so the first review redraws.
+const reviewingKey = "reviewing"
+
 // openIncidents is the incidents the strip lists (#1025).
 func openIncidents(states []store.IncidentState) []domain.Incident {
 	out := make([]domain.Incident, 0, len(states))
