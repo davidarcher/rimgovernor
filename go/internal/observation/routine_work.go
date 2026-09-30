@@ -126,6 +126,9 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 		w.Age = optional(b.BiologicalAgeYears)
 	}
 	w.Inspiration = optional(row.Inspiration)
+	if n := row.Needs; n != nil && !hasIssue(row.Issues, "needs") {
+		w.Rest, w.Joy, w.Mood = optional(n.Rest), optional(n.Joy), optional(n.Mood)
+	}
 	if e := row.Equipment; e != nil {
 		if e.Armed != nil && !e.GetArmed() {
 			w.Ranged = domain.Known(false)

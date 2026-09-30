@@ -45,6 +45,9 @@ type WorkPawn struct {
 	// Inspiration is the current InspirationDef defName (#1187); known "" is
 	// no inspiration, unknown is a read that did not carry it.
 	Inspiration domain.Fact[string]
+	// Rest, Joy and Mood are need levels from the pawn needs block; unknown
+	// when the read carried no readable needs (#1312).
+	Rest, Joy, Mood domain.Fact[float64]
 }
 
 // PawnJob is one pawn's current job as the census saw it. Def is the
