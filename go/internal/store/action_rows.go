@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -1063,6 +1064,9 @@ func pawnSettingDefinition(s domain.PawnSettings) string {
 	if s.Kind() == domain.SettingSelfTend {
 		return "self_tend:" + strconv.FormatBool(s.SelfTend())
 	}
+	if s.Kind() == domain.SettingNickname {
+		return "nickname:" + s.LeaveName()
+	}
 	return string(s.Hostility())
 }
 
@@ -1070,6 +1074,9 @@ func parsePawnSetting(pawn domain.PawnID, def string) (domain.PawnSettings, erro
 	switch def {
 	case "self_tend:true", "self_tend:false":
 		return domain.NewSelfTendSetting(pawn, def == "self_tend:true")
+	}
+	if leave, ok := strings.CutPrefix(def, "nickname:"); ok {
+		return domain.NewNicknameSetting(pawn, leave)
 	}
 	return domain.NewHostilitySetting(pawn, domain.HostilityResponse(def))
 }

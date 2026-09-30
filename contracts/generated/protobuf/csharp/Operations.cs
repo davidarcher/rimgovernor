@@ -15320,8 +15320,12 @@ namespace RimGovernor.Protocol.Operations {
   /// violence-incapable pawn set to Attack. A setting that already holds
   /// applies again. Evidence is a SettingsEffect on the pawn with the arm's
   /// field. self_tend (#1305) is playerSettings.selfTend, refused for a pawn
-  /// that cannot doctor. reading_policy, medicine_carry and nickname are
-  /// reserved for their epic issues and refused natively until they land.
+  /// that cannot doctor. nickname (#1310) names the short name an owned pawn
+  /// must leave: native draws a fresh name from the pawn's own name bank
+  /// (never a numbered one) that no other owned pawn holds, and applies
+  /// unchanged once the pawn no longer holds that name. reading_policy and
+  /// medicine_carry are reserved for their epic issues and refused natively
+  /// until they land.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class PawnSettingsIntent : pb::IMessage<PawnSettingsIntent>

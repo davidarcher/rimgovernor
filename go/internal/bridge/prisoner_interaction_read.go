@@ -41,6 +41,8 @@ type PrisonerCensus struct {
 	// Colony is the colony side of each prisoner's use: the free
 	// colonists' best skills and the snapshot's Ideology facts.
 	Colony domain.Fact[policy.PrisonerColony]
+	// Names is the owned-pawn short-name census (#1310).
+	Names domain.Fact[[]policy.OwnedName]
 }
 
 // prisonerProspect decodes a person's biography and health; unknown when
@@ -187,7 +189,16 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		}
 		rows = append(rows, f)
 	}
-	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody), Colony: domain.Known(colony), Outlook: decodeOutlook(observed)}, nil
+	names := make([]policy.OwnedName, 0, len(observed.OwnedNames))
+	seenNames := map[string]bool{}
+	for _, n := range observed.OwnedNames {
+		if validID(n.GetPawnId()) != nil || seenNames[n.GetPawnId()] || n.ShortName == nil || n.ThingId == nil {
+			return PrisonerCensus{}, contract("invalid or duplicate owned name")
+		}
+		seenNames[n.GetPawnId()] = true
+		names = append(names, policy.OwnedName{Pawn: policy.PawnID(n.GetPawnId()), Short: n.GetShortName(), ThingID: int(n.GetThingId())})
+	}
+	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody), Colony: domain.Known(colony), Outlook: decodeOutlook(observed), Names: domain.Known(names)}, nil
 }
 
 // decodeOutlook reads the snapshot's storyteller fields; an absent field is Unknown.

@@ -81,6 +81,22 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, pawn = pawn.GetUniqueLoadID() };
             }, cancellationToken);
         }
+        [Tool("test/duplicate_nickname", Description = "UNSAFE FOR MODEL EXECUTION. Give the newest of two paused disposable colonists the oldest one's nickname (#1310).")]
+        public async Task<object> DuplicateNickname(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var named = map.mapPawns.FreeColonistsSpawned.Where(p => p.Name is NameTriple).OrderBy(p => p.thingIDNumber).ToList();
+                if (named.Count < 2) throw new InvalidOperationException("Two named colonists are required.");
+                var older = named[0]; var newer = named[named.Count - 1];
+                var nick = older.Name.ToStringShort;
+                var triple = (NameTriple)newer.Name;
+                newer.Name = new NameTriple(triple.First, nick, triple.Last);
+                return new { success = true, pawn = newer.GetUniqueLoadID(), keeper = older.GetUniqueLoadID(), name = nick };
+            }, cancellationToken);
+        }
         [Tool("test/mood_setup", Description = "Seed deficient needs in one disposable pawn; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "food, rest, joy, forced, schedule, mental or environment.")] string scenario)

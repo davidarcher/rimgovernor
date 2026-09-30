@@ -1,6 +1,9 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 // PawnSettingsAction sets one per-pawn Assign-tab setting on one colony pawn
 // (#1299, epic #1292): a PawnSettingsIntent on Actions/Apply, one setting
@@ -30,6 +33,9 @@ type SettingKind string
 const (
 	SettingHostility SettingKind = "hostility"
 	SettingSelfTend  SettingKind = "self_tend"
+	// SettingNickname renames an owned pawn away from a short name an older
+	// owned pawn holds (#1310); native draws the new name.
+	SettingNickname SettingKind = "nickname"
 )
 
 // PawnSettings is an immutable, comparable value: the pawn and the one
@@ -39,6 +45,7 @@ type PawnSettings struct {
 	kind      SettingKind
 	hostility HostilityResponse
 	selfTend  bool
+	leaveName string
 }
 
 func NewHostilitySetting(pawn PawnID, mode HostilityResponse) (PawnSettings, error) {
@@ -56,10 +63,22 @@ func NewSelfTendSetting(pawn PawnID, on bool) (PawnSettings, error) {
 	return PawnSettings{pawn: pawn, kind: SettingSelfTend, selfTend: on}, nil
 }
 
+// NewNicknameSetting renames an owned pawn away from leave, its colliding
+// short name (#1310).
+func NewNicknameSetting(pawn PawnID, leave string) (PawnSettings, error) {
+	if !validID(string(pawn)) || strings.TrimSpace(leave) == "" || len(leave) > 256 {
+		return PawnSettings{}, errors.New("a nickname setting requires a pawn and the short name it leaves")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingNickname, leaveName: leave}, nil
+}
+
 func (s PawnSettings) Pawn() PawnID                 { return s.pawn }
 func (s PawnSettings) Kind() SettingKind            { return s.kind }
 func (s PawnSettings) Hostility() HostilityResponse { return s.hostility }
 func (s PawnSettings) SelfTend() bool               { return s.selfTend }
+
+// LeaveName is the nickname arm's colliding short name.
+func (s PawnSettings) LeaveName() string { return s.leaveName }
 
 func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 	switch s.kind {
@@ -67,6 +86,8 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewHostilitySetting(s.pawn, s.hostility)
 	case SettingSelfTend:
 		return NewSelfTendSetting(s.pawn, s.selfTend)
+	case SettingNickname:
+		return NewNicknameSetting(s.pawn, s.leaveName)
 	}
 	return PawnSettings{}, errors.New("unknown pawn setting")
 }

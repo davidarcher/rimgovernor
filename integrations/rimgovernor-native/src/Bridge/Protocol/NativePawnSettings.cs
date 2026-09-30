@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -15,10 +16,23 @@ namespace HomeBridge.BridgeTools
     // offers it (UsesConfigurableHostilityResponse); Attack is refused for a
     // violence-incapable pawn, as the tab refuses it. self_tend (#1305) is
     // playerSettings.selfTend, refused for a pawn that cannot doctor (the
-    // tab hides the checkbox). The other arms are refused until their epic
-    // issues land. A setting that already holds applies again.
+    // tab hides the checkbox). nickname (#1310) is the short name an owned
+    // pawn must leave: a fresh name from the pawn's own name bank
+    // (PawnBioAndNameGenerator), never a numbered one, that no other owned
+    // pawn holds. The other arms are refused until their epic issues land.
+    // A setting that already holds applies again.
     internal static class NativePawnSettings
     {
+        // Every living named pawn the colony owns, on any map, caravan or
+        // transporter: the player faction's pawns and the colony's prisoners.
+        internal static IEnumerable<Pawn> OwnedNamedPawns()
+        {
+            var player = Faction.OfPlayerSilentFail;
+            return PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive
+                .Where(p => p.Name != null && (p.Faction == player && player != null || p.IsPrisonerOfColony))
+                .OrderBy(p => p.thingIDNumber);
+        }
+
         private static Common.Failure? Resolve(Operations.PawnSettingsIntent? intent, Common.ObservationContext context,
             out Pawn? pawn, out HostilityResponseMode mode)
         {
@@ -26,12 +40,19 @@ namespace HomeBridge.BridgeTools
             if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact pawn.");
             var kind = intent.SettingCase;
+            var id = intent.PawnId;
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.Nickname)
+            {
+                if (string.IsNullOrWhiteSpace(intent.Nickname))
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Nickname names the short name the pawn must leave.");
+                pawn = OwnedNamedPawns().SingleOrDefault(p => p.GetUniqueLoadID() == id);
+                return pawn == null ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living named pawn the colony owns is not found.") : null;
+            }
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only the hostility_response and self_tend settings are supported.");
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only the hostility_response, self_tend and nickname settings are supported.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse
                 && (!Enum.TryParse(intent.HostilityResponse, false, out mode) || !Enum.IsDefined(typeof(HostilityResponseMode), mode)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hostility response must be Ignore, Attack or Flee.");
-            var id = intent.PawnId;
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
             if (pawn == null || pawn.Dead || pawn.playerSettings == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living colony pawn with player settings is not spawned on this map.");
@@ -51,8 +72,14 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var pawn, out var mode);
             if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
-            var settings = pawn!.playerSettings;
             Receipts.FieldResult field;
+            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.Nickname) {
+                field = new Receipts.FieldResult { Field = Receipts.SettingsField.Nickname, Outcome = Rename(pawn!, intent.Nickname) };
+                return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+                    Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
+                    Fields = { field } } };
+            }
+            var settings = pawn!.playerSettings;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.SelfTend) {
                 var want = intent.SelfTend;
                 var outcome = settings.selfTend == want ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
@@ -68,6 +95,24 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = { field } } };
+        }
+
+        // Rename draws from the pawn's own name bank until a short name no
+        // other owned pawn holds and that carries no digit; a humanlike keeps
+        // its first and last name and takes the drawn short name as its nick.
+        private static Receipts.FieldOutcome Rename(Pawn pawn, string leave)
+        {
+            if (!string.Equals(pawn.Name.ToStringShort, leave, StringComparison.OrdinalIgnoreCase)) return Receipts.FieldOutcome.Unchanged;
+            var taken = new HashSet<string>(OwnedNamedPawns().Where(p => p != pawn).Select(p => p.Name.ToStringShort), StringComparer.OrdinalIgnoreCase) { leave };
+            for (var attempt = 0; attempt < 100; attempt++)
+            {
+                var drawn = PawnBioAndNameGenerator.GeneratePawnName(pawn, NameStyle.Full)?.ToStringShort;
+                if (string.IsNullOrWhiteSpace(drawn) || drawn!.Any(char.IsDigit) || taken.Contains(drawn)) continue;
+                pawn.Name = pawn.Name is NameTriple triple ? new NameTriple(triple.First, drawn, triple.Last) : new NameSingle(drawn);
+                if (pawn.Name.ToStringShort != drawn) throw new InvalidOperationException("Native nickname requires readback.");
+                return Receipts.FieldOutcome.Applied;
+            }
+            throw new ApplyRefusedException(Common.FailureCode.CapacityExhausted, "The pawn's name bank offered no unused, unnumbered name.");
         }
     }
 

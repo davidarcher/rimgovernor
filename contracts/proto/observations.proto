@@ -836,7 +836,14 @@ message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 
   optional double death_on_downed_chance = 11; optional double unrecruitable_chance = 12;
   // The defName of the player ideoligion's OrganUse-issue precept (#1169):
   // OrganUse_Classic without the Ideology DLC or in classic mode.
-  optional string organ_use_precept = 13; }
+  optional string organ_use_precept = 13;
+  // Owned-pawn names (#1310): every living named pawn the colony owns --
+  // player-faction colonists, slaves and animals, and colony prisoners --
+  // on any map, caravan or transporter; unnamed animals are absent.
+  repeated OwnedName owned_names = 14; }
+// One owned pawn's short name (Name.ToStringShort) and thingIDNumber, which
+// orders pawns by creation: the higher number is the newer pawn.
+message OwnedName { optional string pawn_id = 1; optional string short_name = 2; optional int32 thing_id = 3; }
 message PopulationRequest { ReadScope scope = 1; reserved 2; }
 message PopulationReply { oneof outcome { PopulationSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message Settlement { optional string id = 1; optional string label = 2; optional string faction_id = 3; optional string faction_def_name = 4; optional string relation = 5; optional int32 goodwill = 6; optional int32 tile = 7; optional double distance_tiles = 8; optional bool player = 9; SnapshotRef snapshot = 10; SnapshotRef faction_snapshot = 11; }

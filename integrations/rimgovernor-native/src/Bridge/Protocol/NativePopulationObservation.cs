@@ -129,6 +129,9 @@ namespace HomeBridge.BridgeTools
                 row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
                 snapshot.Persons.Add(person);
             }
+            // Owned-pawn names (#1310): the census the unique-name planner reads.
+            foreach (var owned in NativePawnSettings.OwnedNamedPawns())
+                snapshot.OwnedNames.Add(new Obs.OwnedName { PawnId = NativePawnObservationTools.Id(owned.GetUniqueLoadID()), ShortName = NativePawnObservationTools.Text(owned.Name.ToStringShort), ThingId = owned.thingIDNumber });
             snapshot.IdeologyActive = ModsConfig.IdeologyActive;
             // OrganUse precept (#1169): every player ideoligion carries one;
             // OrganUse_Classic stands without the Ideology DLC.

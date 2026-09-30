@@ -222,6 +222,11 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// Self-tend (#1305) rides it too.
 	settings := policy.HostilityChanges(hostilityRows(pawns), read.Emergency.Threats)
 	settings = append(settings, policy.SelfTendChanges(selfTendRows(pawns))...)
+	// Unique short names (#1310): a newer owned pawn holding an older
+	// one's short name is renamed from its own name bank.
+	if names, ok := read.Projection.Facts.OwnedNames.Value(); ok {
+		settings = append(settings, policy.NicknameChanges(names)...)
+	}
 	for _, plan := range open {
 		if err := cancelStaleWorkActions(call, p.journal, plan, work, settings); err != nil {
 			return RoutineWorkResult{}, err
@@ -261,7 +266,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	for _, s := range settings {
-		fmt.Fprintf(hash, "%s/%s/%s/%t/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), len(goal.Methods))
+		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), len(goal.Methods))
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {

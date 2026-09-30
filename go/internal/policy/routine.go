@@ -306,6 +306,8 @@ type RoutineFacts struct {
 	Custody domain.Fact[[]CustodyFacts]
 	// Outlook is the same population read's storyteller outlook (#1031).
 	Outlook PopulationOutlook
+	// OwnedNames is the same read's owned-pawn short-name census (#1310).
+	OwnedNames domain.Fact[[]OwnedName]
 	// QuestOffers carries MaintainPopulation's joiner census: every visible
 	// quest row (rimgovernor/observations_read_world_progression), read per
 	// cycle by a RoutineSource offering RoutineQuestSource, for JoinerDeficit
@@ -444,6 +446,9 @@ type RoutineFacts struct {
 	// SelfTendOwed is a colonist whose self-tend setting differs from the
 	// one it should hold (#1305); EnsureWorkAssignments writes it.
 	SelfTendOwed domain.Fact[bool]
+	// NamesOwed is an owned pawn whose short name an older owned pawn
+	// holds (#1310); EnsureWorkAssignments renames it.
+	NamesOwed domain.Fact[bool]
 	// ChoiceDialog is true while the game is force-paused by a choice dialog
 	// it opened by itself (#156); AnswerDialog is the goal that answers it.
 	ChoiceDialog                                                         domain.Fact[bool]
@@ -733,7 +738,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	medicalMet := measured(f.CriticalPatients, func(v int64) bool { return v == 0 })
 	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v }))
-	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) {
+	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) {
 		workMet = domain.Known(false)
 	}
 	defenseMet := allFacts(footholdArmed(f), measured(f.Hostiles, func(v int64) bool { return v == 0 }))

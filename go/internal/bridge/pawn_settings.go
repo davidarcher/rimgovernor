@@ -23,6 +23,11 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 		intent.Setting = &o.PawnSettingsIntent_HostilityResponse{HostilityResponse: string(v.Hostility())}
 	case domain.SettingSelfTend:
 		intent.Setting = &o.PawnSettingsIntent_SelfTend{SelfTend: v.SelfTend()}
+	case domain.SettingNickname:
+		if _, err := domain.NewNicknameSetting(v.Pawn(), v.LeaveName()); err != nil {
+			return nil, contract("%v", err)
+		}
+		intent.Setting = &o.PawnSettingsIntent_Nickname{Nickname: v.LeaveName()}
 	default:
 		return nil, contract("unknown pawn setting")
 	}
