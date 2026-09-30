@@ -193,7 +193,25 @@ namespace HomeBridge.BridgeTools
                 authority.SetHookHealth(false);
                 health = Install();
             }
-            return authority.SetHookHealth(health.Ready);
+            var snapshot = authority.SetHookHealth(health.Ready);
+            if (snapshot != null && snapshot.Active) EnsureManualPriorities(game);
+            return snapshot;
+        }
+
+        /// <summary>
+        /// The autopilot plays with numbered work priorities (#1276): without
+        /// useWorkPriorities, WorkSettings.GetPriority masks every active job
+        /// as 3. Idempotent; runs on grant and on every poll while control is
+        /// active, so a loaded save that stored checkbox mode flips back.
+        /// Returns true when it changed the setting.
+        /// </summary>
+        public static bool EnsureManualPriorities(Game game)
+        {
+            var settings = game.playSettings;
+            if (settings == null || settings.useWorkPriorities) return false;
+            settings.useWorkPriorities = true;
+            Log.Message("[RimGovernor] Autopilot control: work priorities switched to manual (numbered) mode");
+            return true;
         }
 
         private static void Update() => InitializeForCurrentGame();

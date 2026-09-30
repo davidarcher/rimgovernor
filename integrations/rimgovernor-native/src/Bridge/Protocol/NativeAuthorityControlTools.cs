@@ -83,6 +83,7 @@ namespace HomeBridge.BridgeTools
                     Authority = projectedInactive.Inactive ?? new Authority.InactiveAuthority { Reason = Authority.RevocationReason.Manual }
                 } };
             }
+            if (result.Snapshot.Active) NativeAuthorityHooks.EnsureManualPriorities(Current.Game);
             var projected = NativeAuthorityTools.Project(result.Snapshot, context);
             return new Authority.ControlReply { Granted = new Authority.Granted
             {
