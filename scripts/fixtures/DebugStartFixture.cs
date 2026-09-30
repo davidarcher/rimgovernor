@@ -23,6 +23,25 @@ namespace HomeBridge.BridgeTools
         public const int DefaultMapSize = 200, MinMapSize = 100, MaxMapSize = 400;
         public const float DefaultPlanetCoverage = 0.05f;
 
+        // A fresh process answers the bridge while its defs are still
+        // loading (#1264): a start queued then NREs in new Game() and the
+        // readiness wait times out. Configuring waits for the main menu:
+        // defs loaded and no long event running or queued.
+        public static bool MainMenuReached() =>
+            PlayDataLoader.Loaded && !LongEventHandler.AnyEventNowOrWaiting && Current.ProgramState == ProgramState.Entry;
+
+        public const int DefaultMainMenuTimeoutMs = 120000;
+
+        public static async Task WaitForMainMenuAsync(IRimBridgeContext ctx, CancellationToken cancellationToken, int timeoutMs)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(0, timeoutMs));
+            while (!await ctx.MainThread.InvokeAsync<bool>(() => MainMenuReached(), cancellationToken).ConfigureAwait(false))
+            {
+                if (DateTime.UtcNow >= deadline) throw new TimeoutException($"Main menu not reached within {timeoutMs} ms (defs still loading).");
+                await Task.Delay(250, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         private static bool armed, patched;
         private static int mapSize;
         private static float planetCoverage;
@@ -645,8 +664,10 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Planet coverage 0.05..1 (default 0.05).")] float planetCoverage = DebugStart.DefaultPlanetCoverage,
             [ToolParameter(Description = "Optional comma-separated native BiomeDef names in preference order; the start settles a random valid tile of the first biome the planet offers, or fails when it offers none.")] string biomes = "",
             [ToolParameter(Description = "Optional world seed; the tile choice and starting pawns follow it, so the same seed reproduces the same start. Empty draws a random seed.")] string seed = "",
-            [ToolParameter(Description = "Settle a flat tile without rivers, roads or tile mutators when the planet (and biome) offers one (#272).", DefaultValue = false)] bool flat = false)
+            [ToolParameter(Description = "Settle a flat tile without rivers, roads or tile mutators when the planet (and biome) offers one (#272).", DefaultValue = false)] bool flat = false,
+            [ToolParameter(Description = "How long to wait for def loading to reach the main menu before arming (#1264).")] int timeoutMs = DebugStart.DefaultMainMenuTimeoutMs)
         {
+            await DebugStart.WaitForMainMenuAsync(ctx, cancellationToken, timeoutMs).ConfigureAwait(false);
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.ProgramState != ProgramState.Entry || Current.Game != null) throw new InvalidOperationException("Only a fresh main-menu process can configure a debug start.");
                 DebugStart.Arm(mapSize, planetCoverage, biomes, seed, flat);

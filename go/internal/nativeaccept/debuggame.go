@@ -255,7 +255,9 @@ func generateDebugStart(ctx context.Context, h *Harness, names []string, start D
 			seed = RandomSeed()
 		}
 		startCache.seed = seed
-		args := map[string]any{"mapSize": start.MapSize, "planetCoverage": start.PlanetCoverage, "seed": seed}
+		// timeoutMs bounds the native wait for def loading to reach the
+		// main menu (#1264) and stretches the bridge deadline to cover it.
+		args := map[string]any{"mapSize": start.MapSize, "planetCoverage": start.PlanetCoverage, "seed": seed, "timeoutMs": 120000}
 		if start.Biomes != "" {
 			args["biomes"] = start.Biomes
 		}

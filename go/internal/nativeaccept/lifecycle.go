@@ -465,6 +465,7 @@ func (v ScenarioStart) load(ctx context.Context, s *Session, quiet QuietMode) (m
 		"scenario": v.Scenario, "count": v.Count, "seed": v.Seed, "biome": v.Biome,
 		"difficulty": v.Difficulty, "minTemperature": v.MinTemperature, "maxTemperature": v.MaxTemperature,
 		"worldTemperature": v.WorldTemperature, "mapSize": v.Size.MapSize, "planetCoverage": v.Size.PlanetCoverage,
+		"timeoutMs": 120000, // def loading must reach the main menu first (#1264)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("configure-start: %w", err)
