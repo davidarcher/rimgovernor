@@ -623,11 +623,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if homeCoverage {
-			homeCoverageNative, ok := reads.(buildingruntime.RoutineHomeCoverageSource)
-			if !ok {
-				return nil, errors.New("home coverage plans require typed colony and construction observations")
-			}
-			config.HomeCoverage, err = buildingruntime.NewRoutineHomeCoveragePlanner(reviewer, homeCoverageNative)
+			config.HomeCoverage, err = buildingruntime.NewRoutineHomeCoveragePlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}

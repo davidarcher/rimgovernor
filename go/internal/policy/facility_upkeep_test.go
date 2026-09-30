@@ -83,41 +83,6 @@ func TestHomeCoverageReconcilesChangedOwnedStockpileFootprint(t *testing.T) {
 	}
 }
 
-func TestSelectHomeCoverageMethodSkipsCoveredBlockedAndSeenThenPicksFirst(t *testing.T) {
-	rows := []HomeCoverageTarget{
-		{ID: "a", Shape: domain.Known("shape"), Missing: domain.Known(int64(0))},
-		{ID: "b", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Blocker: "geometry unavailable"},
-		{ID: "c", Shape: domain.Known("shape"), Missing: domain.Known(int64(1))},
-		{ID: "d", Shape: domain.Known("shape"), Missing: domain.Known(int64(1))},
-	}
-	seenID := homeCoverageMethodID("c", "shape", 4)
-	choice, err := SelectHomeCoverageMethod(domain.Known(rows), 4, []domain.MethodID{seenID})
-	if err != nil || choice.Kind != HomeCoverageExtend || choice.Target != "d" || choice.Shape != "shape" || choice.Revision != 4 {
-		t.Fatal(choice, err)
-	}
-	if choice.ID != homeCoverageMethodID("d", "shape", 4) {
-		t.Fatal("method id not stable", choice.ID)
-	}
-}
-
-func TestSelectHomeCoverageMethodRecoveredUnknownAndBlocked(t *testing.T) {
-	if choice, err := SelectHomeCoverageMethod(domain.Unknown[[]HomeCoverageTarget](), 0, nil); err != nil || choice.Kind != HomeCoverageUnknown {
-		t.Fatal(choice, err)
-	}
-	if choice, err := SelectHomeCoverageMethod(domain.Known([]HomeCoverageTarget{}), 0, nil); err != nil || choice.Kind != HomeCoverageRecovered {
-		t.Fatal(choice, err)
-	}
-	blocked := []HomeCoverageTarget{{ID: "a", Blocker: "player edit"}}
-	if choice, err := SelectHomeCoverageMethod(domain.Known(blocked), 0, nil); err != nil || choice.Kind != HomeCoverageBlocked {
-		t.Fatal(choice, err)
-	}
-	all := []HomeCoverageTarget{{ID: "a", Shape: domain.Known("s"), Missing: domain.Known(int64(1))}}
-	seen := []domain.MethodID{homeCoverageMethodID("a", "s", 0)}
-	if choice, err := SelectHomeCoverageMethod(domain.Known(all), 0, seen); err != nil || choice.Kind != HomeCoverageBlocked {
-		t.Fatal(choice, err)
-	}
-}
-
 func TestStoneShellOnlyTargetsCurrentOwnedFlammableWalls(t *testing.T) {
 	wood, stone, spot := facilityClaim(t, "wood", "Wall", "WoodLog"), facilityClaim(t, "stone", "Wall", "BlocksGranite"), facilityClaim(t, "spot", "SleepingSpot", "")
 	rows := []StoneStructure{{ID: "wood", Definition: "Wall", Flammability: domain.Known(1.0)}, {ID: "stone", Definition: "Wall", Flammability: domain.Known(0.0)}, {ID: "player-wall", Definition: "Wall", Flammability: domain.Known(1.0)}}

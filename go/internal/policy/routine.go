@@ -663,7 +663,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	home, err := ReviewHomeCoverage(f.HomeCoverage)
+	home, err := PlanHomeArea(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage)
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
@@ -758,8 +758,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		sleepingActive = !recovered
 	}
 	homeActive, stoneActive := previous.HomeCoverage, previous.StoneShell
-	if rows, known := home.Value(); known {
-		homeActive = len(rows) > 0
+	if diff, known := home.Value(); known {
+		homeActive = !diff.Empty()
 	}
 	if rows, known := stone.Value(); known {
 		stoneActive = len(rows) > 0
@@ -1048,8 +1048,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		}
 	}
 	homeRecovered, stoneRecovered := domain.Unknown[bool](), domain.Unknown[bool]()
-	if rows, known := home.Value(); known {
-		homeRecovered = domain.Known(len(rows) == 0)
+	if diff, known := home.Value(); known {
+		homeRecovered = domain.Known(diff.Empty())
 	}
 	if rows, known := stone.Value(); known {
 		stoneRecovered = domain.Known(len(rows) == 0)

@@ -8,8 +8,16 @@ import (
 )
 
 func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
-	if v == nil || !proto.Equal(v, &o.UpkeepFacts{Comfort: v.Comfort, Issues: v.Issues, Items: v.Items, Structures: v.Structures, Fires: v.Fires, Filth: v.Filth, Animals: v.Animals, People: v.People, Beds: v.Beds, HomeCoverage: v.HomeCoverage, Lighting: v.Lighting, WildAnimals: v.WildAnimals, Flooring: v.Flooring, Routes: v.Routes, Rooms: v.Rooms}) {
+	if v == nil || !proto.Equal(v, &o.UpkeepFacts{Comfort: v.Comfort, Issues: v.Issues, Items: v.Items, Structures: v.Structures, Fires: v.Fires, Filth: v.Filth, Animals: v.Animals, People: v.People, Beds: v.Beds, HomeCoverage: v.HomeCoverage, Lighting: v.Lighting, WildAnimals: v.WildAnimals, Flooring: v.Flooring, Routes: v.Routes, Rooms: v.Rooms, AutoHomeArea: v.AutoHomeArea, HomeCells: v.HomeCells}) {
 		return contract("unsupported upkeep projection")
+	}
+	home := map[[2]int32]bool{}
+	for _, cell := range v.HomeCells {
+		key := [2]int32{cell.GetX(), cell.GetZ()}
+		if !colonyCell(cell, size) || home[key] {
+			return contract("invalid home cell")
+		}
+		home[key] = true
 	}
 	if err := pawnsIssues(v.Issues, v.ProtoReflect()); err != nil {
 		return err

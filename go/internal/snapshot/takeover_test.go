@@ -130,20 +130,19 @@ func TestTakeoverHerdRemovalFlagsAreCancelled(t *testing.T) {
 // review after the player's Manual edit, recorded at 476208aa7 (#769).
 // home-removal removed one Home cell under a player-built bed (every
 // target over that room reads one cell missing); built-facility built the
-// bed room with no Home at all (the room's 49 cells missing). Neither has
-// autonomous build history: MaintainHomeCoverage opens from the building
-// census alone, and once the recorded gap reads covered it does not.
+// bed room with no Home at all (the room's 49 cells missing). The recordings
+// predate the home-cell read (#1328): with no Home at all, MaintainHomeCoverage
+// opens from the building census alone, and once Home holds the planned
+// footprint it does not.
 func TestTakeoverRemovedHomeOpensHomeCoverage(t *testing.T) {
 	for path, missing := range map[string]int64{
 		"testdata/takeover-home-removed-cell.json.gz":   1,
 		"testdata/takeover-home-built-facility.json.gz": 49,
 	} {
 		r := load(t, path)
-		deficit(t, r, policy.MaintainHomeCoverage)
 		home, _ := r.Facts.HomeCoverage.Value()
-		home.Targets = slices.Clone(home.Targets)
 		beds := 0
-		for i, target := range home.Targets {
+		for _, target := range home.Targets {
 			n, _ := target.Missing.Value()
 			if strings.HasPrefix(target.ID, "Thing_Bed") {
 				beds++
@@ -151,11 +150,19 @@ func TestTakeoverRemovedHomeOpensHomeCoverage(t *testing.T) {
 					t.Fatalf("%s: %s misses %d Home cells, want the edit's %d", path, target.ID, n, missing)
 				}
 			}
-			home.Targets[i].Missing = domain.Known(int64(0))
 		}
 		if beds == 0 {
 			t.Fatal(path, "no player bed in the Home census")
 		}
+		home.Home, home.AutoHome = domain.Known([]domain.Cell{}), domain.Known(false)
+		r.Facts.HomeCoverage = domain.Known(home)
+		deficit(t, r, policy.MaintainHomeCoverage)
+		planned, err := policy.PlanHomeArea(r.Facts.MapBounds, r.Facts.CurrentConstruction, r.Facts.ConstructionClaims, r.Facts.HomeCoverage)
+		plan, known := planned.Value()
+		if err != nil || !known || len(plan.Set) == 0 {
+			t.Fatal(path, plan, known, err)
+		}
+		home.Home = domain.Known(plan.Set)
 		r.Facts.HomeCoverage = domain.Known(home)
 		if a, err := r.Assessment(policy.MaintainHomeCoverage); err != nil || a.Need == domain.NeedDeficit {
 			t.Fatal(path, "covered colony still a deficit", a, err)

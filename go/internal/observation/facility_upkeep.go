@@ -16,6 +16,16 @@ func colonyHomeCoverage(v *o.ColonyFactsSnapshot) domain.Fact[policy.HomeCoverag
 		return domain.Unknown[policy.HomeCoverageObservation]()
 	}
 	r := policy.HomeCoverageObservation{Revision: h.GetRevision(), Targets: []policy.HomeCoverageTarget{}}
+	if u.AutoHomeArea != nil && !hasIssue(u.Issues, "auto_home_area") {
+		r.AutoHome = domain.Known(u.GetAutoHomeArea())
+	}
+	if !hasIssue(u.Issues, "home_cells") {
+		cells := make([]domain.Cell, 0, len(u.HomeCells))
+		for _, c := range u.HomeCells {
+			cells = append(cells, domain.Cell{X: c.GetX(), Z: c.GetZ()})
+		}
+		r.Home = domain.Known(cells)
+	}
 	for _, row := range h.Targets {
 		t := policy.HomeCoverageTarget{ID: row.GetId(), Shape: optional(row.ShapeToken), Blocker: row.GetBlocker(), Cells: []domain.Cell{}}
 		if row.MissingCells != nil {

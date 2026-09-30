@@ -103,16 +103,17 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	r := routineRequest()
 	r.Tick = 12
 	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: building, Cells: []domain.Cell{building.Cell()}, IntentKey: "placed/1"}}})
-	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Revision: 1, Targets: []policy.HomeCoverageTarget{{ID: "wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(1)), Cells: []domain.Cell{{X: 3, Z: 7}}}}})
+	r.Facts.MapBounds = domain.Known(policy.Bounds{Width: 250, Height: 250})
+	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Revision: 1, Targets: []policy.HomeCoverageTarget{{ID: "wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(1)), Cells: []domain.Cell{{X: 3, Z: 7}}, ExtentGeometry: domain.Known(policy.HomeExtentGeometry{})}}, Home: domain.Known([]domain.Cell{}), AutoHome: domain.Known(false)})
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
-	// Home coverage follows the census alone (#719): the wall stays missing
-	// Home whatever construction ownership reads; stone shell follows ownership.
+	// Home follows the building census (#1328): the wall's footprint plus
+	// margin is missing Home while it stands, unknown while the census is.
 	assertNeeds := func(out RoutineReviewResult, want domain.NeedState) {
 		t.Helper()
 		if got := routineGoal(t, out, policy.MaintainStoneShell).Goal.Need; got != want {
 			t.Fatal(policy.MaintainStoneShell, got, want)
 		}
-		if got := routineGoal(t, out, policy.MaintainHomeCoverage).Goal.Need; got != domain.NeedDeficit {
+		if got := routineGoal(t, out, policy.MaintainHomeCoverage).Goal.Need; got != want {
 			t.Fatal(policy.MaintainHomeCoverage, got)
 		}
 	}
@@ -148,7 +149,8 @@ func TestRoutineReviewCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	// no building, so nothing is owned (#719 counts census buildings).
 	r.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Plan: "fake", Action: "fake", Goal: "fake", Identity: domain.ConstructionIdentity{Current: "wall"}, Building: b}})
 	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
-	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 7}}}}})
+	r.Facts.MapBounds = domain.Known(policy.Bounds{Width: 250, Height: 250})
+	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 7}}}}, Home: domain.Known([]domain.Cell{}), AutoHome: domain.Known(false)})
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	out := reviewRoutine(t, s, &r)
 	for _, id := range []domain.GoalID{policy.MaintainHomeCoverage, policy.MaintainStoneShell} {

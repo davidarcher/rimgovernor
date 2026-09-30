@@ -4,70 +4,27 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// RoutineHomeCoverageSource reads the complete current player-building census
-// and the general colony census carrying the Home coverage/upkeep
-// section. No dedicated Home-coverage read exists; ReadColonyFacts's Upkeep
-// facts are unconditional, unlike Planning, so planning is left false here.
-type RoutineHomeCoverageSource interface {
-	ReadConstructionBuildings(context.Context, *c.Identity, []string) (*o.ListBuildingsReply, bridge.Result, error)
-	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
-}
+// RoutineHomeCoveragePlanner owns the home area (#1328): it turns the game's
+// auto-expand off and edits home to the base footprint policy.PlanHomeArea
+// derives, reading the reviewer's routine census.
 type RoutineHomeCoveragePlanner struct {
 	reviewer *RoutineReviewer
-	native   RoutineHomeCoverageSource
 }
 type RoutineHomeCoverageResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
 }
 
-func NewRoutineHomeCoveragePlanner(reviewer *RoutineReviewer, native RoutineHomeCoverageSource) (*RoutineHomeCoveragePlanner, error) {
-	if reviewer == nil || native == nil {
-		return nil, fmt.Errorf("%w: NewRoutineHomeCoveragePlanner: reviewer == nil || native == nil", ErrControl)
+func NewRoutineHomeCoveragePlanner(reviewer *RoutineReviewer) (*RoutineHomeCoveragePlanner, error) {
+	if reviewer == nil || reviewer.native == nil {
+		return nil, fmt.Errorf("%w: NewRoutineHomeCoveragePlanner: reviewer == nil || reviewer.native == nil", ErrControl)
 	}
-	return &RoutineHomeCoveragePlanner{reviewer, native}, nil
-}
-
-// homeCoverageObservationFacts decodes the same unconditional Upkeep section
-// observation.colonyHomeCoverage does for routine review. Duplicated here for
-// the same reason gearObservationFacts is duplicated in routine_gear.go: a
-// fresh census immediately before proposing a method, not the review's cache.
-func homeCoverageObservationFacts(v *o.ColonyFactsSnapshot) (policy.HomeCoverageObservation, bool) {
-	u := v.GetUpkeep().GetObserved()
-	if u == nil {
-		return policy.HomeCoverageObservation{}, false
-	}
-	h := u.GetHomeCoverage().GetObserved()
-	if h == nil {
-		return policy.HomeCoverageObservation{}, false
-	}
-	result := policy.HomeCoverageObservation{Revision: h.GetRevision(), Targets: []policy.HomeCoverageTarget{}}
-	for _, row := range h.Targets {
-		t := policy.HomeCoverageTarget{ID: row.GetId(), Blocker: row.GetBlocker(), Cells: []domain.Cell{}}
-		if row.ShapeToken != nil {
-			t.Shape = domain.Known(row.GetShapeToken())
-		}
-		if row.MissingCells != nil {
-			t.Missing = domain.Known(int64(row.GetMissingCells()))
-		}
-		if row.ExcludedCells != nil {
-			t.Excluded = domain.Known(int64(row.GetExcludedCells()))
-		}
-		for _, cell := range row.Cells {
-			t.Cells = append(t.Cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
-		}
-		result.Targets = append(result.Targets, t)
-	}
-	return result, true
+	return &RoutineHomeCoveragePlanner{reviewer}, nil
 }
 
 func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineHomeCoverageResult, error) {
@@ -103,55 +60,67 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 		}
 	}
 	started := r.reviewer.clock.Now()
-	identity := boundary.Identity(state.Snapshot)
-	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
+	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
-	observed := reply.GetObserved()
-	if observed == nil {
-		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
+	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
+	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
+	if err != nil {
+		return RoutineHomeCoverageResult{}, err
 	}
-	census, ok := homeCoverageObservationFacts(observed)
-	if !ok {
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
+	if err != nil {
+		return RoutineHomeCoverageResult{}, err
+	}
+	f := read.Projection.Facts
+	planned, err := policy.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage)
+	if err != nil {
+		return RoutineHomeCoverageResult{}, err
+	}
+	diff, known := planned.Value()
+	if !known {
+		return RoutineHomeCoverageResult{Reason: BuildingMethodUnknown}, nil
+	}
+	if diff.Empty() {
 		return RoutineHomeCoverageResult{Reason: BuildingMethodUsed}, nil
 	}
-	targets, err := policy.ReviewHomeCoverage(domain.Known(census))
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
-	seen := make([]domain.MethodID, 0, len(goal.Methods))
-	for _, method := range goal.Methods {
-		seen = append(seen, method.Method)
-	}
-	choice, err := policy.SelectHomeCoverageMethod(targets, census.Revision, seen)
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
-	if choice.Kind != policy.HomeCoverageExtend {
-		return RoutineHomeCoverageResult{Reason: BuildingMethodUsed}, nil
-	}
-	// The home extension is an AreaIntent set_cells over the chosen
-	// target's observed batch; cells already Home stay Home.
-	var cells []domain.Cell
-	for _, t := range census.Targets {
-		if t.ID == choice.Target {
-			cells = t.Cells
+	method := diff.MethodID()
+	for _, seen := range goal.Methods {
+		if seen.Method == method {
+			return RoutineHomeCoverageResult{Reason: BuildingMethodUsed}, nil
 		}
 	}
-	coverage, err := domain.NewArea(domain.AreaSetCells, "", cells)
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
 	id := domain.MintPlanID()
-	action, err := domain.NewAreaAction(domain.ActionID(fmt.Sprintf("%s-0", id)), coverage)
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
+	var actions []domain.Action
+	next := func() domain.ActionID { return domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))) }
+	if diff.AutoOff {
+		action, err := domain.NewAutoHomeAreaAction(next(), false)
+		if err != nil {
+			return RoutineHomeCoverageResult{}, err
+		}
+		actions = append(actions, action)
 	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	for _, edit := range []struct {
+		op    domain.AreaOperation
+		cells []domain.Cell
+	}{{domain.AreaSetCells, diff.Set}, {domain.AreaClearCells, diff.Clear}} {
+		if len(edit.cells) == 0 {
+			continue
+		}
+		area, err := domain.NewArea(edit.op, "", edit.cells)
+		if err != nil {
+			return RoutineHomeCoverageResult{}, err
+		}
+		action, err := domain.NewAreaAction(next(), area)
+		if err != nil {
+			return RoutineHomeCoverageResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
@@ -162,7 +131,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
 	return RoutineHomeCoverageResult{Reason: BuildingMethodAdmitted, Plan: id}, nil

@@ -1,10 +1,7 @@
 package policy
 
 import (
-	"crypto/sha256"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -28,6 +25,10 @@ type HomeCoverageTarget struct {
 type HomeCoverageObservation struct {
 	Revision int64
 	Targets  []HomeCoverageTarget
+	// Home is every current home-area cell; AutoHome the game's
+	// auto-expand setting (#1328).
+	Home     domain.Fact[[]domain.Cell]
+	AutoHome domain.Fact[bool]
 }
 type StoneStructure struct {
 	ID           string
@@ -84,73 +85,6 @@ func ReviewHomeCoverage(observed domain.Fact[HomeCoverageObservation]) (domain.F
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
 	return domain.Known(result), nil
-}
-
-type HomeCoverageMethodKind string
-
-const (
-	HomeCoverageUnknown   HomeCoverageMethodKind = "unknown"
-	HomeCoverageRecovered HomeCoverageMethodKind = "recovered"
-	HomeCoverageExtend    HomeCoverageMethodKind = "extend"
-	HomeCoverageBlocked   HomeCoverageMethodKind = "no_eligible_method"
-)
-
-// HomeCoverageMethod proposes extending native Home over one already-owned
-// target's exact bounded footprint. It issues no game order; the shared
-// admission recheck happens fresh at dispatch.
-type HomeCoverageMethod struct {
-	Kind          HomeCoverageMethodKind
-	ID            domain.MethodID
-	Target, Shape string
-	Revision      int64
-}
-
-func homeCoverageMethodID(target, shape string, revision int64) domain.MethodID {
-	value := struct {
-		Target, Shape string
-		Revision      int64
-	}{target, shape, revision}
-	data, _ := json.Marshal(value)
-	sum := sha256.Sum256(data)
-	return domain.MethodID(fmt.Sprintf("home-%x", sum[:16]))
-}
-
-// SelectHomeCoverageMethod proposes one bounded home-coverage extension from
-// sorted targets (already filtered to missing work or blocked by
-// ReviewHomeCoverage), skipping any with a blocker, no missing cells, or an
-// already method_seen for this goal epoch, and propose the first admissible
-// one.
-func SelectHomeCoverageMethod(targets domain.Fact[[]HomeCoverageTarget], revision int64, seen []domain.MethodID) (HomeCoverageMethod, error) {
-	rows, known := targets.Value()
-	if !known {
-		return HomeCoverageMethod{Kind: HomeCoverageUnknown}, nil
-	}
-	if len(rows) == 0 {
-		return HomeCoverageMethod{Kind: HomeCoverageRecovered}, nil
-	}
-	seenSet := map[domain.MethodID]bool{}
-	for _, id := range seen {
-		if !foodID(string(id)) || seenSet[id] {
-			return HomeCoverageMethod{}, errors.New("invalid home coverage method history")
-		}
-		seenSet[id] = true
-	}
-	for _, row := range rows {
-		if row.Blocker != "" {
-			continue
-		}
-		missing, mk := row.Missing.Value()
-		shape, sk := row.Shape.Value()
-		if !mk || !sk || missing <= 0 {
-			continue
-		}
-		id := homeCoverageMethodID(row.ID, shape, revision)
-		if seenSet[id] {
-			continue
-		}
-		return HomeCoverageMethod{Kind: HomeCoverageExtend, ID: id, Target: row.ID, Shape: shape, Revision: revision}, nil
-	}
-	return HomeCoverageMethod{Kind: HomeCoverageBlocked}, nil
 }
 
 // StoneShellResearch is the native project whose recipes cut the stone

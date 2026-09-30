@@ -216,13 +216,14 @@ func TestRoutineHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
 	v := native.reply.GetObserved()
 	v.Upkeep.GetObserved().HomeCoverage = &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: &o.HomeCoverageFacts{
 		Revision: proto.Int64(1),
-		Targets:  []*o.HomeCoverageTarget{{Id: proto.String("wall-1"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(0), Cells: []*c.Cell{{X: proto.Int32(4), Z: proto.Int32(4)}}}},
+		Targets:  []*o.HomeCoverageTarget{{Id: proto.String("wall-1"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(0), Cells: []*c.Cell{{X: proto.Int32(4), Z: proto.Int32(4)}}, ExtentGeometry: &o.HomeExtentGeometry{}}},
 	}}}
+	v.Upkeep.GetObserved().AutoHomeArea = proto.Bool(true)
 	stone.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainHomeCoverage})
 	if _, err := stone.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	planner, err := NewRoutineHomeCoveragePlanner(stone.reviewer, native)
+	planner, err := NewRoutineHomeCoveragePlanner(stone.reviewer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +232,7 @@ func TestRoutineHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)
-	if err != nil || len(plan.Spec.Actions()) != 1 || plan.Spec.Actions()[0].Kind() != domain.AreaAction {
+	if err != nil || len(plan.Spec.Actions()) != 2 || plan.Spec.Actions()[0].Kind() != domain.AutoHomeAreaAction || plan.Spec.Actions()[1].Kind() != domain.AreaAction {
 		t.Fatal(plan, err)
 	}
 }
