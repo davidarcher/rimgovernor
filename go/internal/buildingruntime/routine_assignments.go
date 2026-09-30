@@ -217,8 +217,11 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		work = append(work, w)
 	}
+	// Hostility responses (#1299) ride the same goal: one PawnSettingsIntent
+	// per colonist whose response differs from the one it should hold.
+	settings := policy.HostilityChanges(hostilityRows(pawns), read.Emergency.Threats)
 	for _, plan := range open {
-		if err := cancelStaleWorkActions(call, p.journal, plan, work); err != nil {
+		if err := cancelStaleWorkActions(call, p.journal, plan, work, settings); err != nil {
 			return RoutineWorkResult{}, err
 		}
 		if plan, err = p.journal.LoadPlan(call, plan.Spec.ID()); err != nil {
@@ -228,7 +231,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineWorkResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	if len(work) == 0 {
+	if len(work) == 0 && len(settings) == 0 {
 		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
 	}
 	// Staleness above judged every pawn; the plan itself carries at most eight.
@@ -249,6 +252,9 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			fmt.Fprintf(hash, "food/%q/%d\n", defs, len(goal.Methods))
 		}
 	}
+	for _, s := range settings {
+		fmt.Fprintf(hash, "hostility/%s/%s/%d\n", s.Pawn(), s.Hostility(), len(goal.Methods))
+	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineWorkResult{Reason: BuildingMethodUsed}, nil
@@ -259,6 +265,13 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	var actions []domain.Action
 	for i, w := range work {
 		action, err := domain.NewWorkAssignmentAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), w)
+		if err != nil {
+			return RoutineWorkResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	for _, s := range settings {
+		action, err := domain.NewPawnSettingsAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), s)
 		if err != nil {
 			return RoutineWorkResult{}, err
 		}
@@ -285,24 +298,37 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 // the pawn dropped out of the decision, or the policy
 // now wants a different priority for a work type the action sets. A pending
 // action the fresh decision still agrees with stays open.
-func cancelStaleWorkActions(ctx context.Context, journal *store.Store, plan store.PlanState, fresh []domain.WorkAssignment) error {
+func cancelStaleWorkActions(ctx context.Context, journal *store.Store, plan store.PlanState, fresh []domain.WorkAssignment, settings []domain.PawnSettings) error {
+	wantedSettings := map[domain.PawnSettings]bool{}
+	for _, s := range settings {
+		wantedSettings[s] = true
+	}
 	wanted := map[domain.PawnID]domain.WorkAssignment{}
 	for _, w := range fresh {
 		wanted[w.Pawn()] = w
 	}
 	assignments := map[domain.ActionID]domain.WorkAssignment{}
+	staleSettings := map[domain.ActionID]bool{}
 	for _, action := range plan.Spec.Actions() {
 		if w, ok := action.WorkAssignment(); ok {
 			assignments[action.ID()] = w
 		}
+		if s, ok := action.PawnSettings(); ok {
+			staleSettings[action.ID()] = !wantedSettings[s]
+		}
 	}
 	for _, progress := range plan.Progress {
 		v := progress.View()
-		w, ok := assignments[v.Action]
-		if !ok || v.Stage != domain.Pending && v.Stage != domain.Prepared {
+		if v.Stage != domain.Pending && v.Stage != domain.Prepared {
 			continue
 		}
-		if !workActionStale(w, wanted) {
+		stale, isSetting := staleSettings[v.Action]
+		if w, ok := assignments[v.Action]; ok {
+			stale = workActionStale(w, wanted)
+		} else if !isSetting {
+			continue
+		}
+		if !stale {
 			continue
 		}
 		if _, err := journal.Cancel(ctx, plan.Spec.ID(), v.Action); err != nil {
@@ -330,4 +356,22 @@ func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.Wo
 		}
 	}
 	return false
+}
+
+// hostilityRows are the work census's hostility inputs (#1299).
+func hostilityRows(pawns []policy.WorkPawn) []policy.HostilityPawn {
+	out := make([]policy.HostilityPawn, 0, len(pawns))
+	for _, p := range pawns {
+		out = append(out, p.HostilityPawn())
+	}
+	return out
+}
+
+// hostilityPawns lifts the work census into the review's hostility rows.
+func hostilityPawns(pawns domain.Fact[[]policy.WorkPawn]) domain.Fact[[]policy.HostilityPawn] {
+	rows, known := pawns.Value()
+	if !known {
+		return domain.Unknown[[]policy.HostilityPawn]()
+	}
+	return domain.Known(hostilityRows(rows))
 }

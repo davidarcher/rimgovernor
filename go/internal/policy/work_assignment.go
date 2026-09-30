@@ -47,6 +47,13 @@ type WorkPawn struct {
 	// Inspiration is the current InspirationDef defName (#1187); known "" is
 	// no inspiration, unknown is a read that did not carry it.
 	Inspiration domain.Fact[string]
+	// Hostility inputs (#1299): the Assign-tab response (unknown where the
+	// pawn has none to configure), violence from the disabled work tags,
+	// BloodLoss severity and summary health.
+	Hostility       domain.Fact[domain.HostilityResponse]
+	ViolenceCapable domain.Fact[bool]
+	BloodLoss       domain.Fact[float64]
+	Health          domain.Fact[float64]
 	// Rest, Joy and Mood are need levels from the pawn needs block; unknown
 	// when the read carried no readable needs (#1312).
 	Rest, Joy, Mood domain.Fact[float64]
@@ -54,6 +61,11 @@ type WorkPawn struct {
 	// only for a psycaster; unknown without Royalty, a psylink or needs.
 	Psyfocus, PsyfocusTarget domain.Fact[float64]
 	PsylinkLevel             domain.Fact[int]
+}
+
+// HostilityPawn is the pawn's hostility inputs.
+func (w WorkPawn) HostilityPawn() HostilityPawn {
+	return HostilityPawn{ID: w.ID, Current: w.Hostility, ViolenceCapable: w.ViolenceCapable, Age: w.Age, BloodLoss: w.BloodLoss, Health: w.Health, Job: w.Job}
 }
 
 // PawnJob is one pawn's current job as the census saw it. Def is the

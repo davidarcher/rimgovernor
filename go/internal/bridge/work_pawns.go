@@ -2,6 +2,8 @@ package bridge
 
 import (
 	"context"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -43,7 +45,7 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 		return contract("invalid drug policy settings")
 	}
 	if care {
-		allowed.MedicalCare, allowed.SelfTend = s.MedicalCare, s.SelfTend
+		allowed.MedicalCare, allowed.SelfTend, allowed.HostilityResponse = s.MedicalCare, s.SelfTend, s.HostilityResponse
 	}
 	if schedule {
 		allowed.Schedule = s.Schedule
@@ -90,6 +92,9 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 		if err := validID(s.GetAllowedAreaId()); err != nil {
 			return err
 		}
+	}
+	if care && s.HostilityResponse != nil && !domain.HostilityResponse(s.GetHostilityResponse()).Valid() {
+		return contract("invalid hostility response")
 	}
 	if care && s.MedicalCare != nil {
 		if err := validID(s.GetMedicalCare()); err != nil {

@@ -142,6 +142,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,target,zone_payload) VALUES(?,?,?,'area',?,NULLIF(?,''),?)", a.ID(), plan, ordinal, string(area.Operation()), area.Key(), data)
+	} else if settings, ok := a.PawnSettings(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition) VALUES(?,?,?,'pawn_settings',?,?)", a.ID(), plan, ordinal, string(settings.Pawn()), string(settings.Hostility()))
 	} else if surgery, ok := a.Surgery(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,x,stuff,target) VALUES(?,?,?,'surgery',?,?,?,?,NULLIF(?,''))", a.ID(), plan, ordinal, string(surgery.Pawn()), surgery.Recipe(), surgery.Part(), strconv.FormatBool(surgery.AcknowledgeViolation()), string(surgery.Surgeon()))
 	} else if refuel, ok := a.AutoRefuel(); ok {
@@ -763,6 +765,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewResearchSelectAction(id, v)
+		return a, ordinal, err
+	}
+	if kind == "pawn_settings" && pawn.Valid && def.Valid && !target.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid {
+		settings, err := domain.NewHostilitySetting(domain.PawnID(pawn.String), domain.HostilityResponse(def.String))
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewPawnSettingsAction(id, settings)
 		return a, ordinal, err
 	}
 	if kind == "surgery" && pawn.Valid && def.Valid && x.Valid && x.Int64 >= domain.NoSurgeryPart && x.Int64 <= 2147483647 && (stuff.String == "true" || stuff.String == "false") && !z.Valid && !rotation.Valid && !draftAction.Valid {

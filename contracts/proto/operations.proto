@@ -291,6 +291,24 @@ message Action {
     SurgeryIntent surgery = 47;
     AreaIntent area = 48;
     AutoHomeAreaIntent auto_home_area = 49;
+    PawnSettingsIntent pawn_settings = 50;
+  }
+}
+// Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
+// #1292): exactly one arm per intent. hostility_response is a
+// HostilityResponseMode name (Ignore, Attack, Flee); native refuses a
+// violence-incapable pawn set to Attack. A setting that already holds
+// applies again. Evidence is a SettingsEffect on the pawn with the arm's
+// field. self_tend, reading_policy, medicine_carry and nickname are
+// reserved for their epic issues and refused natively until they land.
+message PawnSettingsIntent {
+  optional string pawn_id = 1;
+  oneof setting {
+    string hostility_response = 2;
+    bool self_tend = 3;
+    string reading_policy = 4;
+    int32 medicine_carry = 5;
+    string nickname = 6;
   }
 }
 // Queue one medical operation bill on one patient (#1162): the recipe on the

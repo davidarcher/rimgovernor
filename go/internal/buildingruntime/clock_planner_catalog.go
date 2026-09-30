@@ -129,7 +129,7 @@ var plannerCatalog = []plannerEntry{
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			return "", s.config.Routine.sweepDrafts(ctx, epoch, arbiter)
 		}},
-	{name: "work", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction}, sections: sectionsPawns,
+	{name: "work", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction, domain.PawnSettingsAction}, sections: sectionsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Work != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Work.step(ctx, epoch, arbiter)

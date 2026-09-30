@@ -43,6 +43,27 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, pawn = pawn.GetUniqueLoadID() };
             }, cancellationToken);
         }
+        [Tool("test/pacifist_ignore", Description = "UNSAFE FOR MODEL EXECUTION. Give one paused disposable colonist an adulthood backstory that disables violence and set its hostility response to Ignore (#1299).")]
+        public async Task<object> PacifistIgnore(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
+                    .First(p => !p.Dead && !p.Downed && p.story != null && p.playerSettings != null);
+                var backstory = DefDatabase<BackstoryDef>.AllDefsListForReading
+                    .Where(b => b.slot == BackstorySlot.Adulthood && (b.workDisables & WorkTags.Violent) != 0)
+                    .OrderBy(b => b.workDisables.ToString().Length).ThenBy(b => b.defName).First();
+                pawn.story.Adulthood = backstory;
+                pawn.Notify_DisabledWorkTypesChanged();
+                pawn.equipment?.DestroyAllEquipment();
+                pawn.playerSettings.hostilityResponse = HostilityResponseMode.Ignore;
+                if (!pawn.WorkTagIsDisabled(WorkTags.Violent))
+                    throw new InvalidOperationException("Violence is still enabled.");
+                return new { success = true, pawn = pawn.GetUniqueLoadID(), backstory = backstory.defName };
+            }, cancellationToken);
+        }
         [Tool("test/mood_setup", Description = "Seed deficient needs in one disposable pawn; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "food, rest, joy, forced, schedule, mental or environment.")] string scenario)

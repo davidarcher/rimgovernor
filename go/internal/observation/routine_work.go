@@ -127,6 +127,20 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 		w.Age = optional(b.BiologicalAgeYears)
 	}
 	w.Inspiration = optional(row.Inspiration)
+	if s := row.Settings; s != nil && s.HostilityResponse != nil && !hasIssue(s.Issues, "hostility_response") {
+		w.Hostility = domain.Known(domain.HostilityResponse(s.GetHostilityResponse()))
+	}
+	if b := row.Biography; b != nil && !hasIssue(b.Issues, "disabled_work_tags") {
+		violent := true
+		for _, tag := range b.DisabledWorkTags {
+			violent = violent && tag != "Violent"
+		}
+		w.ViolenceCapable = domain.Known(violent)
+	}
+	if h := row.Health; h != nil {
+		w.BloodLoss = optional(h.BloodLoss)
+		w.Health = optional(h.SummaryFraction)
+	}
 	if n := row.Needs; n != nil && !hasIssue(row.Issues, "needs") {
 		w.Rest, w.Joy, w.Mood = optional(n.Rest), optional(n.Joy), optional(n.Mood)
 	}

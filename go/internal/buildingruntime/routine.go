@@ -383,6 +383,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.CleanupPawns = domain.Known(len(stray) > 0)
+	reading.Projection.Facts.HostilityOwed = policy.HostilityOwed(hostilityPawns(reading.Projection.WorkPawns), reading.Emergency.Threats)
 	reading.Projection.ApplyFieldBudget(r.seasonal(reading.Projection.Facts).FoodTargetDays)
 	// The workshop ladder's recorded research rung is the derived
 	// EnsureResearch target; it is journal evidence, not a native read, so

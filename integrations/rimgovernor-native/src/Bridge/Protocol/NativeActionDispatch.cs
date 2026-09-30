@@ -65,11 +65,9 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Acquire] = new AcquireActionHandler(),
             [Operations.Action.IntentOneofCase.UseItem] = new UseItemActionHandler(),
             [Operations.Action.IntentOneofCase.Surgery] = new SurgeryActionHandler(),
-<<<<<<< HEAD
-            [Operations.Action.IntentOneofCase.AutoHomeArea] = new AutoHomeAreaActionHandler(),
-=======
             [Operations.Action.IntentOneofCase.Area] = new AreaActionHandler(),
->>>>>>> main
+            [Operations.Action.IntentOneofCase.AutoHomeArea] = new AutoHomeAreaActionHandler(),
+            [Operations.Action.IntentOneofCase.PawnSettings] = new PawnSettingsActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

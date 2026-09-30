@@ -27,10 +27,11 @@ func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
 			case "inapplicable":
 				settings.WorkApplies = proto.Bool(false)
 			case "extra-settings":
-				settings.HostilityResponse = proto.String("Attack")
+				settings.FollowDrafted = proto.Bool(true)
 			case "care":
 				settings.MedicalCare = proto.String("NormalOrWorse")
 				settings.SelfTend = proto.Bool(true)
+				settings.HostilityResponse = proto.String("Flee")
 			}
 			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				var outer struct {

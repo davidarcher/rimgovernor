@@ -92,12 +92,13 @@ namespace HomeBridge.BridgeTools
                 // The bridge contract (go/internal/bridge/work_pawns.go's
                 // validateSettings) enforces that a PawnSettings reply carries
                 // ONLY the fields the request actually asked for: care policy
-                // (medical_care, self_tend) under d.Settings, work priorities
+                // (medical_care, self_tend, hostility_response) under
+                // d.Settings, work priorities
                 // plus the allowed area under d.Work, the 24 timetable slots
                 // under d.Schedule.
                 // Callers that request several (e.g. ReadTendPawns,
                 // ReadRoutinePawns) must therefore get exactly their union,
-                // never the wider Assign-tab row (hostility_response, follow
+                // never the wider Assign-tab row (follow
                 // flags, master, allowed area) that home/pawn_config's own
                 // PawnSettingsRead.SettingsBlock reports instead.
                 if(d.Settings) CarePolicy(pawn,row.Settings);
@@ -412,9 +413,10 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        // Populates ONLY the care-policy fields (medical_care, self_tend) that
+        // Populates ONLY the care-policy fields (medical_care, self_tend and
+        // hostility_response, which PawnSettingsIntent writes, #1299) that
         // go/internal/bridge/work_pawns.go's validateSettings allows through
-        // when a caller asks for `care`. hostility_response, the follow flags,
+        // when a caller asks for `care`. The follow flags,
         // master_id and the 24-hour schedule are the wider Assign-tab row --
         // deliberately never requested via this protobuf
         // (rimgovernor/observations_list_pawns) path, so they must never be
@@ -426,9 +428,11 @@ namespace HomeBridge.BridgeTools
         {
             var settings=pawn.playerSettings;
             if(settings==null) {
-                row.Issues.Add(Missing("medical_care"));row.Issues.Add(Missing("self_tend"));
+                row.Issues.Add(Missing("medical_care"));row.Issues.Add(Missing("self_tend"));row.Issues.Add(Missing("hostility_response"));
             } else {
                 row.MedicalCare=settings.medCare.ToString();row.SelfTend=settings.selfTend;
+                if(settings.UsesConfigurableHostilityResponse) row.HostilityResponse=settings.hostilityResponse.ToString();
+                else row.Issues.Add(Issue("hostility_response",Common.UnavailableReason.NotApplicable,"Pawn has no configurable hostility response."));
             }
             row.Issues.Add(Unsupported("medical_care_options","Selectable medical care catalog is not projected."));
         }
