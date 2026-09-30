@@ -94,3 +94,41 @@ func TestTemperatureRoomsDecodesCleanlinessStat(t *testing.T) {
 		}
 	}
 }
+
+// A roofed room with a door east onto the outdoors, one north into another
+// room and one with an unread far side, beside an unroofed room (#1323).
+func TestTemperatureRoomsMapsRoofAndDoors(t *testing.T) {
+	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{
+		{Id: proto.String("roofed"), ProperRoom: proto.Bool(true), OpenRoofCount: proto.Uint32(0), Doors: []*o.RoomDoor{
+			{Cell: cell(5, 2), Outside: cell(6, 2), Outdoors: proto.Bool(true)},
+			{Cell: cell(3, 5), Outside: cell(3, 6), Outdoors: proto.Bool(false)},
+			{Cell: cell(0, 2), Outside: cell(-1, 2)},
+		}},
+		{Id: proto.String("open"), ProperRoom: proto.Bool(true), OpenRoofCount: proto.Uint32(4)},
+		{Id: proto.String("unread"), ProperRoom: proto.Bool(true)},
+	}}
+	census, known := temperatureRooms(rooms, domain.Unknown[policy.SleepingObservation]()).Value()
+	if !known || len(census.Rooms) != 3 {
+		t.Fatal(census, known)
+	}
+	if v, ok := census.Rooms[0].Roofed.Value(); !ok || !v {
+		t.Fatal("roofed room", census.Rooms[0].Roofed)
+	}
+	if v, ok := census.Rooms[1].Roofed.Value(); !ok || v {
+		t.Fatal("unroofed room", census.Rooms[1].Roofed)
+	}
+	if _, ok := census.Rooms[2].Roofed.Value(); ok {
+		t.Fatal("missing roof count must stay unknown")
+	}
+	doors := census.Rooms[0].Doors
+	if len(doors) != 3 || doors[0].Cell != (domain.Cell{X: 5, Z: 2}) || doors[0].Outside != (domain.Cell{X: 6, Z: 2}) {
+		t.Fatal(doors)
+	}
+	if !doors[0].EnemyFacing || doors[1].EnemyFacing || doors[2].EnemyFacing {
+		t.Fatal("without a plan only outdoor-opening doors face the enemy", doors)
+	}
+	if _, ok := doors[2].Outdoors.Value(); ok {
+		t.Fatal("unread far side must stay unknown")
+	}
+}

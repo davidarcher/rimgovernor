@@ -41,9 +41,16 @@ func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.Sleepi
 		for _, cell := range room.Cells {
 			row.Cells = append(row.Cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 		}
+		row.Roofed = domain.Unknown[bool]()
+		if room.OpenRoofCount != nil {
+			row.Roofed = domain.Known(room.GetOpenRoofCount() == 0)
+		}
+		for _, door := range room.Doors {
+			row.Doors = append(row.Doors, policy.RoomDoor{Cell: domain.Cell{X: door.GetCell().GetX(), Z: door.GetCell().GetZ()}, Outside: domain.Cell{X: door.GetOutside().GetX(), Z: door.GetOutside().GetZ()}, Outdoors: optional(door.Outdoors)})
+		}
 		result.Rooms = append(result.Rooms, row)
 	}
-	return domain.Known(result)
+	return domain.Known(policy.MarkEnemyDoors(result, nil))
 }
 
 // roomStat reads one named native room stat; a missing or unavailable stat

@@ -307,6 +307,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Sections.Colony.Value.LayoutPlan = reading.Projection.LayoutPlan
+	if plan, ok := reading.Projection.LayoutPlan.Value(); ok {
+		if rooms, rk := reading.Projection.Rooms.Value(); rk {
+			reading.Projection.Rooms = domain.Known(policy.MarkEnemyDoors(rooms, plan.KillboxCells()))
+		}
+	}
 	r.census.rememberLayout(reading.Projection.Identity, reading.Projection.LayoutPlan)
 	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection)
 	reading.Projection.Facts.CorpsesOwed = corpsesOwed(reading.Projection)

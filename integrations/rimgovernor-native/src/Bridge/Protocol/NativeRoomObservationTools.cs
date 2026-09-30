@@ -173,8 +173,26 @@ namespace HomeBridge.BridgeTools
                 catch (Exception) { stat.ClearValue(); stat.ClearDisplay(); stat.Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Native room stat unavailable."); }
                 row.Stats.Add(stat);
             }
+            // Doors in the boundary (#1323): the door cell, the cell across it
+            // from this room, and whether that far side is outdoors. A far side
+            // with no room (map edge, impassable) leaves outdoors unknown.
+            foreach (var door in things.OfType<Building_Door>().OrderBy(d => d.Position.z).ThenBy(d => d.Position.x))
+            {
+                foreach (var offset in GenAdj.CardinalDirections)
+                {
+                    var inside = door.Position + offset;
+                    if (!inside.InBounds(map) || inside.GetRoom(map) != room) continue;
+                    var outside = door.Position - offset;
+                    var entry = new Obs.RoomDoor { Cell = Cell(door.Position), Outside = Cell(outside) };
+                    var far = outside.InBounds(map) ? outside.GetRoom(map) : null;
+                    if (far != null && far != room) entry.Outdoors = far.PsychologicallyOutdoors;
+                    row.Doors.Add(entry);
+                    break;
+                }
+            }
             row.Snapshot = NativeObservationSnapshot.Snapshot("room", context, row.Id, w => {
                 w.Write(row.CellCount); w.Write(row.OpenRoofCount); w.Write(row.Role??""); w.Write(row.Fogged);
+                foreach (var door in row.Doors) { w.Write(door.Cell.X); w.Write(door.Cell.Z); w.Write(door.Outside.X); w.Write(door.Outside.Z); w.Write(door.HasOutdoors ? (door.Outdoors ? 2 : 1) : 0); }
                 foreach (var quantity in row.Contents) { w.Write(quantity.DefName); w.Write(quantity.Units); }
                 foreach (var membership in row.BedMemberships) { w.Write(membership.Building.Building.Id); w.Write(membership.Owners.Count); w.Write(membership.Users.Count); }
                 foreach (var membership in row.StockpileMemberships) { w.Write(membership.ZoneId??""); foreach (var stock in membership.Contents) { w.Write(stock.Definition.DefName); w.Write(stock.Units); } }

@@ -581,7 +581,9 @@ message RoomState {
   repeated BuildingState beds = 19; repeated string stockpile_zone_ids = 20; repeated Quantity contents = 21;
   reserved 22; repeated ReadIssue issues = 23;
   SnapshotRef snapshot = 24; repeated RoomBedMembership bed_memberships = 25; repeated StockpileMembership stockpile_memberships = 26;
+  repeated RoomDoor doors = 27; // Doors in the room's boundary: door cell, the cell it opens onto, and whether that side is outdoors.
 }
+message RoomDoor { rimgovernor.common.v1.Cell cell = 1; rimgovernor.common.v1.Cell outside = 2; optional bool outdoors = 3; }
 message RoomsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated RoomState rooms = 2; Completeness completeness = 3; }
 message ListRoomsRequest { ReadScope scope = 1; Rectangle region = 2; optional bool include_outdoors = 3; optional bool include_boundary = 4; optional bool include_cells = 5; repeated string room_ids = 6; reserved 7; }
 message ListRoomsReply { oneof outcome { RoomsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

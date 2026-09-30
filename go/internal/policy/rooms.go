@@ -58,6 +58,68 @@ type Room struct {
 	Beds        []string
 	Contents    domain.Fact[[]Amount]
 	Cells       []domain.Cell
+	// Roofed is every cell roofed (native open roof count zero).
+	Roofed domain.Fact[bool]
+	// Doors are the doors in the room's boundary (#1323).
+	Doors []RoomDoor
+}
+
+// RoomDoor is one door in a room's boundary: the door cell and the cell
+// across it from the room. Outdoors is whether that far side is outdoors;
+// EnemyFacing is set by MarkEnemyDoors.
+type RoomDoor struct {
+	Cell        domain.Cell
+	Outside     domain.Cell
+	Outdoors    domain.Fact[bool]
+	EnemyFacing bool
+}
+
+// KillboxCells are the cells of the plan's killbox reservation; nil when
+// the plan reserves none.
+func (p LayoutPlan) KillboxCells() []domain.Cell {
+	var out []domain.Cell
+	for _, r := range p.Reservations {
+		if r.Kind != ReserveKillbox {
+			continue
+		}
+		for x := r.Area.X; x < r.Area.X+r.Area.Width; x++ {
+			for z := r.Area.Z; z < r.Area.Z+r.Area.Height; z++ {
+				out = append(out, domain.Cell{X: x, Z: z})
+			}
+		}
+	}
+	return out
+}
+
+// MarkEnemyDoors flags each door that opens outdoors toward the enemy
+// side: its outward direction has a positive dot product toward the
+// killbox centre. With no killbox every outdoor-opening door counts.
+func MarkEnemyDoors(rooms RoomObservation, killbox []domain.Cell) RoomObservation {
+	var cx, cz float64
+	for _, c := range killbox {
+		cx += float64(c.X)
+		cz += float64(c.Z)
+	}
+	if len(killbox) > 0 {
+		cx, cz = cx/float64(len(killbox)), cz/float64(len(killbox))
+	}
+	out := rooms
+	out.Rooms = make([]Room, len(rooms.Rooms))
+	for i, room := range rooms.Rooms {
+		doors := make([]RoomDoor, len(room.Doors))
+		for j, d := range room.Doors {
+			outdoors, known := d.Outdoors.Value()
+			d.EnemyFacing = known && outdoors
+			if d.EnemyFacing && len(killbox) > 0 {
+				dx, dz := float64(d.Outside.X-d.Cell.X), float64(d.Outside.Z-d.Cell.Z)
+				d.EnemyFacing = dx*(cx-float64(d.Cell.X))+dz*(cz-float64(d.Cell.Z)) > 0
+			}
+			doors[j] = d
+		}
+		room.Doors = doors
+		out.Rooms[i] = room
+	}
+	return out
 }
 
 type RoomObservation struct {
