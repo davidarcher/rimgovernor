@@ -291,6 +291,7 @@ message Action {
     AcquireIntent acquire = 46;
     SurgeryIntent surgery = 47;
     AreaIntent area = 48;
+    AutoHomeAreaIntent auto_home_area = 49;
   }
 }
 // Queue one medical operation bill on one patient (#1162): the recipe on the
@@ -316,6 +317,11 @@ message SurgeryIntent { optional string pawn_id = 1; optional string recipe_def 
 // edit.
 enum AreaOperation { AREA_OPERATION_UNSPECIFIED = 0; AREA_OPERATION_CREATE = 1; AREA_OPERATION_SET_CELLS = 2; AREA_OPERATION_CLEAR_CELLS = 3; AREA_OPERATION_DELETE = 4; }
 message AreaIntent { optional AreaOperation operation = 1; optional string key = 2; optional bool home = 3; repeated rimgovernor.common.v1.Cell cells = 4; }
+// Set the game's home-area auto-expand (Find.PlaySettings.autoHomeArea, a
+// save-level setting; #1322). Evidence is a SettingsEffect with the
+// AUTO_HOME_AREA field: APPLIED when it changed, UNCHANGED when it already
+// held. The colony read reports the value (UpkeepFacts.auto_home_area).
+message AutoHomeAreaIntent { optional bool enabled = 1; }
 // Designate one census source for its resource: a plant harvest or cut, a
 // hunt (the animal wherever it is now, cell the hint) or a mine cell. With
 // withdraw, remove that designation instead (the planner's stall withdraw,

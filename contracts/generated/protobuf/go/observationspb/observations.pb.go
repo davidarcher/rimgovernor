@@ -29385,8 +29385,11 @@ type UpkeepFacts struct {
 	Routes          *RoutesSection         `protobuf:"bytes,22,opt,name=routes,proto3" json:"routes,omitempty"`
 	Rooms           *UpkeepRoomsSection    `protobuf:"bytes,23,opt,name=rooms,proto3" json:"rooms,omitempty"`
 	Slaves          []*UpkeepPerson        `protobuf:"bytes,24,rep,name=slaves,proto3" json:"slaves,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Find.PlaySettings.autoHomeArea: the game expands the home area around
+	// new player buildings while true (AutoHomeAreaIntent, #1322).
+	AutoHomeArea  *bool `protobuf:"varint,25,opt,name=auto_home_area,json=autoHomeArea,proto3,oneof" json:"auto_home_area,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpkeepFacts) Reset() {
@@ -29578,6 +29581,13 @@ func (x *UpkeepFacts) GetSlaves() []*UpkeepPerson {
 		return x.Slaves
 	}
 	return nil
+}
+
+func (x *UpkeepFacts) GetAutoHomeArea() bool {
+	if x != nil && x.AutoHomeArea != nil {
+		return *x.AutoHomeArea
+	}
+	return false
 }
 
 type UpkeepSection struct {
@@ -38911,7 +38921,7 @@ const file_observations_proto_rawDesc = "" +
 	"\rRoutesSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.RoutesFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xb5\r\n" +
+	"\aoutcome\"\xf3\r\n" +
 	"\vUpkeepFacts\x12E\n" +
 	"\acomfort\x18\x01 \x01(\v2+.rimgovernor.observations.v1.ComfortSectionR\acomfort\x12T\n" +
 	"\fconstruction\x18\x02 \x01(\v20.rimgovernor.observations.v1.ConstructionSectionR\fconstruction\x12=\n" +
@@ -38938,7 +38948,9 @@ const file_observations_proto_rawDesc = "" +
 	"\bflooring\x18\x15 \x01(\v2,.rimgovernor.observations.v1.FlooringSectionR\bflooring\x12B\n" +
 	"\x06routes\x18\x16 \x01(\v2*.rimgovernor.observations.v1.RoutesSectionR\x06routes\x12E\n" +
 	"\x05rooms\x18\x17 \x01(\v2/.rimgovernor.observations.v1.UpkeepRoomsSectionR\x05rooms\x12A\n" +
-	"\x06slaves\x18\x18 \x03(\v2).rimgovernor.observations.v1.UpkeepPersonR\x06slavesJ\x04\b\x0e\x10\x0f\"\xaa\x01\n" +
+	"\x06slaves\x18\x18 \x03(\v2).rimgovernor.observations.v1.UpkeepPersonR\x06slaves\x12)\n" +
+	"\x0eauto_home_area\x18\x19 \x01(\bH\x00R\fautoHomeArea\x88\x01\x01B\x11\n" +
+	"\x0f_auto_home_areaJ\x04\b\x0e\x10\x0f\"\xaa\x01\n" +
 	"\rUpkeepSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.UpkeepFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -41411,6 +41423,7 @@ func file_observations_proto_init() {
 		(*RoutesSection_Observed)(nil),
 		(*RoutesSection_Unavailable)(nil),
 	}
+	file_observations_proto_msgTypes[311].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[312].OneofWrappers = []any{
 		(*UpkeepSection_Observed)(nil),
 		(*UpkeepSection_Unavailable)(nil),

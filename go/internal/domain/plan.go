@@ -124,6 +124,7 @@ type Action struct {
 	autoRefuel          AutoRefuel
 	surgery             Surgery
 	area                Area
+	autoHomeArea        bool
 	zoneDelete          ZoneDelete
 	zoneCellEdit        ZoneCellEdit
 	stockpilePatch      StockpilePatch
@@ -258,6 +259,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewAreaAction(a.id, a.area)
 		case SurgeryAction:
 			canonical, err = NewSurgeryAction(a.id, a.surgery)
+		case AutoHomeAreaAction:
+			canonical, err = NewAutoHomeAreaAction(a.id, a.autoHomeArea)
 		case ZoneDeleteAction:
 			canonical, err = NewZoneDeleteAction(a.id, a.zoneDelete)
 		case ZoneCellEditAction:

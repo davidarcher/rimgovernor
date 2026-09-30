@@ -124,6 +124,8 @@ namespace HomeBridge.BridgeTools
                 }).ToList();
                 result.Filth.AddRange(values);
             });
+            // Home-area auto-expand, a save-level setting (#1322).
+            Read("auto_home_area", result, () => { if (Find.PlaySettings != null) result.AutoHomeArea = Find.PlaySettings.autoHomeArea; });
             Read("home_coverage", result, () => {
                 var state = HomeCoverage.State(map);
                 var targets = HomeCoverage.Targets(map).OrderBy(id => id, StringComparer.Ordinal).ToList();

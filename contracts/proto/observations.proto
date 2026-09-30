@@ -1149,6 +1149,9 @@ message UpkeepFacts {
   repeated AnimalFeed animals = 13; reserved 14; repeated ReadIssue issues = 15;
   HaulingSection hauling = 16; WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
   repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; UpkeepRoomsSection rooms = 23; repeated UpkeepPerson slaves = 24;
+  // Find.PlaySettings.autoHomeArea: the game expands the home area around
+  // new player buildings while true (AutoHomeAreaIntent, #1322).
+  optional bool auto_home_area = 25;
 }
 message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Threat facts (#395): the colony wealth the storyteller scales raids by

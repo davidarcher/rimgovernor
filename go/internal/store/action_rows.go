@@ -148,6 +148,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,x,stuff,target) VALUES(?,?,?,'surgery',?,?,?,?,NULLIF(?,''))", a.ID(), plan, ordinal, string(surgery.Pawn()), surgery.Recipe(), surgery.Part(), strconv.FormatBool(surgery.AcknowledgeViolation()), string(surgery.Surgeon()))
 	} else if refuel, ok := a.AutoRefuel(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'auto_refuel',?,?)", a.ID(), plan, ordinal, refuel.Thing(), strconv.FormatBool(refuel.Allow()))
+	} else if enabled, ok := a.AutoHomeArea(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition) VALUES(?,?,?,'auto_home_area',?)", a.ID(), plan, ordinal, strconv.FormatBool(enabled))
 	} else if claim, ok := a.ClaimBuilding(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target) VALUES(?,?,?,'claim_building',?)", a.ID(), plan, ordinal, claim.Thing())
 	} else if edit, ok := a.ZoneCellEdit(); ok {
@@ -790,6 +792,10 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewAutoRefuelAction(id, refuel)
+		return a, ordinal, err
+	}
+	if kind == "auto_home_area" && def.Valid && (def.String == "true" || def.String == "false") && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		a, err := domain.NewAutoHomeAreaAction(id, def.String == "true")
 		return a, ordinal, err
 	}
 	if kind == "claim_building" && target.Valid && !stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
