@@ -116,6 +116,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/rooms"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/route"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/routinehaul"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/schedule"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/service"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/shelter"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sleeping"

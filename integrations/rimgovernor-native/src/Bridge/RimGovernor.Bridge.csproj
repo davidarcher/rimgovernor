@@ -28,6 +28,7 @@
     <Compile Include="../../../../scripts/fixtures/GearFixture.cs" Condition="'$(GearFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MoodFixture.cs" Condition="'$(MoodFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ArrestFixture.cs" Condition="'$(MoodFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ScheduleFixture.cs" Condition="'$(MoodFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PopulationFixture.cs" Condition="'$(PopulationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HusbandryFixture.cs" Condition="'$(HusbandryFixture)' == 'true'" />
 

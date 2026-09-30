@@ -251,6 +251,12 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			// method even when the settings token returns to its old value.
 			fmt.Fprintf(hash, "food/%q/%d\n", defs, len(goal.Methods))
 		}
+		// A timetable is not in Settings(): without it a schedule-only
+		// change repeats an earlier method (a Drowsy extension and its
+		// revert, #1318) and reads as used, so it never applies.
+		if slots := w.Schedule(); len(slots) > 0 {
+			fmt.Fprintf(hash, "schedule/%q/%d\n", slots, len(goal.Methods))
+		}
 	}
 	for _, s := range settings {
 		fmt.Fprintf(hash, "hostility/%s/%s/%d\n", s.Pawn(), s.Hostility(), len(goal.Methods))
