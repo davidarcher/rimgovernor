@@ -443,6 +443,9 @@ type RoutineFacts struct {
 	// HostilityOwed is a colonist whose hostility response differs from
 	// the one it should hold (#1299); EnsureWorkAssignments writes it.
 	HostilityOwed domain.Fact[bool]
+	// MedicineCarryOwed is a colonist whose medicine carry count differs
+	// from the planned one (#1307); EnsureWorkAssignments writes it.
+	MedicineCarryOwed domain.Fact[bool]
 	// SelfTendOwed is a colonist whose self-tend setting differs from the
 	// one it should hold (#1305); EnsureWorkAssignments writes it.
 	SelfTendOwed domain.Fact[bool]
@@ -738,7 +741,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	medicalMet := measured(f.CriticalPatients, func(v int64) bool { return v == 0 })
 	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v }))
-	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) {
+	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) || positive(f.MedicineCarryOwed) {
 		workMet = domain.Known(false)
 	}
 	defenseMet := allFacts(footholdArmed(f), measured(f.Hostiles, func(v int64) bool { return v == 0 }))

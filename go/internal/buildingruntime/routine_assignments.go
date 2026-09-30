@@ -222,6 +222,12 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// Self-tend (#1305) rides it too.
 	settings := policy.HostilityChanges(hostilityRows(pawns), read.Emergency.Threats)
 	settings = append(settings, policy.SelfTendChanges(selfTendRows(pawns))...)
+	// Medicine carry (#1307) too: counts by role, capped above the reserve.
+	reserve, err := policy.ReviewMedicalReserve(read.Projection.Facts.MedicalReserve, false, r.reviewer.policy.MedicalReserve)
+	if err != nil {
+		return RoutineWorkResult{}, err
+	}
+	settings = append(settings, policy.MedicineCarryChanges(policy.MedicineCarryRows(pawns), reserve.Stock, reserve.Target)...)
 	// Unique short names (#1310): a newer owned pawn holding an older
 	// one's short name is renamed from its own name bank.
 	if names, ok := read.Projection.Facts.OwnedNames.Value(); ok {
@@ -266,7 +272,8 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	for _, s := range settings {
-		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), len(goal.Methods))
+		carry, _ := s.MedicineCarry()
+		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, len(goal.Methods))
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {

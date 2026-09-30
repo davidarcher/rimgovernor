@@ -23,6 +23,9 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 		intent.Setting = &o.PawnSettingsIntent_HostilityResponse{HostilityResponse: string(v.Hostility())}
 	case domain.SettingSelfTend:
 		intent.Setting = &o.PawnSettingsIntent_SelfTend{SelfTend: v.SelfTend()}
+	case domain.SettingMedicineCarry:
+		count, _ := v.MedicineCarry()
+		intent.Setting = &o.PawnSettingsIntent_MedicineCarry{MedicineCarry: int32(count)}
 	case domain.SettingNickname:
 		if _, err := domain.NewNicknameSetting(v.Pawn(), v.LeaveName()); err != nil {
 			return nil, contract("%v", err)

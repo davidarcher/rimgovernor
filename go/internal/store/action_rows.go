@@ -1064,6 +1064,9 @@ func pawnSettingDefinition(s domain.PawnSettings) string {
 	if s.Kind() == domain.SettingSelfTend {
 		return "self_tend:" + strconv.FormatBool(s.SelfTend())
 	}
+	if n, carry := s.MedicineCarry(); carry {
+		return "medicine_carry:" + strconv.Itoa(n)
+	}
 	if s.Kind() == domain.SettingNickname {
 		return "nickname:" + s.LeaveName()
 	}
@@ -1074,6 +1077,13 @@ func parsePawnSetting(pawn domain.PawnID, def string) (domain.PawnSettings, erro
 	switch def {
 	case "self_tend:true", "self_tend:false":
 		return domain.NewSelfTendSetting(pawn, def == "self_tend:true")
+	}
+	if n, ok := strings.CutPrefix(def, "medicine_carry:"); ok {
+		count, err := strconv.Atoi(n)
+		if err != nil {
+			return domain.PawnSettings{}, err
+		}
+		return domain.NewMedicineCarrySetting(pawn, count)
 	}
 	if leave, ok := strings.CutPrefix(def, "nickname:"); ok {
 		return domain.NewNicknameSetting(pawn, leave)

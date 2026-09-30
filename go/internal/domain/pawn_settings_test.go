@@ -20,6 +20,16 @@ func TestHostilitySettingRequiresPawnAndMode(t *testing.T) {
 	if _, err := NewPawnSettingsAction("s1", PawnSettings{}); err == nil {
 		t.Fatal("zero settings accepted")
 	}
+	if _, err := NewMedicineCarrySetting("Human1", 4); err == nil {
+		t.Fatal("carry above 3 accepted")
+	}
+	carry, err := NewMedicineCarrySetting("Human1", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n, ok := carry.MedicineCarry(); !ok || n != 0 || carry == v {
+		t.Fatal(carry)
+	}
 	if _, err := NewPlan("p", 1, []Action{a}); err != nil {
 		t.Fatal(err)
 	}

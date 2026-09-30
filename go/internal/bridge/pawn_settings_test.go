@@ -48,3 +48,22 @@ func TestPawnSettingsBuildsSelfTendIntent(t *testing.T) {
 		t.Fatalf("%v", wire)
 	}
 }
+
+// A medicine carry setting builds the medicine_carry arm (#1307), zero included.
+func TestPawnSettingsBuildsMedicineCarryIntent(t *testing.T) {
+	value, err := domain.NewMedicineCarrySetting("Human1", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewPawnSettingsAction("a1", value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := IntentAction("plan/1", action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := wire.GetPawnSettings(); s.GetPawnId() != "Human1" || s.GetMedicineCarry() != 0 || s.GetSetting() == nil || s.GetHostilityResponse() != "" {
+		t.Fatalf("%v", wire)
+	}
+}

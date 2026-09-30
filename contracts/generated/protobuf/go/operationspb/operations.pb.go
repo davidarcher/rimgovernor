@@ -4567,9 +4567,11 @@ func (*Action_PolicyPrune) isAction_Intent() {}
 // that cannot doctor. nickname (#1310) names the short name an owned pawn
 // must leave: native draws a fresh name from the pawn's own name bank
 // (never a numbered one) that no other owned pawn holds, and applies
-// unchanged once the pawn no longer holds that name. reading_policy and
-// medicine_carry are reserved for their epic issues and refused natively
-// until they land.
+// unchanged once the pawn no longer holds that name. medicine_carry
+// (#1307) is the pawn's Medicine inventory-stock count (0-3); native stocks
+// the best medicine the pawn's own medical care allows and refuses a
+// positive count when it allows none. reading_policy is reserved for its
+// epic issue and refused natively until it lands.
 type PawnSettingsIntent struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	PawnId *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`

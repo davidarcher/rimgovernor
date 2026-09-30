@@ -97,7 +97,31 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, pawn = newer.GetUniqueLoadID(), keeper = older.GetUniqueLoadID(), name = nick };
             }, cancellationToken);
         }
-        [Tool("test/mood_setup", Description = "Seed deficient needs in one disposable pawn; test builds only.")]
+        [Tool("test/doctor_medicine", Description = "UNSAFE FOR MODEL EXECUTION. Make one paused disposable colonist a doctor on NormalOrWorse care carrying no medicine, and place 60 herbal and 60 industrial medicine beside it (#1307).")]
+        public async Task<object> DoctorMedicine(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
+                    .First(p => !p.Dead && !p.Downed && p.playerSettings != null && p.inventoryStock != null && p.workSettings != null
+                        && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor));
+                pawn.workSettings.EnableAndInitialize();
+                pawn.workSettings.SetPriority(WorkTypeDefOf.Doctor, 1);
+                pawn.playerSettings.medCare = MedicalCareCategory.NormalOrWorse;
+                pawn.inventoryStock.SetCountForGroup(InventoryStockGroupDefOf.Medicine, 0);
+                foreach (var def in new[] { ThingDefOf.MedicineHerbal, ThingDefOf.MedicineIndustrial })
+                {
+                    var stack = ThingMaker.MakeThing(def);
+                    stack.stackCount = 60;
+                    GenPlace.TryPlaceThing(stack, pawn.Position, map, ThingPlaceMode.Near);
+                    stack.SetForbidden(false, false);
+                }
+                return new { success = true, pawn = pawn.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
+        [Tool("test/mood_setup",Description = "Seed deficient needs in one disposable pawn; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "food, rest, joy, forced, schedule, mental or environment.")] string scenario)
         {

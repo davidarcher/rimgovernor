@@ -19,7 +19,8 @@ namespace HomeBridge.BridgeTools
     // tab hides the checkbox). nickname (#1310) is the short name an owned
     // pawn must leave: a fresh name from the pawn's own name bank
     // (PawnBioAndNameGenerator), never a numbered one, that no other owned
-    // pawn holds. The other arms are refused until their epic issues land.
+    // pawn holds. medicine_carry (#1307) is the Medicine inventory-stock
+    // count (ResolveCarry). The other arms are refused until their epic issues land.
     // A setting that already holds applies again.
     internal static class NativePawnSettings
     {
@@ -48,8 +49,10 @@ namespace HomeBridge.BridgeTools
                 pawn = OwnedNamedPawns().SingleOrDefault(p => p.GetUniqueLoadID() == id);
                 return pawn == null ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living named pawn the colony owns is not found.") : null;
             }
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MedicineCarry)
+                return ResolveCarry(intent, context, out pawn, out _);
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only the hostility_response, self_tend and nickname settings are supported.");
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only the hostility_response, self_tend, nickname and medicine_carry settings are supported.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse
                 && (!Enum.TryParse(intent.HostilityResponse, false, out mode) || !Enum.IsDefined(typeof(HostilityResponseMode), mode)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hostility response must be Ignore, Attack or Flee.");
@@ -79,6 +82,8 @@ namespace HomeBridge.BridgeTools
                     Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
                     Fields = { field } } };
             }
+            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicineCarry)
+                return ApplyCarry(intent, context);
             var settings = pawn!.playerSettings;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.SelfTend) {
                 var want = intent.SelfTend;
@@ -95,6 +100,43 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = { field } } };
+        }
+
+        // medicine_carry (#1307): the colonist's Medicine inventory-stock
+        // count, stocking the best medicine the pawn's own medical care
+        // allows; a positive count is refused when that care allows none.
+        private static Common.Failure? ResolveCarry(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out ThingDef? medicine)
+        {
+            pawn = null; medicine = null;
+            var group = InventoryStockGroupDefOf.Medicine;
+            if (intent.MedicineCarry < group.min || intent.MedicineCarry > group.max)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, $"Medicine carry must be {group.min}-{group.max}.");
+            var id = intent.PawnId;
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
+            if (pawn == null || pawn.Dead || pawn.playerSettings == null || pawn.inventoryStock == null || !pawn.IsColonist)
+                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living colonist with an inventory stock is not spawned on this map.");
+            var care = pawn.playerSettings.medCare;
+            medicine = group.thingDefs.Where(d => care.AllowsMedicine(d))
+                .OrderByDescending(d => d.GetStatValueAbstract(StatDefOf.MedicalPotency)).FirstOrDefault();
+            return medicine == null && intent.MedicineCarry > 0
+                ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn's medical care allows no medicine to carry.") : null;
+        }
+
+        private static Receipts.EffectEvidence ApplyCarry(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
+        {
+            var failure = ResolveCarry(intent, context, out var pawn, out var medicine);
+            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            var stock = pawn!.inventoryStock;
+            var group = InventoryStockGroupDefOf.Medicine;
+            var unchanged = stock.GetDesiredCountForGroup(group) == intent.MedicineCarry
+                && (medicine == null || stock.GetDesiredThingForGroup(group) == medicine);
+            if (medicine != null) stock.SetThingForGroup(group, medicine);
+            stock.SetCountForGroup(group, intent.MedicineCarry);
+            if (stock.GetDesiredCountForGroup(group) != intent.MedicineCarry) throw new InvalidOperationException("Native medicine carry requires readback.");
+            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
+                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.MedicineCarry,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 
         // Rename draws from the pawn's own name bank until a short name no

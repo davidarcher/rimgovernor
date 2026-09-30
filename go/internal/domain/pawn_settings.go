@@ -7,9 +7,9 @@ import (
 
 // PawnSettingsAction sets one per-pawn Assign-tab setting on one colony pawn
 // (#1299, epic #1292): a PawnSettingsIntent on Actions/Apply, one setting
-// per intent. The hostility response (#1299) and self-tend (#1305) are
-// carried so far; the other intent arms (reading policy, medicine carry,
-// nickname) land with their epic issues. Native treats a setting that
+// per intent. The hostility response (#1299), self-tend (#1305) and
+// medicine carry (#1307) are carried so far; the other intent arms
+// (reading policy, nickname) land with their epic issues. Native treats a setting that
 // already holds as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
 
@@ -33,10 +33,16 @@ type SettingKind string
 const (
 	SettingHostility SettingKind = "hostility"
 	SettingSelfTend  SettingKind = "self_tend"
+	// SettingMedicineCarry is the Medicine inventory-stock count (#1307).
+	SettingMedicineCarry SettingKind = "medicine_carry"
 	// SettingNickname renames an owned pawn away from a short name an older
 	// owned pawn holds (#1310); native draws the new name.
 	SettingNickname SettingKind = "nickname"
 )
+
+// MaxMedicineCarry is the Medicine inventory-stock group's max (vanilla
+// InventoryStockGroupDef Medicine: 0-3).
+const MaxMedicineCarry = 3
 
 // PawnSettings is an immutable, comparable value: the pawn and the one
 // setting it should hold.
@@ -45,8 +51,21 @@ type PawnSettings struct {
 	kind      SettingKind
 	hostility HostilityResponse
 	selfTend  bool
+	carry     int
 	leaveName string
 }
+
+// NewMedicineCarrySetting is the pawn's Medicine inventory-stock count
+// (#1307), 0 to MaxMedicineCarry.
+func NewMedicineCarrySetting(pawn PawnID, count int) (PawnSettings, error) {
+	if !validID(string(pawn)) || count < 0 || count > MaxMedicineCarry {
+		return PawnSettings{}, errors.New("a medicine carry setting requires a pawn and a count of 0-3")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingMedicineCarry, carry: count}, nil
+}
+
+// MedicineCarry is the carry count, and whether this is the carry arm.
+func (s PawnSettings) MedicineCarry() (int, bool) { return s.carry, s.kind == SettingMedicineCarry }
 
 func NewHostilitySetting(pawn PawnID, mode HostilityResponse) (PawnSettings, error) {
 	if !validID(string(pawn)) || !mode.Valid() {
@@ -86,6 +105,8 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewHostilitySetting(s.pawn, s.hostility)
 	case SettingSelfTend:
 		return NewSelfTendSetting(s.pawn, s.selfTend)
+	case SettingMedicineCarry:
+		return NewMedicineCarrySetting(s.pawn, s.carry)
 	case SettingNickname:
 		return NewNicknameSetting(s.pawn, s.leaveName)
 	}
