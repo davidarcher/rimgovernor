@@ -215,7 +215,7 @@ var endToEnd = map[string]bool{
 	"defense/perimeter": true, "food/reserve": true, "production/ladder": true,
 	"shelter/bunks-first": true, "startup/labor": true,
 	"sustained/colony-stable": true, "sustained/winter": true, "upkeep/campaign": true, "sleeping/suites": true,
-	"layout/ring": true,
+	"layout/ring": true, "layout/rich-soil": true,
 }
 
 // nightlyOnly excludes slow gameplay proofs from the landing and sampled

@@ -40,23 +40,32 @@ func BedroomArgs(ctx context.Context, h *na.Harness) (map[string]any, error) {
 	return args(ctx, h, 9, true)
 }
 
-func args(ctx context.Context, h *na.Harness, size int32, bedrooms bool) (map[string]any, error) {
+// Survey reads the loaded game's colony facts and whole-map survey.
+func Survey(ctx context.Context, h *na.Harness) (*observation.ColonyProjection, policy.MapSurvey, error) {
 	reply, _, err := h.Client.Identity(ctx)
 	if err != nil {
-		return nil, err
+		return nil, policy.MapSurvey{}, err
 	}
 	expected, err := observation.DecodeIdentity(reply)
 	if err != nil {
-		return nil, err
+		return nil, policy.MapSurvey{}, err
 	}
 	reading, err := observation.ObserveColony(observation.WithPlanningWindow(ctx, window{h.Client}), h.Client, wallClock{}, expected, time.Minute, true)
 	if err != nil {
-		return nil, fmt.Errorf("colony facts: %w", err)
+		return nil, policy.MapSurvey{}, fmt.Errorf("colony facts: %w", err)
 	}
 	facts := reading.Projection
 	survey, _, err := h.Client.ReadMapSurvey(ctx, reply.GetLoaded().GetContext().GetIdentity(), facts.Bounds)
 	if err != nil {
-		return nil, fmt.Errorf("map survey: %w", err)
+		return nil, policy.MapSurvey{}, fmt.Errorf("map survey: %w", err)
+	}
+	return &facts, survey, nil
+}
+
+func args(ctx context.Context, h *na.Harness, size int32, bedrooms bool) (map[string]any, error) {
+	facts, survey, err := Survey(ctx, h)
+	if err != nil {
+		return nil, err
 	}
 	if path := os.Getenv("RIMGOVERNOR_SURVEY_DUMP"); path != "" {
 		if err := dumpSurvey(path, survey); err != nil {
