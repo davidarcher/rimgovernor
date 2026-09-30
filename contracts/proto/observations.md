@@ -206,7 +206,6 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
 | ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |
 | DeleteZoneIntent/ZoneCellsIntent.zone_id, StockpileIntent.target_id | ListZones.zone.id; ListBuildings storage row id |
-| HomeIntent.target_id | ReadColonyFacts.upkeep.home_coverage.target.id |
 | BedAssignIntent.pawn_id/bed_id/expected_previous_bed | ListPawns.pawn and owned bed; ListBuildings.building |
 | NeedReliefIntent.pawn/job/schedule | ListPawns.pawn.snapshot, JobEvidence, PawnSettings.schedule |
 | PawnOrderIntent WEAR pawn/target | ReadGear.pawn.snapshot, candidate.item.thing.snapshot, GearLoadout.snapshot |

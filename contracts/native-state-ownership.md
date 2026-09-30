@@ -197,8 +197,8 @@ Sources: [saved map state](../integrations/rimgovernor-native/src/Runtime/Persis
 | --- | --- | --- |
 | `Revision/rimgovernorHomeRevision` | Native per-map freshness token | Its value need not survive if load identity invalidates every old request. |
 
-Native Home remains game-owned. Autonomous `HomeIntent` adds missing cells
-within the live batch of an owned facility's connected enclosed rooms
+Native Home remains game-owned. Autonomous `AreaIntent` set_cells on home adds cells
+within the observed batch of an owned facility's connected enclosed rooms
 or an exact owned stockpile.
 Set, Clear and Invert advance that revision. Removing Home during Manual
 becomes restoration work after Auto resumes, under the

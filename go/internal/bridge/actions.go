@@ -51,7 +51,6 @@ func init() {
 	registerIntentKind(domain.ZoneCellEditAction, zoneCellsAction)
 	registerIntentKind(domain.StockpilePatchAction, stockpileAction)
 	registerIntentKind(domain.FoundationRemovalAction, foundationRemovalAction)
-	registerIntentKind(domain.HomeCoverageAction, homeAction)
 	registerIntentKind(domain.CoverClearanceAction, coverAction)
 	registerIntentKind(domain.CutPlantAction, cutPlantAction)
 	registerIntentKind(domain.SupplyAllowAction, supplyAction)

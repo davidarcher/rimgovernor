@@ -47,8 +47,8 @@ map revision. Legacy saved Home exclusions are ignored; the retained
 `excluded_cells` wire field is zero. A method is identified by target, batch
 shape and observed Home revision, so a later removal can admit fresh work.
 
-`HomeIntent` on Actions/Apply re-derives the batch live and sets its missing
-Home cells; an applied result is terminal and the next review reads the
+The method is an `AreaIntent` set_cells on home over the observed batch
+cells (#1324); an applied result is terminal and the next review reads the
 census again. A lost reply is resent under a new key.
 See [apply-time checks](action-contracts.md#apply-time-preconditions-and-refusal-reasons).
 

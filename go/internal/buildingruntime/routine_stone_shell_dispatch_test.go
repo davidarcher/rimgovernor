@@ -12,7 +12,7 @@ import (
 // admitted plan's demolition at pending forever, the backups standing.
 func TestWallRemovalIsARoutineExecutableKind(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []domain.ActionKind{domain.BuildingAction, domain.WallRemovalAction, domain.HomeCoverageAction} {
+	for _, kind := range []domain.ActionKind{domain.BuildingAction, domain.WallRemovalAction, domain.AreaAction} {
 		if !routineExecutableKind(kind) {
 			t.Fatalf("%s must be routine executable", kind)
 		}

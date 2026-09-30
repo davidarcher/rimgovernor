@@ -231,7 +231,7 @@ func TestRoutineHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)
-	if err != nil || len(plan.Spec.Actions()) != 1 || plan.Spec.Actions()[0].Kind() != domain.HomeCoverageAction {
+	if err != nil || len(plan.Spec.Actions()) != 1 || plan.Spec.Actions()[0].Kind() != domain.AreaAction {
 		t.Fatal(plan, err)
 	}
 }

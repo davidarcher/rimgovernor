@@ -134,12 +134,20 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if choice.Kind != policy.HomeCoverageExtend {
 		return RoutineHomeCoverageResult{Reason: BuildingMethodUsed}, nil
 	}
-	coverage, err := domain.NewHomeCoverage(choice.Target, choice.Shape)
+	// The home extension is an AreaIntent set_cells over the chosen
+	// target's observed batch; cells already Home stay Home.
+	var cells []domain.Cell
+	for _, t := range census.Targets {
+		if t.ID == choice.Target {
+			cells = t.Cells
+		}
+	}
+	coverage, err := domain.NewArea(domain.AreaSetCells, "", cells)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
 	id := domain.MintPlanID()
-	action, err := domain.NewHomeCoverageAction(domain.ActionID(fmt.Sprintf("%s-0", id)), coverage)
+	action, err := domain.NewAreaAction(domain.ActionID(fmt.Sprintf("%s-0", id)), coverage)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}

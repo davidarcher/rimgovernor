@@ -132,7 +132,6 @@ type Action struct {
 	bedAssign           BedAssign
 	researchSelect      ResearchSelect
 	husbandry           Husbandry
-	homeCoverage        HomeCoverage
 	prisonerInteraction PrisonerInteraction
 	questAccept         QuestAccept
 	mineAcquisition     Acquisition
@@ -275,8 +274,6 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewResearchSelectAction(a.id, a.researchSelect)
 		case HusbandryAction:
 			canonical, err = NewHusbandryAction(a.id, a.husbandry)
-		case HomeCoverageAction:
-			canonical, err = NewHomeCoverageAction(a.id, a.homeCoverage)
 		case PrisonerInteractionAction:
 			canonical, err = NewPrisonerInteractionAction(a.id, a.prisonerInteraction)
 		case QuestAcceptAction:

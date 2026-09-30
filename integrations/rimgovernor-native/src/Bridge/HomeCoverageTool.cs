@@ -5,10 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using HarmonyLib;
-using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
 
@@ -113,31 +110,6 @@ namespace HomeBridge.BridgeTools
             Install();
             var state = map.GetComponent<HomeCoverageState>();
             return state;
-        }
-        internal static object Read(Map map)
-        {
-            var state = State(map);
-            var targets = Targets(map).OrderBy(id => id).Select(id => {
-                var cells = Scope(map, id);
-                var missing = cells?.Where(c => !map.areaManager.Home[c]).ToList();
-                return new { id, shape = cells == null ? null : Shape(id, cells), missing = missing?.Count, excluded = 0,
-                    blocker = cells == null ? "Visible native facility geometry unavailable" : null,
-                    cells = cells?.Select(c => new { x = c.x, z = c.z }).ToList() };
-            }).Where(r => r.missing != 0).ToList();
-            return new { revision = state.Revision, targets };
-        }
-        internal static object Apply(string target, string shape, long revision, bool dryRun)
-        {
-            var map = Find.CurrentMap;
-            object Refuse(string error) => new { success = dryRun, accepted = false, error };
-            if (map == null) return Refuse("Current map required");
-            var state = State(map); var cells = Scope(map, target);
-            if (state.Revision != revision || cells == null || Shape(target, cells) != shape)
-                return Refuse("Home area or native facility geometry changed");
-            var missing = cells.Where(c => !map.areaManager.Home[c]).ToList();
-            if (!dryRun) foreach (var c in missing) map.areaManager.Home[c] = true;
-            return new { success = true, accepted = true, dryRun, target, shape, changed = missing.Count,
-                covered = cells.All(c => map.areaManager.Home[c]), revision = state.Revision };
         }
     }
 }

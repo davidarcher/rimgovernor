@@ -16,7 +16,7 @@ implies that a cell or route is safe today.
 | Established history and expansion areas | Controller durable store, append-only session cache per world | `store.EstablishColonyExtent`, `AddExpansionArea`, `RemoveExpansionArea`, `EstablishedColonyExtent`, `ExpansionAreas` |
 | Eligibility | Pure overlay of current evidence on history; read-only diagnostics | `policy.ExtentEligibility` |
 | Bounded consumer query | Pure geometry over extent plus areas | `policy.ExtentWindow` |
-| Native Home mask | The game, through the `HomeIntent` action only | [Maintained jobs](upkeep-contracts.md#maintained-jobs) |
+| Native Home mask | The game, through `AreaIntent` home cell edits only | [Maintained jobs](upkeep-contracts.md#maintained-jobs) |
 
 Nothing in this contract writes native state. The extent is Go-side
 knowledge about the colony; the game holds no copy of it.
@@ -124,7 +124,7 @@ player token and local-origin checks and issue no native write.
 Extent growth alone never changes the native Home mask. Establishing a
 region, adding or removing an expansion area, and widening a consumer's
 window are Go-side records; the only path that paints Home is the existing
-`HomeIntent` action, driven by the per-facility Home coverage
+`AreaIntent` home set_cells, driven by the per-facility Home coverage
 review (#452, #461), whose targets and batches do not read the extent.
 Home coverage over a corridor between two controller-owned facilities is
 therefore produced, and restored, by that path whether or not the corridor

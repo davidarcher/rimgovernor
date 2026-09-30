@@ -39,7 +39,6 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.ZoneCellEditAction:        true,
 	domain.StockpilePatchAction:      true,
 	domain.FoundationRemovalAction:   true,
-	domain.HomeCoverageAction:        true,
 	domain.CoverClearanceAction:      true,
 	domain.CutPlantAction:            true,
 	domain.SupplyAllowAction:         true,

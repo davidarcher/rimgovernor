@@ -248,7 +248,7 @@ message Action {
   // "activity" overlay shows it over the pawn; it never changes the apply.
   optional string purpose = 2;
   // Melee attacks are combat orders; subdue is PawnOrderIntent SUBDUE (#939).
-  reserved 14; reserved "melee";
+  reserved 14, 31; reserved "melee", "home";
   oneof intent {
     TradeIntent trade = 10;
     BuildingIntent building = 11;
@@ -273,7 +273,6 @@ message Action {
     ZoneCellsIntent zone_cells = 28;
     StockpileIntent stockpile = 29;
     RemoveFoundationIntent remove_foundation = 30;
-    HomeIntent home = 31;
     CoverIntent cover = 32;
     DesignateIntent designate = 33;
     DeconstructIntent deconstruct = 34;
@@ -357,11 +356,6 @@ message NeedReliefIntent { optional string pawn_id = 1; optional Need need = 2; 
 // check) live; a pawn already running that job on the target applies again.
 // Applied means ordered, not cast; the next census reads the target.
 message UseItemIntent { optional string pawn_id = 1; optional string item_id = 2; optional string target_id = 3; }
-// Extend Home over the missing cells of one facility's bounded batch (a
-// colonist building plus its connected enclosed roofed rooms, or a
-// stockpile's cells), recomputed live when native applies it. A batch
-// already all Home applies again. Home is never removed.
-message HomeIntent { optional string target_id = 1; }
 // Place the one designation (Mine, CutPlant, Haul or Deconstruct) that
 // removes the raider cover thing_id standing at cell. Native checks the
 // thing, its kind, the kind's safety rule, the game designator and a

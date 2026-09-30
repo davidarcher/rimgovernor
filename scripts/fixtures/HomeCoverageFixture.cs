@@ -73,41 +73,5 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap; var c = new IntVec3(x, 0, z);
                 return new { success = c.InBounds(map), home = c.InBounds(map) && map.areaManager.Home[c] };
             }, cancellationToken).ConfigureAwait(false);
-
-        [Tool("test/home_stale_guards", Description = "Paused disposable fixture: prove stale Home revisions and changed connecting geometry refuse dry-run writes; restore the doorway afterwards.")]
-        public async Task<object> Stale(IRimBridgeContext ctx, CancellationToken cancellationToken, string target, int doorX, int doorZ)
-            => await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (!Find.TickManager.Paused) throw new InvalidOperationException("Paused fixture required.");
-                var cells = HomeCoverage.Scope(map, target);
-                if (cells == null) throw new InvalidOperationException("Facility scope required.");
-                var state = HomeCoverage.State(map);
-                var shape = HomeCoverage.Shape(target, cells); var revision = state.Revision;
-                var changed = cells.First(c => map.areaManager.Home[c]);
-                map.areaManager.Home[changed] = false;
-                bool revisionRefused = !JObject.FromObject(HomeCoverage.Apply(target, shape, revision, true)).Value<bool>("accepted");
-                map.areaManager.Home[changed] = true;
-                var position = new IntVec3(doorX, 0, doorZ);
-                var door = position.GetEdifice(map) as Building_Door;
-                if (door == null) throw new InvalidOperationException("Fixture doorway required.");
-                var def = door.def; var stuff = door.Stuff; var rotation = door.Rotation;
-                door.Destroy(DestroyMode.Vanish);
-                var wall = ThingMaker.MakeThing(ThingDefOf.Wall, stuff);
-                wall.SetFaction(Faction.OfPlayerSilentFail);
-                GenSpawn.Spawn(wall, position, map);
-                bool geometryRefused;
-                try {
-                    map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
-                    geometryRefused = !JObject.FromObject(HomeCoverage.Apply(target, shape, state.Revision, true)).Value<bool>("accepted");
-                } finally {
-                    wall.Destroy(DestroyMode.Vanish);
-                    var restored = ThingMaker.MakeThing(def, stuff);
-                    restored.SetFaction(Faction.OfPlayerSilentFail);
-                    GenSpawn.Spawn(restored, position, map, rotation);
-                    map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
-                }
-                return new { success = revisionRefused && geometryRefused, revisionRefused, geometryRefused };
-            }, cancellationToken).ConfigureAwait(false);
-
         }
 }

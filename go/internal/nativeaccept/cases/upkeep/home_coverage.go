@@ -32,7 +32,7 @@ func init() {
 
 func runHomeCoverage(ctx context.Context, s cases.Session) error {
 	report, identity := s.Report(), s.Identity()
-	for _, fixture := range []string{"test/sleeping_setup", "test/home_coverage_setup", "test/home_coverage_read", "test/home_remove_cell", "test/home_cell_read", "test/home_stale_guards"} {
+	for _, fixture := range []string{"test/sleeping_setup", "test/home_coverage_setup", "test/home_coverage_read", "test/home_remove_cell", "test/home_cell_read"} {
 		if !na.Contains(s.Names(), fixture) {
 			return fmt.Errorf("missing %s", fixture)
 		}
@@ -102,11 +102,6 @@ func runHomeCoverage(ctx context.Context, s cases.Session) error {
 		stageReport := na.Report{}
 		report[fmt.Sprintf("stage_home_%d", stage)] = stageReport
 		if stage == 1 {
-			guards, e := callFixture(ctx, h, identity, "test/home_stale_guards", map[string]any{"target": target, "doorX": cx - 1, "doorZ": cz})
-			if e != nil {
-				return e
-			}
-			report["stale_guards"] = guards
 			removed, e := callFixture(ctx, h, identity, "test/home_remove_cell", map[string]any{"target": target, "x": cx + 1, "z": cz})
 			if e != nil {
 				return e
@@ -121,7 +116,7 @@ func runHomeCoverage(ctx context.Context, s cases.Session) error {
 		}
 		journal, err = serveStage(ctx, service, stageReport)
 		if err == nil {
-			err = watchConnectedHome(ctx, journal, built, stageReport)
+			err = watchConnectedHome(ctx, journal, stageReport)
 		}
 		service.Stop()
 		if err != nil {
@@ -187,16 +182,16 @@ func watchHomeBeds(ctx context.Context, journal *store.Store, report na.Report) 
 	return nil
 }
 
-func watchConnectedHome(ctx context.Context, journal *store.Store, built []string, report na.Report) error {
+func watchConnectedHome(ctx context.Context, journal *store.Store, report na.Report) error {
 	bounded, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	if _, err := waitNeed(bounded, journal, policy.MaintainHomeCoverage, domain.NeedDeficit); err != nil {
 		return err
 	}
 	_, err := followMethods(bounded, journal, policy.MaintainHomeCoverage, "home", func(a domain.Action) error {
-		coverage, ok := a.HomeCoverage()
-		if !ok || !na.Contains(built, coverage.Target()) {
-			return fmt.Errorf("home method did not target a built facility")
+		area, ok := a.Area()
+		if !ok || !area.Home() || area.Operation() != domain.AreaSetCells {
+			return fmt.Errorf("home method is not a home area set_cells")
 		}
 		return nil
 	}, report)

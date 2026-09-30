@@ -778,7 +778,7 @@ var plannerCatalog = []plannerEntry{
 			out.AnimalFeed = &method
 			return method.Reason, nil
 		}},
-	{name: "homeCoverage", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.HomeCoverageAction}, sections: sectionsBuilding,
+	{name: "homeCoverage", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.AreaAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.HomeCoverage != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.HomeCoverage.step(ctx, epoch, arbiter)
