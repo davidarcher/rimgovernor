@@ -136,6 +136,14 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
+	} else if area, ok := a.Area(); ok {
+		// definition is the operation, target the bot area key (NULL for
+		// home), zone_payload the canonical cells (#1321).
+		data, encodeErr := json.Marshal(area.Cells())
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,target,zone_payload) VALUES(?,?,?,'area',?,NULLIF(?,''),?)", a.ID(), plan, ordinal, string(area.Operation()), area.Key(), data)
 	} else if surgery, ok := a.Surgery(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,x,stuff,target) VALUES(?,?,?,'surgery',?,?,?,?,NULLIF(?,''))", a.ID(), plan, ordinal, string(surgery.Pawn()), surgery.Recipe(), surgery.Part(), strconv.FormatBool(surgery.AcknowledgeViolation()), string(surgery.Surgeon()))
 	} else if refuel, ok := a.AutoRefuel(); ok {
@@ -299,6 +307,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		action, err := domain.NewZoneCreateAction(id, value)
 		return action, ordinal, err
+	}
+	if kind == "area" && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+		var cells []domain.Cell
+		if json.Unmarshal(zone, &cells) != nil {
+			return domain.Action{}, 0, errors.New("invalid area payload")
+		}
+		area, err := domain.NewArea(domain.AreaOperation(def.String), target.String, cells)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewAreaAction(id, area)
+		return a, ordinal, err
 	}
 	if (kind == "zone_cell_edit" || kind == "stockpile_patch") && target.Valid && !stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && len(zone) <= 32768 {
 		if kind == "zone_cell_edit" {

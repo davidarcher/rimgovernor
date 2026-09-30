@@ -290,6 +290,7 @@ message Action {
     CombatOrders combat_orders = 45;
     AcquireIntent acquire = 46;
     SurgeryIntent surgery = 47;
+    AreaIntent area = 48;
   }
 }
 // Queue one medical operation bill on one patient (#1162): the recipe on the
@@ -304,6 +305,17 @@ message Action {
 // surgeon_id, when set, restricts the bill to that colonist (Bill_Medical
 // pawn restriction, #1253); unset keeps vanilla's choice of surgeon.
 message SurgeryIntent { optional string pawn_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional bool acknowledge_violation = 4; optional string surgeon_id = 5; }
+// Create, edit or delete one bot-owned allowed area, or edit the home area
+// (#1321). A bot area is the Area_Allowed labelled "RimGovernor <key>";
+// native never touches an area the player made. home and key are exclusive;
+// home takes set_cells and clear_cells only. create refuses when the map
+// cannot make another allowed area, applies again on an existing bot area,
+// and sets any given cells. set_cells and clear_cells need an existing area
+// and in-bounds cells; delete of a missing bot area applies again.
+// Evidence is the AreaEffect: the area's load id and cell count after the
+// edit.
+enum AreaOperation { AREA_OPERATION_UNSPECIFIED = 0; AREA_OPERATION_CREATE = 1; AREA_OPERATION_SET_CELLS = 2; AREA_OPERATION_CLEAR_CELLS = 3; AREA_OPERATION_DELETE = 4; }
+message AreaIntent { optional AreaOperation operation = 1; optional string key = 2; optional bool home = 3; repeated rimgovernor.common.v1.Cell cells = 4; }
 // Designate one census source for its resource: a plant harvest or cut, a
 // hunt (the animal wherever it is now, cell the hint) or a mine cell. With
 // withdraw, remove that designation instead (the planner's stall withdraw,
