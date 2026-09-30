@@ -103,7 +103,8 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 		}
 	}
 	zones := Zone(s)
-	next := Grow(LayoutPlan{Spine: spine, Rooms: rooms, Wings: wings, Zones: coreWithout(zones, roomless), Reservations: kept}, pawns, tombs, tier)
+	// With nothing kept this is a fresh plan, sited as DeriveLayoutPlan sites it (#1285).
+	next := SiteCore(LayoutPlan{Spine: spine, Rooms: rooms, Wings: wings, Zones: coreWithout(zones, roomless), Reservations: kept}, s, pawns, tombs, tier)
 	next.Zones = coreWithout(zones, blocked)
 	if len(next.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()
