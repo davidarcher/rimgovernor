@@ -7,9 +7,9 @@ import (
 
 // PawnSettingsAction sets one per-pawn Assign-tab setting on one colony pawn
 // (#1299, epic #1292): a PawnSettingsIntent on Actions/Apply, one setting
-// per intent. The hostility response (#1299), self-tend (#1305) and
-// medicine carry (#1307) are carried so far; the other intent arms
-// (reading policy, nickname) land with their epic issues. Native treats a setting that
+// per intent: hostility response (#1299), self-tend (#1305), nickname
+// (#1310), medicine carry (#1307) and the medical care cap (#1301); reading
+// policy lands with its epic issue. Native treats a setting that
 // already holds as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
 
@@ -38,7 +38,45 @@ const (
 	// SettingNickname renames an owned pawn away from a short name an older
 	// owned pawn holds (#1310); native draws the new name.
 	SettingNickname SettingKind = "nickname"
+	// SettingMedicalCare caps the medicine a doctor may use (#1301).
+	SettingMedicalCare SettingKind = "medical_care"
 )
+
+// MedicalCare is a vanilla MedicalCareCategory name: the best medicine a
+// doctor may use on the pawn.
+type MedicalCare string
+
+const (
+	CareNone   MedicalCare = "NoCare"
+	CareNoMeds MedicalCare = "NoMeds"
+	CareHerbal MedicalCare = "HerbalOrWorse"
+	CareNormal MedicalCare = "NormalOrWorse"
+	CareBest   MedicalCare = "Best"
+)
+
+// MedicalCares lists every tier, lowest first.
+var MedicalCares = []MedicalCare{CareNone, CareNoMeds, CareHerbal, CareNormal, CareBest}
+
+// Rank is the tier's place in MedicalCares; -1 for an unknown name.
+func (c MedicalCare) Rank() int {
+	for i, v := range MedicalCares {
+		if v == c {
+			return i
+		}
+	}
+	return -1
+}
+
+// Valid reports whether c names a MedicalCareCategory.
+func (c MedicalCare) Valid() bool { return c.Rank() >= 0 }
+
+// Raised is the next tier up; Best stays Best.
+func (c MedicalCare) Raised() MedicalCare {
+	if r := c.Rank(); r >= 0 && r+1 < len(MedicalCares) {
+		return MedicalCares[r+1]
+	}
+	return c
+}
 
 // MaxMedicineCarry is the Medicine inventory-stock group's max (vanilla
 // InventoryStockGroupDef Medicine: 0-3).
@@ -53,6 +91,7 @@ type PawnSettings struct {
 	selfTend  bool
 	carry     int
 	leaveName string
+	care      MedicalCare
 }
 
 // NewMedicineCarrySetting is the pawn's Medicine inventory-stock count
@@ -91,10 +130,19 @@ func NewNicknameSetting(pawn PawnID, leave string) (PawnSettings, error) {
 	return PawnSettings{pawn: pawn, kind: SettingNickname, leaveName: leave}, nil
 }
 
+// NewMedicalCareSetting caps the pawn's medical care (#1301).
+func NewMedicalCareSetting(pawn PawnID, care MedicalCare) (PawnSettings, error) {
+	if !validID(string(pawn)) || !care.Valid() {
+		return PawnSettings{}, errors.New("a medical care setting requires a pawn and a MedicalCareCategory")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingMedicalCare, care: care}, nil
+}
+
 func (s PawnSettings) Pawn() PawnID                 { return s.pawn }
 func (s PawnSettings) Kind() SettingKind            { return s.kind }
 func (s PawnSettings) Hostility() HostilityResponse { return s.hostility }
 func (s PawnSettings) SelfTend() bool               { return s.selfTend }
+func (s PawnSettings) MedicalCare() MedicalCare     { return s.care }
 
 // LeaveName is the nickname arm's colliding short name.
 func (s PawnSettings) LeaveName() string { return s.leaveName }
@@ -109,6 +157,8 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewMedicineCarrySetting(s.pawn, s.carry)
 	case SettingNickname:
 		return NewNicknameSetting(s.pawn, s.leaveName)
+	case SettingMedicalCare:
+		return NewMedicalCareSetting(s.pawn, s.care)
 	}
 	return PawnSettings{}, errors.New("unknown pawn setting")
 }

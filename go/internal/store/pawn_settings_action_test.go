@@ -36,6 +36,14 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	care, err := domain.NewMedicalCareSetting("Human9", domain.CareBest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := domain.NewPawnSettingsAction("care", care)
+	if err != nil {
+		t.Fatal(err)
+	}
 	carryValue, err := domain.NewMedicineCarrySetting("Human7", 0)
 	if err != nil {
 		t.Fatal(err)
@@ -44,7 +52,7 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, carry})
+	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, c, carry})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +66,7 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := loaded.Spec.Actions()
-	if len(got) != 4 {
+	if len(got) != 5 {
 		t.Fatal(got)
 	}
 	if v, ok := got[0].PawnSettings(); !ok || v != value {
@@ -67,10 +75,13 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	if v, ok := got[1].PawnSettings(); !ok || v != tend {
 		t.Fatal(v, tend)
 	}
-	if v, ok := got[3].PawnSettings(); !ok || v != carryValue {
+	if v, ok := got[4].PawnSettings(); !ok || v != carryValue {
 		t.Fatal(v, carryValue)
 	}
 	if v, ok := got[2].PawnSettings(); !ok || v != rename {
 		t.Fatal(v, rename)
+	}
+	if v, ok := got[3].PawnSettings(); !ok || v != care {
+		t.Fatal(v, care)
 	}
 }

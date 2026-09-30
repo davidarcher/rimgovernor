@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -31,6 +32,11 @@ func colonyAnimals(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.UpkeepAnimal] 
 			candidates = append(candidates, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 		}
 		rows = append(rows, policy.UpkeepAnimal{SupportsAreas: optional(state.SupportsAllowedAreas), AllowedArea: area, ID: policy.PawnID(a.Pawn.Pawn.GetId()), Label: a.Pawn.Pawn.GetLabel(), Gender: state.GetGender(), Definition: policy.Resource(a.Pawn.Pawn.GetDefName()), RequiresPen: optional(a.RequiresPen), Contained: optional(state.Contained), Release: optional(state.Release), Slaughter: optional(state.Slaughter), Pen: domain.Known(state.GetPenId()), SuitablePen: domain.Known(a.GetSuitablePenId()), SafeToSlaughter: optional(state.SafeToSlaughter), SafeToRelease: optional(state.SafeToRelease), Herd: herdFacts(a), Training: training, ReachableBenches: append([]string{}, a.ReachableBenchIds...), ReachableStorage: storage, StorageCandidates: candidates})
+		last := &rows[len(rows)-1]
+		last.Care, last.Bonded = optional(state.MedicalCare), optional(state.Bonded)
+		if state.Conditions != nil {
+			last.Conditions, last.LifeThreatening = bridge.CareConditions(state.Conditions)
+		}
 	}
 	return domain.Known(rows)
 }

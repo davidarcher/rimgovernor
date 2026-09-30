@@ -42,15 +42,3 @@ func TestPrisonerCareLimitedHarvest(t *testing.T) {
 		t.Fatalf("herbal wanted with no harvest need: %v", needs)
 	}
 }
-
-func TestPrisonerCarePins(t *testing.T) {
-	row := func(id, care string, dead bool) PrisonerFacts {
-		r := harvestPrisoner(id, 0)
-		r.MedicalCare, r.Dead = domain.Known(care), domain.Known(dead)
-		return r
-	}
-	pins := PrisonerCarePins(domain.Known([]PrisonerFacts{row("a", "NormalOrWorse", false), row("b", "HerbalOrWorse", false), row("c", "Best", false), row("d", "Best", true), harvestPrisoner("e", 0)}))
-	if len(pins) != 2 || pins[0] != "a" || pins[1] != "c" {
-		t.Fatalf("pins %v", pins)
-	}
-}

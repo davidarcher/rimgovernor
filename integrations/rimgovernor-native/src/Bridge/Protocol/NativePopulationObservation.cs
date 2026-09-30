@@ -97,6 +97,12 @@ namespace HomeBridge.BridgeTools
                 // facts through the care read's own producer, its home faction
                 // and vanilla's harvest goodwill report (Recipe_RemoveBodyPart
                 // reports -70 to HomeFaction when the pawn has a faction).
+                // Medical care cap inputs (#1301): colony prisoners and hosted guests.
+                if (p.IsPrisonerOfColony || (p.HostFaction == player && !p.IsPrisoner && !p.IsSlave))
+                {
+                    if (p.playerSettings != null) person.MedicalCare = p.playerSettings.medCare.ToString();
+                    person.Conditions = NativePawnDetails.Conditions(p);
+                }
                 if (p.IsPrisonerOfColony)
                 {
                     var health = new Obs.PawnHealth();

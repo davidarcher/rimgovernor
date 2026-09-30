@@ -7,7 +7,7 @@ import (
 )
 
 // workSettingsAction is the WorkSettingsIntent of one pawn's settings write:
-// the drug policy alone, the medicine ceiling alone, or any of work
+// the drug policy alone, or any of work
 // priorities, allowed area, timetable and food additions together. Native
 // checks the pawn and each field live when it applies; settings that
 // already hold apply again.
@@ -27,14 +27,6 @@ func workSettingsIntent(w domain.WorkAssignment) *op.WorkSettingsIntent {
 	if w.DrugPolicy() != "" {
 		intent.DrugPolicy = proto.String(w.DrugPolicy())
 		return intent
-	}
-	switch w.MedicalCare() {
-	case "NoMeds":
-		intent.MedicalCare = op.MedicalCare_MEDICAL_CARE_NO_MEDICINE.Enum()
-	case "HerbalOrWorse":
-		intent.MedicalCare = op.MedicalCare_MEDICAL_CARE_HERBAL_OR_WORSE.Enum()
-	case "NormalOrWorse":
-		intent.MedicalCare = op.MedicalCare_MEDICAL_CARE_NORMAL_OR_WORSE.Enum()
 	}
 	for _, setting := range w.Settings() {
 		intent.Work = append(intent.Work, &op.WorkPriority{WorkTypeDef: proto.String(setting.Definition), Priority: proto.Int32(setting.Priority)})

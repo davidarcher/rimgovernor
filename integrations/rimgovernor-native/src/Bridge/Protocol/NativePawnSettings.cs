@@ -20,7 +20,10 @@ namespace HomeBridge.BridgeTools
     // pawn must leave: a fresh name from the pawn's own name bank
     // (PawnBioAndNameGenerator), never a numbered one, that no other owned
     // pawn holds. medicine_carry (#1307) is the Medicine inventory-stock
-    // count (ResolveCarry). The other arms are refused until their epic issues land.
+    // count (ResolveCarry). medical_care (#1301) is playerSettings.medCare,
+    // any of the five tiers, on a living pawn of the colony or hosted by it
+    // (colonist, slave, prisoner, guest, tame animal). The other arms are
+    // refused until their epic issues land.
     // A setting that already holds applies again.
     internal static class NativePawnSettings
     {
@@ -34,10 +37,20 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(p => p.thingIDNumber);
         }
 
-        private static Common.Failure? Resolve(Operations.PawnSettingsIntent? intent, Common.ObservationContext context,
-            out Pawn? pawn, out HostilityResponseMode mode)
+        private static MedicalCareCategory? Care(Operations.MedicalCare care) => care switch
         {
-            pawn = null; mode = HostilityResponseMode.Attack;
+            Operations.MedicalCare.NoCare => MedicalCareCategory.NoCare,
+            Operations.MedicalCare.NoMedicine => MedicalCareCategory.NoMeds,
+            Operations.MedicalCare.HerbalOrWorse => MedicalCareCategory.HerbalOrWorse,
+            Operations.MedicalCare.NormalOrWorse => MedicalCareCategory.NormalOrWorse,
+            Operations.MedicalCare.Best => MedicalCareCategory.Best,
+            _ => null
+        };
+
+        private static Common.Failure? Resolve(Operations.PawnSettingsIntent? intent, Common.ObservationContext context,
+            out Pawn? pawn, out HostilityResponseMode mode, out MedicalCareCategory care)
+        {
+            pawn = null; mode = HostilityResponseMode.Attack; care = MedicalCareCategory.NoCare;
             if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact pawn.");
             var kind = intent.SettingCase;
@@ -49,10 +62,21 @@ namespace HomeBridge.BridgeTools
                 pawn = OwnedNamedPawns().SingleOrDefault(p => p.GetUniqueLoadID() == id);
                 return pawn == null ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living named pawn the colony owns is not found.") : null;
             }
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare)
+            {
+                var tier = Care(intent.MedicalCare);
+                if (tier == null)
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Medical care must be one of the five MedicalCareCategory tiers.");
+                care = tier.Value;
+                var player = Faction.OfPlayerSilentFail;
+                pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
+                return pawn == null || pawn.Dead || pawn.playerSettings == null || player == null || pawn.Faction != player && pawn.HostFaction != player
+                    ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living pawn of the colony with medical care settings is not spawned on this map.") : null;
+            }
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MedicineCarry)
                 return ResolveCarry(intent, context, out pawn, out _);
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only the hostility_response, self_tend, nickname and medicine_carry settings are supported.");
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only the hostility_response, self_tend, nickname, medicine_carry and medical_care settings are supported.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse
                 && (!Enum.TryParse(intent.HostilityResponse, false, out mode) || !Enum.IsDefined(typeof(HostilityResponseMode), mode)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hostility response must be Ignore, Attack or Flee.");
@@ -69,11 +93,11 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.PawnSettingsIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static Common.Failure? Validate(Operations.PawnSettingsIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
         internal static Receipts.EffectEvidence Apply(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
         {
-            var failure = Resolve(intent, context, out var pawn, out var mode);
+            var failure = Resolve(intent, context, out var pawn, out var mode, out var care);
             if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
             Receipts.FieldResult field;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.Nickname) {
@@ -85,7 +109,12 @@ namespace HomeBridge.BridgeTools
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicineCarry)
                 return ApplyCarry(intent, context);
             var settings = pawn!.playerSettings;
-            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.SelfTend) {
+            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare) {
+                var outcome = settings.medCare == care ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
+                settings.medCare = care;
+                if (settings.medCare != care) throw new InvalidOperationException("Native medical care requires readback.");
+                field = new Receipts.FieldResult { Field = Receipts.SettingsField.MedicalCare, Outcome = outcome };
+            } else if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.SelfTend) {
                 var want = intent.SelfTend;
                 var outcome = settings.selfTend == want ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
                 settings.selfTend = want;
@@ -149,7 +178,7 @@ namespace HomeBridge.BridgeTools
             for (var attempt = 0; attempt < 100; attempt++)
             {
                 var drawn = PawnBioAndNameGenerator.GeneratePawnName(pawn, NameStyle.Full)?.ToStringShort;
-                if (string.IsNullOrWhiteSpace(drawn) || drawn!.Any(char.IsDigit) || taken.Contains(drawn)) continue;
+                if (string.IsNullOrWhiteSpace(drawn) || drawn!.Any(char.IsDigit) || taken.Contains(drawn!)) continue;
                 pawn.Name = pawn.Name is NameTriple triple ? new NameTriple(triple.First, drawn, triple.Last) : new NameSingle(drawn);
                 if (pawn.Name.ToStringShort != drawn) throw new InvalidOperationException("Native nickname requires readback.");
                 return Receipts.FieldOutcome.Applied;

@@ -30,6 +30,28 @@ func TestPawnSettingsBuildsHostilityIntent(t *testing.T) {
 	}
 }
 
+// Every medical care tier builds the medical_care arm (#1301).
+func TestPawnSettingsBuildsMedicalCareIntent(t *testing.T) {
+	for _, care := range domain.MedicalCares {
+		value, err := domain.NewMedicalCareSetting("Human1", care)
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err := domain.NewPawnSettingsAction("a1", value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wire, err := IntentAction("plan/1", action)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := wire.GetPawnSettings()
+		if s.GetPawnId() != "Human1" || s.GetMedicalCare() != medicalCareWire[care] || s.GetMedicalCare() == 0 {
+			t.Fatalf("%s: %v", care, wire)
+		}
+	}
+}
+
 // A self-tend setting builds the self_tend arm (#1305).
 func TestPawnSettingsBuildsSelfTendIntent(t *testing.T) {
 	value, err := domain.NewSelfTendSetting("Human1", true)

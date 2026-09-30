@@ -32,7 +32,6 @@ type WorkAssignment struct {
 	schedule  string
 	food      string
 	drug      string
-	care      string
 }
 
 func newWorkAssignment(pawn PawnID, settings []WorkSetting, hasArea, areaClear bool, areaID string, schedule []string, food ...string) (WorkAssignment, error) {
@@ -99,17 +98,6 @@ func newWorkAssignment(pawn PawnID, settings []WorkSetting, hasArea, areaClear b
 	}
 	return WorkAssignment{pawn: pawn, settings: string(data), hasArea: hasArea, areaClear: areaClear, areaID: areaID, schedule: encodedSchedule, food: encodedFood}, nil
 }
-
-// NewMedicalCareAssignment changes only the medicine ceiling through WorkSettingsIntent.
-// Automatic care never authorizes glitterworld medicine or disables tending.
-func NewMedicalCareAssignment(pawn PawnID, care string) (WorkAssignment, error) {
-	if !validID(string(pawn)) || care != "NoMeds" && care != "HerbalOrWorse" && care != "NormalOrWorse" {
-		return WorkAssignment{}, errors.New("invalid medical care assignment")
-	}
-	return WorkAssignment{pawn: pawn, settings: "null", care: care}, nil
-}
-
-func (w WorkAssignment) MedicalCare() string { return w.care }
 
 func NewDrugPolicyAssignment(pawn PawnID, name string) (WorkAssignment, error) {
 	if !validID(string(pawn)) || !validID(name) {
@@ -186,9 +174,6 @@ func (w WorkAssignment) Schedule() []string {
 func (w WorkAssignment) Canonical() (WorkAssignment, error) {
 	if w.drug != "" {
 		return NewDrugPolicyAssignment(w.pawn, w.drug)
-	}
-	if w.care != "" {
-		return NewMedicalCareAssignment(w.pawn, w.care)
 	}
 	return newWorkAssignment(w.pawn, w.Settings(), w.hasArea, w.areaClear, w.areaID, w.Schedule(), w.FoodAllow()...)
 }

@@ -36,31 +36,12 @@ func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFac
 			p.MissingParts, p.Operations = bridge.SurgeryFacts(h)
 			p.QueuedSurgeries = bridge.QueuedSurgeries(h)
 			p.QueuedRecipes = bridge.QueuedSurgeryRecipes(h)
-			p.LifeThreatening = optional(h.LifeThreatening)
+			p.Conditions, p.LifeThreatening = bridge.CareConditions(h)
 			p.NeedsRest, p.NeedsTend = optional(h.ShouldSeekMedicalRest), optional(h.NeedsTend)
 			c := h.HediffCompleteness
 			// A visible-only or incomplete list cannot prove that bad conditions
 			// have resolved. Other health details remain independent evidence.
 			if c != nil && c.GetFiltered() == 0 && h.HiddenHediffs != nil && h.GetHiddenHediffs() == 0 && !hasIssue(h.Issues, "hediffs") {
-				conditions := make([]policy.CareCondition, 0, len(h.Hediffs))
-				for _, condition := range h.Hediffs {
-					if condition == nil {
-						continue
-					}
-					detail := policy.CareCondition{
-						Severity: optional(condition.Severity), SeverityPerDay: optional(condition.SeverityPerDay),
-						Immunity: optional(condition.Immunity), ImmunityPerDay: optional(condition.ImmunityPerDay),
-						Tended: optional(condition.Tended), TendQuality: optional(condition.TendQuality),
-						PartIndex: optionalInt(condition.PartIndex),
-					}
-					if condition.Definition != nil {
-						detail.DefName = optional(condition.Definition.DefName)
-					}
-					conditions = append(conditions, detail)
-				}
-				if len(conditions) == len(h.Hediffs) {
-					p.Conditions = domain.Known(conditions)
-				}
 				bad, known := false, true
 				for _, condition := range h.Hediffs {
 					if condition == nil || condition.Bad == nil {

@@ -41,6 +41,8 @@ type PrisonerCensus struct {
 	// Colony is the colony side of each prisoner's use: the free
 	// colonists' best skills and the snapshot's Ideology facts.
 	Colony domain.Fact[policy.PrisonerColony]
+	// Guests are the colony guests' care cap inputs (#1301).
+	Guests domain.Fact[[]policy.CarePatient]
 	// Names is the owned-pawn short-name census (#1310).
 	Names domain.Fact[[]policy.OwnedName]
 }
@@ -96,6 +98,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 	seen := map[string]bool{}
 	colony := policy.PrisonerColony{BestSkill: map[string]int{}, Medicine: map[domain.PawnID]int{}, IdeologyActive: observed.GetIdeologyActive(), ClassicIdeo: observed.GetClassicIdeoMode(), Ideo: observed.GetColonyIdeoId(), SlaveryPrecept: observed.GetSlaveryPrecept(), OrganUsePrecept: observed.GetOrganUsePrecept()}
 	rows := make([]policy.PrisonerFacts, 0, len(observed.Persons))
+	guests := []policy.CarePatient{}
 	custody := make([]policy.CustodyFacts, 0, len(observed.Persons))
 	for _, person := range observed.Persons {
 		if person == nil || person.GetPawn().GetPawn() == nil {
@@ -137,6 +140,10 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 			custodyRow.WearingApparel = domain.Known(person.GetWearingApparel())
 		}
 		custody = append(custody, custodyRow)
+		if person.GetGuest() && !pawn.GetPrisoner() && !pawn.GetDead() && person.MedicalCare != nil {
+			conditions, life := CareConditions(person.GetConditions())
+			guests = append(guests, policy.CarePatient{ID: policy.PawnID(id), Care: domain.Known(person.GetMedicalCare()), Conditions: conditions, LifeThreatening: life})
+		}
 		if person.GetAdmitted() && !pawn.GetDead() {
 			colony.Colonists++
 			for _, s := range person.GetBiography().GetSkills() {
@@ -171,6 +178,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		if h := person.GetSurgery(); h != nil {
 			f.MissingParts, f.Operations = SurgeryFacts(h)
 			f.QueuedSurgeries = QueuedSurgeries(h)
+			f.QueuedRecipes = QueuedSurgeryRecipes(h)
 		}
 		f.Faction = person.GetFactionId()
 		if person.HarvestGoodwillChange != nil {
@@ -179,6 +187,8 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		if person.MedicalCare != nil {
 			f.MedicalCare = domain.Known(person.GetMedicalCare())
 		}
+		f.Conditions, f.LifeThreatening = CareConditions(person.GetConditions())
+		f.Executing = person.GetInteraction() == "Execution"
 		if person.Withdrawal != nil {
 			f.Withdrawal = domain.Known(person.GetWithdrawal())
 		}
@@ -198,7 +208,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		seenNames[n.GetPawnId()] = true
 		names = append(names, policy.OwnedName{Pawn: policy.PawnID(n.GetPawnId()), Short: n.GetShortName(), ThingID: int(n.GetThingId())})
 	}
-	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody), Colony: domain.Known(colony), Outlook: decodeOutlook(observed), Names: domain.Known(names)}, nil
+	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody), Colony: domain.Known(colony), Guests: domain.Known(guests), Outlook: decodeOutlook(observed), Names: domain.Known(names)}, nil
 }
 
 // decodeOutlook reads the snapshot's storyteller fields; an absent field is Unknown.

@@ -15,7 +15,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // The pawn settings snapshot observations publish: work, area, schedule,
-    // food, medical care and drug policy under one token.
+    // food and drug policy under one token.
     internal static class NativeWorkSettings
     {
         internal const int ScheduleHours = 24;
@@ -45,8 +45,8 @@ namespace HomeBridge.BridgeTools
     }
 
     // WorkSettingsIntent (#941): one free colonist's work priorities, allowed
-    // area, timetable and food additions together, or the medicine ceiling
-    // alone, or the social-only drug policy alone. Native checks the pawn and
+    // area, timetable and food additions together, or the social-only drug
+    // policy alone. Native checks the pawn and
     // each field live when it applies; settings that already hold apply again.
     internal sealed class WorkSettingsActionHandler : IActionHandler
     {
@@ -62,32 +62,16 @@ namespace HomeBridge.BridgeTools
             || (schedule.AssignmentDefs.Count == NativeWorkSettings.ScheduleHours && schedule.AssignmentDefs.All(ProtoBoundary.IsIdentifier));
 
         private static bool DrugOnly(Operations.WorkSettingsIntent intent) => intent.HasDrugPolicy
-            && !intent.HasMedicalCare && intent.Work.Count == 0 && intent.AllowedArea == null && intent.Schedule == null && intent.FoodAllow == null;
-
-        private static bool CareOnly(Operations.WorkSettingsIntent intent) => intent.HasMedicalCare
-            && !intent.HasDrugPolicy && intent.Work.Count == 0 && intent.AllowedArea == null && intent.Schedule == null && intent.FoodAllow == null;
-
-        private static bool ValidCare(Operations.WorkSettingsIntent intent) => !intent.HasMedicalCare || CareOnly(intent)
-            && (intent.MedicalCare == Operations.MedicalCare.NoMedicine
-                || intent.MedicalCare == Operations.MedicalCare.HerbalOrWorse
-                || intent.MedicalCare == Operations.MedicalCare.NormalOrWorse);
+            && intent.Work.Count == 0 && intent.AllowedArea == null && intent.Schedule == null && intent.FoodAllow == null;
 
         private static bool Valid(Operations.WorkSettingsIntent? intent) => intent != null
             && intent.HasPawnId && ProtoBoundary.IsIdentifier(intent.PawnId)
             && (intent.HasDrugPolicy ? DrugOnly(intent) && ProtoBoundary.IsIdentifier(intent.DrugPolicy)
-                : (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null || intent.FoodAllow != null || intent.HasMedicalCare)
+                : (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null || intent.FoodAllow != null)
                 && intent.Work.Count <= 256 && NativeFoodPolicy.Valid(intent.FoodAllow)
                 && intent.Work.All(w => w.HasWorkTypeDef && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.HasPriority && w.Priority >= 0 && w.Priority <= 4)
                 && intent.Work.Select(w => w.WorkTypeDef).Distinct(StringComparer.Ordinal).Count() == intent.Work.Count
-                && ValidSchedule(intent.Schedule) && ValidCare(intent) && ValidArea(intent.AllowedArea));
-
-        private static MedicalCareCategory Care(Operations.MedicalCare care) => care switch
-        {
-            Operations.MedicalCare.NoMedicine => MedicalCareCategory.NoMeds,
-            Operations.MedicalCare.HerbalOrWorse => MedicalCareCategory.HerbalOrWorse,
-            Operations.MedicalCare.NormalOrWorse => MedicalCareCategory.NormalOrWorse,
-            _ => throw new InvalidOperationException("Unsupported autonomous medical care tier.")
-        };
+                && ValidSchedule(intent.Schedule) && ValidArea(intent.AllowedArea));
 
         private static bool AreaResolves(Operations.WorkSettingsIntent intent, Pawn pawn, out Area_Allowed? area)
         {
@@ -102,7 +86,6 @@ namespace HomeBridge.BridgeTools
         private static bool Holds(Pawn pawn, Operations.WorkSettingsIntent intent)
         {
             if (intent.HasDrugPolicy) return NativeDrugPolicy.Matches(pawn, intent.DrugPolicy);
-            if (intent.HasMedicalCare && (pawn.playerSettings == null || pawn.playerSettings.medCare != Care(intent.MedicalCare))) return false;
             if (!NativeFoodPolicy.Matches(pawn, intent.FoodAllow)) return false;
             if (intent.Work.Count > 0 && pawn.workSettings?.Initialized != true) return false;
             if (!intent.Work.All(row => {
@@ -126,19 +109,16 @@ namespace HomeBridge.BridgeTools
             if (!Valid(intent))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact pawn and a supported settings change.");
             var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent!.PawnId);
-            // A living colony prisoner takes a care-only change (#1239).
-            bool Target(Pawn p) => !p.Dead && (p.IsFreeColonist || CareOnly(intent!) && p.IsPrisonerOfColony);
+            bool Target(Pawn p) => !p.Dead && p.IsFreeColonist;
             if (found != null && Target(found) && Holds(found, intent!)) { pawn = found; holds = true; return null; }
             var manual = PawnSettingsRead.ManualPriorities();
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn is no longer spawned on this map")
-                .Require(() => Target(found!), "the pawn is not a living free colonist or, for a care-only change, a living colony prisoner");
-            if (found != null && found.IsPrisonerOfColony)
-                rules.Require(() => found!.playerSettings != null, "the pawn has no medical care settings");
-            else if (intent!.HasDrugPolicy)
+                .Require(() => Target(found!), "the pawn is not a living free colonist");
+            if (intent!.HasDrugPolicy)
                 rules.Require(() => NativeDrugPolicy.Writable(found!), "the pawn has no drug policy");
             else
-                rules.Require(() => !found!.Downed || CareOnly(intent), "the pawn is downed")
+                rules.Require(() => !found!.Downed, "the pawn is downed")
                     .Require(() => !found!.Drafted, "the pawn is drafted")
                     .Require(() => !found!.InMentalState, "the pawn is in a mental state")
                     .Require(() => found!.workSettings?.Initialized == true && found.workSettings.EverWork, "the pawn has no work settings")
@@ -149,7 +129,6 @@ namespace HomeBridge.BridgeTools
                     .Require(() => AreaResolves(intent, found!, out _), "the requested allowed area is missing, unreachable or unsafe under the current roof hazard")
                     .Require(() => intent.Schedule == null || intent.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null), "a requested timetable assignment is not defined")
                     .Require(() => intent.Schedule == null || found!.timetable?.times != null && found.timetable.times.Count == NativeWorkSettings.ScheduleHours, "the pawn has no 24-hour timetable")
-                    .Require(() => !intent.HasMedicalCare || found!.playerSettings != null, "the pawn has no medical care settings")
                     .Require(() => NativeFoodPolicy.Writable(found!, intent.FoodAllow), "the requested food is not natively eligible");
             if (!rules.Holds) return rules.Failure();
             pawn = found!;
@@ -167,7 +146,6 @@ namespace HomeBridge.BridgeTools
             {
                 if (intent.HasDrugPolicy) NativeDrugPolicy.Apply(pawn, intent.DrugPolicy);
                 foreach (var row in intent.Work) pawn.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef), row.Priority);
-                if (intent.HasMedicalCare) pawn.playerSettings.medCare = Care(intent.MedicalCare);
                 if (intent.AllowedArea != null)
                 {
                     if (!AreaResolves(intent, pawn, out var area)) throw new InvalidOperationException("Requested allowed area is no longer resolvable.");
@@ -192,7 +170,6 @@ namespace HomeBridge.BridgeTools
             if (intent.AllowedArea != null) Add(Receipts.SettingsField.AllowedArea);
             if (intent.Schedule != null) Add(Receipts.SettingsField.Schedule);
             if (intent.FoodAllow != null) Add(Receipts.SettingsField.FoodRestriction);
-            if (intent.HasMedicalCare) Add(Receipts.SettingsField.MedicalCare);
             return effect;
         }
     }

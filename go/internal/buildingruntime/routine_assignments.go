@@ -233,6 +233,13 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if names, ok := read.Projection.Facts.OwnedNames.Value(); ok {
 		settings = append(settings, policy.NicknameChanges(names)...)
 	}
+	// Medical care caps (#1301) ride it too: colonists, prisoners, guests
+	// and animals, at most eight per plan.
+	care := policy.MedicalCareChanges(read.Projection.Facts, r.reviewer.policy.MedicalReserve)
+	if len(care) > 8 {
+		care = care[:8]
+	}
+	settings = append(settings, care...)
 	for _, plan := range open {
 		if err := cancelStaleWorkActions(call, p.journal, plan, work, settings); err != nil {
 			return RoutineWorkResult{}, err
@@ -273,7 +280,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	for _, s := range settings {
 		carry, _ := s.MedicineCarry()
-		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, len(goal.Methods))
+		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), len(goal.Methods))
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {

@@ -2,35 +2,19 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Prisoner medicine (#1239, epic #1160): prisoners stay on herbal medicine
-// at most. MaintainSurgery pins a prisoner whose care allows better back to
-// PrisonerMedicalCare and never raises it. A harvest or part recovery that
+// Prisoner medicine (#1239, epic #1160): a harvest target holds herbal care
+// at most (the #1301 care cap, MedicalCareChanges). A harvest or part recovery that
 // only the care limit blocks (better medicine stocked, no herbal) is refused
 // with a reason naming the limit, and asks MaintainResource for herbal
 // medicine through ResourceNeeds (healroot growing, trade buys).
 
-// PrisonerMedicalCare is the care ceiling every colony prisoner is held at.
+// PrisonerMedicalCare is the care ceiling a harvest target is held at.
 const PrisonerMedicalCare = "HerbalOrWorse"
 
 // PrisonerSurgeryHerbal is the herbal stock a care-limited prisoner surgery
 // asks for: vanilla's harvest and removal recipes take one medicine, and a
 // second covers the tend after a failure.
 const PrisonerSurgeryHerbal int64 = 2
-
-// PrisonerCarePins lists the living prisoners whose known care allows
-// medicine above herbal (NormalOrWorse, Best), by pawn id.
-func PrisonerCarePins(prisoners domain.Fact[[]PrisonerFacts]) []domain.PawnID {
-	rows, _ := prisoners.Value()
-	var out []domain.PawnID
-	for _, row := range rows {
-		care, ck := row.MedicalCare.Value()
-		dead, dk := row.Dead.Value()
-		if ck && dk && !dead && (care == "NormalOrWorse" || care == "Best") {
-			out = append(out, row.Pawn)
-		}
-	}
-	return out
-}
 
 // CareLimitedHarvest is the organ harvest, else the part recovery, that
 // SelectOrganHarvest or SelectPartRecovery would choose were every

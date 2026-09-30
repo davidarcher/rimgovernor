@@ -140,14 +140,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	harvesting = harvesting && arbiter.tryClaim([]domain.PawnID{harvest.Prisoner})
 	result.Harvest = harvesting
-	// Pin each prisoner above herbal care back to herbal (#1239).
-	var pins []domain.WorkAssignment
-	for _, pawn := range policy.PrisonerCarePins(read.Projection.Facts.Prisoners) {
-		if w, err := domain.NewMedicalCareAssignment(pawn, policy.PrisonerMedicalCare); err == nil && arbiter.tryClaim([]domain.PawnID{pawn}) {
-			pins = append(pins, w)
-		}
-	}
-	if len(queue) == 0 && !harvesting && len(pins) == 0 {
+	if len(queue) == 0 && !harvesting {
 		switch {
 		case len(inFlight) > 0:
 			result.Reason = BuildingMethodExistingWork
@@ -167,9 +160,6 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	if harvesting {
 		fmt.Fprintf(hash, "harvest/%s/%s/%d/%s\n", harvest.Prisoner, harvest.Recipe, harvest.Part, harvest.Surgeon)
-	}
-	for _, pin := range pins {
-		fmt.Fprintf(hash, "care/%s\n", pin.Pawn())
 	}
 	method := domain.MethodID(fmt.Sprintf("restore-%x", hash.Sum(nil)[:16]))
 	for _, previous := range goal.Methods {
@@ -200,13 +190,6 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineSurgeryResult{}, err
 		}
 		action, err := domain.NewSurgeryAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), cut)
-		if err != nil {
-			return RoutineSurgeryResult{}, err
-		}
-		actions = append(actions, action)
-	}
-	for _, pin := range pins {
-		action, err := domain.NewWorkAssignmentAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), pin)
 		if err != nil {
 			return RoutineSurgeryResult{}, err
 		}

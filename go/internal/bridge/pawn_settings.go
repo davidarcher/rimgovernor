@@ -6,6 +6,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var medicalCareWire = map[domain.MedicalCare]o.MedicalCare{
+	domain.CareNone:   o.MedicalCare_MEDICAL_CARE_NO_CARE,
+	domain.CareNoMeds: o.MedicalCare_MEDICAL_CARE_NO_MEDICINE,
+	domain.CareHerbal: o.MedicalCare_MEDICAL_CARE_HERBAL_OR_WORSE,
+	domain.CareNormal: o.MedicalCare_MEDICAL_CARE_NORMAL_OR_WORSE,
+	domain.CareBest:   o.MedicalCare_MEDICAL_CARE_BEST,
+}
+
 // pawnSettingsAction is the PawnSettingsIntent of one pawn and one setting
 // (#1299). Native re-checks the pawn and the setting live; a setting that
 // already holds applies again (NativePawnSettings.cs).
@@ -31,6 +39,12 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 			return nil, contract("%v", err)
 		}
 		intent.Setting = &o.PawnSettingsIntent_Nickname{Nickname: v.LeaveName()}
+	case domain.SettingMedicalCare:
+		care, ok := medicalCareWire[v.MedicalCare()]
+		if !ok {
+			return nil, contract("unknown medical care %q", v.MedicalCare())
+		}
+		intent.Setting = &o.PawnSettingsIntent_MedicalCare{MedicalCare: care}
 	default:
 		return nil, contract("unknown pawn setting")
 	}

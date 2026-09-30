@@ -125,9 +125,11 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	p.Facts.QuestOffers = frameQuests(frame.Quests)
 	p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony, p.Facts.Outlook = domain.Fact[[]policy.PrisonerFacts]{}, domain.Fact[[]policy.CustodyFacts]{}, domain.Fact[policy.PrisonerColony]{}, policy.PopulationOutlook{}
 	p.Facts.OwnedNames = domain.Fact[[]policy.OwnedName]{}
+	p.Facts.Guests = domain.Fact[[]policy.CarePatient]{}
 	if frame.Population != nil {
 		p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony, p.Facts.Outlook = frame.Population.Prisoners, frame.Population.Custody, frame.Population.Colony, frame.Population.Outlook
 		p.Facts.OwnedNames = frame.Population.Names
+		p.Facts.Guests = frame.Population.Guests
 	}
 	var roomCensus *o.RoomsSnapshot
 	if rooms {

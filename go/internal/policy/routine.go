@@ -447,6 +447,10 @@ type RoutineFacts struct {
 	// HostilityOwed is a colonist whose hostility response differs from
 	// the one it should hold (#1299); EnsureWorkAssignments writes it.
 	HostilityOwed domain.Fact[bool]
+	// MedicalCareOwed is a pawn whose medical care differs from its cap
+	// (#1301); Guests are the colony's guests' cap inputs.
+	MedicalCareOwed domain.Fact[bool]
+	Guests          domain.Fact[[]CarePatient]
 	// MedicineCarryOwed is a colonist whose medicine carry count differs
 	// from the planned one (#1307); EnsureWorkAssignments writes it.
 	MedicineCarryOwed domain.Fact[bool]
@@ -745,7 +749,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	medicalMet := measured(f.CriticalPatients, func(v int64) bool { return v == 0 })
 	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v }))
-	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) || positive(f.MedicineCarryOwed) {
+	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) || positive(f.MedicineCarryOwed) || positive(f.MedicalCareOwed) {
 		workMet = domain.Known(false)
 	}
 	defenseMet := allFacts(footholdArmed(f), measured(f.Hostiles, func(v int64) bool { return v == 0 }))
@@ -1120,7 +1124,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// training below the Medicine floor, prisoner control or a reinstall
 	// before release (#1236).
 	// A prisoner whose care allows better than herbal (#1239) too.
-	if SaleHarvestWanted(f, reviewSilverShort(f, p, medicine)) || PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()) || len(PrisonerCarePins(f.Prisoners)) > 0 {
+	if SaleHarvestWanted(f, reviewSilverShort(f, p, medicine)) || PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()) {
 		surgeryRecovered = domain.Known(false)
 	}
 	addAssessment(MaintainSurgery, surgeryPriority, surgeryRecovered)

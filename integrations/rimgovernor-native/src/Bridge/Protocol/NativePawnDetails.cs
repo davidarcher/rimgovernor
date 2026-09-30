@@ -113,6 +113,51 @@ namespace HomeBridge.BridgeTools
             else row.AnimalState=Animal(pawn);
         }
 
+        // One hediff row of a health read.
+        private static Obs.Hediff HediffRow(Pawn pawn,Hediff h,Obs.PawnHealth row)
+        {
+                var item=new Obs.Hediff {Definition=Definition(h.def),Severity=Number(h.Severity),SeverityLabel=Text(h.SeverityLabel??""),
+                    Visible=h.Visible,Bad=h.def.isBad,Permanent=h.IsPermanent(),LifeThreatening=h.IsCurrentlyLifeThreatening,
+                    TendableNow=h.TendableNow(false),Tended=h.IsTended()};
+                if(!item.Definition.HasLabel) row.Issues.Add(Issue("hediffs.definition.label",Common.UnavailableReason.NotApplicable,"Native definition supplies no label."));
+                if(h.Part!=null) {
+                    var index=pawn.RaceProps.body.AllParts.IndexOf(h.Part);
+                    if(index<0) throw new InvalidOperationException("Hediff body part is not in this pawn's body.");
+                    item.PartIndex=index;item.PartDefName=Id(h.Part.def.defName);item.PartLabel=Text(h.Part.LabelCap);
+                }
+                var immune=h.TryGetComp<HediffComp_Immunizable>(); item.Immunizable=immune!=null;
+                if(immune!=null) {
+                    item.Immunity=Number(immune.Immunity);item.FullyImmune=immune.FullyImmune;
+                    // Include tending's severity modifier, as well as the disease's
+                    // randomized native progression. Read only: never create immunity records.
+                    item.SeverityPerDay=Number(((HediffWithComps)h).comps
+                        .OfType<HediffComp_SeverityModifierBase>().Sum(comp=>comp.SeverityChangePerDay()));
+                    var record=pawn.health.immunity.GetImmunityRecord(h.def);
+                    if(record!=null && !pawn.Dead)
+                        item.ImmunityPerDay=Number(record.ImmunityChangePerTick(pawn,true,h)*60000f);
+                }
+                var tend=h.TryGetComp<HediffComp_TendDuration>();
+                if(tend!=null) {
+                    if(item.Tended) item.TendQuality=Number(tend.tendQuality);
+                    if(!tend.TProps.TendIsPermanent) {item.TendExpiresInTicks=Math.Max(0,tend.tendTicksLeft);item.NextTendInTicks=Math.Max(0,tend.tendTicksLeft-tend.TProps.TendTicksOverlap);}
+                }
+                return item;
+            }
+
+        // Medical care cap inputs (#1301): the life threat and every hediff,
+        // none filtered; the other PawnHealth fields stay absent.
+        internal static Obs.PawnHealth Conditions(Pawn pawn)
+        {
+            var row=new Obs.PawnHealth();
+            var all=pawn.health?.hediffSet?.hediffs;
+            if(all==null) {row.Issues.Add(Missing("hediffs"));return row;}
+            row.LifeThreatening=all.Any(h=>h.IsCurrentlyLifeThreatening);
+            foreach(var h in all) row.Hediffs.Add(HediffRow(pawn,h,row));
+            row.HiddenHediffs=0;
+            row.HediffCompleteness=Complete(all.Count,0);
+            return row;
+        }
+
         private static void Health(Pawn pawn,Obs.PawnHealth row,bool visibleOnly,Common.ObservationContext context)
         {
             row.Issues.Clear();
@@ -139,34 +184,7 @@ namespace HomeBridge.BridgeTools
             }
             var visible=all.Where(h=>!visibleOnly || h.Visible).ToList();
             row.HiddenHediffs=checked((uint)(all.Count-visible.Count));
-            foreach(var h in visible) {
-                var item=new Obs.Hediff {Definition=Definition(h.def),Severity=Number(h.Severity),SeverityLabel=Text(h.SeverityLabel??""),
-                    Visible=h.Visible,Bad=h.def.isBad,Permanent=h.IsPermanent(),LifeThreatening=h.IsCurrentlyLifeThreatening,
-                    TendableNow=h.TendableNow(false),Tended=h.IsTended()};
-                if(!item.Definition.HasLabel) row.Issues.Add(Issue("hediffs.definition.label",Common.UnavailableReason.NotApplicable,"Native definition supplies no label."));
-                if(h.Part!=null) {
-                    var index=pawn.RaceProps.body.AllParts.IndexOf(h.Part);
-                    if(index<0) throw new InvalidOperationException("Hediff body part is not in this pawn's body.");
-                    item.PartIndex=index;item.PartDefName=Id(h.Part.def.defName);item.PartLabel=Text(h.Part.LabelCap);
-                }
-                var immune=h.TryGetComp<HediffComp_Immunizable>(); item.Immunizable=immune!=null;
-                if(immune!=null) {
-                    item.Immunity=Number(immune.Immunity);item.FullyImmune=immune.FullyImmune;
-                    // Include tending's severity modifier, as well as the disease's
-                    // randomized native progression. Read only: never create immunity records.
-                    item.SeverityPerDay=Number(((HediffWithComps)h).comps
-                        .OfType<HediffComp_SeverityModifierBase>().Sum(comp=>comp.SeverityChangePerDay()));
-                    var record=pawn.health.immunity.GetImmunityRecord(h.def);
-                    if(record!=null && !pawn.Dead)
-                        item.ImmunityPerDay=Number(record.ImmunityChangePerTick(pawn,true,h)*60000f);
-                }
-                var tend=h.TryGetComp<HediffComp_TendDuration>();
-                if(tend!=null) {
-                    if(item.Tended) item.TendQuality=Number(tend.tendQuality);
-                    if(!tend.TProps.TendIsPermanent) {item.TendExpiresInTicks=Math.Max(0,tend.tendTicksLeft);item.NextTendInTicks=Math.Max(0,tend.tendTicksLeft-tend.TProps.TendTicksOverlap);}
-                }
-                row.Hediffs.Add(item);
-            }
+            foreach(var h in visible) row.Hediffs.Add(HediffRow(pawn,h,row));
             row.HediffCompleteness=Complete(visible.Count,all.Count-visible.Count);
             var bills=pawn.BillStack?.Bills;
             if(bills==null) row.Issues.Add(Missing("surgery_bills"));

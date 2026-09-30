@@ -308,7 +308,10 @@ message Action {
 // (#1307) is the pawn's Medicine inventory-stock count (0-3); native stocks
 // the best medicine the pawn's own medical care allows and refuses a
 // positive count when it allows none. reading_policy is reserved for its
-// epic issue and refused natively until it lands.
+// epic issue and refused natively until it lands. medical_care (#1301) is
+// the pawn's MedicalCareCategory, any of the five tiers, on a living
+// colonist, slave, prisoner, guest or tame animal of the colony that has
+// medical care settings.
 message PawnSettingsIntent {
   optional string pawn_id = 1;
   oneof setting {
@@ -317,6 +320,7 @@ message PawnSettingsIntent {
     string reading_policy = 4;
     int32 medicine_carry = 5;
     string nickname = 6;
+    MedicalCare medical_care = 7;
   }
 }
 // Queue one medical operation bill on one patient (#1162): the recipe on the
@@ -491,7 +495,7 @@ message WorkSettingsIntent {
   repeated WorkPriority work = 2;
   Assignment allowed_area = 3;
   Schedule schedule = 4;
-  optional MedicalCare medical_care = 5;
+  reserved 5; reserved "medical_care";
   DefinitionList food_allow = 6;
   optional string drug_policy = 7;
 }

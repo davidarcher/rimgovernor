@@ -34,3 +34,21 @@ func TestHostilitySettingRequiresPawnAndMode(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMedicalCareSettingTiers(t *testing.T) {
+	if _, err := NewMedicalCareSetting("Human1", "Glitter"); err == nil {
+		t.Fatal("unknown tier accepted")
+	}
+	for _, c := range MedicalCares {
+		v, err := NewMedicalCareSetting("Human1", c)
+		if err != nil || v.MedicalCare() != c || v.Hostility() != "" {
+			t.Fatal(c, err)
+		}
+		if _, err := NewPawnSettingsAction("s1", v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if CareHerbal.Raised() != CareNormal || CareBest.Raised() != CareBest {
+		t.Fatal("raise")
+	}
+}

@@ -231,92 +231,92 @@ namespace RimGovernor.Protocol.Operations {
             "ZXJub3Iub3BlcmF0aW9ucy52MS5QYXduU2V0dGluZ3NJbnRlbnRIABJECgxw",
             "b2xpY3lfcHJ1bmUYMyABKAsyLC5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYx",
             "LlBvbGljeVBydW5lSW50ZW50SABCCAoGaW50ZW50QgYKBF9rZXlCCgoIX3B1",
-            "cnBvc2VKBAgOEA9KBAgfECBSBW1lbGVlUgRob21lIrwBChJQYXduU2V0dGlu",
+            "cnBvc2VKBAgOEA9KBAgfECBSBW1lbGVlUgRob21lIvwBChJQYXduU2V0dGlu",
             "Z3NJbnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgBiAEBEhwKEmhvc3RpbGl0eV9y",
             "ZXNwb25zZRgCIAEoCUgAEhMKCXNlbGZfdGVuZBgDIAEoCEgAEhgKDnJlYWRp",
             "bmdfcG9saWN5GAQgASgJSAASGAoObWVkaWNpbmVfY2FycnkYBSABKAVIABIS",
-            "CghuaWNrbmFtZRgGIAEoCUgAQgkKB3NldHRpbmdCCgoIX3Bhd25faWQi5wEK",
-            "DVN1cmdlcnlJbnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgAiAEBEhcKCnJlY2lw",
-            "ZV9kZWYYAiABKAlIAYgBARIXCgpwYXJ0X2luZGV4GAMgASgFSAKIAQESIgoV",
-            "YWNrbm93bGVkZ2VfdmlvbGF0aW9uGAQgASgISAOIAQESFwoKc3VyZ2Vvbl9p",
-            "ZBgFIAEoCUgEiAEBQgoKCF9wYXduX2lkQg0KC19yZWNpcGVfZGVmQg0KC19w",
-            "YXJ0X2luZGV4QhgKFl9hY2tub3dsZWRnZV92aW9sYXRpb25CDQoLX3N1cmdl",
-            "b25faWQivgEKCkFyZWFJbnRlbnQSQAoJb3BlcmF0aW9uGAEgASgOMigucmlt",
-            "Z292ZXJub3Iub3BlcmF0aW9ucy52MS5BcmVhT3BlcmF0aW9uSACIAQESEAoD",
-            "a2V5GAIgASgJSAGIAQESEQoEaG9tZRgDIAEoCEgCiAEBEioKBWNlbGxzGAQg",
-            "AygLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGxCDAoKX29wZXJhdGlv",
-            "bkIGCgRfa2V5QgcKBV9ob21lInYKEVBvbGljeVBydW5lSW50ZW50EkAKCGRh",
-            "dGFiYXNlGAEgASgOMikucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5Qb2xp",
-            "Y3lEYXRhYmFzZUgAiAEBEhIKCmRlbGV0ZV9pZHMYAiADKAlCCwoJX2RhdGFi",
-            "YXNlIjYKEkF1dG9Ib21lQXJlYUludGVudBIUCgdlbmFibGVkGAEgASgISACI",
-            "AQFCCgoIX2VuYWJsZWQiugEKDUFjcXVpcmVJbnRlbnQSFgoJc291cmNlX2lk",
-            "GAEgASgJSACIAQESHgoRcmVzb3VyY2VfZGVmX25hbWUYAiABKAlIAYgBARIp",
-            "CgRjZWxsGAMgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwSFQoI",
-            "d2l0aGRyYXcYBCABKAhIAogBAUIMCgpfc291cmNlX2lkQhQKEl9yZXNvdXJj",
-            "ZV9kZWZfbmFtZUILCglfd2l0aGRyYXciUQoLRHJhZnRJbnRlbnQSFAoHcGF3",
-            "bl9pZBgBIAEoCUgAiAEBEhQKB2RyYWZ0ZWQYAiABKAhIAYgBAUIKCghfcGF3",
-            "bl9pZEIKCghfZHJhZnRlZCK/AQoPUGF3bk9yZGVySW50ZW50EhQKB3Bhd25f",
-            "aWQYASABKAlIAIgBARIWCgl0YXJnZXRfaWQYAiABKAlIAYgBARI7CgRraW5k",
-            "GAMgASgOMigucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5QYXduT3JkZXJL",
-            "aW5kSAKIAQESEwoGYmVkX2lkGAQgASgJSAOIAQFCCgoIX3Bhd25faWRCDAoK",
-            "X3RhcmdldF9pZEIHCgVfa2luZEIJCgdfYmVkX2lkInEKEE5lZWRSZWxpZWZJ",
-            "bnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgAiAEBEjIKBG5lZWQYAiABKA4yHy5y",
-            "aW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLk5lZWRIAYgBAUIKCghfcGF3bl9p",
-            "ZEIHCgVfbmVlZCJ5Cg1Vc2VJdGVtSW50ZW50EhQKB3Bhd25faWQYASABKAlI",
-            "AIgBARIUCgdpdGVtX2lkGAIgASgJSAGIAQESFgoJdGFyZ2V0X2lkGAMgASgJ",
-            "SAKIAQFCCgoIX3Bhd25faWRCCgoIX2l0ZW1faWRCDAoKX3RhcmdldF9pZCKO",
-            "AQoLQ292ZXJJbnRlbnQSFQoIdGhpbmdfaWQYASABKAlIAIgBARIcCg9kZXNp",
-            "Z25hdGlvbl9kZWYYAiABKAlIAYgBARIpCgRjZWxsGAMgASgLMhsucmltZ292",
-            "ZXJub3IuY29tbW9uLnYxLkNlbGxCCwoJX3RoaW5nX2lkQhIKEF9kZXNpZ25h",
-            "dGlvbl9kZWYijAEKD0Rlc2lnbmF0ZUludGVudBIVCgh0aGluZ19pZBgBIAEo",
-            "CUgAiAEBEkUKC2Rlc2lnbmF0aW9uGAIgASgOMisucmltZ292ZXJub3Iub3Bl",
-            "cmF0aW9ucy52MS5UaGluZ0Rlc2lnbmF0aW9uSAGIAQFCCwoJX3RoaW5nX2lk",
-            "Qg4KDF9kZXNpZ25hdGlvbiI5ChFEZWNvbnN0cnVjdEludGVudBIWCgl0YXJn",
-            "ZXRfaWQYASABKAlIAIgBAUIMCgpfdGFyZ2V0X2lkItQBCg5SZWxvY2F0ZUlu",
-            "dGVudBIVCgh0aGluZ19pZBgBIAEoCUgAiAEBEjAKC2Rlc3RpbmF0aW9uGAIg",
-            "ASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwSOQoIcm90YXRpb24Y",
-            "AyABKA4yIi5yaW1nb3Zlcm5vci5wbGFjZW1lbnQudjEuUm90YXRpb25IAYgB",
-            "ARIWCgl1bmluc3RhbGwYBCABKAhIAogBAUILCglfdGhpbmdfaWRCCwoJX3Jv",
-            "dGF0aW9uQgwKCl91bmluc3RhbGwixgIKE0J1aWxkaW5nUGF0Y2hJbnRlbnQS",
-            "FQoIdGhpbmdfaWQYASABKAlIAYgBARIcChJ0YXJnZXRfdGVtcGVyYXR1cmUY",
-            "AiABKAJIABIRCgdtZWRpY2FsGAMgASgISAASOQoNZm9yX3ByaXNvbmVycxgE",
-            "IAEoCzIgLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuQ2xlYXJIABITCglw",
-            "bGFudF9kZWYYBSABKAlIABIxCgVjbGFpbRgGIAEoCzIgLnJpbWdvdmVybm9y",
-            "Lm9wZXJhdGlvbnMudjEuQ2xlYXJIABI2Cgpmb3Jfc2xhdmVzGAcgASgLMiAu",
-            "cmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5DbGVhckgAEhUKC2F1dG9fcmVm",
-            "dWVsGAggASgISABCCAoGY2hhbmdlQgsKCV90aGluZ19pZCKfAQoNUmVjb3Zl",
-            "ckludGVudBIUCgdwYXduX2lkGAEgASgJSACIAQESFQoIdGhpbmdfaWQYAiAB",
-            "KAlIAYgBARI9CgZtZXRob2QYAyABKA4yKC5yaW1nb3Zlcm5vci5vcGVyYXRp",
-            "b25zLnYxLlNlcnZpY2VNZXRob2RIAogBAUIKCghfcGF3bl9pZEILCglfdGhp",
-            "bmdfaWRCCQoHX21ldGhvZCJ3CgtXYXN0ZUludGVudBIUCgdwYXduX2lkGAEg",
-            "ASgJSACIAQESFQoIdGhpbmdfaWQYAiABKAlIAYgBARIVCgh1bndhbnRlZBgD",
-            "IAEoCEgCiAEBQgoKCF9wYXduX2lkQgsKCV90aGluZ19pZEILCglfdW53YW50",
-            "ZWQicQoQUmVtb3ZlV2FsbEludGVudBIpCgRjZWxsGAEgASgLMhsucmltZ292",
-            "ZXJub3IuY29tbW9uLnYxLkNlbGwSHQoQZXhwZWN0ZWRfd2FsbF9pZBgCIAEo",
-            "CUgAiAEBQhMKEV9leHBlY3RlZF93YWxsX2lkIoMBCg5FeGNhdmF0ZUludGVu",
-            "dBIpCgRjZWxsGAEgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwS",
-            "JwoaZXhwZWN0ZWRfbWluZWFibGVfZGVmX25hbWUYAiABKAlIAIgBAUIdChtf",
-            "ZXhwZWN0ZWRfbWluZWFibGVfZGVmX25hbWUi9AEKD0h1c2JhbmRyeUludGVu",
-            "dBIWCglhbmltYWxfaWQYASABKAlIAIgBARI9CgVvcmRlchgCIAEoDjIpLnJp",
-            "bWdvdmVybm9yLm9wZXJhdGlvbnMudjEuSHVzYmFuZHJ5T3JkZXJIAYgBARIa",
-            "Cg10cmFpbmFibGVfZGVmGAMgASgJSAKIAQESFgoJdGFyZ2V0X2lkGAQgASgJ",
-            "SAOIAQESEwoGZm9sbG93GAUgASgISASIAQFCDAoKX2FuaW1hbF9pZEIICgZf",
-            "b3JkZXJCEAoOX3RyYWluYWJsZV9kZWZCDAoKX3RhcmdldF9pZEIJCgdfZm9s",
-            "bG93ItsBChRQcm9kdWN0aW9uQmlsbEludGVudBIVCghiZW5jaF9pZBgBIAEo",
-            "CUgAiAEBEhcKCnJlY2lwZV9kZWYYAiABKAlIAYgBARI5CghzZXR0aW5ncxgD",
-            "IAEoCzInLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuQmlsbFNldHRpbmdz",
-            "EiIKFXJlcGxhY2Vfb3duZWRfYmlsbF9pZBgEIAEoCUgCiAEBQgsKCV9iZW5j",
-            "aF9pZEINCgtfcmVjaXBlX2RlZkIYChZfcmVwbGFjZV9vd25lZF9iaWxsX2lk",
-            "Ip4DChJXb3JrU2V0dGluZ3NJbnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgAiAEB",
-            "EjUKBHdvcmsYAiADKAsyJy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLldv",
-            "cmtQcmlvcml0eRI7CgxhbGxvd2VkX2FyZWEYAyABKAsyJS5yaW1nb3Zlcm5v",
-            "ci5vcGVyYXRpb25zLnYxLkFzc2lnbm1lbnQSNQoIc2NoZWR1bGUYBCABKAsy",
-            "Iy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLlNjaGVkdWxlEkEKDG1lZGlj",
-            "YWxfY2FyZRgFIAEoDjImLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuTWVk",
-            "aWNhbENhcmVIAYgBARI9Cgpmb29kX2FsbG93GAYgASgLMikucmltZ292ZXJu",
-            "b3Iub3BlcmF0aW9ucy52MS5EZWZpbml0aW9uTGlzdBIYCgtkcnVnX3BvbGlj",
-            "eRgHIAEoCUgCiAEBQgoKCF9wYXduX2lkQg8KDV9tZWRpY2FsX2NhcmVCDgoM",
-            "X2RydWdfcG9saWN5IrUBCg9CZWRBc3NpZ25JbnRlbnQSFAoHcGF3bl9pZBgB",
+            "CghuaWNrbmFtZRgGIAEoCUgAEj4KDG1lZGljYWxfY2FyZRgHIAEoDjImLnJp",
+            "bWdvdmVybm9yLm9wZXJhdGlvbnMudjEuTWVkaWNhbENhcmVIAEIJCgdzZXR0",
+            "aW5nQgoKCF9wYXduX2lkIucBCg1TdXJnZXJ5SW50ZW50EhQKB3Bhd25faWQY",
+            "ASABKAlIAIgBARIXCgpyZWNpcGVfZGVmGAIgASgJSAGIAQESFwoKcGFydF9p",
+            "bmRleBgDIAEoBUgCiAEBEiIKFWFja25vd2xlZGdlX3Zpb2xhdGlvbhgEIAEo",
+            "CEgDiAEBEhcKCnN1cmdlb25faWQYBSABKAlIBIgBAUIKCghfcGF3bl9pZEIN",
+            "CgtfcmVjaXBlX2RlZkINCgtfcGFydF9pbmRleEIYChZfYWNrbm93bGVkZ2Vf",
+            "dmlvbGF0aW9uQg0KC19zdXJnZW9uX2lkIr4BCgpBcmVhSW50ZW50EkAKCW9w",
+            "ZXJhdGlvbhgBIAEoDjIoLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuQXJl",
+            "YU9wZXJhdGlvbkgAiAEBEhAKA2tleRgCIAEoCUgBiAEBEhEKBGhvbWUYAyAB",
+            "KAhIAogBARIqCgVjZWxscxgEIAMoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52",
+            "MS5DZWxsQgwKCl9vcGVyYXRpb25CBgoEX2tleUIHCgVfaG9tZSJ2ChFQb2xp",
+            "Y3lQcnVuZUludGVudBJACghkYXRhYmFzZRgBIAEoDjIpLnJpbWdvdmVybm9y",
+            "Lm9wZXJhdGlvbnMudjEuUG9saWN5RGF0YWJhc2VIAIgBARISCgpkZWxldGVf",
+            "aWRzGAIgAygJQgsKCV9kYXRhYmFzZSI2ChJBdXRvSG9tZUFyZWFJbnRlbnQS",
+            "FAoHZW5hYmxlZBgBIAEoCEgAiAEBQgoKCF9lbmFibGVkIroBCg1BY3F1aXJl",
+            "SW50ZW50EhYKCXNvdXJjZV9pZBgBIAEoCUgAiAEBEh4KEXJlc291cmNlX2Rl",
+            "Zl9uYW1lGAIgASgJSAGIAQESKQoEY2VsbBgDIAEoCzIbLnJpbWdvdmVybm9y",
+            "LmNvbW1vbi52MS5DZWxsEhUKCHdpdGhkcmF3GAQgASgISAKIAQFCDAoKX3Nv",
+            "dXJjZV9pZEIUChJfcmVzb3VyY2VfZGVmX25hbWVCCwoJX3dpdGhkcmF3IlEK",
+            "C0RyYWZ0SW50ZW50EhQKB3Bhd25faWQYASABKAlIAIgBARIUCgdkcmFmdGVk",
+            "GAIgASgISAGIAQFCCgoIX3Bhd25faWRCCgoIX2RyYWZ0ZWQivwEKD1Bhd25P",
+            "cmRlckludGVudBIUCgdwYXduX2lkGAEgASgJSACIAQESFgoJdGFyZ2V0X2lk",
+            "GAIgASgJSAGIAQESOwoEa2luZBgDIAEoDjIoLnJpbWdvdmVybm9yLm9wZXJh",
+            "dGlvbnMudjEuUGF3bk9yZGVyS2luZEgCiAEBEhMKBmJlZF9pZBgEIAEoCUgD",
+            "iAEBQgoKCF9wYXduX2lkQgwKCl90YXJnZXRfaWRCBwoFX2tpbmRCCQoHX2Jl",
+            "ZF9pZCJxChBOZWVkUmVsaWVmSW50ZW50EhQKB3Bhd25faWQYASABKAlIAIgB",
+            "ARIyCgRuZWVkGAIgASgOMh8ucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5O",
+            "ZWVkSAGIAQFCCgoIX3Bhd25faWRCBwoFX25lZWQieQoNVXNlSXRlbUludGVu",
+            "dBIUCgdwYXduX2lkGAEgASgJSACIAQESFAoHaXRlbV9pZBgCIAEoCUgBiAEB",
+            "EhYKCXRhcmdldF9pZBgDIAEoCUgCiAEBQgoKCF9wYXduX2lkQgoKCF9pdGVt",
+            "X2lkQgwKCl90YXJnZXRfaWQijgEKC0NvdmVySW50ZW50EhUKCHRoaW5nX2lk",
+            "GAEgASgJSACIAQESHAoPZGVzaWduYXRpb25fZGVmGAIgASgJSAGIAQESKQoE",
+            "Y2VsbBgDIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5DZWxsQgsKCV90",
+            "aGluZ19pZEISChBfZGVzaWduYXRpb25fZGVmIowBCg9EZXNpZ25hdGVJbnRl",
+            "bnQSFQoIdGhpbmdfaWQYASABKAlIAIgBARJFCgtkZXNpZ25hdGlvbhgCIAEo",
+            "DjIrLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuVGhpbmdEZXNpZ25hdGlv",
+            "bkgBiAEBQgsKCV90aGluZ19pZEIOCgxfZGVzaWduYXRpb24iOQoRRGVjb25z",
+            "dHJ1Y3RJbnRlbnQSFgoJdGFyZ2V0X2lkGAEgASgJSACIAQFCDAoKX3Rhcmdl",
+            "dF9pZCLUAQoOUmVsb2NhdGVJbnRlbnQSFQoIdGhpbmdfaWQYASABKAlIAIgB",
+            "ARIwCgtkZXN0aW5hdGlvbhgCIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52",
+            "MS5DZWxsEjkKCHJvdGF0aW9uGAMgASgOMiIucmltZ292ZXJub3IucGxhY2Vt",
+            "ZW50LnYxLlJvdGF0aW9uSAGIAQESFgoJdW5pbnN0YWxsGAQgASgISAKIAQFC",
+            "CwoJX3RoaW5nX2lkQgsKCV9yb3RhdGlvbkIMCgpfdW5pbnN0YWxsIsYCChNC",
+            "dWlsZGluZ1BhdGNoSW50ZW50EhUKCHRoaW5nX2lkGAEgASgJSAGIAQESHAoS",
+            "dGFyZ2V0X3RlbXBlcmF0dXJlGAIgASgCSAASEQoHbWVkaWNhbBgDIAEoCEgA",
+            "EjkKDWZvcl9wcmlzb25lcnMYBCABKAsyIC5yaW1nb3Zlcm5vci5vcGVyYXRp",
+            "b25zLnYxLkNsZWFySAASEwoJcGxhbnRfZGVmGAUgASgJSAASMQoFY2xhaW0Y",
+            "BiABKAsyIC5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkNsZWFySAASNgoK",
+            "Zm9yX3NsYXZlcxgHIAEoCzIgLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEu",
+            "Q2xlYXJIABIVCgthdXRvX3JlZnVlbBgIIAEoCEgAQggKBmNoYW5nZUILCglf",
+            "dGhpbmdfaWQinwEKDVJlY292ZXJJbnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgA",
+            "iAEBEhUKCHRoaW5nX2lkGAIgASgJSAGIAQESPQoGbWV0aG9kGAMgASgOMigu",
+            "cmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5TZXJ2aWNlTWV0aG9kSAKIAQFC",
+            "CgoIX3Bhd25faWRCCwoJX3RoaW5nX2lkQgkKB19tZXRob2QidwoLV2FzdGVJ",
+            "bnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgAiAEBEhUKCHRoaW5nX2lkGAIgASgJ",
+            "SAGIAQESFQoIdW53YW50ZWQYAyABKAhIAogBAUIKCghfcGF3bl9pZEILCglf",
+            "dGhpbmdfaWRCCwoJX3Vud2FudGVkInEKEFJlbW92ZVdhbGxJbnRlbnQSKQoE",
+            "Y2VsbBgBIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5DZWxsEh0KEGV4",
+            "cGVjdGVkX3dhbGxfaWQYAiABKAlIAIgBAUITChFfZXhwZWN0ZWRfd2FsbF9p",
+            "ZCKDAQoORXhjYXZhdGVJbnRlbnQSKQoEY2VsbBgBIAEoCzIbLnJpbWdvdmVy",
+            "bm9yLmNvbW1vbi52MS5DZWxsEicKGmV4cGVjdGVkX21pbmVhYmxlX2RlZl9u",
+            "YW1lGAIgASgJSACIAQFCHQobX2V4cGVjdGVkX21pbmVhYmxlX2RlZl9uYW1l",
+            "IvQBCg9IdXNiYW5kcnlJbnRlbnQSFgoJYW5pbWFsX2lkGAEgASgJSACIAQES",
+            "PQoFb3JkZXIYAiABKA4yKS5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkh1",
+            "c2JhbmRyeU9yZGVySAGIAQESGgoNdHJhaW5hYmxlX2RlZhgDIAEoCUgCiAEB",
+            "EhYKCXRhcmdldF9pZBgEIAEoCUgDiAEBEhMKBmZvbGxvdxgFIAEoCEgEiAEB",
+            "QgwKCl9hbmltYWxfaWRCCAoGX29yZGVyQhAKDl90cmFpbmFibGVfZGVmQgwK",
+            "Cl90YXJnZXRfaWRCCQoHX2ZvbGxvdyLbAQoUUHJvZHVjdGlvbkJpbGxJbnRl",
+            "bnQSFQoIYmVuY2hfaWQYASABKAlIAIgBARIXCgpyZWNpcGVfZGVmGAIgASgJ",
+            "SAGIAQESOQoIc2V0dGluZ3MYAyABKAsyJy5yaW1nb3Zlcm5vci5vcGVyYXRp",
+            "b25zLnYxLkJpbGxTZXR0aW5ncxIiChVyZXBsYWNlX293bmVkX2JpbGxfaWQY",
+            "BCABKAlIAogBAUILCglfYmVuY2hfaWRCDQoLX3JlY2lwZV9kZWZCGAoWX3Jl",
+            "cGxhY2Vfb3duZWRfYmlsbF9pZCLeAgoSV29ya1NldHRpbmdzSW50ZW50EhQK",
+            "B3Bhd25faWQYASABKAlIAIgBARI1CgR3b3JrGAIgAygLMicucmltZ292ZXJu",
+            "b3Iub3BlcmF0aW9ucy52MS5Xb3JrUHJpb3JpdHkSOwoMYWxsb3dlZF9hcmVh",
+            "GAMgASgLMiUucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5Bc3NpZ25tZW50",
+            "EjUKCHNjaGVkdWxlGAQgASgLMiMucmltZ292ZXJub3Iub3BlcmF0aW9ucy52",
+            "MS5TY2hlZHVsZRI9Cgpmb29kX2FsbG93GAYgASgLMikucmltZ292ZXJub3Iu",
+            "b3BlcmF0aW9ucy52MS5EZWZpbml0aW9uTGlzdBIYCgtkcnVnX3BvbGljeRgH",
+            "IAEoCUgBiAEBQgoKCF9wYXduX2lkQg4KDF9kcnVnX3BvbGljeUoECAUQBlIM",
+            "bWVkaWNhbF9jYXJlIrUBCg9CZWRBc3NpZ25JbnRlbnQSFAoHcGF3bl9pZBgB",
             "IAEoCUgAiAEBEhMKBmJlZF9pZBgCIAEoCUgBiAEBEkQKFWV4cGVjdGVkX3By",
             "ZXZpb3VzX2JlZBgDIAEoCzIlLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEu",
             "QXNzaWdubWVudBIRCgRzd2FwGAQgASgISAKIAQFCCgoIX3Bhd25faWRCCQoH",
@@ -497,7 +497,7 @@ namespace RimGovernor.Protocol.Operations {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ZonePreviewReply), global::RimGovernor.Protocol.Operations.ZonePreviewReply.Parser, new[]{ "Evaluated", "Failure" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ApplyRequest), global::RimGovernor.Protocol.Operations.ApplyRequest.Parser, new[]{ "Identity", "Actions", "DeferSnapshot" }, new[]{ "DeferSnapshot" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.Action), global::RimGovernor.Protocol.Operations.Action.Parser, new[]{ "Key", "Purpose", "Trade", "Building", "Move", "Haul", "ApparelPolicy", "Research", "Naming", "Dialog", "Prisoner", "AcceptQuest", "FormCaravan", "BedAssign", "WorkSettings", "ProductionBill", "Husbandry", "CreateZone", "DeleteZone", "ZoneCells", "Stockpile", "RemoveFoundation", "Cover", "Designate", "Deconstruct", "Excavate", "Waste", "Recover", "Relocate", "BuildingPatch", "RemoveWall", "PawnOrder", "NeedRelief", "UseItem", "Draft", "CombatOrders", "Acquire", "Surgery", "Area", "AutoHomeArea", "PawnSettings", "PolicyPrune" }, new[]{ "Intent", "Key", "Purpose" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PawnSettingsIntent), global::RimGovernor.Protocol.Operations.PawnSettingsIntent.Parser, new[]{ "PawnId", "HostilityResponse", "SelfTend", "ReadingPolicy", "MedicineCarry", "Nickname" }, new[]{ "Setting", "PawnId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PawnSettingsIntent), global::RimGovernor.Protocol.Operations.PawnSettingsIntent.Parser, new[]{ "PawnId", "HostilityResponse", "SelfTend", "ReadingPolicy", "MedicineCarry", "Nickname", "MedicalCare" }, new[]{ "Setting", "PawnId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.SurgeryIntent), global::RimGovernor.Protocol.Operations.SurgeryIntent.Parser, new[]{ "PawnId", "RecipeDef", "PartIndex", "AcknowledgeViolation", "SurgeonId" }, new[]{ "PawnId", "RecipeDef", "PartIndex", "AcknowledgeViolation", "SurgeonId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.AreaIntent), global::RimGovernor.Protocol.Operations.AreaIntent.Parser, new[]{ "Operation", "Key", "Home", "Cells" }, new[]{ "Operation", "Key", "Home" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PolicyPruneIntent), global::RimGovernor.Protocol.Operations.PolicyPruneIntent.Parser, new[]{ "Database", "DeleteIds" }, new[]{ "Database" }, null, null, null),
@@ -518,7 +518,7 @@ namespace RimGovernor.Protocol.Operations {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ExcavateIntent), global::RimGovernor.Protocol.Operations.ExcavateIntent.Parser, new[]{ "Cell", "ExpectedMineableDefName" }, new[]{ "ExpectedMineableDefName" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.HusbandryIntent), global::RimGovernor.Protocol.Operations.HusbandryIntent.Parser, new[]{ "AnimalId", "Order", "TrainableDef", "TargetId", "Follow" }, new[]{ "AnimalId", "Order", "TrainableDef", "TargetId", "Follow" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ProductionBillIntent), global::RimGovernor.Protocol.Operations.ProductionBillIntent.Parser, new[]{ "BenchId", "RecipeDef", "Settings", "ReplaceOwnedBillId" }, new[]{ "BenchId", "RecipeDef", "ReplaceOwnedBillId" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.WorkSettingsIntent), global::RimGovernor.Protocol.Operations.WorkSettingsIntent.Parser, new[]{ "PawnId", "Work", "AllowedArea", "Schedule", "MedicalCare", "FoodAllow", "DrugPolicy" }, new[]{ "PawnId", "MedicalCare", "DrugPolicy" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.WorkSettingsIntent), global::RimGovernor.Protocol.Operations.WorkSettingsIntent.Parser, new[]{ "PawnId", "Work", "AllowedArea", "Schedule", "FoodAllow", "DrugPolicy" }, new[]{ "PawnId", "DrugPolicy" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.BedAssignIntent), global::RimGovernor.Protocol.Operations.BedAssignIntent.Parser, new[]{ "PawnId", "BedId", "ExpectedPreviousBed", "Swap" }, new[]{ "PawnId", "BedId", "Swap" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PrisonerInteractionIntent), global::RimGovernor.Protocol.Operations.PrisonerInteractionIntent.Parser, new[]{ "PawnId", "Interaction" }, new[]{ "PawnId", "Interaction" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.DialogIntent), global::RimGovernor.Protocol.Operations.DialogIntent.Parser, new[]{ "WindowId", "OptionIndex", "OptionLabel", "JoinerLetterToken" }, new[]{ "WindowId", "OptionIndex", "OptionLabel", "JoinerLetterToken" }, null, null, null),
@@ -15327,7 +15327,10 @@ namespace RimGovernor.Protocol.Operations {
   /// (#1307) is the pawn's Medicine inventory-stock count (0-3); native stocks
   /// the best medicine the pawn's own medical care allows and refuses a
   /// positive count when it allows none. reading_policy is reserved for its
-  /// epic issue and refused natively until it lands.
+  /// epic issue and refused natively until it lands. medical_care (#1301) is
+  /// the pawn's MedicalCareCategory, any of the five tiers, on a living
+  /// colonist, slave, prisoner, guest or tame animal of the colony that has
+  /// medical care settings.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class PawnSettingsIntent : pb::IMessage<PawnSettingsIntent>
@@ -15380,6 +15383,9 @@ namespace RimGovernor.Protocol.Operations {
           break;
         case SettingOneofCase.Nickname:
           Nickname = other.Nickname;
+          break;
+        case SettingOneofCase.MedicalCare:
+          MedicalCare = other.MedicalCare;
           break;
       }
 
@@ -15548,6 +15554,32 @@ namespace RimGovernor.Protocol.Operations {
       }
     }
 
+    /// <summary>Field number for the "medical_care" field.</summary>
+    public const int MedicalCareFieldNumber = 7;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Operations.MedicalCare MedicalCare {
+      get { return HasMedicalCare ? (global::RimGovernor.Protocol.Operations.MedicalCare) setting_ : global::RimGovernor.Protocol.Operations.MedicalCare.Unspecified; }
+      set {
+        setting_ = value;
+        settingCase_ = SettingOneofCase.MedicalCare;
+      }
+    }
+    /// <summary>Gets whether the "medical_care" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMedicalCare {
+      get { return settingCase_ == SettingOneofCase.MedicalCare; }
+    }
+    /// <summary> Clears the value of the oneof if it's currently set to "medical_care" </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMedicalCare() {
+      if (HasMedicalCare) {
+        ClearSetting();
+      }
+    }
+
     private object setting_;
     /// <summary>Enum of possible cases for the "setting" oneof.</summary>
     public enum SettingOneofCase {
@@ -15557,6 +15589,7 @@ namespace RimGovernor.Protocol.Operations {
       ReadingPolicy = 4,
       MedicineCarry = 5,
       Nickname = 6,
+      MedicalCare = 7,
     }
     private SettingOneofCase settingCase_ = SettingOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -15593,6 +15626,7 @@ namespace RimGovernor.Protocol.Operations {
       if (ReadingPolicy != other.ReadingPolicy) return false;
       if (MedicineCarry != other.MedicineCarry) return false;
       if (Nickname != other.Nickname) return false;
+      if (MedicalCare != other.MedicalCare) return false;
       if (SettingCase != other.SettingCase) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -15607,6 +15641,7 @@ namespace RimGovernor.Protocol.Operations {
       if (HasReadingPolicy) hash ^= ReadingPolicy.GetHashCode();
       if (HasMedicineCarry) hash ^= MedicineCarry.GetHashCode();
       if (HasNickname) hash ^= Nickname.GetHashCode();
+      if (HasMedicalCare) hash ^= MedicalCare.GetHashCode();
       hash ^= (int) settingCase_;
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -15650,6 +15685,10 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(50);
         output.WriteString(Nickname);
       }
+      if (HasMedicalCare) {
+        output.WriteRawTag(56);
+        output.WriteEnum((int) MedicalCare);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -15684,6 +15723,10 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(50);
         output.WriteString(Nickname);
       }
+      if (HasMedicalCare) {
+        output.WriteRawTag(56);
+        output.WriteEnum((int) MedicalCare);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -15711,6 +15754,9 @@ namespace RimGovernor.Protocol.Operations {
       }
       if (HasNickname) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Nickname);
+      }
+      if (HasMedicalCare) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) MedicalCare);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -15742,6 +15788,9 @@ namespace RimGovernor.Protocol.Operations {
           break;
         case SettingOneofCase.Nickname:
           Nickname = other.Nickname;
+          break;
+        case SettingOneofCase.MedicalCare:
+          MedicalCare = other.MedicalCare;
           break;
       }
 
@@ -15788,6 +15837,11 @@ namespace RimGovernor.Protocol.Operations {
             Nickname = input.ReadString();
             break;
           }
+          case 56: {
+            setting_ = input.ReadEnum();
+            settingCase_ = SettingOneofCase.MedicalCare;
+            break;
+          }
         }
       }
     #endif
@@ -15829,6 +15883,11 @@ namespace RimGovernor.Protocol.Operations {
           }
           case 50: {
             Nickname = input.ReadString();
+            break;
+          }
+          case 56: {
+            setting_ = input.ReadEnum();
+            settingCase_ = SettingOneofCase.MedicalCare;
             break;
           }
         }
@@ -22470,7 +22529,6 @@ namespace RimGovernor.Protocol.Operations {
   {
     private static readonly pb::MessageParser<WorkSettingsIntent> _parser = new pb::MessageParser<WorkSettingsIntent>(() => new WorkSettingsIntent());
     private pb::UnknownFieldSet _unknownFields;
-    private int _hasBits0;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pb::MessageParser<WorkSettingsIntent> Parser { get { return _parser; } }
@@ -22498,12 +22556,10 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public WorkSettingsIntent(WorkSettingsIntent other) : this() {
-      _hasBits0 = other._hasBits0;
       pawnId_ = other.pawnId_;
       work_ = other.work_.Clone();
       allowedArea_ = other.allowedArea_ != null ? other.allowedArea_.Clone() : null;
       schedule_ = other.schedule_ != null ? other.schedule_.Clone() : null;
-      medicalCare_ = other.medicalCare_;
       foodAllow_ = other.foodAllow_ != null ? other.foodAllow_.Clone() : null;
       drugPolicy_ = other.drugPolicy_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
@@ -22576,33 +22632,6 @@ namespace RimGovernor.Protocol.Operations {
       }
     }
 
-    /// <summary>Field number for the "medical_care" field.</summary>
-    public const int MedicalCareFieldNumber = 5;
-    private readonly static global::RimGovernor.Protocol.Operations.MedicalCare MedicalCareDefaultValue = global::RimGovernor.Protocol.Operations.MedicalCare.Unspecified;
-
-    private global::RimGovernor.Protocol.Operations.MedicalCare medicalCare_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Operations.MedicalCare MedicalCare {
-      get { if ((_hasBits0 & 1) != 0) { return medicalCare_; } else { return MedicalCareDefaultValue; } }
-      set {
-        _hasBits0 |= 1;
-        medicalCare_ = value;
-      }
-    }
-    /// <summary>Gets whether the "medical_care" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasMedicalCare {
-      get { return (_hasBits0 & 1) != 0; }
-    }
-    /// <summary>Clears the value of the "medical_care" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearMedicalCare() {
-      _hasBits0 &= ~1;
-    }
-
     /// <summary>Field number for the "food_allow" field.</summary>
     public const int FoodAllowFieldNumber = 6;
     private global::RimGovernor.Protocol.Operations.DefinitionList foodAllow_;
@@ -22660,7 +22689,6 @@ namespace RimGovernor.Protocol.Operations {
       if(!work_.Equals(other.work_)) return false;
       if (!object.Equals(AllowedArea, other.AllowedArea)) return false;
       if (!object.Equals(Schedule, other.Schedule)) return false;
-      if (MedicalCare != other.MedicalCare) return false;
       if (!object.Equals(FoodAllow, other.FoodAllow)) return false;
       if (DrugPolicy != other.DrugPolicy) return false;
       return Equals(_unknownFields, other._unknownFields);
@@ -22674,7 +22702,6 @@ namespace RimGovernor.Protocol.Operations {
       hash ^= work_.GetHashCode();
       if (allowedArea_ != null) hash ^= AllowedArea.GetHashCode();
       if (schedule_ != null) hash ^= Schedule.GetHashCode();
-      if (HasMedicalCare) hash ^= MedicalCare.GetHashCode();
       if (foodAllow_ != null) hash ^= FoodAllow.GetHashCode();
       if (HasDrugPolicy) hash ^= DrugPolicy.GetHashCode();
       if (_unknownFields != null) {
@@ -22708,10 +22735,6 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(34);
         output.WriteMessage(Schedule);
       }
-      if (HasMedicalCare) {
-        output.WriteRawTag(40);
-        output.WriteEnum((int) MedicalCare);
-      }
       if (foodAllow_ != null) {
         output.WriteRawTag(50);
         output.WriteMessage(FoodAllow);
@@ -22743,10 +22766,6 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(34);
         output.WriteMessage(Schedule);
       }
-      if (HasMedicalCare) {
-        output.WriteRawTag(40);
-        output.WriteEnum((int) MedicalCare);
-      }
       if (foodAllow_ != null) {
         output.WriteRawTag(50);
         output.WriteMessage(FoodAllow);
@@ -22774,9 +22793,6 @@ namespace RimGovernor.Protocol.Operations {
       }
       if (schedule_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Schedule);
-      }
-      if (HasMedicalCare) {
-        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) MedicalCare);
       }
       if (foodAllow_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(FoodAllow);
@@ -22811,9 +22827,6 @@ namespace RimGovernor.Protocol.Operations {
           Schedule = new global::RimGovernor.Protocol.Operations.Schedule();
         }
         Schedule.MergeFrom(other.Schedule);
-      }
-      if (other.HasMedicalCare) {
-        MedicalCare = other.MedicalCare;
       }
       if (other.foodAllow_ != null) {
         if (foodAllow_ == null) {
@@ -22863,10 +22876,6 @@ namespace RimGovernor.Protocol.Operations {
               Schedule = new global::RimGovernor.Protocol.Operations.Schedule();
             }
             input.ReadMessage(Schedule);
-            break;
-          }
-          case 40: {
-            MedicalCare = (global::RimGovernor.Protocol.Operations.MedicalCare) input.ReadEnum();
             break;
           }
           case 50: {
@@ -22919,10 +22928,6 @@ namespace RimGovernor.Protocol.Operations {
               Schedule = new global::RimGovernor.Protocol.Operations.Schedule();
             }
             input.ReadMessage(Schedule);
-            break;
-          }
-          case 40: {
-            MedicalCare = (global::RimGovernor.Protocol.Operations.MedicalCare) input.ReadEnum();
             break;
           }
           case 50: {

@@ -118,6 +118,12 @@ type PrisonerFacts struct {
 	// Withdrawal: the prisoner carries a drug addiction it cannot feed, so
 	// it is in or near withdrawal (#1236 peg-leg control).
 	Withdrawal domain.Fact[bool]
+	// Care cap inputs (#1301): conditions and life threat, the queued
+	// bills' recipes and an Execution interaction.
+	Conditions      domain.Fact[[]CareCondition]
+	LifeThreatening domain.Fact[bool]
+	QueuedRecipes   []string
+	Executing       bool
 }
 
 // PrisonerPlanReason names why RoutinePrisonerInteractionPlanner did or did

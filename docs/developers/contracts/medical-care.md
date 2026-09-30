@@ -132,19 +132,24 @@ A pending step holds MaintainSurgery open.
 
 ## Medicine selection
 
-The medical routine chooses an autonomous care ceiling from usable stock and
-fresh disease facts. Early flu uses herbal medicine. A projected loss or tie in
-the immunity race, native life-threatening illness, plague, or malaria at severity
-0.5 or above prefers industrial medicine. Herbal is the fallback when industrial
-is unavailable; industrial is the fallback when no herbal remains. With neither,
-tending continues without medicine. Glitterworld is never selected automatically.
-Unknown clinical or stock facts defer a change.
+The work-assignment routine caps each pawn's medical care (#1301) by class and
+medicine stock. A colonist's standing cap is NormalOrWorse while industrial
+medicine stock meets the configured per-colonist target, HerbalOrWorse otherwise;
+it is never Best as a standing cap. Prisoners being recruited, having resistance
+reduced, converted or enslaved get NormalOrWorse; maintain-only, release,
+execution and organ-harvest targets get HerbalOrWorse. Hosted guests get
+NormalOrWorse. Animals get HerbalOrWorse, or NormalOrWorse when bonded or trained
+in Release.
 
-Auto reassesses the current care setting, including settings changed during Manual.
-Care writes send `WorkSettingsIntent.medical_care` on Actions/Apply through Hands;
-native checks the pawn when it applies and a ceiling already set applies again. A
-refused write is replanned from fresh facts on the next review. Care-only writes also
-permit downed patients, without enabling work or timetable writes to them.
+A serious condition raises the cap one tier, so a colonist may reach Best: a
+native life threat, Plague, an unimmune WoundInfection, Malaria at severity 0.5
+or above, or any immunizable disease losing its immunity race. Harvest and
+execution targets are never raised. Unknown facts defer a change.
+
+Care writes send `PawnSettingsIntent.medical_care` (all five tiers) on
+Actions/Apply; native checks a living pawn of, or hosted by, the colony when it
+applies, and a cap already set applies again. A refused write is replanned from
+fresh facts on the next review.
 
 While the medicine reserve is low, it contributes the configured herbal target per colonist to
 `MaintainResource`; explicit higher resource floors remain authoritative. The
@@ -156,7 +161,7 @@ When a disease's projected immunity lead over lethal severity is less than a
 day, the medical routine enables PatientBedRest and retains rest until the
 tracked condition reaches full immunity or leaves a complete census. Native tending, bed selection,
 severity progression and immunity gain remain ordinary RimWorld simulation;
-medicine selection follows the tier rules above. Missing patients or health
+the care cap follows the rules above. Missing patients or health
 observations cannot establish recovery, and death is a failure.
 
 The Plague tier decision (two Plague patients, industrial medicine in stock:

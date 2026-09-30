@@ -36,22 +36,23 @@ func TestSnapshotComfortBuildsDiningTable(t *testing.T) {
 }
 
 // medical/disease: two Plague patients with industrial medicine in stock.
-// The medical family raises both, and only them, to NormalOrWorse care.
-func TestSnapshotDiseaseSelectsIndustrialCare(t *testing.T) {
+// The care cap (#1301) holds both one tier above the colonists' standing
+// cap while the plague lasts.
+func TestSnapshotDiseaseRaisesCareCap(t *testing.T) {
 	t.Parallel()
 	r := loadRecorded(t, "disease-plague-patients")
-	work := medicineTierAssignments(r.Facts)
-	if len(work) != 2 {
-		t.Fatalf("medicine tier assignments %+v: want the two Plague patients", work)
+	colonists, _ := r.Facts.MedicalPawns.Value()
+	base, ok := policy.ColonistCareBase(r.Facts.Resources, int64(len(colonists)), policy.DefaultMedicalReservePolicy())
+	if !ok {
+		t.Fatal("standing cap unknown")
 	}
-	seen := map[string]bool{}
-	for _, w := range work {
-		if w.MedicalCare() != string(policy.MedicineIndustrialTier) {
-			t.Errorf("%s assigned %s, want %s", w.Pawn(), w.MedicalCare(), policy.MedicineIndustrialTier)
+	raised := 0
+	for _, s := range policy.MedicalCareChanges(r.Facts, policy.DefaultMedicalReservePolicy()) {
+		if s.MedicalCare() == base.Raised() {
+			raised++
 		}
-		seen[string(w.Pawn())] = true
 	}
-	if len(seen) != 2 {
-		t.Fatalf("assignments repeat a patient: %+v", work)
+	if raised != 2 {
+		t.Fatalf("raised %d colonists to %s, want the two Plague patients: %+v", raised, base.Raised(), policy.MedicalCareChanges(r.Facts, policy.DefaultMedicalReservePolicy()))
 	}
 }

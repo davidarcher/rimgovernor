@@ -378,6 +378,10 @@ message AnimalState {
   // or venerates this race, RaceProps.manhunterOnTameFailChance, and adult age stage.
   optional double life_expectancy_years = 27; optional bool sick = 28; optional bool slaughter_barred = 29;
   optional bool venerated = 30; optional double manhunter_on_tame_fail = 31; optional bool adult = 32;
+  // Medical care cap inputs (#1301), for a player animal: its
+  // MedicalCareCategory name, a Bond relation to any living pawn, and the
+  // same conditions block PopulationPerson.conditions carries.
+  optional string medical_care = 33; optional bool bonded = 34; PawnHealth conditions = 35;
 }
 message PawnState {
   EntityRef pawn = 1; optional string kind_def_name = 2; optional string faction_id = 3;
@@ -818,12 +822,17 @@ message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optio
   // report (-70) would make with it after CalculateAdjustedGoodwillChange and
   // the -100 floor; 0 when the faction's goodwill cannot change or none.
   PawnHealth surgery = 17; optional string faction_id = 18; optional int32 harvest_goodwill_change = 19;
-  // The prisoner's MedicalCareCategory name (#1239), for a colony prisoner.
+  // The MedicalCareCategory name (#1239), for a colony prisoner or a guest
+  // of the colony (#1301).
   optional string medical_care = 20;
   // Peg-leg control (#1236), for a prisoner of the colony only: it carries a
   // drug addiction (Hediff_Addiction). A prisoner gets no drugs, so an
   // addiction is withdrawal now or soon, until the addiction clears.
-  optional bool withdrawal = 21; }
+  optional bool withdrawal = 21;
+  // Medical care cap inputs (#1301), for a colony prisoner or guest: life
+  // threat, every hediff (definition, severity, immunity and their rates)
+  // and the completeness; other PawnHealth fields absent.
+  PawnHealth conditions = 22; }
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; reserved 4;
   // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
   // primary ideoligion load id and the defName of its Slavery-issue precept

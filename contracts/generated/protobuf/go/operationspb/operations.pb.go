@@ -4571,7 +4571,10 @@ func (*Action_PolicyPrune) isAction_Intent() {}
 // (#1307) is the pawn's Medicine inventory-stock count (0-3); native stocks
 // the best medicine the pawn's own medical care allows and refuses a
 // positive count when it allows none. reading_policy is reserved for its
-// epic issue and refused natively until it lands.
+// epic issue and refused natively until it lands. medical_care (#1301) is
+// the pawn's MedicalCareCategory, any of the five tiers, on a living
+// colonist, slave, prisoner, guest or tame animal of the colony that has
+// medical care settings.
 type PawnSettingsIntent struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	PawnId *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
@@ -4582,6 +4585,7 @@ type PawnSettingsIntent struct {
 	//	*PawnSettingsIntent_ReadingPolicy
 	//	*PawnSettingsIntent_MedicineCarry
 	//	*PawnSettingsIntent_Nickname
+	//	*PawnSettingsIntent_MedicalCare
 	Setting       isPawnSettingsIntent_Setting `protobuf_oneof:"setting"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4676,6 +4680,15 @@ func (x *PawnSettingsIntent) GetNickname() string {
 	return ""
 }
 
+func (x *PawnSettingsIntent) GetMedicalCare() MedicalCare {
+	if x != nil {
+		if x, ok := x.Setting.(*PawnSettingsIntent_MedicalCare); ok {
+			return x.MedicalCare
+		}
+	}
+	return MedicalCare_MEDICAL_CARE_UNSPECIFIED
+}
+
 type isPawnSettingsIntent_Setting interface {
 	isPawnSettingsIntent_Setting()
 }
@@ -4700,6 +4713,10 @@ type PawnSettingsIntent_Nickname struct {
 	Nickname string `protobuf:"bytes,6,opt,name=nickname,proto3,oneof"`
 }
 
+type PawnSettingsIntent_MedicalCare struct {
+	MedicalCare MedicalCare `protobuf:"varint,7,opt,name=medical_care,json=medicalCare,proto3,enum=rimgovernor.operations.v1.MedicalCare,oneof"`
+}
+
 func (*PawnSettingsIntent_HostilityResponse) isPawnSettingsIntent_Setting() {}
 
 func (*PawnSettingsIntent_SelfTend) isPawnSettingsIntent_Setting() {}
@@ -4709,6 +4726,8 @@ func (*PawnSettingsIntent_ReadingPolicy) isPawnSettingsIntent_Setting() {}
 func (*PawnSettingsIntent_MedicineCarry) isPawnSettingsIntent_Setting() {}
 
 func (*PawnSettingsIntent_Nickname) isPawnSettingsIntent_Setting() {}
+
+func (*PawnSettingsIntent_MedicalCare) isPawnSettingsIntent_Setting() {}
 
 // Queue one medical operation bill on one patient (#1162): the recipe on the
 // body part at part_index in the race body's AllParts (absent for a
@@ -6120,7 +6139,6 @@ type WorkSettingsIntent struct {
 	Work          []*WorkPriority        `protobuf:"bytes,2,rep,name=work,proto3" json:"work,omitempty"`
 	AllowedArea   *Assignment            `protobuf:"bytes,3,opt,name=allowed_area,json=allowedArea,proto3" json:"allowed_area,omitempty"`
 	Schedule      *Schedule              `protobuf:"bytes,4,opt,name=schedule,proto3" json:"schedule,omitempty"`
-	MedicalCare   *MedicalCare           `protobuf:"varint,5,opt,name=medical_care,json=medicalCare,proto3,enum=rimgovernor.operations.v1.MedicalCare,oneof" json:"medical_care,omitempty"`
 	FoodAllow     *DefinitionList        `protobuf:"bytes,6,opt,name=food_allow,json=foodAllow,proto3" json:"food_allow,omitempty"`
 	DrugPolicy    *string                `protobuf:"bytes,7,opt,name=drug_policy,json=drugPolicy,proto3,oneof" json:"drug_policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -6183,13 +6201,6 @@ func (x *WorkSettingsIntent) GetSchedule() *Schedule {
 		return x.Schedule
 	}
 	return nil
-}
-
-func (x *WorkSettingsIntent) GetMedicalCare() MedicalCare {
-	if x != nil && x.MedicalCare != nil {
-		return *x.MedicalCare
-	}
-	return MedicalCare_MEDICAL_CARE_UNSPECIFIED
 }
 
 func (x *WorkSettingsIntent) GetFoodAllow() *DefinitionList {
@@ -7540,14 +7551,15 @@ const file_operations_proto_rawDesc = "" +
 	"\x06intentB\x06\n" +
 	"\x04_keyB\n" +
 	"\n" +
-	"\b_purposeJ\x04\b\x0e\x10\x0fJ\x04\b\x1f\x10 R\x05meleeR\x04home\"\x89\x02\n" +
+	"\b_purposeJ\x04\b\x0e\x10\x0fJ\x04\b\x1f\x10 R\x05meleeR\x04home\"\xd6\x02\n" +
 	"\x12PawnSettingsIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x01R\x06pawnId\x88\x01\x01\x12/\n" +
 	"\x12hostility_response\x18\x02 \x01(\tH\x00R\x11hostilityResponse\x12\x1d\n" +
 	"\tself_tend\x18\x03 \x01(\bH\x00R\bselfTend\x12'\n" +
 	"\x0ereading_policy\x18\x04 \x01(\tH\x00R\rreadingPolicy\x12'\n" +
 	"\x0emedicine_carry\x18\x05 \x01(\x05H\x00R\rmedicineCarry\x12\x1c\n" +
-	"\bnickname\x18\x06 \x01(\tH\x00R\bnicknameB\t\n" +
+	"\bnickname\x18\x06 \x01(\tH\x00R\bnickname\x12K\n" +
+	"\fmedical_care\x18\a \x01(\x0e2&.rimgovernor.operations.v1.MedicalCareH\x00R\vmedicalCareB\t\n" +
 	"\asettingB\n" +
 	"\n" +
 	"\b_pawn_id\"\xa6\x02\n" +
@@ -7710,21 +7722,19 @@ const file_operations_proto_rawDesc = "" +
 	"\x15replace_owned_bill_id\x18\x04 \x01(\tH\x02R\x12replaceOwnedBillId\x88\x01\x01B\v\n" +
 	"\t_bench_idB\r\n" +
 	"\v_recipe_defB\x18\n" +
-	"\x16_replace_owned_bill_id\"\xe7\x03\n" +
+	"\x16_replace_owned_bill_id\"\x9a\x03\n" +
 	"\x12WorkSettingsIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12;\n" +
 	"\x04work\x18\x02 \x03(\v2'.rimgovernor.operations.v1.WorkPriorityR\x04work\x12H\n" +
 	"\fallowed_area\x18\x03 \x01(\v2%.rimgovernor.operations.v1.AssignmentR\vallowedArea\x12?\n" +
-	"\bschedule\x18\x04 \x01(\v2#.rimgovernor.operations.v1.ScheduleR\bschedule\x12N\n" +
-	"\fmedical_care\x18\x05 \x01(\x0e2&.rimgovernor.operations.v1.MedicalCareH\x01R\vmedicalCare\x88\x01\x01\x12H\n" +
+	"\bschedule\x18\x04 \x01(\v2#.rimgovernor.operations.v1.ScheduleR\bschedule\x12H\n" +
 	"\n" +
 	"food_allow\x18\x06 \x01(\v2).rimgovernor.operations.v1.DefinitionListR\tfoodAllow\x12$\n" +
-	"\vdrug_policy\x18\a \x01(\tH\x02R\n" +
+	"\vdrug_policy\x18\a \x01(\tH\x01R\n" +
 	"drugPolicy\x88\x01\x01B\n" +
 	"\n" +
-	"\b_pawn_idB\x0f\n" +
-	"\r_medical_careB\x0e\n" +
-	"\f_drug_policy\"\xdf\x01\n" +
+	"\b_pawn_idB\x0e\n" +
+	"\f_drug_policyJ\x04\b\x05\x10\x06R\fmedical_care\"\xdf\x01\n" +
 	"\x0fBedAssignIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1a\n" +
 	"\x06bed_id\x18\x02 \x01(\tH\x01R\x05bedId\x88\x01\x01\x12Y\n" +
@@ -8189,28 +8199,28 @@ var file_operations_proto_depIdxs = []int32{
 	63,  // 99: rimgovernor.operations.v1.Action.auto_home_area:type_name -> rimgovernor.operations.v1.AutoHomeAreaIntent
 	59,  // 100: rimgovernor.operations.v1.Action.pawn_settings:type_name -> rimgovernor.operations.v1.PawnSettingsIntent
 	62,  // 101: rimgovernor.operations.v1.Action.policy_prune:type_name -> rimgovernor.operations.v1.PolicyPruneIntent
-	16,  // 102: rimgovernor.operations.v1.AreaIntent.operation:type_name -> rimgovernor.operations.v1.AreaOperation
-	96,  // 103: rimgovernor.operations.v1.AreaIntent.cells:type_name -> rimgovernor.common.v1.Cell
-	17,  // 104: rimgovernor.operations.v1.PolicyPruneIntent.database:type_name -> rimgovernor.operations.v1.PolicyDatabase
-	96,  // 105: rimgovernor.operations.v1.AcquireIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	14,  // 106: rimgovernor.operations.v1.PawnOrderIntent.kind:type_name -> rimgovernor.operations.v1.PawnOrderKind
-	12,  // 107: rimgovernor.operations.v1.NeedReliefIntent.need:type_name -> rimgovernor.operations.v1.Need
-	96,  // 108: rimgovernor.operations.v1.CoverIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	2,   // 109: rimgovernor.operations.v1.DesignateIntent.designation:type_name -> rimgovernor.operations.v1.ThingDesignation
-	96,  // 110: rimgovernor.operations.v1.RelocateIntent.destination:type_name -> rimgovernor.common.v1.Cell
-	101, // 111: rimgovernor.operations.v1.RelocateIntent.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	20,  // 112: rimgovernor.operations.v1.BuildingPatchIntent.for_prisoners:type_name -> rimgovernor.operations.v1.Clear
-	20,  // 113: rimgovernor.operations.v1.BuildingPatchIntent.claim:type_name -> rimgovernor.operations.v1.Clear
-	20,  // 114: rimgovernor.operations.v1.BuildingPatchIntent.for_slaves:type_name -> rimgovernor.operations.v1.Clear
-	11,  // 115: rimgovernor.operations.v1.RecoverIntent.method:type_name -> rimgovernor.operations.v1.ServiceMethod
-	96,  // 116: rimgovernor.operations.v1.RemoveWallIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	96,  // 117: rimgovernor.operations.v1.ExcavateIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	18,  // 118: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
-	39,  // 119: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
-	33,  // 120: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
-	21,  // 121: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
-	34,  // 122: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
-	4,   // 123: rimgovernor.operations.v1.WorkSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	4,   // 102: rimgovernor.operations.v1.PawnSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	16,  // 103: rimgovernor.operations.v1.AreaIntent.operation:type_name -> rimgovernor.operations.v1.AreaOperation
+	96,  // 104: rimgovernor.operations.v1.AreaIntent.cells:type_name -> rimgovernor.common.v1.Cell
+	17,  // 105: rimgovernor.operations.v1.PolicyPruneIntent.database:type_name -> rimgovernor.operations.v1.PolicyDatabase
+	96,  // 106: rimgovernor.operations.v1.AcquireIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	14,  // 107: rimgovernor.operations.v1.PawnOrderIntent.kind:type_name -> rimgovernor.operations.v1.PawnOrderKind
+	12,  // 108: rimgovernor.operations.v1.NeedReliefIntent.need:type_name -> rimgovernor.operations.v1.Need
+	96,  // 109: rimgovernor.operations.v1.CoverIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	2,   // 110: rimgovernor.operations.v1.DesignateIntent.designation:type_name -> rimgovernor.operations.v1.ThingDesignation
+	96,  // 111: rimgovernor.operations.v1.RelocateIntent.destination:type_name -> rimgovernor.common.v1.Cell
+	101, // 112: rimgovernor.operations.v1.RelocateIntent.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	20,  // 113: rimgovernor.operations.v1.BuildingPatchIntent.for_prisoners:type_name -> rimgovernor.operations.v1.Clear
+	20,  // 114: rimgovernor.operations.v1.BuildingPatchIntent.claim:type_name -> rimgovernor.operations.v1.Clear
+	20,  // 115: rimgovernor.operations.v1.BuildingPatchIntent.for_slaves:type_name -> rimgovernor.operations.v1.Clear
+	11,  // 116: rimgovernor.operations.v1.RecoverIntent.method:type_name -> rimgovernor.operations.v1.ServiceMethod
+	96,  // 117: rimgovernor.operations.v1.RemoveWallIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	96,  // 118: rimgovernor.operations.v1.ExcavateIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	18,  // 119: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
+	39,  // 120: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
+	33,  // 121: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
+	21,  // 122: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
+	34,  // 123: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
 	40,  // 124: rimgovernor.operations.v1.WorkSettingsIntent.food_allow:type_name -> rimgovernor.operations.v1.DefinitionList
 	21,  // 125: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
 	13,  // 126: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
@@ -8355,6 +8365,7 @@ func file_operations_proto_init() {
 		(*PawnSettingsIntent_ReadingPolicy)(nil),
 		(*PawnSettingsIntent_MedicineCarry)(nil),
 		(*PawnSettingsIntent_Nickname)(nil),
+		(*PawnSettingsIntent_MedicalCare)(nil),
 	}
 	file_operations_proto_msgTypes[41].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[42].OneofWrappers = []any{}

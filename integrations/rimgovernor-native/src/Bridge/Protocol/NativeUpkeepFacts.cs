@@ -465,6 +465,10 @@ namespace HomeBridge.BridgeTools
                         SafeToSlaughter = NativeHusbandryOperations.Eligible(p) && NativeHusbandryOperations.SafeToSlaughter(p)
                     };
                     NativeHusbandryOperations.HerdFacts(p, state);
+                    // Medical care cap inputs (#1301).
+                    if (p.playerSettings != null) state.MedicalCare = p.playerSettings.medCare.ToString();
+                    state.Bonded = p.relations?.DirectRelations.Any(r => r.def == PawnRelationDefOf.Bond && r.otherPawn != null && !r.otherPawn.Dead) == true;
+                    state.Conditions = NativePawnDetails.Conditions(p);
                     // MaintainHerd's training deficit reads this bundle, not
                     // the husbandry read: without the rows no trainable is ever due.
                     if (p.training != null)

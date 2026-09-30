@@ -340,7 +340,7 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 			}
 		}
 		if !exempt {
-			exempt = growerCropOpenWorkExempt(plan) || mealReplacementOpenWorkExempt(state, plan) || medicalCarePlan(plan)
+			exempt = growerCropOpenWorkExempt(plan) || mealReplacementOpenWorkExempt(state, plan)
 		}
 		if !exempt {
 			exempt, err = foodFacilityOpenWorkExempt(ctx, tx, state, plan)

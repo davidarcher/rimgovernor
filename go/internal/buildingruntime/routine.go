@@ -391,6 +391,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	reading.Projection.Facts.CleanupPawns = domain.Known(len(stray) > 0)
 	reading.Projection.Facts.HostilityOwed = policy.HostilityOwed(hostilityPawns(reading.Projection.WorkPawns), reading.Emergency.Threats)
+	reading.Projection.Facts.MedicalCareOwed = policy.MedicalCareOwed(reading.Projection.Facts, r.policy.MedicalReserve)
 	reading.Projection.Facts.SelfTendOwed = policy.SelfTendOwed(selfTendPawns(reading.Projection.WorkPawns))
 	reading.Projection.Facts.NamesOwed = policy.NamesOwed(reading.Projection.Facts.OwnedNames)
 	reading.Projection.ApplyFieldBudget(r.seasonal(reading.Projection.Facts).FoodTargetDays)

@@ -25,15 +25,11 @@ func workTestIntent(t *testing.T, w domain.WorkAssignment, err error) *op.WorkSe
 
 func TestWorkSettingsIntent(t *testing.T) {
 	w, err := domain.NewWorkAssignment("pawn", []domain.WorkSetting{{Definition: "Cooking", Priority: 1}})
-	if v := workTestIntent(t, w, err); len(v.Work) != 1 || v.Work[0].GetWorkTypeDef() != "Cooking" || v.Work[0].GetPriority() != 1 || v.MedicalCare != nil || v.DrugPolicy != nil {
-		t.Fatal(v)
-	}
-	w, err = domain.NewMedicalCareAssignment("pawn", "HerbalOrWorse")
-	if v := workTestIntent(t, w, err); v.GetMedicalCare() != op.MedicalCare_MEDICAL_CARE_HERBAL_OR_WORSE || len(v.Work) != 0 {
+	if v := workTestIntent(t, w, err); len(v.Work) != 1 || v.Work[0].GetWorkTypeDef() != "Cooking" || v.Work[0].GetPriority() != 1 || v.DrugPolicy != nil {
 		t.Fatal(v)
 	}
 	w, err = domain.NewDrugPolicyAssignment("pawn", "social")
-	if v := workTestIntent(t, w, err); v.GetDrugPolicy() != "social" || v.MedicalCare != nil || len(v.Work) != 0 {
+	if v := workTestIntent(t, w, err); v.GetDrugPolicy() != "social" || len(v.Work) != 0 {
 		t.Fatal(v)
 	}
 	w, err = domain.NewFoodAssignment("pawn", []string{"MealSimple"})
