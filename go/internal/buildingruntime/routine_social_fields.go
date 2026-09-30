@@ -1,68 +1,23 @@
 package buildingruntime
 
 import (
-	"context"
-	"fmt"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Social fields follow food recovery and use a fixed nine-cell ceiling per
-// crop in the layout plan's field blocks (#1226), counting existing player fields without changing their configuration.
-func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state ControlState, review store.RoutineReview) (RoutineFieldResult, error) {
-	if !review.BrewingFinished {
-		return RoutineFieldResult{Reason: BuildingMethodNoDeficit}, nil
-	}
-	p := r.reviewer.player
-	goal, workable, err := p.journal.Workable(call, review, policy.MaintainResource)
-	if err != nil {
-		return RoutineFieldResult{}, err
-	}
-	if !workable {
-		return RoutineFieldResult{Reason: BuildingMethodNoDeficit}, nil
-	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineFieldResult{}, err
-		}
-		if store.PlanOpen(plan) {
-			return RoutineFieldResult{Reason: BuildingMethodExistingWork}, nil
-		}
-	}
-	expected, err := routineScope(call, r.reviewer.native)
-	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineFieldResult{}, fmt.Errorf("%w: socialFields: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
-	}
-	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
-	if err != nil {
-		return RoutineFieldResult{}, err
-	}
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, "Plant_Hops", "Plant_Smokeleaf")
-	if err != nil {
-		return RoutineFieldResult{}, err
-	}
-	projection := read.Projection
-	if !policy.BrewingFinished(projection.Facts.Research) {
-		return RoutineFieldResult{Reason: BuildingMethodUnknown}, nil
-	}
-	held, err := p.journal.BuildingReservations(call, state.Snapshot)
-	if err != nil {
-		return RoutineFieldResult{}, err
-	}
-	var protected []domain.Cell
-	for _, h := range held {
-		protected = append(protected, h.Footprint...)
-	}
+// socialShortfalls is each social crop's missing cells under the fixed
+// nine-cell ceiling (#1226), counting existing player fields without
+// changing them: pure demand; RoutineFieldPlanner places the blocks
+// (#1308). known is false while a social field's size is unobserved.
+func socialShortfalls(projection observation.ColonyProjection) ([]policy.FieldBlockOption, bool) {
+	var out []policy.FieldBlockOption
 	for _, name := range []string{"Plant_Hops", "Plant_Smokeleaf"} {
 		cells := 0
 		for _, farm := range projection.Farms {
 			if farm.Crop == name {
 				n, known := farm.UsableCells.Value()
 				if !known {
-					return RoutineFieldResult{Reason: BuildingMethodUnknown}, nil
+					return nil, false
 				}
 				cells += int(n)
 			}
@@ -70,17 +25,11 @@ func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state Co
 		for _, d := range projection.Definitions {
 			if d.Name == name {
 				crop := policy.CropChoice{Name: name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil}
-				needed := policy.PlanSocialCrop(crop, projection.CropClimate, cells)
-				if needed == 0 {
-					continue
-				}
-				result, tried, err := r.enactBlock(call, epoch, state, goal, projection, read, 0, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: crop, Needed: needed}, []policy.FieldBlockOption{{Crop: crop, Needed: needed}}, layoutAnchor(projection, policy.DistrictFields), protected)
-				if tried || err != nil {
-					return result, err
+				if needed := policy.PlanSocialCrop(crop, projection.CropClimate, cells); needed > 0 {
+					out = append(out, policy.FieldBlockOption{Crop: crop, Needed: needed})
 				}
 			}
 		}
 	}
-
-	return RoutineFieldResult{Reason: BuildingMethodNoDeficit}, nil
+	return out, true
 }

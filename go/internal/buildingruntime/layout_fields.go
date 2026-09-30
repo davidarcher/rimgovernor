@@ -6,6 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // Outdoor food fields fill the layout plan's field blocks at every tier
@@ -57,8 +58,12 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 		blocked[c] = true
 	}
 	census := make(map[domain.Cell]policy.SiteCell, len(facts.Cells))
+	rich := map[domain.Cell]bool{}
 	for _, c := range facts.Cells {
 		census[c.Cell] = c
+		if f, ok := c.Fertility.Value(); ok && f > fieldRichFertility {
+			rich[c.Cell] = true
+		}
 	}
 	growing := map[string]string{}
 	for _, f := range facts.Farms {
@@ -121,7 +126,7 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 		// A new crop block sits against the patch's standing blocks, with no
 		// gap; its crop avoids one growing within FieldBlockNeighbourRadius
 		// of the block itself (#1225), not of the whole patch.
-		if first := connectedPick(freeFor(block, options[0].Crop), occupied, anchor, options[0].Needed); len(first) > 0 {
+		if first := connectedPick(freeFor(block, options[0].Crop), occupied, rich, anchor, options[0].Needed); len(first) > 0 {
 			around := make(map[domain.Cell]bool, len(first))
 			for _, c := range first {
 				around[c] = true
@@ -131,13 +136,43 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 				if o.Needed <= 0 {
 					continue
 				}
-				if cells := connectedPick(freeFor(block, o.Crop), occupied, anchor, o.Needed); len(cells) > 0 {
+				if cells := connectedPick(freeFor(block, o.Crop), occupied, rich, anchor, o.Needed); len(cells) > 0 {
 					return fieldBlockEdit{Crop: o.Crop.Name, Cells: cells}, "", true
 				}
 			}
 		}
 	}
 	return fieldBlockEdit{}, "every field block is full", false
+}
+
+// fieldRichFertility is the fertility above which soil is rich, the
+// policy survey's line (#1284).
+const fieldRichFertility = 1.0
+
+// fieldShortfall is one goal's open field-block demand in the cross-crop
+// ledger (#1308): options lead with the goal's own crop and cells.
+type fieldShortfall struct {
+	Goal    store.GoalState
+	Options []policy.FieldBlockOption
+	What    string
+}
+
+// fieldShortfallWeight is needed cells weighted by urgency: goal priority
+// 0 is the most urgent of the 0-4 classes.
+func fieldShortfallWeight(s fieldShortfall) int {
+	if len(s.Options) == 0 {
+		return 0
+	}
+	return (5 - s.Goal.Goal.Priority) * s.Options[0].Needed
+}
+
+// rankFieldShortfalls orders the ledger heaviest first; the first placed
+// block takes the patch's richest free cells. It decides order only, never
+// how many cells a goal gets.
+func rankFieldShortfalls(ledger []fieldShortfall) []fieldShortfall {
+	out := append([]fieldShortfall(nil), ledger...)
+	sort.SliceStable(out, func(i, j int) bool { return fieldShortfallWeight(out[i]) > fieldShortfallWeight(out[j]) })
+	return out
 }
 
 // fieldBlockOptions is the crops a new field block may take: candidate
@@ -233,7 +268,10 @@ func connectedAdds(zone, set map[domain.Cell]bool, want int) []domain.Cell {
 // cell touching a standing block (occupied) nearest anchor, or the free
 // cell nearest anchor when none touches, and takes the fullest of the four
 // sqrt(want)-wide rectangles cornered at the seed, topped up by rings.
-func connectedPick(free, occupied map[domain.Cell]bool, anchor domain.Cell, want int) []domain.Cell {
+// Rich soil (#1308) breaks those ties: the seed prefers a rich cell, and
+// the rectangle holding the most rich cells wins, so the block the field
+// ledger places first takes the patch's richest free cells.
+func connectedPick(free, occupied, rich map[domain.Cell]bool, anchor domain.Cell, want int) []domain.Cell {
 	if want <= 0 {
 		return nil
 	}
@@ -260,11 +298,12 @@ func connectedPick(free, occupied map[domain.Cell]bool, anchor domain.Cell, want
 		return nil
 	}
 	var seed domain.Cell
-	near, touching := int64(-1), false
+	near, touching, seedRich := int64(-1), false, false
 	for _, c := range sortedCells(best) {
 		t := occupied[domain.Cell{X: c.X, Z: c.Z - 1}] || occupied[domain.Cell{X: c.X - 1, Z: c.Z}] || occupied[domain.Cell{X: c.X + 1, Z: c.Z}] || occupied[domain.Cell{X: c.X, Z: c.Z + 1}]
-		if d := cellDist(c, anchor); near < 0 || t && !touching || t == touching && d < near {
-			seed, near, touching = c, d, t
+		d, r := cellDist(c, anchor), rich[c]
+		if near < 0 || t && !touching || t == touching && (r && !seedRich || r == seedRich && d < near) {
+			seed, near, touching, seedRich = c, d, t, r
 		}
 	}
 	w := int32(1)
@@ -273,17 +312,22 @@ func connectedPick(free, occupied map[domain.Cell]bool, anchor domain.Cell, want
 	}
 	h := int32((want + int(w) - 1) / int(w))
 	var picked map[domain.Cell]bool
+	pickedRich := 0
 	for _, dir := range [][2]int32{{1, 1}, {-1, 1}, {1, -1}, {-1, -1}} {
 		rect := map[domain.Cell]bool{}
+		n := 0
 		for dz := int32(0); dz < h && len(rect) < want; dz++ {
 			for dx := int32(0); dx < w && len(rect) < want; dx++ {
 				if c := (domain.Cell{X: seed.X + dir[0]*dx, Z: seed.Z + dir[1]*dz}); best[c] {
 					rect[c] = true
+					if rich[c] {
+						n++
+					}
 				}
 			}
 		}
-		if len(rect) > len(picked) {
-			picked = rect
+		if n > pickedRich || n == pickedRich && len(rect) > len(picked) {
+			picked, pickedRich = rect, n
 		}
 	}
 	picked = cellComponent(picked, seed)

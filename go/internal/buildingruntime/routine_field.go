@@ -57,16 +57,14 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
-	if !workable {
-		return r.socialFields(call, epoch, state, review)
-	}
-	if goal.Goal.Priority >= 3 {
+	idle := BuildingMethodNoDeficit
+	if workable && goal.Goal.Priority >= 3 {
 		selected := false
 		for _, row := range review.Development.Rows {
 			selected = selected || row.Goal == policy.EnsureFoodSupply && row.Selected
 		}
 		if !selected {
-			return RoutineFieldResult{Reason: BuildingMethodRefused}, nil
+			workable, idle = false, BuildingMethodRefused
 		}
 	}
 	// Open field work is budgeted against the food plan below. Infrastructure
@@ -87,7 +85,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
-	definitions := append(routineProjectDefinitions(plans, state.Snapshot, playerPlans), "Plant_Rice", "Plant_Potato", "Plant_Corn", "Plant_Strawberry", "Plant_Toxipotato", "Plant_Nutrifungus", "SunLamp", "HydroponicsBasin", "Heater")
+	definitions := append(routineProjectDefinitions(plans, state.Snapshot, playerPlans), "Plant_Rice", "Plant_Potato", "Plant_Corn", "Plant_Strawberry", "Plant_Toxipotato", "Plant_Nutrifungus", "Plant_Haygrass", "Plant_Hops", "Plant_Smokeleaf", "SunLamp", "HydroponicsBasin", "Heater")
 	definitions = uniqueFieldDefinitions(definitions)
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
@@ -106,27 +104,6 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	projection := read.Projection
 	recordStepRead("field", policy.EnsureFoodSupply, state.Snapshot, projection)
-	if result, handled, err := r.fishing(call, epoch, state, goal, read); err != nil || handled {
-		return result, err
-	}
-	if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCrop, "field-capacity") {
-		return RoutineFieldResult{Reason: BuildingMethodUnknown}, nil
-	}
-	if blocked {
-		openPlans := []store.PlanState{}
-		for _, method := range goal.Methods {
-			plan, err := p.journal.LoadPlan(call, method.Plan)
-			if err != nil {
-				return RoutineFieldResult{}, err
-			}
-			openPlans = append(openPlans, plan)
-		}
-		blocked = !foodPlanAdditionalField(projection, openPlans)
-	}
-	wait, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
-	if err != nil {
-		return RoutineFieldResult{}, err
-	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
 		return RoutineFieldResult{}, err
@@ -154,6 +131,44 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	claimed, _ := claims.Value()
 	protected = append(protected, shellInteriors(shells, claimed)...)
+	// The cross-crop ledger (#1308): hay and social shortfalls compete with
+	// the food block for the plan's field patches in one ranked order.
+	others, err := r.otherFieldShortfalls(call, review, projection)
+	if err != nil {
+		return RoutineFieldResult{}, err
+	}
+	anchor := layoutAnchor(projection, policy.DistrictFields)
+	placeOthers := func(wait uint32, reason RoutineBuildingReason) (RoutineFieldResult, error) {
+		result, tried, err := r.placeLedger(call, epoch, state, projection, read, wait, others, anchor, protected)
+		if err != nil || tried {
+			return result, err
+		}
+		return RoutineFieldResult{Reason: reason, NativeWorkTicks: wait}, nil
+	}
+	if !workable {
+		return placeOthers(0, idle)
+	}
+	if result, handled, err := r.fishing(call, epoch, state, goal, read); err != nil || handled {
+		return result, err
+	}
+	if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCrop, "field-capacity") {
+		return placeOthers(0, BuildingMethodUnknown)
+	}
+	if blocked {
+		openPlans := []store.PlanState{}
+		for _, method := range goal.Methods {
+			plan, err := p.journal.LoadPlan(call, method.Plan)
+			if err != nil {
+				return RoutineFieldResult{}, err
+			}
+			openPlans = append(openPlans, plan)
+		}
+		blocked = !foodPlanAdditionalField(projection, openPlans)
+	}
+	wait, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
+	if err != nil {
+		return RoutineFieldResult{}, err
+	}
 	reserveDays := r.reviewer.seasonal(projection.Facts).FoodTargetDays
 	request, choices := fieldSiteRequest(projection, protected, reserveDays)
 	selection, known := policy.PlanSiteType(request)
@@ -175,11 +190,11 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 	}
 	if blocked {
-		return RoutineFieldResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: wait}, nil
+		return placeOthers(wait, BuildingMethodExistingWork)
 	}
 	if !known {
 		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, request.Field.Coverage, len(projection.Farms), selection.Explain())
-		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
+		return placeOthers(wait, BuildingMethodUnknown)
 	}
 	// The winner's cells: basin kinds carry them on the candidate, not a site plan.
 	clockSchedulerLog("Fields select: kind=%s crop=%s cells=%d buildings=%d | %s", selection.Kind, selection.Crop.Name, selection.Candidates[0].Cells, len(selection.Buildings), selection.Explain())
@@ -192,12 +207,15 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 			break
 		}
 		attempts++
-		// Outdoor soil fields fill the plan's field blocks (#1223).
+		// Outdoor soil fields fill the plan's field blocks (#1223), ranked
+		// against the hay and social shortfalls (#1308).
 		var result RoutineFieldResult
 		var tried bool
 		var err error
 		if candidate.Kind == policy.SiteOutdoor && len(candidate.Buildings) == 0 {
-			result, tried, err = r.enactBlock(call, epoch, state, goal, projection, read, wait, candidate, fieldBlockOptions(candidate, selection.Candidates), request.Field.Site.Anchor, protected)
+			food := fieldShortfall{Goal: goal, Options: fieldBlockOptions(candidate, selection.Candidates), What: "food"}
+			result, tried, err = r.placeLedger(call, epoch, state, projection, read, wait, append([]fieldShortfall{food}, others...), request.Field.Site.Anchor, protected)
+			others = nil
 		} else {
 			result, tried, err = r.enact(call, epoch, state, goal, projection, read, wait, candidate)
 		}
@@ -206,7 +224,75 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		clockSchedulerLog("Fields: %s %s refused (%s), trying next candidate", candidate.Kind, candidate.Crop.Name, result.Reason)
 	}
-	return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, nil
+	return placeOthers(wait, BuildingMethodRefused)
+}
+
+// otherFieldShortfalls is the hay and social field demand of this step's
+// read (#1308), each under its own goal: hay under MaintainAnimalFeed,
+// social crops under MaintainResource once brewing is researched. A goal
+// with open work waits for it.
+func (r *RoutineFieldPlanner) otherFieldShortfalls(call context.Context, review store.RoutineReview, projection observation.ColonyProjection) ([]fieldShortfall, error) {
+	p := r.reviewer.player
+	ready := func(kind policy.GoalID) (store.GoalState, bool, error) {
+		goal, workable, err := p.journal.Workable(call, review, kind)
+		if err != nil || !workable {
+			return goal, false, err
+		}
+		for _, method := range goal.Methods {
+			plan, err := p.journal.LoadPlan(call, method.Plan)
+			if err != nil {
+				return goal, false, err
+			}
+			if store.PlanOpen(plan) {
+				return goal, false, nil
+			}
+		}
+		return goal, true, nil
+	}
+	var out []fieldShortfall
+	if opt, ok := hayShortfall(projection); ok {
+		goal, ready, err := ready(policy.MaintainAnimalFeed)
+		if err != nil {
+			return nil, err
+		}
+		if ready {
+			out = append(out, fieldShortfall{Goal: goal, Options: []policy.FieldBlockOption{opt}, What: "hay"})
+		}
+	}
+	if review.BrewingFinished && policy.BrewingFinished(projection.Facts.Research) {
+		if opts, known := socialShortfalls(projection); known && len(opts) > 0 {
+			goal, ready, err := ready(policy.MaintainResource)
+			if err != nil {
+				return nil, err
+			}
+			for _, opt := range opts {
+				if ready {
+					out = append(out, fieldShortfall{Goal: goal, Options: []policy.FieldBlockOption{opt}, What: "social"})
+				}
+			}
+		}
+	}
+	return out, nil
+}
+
+// placeLedger places the next field block of the heaviest shortfall that
+// still fits (#1308); tried reports a block reached commitment.
+func (r *RoutineFieldPlanner) placeLedger(call, epoch context.Context, state ControlState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, ledger []fieldShortfall, anchor domain.Cell, protected []domain.Cell) (RoutineFieldResult, bool, error) {
+	result := RoutineFieldResult{Reason: BuildingMethodNoDeficit, NativeWorkTicks: wait}
+	for _, s := range rankFieldShortfalls(ledger) {
+		if len(s.Options) == 0 {
+			continue
+		}
+		lead := s.Options[0]
+		clockSchedulerLog("Fields ledger: %s %s needs %d (priority %d)", s.What, lead.Crop.Name, lead.Needed, s.Goal.Goal.Priority)
+		var tried bool
+		var err error
+		result, tried, err = r.enactBlock(call, epoch, state, s.Goal, projection, read, wait, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: lead.Crop, Needed: lead.Needed}, s.Options, anchor, protected)
+		if err != nil || tried {
+			return result, tried, err
+		}
+	}
+	return result, false, nil
 }
 
 const (

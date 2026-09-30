@@ -1,12 +1,67 @@
 package buildingruntime
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
+
+// The cross-crop ledger (#1308): with rice 400 urgent and hay 200 in one
+// patch, rice ranks first and its block covers the patch's rich cells
+// before hay gets any; swapping the urgencies swaps who gets them.
+func TestFieldLedgerRichSoilToHighestDemand(t *testing.T) {
+	hay := policy.CropChoice{Name: "Plant_Haygrass", Edible: domain.Known(false), FertilityMin: domain.Known(0.5)}
+	run := func(ricePriority, hayPriority int) (riceRich, hayRich int) {
+		plan := policy.LayoutPlan{Zones: []policy.LayoutZone{{Kind: policy.ZoneField}}}
+		facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierCamp)}
+		rich := map[domain.Cell]bool{}
+		for z := int32(0); z < 20; z++ {
+			plan.Zones[0].Runs = append(plan.Zones[0].Runs, policy.RowRun{Z: z, X: 0, Length: 40})
+			for x := int32(0); x < 40; x++ {
+				f := 1.0
+				if x >= 30 {
+					f, rich[domain.Cell{X: x, Z: z}] = 1.4, true
+				}
+				facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(f)})
+			}
+		}
+		facts.LayoutPlan = domain.Known(plan)
+		facts.Definitions = []observation.PlanningDefinition{{Name: "Plant_Haygrass", Edible: domain.Known(false)}}
+		goal := func(priority int) store.GoalState {
+			return store.GoalState{Goal: domain.Goal{Priority: priority}}
+		}
+		ledger := rankFieldShortfalls([]fieldShortfall{
+			{Goal: goal(hayPriority), Options: []policy.FieldBlockOption{{Crop: hay, Needed: 200}}, What: "hay"},
+			{Goal: goal(ricePriority), Options: rice(400), What: "food"},
+		})
+		got := map[string]int{}
+		for i, s := range ledger {
+			edit, reason, ok := planFieldBlock(facts, domain.Cell{}, s.Options, nil)
+			if !ok || edit.Zone != "" {
+				t.Fatalf("%s: %+v %q %v", s.What, edit, reason, ok)
+			}
+			for _, c := range edit.Cells {
+				if rich[c] {
+					got[edit.Crop]++
+				}
+			}
+			zone := fmt.Sprintf("Zone_%d", i)
+			zoneBlockCells(&facts, zone, edit.Cells...)
+			facts.Farms = append(facts.Farms, observation.FarmZoneFact{ID: zone, Crop: edit.Crop})
+		}
+		return got["Plant_Rice"], got["Plant_Haygrass"]
+	}
+	if riceRich, hayRich := run(1, 3); riceRich != 200 || hayRich != 0 {
+		t.Fatalf("urgent rice: rice rich %d, hay rich %d", riceRich, hayRich)
+	}
+	if riceRich, hayRich := run(3, 0); hayRich <= riceRich {
+		t.Fatalf("urgent hay: rice rich %d, hay rich %d", riceRich, hayRich)
+	}
+}
 
 // blockFacts is a Camp-tier colony with two 4x2 plan field blocks at
 // x 0-3 and x 6-9 on rows 0-1, fertile open ground everywhere else.
