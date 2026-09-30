@@ -175,3 +175,57 @@ func TestPlanSchedulesNeedBands(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanSchedulesMeditate(t *testing.T) {
+	with := func(block string, hrs ...int) []string {
+		slots := scheduleTemplate(TraitEffects{})
+		slots[21] = ScheduleAnything
+		for _, h := range hrs {
+			slots[h] = block
+		}
+		return slots
+	}
+	caster := func(focus float64, level int) WorkPawn {
+		p := testWorkPawn("p", true, false, nil)
+		p.Joy = domain.Known(0.9)
+		p.Psyfocus, p.PsyfocusTarget, p.PsylinkLevel = domain.Known(focus), domain.Known(0.5), domain.Known(level)
+		return p
+	}
+	plain := testWorkPawn("p", true, false, nil)
+	plain.Joy = domain.Known(0.9)
+	for name, c := range map[string]struct {
+		pawn    WorkPawn
+		med     bool
+		current []string
+		want    []string
+	}{
+		"caster meditates":     {caster(0.9, 2), true, nativeDefaultSchedule(), with(ScheduleMeditate, 21)},
+		"no def keeps joy":     {caster(0.9, 2), false, nativeDefaultSchedule(), with(ScheduleJoy, 21)},
+		"no psylink keeps joy": {plain, true, nativeDefaultSchedule(), with(ScheduleJoy, 21)},
+		"low focus widens":     {caster(0.3, 1), true, nativeDefaultSchedule(), with(ScheduleMeditate, 20, 21)},
+		"band holds wide":      {caster(0.55, 1), true, with(ScheduleMeditate, 20, 21), with(ScheduleMeditate, 20, 21)},
+		"focused reverts":      {caster(0.6, 1), true, with(ScheduleMeditate, 20, 21), with(ScheduleMeditate, 21)},
+		"wide joy stays wide":  {caster(0.55, 1), true, with(ScheduleJoy, 20, 21), with(ScheduleMeditate, 20, 21)},
+	} {
+		c.pawn.Schedule = domain.Known(c.current)
+		d := PlanSchedules([]WorkPawn{c.pawn}, domain.Unknown[ComfortObservation](), c.med)
+		if len(d.Schedules) != 1 || !sameSchedule(d.Schedules[0].Slots, c.want) {
+			t.Fatalf("%s: %v", name, d)
+		}
+		if !c.med && len(hours(d.Schedules[0].Slots, ScheduleMeditate)) > 0 {
+			t.Fatalf("%s wrote Meditate without the def", name)
+		}
+	}
+	// Staggering moves the Meditate slot like Joy (#1317).
+	a, b := caster(0.3, 1), caster(0.9, 1)
+	a.ID, b.ID = "a", "b"
+	a.Schedule, b.Schedule = domain.Known(nativeDefaultSchedule()), domain.Known(nativeDefaultSchedule())
+	comfort := domain.Known(ComfortObservation{People: []PawnID{"a", "b"}, Recreation: make([]ComfortFacility, 1)})
+	d := PlanSchedules([]WorkPawn{a, b}, comfort, true)
+	if got := hours(d.Schedules[1].Slots, ScheduleMeditate); len(got) != 1 || got[0] != 20 {
+		t.Fatal(d)
+	}
+	if got := hours(d.Schedules[0].Slots, ScheduleMeditate); len(got) != 2 || got[0] != 20 {
+		t.Fatal(d)
+	}
+}

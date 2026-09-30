@@ -11,6 +11,7 @@ const (
 	ScheduleAnything = "Anything"
 	ScheduleJoy      = "Joy"
 	ScheduleSleep    = "Sleep"
+	ScheduleMeditate = "Meditate"
 )
 
 // PawnSchedule is one pawn's planned timetable, hour 0 first.
@@ -99,6 +100,9 @@ const (
 	JoyEnter       = 0.30
 	JoyExit        = 0.70
 	SleepExtension = 2
+	// PsyfocusExit: a widened Meditate block (#1316) enters when psyfocus is
+	// below its target and stays wide until psyfocus reaches target+PsyfocusExit.
+	PsyfocusExit = 0.10
 )
 
 // needBand answers whether a resize holds: enter below enter, stay below exit.
@@ -114,8 +118,8 @@ func needBand(level domain.Fact[float64], active bool, enter, exit float64) bool
 }
 
 // plannedSchedule is the template resized from the pawn's needs against its
-// current timetable. It only ever adds Sleep or Joy hours over Anything.
-func plannedSchedule(effects TraitEffects, rest, joy domain.Fact[float64], current []string, joyOffset int) []string {
+// current timetable. It only ever adds Sleep, Joy or Meditate hours over Anything.
+func plannedSchedule(effects TraitEffects, rest, joy domain.Fact[float64], current []string, joyOffset int, meditate *psyfocusBand) []string {
 	slots := scheduleTemplate(effects)
 	from, to := sleepBlock(effects)
 	at := func(h int) string {
@@ -133,10 +137,21 @@ func plannedSchedule(effects TraitEffects, rest, joy domain.Fact[float64], curre
 	// A staggered pawn (#1317) takes its Joy hour, and the widened hour
 	// before it, joyOffset hours earlier; Sleep never moves.
 	slots[(from+23)%24] = ScheduleAnything
-	slots[(from+23-joyOffset)%24] = ScheduleJoy
-	widened := at(from-2-joyOffset) == ScheduleJoy
-	if needBand(joy, widened, JoyEnter, JoyExit) {
-		slots[(from+22-joyOffset)%24] = ScheduleJoy
+	// A psycaster (#1316) meditates in the recreation block instead:
+	// meditation also fills recreation, and low psyfocus widens it too.
+	block := ScheduleJoy
+	if meditate != nil {
+		block = ScheduleMeditate
+	}
+	slots[(from+23-joyOffset)%24] = block
+	prev := at(from - 2 - joyOffset)
+	widened := prev == ScheduleJoy || prev == ScheduleMeditate
+	wide := needBand(joy, widened, JoyEnter, JoyExit)
+	if meditate != nil && needBand(meditate.focus, widened, meditate.target, meditate.target+PsyfocusExit) {
+		wide = true
+	}
+	if wide {
+		slots[(from+22-joyOffset)%24] = block
 	}
 	return slots
 }
@@ -165,6 +180,23 @@ func joyOffsets(ids []PawnID, comfort domain.Fact[ComfortObservation]) map[PawnI
 	return offsets
 }
 
+// psyfocusBand is a psycaster's psyfocus against its target.
+type psyfocusBand struct {
+	focus  domain.Fact[float64]
+	target float64
+}
+
+// meditation is the pawn's psyfocus band when it should meditate: the
+// Meditate def exists and the pawn has a known psylink.
+func meditation(pawn WorkPawn, meditateAvailable bool) *psyfocusBand {
+	level, lk := pawn.PsylinkLevel.Value()
+	target, tk := pawn.PsyfocusTarget.Value()
+	if !meditateAvailable || !lk || level < 1 || !tk {
+		return nil
+	}
+	return &psyfocusBand{focus: pawn.Psyfocus, target: target}
+}
+
 func schedulable(pawn WorkPawn) ([]string, bool) {
 	available, ak := pawn.Available.Value()
 	applies, pk := pawn.Applies.Value()
@@ -188,7 +220,8 @@ func sameSchedule(a, b []string) bool {
 // needs (plannedSchedule), staggering Joy hours against the recreation
 // census (joyOffsets); a pawn whose timetable is unknown is skipped.
 // meditateAvailable is whether the Meditate TimeAssignmentDef exists
-// (#1313; unknown reads as false); #1316 plans with it.
+// (#1313; unknown reads as false): psycasters then meditate in their
+// recreation block (#1316).
 func PlanSchedules(pawns []WorkPawn, comfort domain.Fact[ComfortObservation], meditateAvailable bool) ScheduleDecision {
 	var decision ScheduleDecision
 	var ids []PawnID
@@ -203,7 +236,7 @@ func PlanSchedules(pawns []WorkPawn, comfort domain.Fact[ComfortObservation], me
 		if !ok {
 			continue
 		}
-		want := plannedSchedule(BuildProfile(pawn).Effects, pawn.Rest, pawn.Joy, current, offsets[pawn.ID])
+		want := plannedSchedule(BuildProfile(pawn).Effects, pawn.Rest, pawn.Joy, current, offsets[pawn.ID], meditation(pawn, meditateAvailable))
 		decision.Schedules = append(decision.Schedules, PawnSchedule{Pawn: pawn.ID, Slots: want, Matches: sameSchedule(current, want)})
 	}
 	sort.Slice(decision.Schedules, func(i, j int) bool { return decision.Schedules[i].Pawn < decision.Schedules[j].Pawn })
