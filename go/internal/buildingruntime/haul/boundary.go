@@ -49,7 +49,7 @@ func (b *HaulBoundary) InspectHaul(ctx context.Context, target executor.Target) 
 		return out, errors.Join(executor.ErrEvidence, err)
 	}
 	haul, _ := target.Action.Haul()
-	reply, _, err := b.native.ReadPawns(ctx, boundary.Identity(target.Snapshot), []string{string(haul.Pawn())})
+	reply, _, err := b.native.ReadPawns(bridge.WithAnyFrame(ctx), boundary.Identity(target.Snapshot), []string{string(haul.Pawn())})
 	if err != nil {
 		return out, err
 	}

@@ -21,7 +21,8 @@ namespace HomeBridge.BridgeTools
     /// a named shared-memory ring, read lock-free by the controller
     /// (go/internal/snapshotshm). The game thread captures a frame right after
     /// a frame's ticks (Supervisor.OnFrame) every PeriodTicks, on a pause
-    /// edge and after every applied write; an encoder worker formats it and
+    /// edge and after every applied write (a deferred
+    /// write waits for observations_flush_snapshot or DeferredSeconds); an encoder worker formats it and
     /// writes it into the next slot under a per-slot seqlock, so the game
     /// thread never waits on a reader. Nothing is captured until the
     /// controller opens the stream.
@@ -68,6 +69,19 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Definitions must be distinct identifiers.") });
             return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(SnapshotStream.Open(parsed)), cancellationToken).ConfigureAwait(false);
         }
+
+        private const string FlushToolName = "rimgovernor/observations_flush_snapshot";
+
+        [Tool(FlushToolName, Title = "Flush snapshot",
+            Description = "Official FlushSnapshotRequest ProtoJSON. Makes the next frame capture if an applied write is uncaptured (deferred writes, #1274). Returns without waiting for the capture.")]
+        [ToolResponse("payload", "string", "Official observations FlushSnapshotReply ProtoJSON.", Always = true)]
+        public Task<object> Flush(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Raw value must be a FlushSnapshotRequest ProtoJSON string.")] object? request = null)
+        {
+            if (!ProtoBoundary.TryParse(ctx, FlushToolName, request!, Obs.FlushSnapshotRequest.Parser, out _, out var failure))
+                return Task.FromResult<object>(ProtoBoundary.Encode(new Obs.FlushSnapshotReply { Failure = failure }));
+            return Task.FromResult<object>(ProtoBoundary.Encode(new Obs.FlushSnapshotReply { Flushed = SnapshotStream.Flush() }));
+        }
     }
 
     internal static class SnapshotStream
@@ -85,16 +99,42 @@ namespace HomeBridge.BridgeTools
         private static Obs.SnapshotStreamRequest subscription = new Obs.SnapshotStreamRequest();
         // Game-thread state: what the last capture saw.
         private static long writes, capturedWrites = -1;
+        // due: the write count the next frame must reflect. A deferred
+        // write (#1274) leaves it behind writes until a flush, a later
+        // undeferred write, or DeferredSeconds after the oldest uncaptured
+        // deferred write (deferredAt, game thread; 0: none).
+        private static long due;
+        private static long deferredAt;
+        internal const long DeferredSeconds = 1;
         private static int capturedTick = int.MinValue;
         private static bool capturedPaused;
         private static int pending; // captures handed to the encoder, not yet written
 
-        /// On the game thread: an applied write the next frame must reflect.
-        internal static void NoteWrite()
+        /// On the game thread: an applied write the next frame must reflect,
+        /// or, deferred, one a flush or the safety net makes it capture.
+        internal static void NoteWrite(bool deferred = false)
         {
             var r = ring;
             var value = Interlocked.Increment(ref writes);
             r?.WriteHeader(24, value);
+            if (!deferred) { RaiseDue(value); return; }
+            if (deferredAt == 0) deferredAt = Stopwatch.GetTimestamp();
+        }
+
+        /// Any thread: the next frame captures every write applied so far.
+        /// Reports whether a write was uncaptured.
+        internal static bool Flush()
+        {
+            var w = Interlocked.Read(ref writes);
+            RaiseDue(w);
+            return w != Interlocked.Read(ref capturedWrites);
+        }
+
+        private static void RaiseDue(long value)
+        {
+            long seen;
+            while ((seen = Interlocked.Read(ref due)) < value)
+                if (Interlocked.CompareExchange(ref due, value, seen) == seen) return;
         }
 
         internal static Obs.SnapshotStreamReply Open(Obs.SnapshotStreamRequest request)
@@ -126,8 +166,11 @@ namespace HomeBridge.BridgeTools
             var tick = tm.TicksGame;
             var paused = tm.Paused;
             var w = Interlocked.Read(ref writes);
+            // Deferred writes wait for a flush, or DeferredSeconds at most.
+            var needed = Interlocked.Read(ref due);
+            if (deferredAt != 0 && Stopwatch.GetTimestamp() - deferredAt >= DeferredSeconds * Stopwatch.Frequency) needed = w;
             var period = CombatMirror.Dirty ? CombatMirror.MinCombatCompareTicks : PeriodTicks;
-            var periodic = w == capturedWrites && paused == capturedPaused && tick >= capturedTick;
+            var periodic = needed <= capturedWrites && paused == capturedPaused && tick >= capturedTick;
             // A paused game advances no tick, so the period is wall time
             // there (#838): a change no native write made (a fixture op, a
             // player edit while paused) is otherwise never captured.
@@ -155,7 +198,8 @@ namespace HomeBridge.BridgeTools
             finally { ObservationWork.End(); }
             var captureMicros = Micros(captureStarted);
             NoteSlowCapture(captureMicros, tick, account);
-            capturedWrites = w; capturedTick = tick; capturedPaused = paused;
+            Interlocked.Exchange(ref capturedWrites, w); capturedTick = tick; capturedPaused = paused;
+            if (w == Interlocked.Read(ref writes)) deferredAt = 0;
             capturedAt = Stopwatch.GetTimestamp(); lastCaptureMicros = captureMicros;
             if (frame == null) { Interlocked.Exchange(ref pending, 0); return; }
             Task.Factory.StartNew(() =>

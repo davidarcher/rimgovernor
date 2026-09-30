@@ -241,7 +241,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_apply", request, Operations.ApplyRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Operations.ApplyReply { BatchFailure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => { try { return ProtoBoundary.Encode(NativeActionDispatch.Apply(parsed)); } finally { SnapshotStream.NoteWrite(); } }, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThread(ctx, () => { try { return ProtoBoundary.Encode(NativeActionDispatch.Apply(parsed)); } finally { SnapshotStream.NoteWrite(parsed.DeferSnapshot); } }, cancellationToken).ConfigureAwait(false);
         }
     }
 }

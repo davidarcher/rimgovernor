@@ -305,13 +305,17 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	breakSource, _ := client.reads.(buildingruntime.BreakResponseSource)
 	pawns, _ := client.reads.(buildingruntime.ArrivalPawns)
+	var flush func(context.Context) error
+	if flusher, ok := client.reads.(interface{ FlushSnapshot(context.Context) error }); ok {
+		flush = flusher.FlushSnapshot
+	}
 	arrival := buildingruntime.WorkerConfig{Pawns: pawns}
 	if client.movement != nil {
 		arrival.Moves = client.movement.Writer
 	}
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, Pawns: arrival.Pawns, Moves: arrival.Moves, RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
-		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity,
+		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity, Flush: flush,
 	}, player, session)
 	if err != nil {
 		return err

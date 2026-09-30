@@ -65,6 +65,7 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/lifecycle_read_load` | `rimgovernor.lifecycle.v1.Lifecycle/ReadLoad` | `rimgovernor.lifecycle.v1.RequestStatus` | `rimgovernor.lifecycle.v1.LoadReply` |
 | `rimgovernor/lifecycle_read_save` | `rimgovernor.lifecycle.v1.Lifecycle/ReadSave` | `rimgovernor.lifecycle.v1.RequestStatus` | `rimgovernor.lifecycle.v1.SaveReply` |
 | `rimgovernor/lifecycle_save` | `rimgovernor.lifecycle.v1.Lifecycle/Save` | `rimgovernor.lifecycle.v1.SaveRequest` | `rimgovernor.lifecycle.v1.SaveReply` |
+| `rimgovernor/observations_flush_snapshot` | `rimgovernor.observations.v1.Observations/FlushSnapshot` | `rimgovernor.observations.v1.FlushSnapshotRequest` | `rimgovernor.observations.v1.FlushSnapshotReply` |
 | `rimgovernor/observations_get_cells` | `rimgovernor.observations.v1.Observations/GetCells` | `rimgovernor.observations.v1.GetCellsRequest` | `rimgovernor.observations.v1.GetCellsReply` |
 | `rimgovernor/observations_list_architect_categories` | `rimgovernor.observations.v1.Observations/ListArchitectCategories` | `rimgovernor.observations.v1.ArchitectCategoriesRequest` | `rimgovernor.observations.v1.ArchitectCategoriesReply` |
 | `rimgovernor/observations_list_architect_designators` | `rimgovernor.observations.v1.Observations/ListArchitectDesignators` | `rimgovernor.observations.v1.ArchitectDesignatorsRequest` | `rimgovernor.observations.v1.ArchitectDesignatorsReply` |

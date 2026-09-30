@@ -30,7 +30,10 @@ func (client *Client) ReadMapBounds(ctx context.Context, identity *c.Identity, a
 	cell := &c.Cell{X: proto.Int32(anchor.X), Z: proto.Int32(anchor.Z)}
 	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_ExactCells{ExactCells: &o.CellSelection{Cells: []*c.Cell{cell}}}, Fields: mapBoundsFields()}
 	reply := &o.GetCellsReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/observations_get_cells", request, reply)
+	// Bounds never change: the read takes any frame, not one past the
+	// last write, so a dispatch after a deferred write (#1274) does not
+	// wait out the capture safety net.
+	raw, err := client.protoRead(WithAnyFrame(ctx), "rimgovernor/observations_get_cells", request, reply)
 	if err != nil {
 		return MapBounds{}, raw, err
 	}

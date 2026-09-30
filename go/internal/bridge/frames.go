@@ -167,6 +167,9 @@ func (caller *Client) frameReadKey(ctx context.Context, name string, key readCac
 		s.mu.Lock()
 		needs, pending := s.needs, s.stale || s.opening
 		s.mu.Unlock()
+		if AnyFrame(ctx) {
+			needs = 0
+		}
 		frame, ok, err := reader.Latest()
 		if err != nil {
 			return miss("latest", fmt.Errorf("%w: snapshot frame: %v", ErrUnavailable, err))

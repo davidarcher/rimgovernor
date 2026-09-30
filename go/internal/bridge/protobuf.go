@@ -286,6 +286,7 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/lifecycle_load":                       true,
 	"rimgovernor/lifecycle_read_load":                  true,
 	methodOpenSnapshotStream:                           true,
+	methodFlushSnapshot:                                true,
 }
 
 // protoCall is the closed transport seam for reviewed typed adapters. Adapters

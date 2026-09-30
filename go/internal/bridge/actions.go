@@ -165,6 +165,9 @@ func (writer *ActionsWriter) Apply(ctx context.Context, identity *c.Identity, ac
 		seen[action.GetKey()] = true
 	}
 	request := &o.ApplyRequest{Identity: proto.Clone(identity).(*c.Identity), Actions: stampPurpose(ctx, actions)}
+	if DeferredSnapshot(ctx) {
+		request.DeferSnapshot = proto.Bool(true)
+	}
 	reply := &o.ApplyReply{}
 	raw, err := writer.client.protoCall(ctx, ActionsApplyMethod, request, reply)
 	if err != nil {

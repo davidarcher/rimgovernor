@@ -234,6 +234,10 @@ service Actions {
 message ApplyRequest {
   rimgovernor.common.v1.Identity identity = 1;
   repeated Action actions = 2;
+  // Record the write without capturing a snapshot frame for it (#1274):
+  // the next frame after observations_flush_snapshot, or 1 s after the
+  // oldest uncaptured deferred write, captures it. Unset captures at once.
+  optional bool defer_snapshot = 3;
 }
 // One intent kind per arm.
 message Action {

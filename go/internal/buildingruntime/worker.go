@@ -67,6 +67,12 @@ type WorkerConfig struct {
 	// cached emergency census within the step's) instead of the global
 	// drift. Nil leaves the dispatches on the compatibility shim.
 	Validity func() (domain.ReadValidity, bool)
+	// Flush, when set, asks native to capture the snapshot frame the
+	// step's writes deferred (bridge.FlushSnapshot, #1274): a step's
+	// dispatches send defer_snapshot and the step flushes once at its end,
+	// so a dispatch wave pays one frame capture instead of one per apply.
+	// Nil leaves every dispatch capturing its own frame.
+	Flush func(context.Context) error
 }
 
 // routineExecutableKind lists every action kind the worker (and, for a
@@ -463,6 +469,14 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// result here and backs off like any other.
 	var dispatched int
 	var errs []error
+	// One flush per step that sent a deferred write, on every exit: a
+	// yield, an error, or the end of the candidates.
+	sent := false
+	defer func() {
+		if sent {
+			w.flush(call)
+		}
+	}()
 	// A dispatch that starts with less of the step's budget left than the
 	// longest dispatch so far took would lose its native call to the
 	// deadline with the receipt unknown (a reconcile round trip later);
@@ -521,6 +535,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				resultErrs[i] = err
 			}
 		} else {
+			if w.config.Flush != nil {
+				run, sent = bridge.WithDeferredSnapshot(run), true
+			}
 			results, resultErrs = w.runBatch(call, run, lead.view.Plan, group)
 		}
 		longest = max(longest, time.Since(dispatchStarted))
@@ -621,6 +638,20 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		w.config.Advanced()
 	}
 	return errors.Join(append([]error{worldErr}, errs...)...)
+}
+
+// workerFlushTimeout bounds the end-of-step flush, which runs even when the
+// step's own budget is spent.
+const workerFlushTimeout = 5 * time.Second
+
+// flush asks native to capture the step's deferred writes. A failure is
+// logged only: native captures them anyway within its 1 s safety net.
+func (w *Worker) flush(call context.Context) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(call), workerFlushTimeout)
+	defer cancel()
+	if err := w.config.Flush(ctx); err != nil {
+		slog.Default().Warn("worker snapshot flush failed", telemetry.ComponentKey, "worker", "err", err)
+	}
 }
 
 // workerBatched reports whether candidate joins its plan's other plain

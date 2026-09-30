@@ -3653,9 +3653,13 @@ func (*ZonePreviewReply_Evaluated) isZonePreviewReply_Outcome() {}
 func (*ZonePreviewReply_Failure) isZonePreviewReply_Outcome() {}
 
 type ApplyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identity      *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	Actions       []*Action              `protobuf:"bytes,2,rep,name=actions,proto3" json:"actions,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Identity *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	Actions  []*Action              `protobuf:"bytes,2,rep,name=actions,proto3" json:"actions,omitempty"`
+	// Record the write without capturing a snapshot frame for it (#1274):
+	// the next frame after observations_flush_snapshot, or 1 s after the
+	// oldest uncaptured deferred write, captures it. Unset captures at once.
+	DeferSnapshot *bool `protobuf:"varint,3,opt,name=defer_snapshot,json=deferSnapshot,proto3,oneof" json:"defer_snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3702,6 +3706,13 @@ func (x *ApplyRequest) GetActions() []*Action {
 		return x.Actions
 	}
 	return nil
+}
+
+func (x *ApplyRequest) GetDeferSnapshot() bool {
+	if x != nil && x.DeferSnapshot != nil {
+		return *x.DeferSnapshot
+	}
+	return false
 }
 
 // One intent kind per arm.
@@ -7020,10 +7031,12 @@ const file_operations_proto_rawDesc = "" +
 	"\x10ZonePreviewReply\x12F\n" +
 	"\tevaluated\x18\x01 \x01(\v2&.rimgovernor.operations.v1.ZonePreviewH\x00R\tevaluated\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x88\x01\n" +
+	"\aoutcome\"\xc7\x01\n" +
 	"\fApplyRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12;\n" +
-	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\"\xca\x16\n" +
+	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\x12*\n" +
+	"\x0edefer_snapshot\x18\x03 \x01(\bH\x00R\rdeferSnapshot\x88\x01\x01B\x11\n" +
+	"\x0f_defer_snapshot\"\xca\x16\n" +
 	"\x06Action\x12\x15\n" +
 	"\x03key\x18\x01 \x01(\tH\x01R\x03key\x88\x01\x01\x12\x1d\n" +
 	"\apurpose\x18\x02 \x01(\tH\x02R\apurpose\x88\x01\x01\x12>\n" +
@@ -7793,6 +7806,7 @@ func file_operations_proto_init() {
 		(*ZonePreviewReply_Evaluated)(nil),
 		(*ZonePreviewReply_Failure)(nil),
 	}
+	file_operations_proto_msgTypes[38].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[39].OneofWrappers = []any{
 		(*Action_Trade)(nil),
 		(*Action_Building)(nil),

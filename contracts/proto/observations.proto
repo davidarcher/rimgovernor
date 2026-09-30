@@ -1322,6 +1322,10 @@ message SnapshotStreamOpened {
   uint32 slot_bytes = 3;
 }
 message SnapshotStreamReply { oneof outcome { SnapshotStreamOpened opened = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+// Makes the next frame capture if any applied write is uncaptured (#1274);
+// the reply does not wait for the capture.
+message FlushSnapshotRequest {}
+message FlushSnapshotReply { oneof outcome { bool flushed = 1; rimgovernor.common.v1.Failure failure = 2; } }
 
 service Observations {
   rpc GetClearanceTargets(ClearanceTargetsRequest) returns (ClearanceTargetsReply);
@@ -1331,6 +1335,7 @@ service Observations {
   rpc ReadStatus(StatusRequest) returns (StatusReply);
   rpc ReadObservationBatch(ObservationBatchRequest) returns (ObservationBatchReply);
   rpc OpenSnapshotStream(SnapshotStreamRequest) returns (SnapshotStreamReply);
+  rpc FlushSnapshot(FlushSnapshotRequest) returns (FlushSnapshotReply);
   rpc ListPawns(ListPawnsRequest) returns (ListPawnsReply);
   rpc ListSupplies(ListSuppliesRequest) returns (ListSuppliesReply);
   rpc ListBuildings(ListBuildingsRequest) returns (ListBuildingsReply);
