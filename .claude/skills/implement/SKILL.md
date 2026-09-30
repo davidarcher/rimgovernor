@@ -5,7 +5,7 @@ argument-hint: "<epic issue number>"
 ---
 Implement groomed epic #$ARGUMENTS. You are the orchestrator; worktree agents do the work.
 
-1. `git merge --ff-only main`. Read the epic and every open child (`go run ./cmd/issue <n>` from `go/`). If the children lack What/Acceptance/Decisions, stop and suggest `/groom #$ARGUMENTS` instead.
+1. `git merge --ff-only main`. Read the epic and every open child (`go run ./cmd/issue <n>` from `go/`). If the children lack What/Acceptance/Decisions, stop and give `/groom #$ARGUMENTS` as the next prompt in its own fenced code block instead.
 2. Order the children by their "Depends on" links. Show me the plan (waves of parallel issues) in a few lines and start without waiting unless something is ambiguous.
 3. For each wave, spawn one fresh worktree Agent per child issue, off current main. Tell each agent to:
    - follow AGENTS.md end to end: branch named for the issue, land `-unverified` rather than waiting on acceptance, Complexity line;

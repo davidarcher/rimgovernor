@@ -15,4 +15,4 @@ Groom epic #$ARGUMENTS into child issues that an agent can implement without com
    - **Acceptance**: tests or an acceptance case, and what "done" means.
    - **Decisions**: the calls already made (link the epic), so the implementer doesn't reopen them.
    - **Out of scope** and **Depends on #n**.
-6. Update the epic body with a checklist of children in dependency order and a "Groomed" note. End by suggesting `/implement #$ARGUMENTS`.
+6. Update the epic body with a checklist of children in dependency order and a "Groomed" note. End by giving the next prompt in its own fenced code block (`/implement #$ARGUMENTS`) so I can copy it.
