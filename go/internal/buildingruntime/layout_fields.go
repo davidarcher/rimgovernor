@@ -9,8 +9,9 @@ import (
 )
 
 // Outdoor food fields fill the layout plan's field blocks at every tier
-// (#1223, epic #1212): one growing zone per block, created by PickRect and
-// grown with add-cells until the block is full before the next block opens.
+// (#1223, epic #1212). A plan field zone is a whole fertile patch (#1281);
+// inside it each crop takes its own adjacent crop block, sized by its
+// demand, and grows in place with add-cells (#1283).
 
 // layoutFieldCells is the plan's field cells; false with no plan or no
 // field zones.
@@ -31,12 +32,12 @@ type fieldBlockEdit struct {
 	Cells      []domain.Cell
 }
 
-// planFieldBlock walks the plan's field blocks nearest anchor first and
-// returns the first block's step that still has free soil: grow the
-// growing zone standing in the block that options[0] adopts (with the first option's fertility
-// floor and need), or create one when the block has none. A new block
-// takes the first option, in policy.BlockCropOrder, not growing within
-// FieldBlockNeighbourRadius of the block (#1225). options are the viable
+// planFieldBlock walks the plan's field patches (policy FieldBlocks order)
+// and returns the first patch's step that still has free soil: grow the
+// growing zone in the patch that options[0] adopts by its need, or create
+// a new crop block against the patch's standing zones. A new block takes
+// the first option, in policy.BlockCropOrder, not growing within
+// FieldBlockNeighbourRadius of that block (#1225). options are the viable
 // crops in preference order. reason explains a refusal: no field blocks,
 // or every block full.
 func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, options []policy.FieldBlockOption, protected []domain.Cell) (fieldBlockEdit, string, bool) {
@@ -95,31 +96,44 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 				}
 			}
 		}
-		// One zone per block: a block holding only zones options[0] does not
-		// adopt belongs to another family (#1226).
-		zone, taken := "", false
+		// A patch holds adjacent crop blocks, one growing zone each (#1283):
+		// options[0] grows the largest zone it adopts in place, a ring of
+		// free cells around it; hay and social crops never share a food
+		// zone (#1226). Zones never move.
+		zone := ""
+		occupied := map[domain.Cell]bool{}
 		for id, cells := range zoneCells {
+			for c := range cells {
+				occupied[c] = true
+			}
 			if !adoptsZone(options[0].Crop, growing[id], inedible) {
-				taken = true
 				continue
 			}
 			if zone == "" || len(cells) > len(zoneCells[zone]) || len(cells) == len(zoneCells[zone]) && id < zone {
 				zone = id
 			}
 		}
-		if taken && zone == "" {
-			continue
-		}
 		if zone != "" {
-			if adds := growZoneCells(zoneCells[zone], freeFor(block, options[0].Crop), anchor, options[0].Needed); len(adds) > 0 {
+			if adds := connectedAdds(zoneCells[zone], freeFor(block, options[0].Crop), options[0].Needed); len(adds) > 0 {
 				return fieldBlockEdit{Zone: zone, Crop: growing[zone], Cells: adds}, "", true
 			}
-			continue
 		}
-		neighbours := fieldBlockNeighbours(facts.Cells, block, growing)
-		for _, o := range policy.BlockCropOrder(options, neighbours) {
-			if free := freeFor(block, o.Crop); len(free) > 0 && o.Needed > 0 {
-				return fieldBlockEdit{Crop: o.Crop.Name, Cells: connectedPick(free, anchor, o.Needed)}, "", true
+		// A new crop block sits against the patch's standing blocks, with no
+		// gap; its crop avoids one growing within FieldBlockNeighbourRadius
+		// of the block itself (#1225), not of the whole patch.
+		if first := connectedPick(freeFor(block, options[0].Crop), occupied, anchor, options[0].Needed); len(first) > 0 {
+			around := make(map[domain.Cell]bool, len(first))
+			for _, c := range first {
+				around[c] = true
+			}
+			neighbours := fieldBlockNeighbours(facts.Cells, around, growing)
+			for _, o := range policy.BlockCropOrder(options, neighbours) {
+				if o.Needed <= 0 {
+					continue
+				}
+				if cells := connectedPick(freeFor(block, o.Crop), occupied, anchor, o.Needed); len(cells) > 0 {
+					return fieldBlockEdit{Crop: o.Crop.Name, Cells: cells}, "", true
+				}
 			}
 		}
 	}
@@ -177,34 +191,9 @@ func adoptsZone(crop policy.CropChoice, zoneCrop string, inedible map[string]boo
 	return (!known || edible) && !inedible[zoneCrop]
 }
 
-// growZoneCells picks up to want free cells that extend zone as one
-// contiguous rectangle-ish block nearest anchor; only cells connected to
-// the zone through the result are kept, so native never splits the zone.
-func growZoneCells(zone, free map[domain.Cell]bool, anchor domain.Cell, want int) []domain.Cell {
-	union := make(map[domain.Cell]bool, len(zone)+len(free))
-	for c := range zone {
-		union[c] = true
-	}
-	for c := range free {
-		union[c] = true
-	}
-	picked := map[domain.Cell]bool{}
-	for _, c := range policy.PickRect(union, anchor, len(zone)+want) {
-		picked[c] = true
-	}
-	for c := range zone {
-		picked[c] = true
-	}
-	adds := connectedAdds(zone, picked, want)
-	if len(adds) == 0 {
-		// The picker's rectangle missed the zone: extend its frontier.
-		adds = connectedAdds(zone, union, want)
-	}
-	return adds
-}
-
 // connectedAdds floods from zone through set and returns up to want
-// non-zone cells reached, nearest the zone first, in row-major order.
+// non-zone cells reached, nearest the zone first, in row-major order: a
+// zone grows in place by rings, so it stays compact and connected.
 func connectedAdds(zone, set map[domain.Cell]bool, want int) []domain.Cell {
 	seen := map[domain.Cell]bool{}
 	var frontier, out []domain.Cell
@@ -238,10 +227,16 @@ func connectedAdds(zone, set map[domain.Cell]bool, want int) []domain.Cell {
 
 // connectedPick picks up to want cells of free for a new growing zone as one
 // 4-connected footprint (#1252): native refuses a disconnected zone, and a
-// block's free soil is often split by rock, trees or buildings. It picks
-// inside free's largest component (ties to the one nearest anchor), then
-// keeps the picked cells connected to the picked cell nearest anchor.
-func connectedPick(free map[domain.Cell]bool, anchor domain.Cell, want int) []domain.Cell {
+// patch's free soil is often split by rock, trees or buildings. It picks
+// inside free's largest component (ties to the one nearest anchor). The
+// block is sized to want and roughly square (#1283): it seeds at the free
+// cell touching a standing block (occupied) nearest anchor, or the free
+// cell nearest anchor when none touches, and takes the fullest of the four
+// sqrt(want)-wide rectangles cornered at the seed, topped up by rings.
+func connectedPick(free, occupied map[domain.Cell]bool, anchor domain.Cell, want int) []domain.Cell {
+	if want <= 0 {
+		return nil
+	}
 	var best map[domain.Cell]bool
 	bestNear := int64(-1)
 	seen := map[domain.Cell]bool{}
@@ -261,21 +256,41 @@ func connectedPick(free map[domain.Cell]bool, anchor domain.Cell, want int) []do
 			best, bestNear = comp, near
 		}
 	}
-	picked := map[domain.Cell]bool{}
-	for _, c := range policy.PickRect(best, anchor, want) {
-		picked[c] = true
-	}
-	if len(picked) == 0 {
+	if len(best) == 0 {
 		return nil
 	}
-	var start domain.Cell
-	near := int64(-1)
-	for _, c := range sortedCells(picked) {
-		if d := cellDist(c, anchor); near < 0 || d < near {
-			start, near = c, d
+	var seed domain.Cell
+	near, touching := int64(-1), false
+	for _, c := range sortedCells(best) {
+		t := occupied[domain.Cell{X: c.X, Z: c.Z - 1}] || occupied[domain.Cell{X: c.X - 1, Z: c.Z}] || occupied[domain.Cell{X: c.X + 1, Z: c.Z}] || occupied[domain.Cell{X: c.X, Z: c.Z + 1}]
+		if d := cellDist(c, anchor); near < 0 || t && !touching || t == touching && d < near {
+			seed, near, touching = c, d, t
 		}
 	}
-	return sortedCells(cellComponent(picked, start))
+	w := int32(1)
+	for int(w*w) < want {
+		w++
+	}
+	h := int32((want + int(w) - 1) / int(w))
+	var picked map[domain.Cell]bool
+	for _, dir := range [][2]int32{{1, 1}, {-1, 1}, {1, -1}, {-1, -1}} {
+		rect := map[domain.Cell]bool{}
+		for dz := int32(0); dz < h && len(rect) < want; dz++ {
+			for dx := int32(0); dx < w && len(rect) < want; dx++ {
+				if c := (domain.Cell{X: seed.X + dir[0]*dx, Z: seed.Z + dir[1]*dz}); best[c] {
+					rect[c] = true
+				}
+			}
+		}
+		if len(rect) > len(picked) {
+			picked = rect
+		}
+	}
+	picked = cellComponent(picked, seed)
+	for _, c := range connectedAdds(picked, best, want-len(picked)) {
+		picked[c] = true
+	}
+	return sortedCells(picked)
 }
 
 // cellComponent is the 4-connected cells of set reachable from start.
