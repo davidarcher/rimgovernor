@@ -448,7 +448,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 				// A timetable behind its role template is a work
 				// deficit the same review corrects (#417).
 				if matches, ok := work.Matches.Value(); ok && matches {
-					for _, row := range policy.PlanSchedules(pawns).Schedules {
+					for _, row := range policy.PlanSchedules(pawns, reading.Projection.Facts.Comfort).Schedules {
 						if !row.Matches {
 							reading.Projection.Facts.WorkCoverage = domain.Known(false)
 						}

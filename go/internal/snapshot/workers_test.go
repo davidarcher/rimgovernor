@@ -233,7 +233,7 @@ func TestWorkersNightOwlSchedules(t *testing.T) {
 		t.Fatalf("the player-edited timetable was not recorded: %v", s)
 	}
 	wanted := map[policy.PawnID][]string{}
-	for _, row := range policy.PlanSchedules(before).Schedules {
+	for _, row := range policy.PlanSchedules(before, domain.Unknown[policy.ComfortObservation]()).Schedules {
 		if row.Matches {
 			t.Fatalf("%s already matches its template", row.Pawn)
 		}

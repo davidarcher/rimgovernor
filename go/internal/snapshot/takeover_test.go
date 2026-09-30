@@ -44,7 +44,7 @@ func TestTakeoverScheduleEditOpensWorkAssignments(t *testing.T) {
 	}
 	const edited = policy.PawnID("Thing_Human728")
 	planned := map[policy.PawnID][]string{}
-	for _, row := range policy.PlanSchedules(pawns).Schedules {
+	for _, row := range policy.PlanSchedules(pawns, r.Projection.Facts.Comfort).Schedules {
 		planned[row.Pawn] = row.Slots
 		if row.Pawn == edited && (row.Matches || row.Slots[12] != policy.ScheduleAnything) {
 			t.Fatalf("edited timetable not replanned: %+v", row)
@@ -60,7 +60,7 @@ func TestTakeoverScheduleEditOpensWorkAssignments(t *testing.T) {
 			pawns[i].Schedule = domain.Known(want)
 		}
 	}
-	for _, row := range policy.PlanSchedules(pawns).Schedules {
+	for _, row := range policy.PlanSchedules(pawns, r.Projection.Facts.Comfort).Schedules {
 		if !row.Matches {
 			t.Fatalf("%s still replanned after wearing its template", row.Pawn)
 		}

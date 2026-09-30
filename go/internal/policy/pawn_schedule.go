@@ -115,7 +115,7 @@ func needBand(level domain.Fact[float64], active bool, enter, exit float64) bool
 
 // plannedSchedule is the template resized from the pawn's needs against its
 // current timetable. It only ever adds Sleep or Joy hours over Anything.
-func plannedSchedule(effects TraitEffects, rest, joy domain.Fact[float64], current []string) []string {
+func plannedSchedule(effects TraitEffects, rest, joy domain.Fact[float64], current []string, joyOffset int) []string {
 	slots := scheduleTemplate(effects)
 	from, to := sleepBlock(effects)
 	at := func(h int) string {
@@ -130,11 +130,46 @@ func plannedSchedule(effects TraitEffects, rest, joy domain.Fact[float64], curre
 			slots[(to+i)%24] = ScheduleSleep
 		}
 	}
-	widened := at(from-2) == ScheduleJoy
+	// A staggered pawn (#1317) takes its Joy hour, and the widened hour
+	// before it, joyOffset hours earlier; Sleep never moves.
+	slots[(from+23)%24] = ScheduleAnything
+	slots[(from+23-joyOffset)%24] = ScheduleJoy
+	widened := at(from-2-joyOffset) == ScheduleJoy
 	if needBand(joy, widened, JoyEnter, JoyExit) {
-		slots[(from+22)%24] = ScheduleJoy
+		slots[(from+22-joyOffset)%24] = ScheduleJoy
 	}
 	return slots
+}
+
+// maxJoyOffset bounds the recreation stagger (#1317) to the evening: a
+// pawn's Joy hours move at most this many hours earlier, which keeps them
+// clear of the Sleep block (and its wake-end extension) even on the
+// shortest (QuickSleeper NightOwl) day.
+const maxJoyOffset = 3
+
+// joyOffsets staggers recreation when the colony has fewer recreation
+// places than people (#1317): scheduled pawns, sorted by ID, fill the
+// places hour by hour back from sleep (wrapping past maxJoyOffset).
+// Unknown counts, no places at all, or enough places: no stagger.
+func joyOffsets(ids []PawnID, comfort domain.Fact[ComfortObservation]) map[PawnID]int {
+	v, known := comfort.Value()
+	places := len(v.Recreation)
+	if !known || places == 0 || places >= len(v.People) {
+		return nil
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	offsets := map[PawnID]int{}
+	for i, id := range ids {
+		offsets[id] = (i / places) % (maxJoyOffset + 1)
+	}
+	return offsets
+}
+
+func schedulable(pawn WorkPawn) ([]string, bool) {
+	available, ak := pawn.Available.Value()
+	applies, pk := pawn.Applies.Value()
+	current, ck := pawn.Schedule.Value()
+	return current, ak && pk && ck && available && applies
 }
 
 func sameSchedule(a, b []string) bool {
@@ -150,18 +185,23 @@ func sameSchedule(a, b []string) bool {
 }
 
 // PlanSchedules chooses a timetable per available pawn from its profile and
-// needs (plannedSchedule);
-// a pawn whose timetable is unknown is skipped.
-func PlanSchedules(pawns []WorkPawn) ScheduleDecision {
+// needs (plannedSchedule), staggering Joy hours against the recreation
+// census (joyOffsets); a pawn whose timetable is unknown is skipped.
+func PlanSchedules(pawns []WorkPawn, comfort domain.Fact[ComfortObservation]) ScheduleDecision {
 	var decision ScheduleDecision
+	var ids []PawnID
 	for _, pawn := range pawns {
-		available, ak := pawn.Available.Value()
-		applies, pk := pawn.Applies.Value()
-		current, ck := pawn.Schedule.Value()
-		if !ak || !pk || !ck || !available || !applies {
+		if _, ok := schedulable(pawn); ok {
+			ids = append(ids, pawn.ID)
+		}
+	}
+	offsets := joyOffsets(ids, comfort)
+	for _, pawn := range pawns {
+		current, ok := schedulable(pawn)
+		if !ok {
 			continue
 		}
-		want := plannedSchedule(BuildProfile(pawn).Effects, pawn.Rest, pawn.Joy, current)
+		want := plannedSchedule(BuildProfile(pawn).Effects, pawn.Rest, pawn.Joy, current, offsets[pawn.ID])
 		decision.Schedules = append(decision.Schedules, PawnSchedule{Pawn: pawn.ID, Slots: want, Matches: sameSchedule(current, want)})
 	}
 	sort.Slice(decision.Schedules, func(i, j int) bool { return decision.Schedules[i].Pawn < decision.Schedules[j].Pawn })
