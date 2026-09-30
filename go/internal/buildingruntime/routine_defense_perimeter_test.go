@@ -108,7 +108,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	if changed, _ := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6); changed {
 		t.Fatal("an unchanged plan re-cut")
 	}
-	dried, changed := policy.ReplanLayout(plan, survey(true), 3, 1, policy.BuildTierCamp)
+	dried, changed := policy.ReplanLayout(plan, survey(true), 3, 1, policy.BuildTierCamp, nil)
 	if !changed {
 		t.Fatal("dried ground kept the plan")
 	}

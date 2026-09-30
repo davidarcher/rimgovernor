@@ -61,3 +61,34 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 	}
 	t.Fatal("no geyser offset got a geothermal reservation")
 }
+
+// No planned room covers a geyser's enclosure, on a fresh plan or on a
+// replan of a plan laid out before the geyser was known.
+func TestLayoutRoomsKeepOffGeysers(t *testing.T) {
+	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
+	s := zoningSurvey(200, open)
+	base, _ := DeriveLayoutPlan(s, 5, BuildTierCamp, nil).Value()
+	for _, r := range base.AllRooms() {
+		at := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
+		g := []PowerGeyser{{ID: "g", Cell: at, Cells: []domain.Cell{at, {X: at.X + 1, Z: at.Z}, {X: at.X, Z: at.Z + 1}, {X: at.X + 1, Z: at.Z + 1}}}}
+		vents := geothermalCells(geyserFootprints(g))
+		plan, ok := DeriveLayoutPlan(s, 5, BuildTierCamp, g).Value()
+		if !ok {
+			t.Fatalf("no plan with a geyser under %s", r.Role)
+		}
+		for _, room := range plan.AllRooms() {
+			if rectHits(roomWalls(room), vents) {
+				t.Fatalf("fresh plan: %s covers the geyser at %v", room.Role, at)
+			}
+		}
+		next, changed := ReplanLayout(base, s, 5, 1, BuildTierCamp, g)
+		if !changed {
+			t.Fatalf("replan kept %s over the geyser at %v", r.Role, at)
+		}
+		for _, room := range next.AllRooms() {
+			if rectHits(roomWalls(room), vents) {
+				t.Fatalf("replan: %s covers the geyser at %v", room.Role, at)
+			}
+		}
+	}
+}

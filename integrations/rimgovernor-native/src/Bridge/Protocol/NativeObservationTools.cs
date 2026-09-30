@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
                     }
                     if (fields.Zone) {
                         var zone = map.zoneManager.ZoneAt(cell);
-                        if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        if (zone != null) row.ZoneId = zone.GetUniqueLoadID();
                         row.StorageEmpty = NativeZoneCreation.StorageEmpty(cell, map);
                     }
                     if (fields.Room) {

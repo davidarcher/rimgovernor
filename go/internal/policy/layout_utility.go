@@ -70,7 +70,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		has = has || r.Role == ModuleBattery
 	}
 	if !has {
-		g := newCoreGrid(plan.Zones, plan.Reservations)
+		g := newCoreGrid(coreWithout(plan.Zones, geothermalCells(want.Geysers)), plan.Reservations)
 		for _, w := range plan.Wings {
 			g.carve(wingReserve(w, 0))
 		}
@@ -104,11 +104,11 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		}
 	}
 	for _, gz := range want.Geysers {
-		cx, cz := gz.X+gz.Width/2, gz.Z+gz.Height/2
-		gen := Rectangle{X: cx - geothermalSide/2, Z: cz - geothermalSide/2, Width: geothermalSide, Height: geothermalSide}
-		area := Rectangle{X: gen.X - geothermalShell, Z: gen.Z - geothermalShell, Width: gen.Width + 2*geothermalShell, Height: gen.Height + 2*geothermalShell}
+		area := geothermalArea(gz)
 		if u.free(area, true) {
 			u.reserve(&plan, LayoutReservation{Kind: ReserveGeothermal, Area: area})
+		} else {
+			slog.Warn("layout: no room for the geothermal enclosure", "geyser", gz, "area", area)
 		}
 	}
 	pair := int32(0)

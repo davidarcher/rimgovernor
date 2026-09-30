@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -94,7 +95,16 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 			blocked[c] = true
 		}
 	}
-	next := Grow(LayoutPlan{Spine: spine, Rooms: rooms, Wings: wings, Zones: coreWithout(Zone(s), blocked), Reservations: kept}, pawns, tombs, tier)
+	// Nor do they cover a geyser's enclosure.
+	roomless := maps.Clone(blocked)
+	for c := range geothermalCells(geyserFootprints(geysers)) {
+		if !open[c] {
+			roomless[c] = true
+		}
+	}
+	zones := Zone(s)
+	next := Grow(LayoutPlan{Spine: spine, Rooms: rooms, Wings: wings, Zones: coreWithout(zones, roomless), Reservations: kept}, pawns, tombs, tier)
+	next.Zones = coreWithout(zones, blocked)
 	if len(next.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()
 	}

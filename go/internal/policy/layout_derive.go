@@ -20,21 +20,15 @@ var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 // colonists, with a geothermal enclosure on each reported steam geyser
 // (#834). Unknown when the survey holds no room for a core.
 func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGeyser) domain.Fact[LayoutPlan] {
-	plan := PlanCore(Zone(s), pawns, tier)
+	zones := Zone(s)
+	footprints := geyserFootprints(geysers)
+	plan := PlanCore(coreWithout(zones, geothermalCells(footprints)), pawns, tier)
 	if len(plan.AllRooms()) == 0 {
 		return domain.Unknown[LayoutPlan]()
 	}
+	plan.Zones = zones
 	want := layoutUtilities
-	for _, g := range geysers {
-		if len(g.Cells) == 0 {
-			continue
-		}
-		var r Rectangle
-		for _, c := range g.Cells {
-			r = unionRect(r, Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1})
-		}
-		want.Geysers = append(want.Geysers, r)
-	}
+	want.Geysers = footprints
 	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(PlanUtilities(plan, want), s), s), s)
 	return domain.Known(withoutCore(plan))
 }
@@ -46,8 +40,9 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 // changes the plan when the ground on or near the ring did (ground a
 // moisture pump dried, a mined-out ring cell). It reports whether the plan
 // changed.
-func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, suites ...float64) (LayoutPlan, bool) {
+func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, suites ...float64) (LayoutPlan, bool) {
 	zones := Zone(s)
+	vents := geothermalCells(geyserFootprints(geysers))
 	noGo := map[domain.Cell]bool{}
 	for _, z := range zones {
 		if z.Kind != ZoneNoGo {
@@ -61,15 +56,16 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier
 	}
 	var kept []LayoutRoom
 	for _, r := range plan.Rooms {
-		if !rectHits(roomWalls(r), noGo) {
+		if !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) {
 			kept = append(kept, r)
 		}
 	}
-	wings := keepWingRooms(plan.Wings, func(r LayoutRoom) bool { return !rectHits(roomWalls(r), noGo) })
+	wings := keepWingRooms(plan.Wings, func(r LayoutRoom) bool { return !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) })
 	next := plan
-	next.Rooms, next.Wings, next.Zones = kept, wings, zones
+	next.Rooms, next.Wings, next.Zones = kept, wings, coreWithout(zones, vents)
 	dropped := len(next.AllRooms()) != len(plan.AllRooms())
 	next = Grow(next, pawns, tombs, tier, suites...)
+	next.Zones = zones
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
 		return fresh, !samePerimeter(plan, fresh)
@@ -188,4 +184,40 @@ func rectHits(r Rectangle, cells map[domain.Cell]bool) bool {
 		}
 	}
 	return false
+}
+
+// geyserFootprints is each reported geyser's bounding rectangle.
+func geyserFootprints(geysers []PowerGeyser) []Rectangle {
+	var out []Rectangle
+	for _, g := range geysers {
+		if len(g.Cells) == 0 {
+			continue
+		}
+		var r Rectangle
+		for _, c := range g.Cells {
+			r = unionRect(r, Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1})
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// geothermalArea is the enclosure PlanUtilities reserves over a geyser: the
+// generator centred on it and its shell.
+func geothermalArea(geyser Rectangle) Rectangle {
+	cx, cz := geyser.X+geyser.Width/2, geyser.Z+geyser.Height/2
+	side := geothermalSide + 2*geothermalShell
+	return Rectangle{X: cx - side/2, Z: cz - side/2, Width: side, Height: side}
+}
+
+// geothermalCells is every cell of the geysers' enclosures: rooms stay off
+// them so each geyser keeps its generator site.
+func geothermalCells(footprints []Rectangle) map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	for _, f := range footprints {
+		for _, c := range RectangleCells(geothermalArea(f)) {
+			out[c] = true
+		}
+	}
+	return out
 }
