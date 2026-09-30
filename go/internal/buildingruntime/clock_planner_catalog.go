@@ -100,7 +100,7 @@ func sectionFamilies(sections []facts.Section) []bridge.FactFamily {
 // section it declares) re-runs it sooner.
 const (
 	reviewEveryUrgent  domain.Tick = 2500
-	reviewEveryRoutine domain.Tick = 7500
+	reviewEveryRoutine domain.Tick = 2500
 	reviewEveryComfort domain.Tick = 15000
 )
 
