@@ -144,6 +144,13 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,target,zone_payload) VALUES(?,?,?,'area',?,NULLIF(?,''),?)", a.ID(), plan, ordinal, string(area.Operation()), area.Key(), data)
 	} else if settings, ok := a.PawnSettings(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition) VALUES(?,?,?,'pawn_settings',?,?)", a.ID(), plan, ordinal, string(settings.Pawn()), string(settings.Hostility()))
+	} else if prune, ok := a.PolicyPrune(); ok {
+		// definition is the database, zone_payload the canonical ids (#1298).
+		data, encodeErr := json.Marshal(prune.IDs())
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,zone_payload) VALUES(?,?,?,'policy_prune',?,?)", a.ID(), plan, ordinal, string(prune.Database()), data)
 	} else if surgery, ok := a.Surgery(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,x,stuff,target) VALUES(?,?,?,'surgery',?,?,?,?,NULLIF(?,''))", a.ID(), plan, ordinal, string(surgery.Pawn()), surgery.Recipe(), surgery.Part(), strconv.FormatBool(surgery.AcknowledgeViolation()), string(surgery.Surgeon()))
 	} else if refuel, ok := a.AutoRefuel(); ok {
@@ -309,6 +316,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		action, err := domain.NewZoneCreateAction(id, value)
 		return action, ordinal, err
+	}
+	if kind == "policy_prune" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+		var ids []string
+		if json.Unmarshal(zone, &ids) != nil {
+			return domain.Action{}, 0, errors.New("invalid policy prune payload")
+		}
+		prune, err := domain.NewPolicyPrune(domain.PolicyDatabase(def.String), ids)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewPolicyPruneAction(id, prune)
+		return a, ordinal, err
 	}
 	if kind == "area" && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
 		var cells []domain.Cell

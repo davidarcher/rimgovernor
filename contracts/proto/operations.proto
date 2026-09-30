@@ -292,6 +292,7 @@ message Action {
     AreaIntent area = 48;
     AutoHomeAreaIntent auto_home_area = 49;
     PawnSettingsIntent pawn_settings = 50;
+    PolicyPruneIntent policy_prune = 51;
   }
 }
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
@@ -334,6 +335,15 @@ message SurgeryIntent { optional string pawn_id = 1; optional string recipe_def 
 // edit.
 enum AreaOperation { AREA_OPERATION_UNSPECIFIED = 0; AREA_OPERATION_CREATE = 1; AREA_OPERATION_SET_CELLS = 2; AREA_OPERATION_CLEAR_CELLS = 3; AREA_OPERATION_DELETE = 4; }
 message AreaIntent { optional AreaOperation operation = 1; optional string key = 2; optional bool home = 3; repeated rimgovernor.common.v1.Cell cells = 4; }
+// Delete policies no pawn should keep (#1298): each delete_ids entry is a
+// Policy.GetUniqueLoadID() in the named outfit, drug, food or reading
+// database, or an Area_Allowed load id. Every live pawn still holding the
+// policy first moves onto its own per-pawn policy (the one labelled with its
+// short name, made from the database's defaults when missing), or off the
+// area (unrestricted); then vanilla TryDelete (Area.Delete) removes it. An id
+// already gone applies again. Evidence is the PolicyPruneEffect.
+enum PolicyDatabase { POLICY_DATABASE_UNSPECIFIED = 0; POLICY_DATABASE_OUTFIT = 1; POLICY_DATABASE_DRUG = 2; POLICY_DATABASE_FOOD = 3; POLICY_DATABASE_READING = 4; POLICY_DATABASE_ALLOWED_AREA = 5; }
+message PolicyPruneIntent { optional PolicyDatabase database = 1; repeated string delete_ids = 2; }
 // Set the game's home-area auto-expand (Find.PlaySettings.autoHomeArea, a
 // save-level setting; #1322). Evidence is a SettingsEffect with the
 // AUTO_HOME_AREA field: APPLIED when it changed, UNCHANGED when it already

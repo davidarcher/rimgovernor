@@ -66,6 +66,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.UseItem] = new UseItemActionHandler(),
             [Operations.Action.IntentOneofCase.Surgery] = new SurgeryActionHandler(),
             [Operations.Action.IntentOneofCase.Area] = new AreaActionHandler(),
+            [Operations.Action.IntentOneofCase.PolicyPrune] = new PolicyPruneActionHandler(),
             [Operations.Action.IntentOneofCase.AutoHomeArea] = new AutoHomeAreaActionHandler(),
             [Operations.Action.IntentOneofCase.PawnSettings] = new PawnSettingsActionHandler(),
         };

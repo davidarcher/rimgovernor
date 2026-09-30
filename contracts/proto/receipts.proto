@@ -62,6 +62,7 @@ message EffectEvidence {
     CombatOrdersEffect combat_orders = 26;
     SurgeryEffect surgery_bill = 27;
     AreaEffect area_edit = 28;
+    PolicyPruneEffect policy_prune = 29;
   }
 }
 message SnapshotEvidence {
@@ -182,6 +183,10 @@ message SurgeryEffect { optional string pawn_id = 1; optional string recipe_def 
 // id (absent once deleted), whether it stands, and its cell count after the
 // edit.
 message AreaEffect { optional string key = 1; optional bool home = 2; optional string area_id = 3; optional bool present = 4; optional int32 cell_count = 5; }
+// One PolicyPruneIntent's result (#1298): the database (outfit, drug, food,
+// reading or allowed_area), the ids deleted by this apply (ids already gone
+// are absent) and the pawns moved off them first.
+message PolicyPruneEffect { optional string database = 1; repeated string deleted_ids = 2; repeated string reassigned_pawn_ids = 3; }
 message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; reserved 4; reserved "released_count"; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }
 message JobEffect {

@@ -25,6 +25,26 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (mode == "prune_setup" || mode == "prune_read") {
+                    // apply/policy-prune (#1298): an extra outfit and an extra
+                    // allowed area, the subject assigned to both.
+                    var map = Find.CurrentMap;
+                    if (mode == "prune_setup") {
+                        subject = map.mapPawns.FreeColonistsSpawned.First(p => !p.Downed && !p.InMentalState);
+                        var extra = Current.Game.outfitDatabase.MakeNewOutfit(); extra.label = "Prune extra";
+                        subject.outfits.CurrentApparelPolicy = extra;
+                        var area = new Area_Allowed(map.areaManager, "Prune extra");
+                        map.areaManager.AllAreas.Add(area);
+                        area[subject.Position] = true;
+                        subject.playerSettings.AreaRestrictionInPawnCurrentMap = area;
+                    }
+                    var outfitNow = subject.outfits.CurrentApparelPolicy;
+                    var areaNow = subject.playerSettings.AreaRestrictionInPawnCurrentMap;
+                    return new { success = true, pawn = subject.GetUniqueLoadID(), shortName = subject.LabelShort,
+                        outfit = outfitNow?.GetUniqueLoadID() ?? "", outfitLabel = outfitNow?.label ?? "", area = areaNow?.GetUniqueLoadID() ?? "",
+                        outfits = Current.Game.outfitDatabase.AllOutfits.Select(o => o.GetUniqueLoadID()).ToArray(),
+                        areas = map.areaManager.AllAreas.OfType<Area_Allowed>().Select(a => a.GetUniqueLoadID()).ToArray() };
+                }
                 if (mode.StartsWith("policy_")) {
                     if (mode == "policy_setup") {
                         subject = Find.CurrentMap.mapPawns.FreeColonistsSpawned.First(p => !p.Downed && !p.InMentalState);

@@ -72,6 +72,7 @@ func init() {
 	registerIntentKind(domain.AutoRefuelAction, autoRefuelAction)
 	registerIntentKind(domain.SurgeryAction, surgeryAction)
 	registerIntentKind(domain.AreaAction, areaAction)
+	registerIntentKind(domain.PolicyPruneAction, policyPruneAction)
 	registerIntentKind(domain.PawnSettingsAction, pawnSettingsAction)
 	registerIntentKind(domain.AutoHomeAreaAction, autoHomeAreaAction)
 	registerIntentKind(domain.RepairAction, repairAction)
