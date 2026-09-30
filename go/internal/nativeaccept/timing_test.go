@@ -25,7 +25,7 @@ func TestBudgetDeadline(t *testing.T) {
 
 func TestFinalizeRecordsTiming(t *testing.T) {
 	ResetTickStats()
-	observeReply(t, "home/colony_facts", map[string]any{"tick": 1000.0})
+	observeReply(t, "rimgovernor/observations_read_colony_facts", wireReply(`{"observed":{"context":{"tick":"1000"}}}`))
 	observeReply(t, "rimgovernor/lifecycle_read_identity", wireReply(`{"loaded":{"context":{"tick":"1600"}}}`))
 	output := t.TempDir()
 	report := NewReport("timing", true)
@@ -110,12 +110,12 @@ func TestFinalizeWithoutABudgetPasses(t *testing.T) {
 
 func TestTickObservationCountsForwardProgressOnly(t *testing.T) {
 	ResetTickStats()
-	observeReply(t, "home/colony_facts", map[string]any{"tick": 500.0})
-	observeReply(t, "home/colony_facts", map[string]any{"tick": 800.0})
+	observeReply(t, "rimgovernor/observations_read_colony_facts", wireReply(`{"observed":{"context":{"tick":"500"}}}`))
+	observeReply(t, "rimgovernor/observations_read_colony_facts", wireReply(`{"observed":{"context":{"tick":"800"}}}`))
 	// A rewind (an older save loaded without a load tool passing through
 	// the harness) re-baselines without counting.
-	observeReply(t, "home/colony_facts", map[string]any{"tick": 100.0})
-	observeReply(t, "home/colony_facts", map[string]any{"tick": 150.0})
+	observeReply(t, "rimgovernor/observations_read_colony_facts", wireReply(`{"observed":{"context":{"tick":"100"}}}`))
+	observeReply(t, "rimgovernor/observations_read_colony_facts", wireReply(`{"observed":{"context":{"tick":"150"}}}`))
 	// A load re-baselines: the loaded save's tick is not progress.
 	observeReplyTick("rimworld/load_game_ready", nil)
 	observeReply(t, "rimgovernor/lifecycle_read_identity", wireReply(`{"loaded":{"context":{"tick":"90000"}}}`))
@@ -170,11 +170,11 @@ func wireReply(message string) map[string]any { return map[string]any{"payload":
 
 func TestReplyTickIgnoresRepliesWithoutOne(t *testing.T) {
 	for tool, payload := range map[string]map[string]any{
-		"home/colony_facts":                     {},
-		"rimworld/set_time_speed":               {"success": true},
-		"rimgovernor/authority_read_status":     wireReply(`{"status":{"owner":"controller"}}`),
-		"rimgovernor/lifecycle_read_identity":   {"payload": 7},
-		"rimgovernor/lifecycle_read_identity_2": wireReply(`not json`),
+		"rimgovernor/observations_read_colony_facts": wireReply(`{"observed":{}}`),
+		"rimworld/set_time_speed":                    {"success": true},
+		"rimgovernor/authority_read_status":          wireReply(`{"status":{"owner":"controller"}}`),
+		"rimgovernor/lifecycle_read_identity":        {"payload": 7},
+		"rimgovernor/lifecycle_read_identity_2":      wireReply(`not json`),
 	} {
 		if tick, ok := replyTick(tool, payload); ok {
 			t.Errorf("%s: unexpected tick %d from %v", tool, tick, payload)

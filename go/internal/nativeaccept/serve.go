@@ -679,8 +679,8 @@ func (p *ServiceProcess) Entry() map[string]any { return p.entry }
 // LoadSave loads profile/Saves/<save>.rws through h (visual readiness),
 // pauses the clock and dismisses the colony naming dialog a fresh load can
 // leave open: ConfirmColonyNames is a priority-zero emergency that blocks
-// every other goal until it is resolved. It returns the home/colony_facts
-// reply.
+// every other goal until it is resolved. It returns the typed colony facts
+// snapshot.
 func LoadSave(ctx context.Context, h *Harness, save string, report Report) (map[string]any, error) {
 	if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
 		"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
@@ -694,13 +694,21 @@ func LoadSave(ctx context.Context, h *Harness, save string, report Report) (map[
 }
 
 // ConfirmColonyNames dismisses the faction/settlement naming dialog when
-// one is pending and returns the home/colony_facts reply it consulted.
+// one is pending and returns the typed colony facts snapshot it consulted.
 func ConfirmColonyNames(ctx context.Context, h *Harness, report Report) (map[string]any, error) {
-	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
+	identity, err := ReadIdentity(ctx, h, "colony-facts-identity")
 	if err != nil {
 		return nil, err
 	}
-	if naming, ok := AsMap(facts["colonyNaming"]); ok && naming != nil {
+	reply, err := h.Wire(ctx, "colony-facts", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
+	if err != nil {
+		return nil, err
+	}
+	_, facts, err := Outcome(reply, "observed")
+	if err != nil {
+		return nil, fmt.Errorf("colony facts: %w", err)
+	}
+	if naming, ok := AsMap(facts["naming"]); ok && naming != nil {
 		confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
 			"windowId":       int(AsNumber(naming["windowId"])),
 			"factionName":    AsString(naming["factionName"]),

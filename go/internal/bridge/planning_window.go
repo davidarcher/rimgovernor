@@ -21,10 +21,14 @@ const PlanningWindowRadius int32 = 22
 const planningWindowPage = 65536
 
 // PlanningWindowRect is the planning window around center on a map of
-// bounds: centre +/- PlanningWindowRadius, clipped to the map.
-func PlanningWindowRect(center domain.Cell, bounds policy.Bounds) policy.Rectangle {
-	minX, minZ := max(center.X-PlanningWindowRadius, 0), max(center.Z-PlanningWindowRadius, 0)
-	maxX, maxZ := min(center.X+PlanningWindowRadius, bounds.Width-1), min(center.Z+PlanningWindowRadius, bounds.Height-1)
+// bounds: centre +/- PlanningWindowRadius, widened to take in plan (the
+// stored layout plan's extent, #1282; an empty rect adds nothing), clipped
+// to the map. A planned room far from where the colonists stand is still
+// read, so its cells are never missing from the census.
+func PlanningWindowRect(center domain.Cell, bounds policy.Bounds, plan policy.Rectangle) policy.Rectangle {
+	r, _ := policy.RectUnion(policy.Rectangle{X: center.X - PlanningWindowRadius, Z: center.Z - PlanningWindowRadius, Width: 2*PlanningWindowRadius + 1, Height: 2*PlanningWindowRadius + 1}, plan)
+	minX, minZ := max(r.X, 0), max(r.Z, 0)
+	maxX, maxZ := min(r.X+r.Width-1, bounds.Width-1), min(r.Z+r.Height-1, bounds.Height-1)
 	return policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}
 }
 

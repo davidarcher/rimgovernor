@@ -147,3 +147,38 @@ func (p LayoutPlan) Valid() bool {
 	}
 	return true
 }
+
+// Extent is the bounding rectangle of what the plan builds: every room
+// with its walls, every hallway and every reserved site (#1282). The
+// whole-map zones are left out; false means the plan holds none of these.
+func (p LayoutPlan) Extent() (Rectangle, bool) {
+	var rects []Rectangle
+	for _, r := range p.AllRooms() {
+		rects = append(rects, Rectangle{X: r.Interior.X - 1, Z: r.Interior.Z - 1, Width: r.Interior.Width + 2, Height: r.Interior.Height + 2})
+	}
+	rects = append(rects, spineRects(p.Hallways())...)
+	for _, r := range p.Reservations {
+		rects = append(rects, r.Area)
+	}
+	return RectUnion(rects...)
+}
+
+// RectUnion is the bounding rectangle of the non-empty rects; false when
+// there are none.
+func RectUnion(rects ...Rectangle) (Rectangle, bool) {
+	var out Rectangle
+	found := false
+	for _, r := range rects {
+		if r.Width < 1 || r.Height < 1 {
+			continue
+		}
+		if !found {
+			out, found = r, true
+			continue
+		}
+		minX, minZ := min(out.X, r.X), min(out.Z, r.Z)
+		maxX, maxZ := max(out.X+out.Width, r.X+r.Width), max(out.Z+out.Height, r.Z+r.Height)
+		out = Rectangle{X: minX, Z: minZ, Width: maxX - minX, Height: maxZ - minZ}
+	}
+	return out, found
+}

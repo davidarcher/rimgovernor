@@ -918,6 +918,16 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	if window != nil {
 		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
+		id, tick := loaded.Context.GetIdentity(), domain.Tick(loaded.Context.GetTick())
+		window.layout = func(ctx context.Context) (store.LayoutPlanRecord, bool, error) {
+			// The plan is keyed by colony and map; a session that holds no
+			// plan identity for this world has no layout to cover.
+			world := s.session.State().Snapshot
+			if world.Colony != domain.ColonyID(id.GetColonyId()) || world.Map != domain.MapID(id.GetMapId()) || world.Validate() != nil {
+				return store.LayoutPlanRecord{}, false, nil
+			}
+			return s.player.journal.LayoutPlan(ctx, world, tick)
+		}
 	}
 	if zones != nil {
 		zones.scope, zones.tick, zones.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews

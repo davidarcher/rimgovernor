@@ -89,21 +89,25 @@ func init() {
 						return err
 					}
 					report["trade_final"] = goal
-					facts, err := h.Call(ctx, "audit-colony-facts", "home/colony_facts", map[string]any{})
+					identity, err := na.ReadIdentity(ctx, h, "audit-identity")
 					if err != nil {
 						return err
 					}
-					resources, ok := na.AsMap(facts["resources"])
-					if !ok {
-						return fmt.Errorf("native resource census unavailable: %#v", facts["resources"])
+					reply, err := h.Wire(ctx, "audit-colony-facts", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
+					if err != nil {
+						return err
 					}
-					// An item the census holds none of has no key at all.
-					count := func(name string) float64 {
-						if _, present := resources[name]; !present {
-							return 0
-						}
-						return na.AsNumber(resources[name])
+					_, facts, err := na.Outcome(reply, "observed")
+					if err != nil {
+						return fmt.Errorf("colony facts: %w", err)
 					}
+					// An item the census holds none of has no row at all.
+					resources := map[string]float64{}
+					for _, v := range na.AsSlice(facts["resources"]) {
+						row, _ := na.AsMap(v)
+						resources[na.AsString(row["defName"])] += na.AsNumber(row["units"])
+					}
+					count := func(name string) float64 { return resources[name] }
 					medicine := 0.0
 					for _, name := range policy.MedicineResources {
 						medicine += count(string(name))

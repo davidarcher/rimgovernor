@@ -49,9 +49,9 @@ namespace HomeBridge.BridgeTools
                 // The tile temperature cache is keyed on the game tick, which
                 // did not move: drop it so every read carries the new season.
                 Find.World.tileTemperatures.ClearCaches();
-                var calendar = ColonyFactsTools.Calendar(map);
-                var remaining = ColonyFactsTools.GrowingDaysRemaining(map);
-                var until = ColonyFactsTools.GrowingDaysUntil(map);
+                var calendar = GrowingCalendar.Calendar(map);
+                var remaining = GrowingCalendar.GrowingDaysRemaining(map);
+                var until = GrowingCalendar.GrowingDaysUntil(map);
                 if (remaining != 1 || until != 0)
                     return Refuse("Calendar landed on growing days remaining " + remaining + " / until " + until + ", expected 1 / 0.");
                 // The wait the census will report once the frost is in: the

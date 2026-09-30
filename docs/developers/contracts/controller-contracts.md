@@ -8,7 +8,7 @@ behind them, read [the control loop](../architecture/control-loop.md).
 ## Observation
 
 Pause and read native state. Sequential observations are not an atomic snapshot.
-`home/colony_facts` reports accessible shared-diet nutrition and fed consumption, viable
+`rimgovernor/observations_read_colony_facts` reports accessible shared-diet nutrition and fed consumption, viable
 crop cells, indoor sleeping, temperatures, cooking, safe nearby wild-plant access,
 starter terrain/support affordances and actual definition costs. Native growers retain
 ownership of cultivated crop harvest timing. Unknown observations never certify
@@ -239,7 +239,7 @@ settings against a moved pawn are a fresh method rather than a retired one.
 
 ### Environmental disruption
 
-`home/colony_facts.environment.conditions` reports current-map native condition
+`rimgovernor/observations_read_colony_facts` `environment` reports current-map native condition
 IDs, definitions, implementation types, labels, permanence and remaining ticks.
 Permanent conditions have no remaining-tick estimate; reading their duration can
 itself trigger a native error/pause and is deliberately avoided.

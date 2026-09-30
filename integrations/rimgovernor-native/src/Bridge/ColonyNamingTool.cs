@@ -28,13 +28,6 @@ namespace HomeBridge.BridgeTools
         internal static string? Name(Dialog_GiveName dialog, string field) =>
             (AccessTools.Field(typeof(Dialog_GiveName), field)?.GetValue(dialog) as string)?.Trim();
 
-        internal static object? Snapshot()
-        {
-            var dialog = Pending();
-            return dialog == null ? null : new { windowId = dialog.ID,
-                factionName = Name(dialog, "curName"), settlementName = Name(dialog, "curSecondName") };
-        }
-
         [Tool("home/confirm_colony_names", Title = "Accept generated colony names",
             Description = "Confirm the exact observed suggestions in the initial faction-and-settlement naming dialog. Uses native name validators and naming callbacks. Refuses stale text/window identities and other dialogs. dryRun defaults to true.")]
         public async Task<object> Confirm(IRimBridgeContext ctx, CancellationToken cancellationToken,

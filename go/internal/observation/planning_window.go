@@ -21,6 +21,13 @@ type PlanningWindowSource interface {
 	PlanningWindow(ctx context.Context, identity *c.Identity, region policy.Rectangle) (facts.Held[PlanningCells], error)
 }
 
+// PlanExtentSource is a PlanningWindowSource that also knows the stored
+// layout plan's extent (policy.LayoutPlan.Extent): the window then covers
+// the plan as well as the colonists (#1282). An empty rect means no plan.
+type PlanExtentSource interface {
+	PlanExtent(ctx context.Context) (policy.Rectangle, error)
+}
+
 type planningWindowKey struct{}
 
 // WithPlanningWindow attaches source to ctx so every planning colony read
@@ -49,7 +56,14 @@ func fillPlanningWindow(ctx context.Context, reply *o.ColonyFactsReply, identity
 	if source == nil {
 		return nil
 	}
-	held, err := source.PlanningWindow(ctx, identity, bridge.PlanningWindowRect(projection.Center, projection.Bounds))
+	var extent policy.Rectangle
+	if plans, ok := source.(PlanExtentSource); ok {
+		var err error
+		if extent, err = plans.PlanExtent(ctx); err != nil {
+			return err
+		}
+	}
+	held, err := source.PlanningWindow(ctx, identity, bridge.PlanningWindowRect(projection.Center, projection.Bounds, extent))
 	if err != nil {
 		return err
 	}

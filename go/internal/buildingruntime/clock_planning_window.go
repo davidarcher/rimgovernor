@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
@@ -41,6 +42,22 @@ type planningWindow struct {
 	review bool
 	// refreshed is set once a review step has read the window.
 	refreshed bool
+	// layout reads the stored layout plan for the step's world (nil
+	// before the step knows it); the window covers its extent (#1282).
+	layout func(context.Context) (store.LayoutPlanRecord, bool, error)
+}
+
+// PlanExtent is the stored layout plan's extent, empty when there is none.
+func (p *planningWindow) PlanExtent(ctx context.Context) (policy.Rectangle, error) {
+	if p.layout == nil {
+		return policy.Rectangle{}, nil
+	}
+	record, ok, err := p.layout(ctx)
+	if err != nil || !ok {
+		return policy.Rectangle{}, err
+	}
+	extent, _ := record.Plan.Extent()
+	return extent, nil
 }
 
 // planningWindowRead is the refresher's decision: whether the window is

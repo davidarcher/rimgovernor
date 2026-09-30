@@ -186,36 +186,5 @@ namespace HomeBridge.BridgeTools
                     .Where(n => !needs.Any(e => e.defName == n.defName && e.stuff == n.stuff && e.reason == n.reason)).ToList());
             return needs;
         }
-
-        internal static object Census()
-        {
-            var map = Find.CurrentMap;
-            if (map == null) return new { success = false, error = "No current map" };
-            var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-            var rows = new List<object>();
-            foreach (var p in people) {
-                var refusal = Available(p);
-                var candidates = new List<object>();
-                if (refusal == null)
-                    foreach (var a in map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().OrderBy(a => a.thingIDNumber)) {
-                        if (Eligible(p, a) != null) continue;
-                        var gain = Gain(p, a);
-                        if (gain >= .05f) candidates.Add(new { target = a.GetUniqueLoadID(), kind = "apparel", gain, gear = Gear(a) });
-                    }
-                if (refusal == null)
-                    foreach (var weapon in map.listerThings.ThingsInGroup(ThingRequestGroup.Weapon).OfType<ThingWithComps>().OrderBy(w => w.thingIDNumber))
-                        if (WeaponEligible(p, weapon) == null)
-                            candidates.Add(new { target = weapon.GetUniqueLoadID(), kind = "weapon", gain = WeaponGain(p, weapon), gear = Gear(weapon) });
-                rows.Add(new { pawn = p.GetUniqueLoadID(), loadout = Identity(p), blocker = refusal,
-                    deficit = Deficit(p),
-                    worn = p.apparel?.WornApparel.Select(a => new { gear = Gear(a),
-                        forced = !p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a), locked = p.apparel.IsLocked(a) }).ToList(),
-                    primary = p.equipment?.Primary == null ? null : Gear(p.equipment.Primary),
-                    comfortableMin = p.GetStatValue(StatDefOf.ComfyTemperatureMin),
-                    comfortableMax = p.GetStatValue(StatDefOf.ComfyTemperatureMax),
-                    replacementNeeds = ProductionNeeds(p), candidates });
-            }
-            return new { success = true, tick = Find.TickManager.TicksGame, mapId = map.uniqueID, pawns = rows };
-        }
     }
 }

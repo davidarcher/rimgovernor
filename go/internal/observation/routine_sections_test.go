@@ -95,6 +95,13 @@ func (s *windowSource) PlanningWindow(_ context.Context, _ *c.Identity, region p
 	return s.window, s.err
 }
 
+type extentSource struct {
+	windowSource
+	extent policy.Rectangle
+}
+
+func (s *extentSource) PlanExtent(context.Context) (policy.Rectangle, error) { return s.extent, nil }
+
 // TestRoutineReadingFillsPlanningWindowFromSource: a colony reply that
 // observed planning facts without listing the cells (a native that serves
 // the window through observations_get_cells, #356) takes its window from
@@ -131,6 +138,15 @@ func TestRoutineReadingFillsPlanningWindowFromSource(t *testing.T) {
 	}
 	if got := out.Sections.PlanningCells; got.AsOf != tick-5 || got.Source != "rimgovernor/observations_get_cells" || !reflect.DeepEqual(got.Value.Cells, cells) {
 		t.Fatalf("planning cells section = %+v", got)
+	}
+	// A source that knows the layout plan's extent widens the window to
+	// take it in (#1282).
+	planned := &extentSource{windowSource: windowSource{window: source.window}, extent: policy.Rectangle{X: 40, Z: 3, Width: 5, Height: 5}}
+	if _, err := observeRoutineUnowned(WithPlanningWindow(context.Background(), planned), &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if len(planned.asks) != 1 || planned.asks[0] != (policy.Rectangle{X: 0, Z: 0, Width: 45, Height: 23}) {
+		t.Fatalf("asks with a plan extent = %v", planned.asks)
 	}
 	// A source that fails the read fails the observation.
 	source.err = bridge.ErrUnavailable
