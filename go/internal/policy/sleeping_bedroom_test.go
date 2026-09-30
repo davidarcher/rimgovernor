@@ -50,12 +50,46 @@ func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 	}
 }
 
-func TestBedroomStepWaitsForEveryoneToOwnABed(t *testing.T) {
-	plan, rooms, sleeping := bedroomFixture()
-	sleeping.People[1].OwnedBed = domain.Known("")
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomNone {
-		t.Fatalf("unbedded colonist = %+v, want barracks first", got)
+// A joiner with no bed, Bed locked and no bedroll stuff, is housed (#1197):
+// five colonists in bedrooms, the sixth gets a shell, then its furnish.
+func TestBedroomStepHousesABedlessJoiner(t *testing.T) {
+	var plan LayoutPlan
+	var rooms RoomObservation
+	sleeping := SleepingObservation{Colonists: 6, BedBuildable: domain.Known(false)}
+	for i := int32(0); i < 6; i++ {
+		x := i * 6
+		plan.Rooms = append(plan.Rooms, LayoutRoom{Role: ModuleBedroom, Interior: Rectangle{X: x, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: x + 2, Z: 5}, DoorRot: domain.North})
+		if i == 5 {
+			continue
+		}
+		id, pawn := string(rune('p'+i))+"bed", PawnID(rune('p'+i))
+		rooms.Rooms = append(rooms.Rooms, Room{ID: id, Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{id}, Cells: roomCells(x, 0, 5, 5)})
+		sleeping.People = append(sleeping.People, SleepingPerson{ID: pawn, OwnedBed: domain.Known(id)})
+		sleeping.Beds = append(sleeping.Beds, SleepingBed{ID: id, Definition: SleepingSpotDefinition, Humanlike: domain.Known(true), Owners: []PawnID{pawn}})
 	}
+	sleeping.People = append(sleeping.People, SleepingPerson{ID: "joiner", OwnedBed: domain.Known("")})
+	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil)
+	if got.Kind != BedroomShell || got.Room.Interior.X != 30 || got.Unhoused != 1 {
+		t.Fatalf("bedless joiner = %+v, want the sixth slot's shell", got)
+	}
+	rooms.Rooms = append(rooms.Rooms, Room{ID: "r6", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: roomCells(30, 0, 5, 5)})
+	if got = NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomFurnish || len(got.Cells) != 25 {
+		t.Fatalf("standing shell = %+v, want its furnish", got)
+	}
+}
+
+func roomCells(x0, z0, w, h int32) []domain.Cell {
+	var cells []domain.Cell
+	for x := x0; x < x0+w; x++ {
+		for z := z0; z < z0+h; z++ {
+			cells = append(cells, domain.Cell{X: x, Z: z})
+		}
+	}
+	return cells
+}
+
+func TestBedroomsOwedUnknownRooms(t *testing.T) {
+	plan, _, sleeping := bedroomFixture()
 	if owed, known := BedroomsOwed(domain.Known(plan), domain.Unknown[RoomObservation](), domain.Known(sleeping), nil, nil, nil).Value(); known || owed {
 		t.Fatal("unknown rooms must leave the deficit unknown")
 	}

@@ -6,9 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Individual bedrooms (#786, C2). Once every colonist owns a bed (the
-// initial shelter and its barracks stand), the sleeping planner walks each
-// colonist into a room of their own in the bedroom wing, in the wing's slot
+// Individual bedrooms (#786, C2). The sleeping planner walks each
+// colonist, a bedless joiner included (#1197), into a room of their own in the bedroom wing, in the wing's slot
 // order (#1213): raise the room's shell, stage one bed in it, then
 // move the colonist's ownership there. The barracks bed left behind stays
 // as a spare for joiners (MaintainHousing keeps one beyond the population).
@@ -17,8 +16,7 @@ import (
 type BedroomStepKind string
 
 const (
-	// BedroomNone: every colonist owns a bed in a Bedroom-role room, some
-	// colonist has no bed yet (the barracks comes first), or no planned
+	// BedroomNone: every colonist owns a bed in a Bedroom-role room, or no planned
 	// bedroom is left to build.
 	BedroomNone BedroomStepKind = ""
 	// BedroomMove: assign Bed, a vacant bed in a Bedroom-role room, to Pawn.
@@ -91,9 +89,14 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	var unhoused []SleepingPerson
 	for _, p := range people {
 		bed, known := p.OwnedBed.Value()
-		if !known || bed == "" {
-			// Barracks stays the fallback until everyone has a bed.
+		if !known {
 			return BedroomStep{}
+		}
+		// A colonist with no bed is unhoused too (#1197): with nothing
+		// better buildable they get a bedroom shell and a spot.
+		if bed == "" {
+			unhoused = append(unhoused, p)
+			continue
 		}
 		// A couple is never split into single bedrooms: sleeping upkeep
 		// would reunite them at once (#838).

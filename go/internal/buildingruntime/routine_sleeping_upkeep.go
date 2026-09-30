@@ -101,7 +101,7 @@ func bedroomSwap(facts observation.ColonyProjection) (policy.BedroomSwap, bool) 
 // bedroomsFirst reports whether the bedroom ladder answers a sleeping
 // choice: with no demand, and ahead of a barracks bed while colonists own
 // only spots or no bed is buildable (#1182, bedrooms before bedrolls).
-// policy.NextBedroomStep still waits until every colonist owns some bed.
+// A colonist owning no bed is unhoused there too (#1197).
 func bedroomsFirst(method policy.SleepingMethod) bool {
 	return method == policy.SleepingNoDemand || method == policy.SleepingBuild || method == policy.SleepingUnavailable
 }
