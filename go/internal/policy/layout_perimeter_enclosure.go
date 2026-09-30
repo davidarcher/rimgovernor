@@ -128,7 +128,7 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32) enclosure {
 	m := LayoutEdgeMargin + perimeterThick
 	yard := Rectangle{X: m, Z: m, Width: w - 2*m, Height: h - 2*m}
 	for {
-		in := encloseRegion(region, w, h, yard)
+		in := encloseRegion(region, w, h, yard, pad(core, perimeterGap))
 		d := chebyshevField(w, h, in, perimeterThick+1)
 		grew := false
 		for _, u := range units {
@@ -165,13 +165,38 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32) enclosure {
 	}
 }
 
-// encloseRegion grows region by the yard within yard's bounds, closes it by
-// perimeterThick and fills its holes.
-func encloseRegion(region []bool, w, h int32, yard Rectangle) []bool {
+// encloseRegion grows region by the yard within yard's bounds, squares off
+// what a patch adds beyond coreYard, closes it by perimeterThick and fills
+// its holes.
+func encloseRegion(region []bool, w, h int32, yard, coreYard Rectangle) []bool {
 	d := chebyshevField(w, h, region, perimeterGap)
 	grown := make([]bool, len(region))
 	for i, v := range d {
-		grown[i] = v >= 0 && contains(yard, domain.Cell{X: int32(i) % w, Z: int32(i) / w})
+		grown[i] = v >= 0
+	}
+	// A patch's diagonal edge would trace a staircase of steps too short
+	// for a gate (#1287): past the core's yard the region fills whole
+	// perimeterStep blocks, aligned on that yard's corner, so each step is
+	// a straight side long enough to take one.
+	blocks := map[[2]int32]bool{}
+	for i, g := range grown {
+		c := domain.Cell{X: int32(i) % w, Z: int32(i) / w}
+		if g && !contains(coreYard, c) {
+			blocks[[2]int32{floorDiv(c.X-coreYard.X, perimeterStep), floorDiv(c.Z-coreYard.Z, perimeterStep)}] = true
+		}
+	}
+	for b := range blocks {
+		for dz := int32(0); dz < perimeterStep; dz++ {
+			for dx := int32(0); dx < perimeterStep; dx++ {
+				x, z := coreYard.X+b[0]*perimeterStep+dx, coreYard.Z+b[1]*perimeterStep+dz
+				if x >= 0 && z >= 0 && x < w && z < h {
+					grown[z*w+x] = true
+				}
+			}
+		}
+	}
+	for i := range grown {
+		grown[i] = grown[i] && contains(yard, domain.Cell{X: int32(i) % w, Z: int32(i) / w})
 	}
 	// Closing: dilate, then erode by as much.
 	d = chebyshevField(w, h, grown, perimeterThick)
@@ -211,6 +236,14 @@ func encloseRegion(region []bool, w, h int32, yard Rectangle) []bool {
 		out[i] = out[i] || !seen[i]
 	}
 	return out
+}
+
+func floorDiv(a, b int32) int32 {
+	q := a / b
+	if a%b != 0 && a < 0 {
+		q--
+	}
+	return q
 }
 
 // sides cuts the ring into straight sides, one per straight stretch of the
@@ -334,4 +367,117 @@ func cellRects(set map[domain.Cell]bool) []Rectangle {
 		rects = append(rects, Rectangle{X: r.X, Z: r.Z, Width: r.Length, Height: 1})
 	}
 	return rects
+}
+
+// wallInterior is the traced enclosure read back from a plan's
+// reservations (#1287): the cells the ring closes in, not its bounding
+// box. The cover-clear band lies wholly outside the ring, so a flood from
+// the rooms that the band and the wall stop is the inside; cells within
+// perimeterThick of the band are the ring itself (the opening and terrain
+// stretches included) and are left out.
+type wallInterior struct {
+	box    Rectangle // the ring's bounds grown by the band
+	in     []bool    // strictly inside the ring
+	closed []bool    // inside or on the ring
+}
+
+func (wi wallInterior) at(c domain.Cell) (int, bool) {
+	if !contains(wi.box, c) {
+		return 0, false
+	}
+	return int((c.Z-wi.box.Z)*wi.box.Width + c.X - wi.box.X), true
+}
+
+// inside reports whether c lies strictly inside the ring.
+func (wi wallInterior) inside(c domain.Cell) bool {
+	i, ok := wi.at(c)
+	return ok && wi.in[i]
+}
+
+// cells lists the inside row by row.
+func (wi wallInterior) cells() []domain.Cell {
+	var out []domain.Cell
+	for i, v := range wi.in {
+		if v {
+			out = append(out, domain.Cell{X: wi.box.X + int32(i)%wi.box.Width, Z: wi.box.Z + int32(i)/wi.box.Width})
+		}
+	}
+	return out
+}
+
+// near is each cell's Chebyshev distance from the ring or its inside, -1
+// beyond limit or off the box.
+func (wi wallInterior) near(limit int32) func(domain.Cell) int32 {
+	d := chebyshevField(wi.box.Width, wi.box.Height, wi.closed, limit)
+	return func(c domain.Cell) int32 {
+		if i, ok := wi.at(c); ok {
+			return d[i]
+		}
+		return -1
+	}
+}
+
+// planInterior reads plan's ring back; ok is false for a plan without one.
+// grow widens the box past the band for callers measuring out from the
+// ring.
+func planInterior(plan LayoutPlan, grow int32) (wi wallInterior, ok bool) {
+	var ring Rectangle
+	wall := map[domain.Cell]bool{}
+	var band []Rectangle
+	for _, r := range plan.Reservations {
+		switch r.Kind {
+		case ReservePerimeter, ReservePerimeterLight, ReserveBridge, ReservePerimeterGap, ReserveGate:
+			ring = unionRect(ring, r.Area)
+			for _, c := range rectCells(r.Area) {
+				wall[c] = true
+			}
+		case ReserveCoverClear:
+			band = append(band, r.Area)
+		}
+	}
+	if ring.Width == 0 {
+		return wi, false
+	}
+	wi.box = pad(ring, perimeterCoverBand+grow)
+	w, h := wi.box.Width, wi.box.Height
+	banded := make([]bool, w*h)
+	for _, r := range band {
+		for _, c := range rectCells(clipRect(r, wi.box)) {
+			i, _ := wi.at(c)
+			banded[i] = true
+		}
+	}
+	nearBand := chebyshevField(w, h, banded, perimeterThick)
+	wi.in, wi.closed = make([]bool, w*h), make([]bool, w*h)
+	var q []int32
+	seed := func(c domain.Cell) {
+		if i, in := wi.at(c); in && !wi.in[i] && !banded[i] && !wall[c] {
+			wi.in[i] = true
+			q = append(q, int32(i))
+		}
+	}
+	for _, r := range plan.AllRooms() {
+		for _, c := range rectCells(r.Interior) {
+			seed(c)
+		}
+	}
+	for len(q) > 0 {
+		i := q[0]
+		q = q[1:]
+		c := domain.Cell{X: wi.box.X + i%w, Z: wi.box.Z + i/w}
+		for _, n := range [4]domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
+			seed(n)
+		}
+	}
+	for i := range wi.in {
+		if wi.in[i] {
+			wi.closed[i] = true
+			wi.in[i] = nearBand[i] < 0
+		}
+	}
+	for c := range wall {
+		i, _ := wi.at(c)
+		wi.closed[i] = true
+	}
+	return wi, true
 }

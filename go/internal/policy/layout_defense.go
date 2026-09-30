@@ -284,12 +284,10 @@ const TierPumpPrefix = TierPerimeterPrefix + "pump-"
 // earlier pump carries the later ones. Nothing without a transmitter to
 // join: an unpowered pump dries nothing.
 func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain.Cell) ([]PerimeterSection, error) {
-	var ring, killbox Rectangle
+	var killbox Rectangle
 	var sites []domain.Cell
 	for _, r := range plan.Reservations {
 		switch r.Kind {
-		case ReservePerimeter:
-			ring = unionRect(ring, r.Area)
 		case ReserveKillbox:
 			killbox = r.Area
 		case ReserveMoisturePump:
@@ -299,9 +297,9 @@ func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain
 	if len(sites) == 0 || len(transmitters) == 0 {
 		return nil, nil
 	}
-	inner := pad(ring, -perimeterThick)
+	wi, _ := planInterior(plan, 0)
 	allowed, carry := map[domain.Cell]bool{}, map[domain.Cell]bool{}
-	for _, c := range rectCells(inner) {
+	for _, c := range wi.cells() {
 		allowed[c] = !contains(killbox, c)
 	}
 	for _, c := range sites {

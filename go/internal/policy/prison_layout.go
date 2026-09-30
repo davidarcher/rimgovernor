@@ -82,17 +82,15 @@ func PerimeterPrisonTurrets(plan LayoutPlan, turret, stuff, conduit string, tran
 	if len(sites) == 0 || len(transmitters) == 0 {
 		return nil, nil
 	}
-	var ring, killbox Rectangle
+	var killbox Rectangle
 	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case ReservePerimeter:
-			ring = unionRect(ring, r.Area)
-		case ReserveKillbox:
+		if r.Kind == ReserveKillbox {
 			killbox = r.Area
 		}
 	}
+	wi, _ := planInterior(plan, 0)
 	allowed, carry := map[domain.Cell]bool{}, map[domain.Cell]bool{}
-	for _, c := range rectCells(pad(ring, -perimeterThick)) {
+	for _, c := range wi.cells() {
 		allowed[c] = !contains(killbox, c)
 	}
 	for _, c := range sites {

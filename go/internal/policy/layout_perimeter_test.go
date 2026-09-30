@@ -477,10 +477,13 @@ func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
 // patchPerimeter plans the ring on plain ground with one field patch
 // dx..dx+30 east of the core's right edge, from 10 below its top to 30
 // above it, and reports the core box, the patch and the cells a raider
-// reaches from the map edge (#1286).
-func patchPerimeter(t *testing.T, dx int32) (core Rectangle, patch map[domain.Cell]bool, p LayoutPlan, outside map[domain.Cell]bool) {
+// reaches from the map edge (#1286). ground is the survey; nil is plain.
+func patchPerimeter(t *testing.T, dx int32, ground func(x, z int32) SurveyCell) (core Rectangle, patch map[domain.Cell]bool, p LayoutPlan, outside map[domain.Cell]bool) {
 	t.Helper()
-	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 0.7} })
+	if ground == nil {
+		ground = func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 0.7} }
+	}
+	s := zoningSurvey(200, ground)
 	plan := PlanCore(Zone(s), 3, BuildTierCamp)
 	for _, r := range plan.AllRooms() {
 		core = unionRect(core, pad(r.Interior, 1))
@@ -545,7 +548,7 @@ func patchPerimeter(t *testing.T, dx int32) (core Rectangle, patch map[domain.Ce
 // A patch beside the core is taken in whole and the ring follows the L:
 // the corner below the patch, which a rectangle would enclose, stays out.
 func TestPerimeterFollowsEnclosedPatch(t *testing.T) {
-	core, patch, p, outside := patchPerimeter(t, 5)
+	core, patch, p, outside := patchPerimeter(t, 5, nil)
 	for c := range patch {
 		if outside[c] {
 			t.Fatal("patch cell outside the wall", c)
@@ -569,16 +572,114 @@ func TestPerimeterFollowsEnclosedPatch(t *testing.T) {
 // A patch just beyond reach but inside the ring's clearance is taken in
 // whole; one farther out stays wholly outside, clear of the wall.
 func TestPerimeterNeverCrossesPatch(t *testing.T) {
-	_, patch, _, outside := patchPerimeter(t, perimeterFieldReach+1)
+	_, patch, p, outside := patchPerimeter(t, perimeterFieldReach+1, nil)
 	for c := range patch {
 		if outside[c] {
 			t.Fatal("patch within the ring's clearance is split at", c)
 		}
 	}
-	_, patch, _, outside = patchPerimeter(t, perimeterGap+perimeterThick+3)
+	// The killbox stands off the patch (#1287).
+	for c := range reservedCells(p, ReserveKillbox) {
+		if patch[c] {
+			t.Fatal("killbox on the patch at", c)
+		}
+	}
+	_, patch, _, outside = patchPerimeter(t, perimeterGap+perimeterThick+3, nil)
 	for c := range patch {
 		if !outside[c] {
 			t.Fatal("patch beyond reach enclosed at", c)
 		}
+	}
+}
+
+// The ring read back from the plan is the traced L, not its bounds: the
+// patch lies inside, the notch below it does not (#1287).
+func TestPerimeterInteriorIsTraced(t *testing.T) {
+	core, patch, p, _ := patchPerimeter(t, 5, nil)
+	wi, ok := planInterior(p, 0)
+	if !ok {
+		t.Fatal("no ring read back")
+	}
+	for c := range patch {
+		if !wi.inside(c) {
+			t.Fatal("patch cell not inside", c)
+		}
+	}
+	right, top := core.X+core.Width-1, core.Z+core.Height-1
+	if notch := (domain.Cell{X: right + 30, Z: top - 10 - perimeterGap - perimeterThick - 2}); wi.inside(notch) {
+		t.Fatal("the notch below the patch reads as inside", notch)
+	}
+	for c := range reservedCells(p, ReservePerimeter) {
+		if wi.inside(c) {
+			t.Fatal("a wall cell reads as inside", c)
+		}
+	}
+}
+
+// On an L-shaped ring every dry face long enough for a gate holds one, and
+// the killbox sits where the one way in meets the ring: a corridor from
+// the east map edge onto the patch's face (#1287).
+func TestPerimeterLGatesEveryFaceKillboxOnApproach(t *testing.T) {
+	core, _, p, _ := patchPerimeter(t, 5, nil)
+	plan := p
+	plan.Reservations = nil
+	enc := planEnclosure(plan, core, 200, 200)
+	sides, _ := enc.sides()
+	gates := reservedCells(p, ReserveGate)
+	kb := reservedCells(p, ReserveKillbox)
+	for _, sd := range sides {
+		if sd.hi-sd.lo+1 < perimeterGatePitch {
+			continue
+		}
+		hit := false
+		for q := sd.lo; q <= sd.hi && !hit; q++ {
+			hit = gates[sd.base(q)] || kb[sd.cell(q, perimeterThick)]
+		}
+		if !hit {
+			t.Fatal("no gate on the face", sd)
+		}
+	}
+
+	right, top := core.X+core.Width-1, core.Z+core.Height-1
+	mouth := top + 10 // the patch runs top-10..top+29
+	_, _, p, _ = patchPerimeter(t, 5, func(x, z int32) SurveyCell {
+		if x >= 15 && x < 185 && z >= 15 && z < 185 || x >= 185 && z >= mouth-3 && z <= mouth+3 {
+			return SurveyCell{Walkable: true, Fertility: 0.7}
+		}
+		return SurveyCell{Rock: true}
+	})
+	k := reserved(p, ReserveKillbox)
+	if len(k) != 1 {
+		t.Fatal("killbox", k)
+	}
+	if k[0].X < right+5+30 || k[0].Z > mouth+killboxHalf || k[0].Z+k[0].Height-1 < mouth-killboxHalf {
+		t.Fatal("killbox off the east mouth", k[0], "mouth z", mouth)
+	}
+}
+
+// On an all-fertile map the patch is enclosed as far as the edge margin
+// allows: the ring runs along the margin line, crossing the patch there,
+// and the opening falls back onto the patch rather than none (#1287).
+func TestPerimeterAllFertileStopsAtMargin(t *testing.T) {
+	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1.4} })
+	plan := PlanCore(Zone(s), 3, BuildTierCamp)
+	zone := LayoutZone{Kind: ZoneField}
+	for z := int32(0); z < 200; z++ {
+		zone.Runs = append(zone.Runs, RowRun{Z: z, X: 0, Length: 200})
+	}
+	plan.Zones = append(plan.Zones, zone)
+	p := PlanPerimeter(plan, s)
+	checkPerimeter(t, p)
+	onLine := false
+	for _, kind := range []ReservationKind{ReservePerimeter, ReserveGate} {
+		for c := range reservedCells(p, kind) {
+			if c.X < LayoutEdgeMargin || c.Z < LayoutEdgeMargin || c.X >= 200-LayoutEdgeMargin || c.Z >= 200-LayoutEdgeMargin {
+				t.Fatal("wall inside the edge margin at", c)
+			}
+			onLine = onLine || c.X == LayoutEdgeMargin || c.Z == LayoutEdgeMargin
+		}
+	}
+	if !onLine {
+		t.Fatal("the ring stops short of the margin line")
 	}
 }

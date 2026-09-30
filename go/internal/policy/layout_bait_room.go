@@ -21,7 +21,7 @@ const (
 const (
 	// baitInterior is the side of the bait room's square floor.
 	baitInterior int32 = 3
-	// baitGap is how far outside the perimeter ring's bounds the bait
+	// baitGap is how far outside the perimeter ring the bait
 	// room's walls must stay.
 	baitGap int32 = 20
 	// TierBaitPrefix names the bait room's section under the perimeter's
@@ -74,14 +74,15 @@ func PlanBaitRoom(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	for _, c := range s.Cells {
 		cells[c.Cell] = c
 	}
-	keep := pad(ring, baitGap)
+	wi, _ := planInterior(plan, baitGap)
+	near := wi.near(baitGap)
 	centre := domain.Cell{X: ring.X + ring.Width/2, Z: ring.Z + ring.Height/2}
 	side := baitInterior + 2
 	var best Rectangle
 	bestD := -1.0
 	for _, c := range s.Cells {
 		r := Rectangle{X: c.Cell.X, Z: c.Cell.Z, Width: side, Height: side}
-		if clipRect(r, keep).Width != 0 || !baitFits(r, cells, used) {
+		if baitNear(r, near) || !baitFits(r, cells, used) {
 			continue
 		}
 		d := distance(domain.Cell{X: r.X + side/2, Z: r.Z + side/2}, centre)
@@ -100,6 +101,17 @@ func PlanBaitRoom(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 	}
 	return plan
+}
+
+// baitNear reports whether any cell of r lies within baitGap of the ring
+// or its inside: the traced ring, not its bounds (#1287).
+func baitNear(r Rectangle, near func(domain.Cell) int32) bool {
+	for _, c := range rectCells(r) {
+		if near(c) >= 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func baitFits(r Rectangle, cells map[domain.Cell]SurveyCell, used map[domain.Cell]bool) bool {

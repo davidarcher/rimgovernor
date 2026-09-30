@@ -21,7 +21,7 @@ const (
 	// pocketMaxCells is the largest pocket walled solid; a bigger open
 	// cave is a room or the infestation response's business.
 	pocketMaxCells = 20
-	// pocketReach is how far outside the perimeter ring's bounds a pocket
+	// pocketReach is how far outside the perimeter ring a pocket
 	// still counts as beside the base.
 	pocketReach int32 = 6
 	// lampReach is the distance (cells) a standing lamp keeps ground glow
@@ -37,7 +37,7 @@ const (
 // PlanMountainPockets replaces plan's pocket-wall reservations with one
 // per row run of each small pocket: a 4-connected patch of at most
 // pocketMaxCells walkable, unbuilt cells under thick roof, touching the
-// perimeter ring's bounds padded by pocketReach, that no room, hallway or
+// perimeter ring or within pocketReach of it, that no room, hallway or
 // other reservation uses. A plan without a perimeter holds none.
 func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	var kept []LayoutReservation
@@ -69,7 +69,8 @@ func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			used[c] = true
 		}
 	}
-	near := pad(ring, pocketReach)
+	wi, _ := planInterior(plan, pocketReach)
+	near := wi.near(pocketReach)
 	open := map[domain.Cell]bool{}
 	for _, c := range s.Cells {
 		if c.ThickRoof && c.Walkable && !c.Rock && !c.Built {
@@ -102,7 +103,7 @@ func PlanMountainPockets(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		beside, free := false, true
 		for _, c := range patch {
-			beside = beside || contains(near, c)
+			beside = beside || near(c) >= 0
 			free = free && !used[c]
 		}
 		if !beside || !free {

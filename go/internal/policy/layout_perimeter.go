@@ -55,10 +55,13 @@ const (
 	// patch may lie and still take the whole patch inside the wall.
 	perimeterFieldReach int32 = 15
 	perimeterGatePitch  int32 = 20
-	perimeterCoverBand  int32 = 30
-	killboxHalf         int32 = 5
-	killboxDepth        int32 = 10
-	approachLeg         int32 = 8
+	// perimeterStep is the block a patch's part of the enclosure is
+	// squared off in, so a diagonal edge steps in gateable sides.
+	perimeterStep      int32 = 10
+	perimeterCoverBand int32 = 30
+	killboxHalf        int32 = 5
+	killboxDepth       int32 = 10
+	approachLeg        int32 = 8
 	// perimeterDetour caps a shoreline detour's wall at this many times
 	// the straight stretch it replaces (#949).
 	perimeterDetour = 1.5
@@ -242,7 +245,19 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		return clipRect(rectOf(at(perimeterThick, -killboxHalf), at(perimeterThick+killboxDepth-1, killboxHalf)), enc.bbox), at
 	}
-	opens := func(x crossing) bool {
+	// fields are the plan's field cells: a killbox on one would build over
+	// crops, so an opening off the patches is preferred (#1287).
+	fields := map[domain.Cell]bool{}
+	for _, z := range plan.Zones {
+		if z.Kind == ZoneField {
+			for _, r := range z.Runs {
+				for x := r.X; x < r.X+r.Length; x++ {
+					fields[domain.Cell{X: x, Z: r.Z}] = true
+				}
+			}
+		}
+	}
+	opens := func(x crossing, strict bool) bool {
 		sd := sides[x.side]
 		if x.pos < sd.lo+1 || x.pos > sd.hi-1 {
 			return false
@@ -259,7 +274,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		killbox, _ := openingAt(x)
 		for _, c := range rectCells(killbox) {
-			if !enc.inside(c) {
+			if !enc.inside(c) || strict && fields[c] {
 				return false
 			}
 		}
@@ -275,13 +290,21 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		return true
 	}
-	// snap moves a crossing to the nearest position on its side that opens.
+	// snap moves a crossing to the nearest position on its side that
+	// opens: off the fields within half a killbox, else the nearest at all,
+	// on a patch rather than no opening.
 	snap := func(x crossing) (crossing, bool) {
 		sd := sides[x.side]
-		for d := int32(0); d <= sd.hi-sd.lo; d++ {
-			for _, p := range []int32{x.pos - d, x.pos + d} {
-				if y := (crossing{x.side, p}); opens(y) {
-					return y, true
+		for _, strict := range []bool{true, false} {
+			reach := sd.hi - sd.lo
+			if strict {
+				reach = min(reach, killboxHalf)
+			}
+			for d := int32(0); d <= reach; d++ {
+				for _, p := range []int32{x.pos - d, x.pos + d} {
+					if y := (crossing{x.side, p}); opens(y, strict) {
+						return y, true
+					}
 				}
 			}
 		}
@@ -313,7 +336,11 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 		}
 	}
-	votes, length := map[crossing]int{}, map[crossing]int{}
+	type meet struct {
+		at   crossing
+		dist int
+	}
+	var meets []meet
 	if found {
 		sectors, _ := site.sectors(origin)
 		_, dist := site.paths(origin, nil)
@@ -343,22 +370,26 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 				continue
 			}
 			if k, p := sideOf(hit); k >= 0 {
-				if x, ok := snap(crossing{k, p}); ok {
-					votes[x]++
-					length[x] += dist[best]
-				}
+				meets = append(meets, meet{crossing{k, p}, dist[best]})
 			}
 		}
 	}
-	// The opening already planned stays while it still opens.
 	open, opened := crossing{}, false
+	votes, length := map[crossing]int{}, map[crossing]int{}
+	for _, m := range meets {
+		if x, ok := snap(m.at); ok {
+			votes[x]++
+			length[x] += m.dist
+		}
+	}
+	// The opening already planned stays while it still opens.
 	for _, r := range plan.Reservations {
 		if r.Kind != ReserveKillbox {
 			continue
 		}
 		for k, sd := range sides {
 			for p := sd.lo; p <= sd.hi && !opened; p++ {
-				if kb, _ := openingAt(crossing{k, p}); kb == r.Area && opens(crossing{k, p}) {
+				if kb, _ := openingAt(crossing{k, p}); kb == r.Area && opens(crossing{k, p}, false) {
 					open, opened = crossing{k, p}, true
 				}
 			}
@@ -406,7 +437,11 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		return out
 	}
-	// Wall runs and gates along the dry ring, side by side.
+	// Wall runs and gates along the dry ring, side by side. A run shorter
+	// than the pitch (a step of a squared-off diagonal) takes its gate
+	// only a pitch clear of every other, so a staircase is gated about as
+	// often as a straight side (#1287).
+	var gates, stepGates []Rectangle
 	for k, sd := range sides {
 		start := int32(-1)
 		flush := func(end int32) {
@@ -426,7 +461,12 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 					}
 				}
 				for p := first; p <= end; p += perimeterGatePitch {
-					add(ReserveGate, rectOf(sd.base(p), sd.cell(p, perimeterThick-1)))
+					g := rectOf(sd.base(p), sd.cell(p, perimeterThick-1))
+					if n < perimeterGatePitch {
+						stepGates = append(stepGates, g)
+					} else {
+						gates = append(gates, g)
+					}
 				}
 			}
 			start = -1
@@ -444,6 +484,18 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 		}
 		flush(sd.hi)
+	}
+	for _, g := range stepGates {
+		clear := true
+		for _, o := range gates {
+			clear = clear && max(o.X-g.X, g.X-o.X, o.Z-g.Z, g.Z-o.Z) >= perimeterGatePitch
+		}
+		if clear {
+			gates = append(gates, g)
+		}
+	}
+	for _, g := range gates {
+		add(ReserveGate, g)
 	}
 	// Soft stretches: a detour's wall, else the ring crossing them.
 	walls, light, bridges, gaps := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
