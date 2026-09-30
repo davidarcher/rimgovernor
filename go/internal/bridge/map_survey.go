@@ -49,8 +49,10 @@ func (client *Client) ReadMapSurvey(ctx context.Context, identity *c.Identity, b
 		if err != nil {
 			return policy.MapSurvey{}, raw, err
 		}
-		if context != nil && !proto.Equal(context, snapshot.Context) {
-			return policy.MapSurvey{}, raw, contract("map survey bands differ in context")
+		// A live clock moves the tick between bands; the terrain a layout
+		// plans on does not, so only the world and its generation must hold.
+		if context != nil && (!proto.Equal(context.Identity, snapshot.Context.GetIdentity()) || context.GetNativeGeneration() != snapshot.Context.GetNativeGeneration()) {
+			return policy.MapSurvey{}, raw, contract("map survey bands differ in world")
 		}
 		context = snapshot.Context
 		out.Cells = append(out.Cells, SurveyCells(snapshot)...)

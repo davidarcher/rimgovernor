@@ -170,8 +170,7 @@ func (r *RoutineReviewer) proposeLayout(ctx context.Context, snapshot domain.Gen
 	}
 	survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds)
 	if err != nil {
-		clockSchedulerLog("layout replan: map survey unavailable: %v", err)
-		refuse("map survey unavailable")
+		refuse(fmt.Sprintf("map survey unavailable: %v", err))
 		return
 	}
 	topology, _ := projection.PowerPlanning.Value()
