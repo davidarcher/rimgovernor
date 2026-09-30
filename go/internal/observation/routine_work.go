@@ -130,6 +130,9 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 	if n := row.Needs; n != nil && !hasIssue(row.Issues, "needs") {
 		w.Rest, w.Joy, w.Mood = optional(n.Rest), optional(n.Joy), optional(n.Mood)
 	}
+	if n := row.Needs; n != nil && n.Psyfocus != nil && n.PsyfocusTarget != nil && n.PsylinkLevel != nil {
+		w.Psyfocus, w.PsyfocusTarget, w.PsylinkLevel = domain.Known(n.GetPsyfocus()), domain.Known(n.GetPsyfocusTarget()), domain.Known(int(n.GetPsylinkLevel()))
+	}
 	if e := row.Equipment; e != nil {
 		if e.Armed != nil && !e.GetArmed() {
 			w.Ranged = domain.Known(false)

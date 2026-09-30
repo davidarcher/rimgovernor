@@ -167,7 +167,8 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// timetable differs from its role template gets the timetable in the
 	// same assignment as its priorities (or alone), under the same token.
 	schedules := map[policy.PawnID][]string{}
-	for _, row := range policy.PlanSchedules(pawns, read.Projection.Facts.Comfort).Schedules {
+	meditate, _ := read.Projection.MeditateAvailable.Value()
+	for _, row := range policy.PlanSchedules(pawns, read.Projection.Facts.Comfort, meditate).Schedules {
 		if !row.Matches {
 			schedules[row.Pawn] = row.Slots
 		}

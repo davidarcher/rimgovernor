@@ -68,7 +68,7 @@ func TestPlanSchedulesStaggerJoy(t *testing.T) {
 		return domain.Known(ComfortObservation{People: people, Recreation: make([]ComfortFacility, places)})
 	}
 	for name, comfort := range map[string]domain.Fact[ComfortObservation]{"enough": census(5), "unknown": domain.Unknown[ComfortObservation](), "none": census(0)} {
-		got := joy(PlanSchedules(pawns, comfort))
+		got := joy(PlanSchedules(pawns, comfort, false))
 		for _, id := range people {
 			if got[id] != 21 {
 				t.Fatalf("%s: %v", name, got)
@@ -78,7 +78,7 @@ func TestPlanSchedulesStaggerJoy(t *testing.T) {
 	// Two places for five people: two per hour back from sleep, by ID.
 	want := map[PawnID]int{"a": 21, "b": 21, "c": 20, "d": 20, "e": 19}
 	for range 3 {
-		got := joy(PlanSchedules(pawns, census(2)))
+		got := joy(PlanSchedules(pawns, census(2), false))
 		for _, id := range people {
 			if got[id] != want[id] {
 				t.Fatalf("staggered: %v", got)
@@ -100,7 +100,7 @@ func TestPlanSchedules(t *testing.T) {
 	away := testWorkPawn("away", true, false, nil)
 	away.Available = domain.Known(false)
 	away.Schedule = domain.Known(nativeDefaultSchedule())
-	d := PlanSchedules([]WorkPawn{plain, owl, edited, unknown, away}, domain.Unknown[ComfortObservation]())
+	d := PlanSchedules([]WorkPawn{plain, owl, edited, unknown, away}, domain.Unknown[ComfortObservation](), false)
 	if len(d.Schedules) != 3 || d.Schedules[1].Pawn != "owl" || d.Schedules[1].Matches || !sameSchedule(d.Schedules[1].Slots, scheduleTemplate(TraitEffects{NightShift: true})) {
 		t.Fatal(d)
 	}
@@ -116,7 +116,7 @@ func TestPlanSchedules(t *testing.T) {
 	// (the owl read back its own night shift, then loses the trait).
 	owl.Schedule = domain.Known(scheduleTemplate(TraitEffects{NightShift: true}))
 	owl.Traits = domain.Known([]PawnTrait{})
-	d = PlanSchedules([]WorkPawn{owl}, domain.Unknown[ComfortObservation]())
+	d = PlanSchedules([]WorkPawn{owl}, domain.Unknown[ComfortObservation](), false)
 	if len(d.Schedules) != 1 || d.Schedules[0].Matches || !sameSchedule(d.Schedules[0].Slots, scheduleTemplate(TraitEffects{})) {
 		t.Fatal(d)
 	}
@@ -164,7 +164,7 @@ func TestPlanSchedulesNeedBands(t *testing.T) {
 		}
 		pawn := testWorkPawn("p", true, false, nil, traits...)
 		pawn.Schedule, pawn.Rest, pawn.Joy = domain.Known(c.current), c.rest, c.joy
-		d := PlanSchedules([]WorkPawn{pawn}, domain.Unknown[ComfortObservation]())
+		d := PlanSchedules([]WorkPawn{pawn}, domain.Unknown[ComfortObservation](), false)
 		if len(d.Schedules) != 1 || !sameSchedule(d.Schedules[0].Slots, c.want) || d.Schedules[0].Matches != sameSchedule(c.current, c.want) {
 			t.Fatalf("%s: %v", name, d)
 		}

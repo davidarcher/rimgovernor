@@ -19,6 +19,16 @@ func TestRoutineMoodNeedsValidationAndSelection(t *testing.T) {
 		{"unknown mood", func(n *o.PawnNeeds) { n.Mood = nil }, true},
 		{"nonfinite mood", func(n *o.PawnNeeds) { n.Mood = proto.Float64(math.NaN()) }, false},
 		{"nonfinite threshold", func(n *o.PawnNeeds) { n.BreakThresholdMinor = proto.Float64(math.Inf(1)) }, false},
+		{"psycaster", func(n *o.PawnNeeds) {
+			n.Psyfocus, n.PsyfocusTarget, n.PsylinkLevel = proto.Float64(.4), proto.Float64(.7), proto.Int32(3)
+		}, true},
+		{"partial psyfocus", func(n *o.PawnNeeds) { n.Psyfocus = proto.Float64(.4) }, false},
+		{"psyfocus out of range", func(n *o.PawnNeeds) {
+			n.Psyfocus, n.PsyfocusTarget, n.PsylinkLevel = proto.Float64(1.5), proto.Float64(.7), proto.Int32(1)
+		}, false},
+		{"zero psylink", func(n *o.PawnNeeds) {
+			n.Psyfocus, n.PsyfocusTarget, n.PsylinkLevel = proto.Float64(.4), proto.Float64(.7), proto.Int32(0)
+		}, false},
 		{"conflicting unknown", func(n *o.PawnNeeds) {
 			n.Issues = []*o.ReadIssue{{Field: proto.String("mood"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
 		}, false},

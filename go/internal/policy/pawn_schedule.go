@@ -187,7 +187,9 @@ func sameSchedule(a, b []string) bool {
 // PlanSchedules chooses a timetable per available pawn from its profile and
 // needs (plannedSchedule), staggering Joy hours against the recreation
 // census (joyOffsets); a pawn whose timetable is unknown is skipped.
-func PlanSchedules(pawns []WorkPawn, comfort domain.Fact[ComfortObservation]) ScheduleDecision {
+// meditateAvailable is whether the Meditate TimeAssignmentDef exists
+// (#1313; unknown reads as false); #1316 plans with it.
+func PlanSchedules(pawns []WorkPawn, comfort domain.Fact[ComfortObservation], meditateAvailable bool) ScheduleDecision {
 	var decision ScheduleDecision
 	var ids []PawnID
 	for _, pawn := range pawns {

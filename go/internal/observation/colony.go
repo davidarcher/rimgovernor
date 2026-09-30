@@ -63,6 +63,7 @@ type ColonyProjection struct {
 	Acquisition                            domain.Fact[[]policy.AcquisitionSource]
 	PendingFoodNutrition, PendingWoodUnits domain.Fact[float64]
 	WorkPawns                              domain.Fact[[]policy.WorkPawn]
+	MeditateAvailable                      domain.Fact[bool] // Meditate TimeAssignmentDef exists (#1313)
 	FieldCrops                             domain.Fact[[]policy.FieldCrop]
 	FieldCapacityCrops                     domain.Fact[[]policy.FieldCrop]
 	CookingBenches                         domain.Fact[[]CookingBench]

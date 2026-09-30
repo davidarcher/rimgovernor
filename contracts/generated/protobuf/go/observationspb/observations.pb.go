@@ -2567,8 +2567,14 @@ type PawnNeeds struct {
 	BreakThresholdMajor   *float64               `protobuf:"fixed64,8,opt,name=break_threshold_major,json=breakThresholdMajor,proto3,oneof" json:"break_threshold_major,omitempty"`
 	BreakThresholdExtreme *float64               `protobuf:"fixed64,9,opt,name=break_threshold_extreme,json=breakThresholdExtreme,proto3,oneof" json:"break_threshold_extreme,omitempty"`
 	Issues                []*ReadIssue           `protobuf:"bytes,10,rep,name=issues,proto3" json:"issues,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Psyfocus (#1313): Pawn_PsychicEntropyTracker CurrentPsyfocus and
+	// TargetPsyfocus (0-1) and Pawn.GetPsylinkLevel(); all three are absent
+	// when Royalty is inactive or the pawn has no psylink.
+	Psyfocus       *float64 `protobuf:"fixed64,11,opt,name=psyfocus,proto3,oneof" json:"psyfocus,omitempty"`
+	PsyfocusTarget *float64 `protobuf:"fixed64,12,opt,name=psyfocus_target,json=psyfocusTarget,proto3,oneof" json:"psyfocus_target,omitempty"`
+	PsylinkLevel   *int32   `protobuf:"varint,13,opt,name=psylink_level,json=psylinkLevel,proto3,oneof" json:"psylink_level,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PawnNeeds) Reset() {
@@ -2669,6 +2675,27 @@ func (x *PawnNeeds) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *PawnNeeds) GetPsyfocus() float64 {
+	if x != nil && x.Psyfocus != nil {
+		return *x.Psyfocus
+	}
+	return 0
+}
+
+func (x *PawnNeeds) GetPsyfocusTarget() float64 {
+	if x != nil && x.PsyfocusTarget != nil {
+		return *x.PsyfocusTarget
+	}
+	return 0
+}
+
+func (x *PawnNeeds) GetPsylinkLevel() int32 {
+	if x != nil && x.PsylinkLevel != nil {
+		return *x.PsylinkLevel
+	}
+	return 0
 }
 
 type Hediff struct {
@@ -6114,12 +6141,15 @@ func (x *PawnDetails) GetTend() bool {
 }
 
 type PawnSnapshot struct {
-	state         protoimpl.MessageState       `protogen:"open.v1"`
-	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	Pawns         []*PawnState                 `protobuf:"bytes,2,rep,name=pawns,proto3" json:"pawns,omitempty"`
-	Completeness  *Completeness                `protobuf:"bytes,3,opt,name=completeness,proto3" json:"completeness,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState       `protogen:"open.v1"`
+	Context      *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Pawns        []*PawnState                 `protobuf:"bytes,2,rep,name=pawns,proto3" json:"pawns,omitempty"`
+	Completeness *Completeness                `protobuf:"bytes,3,opt,name=completeness,proto3" json:"completeness,omitempty"`
+	// Colony fact (#1313): the Meditate TimeAssignmentDef exists
+	// (DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate")); false on Core only.
+	MeditateAssignmentAvailable *bool `protobuf:"varint,5,opt,name=meditate_assignment_available,json=meditateAssignmentAvailable,proto3,oneof" json:"meditate_assignment_available,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *PawnSnapshot) Reset() {
@@ -6171,6 +6201,13 @@ func (x *PawnSnapshot) GetCompleteness() *Completeness {
 		return x.Completeness
 	}
 	return nil
+}
+
+func (x *PawnSnapshot) GetMeditateAssignmentAvailable() bool {
+	if x != nil && x.MeditateAssignmentAvailable != nil {
+		return *x.MeditateAssignmentAvailable
+	}
+	return false
 }
 
 type ListPawnsRequest struct {
@@ -35036,7 +35073,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_queued_jobsB\x10\n" +
 	"\x0e_interruptibleB\x12\n" +
 	"\x10_native_priorityB\x15\n" +
-	"\x13_work_type_def_name\"\xc4\x04\n" +
+	"\x13_work_type_def_name\"\xf0\x05\n" +
 	"\tPawnNeeds\x12\x17\n" +
 	"\x04food\x18\x01 \x01(\x01H\x00R\x04food\x88\x01\x01\x12\x17\n" +
 	"\x04rest\x18\x02 \x01(\x01H\x01R\x04rest\x88\x01\x01\x12\x17\n" +
@@ -35049,7 +35086,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x15break_threshold_major\x18\b \x01(\x01H\aR\x13breakThresholdMajor\x88\x01\x01\x12;\n" +
 	"\x17break_threshold_extreme\x18\t \x01(\x01H\bR\x15breakThresholdExtreme\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\n" +
-	" \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\a\n" +
+	" \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12\x1f\n" +
+	"\bpsyfocus\x18\v \x01(\x01H\tR\bpsyfocus\x88\x01\x01\x12,\n" +
+	"\x0fpsyfocus_target\x18\f \x01(\x01H\n" +
+	"R\x0epsyfocusTarget\x88\x01\x01\x12(\n" +
+	"\rpsylink_level\x18\r \x01(\x05H\vR\fpsylinkLevel\x88\x01\x01B\a\n" +
 	"\x05_foodB\a\n" +
 	"\x05_restB\a\n" +
 	"\x05_moodB\x06\n" +
@@ -35058,7 +35099,10 @@ const file_observations_proto_rawDesc = "" +
 	"\v_break_riskB\x18\n" +
 	"\x16_break_threshold_minorB\x18\n" +
 	"\x16_break_threshold_majorB\x1a\n" +
-	"\x18_break_threshold_extreme\"\xfd\b\n" +
+	"\x18_break_threshold_extremeB\v\n" +
+	"\t_psyfocusB\x12\n" +
+	"\x10_psyfocus_targetB\x10\n" +
+	"\x0e_psylink_level\"\xfd\b\n" +
 	"\x06Hediff\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -35706,11 +35750,13 @@ const file_observations_proto_rawDesc = "" +
 	"\x15_visible_hediffs_onlyB\a\n" +
 	"\x05_workB\v\n" +
 	"\t_scheduleB\a\n" +
-	"\x05_tend\"\xe6\x01\n" +
+	"\x05_tend\"\xd1\x02\n" +
 	"\fPawnSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05pawns\x18\x02 \x03(\v2&.rimgovernor.observations.v1.PawnStateR\x05pawns\x12M\n" +
-	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompletenessJ\x04\b\x04\x10\x05\"\xe1\x01\n" +
+	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12G\n" +
+	"\x1dmeditate_assignment_available\x18\x05 \x01(\bH\x00R\x1bmeditateAssignmentAvailable\x88\x01\x01B \n" +
+	"\x1e_meditate_assignment_availableJ\x04\b\x04\x10\x05\"\xe1\x01\n" +
 	"\x10ListPawnsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12?\n" +
 	"\x06filter\x18\x02 \x01(\v2'.rimgovernor.observations.v1.PawnFilterR\x06filter\x12B\n" +
@@ -41057,6 +41103,7 @@ func file_observations_proto_init() {
 	file_observations_proto_msgTypes[53].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[54].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[55].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[56].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[58].OneofWrappers = []any{
 		(*ListPawnsReply_Observed)(nil),
 		(*ListPawnsReply_Unavailable)(nil),

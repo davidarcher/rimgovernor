@@ -120,3 +120,25 @@ func TestWorkPawnRowJob(t *testing.T) {
 		}
 	}
 }
+
+// TestWorkPawnRowPsyfocus: a psycaster's needs carry psyfocus (#1313); a
+// pawn without a psylink (or without Royalty) leaves all three unknown.
+func TestWorkPawnRowPsyfocus(t *testing.T) {
+	caster := WorkPawnRow(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}, Needs: &o.PawnNeeds{Psyfocus: proto.Float64(.4), PsyfocusTarget: proto.Float64(.7), PsylinkLevel: proto.Int32(2)}})
+	focus, fk := caster.Psyfocus.Value()
+	target, tk := caster.PsyfocusTarget.Value()
+	level, lk := caster.PsylinkLevel.Value()
+	if !fk || !tk || !lk || focus != .4 || target != .7 || level != 2 {
+		t.Fatalf("psycaster = %v %v %v", caster.Psyfocus, caster.PsyfocusTarget, caster.PsylinkLevel)
+	}
+	plain := WorkPawnRow(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn-2")}, Needs: &o.PawnNeeds{Mood: proto.Float64(.5)}})
+	if _, known := plain.Psyfocus.Value(); known {
+		t.Fatal("psyfocus known without a psylink")
+	}
+	if _, known := plain.PsylinkLevel.Value(); known {
+		t.Fatal("psylink level known without a psylink")
+	}
+	if v, known := optional((&o.PawnSnapshot{MeditateAssignmentAvailable: proto.Bool(false)}).MeditateAssignmentAvailable).Value(); !known || v {
+		t.Fatal("Core-only Meditate availability not decoded as known false")
+	}
+}

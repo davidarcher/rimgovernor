@@ -50,6 +50,10 @@ type WorkPawn struct {
 	// Rest, Joy and Mood are need levels from the pawn needs block; unknown
 	// when the read carried no readable needs (#1312).
 	Rest, Joy, Mood domain.Fact[float64]
+	// Psyfocus and PsyfocusTarget (0-1) and PsylinkLevel (#1313): known
+	// only for a psycaster; unknown without Royalty, a psylink or needs.
+	Psyfocus, PsyfocusTarget domain.Fact[float64]
+	PsylinkLevel             domain.Fact[int]
 }
 
 // PawnJob is one pawn's current job as the census saw it. Def is the

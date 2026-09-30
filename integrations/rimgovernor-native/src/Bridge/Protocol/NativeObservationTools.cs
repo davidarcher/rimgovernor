@@ -243,7 +243,7 @@ namespace HomeBridge.BridgeTools
             var spawned = map.mapPawns.AllPawnsSpawned.ToList();
             var colonists = spawned.Where(p => !p.Dead && p.IsFreeColonist).ToList();
             if (wantColonists) {
-                var snapshot = new Obs.PawnSnapshot { Context = context, Completeness = Complete(colonists.Count) };
+                var snapshot = new Obs.PawnSnapshot { Context = context, Completeness = Complete(colonists.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
                 foreach (var pawn in colonists) snapshot.Pawns.Add(PawnRow(pawn, request.ColonistDetail, context));
                 result.Colonists = snapshot;
             } else result.Issues.Add(Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested."));
@@ -390,6 +390,9 @@ namespace HomeBridge.BridgeTools
                 if(pawn.needs?.rest != null) needs.Rest=Finite(pawn.needs.rest.CurLevelPercentage); else needs.Issues.Add(Issue("rest",Common.UnavailableReason.NativeComponentMissing,"Rest tracker unavailable."));
                 if(pawn.needs?.joy != null) needs.Joy=Finite(pawn.needs.joy.CurLevelPercentage); else needs.Issues.Add(Issue("joy",Common.UnavailableReason.NativeComponentMissing,"Joy tracker unavailable."));
             }
+            // Psyfocus (#1313): absent without Royalty or a psylink.
+            if (ModsConfig.RoyaltyActive && pawn.psychicEntropy != null) { var psylink=pawn.GetPsylinkLevel();
+                if (psylink > 0) { needs.Psyfocus=Finite(pawn.psychicEntropy.CurrentPsyfocus); needs.PsyfocusTarget=Finite(pawn.psychicEntropy.TargetPsyfocus); needs.PsylinkLevel=psylink; } }
             var breaker=pawn.mindState?.mentalBreaker;
             if(breaker != null) { needs.BreakThresholdMinor=Finite(breaker.BreakThresholdMinor); needs.BreakThresholdMajor=Finite(breaker.BreakThresholdMajor); needs.BreakThresholdExtreme=Finite(breaker.BreakThresholdExtreme);
                 if(needs.HasMood) needs.BreakRisk=needs.Mood<=needs.BreakThresholdExtreme?"extreme":needs.Mood<=needs.BreakThresholdMajor?"major":needs.Mood<=needs.BreakThresholdMinor?"minor":"none"; }

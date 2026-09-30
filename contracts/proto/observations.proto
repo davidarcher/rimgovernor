@@ -208,6 +208,10 @@ message PawnNeeds {
   optional string hunger_category = 5; optional string break_risk = 6;
   optional double break_threshold_minor = 7; optional double break_threshold_major = 8; optional double break_threshold_extreme = 9;
   repeated ReadIssue issues = 10;
+  // Psyfocus (#1313): Pawn_PsychicEntropyTracker CurrentPsyfocus and
+  // TargetPsyfocus (0-1) and Pawn.GetPsylinkLevel(); all three are absent
+  // when Royalty is inactive or the pawn has no psylink.
+  optional double psyfocus = 11; optional double psyfocus_target = 12; optional int32 psylink_level = 13;
 }
 message Hediff {
   DefinitionRef definition = 1; optional string part_def_name = 2; optional string part_label = 3; optional int32 part_index = 4;
@@ -445,7 +449,10 @@ message PawnDetails {
   // quadratic in the page and is bounded to 64 rows.
   optional bool tend = 11;
 }
-message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3; reserved 4; }
+message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3; reserved 4;
+  // Colony fact (#1313): the Meditate TimeAssignmentDef exists
+  // (DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate")); false on Core only.
+  optional bool meditate_assignment_available = 5; }
 message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; reserved 4, 5; }
 message ListPawnsReply { oneof outcome { PawnSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 

@@ -111,6 +111,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		p.Facts.Armed, p.Facts.Unarmed = routineArmed(colony, emergency, pawns)
 		p.Facts.DefenseCapacity = policy.DefenseCapacity(routineDefenders(colony, emergency, pawns), p.DefenseTurrets)
 		p.WorkPawns = routineWork(colony, emergency, pawns)
+		p.MeditateAvailable = optional(pawns.MeditateAssignmentAvailable)
 		p.Facts.MedicalPawns = routineMedical(colony, emergency, pawns)
 		p.Facts.MoodPawns = routineMood(colony, emergency, pawns)
 	} else if complete, known := emergency.ColonistsComplete.Value(); known && complete && len(emergency.Colonists) == 0 && colony.ColonistCount != nil && colony.GetColonistCount() == 0 {
