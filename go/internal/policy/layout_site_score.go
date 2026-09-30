@@ -60,32 +60,21 @@ func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) La
 		return plan
 	}
 	scores := make([]siteScore, len(seeds))
-	work := make(chan int)
-	var wg sync.WaitGroup
-	for range min(runtime.GOMAXPROCS(0), len(seeds)) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range work {
-				p := plan
-				p.Spine = []SpineSegment{{From: seeds[i], To: seeds[i]}}
-				p = Grow(p, pawns, tombs, tier)
-				scores[i] = siteScore{seed: seeds[i], score: g.scoreSite(p), plan: p}
-			}
-		}()
-	}
-	for i := range seeds {
-		work <- i
-	}
-	close(work)
-	wg.Wait()
-	sort.SliceStable(scores, func(i, j int) bool {
-		a, b := scores[i], scores[j]
-		if a.score != b.score {
-			return a.score > b.score
-		}
-		return a.seed.Z < b.seed.Z || a.seed.Z == b.seed.Z && a.seed.X < b.seed.X
+	eachParallel(len(seeds), func(i int) {
+		p := plan
+		p.Spine = []SpineSegment{{From: seeds[i], To: seeds[i]}}
+		p = Grow(p, pawns, tombs, tier)
+		scores[i] = siteScore{seed: seeds[i], score: g.scoreSite(p), plan: p}
 	})
+	rankSites(scores)
+	// The wall terms (#1288) need PlanPerimeter, far dearer than Grow, so
+	// only the best siteWallCandidates by core score are walled and reranked.
+	walled := scores[:min(siteWallCandidates, len(scores))]
+	ground := newSiteGround(s)
+	eachParallel(len(walled), func(i int) {
+		walled[i].score += g.scoreWall(PlanPerimeter(walled[i].plan, s), ground)
+	})
+	rankSites(walled)
 	var top []string
 	for _, sc := range scores[:min(3, len(scores))] {
 		top = append(top, fmt.Sprintf("(%d,%d)=%d", sc.seed.X, sc.seed.Z, sc.score))
@@ -228,4 +217,164 @@ func union(a, b Rectangle) Rectangle {
 	x0, z0 := min(a.X, b.X), min(a.Z, b.Z)
 	x1, z1 := max(a.X+a.Width, b.X+b.Width), max(a.Z+a.Height, b.Z+b.Height)
 	return Rectangle{X: x0, Z: z0, Width: x1 - x0, Height: z1 - z0}
+}
+
+// siteWallCandidates is K, how many of the best sites by core score are
+// walled with PlanPerimeter and rescored (#1288). One PlanPerimeter call
+// on the #1280 fixture costs ~250-300 ms and ~250 MB; walling 8 in
+// parallel took the whole pass from ~0.5 s to ~0.86 s (32 threads,
+// quiet box), inside siteBudget.
+const siteWallCandidates = 8
+
+// Wall score weights (#1288): each wall cell is a build and defense cost,
+// soil inside the wall (rich weighted by soilCost) a gain, and soil left
+// outside it but within siteReach of the enclosure a loss.
+const (
+	siteWallWeight     = 2
+	siteEnclosedWeight = 2
+	siteOutsideWeight  = 1
+)
+
+// wallBarrier are the perimeter reservations a raider cannot walk
+// through; the flood that finds the enclosure stops at them.
+var wallBarrier = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveGate: true, ReserveKillbox: true, ReserveTurret: true}
+
+// siteGround is the map's size and its impassable cells, shared by every
+// candidate's wall score.
+type siteGround struct {
+	w, h    int32
+	blocked []bool
+}
+
+func newSiteGround(s MapSurvey) siteGround {
+	w, h := s.Bounds.Width, s.Bounds.Height
+	b := make([]bool, max(w*h, 0))
+	for _, c := range s.Cells {
+		if c.Cell.X >= 0 && c.Cell.X < w && c.Cell.Z >= 0 && c.Cell.Z < h && (c.Rock || !c.Walkable && !c.Built) {
+			b[c.Cell.Z*w+c.Cell.X] = true
+		}
+	}
+	return siteGround{w: w, h: h, blocked: b}
+}
+
+// scoreWall scores p's wall (p as PlanPerimeter returns it): the wall's
+// cells against it, the soil it encloses (off the rooms) for it, and the
+// soil outside it within siteReach of what it encloses against it. The
+// enclosure is every open cell a flood from the map edge cannot reach.
+func (g coreGrid) scoreWall(p LayoutPlan, ground siteGround) int {
+	w, h := ground.w, ground.h
+	if w < 1 || h < 1 {
+		return 0
+	}
+	idx := func(c domain.Cell) (int32, bool) {
+		if c.X < 0 || c.X >= w || c.Z < 0 || c.Z >= h {
+			return 0, false
+		}
+		return c.Z*w + c.X, true
+	}
+	wall := make([]bool, w*h)
+	walls := 0
+	for _, r := range p.Reservations {
+		if !wallBarrier[r.Kind] {
+			continue
+		}
+		built := r.Kind == ReservePerimeter || r.Kind == ReservePerimeterLight || r.Kind == ReserveBridge
+		for _, c := range rectCells(r.Area) {
+			if i, ok := idx(c); ok && !wall[i] {
+				wall[i] = true
+				if built {
+					walls++
+				}
+			}
+		}
+	}
+	if walls == 0 {
+		return 0
+	}
+	open := func(i int32) bool { return !wall[i] && !ground.blocked[i] }
+	reached := make([]bool, w*h)
+	var queue []int32
+	push := func(x, z int32) {
+		if i, ok := idx(domain.Cell{X: x, Z: z}); ok && open(i) && !reached[i] {
+			reached[i] = true
+			queue = append(queue, i)
+		}
+	}
+	for x := range w {
+		push(x, 0)
+		push(x, h-1)
+	}
+	for z := range h {
+		push(0, z)
+		push(w-1, z)
+	}
+	for len(queue) > 0 {
+		i := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+		x, z := i%w, i/w
+		push(x+1, z)
+		push(x-1, z)
+		push(x, z+1)
+		push(x, z-1)
+	}
+	rooms := map[domain.Cell]bool{}
+	for _, r := range p.AllRooms() {
+		for _, c := range rectCells(r.Interior) {
+			rooms[c] = true
+		}
+	}
+	inside, outside := 0, 0
+	var box Rectangle
+	for i := range w * h {
+		if !open(i) || reached[i] {
+			continue
+		}
+		c := domain.Cell{X: i % w, Z: i / w}
+		cell := Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}
+		if box.Width == 0 {
+			box = cell
+		} else {
+			box = union(box, cell)
+		}
+		if !rooms[c] {
+			inside += g.soil[c]
+		}
+	}
+	for _, c := range rectCells(pad(box, siteReach)) {
+		if i, ok := idx(c); ok && reached[i] {
+			outside += g.soil[c]
+		}
+	}
+	return siteEnclosedWeight*inside - siteOutsideWeight*outside - siteWallWeight*walls
+}
+
+// eachParallel runs f for 0..n-1 over the worker pool.
+func eachParallel(n int, f func(i int)) {
+	work := make(chan int)
+	var wg sync.WaitGroup
+	for range min(runtime.GOMAXPROCS(0), n) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range work {
+				f(i)
+			}
+		}()
+	}
+	for i := range n {
+		work <- i
+	}
+	close(work)
+	wg.Wait()
+}
+
+// rankSites orders scores best first, ties by seed (Z, X).
+func rankSites(scores []siteScore) {
+	sort.SliceStable(scores, func(i, j int) bool {
+		a, b := scores[i], scores[j]
+		if a.score != b.score {
+			return a.score > b.score
+		}
+		return a.seed.Z < b.seed.Z || a.seed.Z == b.seed.Z && a.seed.X < b.seed.X
+	})
 }

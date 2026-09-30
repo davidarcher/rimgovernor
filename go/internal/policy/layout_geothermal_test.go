@@ -31,7 +31,11 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 					ring = unionRect(ring, r.Area)
 				}
 			}
-			if enclosure.Width == 0 {
+			// The wall never enters the edge margin (#1279), so a geyser
+			// the site leaves that near the edge stays outside it.
+			m := LayoutEdgeMargin + 2*perimeterThick
+			wallable := Rectangle{X: m, Z: m, Width: 200 - 2*m, Height: 200 - 2*m}
+			if enclosure.Width == 0 || unionRect(wallable, enclosure) != wallable {
 				continue
 			}
 			if !plan.Valid() {
