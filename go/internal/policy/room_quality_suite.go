@@ -2,6 +2,7 @@ package policy
 
 import (
 	"math"
+	"slices"
 	"sort"
 )
 
@@ -152,7 +153,10 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 			continue
 		}
 		reason := SuiteClaimSpace
-		if suiteCells(t.Min) > r.Interior.Width*r.Interior.Height {
+		// Only a trait or title raises a target past what space alone must
+		// reach in a standard room (#1221); a tier-only target upgrades in
+		// place and claims only when space is its weakest stat.
+		if raisedTarget(t) && suiteCells(t.Min) > r.Interior.Width*r.Interior.Height {
 			reason = SuiteClaimFloor
 		} else if WeakestRoomStat(q) != RoomStatSpace {
 			continue
@@ -161,6 +165,14 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 	}
 	orderSuiteClaims(out, pressure)
 	return out
+}
+
+// raisedTarget is whether Greedy, Jealous or a title raised the target above
+// the tier baseline (RoomQualityTargets names them only then).
+func raisedTarget(t RoomTarget) bool {
+	return slices.ContainsFunc(t.Reasons, func(r string) bool {
+		return r == "greedy" || r == "jealous" || r == "title"
+	})
 }
 
 // UpgradeTargets is targets without the rooms claims are leaving (#1257,

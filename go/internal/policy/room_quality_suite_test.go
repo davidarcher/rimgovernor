@@ -60,6 +60,13 @@ func TestSuiteClaimsQualifyOnlyOutgrownRooms(t *testing.T) {
 	if got := SuiteClaims(plan, rooms, sleeping, suiteTargetsFor(sleeping, ascetic), ascetic, nil); len(got) != 0 {
 		t.Fatalf("ascetic claims = %+v", got)
 	}
+	// A tier-only target (#1221) outgrows the 3x4 room in cells but does not
+	// claim: it upgrades in place unless space is the weakest stat.
+	dull := domain.Known(RoomQuality{Wealth: 100, Beauty: 0, Space: 30, Impressiveness: 12})
+	sleeping.Rooms = domain.Known([]UpkeepRoom{{ID: "r1", Role: "Bedroom", Quality: dull}, {ID: "r2", Role: "Bedroom", Quality: dull}})
+	if got := SuiteClaims(plan, rooms, sleeping, suiteTargetsFor(sleeping, nil), nil, nil); len(got) != 0 {
+		t.Fatalf("tier-only claims = %+v, want none", got)
+	}
 	// Space the weakest stat below a tier target: b qualifies too.
 	cramped := domain.Known(RoomQuality{Wealth: 1500, Beauty: 3, Space: 5, Impressiveness: 15})
 	sleeping.Rooms = domain.Known([]UpkeepRoom{{ID: "r1", Role: "Bedroom", Quality: cramped}, {ID: "r2", Role: "Bedroom", Quality: cramped}})

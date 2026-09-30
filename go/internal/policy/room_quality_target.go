@@ -138,7 +138,10 @@ func RoomQualityTargets(obs SleepingObservation, traits map[PawnID]TraitEffects,
 			if v > t.Min {
 				t.Min = v
 			}
-			if v > 0 {
+			// A trait or title names itself only when it asks above the
+			// tier baseline, so a suite claim can tell a raised target
+			// from a tier-only one (#1221).
+			if v > 0 && (why == "tier" || v > RoomTargetBaseline(tier)) {
 				reasons[why] = true
 			}
 		}
