@@ -17,7 +17,7 @@ import (
 // The world and current epoch are still checked, so a decision can only be
 // recorded against the colony/load/map the player is actually looking at.
 func (p *Player) SubmitPopulationDecision(ctx context.Context, request store.PopulationDecisionSubmissionRequest) (store.PopulationDecisionSubmission, bool, error) {
-	call, epoch, done, err := p.enter(ctx, false)
+	call, epoch, done, err := p.enter(ctx, "population", false)
 	if err != nil {
 		return store.PopulationDecisionSubmission{}, false, err
 	}

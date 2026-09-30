@@ -293,7 +293,7 @@ func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	call, epoch, done, err := reviewer.player.enter(ctx, false)
+	call, epoch, done, err := reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		t.Fatal(err)
 	}

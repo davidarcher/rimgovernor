@@ -324,7 +324,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// gate: a scheduler step holds the gate for its whole planner wave, and
 	// a budget that started before the wait left the step 0-3 s for its
 	// actions and killed the last one at the deadline (#410).
-	call, epoch, done, err := w.player.enter(call, false)
+	call, epoch, done, err := w.player.enter(call, "worker", false)
 	if err != nil {
 		return err
 	}

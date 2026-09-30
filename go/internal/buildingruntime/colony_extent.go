@@ -38,7 +38,7 @@ func (s *ClockScheduler) establishExtent(ctx context.Context, tick domain.Tick) 
 // ChangeExpansionArea records territory intent under the shared player gate.
 // It performs no native mutation and uses the currently observed timeline tick.
 func (p *Player) ChangeExpansionArea(ctx context.Context, world store.World, id, reason string, cells []domain.Cell, remove bool) error {
-	call, epoch, done, err := p.enter(ctx, false)
+	call, epoch, done, err := p.enter(ctx, "extent", false)
 	if err != nil {
 		return err
 	}

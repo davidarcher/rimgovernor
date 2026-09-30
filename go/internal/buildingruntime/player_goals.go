@@ -27,7 +27,7 @@ import (
 // the direction, plan revision and tick in the snapshot are the caller's, the
 // same way the routine reviewer supplies its own.
 func (p *Player) SubmitGoalCreate(ctx context.Context, request store.GoalCreateSubmissionRequest) (store.GoalCreateSubmission, bool, error) {
-	call, epoch, done, err := p.enter(ctx, false)
+	call, epoch, done, err := p.enter(ctx, "goals", false)
 	if err != nil {
 		return store.GoalCreateSubmission{}, false, err
 	}
@@ -62,7 +62,7 @@ func (p *Player) SubmitGoalCreate(ctx context.Context, request store.GoalCreateS
 // logic. Native orders already issued are not erased; cancellation stops new
 // controller orders for the goal.
 func (p *Player) CancelGoal(ctx context.Context, w store.World, id domain.GoalID, revision uint64) (store.GoalState, error) {
-	call, epoch, done, err := p.enter(ctx, false)
+	call, epoch, done, err := p.enter(ctx, "goals", false)
 	if err != nil {
 		return store.GoalState{}, err
 	}

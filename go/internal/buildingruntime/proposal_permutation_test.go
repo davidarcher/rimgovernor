@@ -127,7 +127,7 @@ func haulPairWave(t *testing.T, held string) []domain.PlanID {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
-	call, epoch, done, err := reviewer.player.enter(ctx, false)
+	call, epoch, done, err := reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		t.Fatal(err)
 	}

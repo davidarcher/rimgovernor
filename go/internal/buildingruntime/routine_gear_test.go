@@ -63,7 +63,7 @@ func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	call, epoch, done, err := reviewer.player.enter(context.Background(), false)
+	call, epoch, done, err := reviewer.player.enter(context.Background(), "test", false)
 	if err != nil {
 		t.Fatal(err)
 	}

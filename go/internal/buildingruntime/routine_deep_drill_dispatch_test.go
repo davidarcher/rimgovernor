@@ -98,7 +98,7 @@ func deepDrillDispatchFixture(t *testing.T, existing bool, drills []*o.DeepDrill
 		b, _ := p.Preview.Action.Building()
 		p.Preview.WatchCellsAccessible = domain.Known(b.Cell().X != 2)
 	}
-	call, epoch, done, err := base.reviewer.player.enter(context.Background(), false)
+	call, epoch, done, err := base.reviewer.player.enter(context.Background(), "test", false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -103,7 +103,7 @@ func NewColonyStatus(player *Player, native ColonyStatusNative, food ...*facts.S
 // it. The game may be running under a live window, so the two reads land
 // on nearby ticks rather than one; the report carries both.
 func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
-	call, _, done, err := s.player.enter(ctx, false)
+	call, _, done, err := s.player.enter(ctx, "colony_status", false)
 	if err != nil {
 		return ColonyStatusReport{}, err
 	}

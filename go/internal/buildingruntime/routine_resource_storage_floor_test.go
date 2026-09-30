@@ -80,7 +80,7 @@ func resourceStorageFloor(t *testing.T, advance int64) {
 		t.Fatal(err)
 	}
 	p := base.reviewer.player
-	ctx, epoch, done, err := p.enter(context.Background(), false)
+	ctx, epoch, done, err := p.enter(context.Background(), "test", false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -609,3 +609,46 @@ func TestPlayerResumeRevokesOwnGrantAfterFailedObservation(t *testing.T) {
 		t.Fatal(got, err, state, authority.revokes.Load(), authority.acquires.Load())
 	}
 }
+
+// A slow wait for the player gate names the caller holding it and how long
+// it had held the gate (#1267).
+func TestPlayerGateWaitNamesHolder(t *testing.T) {
+	p, _, _, _ := playerFixture(t)
+	_, _, done, err := p.enter(context.Background(), "routine_review", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued := make(chan struct{})
+	p.queued = func() { close(queued) }
+	type result struct {
+		wait gateWait
+		err  error
+	}
+	got := make(chan result, 1)
+	go func() {
+		_, _, done2, wait, err := p.enterTimed(context.Background(), "clock_step", false)
+		if err == nil {
+			done2()
+		}
+		got <- result{wait, err}
+	}()
+	<-queued
+	time.Sleep(150 * time.Millisecond)
+	done()
+	r := <-got
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	if r.wait.wait <= slowGateWait {
+		t.Fatalf("wait = %s, want > %s", r.wait.wait, slowGateWait)
+	}
+	if r.wait.holder != "routine_review" {
+		t.Fatalf("holder = %q, want routine_review", r.wait.holder)
+	}
+	if r.wait.holderHeld < 150*time.Millisecond {
+		t.Fatalf("holder held %s, want >= 150ms", r.wait.holderHeld)
+	}
+	if p.holder != "" {
+		t.Fatalf("holder after release = %q, want empty", p.holder)
+	}
+}

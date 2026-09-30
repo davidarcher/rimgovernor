@@ -196,7 +196,7 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 }
 
 func (r *RoutineReviewer) Step(ctx context.Context) (store.RoutineReviewResult, error) {
-	call, epoch, done, err := r.player.enter(ctx, false)
+	call, epoch, done, err := r.player.enter(ctx, "routine_review", false)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
 	}

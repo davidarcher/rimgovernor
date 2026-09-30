@@ -30,7 +30,7 @@ func TestMedicineTierAutonomousAdmissionAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	planner := &RoutineMedicalPlanner{reviewer: hospital.reviewer}
-	call, epoch, done, err := hospital.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := hospital.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		t.Fatal(err)
 	}

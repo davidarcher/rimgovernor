@@ -705,7 +705,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	var paused time.Duration
 	var readmit bool
 	entered := time.Now()
-	var gateWait time.Duration
+	var gate gateWait
 	// The step is a trace root (or runs under the caller's): every flight
 	// row it leaves, native or kinded, carries its trace_id (#298).
 	ctx, trace := telemetry.EnsureTrace(ctx)
@@ -713,13 +713,14 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// The poll records latched outcomes as it commits them; the reason
 	// repeats them for a step driven without the poll loop.
 	s.latched.remember(reason.Events)
-	call, epoch, done, err := s.player.enter(ctx, false)
+	call, epoch, done, gate, err := s.player.enterTimed(ctx, "clock_step", false)
 	if err != nil {
 		return out, err
 	}
 	defer done()
-	if gateWait = time.Since(entered); gateWait > 50*time.Millisecond {
-		clockSchedulerLog("step waited %s for the player gate", gateWait.Round(time.Millisecond))
+	gateWait := time.Since(entered)
+	if gateWait > 50*time.Millisecond {
+		clockSchedulerLog("step waited %s for the player gate (holder=%s held=%s)", gateWait.Round(time.Millisecond), gate.holder, gate.holderHeld.Round(time.Millisecond))
 	}
 	// A wake's evidence lands on the due queue once, here, so it outlives
 	// a step that runs no planners (a paced live wave, a stopping window)
@@ -765,6 +766,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		// Worker's dispatch step, or manual control, holding it (#593).
 		if gateWait > 0 {
 			extra["gate_wait_ms"] = float64(gateWait) / float64(time.Millisecond)
+			extra["gate_holder"] = gate.holder
+			extra["gate_holder_held_ms"] = float64(gate.holderHeld) / float64(time.Millisecond)
 		}
 		extra["journal_ms"] = float64(journal.total) / float64(time.Millisecond)
 		if len(out.Waiting) > 0 {

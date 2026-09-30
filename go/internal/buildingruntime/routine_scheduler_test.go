@@ -159,7 +159,7 @@ func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
 	if err = s.session.Disable(); err != nil {
 		t.Fatal(err)
 	}
-	call, epoch, done, err := s.player.enter(ctx, false)
+	call, epoch, done, err := s.player.enter(ctx, "test", false)
 	if err != nil {
 		t.Fatal(err)
 	}

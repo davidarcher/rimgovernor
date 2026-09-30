@@ -329,7 +329,7 @@ func TestClockRenewalContinuesDuringSlowStep(t *testing.T) {
 	worker.poll = func(context.Context, time.Duration) (ClockPollResult, error) { return ClockPollResult{}, nil }
 	worker.step = func(ctx context.Context, _ StepReason) (ClockSchedulerResult, error) {
 		defer close(stepDone)
-		_, _, done, err := s.player.enter(ctx, false)
+		_, _, done, err := s.player.enter(ctx, "test", false)
 		if err != nil {
 			return ClockSchedulerResult{}, err
 		}

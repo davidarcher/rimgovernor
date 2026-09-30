@@ -86,7 +86,7 @@ func TestReserveAccessCommitsSupplyActions(t *testing.T) {
 			{Item: &o.EntityRef{Id: proto.String("release"), DefName: proto.String("MealSurvivalPack"), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(4)}}},
 		}}}}
 		planner := &RoutineFoodStorageUpkeepPlanner{reviewer: r, native: &reserveSupplyNative{context: v.Context}}
-		call, epoch, done, err := r.player.enter(ctx, false)
+		call, epoch, done, err := r.player.enter(ctx, "test", false)
 		if err != nil {
 			t.Fatal(err)
 		}

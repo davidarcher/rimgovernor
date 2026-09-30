@@ -46,6 +46,10 @@ type Player struct {
 	stopLifetime    func() bool
 	closing, closed bool
 	workerAttached  bool
+	// holder names the caller holding the gate and when it took it (#1267),
+	// so a slow wait can name what it queued behind.
+	holder      string
+	holderSince time.Time
 	// queued, when set, runs after a call has read its epoch and before it
 	// waits on the gate. Tests use it to order a queued call against Manual.
 	queued func()
@@ -82,11 +86,30 @@ func newPlayer(ctx context.Context, config PlayerConfig, journal *store.Store, s
 
 func (p *Player) State() ControlState { return p.session.State() }
 
-func (p *Player) enter(ctx context.Context, manual bool) (context.Context, context.Context, func(), error) {
+// gateWait describes one caller's wait for the player gate: how long it
+// waited and who held the gate when the wait began (#1267).
+type gateWait struct {
+	wait       time.Duration
+	holder     string
+	holderHeld time.Duration
+}
+
+// slowGateWait is the wait past which enter names the gate's holder.
+const slowGateWait = 100 * time.Millisecond
+
+// enter takes the player gate for a caller named by label (clock_step,
+// routine_review, submit, manual, ...).
+func (p *Player) enter(ctx context.Context, label string, manual bool) (context.Context, context.Context, func(), error) {
+	call, epoch, done, _, err := p.enterTimed(ctx, label, manual)
+	return call, epoch, done, err
+}
+
+func (p *Player) enterTimed(ctx context.Context, label string, manual bool) (context.Context, context.Context, func(), gateWait, error) {
+	var waited gateWait
 	p.mu.Lock()
 	if p.closing || p.closed || p.lifetime.Err() != nil {
 		p.mu.Unlock()
-		return nil, nil, nil, fmt.Errorf("%w: enter: p.closing || p.closed || p.lifetime.Err() != nil", ErrControl)
+		return nil, nil, nil, waited, fmt.Errorf("%w: enter: p.closing || p.closed || p.lifetime.Err() != nil", ErrControl)
 	}
 	if manual {
 		p.cancelEpoch()
@@ -94,11 +117,13 @@ func (p *Player) enter(ctx context.Context, manual bool) (context.Context, conte
 		// Local safety comes before a potentially stale request, queue or database.
 		if err := p.session.Disable(); err != nil {
 			p.mu.Unlock()
-			return nil, nil, nil, err
+			return nil, nil, nil, waited, err
 		}
 	}
 	epoch := p.epoch
+	holder, holderSince := p.holder, p.holderSince
 	p.mu.Unlock()
+	began := time.Now()
 	// The wait for the gate and the call under it are budgeted apart, each
 	// by CallTimeout: a caller queued behind a long scheduler step (its
 	// planner reads run 5-11 s under peer load, up to serviceClockStepTimeout)
@@ -116,17 +141,39 @@ func (p *Player) enter(ctx context.Context, manual bool) (context.Context, conte
 	case <-wait.Done():
 		stopWait()
 		cancelWait()
-		return nil, nil, nil, wait.Err()
+		return nil, nil, nil, waited, wait.Err()
+	}
+	acquired := time.Now()
+	waited.wait = acquired.Sub(began)
+	if holder != "" {
+		waited.holder = holder
+		waited.holderHeld = acquired.Sub(holderSince)
+	}
+	p.mu.Lock()
+	p.holder, p.holderSince = label, acquired
+	p.mu.Unlock()
+	if waited.wait > slowGateWait {
+		name := waited.holder
+		if name == "" {
+			name = "unknown"
+		}
+		clockSchedulerLog("player gate: %s waited %s behind %s (held %s)", label, waited.wait.Round(time.Millisecond), name, waited.holderHeld.Round(time.Millisecond))
+	}
+	release := func() {
+		p.mu.Lock()
+		p.holder, p.holderSince = "", time.Time{}
+		p.mu.Unlock()
+		<-p.gate
 	}
 	call, cancel := context.WithTimeout(ctx, p.config.CallTimeout)
 	stop := context.AfterFunc(epoch, cancel)
 	cleanup := func() { stop(); cancel() }
 	if err := p.current(call, epoch); err != nil {
-		<-p.gate
+		release()
 		cleanup()
-		return nil, nil, nil, err
+		return nil, nil, nil, waited, err
 	}
-	return call, epoch, func() { <-p.gate; cleanup() }, nil
+	return call, epoch, func() { release(); cleanup() }, waited, nil
 }
 func (p *Player) current(ctx, epoch context.Context) error {
 	if err := ctx.Err(); err != nil {
@@ -157,7 +204,7 @@ func (p *Player) world(ctx context.Context, expected store.World) error {
 }
 
 func (p *Player) Submit(ctx context.Context, request store.SubmissionRequest) (store.Submission, bool, error) {
-	call, epoch, done, err := p.enter(ctx, false)
+	call, epoch, done, err := p.enter(ctx, "submit", false)
 	if err != nil {
 		return store.Submission{}, false, err
 	}
@@ -211,7 +258,7 @@ func (p *Player) uncertain(record store.ControlRecord, cause error) (store.Contr
 
 // Resume enables autonomous play for the requested world under its root plan.
 func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (store.ControlRecord, error) {
-	call, epoch, done, err := p.enter(ctx, false)
+	call, epoch, done, err := p.enter(ctx, "resume", false)
 	if err != nil {
 		return store.ControlRecord{}, err
 	}
@@ -291,7 +338,7 @@ func playerWorld(snapshot domain.GenerationSnapshot) store.World {
 // Pause always stops local writes first, including on historical replay or a
 // stale browser world. Only fresh matching scope permits native cleanup.
 func (p *Player) Pause(ctx context.Context, request store.ControlRequest) (store.ControlRecord, error) {
-	call, epoch, done, err := p.enter(ctx, true)
+	call, epoch, done, err := p.enter(ctx, "manual", true)
 	if err != nil {
 		return store.ControlRecord{}, err
 	}

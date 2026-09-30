@@ -14,7 +14,7 @@ import (
 // through a routine planner, only this direct submission. Submission
 // neither acquires authority nor issues a native command.
 func (p *Player) SubmitResearchSelect(ctx context.Context, request store.ResearchSelectSubmissionRequest) (store.ResearchSelectSubmission, bool, error) {
-	call, epoch, done, err := p.enter(ctx, false)
+	call, epoch, done, err := p.enter(ctx, "research_select", false)
 	if err != nil {
 		return store.ResearchSelectSubmission{}, false, err
 	}

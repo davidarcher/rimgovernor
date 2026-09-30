@@ -54,7 +54,7 @@ func NewWorldEvaluation(player *Player, native WorldEvaluationNative, p policy.W
 // protect. It still serializes through Player.enter so this read never
 // interleaves with an in-flight native write.
 func (w *WorldEvaluation) Read(ctx context.Context) (policy.WorldEvaluationReport, error) {
-	call, _, done, err := w.player.enter(ctx, false)
+	call, _, done, err := w.player.enter(ctx, "world_evaluation", false)
 	if err != nil {
 		return policy.WorldEvaluationReport{}, err
 	}

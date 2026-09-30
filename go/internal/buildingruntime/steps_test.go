@@ -13,7 +13,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 }
 
 func (r *RoutineAcquisitionPlanner) Step(ctx context.Context) (RoutineAcquisitionResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineAcquisitionResult{}, err
 	}
@@ -22,7 +22,7 @@ func (r *RoutineAcquisitionPlanner) Step(ctx context.Context) (RoutineAcquisitio
 }
 
 func (r *RoutineAnimalContainmentPlanner) Step(ctx context.Context) (RoutineAnimalContainmentResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
@@ -31,7 +31,7 @@ func (r *RoutineAnimalContainmentPlanner) Step(ctx context.Context) (RoutineAnim
 }
 
 func (r *RoutineAnimalFeedPlanner) Step(ctx context.Context) (RoutineResourceResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
@@ -40,7 +40,7 @@ func (r *RoutineAnimalFeedPlanner) Step(ctx context.Context) (RoutineResourceRes
 }
 
 func (r *RoutineWorkPlanner) Step(ctx context.Context) (RoutineWorkResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}
@@ -49,7 +49,7 @@ func (r *RoutineWorkPlanner) Step(ctx context.Context) (RoutineWorkResult, error
 }
 
 func (r *RoutineBillPlanner) Step(ctx context.Context) (RoutineBillResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
@@ -58,7 +58,7 @@ func (r *RoutineBillPlanner) Step(ctx context.Context) (RoutineBillResult, error
 }
 
 func (r *RoutineBlightPlanner) Step(ctx context.Context) (RoutineBlightResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineBlightResult{}, err
 	}
@@ -67,7 +67,7 @@ func (r *RoutineBlightPlanner) Step(ctx context.Context) (RoutineBlightResult, e
 }
 
 func (r *RoutineCleanPlanner) Step(ctx context.Context) (RoutineCleanResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineCleanResult{}, err
 	}
@@ -76,7 +76,7 @@ func (r *RoutineCleanPlanner) Step(ctx context.Context) (RoutineCleanResult, err
 }
 
 func (r *RoutineClearancePlanner) Step(ctx context.Context) (RoutineClearanceResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}
@@ -85,7 +85,7 @@ func (r *RoutineClearancePlanner) Step(ctx context.Context) (RoutineClearanceRes
 }
 
 func (r *RoutineDefensePlanner) Step(ctx context.Context) (RoutineDefenseResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
@@ -94,7 +94,7 @@ func (r *RoutineDefensePlanner) Step(ctx context.Context) (RoutineDefenseResult,
 }
 
 func (r *RoutineDefenseLayoutPlanner) Step(ctx context.Context) (RoutineDefenseLayoutResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
@@ -103,7 +103,7 @@ func (r *RoutineDefenseLayoutPlanner) Step(ctx context.Context) (RoutineDefenseL
 }
 
 func (r *RoutineDialogPlanner) Step(ctx context.Context) (RoutineDialogResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineDialogResult{}, err
 	}
@@ -112,7 +112,7 @@ func (r *RoutineDialogPlanner) Step(ctx context.Context) (RoutineDialogResult, e
 }
 
 func (r *RoutineEquipPlanner) Step(ctx context.Context) (RoutineEquipResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
@@ -121,7 +121,7 @@ func (r *RoutineEquipPlanner) Step(ctx context.Context) (RoutineEquipResult, err
 }
 
 func (r *RoutineFieldPlanner) Step(ctx context.Context) (RoutineFieldResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
@@ -130,7 +130,7 @@ func (r *RoutineFieldPlanner) Step(ctx context.Context) (RoutineFieldResult, err
 }
 
 func (r *RoutineFireSafetyPlanner) Step(ctx context.Context) (RoutineFireSafetyResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineFireSafetyResult{}, err
 	}
@@ -139,7 +139,7 @@ func (r *RoutineFireSafetyPlanner) Step(ctx context.Context) (RoutineFireSafetyR
 }
 
 func (r *RoutineFoodStoragePlanner) Step(ctx context.Context) (RoutineFoodStorageResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
 	}
@@ -148,7 +148,7 @@ func (r *RoutineFoodStoragePlanner) Step(ctx context.Context) (RoutineFoodStorag
 }
 
 func (r *RoutineFoodStorageUpkeepPlanner) Step(ctx context.Context) (RoutineFoodStorageUpkeepResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
@@ -157,7 +157,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) Step(ctx context.Context) (RoutineFood
 }
 
 func (r *RoutineArmoryPlanner) Step(ctx context.Context) (RoutineArmoryResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineArmoryResult{}, err
 	}
@@ -166,7 +166,7 @@ func (r *RoutineArmoryPlanner) Step(ctx context.Context) (RoutineArmoryResult, e
 }
 
 func (r *RoutineGearPlanner) Step(ctx context.Context) (RoutineGearResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
@@ -175,7 +175,7 @@ func (r *RoutineGearPlanner) Step(ctx context.Context) (RoutineGearResult, error
 }
 
 func (r *RoutineHaulPlanner) Step(ctx context.Context) (RoutineHaulResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineHaulResult{}, err
 	}
@@ -184,7 +184,7 @@ func (r *RoutineHaulPlanner) Step(ctx context.Context) (RoutineHaulResult, error
 }
 
 func (r *RoutineHomeCoveragePlanner) Step(ctx context.Context) (RoutineHomeCoverageResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
@@ -193,7 +193,7 @@ func (r *RoutineHomeCoveragePlanner) Step(ctx context.Context) (RoutineHomeCover
 }
 
 func (r *RoutineHospitalPlanner) Step(ctx context.Context) (RoutineBuildingResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -202,7 +202,7 @@ func (r *RoutineHospitalPlanner) Step(ctx context.Context) (RoutineBuildingResul
 }
 
 func (r *RoutineHusbandryPlanner) Step(ctx context.Context) (RoutineHusbandryResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}
@@ -211,7 +211,7 @@ func (r *RoutineHusbandryPlanner) Step(ctx context.Context) (RoutineHusbandryRes
 }
 
 func (r *RoutineIngredientStoragePlanner) Step(ctx context.Context) (RoutineIngredientStorageResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}
@@ -220,7 +220,7 @@ func (r *RoutineIngredientStoragePlanner) Step(ctx context.Context) (RoutineIngr
 }
 
 func (r *RoutineMedicalPlanner) Step(ctx context.Context) (RoutineMedicalResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineMedicalResult{}, err
 	}
@@ -229,7 +229,7 @@ func (r *RoutineMedicalPlanner) Step(ctx context.Context) (RoutineMedicalResult,
 }
 
 func (r *RoutineMoodReliefPlanner) Step(ctx context.Context) (RoutineMoodReliefResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineMoodReliefResult{}, err
 	}
@@ -238,7 +238,7 @@ func (r *RoutineMoodReliefPlanner) Step(ctx context.Context) (RoutineMoodReliefR
 }
 
 func (r *RoutineNamingPlanner) Step(ctx context.Context) (RoutineNamingResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineNamingResult{}, err
 	}
@@ -247,7 +247,7 @@ func (r *RoutineNamingPlanner) Step(ctx context.Context) (RoutineNamingResult, e
 }
 
 func (r *RoutinePopulationCustodyPlanner) Step(ctx context.Context) (RoutinePopulationCustodyResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}
@@ -256,7 +256,7 @@ func (r *RoutinePopulationCustodyPlanner) Step(ctx context.Context) (RoutinePopu
 }
 
 func (r *RoutinePopulationJoinerPlanner) Step(ctx context.Context) (RoutinePopulationJoinerResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
@@ -265,7 +265,7 @@ func (r *RoutinePopulationJoinerPlanner) Step(ctx context.Context) (RoutinePopul
 }
 
 func (r *RoutinePrisonerInteractionPlanner) Step(ctx context.Context) (RoutinePrisonerInteractionResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
@@ -274,7 +274,7 @@ func (r *RoutinePrisonerInteractionPlanner) Step(ctx context.Context) (RoutinePr
 }
 
 func (r *RoutineRecoveryPlanner) Step(ctx context.Context) (RoutineRecoveryResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineRecoveryResult{}, err
 	}
@@ -283,7 +283,7 @@ func (r *RoutineRecoveryPlanner) Step(ctx context.Context) (RoutineRecoveryResul
 }
 
 func (r *RoutineRepairPlanner) Step(ctx context.Context) (RoutineRepairResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineRepairResult{}, err
 	}
@@ -292,7 +292,7 @@ func (r *RoutineRepairPlanner) Step(ctx context.Context) (RoutineRepairResult, e
 }
 
 func (r *RoutineRescuePlanner) Step(ctx context.Context) (RoutineRescueResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineRescueResult{}, err
 	}
@@ -301,7 +301,7 @@ func (r *RoutineRescuePlanner) Step(ctx context.Context) (RoutineRescueResult, e
 }
 
 func (r *RoutineResearchPlanner) Step(ctx context.Context) (RoutineResearchResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
@@ -310,7 +310,7 @@ func (r *RoutineResearchPlanner) Step(ctx context.Context) (RoutineResearchResul
 }
 
 func (r *RoutineResourcePlanner) Step(ctx context.Context) (RoutineResourceResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
@@ -319,7 +319,7 @@ func (r *RoutineResourcePlanner) Step(ctx context.Context) (RoutineResourceResul
 }
 
 func (r *RoutineSecureSuppliesPlanner) Step(ctx context.Context) (RoutineSecureSuppliesResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineSecureSuppliesResult{}, err
 	}
@@ -328,7 +328,7 @@ func (r *RoutineSecureSuppliesPlanner) Step(ctx context.Context) (RoutineSecureS
 }
 
 func (r *RoutineShrinePlanner) Step(ctx context.Context) (RoutineShrineResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineShrineResult{}, err
 	}
@@ -338,7 +338,7 @@ func (r *RoutineShrinePlanner) Step(ctx context.Context) (RoutineShrineResult, e
 
 func (r *RoutineBuildingPlanner) Step(ctx context.Context) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
-	call, epoch, done, err := p.enter(ctx, false)
+	call, epoch, done, err := p.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -347,7 +347,7 @@ func (r *RoutineBuildingPlanner) Step(ctx context.Context) (RoutineBuildingResul
 }
 
 func (r *RoutineSleepingUpkeepPlanner) Step(ctx context.Context) (RoutineBuildingResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -356,7 +356,7 @@ func (r *RoutineSleepingUpkeepPlanner) Step(ctx context.Context) (RoutineBuildin
 }
 
 func (r *RoutineStockpilePlanner) Step(ctx context.Context) (RoutineStockpileResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}
@@ -365,7 +365,7 @@ func (r *RoutineStockpilePlanner) Step(ctx context.Context) (RoutineStockpileRes
 }
 
 func (r *RoutineStoneShellPlanner) Step(ctx context.Context) (RoutineStoneShellResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineStoneShellResult{}, err
 	}
@@ -374,7 +374,7 @@ func (r *RoutineStoneShellPlanner) Step(ctx context.Context) (RoutineStoneShellR
 }
 
 func (r *RoutineStorageShelvesPlanner) Step(ctx context.Context) (RoutineStorageShelvesResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineStorageShelvesResult{}, err
 	}
@@ -383,7 +383,7 @@ func (r *RoutineStorageShelvesPlanner) Step(ctx context.Context) (RoutineStorage
 }
 
 func (r *RoutineSupplyPlanner) Step(ctx context.Context) (RoutineSupplyResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineSupplyResult{}, err
 	}
@@ -392,7 +392,7 @@ func (r *RoutineSupplyPlanner) Step(ctx context.Context) (RoutineSupplyResult, e
 }
 
 func (r *RoutineTendPlanner) Step(ctx context.Context) (RoutineTendResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineTendResult{}, err
 	}
@@ -401,7 +401,7 @@ func (r *RoutineTendPlanner) Step(ctx context.Context) (RoutineTendResult, error
 }
 
 func (r *RoutineTidyPlanner) Step(ctx context.Context) (RoutineTidyResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}
@@ -410,7 +410,7 @@ func (r *RoutineTidyPlanner) Step(ctx context.Context) (RoutineTidyResult, error
 }
 
 func (r *RoutineTradePlanner) Step(ctx context.Context) (RoutineTradeResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
@@ -419,7 +419,7 @@ func (r *RoutineTradePlanner) Step(ctx context.Context) (RoutineTradeResult, err
 }
 
 func (r *RoutineWastePlanner) Step(ctx context.Context) (RoutineWasteResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
+	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
 		return RoutineWasteResult{}, err
 	}
