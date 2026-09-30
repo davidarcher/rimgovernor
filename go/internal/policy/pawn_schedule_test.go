@@ -80,3 +80,57 @@ func TestPlanSchedules(t *testing.T) {
 		t.Fatal(d)
 	}
 }
+
+func TestPlanSchedulesNeedBands(t *testing.T) {
+	day, owl := TraitEffects{}, TraitEffects{NightShift: true}
+	with := func(effects TraitEffects, sleep []int, joy []int) []string {
+		slots := scheduleTemplate(effects)
+		for _, h := range sleep {
+			slots[h] = ScheduleSleep
+		}
+		for _, h := range joy {
+			slots[h] = ScheduleJoy
+		}
+		return slots
+	}
+	dayBase, dayLong, dayWide := with(day, nil, nil), with(day, []int{6, 7}, nil), with(day, nil, []int{20})
+	owlBase, owlLong, owlWide := with(owl, nil, nil), with(owl, []int{18, 19}, nil), with(owl, nil, []int{8})
+	unknown := domain.Unknown[float64]()
+	for name, c := range map[string]struct {
+		owl       bool
+		rest, joy domain.Fact[float64]
+		current   []string
+		want      []string
+	}{
+		"drowsy extends":        {false, domain.Known(0.2), domain.Known(0.9), dayBase, dayLong},
+		"band holds base":       {false, domain.Known(0.4), domain.Known(0.5), dayBase, dayBase},
+		"band holds extended":   {false, domain.Known(0.4), domain.Known(0.9), dayLong, dayLong},
+		"rested reverts":        {false, domain.Known(0.6), domain.Known(0.9), dayLong, dayBase},
+		"bored widens":          {false, domain.Known(0.9), domain.Known(0.1), dayBase, dayWide},
+		"band holds wide":       {false, domain.Known(0.9), domain.Known(0.5), dayWide, dayWide},
+		"entertained reverts":   {false, domain.Known(0.9), domain.Known(0.7), dayWide, dayBase},
+		"unknown is base":       {false, unknown, unknown, with(day, []int{6, 7}, []int{20}), dayBase},
+		"both":                  {false, domain.Known(0.1), domain.Known(0.1), dayBase, with(day, []int{6, 7}, []int{20})},
+		"owl drowsy extends":    {true, domain.Known(0.2), domain.Known(0.9), owlBase, owlLong},
+		"owl band holds":        {true, domain.Known(0.5), domain.Known(0.9), owlLong, owlLong},
+		"owl rested reverts":    {true, domain.Known(0.8), domain.Known(0.9), owlLong, owlBase},
+		"owl bored widens":      {true, domain.Known(0.9), domain.Known(0.2), owlBase, owlWide},
+		"owl from native table": {true, domain.Known(0.2), domain.Known(0.2), nativeDefaultSchedule(), with(owl, []int{18, 19}, []int{8})},
+	} {
+		var traits []PawnTrait
+		if c.owl {
+			traits = []PawnTrait{{Name: "NightOwl"}}
+		}
+		pawn := testWorkPawn("p", true, false, nil, traits...)
+		pawn.Schedule, pawn.Rest, pawn.Joy = domain.Known(c.current), c.rest, c.joy
+		d := PlanSchedules([]WorkPawn{pawn})
+		if len(d.Schedules) != 1 || !sameSchedule(d.Schedules[0].Slots, c.want) || d.Schedules[0].Matches != sameSchedule(c.current, c.want) {
+			t.Fatalf("%s: %v", name, d)
+		}
+		for _, s := range d.Schedules[0].Slots {
+			if s == "Work" {
+				t.Fatalf("%s wrote Work", name)
+			}
+		}
+	}
+}
