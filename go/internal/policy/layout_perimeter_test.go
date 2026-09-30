@@ -473,3 +473,112 @@ func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
 		}
 	}
 }
+
+// patchPerimeter plans the ring on plain ground with one field patch
+// dx..dx+30 east of the core's right edge, from 10 below its top to 30
+// above it, and reports the core box, the patch and the cells a raider
+// reaches from the map edge (#1286).
+func patchPerimeter(t *testing.T, dx int32) (core Rectangle, patch map[domain.Cell]bool, p LayoutPlan, outside map[domain.Cell]bool) {
+	t.Helper()
+	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 0.7} })
+	plan := PlanCore(Zone(s), 3, BuildTierCamp)
+	for _, r := range plan.AllRooms() {
+		core = unionRect(core, pad(r.Interior, 1))
+	}
+	for _, sg := range plan.Hallways() {
+		core = unionRect(core, pad(rectOf(sg.From, sg.To), SpineWidth/2))
+	}
+	right, top := core.X+core.Width-1, core.Z+core.Height-1
+	patch = map[domain.Cell]bool{}
+	zone := LayoutZone{Kind: ZoneField}
+	for z := top - 10; z < top+30; z++ {
+		zone.Runs = append(zone.Runs, RowRun{Z: z, X: right + dx, Length: 30})
+		for x := right + dx; x < right+dx+30; x++ {
+			patch[domain.Cell{X: x, Z: z}] = true
+		}
+	}
+	plan.Zones = append(plan.Zones, zone)
+	p = PlanPerimeter(plan, s)
+	checkPerimeter(t, p)
+	if c, leak := perimeterLeak(p, s); leak {
+		t.Fatal("raiders reach the core at", c)
+	}
+	// The raiders' flood, as perimeterLeak runs it.
+	closed := reservedCells(p, ReservePerimeter)
+	for c := range reservedCells(p, ReserveKillbox) {
+		closed[c] = true
+	}
+	outside = map[domain.Cell]bool{}
+	var queue []domain.Cell
+	for x := int32(0); x < 200; x++ {
+		for _, c := range []domain.Cell{{X: x}, {X: x, Z: 199}, {Z: x}, {X: 199, Z: x}} {
+			if !outside[c] {
+				outside[c] = true
+				queue = append(queue, c)
+			}
+		}
+	}
+	for len(queue) > 0 {
+		c := queue[0]
+		queue = queue[1:]
+		for _, d := range neighbours8 {
+			n := addCell(c, d)
+			if n.X < 0 || n.Z < 0 || n.X >= 200 || n.Z >= 200 || closed[n] || outside[n] || d.X != 0 && d.Z != 0 && (closed[domain.Cell{X: n.X, Z: c.Z}] || closed[domain.Cell{X: c.X, Z: n.Z}]) {
+				continue
+			}
+			outside[n] = true
+			queue = append(queue, n)
+		}
+	}
+	// The wall itself, not the killbox (sited by #1287), stays a cell off.
+	walls := reservedCells(p, ReservePerimeter)
+	for c := range patch {
+		for _, d := range append(neighbours8[:], domain.Cell{}) {
+			if walls[addCell(c, d)] {
+				t.Fatal("the wall crosses or touches the patch at", addCell(c, d))
+			}
+		}
+	}
+	return core, patch, p, outside
+}
+
+// A patch beside the core is taken in whole and the ring follows the L:
+// the corner below the patch, which a rectangle would enclose, stays out.
+func TestPerimeterFollowsEnclosedPatch(t *testing.T) {
+	core, patch, p, outside := patchPerimeter(t, 5)
+	for c := range patch {
+		if outside[c] {
+			t.Fatal("patch cell outside the wall", c)
+		}
+	}
+	right := core.X + core.Width - 1
+	// Below the patch's own yard and ring, clear of the core's.
+	top := core.Z + core.Height - 1
+	if notch := (domain.Cell{X: right + 30, Z: top - 10 - perimeterGap - perimeterThick - 2}); !outside[notch] {
+		t.Fatal("the ring is a rectangle: the notch below the patch is enclosed", notch)
+	}
+	var ring Rectangle
+	for _, r := range reserved(p, ReservePerimeter) {
+		ring = unionRect(ring, r)
+	}
+	if ring.X+ring.Width-1 < right+5+30+perimeterGap {
+		t.Fatal("the ring stops short of the patch", ring)
+	}
+}
+
+// A patch just beyond reach but inside the ring's clearance is taken in
+// whole; one farther out stays wholly outside, clear of the wall.
+func TestPerimeterNeverCrossesPatch(t *testing.T) {
+	_, patch, _, outside := patchPerimeter(t, perimeterFieldReach+1)
+	for c := range patch {
+		if outside[c] {
+			t.Fatal("patch within the ring's clearance is split at", c)
+		}
+	}
+	_, patch, _, outside = patchPerimeter(t, perimeterGap+perimeterThick+3)
+	for c := range patch {
+		if !outside[c] {
+			t.Fatal("patch beyond reach enclosed at", c)
+		}
+	}
+}

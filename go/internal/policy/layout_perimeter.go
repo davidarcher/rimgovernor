@@ -7,7 +7,8 @@ import (
 )
 
 // Perimeter, gates and killbox from terrain (#781, A5). The wall is a
-// 3-thick rectangular ring around the core and the fields beside it; a
+// 3-thick ring traced around the core and the whole field patches beside
+// it (#1286, layout_perimeter_enclosure.go), never across a patch; a
 // stretch where rock or deep water already fills the whole thickness is
 // left to the terrain. Soft ground a raider wades through (marsh, mud,
 // shallow and moving water) is closed too (#949): the wall follows the
@@ -50,8 +51,8 @@ const (
 	// perimeterGap is the yard between the core and the wall; it holds
 	// the killbox.
 	perimeterGap int32 = 12
-	// perimeterFieldReach is how far from the core a field patch may
-	// start and still sit inside the wall.
+	// perimeterFieldReach is how far from the core any cell of a field
+	// patch may lie and still take the whole patch inside the wall.
 	perimeterFieldReach int32 = 15
 	perimeterGatePitch  int32 = 20
 	perimeterCoverBand  int32 = 30
@@ -103,53 +104,29 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	for _, sg := range plan.Hallways() {
 		grow(pad(rectOf(sg.From, sg.To), SpineWidth/2))
 	}
-	reach := pad(core, perimeterFieldReach)
-	for _, z := range plan.Zones {
-		if z.Kind != ZoneField {
-			continue
-		}
-		near := false
-		for _, r := range z.Runs {
-			near = near || contains(reach, domain.Cell{X: r.X, Z: r.Z}) || contains(reach, domain.Cell{X: r.X + r.Length - 1, Z: r.Z})
-		}
-		if near {
-			for _, r := range z.Runs {
-				grow(Rectangle{X: r.X, Z: r.Z, Width: r.Length, Height: 1})
-			}
-		}
-	}
-	// A geothermal enclosure near the core stands inside the wall (#834);
-	// one the ring would not reach lies wholly outside it, never across it.
-	for grew := true; grew; {
-		grew = false
-		for _, r := range plan.Reservations {
-			if r.Kind == ReserveGeothermal && clipRect(r.Area, pad(core, perimeterGap+perimeterThick)).Width > 0 && unionRect(core, r.Area) != core {
-				grow(r.Area)
-				grew = true
-			}
-		}
-	}
-	e := LayoutEdgeMargin
-	outer := clipRect(pad(core, perimeterGap+perimeterThick), Rectangle{X: e, Z: e, Width: w - 2*e, Height: h - 2*e})
-	inner := pad(outer, -perimeterThick)
-	if inner.Width < 1 || inner.Height < 1 {
+	// The enclosure: the core box and whole field patches, the yard
+	// around them; the ring traced outside it (#1286).
+	enc := planEnclosure(plan, core, w, h)
+	if enc.bbox.Width == 0 {
 		return plan
 	}
-
-	sides := ringSides(outer)
-	inRing := func(c domain.Cell) bool { return contains(outer, c) && !contains(inner, c) }
+	sides, owner := enc.sides()
+	inRing := enc.onRing
 	sideOf := func(c domain.Cell) (int, int32) {
-		for k, sd := range sides {
-			if p := sd.pos(c); p >= sd.lo && p <= sd.hi {
-				t := (c.X-sd.base(p).X)*sd.in.X + (c.Z-sd.base(p).Z)*sd.in.Z
-				if t >= 0 && t < perimeterThick {
-					return k, p
-				}
-			}
+		if x, ok := owner[c]; ok {
+			return x.side, x.pos
 		}
 		return -1, 0
 	}
-	// built is a cell the core's rooms or hallway hold.
+	// orphans are ring cells no side position holds (outline corners too
+	// tight for a full column); each is walled on its own.
+	var orphans []domain.Cell
+	for _, c := range enc.ringCells() {
+		if _, ok := owner[c]; !ok {
+			orphans = append(orphans, c)
+		}
+	}
+	ringBox := pad(enc.bbox, perimeterThick) // built is a cell the core's rooms or hallway hold.
 	built := func(c domain.Cell) bool {
 		for _, r := range plan.AllRooms() {
 			if contains(pad(r.Interior, 1), c) {
@@ -167,10 +144,6 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	// Soft ground on the ring (#949). Each connected stretch of it is
 	// closed by a shoreline detour inside the ring where that stays short,
 	// else crossed where the ring runs.
-	type crossing struct {
-		side int
-		pos  int32
-	}
 	wet := map[crossing]bool{}
 	for k, sd := range sides {
 		for p := sd.lo; p <= sd.hi; p++ {
@@ -181,86 +154,81 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 		}
 	}
-	box := clipRect(pad(outer, perimeterGap), Rectangle{Width: w, Height: h})
+	box := clipRect(pad(ringBox, perimeterGap), Rectangle{Width: w, Height: h})
 	detour := map[domain.Cell]bool{}  // wall cells of kept detours
 	shut := map[domain.Cell]bool{}    // soft cells a kept detour leaves outside
 	detoured := map[crossing]bool{}   // wet positions a kept detour closes
 	failed := map[crossing]bool{}     // wet positions some stretch cannot detour
 	flooded := map[domain.Cell]bool{} // soft cells already in some stretch
-	for _, sd := range sides {
-		for p := sd.lo; p <= sd.hi; p++ {
-			for t := int32(0); t < perimeterThick; t++ {
-				start := sd.cell(p, t)
-				if !soft(start) || flooded[start] {
-					continue
-				}
-				// The stretch: soft cells joined to this one inside box,
-				// diagonals included, since a pawn steps diagonally.
-				stretch, queue := []domain.Cell{start}, []domain.Cell{start}
-				flooded[start] = true
-				for len(queue) > 0 {
-					c := queue[0]
-					queue = queue[1:]
-					for _, d := range neighbours8 {
-						n := addCell(c, d)
-						if contains(box, n) && soft(n) && !flooded[n] {
-							flooded[n] = true
-							stretch = append(stretch, n)
-							queue = append(queue, n)
-						}
-					}
-				}
-				crossed := map[crossing]bool{}
-				in := map[domain.Cell]bool{}
-				for _, c := range stretch {
-					in[c] = true
-					if kk, pp := sideOf(c); kk >= 0 {
-						crossed[crossing{kk, pp}] = true
-					}
-				}
-				// The detour: every cell inside the ring within the wall's
-				// thickness of the stretch. It fails on a room, the
-				// hallway, an unread cell or other soft ground.
-				wall, ok := map[domain.Cell]bool{}, true
-				for _, c := range stretch {
-					if contains(inner, c) && built(c) {
-						ok = false
-					}
-					for dx := -perimeterThick; dx <= perimeterThick && ok; dx++ {
-						for dz := -perimeterThick; dz <= perimeterThick && ok; dz++ {
-							n := domain.Cell{X: c.X + dx, Z: c.Z + dz}
-							if !contains(outer, n) || in[n] || wall[n] || impassable(n) {
-								continue
-							}
-							if _, read := cells[n]; !read || built(n) || soft(n) {
-								ok = false
-							}
-							wall[n] = true
-						}
-					}
-				}
-				extra := 0
-				for c := range wall {
-					if kk, pp := sideOf(c); kk < 0 || crossed[crossing{kk, pp}] {
-						extra++
-					}
-				}
-				if !ok || float64(extra) > perimeterDetour*float64(perimeterThick)*float64(len(crossed)) {
-					for x := range crossed {
-						failed[x] = true
-					}
-					continue
-				}
-				for c := range wall {
-					detour[c] = true
-				}
-				for _, c := range stretch {
-					shut[c] = true
-				}
-				for x := range crossed {
-					detoured[x] = true
+	for _, start := range enc.ringCells() {
+		if !soft(start) || flooded[start] {
+			continue
+		}
+		// The stretch: soft cells joined to this one inside box,
+		// diagonals included, since a pawn steps diagonally.
+		stretch, queue := []domain.Cell{start}, []domain.Cell{start}
+		flooded[start] = true
+		for len(queue) > 0 {
+			c := queue[0]
+			queue = queue[1:]
+			for _, d := range neighbours8 {
+				n := addCell(c, d)
+				if contains(box, n) && soft(n) && !flooded[n] {
+					flooded[n] = true
+					stretch = append(stretch, n)
+					queue = append(queue, n)
 				}
 			}
+		}
+		crossed := map[crossing]bool{}
+		in := map[domain.Cell]bool{}
+		for _, c := range stretch {
+			in[c] = true
+			if kk, pp := sideOf(c); kk >= 0 {
+				crossed[crossing{kk, pp}] = true
+			}
+		}
+		// The detour: every cell inside the ring within the wall's
+		// thickness of the stretch. It fails on a room, the
+		// hallway, an unread cell or other soft ground.
+		wall, ok := map[domain.Cell]bool{}, true
+		for _, c := range stretch {
+			if enc.inside(c) && built(c) {
+				ok = false
+			}
+			for dx := -perimeterThick; dx <= perimeterThick && ok; dx++ {
+				for dz := -perimeterThick; dz <= perimeterThick && ok; dz++ {
+					n := domain.Cell{X: c.X + dx, Z: c.Z + dz}
+					if !enc.inside(n) && !inRing(n) || in[n] || wall[n] || impassable(n) {
+						continue
+					}
+					if _, read := cells[n]; !read || built(n) || soft(n) {
+						ok = false
+					}
+					wall[n] = true
+				}
+			}
+		}
+		extra := 0
+		for c := range wall {
+			if kk, pp := sideOf(c); kk < 0 || crossed[crossing{kk, pp}] {
+				extra++
+			}
+		}
+		if !ok || float64(extra) > perimeterDetour*float64(perimeterThick)*float64(len(crossed)) {
+			for x := range crossed {
+				failed[x] = true
+			}
+			continue
+		}
+		for c := range wall {
+			detour[c] = true
+		}
+		for _, c := range stretch {
+			shut[c] = true
+		}
+		for x := range crossed {
+			detoured[x] = true
 		}
 	}
 
@@ -272,7 +240,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		at = func(in, al int32) domain.Cell {
 			return domain.Cell{X: b.X + sd.in.X*in + sd.al.X*al, Z: b.Z + sd.in.Z*in + sd.al.Z*al}
 		}
-		return clipRect(rectOf(at(perimeterThick, -killboxHalf), at(perimeterThick+killboxDepth-1, killboxHalf)), inner), at
+		return clipRect(rectOf(at(perimeterThick, -killboxHalf), at(perimeterThick+killboxDepth-1, killboxHalf)), enc.bbox), at
 	}
 	opens := func(x crossing) bool {
 		sd := sides[x.side]
@@ -290,6 +258,11 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 		}
 		killbox, _ := openingAt(x)
+		for _, c := range rectCells(killbox) {
+			if !enc.inside(c) {
+				return false
+			}
+		}
 		for c := range detour {
 			if contains(killbox, c) {
 				return false
@@ -332,10 +305,10 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		mid = domain.Cell{X: (sg.From.X + sg.To.X) / 2, Z: (sg.From.Z + sg.To.Z) / 2}
 	}
 	origin, found := mid, false
-	for x := inner.X; x < inner.X+inner.Width; x++ {
-		for z := inner.Z; z < inner.Z+inner.Height; z++ {
+	for x := enc.bbox.X; x < enc.bbox.X+enc.bbox.Width; x++ {
+		for z := enc.bbox.Z; z < enc.bbox.Z+enc.bbox.Height; z++ {
 			c := domain.Cell{X: x, Z: z}
-			if site.passable(c) && (!found || squaredDistance(c, mid) < squaredDistance(origin, mid)) {
+			if enc.inside(c) && site.passable(c) && (!found || squaredDistance(c, mid) < squaredDistance(origin, mid)) {
 				origin, found = c, true
 			}
 		}
@@ -479,43 +452,37 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			walls[c] = true
 		}
 	}
+	closeCell := func(c domain.Cell) {
+		sc, read := cells[c]
+		switch {
+		case impassable(c):
+		case !read || sc.Footing == FootingFirm:
+			walls[c] = true
+		case sc.Footing == FootingLight:
+			walls[c], light[c] = true, true
+		case sc.Bridgeable:
+			walls[c], bridges[c] = true, true
+		default:
+			gaps[c] = true
+		}
+	}
 	for x := range wet {
 		if detoured[x] && !failed[x] {
 			continue
 		}
 		for t := int32(0); t < perimeterThick; t++ {
-			c := sides[x.side].cell(x.pos, t)
-			sc, read := cells[c]
-			switch {
-			case impassable(c):
-			case !read || sc.Footing == FootingFirm:
-				walls[c] = true
-			case sc.Footing == FootingLight:
-				walls[c], light[c] = true, true
-			case sc.Bridgeable:
-				walls[c], bridges[c] = true, true
-			default:
-				gaps[c] = true
-			}
+			closeCell(sides[x.side].cell(x.pos, t))
+		}
+	}
+	// Orphan ring cells close one by one, but for soft ground a kept
+	// detour leaves outside.
+	for _, c := range orphans {
+		if !shut[c] {
+			closeCell(c)
 		}
 	}
 	for kind, set := range map[ReservationKind]map[domain.Cell]bool{ReservePerimeter: walls, ReservePerimeterLight: light, ReserveBridge: bridges, ReservePerimeterGap: gaps} {
-		cs := make([]domain.Cell, 0, len(set))
-		for c := range set {
-			cs = append(cs, c)
-		}
-		// Runs stacked with the same span merge into one rectangle.
-		var rects []Rectangle
-		for _, r := range cellRuns(cs) {
-			if n := len(rects); n > 0 {
-				if l := &rects[n-1]; l.X == r.X && l.Width == r.Length && l.Z+l.Height == r.Z {
-					l.Height++
-					continue
-				}
-			}
-			rects = append(rects, Rectangle{X: r.X, Z: r.Z, Width: r.Length, Height: 1})
-		}
-		for _, r := range rects {
+		for _, r := range cellRects(set) {
 			add(kind, r)
 		}
 	}
@@ -523,20 +490,16 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	// Moisture pumps (#954): sites inside the wall, greedily covering the
 	// soft ring cells a pump dries, each within pumpRadiusSq of its pump.
 	dries := map[domain.Cell]bool{}
-	for _, sd := range sides {
-		for p := sd.lo; p <= sd.hi; p++ {
-			for t := int32(0); t < perimeterThick; t++ {
-				if c := sd.cell(p, t); soft(c) && cells[c].Dries {
-					dries[c] = true
-				}
-			}
+	for _, c := range enc.ringCells() {
+		if soft(c) && cells[c].Dries {
+			dries[c] = true
 		}
 	}
 	// A site already planned stays while it still dries something, the
 	// pump standing there (Built) or not: a re-survey never moves a pump.
 	pumpSite := func(c domain.Cell, kept bool) bool {
 		sc, ok := cells[c]
-		return ok && contains(inner, c) && (sc.Walkable && !sc.Built || kept && sc.Built) && !sc.Rock && sc.Footing == FootingFirm && !built(c) && !contains(killbox, c) && !detour[c] && !shut[c]
+		return ok && enc.inside(c) && (sc.Walkable && !sc.Built || kept && sc.Built) && !sc.Rock && sc.Footing == FootingFirm && !built(c) && !contains(killbox, c) && !detour[c] && !shut[c]
 	}
 	pumps := map[domain.Cell]bool{}
 	drying := func(pump domain.Cell) int {
@@ -588,25 +551,34 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		add(ReserveMoisturePump, rectOf(c, c))
 	}
 
-	// Cover-clear band: four strips around the ring.
-	band := pad(outer, perimeterCoverBand)
-	add(ReserveCoverClear, Rectangle{X: band.X, Z: band.Z, Width: band.Width, Height: outer.Z - band.Z})
-	add(ReserveCoverClear, Rectangle{X: band.X, Z: outer.Z + outer.Height, Width: band.Width, Height: band.Z + band.Height - outer.Z - outer.Height})
-	add(ReserveCoverClear, Rectangle{X: band.X, Z: outer.Z, Width: outer.X - band.X, Height: outer.Height})
-	add(ReserveCoverClear, Rectangle{X: outer.X + outer.Width, Z: outer.Z, Width: band.X + band.Width - outer.X - outer.Width, Height: outer.Height})
+	// Cover-clear band: everything within perimeterCoverBand outside the
+	// ring.
+	band := map[domain.Cell]bool{}
+	for i, v := range enc.dist {
+		if v > perimeterThick {
+			band[domain.Cell{X: int32(i) % w, Z: int32(i) / w}] = true
+		}
+	}
+	for _, r := range cellRects(band) {
+		add(ReserveCoverClear, r)
+	}
 
 	// Mortar: the firm cell deepest inside the wall, off rooms, hallway,
 	// killbox and detours.
+	outside := make([]bool, len(enc.in))
+	for i, v := range enc.in {
+		outside[i] = !v
+	}
+	deep := chebyshevField(w, h, outside, w+h)
 	mortar, depth := domain.Cell{}, int32(-1)
-	for z := inner.Z; z < inner.Z+inner.Height; z++ {
-		for x := inner.X; x < inner.X+inner.Width; x++ {
+	for z := enc.bbox.Z; z < enc.bbox.Z+enc.bbox.Height; z++ {
+		for x := enc.bbox.X; x < enc.bbox.X+enc.bbox.Width; x++ {
 			c := domain.Cell{X: x, Z: z}
 			sc, ok := cells[c]
-			if !ok || !sc.Walkable || sc.Rock || sc.Footing != FootingFirm || built(c) || contains(killbox, c) || detour[c] || pumps[c] {
+			if !ok || !enc.inside(c) || !sc.Walkable || sc.Rock || sc.Footing != FootingFirm || built(c) || contains(killbox, c) || detour[c] || pumps[c] {
 				continue
 			}
-			d := min(x-inner.X, z-inner.Z, inner.X+inner.Width-1-x, inner.Z+inner.Height-1-z)
-			if d > depth {
+			if d := deep[z*w+x]; d > depth {
 				mortar, depth = c, d
 			}
 		}
@@ -655,17 +627,6 @@ func (sd ringSide) pos(c domain.Cell) int32 {
 		return c.Z
 	}
 	return c.X
-}
-
-// ringSides is south, north (full width, owning the corners), east, west.
-func ringSides(o Rectangle) []ringSide {
-	x1, z1 := o.X+o.Width-1, o.Z+o.Height-1
-	return []ringSide{
-		{in: domain.Cell{Z: 1}, al: domain.Cell{X: 1}, lo: o.X, hi: x1, face: o.Z},
-		{in: domain.Cell{Z: -1}, al: domain.Cell{X: 1}, lo: o.X, hi: x1, face: z1},
-		{in: domain.Cell{X: -1}, al: domain.Cell{Z: 1}, lo: o.Z + perimeterThick, hi: z1 - perimeterThick, face: x1, vertical: true},
-		{in: domain.Cell{X: 1}, al: domain.Cell{Z: 1}, lo: o.Z + perimeterThick, hi: z1 - perimeterThick, face: o.X, vertical: true},
-	}
 }
 
 func rectOf(a, b domain.Cell) Rectangle {
