@@ -36,10 +36,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Native OverallTemperature world generation setting.")] string worldTemperature = "Normal",
             [ToolParameter(Description = "Quiet the storyteller (as test/quiet_storyteller) once the colony exists: no threats, incidents or strangers. Interruption harnesses pass false.")] bool quiet = true,
             [ToolParameter(Description = "Map edge in cells, 150..400 (default 200).")] int mapSize = DebugStart.DefaultMapSize,
-            [ToolParameter(Description = "Planet coverage 0.05..1 (default 0.05); world generation is most of the start.")] float planetCoverage = DebugStart.DefaultPlanetCoverage,
-            [ToolParameter(Description = "How long to wait for def loading to reach the main menu before arming (#1264).")] int timeoutMs = DebugStart.DefaultMainMenuTimeoutMs)
+            [ToolParameter(Description = "Planet coverage 0.05..1 (default 0.05); world generation is most of the start.")] float planetCoverage = DebugStart.DefaultPlanetCoverage)
         {
-            await DebugStart.WaitForMainMenuAsync(ctx, cancellationToken, timeoutMs).ConfigureAwait(false);
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.ProgramState != ProgramState.Entry || Find.CurrentMap != null || Current.Game != null)
                     throw new InvalidOperationException("Only a fresh main-menu process can configure a start.");

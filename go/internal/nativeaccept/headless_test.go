@@ -265,10 +265,10 @@ func TestPrepareNativeModConfigDropsExpansionsByDefault(t *testing.T) {
 
 func TestPrepareNativeModConfigKeepsRequestedExpansions(t *testing.T) {
 	// Short names and full IDs both work, duplicates collapse, and the kept
-	// expansions load directly after the core game in request order even when
-	// the profile had them inactive.
+	// expansions load directly after the core game in release order (#1264:
+	// Odyssey inherits Royalty parents) even when the profile had them inactive.
 	got := activeModsAfter(t, "biotech", "ludeon.rimworld.royalty", "Biotech", "anomaly")
-	want := []string{"ludeon.rimworld", "ludeon.rimworld.biotech", "ludeon.rimworld.royalty", "ludeon.rimworld.anomaly", "redeyedev.rimapi", "brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
+	want := []string{"ludeon.rimworld", "ludeon.rimworld.royalty", "ludeon.rimworld.biotech", "ludeon.rimworld.anomaly", "redeyedev.rimapi", "brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("activeMods = %v, want %v", got, want)
 	}

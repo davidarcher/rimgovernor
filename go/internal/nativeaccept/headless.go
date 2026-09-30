@@ -142,6 +142,17 @@ func ExpansionsFromEnv() ([]string, error) {
 	return out, nil
 }
 
+// expansionRank is an official expansion's release position; unknown
+// packages sort after them in the order given.
+func expansionRank(id string) int {
+	for i, name := range []string{"royalty", "ideology", "biotech", "anomaly", "odyssey"} {
+		if id == ExpansionPrefix+name {
+			return i
+		}
+	}
+	return 1 << 30
+}
+
 // PrepareNativeModConfig rewrites ModsConfig.xml's activeMods to the core game,
 // only the requested expansions, and exactly brrainz.harmony,
 // brrainz.rimbridgeserver and NativePackage, removing every other official
@@ -188,6 +199,12 @@ func PrepareNativeModConfig(modsConfigXMLPath string, installed []string, expans
 			wanted = append(wanted, id)
 		}
 	}
+	// Release order, as RimWorld's own mod manager loads them: a later
+	// expansion's defs inherit from an earlier one's abstract parents
+	// (Odyssey's VacskinGland from Royalty's BodyPartBionicImperialBase),
+	// and loaded out of order the child keeps a null thingClass and every
+	// new Game() NREs in ReadingPolicyDatabase (#1264).
+	sort.SliceStable(wanted, func(i, j int) bool { return expansionRank(wanted[i]) < expansionRank(wanted[j]) })
 	item := func(id string) xmlItem {
 		return xmlItem{elem: &xmlElem{name: xml.Name{Local: "li"}, kids: []xmlItem{{text: id}}}}
 	}
