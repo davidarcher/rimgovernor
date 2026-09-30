@@ -88,7 +88,7 @@ func completed(plan store.PlanState) (domain.Tick, bool) {
 
 // history is the journal's bedroom plans, oldest first.
 func history(ctx context.Context, journal *store.Store) ([]store.PlanState, error) {
-	plans, err := journal.PlanHistoryWithMethods(ctx, 256, "bedroom-*")
+	plans, err := journal.PlanHistoryWithMethods(ctx, 256, "bedroom-*", "sleeping-assign-*")
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,19 @@ func findSuiteMove(ctx context.Context, journal *store.Store, pawn domain.PawnID
 	if err != nil {
 		return suiteMove{}, false, err
 	}
+	var suite policy.LayoutRoom
+	for _, w := range layout.Plan.Wings {
+		if w.Purpose == policy.WingSuites && len(w.Rooms) > 0 {
+			suite = w.Rooms[0]
+		}
+	}
+	if suite.Role == "" {
+		return suiteMove{}, false, nil
+	}
+	// Every move is a sleeping-assign plan: the pawn's second completed
+	// one, out of the standard bed its first gave it, is the suite move.
 	standard := 0
+	moved := map[string]bool{}
 	for _, plan := range plans {
 		var x, z int32
 		method := string(plan.Method)
@@ -137,17 +149,21 @@ func findSuiteMove(ctx context.Context, journal *store.Store, pawn domain.PawnID
 			}
 			continue
 		}
-		if _, err := fmt.Sscanf(method, "bedroom-move-%d-%d", &x, &z); err != nil {
+		if !strings.HasPrefix(method, "sleeping-assign-") {
 			continue
 		}
-		room, ok := roomAt(layout.Plan, policy.WingSuites, x, z)
-		if _, done := completed(plan); !ok || !done {
+		if _, done := completed(plan); !done {
 			continue
 		}
 		for _, a := range plan.Spec.Actions() {
-			if assign, ok := a.BedAssign(); ok && assign.Pawn() == pawn {
-				return suiteMove{assign: assign, room: room, standard: standard}, true, nil
+			assign, ok := a.BedAssign()
+			if !ok || assign.Pawn() != pawn {
+				continue
 			}
+			if moved[assign.PreviousBed().ID()] {
+				return suiteMove{assign: assign, room: suite, standard: standard}, true, nil
+			}
+			moved[assign.Bed()] = true
 		}
 	}
 	return suiteMove{}, false, nil
