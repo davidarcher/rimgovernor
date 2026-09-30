@@ -15,9 +15,48 @@ namespace HomeBridge.BridgeTools
     // no rows. The enclosing colony boundary still enforces its one-MiB limit.
     internal static class NativeUpkeepFacts
     {
-        internal static void Populate(Map map, Obs.UpkeepFacts result)
+        // Every section reads one of four subsets of the visible spawned
+        // things. One pass over the colony read's list fills all four
+        // (#1296); each keeps the list's order, so every section's filter
+        // and sort sees the same rows it saw when it scanned the list
+        // itself. SharedPass off rebuilds the list and scans it per subset,
+        // the pre-#1296 path the ColonyFacts equality probe compares against.
+        internal static bool SharedPass = true;
+
+        internal sealed class ThingSets
         {
-            var things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
+            internal readonly List<Thing> Items = new List<Thing>();
+            internal readonly List<Building> PlayerBuildings = new List<Building>();
+            internal readonly List<Fire> Fires = new List<Fire>();
+            internal readonly List<Filth> Filth = new List<Filth>();
+
+            internal static ThingSets Of(Map map, List<Thing> things)
+            {
+                var sets = new ThingSets();
+                var player = Faction.OfPlayerSilentFail;
+                if (!SharedPass) {
+                    things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
+                    sets.Items.AddRange(things.Where(t => t.def.category == ThingCategory.Item));
+                    sets.PlayerBuildings.AddRange(things.OfType<Building>().Where(b => b.Faction == player));
+                    sets.Fires.AddRange(things.OfType<Fire>());
+                    sets.Filth.AddRange(things.OfType<Filth>());
+                    return sets;
+                }
+                foreach (var t in things) {
+                    if (t.def.category == ThingCategory.Item) sets.Items.Add(t);
+                    switch (t) {
+                        case Building b when b.Faction == player: sets.PlayerBuildings.Add(b); break;
+                        case Fire f: sets.Fires.Add(f); break;
+                        case Filth f: sets.Filth.Add(f); break;
+                    }
+                }
+                return sets;
+            }
+        }
+
+        internal static void Populate(Map map, List<Thing> things, Obs.UpkeepFacts result)
+        {
+            var sets = ThingSets.Of(map, things);
             Read("items", result, () => {
                 // Every real map carries hundreds of natural chunk and slag
                 // stacks that no upkeep goal may ever target, and a whole-map
@@ -30,7 +69,7 @@ namespace HomeBridge.BridgeTools
                 // Corpses deteriorate and rot like food but are never
                 // supplies to secure: a raider corpse across the map would
                 // otherwise keep the SecureSupplies deficit open forever.
-                var rows = things.Where(t => t.def.category == ThingCategory.Item && !t.def.IsCorpse
+                var rows = sets.Items.Where(t => !t.def.IsCorpse
                     && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
                     && (map.areaManager.Home[t.Position] || t.IsInValidStorage() || t.def.IsMedicine
                         || t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff) > 0f
@@ -52,7 +91,7 @@ namespace HomeBridge.BridgeTools
             Read("structures", result, () => {
                 // Non-damageable markers (including sleeping spots) have a
                 // native -1 sentinel and cannot be repair targets.
-                var rows = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.def.useHitPoints).OrderBy(b => b.thingIDNumber).ToList();
+                var rows = sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).ToList();
                 var values = rows.Select(b => new Obs.UpkeepStructure {
                     Building = new Obs.BuildingState { Building = Ref(b), HitPoints = b.HitPoints, MaxHitPoints = b.MaxHitPoints },
                     Home = b.OccupiedRect().All(c => map.areaManager.Home[c]), Flammability = Number(b.GetStatValue(StatDefOf.Flammability)),
@@ -63,7 +102,7 @@ namespace HomeBridge.BridgeTools
                 result.Structures.AddRange(values);
             });
             Read("fires", result, () => {
-                var rows = things.OfType<Fire>().OrderBy(f => f.thingIDNumber).ToList();
+                var rows = sets.Fires.OrderBy(f => f.thingIDNumber).ToList();
                 var values = rows.Select(f => new Obs.FireState { Fire = Ref(f), Home = map.areaManager.Home[f.Position], Size = Number(f.fireSize) }).ToList();
                 result.Fires.AddRange(values);
             });
@@ -72,7 +111,7 @@ namespace HomeBridge.BridgeTools
                 // dirt and rubble rows outside it that no clean order may
                 // ever target (upkeep orders require the home area), and a
                 // whole-map census exceeded the bound on every real map.
-                var rows = things.OfType<Filth>().Where(f => map.areaManager.Home[f.Position]).OrderBy(f => f.thingIDNumber).ToList();
+                var rows = sets.Filth.Where(f => map.areaManager.Home[f.Position]).OrderBy(f => f.thingIDNumber).ToList();
                 var values = rows.Select(f => {
                     var value = new Obs.FilthState { Filth = Ref(f), Home = map.areaManager.Home[f.Position], Thickness = checked((uint)f.thickness) };
                     var room = f.GetRoom();
@@ -123,9 +162,9 @@ namespace HomeBridge.BridgeTools
                 // Work cells are the interaction cells of colonist benches (work
                 // tables and research benches): the cell a pawn stands on while
                 // working, which is what RimWorld's darkness penalties measure.
-                var benches = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.def.hasInteractionCell
+                var benches = sets.PlayerBuildings.Where(b => b.def.hasInteractionCell
                     && (b is Building_WorkTable || b is Building_ResearchBench)).OrderBy(b => b.thingIDNumber).ToList();
-                var lamps = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.TryGetComp<CompGlower>() != null)
+                var lamps = sets.PlayerBuildings.Where(b => b.TryGetComp<CompGlower>() != null)
                     .OrderBy(b => b.thingIDNumber).ToList();
                 var facts = new Obs.LightingFacts();
                 foreach (var b in benches) {
@@ -212,19 +251,19 @@ namespace HomeBridge.BridgeTools
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.Spawned).OrderBy(p => p.thingIDNumber).ToList();
                 var player = Faction.OfPlayerSilentFail;
                 var facilities = new System.Collections.Generic.List<(Thing thing, string kind, IntVec3 cell)>();
-                foreach (var b in things.OfType<Building_Bed>().Where(b => b.Faction == player && b.def.building.bed_humanlike && !b.ForPrisoners).OrderBy(b => b.thingIDNumber))
+                foreach (var b in sets.PlayerBuildings.OfType<Building_Bed>().Where(b => b.def.building.bed_humanlike && !b.ForPrisoners).OrderBy(b => b.thingIDNumber))
                     facilities.Add((b, "bed", b.Position));
-                foreach (var b in things.OfType<Building_WorkTable>().Where(b => b.Faction == player).OrderBy(b => b.thingIDNumber))
+                foreach (var b in sets.PlayerBuildings.OfType<Building_WorkTable>().OrderBy(b => b.thingIDNumber))
                     facilities.Add((b, "bench", b.InteractionCell));
-                foreach (var b in things.OfType<Building_Storage>().Where(b => b.Faction == player).OrderBy(b => b.thingIDNumber))
+                foreach (var b in sets.PlayerBuildings.OfType<Building_Storage>().OrderBy(b => b.thingIDNumber))
                     facilities.Add((b, "storage", b.Position));
-                foreach (var b in things.OfType<Building>().Where(b => b.Faction == player && b.def.surfaceType == SurfaceType.Eat).OrderBy(b => b.thingIDNumber))
+                foreach (var b in sets.PlayerBuildings.Where(b => b.def.surfaceType == SurfaceType.Eat).OrderBy(b => b.thingIDNumber))
                     facilities.Add((b, "dining", b.Position));
-                foreach (var b in things.OfType<Building_Turret>().Where(b => b.Faction == player).OrderBy(b => b.thingIDNumber))
+                foreach (var b in sets.PlayerBuildings.OfType<Building_Turret>().OrderBy(b => b.thingIDNumber))
                     facilities.Add((b, "defense", b.Position));
                 var facts = new Obs.RoutesFacts();
                 facts.PawnIds.AddRange(people.Select(p => Id(p.GetUniqueLoadID())));
-                var measured = 0;
+                var measured = 0; long pathTicks = 0, reachTicks = 0;
                 Obs.RouteFacility Facility(Obs.EntityRef reference, string kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
                 {
                     var row = new Obs.RouteFacility { Facility = reference, Kind = kind, Cell = Cell(cell) };
@@ -240,13 +279,16 @@ namespace HomeBridge.BridgeTools
                     var anyReach = false;
                     foreach (var p in people)
                     {
+                        var rf0 = System.Diagnostics.Stopwatch.GetTimestamp();
                         var travel = new Obs.RouteTravel { PawnId = Id(p.GetUniqueLoadID()), Reachable = reaches(p) };
+                        reachTicks += System.Diagnostics.Stopwatch.GetTimestamp() - rf0;
                         if (travel.Reachable)
                         {
                             anyReach = true;
                             if (measured < 256)
                             {
                                 measured++;
+                                var pf0 = System.Diagnostics.Stopwatch.GetTimestamp();
                                 using (var path = map.pathFinder.FindPathNow(p.Position, target(p), TraverseParms.For(p, Danger.Some), peMode: mode))
                                 {
                                     if (path.Found)
@@ -259,6 +301,7 @@ namespace HomeBridge.BridgeTools
                                         }
                                     }
                                 }
+                                pathTicks += System.Diagnostics.Stopwatch.GetTimestamp() - pf0;
                             }
                         }
                         row.Travel.Add(travel);
@@ -335,6 +378,8 @@ namespace HomeBridge.BridgeTools
                             facts.Traffic.Add(cell);
                         }
                 }
+                ObservationWork.Detail("cf.upkeep.routes.path", pathTicks, measured);
+                ObservationWork.Detail("cf.upkeep.routes.reach", reachTicks);
                 result.Routes = new Obs.RoutesSection { Observed = facts };
             });
             Read("people", result, () => {
@@ -352,7 +397,7 @@ namespace HomeBridge.BridgeTools
                 result.Slaves.AddRange(map.mapPawns.AllPawnsSpawned.Where(p => p.IsSlaveOfColony && !p.Dead).OrderBy(p => p.thingIDNumber).Select(Person));
             });
             Read("beds", result, () => {
-                var beds = things.OfType<Building_Bed>().Where(b => b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber).ToList();
+                var beds = sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).ToList();
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => (p.IsFreeColonist || p.IsSlaveOfColony) && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 var values = beds.Select(b => {
                     var row = new Obs.UpkeepBed { Bed = Ref(b), Slots = checked((uint)b.SleepingSlotsCount),
@@ -374,7 +419,7 @@ namespace HomeBridge.BridgeTools
                 // Every room holding a colonist bed (humanlike, not medical,
                 // not for prisoners) or carrying a common role (dining, rec
                 // room), with the native room stats room-quality goals read.
-                var colonistBeds = things.OfType<Building_Bed>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.def.building.bed_humanlike
+                var colonistBeds = sets.PlayerBuildings.OfType<Building_Bed>().Where(b => b.def.building.bed_humanlike
                     && !b.Medical && !b.ForPrisoners).OrderBy(b => b.thingIDNumber).ToList();
                 var rooms = new Dictionary<int, Room>();
                 foreach (var b in colonistBeds) { var r = b.GetRoom(); if (r != null) rooms[r.ID] = r; }
@@ -395,10 +440,9 @@ namespace HomeBridge.BridgeTools
             Read("animals", result, () => {
                 var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                     && p.Faction == Faction.OfPlayerSilentFail).OrderBy(p => p.thingIDNumber).ToList();
-                var food = things.Where(t => t.def.category == ThingCategory.Item
-                    && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
+                var food = sets.Items.Where(t => (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
                     && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.IngestibleNow).ToList();
-                var benches = things.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayerSilentFail)
+                var benches = sets.PlayerBuildings.OfType<Building_WorkTable>()
                     .OrderBy(b => b.thingIDNumber).ToList();
                 var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
                 var feedDefs = DefDatabase<ThingDef>.AllDefsListForReading
@@ -580,8 +624,10 @@ namespace HomeBridge.BridgeTools
 
         private static void Read(string field, Obs.UpkeepFacts result, Action read)
         {
+            var began = System.Diagnostics.Stopwatch.GetTimestamp();
             try { read(); }
             catch (Exception) { result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete native upkeep section is unavailable.")); }
+            ObservationWork.Detail("cf.upkeep." + field, System.Diagnostics.Stopwatch.GetTimestamp() - began);
         }
     }
 }

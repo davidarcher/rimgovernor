@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
     {
         /// Bounds the section list so a malformed request cannot grow the
         /// account; a request asks for far fewer sections than this.
-        internal const int MaxSections = 64;
+        internal const int MaxSections = 96;
 
         internal sealed class Section
         {

@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.foodSupply");
             result.Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) };
             Span("cf.forecast");
-            result.Upkeep = ReadComfort(map);
+            result.Upkeep = ReadComfort(map, things);
             Span("cf.upkeep");
             result.Threat = ReadThreat(map, people.Count);
             result.Development = new Obs.DevelopmentSection { Observed = ReadPower(map) };
@@ -238,12 +238,14 @@ namespace HomeBridge.BridgeTools
             catch (Exception) { return new Obs.ThreatSection { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Colony wealth and raid points could not be read.") }; }
         }
 
-        private static Obs.UpkeepSection ReadComfort(Map map)
+        private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things)
         {
             var result = new Obs.UpkeepFacts { };
+            var began = System.Diagnostics.Stopwatch.GetTimestamp();
             try { result.Comfort = new Obs.ComfortSection { Observed = ComfortFacts.ReadProtocol(map) }; }
             catch (Exception) { result.Comfort = new Obs.ComfortSection { Unavailable = Unsupported("Complete comfort facts are unavailable.") }; }
-            NativeUpkeepFacts.Populate(map, result);
+            ObservationWork.Detail("cf.upkeep.comfort", System.Diagnostics.Stopwatch.GetTimestamp() - began);
+            NativeUpkeepFacts.Populate(map, things, result);
             foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "feed_definitions", "hauling", "wall_removal" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Upkeep section is not yet projected."));
             return new Obs.UpkeepSection { Observed = result };

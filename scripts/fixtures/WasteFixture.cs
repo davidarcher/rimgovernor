@@ -120,5 +120,41 @@ namespace HomeBridge.BridgeTools
                     // exactly where they really are, not a guessed "source".
                     unwantedCell = BridgeCommon.Pos(unwantedCell), protectedCell = BridgeCommon.Pos(protectedCell) };
             }, cancellationToken);
+
+        // The permanent ColonyFacts equality probe (#1296): the snapshot read
+        // with every read optimization off and then on, in one game-thread
+        // call so no tick passes between them, must be byte-identical (row
+        // order included). Add each new optimization's switch here.
+        [Tool("test/colony_facts_equality", Description = "Compare ColonyFacts bytes with read optimizations off and on.")]
+        public async Task<object> ColonyFactsEquality(IRimBridgeContext ctx, CancellationToken cancellationToken)
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                if (!ProtoBoundary.TryReadContext(map, out var context, out var unavailable))
+                    throw new System.InvalidOperationException(unavailable.Detail);
+                RimGovernor.Protocol.Observations.ColonyFactsSnapshot Capture(bool optimized)
+                {
+                    var previous = NativeUpkeepFacts.SharedPass;
+                    NativeUpkeepFacts.SharedPass = optimized;
+                    try
+                    {
+                        var request = new RimGovernor.Protocol.Observations.ColonyFactsRequest {
+                            Scope = new RimGovernor.Protocol.Observations.ReadScope { ExpectedIdentity = context.Identity.Clone() }, Planning = true };
+                        if (!NativeColonyObservationTools.TryRead(map, request, context, out var snapshot))
+                            throw new System.InvalidOperationException("ColonyFacts read failed.");
+                        return snapshot;
+                    }
+                    finally { NativeUpkeepFacts.SharedPass = previous; }
+                }
+                var off = Capture(false);
+                var on = Capture(true);
+                var offBytes = Google.Protobuf.MessageExtensions.ToByteArray(off);
+                var onBytes = Google.Protobuf.MessageExtensions.ToByteArray(on);
+                var upkeep = on.Upkeep?.Observed;
+                return (object)new { equal = offBytes.SequenceEqual(onBytes), offBytes = offBytes.Length, onBytes = onBytes.Length,
+                    upkeepItems = upkeep?.Items.Count ?? 0, upkeepStructures = upkeep?.Structures.Count ?? 0,
+                    upkeepFilth = upkeep?.Filth.Count ?? 0, upkeepBeds = upkeep?.Beds.Count ?? 0,
+                    wasteRows = on.Waste?.Observed?.Items.Count ?? 0 };
+            }, cancellationToken);
     }
 }
