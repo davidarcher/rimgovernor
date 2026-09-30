@@ -21,6 +21,10 @@ func (r *RoutineReviewer) planFood(p observation.ColonyProjection) domain.Fact[p
 		return s.foodPlan
 	}
 	plan := reviewFoodPlan(p, r.policy)
+	if v, known := plan.Value(); known && r.foodGapZero {
+		v.GapPerDay = 0
+		plan = domain.Known(v)
+	}
 	if _, known := plan.Value(); known {
 		s.foodIdentity, s.foodPlan, s.foodGeneration = p.Identity, plan, s.generation
 		s.foodMin, s.foodTarget = seasonal.FoodMinDays, seasonal.FoodTargetDays

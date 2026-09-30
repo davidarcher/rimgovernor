@@ -1,6 +1,9 @@
 package startersite
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
@@ -25,4 +28,19 @@ func plannedSite(plan policy.LayoutPlan, bounds policy.Bounds, size int32) (site
 		d = domain.Cell{X: maxX, Z: site.Z + size/2}
 	}
 	return site, d, true
+}
+
+// plannedBedrooms is the plan's bedroom-wing rooms as the fixture's
+// bedrooms argument: "x,z,width,height,doorX,doorZ" per room (its
+// interior and door cell), joined by ';'.
+func plannedBedrooms(plan policy.LayoutPlan) string {
+	var rooms []string
+	for _, r := range plan.AllRooms() {
+		if r.Role != policy.ModuleBedroom {
+			continue
+		}
+		in := r.Interior
+		rooms = append(rooms, fmt.Sprintf("%d,%d,%d,%d,%d,%d", in.X, in.Z, in.Width, in.Height, r.Door.X, r.Door.Z))
+	}
+	return strings.Join(rooms, ";")
 }

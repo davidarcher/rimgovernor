@@ -14,11 +14,11 @@ import (
 
 func TestParseFaults(t *testing.T) {
 	t.Parallel()
-	got, err := ParseFaults(" planner:lighting=fail; planner:defense=hang ;renewal=drop")
+	got, err := ParseFaults(" planner:lighting=fail; planner:defense=hang ;renewal=drop;foodgap=zero")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Faults{FailPlanners: map[string]bool{"lighting": true}, HangPlanners: map[string]bool{"defense": true}, DropRenewal: true}
+	want := Faults{FailPlanners: map[string]bool{"lighting": true}, HangPlanners: map[string]bool{"defense": true}, DropRenewal: true, FoodGapZero: true}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("%+v", got)
 	}
@@ -28,7 +28,7 @@ func TestParseFaults(t *testing.T) {
 	if empty, err := ParseFaults(""); err != nil || !empty.Empty() {
 		t.Fatal(empty, err)
 	}
-	for _, bad := range []string{"lighting", "planner:=fail", "planner:lighting=slow", "renewal=keep"} {
+	for _, bad := range []string{"lighting", "planner:=fail", "planner:lighting=slow", "renewal=keep", "foodgap=small"} {
 		if _, err := ParseFaults(bad); err == nil {
 			t.Fatalf("%q parsed", bad)
 		}

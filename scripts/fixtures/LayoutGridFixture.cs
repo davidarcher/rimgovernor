@@ -7,6 +7,7 @@ using HarmonyLib;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
+using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
@@ -31,7 +32,9 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
             [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1,
             [ToolParameter(Description = "Bedroom start (#838): enable Construction on every able colonist, lay wooden beds instead of sleeping spots, give each colonist one, drop 120 survival meals and raise every shell blueprint at once.")] bool builders = false,
-            [ToolParameter(Description = "Suite start (#1221): the first uncoupled hut colonist turns Greedy (Ascetic removed), reported as greedyPawn.")] bool greedy = false)
+            [ToolParameter(Description = "Suite start (#1221): the first uncoupled hut colonist turns Greedy (Ascetic removed), reported as greedyPawn.")] bool greedy = false,
+            [ToolParameter(Description = "Expansion start (#1271, with builders): a walled, roofed bedroom per single colonist and per couple (two beds) on the planned bedroom rooms, each colonist owning and lying in its Bed, the hut beds removed, a campfire with a simple-meal bill and a stockpile in the hut, and two armed colonists.")] bool expansion = false,
+            [ToolParameter(Description = "Planned bedroom rooms for expansion: 'x,z,width,height,doorX,doorZ' (interior and door cell) per room, joined by ';'; at least one per single colonist and couple.")] string bedrooms = "")
         {
             var name = string.IsNullOrEmpty(project) ? "Stonecutting" : project;
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -78,13 +81,134 @@ namespace HomeBridge.BridgeTools
                     blocks = StoneBlocks(map);
                     FixtureHut.DropOutside(map, hut, blocks, stoneBlocks);
                 }
+                object expanded = null;
+                if (expansion) {
+                    if (!builders) throw new ArgumentException("expansion builds on the builders start.");
+                    expanded = Expand(map, hut, bedrooms);
+                    owned = map.mapPawns.FreeColonistsSpawned.Count(p => p.ownership?.OwnedBed != null);
+                }
                 return new { success = true, project = name, finished = def.IsFinished, hut = hut.Summary(),
                     hutOrigin = new { x = hut.Origin.x, z = hut.Origin.z }, hutSize = 9,
                     sleepingSpots = hut.SleepingSpots, colonists = hut.People.Count,
                     stoneBlocks = blocks == null ? 0 : stoneBlocks, stoneBlocksDef = blocks?.defName, builders = enabled, ownedBeds = owned,
-                    greedyPawn, tick = Find.TickManager.TicksGame };
+                    greedyPawn, expansion = expanded, tick = Find.TickManager.TicksGame };
             }, cancellationToken).ConfigureAwait(false);
         }
+
+        // Expand (#1271) stages the colony one review short of MaintainHousing's
+        // expansion phase: every single colonist in a bedroom of their own and
+        // every couple sharing one with two beds, on the planned bedroom rooms
+        // (so no bedroom step is owed and the plan's other rooms stay free),
+        // each lying in its bed (so the sleeping review records the use),
+        // indoor capacity exactly the colonists (the hut beds go), and Foothold's remaining exits met (a cooking bill, a food
+        // stockpile, two armed fighters).
+        private static object Expand(Map map, FixtureHut.Result hut, string bedrooms)
+        {
+            var player = Faction.OfPlayer;
+            var people = hut.People;
+            // Couples (reciprocal love partners in the hut) share a room.
+            var groups = new List<List<Pawn>>();
+            foreach (var p in people) {
+                if (groups.Any(g => g.Contains(p))) continue;
+                var partner = LovePartnerRelationUtility.ExistingMostLikedLovePartner(p, false);
+                var paired = partner != null && people.Contains(partner) && !groups.Any(g => g.Contains(partner))
+                    && LovePartnerRelationUtility.ExistingMostLikedLovePartner(partner, false) == p;
+                groups.Add(paired ? new List<Pawn> { p, partner } : new List<Pawn> { p });
+            }
+            var rooms = (bedrooms ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(r => r.Split(',').Select(int.Parse).ToArray()).ToList();
+            if (rooms.Count < groups.Count || rooms.Any(r => r.Length != 6))
+                throw new ArgumentException($"{rooms.Count} planned bedrooms for {groups.Count} households: '{bedrooms}'.");
+            foreach (var bed in map.listerBuildings.allBuildingsColonist.OfType<Building_Bed>().Where(b => b.GetRoom() == hut.Room).ToList())
+                bed.Destroy(DestroyMode.Vanish);
+            var wallDef = ThingDef.Named("Wall");
+            var doorDef = ThingDef.Named("Door");
+            var bedDef = ThingDef.Named("Bed");
+            var owned = new List<KeyValuePair<Pawn, Building_Bed>>();
+            var doors = new List<IntVec3>();
+            var interiors = new List<CellRect>();
+            for (int g = 0; g < groups.Count; g++) {
+                var r = rooms[g];
+                var interior = new CellRect(r[0], r[1], r[2], r[3]);
+                var door = new IntVec3(r[4], 0, r[5]);
+                var ring = interior.ExpandedBy(1);
+                foreach (var c in ring.Cells) {
+                    if (!c.InBounds(map)) throw new InvalidOperationException($"Planned bedroom {interior} runs off the map.");
+                    var edge = !interior.Contains(c);
+                    var edifice = c.GetEdifice(map);
+                    // A wall shared with a neighbouring bedroom already stands.
+                    if (edge && c != door && edifice != null && edifice.def == wallDef && edifice.Faction == player) continue;
+                    foreach (var t in c.GetThingList(map).ToList())
+                        if (t is Plant || t.def.category == ThingCategory.Item || t.def.category == ThingCategory.Building) t.Destroy(DestroyMode.Vanish);
+                    map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+                    if (!edge) continue;
+                    var b = (Building)ThingMaker.MakeThing(c == door ? doorDef : wallDef, ThingDefOf.WoodLog);
+                    b.SetFaction(player); GenSpawn.Spawn(b, c, map);
+                }
+                doors.Add(door);
+                interiors.Add(interior);
+                // 1x2 beds, head north, farthest from the door first, clear
+                // of the door's inside cell and of each other.
+                var taken = new HashSet<IntVec3>();
+                foreach (var p in groups[g]) {
+                    var sites = interior.Cells.Where(c => interior.Contains(c + IntVec3.North) && !c.AdjacentToCardinal(door) && !(c + IntVec3.North).AdjacentToCardinal(door)
+                            && !taken.Contains(c) && !taken.Contains(c + IntVec3.North))
+                        .OrderByDescending(c => c.DistanceToSquared(door)).ToList();
+                    if (sites.Count == 0) throw new InvalidOperationException($"Planned bedroom {interior} holds no bed site for {p.LabelShort}.");
+                    var site = sites[0];
+                    taken.Add(site); taken.Add(site + IntVec3.North);
+                    var bedThing = (Building_Bed)ThingMaker.MakeThing(bedDef, ThingDefOf.WoodLog);
+                    bedThing.SetFaction(player); GenSpawn.Spawn(bedThing, site, map, Rot4.North, WipeMode.Vanish);
+                    owned.Add(new KeyValuePair<Pawn, Building_Bed>(p, bedThing));
+                }
+            }
+            map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+            var asleep = 0;
+            for (int i = 0; i < owned.Count; i++) {
+                var p = owned[i].Key; var bed = owned[i].Value;
+                var room = bed.GetRoom();
+                if (room == null || !room.ProperRoom || room.OpenRoofCount > 0) throw new InvalidOperationException($"Bedroom {i} at {bed.Position} is not an enclosed roofed room.");
+                room.Temperature = 21f;
+                if (!bed.CompAssignableToPawn.CanAssignTo(p).Accepted) throw new InvalidOperationException($"{p.LabelShort} cannot own the bed at {bed.Position}.");
+                bed.CompAssignableToPawn.TryAssignPawn(p);
+                p.jobs?.StopAll();
+                p.Position = bed.Position; p.Notify_Teleported(true, true);
+                // Tired enough to stay in bed past the first reviews.
+                if (p.needs?.rest != null) p.needs.rest.CurLevel = 0.1f;
+                p.jobs.StartJob(JobMaker.MakeJob(JobDefOf.LayDown, bed), JobCondition.InterruptForced);
+                if (p.CurrentBed() == bed) asleep++;
+            }
+            var roles = owned.Select(o => o.Value.GetRoom()?.Role?.defName).ToList();
+            var campfire = FixtureHut.SpawnInside(map, hut, ThingDef.Named("Campfire"));
+            ((IBillGiver)campfire).BillStack.AddBill(DefDatabase<RecipeDef>.GetNamed("CookMealSimple").MakeNewBill());
+            campfire.TryGetComp<CompRefuelable>()?.Refuel(1000f);
+            var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+            map.zoneManager.RegisterZone(zone);
+            foreach (var c in hut.Interior.Where(c => c.GetFirstBuilding(map) == null)) zone.AddCell(c);
+            // No spare place (#1271): the expansion step furnishes any free,
+            // unzoned indoor cell with a spot before it raises a ring, so the
+            // hut is all stockpile and each bedroom's free floor an empty
+            // (store-nothing) stockpile.
+            var filled = 0;
+            foreach (var interior in interiors) {
+                var filler = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+                filler.settings.filter.SetDisallowAll();
+                map.zoneManager.RegisterZone(filler);
+                foreach (var c in interior.Cells.Where(c => c.GetFirstBuilding(map) == null)) { filler.AddCell(c); filled++; }
+            }
+            var armed = people.Count(p => p.equipment?.Primary != null);
+            var weapon = ThingDef.Named("MeleeWeapon_Club");
+            foreach (var p in people.Where(p => p.equipment != null && p.equipment.Primary == null && !p.WorkTagIsDisabled(WorkTags.Violent))) {
+                if (armed >= 2) break;
+                p.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(weapon, ThingDefOf.WoodLog));
+                armed++;
+            }
+            var couples = groups.Count(g => g.Count == 2);
+            return new { beds = owned.Count, rooms = groups.Count, asleep, roles,
+                doors = doors.Select(d => new { x = d.x, z = d.z }).ToList(), campfire = campfire.Position.ToString(),
+                stockpile = zone.Cells.Count, bedroomFloorZoned = filled, armed, couples };
+        }
+
 
         // Suite growth (#1221): a royal title raises the pawn's bedroom
         // target past what their suite was sized for. Needs Royalty; a save

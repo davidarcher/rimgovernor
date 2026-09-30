@@ -55,6 +55,9 @@ type RoutineReviewer struct {
 	// stageLogged is the last stage record logged; the service log records
 	// a change once, not every review.
 	stageLogged domain.Fact[policy.ColonyStageRecord]
+	// foodGapZero is the acceptance fault that pins the food plan's gap to
+	// zero (Faults.FoodGapZero); the scheduler sets it.
+	foodGapZero bool
 	// bids is MaintainResource's joint ranking across its two planners
 	// (#728); see acquisitionBoard.
 	bids acquisitionBoard

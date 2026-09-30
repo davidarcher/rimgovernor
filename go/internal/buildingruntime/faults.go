@@ -13,7 +13,9 @@ import (
 // renewal that silently does nothing so the native lease lapses. They
 // show which failures leave safe play running (an optional planner) and
 // which stop it (a critical planner held past the wall budget, authority
-// revoked after the lease expired); faults_test.go proves each. Parsed from
+// revoked after the lease expired); faults_test.go proves each. A staged
+// start may also pin the food plan's gap to zero (#1271), standing in for a
+// food economy the fixture does not build. Parsed from
 // FaultsEnv by serve; never set in ordinary play.
 type Faults struct {
 	// FailPlanners names catalog planners whose run returns errFaultInjected
@@ -26,11 +28,14 @@ type Faults struct {
 	// native stops the clock lease_expired and revokes authority at the
 	// next generation.
 	DropRenewal bool
+	// FoodGapZero pins every food plan's GapPerDay to zero, so the gates
+	// that wait on a closed food gap (MaintainHousing's expansion) open.
+	FoodGapZero bool
 }
 
 // FaultsEnv names the environment variable serve reads Faults from: a
 // semicolon-separated list of `planner:<name>=fail`, `planner:<name>=hang`
-// and `renewal=drop`.
+// `renewal=drop` and `foodgap=zero`.
 const FaultsEnv = "RIMGOVERNOR_FAULT_INJECT"
 
 var errFaultInjected = errors.New("fault injected")
@@ -50,6 +55,8 @@ func ParseFaults(raw string) (Faults, error) {
 		switch {
 		case key == "renewal" && value == "drop":
 			f.DropRenewal = true
+		case key == "foodgap" && value == "zero":
+			f.FoodGapZero = true
 		case strings.HasPrefix(key, "planner:"):
 			name := strings.TrimPrefix(key, "planner:")
 			if name == "" {
@@ -78,7 +85,7 @@ func ParseFaults(raw string) (Faults, error) {
 
 // Empty reports no fault configured.
 func (f Faults) Empty() bool {
-	return len(f.FailPlanners) == 0 && len(f.HangPlanners) == 0 && !f.DropRenewal
+	return len(f.FailPlanners) == 0 && len(f.HangPlanners) == 0 && !f.DropRenewal && !f.FoodGapZero
 }
 
 // String renders the faults in FaultsEnv's format, for the startup log.
@@ -92,6 +99,9 @@ func (f Faults) String() string {
 	}
 	if f.DropRenewal {
 		parts = append(parts, "renewal=drop")
+	}
+	if f.FoodGapZero {
+		parts = append(parts, "foodgap=zero")
 	}
 	return strings.Join(parts, ";")
 }

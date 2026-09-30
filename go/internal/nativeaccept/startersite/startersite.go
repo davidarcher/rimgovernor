@@ -29,11 +29,18 @@ func Args(ctx context.Context, h *na.Harness) (map[string]any, error) {
 // plan holds no storeroom.
 func ArgsFor(size int32) func(context.Context, *na.Harness) (map[string]any, error) {
 	return func(ctx context.Context, h *na.Harness) (map[string]any, error) {
-		return args(ctx, h, size)
+		return args(ctx, h, size, false)
 	}
 }
 
-func args(ctx context.Context, h *na.Harness, size int32) (map[string]any, error) {
+// BedroomArgs is Args plus the layout plan's bedroom-wing rooms as the
+// bedrooms argument (plannedBedrooms), for a start that builds the planned
+// bedrooms itself (#1271).
+func BedroomArgs(ctx context.Context, h *na.Harness) (map[string]any, error) {
+	return args(ctx, h, 9, true)
+}
+
+func args(ctx context.Context, h *na.Harness, size int32, bedrooms bool) (map[string]any, error) {
 	reply, _, err := h.Client.Identity(ctx)
 	if err != nil {
 		return nil, err
@@ -66,7 +73,11 @@ func args(ctx context.Context, h *na.Harness, size int32) (map[string]any, error
 	if !ok {
 		return nil, fmt.Errorf("no planned storeroom for a %dx%d fixture hut on this map", size, size)
 	}
-	return map[string]any{"siteX": site.X, "siteZ": site.Z, "doorX": door.X, "doorZ": door.Z}, nil
+	out := map[string]any{"siteX": site.X, "siteZ": site.Z, "doorX": door.X, "doorZ": door.Z}
+	if bedrooms {
+		out["bedrooms"] = plannedBedrooms(plan)
+	}
+	return out, nil
 }
 
 // dumpSurvey writes survey as gzipped JSON, the capture behind the policy

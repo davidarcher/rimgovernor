@@ -6,42 +6,37 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Replaces layout/grid's capacity-ring half (#637, #787, #1262), over the
-// same recording as TestLayoutGridFieldFillsPlanFieldBlocks (1caf938d9,
-// tick 15, Stonecutting finished, stone blocks stocked, 5 spots for 8
-// colonists). The live run never raised the ring because the ring is
-// MaintainHousing's expansion phase, which opens only once the shelter
-// phase recovers (and from StageReserves): the 5-for-8 deficit is the
-// shelter phase, whose tick-15 step staged spots in the planned storeroom
-// that the builders=0 fixture never built, so the goal stayed in flight on
-// that plan and every later step read no_active_deficit. This test asserts the ring
-// the expansion planner would raise over that read: one stone block
-// definition throughout, a stone Door, exactly a planned room's walls, its
-// door onto a spine hallway.
-func TestLayoutGridCapacityRingIsMasonry(t *testing.T) {
-	r := loadRecorded(t, "layout-grid-review")
-	if r.Review.Latches.Housing != policy.HousingShelter {
-		t.Fatalf("housing phase %q, want shelter (5 spots for 8 colonists)", r.Review.Latches.Housing)
+// layout/ring (#1271): the expansion-phase MaintainHousing step that raised
+// the Masonry capacity ring, recorded from `acceptance run layout/ring`
+// (tick 15, issue-1271 branch on 8130fd810). The ring is one stone block definition throughout, a
+// stone Door at the planned door cell, exactly the planned room's walls,
+// its door onto a spine hallway.
+func TestLayoutRingStepIsMasonry(t *testing.T) {
+	t.Parallel()
+	r := loadRecorded(t, "layout-ring-review")
+	if r.Review.Latches.Housing != policy.HousingExpansion {
+		t.Fatalf("housing phase %q, want expansion", r.Review.Latches.Housing)
 	}
-	facts := *r.Projection
+	step := loadStep(t, "layout-ring-step", policy.MaintainHousing)
+	facts := step.Projection
 	if tier := styleTier(facts); tier != policy.BuildTierMasonry {
 		t.Fatalf("build tier %v, want Masonry", tier)
 	}
 	planner := &RoutineBuildingPlanner{reviewer: &RoutineReviewer{policy: r.Policy}, goal: policy.MaintainHousing, phase: policy.HousingExpansion, shelter: true, definition: "Wall"}
 	rooms, shells := planner.plannedRooms(facts)
 	if len(rooms) == 0 {
-		t.Fatal("no planned Barracks room for the capacity ring")
+		t.Fatal("no planned room for the capacity ring")
 	}
 	room, shell := rooms[0], shells[0]
 	placements := shell.StyledPlacements(shellStyle(facts))
 	if len(placements) != len(shell.Walls()) {
 		t.Fatalf("%d placements for %d planned walls", len(placements), len(shell.Walls()))
 	}
-	stuffs := map[string]bool{}
 	walls := map[any]bool{}
 	for _, w := range shell.Walls() {
 		walls[w] = true
 	}
+	stuffs := map[string]bool{}
 	for _, b := range placements {
 		if !walls[b.Cell()] {
 			t.Fatalf("ring cell %v lies off the planned room's walls", b.Cell())
