@@ -3,6 +3,8 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,14 +15,38 @@ import (
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 )
 
-// layoutReplanEvery is the fewest ticks between survey reads for a missing
-// or outgrown plan (one game day): a colony the grown plan still cannot
-// house waits instead of re-reading the whole map every review.
-const layoutReplanEvery domain.Tick = 60000
+// layoutReplanEvery is the fewest ticks between survey reads for any
+// layout trigger (one game hour, #1290): a colony the grown plan still
+// cannot house waits an hour instead of re-reading the map every review.
+const layoutReplanEvery domain.Tick = 2500
 
-// layoutTerrainCheckEvery is the fallback terrain check: once a quadrum
-// (15 days) a review re-reads the survey and replans the layout.
-const layoutTerrainCheckEvery domain.Tick = 15 * 60000
+// layoutTerrainCheckEvery is the terrain check: every game hour a review
+// re-reads the survey and replans the layout when it changed (#1290).
+const layoutTerrainCheckEvery domain.Tick = 2500
+
+// layoutInputs is what an incremental replan reads; a survey whose inputs
+// match the last replan's (of the same saved plan) replans nothing.
+type layoutInputs struct {
+	planTick domain.Tick
+	key      string
+	bounds   policy.Bounds
+	cells    []policy.SurveyCell
+}
+
+func (a layoutInputs) same(b layoutInputs) bool {
+	return a.planTick == b.planTick && a.key == b.key && a.bounds == b.bounds && slices.Equal(a.cells, b.cells)
+}
+
+// grownFor is the tier and sorted finished research a plan is grown for.
+func grownFor(projection observation.ColonyProjection) string {
+	finished, _ := observation.FinishedResearch(projection.Facts.Research).Value()
+	research := make([]string, 0, len(finished))
+	for _, id := range finished {
+		research = append(research, string(id))
+	}
+	slices.Sort(research)
+	return fmt.Sprint(layoutTier(projection), "|", strings.Join(research, ","))
+}
 
 // MapSurveyNative is the optional native whole-map read behind the layout
 // plan (bridge.Client.ReadMapSurvey). A reviewer whose native lacks it, or
@@ -31,8 +57,9 @@ type MapSurveyNative interface {
 
 // reviewLayoutPlan serves the saved v2 layout plan (#783) on the
 // projection. It derives one at once when none is saved (then at most
-// once a day), grows it when the colony outgrows it (at most once a day)
-// and re-reads the survey once a quadrum.
+// once an hour) and re-reads the survey every hour (#1290), growing the
+// plan when a pawn, tier, research, need or the terrain changed since the
+// last replan. The replan is incremental: built rooms never move.
 func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
 	tick := projection.Identity.Tick
 	layout, haveLayout, err := r.layoutPlan(ctx, snapshot, tick)
@@ -48,26 +75,31 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 		checked = r.planChecked
 	}
 	outgrown := known && haveLayout && layout.Plan.LayoutOutgrown(int(pawns)) && tick-layout.Tick >= layoutReplanEvery
-	missing := !haveLayout && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
-	quadrum := haveLayout && tick-checked >= layoutTerrainCheckEvery
-	// Every tomb full (#857): grow one more, at most once a day.
+	hourly := !r.planSurveyed || tick-checked >= layoutReplanEvery
+	missing := !haveLayout && hourly
+	terrain := haveLayout && tick-checked >= layoutTerrainCheckEvery
+	// New research or a new tier (#1290): other research unlocks rooms too.
+	grown := grownFor(*projection)
+	research := haveLayout && grown != r.planGrownFor && hourly
+	// Every tomb full (#857): grow one more, at most once an hour.
 	tombs := 1
 	tomb := haveLayout && tombsFull(layout.Plan, *projection)
 	if tomb {
 		tombs = layout.Plan.TombRooms() + 1
 	}
-	tomb = tomb && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
+	tomb = tomb && hourly
 	// A pawn owed a suite no planned suite answers (#1216): grow the suite
 	// wing, or a suite below its owner's target outward (#1218), at most
-	// once a day.
+	// once an hour.
 	var suites []float64
 	if haveLayout {
 		var claims []policy.SuiteClaim
 		suites, claims = suiteTargets(*projection, layout.Plan)
 		r.logSuiteClaims(ctx, claims)
 	}
-	suite := haveLayout && policy.SuitesOwed(layout.Plan, suites) && (!r.planSurveyed || tick-checked >= layoutReplanEvery)
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || quadrum || tomb || suite) {
+	suite := haveLayout && policy.SuitesOwed(layout.Plan, suites) && hourly
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || suite) {
+		replanned := false
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)
 		} else {
@@ -75,14 +107,27 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 			topology, _ := projection.PowerPlanning.Value()
 			if !haveLayout {
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers)
+				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
 			} else {
-				err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, layoutTier(*projection), outgrown, topology.Geysers, suites)
+				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers), bounds: survey.Bounds, cells: survey.Cells}
+				if !inputs.same(r.planInputs) {
+					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite})
+					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, suites)
+					if err == nil {
+						r.planGrownFor, r.planPawns = grown, int(pawns)
+						r.planInputs, replanned = inputs, true
+					}
+				}
 			}
 			if err != nil {
 				return err
 			}
 			if layout, haveLayout, err = r.layoutPlan(ctx, snapshot, tick); err != nil {
 				return err
+			}
+			if replanned && haveLayout {
+				// The recorded replan is the plan the same inputs grow next.
+				r.planInputs.planTick = layout.Tick
 			}
 		}
 	}
@@ -185,7 +230,7 @@ func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, tier policy.BuildTier, outgrown bool, geysers []policy.PowerGeyser, suites []float64) error {
+func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, suites []float64) error {
 	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs, tier, geysers, suites...)
 	if next.TombRooms() < tombs {
 		clockSchedulerLog("layout plan holds no room for tomb %d", tombs)
@@ -196,8 +241,21 @@ func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.Gene
 	if err := r.player.journal.RecordLayoutPlan(ctx, snapshot, tick, next); err != nil {
 		return err
 	}
-	clockEvent(ctx, "layout", "layout_replan", fmt.Sprintf("layout plan replanned for %d colonists outgrown=%t %s", pawns, outgrown, next.Summary()), "colonists", pawns, "outgrown", outgrown)
+	clockEvent(ctx, "layout", "layout_replan", fmt.Sprintf("layout plan replanned for %d colonists reason=%s %s", pawns, reason, next.Summary()), "colonists", pawns, "reason", reason)
 	return nil
+}
+
+// layoutReasons names the triggers that fired, sorted, for the
+// layout_replan event.
+func layoutReasons(fired map[string]bool) string {
+	var out []string
+	for name, on := range fired {
+		if on {
+			out = append(out, name)
+		}
+	}
+	slices.Sort(out)
+	return strings.Join(out, ",")
 }
 
 // logSuiteClaims logs the suite claims (pawn, reason, target) whenever the

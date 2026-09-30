@@ -62,6 +62,13 @@ type RoutineReviewer struct {
 	// planSurveyed is set once any survey was read. See reviewLayoutPlan.
 	planChecked  domain.Tick
 	planSurveyed bool
+	// planGrownFor is the tier and finished research the saved plan was
+	// last grown for (#1290), in memory only: a restart replans once.
+	planGrownFor string
+	planPawns    int
+	// planInputs is the last replan's survey and inputs; an hourly check
+	// that finds them unchanged skips the replan (#1290).
+	planInputs layoutInputs
 	// suiteClaimsLogged is the last suite claim set logged (#1257).
 	suiteClaimsLogged string
 	// layoutInvalidLogged: an invalid saved layout plan is logged once.
