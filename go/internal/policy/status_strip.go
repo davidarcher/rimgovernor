@@ -2,10 +2,35 @@ package policy
 
 import (
 	"fmt"
+	"hash/fnv"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
+
+// MaxStatusKey is the native status row key limit (#1263).
+const MaxStatusKey = 32
+
+// StatusKey makes a row key native-valid (#1263): 1-32 printable ASCII.
+// Other bytes become '_'; a longer key keeps its head and ends in '~' plus
+// an FNV-32 hash of the original, so distinct long ids stay distinct.
+func StatusKey(key string) string {
+	b := []byte(key)
+	for i, ch := range b {
+		if ch < 0x21 || ch > 0x7e {
+			b[i] = '_'
+		}
+	}
+	if len(b) == 0 {
+		return "_"
+	}
+	if len(b) <= MaxStatusKey {
+		return string(b)
+	}
+	h := fnv.New32a()
+	h.Write([]byte(key))
+	return fmt.Sprintf("%s~%08x", b[:MaxStatusKey-9], h.Sum32())
+}
 
 // StatusSeverity colors a status strip row (#823).
 type StatusSeverity uint8

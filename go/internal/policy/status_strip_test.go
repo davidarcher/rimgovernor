@@ -7,6 +7,40 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+func validStatusKey(k string) bool {
+	if len(k) == 0 || len(k) > MaxStatusKey {
+		return false
+	}
+	for i := 0; i < len(k); i++ {
+		if k[i] < 0x21 || k[i] > 0x7e {
+			return false
+		}
+	}
+	return true
+}
+
+// Every key the bridge sends must pass the native 1-32 printable rule (#1263).
+func TestStatusKeyAlwaysNativeValid(t *testing.T) {
+	long := "goal.clearance_shrine_breach_repair_family_1234"
+	id := GoalID("clearance.shrine-breach.repair.wall.12.34")
+	rows := StatusRows(StatusInput{Progress: []GoalProgress{{Goal: id}}})
+	keys := []string{"", "food", "goal held", "incident.é", long, long + "x"}
+	for _, r := range rows {
+		keys = append(keys, r.Key)
+	}
+	for _, k := range keys {
+		if got := StatusKey(k); !validStatusKey(got) {
+			t.Fatalf("StatusKey(%q) = %q, not 1-32 printable ASCII", k, got)
+		}
+	}
+	if StatusKey("food") != "food" {
+		t.Fatal("short valid key changed")
+	}
+	if StatusKey(long) == StatusKey(long+"x") {
+		t.Fatal("distinct long keys collided")
+	}
+}
+
 func TestStatusRowsSeverityAndOrder(t *testing.T) {
 	rows := StatusRows(StatusInput{
 		Progress:  []GoalProgress{{Goal: "EnsureFoodSupply", Method: "hunt", Blocked: "no_target"}, {Goal: "EnsureBasicPower", Method: "build"}},

@@ -45,7 +45,7 @@ func (client *Client) DrawStatusStrip(ctx context.Context, identity *c.Identity,
 func statusStripRows(rows []policy.StatusRow) []*p.StatusRow {
 	out := make([]*p.StatusRow, 0, len(rows))
 	for _, r := range rows {
-		row := &p.StatusRow{Key: proto.String(r.Key), Text: proto.String(r.Text), Severity: p.StatusSeverity_STATUS_SEVERITY_INFO}
+		row := &p.StatusRow{Key: proto.String(policy.StatusKey(r.Key)), Text: proto.String(r.Text), Severity: p.StatusSeverity_STATUS_SEVERITY_INFO}
 		switch r.Severity {
 		case policy.StatusWarning:
 			row.Severity = p.StatusSeverity_STATUS_SEVERITY_WARNING
