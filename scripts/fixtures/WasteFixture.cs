@@ -127,9 +127,12 @@ namespace HomeBridge.BridgeTools
         // order included). Add each new optimization's switch here.
         [Tool("test/colony_facts_equality", Description = "Compare ColonyFacts bytes with read optimizations off and on.")]
         public async Task<object> ColonyFactsEquality(IRimBridgeContext ctx, CancellationToken cancellationToken)
-            => await ctx.MainThread.InvokeAsync(() =>
+            => await ctx.MainThread.InvokeAsync(() => CompareColonyFacts(Find.CurrentMap), cancellationToken);
+
+        // On the main thread: the equality probe's reply for map.
+        private static object CompareColonyFacts(Map map)
+        {
             {
-                var map = Find.CurrentMap;
                 if (!ProtoBoundary.TryReadContext(map, out var context, out var unavailable))
                     throw new System.InvalidOperationException(unavailable.Detail);
                 RimGovernor.Protocol.Observations.ColonyFactsSnapshot Capture(bool optimized)
@@ -155,6 +158,49 @@ namespace HomeBridge.BridgeTools
                     upkeepItems = upkeep?.Items.Count ?? 0, upkeepStructures = upkeep?.Structures.Count ?? 0,
                     upkeepFilth = upkeep?.Filth.Count ?? 0, upkeepBeds = upkeep?.Beds.Count ?? 0,
                     wasteRows = on.Waste?.Observed?.Items.Count ?? 0 };
+            }
+        }
+
+        // The snapshot capture profiling loop (#1320): SnapshotFrames.Capture
+        // count times back to back on the game thread, paused, with the
+        // stream's current subscription. Each capture's total and every
+        // ObservationWork section (families and their Detail spans) come back
+        // raw; `acceptance profile-capture` computes the percentiles.
+        // equality also runs the ColonyFacts equality probe afterwards.
+        [Tool("test/profile_capture", Description = "Time SnapshotFrames.Capture count times, paused, per family and detail span.")]
+        public async Task<object> ProfileCapture(IRimBridgeContext ctx, CancellationToken cancellationToken, int count = 20, bool equality = false)
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                if (count < 1 || count > 1000) throw new System.ArgumentOutOfRangeException(nameof(count), "count must be 1..1000");
+                var map = Find.CurrentMap;
+                var tickManager = Find.TickManager;
+                var speed = tickManager.CurTimeSpeed;
+                tickManager.CurTimeSpeed = TimeSpeed.Paused;
+                try
+                {
+                    var shape = SnapshotStream.Subscription;
+                    var captures = new System.Collections.Generic.List<object>(count);
+                    long bytes = 0;
+                    for (int i = 0; i < count; i++)
+                    {
+                        var began = System.Diagnostics.Stopwatch.GetTimestamp();
+                        var hop = ObservationWork.BeginCapture();
+                        RimGovernor.Protocol.Observations.BundleSnapshot frame;
+                        try { frame = SnapshotFrames.Capture(map, shape); }
+                        finally { ObservationWork.End(); }
+                        var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - began;
+                        if (frame == null) throw new System.InvalidOperationException("SnapshotFrames.Capture read no context.");
+                        if (i == 0) bytes = frame.CalculateSize();
+                        captures.Add(new { totalMs = Ms(elapsed), sections = hop.Sections.Select(s =>
+                            (object)new { name = s.Name, ms = Ms(s.Ticks), rows = s.Rows, detail = s.Detail }).ToList() });
+                    }
+                    return (object)new { success = true, count, tick = tickManager.TicksGame, frameBytes = bytes,
+                        pawns = map.mapPawns.AllPawnsSpawnedCount, things = map.listerThings.AllThings.Count,
+                        captures, equality = equality ? CompareColonyFacts(map) : null };
+                }
+                finally { tickManager.CurTimeSpeed = speed; }
             }, cancellationToken);
+
+        private static double Ms(long stopwatchTicks) => stopwatchTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
     }
 }

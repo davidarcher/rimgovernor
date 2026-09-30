@@ -97,6 +97,10 @@ namespace HomeBridge.BridgeTools
         private static readonly object Gate = new object();
         private static Ring? ring;
         private static Obs.SnapshotStreamRequest subscription = new Obs.SnapshotStreamRequest();
+
+        /// The shape the stream captures now (the default request until a
+        /// controller subscribes); test/profile_capture profiles it (#1320).
+        internal static Obs.SnapshotStreamRequest Subscription { get { lock (Gate) return subscription.Clone(); } }
         // Game-thread state: what the last capture saw.
         private static long writes, capturedWrites = -1;
         // due: the write count the next frame must reflect. A deferred

@@ -184,6 +184,13 @@ commit, not a file-by-file narrative.
   phase; an edit to the code a case's late stage exercises iterates with
   `acceptance dev <case>` (#274), which rebuilds `rimgovernor` and reruns
   `Run` and `Postmortem` from a bundle on the kept process each time.
+- Native performance work (a snapshot family's cost) iterates with
+  `acceptance profile-capture -root <dir>` (#1320), not a sustained run:
+  it heals a stale native mod, reloads the newest `sustained/colony`
+  checkpoint (`-from`, `-case`, `-save`) on the kept process, times
+  `SnapshotFrames.Capture` `-n` times paused (`test/profile_capture`) and
+  prints p50/p90/max and rows per family and `ObservationWork.Detail`
+  span; `-equality` adds the ColonyFacts optimizations off/on check.
 - A new case starts from a fixture that already exercises the behaviour
   (a committed save, a `test/*_prepare` op, or a programmatic start) and
   follows the performance checklist in choose-tests: Core-only, quiet

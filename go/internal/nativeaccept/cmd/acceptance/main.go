@@ -180,6 +180,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return prune(args[1:], stdout, stderr)
 	case "dev":
 		return dev(context.Background(), args[1:], os.Stdin, stdout, stderr)
+	case "profile-capture":
+		return profileCapture(context.Background(), args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n%s\n", args[0], usage)
 		return 2
@@ -202,7 +204,7 @@ const usage = `usage:
     and leaves the game loaded and paused on the kept process (BREAK, exit 3); acceptance resume continues it
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
     ends the game the root keeps and discards any breakpoint paused there
-` + resumeUsage + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage + pruneUsage + devUsage
+` + resumeUsage + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage + pruneUsage + devUsage + profileUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the

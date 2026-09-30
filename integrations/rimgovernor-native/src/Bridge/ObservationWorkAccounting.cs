@@ -34,6 +34,8 @@ namespace HomeBridge.BridgeTools
             internal readonly string Name;
             internal long Ticks;
             internal long Rows, Candidates;
+            // A span inside a Captured family (Detail, #1273), not a family.
+            internal bool Detail;
             internal Section(string name) { Name = name; }
         }
 
@@ -118,7 +120,7 @@ namespace HomeBridge.BridgeTools
             if (entry == null)
             {
                 if (hop.Sections.Count >= MaxSections) return;
-                entry = new Section(section);
+                entry = new Section(section) { Detail = !capture };
                 hop.Sections.Add(entry);
             }
             entry.Ticks += ticks;
