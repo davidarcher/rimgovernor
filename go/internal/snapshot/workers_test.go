@@ -73,13 +73,17 @@ func workDisabled(pawns []policy.WorkPawn, id policy.PawnID, work policy.WorkTyp
 	return false
 }
 
+// snapshotDemand plans under a haul backlog: the captured readbacks were
+// written when Hauling and Cleaning always sat at 3 (before #1278).
+var snapshotDemand = policy.WorkDemand{HaulBacklog: true}
+
 // rosterCheck plans the seeded sheet and the written readback, checks the
 // scenario's rows on both, and requires the readback to match the plan
 // unchanged (what runRoster asserted natively).
 func rosterCheck(t *testing.T, scenario string, verify func([]policy.WorkPawn, policy.WorkDecision) error) {
 	before := loadPawns(t, "workers-"+scenario+"-before")
 	after := loadPawns(t, "workers-"+scenario+"-after")
-	decision, err := policy.PlanWork(before, nil, policy.WorkDemand{})
+	decision, err := policy.PlanWork(before, nil, snapshotDemand)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +96,7 @@ func rosterCheck(t *testing.T, scenario string, verify func([]policy.WorkPawn, p
 	if err := verify(before, decision); err != nil {
 		t.Fatalf("before: %v", err)
 	}
-	replan, err := policy.PlanWork(after, nil, policy.WorkDemand{})
+	replan, err := policy.PlanWork(after, nil, snapshotDemand)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +167,8 @@ func TestWorkersTraitsForbidAndLift(t *testing.T) {
 }
 
 // workers/coverage: a flat sheet still covers every core role with one
-// owner, Firefighter pinned at 1, Hauling 3 (4 for the research owner).
+// owner, Firefighter pinned at 1, Hauling 3 under the backlog (4 for the
+// research owner).
 func TestWorkersCoverageOwnsEveryCoreRole(t *testing.T) {
 	ids := []policy.PawnID{roleA, roleB, roleC}
 	rosterCheck(t, "coverage", func(pawns []policy.WorkPawn, d policy.WorkDecision) error {
@@ -261,7 +266,7 @@ func TestWorkersNightOwlSchedules(t *testing.T) {
 			t.Fatalf("after: %s still differs from its template", row.Pawn)
 		}
 	}
-	work, err := policy.PlanWork(after, nil, policy.WorkDemand{})
+	work, err := policy.PlanWork(after, nil, snapshotDemand)
 	if err != nil {
 		t.Fatal(err)
 	}

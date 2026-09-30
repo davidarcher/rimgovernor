@@ -77,7 +77,7 @@ func TestWorkAssignmentSpecialistsModesAndReadback(t *testing.T) {
 		if workValue(t, decision, "grower", "Construction") != 0 || workValue(t, decision, "grower", "Cooking") != 0 {
 			t.Fatal(decision)
 		}
-		if workValue(t, decision, "builder", "Hauling") != 3 || workValue(t, decision, "grower", "Firefighter") != 1 {
+		if workValue(t, decision, "builder", "Hauling") != 4 || workValue(t, decision, "grower", "Firefighter") != 1 {
 			t.Fatal(decision)
 		}
 		if matches, known := decision.Matches.Value(); !known || matches {
@@ -390,5 +390,44 @@ func TestWorkChangesExactNumbers(t *testing.T) {
 	pawn.Manual = domain.Known(false)
 	if changed, ok := WorkChanges(pawn, plan); ok || changed != nil {
 		t.Fatal("checkbox readback wrote", changed)
+	}
+}
+
+func TestWorkAssignmentHaulBacklog(t *testing.T) {
+	stack := LootItem{SafeToHaul: true, SafetyKnown: true, Count: 1, StorageHeadroom: domain.Known(int64(10))}
+	census := func(n int, extra ...LootItem) RoutineFacts {
+		rows := append([]LootItem(nil), extra...)
+		for i := 0; i < n; i++ {
+			rows = append(rows, stack)
+		}
+		return RoutineFacts{EventLoot: domain.Known(rows)}
+	}
+	forbidden, unsafe, full := stack, stack, stack
+	forbidden.Forbidden = true
+	unsafe.SafeToHaul = false
+	full.StorageHeadroom = domain.Known(int64(0))
+	cases := []struct {
+		name  string
+		facts RoutineFacts
+		want  int
+	}{
+		{"unknown census", RoutineFacts{}, 4},
+		{"no backlog", census(haulBacklogStacks-1, forbidden, unsafe, full), 4},
+		{"backlog", census(haulBacklogStacks), 3},
+	}
+	for _, c := range cases {
+		decision, err := PlanWork(workTeam(true), nil, RoutineWorkDemand(c.facts, false))
+		if err != nil {
+			t.Fatal(c.name, err)
+		}
+		for _, pawn := range []PawnID{"builder", "grower"} {
+			if workValue(t, decision, pawn, WorkHauling) != c.want || workValue(t, decision, pawn, WorkCleaning) != c.want {
+				t.Fatal(c.name, decision)
+			}
+		}
+		// The Doctor owner tends before any other work.
+		if workValue(t, decision, "builder", WorkDoctor) != 1 {
+			t.Fatal(c.name, "doctor owner not at 1", decision)
+		}
 	}
 }

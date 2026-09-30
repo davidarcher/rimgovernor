@@ -125,7 +125,13 @@ type WorkDemand struct {
 	Prisoners int
 	// Help enables construction helpers (#653); nil plans none.
 	Help *ConstructionHelp
+	// HaulBacklog raises Hauling and Cleaning from 4 to 3 (#1278).
+	HaulBacklog bool
 }
+
+// haulBacklogStacks is the loot census count of unforbidden, safe stacks
+// with storage headroom that makes a haul backlog (#1278).
+const haulBacklogStacks = 20
 
 // Work types in native natural-priority order (WorkTypeDefs.naturalPriority),
 // the order the planner fills owners in so the scarcest roles pick first.
@@ -586,8 +592,11 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 					priority = 1
 				}
 			case basicWork(name):
+				// Hauling and Cleaning sit below skilled work at 4, and
+				// rise to 3 only during a haul backlog (#1278); the
+				// research owner keeps them at 4.
 				priority = 3
-				if w.owns[WorkResearch] == 1 && name != WorkBasic {
+				if name != WorkBasic && (!demand.HaulBacklog || w.owns[WorkResearch] == 1) {
 					priority = 4
 				}
 			default:
@@ -637,6 +646,15 @@ func RoutineWorkDemand(facts RoutineFacts, building bool) WorkDemand {
 	}
 	if prisoners, ok := facts.Prisoners.Value(); ok {
 		demand.Prisoners = len(prisoners)
+	}
+	if loot, ok := facts.EventLoot.Value(); ok {
+		stacks := 0
+		for _, row := range loot {
+			if room, rk := row.StorageHeadroom.Value(); !row.Forbidden && row.SafetyKnown && row.SafeToHaul && rk && room > 0 {
+				stacks++
+			}
+		}
+		demand.HaulBacklog = stacks >= haulBacklogStacks
 	}
 	return demand
 }
