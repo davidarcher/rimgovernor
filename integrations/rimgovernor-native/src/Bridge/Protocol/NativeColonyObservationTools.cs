@@ -75,12 +75,17 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
+            // Each span below names where the read's game-thread time went
+            // in a slow snapshot capture line (#1273).
+            var mark = System.Diagnostics.Stopwatch.GetTimestamp();
+            void Span(string name) { var now = System.Diagnostics.Stopwatch.GetTimestamp(); ObservationWork.Detail(name, now - mark); mark = now; }
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction unavailable.");
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).ToList();
             if (people.Count == 0) throw new InvalidOperationException("No colony anchor.");
             var workers = people.Where(p => !p.Downed && !p.InMentalState && !p.Drafted).ToList();
             var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
             var things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
+            Span("cf.things");
             // One read asks the same thing or def many times (items, beds,
             // benches, forbidden supplies, loot); each answer is fixed for
             // the read, so it is computed once (#878).
@@ -101,32 +106,40 @@ namespace HomeBridge.BridgeTools
             };
             var items = things.Where(t => t.def.category == ThingCategory.Item && (t.Faction == null || t.Faction.IsPlayer)
                 && !t.IsForbidden(player) && reachable(t)).ToList();
+            Span("cf.items");
             var stock = items.GroupBy(t => t.def).OrderBy(g => g.Key.defName, StringComparer.Ordinal).ToList();
             var beds = things.OfType<Building_Bed>().Where(b => b.Faction == player && !b.ForPrisoners && !b.Medical
                 && !b.IsForbidden(player) && reachable(b)).ToList();
             var indoorBeds = beds.Where(b => b.GetRoom() != null && b.GetRoom().ProperRoom
                 && !b.GetRoom().PsychologicallyOutdoors && b.GetRoom().OpenRoofCount == 0).ToList();
             var temperatures = indoorBeds.Select(b => Finite(b.GetRoom().Temperature)).ToList();
+            Span("cf.beds");
             var nutrition = items.Where(t => humanFood(t.def) && t.IngestibleNow && people.All(p => p.WillEat(t)))
                 .Sum(t => (double)t.stackCount * people.Min(p => FoodUtility.NutritionForEater(p, t)));
             // Raw native demand/runway remains distinct from the controller's
             // diet, held-food, rot and competing-animal forecast.
             var demand = people.Sum(p => p.needs?.food == null ? 0.0 : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000.0);
+            Span("cf.nutrition");
             var result = new Obs.ColonyFactsSnapshot { Context = context, ColonistCount = (uint)people.Count,
                 WorkerCount = (uint)workers.Count, Center = Cell(center), MapSize = Size(map), Biome = map.Biome.defName,
                 PlayerTechLevel = player.def.techLevel.ToString(),
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
-                FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp),
-                FoodSupply = new Obs.FoodSupplySection { Observed = Food(FoodSupplyFacts.Read(people,
-                    things.Where(FoodSupplyFacts.SharedFood).ToList())) },
-                Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) },
-                Upkeep = ReadComfort(map),
-                Threat = ReadThreat(map, people.Count),
-                Development = new Obs.DevelopmentSection { Observed = ReadPower(map) },
-                FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood),
-                DeepResources = NativeDeepResources.Read(map)
-            };
+                FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp) };
+            result.FoodSupply = new Obs.FoodSupplySection { Observed = Food(FoodSupplyFacts.Read(people,
+                    things.Where(FoodSupplyFacts.SharedFood).ToList())) };
+            Span("cf.foodSupply");
+            result.Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) };
+            Span("cf.forecast");
+            result.Upkeep = ReadComfort(map);
+            Span("cf.upkeep");
+            result.Threat = ReadThreat(map, people.Count);
+            result.Development = new Obs.DevelopmentSection { Observed = ReadPower(map) };
+            Span("cf.power");
+            result.FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood);
+            Span("cf.foodChannels");
+            result.DeepResources = NativeDeepResources.Read(map);
+            Span("cf.deep");
             if (demand > 0) result.FoodRunwayDays = Finite(nutrition / demand);
             else result.Issues.Add(Issue("food_runway_days", Common.UnavailableReason.NotApplicable, "No observed nutrition demand."));
             if (temperatures.Count > 0) { result.SleepingTemperatureMinC = temperatures.Min(); result.SleepingTemperatureMaxC = temperatures.Max(); }
@@ -135,11 +148,15 @@ namespace HomeBridge.BridgeTools
                 result.Issues.Add(Issue("sleeping_temperature_max_c", Common.UnavailableReason.NotApplicable, "No eligible indoor sleeping place."));
             }
             foreach (var group in stock) result.Resources.Add(new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) });
+            Span("cf.resources");
             var forbidden = StartingSupplyFacts.Forbidden(things, center, reachable);
             foreach (var t in forbidden)
                 result.ForbiddenSupplies.Add(new Obs.EntityRef { Id = t.GetUniqueLoadID(), DefName = t.def.defName, MapId = map.uniqueID, Position = Cell(t.Position) });
+            Span("cf.forbidden");
             result.EventLoot = EventLootFacts.Read(map, things, reachable);
+            Span("cf.eventLoot");
             ReadProduction(result, map, people, things, reachable, humanFood);
+            Span("cf.production");
             var naming = ColonyNamingTools.Pending();
             if (naming != null) result.Naming = new Obs.ColonyNaming { WindowId = naming.ID,
                 FactionName = ColonyNamingTools.Name(naming, "curName"), SettlementName = ColonyNamingTools.Name(naming, "curSecondName") };
@@ -153,8 +170,11 @@ namespace HomeBridge.BridgeTools
             var conditions = new List<GameCondition>();
             map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
             foreach (var condition in conditions) result.Environment.Add(EnvironmentCondition(condition));
+            Span("cf.dialogs");
             result.Recovery = NativeRecoveryFacts.Read(map, context);
+            Span("cf.recovery");
             result.Waste = HomeWasteTools.Project(map, context);
+            Span("cf.waste");
             foreach (var field in new[] { "policy_resources", "food_corpses" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             try {
@@ -164,16 +184,20 @@ namespace HomeBridge.BridgeTools
                 SowingNow = new[] { "Plant_Rice", "Plant_Potato", "Plant_Corn" }.Select(DefDatabase<ThingDef>.GetNamedSilentFail).Any(d => d != null && PlantUtility.GrowthSeasonNow(map,d)),
                 GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
             catch (Exception) { result.Issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }
+            Span("cf.climate");
             try { NativePlantAcquisition.Read(result, map, center, humanFood); }
             catch (Exception) {
                 result.Acquisition.Clear(); result.ClearPendingFoodNutrition(); result.ClearPendingWoodUnits(); result.ClearPendingHunts();
                 foreach (var field in new[] { "acquisition", "pending_food_nutrition", "pending_wood_units", "pending_hunts" })
                     result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete safe acquisition facts are unavailable."));
             }
+            Span("cf.acquisition");
             try { NativeCutPlant.Read(result, map, center); }
             catch (Exception) { result.BlightedPlants.Clear(); result.Issues.Add(Issue("blighted_plants", Common.UnavailableReason.ReadFailed, "Complete blighted plant census is unavailable.")); }
+            Span("cf.cutPlant");
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
+            Span("cf.planning");
             return result;
         }
 
@@ -369,9 +393,13 @@ namespace HomeBridge.BridgeTools
         {
             var names = StarterDefinitions;
             var result = new Obs.PlanningFacts { };
+            var began = System.Diagnostics.Stopwatch.GetTimestamp();
             try { result.Gear = NativeGearFacts.Read(map, context); }
             catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
+            ObservationWork.Detail("cf.gear", System.Diagnostics.Stopwatch.GetTimestamp() - began);
+            began = System.Diagnostics.Stopwatch.GetTimestamp();
             result.Definitions.Add(Definitions(map, names));
+            ObservationWork.Detail("cf.definitions", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             // The planning window itself (the site cells around the centre)
             // is no longer carried here: the controller reads it on demand
             // through observations_get_cells (issue #356), so a routine

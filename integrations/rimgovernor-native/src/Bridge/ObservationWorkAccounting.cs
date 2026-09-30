@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
     {
         /// Bounds the section list so a malformed request cannot grow the
         /// account; a request asks for far fewer sections than this.
-        internal const int MaxSections = 48;
+        internal const int MaxSections = 64;
 
         internal sealed class Section
         {
@@ -99,11 +99,20 @@ namespace HomeBridge.BridgeTools
         /// for the named section, returning rows of an optional candidates
         /// total (0 where the section's page info does not know one).
         internal static void Captured(string section, long stopwatchTicks, long rows = 0, long candidates = 0)
+            => Record(section, stopwatchTicks, rows, candidates, true);
+
+        /// A span inside a section already Captured (#1273): listed beside the
+        /// families so a slow capture line breaks the family down, but not
+        /// added to the hop's capture total a second time.
+        internal static void Detail(string section, long stopwatchTicks, long rows = 0)
+            => Record(section, stopwatchTicks, rows, 0, false);
+
+        private static void Record(string section, long stopwatchTicks, long rows, long candidates, bool capture)
         {
             var hop = _current;
             if (hop == null) return;
             var ticks = Math.Max(0, stopwatchTicks);
-            hop.CaptureTicks += ticks;
+            if (capture) hop.CaptureTicks += ticks;
             Section entry = null!;
             foreach (var known in hop.Sections) if (string.Equals(known.Name, section, StringComparison.Ordinal)) { entry = known; break; }
             if (entry == null)

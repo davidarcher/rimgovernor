@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
             var rot = thing.TryGetComp<CompRottable>();
             if (thing is Corpse && rot != null && rot.Stage != RotStage.Fresh) return "corpse";
             if (!(thing is Corpse) && rot != null && rot.Stage != RotStage.Fresh) return "spoiled";
-            return unwanted.Contains(Id(thing)) ? "unwanted" : null;
+            return unwanted.Count > 0 && unwanted.Contains(Id(thing)) ? "unwanted" : null;
         }
 
         // A conservative separation contract, not a claim that any outdoor dump is harmless.
@@ -108,11 +108,20 @@ namespace HomeBridge.BridgeTools
             var empty = new HashSet<string>();
             var items = new List<Obs.WasteItem>();
             Obs.EntityRef Ref(Thing t, IntVec3 at) => new Obs.EntityRef { Id = Id(t), DefName = t.def.defName, MapId = map.uniqueID, Position = new Common.Cell { X = at.x, Z = at.z } };
-            foreach (var thing in map.listerThings.AllThings.OrderBy(Id))
+            // Filter before sorting (#1273): the stable sort of the few kept
+            // rows orders them exactly as sorting every thing's load ID did,
+            // without building and comparing a string per thing on the map.
+            var kept = new List<KeyValuePair<Thing, string?>>();
+            foreach (var thing in map.listerThings.AllThings)
             {
                 if (thing.Position.Fogged(map)) continue;
                 var kind = Kind(thing, empty);
                 if (kind == null && !(thing is Corpse)) continue;
+                kept.Add(new KeyValuePair<Thing, string?>(thing, kind));
+            }
+            foreach (var pair in kept.OrderBy(p => Id(p.Key)))
+            {
+                var thing = pair.Key; var kind = pair.Value;
                 var protection = Protection(thing);
                 var row = new Obs.WasteItem { Thing = Ref(thing, thing.Position), Count = thing.stackCount, Eligible = protection == null && kind != null,
                     State = protection == null && Stored(thing) ? Obs.WasteLocation.Relocated : Obs.WasteLocation.Exposed };
