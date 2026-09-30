@@ -147,9 +147,11 @@ so `SurgeonFor` waits for one.
 ## Schedules
 
 `policy.PlanSchedules` (`pawn_schedule.go`) gives each available pawn a
-role-based timetable from the same profile: the native day (Sleep 22h-5h)
-with a two-hour Joy block at 18h-19h; a NightOwl works 23h-6h, plays 21h-22h
-and sleeps 10h-17h; a QuickSleeper's Sleep block shrinks to six hours. Every
+role-based timetable from the same profile: the native day sleeps 22h-5h
+(#1314); a NightOwl sleeps 10h-17h and is free overnight; a QuickSleeper's
+Sleep block shrinks to six hours. Joy is the hour right before sleep and
+every other hour is Anything. The planner never writes Work: Work blocks
+ignore rest and recreation and wake sleeping pawns (#1293). Every
 known timetable is planned, whoever wrote it: a timetable edited under Manual
 is replanned like any other once Auto holds (control-loop.md, Manual
 control; #461); an unknown timetable (issue `schedule`) is skipped.
@@ -175,7 +177,7 @@ colonists' pawn reads recorded from the retired `workers/*` native cases
 kitchen with the other cook backing it at 2; Pyromaniac/Brawler/Abrasive
 never fight fires, hunt or warden while Industrious wins a tied Construction
 sheet; every core role is owned once and the written matrix replans
-unchanged; a NightOwl's night shift, a QuickSleeper's six-hour sleep and a
+unchanged; a NightOwl's day sleep, a QuickSleeper's six-hour sleep and a
 hand-edited timetable replanned; two pawns under the Construction floor
 help at 4 beside six walls. `takeover/schedule` still writes a timetable
 through a real `WorkSettingsIntent` and reads it back natively.

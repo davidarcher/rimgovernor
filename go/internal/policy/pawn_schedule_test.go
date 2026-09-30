@@ -17,21 +17,29 @@ func hours(slots []string, def string) []int {
 }
 
 func TestScheduleTemplates(t *testing.T) {
-	day := scheduleTemplate(TraitEffects{})
-	if len(day) != 24 || len(hours(day, ScheduleSleep)) != 8 || day[22] != ScheduleSleep || day[5] != ScheduleSleep || day[6] != ScheduleAnything || day[18] != ScheduleJoy || day[19] != ScheduleJoy || day[20] != ScheduleAnything {
-		t.Fatal(day)
+	build := func(sleep []int, joy int) []string {
+		slots := make([]string, 24)
+		for h := range slots {
+			slots[h] = ScheduleAnything
+		}
+		for _, h := range sleep {
+			slots[h] = ScheduleSleep
+		}
+		slots[joy] = ScheduleJoy
+		return slots
 	}
-	quick := scheduleTemplate(TraitEffects{QuickSleeper: true})
-	if len(hours(quick, ScheduleSleep)) != 6 || quick[22] != ScheduleAnything || quick[0] != ScheduleSleep {
-		t.Fatal(quick)
-	}
-	owl := scheduleTemplate(TraitEffects{NightShift: true})
-	if len(hours(owl, ScheduleWork)) != 8 || owl[23] != ScheduleWork || owl[6] != ScheduleWork || owl[7] != ScheduleAnything || len(hours(owl, ScheduleSleep)) != 8 || owl[10] != ScheduleSleep || owl[17] != ScheduleSleep || owl[21] != ScheduleJoy || owl[22] != ScheduleJoy {
-		t.Fatal(owl)
-	}
-	quickOwl := scheduleTemplate(TraitEffects{NightShift: true, QuickSleeper: true})
-	if len(hours(quickOwl, ScheduleSleep)) != 6 || quickOwl[10] != ScheduleAnything || quickOwl[11] != ScheduleSleep {
-		t.Fatal(quickOwl)
+	for name, c := range map[string]struct {
+		effects TraitEffects
+		want    []string
+	}{
+		"day":      {TraitEffects{}, build([]int{22, 23, 0, 1, 2, 3, 4, 5}, 21)},
+		"quick":    {TraitEffects{QuickSleeper: true}, build([]int{0, 1, 2, 3, 4, 5}, 23)},
+		"owl":      {TraitEffects{NightShift: true}, build([]int{10, 11, 12, 13, 14, 15, 16, 17}, 9)},
+		"quickOwl": {TraitEffects{NightShift: true, QuickSleeper: true}, build([]int{11, 12, 13, 14, 15, 16}, 10)},
+	} {
+		if got := scheduleTemplate(c.effects); !sameSchedule(got, c.want) {
+			t.Fatalf("%s: %v", name, got)
+		}
 	}
 	if !sameSchedule(nativeDefaultSchedule(), []string{"Sleep", "Sleep", "Sleep", "Sleep", "Sleep", "Sleep", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Anything", "Sleep", "Sleep"}) {
 		t.Fatal(nativeDefaultSchedule())

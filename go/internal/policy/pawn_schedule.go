@@ -5,7 +5,6 @@ import "sort"
 // TimeAssignmentDef names, as native's timetable reports them.
 const (
 	ScheduleAnything = "Anything"
-	ScheduleWork     = "Work"
 	ScheduleJoy      = "Joy"
 	ScheduleSleep    = "Sleep"
 )
@@ -48,30 +47,29 @@ func fill(slots []string, from, to int, def string) {
 	}
 }
 
-// scheduleTemplate is the role-based timetable for a profile: the native
-// day (Sleep 22h-5h) with a two-hour Joy block at 18h-19h before the evening
-// recreation trough; a NightOwl works 23h-6h, plays 21h-22h and sleeps
-// 10h-17h (the hours the trait penalises being awake); a QuickSleeper needs
-// half the rest, so its Sleep block shrinks to six hours.
+// scheduleTemplate is the role-based timetable for a profile (#1314): the
+// native day sleeps 22h-5h; a NightOwl sleeps 10h-17h (the hours the trait
+// penalises being awake) and is free overnight; a QuickSleeper needs half
+// the rest, so its Sleep block loses two hours at the start (and, for a
+// NightOwl, one at each end). Joy is the hour right before sleep and every
+// other hour is Anything. The planner never writes Work: it ignores rest and
+// recreation and wakes sleeping pawns (#1293).
 func scheduleTemplate(effects TraitEffects) []string {
-	slots := nativeDefaultSchedule()
+	slots := make([]string, 24)
+	for h := range slots {
+		slots[h] = ScheduleAnything
+	}
+	sleepFrom, sleepTo := 22, 5
 	if effects.NightShift {
-		for h := range slots {
-			slots[h] = ScheduleAnything
-		}
-		fill(slots, 23, 6, ScheduleWork)
-		fill(slots, 21, 22, ScheduleJoy)
-		fill(slots, 10, 17, ScheduleSleep)
+		sleepFrom, sleepTo = 10, 17
 		if effects.QuickSleeper {
-			fill(slots, 10, 10, ScheduleAnything)
-			fill(slots, 17, 17, ScheduleAnything)
+			sleepFrom, sleepTo = 11, 16
 		}
-		return slots
+	} else if effects.QuickSleeper {
+		sleepFrom = 0
 	}
-	fill(slots, 18, 19, ScheduleJoy)
-	if effects.QuickSleeper {
-		fill(slots, 22, 23, ScheduleAnything)
-	}
+	fill(slots, sleepFrom, sleepTo, ScheduleSleep)
+	slots[(sleepFrom+23)%24] = ScheduleJoy
 	return slots
 }
 
