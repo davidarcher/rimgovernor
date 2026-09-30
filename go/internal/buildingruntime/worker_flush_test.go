@@ -59,11 +59,14 @@ func TestWorkerDefersDispatchesAndFlushesOncePerStep(t *testing.T) {
 	fail = nil
 	w.waits = map[domain.ActionID]workerWait{}
 	flushes = 0
-	if err := w.step(context.Background(), time.Now()); err != nil && !errors.Is(err, context.Canceled) {
+	// One instant for both steps: the 10 ms backoff must not lapse between
+	// them on a loaded box.
+	now := time.Now()
+	if err := w.step(context.Background(), now); err != nil && !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 	flushes = 0
-	_ = w.step(context.Background(), time.Now()) // every action backed off
+	_ = w.step(context.Background(), now) // every action backed off
 	if flushes != 0 {
 		t.Fatalf("idle step flushed %d", flushes)
 	}

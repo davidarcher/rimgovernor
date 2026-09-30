@@ -735,8 +735,9 @@ func powerMethodKey(prefix, identity string) domain.MethodID {
 }
 
 // powerRouteBound caps the cells one route search visits: enough to reach a
-// geyser GeothermalReachCells away across open ground.
-const powerRouteBound = 16384
+// geyser GeothermalReachCells away across open ground, or to cross a
+// map-wide perimeter interior to a moisture pump (#1330).
+const powerRouteBound = 1 << 17
 
 // The generator-to-consumer order allows successive eight-cell methods to
 // extend one route. Unknown terrain and protected cells never become routes.
