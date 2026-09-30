@@ -117,7 +117,11 @@ func powerSites(ctx context.Context, s cases.Session) error {
 					continue
 				}
 				slots := policy.BatterySlots(room)
+				// A room on a crossing (east or west door) steps its rows along x.
 				dist := func(r policy.Rectangle) int32 { return max(r.Z-room.Door.Z, room.Door.Z-r.Z) }
+				if room.DoorRot == domain.East || room.DoorRot == domain.West {
+					dist = func(r policy.Rectangle) int32 { return max(r.X-room.Door.X, room.Door.X-r.X) }
+				}
 				report["battery_room"] = map[string]any{"door": room.Door, "door_rot": string(room.DoorRot), "interior": room.Interior, "first_slot": slots[0], "last_slot": slots[len(slots)-1]}
 				if dist(slots[0]) > dist(slots[len(slots)-1]) {
 					return fmt.Errorf("battery room door %v (%s): first slot %+v is farther from the door than the last %+v", room.Door, room.DoorRot, slots[0], slots[len(slots)-1])

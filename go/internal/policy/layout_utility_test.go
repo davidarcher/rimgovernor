@@ -38,6 +38,54 @@ func TestPlannedPowerSites(t *testing.T) {
 	}
 }
 
+// TestBatteryRoomOnCrossing (#1265): with bedroom wings filling the main
+// hallway the battery room still gets a site, on a crossing when needed,
+// its slots nearest the door first and every block beside its battery.
+func TestBatteryRoomOnCrossing(t *testing.T) {
+	p := PlanUtilities(PlanCore(coreTestZones(), 12, BuildTierCamp), UtilityWants{})
+	batteries := PlannedPowerSites(p, BatteryDefinition)
+	if len(batteries) != 8 {
+		t.Fatal(batteries)
+	}
+	var room LayoutRoom
+	for _, r := range p.AllRooms() {
+		if r.Role == ModuleBattery {
+			room = r
+		}
+	}
+	along := func(c domain.Cell) int32 { return abs32(c.Z - room.Door.Z) }
+	if room.DoorRot == domain.East || room.DoorRot == domain.West {
+		along = func(c domain.Cell) int32 { return abs32(c.X - room.Door.X) }
+	}
+	if along(batteries[0].Cell) > along(batteries[7].Cell) {
+		t.Fatal("first row farther from the door", room, batteries)
+	}
+	for _, b := range batteries {
+		for _, c := range RectangleCells(b.Area) {
+			if !inRect(room.Interior, c) {
+				t.Fatal("battery outside the room", room, b)
+			}
+		}
+		if b.Block != (Rectangle{}) && !inRect(room.Interior, domain.Cell{X: b.Block.X, Z: b.Block.Z}) {
+			t.Fatal("block outside the room", room, b)
+		}
+	}
+}
+
+// TestBatterySlotsCrossing: an east-door room's slots are the north-door
+// room's transposed, 1x2 along z, and plan north-facing batteries.
+func TestBatterySlotsCrossing(t *testing.T) {
+	room := LayoutRoom{Role: ModuleBattery, Interior: Rectangle{X: 10, Z: 20, Width: 7, Height: 5}, Door: domain.Cell{X: 17, Z: 22}, DoorRot: domain.East}
+	slots := BatterySlots(room)
+	if len(slots) != 8 || slots[0] != (Rectangle{X: 16, Z: 20, Width: 1, Height: 2}) || slots[1] != (Rectangle{X: 16, Z: 23, Width: 1, Height: 2}) || slots[2].X != 14 {
+		t.Fatal(slots)
+	}
+	sites := PlannedPowerSites(LayoutPlan{Rooms: []LayoutRoom{room}}, BatteryDefinition)
+	if sites[2].Rotation != domain.North || sites[2].Block != (Rectangle{X: 15, Z: 20, Width: 1, Height: 2}) {
+		t.Fatal(sites[2])
+	}
+}
+
 // TestPlannedCoolerSites: each cooled room's cooler stands in its back wall
 // with the cold side in the room and the hot side on the exhaust (#791),
 // on either hallway (#952): the freezer and the soil tomb both get one.

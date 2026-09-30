@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"log/slog"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // Utility reservations (#782, A6). After the core is laid out the plan
 // holds:
@@ -70,11 +74,22 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		for _, w := range plan.Wings {
 			g.carve(wingReserve(w, 0))
 		}
-		// The battery room stays on the main hallway (BatterySlots reads
-		// a north or south door), clear of the crossings.
-		if seg, room, ok := g.placeOn(plan.Spine, 0, plan.Rooms, ModuleBattery, batteryRoomSize); ok {
+		// The battery room goes on the main hallway, or on a crossing when
+		// the main hallway is full (#1265; BatterySlots turns its rows).
+		placed := false
+		for i := range plan.Spine {
+			seg, room, ok := g.placeOn(plan.Spine, i, plan.Rooms, ModuleBattery, batteryRoomSize)
+			if !ok {
+				continue
+			}
 			plan.Rooms = append(plan.Rooms, room)
-			plan.Spine = append([]SpineSegment{seg}, plan.Spine[1:]...)
+			plan.Spine = append([]SpineSegment(nil), plan.Spine...)
+			plan.Spine[i] = seg
+			placed = true
+			break
+		}
+		if !placed {
+			slog.Warn("layout: no hallway has room for the battery room", "hallways", len(plan.Spine), "rooms", len(plan.Rooms))
 		}
 	}
 	u := newUtilityGrid(plan)
@@ -155,8 +170,16 @@ func TurbinePlacement(area Rectangle, pairSouth bool) (domain.Cell, domain.Rotat
 
 // BatterySlots are a battery room's battery footprints (1x2 across the
 // walkway on each side), nearest the door first; the rows between them
-// hold the stone blocks.
+// hold the stone blocks. A room on a crossing (east or west door) is the
+// same room transposed: 1x2 slots along z, rows stepping along x.
 func BatterySlots(r LayoutRoom) []Rectangle {
+	if r.DoorRot == domain.East || r.DoorRot == domain.West {
+		out := BatterySlots(transposeRoom(r))
+		for i, s := range out {
+			out[i] = Rectangle{X: s.Z, Z: s.X, Width: s.Height, Height: s.Width}
+		}
+		return out
+	}
 	in := r.Interior
 	var out []Rectangle
 	for _, i := range AisleRows(in.Height, 2) {
@@ -183,7 +206,8 @@ type PlannedPowerSite struct {
 }
 
 // PlannedPowerSites lists the plan's sites for definition (#788):
-// batteries in the battery room's slots (1x2 turned east), wind turbines on
+// batteries in the battery room's slots (1x2 turned east, or facing north
+// in a room on a crossing), wind turbines on
 // their pair reservations (the southern one facing north), solar on its
 // plots. Nil for any other definition or a plan with no such site.
 func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
@@ -196,10 +220,19 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 			}
 			slots := BatterySlots(r)
 			for i, s := range slots {
-				site := PlannedPowerSite{Cell: domain.Cell{X: s.X, Z: s.Z}, Rotation: domain.East, Area: s}
+				// A 1x2 battery turned east spans x..x+1; facing north z..z+1.
+				rot := domain.East
+				if s.Height == 2 {
+					rot = domain.North
+				}
+				site := PlannedPowerSite{Cell: domain.Cell{X: s.X, Z: s.Z}, Rotation: rot, Area: s}
 				if i >= 2 {
 					prev := slots[i-2]
-					site.Block = Rectangle{X: s.X, Z: (s.Z + prev.Z) / 2, Width: s.Width, Height: 1}
+					if rot == domain.North {
+						site.Block = Rectangle{X: (s.X + prev.X) / 2, Z: s.Z, Width: 1, Height: s.Height}
+					} else {
+						site.Block = Rectangle{X: s.X, Z: (s.Z + prev.Z) / 2, Width: s.Width, Height: 1}
+					}
 				}
 				out = append(out, site)
 			}
