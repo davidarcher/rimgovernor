@@ -1,8 +1,11 @@
 package startersite
 
 import (
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -48,6 +51,11 @@ func args(ctx context.Context, h *na.Harness, size int32) (map[string]any, error
 	if err != nil {
 		return nil, fmt.Errorf("map survey: %w", err)
 	}
+	if path := os.Getenv("RIMGOVERNOR_SURVEY_DUMP"); path != "" {
+		if err := dumpSurvey(path, survey); err != nil {
+			return nil, fmt.Errorf("dump map survey: %w", err)
+		}
+	}
 	pawns, _ := facts.Facts.Colonists.Value()
 	tier, _ := facts.BuildTier.Value()
 	plan, known := policy.DeriveLayoutPlan(survey, int(pawns), tier, nil).Value()
@@ -59,4 +67,19 @@ func args(ctx context.Context, h *na.Harness, size int32) (map[string]any, error
 		return nil, fmt.Errorf("no planned storeroom for a %dx%d fixture hut on this map", size, size)
 	}
 	return map[string]any{"siteX": site.X, "siteZ": site.Z, "doorX": door.X, "doorZ": door.Z}, nil
+}
+
+// dumpSurvey writes survey as gzipped JSON, the capture behind the policy
+// layout benchmarks' fixture (#1280).
+func dumpSurvey(path string, survey policy.MapSurvey) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	z := gzip.NewWriter(f)
+	if err := json.NewEncoder(z).Encode(survey); err != nil {
+		return err
+	}
+	return z.Close()
 }
