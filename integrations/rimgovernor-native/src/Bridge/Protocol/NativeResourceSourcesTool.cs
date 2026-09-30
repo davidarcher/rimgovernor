@@ -47,28 +47,53 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        // Cheap is the read's speed switch (#1295): on, the census reads only
+        // the plant and rock defs that can yield the resource, and the map's
+        // reservations are read once (ExcavationSafety.Shortcut is the
+        // support check's own switch). The reply is identical either
+        // way; test/colony_facts_equality turns it off to prove that.
+        internal static bool Cheap = true;
+
         // Read is the read on the main thread under a validated identity: the
         // reply its tool encodes, and the section the bundle carries (#593).
         internal static Obs.ResourceSourcesReply Read(Map map, Obs.ResourceSourcesRequest parsed, Common.ObservationContext context)
         {
+            var cheap = Cheap;
             try
             {
                 var definition = DefDatabase<ThingDef>.GetNamedSilentFail(parsed.Resource);
                 if (definition == null)
                     return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.NotApplicable, "Unknown resource definition.") };
-                var deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource).ToList();
+                // Only a plant or rock def can yield the resource, so the
+                // census reads those defs' lister lists rather than every
+                // thing on the map; Product still decides per thing. The
+                // final sort is total, so census order does not matter.
+                List<Thing> deposits;
+                if (cheap)
+                {
+                    deposits = new List<Thing>();
+                    foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading)
+                        if (def.plant?.harvestedThingDef?.defName == parsed.Resource || def.building?.mineableThing?.defName == parsed.Resource)
+                            foreach (var t in map.listerThings.ThingsOfDef(def))
+                                if (ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource) deposits.Add(t);
+                }
+                else deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource).ToList();
                 var eligible = deposits.Where(t => ResourceAcquisitionTools.Eligible(t, map)).ToList();
+                var admitted = new HashSet<Thing>(eligible);
                 // Buried ore (#1072): a supported deposit no colonist can reach,
                 // usually fogged. The support check reads the true map, so it is
                 // reported for a corridor excavation rather than dropped.
-                var buried = new HashSet<Thing>(deposits.Where(t => !eligible.Contains(t) && ResourceAcquisitionTools.Buried(t, map)));
+                var buried = new HashSet<Thing>(deposits.Where(t => !admitted.Contains(t) && ResourceAcquisitionTools.Buried(t, map)));
                 eligible.AddRange(buried);
-                double Distance(Thing t) => map.mapPawns.FreeColonistsSpawned.Min(p => p.Position.DistanceTo(t.Position));
-                var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(Distance).ThenBy(t => t.thingIDNumber).ToList();
+                var colonists = map.mapPawns.FreeColonistsSpawned.ToList();
+                var distances = new Dictionary<Thing, double>(eligible.Count);
+                foreach (var t in eligible) distances[t] = colonists.Min(p => p.Position.DistanceTo(t.Position));
+                var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(t => distances[t]).ThenBy(t => t.thingIDNumber).ToList();
                 var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
                     Storage = Storage(map, definition),
                     Completeness = new Obs.Completeness { Filtered = (ulong)(deposits.Count - eligible.Count) } };
-                foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing), context, buried.Contains(thing)));
+                var reserved = cheap ? new HashSet<Thing>(map.reservationManager.AllReservedThings()) : null;
+                foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, distances[thing], context, buried.Contains(thing), reserved));
                 return new Obs.ResourceSourcesReply { Observed = snapshot };
             }
             catch (Exception) { return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Resource sources could not be read completely.") }; }
@@ -102,7 +127,8 @@ namespace HomeBridge.BridgeTools
                 && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
             bool Accessible(IntVec3 c) => !c.Fogged(map) && c.Standable(map) && haulers.Any(p => !c.IsForbidden(p)
                 && p.CanReach(c, PathEndMode.OnCell, Danger.None));
-            bool Protected(IntVec3 c) => def.GetStatValueAbstract(StatDefOf.DeteriorationRate) <= 0 || c.Roofed(map);
+            var durable = def.GetStatValueAbstract(StatDefOf.DeteriorationRate) <= 0;
+            bool Protected(IntVec3 c) => durable || c.Roofed(map);
             // Count empty stack slots, conservatively excluding partial stacks: one per
             // empty floor cell, and a storage building's (shelf's) free slots of its
             // maxItemsInCell per cell (#721), reached by touch since it is not standable.
@@ -123,9 +149,11 @@ namespace HomeBridge.BridgeTools
             var knownBorder = border is int width && width >= 0 && width <= 32;
             var margin = knownBorder ? (int)(border ?? 0) + 1 : 0;
             var candidates = haulers.Count == 0 || !knownBorder ? new List<IntVec3>() : GenRadial.RadialCellsAround(haulers[0].Position, 20, true)
-                .Where(c => c.InBounds(map) && Accessible(c) && Protected(c) && map.zoneManager.ZoneAt(c) == null
-                    && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
-                    && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)).ToList();
+                // Cheapest tests first; reachability last (#1295).
+                .Where(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == null
+                    && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)
+                    && Protected(c) && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
+                    && Accessible(c)).ToList();
             var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored, StackLimit = def.stackLimit };
             result.Haulers.AddRange(haulers.Select(p => new Obs.EntityRef { Id = p.GetUniqueLoadID(), DefName = p.def.defName,
                 MapId = map.uniqueID, Position = new Common.Cell { X = p.Position.x, Z = p.Position.z } }));
@@ -133,7 +161,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        private static Obs.ResourceSource Project(Thing thing, Map map, double distance, Common.ObservationContext context, bool buried)
+        private static Obs.ResourceSource Project(Thing thing, Map map, double distance, Common.ObservationContext context, bool buried, HashSet<Thing>? reserved)
         {
             var mineable = thing is Mineable;
             var entity = new Obs.EntityRef { Id = thing.GetUniqueLoadID(), DefName = thing.def.defName, MapId = map.uniqueID,
@@ -155,7 +183,7 @@ namespace HomeBridge.BridgeTools
             };
             if (mineable)
             {
-                row.Taken = ResourceAcquisitionTools.Taken(thing);
+                row.Taken = ResourceAcquisitionTools.Taken(thing, reserved);
                 var tick = ResourceAcquisitionTools.DesignatedTick(thing, row.Designated);
                 if (tick.HasValue) row.DesignatedTick = tick.Value;
             }

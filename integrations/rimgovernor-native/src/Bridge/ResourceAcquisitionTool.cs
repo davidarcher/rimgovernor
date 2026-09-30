@@ -34,7 +34,10 @@ namespace HomeBridge.BridgeTools
             return tick;
         }
         // Taken (#1043): any pawn's reservation, or a colonist's current job, targets the thing.
-        internal static bool Taken(Thing t) => t.Map.reservationManager.AllReservedThings().Contains(t)
+        internal static bool Taken(Thing t) => Taken(t, null);
+        // reserved, when given, is the map's reserved things read once for a
+        // whole census instead of per row (#1295).
+        internal static bool Taken(Thing t, HashSet<Thing>? reserved) => (reserved != null ? reserved.Contains(t) : t.Map.reservationManager.AllReservedThings().Contains(t))
             || t.Map.mapPawns.FreeColonistsSpawned.Any(p => p.CurJob is Job job && (job.targetA.Thing == t || job.targetB.Thing == t || job.targetC.Thing == t
                 || job.targetQueueA?.Any(q => q.Thing == t) == true || job.targetQueueB?.Any(q => q.Thing == t) == true));
         internal static Designator DesignatorFor(Thing t) => t is Mineable ? (Designator)new Designator_Mine() :
@@ -57,8 +60,8 @@ namespace HomeBridge.BridgeTools
         internal static string? MiningBlocker(Thing t, Map map)
         {
             if (t.Faction != null) return "Faction-owned extraction target is protected";
-            if (GenRadial.RadialCellsAround(t.Position, RoofCollapseUtility.RoofMaxSupportDistance, true)
-                    .Any(cell => cell.InBounds(map) && map.roofCollapseBuffer.IsMarkedToCollapse(cell))
+            if ((map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0 && GenRadial.RadialCellsAround(t.Position, RoofCollapseUtility.RoofMaxSupportDistance, true)
+                    .Any(cell => cell.InBounds(map) && map.roofCollapseBuffer.IsMarkedToCollapse(cell)))
                 || ExcavationSafety.Check(map, new[] { t.Position }, out _, out _, throughFog: true) != ExcavationSafety.Support.Supported)
                 return "Roof support requires a supported excavation plan";
             foreach (var cell in GenAdj.CellsAdjacent8WayAndInside(t))

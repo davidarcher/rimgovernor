@@ -22,11 +22,20 @@ namespace HomeBridge.BridgeTools
         // be assumed safe. With throughFog the true map is read under fog, as the
         // game does for collapse: fogged rock or ore holds, a fogged open cell
         // does not (#986). Pending collapse anywhere near the set blocks.
+        // Shortcut settles a roof by a holder beside it without the flood;
+        // the result is the same (#1295). test/colony_facts_equality turns it off.
+        internal static bool Shortcut = true;
         internal static Support Check(Map map, ICollection<IntVec3> removed, out int checkedRoofs, out string? blocker, bool throughFog = false)
         {
             checkedRoofs = 0; blocker = null;
             var radius = RoofCollapseUtility.RoofMaxSupportDistance;
             var removedSet = new HashSet<IntVec3>(removed);
+            // One removed cell whose every nearby roof has a holder beside it
+            // is Supported whatever order the roofs are checked in, so the
+            // common single-rock check skips the set, the sort and the
+            // floods (#1295); anything else takes the full walk below.
+            if (Shortcut && removed.Count == 1 && AllHeldBeside(map, removedSet, radius, throughFog, out checkedRoofs)) return Support.Supported;
+            checkedRoofs = 0;
             var roots = new HashSet<IntVec3>();
             // The roof over a removed holder stays up and needs support like
             // any other: a room whose surroundings were levelled keeps its
@@ -38,6 +47,10 @@ namespace HomeBridge.BridgeTools
             foreach (var root in roots.OrderBy(c => c.x).ThenBy(c => c.z)) {
                 checkedRoofs++;
                 if (map.roofCollapseBuffer.IsMarkedToCollapse(root)) { blocker = "Roof collapse is already pending"; return Support.Unsupported; }
+                // The flood's first step alone: a holder beside the root
+                // supports it, the common case under rock, without the
+                // flood's allocations (#1295).
+                if (Shortcut && HolderBeside(map, root, radius, removedSet, throughFog)) continue;
                 var queue = new Queue<IntVec3>();
                 var seen = new HashSet<IntVec3>();
                 queue.Enqueue(root); seen.Add(root);
@@ -64,6 +77,31 @@ namespace HomeBridge.BridgeTools
                 result = Support.Unknown; blocker = "Alternate support geometry is unknown";
             }
             return result;
+        }
+
+        private static bool AllHeldBeside(Map map, HashSet<IntVec3> removedSet, float radius, bool throughFog, out int roofs)
+        {
+            roofs = 0;
+            foreach (var cell in removedSet)
+                foreach (var root in GenRadial.RadialCellsAround(cell, radius, true)) {
+                    if (!root.InBounds(map) || (!throughFog && root.Fogged(map)) || !root.Roofed(map)) continue;
+                    roofs++;
+                    if (map.roofCollapseBuffer.IsMarkedToCollapse(root) || !HolderBeside(map, root, radius, removedSet, throughFog)) return false;
+                }
+            return true;
+        }
+
+        private static bool HolderBeside(Map map, IntVec3 root, float radius, HashSet<IntVec3> removedSet, bool throughFog)
+        {
+            foreach (var offset in GenAdj.CardinalDirectionsAndInside) {
+                var near = root + offset;
+                if (!near.InBounds(map) || !near.InHorDistOf(root, radius)) continue;
+                if (!throughFog && near.Fogged(map)) continue;
+                if (removedSet.Contains(near)) continue;
+                var holder = near.GetEdifice(map);
+                if (holder != null && holder.def.holdsRoof) return true;
+            }
+            return false;
         }
     }
 

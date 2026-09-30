@@ -154,7 +154,34 @@ namespace HomeBridge.BridgeTools
                 var offBytes = Google.Protobuf.MessageExtensions.ToByteArray(off);
                 var onBytes = Google.Protobuf.MessageExtensions.ToByteArray(on);
                 var upkeep = on.Upkeep?.Observed;
-                return (object)new { equal = offBytes.SequenceEqual(onBytes), offBytes = offBytes.Length, onBytes = onBytes.Length,
+                // ResourceSources (#1295): each resource's reply with the
+                // cheap census and support shortcut off and on. Plant yields
+                // round at random per read, so non-mine yields are blanked.
+                var resourcesEqual = true; long resourceRows = 0; double offMs = 0, onMs = 0;
+                byte[] Sources(string resource, bool cheap, ref double ms)
+                {
+                    NativeResourceSourcesTool.Cheap = cheap; ExcavationSafety.Shortcut = cheap;
+                    try
+                    {
+                        var began = System.Diagnostics.Stopwatch.GetTimestamp();
+                        var reply = NativeResourceSourcesTool.Read(map, new RimGovernor.Protocol.Observations.ResourceSourcesRequest { Resource = resource }, context);
+                        ms += (System.Diagnostics.Stopwatch.GetTimestamp() - began) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                        foreach (var row in reply.Observed?.Sources ?? new Google.Protobuf.Collections.RepeatedField<RimGovernor.Protocol.Observations.ResourceSource>())
+                            if (row.Method != "mine") row.Yield = 0;
+                        return Google.Protobuf.MessageExtensions.ToByteArray(reply);
+                    }
+                    finally { NativeResourceSourcesTool.Cheap = true; ExcavationSafety.Shortcut = true; }
+                }
+                foreach (var resource in new[] { "Steel", "WoodLog", "ComponentIndustrial", "Silver", "Gold", "Plasteel", "Uranium", "Jade", "ChunkGranite", "ChunkSandstone", "ChunkLimestone", "ChunkSlate", "ChunkMarble" })
+                    for (var i = 0; i < 3; i++)
+                    {
+                        var a = Sources(resource, false, ref offMs);
+                        var b = Sources(resource, true, ref onMs);
+                        if (!a.SequenceEqual(b)) resourcesEqual = false;
+                        if (i == 0) resourceRows += RimGovernor.Protocol.Observations.ResourceSourcesReply.Parser.ParseFrom(b).Observed?.Sources.Count ?? 0;
+                    }
+                return (object)new { equal = offBytes.SequenceEqual(onBytes) && resourcesEqual, resourcesEqual, resourceRows,
+                    resourcesOffMs = System.Math.Round(offMs, 1), resourcesOnMs = System.Math.Round(onMs, 1), offBytes = offBytes.Length, onBytes = onBytes.Length,
                     upkeepItems = upkeep?.Items.Count ?? 0, upkeepStructures = upkeep?.Structures.Count ?? 0,
                     upkeepFilth = upkeep?.Filth.Count ?? 0, upkeepBeds = upkeep?.Beds.Count ?? 0,
                     wasteRows = on.Waste?.Observed?.Items.Count ?? 0 };
