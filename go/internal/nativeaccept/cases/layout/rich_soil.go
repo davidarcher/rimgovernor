@@ -69,6 +69,7 @@ func richSoil(ctx context.Context, s cases.Session) error {
 	}
 	audit := auditSoil(plan.Plan, survey, crops)
 	report["soil"] = audit
+	report["rich_overlap"] = audit.richOverlap()
 	if err := audit.err(); err != nil {
 		return err
 	}

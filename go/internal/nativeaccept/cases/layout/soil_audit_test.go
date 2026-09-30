@@ -40,11 +40,7 @@ func TestRichSoilBaselinePlan(t *testing.T) {
 		}
 		a := auditSoil(plan, s, nil)
 		t.Logf("%+v outgrown(+1)=%v", a, plan.LayoutOutgrown(pawns+1))
-		// Rooms on rich soil are logged, not failed: the planner prices
-		// rich soil as a cost, not a ban, and on this world still puts a
-		// hallway and a storeroom on three rich cells. layout/rich-soil
-		// asserts it live (#1291).
-		a.RichBuilt = nil
+		t.Logf("rich overlap: %s", a.richOverlap())
 		if err := a.err(); err != nil {
 			t.Fatal(err)
 		}
@@ -54,6 +50,30 @@ func TestRichSoilBaselinePlan(t *testing.T) {
 		if a.RichCells == 0 || a.Patches == 0 || a.WallCells == 0 {
 			t.Fatalf("baseline lacks rich soil, patches or a ring: %+v", a)
 		}
+	}
+}
+
+// Rooms and hallways may cover up to 2% of the rich cells, no more.
+func TestRichOverlapBudget(t *testing.T) {
+	// 200 rich cells in rows z >= 10; a one-row room at z=9 puts only its
+	// top wall row (Width+2 cells) on them.
+	const n = 20
+	s := policy.MapSurvey{Bounds: policy.Bounds{Width: n, Height: n}}
+	for z := int32(0); z < n; z++ {
+		for x := int32(0); x < n; x++ {
+			s.Cells = append(s.Cells, policy.SurveyCell{Cell: domain.Cell{X: x, Z: z}, Walkable: true,
+				Fertility: map[bool]float64{true: 1.2, false: 1}[z >= 10]})
+		}
+	}
+	room := func(w int32) policy.LayoutPlan {
+		return policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: policy.ModuleStorage,
+			Interior: policy.Rectangle{X: 4, Z: 9, Width: w, Height: 1}}}}
+	}
+	if a := auditSoil(room(2), s, nil); a.RichBuiltN != 4 || a.err() != nil {
+		t.Fatalf("2%% overlap failed: %s %v", a.richOverlap(), a.err())
+	}
+	if a := auditSoil(room(3), s, nil); a.err() == nil {
+		t.Fatalf("3%% overlap passed: %s", a.richOverlap())
 	}
 }
 

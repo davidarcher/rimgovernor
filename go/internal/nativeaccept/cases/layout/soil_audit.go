@@ -14,6 +14,11 @@ import (
 // richFertility is the fertility above which soil is rich (#1284).
 const richFertility = 1.0
 
+// richOverlapBudget is the fraction of the map's rich cells planned rooms
+// and hallways may cover (#1291): the planner prices rich soil as a cost,
+// not a ban, so a small overlap is allowed.
+const richOverlapBudget = 0.02
+
 // ringThick is the perimeter wall's thickness: a ring along the edge
 // margin line occupies the band LayoutEdgeMargin..LayoutEdgeMargin+ringThick
 // from the map edge.
@@ -23,6 +28,8 @@ const ringThick int32 = 3
 // violations found (capped), empty when the assertion holds.
 type soilAudit struct {
 	RichCells     int      `json:"rich_cells"`
+	RichBuiltN    int      `json:"rich_built_cells"`
+	RichOverlap   float64  `json:"rich_overlap_fraction"`
 	Patches       int      `json:"patches"`
 	Inside        int      `json:"patches_inside"`
 	Outside       int      `json:"patches_outside"`
@@ -36,16 +43,25 @@ type soilAudit struct {
 }
 
 func (a soilAudit) err() error {
+	if a.RichOverlap > richOverlapBudget {
+		return fmt.Errorf("planned rooms and hallways cover %s, over the %.0f%% budget: %v",
+			a.richOverlap(), richOverlapBudget*100, a.RichBuilt)
+	}
 	for _, v := range []struct {
 		what string
 		list []string
-	}{{"planned room or hallway on rich soil", a.RichBuilt}, {"fertile patch split by the wall", a.PatchSplit},
+	}{{"fertile patch split by the wall", a.PatchSplit},
 		{"wall on fertile soil", a.WallOnFertile}, {"crop zones in a patch not adjacent", a.CropGaps}} {
 		if len(v.list) > 0 {
 			return fmt.Errorf("%s: %v", v.what, v.list)
 		}
 	}
 	return nil
+}
+
+// richOverlap reports the rich cells rooms and hallways cover.
+func (a soilAudit) richOverlap() string {
+	return fmt.Sprintf("%d of %d rich cells (%.2f%%)", a.RichBuiltN, a.RichCells, a.RichOverlap*100)
 }
 
 const auditCap = 8
@@ -112,7 +128,8 @@ func builtCells(plan policy.LayoutPlan) map[domain.Cell]string {
 }
 
 // auditSoil checks the plan and crop zones against the survey:
-//  1. no planned room or hallway covers a rich cell;
+//  1. planned rooms and hallways cover at most richOverlapBudget of the
+//     rich cells;
 //  2. each field zone is one fertile patch, wholly inside or wholly outside
 //     the traced ring, and no wall cell sits on it, except where the ring
 //     runs along the edge margin line (the band LayoutEdgeMargin..
@@ -133,8 +150,12 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 	built := builtCells(plan)
 	for _, c := range sortedCells(built) {
 		if rich[c] {
+			a.RichBuiltN++
 			note(&a.RichBuilt, "%s at %v", built[c], c)
 		}
+	}
+	if a.RichCells > 0 {
+		a.RichOverlap = float64(a.RichBuiltN) / float64(a.RichCells)
 	}
 
 	band := func(c domain.Cell) bool {
