@@ -50,7 +50,7 @@ const (
 	// perimeterGap is the yard between the core and the wall; it holds
 	// the killbox.
 	perimeterGap int32 = 12
-	// perimeterFieldReach is how far from the core a field chunk may
+	// perimeterFieldReach is how far from the core a field patch may
 	// start and still sit inside the wall.
 	perimeterFieldReach int32 = 15
 	perimeterGatePitch  int32 = 20

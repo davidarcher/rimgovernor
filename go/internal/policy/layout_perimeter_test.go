@@ -184,7 +184,9 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 		if c, ok := soft(x, z); ok {
 			return c
 		}
-		return SurveyCell{Walkable: true, Fertility: 1}
+		// Plain ground, not field soil: an all-fertile map is one field (#1281)
+		// and would pull the ring out to the map edge.
+		return SurveyCell{Walkable: true, Fertility: 0.7}
 	}
 	s := zoningSurvey(200, cell)
 	p := PlanPerimeter(PlanCore(Zone(s), 3, BuildTierCamp), s)
@@ -213,7 +215,7 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 func plainsRing(t *testing.T) Rectangle {
 	t.Helper()
 	var ring Rectangle
-	for _, r := range reserved(perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }), ReservePerimeter) {
+	for _, r := range reserved(perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 0.7} }), ReservePerimeter) {
 		ring = unionRect(ring, r)
 	}
 	return ring

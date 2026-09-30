@@ -44,7 +44,7 @@ func TestZoneRiverMap(t *testing.T) {
 	}))
 	noGo, _ := zoningCells(zones, ZoneNoGo)
 	core, _ := zoningCells(zones, ZoneCore)
-	fields, chunks := zoningCells(zones, ZoneField)
+	fields, patches := zoningCells(zones, ZoneField)
 	for _, c := range []domain.Cell{{X: 47, Z: 50}, {X: 3, Z: 50}, {X: 50, Z: 95}} {
 		if noGo[c] == 0 || core[c] != 0 || fields[c] != 0 {
 			t.Fatal("no-go", c)
@@ -53,19 +53,12 @@ func TestZoneRiverMap(t *testing.T) {
 	if core[domain.Cell{X: 30, Z: 30}] == 0 || fields[domain.Cell{X: 30, Z: 30}] == 0 {
 		t.Fatal("soil is core candidate and field")
 	}
-	if chunks < 4 {
-		t.Fatal("chunks", chunks)
+	// One field per river bank: no lattice gaps, and no field crosses the river.
+	if patches != 2 || fields[domain.Cell{X: 11, Z: 20}] == 0 || fields[domain.Cell{X: 12, Z: 20}] == 0 {
+		t.Fatal("one field per bank", patches)
 	}
-	// Firebreaks: a 2-wide gap on the lattice, and no chunk crosses the river.
-	if fields[domain.Cell{X: 11, Z: 20}] != 0 || fields[domain.Cell{X: 12, Z: 20}] != 0 {
-		t.Fatal("firebreak")
-	}
-	for c, id := range fields {
-		for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}} {
-			if other := fields[n]; other != 0 && other != id {
-				t.Fatal("chunks touch", c, n)
-			}
-		}
+	if fields[domain.Cell{X: 30, Z: 30}] == fields[domain.Cell{X: 60, Z: 30}] {
+		t.Fatal("field crosses the river")
 	}
 }
 
@@ -114,15 +107,15 @@ func TestZoneOpenPlains(t *testing.T) {
 	zones := Zone(s)
 	core, _ := zoningCells(zones, ZoneCore)
 	noGo, _ := zoningCells(zones, ZoneNoGo)
-	fields, _ := zoningCells(zones, ZoneField)
+	fields, patches := zoningCells(zones, ZoneField)
 	if len(core) != 40*40 || noGo[domain.Cell{X: 5, Z: 59}] != 0 || noGo[domain.Cell{X: 5, Z: 58}] == 0 {
 		t.Fatal(len(core))
 	}
 	if _, n := zoningCells(zones, ZoneMining); n != 0 {
 		t.Fatal("mining on plains")
 	}
-	if fields[domain.Cell{X: 12, Z: 12}] != 0 || fields[domain.Cell{X: 14, Z: 14}] == 0 {
-		t.Fatal("firebreak lattice")
+	if patches != 1 || len(fields) != 40*40 || fields[domain.Cell{X: 12, Z: 12}] == 0 {
+		t.Fatal("one field", patches, len(fields))
 	}
 	if !(LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleKitchen, Interior: Rectangle{Width: 1, Height: 1}, DoorRot: domain.North}}, Zones: zones}).Valid() {
 		t.Fatal("zones persist")

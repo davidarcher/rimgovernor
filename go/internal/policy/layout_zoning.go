@@ -1,10 +1,6 @@
 package policy
 
-import (
-	"sort"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-)
+import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // Whole-map zoning (#778, A2): every surveyed cell is classified from
 // terrain. Zones overlap on purpose: core candidates are every cell a room
@@ -20,17 +16,13 @@ const (
 	// zoneFieldFertility is the least fertility a field cell needs
 	// (plain soil).
 	zoneFieldFertility = 1.0
-	// zoneFieldMin is the fewest cells a field chunk keeps; smaller
-	// scraps are pasture.
+	// zoneFieldMin is the fewest cells a fertile patch needs to be a
+	// field; smaller patches are pasture.
 	zoneFieldMin = 16
-	// zoneFieldChunk is a field chunk's side before firebreaks; a 2-wide
-	// break follows every chunk on a map-aligned lattice.
-	zoneFieldChunk int32 = 11
-	zoneFirebreak  int32 = 2
 )
 
 // Zone classifies every surveyed cell into whole-map zones, in order: core
-// candidates, fields (one zone per firebreak-bounded chunk, largest first),
+// candidates, fields (one zone per 4-connected fertile patch, largest first),
 // pasture, mining (ore first, then the other rock), wood, no-go. Kinds
 // with no cells are left out.
 func Zone(s MapSurvey) []LayoutZone {
@@ -55,11 +47,7 @@ func Zone(s MapSurvey) []LayoutZone {
 		return func(i int32) bool { return cells[i] != nil && !noGo(i) && pred(cells[i]) }
 	}
 	soil := has(func(c *SurveyCell) bool { return !c.Rock && c.Walkable && c.Fertility >= zoneFieldFertility })
-	lattice := zoneFieldChunk + zoneFirebreak
-	chunk := func(i int32) bool {
-		return soil(i) && (i%w)%lattice < zoneFieldChunk && (i/w)%lattice < zoneFieldChunk
-	}
-	fields := components(w, h, chunk)
+	fields := components(w, h, soil)
 	inField := make([]bool, len(cells))
 	var zones []LayoutZone
 	add := func(kind ZoneKind, in func(int32) bool) {
@@ -163,43 +151,5 @@ func (p LayoutPlan) FieldCells() map[domain.Cell]bool {
 			}
 		}
 	}
-	return out
-}
-
-// Firebreaks are the plan's firebreak cells (#790): cells outside every
-// field that sit in a gap at most zoneFirebreak wide between two field
-// cells along a row or a column. They come in row-major order.
-func (p LayoutPlan) Firebreaks() []domain.Cell {
-	fields := p.FieldCells()
-	seen := map[domain.Cell]bool{}
-	var out []domain.Cell
-	for f := range fields {
-		for _, d := range [2][2]int32{{1, 0}, {0, 1}} {
-			// A gap starts right after f and must close on a field cell
-			// within zoneFirebreak cells.
-			var gap []domain.Cell
-			for k := int32(1); k <= zoneFirebreak+1; k++ {
-				c := domain.Cell{X: f.X + d[0]*k, Z: f.Z + d[1]*k}
-				if fields[c] {
-					if len(gap) > 0 {
-						for _, g := range gap {
-							if !seen[g] {
-								seen[g] = true
-								out = append(out, g)
-							}
-						}
-					}
-					break
-				}
-				gap = append(gap, c)
-			}
-		}
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Z != out[j].Z {
-			return out[i].Z < out[j].Z
-		}
-		return out[i].X < out[j].X
-	})
 	return out
 }
