@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
@@ -38,7 +39,7 @@ func TestParseProfile(t *testing.T) {
 
 func TestProfileBundleAndStage(t *testing.T) {
 	root := t.TempDir()
-	if _, err := profileBundle(root, "sustained/colony", ""); err == nil || !strings.Contains(err.Error(), "no checkpoint ring") {
+	if _, err := profileBundle(root, "sustained/colony", ""); err == nil || !strings.Contains(err.Error(), "no sustained/colony checkpoint") {
 		t.Fatalf("missing ring: %v", err)
 	}
 	dir := filepath.Join(root, "checkpoints", "sustained", "colony")
@@ -63,6 +64,43 @@ func TestProfileBundleAndStage(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(filepath.Join(root, "profile", "Saves", profileSave+".rws")); string(data) != "save" {
 		t.Fatalf("staged %q", data)
+	}
+}
+
+// A fresh worktree's root has no ring: the newest peer bundle (main
+// checkout or another worktree, same relative root) is taken instead.
+func TestProfileBundleFromPeer(t *testing.T) {
+	main := t.TempDir()
+	os.Mkdir(filepath.Join(main, ".git"), 0755)
+	checkout := func(dir string) string {
+		os.MkdirAll(dir, 0755)
+		os.WriteFile(filepath.Join(dir, ".git"), []byte("gitdir: x"), 0644)
+		return filepath.Join(dir, ".rimgovernor", "bridge")
+	}
+	mine := checkout(filepath.Join(main, ".claude", "worktrees", "mine"))
+	old := checkout(filepath.Join(main, ".claude", "worktrees", "old"))
+	newer := filepath.Join(main, ".rimgovernor", "bridge")
+	write := func(root string, age time.Duration) string {
+		dir := filepath.Join(root, "checkpoints", "sustained", "colony")
+		(&na.Ring{Case: "sustained/colony", Entries: []na.Checkpoint{{Label: "t+7m"}}}).Write(dir)
+		save := filepath.Join(dir, "t+7m", na.CheckpointSaveName("sustained/colony")+".rws")
+		os.MkdirAll(filepath.Dir(save), 0755)
+		os.WriteFile(save, []byte("save"), 0644)
+		stamp := time.Now().Add(-age)
+		os.Chtimes(save, stamp, stamp)
+		return filepath.Dir(save)
+	}
+	if _, err := profileBundle(mine, "sustained/colony", ""); err == nil || !strings.Contains(err.Error(), "peer checkout") {
+		t.Fatalf("no peers: %v", err)
+	}
+	write(old, 2*time.Hour)
+	want := write(newer, time.Minute)
+	if got, err := profileBundle(mine, "sustained/colony", ""); err != nil || got != want {
+		t.Fatalf("peer: %s %v, want %s", got, err, want)
+	}
+	own := write(mine, 3*time.Hour)
+	if got, _ := profileBundle(mine, "sustained/colony", ""); got != own {
+		t.Fatalf("own ring not preferred: %s", got)
 	}
 }
 

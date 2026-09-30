@@ -108,10 +108,10 @@ func profileBundle(root, caseName, from string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if ring == nil {
-		return "", fmt.Errorf("no checkpoint ring at %s: run `acceptance run %s` once, or pass -save", dir, caseName)
-	}
 	if from != "" {
+		if ring == nil {
+			return "", fmt.Errorf("no checkpoint ring at %s to take %q from", dir, from)
+		}
 		if from == "failed" && ring.Failed != nil {
 			return ring.Failed.Path, nil
 		}
@@ -120,13 +120,66 @@ func profileBundle(root, caseName, from string) (string, error) {
 		}
 		return "", fmt.Errorf("%s: no bundle %q in the ring", dir, from)
 	}
+	if bundle := newestInRing(ring); bundle != "" {
+		return bundle, nil
+	}
+	// A worktree's root is private, so a fresh one has no ring; borrow the
+	// newest bundle a peer checkout's same root holds (read only: the save
+	// is copied into this profile).
+	if bundle := peerBundle(root, caseName); bundle != "" {
+		return bundle, nil
+	}
+	return "", fmt.Errorf("no %s checkpoint in %s or any peer checkout: run `acceptance run %s` once, or pass -save", caseName, dir, caseName)
+}
+
+// newestInRing is the ring's newest entry, else its failed bundle, else "".
+func newestInRing(ring *na.Ring) string {
+	if ring == nil {
+		return ""
+	}
 	if n := len(ring.Entries); n > 0 {
-		return ring.Entries[n-1].Path, nil
+		return ring.Entries[n-1].Path
 	}
 	if ring.Failed != nil {
-		return ring.Failed.Path, nil
+		return ring.Failed.Path
 	}
-	return "", fmt.Errorf("%s: the ring holds no bundle", dir)
+	return ""
+}
+
+// peerBundle is the most recently written ring bundle of caseName among
+// the main checkout and its .claude/worktrees, at root's path relative to
+// its own checkout; "" when root is outside a checkout or none has one.
+func peerBundle(root, caseName string) string {
+	checkout, ok := na.FindRepo(root)
+	if !ok {
+		return ""
+	}
+	rel, err := filepath.Rel(checkout, root)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return ""
+	}
+	main := checkout
+	if i := strings.Index(strings.ToLower(checkout), strings.ToLower(filepath.Join(".claude", "worktrees"))); i > 0 {
+		main = filepath.Clean(checkout[:i])
+	}
+	peers, _ := filepath.Glob(filepath.Join(main, ".claude", "worktrees", "*"))
+	var best string
+	var newest time.Time
+	for _, peer := range append([]string{main}, peers...) {
+		if filepath.Clean(peer) == filepath.Clean(checkout) {
+			continue
+		}
+		ring, _ := na.ReadRing(cases.Options{Root: filepath.Join(peer, rel)}.RingDir(cases.Case{Name: caseName}))
+		bundle := newestInRing(ring)
+		if bundle == "" {
+			continue
+		}
+		info, err := os.Stat(filepath.Join(bundle, na.CheckpointSaveName(caseName)+".rws"))
+		if err == nil && info.ModTime().After(newest) {
+			best, newest = bundle, info.ModTime()
+		}
+	}
+	return best
 }
 
 // stageProfileSave copies the bundle's save into the profile as
@@ -159,7 +212,11 @@ func profileCapture(ctx context.Context, args []string, stdout, stderr io.Writer
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
-		fmt.Fprintf(stdout, "profile-capture: %s from %s\n", p.Case, bundle)
+		age := "?"
+		if info, err := os.Stat(filepath.Join(bundle, na.CheckpointSaveName(p.Case)+".rws")); err == nil {
+			age = time.Since(info.ModTime()).Round(time.Minute).String()
+		}
+		fmt.Fprintf(stdout, "profile-capture: %s from %s (saved %s ago)\n", p.Case, bundle, age)
 		o.Save = profileSave
 	}
 	opts := cases.Options{Root: o.Root, Output: o.Output, GameID: o.GameID, Headless: o.Headless, NoHeal: p.NoHeal}
