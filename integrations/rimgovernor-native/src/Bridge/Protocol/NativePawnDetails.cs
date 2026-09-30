@@ -101,7 +101,7 @@ namespace HomeBridge.BridgeTools
                 // flags, master, allowed area) that home/pawn_config's own
                 // PawnSettingsRead.SettingsBlock reports instead.
                 if(d.Settings) CarePolicy(pawn,row.Settings);
-                if(d.Work) { Work(pawn,row.Settings); AllowedArea(pawn,row.Settings); row.Settings.FoodRestriction=NativeFoodPolicy.Read(pawn); row.Settings.DrugPolicyWritable=NativeDrugPolicy.Writable(pawn); row.Settings.DrugPolicyName=NativeDrugPolicy.Name(pawn); }
+                if(d.Work) { Work(pawn,row.Settings); AllowedArea(pawn,row.Settings); row.Settings.FoodRestriction=NativeFoodPolicy.Read(pawn); row.Settings.DrugPolicyWritable=NativeDrugPolicy.Writable(pawn); row.Settings.DrugPolicyName=NativeDrugPolicy.Name(pawn); row.Settings.PolicyInputs=NativePolicyFacts.Inputs(pawn); }
                 if(d.Schedule) Schedule(pawn,row.Settings);
             } else row.Issues.Add(Skipped("settings"));
             if(d.Social) row.Social=Social(pawn,colonists);

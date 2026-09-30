@@ -314,8 +314,44 @@ message PawnSettings {
   optional bool work_applies = 15; optional bool manual_work_priorities = 16;
   FoodRestriction food_restriction = 17;
   optional bool drug_policy_writable = 18;
+  // The current DrugPolicy's label; empty when the pawn has no drug policy.
   optional string drug_policy_name = 19;
+  // Per-pawn policy planner inputs (#1297), read with work detail.
+  PawnPolicyInputs policy_inputs = 20;
 }
+// The inputs per-pawn outfit/drug/food/reading planners compose from
+// (#1297). Traits, mood and break thresholds (biography, needs) and animal
+// bonds (social relations, relation_def_name "Bond") are observed elsewhere.
+// Policy ids are Policy.GetUniqueLoadID(); absent when the pawn has no
+// tracker for that policy kind. A field the pawn has no source for (no
+// Royalty title, no ideoligion, not a guest) is absent or empty, never an
+// issue.
+message PawnPolicyInputs {
+  optional string outfit_policy_id = 1; optional string drug_policy_id = 2; optional string reading_policy_id = 3;
+  // Pawn_InventoryStockTracker entries (medicine carry): group def, chosen
+  // thing def and desired count.
+  repeated InventoryStockSetting inventory_stock = 4;
+  // One row per ChemicalDef with an addiction or tolerance hediff.
+  repeated ChemicalState chemicals = 5;
+  // ChemicalDef defNames of the pawn's Gene_ChemicalDependency genes.
+  repeated string dependency_chemicals = 6;
+  // Most senior royal title's defName and its requiredApparel.
+  optional string royal_title = 7; repeated ApparelRequirementFact title_apparel = 8;
+  // Ideo.GetUniqueLoadID(), the ideo's precept defNames (diet, apparel and
+  // every other issue), the pawn's Precept_Role defName with its apparel
+  // requirements, and the apparelDef of each Precept_Apparel.
+  optional string ideo_id = 9; repeated string precepts = 10; optional string ideo_role = 11;
+  repeated ApparelRequirementFact role_apparel = 12; repeated string precept_apparel = 13;
+  // GuestStatus name (Guest, Prisoner, Slave) and the prisoner/slave
+  // interaction mode defNames; absent for a pawn that is no guest.
+  optional string guest_status = 14; optional string prisoner_interaction = 15; optional string slave_interaction = 16;
+}
+message InventoryStockSetting { optional string group = 1; optional string thing_def = 2; optional int32 count = 3; }
+// addiction: Hediff_Addiction severity, absent without one; withdrawal: the
+// addiction is in its withdrawal stage; tolerance: the tolerance hediff's
+// severity, absent without one.
+message ChemicalState { optional string chemical = 1; optional double addiction = 2; optional bool withdrawal = 3; optional double tolerance = 4; }
+message ApparelRequirementFact { repeated string body_part_groups = 1; repeated string required_defs = 2; repeated string required_tags = 3; repeated string allowed_tags = 4; }
 message TrainingEntry { optional string def_name = 1; optional bool learned = 2; optional bool wanted = 3; optional bool available = 4; optional string reason = 5; }
 message AnimalState {
   optional string gender = 1; optional double age_years = 2; optional bool fertile_adult = 3; optional bool pregnant = 4;
@@ -1200,7 +1236,22 @@ message ColonyFactsSnapshot {
   DeepResourcesSection deep_resources = 46;
   optional uint32 fermenting_barrels = 47;
   reserved 48;
+  // Every outfit, drug, food and reading policy and every allowed area (#1297).
+  PolicySection policies = 49;
 }
+// One policy database row: Policy.GetUniqueLoadID(), label, the player
+// pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
+// transporter) whose current policy it is, and whether it is the
+// database default (index 0).
+message PolicyEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; optional bool default = 4; }
+// Area_Allowed on the colony map: Area.GetUniqueLoadID(), label and the
+// pawns restricted to it there.
+message AllowedAreaEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; }
+message PolicyFacts {
+  repeated PolicyEntry outfit = 1; repeated PolicyEntry drug = 2; repeated PolicyEntry food = 3; repeated PolicyEntry reading = 4;
+  repeated AllowedAreaEntry allowed_areas = 5;
+}
+message PolicySection { oneof outcome { PolicyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; reserved 3, 4, 5; reserved "requested_definition_names"; }

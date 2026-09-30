@@ -49,6 +49,7 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 			w.DrugPolicyWritable = domain.Known(s.GetDrugPolicyWritable())
 			w.DrugPolicyName = s.GetDrugPolicyName()
 		}
+		w.PolicyInputs = pawnPolicyInputs(s.PolicyInputs)
 		w.Applies = optional(s.WorkApplies)
 		w.Manual = optional(s.ManualWorkPriorities)
 		if !hasIssue(s.Issues, "schedule") && len(s.Schedule) == 24 {

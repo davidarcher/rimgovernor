@@ -39,6 +39,8 @@ type WorkPawn struct {
 	FoodRestriction    domain.Fact[FoodRestriction]
 	DrugPolicyWritable domain.Fact[bool]
 	DrugPolicyName     string
+	// PolicyInputs are the per-pawn policy planner inputs (#1297).
+	PolicyInputs domain.Fact[PawnPolicyInputs]
 	// Job is the pawn's current job; unknown when the read carried no job
 	// block.
 	Job domain.Fact[PawnJob]

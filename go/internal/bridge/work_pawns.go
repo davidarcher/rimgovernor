@@ -36,6 +36,7 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	if work {
 		allowed.FoodRestriction = s.FoodRestriction
 		allowed.DrugPolicyWritable, allowed.DrugPolicyName = s.DrugPolicyWritable, s.DrugPolicyName
+		allowed.PolicyInputs = s.PolicyInputs
 		allowed.Work, allowed.WorkApplies, allowed.ManualWorkPriorities, allowed.AllowedAreaId = s.Work, s.WorkApplies, s.ManualWorkPriorities, s.AllowedAreaId
 	}
 	if (s.DrugPolicyWritable == nil) != (s.DrugPolicyName == nil) || s.DrugPolicyName != nil && s.GetDrugPolicyName() != "" && validID(s.GetDrugPolicyName()) != nil {
@@ -49,6 +50,9 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	}
 	if !proto.Equal(s, allowed) || len(s.Schedule) > 24 {
 		return contract("unrequested settings detail")
+	}
+	if err := validatePolicyInputs(s.PolicyInputs); err != nil {
+		return err
 	}
 	if food := s.FoodRestriction; food != nil {
 		if validID(food.GetPolicyId()) != nil {

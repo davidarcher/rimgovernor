@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
             return true;
         }
         internal static bool Matches(Pawn pawn, string name) => pawn.drugs?.CurrentPolicy is DrugPolicy p && p.label == name && Social(p) && Current.Game.drugPolicyDatabase.DefaultDrugPolicy() == p;
-        internal static string Name(Pawn pawn) => pawn.drugs?.CurrentPolicy is DrugPolicy p && Social(p) && Current.Game.drugPolicyDatabase.DefaultDrugPolicy() == p ? p.label : "";
+        internal static string Name(Pawn pawn) => pawn.drugs?.CurrentPolicy?.label ?? "";
         internal static void Apply(Pawn pawn, string name)
         {
             var db = Current.Game.drugPolicyDatabase;
