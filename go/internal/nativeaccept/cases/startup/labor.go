@@ -158,6 +158,11 @@ func observe(ctx context.Context, s cases.Session, variant string) (startuplabor
 	if err != nil {
 		return startuplabor.Observation{}, err
 	}
+	if _, err = service.Acquire(); err != nil {
+		service.Stop()
+		return startuplabor.Observation{}, err
+	}
+	service.KeepAuthority(ctx)
 	st, err := na.OpenStoreWithRetry(ctx, service.StatePath)
 	if err != nil {
 		service.Stop()
