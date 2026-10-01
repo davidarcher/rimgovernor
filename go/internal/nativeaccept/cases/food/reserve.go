@@ -20,10 +20,15 @@ const reservePrepareOp, reserveProbeOp = "test/food_reserve_prepare", "test/food
 // preserve bill.
 const reserveSeedShare = 0.7
 
-// reserveTargetUnits is the pemmican count the default reserve asks for:
-// DefaultFoodReserveDays of 1.6 nutrition per colonist at 0.05 per unit.
+// reserveDays is the staged reserve the service runs with: the Families
+// bill floors the stage at Development (routineCapabilities), which scales
+// DefaultFoodReserveDays by StageReserveScale.
+var reserveDays = policy.DefaultFoodReserveDays * policy.StageReserveScale(policy.StageDevelopment)
+
+// reserveTargetUnits is the pemmican count the staged reserve asks for:
+// reserveDays of 1.6 nutrition per colonist at 0.05 per unit.
 func reserveTargetUnits(colonists int) int {
-	return int(math.Ceil(policy.DefaultFoodReserveDays * float64(colonists) * 1.6 / 0.05))
+	return int(math.Ceil(reserveDays * float64(colonists) * 1.6 / 0.05))
 }
 
 // reserveRoundTicks is the game time one service round runs before the
@@ -41,7 +46,7 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h := s.Harness()
 	identity := s.Identity()
-	prepared, err := h.Call(ctx, "reserve-prepare", reservePrepareOp, map[string]any{"reserveDays": policy.DefaultFoodReserveDays, "seedShare": reserveSeedShare})
+	prepared, err := h.Call(ctx, "reserve-prepare", reservePrepareOp, map[string]any{"reserveDays": reserveDays, "seedShare": reserveSeedShare})
 	if err != nil {
 		return err
 	}
