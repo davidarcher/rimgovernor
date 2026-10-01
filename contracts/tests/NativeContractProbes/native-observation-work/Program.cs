@@ -34,6 +34,7 @@ internal static class NativeObservationWorkProbe
     {
         HopAccount();
         HopReportsNothingWithoutWork();
+        FailedSectionIsReported();
         SectionsAreBounded();
         FrameIntervals();
         FrameRingIsBounded();
@@ -74,6 +75,25 @@ internal static class NativeObservationWorkProbe
         ObservationWork.Captured("stray", Ticks(5), 1);
         ObservationWork.Formatted(Ticks(5));
         Check(ObservationWork.Current == null, "recording outside a hop is dropped");
+    }
+
+    // A family that throws (#1337) yields a log line carrying the exception's
+    // stack, and the hop's account reports the section as failed, not absent.
+    private static void FailedSectionIsReported()
+    {
+        var hop = ObservationWork.Begin();
+        string line;
+        try { throw new InvalidOperationException("forced traders failure"); }
+        catch (Exception ex) { line = ObservationWork.Failed("traders", ex); }
+        ObservationWork.Captured("traders", Ticks(1), 0);
+        ObservationWork.End();
+        Check(line.Contains("traders") && line.Contains("forced traders failure") && line.Contains("FailedSectionIsReported"), "log line names the section and carries the stack");
+        var traders = Section(ObservationWork.Report(hop), "traders");
+        Check((int)traders["failed"] == 1, "failure counted on the section");
+        var clean = ObservationWork.Begin();
+        ObservationWork.Captured("traders", Ticks(1), 2);
+        ObservationWork.End();
+        Check(!Section(ObservationWork.Report(clean), "traders").ContainsKey("failed"), "a clean section reports no failure");
     }
 
     // A hop that only ran control work declares nothing, so its reply carries

@@ -34,6 +34,7 @@ namespace HomeBridge.BridgeTools
             internal readonly string Name;
             internal long Ticks;
             internal long Rows, Candidates;
+            internal int Failures;
             // A span inside a Captured family (Detail, #1273), not a family.
             internal bool Detail;
             internal Section(string name) { Name = name; }
@@ -108,6 +109,19 @@ namespace HomeBridge.BridgeTools
         /// added to the hop's capture total a second time.
         internal static void Detail(string section, long stopwatchTicks, long rows = 0)
             => Record(section, stopwatchTicks, rows, 0, false);
+
+        /// The named section threw and is missing from the frame (#1337): the
+        /// hop's account reports it as failed rather than absent. Returns the
+        /// log line, with the exception's stack, for the caller to log.
+        internal static string Failed(string section, Exception ex)
+        {
+            Record(section, 0, 0, 0, true);
+            var hop = _current;
+            if (hop != null)
+                foreach (var known in hop.Sections)
+                    if (string.Equals(known.Name, section, StringComparison.Ordinal)) { known.Failures++; break; }
+            return "[RimGovernor] Snapshot section " + section + " failed: " + ex;
+        }
 
         private static void Record(string section, long stopwatchTicks, long rows, long candidates, bool capture)
         {
@@ -211,6 +225,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var entry = new Dictionary<string, object?>(StringComparer.Ordinal) { ["ms"] = Ms(section.Ticks), ["rows"] = section.Rows };
                     if (section.Candidates > 0) entry["candidates"] = section.Candidates;
+                    if (section.Failures > 0) entry["failed"] = section.Failures;
                     sections[section.Name] = entry;
                 }
                 report["sections"] = sections;

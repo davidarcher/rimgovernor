@@ -159,7 +159,7 @@ namespace HomeBridge.BridgeTools
                 }
             if (firing.Count == 0 || approach.Count == 0 || firing.Concat(approach).Any(c => !c.InBounds(map))) return;
             try { observed.CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context); }
-            catch (System.Exception) { }
+            catch (System.Exception ex) { Log.Error(ObservationWork.Failed("combatLinesOfFire", ex)); }
         }
 
         // On the main thread. Adds the census families to observed, each
@@ -237,12 +237,12 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                try { observed.Traders = NativeTradeObservation.Traders(map, context); } catch (System.Exception) { }
+                try { observed.Traders = NativeTradeObservation.Traders(map, context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("traders", ex)); }
                 ObservationWork.Captured("traders", Now() - began, observed.Traders != null ? observed.Traders.Traders.Count : 0);
             }
             {
                 var began = Now();
-                try { observed.WorldProgression = NativeWorldProgressionObservation.Build(context, false); } catch (System.Exception) { }
+                try { observed.WorldProgression = NativeWorldProgressionObservation.Build(context, false); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("worldProgression", ex)); }
                 ObservationWork.Captured("worldProgression", Now() - began);
             }
             {
@@ -293,7 +293,7 @@ namespace HomeBridge.BridgeTools
             {
                 var began = Now();
                 try { observed.ProjectDefinitions.Add(NativeColonyObservationTools.Definitions(map, request.Definitions)); }
-                catch (System.Exception) { observed.ProjectDefinitions.Clear(); }
+                catch (System.Exception ex) { observed.ProjectDefinitions.Clear(); Log.Error(ObservationWork.Failed("projectDefinitions", ex)); }
                 ObservationWork.Captured("projectDefinitions", Now() - began, observed.ProjectDefinitions.Count);
             }
         }
