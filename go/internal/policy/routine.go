@@ -1041,10 +1041,16 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// The shrine breach (#458) ranks with clearance below repairs; while its
 	// breach is issued, obstruction clearance waits so the construction hand
 	// is the breacher, not a wanderer past the trap line.
+	// Repairs hold the shrine only when their method is served: a repair
+	// deficit nothing can serve must not hold the breach forever.
+	repairsHold := upkeep.History.Repairs
+	if methods, known := f.AvailableMethods.Value(); known && repairsHold {
+		repairsHold = slices.Contains(methods, MaintainEssentialRepairs)
+	}
 	for i := range r.Goals {
 		switch r.Goals[i].ID {
 		case ClearAncientShrine:
-			r.Goals[i].MethodUnavailable = r.Goals[i].MethodUnavailable || upkeep.History.Repairs
+			r.Goals[i].MethodUnavailable = r.Goals[i].MethodUnavailable || repairsHold
 		case ClearHomeObstructions:
 			r.Goals[i].MethodUnavailable = r.Goals[i].MethodUnavailable || upkeep.History.Repairs || f.UpkeepIssued[ClearAncientShrine]
 		case MaintainCleanFacilities:
