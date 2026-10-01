@@ -11,7 +11,7 @@ import (
 
 // ColonyStage is how far the colony has come by outcome (#630): the one
 // ordered fact that sets the goal budgets (the research ladder's pace, the
-// reserve targets) and which goals the review raises at all
+// stall deadline) and which goals the review raises at all
 // (StageGoalAllowed). It is derived from colony facts and the goal progress
 // records, never from research: BuildTier (#604) is what the colony can
 // build, the stage is what it has achieved.
@@ -483,19 +483,6 @@ func StageResearchLadder(stage ColonyStage, ladder []string) []string {
 	return ladder
 }
 
-// StageReserveScale is the factor the reserve targets (the food reserve's
-// days, the wood target) grow by at a stage: unchanged until Stable, then
-// half again, doubled at Development.
-func StageReserveScale(stage ColonyStage) float64 {
-	switch stage {
-	case StageStable:
-		return 1.5
-	case StageDevelopment:
-		return 2
-	}
-	return 1
-}
-
 // StageGoalStallScale is the factor GoalStallTicks shrinks by at a stage:
 // six in-game hours (1/4 of the configured deadline, which defaults to one
 // day) at Foothold, so a stuck method rotates within the day while the
@@ -510,9 +497,7 @@ func StageGoalStallScale(stage ColonyStage) float64 {
 }
 
 // StageRoutinePolicy is p with its budgets set by the stage: the research
-// ladder (StageResearchLadder),
-// the reserve targets (StageReserveScale over FoodReserveDays, WoodTarget
-// and WoodMax, within the policy's own bounds) and the goal-progress stall
+// ladder (StageResearchLadder) and the goal-progress stall
 // deadline (StageGoalStallScale over GoalStallTicks). A stage that has not
 // been reviewed yet (the zero record) is Foothold.
 func StageRoutinePolicy(p RoutinePolicy, stage ColonyStage) RoutinePolicy {
@@ -524,12 +509,6 @@ func StageRoutinePolicy(p RoutinePolicy, stage ColonyStage) RoutinePolicy {
 	}
 	p.ColonyStage = stage
 	p.ResearchLadder = StageResearchLadder(stage, p.ResearchLadder)
-	scale := StageReserveScale(stage)
-	if scale != 1 {
-		p.FoodReserveDays = math.Min(60, p.FoodReserveDays*scale)
-		p.WoodTarget = int64(math.Ceil(float64(p.WoodTarget) * scale))
-		p.WoodMax = max(p.WoodMax, int64(math.Ceil(float64(p.WoodMax)*scale)))
-	}
 	if stallScale := StageGoalStallScale(stage); stallScale != 1 && p.GoalStallTicks > 0 {
 		p.GoalStallTicks = int64(math.Ceil(float64(p.GoalStallTicks) * stallScale))
 	}

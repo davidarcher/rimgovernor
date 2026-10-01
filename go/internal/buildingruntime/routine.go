@@ -107,7 +107,7 @@ type RoutineReviewer struct {
 
 // staged is the configured policy with its goal budgets set by the colony
 // stage (policy.StageRoutinePolicy): the development-project limit, the
-// research ladder's pace and the reserve targets.
+// research ladder's pace and the stall deadline.
 func (r *RoutineReviewer) staged() policy.RoutinePolicy {
 	return policy.StageRoutinePolicy(r.policy, r.stage)
 }

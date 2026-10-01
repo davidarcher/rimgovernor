@@ -20,12 +20,10 @@ const reservePrepareOp, reserveProbeOp = "test/food_reserve_prepare", "test/food
 // preserve bill.
 const reserveSeedShare = 0.7
 
-// reserveDays is the staged reserve the service runs with: the Families
-// bill floors the stage at Development (routineCapabilities), which scales
-// DefaultFoodReserveDays by StageReserveScale.
-var reserveDays = policy.DefaultFoodReserveDays * policy.StageReserveScale(policy.StageDevelopment)
+// reserveDays is the reserve the service runs with at every stage.
+const reserveDays = policy.DefaultFoodReserveDays
 
-// reserveTargetUnits is the pemmican count the staged reserve asks for:
+// reserveTargetUnits is the pemmican count the reserve asks for:
 // reserveDays of 1.6 nutrition per colonist at 0.05 per unit.
 func reserveTargetUnits(colonists int) int {
 	return int(math.Ceil(reserveDays * float64(colonists) * 1.6 / 0.05))

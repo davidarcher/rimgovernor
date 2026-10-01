@@ -190,8 +190,8 @@ func TestProductionBlockedGoal(t *testing.T) {
 	}
 }
 
-// The stage sets the budgets: the ladder's pace and the
-// reserve targets, each within the policy's own bounds.
+// The stage sets the budgets: the ladder's pace and the stall deadline;
+// the reserve targets stay as configured at every stage.
 func TestStageRoutinePolicyBudgets(t *testing.T) {
 	t.Parallel()
 	base := DefaultRoutinePolicy()
@@ -204,8 +204,8 @@ func TestStageRoutinePolicyBudgets(t *testing.T) {
 	}{
 		{StageFoothold, 2, 5, 350, base.GoalStallTicks / 4},
 		{StageReserves, 5, 5, 350, base.GoalStallTicks},
-		{StageStable, 8, 7.5, 525, base.GoalStallTicks},
-		{StageDevelopment, len(DefaultResearchLadder()), 10, 700, base.GoalStallTicks},
+		{StageStable, 8, 5, 350, base.GoalStallTicks},
+		{StageDevelopment, len(DefaultResearchLadder()), 5, 350, base.GoalStallTicks},
 	} {
 		p := StageRoutinePolicy(base, tc.stage)
 		if len(p.ResearchLadder) != tc.rungs || p.FoodReserveDays != tc.reserve || p.WoodTarget != tc.wood || p.WoodMax < p.WoodTarget || p.GoalStallTicks != tc.stall {
@@ -214,11 +214,6 @@ func TestStageRoutinePolicyBudgets(t *testing.T) {
 		if err := p.Validate(); err != nil {
 			t.Fatal(tc.stage, err)
 		}
-	}
-	wide := base
-	wide.FoodReserveDays = 40
-	if StageRoutinePolicy(wide, StageDevelopment).FoodReserveDays != 60 {
-		t.Fatal("reserve days cap")
 	}
 	if got := StageResearchLadder(StageFoothold, []string{"A"}); len(got) != 1 {
 		t.Fatal(got)

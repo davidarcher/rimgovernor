@@ -408,7 +408,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		disaster = nil
 	}
 	// The stage the last review left sets this review's goal budgets (the
-	// research ladder's pace, the reserve targets);
+	// research ladder's pace, the stall deadline);
 	// the stage this review derives is filed for the next.
 	var previousStage policy.ColonyStageRecord
 	if previous.Stage != nil && !reset {
