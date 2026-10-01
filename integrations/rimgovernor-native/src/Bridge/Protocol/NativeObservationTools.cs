@@ -260,6 +260,7 @@ namespace HomeBridge.BridgeTools
                 if (colonists.Count > 0) row.NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)));
                 foreach (var cell in building.OccupiedRect()) row.OccupiedCells.Add(Cell(cell.x, cell.z));
                 if (building is Hive) row.Passive = !HiveEngaging(building, colonists, spawned, player);
+                else if (Dormant(building) is bool dormant) row.Passive = dormant;
                 row.Mortar = building.def.building?.IsMortar == true;
                 threats.HostileBuildings.Add(row);
             }
@@ -277,6 +278,7 @@ namespace HomeBridge.BridgeTools
                 Downed = pawn.Downed, Predator = pawn.RaceProps.predator, X = pawn.Position.x, Z = pawn.Position.z };
             if (facts.FactionHostile) facts.FactionId = pawn.Faction!.GetUniqueLoadID();
             if (facts.FactionHostile && pawn.Faction == Faction.OfInsects) facts.Passive = !InsectEngaging(pawn, player);
+            else if (facts.FactionHostile) facts.Passive = Dormant(pawn);
             if (hunt) { var prey = HuntedPawn(pawn); if (prey != null) { facts.HasPrey = true; facts.PreyOurs = prey.Faction == player || prey.HostFaction == player; } }
             return facts;
         }
@@ -288,6 +290,10 @@ namespace HomeBridge.BridgeTools
         // colonist inside its boundary or one of its insects engaging.
         internal const int HiveBoundaryCells = 10;
         private static bool Awake(Thing thing) => thing.TryGetComp<CompCanBeDormant>()?.Awake ?? true;
+        // A dormant mech cluster (#1335): its mechs and buildings sleep under
+        // CompCanBeDormant until a wake-up comp fires, so each is passive
+        // while asleep and engaging once awake. Null without the comp.
+        private static bool? Dormant(Thing thing) => thing.TryGetComp<CompCanBeDormant>() is CompCanBeDormant comp ? !comp.Awake : (bool?)null;
         private static bool PlayerThing(Thing? thing, Faction player) => thing != null && (thing.Faction == player || thing is Pawn p && p.HostFaction == player);
         internal static bool InsectEngaging(Pawn pawn, Faction player) => Awake(pawn)
             && (PlayerThing(pawn.mindState?.enemyTarget, player) || PlayerThing(pawn.CurJob?.targetA.Thing, player));

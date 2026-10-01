@@ -96,3 +96,23 @@ func TestHostilityOwedUnknownOwesNothing(t *testing.T) {
 		t.Fatal("fleeing fighter not owed")
 	}
 }
+
+// A dormant mech cluster is a sleeping hostile like a hive (#1335): a
+// salvage haul within reach of its sleeping mech gets Ignore, and the pawn
+// reverts to Attack once the cluster wakes.
+func TestHostilityDormantMechCluster(t *testing.T) {
+	site := domain.Cell{X: 50, Z: 50}
+	mech := func(passive bool) []EmergencyThreat {
+		return []EmergencyThreat{{ID: "Mech_Scyther1", Kind: Hostile, Dead: domain.Known(false), Passive: domain.Known(passive),
+			Position: domain.Known(domain.Cell{X: 60, Z: 45}), Distance: domain.Known(12.0)}}
+	}
+	hauler := hostilityPawn(domain.HostilityAttack)
+	hauler.Job = domain.Known(PawnJob{Def: "HaulToCell", Work: "Hauling", Target: domain.Known(JobTarget{Thing: "Steel1", Cell: domain.Known(site)})})
+	if got := HostilityChanges([]HostilityPawn{hauler}, mech(true)); len(got) != 1 || got[0].Hostility() != domain.HostilityIgnore {
+		t.Fatal("haul beside a dormant mech", got)
+	}
+	hauler.Current = domain.Known(domain.HostilityIgnore)
+	if got := HostilityChanges([]HostilityPawn{hauler}, mech(false)); len(got) != 1 || got[0].Hostility() != domain.HostilityAttack {
+		t.Fatal("cluster woke", got)
+	}
+}

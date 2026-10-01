@@ -28,8 +28,9 @@ namespace HomeBridge.BridgeTools
         internal bool Downed;
         internal bool Predator;
         internal int X, Z;
-        /// Insects only (#948): dormant, or awake but targeting nothing of
-        /// the player's. Null for every other pawn.
+        /// Insects (#948): dormant, or awake but targeting nothing of the
+        /// player's. Other hostiles with CompCanBeDormant (mech clusters,
+        /// #1335): asleep. Null for every other pawn.
         internal bool? Passive;
     }
 

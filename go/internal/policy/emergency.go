@@ -70,7 +70,8 @@ type EmergencyThreat struct {
 	// Fogged is the native discovery fact: the pawn stands in fog the colony
 	// has not explored. Unknown counts as discovered.
 	Fogged domain.Fact[bool]
-	// Passive is set on insects and hives only (#948): true when the thing
+	// Passive is set on insects and hives (#948) and on hostiles that can
+	// sleep, such as dormant mech clusters (#1335): true when the thing
 	// is dormant, or awake but not engaging the colony (no insect targets
 	// anything of ours, no colonist inside the hive's boundary). A dormant
 	// ruin hive makes jelly but neither spreads nor spawns; it is left
