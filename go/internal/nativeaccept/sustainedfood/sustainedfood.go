@@ -76,6 +76,12 @@ type WatchConfig struct {
 	// FailFast ends the window early with the journal's refusal text once
 	// the case cannot pass (see FailFast); on by default.
 	FailFast FailFast
+	// TickStall ends the window with an error once the live game tick has
+	// not advanced for this long of watch time (default DefaultTickStall;
+	// checkpoint saves do not count). A game that died and was relaunched
+	// by the bridge's reattach sits at the main menu with no map, so
+	// without this the case waits out its whole Watch ceiling.
+	TickStall time.Duration
 }
 
 // Watch is the serve-driven family's observation window on a service
@@ -100,6 +106,9 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	}
 	if cfg.PollTicks == 0 {
 		cfg.PollTicks = DefaultPollTicks
+	}
+	if cfg.TickStall <= 0 {
+		cfg.TickStall = DefaultTickStall
 	}
 	if cfg.Wake == nil {
 		cfg.Wake = na.WorkerOutcome
@@ -179,6 +188,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	stepped := false
 	failFast := newFailFast(cfg.FailFast, goalID, service.StderrPath())
 	tail := na.NewFlightTail(service.FlightPath)
+	stall := newTickStall(cfg.TickStall, time.Now())
 	cadence := map[string]any{"poll_ticks": cfg.PollTicks, "poll_ms": cfg.Poll.Milliseconds(), "wakes": 0, "tick_polls": 0, "wall_polls": 0}
 	report["cadence"] = cadence
 	defer func() {
@@ -207,8 +217,14 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		if tick, ok := liveTick(apiCall); ok {
 			sample["tick"] = tick
 			window.observe(tick)
+			stall.observe(tick, time.Now())
 		}
 		sample["colony"] = sampleColony(apiCall)
+		if verdict, stalled := stall.check(time.Now()); stalled {
+			timeline = append(timeline, sample)
+			report["fail_fast"] = map[string]any{"kind": "tick_stall", "error": verdict.Error(), "colony": sample["colony"]}
+			return timeline, verdict
+		}
 		timeline = append(timeline, sample)
 		methodCount, _ := sample["method_count"].(int)
 		need, _ := sample["need"].(string)
@@ -240,6 +256,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 				pending = append(pending[:i], pending[i+1:]...)
 				i--
 				saved, err := checkpoint(ctx, naCfg, &cp, service.HoldAuthority, apiCall, identity, token, prefix)
+				stall.reset(time.Now())
 				if err != nil {
 					report["checkpoint"] = map[string]any{"name": cp.Name, "error": err.Error()}
 					return timeline, fmt.Errorf("checkpoint %s: %w", cp.Name, err)
@@ -262,6 +279,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		// ring (#249); a capture's own time does not count against Watch.
 		if took := na.CheckpointPause(ctx); took > 0 {
 			watchDeadline = watchDeadline.Add(took)
+			stall.reset(time.Now())
 		}
 		sampledTick, _ := sample["tick"].(uint64)
 		reason, err := waitNextSample(ctx, apiCall, tail, cfg, sampledTick, watchDeadline)
@@ -282,6 +300,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 const (
 	DefaultPollTicks uint64 = 600
 	DefaultPoll             = 5 * time.Second
+	DefaultTickStall        = 10 * time.Minute
 )
 
 // waitNextSample pauses between two samples until one of the cadence's
