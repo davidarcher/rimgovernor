@@ -87,6 +87,11 @@ maintainer pushes local landings to `origin/main` at any time, so:
    `go run ./cmd/test`, and push again. Never force-push `main`.
 4. No acceptance runs are possible; say `Unverified: no acceptance run
    (remote agent)` in the commit body and let the nightly verify it.
+5. A C# change is compile-checked with `scripts/build_native_ref.sh`
+   (fixture switches pass through, e.g. `-p:UpkeepFixture=true`): it builds
+   against public NuGet reference assemblies, never the game. It needs
+   `apt-get install -y dotnet-sdk-8.0` (Microsoft's installer host is
+   blocked by the cloud proxy).
 
 ## Simplify before you extend
 

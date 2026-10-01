@@ -1,6 +1,8 @@
 # Native mod (Bridge + Runtime) packaged by scripts/build_native_mod.ps1.
 # Needs the game's managed assemblies, Harmony and the RimBridgeServer SDK;
 # without them the build reports `unavailable` naming the missing path.
+# Without a game (Linux cloud), scripts/build_native_ref.sh compile-checks
+# against public NuGet reference assemblies instead.
 version: '3'
 
 vars:
