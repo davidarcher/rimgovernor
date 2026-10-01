@@ -10,8 +10,9 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
 Take the shortest valid path. Run only the required checks, stop exploring
 once acceptance passes, and land immediately.
 
-1. Work on a task branch in your own worktree; `git merge main` once at
-   session start.
+1. Work on a task branch in your own worktree; `git fetch origin main &&
+   git merge origin/main` once at session start (local `main` may be
+   behind: remote agents push `origin/main` directly).
 2. Edit; `go run ./cmd/test` from `go/` is the test loop. It tests the
    packages the working tree changed and their in-module importers
    (`./...` only when `go.mod`/`go.sum` changed) and names the acceptance
@@ -34,7 +35,9 @@ once acceptance passes, and land immediately.
    never piped through `tail` (nothing prints until it ends). The lane
    titles the squash with the branch tip's commit subject, so make the
    milestone commit the tip and fold fixups into it first.
-   The lane takes the repository lock, merges `main` into the branch,
+   The lane takes the repository lock, fetches `origin/main` and
+   fast-forwards local `main` to it (refusing a diverged `main`), merges
+   `main` into the branch,
    refuses a presented suite that failed (resumed rows are recorded),
    squash-lands on the
    `main` checkout, resets the branch to `main` and closes the branch's
@@ -79,10 +82,10 @@ maintainer pushes local landings to `origin/main` at any time, so:
 
 1. Start from `origin/main`: `git fetch origin main`, then branch from
    `origin/main`.
-2. Land with the loop above, after pointing local `main` at the latest
-   remote: `git fetch origin main && git branch -f main origin/main` (from
-   the task branch), then `go run ./cmd/land`.
-3. `git push origin main` immediately. If the push is rejected, fetch,
+2. Land with the loop above (`go run ./cmd/land` fetches and
+   fast-forwards `main` to `origin/main` itself).
+3. `git fetch origin main`, then `git push origin main` immediately. If
+   the push is rejected, fetch,
    `git rebase origin/main main` (only your unpushed landing moves), rerun
    `go run ./cmd/test`, and push again. Never force-push `main`.
 4. No acceptance runs are possible; say `Unverified: no acceptance run

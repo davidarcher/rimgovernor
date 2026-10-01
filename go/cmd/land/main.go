@@ -8,7 +8,10 @@
 // the checked-out one). In order it:
 //
 //  1. takes the repository-wide landing lock (one landing at a time);
-//  2. merges main into the branch's worktree, which must be clean; a
+//  2. fetches origin/main and fast-forwards local main to it, since the
+//     maintainer and remote agents push origin/main directly (a local main
+//     that has diverged is refused; an unreachable origin is reported and
+//     the lane continues); then merges main into the branch's worktree, which must be clean; a
 //     conflict aborts the merge and leaves the resolution to the caller,
 //     and a merged tree that puts a path back to its content before one
 //     of main's recent landings is refused, naming the paths and the
@@ -135,6 +138,9 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 		}
 	}
 	if err := gate.prepare(worktree); err != nil {
+		return err
+	}
+	if err := syncMain(worktree, mainCheckout); err != nil {
 		return err
 	}
 	oldMain, err := git(worktree, "rev-parse", "main")
