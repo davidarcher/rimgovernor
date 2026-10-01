@@ -12,7 +12,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // One immutable file per event keeps publication atomic without rewriting
-    // prior history. The private native profile owns retention and isolation.
+    // prior history. Startup prunes all but the newest RetainRows rows.
     internal sealed class ClockEventJournal
     {
         private readonly string directory;
@@ -64,9 +64,32 @@ namespace HomeBridge.BridgeTools
             var ids = Directory.GetFiles(directory, "*.xml")
                 .Select(p => long.Parse(Path.GetFileNameWithoutExtension(p), CultureInfo.InvariantCulture))
                 .OrderBy(x => x).ToArray();
+            // Earlier sessions pruned from the bottom, so the retained rows
+            // are one consecutive run ending at the newest cursor.
+            var first = ids.Length == 0 ? 1L : ids[0];
             for (int i = 0; i < ids.Length; i++)
-                if (ids[i] != i + 1L) throw new IOException("Native clock event journal has a gap.");
+                if (ids[i] != first + i) throw new IOException("Native clock event journal has a gap.");
             Newest = ids.Length == 0 ? 0 : ids[ids.Length - 1];
+            var floor = PruneFloor(Newest, RetainRows);
+            foreach (var id in ids)
+            {
+                if (id > floor) break;
+                File.Delete(EventPath(id));
+            }
+        }
+
+        // Rows kept across sessions (#1270). Startup replays only the newest
+        // page, so older rows are history no reader needs; a controller whose
+        // checkpoint lies below the floor reads the pruned span as lost, the
+        // same explicit gap as a wiped directory.
+        internal const int RetainRows = 8192;
+
+        // Highest cursor to delete when the journal ends at newest: every row
+        // at or below it goes, leaving the newest `retain` rows.
+        internal static long PruneFloor(long newest, int retain)
+        {
+            if (retain < 1) throw new ArgumentOutOfRangeException(nameof(retain));
+            return Math.Max(0L, newest - retain);
         }
 
         private string EventPath(long cursor) { return Path.Combine(directory, cursor.ToString("D20", CultureInfo.InvariantCulture) + ".xml"); }
