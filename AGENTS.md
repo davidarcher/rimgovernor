@@ -71,6 +71,23 @@ body; do not open an issue for it. The next
 full-suite pass (#363, acceptance on CI) verifies every unverified landing
 at once; per-landing issues only pile up until then.
 
+## Remote agents
+
+A remote agent (a cloud session in a fresh Linux clone, with no shared
+`main` checkout and no game) lands straight onto GitHub's `main`. The
+maintainer pushes local landings to `origin/main` at any time, so:
+
+1. Start from `origin/main`: `git fetch origin main`, then branch from
+   `origin/main`.
+2. Land with the loop above, after pointing local `main` at the latest
+   remote: `git fetch origin main && git branch -f main origin/main` (from
+   the task branch), then `go run ./cmd/land`.
+3. `git push origin main` immediately. If the push is rejected, fetch,
+   `git rebase origin/main main` (only your unpushed landing moves), rerun
+   `go run ./cmd/test`, and push again. Never force-push `main`.
+4. No acceptance runs are possible; say `Unverified: no acceptance run
+   (remote agent)` in the commit body and let the nightly verify it.
+
 ## Simplify before you extend
 
 Before adding a layer (flag, fallback, retry, cache, special case, wrapper,
@@ -84,8 +101,10 @@ first fix failed. Every landing report ends with one line:
 
 ## Never
 
-- Open a pull request, or push to GitHub. GitHub holds issues only; the
-  maintainer pushes `main` by hand.
+- Open a pull request (they are disabled), push any branch but `main`, or
+  force-push. Local agents never push: the maintainer pushes `main` by
+  hand. Remote agents push `main` only as [Remote agents](#remote-agents)
+  describes.
 - `git reset --soft main` to squash, or edit the `main` checkout directly,
   not even to try a fix on the user's launcher game (which builds from
   `main`): land it, then restart the launcher (#965).
