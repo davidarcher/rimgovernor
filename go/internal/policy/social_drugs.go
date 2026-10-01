@@ -30,11 +30,14 @@ func SocialDrugTargets(research domain.Fact[ResearchFacts]) map[Resource]int64 {
 	return map[Resource]int64{"Beer": 12, "SmokeleafJoint": 12}
 }
 
+// SocialCropCells is each social crop's fixed field ceiling (#1226).
+const SocialCropCells = 9
+
 // PlanSocialCrop is the cells a social crop still needs under its nine-cell
 // ceiling, zero when none or out of season; the caller sites them in the
 // layout plan's field blocks (#1226).
 func PlanSocialCrop(crop CropChoice, climate CropClimate, existing int) int {
-	if crop.Name != "Plant_Hops" && crop.Name != "Plant_Smokeleaf" || existing < 0 || existing >= 9 {
+	if crop.Name != "Plant_Hops" && crop.Name != "Plant_Smokeleaf" || existing < 0 || existing >= SocialCropCells {
 		return 0
 	}
 	available, known := crop.Available.Value()
@@ -44,5 +47,5 @@ func PlanSocialCrop(crop CropChoice, climate CropClimate, existing int) int {
 	if !known || !available || !sk || !sowing || !dk || !fieldPositive(days) || !remaining || season < days*2.5 {
 		return 0
 	}
-	return 9 - existing
+	return SocialCropCells - existing
 }

@@ -192,6 +192,11 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if blocked {
 		return placeOthers(wait, BuildingMethodExistingWork)
 	}
+	// A crop whose zones outgrew its full target gives up bare cells
+	// first (#1309): the shortfall planners go quiet once covered.
+	if result, handled, err := r.shrink(call, epoch, state, goal, projection, read, request.Field); err != nil || handled {
+		return result, err
+	}
 	if !known {
 		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, request.Field.Coverage, len(projection.Farms), selection.Explain())
 		return placeOthers(wait, BuildingMethodUnknown)
