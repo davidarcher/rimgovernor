@@ -8,9 +8,11 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-  <!-- Keep the Windows restore graph stable across SDK versions and preserve output paths. -->
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+  <!-- Windows infers RuntimeIdentifier win7-x86 for a net472 Exe; restoring
+       that RID on every OS keeps the locked restore graph identical. -->
+  <PropertyGroup>
     <UseRidGraph>true</UseRidGraph>
+    <RuntimeIdentifiers>win7-x86</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" Version="3.31.1" />
