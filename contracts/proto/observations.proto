@@ -1017,7 +1017,7 @@ message DevelopmentFurniture { EntityRef building = 1; optional bool indoors = 2
 // (a geothermal generator, built or under construction) or any other
 // building already stands on it.
 message SteamGeyser { EntityRef geyser = 1; repeated rimgovernor.common.v1.Cell cells = 2; optional bool occupied = 3; }
-message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated DevelopmentFurniture furniture = 2; ResearchSnapshot research = 3; reserved 4; repeated PowerNetwork networks = 5; optional int64 short_circuit_tick = 6; repeated SteamGeyser geysers = 7; }
+message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated DevelopmentFurniture furniture = 2; reserved 3, 4; repeated PowerNetwork networks = 5; optional int64 short_circuit_tick = 6; repeated SteamGeyser geysers = 7; }
 message EnvironmentCondition { optional string id = 1; optional string def_name = 2; optional string implementation = 3; optional string label = 4; optional bool permanent = 5; optional int64 ticks_left = 6; }
 // FoodClimate is the map tile's calendar for food planning: growing_days is
 // the tile's growing period per 60-day year, growing_days_remaining the days
@@ -1316,13 +1316,12 @@ message BundleSnapshot {
   optional bool paused = 2;
   rimgovernor.clock.v1.Status clock_status = 3;
   StatusSnapshot emergency = 4;
-  reserved 5, 18, 19;
+  reserved 5, 11, 18, 19;
   ColonyFactsSnapshot colony_facts = 6;
   PopulationSnapshot population = 7;
   ResearchSnapshot research = 8;
   PawnSnapshot colonist_pawns = 9;
   BuildingsSnapshot buildings = 10;
-  BuildingsSnapshot built_buildings = 11;
   BillsSnapshot bills = 12;
   ZonesSnapshot zones = 13;
   TradersSnapshot traders = 14;

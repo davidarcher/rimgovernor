@@ -216,14 +216,6 @@ namespace HomeBridge.BridgeTools
                 if (buildings != null) { observed.Buildings = buildings; }
             }
             {
-                var built = new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial" };
-                built.Statuses.Add("built");
-                var began = Now();
-                var buildings = NativeBuildingObservationTools.Read(map, built, context).Observed;
-                ObservationWork.Captured("builtBuildings", Now() - began, buildings != null ? buildings.Buildings.Count : 0);
-                if (buildings != null) { observed.BuiltBuildings = buildings; }
-            }
-            {
                 var began = Now();
                 var bills = NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope() }, context).Observed;
                 ObservationWork.Captured("bills", Now() - began, bills != null ? bills.Benches.Count : 0);

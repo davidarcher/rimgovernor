@@ -300,8 +300,8 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 	if v.Buildings != nil {
 		seed("rimgovernor/observations_list_buildings", buildingsListRequest(identity), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.Buildings}})
 	}
-	if v.BuiltBuildings != nil {
-		seed("rimgovernor/observations_list_buildings", constructionBuildingsRequest(identity, nil), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.BuiltBuildings}})
+	if built := builtBuildings(v.Buildings); built != nil {
+		seed("rimgovernor/observations_list_buildings", constructionBuildingsRequest(identity, nil), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: built}})
 	}
 	if v.Bills != nil {
 		seed("rimgovernor/observations_read_bills", billsListRequest(identity), &o.BillsReply{Outcome: &o.BillsReply_Observed{Observed: v.Bills}})
@@ -326,7 +326,7 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 	}
 	seed(combatFrameMethod, nil, combatFrame(v))
 	seed(routineFrameMethod, nil, &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
-		ColonistPawns: v.ColonistPawns, BuiltBuildings: v.BuiltBuildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
+		ColonistPawns: v.ColonistPawns, Buildings: v.Buildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
 		ProjectDefinitions: v.ProjectDefinitions, Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)})
 }
 
@@ -406,7 +406,7 @@ func DecodeRoutineFrame(v *o.BundleSnapshot) (RoutineFrame, error) {
 		return RoutineFrame{}, contract("routine frame without a context")
 	}
 	identity := v.Context.Identity
-	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: v.BuiltBuildings, Sites: v.Buildings, Definitions: v.ProjectDefinitions, Rooms: v.Rooms}
+	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Definitions: v.ProjectDefinitions, Rooms: v.Rooms}
 	var err error
 	if v.Emergency != nil {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, identity); err != nil {
@@ -855,4 +855,19 @@ func DropPodArrival(row *mp.CombatEventRow) bool {
 // CombatEventID is a combat event row's key: its own watermark.
 func CombatEventID(row *mp.CombatEventRow) string {
 	return fmt.Sprintf("%d.%d", row.GetAt().GetTick(), row.GetAt().GetSeq())
+}
+
+// builtBuildings is the construction census carried by a frame's single
+// buildings family: its rows whose status is built (#1338).
+func builtBuildings(v *o.BuildingsSnapshot) *o.BuildingsSnapshot {
+	if v == nil {
+		return nil
+	}
+	out := &o.BuildingsSnapshot{Context: v.Context, Completeness: v.Completeness}
+	for _, row := range v.Buildings {
+		if row.GetStatus() == "built" {
+			out.Buildings = append(out.Buildings, row)
+		}
+	}
+	return out
 }
