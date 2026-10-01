@@ -1,3 +1,4 @@
+using HarmonyLib;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -95,7 +96,11 @@ namespace HomeBridge.BridgeTools
                     {
                         if (!FilthMaker.TryMakeFilth(cell, map, bloodDef, 1, FilthSourceFlags.None)) continue;
                         var filth = cell.GetThingList(map).OfType<Filth>().FirstOrDefault(f => f.def == bloodDef);
-                        if (filth != null) ids.Add(filth.GetUniqueLoadID());
+                        if (filth == null) continue;
+                        // Vanilla WorkGiver_CleanFilth skips filth thickened in the
+                        // last 600 ticks; back-date it so the clean is accepted now.
+                        AccessTools.Field(typeof(Filth), "growTick").SetValue(filth, Find.TickManager.TicksGame - 1000);
+                        ids.Add(filth.GetUniqueLoadID());
                     }
                     return ids;
                 }
