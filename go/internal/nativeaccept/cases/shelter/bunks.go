@@ -107,7 +107,7 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["shell"] = sh.describe()
-	// 3. Every wall and the door stand, and every bed completes.
+	// 3. Every wall, the door and every bed is placed (built natively below).
 	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
 		return len(l.completed) == len(sh.cells)
 	}); err != nil {
@@ -147,6 +147,9 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	// colonist, all inside.
 	h, err := s.Reattach(ctx)
 	if err != nil {
+		return err
+	}
+	if err := waitBuilt(ctx, h, s.Identity(), sh, bedCells, report); err != nil {
 		return err
 	}
 	if err := verifyNative(ctx, h, s.Identity(), sh, bedCells, report); err != nil {

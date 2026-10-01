@@ -29,6 +29,9 @@ const (
 	// furnishWait for a bed completed inside the finished hut.
 	buildWait   = 30 * time.Minute
 	furnishWait = 15 * time.Minute
+	// builtTicks is the game-time budget for native construction to finish
+	// once the plan has placed its blueprints.
+	builtTicks = 60000
 )
 
 // shell is the shelter plan's geometry as recovered from the durable plan.
@@ -550,3 +553,46 @@ func stagesOf(ctx context.Context, st *store.Store, id domain.PlanID) map[string
 }
 
 func boolOf(v any) bool { b, _ := na.AsBool(v); return b }
+
+// waitBuilt runs the game until a built (not blueprint or frame) Wall or
+// Door stands on every shell cell and a built Bed covers every bed cell.
+// An intent-mode BuildingAction's Completed stage means its blueprint was
+// placed, so construction is proven natively.
+func waitBuilt(ctx context.Context, h *na.Harness, expected map[string]any, sh *shell, bedCells []domain.Cell, report na.Report) error {
+	scope := map[string]any{"expectedIdentity": expected}
+	ticks, err := na.RunUntil(ctx, h, "shell-built", builtTicks, na.Wait{Ceiling: buildWait, Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+		reply, err := h.Wire(ctx, "shell-built", "observations_list_buildings", map[string]any{
+			"scope": scope, "defNames": []any{"Wall", "Door", "Bed"}, "statuses": []any{"built"}, "playerOnly": true,
+		})
+		if err != nil {
+			return "", false, err
+		}
+		_, observed, err := na.Outcome(reply, "observed")
+		if err != nil {
+			return "", false, err
+		}
+		built := map[domain.Cell]string{}
+		for _, raw := range na.AsSlice(observed["buildings"]) {
+			row, _ := na.AsMap(raw)
+			building, _ := na.AsMap(row["building"])
+			for _, c := range na.AsSlice(row["occupiedCells"]) {
+				cell, _ := na.AsMap(c)
+				built[domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}] = na.AsString(building["defName"])
+			}
+		}
+		missing := 0
+		for c := range sh.cells {
+			if d := built[c]; d != "Wall" && d != "Door" {
+				missing++
+			}
+		}
+		for _, c := range bedCells {
+			if built[c] != "Bed" {
+				missing++
+			}
+		}
+		return fmt.Sprintf("missing=%d", missing), missing == 0, nil
+	})
+	report["built_wait_ticks"] = ticks
+	return err
+}
