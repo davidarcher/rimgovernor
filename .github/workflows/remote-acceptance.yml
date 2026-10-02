@@ -38,8 +38,8 @@ on:
         default: false
   schedule:
     - cron: '23 7 * * *'
-  push:
-    branches: [main]
+  # push to main is off until the issue filer dedupes and caps (#1375):
+  # it filed one issue per case while every case failed at bootstrap.
 
 # Push runs share one group without cancelling: the running push run
 # finishes and only the newest waiting push is kept, so landings arriving
