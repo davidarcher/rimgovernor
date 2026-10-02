@@ -106,17 +106,32 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 		if distance, ok := threat.Distance.Value(); ok {
 			row.NearestColonistDistance = proto.Float64(distance)
 		}
+		// The fact row bridge.ClassifyThreat gives threat.Kind; a nearby
+		// threat needs a distance within the proximity radius.
+		if threat.Kind == policy.NearbyPredator || threat.Kind == policy.NearbyDowned {
+			if row.NearestColonistDistance == nil {
+				row.NearestColonistDistance = proto.Float64(0)
+			}
+		}
 		switch threat.Kind {
 		case policy.Hostile:
-			threats.Hostiles = append(threats.Hostiles, row)
+			row.FactionHostile, row.FactionId = proto.Bool(true), proto.String("Faction_1")
+			if passive, ok := threat.Passive.Value(); ok {
+				row.Passive = proto.Bool(passive)
+			}
+			threats.Pawns = append(threats.Pawns, row)
 		case policy.HuntingPredator:
-			threats.HuntingPredators = append(threats.HuntingPredators, row)
+			row.PredatorHunt = proto.Bool(true)
+			threats.Pawns = append(threats.Pawns, row)
 		case policy.IgnoredHunter:
-			threats.IgnoredHunters = append(threats.IgnoredHunters, row)
+			row.PredatorHunt, row.Ours = proto.Bool(true), proto.Bool(true)
+			threats.Pawns = append(threats.Pawns, row)
 		case policy.NearbyPredator:
-			threats.WildPredatorsNear = append(threats.WildPredatorsNear, row)
+			row.Predator = proto.Bool(true)
+			threats.Pawns = append(threats.Pawns, row)
 		case policy.NearbyDowned:
-			threats.DownedNear = append(threats.DownedNear, row)
+			row.Downed = proto.Bool(true)
+			threats.Pawns = append(threats.Pawns, row)
 		case policy.HostileBuilding:
 			building := &o.ThreatBuilding{Building: &o.EntityRef{Id: proto.String(string(threat.ID)), DefName: proto.String(threat.Definition),
 				Snapshot: &o.SnapshotRef{Context: proto.Clone(context).(*c.ObservationContext), EntityId: proto.String(string(threat.ID)), Token: proto.String(threat.SnapshotToken)}}}

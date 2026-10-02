@@ -5,9 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // This file is the scenario advance loop and typed scenario clock, so
@@ -703,6 +709,24 @@ func readSafetyStatus(ctx context.Context, clock *ScenarioClock, label string) (
 	return observed, outcomeErr == nil && len(rows) == len(ids), nil
 }
 
+// activeThreat reports whether status's threat fact rows classify a hostile
+// or a hunting predator (bridge.ClassifyThreat, #1356); unreadable rows count
+// as a threat.
+func activeThreat(status map[string]any) bool {
+	raw, err := json.Marshal(dig(status, "threats"))
+	threats := &o.ThreatsSnapshot{}
+	if err != nil || protojson.Unmarshal(raw, threats) != nil {
+		return true
+	}
+	for _, row := range threats.Pawns {
+		kinds := bridge.ClassifyThreat(row)
+		if slices.Contains(kinds, policy.Hostile) || slices.Contains(kinds, policy.HuntingPredator) {
+			return true
+		}
+	}
+	return false
+}
+
 // ScenarioRuntime is the minimal advance_game(rt, ...) surface a Go acceptance
 // binary needs.
 // It has no review-task/decision-loop concurrency: every acceptance binary drives
@@ -1144,8 +1168,7 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 			if err := require(len(AsSlice(pause["windows"])) == 0 && timePaused, "Modal or unverified pause"); err != nil {
 				return err
 			}
-			hostiles, hunting := AsSlice(dig(status, "threats", "hostiles")), AsSlice(dig(status, "threats", "huntingPredators"))
-			if err := require(len(hostiles) == 0 && len(hunting) == 0, "Active threat"); err != nil {
+			if err := require(!activeThreat(status), "Active threat"); err != nil {
 				return err
 			}
 			pawns := AsSlice(status["colonistRows"])

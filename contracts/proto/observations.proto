@@ -1406,16 +1406,24 @@ message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; re
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.
-// passive (#948, on ThreatPawn and ThreatBuilding) is set for insects and
-// hives only: true when the thing is dormant or awake but not engaging (no
-// insect targets a player thing and no colonist is inside the hive's
-// boundary). A passive threat is left alone, never held for or attacked.
-// pawn references the bundle's pawn table row (#1343); hostile_reason and
-// nearest_colonist_distance (Chebyshev cells to the nearest free colonist)
-// are the classification's own, per list: a downed predator is listed
-// twice with different reasons.
-message ThreatPawn { reserved 1; EntityRef prey = 2; optional bool prey_is_ours = 3; optional bool predator_is_ours = 4; optional string ignored_reason = 5; optional bool passive = 6;
-  EntityRef pawn = 7; optional string hostile_reason = 8; optional double nearest_colonist_distance = 9; }
+// ThreatPawn is one living non-colonist pawn's threat facts (#1356): the
+// native emits facts, Go classifies them (bridge.ClassifyThreat). A row is
+// emitted for a pawn in a mental state, of a faction hostile to the
+// player, breaking out of prison (#1080) or on a PredatorHunt job, and for
+// an unowned downed pawn or predator within the requested predator radius
+// of a colonist; any other pawn costs one field read and no row (#646).
+// pawn references the bundle's pawn table row (#1343); ours is a
+// player-faction pawn; faction_id is set with faction_hostile (a held
+// prisoner is never faction_hostile). prey is a PredatorHunt's target pawn
+// (a corpse's inner pawn), prey_is_ours a player-owned or player-held prey.
+// passive (#948, #1335, on ThreatPawn and ThreatBuilding) is set for
+// faction-hostile insects and hives (dormant, or awake but not engaging)
+// and other CompCanBeDormant hostiles (asleep); a passive threat is left
+// alone, never held for or attacked. nearest_colonist_distance is
+// Chebyshev cells to the nearest free colonist, absent with none.
+message ThreatPawn { reserved 1, 5, 8; reserved "ignored_reason", "hostile_reason"; EntityRef prey = 2; optional bool prey_is_ours = 3; optional bool ours = 4; optional bool passive = 6;
+  EntityRef pawn = 7; optional double nearest_colonist_distance = 9; optional string mental_state = 10; optional bool faction_hostile = 11; optional string faction_id = 12;
+  optional bool prison_break = 13; optional bool predator_hunt = 14; optional bool predator = 15; optional bool downed = 16; }
 // A hostile-faction building that is itself a combat target (an insect hive,
 // a crashed ship part, a mech-cluster piece with combat power): its own CAS
 // token rides on building.snapshot for Operations.AttackTarget, and
@@ -1424,7 +1432,7 @@ message ThreatPawn { reserved 1; EntityRef prey = 2; optional bool prey_is_ours 
 // defender needs a line of fire to.
 // mortar (#1148) is a turret whose verb fires mortar shells.
 message ThreatBuilding { EntityRef building = 1; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional int32 nearest_colonist_distance = 5; repeated rimgovernor.common.v1.Cell occupied_cells = 6; optional bool passive = 7; optional bool mortar = 8; }
-message ThreatsSnapshot { repeated ThreatPawn hostiles = 1; repeated ThreatPawn hunting_predators = 2; repeated ThreatPawn ignored_hunters = 3; repeated ThreatPawn wild_predators_near = 4; repeated ThreatPawn downed_near = 5; reserved 6; repeated ThreatBuilding hostile_buildings = 7; }
+message ThreatsSnapshot { reserved 1 to 6; reserved "hostiles", "hunting_predators", "ignored_hunters", "wild_predators_near", "downed_near"; repeated ThreatPawn pawns = 8; repeated ThreatBuilding hostile_buildings = 7; }
 // colonists references every spawned free colonist's pawn table row
 // (#1343), complete unless issues name "colonists".
 message StatusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; reserved 2; ThreatsSnapshot threats = 3; repeated ReadIssue issues = 4; repeated EntityRef colonists = 5; }

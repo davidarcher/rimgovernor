@@ -165,15 +165,6 @@ func emergencyStatus(v *o.StatusSnapshot, pawns Pawns, id *c.Identity) (Emergenc
 			result.Facts.ColonistsComplete = domain.Unknown[bool]()
 		}
 	}
-	type category struct {
-		kind policy.ThreatKind
-		rows []*o.ThreatPawn
-	}
-	categories := []category{{policy.Hostile, v.Threats.Hostiles}, {policy.HuntingPredator, v.Threats.HuntingPredators}, {policy.IgnoredHunter, v.Threats.IgnoredHunters}, {policy.NearbyPredator, v.Threats.WildPredatorsNear}, {policy.NearbyDowned, v.Threats.DownedNear}}
-	count := len(v.Threats.HostileBuildings)
-	for _, group := range categories {
-		count += len(group.rows)
-	}
 	statuses := map[policy.PawnID]policy.EmergencyPawn{}
 	observe := func(pawn policy.EmergencyPawn) error {
 		if prior, ok := statuses[pawn.ID]; ok {
@@ -209,27 +200,37 @@ func emergencyStatus(v *o.StatusSnapshot, pawns Pawns, id *c.Identity) (Emergenc
 		}
 		result.Facts.Colonists = append(result.Facts.Colonists, pawn)
 	}
-	for _, group := range categories {
-		seen = map[policy.PawnID]bool{}
-		for _, row := range group.rows {
-			if row == nil {
-				return EmergencyObservation{}, contract("missing threat pawn")
+	// Go classifies the native's threat fact rows (#1356); the threats are
+	// listed kind by kind in ThreatKind order, each kind in row order.
+	byKind := map[policy.ThreatKind][]policy.EmergencyThreat{}
+	seen = map[policy.PawnID]bool{}
+	for _, row := range v.Threats.Pawns {
+		if row == nil {
+			return EmergencyObservation{}, contract("missing threat pawn")
+		}
+		if row.NearestColonistDistance != nil && !(row.GetNearestColonistDistance() >= 0) || row.MentalState != nil && validID(row.GetMentalState()) != nil || row.FactionId != nil && validID(row.GetFactionId()) != nil {
+			return EmergencyObservation{}, contract("invalid emergency threat facts")
+		}
+		kinds := ClassifyThreat(row)
+		if len(kinds) == 0 {
+			continue
+		}
+		pawn, state, err := emergencyPawn(row.Pawn, pawns)
+		if err != nil {
+			return EmergencyObservation{}, err
+		}
+		if seen[pawn.ID] {
+			return EmergencyObservation{}, contract("duplicate emergency threat")
+		}
+		seen[pawn.ID] = true
+		if err = observe(pawn); err != nil {
+			return EmergencyObservation{}, err
+		}
+		for _, kind := range kinds {
+			threat := policy.EmergencyThreat{ID: pawn.ID, Kind: kind, Dead: pawn.Dead, Downed: pawn.Downed}
+			if kind == policy.Hostile {
+				threat.Passive = emergencyBool(row.Passive)
 			}
-			pawn, state, err := emergencyPawn(row.Pawn, pawns)
-			if err != nil {
-				return EmergencyObservation{}, err
-			}
-			if row.NearestColonistDistance != nil && !(row.GetNearestColonistDistance() >= 0) || row.HostileReason != nil && !presentationText(row.HostileReason, 4096) {
-				return EmergencyObservation{}, contract("invalid emergency threat facts")
-			}
-			if seen[pawn.ID] {
-				return EmergencyObservation{}, contract("duplicate emergency threat")
-			}
-			seen[pawn.ID] = true
-			if err = observe(pawn); err != nil {
-				return EmergencyObservation{}, err
-			}
-			threat := policy.EmergencyThreat{ID: pawn.ID, Kind: group.kind, Dead: pawn.Dead, Downed: pawn.Downed, Passive: emergencyBool(row.Passive)}
 			if row.NearestColonistDistance != nil {
 				threat.Distance = domain.Known(row.GetNearestColonistDistance())
 			}
@@ -239,8 +240,11 @@ func emergencyStatus(v *o.StatusSnapshot, pawns Pawns, id *c.Identity) (Emergenc
 					threat.Position = domain.Known(domain.Cell{X: at.GetX(), Z: at.GetZ()})
 				}
 			}
-			result.Facts.Threats = append(result.Facts.Threats, threat)
+			byKind[kind] = append(byKind[kind], threat)
 		}
+	}
+	for _, kind := range []policy.ThreatKind{policy.Hostile, policy.HuntingPredator, policy.IgnoredHunter, policy.NearbyPredator, policy.NearbyDowned} {
+		result.Facts.Threats = append(result.Facts.Threats, byKind[kind]...)
 	}
 	seen = map[policy.PawnID]bool{}
 	for _, row := range v.Threats.HostileBuildings {

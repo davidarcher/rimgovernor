@@ -281,8 +281,8 @@ namespace HomeBridge.BridgeTools
             result.Threats=threats; return result;
         }
 
-        // The cheap facts the threat classifier branches on (#646); the full
-        // PawnRow is built only for a pawn it keeps.
+        // The cheap facts the threat filter branches on and its rows carry
+        // (#646, #1356); Go classifies them.
         private static ThreatFacts ThreatFactsOf(Pawn pawn, Faction player)
         {
             var ours = pawn.Faction == player; var hunt = pawn.CurJobDef?.defName == "PredatorHunt"; var held = pawn.HostFaction == player;

@@ -748,7 +748,7 @@ func censusPawns(v *o.BundleSnapshot) *o.PawnSnapshot {
 		ids[ref.GetId()] = true
 	}
 	t := v.Emergency.GetThreats()
-	for _, group := range [][]*o.ThreatPawn{t.GetHostiles(), t.GetHuntingPredators(), t.GetIgnoredHunters(), t.GetWildPredatorsNear(), t.GetDownedNear()} {
+	for _, group := range [][]*o.ThreatPawn{t.GetPawns()} {
 		for _, row := range group {
 			ids[row.GetPawn().GetId()] = true
 		}

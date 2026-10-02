@@ -57,16 +57,18 @@ namespace HomeBridge.BridgeTools
         }
 
         // The census pawns the pawn table carries combat detail for (#1343):
-        // every hostile and hunting predator.
+        // every engaged threat row, a superset of what Go classifies as a
+        // hostile or hunting predator (#1356).
         private static ISet<string> CombatSet(Obs.StatusSnapshot? census)
         {
             var ids = new HashSet<string>(System.StringComparer.Ordinal);
             var threats = census?.Threats;
             if (threats == null) return ids;
-            foreach (var threat in threats.Hostiles.Concat(threats.HuntingPredators))
+            foreach (var threat in threats.Pawns.Where(Engaged))
                 if (threat?.Pawn?.Id != null) ids.Add(threat.Pawn.Id);
             return ids;
         }
+        private static bool Engaged(Obs.ThreatPawn row) => row.HasMentalState || row.FactionHostile || row.PrisonBreak || row.PredatorHunt;
 
         // On the main thread. The defense planner's other combat inputs
         // (#853), the pawn detail being the pawn table's: the hive
@@ -82,7 +84,7 @@ namespace HomeBridge.BridgeTools
             if (census == null || threats == null || table == null) return;
             var colonistIds = new HashSet<string>(census.Colonists.Select(p => p.Id ?? ""), System.StringComparer.Ordinal);
             var colonists = table.Pawns.Where(p => colonistIds.Contains(p.Pawn?.Id ?? "")).ToList();
-            if (threats.Hostiles.Count + threats.HuntingPredators.Count + threats.HostileBuildings.Count == 0
+            if (!threats.Pawns.Any(Engaged) && threats.HostileBuildings.Count == 0
                 && !colonists.Any(p => p.HasMentalState)) return;
             // The hottest live hive's temperature (#1073), for the heat-stroke hold.
             foreach (var hive in map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Hive))

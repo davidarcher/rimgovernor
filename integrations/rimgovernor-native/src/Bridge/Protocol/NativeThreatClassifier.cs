@@ -6,9 +6,9 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    /// The facts the status read's threat classification looks at for one
-    /// living non-colonist pawn: cheap field reads only, gathered before any
-    /// pawn row, control snapshot or distance scan is paid for (#646).
+    /// The threat facts of one living non-colonist pawn: cheap field reads
+    /// only, gathered before any pawn reference or distance scan is paid
+    /// for (#646).
     internal struct ThreatFacts
     {
         internal bool Ours;
@@ -34,12 +34,14 @@ namespace HomeBridge.BridgeTools
         internal bool? Passive;
     }
 
-    /// Filter-first threat classification (#646): each pawn is classified
-    /// from its ThreatFacts, and only a pawn that lands in a threat list gets
-    /// its pawn table reference (#1343) and its nearest-colonist distance.
-    /// Healthy non-predator wildlife costs one facts read and nothing else. A retained
-    /// candidate still pays an O(colonists) Chebyshev scan, so the worst case
-    /// stays O(pawns * colonists).
+    /// Filter-first threat fact rows (#646, #1356): the native emits facts,
+    /// Go classifies them (bridge.ClassifyThreat). A pawn is kept when any
+    /// fact a threat rule reads is set (a mental state, faction hostility, a
+    /// prison break, a predator hunt), or when it is an unowned downed pawn
+    /// or predator within the radius of a colonist; only a kept pawn gets
+    /// its pawn table reference (#1343) and nearest-colonist distance.
+    /// Healthy non-predator wildlife costs one facts read and nothing else;
+    /// the worst case stays O(pawns * colonists).
     ///
     /// Game-independent so the probes can drive it with counted projectors;
     /// NativeObservationTools.Status supplies the RimWorld adapters.
@@ -47,6 +49,10 @@ namespace HomeBridge.BridgeTools
     {
         /// What one Collect call did, for the hop's observation account.
         internal struct Scan { internal long Examined, Candidates, Projections, ProximityChecks; }
+
+        /// Whether f carries a fact a threat rule reads regardless of
+        /// distance; such a pawn also gets combat detail in the pawn table.
+        internal static bool Engaged(ThreatFacts f) => f.Mental != null || f.FactionHostile || f.PrisonBreak || f.PredatorHunt;
 
         internal static Scan Collect<T>(IReadOnlyList<T> pawns, Func<T, ThreatFacts> facts,
             IReadOnlyList<(int X, int Z)> colonists, double radius,
@@ -56,36 +62,23 @@ namespace HomeBridge.BridgeTools
             foreach (var pawn in pawns) {
                 scan.Examined++;
                 var f = facts(pawn);
-                var manhunter = f.Mental?.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0;
-                var hostile = manhunter || f.FactionHostile || f.PrisonBreak;
                 int? nearest;
-                if (hostile || f.PredatorHunt) nearest = Nearest(colonists, f.X, f.Z, ref scan);
+                if (Engaged(f)) nearest = Nearest(colonists, f.X, f.Z, ref scan);
                 else {
-                    // The proximity branch only ever keeps an unowned downed
-                    // pawn or predator inside a positive radius; everything
-                    // else is discarded without a distance scan.
                     if (radius <= 0 || f.Ours || !f.Downed && !f.Predator) continue;
                     nearest = Nearest(colonists, f.X, f.Z, ref scan);
                     if (!nearest.HasValue || nearest.Value > radius) continue;
                 }
                 scan.Candidates++;
                 scan.Projections++;
-                var threat = new Obs.ThreatPawn { Pawn = project(pawn) };
-                if (nearest.HasValue) threat.NearestColonistDistance = nearest.Value;
-                if (hostile && f.Passive.HasValue) threat.Passive = f.Passive.Value;
-                if (hostile) { threat.HostileReason = manhunter ? "manhunter:"+f.Mental : f.PrisonBreak ? "prison_break" : "faction:"+f.FactionId; threats.Hostiles.Add(threat); }
-                else if (f.PredatorHunt) {
-                    threat.PredatorIsOurs = f.Ours;
-                    if (f.HasPrey) { threat.Prey = prey(pawn); threat.PreyIsOurs = f.PreyOurs; }
-                    threat.HostileReason = "predatorHunt";
-                    if (f.Ours || f.HasPrey && !f.PreyOurs) { threat.IgnoredReason = f.Ours ? "player-owned predator" : "prey is not player-owned"; threats.IgnoredHunters.Add(threat); }
-                    else threats.HuntingPredators.Add(threat);
-                } else {
-                    // A downed predator is in both lists: the downed copy is
-                    // cloned before the predator reason is written.
-                    if (f.Downed) { var downed = threat.Clone(); downed.HostileReason = "downed"; threats.DownedNear.Add(downed); }
-                    if (f.Predator) { threat.HostileReason = "predator_near"; threats.WildPredatorsNear.Add(threat); }
-                }
+                var row = new Obs.ThreatPawn { Pawn = project(pawn), Ours = f.Ours, FactionHostile = f.FactionHostile, PrisonBreak = f.PrisonBreak,
+                    PredatorHunt = f.PredatorHunt, Predator = f.Predator, Downed = f.Downed };
+                if (nearest.HasValue) row.NearestColonistDistance = nearest.Value;
+                if (f.Mental != null) row.MentalState = f.Mental;
+                if (f.FactionId != null) row.FactionId = f.FactionId;
+                if (f.Passive.HasValue) row.Passive = f.Passive.Value;
+                if (f.HasPrey) { row.Prey = prey(pawn); row.PreyIsOurs = f.PreyOurs; }
+                threats.Pawns.Add(row);
             }
             ObservationWork.ThreatScan(scan.Examined, scan.Candidates, scan.Projections, scan.ProximityChecks);
             return scan;
