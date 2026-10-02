@@ -22,7 +22,9 @@ const thickRoof = "RoofRockThick"
 
 // ReadMapSurvey reads every cell of the map once, with its foundation
 // (#727), in row bands of at most mapSurveyBand cells, for the master
-// layout plan. Fogged cells are left out and score as unbuildable.
+// layout plan. A fogged cell is not held; it reads as solid rock to mine
+// out, since the fog hides mountain far more often than a cavern, and the
+// excavation steps check the cell once it is seen.
 func (client *Client) ReadMapSurvey(ctx context.Context, identity *c.Identity, bounds policy.Bounds) (policy.MapSurvey, Result, error) {
 	if err := authorityIdentity(identity); err != nil {
 		return policy.MapSurvey{}, Result{}, err
@@ -51,9 +53,28 @@ func (client *Client) ReadMapSurvey(ctx context.Context, identity *c.Identity, b
 		context = read.Context
 		out.Cells = append(out.Cells, surveyCells(read)...)
 	}
+	out.Cells = append(out.Cells, unseenRock(out.Cells, bounds)...)
 	// The survey read's wall time (#1280) is what an hourly replan pays.
 	slog.Default().InfoContext(ctx, "map survey read", telemetry.ComponentKey, "layout", "cells", len(out.Cells), "bands", bands, "ms", time.Since(start).Milliseconds())
 	return out, last, nil
+}
+
+// unseenRock is a rock cell for every cell of bounds that read left out
+// (fog hides it): plannable ground, mined out like the stone around it.
+func unseenRock(held []policy.SurveyCell, bounds policy.Bounds) []policy.SurveyCell {
+	seen := make([]bool, int(bounds.Width)*int(bounds.Height))
+	for _, c := range held {
+		if c.Cell.X >= 0 && c.Cell.X < bounds.Width && c.Cell.Z >= 0 && c.Cell.Z < bounds.Height {
+			seen[int(c.Cell.Z)*int(bounds.Width)+int(c.Cell.X)] = true
+		}
+	}
+	var out []policy.SurveyCell
+	for i, ok := range seen {
+		if !ok {
+			out = append(out, policy.SurveyCell{Cell: domain.Cell{X: int32(i) % bounds.Width, Z: int32(i) / bounds.Width}, Rock: true, Footing: policy.FootingFirm, ThickRoof: true})
+		}
+	}
+	return out
 }
 
 // surveyCells decodes a survey band's held cells.

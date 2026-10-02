@@ -198,7 +198,7 @@ func TestReadMapSurveyDecodesFoundation(t *testing.T) {
 	}}
 	client := testClient(t, server, testBudget)
 	survey, _, err := client.ReadMapSurvey(context.Background(), pbIdentity(), policy.Bounds{Width: 20, Height: 30})
-	if err != nil || len(survey.Cells) != 20*30-1 || len(rects) != 1 {
+	if err != nil || len(survey.Cells) != 20*30 || len(rects) != 1 {
 		t.Fatal(err, len(survey.Cells), rects)
 	}
 	by := map[domain.Cell]policy.SurveyCell{}
@@ -217,8 +217,8 @@ func TestReadMapSurveyDecodesFoundation(t *testing.T) {
 	if got := by[domain.Cell{X: 4, Z: 1}]; got.Footing != policy.FootingNone || !got.Bridgeable {
 		t.Fatalf("water %+v", got)
 	}
-	if _, ok := by[domain.Cell{X: 5, Z: 1}]; ok {
-		t.Fatal("fogged cell surveyed")
+	if got := by[domain.Cell{X: 5, Z: 1}]; !got.Rock || got.Walkable || got.Ore {
+		t.Fatalf("fogged cell reads as plain rock %+v", got)
 	}
 }
 
