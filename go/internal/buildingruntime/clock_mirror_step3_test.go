@@ -6,7 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -23,19 +23,19 @@ func pawnRow(id, kind string) *o.PawnState {
 // dropped.
 func TestPawnSectionPublishesTable(t *testing.T) {
 	t.Parallel()
-	m := mirror.New()
-	scope := mirror.Scope{Load: "l", Map: 1, Generation: 2}
+	m := facts.NewStore()
+	scope := facts.Scope{Load: "l", Map: 1, Generation: 2}
 	frame := func(tick int64, pawns ...*o.PawnState) *o.PawnSnapshot {
 		return &o.PawnSnapshot{Context: &c.ObservationContext{Tick: proto.Int64(tick)}, Pawns: pawns}
 	}
 	publishPawns(m, scope, frame(100, pawnRow("Pawn_2", "a"), pawnRow("Pawn_1", "b")))
-	table, ok := mirror.Get[string, *o.PawnState](m, scope, pawnSectionName)
-	if !ok || len(table.Rows) != 2 || table.AsOf != mirror.At(100) {
+	table, ok := facts.GetTable[string, *o.PawnState](m, scope, pawnSectionName)
+	if !ok || len(table.Rows) != 2 || table.AsOf != facts.At(100) {
 		t.Fatalf("table = %+v ok=%v", table, ok)
 	}
 	publishPawns(m, scope, frame(130, pawnRow("Pawn_1", "c")))
-	table, _ = mirror.Get[string, *o.PawnState](m, scope, pawnSectionName)
-	if len(table.Rows) != 1 || table.Rows["Pawn_1"].GetKindDefName() != "c" || table.AsOf != mirror.At(130) {
+	table, _ = facts.GetTable[string, *o.PawnState](m, scope, pawnSectionName)
+	if len(table.Rows) != 1 || table.Rows["Pawn_1"].GetKindDefName() != "c" || table.AsOf != facts.At(130) {
 		t.Fatalf("table after roster change = %+v", table)
 	}
 }
@@ -58,7 +58,7 @@ func TestBenchSectionServesPlannersOfTheCensus(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	identity := observation.Identity{Colony: "c", Load: "l", Map: 1, Tick: 100, NativeGeneration: domain.Known(domain.NativeGeneration(3))}
-	r := &RoutineReviewer{mirror: mirror.New()}
+	r := &RoutineReviewer{store: facts.NewStore()}
 	reading := observation.RoutineReading{}
 	reading.Projection.Identity = identity
 	r.census.retain(reading, false, domain.Unknown[[]policy.ConstructionClaim]())

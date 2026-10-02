@@ -619,7 +619,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	scheduler.queue.configured = func(entry plannerEntry) bool { return entry.configured(&scheduler.config) }
 	if config.Routine != nil {
 		config.Routine.store = scheduler.facts.store
-		config.Routine.mirror = scheduler.facts.mirror
 		config.Routine.foodGapZero = config.Faults.FoodGapZero
 		if session != nil {
 			session.colonyFacts.bind(config.Routine)
@@ -750,7 +749,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		call = observation.WithZones(call, zones)
 	}
 	if native, ok := s.native.(PlanningWindowNative); ok {
-		window = &planningWindow{native: native, store: s.facts.store, mirror: s.facts.mirror}
+		window = &planningWindow{native: native, store: s.facts.store}
 		call = observation.WithPlanningWindow(call, window)
 	}
 	stepBegan := time.Now()
@@ -1726,9 +1725,9 @@ func (s *ClockScheduler) stepReviews(reason StepReason) bool {
 }
 
 // factsScope is the store scope an observation context establishes: the
-// load token and native generation.
+// load token, map and native generation.
 func factsScope(context *c.ObservationContext) facts.Scope {
-	return facts.Scope{Load: context.GetIdentity().GetLoadToken(), Generation: context.GetNativeGeneration()}
+	return facts.Scope{Load: context.GetIdentity().GetLoadToken(), Map: context.GetIdentity().GetMapId(), Generation: context.GetNativeGeneration()}
 }
 
 // plannerRefusalWait is stockWaitTicks when any isolated planner failure of

@@ -6,7 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -34,9 +33,6 @@ type PlanningWindowNative interface {
 type planningWindow struct {
 	native PlanningWindowNative
 	store  *facts.Store
-	// mirror holds the window's rows across steps (clockFacts.mirror);
-	// the step goroutine alone refreshes it.
-	mirror *mirror.Mirror
 	scope  facts.Scope
 	tick   int64
 	review bool
@@ -112,18 +108,14 @@ func (p *planningWindow) put(identity *c.Identity, region policy.Rectangle, cell
 }
 
 // file puts the window in the store and publishes its rows as the
-// planning_cells mirror section, however it was read (a grid or a full
+// planning_cells table, however it was read (a grid or a full
 // read), so a recording holds the rows a review's cells are rebuilt from
 // (snapshot bindings). An
 // unchanged table is not republished.
 func (p *planningWindow) file(identity *c.Identity, out facts.Held[observation.PlanningCells]) facts.Held[observation.PlanningCells] {
 	facts.Put(p.store, p.scope, facts.PlanningCells, out)
-	if p.mirror == nil {
-		p.mirror = mirror.New()
-	}
-	ms := mirrorScope(p.scope, identity)
-	if table, ok := mirror.Get[domain.Cell, policy.SiteCell](p.mirror, ms, string(facts.PlanningCells)); !ok || table.AsOf != mirror.At(out.AsOf) || !sameWindowRows(table.Rows, out.Value.Cells) {
-		mirror.Put(p.mirror, ms, string(facts.PlanningCells), cellRows(out.Value.Cells), mirror.At(out.AsOf))
+	if table, ok := facts.GetTable[domain.Cell, policy.SiteCell](p.store, p.scope, string(facts.PlanningCells)); !ok || table.AsOf != facts.At(out.AsOf) || !sameWindowRows(table.Rows, out.Value.Cells) {
+		facts.PutTable(p.store, p.scope, string(facts.PlanningCells), cellRows(out.Value.Cells), facts.At(out.AsOf))
 	}
 	return out
 }

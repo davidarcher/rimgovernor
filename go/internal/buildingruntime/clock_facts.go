@@ -6,7 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -19,9 +18,6 @@ type clockFacts struct {
 	store   *facts.Store
 	mu      sync.Mutex
 	watched map[domain.ActionID]domain.ActionKind
-	// mirror holds the mirrored sections' rows (#795): planning cells,
-	// zones, buildings and bills, filed into store.
-	mirror *mirror.Mirror
 }
 
 const clockFactsWatchedMax = 256
@@ -30,7 +26,8 @@ func newClockFacts(store *facts.Store) *clockFacts {
 	if store == nil {
 		store = facts.NewStore()
 	}
-	return &clockFacts{store: store, watched: map[domain.ActionID]domain.ActionKind{}, mirror: recordedMirror()}
+	recordTables(store)
+	return &clockFacts{store: store, watched: map[domain.ActionID]domain.ActionKind{}}
 }
 
 // remember keeps the kind of every attempt a window arms; the map is

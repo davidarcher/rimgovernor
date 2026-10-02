@@ -7,7 +7,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -75,14 +75,14 @@ func (s *routineCensusStore) rememberBenches(version uint64) {
 
 // benchTable is the bench table the latest review published when its
 // census still serves expected and the mirror still holds that table.
-func (s *routineCensusStore) benchTable(m *mirror.Mirror, scope mirror.Scope, expected observation.Identity) (mirror.Table[string, bridge.GearBenchRead], bool) {
+func (s *routineCensusStore) benchTable(m *facts.Store, scope facts.Scope, expected observation.Identity) (facts.Table[string, bridge.GearBenchRead], bool) {
 	s.mu.Lock()
 	census, generation, version := s.latest, s.generation, s.benches
 	s.mu.Unlock()
 	if version == 0 || census == nil || census.generation != generation || !sameObservedIdentity(census.reading.Projection.Identity, expected) {
-		return mirror.Table[string, bridge.GearBenchRead]{}, false
+		return facts.Table[string, bridge.GearBenchRead]{}, false
 	}
-	table, ok := mirror.Get[string, bridge.GearBenchRead](m, scope, benchSectionName)
+	table, ok := facts.GetTable[string, bridge.GearBenchRead](m, scope, benchSectionName)
 	return table, ok && table.Version == version
 }
 
@@ -205,18 +205,18 @@ func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.R
 // review's census serves it and refreshes the section otherwise. Without
 // a mirror (a standalone reviewer) it is native itself.
 func (r *RoutineReviewer) benchSource(native RoutineWorkBenchSource, expected observation.Identity, fresh bool) RoutineWorkBenchSource {
-	if native == nil || r.mirror == nil {
+	if native == nil || r.store == nil {
 		return native
 	}
 	generation, _ := expected.NativeGeneration.Value()
-	scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
+	scope := facts.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
 	return mirroredBenches{reviewer: r, native: native, scope: scope, expected: expected, fresh: fresh}
 }
 
 type mirroredBenches struct {
 	reviewer *RoutineReviewer
 	native   RoutineWorkBenchSource
-	scope    mirror.Scope
+	scope    facts.Scope
 	expected observation.Identity
 	fresh    bool
 }
@@ -224,12 +224,12 @@ type mirroredBenches struct {
 func (m mirroredBenches) ReadGearBenches(ctx context.Context, id *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
 	r := m.reviewer
 	if !m.fresh {
-		if table, ok := r.census.benchTable(r.mirror, m.scope, m.expected); ok {
+		if table, ok := r.census.benchTable(r.store, m.scope, m.expected); ok {
 			return benchRows(table.Rows), bridge.Result{}, nil
 		}
 	}
 	tick := int64(m.expected.Tick)
-	table, err := publishBenches(ctx, r.mirror, m.scope, m.native, id, tick)
+	table, err := publishBenches(ctx, r.store, m.scope, m.native, id, tick)
 	if err != nil {
 		return nil, bridge.Result{}, err
 	}

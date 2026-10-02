@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
@@ -34,10 +33,6 @@ type RoutineReviewer struct {
 	// store receives each review's decoded sections (#354); the scheduler
 	// that steps this reviewer sets it, a standalone reviewer files nowhere.
 	store *facts.Store
-	// mirror is the colony mirror the review reads its pawn detail and
-	// bench census through (#795 step 3); the scheduler sets it beside
-	// store, a standalone reviewer reads natively.
-	mirror *mirror.Mirror
 	// buildTier is the last build tier logged (#604): the service log
 	// records a change once, not every review.
 	buildTier domain.Fact[policy.BuildTier]
@@ -164,17 +159,17 @@ func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePoli
 // section the frame lacks keeps the table the mirror holds, and its tick
 // (#1347).
 func (r *RoutineReviewer) publishFrame(expected observation.Identity, frame bridge.RoutineFrame) {
-	if r.mirror == nil {
+	if r.store == nil {
 		r.census.rememberColony(nil)
 		return
 	}
 	generation, _ := expected.NativeGeneration.Value()
-	scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
+	scope := facts.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
 	if frame.Pawns != nil {
-		publishPawns(r.mirror, scope, frame.Pawns)
+		publishPawns(r.store, scope, frame.Pawns)
 	}
 	if frame.Colony != nil {
-		r.census.rememberColony(publishColony(r.mirror, scope, frame.Colony))
+		r.census.rememberColony(publishColony(r.store, scope, frame.Colony))
 	}
 }
 
@@ -369,10 +364,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Sections.Colony.Value.Facts.FoodPlan = reading.Projection.Facts.FoodPlan
 	reading.Sections.Colony.Value.Facts.FoodReserve = reading.Projection.Facts.FoodReserve
 	r.census.retain(reading, r.roomsEnabled(), claims)
-	reading.Sections.File(r.store, facts.Scope{Load: string(expected.Load), Generation: uint64(native)})
+	reading.Sections.File(r.store, facts.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(native)})
 	// A served native section may have gained a fresh derived food review.
 	if r.store != nil && reading.Sections.Colony.Source != "" {
-		facts.Put(r.store, facts.Scope{Load: string(expected.Load), Generation: uint64(native)}, facts.Colony, reading.Sections.Colony)
+		facts.Put(r.store, facts.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(native)}, facts.Colony, reading.Sections.Colony)
 	}
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
 	if err != nil {

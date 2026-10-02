@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 )
 
 // Mirror frames (#795 step 4). The recording takes the colony mirror's
@@ -83,8 +82,8 @@ type sectionFrame struct {
 	// a legacy row line.
 	Format  int `json:",omitempty"`
 	Version uint64
-	AsOf    mirror.Watermark
-	Scope   mirror.Scope
+	AsOf    facts.Watermark
+	Scope   facts.Scope
 	Key     bool                 `json:",omitempty"`
 	Upserts [][2]json.RawMessage `json:",omitempty"`
 	Removed []json.RawMessage    `json:",omitempty"`
@@ -96,9 +95,9 @@ type sectionFrame struct {
 // recSection is a mirror section as a stream holds it, writing or
 // replaying: rows by canonical key.
 type recSection struct {
-	scope   mirror.Scope
+	scope   facts.Scope
 	version uint64
-	asOf    mirror.Watermark
+	asOf    facts.Watermark
 	keys    map[string]json.RawMessage
 	rows    map[string]json.RawMessage
 	// field caches the bound field built at version.
@@ -114,12 +113,12 @@ type recSection struct {
 // stream in dir (the same stream Record writes). A failed write drops the
 // section, so its next table is a keyframe and no line refers to it
 // meanwhile.
-func MirrorRecorder(dir string) mirror.Recorder {
-	return func(p mirror.Published) { recordSection(dir, p) }
+func MirrorRecorder(dir string) facts.Recorder {
+	return func(p facts.Published) { recordSection(dir, p) }
 }
 
 // recordSection appends p to dir's stream as a section line.
-func recordSection(dir string, p mirror.Published) {
+func recordSection(dir string, p facts.Published) {
 	keys, rows, err := encodeRows(p.Rows)
 	streamsMu.Lock()
 	defer streamsMu.Unlock()
@@ -392,7 +391,7 @@ func setPath(tree any, path []string, v any, drop bool) any {
 type Section struct {
 	Name    string
 	Version uint64
-	AsOf    mirror.Watermark
-	Scope   mirror.Scope
+	AsOf    facts.Watermark
+	Scope   facts.Scope
 	Rows    map[string]json.RawMessage
 }

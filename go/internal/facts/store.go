@@ -1,8 +1,9 @@
 // Package facts is the controller-side state store (#354): the decoded
 // colony state a scheduler step planned against, held per section with the
 // tick each section describes, so a later step can ask what is held and
-// how old it is instead of reconstituting everything from a fresh bundle.
-// It follows bridge.FactFamily for invalidation.
+// how old it is instead of reconstituting everything from a fresh bundle,
+// and the keyed tables of the colony mirror (tables.go). It follows
+// bridge.FactFamily for invalidation.
 package facts
 
 import (
@@ -98,10 +99,11 @@ type Held[T any] struct {
 	Region   Rect
 }
 
-// Scope is the (load, native generation) a held section belongs to: a
-// change empties the store.
+// Scope is the (load, map, native generation) a held section or table
+// belongs to: a change empties the store.
 type Scope struct {
 	Load       string
+	Map        int32
 	Generation uint64
 }
 
@@ -137,13 +139,18 @@ type Store struct {
 	// domain.ReadValidity carries (#624). A refresh at cadence does not
 	// move it; only evidence that the section changed does.
 	versions map[Section]uint64
+	// tables are the keyed tables by section name (tables.go), numbered
+	// by tableVersion and handed to recorder as published.
+	tables       map[string]any
+	tableVersion uint64
+	recorder     Recorder
 }
 
 // storeNow stamps rows; tests substitute it.
 var storeNow = time.Now
 
 func NewStore() *Store {
-	return &Store{rows: map[Section]row{}}
+	return &Store{rows: map[Section]row{}, tables: map[string]any{}}
 }
 
 // Put holds section under scope; a scope other than the rows held empties
@@ -154,12 +161,20 @@ func Put[T any](s *Store, scope Scope, section Section, held Held[T]) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if scope != s.scope {
-		s.rows = map[Section]row{}
-		s.scope = scope
-		s.bumpAll()
-	}
+	s.rescope(scope)
 	s.rows[section] = row{value: held.Value, asOf: held.AsOf, complete: held.Complete, source: held.Source, storedAt: storeNow(), region: held.Region}
+}
+
+// rescope empties the store and moves every version when scope differs
+// from the one its sections belong to.
+func (s *Store) rescope(scope Scope) {
+	if scope == s.scope {
+		return
+	}
+	s.rows = map[Section]row{}
+	s.tables = map[string]any{}
+	s.scope = scope
+	s.bumpAll()
 }
 
 // Get returns the held section and false when none is held or it was put

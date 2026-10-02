@@ -6,7 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -51,23 +51,23 @@ func (n *colonyCountingNative) ReadColonyFacts(_ context.Context, id *c.Identity
 func TestColonySectionsServePlannersOfTheCensus(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	facts := &o.ColonyFactsSnapshot{
+	observed := &o.ColonyFactsSnapshot{
 		ColonistCount: proto.Uint32(3), Biome: proto.String("TemperateForest"),
 		Resources: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(40)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(7)}},
 		Farms:     []*o.FarmFacts{{ZoneId: proto.String("Zone_1"), Crop: proto.String("Plant_Rice")}},
 		Upkeep:    &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{}}},
 		Planning:  &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: &o.PlanningFacts{}}},
 	}
-	native := &colonyCountingNative{tick: 100, facts: facts}
-	r := &RoutineReviewer{mirror: mirror.New(), native: native}
+	native := &colonyCountingNative{tick: 100, facts: observed}
+	r := &RoutineReviewer{store: facts.NewStore(), native: native}
 	identity := observation.Identity{Colony: "c", Load: "l", Map: 1, Tick: 100, NativeGeneration: domain.Known(domain.NativeGeneration(3))}
-	scope := mirror.Scope{Load: "l", Map: 1, Generation: 3}
+	scope := facts.Scope{Load: "l", Map: 1, Generation: 3}
 	id := &c.Identity{ColonyId: proto.String("c"), LoadToken: proto.String("l"), MapId: proto.Int32(1)}
 
-	published := proto.Clone(facts).(*o.ColonyFactsSnapshot)
+	published := proto.Clone(observed).(*o.ColonyFactsSnapshot)
 	published.Context = native.context(id)
-	versions := publishColony(r.mirror, scope, published)
-	if table, ok := mirror.Get[string, bridge.ColonyRow](r.mirror, scope, "colony.resources"); !ok || len(table.Rows) != 3 {
+	versions := publishColony(r.store, scope, published)
+	if table, ok := facts.GetTable[string, bridge.ColonyRow](r.store, scope, "colony.resources"); !ok || len(table.Rows) != 3 {
 		t.Fatalf("resources section = %+v", table)
 	}
 	r.census.rememberColony(versions)

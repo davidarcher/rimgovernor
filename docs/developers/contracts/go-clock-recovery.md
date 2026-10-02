@@ -480,10 +480,12 @@ digests and tombstones, `mirror_poll`, `SectionDelta` and the
 `changed_since_tick` request fields. Mirror reads now come from the
 snapshot frame stream.
 
-The colony mirror (`go/internal/mirror`, #795) holds, per section, the
-keyed rows of the last whole frame (#858) and the tick they describe
-(`mirror.Put`). Its scope is the load, map and native generation, so a
-reload, a map change or an authority generation flip empties it. Tables
+The colony mirror is the keyed tables of the facts store
+(`go/internal/facts`, #795, #1349): per section, the keyed rows of the
+last whole frame (#858) and the tick they describe (`facts.PutTable`),
+held beside the decoded sections and their invalidation versions. The
+store's scope is the load, map and native generation, so a reload, a map
+change or an authority generation flip empties both. Tables
 are immutable once published, and each goes to the snapshot recorder.
 The review publishes the frame's colony facts (one section per
 `bridge.ColonySections` name), the colonists' pawn detail (section

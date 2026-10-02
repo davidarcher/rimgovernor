@@ -10,7 +10,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
@@ -36,9 +35,9 @@ func TestRecordStreamsMirrorSections(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	m := mirror.New()
+	m := facts.NewStore()
 	m.SetRecorder(MirrorRecorder(dir))
-	scope := mirror.Scope{Load: "l", Map: 1, Generation: 1}
+	scope := facts.Scope{Load: "l", Map: 1, Generation: 1}
 	cells := map[domain.Cell]policy.SiteCell{}
 	for z := int32(0); z < 4; z++ {
 		for x := int32(0); x < 4; x++ {
@@ -61,8 +60,8 @@ func TestRecordStreamsMirrorSections(t *testing.T) {
 		case 2: // a new scope: a keyframe
 			scope.Generation++
 		}
-		mirror.Put(m, scope, name, cells, mirror.At(int64(base.Tick)+int64(i)))
-		mirror.Put(m, scope, "buildings", map[string]int{"b1": i, "b2": 2}, mirror.At(int64(base.Tick)+int64(i)))
+		facts.PutTable(m, scope, name, cells, facts.At(int64(base.Tick)+int64(i)))
+		facts.PutTable(m, scope, "buildings", map[string]int{"b1": i, "b2": 2}, facts.At(int64(base.Tick)+int64(i)))
 		v, _ := Load(cleanFilthy)
 		v.Tick = base.Tick + domain.Tick(i)
 		// A loaded review's projection carries the review's Facts.

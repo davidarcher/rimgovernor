@@ -9,7 +9,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -35,16 +35,16 @@ func TestRecordRebuildsDecodedColonyFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	m := mirror.New()
+	m := facts.NewStore()
 	m.SetRecorder(MirrorRecorder(dir))
-	scope := mirror.Scope{Load: "l", Map: 1, Generation: 1}
+	scope := facts.Scope{Load: "l", Map: 1, Generation: 1}
 	var want []Routine
 	var wantSteps []Step
 	for i := 0; i < 4; i++ {
 		v := proto.Clone(reply.GetObserved()).(*o.ColonyFactsSnapshot)
 		v.ColonistCount = proto.Uint32(uint32(3 + i%2))
 		for name, rows := range bridge.SplitColonyFacts(v) {
-			mirror.Put(m, scope, name, rows, mirror.At(int64(base.Tick)+int64(i)))
+			facts.PutTable(m, scope, name, rows, facts.At(int64(base.Tick)+int64(i)))
 		}
 		id := v.Context.GetIdentity()
 		expected := observation.Identity{Colony: domain.ColonyID(id.GetColonyId()), Load: domain.LoadID(id.GetLoadToken()), Map: domain.MapID(id.GetMapId()), Tick: domain.Tick(v.Context.GetTick())}

@@ -5,7 +5,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -59,6 +58,6 @@ func refreshEntitySection[T proto.Message](f *clockFacts, scope facts.Scope, ide
 		clockSchedulerLog("%s: read failed, keeping the held section: %v", section, err)
 		return
 	}
-	mirror.Put(f.mirror, mirrorScope(scope, identity), string(section), full.Rows, mirror.At(full.AsOf()))
+	facts.PutTable(f.store, scope, string(section), full.Rows, facts.At(full.AsOf()))
 	facts.Put(f.store, scope, section, facts.Held[EntitySection[T]]{Value: full.Rows, AsOf: full.AsOf(), Complete: true, Source: source})
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -12,14 +12,12 @@ import (
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
 
-// recordedMirror is a new colony mirror whose tables are recorded into
-// the serve's snapshot stream when recording is on (#795 step 4).
-func recordedMirror() *mirror.Mirror {
-	m := mirror.New()
+// recordTables records the store's tables into the serve's snapshot
+// stream when recording is on (#795 step 4).
+func recordTables(store *facts.Store) {
 	if dir := os.Getenv(snap.DirEnv); dir != "" {
-		m.SetRecorder(snap.MirrorRecorder(dir))
+		store.SetRecorder(snap.MirrorRecorder(dir))
 	}
-	return m
 }
 
 // recordStepRead appends a planner step's own colony read (planner is

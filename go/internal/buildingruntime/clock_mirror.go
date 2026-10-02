@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -15,12 +14,6 @@ import (
 
 // Mirror helpers for the planning window: the rows it holds across steps
 // in the recorded mirror (#795), each refresh read whole since #858.
-
-// mirrorScope is the mirror scope of a step: the facts scope plus the map,
-// so a map change is a keyframe of every section.
-func mirrorScope(scope facts.Scope, identity *c.Identity) mirror.Scope {
-	return mirror.Scope{Load: scope.Load, Map: identity.GetMapId(), Generation: scope.Generation}
-}
 
 func cellRows(cells []policy.SiteCell) map[domain.Cell]policy.SiteCell {
 	out := make(map[domain.Cell]policy.SiteCell, len(cells))
@@ -39,27 +32,27 @@ const (
 // publishPawns publishes the review frame's colonist pawn detail as the
 // pawn section keyed by pawn id; the recording keeps only the rows that
 // changed.
-func publishPawns(m *mirror.Mirror, scope mirror.Scope, observed *o.PawnSnapshot) {
+func publishPawns(m *facts.Store, scope facts.Scope, observed *o.PawnSnapshot) {
 	rows := make(map[string]*o.PawnState, len(observed.GetPawns()))
 	for _, row := range observed.GetPawns() {
 		rows[row.GetPawn().GetId()] = row
 	}
-	mirror.Put(m, scope, pawnSectionName, rows, mirror.At(observed.GetContext().GetTick()))
+	facts.PutTable(m, scope, pawnSectionName, rows, facts.At(observed.GetContext().GetTick()))
 }
 
 // publishBenches reads the gear bench census (each bench's bill stack and
 // recipe catalog, bridge.ReadGearBenches) and publishes it as the bench
 // section keyed by bench thing id, stamped with the step's tick.
-func publishBenches(ctx context.Context, m *mirror.Mirror, scope mirror.Scope, native RoutineWorkBenchSource, id *c.Identity, tick int64) (mirror.Table[string, bridge.GearBenchRead], error) {
+func publishBenches(ctx context.Context, m *facts.Store, scope facts.Scope, native RoutineWorkBenchSource, id *c.Identity, tick int64) (facts.Table[string, bridge.GearBenchRead], error) {
 	census, _, err := native.ReadGearBenches(ctx, id)
 	if err != nil {
-		return mirror.Table[string, bridge.GearBenchRead]{}, err
+		return facts.Table[string, bridge.GearBenchRead]{}, err
 	}
 	rows := make(map[string]bridge.GearBenchRead, len(census))
 	for _, row := range census {
 		rows[row.Bench.ID] = row
 	}
-	return mirror.Put(m, scope, benchSectionName, rows, mirror.At(tick)), nil
+	return facts.PutTable(m, scope, benchSectionName, rows, facts.At(tick)), nil
 }
 
 // benchRows is a bench table in bench id order, as ReadGearBenches lists it.

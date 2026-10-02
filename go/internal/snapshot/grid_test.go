@@ -10,14 +10,13 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // regrid records tables (a planning_cells history) into a fresh stream,
 // replays it, and checks every recorded version rebuilds its rows byte for
 // byte; it returns the stream's path.
-func regrid(t *testing.T, tables []map[domain.Cell]policy.SiteCell, scopes []mirror.Scope) string {
+func regrid(t *testing.T, tables []map[domain.Cell]policy.SiteCell, scopes []facts.Scope) string {
 	t.Helper()
 	dir := t.TempDir()
 	name := string(facts.PlanningCells)
@@ -28,7 +27,7 @@ func regrid(t *testing.T, tables []map[domain.Cell]policy.SiteCell, scopes []mir
 			t.Fatal(err)
 		}
 		want = append(want, encoded)
-		recordSection(dir, mirror.Published{Section: name, Version: uint64(i + 1), AsOf: mirror.At(int64(i + 1)), Scope: scopes[i], Rows: rows})
+		recordSection(dir, facts.Published{Section: name, Version: uint64(i + 1), AsOf: facts.At(int64(i + 1)), Scope: scopes[i], Rows: rows})
 		// A review every table, so KeyEvery sync points rekey the grid.
 		streamsMu.Lock()
 		rec := streams[dir]
@@ -89,9 +88,9 @@ func TestGridRoundTripsCommittedCells(t *testing.T) {
 			for _, c := range r.Projection.Cells {
 				cells[c.Cell] = c
 			}
-			scope := mirror.Scope{Load: "l", Map: 1, Generation: 1}
+			scope := facts.Scope{Load: "l", Map: 1, Generation: 1}
 			var tables []map[domain.Cell]policy.SiteCell
-			var scopes []mirror.Scope
+			var scopes []facts.Scope
 			for i := 0; i < KeyEvery+5; i++ {
 				next := map[domain.Cell]policy.SiteCell{}
 				for k, v := range cells {
@@ -143,7 +142,7 @@ func TestGridRoundTripsLiveStream(t *testing.T) {
 	name := string(facts.PlanningCells)
 	for _, path := range filepath.SplitList(list) {
 		var tables []map[domain.Cell]policy.SiteCell
-		var scopes []mirror.Scope
+		var scopes []facts.Scope
 		err := walk(path, func(line streamLine, st *replayState) (bool, error) {
 			if line.Section == nil || line.Section.Name != name {
 				return true, nil
@@ -196,7 +195,7 @@ func logSizes(t *testing.T, label, path string) {
 
 // logRowForm logs the planning_cells bytes tables take as row-form lines,
 // the format before grids.
-func logRowForm(t *testing.T, tables []map[domain.Cell]policy.SiteCell, scopes []mirror.Scope) {
+func logRowForm(t *testing.T, tables []map[domain.Cell]policy.SiteCell, scopes []facts.Scope) {
 	var key, delta int
 	var held map[string]json.RawMessage
 	for i, table := range tables {

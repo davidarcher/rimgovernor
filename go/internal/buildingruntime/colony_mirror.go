@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -18,22 +18,22 @@ type colonyFactsReader interface {
 // (bridge.SplitColonyFacts, keyed by row path) of the review frame's colony
 // facts (planning, no extra definitions) and returns the tables' mirror
 // versions.
-func publishColony(m *mirror.Mirror, scope mirror.Scope, observed *o.ColonyFactsSnapshot) map[string]uint64 {
+func publishColony(m *facts.Store, scope facts.Scope, observed *o.ColonyFactsSnapshot) map[string]uint64 {
 	split := bridge.SplitColonyFacts(observed)
 	tick := observed.GetContext().GetTick()
 	versions := make(map[string]uint64, len(split))
 	for _, name := range bridge.ColonySections() {
-		versions[name] = mirror.Put(m, scope, name, split[name], mirror.At(tick)).Version
+		versions[name] = facts.PutTable(m, scope, name, split[name], facts.At(tick)).Version
 	}
 	return versions
 }
 
 // colonyTables rebuilds the colony facts the mirror holds at versions,
 // false when any section moved on or is gone.
-func colonyTables(m *mirror.Mirror, scope mirror.Scope, versions map[string]uint64) (*o.ColonyFactsSnapshot, bool) {
+func colonyTables(m *facts.Store, scope facts.Scope, versions map[string]uint64) (*o.ColonyFactsSnapshot, bool) {
 	tables := make(map[string]map[string]bridge.ColonyRow, len(versions))
 	for name, version := range versions {
-		table, ok := mirror.Get[string, bridge.ColonyRow](m, scope, name)
+		table, ok := facts.GetTable[string, bridge.ColonyRow](m, scope, name)
 		if !ok || table.Version != version {
 			return nil, false
 		}
@@ -67,7 +67,7 @@ func (r *RoutineReviewer) servedColonyFacts(ctx context.Context, native colonyFa
 }
 
 func (r *RoutineReviewer) mirroredColony(ctx context.Context, identity *c.Identity) (*o.ColonyFactsSnapshot, bool) {
-	if r == nil || r.mirror == nil {
+	if r == nil || r.store == nil {
 		return nil, false
 	}
 	r.census.mu.Lock()
@@ -84,8 +84,8 @@ func (r *RoutineReviewer) mirroredColony(ctx context.Context, identity *c.Identi
 		return nil, false
 	}
 	generationValue, _ := expected.NativeGeneration.Value()
-	scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generationValue)}
-	return colonyTables(r.mirror, scope, census.colony)
+	scope := facts.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generationValue)}
+	return colonyTables(r.store, scope, census.colony)
 }
 
 // ColonyFacts serves the session's colony facts reads outside the routine
