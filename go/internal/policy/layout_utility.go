@@ -2,6 +2,7 @@ package policy
 
 import (
 	"log/slog"
+	"math"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -434,10 +435,10 @@ func (u *utilityGrid) free(r Rectangle, rockOK bool) bool {
 	return true
 }
 
-// siteFieldWeight is the squared distance, per planned farmland cell a site
-// covers, that the site is worth moving to avoid: generators and plots are
-// pushed off rich soil unless nothing else is near.
-const siteFieldWeight = 400
+// siteFieldReach is how many cells farther a site lying wholly on planned
+// farmland is worth moving to avoid it: generators and plots are pushed off
+// rich soil only within the field reach, never across the map.
+var siteFieldReach = float64(perimeterFieldReach)
 
 // fieldCells counts r's cells planned as farmland.
 func (u *utilityGrid) fieldCells(r Rectangle) int {
@@ -452,24 +453,24 @@ func (u *utilityGrid) fieldCells(r Rectangle) int {
 	return n
 }
 
-// site is the free w x h rectangle nearest the spine's centre, with farmland
-// cells counted as extra distance.
+// site is the free w x h rectangle nearest the spine's centre, a site wholly
+// on planned farmland counting siteFieldReach cells farther.
 func (u *utilityGrid) site(w, h int32, rockOK bool) (Rectangle, bool) {
-	best, found, bestD := Rectangle{}, false, int64(-1)
+	best, found, bestCost := Rectangle{}, false, 0.0
 	for z := int32(0); z+h <= u.h; z++ {
 		for x := int32(0); x+w <= u.w; x++ {
-			dx, dz := int64(x+w/2-u.cx), int64(z+h/2-u.cz)
-			d := dx*dx + dz*dz
-			if found && d >= bestD {
+			dx, dz := float64(x+w/2-u.cx), float64(z+h/2-u.cz)
+			cost := math.Sqrt(dx*dx + dz*dz)
+			if found && cost >= bestCost {
 				continue
 			}
 			r := Rectangle{X: x, Z: z, Width: w, Height: h}
-			d += siteFieldWeight * int64(u.fieldCells(r))
-			if found && d >= bestD {
+			cost += siteFieldReach * float64(u.fieldCells(r)) / float64(w*h)
+			if found && cost >= bestCost {
 				continue
 			}
 			if u.free(r, rockOK) {
-				best, found, bestD = r, true, d
+				best, found, bestCost = r, true, cost
 			}
 		}
 	}
