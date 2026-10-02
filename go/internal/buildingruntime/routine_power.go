@@ -362,7 +362,7 @@ func (r *RoutineBuildingPlanner) previewPlannedPower(ctx context.Context, snapsh
 		}
 	}
 	wallStuff := ""
-	if s, ok := policy.WallStuff(styleTier(facts), policy.WallRun, styleStock(facts)); ok {
+	if s, ok := policy.WallStuffFor(styleTier(facts), policy.WallRun, styleStock(facts), styleWoody(facts)); ok {
 		wallStuff = string(s)
 	}
 	n, merged := 0, 0

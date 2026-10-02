@@ -84,6 +84,40 @@ func oneRungDown[T any](tier BuildTier, rung func(BuildTier) (T, bool)) (T, bool
 // over stone runs at Industrial, plasteel at Spacer. The fallback is one
 // rung down; with nothing stocked on either rung there is no proposal.
 func WallStuff(tier BuildTier, part WallPart, stock TierStyleStock) (Resource, bool) {
+	return WallStuffFor(tier, part, stock, true)
+}
+
+// WoodShellBudget is the wood a colony needs within reach (felled trees plus
+// stock) before it builds its walls from wood: a shell and its rooms run to
+// a few hundred wall cells at 5 wood each. Under it the map is short of wood.
+const WoodShellBudget = 1000
+
+// WoodPlentiful measures whether the map offers wood to build with: the
+// standing trees the census holds plus the wood in stock reach
+// WoodShellBudget. Wood is the fast start, so a forested map builds from it.
+func WoodPlentiful(treeWood float64, stock TierStyleStock) bool {
+	return treeWood+float64(stock["WoodLog"]) >= WoodShellBudget
+}
+
+// WallStuffFor is WallStuff where woody says the map offers wood. On a map
+// short of wood the walls are the quarried stone at every tier (steel only
+// as the Industrial accent, never as the run); with no blocks held there is
+// no proposal, so the colony quarries before it builds.
+func WallStuffFor(tier BuildTier, part WallPart, stock TierStyleStock, woody bool) (Resource, bool) {
+	if woody {
+		return wallStuff(tier, part, stock)
+	}
+	stone, ok := stock.QuarriedStone()
+	if !ok {
+		return "", false
+	}
+	if tier >= BuildTierIndustrial && part != WallRun && stock.has("Steel", 1) {
+		return "Steel", true
+	}
+	return stone, true
+}
+
+func wallStuff(tier BuildTier, part WallPart, stock TierStyleStock) (Resource, bool) {
 	return oneRungDown(tier, func(t BuildTier) (Resource, bool) {
 		var want Resource
 		switch {

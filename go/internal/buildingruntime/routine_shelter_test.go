@@ -21,6 +21,12 @@ import (
 func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleepingNative) {
 	t.Helper()
 	r, db, _, _, n := sleepingFixture(t)
+	// A wooded start: the shell builds from wood unless the map is short of it.
+	for _, row := range n.reply.GetObserved().GetResources() {
+		if row.GetDefName() == "WoodLog" {
+			row.Units = proto.Int64(policy.WoodShellBudget)
+		}
+	}
 	for _, name := range []string{"Wall", "Door"} {
 		n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}

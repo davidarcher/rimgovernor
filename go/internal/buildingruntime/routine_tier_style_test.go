@@ -87,3 +87,19 @@ func TestTierStylesFollowTheProjection(t *testing.T) {
 		t.Fatalf("autodoor proposed unread: %+v", shell)
 	}
 }
+
+// A desert census (no trees, little wood) never styles a wood wall: with
+// blocks the shell is stone at Camp, without them it names a block the
+// stock check refuses so the ring waits for quarrying.
+func TestShellStyleOnAMapShortOfWood(t *testing.T) {
+	desert := styledProjection(policy.BuildTierCamp, map[policy.Resource]int64{"WoodLog": 80})
+	desert.Acquisition = domain.Known([]policy.AcquisitionSource{})
+	if got := shellStyle(desert).WallStuff(domain.ShellRun); got == "WoodLog" {
+		t.Fatal("wood wall on a woodless map")
+	}
+	desert = styledProjection(policy.BuildTierCamp, map[policy.Resource]int64{"WoodLog": 80, "BlocksSandstone": 60})
+	desert.Acquisition = domain.Known([]policy.AcquisitionSource{})
+	if got := shellStyle(desert).WallStuff(domain.ShellRun); got != "BlocksSandstone" {
+		t.Fatalf("desert wall %q", got)
+	}
+}

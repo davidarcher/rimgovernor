@@ -55,6 +55,23 @@ func poweredSource(facts observation.ColonyProjection) domain.Fact[bool] {
 	return domain.Known(false)
 }
 
+// styleWoody measures whether the map offers wood to build with (the
+// felled-tree yield in the acquisition census plus the stock). An unknown
+// census reads as wooded, the old behaviour.
+func styleWoody(facts observation.ColonyProjection) bool {
+	sources, known := facts.Acquisition.Value()
+	if !known {
+		return true
+	}
+	trees := 0.0
+	for _, s := range sources {
+		if s.Tree && s.Resource == "WoodLog" {
+			trees += s.Yield
+		}
+	}
+	return policy.WoodPlentiful(trees, styleStock(facts))
+}
+
 // shellStyle is the wall and door style a shell planner expands a ring
 // with: the wall stuff ladder per part and the door ladder, with a wood
 // Door where the rules name nothing (the Camp rung with no wood stocked),
@@ -62,6 +79,7 @@ func poweredSource(facts observation.ColonyProjection) domain.Fact[bool] {
 func shellStyle(facts observation.ColonyProjection) domain.ShellStyle {
 	tier, stock := styleTier(facts), styleStock(facts)
 	powered, _ := poweredSource(facts).Value()
+	woody := styleWoody(facts)
 	style := domain.ShellStyle{WallDef: "Wall", DoorDef: "Door", DoorStuff: "WoodLog"}
 	autodoors := styleResearchFinished(facts, "Autodoors") && routineDefinitionsAvailable(facts, []string{"Autodoor"}, true)
 	if door, ok := policy.DoorDef(tier, stock, autodoors, powered); ok {
@@ -75,8 +93,14 @@ func shellStyle(facts observation.ColonyProjection) domain.ShellStyle {
 		case domain.ShellDoorFrame:
 			wallPart = policy.WallDoorFrame
 		}
-		if stuff, ok := policy.WallStuff(tier, wallPart, stock); ok {
+		if stuff, ok := policy.WallStuffFor(tier, wallPart, stock, woody); ok {
 			return string(stuff)
+		}
+		if !woody {
+			// No blocks yet on a map short of wood: name a block the stock
+			// check refuses, so the ring waits for quarrying and never
+			// falls back to wood.
+			return "BlocksGranite"
 		}
 		return "WoodLog"
 	}

@@ -178,3 +178,25 @@ func TestModuleLightingTable(t *testing.T) {
 		})
 	}
 }
+
+// A map short of wood builds from quarried stone at any tier, never wood,
+// and waits (no proposal) until blocks exist; steel is only the accent.
+func TestWallStuffForAMapShortOfWood(t *testing.T) {
+	logs := TierStyleStock{"WoodLog": 500}
+	if got, ok := WallStuffFor(BuildTierCamp, WallRun, logs, false); ok {
+		t.Fatalf("wood walls on a woodless map: %v", got)
+	}
+	both := TierStyleStock{"WoodLog": 500, "BlocksGranite": 40, "Steel": 100}
+	if got, ok := WallStuffFor(BuildTierCamp, WallRun, both, false); !ok || got != "BlocksGranite" {
+		t.Fatalf("camp walls: %v %v", got, ok)
+	}
+	if got, _ := WallStuffFor(BuildTierIndustrial, WallRun, both, false); got != "BlocksGranite" {
+		t.Fatalf("steel run: %v", got)
+	}
+	if got, _ := WallStuffFor(BuildTierCamp, WallRun, both, true); got != "WoodLog" {
+		t.Fatalf("forest walls: %v", got)
+	}
+	if !WoodPlentiful(900, TierStyleStock{"WoodLog": 150}) || WoodPlentiful(300, TierStyleStock{"WoodLog": 150}) {
+		t.Fatal("wood threshold")
+	}
+}
