@@ -173,3 +173,12 @@ func TestStockpileEditsAreRateLimitedByHauls(t *testing.T) {
 		t.Fatalf("unknown colonists review %+v", review)
 	}
 }
+
+func TestStockpileShrinkKeepsFoodZoneAtStorageMinimum(t *testing.T) {
+	zone := StockpileZone{ID: "Zone_1", Cells: stockpileRect(10, 10, 3, 3), Filter: domain.FoodFilter()}
+	r := stockpileField(zone)
+	r.Zones[0].LowSince = r.Tick - StockpileShrinkAfter
+	if review := PlanStockpileMaintenance(r); review.Active {
+		t.Fatalf("shrank a food zone below the storage minimum %+v", review)
+	}
+}

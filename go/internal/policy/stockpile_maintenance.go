@@ -39,6 +39,9 @@ const (
 	StockpileShrinkAfter domain.Tick = 60000
 	// StockpileMinCells is the floor a shrink never goes under.
 	StockpileMinCells = 4
+	// foodStorageMinCells is the roofed cells one zone needs to count as the
+	// colony's food storage (the native FoodStorage census).
+	foodStorageMinCells = 9
 	// StockpileHaulsPerColonist bounds the haul jobs one review cycle's
 	// edits may trigger, per colonist.
 	StockpileHaulsPerColonist = 8
@@ -408,6 +411,12 @@ func stockpileShrinkEdit(tick domain.Tick, z StockpileZone) (StockpileEdit, bool
 		return StockpileEdit{}, false
 	}
 	keep := max(2*z.Used(), StockpileMinCells)
+	if z.Filter.Base() == domain.BaseFood {
+		// The colony counts as having food storage once one food zone holds
+		// foodStorageMinCells, so shrinking it below makes the food-storage
+		// planner stand another (#1581).
+		keep = max(keep, foodStorageMinCells)
+	}
 	if len(z.Cells) <= keep {
 		return StockpileEdit{}, false
 	}
