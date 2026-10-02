@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
     {
         public NativeOperationTools() { NativeDrugPolicy.Install(); MiningGuard.Install(); HomeCoverage.Install(); NativePawnControlState.Initialize(); }
 
-        [Tool("rimgovernor/zones_preview", Title = "Preview zone site", Description = "Check one CreateZone site as the create_zone Action arm would, without creating the zone.")]
+        [Tool("rimgovernor/zones_preview", Title = "Preview zone site", Description = "Check one zone intent create site as the zone Action arm would, without creating the zone.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ZonePreviewReply.", Always = true)]
         public async Task<object> PreviewZone(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ZonePreviewRequest ProtoJSON string.")] object? request = null)

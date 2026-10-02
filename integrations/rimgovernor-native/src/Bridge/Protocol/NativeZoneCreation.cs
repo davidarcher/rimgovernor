@@ -30,30 +30,30 @@ namespace HomeBridge.BridgeTools
                 default: return null;
             }
         }
-        internal static bool Valid(Operations.CreateZone? command)
+        internal static bool Valid(Operations.ZoneIntent? command)
         {
-            if (command == null || command.Cells?.ExplicitCells == null || command.Cells.ExplicitCells.Cells.Count == 0) return false;
-            var cells = command.Cells.ExplicitCells.Cells;
+            if (command == null || !command.HasKind || command.RemoveCells != null || command.Delete || command.AddCells?.ExplicitCells == null || command.AddCells.ExplicitCells.Cells.Count == 0) return false;
+            var cells = command.AddCells.ExplicitCells.Cells;
             if (!cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
-            if (command.Type == Operations.ZoneType.Fishing)
+            if (command.Kind == Operations.ZoneType.Fishing)
                 return command.Label == "Fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty
                     && command.Fishing != null && command.Fishing.HasPopulationFloor && command.Fishing.PopulationFloor == 0.6
-                    && (!command.HasExtendZoneId || ProtoBoundary.IsIdentifier(command.ExtendZoneId));
-            if (command.Fishing != null || command.HasExtendZoneId) return false;
-            if (command.Type == Operations.ZoneType.Growing)
+                    && (command.Zone == null || ProtoBoundary.IsIdentifier(command.Zone.Id));
+            if (command.Fishing != null || command.Zone != null) return false;
+            if (command.Kind == Operations.ZoneType.Growing)
                 return command.Label == "Crops" && command.Stockpile == null && !command.RequireCoveredEmpty
                     && command.Growing != null && command.Growing.HasPlantDef && ProtoBoundary.IsIdentifier(command.Growing.PlantDef)
                     && command.Growing.HasAllowSow && command.Growing.AllowSow && command.Growing.HasAllowCut && command.Growing.AllowCut;
             // A stockpile takes any label and any typed settings body; the
             // selectors resolve against the def database in Prepare.
-            if (command.Type == Operations.ZoneType.Stockpile)
+            if (command.Kind == Operations.ZoneType.Stockpile)
                 return command.HasLabel && ProtoBoundary.IsIdentifier(command.Label) && command.Growing == null && !command.RequireCoveredEmpty
                     && command.Stockpile != null && command.Stockpile.HasPriority && NativeStockpileSettings.Valid(command.Stockpile);
             return false;
         }
         internal const string Kind = "Zone creation";
         private static string At(IntVec3 c) => "(" + c.x + ", " + c.z + ")";
-        private static IntVec3[] Cells(Operations.CreateZone command) => command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
+        private static IntVec3[] Cells(Operations.ZoneIntent command) => command.AddCells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
         // Prepare separates a request that cannot be evaluated (malformed,
         // stale map snapshot, unresolvable configuration) from ground that
         // refuses the zone (ground true): the failure always names the rule,
@@ -62,7 +62,7 @@ namespace HomeBridge.BridgeTools
         // rules are the apply-time precondition list (action-contracts.md),
         // one rule per cell so a refusal names the cell that moved; a sent
         // whole-map zone census token is compared after them.
-        internal static bool Prepare(Operations.CreateZone command, Common.ObservationContext context, out ThingDef? crop, out Common.Failure failure, out bool ground)
+        internal static bool Prepare(Operations.ZoneIntent command, Common.ObservationContext context, out ThingDef? crop, out Common.Failure failure, out bool ground)
         {
             crop = null; ground = false; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires an available configuration and explicit cells.");
             if (!Valid(command)) return false;
@@ -75,13 +75,13 @@ namespace HomeBridge.BridgeTools
             while (queue.Count > 0) { var c = queue.Dequeue(); foreach (var offset in GenAdj.CardinalDirections) { var next = c + offset; if (selected.Contains(next) && reached.Add(next)) queue.Enqueue(next); } }
             if (reached.Count != selected.Count) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires cardinally connected cells."); return false; }
             var rules = new ApplyPreconditions(Kind);
-            if (command.Type == Operations.ZoneType.Fishing)
+            if (command.Kind == Operations.ZoneType.Fishing)
             {
                 if (!ModsConfig.OdysseyActive || DefDatabase<ResearchProjectDef>.GetNamedSilentFail("Fishing")?.IsFinished != true)
                 { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing requires Odyssey and completed Fishing research."); return false; }
                 var body = cells[0].InBounds(map) ? cells[0].GetWaterBody(map) : null;
-                var existing = command.HasExtendZoneId ? RefIndex.Zone<Zone_Fishing>(map, command.ExtendZoneId) : null;
-                if (command.HasExtendZoneId && (existing == null || existing.label != command.Label || !existing.Allowed || existing.Cells.Count >= cells.Length
+                var existing = command.Zone != null ? RefIndex.Zone<Zone_Fishing>(map, command.Zone.Id) : null;
+                if (command.Zone != null && (existing == null || existing.label != command.Label || !existing.Allowed || existing.Cells.Count >= cells.Length
                     || existing.Cells.Any(c => !selected.Contains(c) || map.zoneManager.ZoneAt(c) != existing || c.GetWaterBody(map) != body)))
                 { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing extension requires the exact zone and a larger complete footprint in the same body."); return false; }
                 ground = true;
@@ -91,7 +91,7 @@ namespace HomeBridge.BridgeTools
                     rules.Require(() => existing != null && existing.Cells.Contains(c) || FishableCell(c, map, body), "cell " + At(c) + " is not free shallow fish-bearing water in this body");
                 }
             }
-            else if (command.Type == Operations.ZoneType.Growing)
+            else if (command.Kind == Operations.ZoneType.Growing)
             {
                 crop = DefDatabase<ThingDef>.GetNamedSilentFail(command.Growing.PlantDef);
                 if (crop?.plant == null || !crop.plant.Sowable || crop.plant.harvestedThingDef?.IsNutritionGivingIngestible != true
@@ -164,7 +164,7 @@ namespace HomeBridge.BridgeTools
         // A refused site is an evaluation with Accepted false, as placement
         // previews report one, so a site search previews per candidate and
         // moves on; only an unevaluable request is a failure.
-        internal static Operations.ZonePreviewReply Preview(Operations.CreateZone command, Common.ObservationContext context)
+        internal static Operations.ZonePreviewReply Preview(Operations.ZoneIntent command, Common.ObservationContext context)
         {
             var accepted = Prepare(command, context, out _, out var failure, out var ground);
             if (!accepted && !ground) return new Operations.ZonePreviewReply { Failure = failure };
@@ -177,7 +177,7 @@ namespace HomeBridge.BridgeTools
         // first cell covers exactly the requested cells (the grid agreeing),
         // under the requested label and configuration. A fishing extension
         // stands once the named zone covers the larger footprint.
-        internal static Zone? Standing(Operations.CreateZone? command, Common.ObservationContext context)
+        internal static Zone? Standing(Operations.ZoneIntent? command, Common.ObservationContext context)
         {
             if (!Valid(command)) return null;
             var map = ProtoBoundary.LoadedMap(context);
@@ -185,12 +185,12 @@ namespace HomeBridge.BridgeTools
             if (!cells[0].InBounds(map)) return null;
             var zone = map.zoneManager.ZoneAt(cells[0]);
             if (zone == null || zone.label != command!.Label || zone.Cells.Count != cells.Length || !cells.All(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == zone)) return null;
-            switch (command.Type)
+            switch (command.Kind)
             {
                 case Operations.ZoneType.Fishing:
                     return zone is Zone_Fishing fishing && fishing.Allowed && fishing.repeatMode == FishRepeatMode.DoForever
                         && Math.Abs(fishing.targetPopulationPct - command.Fishing.PopulationFloor) < 0.000001
-                        && (!command.HasExtendZoneId || RefIndex.Is(zone, command.ExtendZoneId)) ? zone : null;
+                        && (command.Zone == null || RefIndex.Is(zone, command.Zone.Id)) ? zone : null;
                 case Operations.ZoneType.Growing:
                     if (!(zone is Zone_Growing growing) || !growing.allowSow || !growing.allowCut) return null;
                     var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;
@@ -202,17 +202,17 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static Zone Create(Operations.CreateZone command, Map map, ThingDef? crop)
+        internal static Zone Create(Operations.ZoneIntent command, Map map, ThingDef? crop)
         {
             var cells = Cells(command);
-            if (command.Type == Operations.ZoneType.Fishing) {
-                var fishing = command.HasExtendZoneId ? RefIndex.Zone<Zone_Fishing>(map, command.ExtendZoneId)! : new Zone_Fishing(map.zoneManager);
-                if (!command.HasExtendZoneId) map.zoneManager.RegisterZone(fishing);
+            if (command.Kind == Operations.ZoneType.Fishing) {
+                var fishing = command.Zone != null ? RefIndex.Zone<Zone_Fishing>(map, command.Zone.Id)! : new Zone_Fishing(map.zoneManager);
+                if (command.Zone == null) map.zoneManager.RegisterZone(fishing);
                 fishing.label = command.Label; fishing.repeatMode = FishRepeatMode.DoForever; fishing.targetPopulationPct = (float)command.Fishing.PopulationFloor;
                 foreach (var cell in cells) if (!fishing.Cells.Contains(cell)) fishing.AddCell(cell);
                 return fishing;
             }
-            if (command.Type == Operations.ZoneType.Growing) {
+            if (command.Kind == Operations.ZoneType.Growing) {
                 var growing = new Zone_Growing(map.zoneManager);
                 map.zoneManager.RegisterZone(growing); growing.label = command.Label;
                 foreach (var cell in cells) growing.AddCell(cell);
@@ -239,19 +239,19 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // CreateZone on Actions/Apply: the ground rules of Prepare, checked live;
+    // The zone intent's create shape: the ground rules of Prepare, checked live;
     // a zone that already is the request applies again.
     internal sealed class ZoneCreationActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
-            if (NativeZoneCreation.Standing(action.CreateZone, context) != null) return null;
-            return NativeZoneCreation.Prepare(action.CreateZone, context, out _, out var failure, out _) ? null : failure;
+            if (NativeZoneCreation.Standing(action.Zone, context) != null) return null;
+            return NativeZoneCreation.Prepare(action.Zone, context, out _, out var failure, out _) ? null : failure;
         }
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var command = action.CreateZone;
+            var command = action.Zone;
             var map = ProtoBoundary.LoadedMap(context);
             var zone = NativeZoneCreation.Standing(command, context);
             if (zone == null)

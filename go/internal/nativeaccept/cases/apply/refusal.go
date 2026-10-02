@@ -183,14 +183,14 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := move("fill-free-cell", map[string]any{"action": "fill_cell", "x": freeCells[0]["x"], "z": freeCells[0]["z"]}); err != nil {
 		return err
 	}
-	if err := intentRefused("zone-edit-add", map[string]any{"zoneCells": map[string]any{
-		"zoneId": tokens["zoneId"], "edit": "CELL_EDIT_ADD", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{freeCells[0]}}},
+	if err := intentRefused("zone-edit-add", map[string]any{"zone": map[string]any{
+		"zone": map[string]any{"id": tokens["zoneId"]}, "addCells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{freeCells[0]}}},
 	}}, "FAILURE_CODE_INVALID_REQUEST", "Zone cell edit refused: cell "+at(freeCells[0])+" is not free zoneable ground"); err != nil {
 		return err
 	}
-	if err := intentRefused("zone-create", map[string]any{"createZone": map[string]any{
-		"label": "RimGovernor apply refusal", "type": "ZONE_TYPE_STOCKPILE",
-		"cells":     map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{freeCells[0]}}},
+	if err := intentRefused("zone-create", map[string]any{"zone": map[string]any{
+		"label": "RimGovernor apply refusal", "kind": "ZONE_TYPE_STOCKPILE",
+		"addCells":  map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{freeCells[0]}}},
 		"stockpile": map[string]any{"priority": "STORAGE_PRIORITY_NORMAL", "preset": "FILTER_PRESET_NOTHING"},
 	}}, "FAILURE_CODE_INVALID_REQUEST", "Zone creation refused: fresh free ground required: cell "+at(freeCells[0])+" is not walkable, unzoned, empty storage ground"); err != nil {
 		return err
@@ -201,13 +201,13 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := move("delete-zone", map[string]any{"action": "delete_zone", "id": tokens["zoneId"]}); err != nil {
 		return err
 	}
-	if err := intentRefused("stockpile-patch", map[string]any{"stockpile": map[string]any{
-		"targetId": tokens["zoneId"], "settings": map[string]any{"priority": "STORAGE_PRIORITY_IMPORTANT"},
+	if err := intentRefused("stockpile-patch", map[string]any{"zone": map[string]any{
+		"zone": map[string]any{"id": tokens["zoneId"]}, "stockpile": map[string]any{"priority": "STORAGE_PRIORITY_IMPORTANT"},
 	}}, "FAILURE_CODE_NOT_FOUND", "Stockpile patch refused: the exact stockpile zone or storage building no longer exists on this map"); err != nil {
 		return err
 	}
-	if err := intentRefused("zone-edit-remove", map[string]any{"zoneCells": map[string]any{
-		"zoneId": tokens["zoneId"], "edit": "CELL_EDIT_REMOVE", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{zoneCells[0]}}},
+	if err := intentRefused("zone-edit-remove", map[string]any{"zone": map[string]any{
+		"zone": map[string]any{"id": tokens["zoneId"]}, "removeCells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{zoneCells[0]}}},
 	}}, "FAILURE_CODE_NOT_FOUND", "Zone cell edit refused: the exact zone no longer exists on this map"); err != nil {
 		return err
 	}

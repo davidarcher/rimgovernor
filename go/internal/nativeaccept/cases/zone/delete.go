@@ -1,9 +1,9 @@
 // The zone/delete case exercises the native zone intents (N01.04, issues
 // #34 and #941) in one run, each one Action on rimgovernor/operations_apply,
-// the same Actions/Apply call Go's plain intent path sends: CreateZone
-// (NativeZoneCreation.cs), StockpileIntent (NativeStockpilePatch.cs),
-// ZoneCellsIntent (NativeZoneCellEdit.cs, both directions) and
-// DeleteZoneIntent (NativeZoneDeletion.cs), read back through the native
+// the same Actions/Apply call Go's plain intent path sends: the one
+// ZoneIntent (#1353) in each shape -- create (NativeZoneCreation.cs),
+// settings (NativeStockpilePatch.cs), cells (NativeZoneCellEdit.cs, both
+// directions) and delete (NativeZoneDeletion.cs) -- read back through the native
 // rimgovernor/observations_list_zones tool (NativeZoneObservationTools.cs).
 //
 // A real stockpile zone is created over a disposable fixture's roofed,
@@ -11,7 +11,7 @@
 // planners send (Nothing preset plus an explicit thing_def allow list) and a
 // hit-point/quality range; its filter is read back through ListZones (not
 // just inferred from the applied evidence). The priority and ranges are then
-// changed through a StockpileIntent, with an unresolvable selector refused.
+// changed through the settings shape, with an unresolvable selector refused.
 // One corner cell is removed (leaving a contiguous 3-cell L-shape, and
 // returning that cell to genuinely free ground), that same cell is added
 // back (restoring the original 2x2), and the exact zone is then deleted.
@@ -38,10 +38,10 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "zone/delete",
 		Scope: "Native zone intents on operations_apply: a real allow-list stockpile zone with hit-point/quality ranges " +
-			"is created by a CreateZone action over a disposable fixture site and its filter read back through " +
-			"rimgovernor/observations_list_zones, its priority and ranges are changed by a StockpileIntent (an " +
-			"unresolvable selector refused), one corner cell is removed and then re-added by ZoneCellsIntents, and the " +
-			"exact zone is deleted by a DeleteZoneIntent, with a stale census token and a missing zone refused, real " +
+			"is created by a ZoneIntent create over a disposable fixture site and its filter read back through " +
+			"rimgovernor/observations_list_zones, its priority and ranges are changed by a ZoneIntent settings patch (an " +
+			"unresolvable selector refused), one corner cell is removed and then re-added by ZoneIntent cell edits, and the " +
+			"exact zone is deleted by a ZoneIntent delete, with a stale census token and a missing zone refused, real " +
 			"applied evidence and ListZones readbacks, and resends of effects that already hold applying again. The " +
 			"re-add runs under a playing clock window and the journal's observation_invalidated names the zone id and " +
 			"its cell rectangle (#359).",
@@ -206,7 +206,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return nil
 	}
 
-	// --- CreateZone ---
+	// --- create ---
 
 	// The allow-list body bridge.stockpileSettings sends for
 	// an AllowOnlyFilter stockpile, plus both filter ranges.
@@ -216,12 +216,12 @@ func run(ctx context.Context, s cases.Session) error {
 	create := func() map[string]any {
 		return map[string]any{
 			"label":     "Steel, WoodLog",
-			"type":      "ZONE_TYPE_STOCKPILE",
-			"cells":     map[string]any{"explicitCells": map[string]any{"cells": cells}},
+			"kind":      "ZONE_TYPE_STOCKPILE",
+			"addCells":  map[string]any{"explicitCells": map[string]any{"cells": cells}},
 			"stockpile": stockpileBody,
 		}
 	}
-	createEffect, err := applied("apply-create", "zone-create", "createZone", create())
+	createEffect, err := applied("apply-create", "zone-create", "zone", create())
 	if err != nil {
 		return err
 	}
@@ -245,7 +245,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	// A resend (a lost reply's new attempt) finds the zone standing and
 	// applies again with the same identity instead of a second zone.
-	if resent, err := applied("resend-create", "zone-create-resend", "createZone", create()); err != nil {
+	if resent, err := applied("resend-create", "zone-create-resend", "zone", create()); err != nil {
 		return err
 	} else if na.AsString(resent["zoneId"]) != zoneID {
 		return fmt.Errorf("resend-create: expected the standing zone %s, got %#v", zoneID, resent)
@@ -256,15 +256,15 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("resend-create: a standing create changed the zone")
 	}
 
-	// --- StockpileIntent ---
+	// --- settings ---
 	//
 	// Priority and the hit-point range change; the absent quality range and
 	// selectors preserve the live filter. A selector that does not resolve
 	// refuses the whole body before anything is applied.
 
-	if err := refused("patch-unresolved-selector", "stockpile-unresolved", "stockpile", map[string]any{
-		"targetId": zoneID,
-		"settings": map[string]any{"filter": map[string]any{"allow": []map[string]any{{"thingDef": "NoSuchThingDefForZoneAccept"}}}},
+	if err := refused("patch-unresolved-selector", "stockpile-unresolved", "zone", map[string]any{
+		"zone":      map[string]any{"id": zoneID},
+		"stockpile": map[string]any{"filter": map[string]any{"allow": []map[string]any{{"thingDef": "NoSuchThingDefForZoneAccept"}}}},
 	}, "Stockpile patch refused", "FAILURE_CODE_INVALID_REQUEST"); err != nil {
 		return err
 	}
@@ -274,10 +274,10 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("patch-unresolved-selector: a refused body unexpectedly changed the zone")
 	}
 	patch := map[string]any{
-		"targetId": zoneID,
-		"settings": map[string]any{"priority": "STORAGE_PRIORITY_NORMAL", "filter": map[string]any{"hitPointsMin": 0.25, "hitPointsMax": 0.75}},
+		"zone":      map[string]any{"id": zoneID},
+		"stockpile": map[string]any{"priority": "STORAGE_PRIORITY_NORMAL", "filter": map[string]any{"hitPointsMin": 0.25, "hitPointsMax": 0.75}},
 	}
-	if effect, err := applied("apply-patch", "stockpile-patch", "stockpile", patch); err != nil {
+	if effect, err := applied("apply-patch", "stockpile-patch", "zone", patch); err != nil {
 		return err
 	} else if na.AsString(effect["zoneId"]) != zoneID {
 		return fmt.Errorf("apply-patch: unexpected zone effect identity: %#v", effect)
@@ -292,7 +292,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if tokenAfterPatch == tokenAfterCreate {
 		return fmt.Errorf("apply-patch: the listed zone did not change")
 	}
-	if _, err := applied("resend-patch", "stockpile-patch-resend", "stockpile", patch); err != nil {
+	if _, err := applied("resend-patch", "stockpile-patch-resend", "zone", patch); err != nil {
 		return err
 	}
 	if token, _, err := zoneState("zone-after-patch-resend", zoneID); err != nil {
@@ -301,24 +301,24 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("resend-patch: settings that already hold were written again")
 	}
 
-	// --- ZoneCellsIntent ---
+	// --- cells ---
 	//
 	// cells[0] is one corner of the fixture's 2x2 interior. Removing it
 	// leaves a contiguous 3-cell L-shape and returns that cell to genuinely
 	// free ground (an add never steals a cell from another zone -- it only
-	// ever accepts free ground, matching CreateZone's own eligibility test --
+	// ever accepts free ground, matching the create shape's own eligibility test --
 	// so re-adding the very cell this harness just freed is the one add case
 	// the fixture can exercise without a second site).
 
 	editCell := cells[0]
 	edit := func(zone, op string) map[string]any {
-		return map[string]any{"zoneId": zone, "edit": op, "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{editCell}}}}
+		return map[string]any{"zone": map[string]any{"id": zone}, op: map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{editCell}}}}
 	}
-	if err := refused("edit-missing-zone", "zone-edit-missing", "zoneCells", edit("Zone_999999", "CELL_EDIT_REMOVE"),
+	if err := refused("edit-missing-zone", "zone-edit-missing", "zone", edit("Zone_999999", "removeCells"),
 		"Zone cell edit refused: the exact zone no longer exists on this map", "FAILURE_CODE_NOT_FOUND"); err != nil {
 		return err
 	}
-	removeEffect, err := applied("apply-edit-remove", "zone-edit-remove", "zoneCells", edit(zoneID, "CELL_EDIT_REMOVE"))
+	removeEffect, err := applied("apply-edit-remove", "zone-edit-remove", "zone", edit(zoneID, "removeCells"))
 	if err != nil {
 		return err
 	}
@@ -332,7 +332,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if !present || tokenAfterRemove == tokenAfterPatch {
 		return fmt.Errorf("zone-after-edit-remove: expected the zone listed and changed by a real cell removal")
 	}
-	if _, err := applied("resend-edit-remove", "zone-edit-remove-resend", "zoneCells", edit(zoneID, "CELL_EDIT_REMOVE")); err != nil {
+	if _, err := applied("resend-edit-remove", "zone-edit-remove-resend", "zone", edit(zoneID, "removeCells")); err != nil {
 		return err
 	}
 	if token, _, err := zoneState("zone-after-edit-remove-resend", zoneID); err != nil {
@@ -348,7 +348,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// the readbacks below.
 	var addEffect map[string]any
 	if _, err := editUnderEpoch(ctx, h, identity, report, zoneID, cells, func() error {
-		addEffect, err = applied("apply-edit-add", "zone-edit-add", "zoneCells", edit(zoneID, "CELL_EDIT_ADD"))
+		addEffect, err = applied("apply-edit-add", "zone-edit-add", "zone", edit(zoneID, "addCells"))
 		return err
 	}); err != nil {
 		return err
@@ -363,9 +363,9 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["zone_cells_after_edit_add"] = len(cells)
 
-	// --- DeleteZoneIntent ---
+	// --- delete ---
 
-	deleteEffect, err := applied("apply-delete", "zone-delete", "deleteZone", map[string]any{"zoneId": zoneID})
+	deleteEffect, err := applied("apply-delete", "zone-delete", "zone", map[string]any{"zone": map[string]any{"id": zoneID}, "delete": true})
 	if err != nil {
 		return err
 	}
@@ -382,7 +382,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["zone_deleted"] = true
 	// A zone already gone is the deletion's effect: the resend applies.
-	if _, err := applied("resend-delete", "zone-delete-resend", "deleteZone", map[string]any{"zoneId": zoneID}); err != nil {
+	if _, err := applied("resend-delete", "zone-delete-resend", "zone", map[string]any{"zone": map[string]any{"id": zoneID}, "delete": true}); err != nil {
 		return err
 	}
 

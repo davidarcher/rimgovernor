@@ -20,7 +20,7 @@ type legacyZone struct {
 	allow  []string
 }
 
-// The named filters replace the retired presets; their CreateZone wire
+// The named filters replace the retired presets; their zone intent wire
 // bytes (settings and label) must equal what the preset switch
 // (legacyStockpileSettings, copied verbatim) and preset labels sent.
 func TestPresetFiltersWireUnchanged(t *testing.T) {
@@ -76,7 +76,7 @@ func TestStockpileSettingsCarriesRanges(t *testing.T) {
 	}
 }
 
-// The zone and stockpile intents put the same ProtoJSON on the wire the
+// Every zone write is one zone intent and puts the same ProtoJSON on the wire the
 // zone/delete acceptance case sends by hand; no CAS token is sent.
 func TestZoneIntentActions(t *testing.T) {
 	edit, _ := domain.NewZoneCellEdit("Zone_7", domain.RemoveZoneCells, []domain.Cell{{X: 2, Z: 3}})
@@ -85,7 +85,7 @@ func TestZoneIntentActions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"key":"k","zoneCells":{"zoneId":"Zone_7","edit":"CELL_EDIT_REMOVE","cells":{"explicitCells":{"cells":[{"x":2,"z":3}]}}}}`
+	want := `{"key":"k","zone":{"zone":{"id":"Zone_7"},"removeCells":{"explicitCells":{"cells":[{"x":2,"z":3}]}}}}`
 	if s := compactJSON(t, got); s != want {
 		t.Fatal(s)
 	}
@@ -94,18 +94,18 @@ func TestZoneIntentActions(t *testing.T) {
 	if got, err = IntentAction("k", pa); err != nil {
 		t.Fatal(err)
 	}
-	want = `{"key":"k","stockpile":{"targetId":"Shelf_1","settings":{"priority":"STORAGE_PRIORITY_CRITICAL","preset":"FILTER_PRESET_NONPERISHABLES","filter":{"disallow":[{"categoryDef":"Chunks"}]}}}}`
+	want = `{"key":"k","zone":{"zone":{"id":"Shelf_1"},"stockpile":{"priority":"STORAGE_PRIORITY_CRITICAL","preset":"FILTER_PRESET_NONPERISHABLES","filter":{"disallow":[{"categoryDef":"Chunks"}]}}}}`
 	if s := compactJSON(t, got); s != want {
 		t.Fatal(s)
 	}
 	del, _ := domain.NewZoneDelete("Zone_7")
 	da, _ := domain.NewZoneDeleteAction("d", del)
-	if got, err = IntentAction("k", da); err != nil || compactJSON(t, got) != `{"key":"k","deleteZone":{"zoneId":"Zone_7"}}` {
+	if got, err = IntentAction("k", da); err != nil || compactJSON(t, got) != `{"key":"k","zone":{"zone":{"id":"Zone_7"},"delete":true}}` {
 		t.Fatal(got, err)
 	}
 	zone, _ := domain.NewZoneCreate(domain.GrowingZone, "Plant_Rice", []domain.Cell{{X: 0, Z: 0}})
 	za, _ := domain.NewZoneCreateAction("z", zone)
-	if got, err = IntentAction("k", za); err != nil || got.GetCreateZone().GetGrowing().GetPlantDef() != "Plant_Rice" {
+	if got, err = IntentAction("k", za); err != nil || got.GetZone().GetGrowing().GetPlantDef() != "Plant_Rice" {
 		t.Fatal(got, err)
 	}
 }

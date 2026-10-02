@@ -17,7 +17,7 @@ func TestFishingZoneExtensionNamesZoneAndFloor(t *testing.T) {
 		t.Fatal(err)
 	}
 	op := ZoneConfiguration(z)
-	if op.GetType() != 4 || op.GetExtendZoneId() != "Zone_7" || op.GetFishing().GetPopulationFloor() != .6 || op.Growing != nil || op.Stockpile != nil {
+	if op.GetKind() != 4 || op.GetZone().GetId() != "Zone_7" || op.GetFishing().GetPopulationFloor() != .6 || op.Growing != nil || op.Stockpile != nil {
 		t.Fatal(op)
 	}
 }
@@ -50,11 +50,11 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 	stockpile, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, cells)
 
 	g := ZoneConfiguration(growing)
-	if g.GetType() != op.ZoneType_ZONE_TYPE_GROWING || g.Stockpile != nil || g.GetGrowing().GetPlantDef() != "Plant_Rice" || !g.GetGrowing().GetAllowSow() || !g.GetGrowing().GetAllowCut() {
+	if g.GetKind() != op.ZoneType_ZONE_TYPE_GROWING || g.Stockpile != nil || g.GetGrowing().GetPlantDef() != "Plant_Rice" || !g.GetGrowing().GetAllowSow() || !g.GetGrowing().GetAllowCut() {
 		t.Fatal("unexpected growing zone configuration", g)
 	}
 	s := ZoneConfiguration(stockpile)
-	if s.GetType() != op.ZoneType_ZONE_TYPE_STOCKPILE || s.Growing != nil || s.GetStockpile().GetPriority() != op.StoragePriority_STORAGE_PRIORITY_IMPORTANT || s.GetStockpile().GetPreset() != op.FilterPreset_FILTER_PRESET_FOOD {
+	if s.GetKind() != op.ZoneType_ZONE_TYPE_STOCKPILE || s.Growing != nil || s.GetStockpile().GetPriority() != op.StoragePriority_STORAGE_PRIORITY_IMPORTANT || s.GetStockpile().GetPreset() != op.FilterPreset_FILTER_PRESET_FOOD {
 		t.Fatal("unexpected stockpile zone configuration", s)
 	}
 	if s.GetLabel() != "Food storage" || g.GetLabel() != "Crops" {
@@ -62,7 +62,7 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 	}
 	allowList, _ := allowListZone(domain.ImportantPriority, []string{"MealSimple", "MealFine"}, cells)
 	a := ZoneConfiguration(allowList)
-	if a.GetType() != op.ZoneType_ZONE_TYPE_STOCKPILE || a.GetStockpile().GetPreset() != op.FilterPreset_FILTER_PRESET_NOTHING || a.GetStockpile().GetPriority() != op.StoragePriority_STORAGE_PRIORITY_IMPORTANT {
+	if a.GetKind() != op.ZoneType_ZONE_TYPE_STOCKPILE || a.GetStockpile().GetPreset() != op.FilterPreset_FILTER_PRESET_NOTHING || a.GetStockpile().GetPriority() != op.StoragePriority_STORAGE_PRIORITY_IMPORTANT {
 		t.Fatal("unexpected allow-list stockpile configuration", a)
 	}
 	allow := a.GetStockpile().GetFilter().GetAllow()

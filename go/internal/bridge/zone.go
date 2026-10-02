@@ -9,24 +9,25 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func ZoneConfiguration(zone domain.ZoneCreate) *op.CreateZone {
+// ZoneConfiguration is the create shape of the one zone intent.
+func ZoneConfiguration(zone domain.ZoneCreate) *op.ZoneIntent {
 	cells := &op.CellList{}
 	for _, cell := range zone.Cells() {
 		cells.Cells = append(cells.Cells, &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)})
 	}
-	command := &op.CreateZone{Label: proto.String(zone.Label()), Cells: &op.Cells{Selection: &op.Cells_ExplicitCells{ExplicitCells: cells}}}
+	command := &op.ZoneIntent{Label: proto.String(zone.Label()), AddCells: &op.Cells{Selection: &op.Cells_ExplicitCells{ExplicitCells: cells}}}
 	switch zone.Kind() {
 	case domain.FishingZone:
-		command.Type = op.ZoneType_ZONE_TYPE_FISHING.Enum()
+		command.Kind = op.ZoneType_ZONE_TYPE_FISHING.Enum()
 		command.Fishing = &op.FishingSettings{PopulationFloor: proto.Float64(domain.FishingPopulationFloor)}
 		if zone.ExtendZoneID() != "" {
-			command.ExtendZoneId = proto.String(zone.ExtendZoneID())
+			command.Zone = zoneRef(zone.ExtendZoneID())
 		}
 	case domain.StockpileZone:
-		command.Type = op.ZoneType_ZONE_TYPE_STOCKPILE.Enum()
+		command.Kind = op.ZoneType_ZONE_TYPE_STOCKPILE.Enum()
 		command.Stockpile = stockpileSettings(zone)
 	default:
-		command.Type = op.ZoneType_ZONE_TYPE_GROWING.Enum()
+		command.Kind = op.ZoneType_ZONE_TYPE_GROWING.Enum()
 		command.Growing = &op.GrowingSettings{PlantDef: proto.String(zone.Crop()), AllowSow: proto.Bool(true), AllowCut: proto.Bool(true)}
 	}
 	return command
@@ -123,7 +124,13 @@ func (client *Client) PreviewZone(ctx context.Context, identity *c.Identity, zon
 	return reply, raw, nil
 }
 
-// zoneCreateAction is the Actions/Apply create_zone arm of one zone_create:
+func zoneRef(id string) *c.Ref { return &c.Ref{Id: proto.String(id)} }
+
+func zoneAction(intent *op.ZoneIntent) *op.Action {
+	return &op.Action{Intent: &op.Action_Zone{Zone: intent}}
+}
+
+// zoneCreateAction is the create shape of the zone arm for one zone_create:
 // the configuration without a census token; native checks the ground live.
 func zoneCreateAction(action domain.Action) (*op.Action, error) {
 	zone, ok := action.ZoneCreate()
@@ -133,10 +140,10 @@ func zoneCreateAction(action domain.Action) (*op.Action, error) {
 	if _, err := domain.ReconstructZone(zone); err != nil {
 		return nil, contract("invalid zone create")
 	}
-	return &op.Action{Intent: &op.Action_CreateZone{CreateZone: ZoneConfiguration(zone)}}, nil
+	return zoneAction(ZoneConfiguration(zone)), nil
 }
 
-// zoneDeleteAction is the Actions/Apply delete_zone arm of one zone_delete.
+// zoneDeleteAction is the delete shape of the zone arm for one zone_delete.
 func zoneDeleteAction(action domain.Action) (*op.Action, error) {
 	del, ok := action.ZoneDelete()
 	if !ok {
@@ -145,10 +152,10 @@ func zoneDeleteAction(action domain.Action) (*op.Action, error) {
 	if err := validID(del.Zone()); err != nil {
 		return nil, err
 	}
-	return &op.Action{Intent: &op.Action_DeleteZone{DeleteZone: &op.DeleteZoneIntent{ZoneId: proto.String(del.Zone())}}}, nil
+	return zoneAction(&op.ZoneIntent{Zone: zoneRef(del.Zone()), Delete: proto.Bool(true)}), nil
 }
 
-// zoneCellsAction is the Actions/Apply zone_cells arm of one zone_cell_edit.
+// zoneCellsAction is the cells shape of the zone arm for one zone_cell_edit.
 func zoneCellsAction(action domain.Action) (*op.Action, error) {
 	e, ok := action.ZoneCellEdit()
 	if !ok {
@@ -157,22 +164,22 @@ func zoneCellsAction(action domain.Action) (*op.Action, error) {
 	if _, err := domain.NewZoneCellEditAction(action.ID(), e); err != nil {
 		return nil, contract("invalid zone cell edit")
 	}
-	mode := op.CellEdit_CELL_EDIT_ADD
-	if e.Mode() == domain.RemoveZoneCells {
-		mode = op.CellEdit_CELL_EDIT_REMOVE
-	}
 	var cells []*c.Cell
 	for _, cell := range e.Cells() {
 		cells = append(cells, &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)})
 	}
-	return &op.Action{Intent: &op.Action_ZoneCells{ZoneCells: &op.ZoneCellsIntent{
-		ZoneId: proto.String(e.Zone()), Edit: mode.Enum(),
-		Cells: &op.Cells{Selection: &op.Cells_ExplicitCells{ExplicitCells: &op.CellList{Cells: cells}}},
-	}}}, nil
+	selection := &op.Cells{Selection: &op.Cells_ExplicitCells{ExplicitCells: &op.CellList{Cells: cells}}}
+	intent := &op.ZoneIntent{Zone: zoneRef(e.Zone())}
+	if e.Mode() == domain.RemoveZoneCells {
+		intent.RemoveCells = selection
+	} else {
+		intent.AddCells = selection
+	}
+	return zoneAction(intent), nil
 }
 
-// stockpileAction is the Actions/Apply stockpile arm of one stockpile_patch,
-// on a stockpile zone or a storage building alike.
+// stockpileAction is the settings shape of the zone arm for one
+// stockpile_patch, on a stockpile zone or a storage building alike.
 func stockpileAction(action domain.Action) (*op.Action, error) {
 	p, ok := action.StockpilePatch()
 	if !ok {
@@ -181,7 +188,5 @@ func stockpileAction(action domain.Action) (*op.Action, error) {
 	if _, err := domain.NewStockpilePatchAction(action.ID(), p); err != nil {
 		return nil, contract("invalid stockpile patch")
 	}
-	return &op.Action{Intent: &op.Action_Stockpile{Stockpile: &op.StockpileIntent{
-		TargetId: proto.String(p.Target()), Settings: StockpileSettings(p.Filter(), p.Priority()),
-	}}}, nil
+	return zoneAction(&op.ZoneIntent{Zone: zoneRef(p.Target()), Stockpile: StockpileSettings(p.Filter(), p.Priority())}), nil
 }

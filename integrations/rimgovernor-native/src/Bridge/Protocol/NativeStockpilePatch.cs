@@ -44,12 +44,12 @@ namespace HomeBridge.BridgeTools
     }
 
     /// <summary>
-    /// StockpileIntent on Actions/Apply: replaces the priority and/or patches
+    /// The zone intent's settings shape: replaces the priority and/or patches
     /// the filter of one existing storage target, a stockpile zone or a
     /// player storage building (Building_Storage, e.g. Shelf). Absent parts of
     /// the body preserve the live setting; the intent is refused outright when
     /// any selector fails to resolve, so a body never applies partially.
-    /// Cells are never touched (ZoneCellsIntent owns them). Settings that
+    /// Cells are never touched (the cells shape owns them). Settings that
     /// already hold apply again.
     /// </summary>
     internal sealed class StockpileActionHandler : IActionHandler
@@ -62,16 +62,16 @@ namespace HomeBridge.BridgeTools
             internal NativeStockpileSettings.Resolved? Body;
         }
 
-        private static bool Valid(Operations.StockpileIntent? intent) =>
-            intent != null && intent.HasTargetId && ProtoBoundary.IsIdentifier(intent.TargetId) && NativeStockpileSettings.Valid(intent.Settings);
+        private static bool Valid(Operations.ZoneIntent? intent) =>
+            NativeZoneIntent.Id(intent) != null && !intent!.HasKind && intent.AddCells == null && intent.RemoveCells == null && !intent.Delete && intent.Growing == null && intent.Fishing == null && !intent.HasLabel && NativeStockpileSettings.Valid(intent.Stockpile);
 
-        private static Target Resolve(Operations.StockpileIntent? intent, Map map)
+        private static Target Resolve(Operations.ZoneIntent? intent, Map map)
         {
             var target = new Target();
             if (!Valid(intent)) return target;
-            target.Parent = NativeStockpilePatch.Resolve(map, intent!.TargetId);
+            target.Parent = NativeStockpilePatch.Resolve(map, intent!.Zone.Id);
             if (target.Parent?.GetStoreSettings()?.filter != null)
-                target.Body = NativeStockpileSettings.Resolve(intent.Settings, StockpileFilter.StorableDefs(target.Parent));
+                target.Body = NativeStockpileSettings.Resolve(intent.Stockpile, StockpileFilter.StorableDefs(target.Parent));
             return target;
         }
 
@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
 
         // The apply-time precondition list for stockpile settings
         // (action-contracts.md), one rule at a time.
-        private static ApplyPreconditions Rules(Operations.StockpileIntent? intent, Target target) => new ApplyPreconditions(Kind)
+        private static ApplyPreconditions Rules(Operations.ZoneIntent? intent, Target target) => new ApplyPreconditions(Kind)
             .Require(() => Valid(intent), "a patch requires a target id and a valid settings body")
             .Present(() => target.Parent != null, "the exact stockpile zone or storage building no longer exists on this map")
             .Require(() => target.Parent!.GetStoreSettings()?.filter != null, "the target has no storage settings")
@@ -87,19 +87,19 @@ namespace HomeBridge.BridgeTools
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
-            var target = Resolve(action.Stockpile, ProtoBoundary.LoadedMap(context));
+            var target = Resolve(action.Zone, ProtoBoundary.LoadedMap(context));
             if (Standing(target)) return null;
-            var rules = Rules(action.Stockpile, target);
+            var rules = Rules(action.Zone, target);
             return rules.Holds ? null : rules.Failure();
         }
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
-            var target = Resolve(action.Stockpile, map);
+            var target = Resolve(action.Zone, map);
             if (!Standing(target))
             {
-                var rules = Rules(action.Stockpile, target);
+                var rules = Rules(action.Zone, target);
                 if (!rules.Holds) throw new InvalidOperationException("Stockpile patch prerequisites changed before apply: " + rules.Reason);
                 var settings = target.Parent!.GetStoreSettings();
                 if (target.Body!.Priority.HasValue) settings.Priority = target.Body.Priority.Value;
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
             if (target.Parent is Building_Storage storage)
                 return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence {
                     EntityId = storage.GetUniqueLoadID(), AfterToken = NativeStockpilePatch.StorageToken(storage, context).Token } } };
-            return NativeZoneCreation.Evidence(action.Stockpile.TargetId, target.Parent as Zone, map);
+            return NativeZoneCreation.Evidence(action.Zone.Zone.Id, target.Parent as Zone, map);
         }
     }
 }

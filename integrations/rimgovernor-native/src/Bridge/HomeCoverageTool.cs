@@ -48,7 +48,7 @@ namespace HomeBridge.BridgeTools
             state.Revision++;
         }
         // Targets are named by unique load id on both sides of the census:
-        // buildings as native does, stockpiles as the CreateZone receipt's
+        // buildings as native does, stockpiles as the zone intent receipt's
         // zone_id, which is what a controller-created stockpile is owned by
         // (#315).
         internal static IEnumerable<string> Targets(Map map) => map.listerBuildings.allBuildingsColonist

@@ -164,11 +164,34 @@ enum FilterPreset { FILTER_PRESET_UNSPECIFIED = 0; FILTER_PRESET_EVERYTHING = 1;
 message StockpileSettings { optional StoragePriority priority = 1; optional FilterPreset preset = 2; FilterPatch filter = 3; }
 message GrowingSettings { optional string plant_def = 1; optional bool allow_sow = 2; optional bool allow_cut = 3; }
 message FishingSettings { optional double population_floor = 1; }
-message CreateZone { reserved 1; reserved "expected_map_snapshot_token"; optional ZoneType type = 2; optional string label = 3; Cells cells = 4; StockpileSettings stockpile = 5; GrowingSettings growing = 6; optional bool require_covered_empty = 7; FishingSettings fishing = 8; optional string extend_zone_id = 9; }
-// Delete one zone. Native refuses a zone holding a phantom cell or a
-// stockpile whose haul grid disagrees with its cells; a zone already gone
-// applies again.
-message DeleteZoneIntent { optional string zone_id = 1; }
+// The one zone write (#1353). Its shape selects the edit; each applies again
+// once the map already holds it:
+// - create: kind set, zone empty, add_cells the new zone's cardinally
+//   connected cells with label and the kind's settings. Native checks the
+//   ground live. A fishing create with zone set extends that fishing zone to
+//   add_cells, its complete larger footprint.
+// - cells: zone set, kind unset, exactly one of add_cells (free zoneable
+//   ground) and remove_cells (the zone's own cells); the result stays
+//   contiguous, and removing the last cell deletes the zone.
+// - delete: zone set and delete true. Native refuses a zone holding a phantom
+//   cell or a stockpile whose haul grid disagrees with its cells; a zone
+//   already gone applies again.
+// - settings: zone set and stockpile only. Replaces the priority and patches
+//   the filter of a stockpile zone or of a player storage building (a shelf),
+//   resolved against the target's storable definitions; absent parts keep
+//   the live setting.
+message ZoneIntent {
+  rimgovernor.common.v1.Ref zone = 1;
+  optional ZoneType kind = 2;
+  optional string label = 3;
+  Cells add_cells = 4;
+  Cells remove_cells = 5;
+  optional bool delete = 6;
+  StockpileSettings stockpile = 7;
+  GrowingSettings growing = 8;
+  FishingSettings fishing = 9;
+  optional bool require_covered_empty = 10;
+}
 // Designate the foundation laid on one cell (def_name, a Bridge) for
 // removal (#954). A cell without that foundation, or one already
 // designated, applies again; ordinary construction work lifts it.
@@ -177,16 +200,6 @@ message RemoveFoundationIntent { rimgovernor.common.v1.Cell cell = 1; optional s
 // def_name (epic #1249). A cell already designated, or without that floor,
 // applies again.
 message RemoveFloorIntent { rimgovernor.common.v1.Cell cell = 1; optional string def_name = 2; }
-enum CellEdit { CELL_EDIT_UNSPECIFIED = 0; CELL_EDIT_ADD = 1; CELL_EDIT_REMOVE = 2; }
-// Add free zoneable cells to one zone, or remove cells of its own. Native
-// checks the zone, every cell and a contiguous result live when it applies;
-// cells already in (add) or already out of (remove) the zone apply again.
-message ZoneCellsIntent { optional string zone_id = 1; optional CellEdit edit = 2; Cells cells = 3; }
-// Set the priority and filter of one stockpile zone or player storage
-// building (a shelf). Native resolves the settings against the target's
-// storable definitions when it applies; settings that already hold apply
-// again.
-message StockpileIntent { optional string target_id = 1; StockpileSettings settings = 2; }
 enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; SERVICE_METHOD_BREAKDOWN = 2; SERVICE_METHOD_REFUEL = 3; }
 // expected_target_snapshot_token is decoupled from target's own EntityPrecondition
 // (whose token field is unused for this operation; only entity_id identity is
@@ -218,13 +231,13 @@ enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; E
 message EndTrade { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
 
 // Zone siting (#1130): a plain read planners run per candidate zone. Native
-// checks the ground as the create_zone Action arm would, creating nothing.
+// checks the ground as a zone create Action would, creating nothing.
 // accepted false is the ground refusing (a littered or occupied cell); a bad
 // configuration is a failure.
 service Zones {
   rpc Preview(ZonePreviewRequest) returns (ZonePreviewReply);
 }
-message ZonePreviewRequest { rimgovernor.common.v1.Identity identity = 1; CreateZone zone = 2; }
+message ZonePreviewRequest { rimgovernor.common.v1.Identity identity = 1; ZoneIntent zone = 2; }
 // reason names the ground rule a refused (accepted false) zone broke.
 message ZonePreview { rimgovernor.common.v1.ObservationContext context = 1; optional bool accepted = 2; optional string reason = 3; }
 message ZonePreviewReply {
@@ -259,7 +272,7 @@ message Action {
   // "activity" overlay shows it over the pawn; it never changes the apply.
   optional string purpose = 2;
   // Melee attacks are combat orders; subdue is PawnOrderIntent SUBDUE (#939).
-  reserved 14, 31; reserved "melee", "home";
+  reserved 14, 26, 27, 28, 29, 31; reserved "melee", "home", "create_zone", "delete_zone", "zone_cells", "stockpile";
   oneof intent {
     TradeIntent trade = 10;
     BuildingIntent building = 11;
@@ -276,13 +289,8 @@ message Action {
     WorkSettingsIntent work_settings = 23;
     ProductionBillIntent production_bill = 24;
     HusbandryIntent husbandry = 25;
-    // Create one zone (native checks the ground live when it applies). A zone whose cells and
-    // configuration already equal the request, or a fishing zone already
-    // extended over them, applies again; applied evidence names the zone.
-    CreateZone create_zone = 26;
-    DeleteZoneIntent delete_zone = 27;
-    ZoneCellsIntent zone_cells = 28;
-    StockpileIntent stockpile = 29;
+    // Applied evidence names the zone (or the storage building's settings).
+    ZoneIntent zone = 58;
     RemoveFoundationIntent remove_foundation = 30;
     CoverIntent cover = 32;
     DesignateIntent designate = 33;

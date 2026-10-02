@@ -12,7 +12,7 @@ using Operations = RimGovernor.Protocol.Operations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The typed Operations.StockpileSettings body shared by CreateZone and
+    /// The typed Operations.StockpileSettings body shared by the zone intent's create and
     /// PatchStockpile: validation, resolution of every selector against the
     /// def database, application to a live or scratch ThingFilter, exact
     /// live-versus-desired comparison and the ZoneState.filter projection.
