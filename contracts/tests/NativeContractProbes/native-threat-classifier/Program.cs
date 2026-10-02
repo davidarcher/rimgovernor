@@ -29,7 +29,7 @@ internal static class NativeThreatClassifierProbe
         var hop = ObservationWork.Begin();
         var scan = NativeThreatClassifier.Collect(pawns, p => p.F, colonists, radius,
             p => { projected++; ProjectedIds.Add(p.Id); return new RimGovernor.Protocol.Common.Ref { Id = p.Id }; },
-            p => new Obs.EntityRef { Id = "prey-" + p.Id }, threats);
+            p => new RimGovernor.Protocol.Common.Ref { Id = "prey-" + p.Id }, threats);
         ObservationWork.End();
         var report = ObservationWork.Report(hop);
         var account = (Dictionary<string, object>)report["threatScan"];
