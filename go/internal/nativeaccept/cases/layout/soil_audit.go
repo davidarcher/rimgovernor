@@ -135,7 +135,8 @@ func builtCells(plan policy.LayoutPlan) map[domain.Cell]string {
 //     runs along the edge margin line (the band LayoutEdgeMargin..
 //     LayoutEdgeMargin+ringThick from the edge), where it may cross and
 //     split the patch;
-//  3. the growing zones inside each patch form one 4-connected block.
+//  3. the growing zones inside each field zone form one 4-connected
+//     block.
 func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell) soilAudit {
 	var a soilAudit
 	w, h := s.Bounds.Width, s.Bounds.Height
@@ -212,8 +213,8 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 		}
 	}
 	var patches []map[domain.Cell]bool
-	owner := map[domain.Cell]int{}
-	for _, z := range plan.Zones {
+	owner, zoneOf := map[domain.Cell]int{}, map[domain.Cell]int{}
+	for zi, z := range plan.Zones {
 		if z.Kind != policy.ZoneField || len(z.Runs) == 0 || lane[domain.Cell{X: z.Runs[0].X, Z: z.Runs[0].Z}] {
 			continue
 		}
@@ -222,7 +223,9 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 		left := map[domain.Cell]bool{}
 		for _, r := range z.Runs {
 			for x := r.X; x < r.X+r.Length; x++ {
-				if c := (domain.Cell{X: x, Z: r.Z}); rich[c] {
+				c := domain.Cell{X: x, Z: r.Z}
+				zoneOf[c] = zi + 1
+				if rich[c] {
 					left[c] = true
 				}
 			}
@@ -300,10 +303,11 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 	}
 
 	a.CropZones = len(crops)
+	// Crops are laid per field zone, plain soil included.
 	perPatch := map[int]map[domain.Cell]bool{}
 	for _, zone := range crops {
 		for _, c := range zone {
-			if i := owner[c]; i != 0 {
+			if i := zoneOf[c]; i != 0 {
 				if perPatch[i] == nil {
 					perPatch[i] = map[domain.Cell]bool{}
 				}
