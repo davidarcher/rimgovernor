@@ -922,7 +922,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 	}
 	if window != nil {
-		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
+		window.scope = factsScope(loaded.Context)
 		id, tick := loaded.Context.GetIdentity(), domain.Tick(loaded.Context.GetTick())
 		window.layout = func(ctx context.Context) (store.LayoutPlanRecord, bool, error) {
 			// The plan is keyed by colony and map; a session that holds no

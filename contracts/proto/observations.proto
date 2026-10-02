@@ -1398,7 +1398,8 @@ message BundleSnapshot {
   TradersSnapshot traders = 14;
   WorldProgressionSnapshot world_progression = 15;
   repeated ResourceSourcesSnapshot resource_sources = 16;
-  CellsSnapshot planning_window = 17;
+  // The planning window band (17) is cut from grid (#1345).
+  reserved 17;
   // Combat state (#851), while the map has an active hostile or a combat
   // epoch runs, else empty: every spawned colonist, hostile and colony
   // animal, and the native's retained event ring (the newest 1024
@@ -1484,11 +1485,11 @@ message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot
 // into a named shared-memory ring and signals a named event; this request
 // opens it (or replaces its subscription) and names the ring. A frame carries
 // every state family whole (no page caps, no field masks) plus the
-// subscription's resource sources, planning window band and
-// definitions. Clock status stays a dedicated read.
+// subscription's resource sources and definitions, and the whole map as a
+// cell grid. Clock status stays a dedicated read.
 message SnapshotStreamRequest {
   repeated string resource_sources = 1; // list_resource_sources per named resource, no development
-  Rectangle planning_window = 2;        // get_cells band the frame carries, full every frame
+  reserved 2;                           // the planning window band, replaced by BundleSnapshot.grid (#1345)
   repeated string definitions = 3;      // planning definitions the frame carries in project_definitions
   // Only makes the next frame a keyframe, carrying every section (#1347);
   // the subscription and the other fields are left as they are. Every

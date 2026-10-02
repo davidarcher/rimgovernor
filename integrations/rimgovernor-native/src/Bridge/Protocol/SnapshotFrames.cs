@@ -218,8 +218,8 @@ namespace HomeBridge.BridgeTools
         }
 
         // On the main thread. Adds the subscription's parameterized
-        // families: each named resource's sources, the planning window
-        // band and the named planning definitions.
+        // families: each named resource's sources and the named planning
+        // definitions.
         private static void ReadSubscribed(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
@@ -230,27 +230,6 @@ namespace HomeBridge.BridgeTools
                 var sources = NativeResourceSourcesTool.Read(map, new Obs.ResourceSourcesRequest { Scope = Scope(), Resource = resource, IncludeDevelopment = false }, context).Observed;
                 ObservationWork.Captured("resourceSources", Now() - began, sources != null ? sources.Sources.Count : 0);
                 if (sources != null) { observed.ResourceSources.Add(sources); }
-            }
-            var window = request.PlanningWindow;
-            if (window?.Minimum != null && window.Maximum != null)
-            {
-                var width = (long)window.Maximum.X - window.Minimum.X + 1;
-                var height = (long)window.Maximum.Z - window.Minimum.Z + 1;
-                if (width >= 1 && height >= 1)
-                {
-                    var cells = new Obs.GetCellsRequest { Scope = Scope(), Rectangle = window.Clone(), Compact = true,
-                        Fields = new Obs.CellFields { Terrain = false, Roof = true, Visibility = true, Traversal = true, Zone = true, Areas = false, Things = false, Designations = false, Room = true, Growth = true } };
-                    if (NativeObservationTools.ValidateCells(cells, out _))
-                    {
-                        var began = Now();
-                        var snapshot = NativeObservationTools.ReadCells(map, cells, context).Observed;
-                        // The window's cells are the candidates; a
-                        // changed_since_tick read returns only those that moved.
-                        var rows = snapshot == null ? 0 : snapshot.Cells.Count + (snapshot.Compact != null ? snapshot.Compact.Rows.Count : 0);
-                        ObservationWork.Captured("planningWindow", Now() - began, rows, width * height);
-                        if (snapshot != null) { observed.PlanningWindow = snapshot; }
-                    }
-                }
             }
             if (request.Definitions.Count > 0)
             {

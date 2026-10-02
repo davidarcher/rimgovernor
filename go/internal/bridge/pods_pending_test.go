@@ -40,7 +40,7 @@ func TestPendingPodsReachEveryEmergencyCensus(t *testing.T) {
 				t.Fatalf("combat PodsOpen = %d, want %d", got, tc.want)
 			}
 			var routine RoutineFrame
-			frameReplies(frame, EmergencyObservation{}, nil, func(method string, _, reply proto.Message) {
+			frameReplies(frame, EmergencyObservation{}, func(method string, _, reply proto.Message) {
 				if method == routineFrameMethod {
 					if routine, err = DecodeRoutineFrame(reply.(*o.BundleSnapshot)); err != nil {
 						t.Fatal(err)

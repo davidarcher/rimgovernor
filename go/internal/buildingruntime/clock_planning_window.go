@@ -23,21 +23,13 @@ type PlanningWindowNative interface {
 // planningWindow is the step's refresher for the planning_cells section
 // (#356): the scheduler attaches one to each step's context
 // (observation.WithPlanningWindow) and every planning colony read in the
-// step whose reply carries no cells asks it. It reads natively once per
-// full review step, and on demand when a
-// planner asks for a region the store does not hold (planningWindowCovers);
-// a timer or event step
-// with a held window serves it whatever its age, since stale state is
-// re-planned at apply (Actions/Apply checks live). The step's read
-// cache makes a second ask in the same step free.
+// step whose reply carries no cells asks it. Each ask cuts the window from
+// the newest snapshot frame's grid (#1345) and files it; a failed read
+// serves the held window of the same region.
 type planningWindow struct {
 	native PlanningWindowNative
 	store  *facts.Store
 	scope  facts.Scope
-	tick   int64
-	review bool
-	// refreshed is set once a review step has read the window.
-	refreshed bool
 	// layout reads the stored layout plan for the step's world (nil
 	// before the step knows it); the window covers its extent (#1282).
 	layout func(context.Context) (store.LayoutPlanRecord, bool, error)
@@ -56,45 +48,10 @@ func (p *planningWindow) PlanExtent(ctx context.Context) (policy.Rectangle, erro
 	return extent, nil
 }
 
-// planningWindowRead is the refresher's decision: whether the window is
-// read natively rather than served from the store. held is whether the
-// store holds the requested region at all; a review step reads it once.
-func planningWindowRead(review, refreshed, held bool) bool {
-	return !held || review && !refreshed
-}
-
-// planningWindowSlack is how far, in cells on each axis, a planner's
-// region may sit from the held window's before the window is re-read
-// at the new place (#593). The window is centred on the colony's centre,
-// which moves a cell or two as colonists walk; a window that followed it
-// exactly was read in full on every review step, and a site a few cells
-// past one edge is no better than one a few cells inside the other.
-const planningWindowSlack int32 = 4
-
-// planningWindowCovers is whether a held window of region held serves a
-// planner asking for region: the same size, offset by at most
-// planningWindowSlack on each axis.
-func planningWindowCovers(held, region policy.Rectangle) bool {
-	if held.Width != region.Width || held.Height != region.Height {
-		return false
-	}
-	dx, dz := held.X-region.X, held.Z-region.Z
-	return max(dx, -dx) <= planningWindowSlack && max(dz, -dz) <= planningWindowSlack
-}
-
 func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identity, region policy.Rectangle) (facts.Held[observation.PlanningCells], error) {
-	held, ok := facts.Get[observation.PlanningCells](p.store, facts.PlanningCells)
-	ok = ok && planningWindowCovers(held.Value.Region, region)
-	if !planningWindowRead(p.review, p.refreshed, ok) {
-		return held, nil
-	}
-	if ok {
-		region = held.Value.Region
-	}
 	window, _, err := p.native.ReadPlanningWindow(ctx, identity, region)
-	p.refreshed = p.refreshed || err == nil && p.review
 	if err != nil {
-		if ok {
+		if held, ok := facts.Get[observation.PlanningCells](p.store, facts.PlanningCells); ok && held.Value.Region == region {
 			clockSchedulerLog("planning window: read failed, serving the held window as of %d: %v", held.AsOf, err)
 			return held, nil
 		}

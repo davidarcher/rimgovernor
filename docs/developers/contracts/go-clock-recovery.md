@@ -454,12 +454,9 @@ is total light. A client without a stream reads the window through
 `bridge.PlanningCells`. Fogged cells carry no other facts.
 The step attaches a
 refresher to its context (`observation.WithPlanningWindow`); a planning
-colony read whose reply lists no cells asks it, and the refresher reads
-natively when nothing held covers the region and once per full review
-step, and serves the held window on every timer or event step. The step's read cache makes
-a second ask in the step free; a failed read serves the held window when
-one covers the region. The section files with the window reply's own
-tick. The
+colony read whose reply lists no cells asks it, and every ask cuts the
+window from the newest frame's grid; a failed read serves the held window
+of the same region. The section files with the frame's own tick. The
 row carries no `reachable` (`placement_preview` refuses an unreachable
 site) and never lists a fogged cell (`Completeness.filtered` counts them).
 

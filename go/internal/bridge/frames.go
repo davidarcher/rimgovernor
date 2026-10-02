@@ -26,8 +26,8 @@ import (
 // write, or the subscription is growing to carry it. A read the frame
 // does not answer (a page cursor, an id list, a filter) crosses GABP.
 //
-// The subscription grows itself: a read of a resource's sources or of a
-// planning band, or a routine read's planning definitions, is added to it,
+// The subscription grows itself: a read of a resource's sources, or a
+// routine read's planning definitions, is added to it,
 // and the stream is resubscribed so later frames carry it.
 
 const methodOpenSnapshotStream = "rimgovernor/observations_open_snapshot_stream"
@@ -60,7 +60,6 @@ type frameStream struct {
 	opening   bool
 	attempted time.Time
 	resources []string
-	window    *o.Rectangle
 	// definitions are the planning definitions frames carry in
 	// project_definitions (#944).
 	definitions []string
@@ -99,7 +98,7 @@ func frameServes(method string) bool {
 	case "rimgovernor/observations_read_status", "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_read_population",
 		"rimgovernor/observations_read_research", "rimgovernor/observations_list_pawns", "rimgovernor/observations_list_buildings",
 		"rimgovernor/observations_read_bills", "rimgovernor/observations_list_zones", "rimgovernor/observations_list_traders",
-		"rimgovernor/observations_read_world_progression", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_get_cells":
+		"rimgovernor/observations_read_world_progression", "rimgovernor/observations_list_resource_sources":
 		return true
 	}
 	return false
@@ -107,19 +106,6 @@ func frameServes(method string) bool {
 
 // scoped is every observation request: its scope names the world.
 type scoped interface{ GetScope() *o.ReadScope }
-
-// frameBand is the planning band a frame carries for rect: the whole
-// rectangle when it fits one band.
-func frameBand(rect *o.Rectangle) (policy.Rectangle, bool) {
-	if rect == nil {
-		return policy.Rectangle{}, false
-	}
-	band := policy.Rectangle{X: rect.GetMinimum().GetX(), Z: rect.GetMinimum().GetZ(), Width: rect.GetMaximum().GetX() - rect.GetMinimum().GetX() + 1, Height: rect.GetMaximum().GetZ() - rect.GetMinimum().GetZ() + 1}
-	if band.X < 0 || band.Z < 0 || band.Width < 1 || band.Height < 1 || int64(band.Width)*int64(band.Height) > planningWindowPage {
-		return policy.Rectangle{}, false
-	}
-	return band, true
-}
 
 // frameRead serves name/request from the snapshot stream. served is false
 // for a read no frame answers (no stream on this client, another method, a
@@ -287,7 +273,7 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte,
 		}
 	}
 	table = map[readCacheKey][]byte{}
-	frameReplies(v, emergency, s.window, func(method string, request, reply proto.Message) {
+	frameReplies(v, emergency, func(method string, request, reply proto.Message) {
 		var encoded []byte
 		if request != nil {
 			var err error
@@ -310,9 +296,8 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte,
 }
 
 // frameReplies hands seed every section of v as the (method, request,
-// reply) its dedicated read would have produced. window is the planning
-// band the subscription asked for.
-func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o.Rectangle, seed func(method string, request, reply proto.Message)) {
+// reply) its dedicated read would have produced.
+func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func(method string, request, reply proto.Message)) {
 	seed("rimgovernor/lifecycle_read_tick", &l.TickRequest{}, &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: v.Context, Paused: v.Paused}}})
 	identity := v.Context.Identity
 	if v.Emergency != nil {
@@ -357,9 +342,6 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 	}
 	for _, sources := range v.ResourceSources {
 		seed("rimgovernor/observations_list_resource_sources", resourceSourcesRequest(identity, sources.GetResource()), &o.ResourceSourcesReply{Outcome: &o.ResourceSourcesReply_Observed{Observed: sources}})
-	}
-	if band, ok := frameBand(window); ok && v.PlanningWindow != nil {
-		seed("rimgovernor/observations_get_cells", planningBandRequest(identity, band), &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: v.PlanningWindow}})
 	}
 	for _, row := range v.ProjectDefinitions {
 		seed(frameDefinitionMethod, frameDefinitionRequest(row.GetDefinition().GetDefName()), row)
@@ -550,7 +532,7 @@ func (caller *Client) frameReader(ctx context.Context) frameReader {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if (s.reader == nil || s.stale || s.keyframe) && !s.opening && (s.stale || s.keyframe || time.Since(s.attempted) >= frameRetry) {
-		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), PlanningWindow: s.window, Definitions: slices.Clone(s.definitions)}
+		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), Definitions: slices.Clone(s.definitions)}
 		if s.reader != nil && !s.stale {
 			// Only a keyframe (#1347): the subscription stands.
 			request = &o.SnapshotStreamRequest{Keyframe: proto.Bool(true)}
@@ -637,7 +619,7 @@ func (caller *Client) noteFrameWrite() {
 }
 
 // frameSubscribe grows the subscription with a read a frame carries only
-// when asked: a resource's sources, or a planning band (one at a time).
+// when asked: a resource's sources.
 func (caller *Client) frameSubscribe(name string, request proto.Message) {
 	s := caller.frames
 	s.mu.Lock()
@@ -646,12 +628,6 @@ func (caller *Client) frameSubscribe(name string, request proto.Message) {
 	case *o.ResourceSourcesRequest:
 		if validID(r.GetResource()) == nil && !slices.Contains(s.resources, r.GetResource()) {
 			s.resources = append(s.resources, r.GetResource())
-			s.stale = true
-		}
-	case *o.GetCellsRequest:
-		band, ok := frameBand(r.GetRectangle())
-		if ok && proto.Equal(r, planningBandRequest(r.GetScope().GetExpectedIdentity(), band)) && !proto.Equal(r.GetRectangle(), s.window) {
-			s.window = proto.Clone(r.GetRectangle()).(*o.Rectangle)
 			s.stale = true
 		}
 	}

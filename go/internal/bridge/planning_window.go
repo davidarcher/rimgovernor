@@ -101,12 +101,6 @@ func SortSiteCells(cells []policy.SiteCell) {
 	})
 }
 
-// planningBandRequest is one band's get_cells read, shared with the
-// bundle's planning window family (#593).
-func planningBandRequest(identity *c.Identity, band policy.Rectangle) *o.GetCellsRequest {
-	return cellsBandRequest(identity, band, planningWindowFields())
-}
-
 // cellsBandRequest is one compact rectangle read of the given fields.
 func cellsBandRequest(identity *c.Identity, band policy.Rectangle, fields *o.CellFields) *o.GetCellsRequest {
 	region := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(band.X), Z: proto.Int32(band.Z)}, Maximum: &c.Cell{X: proto.Int32(band.X + band.Width - 1), Z: proto.Int32(band.Z + band.Height - 1)}}

@@ -108,7 +108,7 @@ func TestFramesKeyframeOnSeqGap(t *testing.T) {
 	}
 	select {
 	case request := <-server.opens:
-		if !request.GetKeyframe() || len(request.GetResourceSources())+len(request.GetDefinitions()) != 0 || request.GetPlanningWindow() != nil {
+		if !request.GetKeyframe() || len(request.GetResourceSources())+len(request.GetDefinitions()) != 0 {
 			t.Fatalf("open %v, want a bare keyframe request", request)
 		}
 	case <-time.After(time.Second):
