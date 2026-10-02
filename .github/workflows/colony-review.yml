@@ -116,6 +116,23 @@ jobs:
             ./trusted/scripts/cleanup_remote.ps1 -Work "C:\rg\$role"
           }
           if (Test-Path C:\rg\identity.txt) { Remove-Item -LiteralPath C:\rg\identity.txt }
+      # The same allowlisted diagnostics a remote-acceptance shard publishes
+      # (result, logs, telemetry), whatever the play step's outcome.
+      - name: Export allowlisted diagnostics
+        if: always() && steps.gate.outcome == 'success'
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force C:\rg\evidence\s1 | Out-Null
+          if (Test-Path C:\rg\export-jobs.json) {
+            & C:\rg\remoteaccept.exe export -root C:\rg\evidence -shard s1 -jobs C:\rg\export-jobs.json
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.gate.outcome == 'success'
+        with:
+          name: colony-review-diagnostics
+          path: C:\rg\evidence\s1
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Render the report
         id: report
         env:
