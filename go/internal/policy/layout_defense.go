@@ -125,7 +125,7 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 // own just before the wall's; a wall on light footing or on a plain Bridge
 // is WoodLog. Other stuff is left empty; the planner fills in the stone at
 // admission.
-func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterSection, error) {
+func PerimeterSections(plan LayoutPlan, wall, door, bridge string, rock func(domain.Cell) bool) ([]PerimeterSection, error) {
 	gates, airlock, light, bridged := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	var runs []Rectangle
 	var killbox, geothermal Rectangle
@@ -195,6 +195,62 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 	next := func() PerimeterSection {
 		return PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPerimeterPrefix, len(out)))}
 	}
+	// A thick run is built deepest layer first. A cell is one layer deeper
+	// than its shallowest wall neighbour; layer 0 touches open ground. Built
+	// after the cells around it, a deep cell's frame is sealed (natural rock
+	// counts, when the caller knows it): no builder can touch it and the
+	// section never closes, and a builder standing in it is walled in.
+	solid := map[domain.Cell]bool{}
+	for _, p := range pieces {
+		for _, c := range rectCells(p.area) {
+			solid[c] = !airlock[c] && !gates[c]
+		}
+	}
+	around := func(c domain.Cell, f func(domain.Cell)) {
+		for dx := int32(-1); dx <= 1; dx++ {
+			for dz := int32(-1); dz <= 1; dz++ {
+				if dx != 0 || dz != 0 {
+					f(domain.Cell{X: c.X + dx, Z: c.Z + dz})
+				}
+			}
+		}
+	}
+	depth := map[domain.Cell]int{}
+	var frontier []domain.Cell
+	for c := range solid {
+		if !solid[c] {
+			continue
+		}
+		open := false
+		around(c, func(n domain.Cell) { open = open || !solid[n] && (rock == nil || !rock(n)) })
+		if open {
+			depth[c] = 0
+			frontier = append(frontier, c)
+		}
+	}
+	deepest := 0
+	for len(frontier) > 0 {
+		var next []domain.Cell
+		for _, c := range frontier {
+			around(c, func(n domain.Cell) {
+				if _, seen := depth[n]; !seen && solid[n] {
+					depth[n] = depth[c] + 1
+					deepest = max(deepest, depth[n])
+					next = append(next, n)
+				}
+			})
+		}
+		frontier = next
+	}
+	layer := func(c domain.Cell) int {
+		if d, ok := depth[c]; ok {
+			return d
+		}
+		if solid[c] {
+			return deepest + 1 // enclosed by rock alone
+		}
+		return 0
+	}
 	for _, p := range pieces {
 		under := next()
 		for _, c := range rectCells(p.area) {
@@ -210,7 +266,7 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 		if len(under.Buildings) > 0 {
 			out = append(out, under)
 		}
-		s := next()
+		layers := map[int][]domain.Building{}
 		for _, c := range rectCells(p.area) {
 			if airlock[c] {
 				continue
@@ -226,9 +282,16 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 			if err != nil {
 				return nil, err
 			}
-			s.Buildings = append(s.Buildings, b)
+			layers[layer(c)] = append(layers[layer(c)], b)
 		}
-		out = append(out, s)
+		for d := deepest + 1; d >= 0; d-- {
+			if len(layers[d]) == 0 {
+				continue
+			}
+			s := next()
+			s.Buildings = layers[d]
+			out = append(out, s)
+		}
 	}
 	if geothermal.Width > 2*geothermalShell && geothermal.Height > 2*geothermalShell {
 		gen := pad(geothermal, -geothermalShell)

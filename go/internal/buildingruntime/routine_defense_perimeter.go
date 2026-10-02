@@ -50,7 +50,20 @@ func defensePerimeterTiers(record *store.DefenseLayoutRecord, read observation.R
 		transmitters = q.Transmitters
 		spare, _ = q.SpareW.Value()
 	}
-	return defenseRecutPerimeter(record, plan, projection.Bounds, defensePerimeterBridge(projection), transmitters, spare, defensePrisonTurrets(plan, q)...)
+	return defenseRecutPerimeter(record, plan, projection.Bounds, defensePerimeterBridge(projection), transmitters, spare, defenseBlockedCells(projection), defensePrisonTurrets(plan, q)...)
+}
+
+// defenseBlockedCells is the planning window's observed unwalkable cells,
+// natural rock and standing walls alike: a wall cell between them and other
+// walls is enclosed as surely as one between walls.
+func defenseBlockedCells(projection observation.ColonyProjection) func(domain.Cell) bool {
+	blocked := map[domain.Cell]bool{}
+	for _, c := range projection.Cells {
+		if v, known := c.Walkable.Value(); known && !v {
+			blocked[c.Cell] = true
+		}
+	}
+	return func(c domain.Cell) bool { return blocked[c] }
 }
 
 // defensePrisonTurrets are the mini-turrets outside the prison doors
@@ -93,7 +106,7 @@ func defenseBuildingKey(b store.DefenseBuilding) string {
 // record's entry un-anchors the record, so the layout is proposed afresh
 // on the new one (#983). A pump not already in the record is planned only
 // while spare watts cover it.
-func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.LayoutPlan, bounds policy.Bounds, bridge string, transmitters []domain.Cell, spare float64, prison ...policy.PerimeterSection) (bool, error) {
+func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.LayoutPlan, bounds policy.Bounds, bridge string, transmitters []domain.Cell, spare float64, rock func(domain.Cell) bool, prison ...policy.PerimeterSection) (bool, error) {
 	var kept, old []store.DefenseTierRecord
 	standing := map[string]bool{}
 	for _, t := range record.Tiers {
@@ -114,7 +127,7 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 			return false, nil
 		}
 	}
-	sections, err := policy.PerimeterSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door, bridge)
+	sections, err := policy.PerimeterSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door, bridge, rock)
 	if err != nil {
 		return false, err
 	}
@@ -165,6 +178,9 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 	// re-routes nothing already standing.
 	digest := sha256.New()
 	fmt.Fprintf(digest, "%s/%v\n", bridge, len(pumps) > 0)
+	// Which cells are wanted keys the cut, not how they group into sections:
+	// the layering follows observed walls, which change as tiers build.
+	var keys []string
 	var fresh []store.DefenseTierRecord
 	wanted := map[string]bool{}
 	for _, s := range slices.Concat(sections, pumps, prison) {
@@ -177,12 +193,16 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 			t.Buildings = append(t.Buildings, rb)
 			wanted[defenseBuildingKey(rb)] = true
 			if rb.Definition != defenseConduitDefinition {
-				fmt.Fprintln(digest, defenseBuildingKey(rb))
+				keys = append(keys, defenseBuildingKey(rb))
 			}
 		}
 		if len(t.Buildings) > 0 {
 			fresh = append(fresh, t)
 		}
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		fmt.Fprintln(digest, k)
 	}
 	key := fmt.Sprintf("%x", digest.Sum(nil)[:16])
 	if key == record.PerimeterKey {

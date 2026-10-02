@@ -419,7 +419,7 @@ func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
 	})
 	bridged := reservedCells(p, ReserveBridge)
 	for _, tc := range []struct{ bridge, stuff string }{{PerimeterBridge, PerimeterLightStuff}, {PerimeterHeavyBridge, ""}} {
-		sections, err := PerimeterSections(p, "Wall", "Door", tc.bridge)
+		sections, err := PerimeterSections(p, "Wall", "Door", tc.bridge, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -431,7 +431,7 @@ func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
 					laid[b.Cell()] = i
 				case bridged[b.Cell()]:
 					at, ok := laid[b.Cell()]
-					if !ok || at != i-1 || b.Stuff() != tc.stuff {
+					if !ok || at >= i || b.Stuff() != tc.stuff {
 						t.Fatalf("%s: wall at %v in section %d, bridge section %d (%v), stuff %q", tc.bridge, b.Cell(), i, at, ok, b.Stuff())
 					}
 					walled++

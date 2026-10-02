@@ -49,7 +49,7 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 			if len(sites) != 1 || sites[0].Cell != at || sites[0].Area != pad(enclosure, -geothermalShell) {
 				t.Fatalf("geothermal site %+v, geyser at %v", sites, at)
 			}
-			sections, err := PerimeterSections(plan, "Wall", "Door", PerimeterBridge)
+			sections, err := PerimeterSections(plan, "Wall", "Door", PerimeterBridge, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

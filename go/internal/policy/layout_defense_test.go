@@ -74,7 +74,7 @@ func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
 func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	p.Reservations = append(p.Reservations, LayoutReservation{Kind: ReserveGeothermal, Area: Rectangle{X: 90, Z: 90, Width: 10, Height: 10}})
-	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
+	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 // wall, the cell between them unbuilt and walled in on both flanks.
 func TestPerimeterAirlock(t *testing.T) {
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
+	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,5 +167,53 @@ func TestPerimeterAirlock(t *testing.T) {
 				t.Fatalf("gate %+v: airlock flank %v is %q, want Wall", g, c, built[c])
 			}
 		}
+	}
+}
+
+// The hollow of a thick wall run is built before the cells that enclose it
+// (#1248): once those finish its frame would be sealed, unreachable by any
+// builder, and the section would never close.
+func TestPerimeterSectionsBuildTheHollowFirst(t *testing.T) {
+	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	built := map[domain.Cell]int{}
+	for i, s := range sections {
+		for _, b := range s.Buildings {
+			if b.Definition() != "Wall" {
+				continue
+			}
+			built[b.Cell()] = i
+		}
+	}
+	hollowSections := 0
+	for c, i := range built {
+		sealed := true
+		for dx := int32(-1); dx <= 1 && sealed; dx++ {
+			for dz := int32(-1); dz <= 1; dz++ {
+				if _, ok := built[domain.Cell{X: c.X + dx, Z: c.Z + dz}]; !ok {
+					sealed = false
+					break
+				}
+			}
+		}
+		if !sealed {
+			continue
+		}
+		hollowSections++
+		later := false
+		for dx := int32(-1); dx <= 1; dx++ {
+			for dz := int32(-1); dz <= 1; dz++ {
+				later = later || built[domain.Cell{X: c.X + dx, Z: c.Z + dz}] > i
+			}
+		}
+		if !later {
+			t.Fatalf("cell %v (section %d) is enclosed before it is built", c, i)
+		}
+	}
+	if hollowSections == 0 {
+		t.Fatal("no hollow cell in the fixture ring")
 	}
 }
