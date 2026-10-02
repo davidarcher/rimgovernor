@@ -237,7 +237,11 @@ func (a *app) restart() {
 	a.play()
 }
 
+// closeGame ends the controller first: it reattaches to a game that dies
+// under it (a kill reads as a crash), so closing the game beneath a running
+// controller brought the game straight back.
 func (a *app) closeGame() {
+	a.stop()
 	pids, err := setup.StopGames(context.Background(), a.layout.GameCopy)
 	switch {
 	case err != nil:
