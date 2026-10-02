@@ -28,7 +28,8 @@ type safeAreaMemory struct {
 
 func (m *safeAreaMemory) enter(world string) {
 	if m.world != world {
-		*m = safeAreaMemory{world: world}
+		// Field by field: overwriting *m would reset the held mutex.
+		m.world, m.current, m.known, m.edits, m.want = world, nil, false, nil, nil
 	}
 }
 
