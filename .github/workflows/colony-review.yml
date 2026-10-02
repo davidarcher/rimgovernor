@@ -159,12 +159,14 @@ jobs:
           TESTED_COMMIT: ${{ steps.gate.outputs.head }}
           PLAYED: ${{ steps.play.outcome }}
         run: |
-          $stats = Get-ChildItem C:\rg -Recurse -File -Force -Filter stats.jsonl -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $stats) { throw "The run recorded nothing (play step: $env:PLAYED); see its log" }
+          $result = Get-ChildItem C:\rg -Recurse -File -Force -Filter result.json -ErrorAction SilentlyContinue |
+            Where-Object { (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).case -eq 'review/colony-week' } |
+            Select-Object -First 1
+          if (-not $result) { throw "The case left no result.json (play step: $env:PLAYED); see its log" }
           $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
           $name = "$date-$env:GITHUB_RUN_ID"
           $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-          & C:\rg\colonyreview.exe report -in $stats.DirectoryName -out "C:\rg\review-report\$name" `
+          & C:\rg\colonyreview.exe report -in $result.DirectoryName -out "C:\rg\review-report\$name" `
             -meta "date=$date" -meta "commit=$($env:TESTED_COMMIT.Substring(0,9))" -meta "run=$url" -meta "outcome=$env:PLAYED"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "name=$name" >> $env:GITHUB_OUTPUT

@@ -46,6 +46,17 @@ var funcs = template.FuncMap{
 	"pct1": func(v float64) string { return fmt.Sprintf("%.0f%%", v*100) },
 	"f1":   func(v float64) string { return fmt.Sprintf("%.1f", v) },
 	"f0":   func(v float64) string { return fmt.Sprintf("%.0f", v) },
+	"deref": func(v any) any {
+		switch p := v.(type) {
+		case *float64:
+			return *p
+		case *string:
+			return *p
+		case *bool:
+			return *p
+		}
+		return v
+	},
 	"hasBad": func(fs []Flag) bool {
 		for _, f := range fs {
 			if f.Severity == "bad" {
@@ -62,34 +73,34 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 <p><a href="../index.html">All runs</a></p>
 <h1>Colony review {{.S.Meta.date}}</h1>
 <p class="meta muted">{{range $k, $v := .S.Meta}}<span>{{$k}}: {{$v}}</span>{{end}}</p>
+{{if .S.Error}}<p class="bad">The run ended early: {{.S.Error}}</p>{{end}}
 <div class="tiles">
 <div class="tile"><span class="muted">Colonists</span><b>{{.S.FirstColonists}} → {{.S.LastColonists}}</b></div>
-<div class="tile"><span class="muted">Deaths</span><b class="{{if .S.Deaths}}bad{{end}}">{{.S.Deaths}}</b></div>
 <div class="tile"><span class="muted">Lowest mean mood</span><b>{{pct1 .S.MinMood}}</b></div>
-<div class="tile"><span class="muted">Lowest food</span><b>{{f1 .S.MinFoodDays}} days</b></div>
+<div class="tile"><span class="muted">Lowest food runway</span><b>{{f1 .S.MinFoodDays}} days</b></div>
 <div class="tile"><span class="muted">Final wealth</span><b>{{f0 .S.FinalWealth}}</b></div>
-<div class="tile"><span class="muted">Buildings</span><b>{{.S.FinalBuildings}}</b></div>
 <div class="tile"><span class="muted">Hours recorded</span><b>{{.S.Hours}}</b></div>
 <div class="tile"><span class="muted">Flags</span><b class="{{if .S.Flags}}warn{{end}}">{{.S.Flags}}</b></div>
 </div>
 <h2>Trends</h2><div class="charts">{{range .Charts}}<div class="chart"><span class="muted">{{.Label}}</span> <b>{{.Last}}</b>
 <svg viewBox="0 0 {{.W}} 100" preserveAspectRatio="none"><polyline points="{{.Points}}"/></svg>
 <span class="muted">{{.Min}} – {{.Max}}</span></div>{{end}}</div>
-<h2>Flags</h2>{{if .Flagged}}<ul class="flags">{{range .Flagged}}{{$a := .Anchor}}{{$d := .Date}}{{range .Flags}}<li class="{{.Severity}}"><a href="#{{$a}}">{{$d}}</a> {{.Text}}</li>{{end}}{{end}}</ul>{{else}}<p class="muted">None.</p>{{end}}
-<h2>Whole map, daily</h2><div class="days">{{range .Rows}}{{if .MapShot}}<figure><a href="{{.MapShot}}"><img loading="lazy" src="{{.MapShot}}" alt="Map {{.Date}}"></a><figcaption>{{.Date}}</figcaption></figure>{{end}}{{end}}</div>
+<h2>Flags</h2>{{if .Flagged}}<ul class="flags">{{range .Flagged}}{{$a := .Anchor}}{{$d := .Label}}{{range .Flags}}<li class="{{.Severity}}"><a href="#{{$a}}">{{$d}}</a> {{.Text}}</li>{{end}}{{end}}</ul>{{else}}<p class="muted">None.</p>{{end}}
+<h2>Whole map, daily</h2><div class="days">{{range .Rows}}{{if .MapShot}}<figure><a href="review/{{.MapShot}}"><img loading="lazy" src="review/{{.MapShot}}" alt="Map {{.Label}}"></a><figcaption>{{.Label}}</figcaption></figure>{{end}}{{end}}</div>
 <h2>Hour by hour</h2>
-<label class="filter"><input type="checkbox" id="only"> Only hours with flags</label>
+<label class="filter"><input type="checkbox" id="only"> Only hours with flags or goal changes</label>
 <div class="hours" id="hours">{{range .Rows}}
-<section class="hour{{if hasBad .Flags}} hasbad{{end}}" id="{{.Anchor}}" data-flags="{{len .Flags}}">
-{{if .ColonyShot}}<a href="{{.ColonyShot}}"><img loading="lazy" src="{{.ColonyShot}}" alt="Colony {{.Date}}"></a>{{end}}
-<div class="body"><b>{{.Date}}</b> <span class="muted">{{.Season}}, {{.Weather}}, {{f0 .OutdoorTemp}}°C</span><br>
-<span class="muted">food {{f1 .FoodDays}}d · wealth {{f0 .Wealth}} · buildings {{.Buildings}} · blueprints {{.Blueprints}}{{if .Hostiles}} · <span class="bad">{{.Hostiles}} hostile</span>{{end}}</span>
-<table>{{range .Colonists}}<tr><td>{{.Name}}</td><td>{{pct .Mood}}</td><td>{{pct .Health}}</td><td class="job">{{if .Mental}}<span class="bad">{{.Mental}}</span> {{end}}{{if .Downed}}<span class="bad">downed</span> {{end}}{{.Job}}</td></tr>{{end}}</table>
+<section class="hour{{if hasBad .Flags}} hasbad{{end}}" id="{{.Anchor}}" data-flags="{{len .Flags}}{{len .Changes}}">
+{{if .ColonyShot}}<a href="review/{{.ColonyShot}}"><img loading="lazy" src="review/{{.ColonyShot}}" alt="Colony {{.Label}}"></a>{{end}}
+<div class="body"><b>{{.Label}}</b> <span class="muted">tick {{.Tick}}</span><br>
+{{with .Census}}<span class="muted">food runway {{if .FoodRunwayDays}}{{f1 (deref .FoodRunwayDays)}}d{{end}} · wealth {{if .WealthTotal}}{{f0 (deref .WealthTotal)}}{{end}}{{if .BuildTier}} · {{deref .BuildTier}}{{end}}</span>
+<table>{{range .Pawns}}<tr><td>{{.Label}}</td><td>mood {{pct .Mood}}</td><td>food {{pct .Food}}</td><td>{{if .Downed}}{{if deref .Downed}}<span class="bad">downed</span>{{end}}{{end}}</td></tr>{{end}}</table>{{end}}
 {{if .Flags}}<ul>{{range .Flags}}<li class="{{.Severity}}">{{.Text}}</li>{{end}}</ul>{{end}}
-{{if .Events}}<ul class="muted">{{range .Events}}<li>{{.Label}}</li>{{end}}</ul>{{end}}
+{{if .Changes}}<ul class="muted">{{range .Changes}}<li>{{.}}</li>{{end}}</ul>{{end}}
+<details><summary class="muted">goals</summary><table>{{range .Goals}}<tr><td>{{.ID}}</td><td class="{{if eq .Need "deficit"}}warn{{end}}">{{.Need}}</td><td class="job">{{.Status}}</td></tr>{{end}}</table></details>
 </div></section>{{end}}</div>
 <script>
-document.getElementById('only').addEventListener('change',e=>{for(const s of document.querySelectorAll('#hours .hour'))s.style.display=e.target.checked&&s.dataset.flags==='0'?'none':''})
+document.getElementById('only').addEventListener('change',e=>{for(const s of document.querySelectorAll('#hours .hour'))s.style.display=e.target.checked&&s.dataset.flags==='00'?'none':''})
 </script>
 </main></body></html>
 `))
@@ -129,13 +140,26 @@ func renderRun(w io.Writer, rows []Row, s Summary) error {
 			flagged = append(flagged, r)
 		}
 	}
+	val := func(p *float64) float64 {
+		if p == nil {
+			return 0
+		}
+		return *p
+	}
 	charts := []chart{
-		newChart("Colonists", rows, func(r Row) float64 { return float64(r.ColonistCount) }, "%.0f"),
-		newChart("Mean mood %", rows, func(r Row) float64 { return r.MeanMood * 100 }, "%.0f"),
-		newChart("Food days", rows, func(r Row) float64 { return r.FoodDays }, "%.1f"),
-		newChart("Wealth", rows, func(r Row) float64 { return r.Wealth }, "%.0f"),
-		newChart("Buildings", rows, func(r Row) float64 { return float64(r.Buildings) }, "%.0f"),
-		newChart("Blueprints", rows, func(r Row) float64 { return float64(r.Blueprints) }, "%.0f"),
+		newChart("Colonists", rows, func(r Row) float64 { return float64(colonists(r)) }, "%.0f"),
+		newChart("Mean mood %", rows, func(r Row) float64 { return val(r.Census.MoodMean) * 100 }, "%.0f"),
+		newChart("Food runway days", rows, func(r Row) float64 { return val(r.Census.FoodRunwayDays) }, "%.1f"),
+		newChart("Wealth", rows, func(r Row) float64 { return val(r.Census.WealthTotal) }, "%.0f"),
+		newChart("Goals in deficit", rows, func(r Row) float64 {
+			n := 0
+			for _, g := range r.Goals {
+				if g.Need == "deficit" {
+					n++
+				}
+			}
+			return float64(n)
+		}, "%.0f"),
 	}
 	return runPage.Execute(w, map[string]any{"S": s, "Rows": rows, "Flagged": flagged, "Charts": charts})
 }
@@ -145,11 +169,11 @@ var sitePage = template.Must(template.New("site").Funcs(funcs).Parse(`<!doctype 
 <title>Colony reviews</title><style>` + style + `</style></head><body><main>
 <h1>Colony reviews</h1>
 <p class="muted">Each run plays a fresh map for an in-game week with the governor in charge. Open one to see it hour by hour.</p>
-<table class="runs"><tr><th></th><th>Run</th><th>Map</th><th>Colonists</th><th>Deaths</th><th>Low food</th><th>Flags</th></tr>
+<table class="runs"><tr><th></th><th>Run</th><th>Map</th><th>Colonists</th><th>Low food</th><th>Flags</th></tr>
 {{range .}}<tr><td>{{if .S.Thumb}}<a href="{{.Dir}}/index.html"><img loading="lazy" src="{{.Dir}}/{{.S.Thumb}}" alt=""></a>{{end}}</td>
 <td><a href="{{.Dir}}/index.html">{{.S.Meta.date}}</a><br><span class="muted">{{.S.Meta.commit}}</span></td>
 <td>{{.S.Meta.biome}}<br><span class="muted">{{.S.Meta.seed}}</span></td>
-<td>{{.S.FirstColonists}} → {{.S.LastColonists}}</td><td class="{{if .S.Deaths}}bad{{end}}">{{.S.Deaths}}</td>
+<td class="{{if lt .S.LastColonists .S.FirstColonists}}bad{{end}}">{{.S.FirstColonists}} → {{.S.LastColonists}}</td>
 <td>{{f1 .S.MinFoodDays}} d</td><td>{{.S.Flags}}</td></tr>{{end}}
 </table></main></body></html>
 `))

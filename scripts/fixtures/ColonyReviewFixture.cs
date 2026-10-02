@@ -6,7 +6,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
-using Newtonsoft.Json;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using UnityEngine;
@@ -15,9 +14,10 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Colony review recorder (review/colony-week): once started, every
-    // IntervalTicks of game time it renders the colony from above into a
-    // JPEG and appends one line of colony facts to stats.jsonl in Dir, with
-    // a whole-map shot once a game day. It runs from the frame loop, so the
+    // IntervalTicks of game time it renders the colony from above into
+    // colony-<tick>.jpg in Dir, with a whole-map map-<tick>.jpg once a game
+    // day. Colony facts are not its business: the run's timeline and
+    // telemetry already hold them. It runs from the frame loop, so the
     // controller drives the game undisturbed while it records. Needs a
     // graphics device: a -batchmode game launched without -nographics
     // (RIMGOVERNOR_ACCEPT_GRAPHICS=1) renders on demand, it only never
@@ -76,13 +76,12 @@ namespace HomeBridge.BridgeTools
             var tick = Find.TickManager.TicksGame;
             try
             {
-                var shots = new List<string> { Render(rect, $"colony-{tick:D8}.jpg") };
+                Render(rect, $"colony-{tick:D8}.jpg");
                 if (lastTick < 0 || tick / DayTicks != lastTick / DayTicks)
                 {
                     viewOverride = CellRect.WholeMap(__instance);
-                    shots.Add(Render(viewOverride.Value, $"map-{tick:D8}.jpg"));
+                    Render(viewOverride.Value, $"map-{tick:D8}.jpg");
                 }
-                WriteStats(__instance, tick, rect, shots);
                 frames++;
             }
             catch (Exception e)
@@ -112,7 +111,7 @@ namespace HomeBridge.BridgeTools
             return CellRect.CenteredOn(center, half).ClipInsideMap(map);
         }
 
-        static string Render(CellRect rect, string name)
+        static void Render(CellRect rect, string name)
         {
             var camera = Find.Camera;
             var position = camera.transform.position;
@@ -135,7 +134,6 @@ namespace HomeBridge.BridgeTools
                 image.Apply();
                 File.WriteAllBytes(Path.Combine(dir!, name), image.EncodeToJPG(80));
                 UnityEngine.Object.Destroy(image);
-                return name;
             }
             finally
             {
@@ -147,55 +145,11 @@ namespace HomeBridge.BridgeTools
                 RenderTexture.ReleaseTemporary(texture);
             }
         }
-
-        static void WriteStats(Map map, int tick, CellRect rect, List<string> shots)
-        {
-            var colonists = map.mapPawns.FreeColonistsSpawned.Select(p => new {
-                name = p.LabelShortCap,
-                mood = p.needs?.mood?.CurLevelPercentage,
-                food = p.needs?.food?.CurLevelPercentage,
-                rest = p.needs?.rest?.CurLevelPercentage,
-                health = p.health?.summaryHealth?.SummaryHealthPercent,
-                downed = p.Downed,
-                drafted = p.Drafted,
-                mental = p.MentalStateDef?.label,
-                job = p.jobs?.curDriver?.GetReport(),
-                hediffs = p.health?.hediffSet?.hediffs.Where(h => h.Visible && h.def.isBad).Select(h => h.LabelCap.ToString()).ToList(),
-            }).ToList();
-            var events = Find.Archive.ArchivablesListForReading
-                .Where(a => a.CreatedTicksGame > lastTick && a.CreatedTicksGame <= tick)
-                .Select(a => new { tick = a.CreatedTicksGame, kind = a is Letter ? "letter" : "message", label = a.ArchivedLabel }).ToList();
-            var hostiles = map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && !p.Downed && p.HostileTo(Faction.OfPlayer));
-            var row = new {
-                tick,
-                day = GenDate.DaysPassedAt(tick),
-                hour = GenLocalDate.HourOfDay(map),
-                date = GenDate.DateFullStringWithHourAt(GenTicks.TicksAbs, Find.WorldGrid.LongLatOf(map.Tile)),
-                season = GenLocalDate.Season(map).LabelCap().ToString(),
-                weather = map.weatherManager.curWeather?.LabelCap.ToString(),
-                outdoorTemp = map.mapTemperature.OutdoorTemp,
-                colonistCount = colonists.Count,
-                colonists,
-                deadColonists = Find.WorldPawns.AllPawnsDead.Count(p => p.Faction == Faction.OfPlayer && p.RaceProps.Humanlike),
-                hostiles,
-                wealth = map.wealthWatcher.WealthTotal,
-                nutrition = map.resourceCounter.TotalHumanEdibleNutrition,
-                silver = map.resourceCounter.Silver,
-                buildings = map.listerBuildings.allBuildingsColonist.Count,
-                homeCells = map.areaManager.Home.TrueCount,
-                blueprints = map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).Count,
-                fires = map.listerThings.ThingsOfDef(ThingDefOf.Fire).Count,
-                events,
-                view = new { rect.minX, rect.minZ, rect.Width, rect.Height },
-                shots,
-            };
-            File.AppendAllText(Path.Combine(dir!, "stats.jsonl"), JsonConvert.SerializeObject(row) + "\n");
-        }
     }
 
     public sealed class ColonyReviewFixture
     {
-        [Tool("test/colony_review", Description = "UNSAFE FOR MODEL EXECUTION. Test recorder: action=start renders the colony to a JPEG and appends colony facts to stats.jsonl in dir every intervalTicks of game time (a whole-map shot once a day); stop ends it; status reads it. Needs a graphics device (a game launched without -nographics).")]
+        [Tool("test/colony_review", Description = "UNSAFE FOR MODEL EXECUTION. Test recorder: action=start renders the colony to a JPEG in dir every intervalTicks of game time (a whole-map shot once a day); stop ends it; status reads it. Needs a graphics device (a game launched without -nographics).")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "start, stop or status (default).")] string action = "status",
             [ToolParameter(Description = "Output directory for start.")] string dir = "",

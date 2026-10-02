@@ -35,11 +35,11 @@ func ColonyWindow() uint64 {
 	return ColonyWindowTicks
 }
 
-// colonyGoals are the goals every colony sample reads beside
+// ColonyGoals are the goals every colony sample reads beside
 // EnsureFoodSupply: the foothold gates and the first maintenance-tier
 // projects, so the timeline shows which one stalls, thrashes or starves the
 // others (#99).
-var colonyGoals = []policy.GoalID{
+var ColonyGoals = []policy.GoalID{
 	policy.MaintainHousing, policy.MaintainFoodStorage, policy.EnsureCooking,
 	policy.EnsureTemperatureSafety, policy.MaintainResource,
 	policy.EnsureWorkAssignments, policy.EnsureBasicDefense, policy.EnsureResearch,
@@ -78,7 +78,7 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
 					Watch: Window(), Window: ColonyWindow(), Poll: 10 * time.Second,
-					Goal: policy.EnsureFoodSupply, Extra: colonyGoals,
+					Goal: policy.EnsureFoodSupply, Extra: ColonyGoals,
 					// A diagnostic, not a gate: a refusal is part of what the
 					// long window records, never a reason to cut it short.
 					FailFast: sustainedfood.FailFast{Disabled: true},

@@ -1,199 +1,234 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 )
 
-// Colonist is one colonist in a recorder row.
-type Colonist struct {
-	Name    string   `json:"name"`
-	Mood    *float64 `json:"mood"`
-	Food    *float64 `json:"food"`
-	Rest    *float64 `json:"rest"`
-	Health  *float64 `json:"health"`
-	Downed  bool     `json:"downed"`
-	Drafted bool     `json:"drafted"`
-	Mental  string   `json:"mental"`
-	Job     string   `json:"job"`
-	Hediffs []string `json:"hediffs"`
+// The report reads what the run already records: result.json's timeline
+// (sustainedfood.Watch: the colony census from /api/player/colony and each
+// sampled goal's state, every in-game hour) and the recorder's screenshots
+// under review/ (colony-<tick>.jpg, map-<tick>.jpg).
+
+// Pawn is one census pawn.
+type Pawn struct {
+	Label  string   `json:"label"`
+	Downed *bool    `json:"downed"`
+	Mood   *float64 `json:"mood"`
+	Food   *float64 `json:"food"`
 }
 
-// Event is a letter or message the game archived since the previous row.
-type Event struct {
-	Tick  int    `json:"tick"`
-	Kind  string `json:"kind"`
-	Label string `json:"label"`
+// Census is the timeline sample's colony block.
+type Census struct {
+	Error          string   `json:"error"`
+	Colonists      *int64   `json:"colonists"`
+	FoodRunwayDays *float64 `json:"foodRunwayDays"`
+	WealthTotal    *float64 `json:"wealthTotal"`
+	MoodMean       *float64 `json:"moodMean"`
+	Downed         int      `json:"downed"`
+	BuildTier      *string  `json:"buildTier"`
+	Pawns          []Pawn   `json:"pawns"`
 }
 
-// Row is one stats.jsonl line (ColonyReview.WriteStats).
+// Goal is one sampled goal's state.
+type Goal struct {
+	ID     string
+	Need   string
+	Status string
+}
+
+// Row is one hour of the report: a timeline sample and its screenshot.
 type Row struct {
-	Tick          int        `json:"tick"`
-	Day           int        `json:"day"`
-	Hour          int        `json:"hour"`
-	Date          string     `json:"date"`
-	Season        string     `json:"season"`
-	Weather       string     `json:"weather"`
-	OutdoorTemp   float64    `json:"outdoorTemp"`
-	ColonistCount int        `json:"colonistCount"`
-	Colonists     []Colonist `json:"colonists"`
-	DeadColonists int        `json:"deadColonists"`
-	Hostiles      int        `json:"hostiles"`
-	Wealth        float64    `json:"wealth"`
-	Nutrition     float64    `json:"nutrition"`
-	Silver        int        `json:"silver"`
-	Buildings     int        `json:"buildings"`
-	HomeCells     int        `json:"homeCells"`
-	Blueprints    int        `json:"blueprints"`
-	Fires         int        `json:"fires"`
-	Events        []Event    `json:"events"`
-	Shots         []string   `json:"shots"`
-	Flags         []Flag     `json:"-"`
-	MeanMood      float64    `json:"-"`
-	FoodDays      float64    `json:"-"`
-	ColonyShot    string     `json:"-"`
-	MapShot       string     `json:"-"`
-	Anchor        string     `json:"-"`
+	Tick       int
+	Day, Hour  int
+	Label      string
+	Census     Census
+	Goals      []Goal
+	Changes    []string // goal need transitions since the previous row
+	ColonyShot string
+	MapShot    string
+	Flags      []Flag
+	Anchor     string
 }
 
 // Summary is the run at a glance, saved in run.json for the site index.
 type Summary struct {
 	Meta           map[string]string `json:"meta"`
 	Hours          int               `json:"hours"`
-	Days           int               `json:"days"`
 	FirstColonists int               `json:"first_colonists"`
 	LastColonists  int               `json:"last_colonists"`
-	Deaths         int               `json:"deaths"`
 	MinMood        float64           `json:"min_mood"`
 	MinFoodDays    float64           `json:"min_food_days"`
 	FinalWealth    float64           `json:"final_wealth"`
-	FinalBuildings int               `json:"final_buildings"`
 	Flags          int               `json:"flags"`
 	Thumb          string            `json:"thumb"`
+	Error          string            `json:"error,omitempty"`
 }
 
-// NutritionPerDay is one colonist's daily nutrition need, for food days.
-const NutritionPerDay = 1.6
+// result is the slice of result.json the report reads.
+type result struct {
+	Error    string                       `json:"error"`
+	Review   map[string]any               `json:"review"`
+	Timeline []map[string]json.RawMessage `json:"timeline"`
+}
 
-// Load reads stats.jsonl from dir.
-func Load(dir string) ([]Row, error) {
-	f, err := os.Open(filepath.Join(dir, "stats.jsonl"))
+// Load reads the case output directory: result.json and review/*.jpg.
+func Load(dir string) ([]Row, result, error) {
+	var res result
+	data, err := os.ReadFile(filepath.Join(dir, "result.json"))
 	if err != nil {
-		return nil, err
+		return nil, res, err
 	}
-	defer f.Close()
+	if err := json.Unmarshal(data, &res); err != nil {
+		return nil, res, fmt.Errorf("result.json: %w", err)
+	}
+	shots := map[string]map[int]string{"colony": {}, "map": {}}
+	entries, _ := os.ReadDir(filepath.Join(dir, "review"))
+	for _, e := range entries {
+		var kind string
+		var tick int
+		name := strings.TrimSuffix(e.Name(), ".jpg")
+		if k, t, ok := strings.Cut(name, "-"); ok && (k == "colony" || k == "map") {
+			if n, err := strconv.Atoi(t); err == nil {
+				kind, tick = k, n
+			}
+		}
+		if kind != "" {
+			shots[kind][tick] = e.Name()
+		}
+	}
 	var rows []Row
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1<<20), 16<<20)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" {
-			continue
+	seen := map[int]bool{}
+	for _, sample := range res.Timeline {
+		var tick int
+		if json.Unmarshal(sample["tick"], &tick) != nil || seen[tick] {
+			continue // a sample without a live tick, or a woken duplicate
 		}
-		var r Row
-		if err := json.Unmarshal([]byte(line), &r); err != nil {
-			return nil, fmt.Errorf("stats.jsonl line %d: %w", len(rows)+1, err)
+		seen[tick] = true
+		r := Row{Tick: tick, Day: tick/60000 + 1, Hour: tick % 60000 / 2500, Anchor: fmt.Sprintf("t%d", tick)}
+		r.Label = fmt.Sprintf("Day %d, %02dh", r.Day, r.Hour)
+		json.Unmarshal(sample["colony"], &r.Census)
+		for key, raw := range sample {
+			var g struct {
+				Need   string `json:"need"`
+				Status string `json:"status"`
+			}
+			if strings.HasPrefix(key, "Ensure") || strings.HasPrefix(key, "Maintain") {
+				if json.Unmarshal(raw, &g) == nil && g.Need != "" {
+					r.Goals = append(r.Goals, Goal{key, g.Need, g.Status})
+				}
+			}
 		}
+		var need, status string
+		json.Unmarshal(sample["need"], &need)
+		json.Unmarshal(sample["status"], &status)
+		if need != "" {
+			r.Goals = append(r.Goals, Goal{"EnsureFoodSupply", need, status})
+		}
+		sort.Slice(r.Goals, func(i, j int) bool { return r.Goals[i].ID < r.Goals[j].ID })
 		rows = append(rows, r)
 	}
-	return rows, sc.Err()
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Tick < rows[j].Tick })
+	// Each shot goes to the last sample at or before its tick.
+	for kind, byTick := range shots {
+		for tick, name := range byTick {
+			i := sort.Search(len(rows), func(i int) bool { return rows[i].Tick > tick }) - 1
+			if i < 0 {
+				i = 0
+			}
+			if i >= len(rows) {
+				continue
+			}
+			if kind == "colony" && rows[i].ColonyShot == "" {
+				rows[i].ColonyShot = name
+			} else if kind == "map" && rows[i].MapShot == "" {
+				rows[i].MapShot = name
+			}
+		}
+	}
+	return rows, res, nil
 }
 
-// Derive fills each row's derived fields and flags and returns the summary.
+// Derive fills each row's goal changes and flags and returns the summary.
 func Derive(rows []Row, meta map[string]string) Summary {
 	s := Summary{Meta: meta, Hours: len(rows), MinMood: 1, MinFoodDays: -1}
 	for i := range rows {
 		r := &rows[i]
-		r.Anchor = fmt.Sprintf("t%d", r.Tick)
-		var moods []float64
-		for _, c := range r.Colonists {
-			if c.Mood != nil {
-				moods = append(moods, *c.Mood)
-			}
-		}
-		r.MeanMood = mean(moods)
-		if r.ColonistCount > 0 {
-			r.FoodDays = r.Nutrition / (NutritionPerDay * float64(r.ColonistCount))
-		}
-		for _, shot := range r.Shots {
-			if strings.HasPrefix(shot, "map-") {
-				r.MapShot = shot
-			} else {
-				r.ColonyShot = shot
-			}
-		}
 		var prev *Row
 		if i > 0 {
 			prev = &rows[i-1]
+			before := map[string]string{}
+			for _, g := range prev.Goals {
+				before[g.ID] = g.Need
+			}
+			for _, g := range r.Goals {
+				if b, ok := before[g.ID]; ok && b != g.Need {
+					r.Changes = append(r.Changes, fmt.Sprintf("%s %s → %s", g.ID, b, g.Need))
+				}
+			}
 		}
 		r.Flags = flags(rows[:i+1], prev)
 		s.Flags += len(r.Flags)
-		if len(moods) > 0 && r.MeanMood < s.MinMood {
-			s.MinMood = r.MeanMood
+		c := r.Census
+		if c.MoodMean != nil && *c.MoodMean < s.MinMood {
+			s.MinMood = *c.MoodMean
 		}
-		if r.ColonistCount > 0 && (s.MinFoodDays < 0 || r.FoodDays < s.MinFoodDays) {
-			s.MinFoodDays = r.FoodDays
+		if c.FoodRunwayDays != nil && (s.MinFoodDays < 0 || *c.FoodRunwayDays < s.MinFoodDays) {
+			s.MinFoodDays = *c.FoodRunwayDays
+		}
+		if r.ColonyShot != "" {
+			s.Thumb = "review/" + r.ColonyShot
 		}
 	}
 	if len(rows) > 0 {
-		first, last := rows[0], rows[len(rows)-1]
-		s.FirstColonists, s.LastColonists = first.ColonistCount, last.ColonistCount
-		s.Deaths = last.DeadColonists - first.DeadColonists
-		s.FinalWealth, s.FinalBuildings = last.Wealth, last.Buildings
-		s.Days = (last.Tick - first.Tick) / 60000
-		s.Thumb = last.ColonyShot
+		s.FirstColonists, s.LastColonists = colonists(rows[0]), colonists(rows[len(rows)-1])
+		if w := rows[len(rows)-1].Census.WealthTotal; w != nil {
+			s.FinalWealth = *w
+		}
 	}
 	return s
 }
 
-func mean(v []float64) float64 {
-	if len(v) == 0 {
+func colonists(r Row) int {
+	if r.Census.Colonists == nil {
 		return 0
 	}
-	t := 0.0
-	for _, x := range v {
-		t += x
-	}
-	return t / float64(len(v))
+	return int(*r.Census.Colonists)
 }
 
-// Report reads the recording in in and writes the run report to out.
+// Report reads the case output in and writes the run report to out.
 func Report(in, out string, meta map[string]string) error {
-	rows, err := Load(in)
+	rows, res, err := Load(in)
 	if err != nil {
 		return err
 	}
-	if len(rows) == 0 {
-		return fmt.Errorf("%s: no recorded hours", in)
-	}
-	// The recorder's meta.json (the map) under the caller's -meta.
 	merged := map[string]string{}
-	if data, err := os.ReadFile(filepath.Join(in, "meta.json")); err == nil {
-		if err := json.Unmarshal(data, &merged); err != nil {
-			return fmt.Errorf("meta.json: %w", err)
-		}
+	for k, v := range res.Review {
+		merged[k] = fmt.Sprint(v)
 	}
 	for k, v := range meta {
 		merged[k] = v
 	}
 	summary := Derive(rows, merged)
-	if err := os.MkdirAll(out, 0755); err != nil {
+	summary.Error = res.Error
+	if err := os.MkdirAll(filepath.Join(out, "review"), 0755); err != nil {
 		return err
 	}
 	for _, r := range rows {
-		for _, shot := range r.Shots {
-			if err := copyFile(filepath.Join(in, shot), filepath.Join(out, shot)); err != nil && !os.IsNotExist(err) {
+		for _, shot := range []string{r.ColonyShot, r.MapShot} {
+			if shot == "" {
+				continue
+			}
+			if err := copyFile(filepath.Join(in, "review", shot), filepath.Join(out, "review", shot)); err != nil {
 				return err
 			}
 		}
-	}
-	if err := copyFile(filepath.Join(in, "stats.jsonl"), filepath.Join(out, "stats.jsonl")); err != nil {
-		return err
 	}
 	data, _ := json.MarshalIndent(summary, "", "  ")
 	if err := os.WriteFile(filepath.Join(out, "run.json"), data, 0644); err != nil {

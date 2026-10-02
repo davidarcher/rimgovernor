@@ -1,9 +1,6 @@
 package main
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 // Flag is one thing in an hour a reviewer should look at.
 type Flag struct {
@@ -14,100 +11,55 @@ type Flag struct {
 // Thresholds a flag fires on. They point a reviewer at an hour; they are
 // not pass/fail gates.
 const (
-	lowMood      = 0.25 // a colonist near a minor break
-	lowHealth    = 0.5
-	lowFoodDays  = 2.0
-	idleHours    = 6  // the same idle report this many hours running
-	stuckHours   = 12 // blueprints present and the building count flat
-	idleJobWords = "wandering|standing|idle|waiting"
+	lowMood     = 0.25 // near a minor break
+	lowFoodDays = 2.0
+	stuckHours  = 12 // a goal in deficit this long
 )
 
 // flags are the reviewer flags for the last row of rows; prev is the row
 // before it, or nil.
 func flags(rows []Row, prev *Row) []Flag {
 	r := rows[len(rows)-1]
+	c := r.Census
 	var out []Flag
 	add := func(sev, format string, a ...any) { out = append(out, Flag{sev, fmt.Sprintf(format, a...)}) }
-	if prev != nil {
-		if d := r.DeadColonists - prev.DeadColonists; d > 0 {
-			add("bad", "%d colonist(s) died", d)
+	if c.Error != "" {
+		add("warn", "colony census unreadable: %s", c.Error)
+		return out
+	}
+	if prev != nil && colonists(r) < colonists(*prev) {
+		add("bad", "colonists fell %d → %d", colonists(*prev), colonists(r))
+	}
+	if c.FoodRunwayDays != nil && *c.FoodRunwayDays < lowFoodDays {
+		add("bad", "food runway %.1f days", *c.FoodRunwayDays)
+	}
+	for _, p := range c.Pawns {
+		if p.Downed != nil && *p.Downed {
+			add("bad", "%s downed", p.Label)
 		}
-		if r.ColonistCount < prev.ColonistCount && r.DeadColonists == prev.DeadColonists {
-			add("warn", "colonist count fell %d → %d (left, kidnapped or off map)", prev.ColonistCount, r.ColonistCount)
-		}
-		if r.Buildings < prev.Buildings-2 {
-			add("warn", "colony buildings fell %d → %d", prev.Buildings, r.Buildings)
+		if p.Mood != nil && *p.Mood < lowMood {
+			add("warn", "%s mood %.0f%%", p.Label, *p.Mood*100)
 		}
 	}
-	if r.ColonistCount > 0 && r.FoodDays < lowFoodDays {
-		add("bad", "food %.1f days (%.0f nutrition for %d)", r.FoodDays, r.Nutrition, r.ColonistCount)
-	}
-	if r.Hostiles > 0 {
-		add("warn", "%d hostile(s) on the map", r.Hostiles)
-	}
-	if r.Fires > 0 {
-		add("bad", "%d fire(s)", r.Fires)
-	}
-	for _, c := range r.Colonists {
-		switch {
-		case c.Mental != "":
-			add("bad", "%s: %s", c.Name, c.Mental)
-		case c.Mood != nil && *c.Mood < lowMood:
-			add("warn", "%s mood %.0f%%", c.Name, *c.Mood*100)
+	for _, g := range r.Goals {
+		if n := deficitRun(rows, g.ID); n == stuckHours {
+			add("warn", "%s in deficit %d hours running (%s)", g.ID, n, g.Status)
 		}
-		if c.Downed {
-			add("bad", "%s downed", c.Name)
-		} else if c.Health != nil && *c.Health < lowHealth {
-			add("warn", "%s health %.0f%%", c.Name, *c.Health*100)
-		}
-		if n := idleRun(rows, c.Name); n == idleHours {
-			add("warn", "%s idle %d hours running (%s)", c.Name, n, c.Job)
-		}
-	}
-	if n := stuckRun(rows); n == stuckHours {
-		add("warn", "%d blueprint(s) and no new building for %d hours", r.Blueprints, n)
 	}
 	return out
 }
 
-func idle(job string) bool {
-	job = strings.ToLower(job)
-	if job == "" {
-		return true
-	}
-	for _, w := range strings.Split(idleJobWords, "|") {
-		if strings.Contains(job, w) {
-			return true
-		}
-	}
-	return false
-}
-
-// idleRun is how many rows, ending at the last, find name idle.
-func idleRun(rows []Row, name string) int {
+// deficitRun is how many rows, ending at the last, hold goal id in deficit.
+func deficitRun(rows []Row, id string) int {
 	n := 0
 	for i := len(rows) - 1; i >= 0; i-- {
 		found := false
-		for _, c := range rows[i].Colonists {
-			if c.Name == name {
-				found = idle(c.Job) && !c.Downed
+		for _, g := range rows[i].Goals {
+			if g.ID == id && g.Need == "deficit" {
+				found = true
 			}
 		}
 		if !found {
-			break
-		}
-		n++
-	}
-	return n
-}
-
-// stuckRun is how many rows, ending at the last, hold blueprints with the
-// building count no higher than it was at the start of the run.
-func stuckRun(rows []Row) int {
-	last := rows[len(rows)-1]
-	n := 0
-	for i := len(rows) - 1; i >= 0; i-- {
-		if rows[i].Blueprints == 0 || rows[i].Buildings < last.Buildings {
 			break
 		}
 		n++

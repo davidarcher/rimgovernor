@@ -6,7 +6,6 @@ package review
 
 import (
 	"context"
-	"encoding/json"
 	"hash/fnv"
 	"os"
 	"path/filepath"
@@ -15,6 +14,7 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/variantgen"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -69,7 +69,7 @@ func init() {
 		Name: "review/colony-week",
 		Scope: "Review run, not a gate: the governor plays a fresh " + v.Scenario + " map (seed " + seed + ", " + v.Biome +
 			") for " + strconv.FormatUint(days, 10) + " in-game days under the storyteller while " + RecorderTool +
-			" records an hourly colony screenshot and colony facts into <output>/review for cmd/colonyreview. A " +
+			" records an hourly colony screenshot into <output>/review beside the run timeline (colony census and goal states each in-game hour) for cmd/colonyreview. A " +
 			"snapshot test cannot cover it: the point is what the colony looks like to a player after a week.",
 		Start:       cases.Scenario{Spec: v.Start()},
 		Keep:        []string{string(na.LiveNeeds)},
@@ -81,19 +81,13 @@ func init() {
 		Run: func(ctx context.Context, s cases.Session) error {
 			dir := filepath.Join(s.Config().Output, "review")
 			s.Report()["review_dir"] = dir
-			// The report header reads what map this was from meta.json.
-			meta, _ := json.Marshal(map[string]string{"seed": seed, "scenario": v.Scenario, "biome": v.Biome,
-				"colonists": strconv.Itoa(v.Count), "days": strconv.FormatUint(days, 10)})
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				return err
-			}
-			if err := os.WriteFile(filepath.Join(dir, "meta.json"), meta, 0644); err != nil {
-				return err
-			}
+			// What map this was, for cmd/colonyreview's header.
+			s.Report()["review"] = map[string]any{"seed": seed, "scenario": v.Scenario, "biome": v.Biome,
+				"colonists": v.Count, "days": days}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
 					Watch: 90 * time.Minute, Window: days * 60000, Poll: 30 * time.Second, PollTicks: 2500,
-					Goal: policy.EnsureFoodSupply,
+					Goal: policy.EnsureFoodSupply, Extra: sustained.ColonyGoals,
 					// A review records whatever happens; nothing ends it early
 					// but a stalled clock.
 					FailFast:  sustainedfood.FailFast{Disabled: true},
