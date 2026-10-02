@@ -131,6 +131,11 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	claimed, _ := claims.Value()
 	protected = append(protected, shellInteriors(shells, claimed)...)
+	ring, err := firebreakRing(projection)
+	if err != nil {
+		return RoutineFieldResult{}, err
+	}
+	protected = append(protected, ring...)
 	// The cross-crop ledger (#1308): hay and social shortfalls compete with
 	// the food block for the plan's field patches in one ranked order.
 	others, err := r.otherFieldShortfalls(call, review, projection)
@@ -727,4 +732,24 @@ func fieldSiteRequest(projection observation.ColonyProjection, protected []domai
 		}
 	}
 	return request, choices
+}
+
+// firebreakRing is the firebreak band around the base and its growing zones
+// (#1550): new fields never take it, whatever its treatment. An unknown ring
+// protects nothing.
+func firebreakRing(projection observation.ColonyProjection) ([]domain.Cell, error) {
+	farms := map[string]bool{}
+	for _, f := range projection.Farms {
+		farms[f.ID] = true
+	}
+	zones := []domain.Cell{}
+	for _, c := range projection.Cells {
+		if id, ok := c.ZoneID.Value(); ok && farms[id] {
+			zones = append(zones, c.Cell)
+		}
+	}
+	f := projection.Facts
+	ring, err := policy.FirebreakRing(policy.FirebreakRequest{Bounds: domain.Known(projection.Bounds), Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage, GrowingZones: domain.Known(zones)})
+	cells, _ := ring.Value()
+	return cells, err
 }
