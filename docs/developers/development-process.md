@@ -133,8 +133,8 @@ branch and commit. Land authorized work on local `main` through the landing
 lane, `go run ./cmd/land` from `go/` in the branch's worktree (one squash
 commit per milestone; the loop is in [AGENTS.md](../../AGENTS.md), the
 machine setup in the [agent runbook](agent-runbook.md)); pull requests are
-disabled and the maintainer pushes `main` manually; remote agents push their
-own landings ([AGENTS.md](../../AGENTS.md#remote-agents)). `go run ./cmd/test`
+disabled and every agent, local or remote, pushes its own landings to
+`origin/main` ([AGENTS.md](../../AGENTS.md#pushing-to-originmain)). `go run ./cmd/test`
 from `go/` is the test loop and the pre-land check (the lane runs no
 tests). Landing needs no acceptance run: the nightly full tier over `main`
 proves the affected areas (#387), and `-tier smoke` or `-tier land` proves
