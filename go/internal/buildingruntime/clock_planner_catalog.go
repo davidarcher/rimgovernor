@@ -316,6 +316,7 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return "", err
 			}
+			clockSchedulerLog("CookingBills.step result: reason=%v plan=%v", method.Reason, method.Plan)
 			out.CookingBills = &method
 			return method.Reason, nil
 		}},
@@ -326,6 +327,7 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return "", err
 			}
+			clockSchedulerLog("PreservationBills.step result: reason=%v plan=%v", method.Reason, method.Plan)
 			out.PreservationBills = &method
 			return method.Reason, nil
 		}},
