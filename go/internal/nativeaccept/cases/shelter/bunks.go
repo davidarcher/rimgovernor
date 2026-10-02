@@ -214,8 +214,9 @@ func unhousedColony(ctx context.Context, s cases.Session, report na.Report) (int
 	return colonists, domain.Cell{X: int32(na.AsNumber(position["x"])), Z: int32(na.AsNumber(position["z"]))}, nil
 }
 
-// waitBunks polls the store until the shelter goal binds the named bunk
-// rung, and, when complete is set, until every bunk of it is completed.
+// waitBunks polls the store until the shelter goal has bound the named
+// bunk rung (live or already retired), and, when complete is set,
+// until every bunk of it is completed.
 func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, definition string, complete bool, w na.Wait) ([]bunk, error) {
 	var found []bunk
 	var seen string
@@ -228,41 +229,41 @@ func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, def
 			if binding.Need != policy.MaintainHousing {
 				continue
 			}
-			goal, err := st.LoadGoal(ctx, binding.Goal)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
+			// The latest binding in any epoch, retired or not: a bunk rung
+			// completes on its placement receipt and retires at once, so
+			// the goal's live methods no longer list it.
+			id, err := st.LatestMethodPlan(ctx, binding.Goal, method)
+			if errors.Is(err, store.ErrNotFound) {
+				return na.Signature(binding.Goal, "unbound"), false, nil
+			}
+			if err != nil {
 				return "", false, err
 			}
-			for _, m := range goal.Methods {
-				if m.Method != method {
-					continue
-				}
-				plan, err := st.LoadPlan(ctx, m.Plan)
-				if err != nil {
-					return "", false, err
-				}
-				var bunks []bunk
-				done := true
-				for i, a := range plan.Spec.Actions() {
-					b, ok := a.Building()
-					if !ok || b.Definition() != definition {
-						return "", false, fmt.Errorf("%s places %v, want %s", method, a, definition)
-					}
-					f := policy.BunkFootprint(b.Cell())
-					v := plan.Progress[i].View()
-					seen = fmt.Sprintf("%s at %v stage %s", plan.Spec.ID(), b.Cell(), v.Stage)
-					done = done && v.Stage == domain.Completed
-					bunks = append(bunks, bunk{cells: f[:], tick: v.Tick})
-				}
-				if len(bunks) == 0 {
-					return "", false, fmt.Errorf("%s admitted no bunk", method)
-				}
-				if complete && !done {
-					return na.Signature(binding.Goal, len(goal.Methods), seen), false, nil
-				}
-				found = bunks
-				return "", true, nil
+			plan, err := st.LoadPlan(ctx, id)
+			if err != nil {
+				return "", false, err
 			}
-			return na.Signature(binding.Goal, len(goal.Methods)), false, nil
+			var bunks []bunk
+			done := true
+			for i, a := range plan.Spec.Actions() {
+				b, ok := a.Building()
+				if !ok || b.Definition() != definition {
+					return "", false, fmt.Errorf("%s places %v, want %s", method, a, definition)
+				}
+				f := policy.BunkFootprint(b.Cell())
+				v := plan.Progress[i].View()
+				seen = fmt.Sprintf("%s at %v stage %s", plan.Spec.ID(), b.Cell(), v.Stage)
+				done = done && v.Stage == domain.Completed
+				bunks = append(bunks, bunk{cells: f[:], tick: v.Tick})
+			}
+			if len(bunks) == 0 {
+				return "", false, fmt.Errorf("%s admitted no bunk", method)
+			}
+			if complete && !done {
+				return na.Signature(binding.Goal, seen), false, nil
+			}
+			found = bunks
+			return "", true, nil
 		}
 		return na.Signature("unbound", len(review.Goals)), false, nil
 	})
