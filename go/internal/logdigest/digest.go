@@ -34,6 +34,9 @@ var (
 	lineRE   = regexp.MustCompile(`^(\S+) tick=(-?\d+) (\w+) \[([^\]]*)\] (.*)$`)
 	idRE     = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\b[0-9a-f]{16,}\b`)
 	numberRE = regexp.MustCompile(`-?\d+(\.\d+)?`)
+	// noiseRE are the fields that differ on every repeat without changing
+	// what happened: the trace, what woke the step, its status flags.
+	noiseRE = regexp.MustCompile(`\b(trace|cause|repeated|window_ticks|admitted|running|reconciled|cleaned|deferred|retaken|combat|attempt)=("[^"]*"|\S+)`)
 )
 
 // eventWords mark an INFO line as an event worth a row.
@@ -96,7 +99,7 @@ func isEvent(msg string) bool {
 
 // Normalize blanks the ids and numbers in msg so repeats compare equal.
 func Normalize(msg string) string {
-	return numberRE.ReplaceAllString(idRE.ReplaceAllString(msg, "#"), "#")
+	return numberRE.ReplaceAllString(idRE.ReplaceAllString(noiseRE.ReplaceAllString(msg, ""), "#"), "#")
 }
 
 // Rows is every row, the one seen most recently first.

@@ -11,6 +11,7 @@ func TestDigestCollapsesRepeatsAndKeepsEvents(t *testing.T) {
 		"2026-10-02T19:23:29.048Z tick=464 WARN [clock-worker] step failed: held planner_failures=[a] took 12ms",
 		"2026-10-02T19:23:30.000Z tick=500 INFO [layout] map survey read cells=33322",
 		"2026-10-02T19:23:31.048Z tick=672 WARN [clock-worker] step failed: held planner_failures=[a] took 15ms",
+		"2026-10-02T19:23:31.500Z tick=680 WARN [clock-worker] step failed: held planner_failures=[a] took 15ms cause=timer trace=4fdbe777efa28b40 repeated=3",
 		"2026-10-02T19:23:32.000Z tick=700 ERROR [worker] boom action=4f7eda10-011f-4c5e-bfb2-aeceb95c8115-0",
 		"   at Foo.Bar()",
 		"   at Foo.Baz()",
@@ -37,7 +38,7 @@ func TestDigestCollapsesRepeatsAndKeepsEvents(t *testing.T) {
 			boom = &rows[i]
 		}
 	}
-	if warn == nil || warn.Count != 2 || warn.FirstTick != 464 || warn.LastTick != 672 || !warn.Problem {
+	if warn == nil || warn.Count != 3 || warn.FirstTick != 464 || warn.LastTick != 680 || !warn.Problem {
 		t.Fatalf("warn: %+v", warn)
 	}
 	if boom == nil || !strings.Contains(boom.Detail, "Foo.Baz") || !strings.Contains(boom.Text(), "Foo.Bar") {
