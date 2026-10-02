@@ -126,7 +126,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err = reviewSoldierSquad(call, p.journal, state.Snapshot, pawns); err != nil {
 		return RoutineWorkResult{}, err
 	}
-	required, known :=routineProjectWork(definitions, read.Projection.Definitions).Value()
+	required, known := routineProjectWork(definitions, read.Projection.Definitions).Value()
 	if !known {
 		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
 	}
@@ -498,5 +498,5 @@ func routineDrugChanges(policies domain.Fact[observation.Policies], names domain
 	for _, e := range p.Drug {
 		entries = append(entries, policy.DrugPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Entries: e.Drugs})
 	}
-	return policy.DrugPolicyChanges(pawns, owned, entries, stock)
+	return policy.DrugPolicyChanges(pawns, owned, entries, stock, p.BiomeDiseases)
 }

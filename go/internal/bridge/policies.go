@@ -60,6 +60,11 @@ func validatePolicies(v *o.ColonyFactsSnapshot) error {
 			}
 			books[b.GetDefName()] = true
 		}
+		for _, d := range f.BiomeDiseases {
+			if validID(d) != nil {
+				return contract("invalid biome disease")
+			}
+		}
 		ids, pawns := map[string]bool{}, map[string]bool{}
 		for _, row := range f.AllowedAreas {
 			if row == nil || validID(row.GetId()) != nil || ids[row.GetId()] || row.Label == nil || !diagnostic(row.Label) {

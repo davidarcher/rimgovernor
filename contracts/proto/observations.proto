@@ -1336,6 +1336,9 @@ message PolicyFacts {
   repeated PolicyEntry outfit = 1; repeated PolicyEntry drug = 2; repeated PolicyEntry food = 3; repeated PolicyEntry reading = 4;
   repeated AllowedAreaEntry allowed_areas = 5;
   repeated BookDefinition books = 6;
+  // HediffDef defNames of the colony map biome's disease incidents
+  // (BiomeDef.diseases; #1539), e.g. Malaria, Plague.
+  repeated string biome_diseases = 7;
 }
 message PolicySection { oneof outcome { PolicyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.

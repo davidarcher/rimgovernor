@@ -22,6 +22,39 @@ var RecreationDrugs = []RecreationDrug{{"Beer", "Alcohol"}, {"SmokeleafJoint", "
 // pawn stops taking that chemical for joy: the addiction risk is high.
 const HighTolerance = 0.5
 
+// PreventiveDiseases are the biome disease hediffs penoxycyline prevents.
+var PreventiveDiseases = []string{"Malaria", "Plague"}
+
+// Penoxycyline is the preventive drug and PenoxycylineDays its schedule:
+// one dose protects for five days.
+const (
+	Penoxycyline     = "Penoxycyline"
+	PenoxycylineDays = 5
+)
+
+// DependencyDrugs is the drug scheduled for each chemical a Biotech
+// chemical-dependency gene needs (#1539).
+var DependencyDrugs = map[string]string{
+	"Alcohol": "Beer", "Smokeleaf": "SmokeleafJoint", "Psychite": "PsychiteTea",
+	"GoJuice": "GoJuice", "WakeUp": "WakeUp", "Luciferium": "Luciferium",
+}
+
+// DependencyDays is the dependency drug's schedule: a gene's deficiency
+// starts after five days without the chemical, so a dose every four days
+// keeps it away.
+const DependencyDays = 4
+
+// DiseaseBiome reports whether the biome's diseases include one
+// penoxycyline prevents.
+func DiseaseBiome(diseases []string) bool {
+	for _, d := range diseases {
+		if slices.Contains(PreventiveDiseases, d) {
+			return true
+		}
+	}
+	return false
+}
+
 // DrugPolicyEntry is one native drug policy: its load id, label, holders
 // and the entries that allow anything.
 type DrugPolicyEntry struct {
@@ -48,9 +81,11 @@ func joyEntry(def string) domain.DrugPolicyEntry {
 // and psychite tea for joy, each unless the pawn is addicted to its
 // chemical or its tolerance is high. A child, a teetotaler and a pawn with
 // a chemical interest or fascination (every recreation drug is addictive)
-// get none. Everything else is off. Unknown while the pawn's age, traits or
-// chemical state are.
-func DrugEntries(pawn WorkPawn) ([]domain.DrugPolicyEntry, bool) {
+// get none. Every pawn takes penoxycyline on schedule in a disease biome,
+// and the drug of each chemical-dependency gene on schedule (#1539).
+// Everything else is off. Unknown while the pawn's age, traits or chemical
+// state are.
+func DrugEntries(pawn WorkPawn, diseaseBiome bool) ([]domain.DrugPolicyEntry, bool) {
 	age, ak := pawn.Age.Value()
 	traits, tk := pawn.Traits.Value()
 	inputs, ik := pawn.PolicyInputs.Value()
@@ -62,9 +97,27 @@ func DrugEntries(pawn WorkPawn) ([]domain.DrugPolicyEntry, bool) {
 	for _, t := range traits {
 		interest += TraitEffect(t).ChemicalInterest
 	}
-	if age < childAge || interest != 0 {
-		return entries, true
+	if age >= childAge && interest == 0 {
+		entries = joyEntries(inputs)
 	}
+	schedule := func(def string, days float64) {
+		entries = mergeEntry(entries, domain.DrugPolicyEntry{Drug: def, Scheduled: true, DaysFrequency: days, OnlyIfMoodBelow: 1, OnlyIfJoyBelow: 1})
+	}
+	if diseaseBiome {
+		schedule(Penoxycyline, PenoxycylineDays)
+	}
+	for _, c := range inputs.DependencyChemicals {
+		if def, ok := DependencyDrugs[c]; ok {
+			schedule(def, DependencyDays)
+		}
+	}
+	return entries, true
+}
+
+// joyEntries are the recreation drugs a pawn may take for joy: each unless
+// it is addicted to or highly tolerant of the drug's chemical.
+func joyEntries(inputs PawnPolicyInputs) []domain.DrugPolicyEntry {
+	entries := []domain.DrugPolicyEntry{}
 	for _, d := range RecreationDrugs {
 		risky := false
 		for _, c := range inputs.Chemicals {
@@ -79,7 +132,7 @@ func DrugEntries(pawn WorkPawn) ([]domain.DrugPolicyEntry, bool) {
 			entries = append(entries, joyEntry(d.Def))
 		}
 	}
-	return entries, true
+	return entries
 }
 
 // AddictionDrug is a chemical a pawn can be addicted to, the drugs that
@@ -176,7 +229,9 @@ func AddictionEntries(pawn WorkPawn, stock map[string]int64) []domain.DrugPolicy
 // name, carrying DrugEntries and AddictionEntries against the colony's
 // drug stock (#1538), allotted to pawns in order. A pawn whose short name another owned pawn
 // shares (#1310 renames it) or that several policies carry waits.
-func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount]) []DrugPolicyChange {
+// biomeDiseases is the colony map biome's disease hediffs (#1539).
+func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount], biomeDiseases []string) []DrugPolicyChange {
+	diseaseBiome := DiseaseBiome(biomeDiseases)
 	var remaining map[string]int64
 	if rows, ok := stock.Value(); ok {
 		remaining = map[string]int64{}
@@ -196,11 +251,13 @@ func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolic
 		if !ok || inputs.DrugPolicy == "" || name == "" || count[strings.ToLower(name)] != 1 {
 			continue
 		}
-		want, ok := DrugEntries(pawn)
+		want, ok := DrugEntries(pawn, diseaseBiome)
 		if !ok {
 			continue
 		}
-		want = append(want, AddictionEntries(pawn, remaining)...)
+		for _, e := range AddictionEntries(pawn, remaining) {
+			want = mergeEntry(want, e)
+		}
 		v, err := domain.NewDrugPolicy(name, want)
 		if err != nil {
 			continue
@@ -230,6 +287,22 @@ func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolic
 		}
 	}
 	return out
+}
+
+// mergeEntry adds e to entries, or folds it into the entry for the same
+// drug: allowed for whatever either allows, at the shorter schedule.
+func mergeEntry(entries []domain.DrugPolicyEntry, e domain.DrugPolicyEntry) []domain.DrugPolicyEntry {
+	for i := range entries {
+		if x := &entries[i]; x.Drug == e.Drug {
+			if e.Scheduled && (!x.Scheduled || e.DaysFrequency < x.DaysFrequency) {
+				x.DaysFrequency = e.DaysFrequency
+			}
+			x.Joy, x.Addiction, x.Scheduled = x.Joy || e.Joy, x.Addiction || e.Addiction, x.Scheduled || e.Scheduled
+			x.TakeToInventory = max(x.TakeToInventory, e.TakeToInventory)
+			return entries
+		}
+	}
+	return append(entries, e)
 }
 
 // drugEntriesEqual compares observed entries with canonical ones; the

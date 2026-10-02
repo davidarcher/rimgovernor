@@ -33042,13 +33042,16 @@ func (x *AllowedAreaEntry) GetPawnIds() []string {
 }
 
 type PolicyFacts struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Outfit        []*PolicyEntry         `protobuf:"bytes,1,rep,name=outfit,proto3" json:"outfit,omitempty"`
-	Drug          []*PolicyEntry         `protobuf:"bytes,2,rep,name=drug,proto3" json:"drug,omitempty"`
-	Food          []*PolicyEntry         `protobuf:"bytes,3,rep,name=food,proto3" json:"food,omitempty"`
-	Reading       []*PolicyEntry         `protobuf:"bytes,4,rep,name=reading,proto3" json:"reading,omitempty"`
-	AllowedAreas  []*AllowedAreaEntry    `protobuf:"bytes,5,rep,name=allowed_areas,json=allowedAreas,proto3" json:"allowed_areas,omitempty"`
-	Books         []*BookDefinition      `protobuf:"bytes,6,rep,name=books,proto3" json:"books,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Outfit       []*PolicyEntry         `protobuf:"bytes,1,rep,name=outfit,proto3" json:"outfit,omitempty"`
+	Drug         []*PolicyEntry         `protobuf:"bytes,2,rep,name=drug,proto3" json:"drug,omitempty"`
+	Food         []*PolicyEntry         `protobuf:"bytes,3,rep,name=food,proto3" json:"food,omitempty"`
+	Reading      []*PolicyEntry         `protobuf:"bytes,4,rep,name=reading,proto3" json:"reading,omitempty"`
+	AllowedAreas []*AllowedAreaEntry    `protobuf:"bytes,5,rep,name=allowed_areas,json=allowedAreas,proto3" json:"allowed_areas,omitempty"`
+	Books        []*BookDefinition      `protobuf:"bytes,6,rep,name=books,proto3" json:"books,omitempty"`
+	// HediffDef defNames of the colony map biome's disease incidents
+	// (BiomeDef.diseases; #1539), e.g. Malaria, Plague.
+	BiomeDiseases []string `protobuf:"bytes,7,rep,name=biome_diseases,json=biomeDiseases,proto3" json:"biome_diseases,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -33121,6 +33124,13 @@ func (x *PolicyFacts) GetAllowedAreas() []*AllowedAreaEntry {
 func (x *PolicyFacts) GetBooks() []*BookDefinition {
 	if x != nil {
 		return x.Books
+	}
+	return nil
+}
+
+func (x *PolicyFacts) GetBiomeDiseases() []string {
+	if x != nil {
+		return x.BiomeDiseases
 	}
 	return nil
 }
@@ -40520,14 +40530,15 @@ const file_observations_proto_rawDesc = "" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x19\n" +
 	"\bpawn_ids\x18\x03 \x03(\tR\apawnIdsB\x05\n" +
 	"\x03_idB\b\n" +
-	"\x06_label\"\xa6\x03\n" +
+	"\x06_label\"\xcd\x03\n" +
 	"\vPolicyFacts\x12@\n" +
 	"\x06outfit\x18\x01 \x03(\v2(.rimgovernor.observations.v1.PolicyEntryR\x06outfit\x12<\n" +
 	"\x04drug\x18\x02 \x03(\v2(.rimgovernor.observations.v1.PolicyEntryR\x04drug\x12<\n" +
 	"\x04food\x18\x03 \x03(\v2(.rimgovernor.observations.v1.PolicyEntryR\x04food\x12B\n" +
 	"\areading\x18\x04 \x03(\v2(.rimgovernor.observations.v1.PolicyEntryR\areading\x12R\n" +
 	"\rallowed_areas\x18\x05 \x03(\v2-.rimgovernor.observations.v1.AllowedAreaEntryR\fallowedAreas\x12A\n" +
-	"\x05books\x18\x06 \x03(\v2+.rimgovernor.observations.v1.BookDefinitionR\x05books\"\xaa\x01\n" +
+	"\x05books\x18\x06 \x03(\v2+.rimgovernor.observations.v1.BookDefinitionR\x05books\x12%\n" +
+	"\x0ebiome_diseases\x18\a \x03(\tR\rbiomeDiseases\"\xaa\x01\n" +
 	"\rPolicySection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.PolicyFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +

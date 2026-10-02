@@ -33,6 +33,8 @@ type Policies struct {
 	AllowedAreas                []AllowedArea
 	// Books is every book definition and its kind (#1306).
 	Books []policy.Book
+	// BiomeDiseases is the colony map biome's disease hediffs (#1539).
+	BiomeDiseases []string
 }
 
 var bookKinds = map[o.BookKind]policy.BookKind{
@@ -67,7 +69,7 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 		}
 		return r
 	}
-	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading)}
+	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading), BiomeDiseases: f.BiomeDiseases}
 	for _, b := range f.Books {
 		r.Books = append(r.Books, policy.Book{Def: b.GetDefName(), Kind: bookKinds[b.GetKind()]})
 	}
