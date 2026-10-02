@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -18,8 +19,10 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 	_, _, _, _, template := sleepingFixture(t)
 	planning := proto.Clone(template.reply.GetObserved().Planning.GetObserved()).(*o.PlanningFacts)
 	n.catalog = template.catalog
-	n.cells = proto.Clone(template.cells).(*o.CellsSnapshot)
-	n.cells.Context = proto.Clone(f.status.Context).(*c.ObservationContext)
+	window := *template.cells
+	window.Cells = slices.Clone(template.cells.Cells)
+	window.Context = proto.Clone(f.status.Context).(*c.ObservationContext)
+	n.cells = &window
 	n.reply.GetObserved().Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: planning}}
 	n.reply.GetObserved().Center = proto.Clone(template.reply.GetObserved().Center).(*c.Cell)
 	source := &sleepingNative{routineNative: n}

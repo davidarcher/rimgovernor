@@ -1,22 +1,48 @@
 package movement
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/cellgrid"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func movementCells() map[string]any {
-	var rows []any
-	for _, x := range []float64{0, 2, 3, 6} {
-		rows = append(rows, map[string]any{"cell": map[string]any{"x": x, "z": 0.0}, "terrain": "Soil", "walkable": true, "passable": true, "fogged": false})
+// movementCells is a get_cells snapshot over x 0..6, z 0: every cell
+// walkable except x 1, 4 and 5; edit adjusts the x=2 cell, or drops it
+// (fogged) when it returns false.
+func movementCells(t *testing.T, edit func(*policy.SiteCell) bool) map[string]any {
+	t.Helper()
+	cells := map[domain.Cell]policy.SiteCell{}
+	for x := int32(0); x <= 6; x++ {
+		cell := policy.SiteCell{Cell: domain.Cell{X: x}, Walkable: domain.Known(x != 1 && x != 4 && x != 5)}
+		if x == 2 && edit != nil && !edit(&cell) {
+			continue
+		}
+		cells[cell.Cell] = cell
 	}
-	return map[string]any{"cells": rows}
+	grid, err := cellgrid.FromCells(cells, cellgrid.MaxCells)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := protojson.Marshal(&o.CellsSnapshot{Grid: grid.Wire(nil)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	return out
 }
 
-func TestCandidatesBoundedAndObservedTraversalRequired(t *testing.T) {
+func TestCandidatesBoundedAndWalkableRequired(t *testing.T) {
 	origin := map[string]any{"x": 0.0, "z": 0.0}
-	got, err := candidates(movementCells(), origin)
+	got, err := candidates(movementCells(t, nil), origin)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -24,23 +50,17 @@ func TestCandidatesBoundedAndObservedTraversalRequired(t *testing.T) {
 	if !na.DeepEqual(got, want) {
 		t.Fatalf("unexpected candidates: %#v", got)
 	}
-
-	type mutation struct {
-		field string
-		value any
-	}
-	for _, m := range []mutation{{"walkable", false}, {"passable", false}, {"fogged", true}, {"walkable", 1.0}} {
-		value := movementCells()
-		rows := na.AsSlice(value["cells"])
-		row, _ := na.AsMap(rows[1]) // the x=2 cell
-		row[m.field] = m.value
-		got, err := candidates(value, origin)
+	for name, edit := range map[string]func(*policy.SiteCell) bool{
+		"unwalkable": func(c *policy.SiteCell) bool { c.Walkable = domain.Known(false); return true },
+		"unknown":    func(c *policy.SiteCell) bool { c.Walkable = domain.Unknown[bool](); return true },
+		"fogged":     func(*policy.SiteCell) bool { return false },
+	} {
+		got, err := candidates(movementCells(t, edit), origin)
 		if err != nil {
-			t.Fatalf("unexpected error for mutation %+v: %v", m, err)
+			t.Fatalf("%s: %v", name, err)
 		}
-		want := []map[string]any{{"x": 3.0, "z": 0.0}}
-		if !na.DeepEqual(got, want) {
-			t.Fatalf("mutation %+v: expected only the x=3 cell, got %#v", m, got)
+		if want := []map[string]any{{"x": 3.0, "z": 0.0}}; !na.DeepEqual(got, want) {
+			t.Fatalf("%s: expected only the x=3 cell, got %#v", name, got)
 		}
 	}
 }

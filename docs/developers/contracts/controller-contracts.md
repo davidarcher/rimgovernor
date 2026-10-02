@@ -318,7 +318,7 @@ same way (#260): a spot waits only for a pending spot, a bill only for an open b
 neither blocks the fields, foraging or hunts beside it. Each batch previews at most six patches inside the
 shared step budget. The field planner also requests `SunLamp`, `HydroponicsBasin` and
 `Heater` definitions, plans sites over the planning window (`ColonyProjection.Cells`,
-read on demand through `observations_get_cells`; see the state store in
+cut on demand from the snapshot frame grid; see the state store in
 [go-clock-recovery](go-clock-recovery.md)) and decodes `PlanningFacts.environment` into
 `ColonyProjection.Environment` (`policy.ControlledEnvironment`: lamps with native growth
 cells, growers with sow tags, indoor rooms, per-network headroom with

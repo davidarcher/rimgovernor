@@ -39,12 +39,13 @@ func TestRoutineShelterDigsADugPlannedStoreroom(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterSiteFixture(t)
 	rock := map[domain.Cell]bool{}
-	for _, cell := range base.cells.Cells {
-		at := domain.Cell{X: cell.Cell.GetX(), Z: cell.Cell.GetZ()}
+	for i := range base.cells.Cells {
+		cell := &base.cells.Cells[i]
+		at := cell.Cell
 		// The storeroom's east half (interior x 1..7, z 1..7) is rock.
 		if at.X >= 5 && at.X <= 7 && at.Z >= 1 && at.Z <= 7 {
 			rock[at] = true
-			cell.Walkable, cell.Occupied, cell.NaturalRock = proto.Bool(false), proto.Bool(true), proto.Bool(true)
+			cell.Walkable, cell.Occupied, cell.NaturalRock = domain.Known(false), domain.Known(true), domain.Known(true)
 		}
 	}
 	n := &dugShelterNative{sleepingNative: base, rock: rock}

@@ -16,6 +16,7 @@ package waste
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -80,14 +81,21 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// cellThings reads exact cells' things through
-	// rimgovernor/observations_get_cells with things requested. Returns every
-	// observed thing row across the requested cells, flattened.
+	// cellThings reads the things over cells' bounding rect through
+	// rimgovernor/observations_get_cells with things requested. Returns
+	// every thing row standing on one of the cells.
 	cellThings := func(label string, cells []map[string]any) ([]map[string]any, error) {
+		want := map[[2]float64]bool{}
+		lo, hi := [2]float64{math.Inf(1), math.Inf(1)}, [2]float64{math.Inf(-1), math.Inf(-1)}
+		for _, cell := range cells {
+			x, z := na.AsNumber(cell["x"]), na.AsNumber(cell["z"])
+			want[[2]float64{x, z}] = true
+			lo, hi = [2]float64{math.Min(lo[0], x), math.Min(lo[1], z)}, [2]float64{math.Max(hi[0], x), math.Max(hi[1], z)}
+		}
 		reply, err := h.Wire(ctx, label, "observations_get_cells", map[string]any{
-			"scope":      map[string]any{"expectedIdentity": identity},
-			"exactCells": map[string]any{"cells": cells},
-			"fields":     map[string]any{"terrain": false, "roof": false, "visibility": false, "traversal": false, "things": true},
+			"scope":     map[string]any{"expectedIdentity": identity},
+			"rectangle": map[string]any{"minimum": map[string]any{"x": lo[0], "z": lo[1]}, "maximum": map[string]any{"x": hi[0], "z": hi[1]}},
+			"things":    true,
 		})
 		if err != nil {
 			return nil, err
@@ -96,16 +104,13 @@ func run(ctx context.Context, s cases.Session) error {
 		if err != nil {
 			return nil, err
 		}
-		applied, _ := na.AsMap(observed["appliedFields"])
-		if things, ok := na.AsBool(applied["things"]); !ok || !things {
-			return nil, fmt.Errorf("%s: expected the things field to be applied, got %#v", label, applied)
-		}
 		var all []map[string]any
-		for _, raw := range na.AsSlice(observed["cells"]) {
+		for _, raw := range na.AsSlice(observed["things"]) {
 			row, _ := na.AsMap(raw)
-			for _, rawThing := range na.AsSlice(row["things"]) {
-				thing, _ := na.AsMap(rawThing)
-				all = append(all, thing)
+			thing, _ := na.AsMap(row["thing"])
+			position, _ := na.AsMap(thing["position"])
+			if position != nil && want[[2]float64{na.AsNumber(position["x"]), na.AsNumber(position["z"])}] {
+				all = append(all, row)
 			}
 		}
 		return all, nil

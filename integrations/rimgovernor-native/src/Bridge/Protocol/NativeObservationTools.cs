@@ -34,8 +34,8 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("rimgovernor/observations_get_cells", Title = "Read bounded map cells",
-            Description = "Official GetCellsRequest ProtoJSON. Exact cells (1..256) or inclusive rectangle of any size. Returns native map dimensions. Absent fields select terrain/roof/visibility/traversal; explicit false skips. Traversal adds occupied/doorway/supports_light, zone adds zone_id/storage_empty, room adds room_id/indoors, growth adds fertility where the ground has any; a fogged cell under visibility carries only fogged, and an absent roof/zone/room is the applied field with no value. Areas and designations are unavailable until migrated.")]
+        [Tool("rimgovernor/observations_get_cells", Title = "Read map cells",
+            Description = "Official GetCellsRequest ProtoJSON. An inclusive rectangle of at most 1048576 cells on the map, returned with the map dimensions as a CellGrid keyframe (the snapshot frame grid's arrays; a fogged cell is not held). foundation adds one byte per cell of the natural ground's affordances, ore and trees; things adds the thing rows on held cells. Read-only.")]
         [ToolResponse("payload", "string", "Official observations GetCellsReply ProtoJSON.", Always = true)]
         public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
@@ -49,93 +49,50 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // ReadCells is the read on the main thread under a validated identity: the
-        // reply its tool encodes, and the section the bundle carries (#593).
+        // ReadCells is the read on the main thread under a validated
+        // identity (#1346): the rectangle as the frame grid reads it.
         internal static Obs.GetCellsReply ReadCells(Map map, Obs.GetCellsRequest parsed, Common.ObservationContext context)
         {
             try {
-                var cells = Selection(parsed, map);
-                if (cells.Any(cell => !cell.InBounds(map))) return new Obs.GetCellsReply {
+                var min = parsed.Rectangle.Minimum; var max = parsed.Rectangle.Maximum;
+                if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return new Obs.GetCellsReply {
                     Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
-                var fields = Fields(parsed.Fields);
+                var read = CellGridEncoder.Read(map, min.X, min.Z, max.X - min.X + 1, max.Z - min.Z + 1);
                 var snapshot = new Obs.CellsSnapshot { Context = context,
                     MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
-                    Region = new Obs.Rectangle { Minimum = Cell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = Cell(cells.Max(c => c.x), cells.Max(c => c.z)) },
-                    AppliedFields = fields };
-                foreach (var cell in cells) {
-                    var row = new Obs.CellState { Cell = Cell(cell.x, cell.z) };
-                    // A fogged cell reveals nothing but its fog: the row
-                    // carries no other fact, as the planning window it
-                    // now serves (issue #356) never listed fogged cells.
-                    // Visibility applied and the row listed means visible;
-                    // only a fogged row says so.
-                    if (fields.Visibility && cell.Fogged(map)) { row.Fogged = true; snapshot.Cells.Add(row); continue; }
-                    if (fields.Terrain) row.Terrain = Identifier(cell.GetTerrain(map)?.defName);
-                    // An absent roof, zone or room is the applied field
-                    // set with no value (a declared field without a value
-                    // decodes as a known absence): a per-cell issue row
-                    // costs ~110 bytes and put a 45x45 window past 700 KB.
-                    if (fields.Roof) { var roof = cell.GetRoof(map); if (roof != null) row.Roof = Identifier(roof.defName); }
-                    if (fields.Traversal) {
-                        row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map);
-                        row.Occupied = CellOccupied(map, cell);
-                        row.Doorway = CellDoorway(map, cell);
-                        row.SupportsLight = cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light);
-                        row.NaturalRock = cell.GetEdifice(map)?.def.building?.isNaturalRock == true;
-                        // A ring cell holding a ruin is cleared and then built;
-                        // a player edifice of the ring's kind stands as its
-                        // wall (#709).
-                        var edifice = cell.GetEdifice(map);
-                        var player = Faction.OfPlayerSilentFail;
-                        row.Ruin = edifice != null && player != null && edifice.Faction != player && edifice.def.building?.isNaturalRock != true
-                            && !edifice.def.mineable && edifice.DeconstructibleBy(player) && !NativeClearanceObservationTools.AncientDanger(map, edifice, player);
-                        if (edifice != null && player != null && edifice.Faction == player) row.PlayerEdifice = Identifier(edifice.def.defName);
-                        // A claimable ruin of the ring's wall kind is claimed
-                        // and kept as wall rather than cleared (#718).
-                        if (row.Ruin && edifice is Building ruin && ruin.ClaimableBy(player)) row.ClaimableRuin = Identifier(edifice.def.defName);
-                    }
-                    // Heavy affordance: a wall stands here; marsh, mud and water refuse one (#727).
-                    if (fields.Foundation) {
+                    Grid = CellGridEncoder.Encode(read, null) };
+                var held = read.Columns[CellGridEncoder.Cell].Codes!;
+                if (parsed.Foundation) {
+                    var bytes = new byte[read.Count];
+                    for (int j = 0; j < read.Count; j++) {
+                        if (held[j] == 0) continue;
+                        var cell = new IntVec3(read.X + j % read.Width, 0, read.Z + j / read.Width);
                         // The natural ground, under any bridge or floor: a
                         // replan sees the footing a bridge stands on, and
                         // ground a moisture pump dried reads firm (#954).
-                        // Only the map survey asks for this field, so
-                        // SupportsLight is overridden to match.
                         var terrain = map.terrainGrid.BaseTerrainAt(cell);
-                        row.SupportsHeavy = terrain?.affordances.Contains(TerrainAffordanceDefOf.Heavy) == true;
-                        row.SupportsLight = terrain?.affordances.Contains(TerrainAffordanceDefOf.Light) == true;
-                        // Bridges and moisture pumps close a perimeter across soft ground (#949).
-                        row.Bridgeable = terrain?.affordances.Contains(TerrainAffordanceDefOf.Bridgeable) == true;
-                        row.Dries = terrain?.driesTo != null;
+                        var bits = 0;
+                        if (terrain?.affordances.Contains(TerrainAffordanceDefOf.Heavy) == true) bits |= 1;
+                        if (terrain?.affordances.Contains(TerrainAffordanceDefOf.Light) == true) bits |= 2;
                         // Ore and trees for whole-map zoning (#778).
-                        row.ResourceRock = cell.GetEdifice(map)?.def.building?.isResourceRock == true;
-                        row.Tree = cell.GetPlant(map)?.def.plant?.IsTree == true;
+                        if (cell.GetEdifice(map)?.def.building?.isResourceRock == true) bits |= 4;
+                        if (cell.GetPlant(map)?.def.plant?.IsTree == true) bits |= 8;
+                        // Bridges and moisture pumps close a perimeter across soft ground (#949).
+                        if (terrain?.affordances.Contains(TerrainAffordanceDefOf.Bridgeable) == true) bits |= 16;
+                        if (terrain?.driesTo != null) bits |= 32;
+                        bytes[j] = (byte)bits;
                     }
-                    if (fields.Zone) {
-                        var zone = map.zoneManager.ZoneAt(cell);
-                        if (zone != null) row.ZoneId = zone.GetUniqueLoadID();
-                        row.StorageEmpty = NativeZoneCreation.StorageEmpty(cell, map);
-                    }
-                    if (fields.Room) {
-                        var room = cell.GetRoom(map);
-                        if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                        row.Indoors = CellTracking.Indoors(room);
-                    }
-                    if (fields.Growth) {
-                        row.Polluted = ModsConfig.BiotechActive && map.pollutionGrid.IsPolluted(cell);
-                        row.Glow = Finite(map.glowGrid.GroundGlowAt(cell));
-                        // Fertility only where the ground has any (issue #335).
-                        var fertility = map.fertilityGrid.FertilityAt(cell);
-                        if (fertility > 0f) row.Fertility = Finite(fertility);
-                    }
-                    if (fields.Things) {
-                        var here = cell.GetThingList(map);
-                        foreach (var thing in here) row.Things.Add(ThingRow(thing, context));
-                    }
-                    snapshot.Cells.Add(row);
+                    snapshot.Foundation = ByteString.CopyFrom(bytes);
                 }
-                // Sparse deltas are smaller as ordinary rows than a full flag grid.
-                if (parsed.Compact && snapshot.Cells.Count * 20L >= cells.Count) CompactCellEncoding.Encode(snapshot);
+                if (parsed.Things) {
+                    var things = new List<Thing>();
+                    for (int j = 0; j < read.Count; j++)
+                        if (held[j] != 0) {
+                            var cell = new IntVec3(read.X + j % read.Width, 0, read.Z + j / read.Width);
+                            foreach (var thing in cell.GetThingList(map)) if (thing.Position == cell) things.Add(thing);
+                        }
+                    snapshot.Things.AddRange(Things(things, context).Things);
+                }
                 return new Obs.GetCellsReply { Observed = snapshot };
             }
             catch (Exception) { return new Obs.GetCellsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }; }
@@ -186,57 +143,12 @@ namespace HomeBridge.BridgeTools
         }
         internal static bool ValidateCells(Obs.GetCellsRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, bounded unique exact cells or inclusive rectangle required.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity and an inclusive rectangle of at most 1048576 cells required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
-            if (request.Compact && (request.SelectionCase != Obs.GetCellsRequest.SelectionOneofCase.Rectangle || !CompactCellEncoding.Supports(Fields(request.Fields)))) return false;
-            var fields = request.Fields;
-            if (fields != null && (fields.Areas || fields.Designations)) {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only terrain, roof, visibility, traversal, zone, room, growth and things cell fields are implemented."); return false;
-            }
-            try { Selection(request, null); return true; } catch (Exception) { return false; }
+            var min = request.Rectangle?.Minimum; var max = request.Rectangle?.Maximum;
+            if (min == null || max == null || !min.HasX || !min.HasZ || !max.HasX || !max.HasZ || min.X < 0 || min.Z < 0 || max.X < min.X || max.Z < min.Z) return false;
+            return ((long)max.X - min.X + 1) * ((long)max.Z - min.Z + 1) <= 1 << 20;
         }
-        private static bool HasCell(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
-        internal static List<IntVec3> Selection(Obs.GetCellsRequest request, Map? map)
-        {
-            var result = new List<IntVec3>();
-            if (request.SelectionCase == Obs.GetCellsRequest.SelectionOneofCase.ExactCells) {
-                if (request.ExactCells.Cells.Count < 1 || request.ExactCells.Cells.Count > 256) throw new ArgumentException("Exact cell count must be 1..256.");
-                foreach (var cell in request.ExactCells.Cells) {
-                    if (!HasCell(cell)) throw new ArgumentException("Coordinate presence required.");
-                    result.Add(new IntVec3(cell.X, 0, cell.Z));
-                }
-                if (result.Distinct().Count() != result.Count) throw new ArgumentException("Duplicate cells.");
-            } else if (request.SelectionCase == Obs.GetCellsRequest.SelectionOneofCase.Rectangle) {
-                var min = request.Rectangle.Minimum; var max = request.Rectangle.Maximum;
-                if (!HasCell(min) || !HasCell(max) || max.X < min.X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
-                // Both corners on the live map bound the rectangle; a null map
-                // checks shape only. ReadCells rejects the corner cell.
-                if (map == null) return result;
-                if (!new IntVec3(min.X, 0, min.Z).InBounds(map)) { result.Add(new IntVec3(min.X, 0, min.Z)); return result; }
-                if (!new IntVec3(max.X, 0, max.Z).InBounds(map)) { result.Add(new IntVec3(max.X, 0, max.Z)); return result; }
-                for (long z = min.Z; z <= max.Z; z++) for (long x = min.X; x <= max.X; x++) result.Add(new IntVec3((int)x, 0, (int)z));
-            } else throw new ArgumentException("Cell selection required.");
-            return result;
-        }
-        internal static Obs.CellFields Fields(Obs.CellFields? source)
-        {
-            var fields = DefaultFields(source);
-            // Foundation is opt-in and set only when asked (#727), so a read
-            // that never names it applies the fields an older native did.
-            if (source != null && source.HasFoundation && source.Foundation) fields.Foundation = true;
-            return fields;
-        }
-
-        private static Obs.CellFields DefaultFields(Obs.CellFields? source) => new Obs.CellFields {
-            Terrain = source == null || !source.HasTerrain || source.Terrain, Roof = source == null || !source.HasRoof || source.Roof,
-            Visibility = source == null || !source.HasVisibility || source.Visibility, Traversal = source == null || !source.HasTraversal || source.Traversal,
-            // Things is opt-in only (absence selects false), unlike
-            // terrain/roof/visibility/traversal's absence-selects-true default:
-            // a bounded per-cell thing scan is not something every caller wants.
-            Things = source != null && source.HasThings && source.Things,
-            Zone = source != null && source.HasZone && source.Zone, Room = source != null && source.HasRoom && source.Room,
-            Growth = source != null && source.HasGrowth && source.Growth, Areas = false, Designations = false };
-
 
         // The status read as a bundle section: the same facts ReadStatus
         // answers, with read failures as unavailable.
@@ -442,9 +354,7 @@ namespace HomeBridge.BridgeTools
         // ThingRow is the one thing row builder (#1343): the cells read's
         // things and the bundle's things table. Each row carries the thing's
         // own CAS token via NativeWasteOperations.Token, the same
-        // self-computed hash NativeWasteOperations.Prepare checks: a
-        // Things-scoped observations_get_cells read is how bridge.ReadWasteTarget
-        // (and ReadFilthTarget) discover a generic loose thing.
+        // self-computed hash NativeWasteOperations.Prepare checks.
         internal static Obs.Thing ThingRow(Thing thing, Common.ObservationContext context)
         {
             var entity = Entity(thing);
@@ -453,6 +363,8 @@ namespace HomeBridge.BridgeTools
                 Thing_ = entity, ClassName = thing.GetType().Name, StackCount = thing.stackCount,
                 Forbidden = thing.IsForbidden(Faction.OfPlayer),
             };
+            // A plant's growth marks the cell sown (#1567).
+            if (thing is Plant plant) { row.Growth = Finite(plant.Growth); row.HarvestableNow = plant.HarvestableNow; }
             if (thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible)) FoodFacts(thing, row);
             return row;
         }

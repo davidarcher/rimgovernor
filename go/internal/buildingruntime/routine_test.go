@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -36,7 +37,7 @@ type routineNative struct {
 	built map[domain.ActionID]*o.BuildingState
 	// cells is the planning window the fake serves (ReadPlanningWindow);
 	// nil serves an empty window.
-	cells *o.CellsSnapshot
+	cells *bridge.PlanningWindow
 	// catalog is the definition catalog's rows (#1340); finished, when
 	// set, is the frame's finished research.
 	catalog  []*o.PlanningDefinition
@@ -133,31 +134,40 @@ func (n *routineNative) catalogRow(name string) *o.PlanningDefinition {
 }
 
 // ReadPlanningWindow serves the fake's planning window whatever region is
-// asked, as observations_get_cells answers it.
+// asked, as the frame grid answers it.
 func (n *routineNative) ReadPlanningWindow(ctx context.Context, _ *c.Identity, rect policy.Rectangle) (bridge.PlanningWindow, bridge.Result, error) {
 	if n.cells == nil {
 		return bridge.PlanningWindow{Context: n.reply.GetObserved().GetContext(), Region: rect}, bridge.Result{}, ctx.Err()
 	}
-	region := rect
-	if r := n.cells.GetRegion(); r.GetMinimum() != nil && r.GetMaximum() != nil {
-		region = policy.Rectangle{X: r.Minimum.GetX(), Z: r.Minimum.GetZ(), Width: r.Maximum.GetX() - r.Minimum.GetX() + 1, Height: r.Maximum.GetZ() - r.Minimum.GetZ() + 1}
+	window := *n.cells
+	window.Cells = slices.Clone(n.cells.Cells)
+	if window.Region == (policy.Rectangle{}) {
+		window.Region = rect
 	}
-	cells, filtered := bridge.PlanningCells(n.cells)
-	return bridge.PlanningWindow{Context: n.cells.GetContext(), Region: region, Cells: cells, Filtered: filtered}, bridge.Result{}, ctx.Err()
+	return window, bridge.Result{}, ctx.Err()
 }
 
-// fixtureCells is the colony-core fixture's planning window.
-func fixtureCells(t testing.TB) *o.CellsSnapshot {
+// openCell is a visible, walkable, unroofed, unzoned outdoor cell with
+// light footing and no edifice, as the frame grid reads one.
+func openCell(x, z int32) policy.SiteCell {
+	return policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), SupportsLight: domain.Known(true), Indoors: domain.Known(false),
+		Zone: domain.Known(false), Roofed: domain.Known(false), PlayerEdifice: domain.Known(""), ClaimableRuin: domain.Known("")}
+}
+
+// roofed is c under a constructed roof.
+func roofed(c policy.SiteCell) policy.SiteCell {
+	c.Roofed, c.Roof = domain.Known(true), domain.Known("RoofConstructed")
+	return c
+}
+
+// fixtureCells is the colony-core fixture's planning window: its one
+// fertile cell at the origin.
+func fixtureCells(t testing.TB) *bridge.PlanningWindow {
 	t.Helper()
-	data, err := os.ReadFile("../../../contracts/fixtures/colony-core-cells.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cells := &o.CellsSnapshot{}
-	if err = protojson.Unmarshal(data, cells); err != nil {
-		t.Fatal(err)
-	}
-	return cells
+	cell := openCell(0, 0)
+	cell.Indoors, cell.Fertility = domain.Unknown[bool](), domain.Known(1.0)
+	return &bridge.PlanningWindow{Context: &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("colony"), MapId: proto.Int32(0), LoadToken: proto.String("load")}, Tick: proto.Int64(7), NativeGeneration: proto.Uint64(1)},
+		Region: policy.Rectangle{Width: 1, Height: 1}, Cells: []policy.SiteCell{cell}}
 }
 
 // zonesAvailable drops the fixture's farms issue so the zone census reads.

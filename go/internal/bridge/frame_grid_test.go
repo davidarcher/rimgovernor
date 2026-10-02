@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -42,41 +42,39 @@ func gridTestMap() []nativeCell {
 	return cells
 }
 
-// gridBand is the get_cells band over rect as native compiles it, glow
-// total at sky.
-func gridBand(cells []nativeCell, rect policy.Rectangle, sky float64) *o.CellsSnapshot {
-	v := &o.CellsSnapshot{AppliedFields: planningWindowFields()}
+// gridBand is the site cells over rect a planner reads from native's
+// cells, row-major, and the count of fogged cells, glow total at sky.
+func gridBand(cells []nativeCell, rect policy.Rectangle, sky float64) ([]policy.SiteCell, uint64) {
+	var out []policy.SiteCell
+	var fogged uint64
+	named := func(s string) domain.Fact[string] {
+		if s == "" {
+			return domain.Unknown[string]()
+		}
+		return domain.Known(s)
+	}
 	for z := rect.Z; z < rect.Z+rect.Height; z++ {
 		for x := rect.X; x < rect.X+rect.Width; x++ {
 			n := cells[int(z)*gridMapWidth+int(x)]
-			row := &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}
 			if n.fogged {
-				row.Fogged = proto.Bool(true)
-				v.Cells = append(v.Cells, row)
+				fogged++
 				continue
 			}
 			glow := n.glow
 			if n.roof == "" {
 				glow = math.Max(glow, sky)
 			}
-			row.Walkable, row.Passable, row.Occupied, row.Doorway = proto.Bool(n.walkable), proto.Bool(n.walkable), proto.Bool(n.occupied), proto.Bool(n.doorway)
-			row.SupportsLight, row.NaturalRock, row.Ruin = proto.Bool(n.light), proto.Bool(n.naturalRock), proto.Bool(n.ruin)
-			row.StorageEmpty, row.Indoors, row.Polluted, row.Glow = proto.Bool(n.storageEmpty), proto.Bool(n.indoors), proto.Bool(n.polluted), proto.Float64(glow)
-			for _, f := range []struct {
-				value string
-				slot  **string
-			}{{n.roof, &row.Roof}, {n.zone, &row.ZoneId}, {n.room, &row.RoomId}, {n.edifice, &row.PlayerEdifice}, {n.claimable, &row.ClaimableRuin}} {
-				if f.value != "" {
-					*f.slot = proto.String(f.value)
-				}
-			}
+			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(n.walkable), Occupied: domain.Known(n.occupied), Doorway: domain.Known(n.doorway),
+				SupportsLight: domain.Known(n.light), NaturalRock: domain.Known(n.naturalRock), Ruin: domain.Known(n.ruin), StorageEmpty: domain.Known(n.storageEmpty),
+				Indoors: domain.Known(n.indoors), Polluted: domain.Known(n.polluted), Glow: domain.Known(glow), Zone: domain.Known(n.zone != ""), Roofed: domain.Known(n.roof != ""),
+				Roof: named(n.roof), ZoneID: named(n.zone), Room: named(n.room), PlayerEdifice: domain.Known(n.edifice), ClaimableRuin: domain.Known(n.claimable)}
 			if n.fertility > 0 {
-				row.Fertility = proto.Float64(n.fertility)
+				cell.Fertility = domain.Known(n.fertility)
 			}
-			v.Cells = append(v.Cells, row)
+			out = append(out, cell)
 		}
 	}
-	return v
+	return out, fogged
 }
 
 // gridWire is the whole map as native's keyframe: dense arrays, read as
@@ -166,7 +164,7 @@ func gridFrame(base *o.BundleSnapshot, tick int64, grid *mp.CellGrid, seq uint64
 
 // TestFrameGridMatchesTheBand is #1552's equivalence: the planning window
 // served from a frame's grid, keyframe and then a cumulative delta, is
-// the site cells the get_cells band decodes to over the band's rect,
+// the site cells native's cells hold over the window's rect,
 // glow compared as artificial light raised to the sky on unroofed cells.
 func TestFrameGridMatchesTheBand(t *testing.T) {
 	client, server, ring := frameClient(t)
@@ -178,8 +176,7 @@ func TestFrameGridMatchesTheBand(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", label, err)
 		}
-		band := gridBand(cells, rect, sky)
-		want, filtered := PlanningCells(band)
+		want, filtered := gridBand(cells, rect, sky)
 		if window.Filtered != filtered || len(window.Cells) != len(want) {
 			t.Fatalf("%s: %d cells %d fogged, band %d cells %d fogged", label, len(window.Cells), window.Filtered, len(want), filtered)
 		}

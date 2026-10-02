@@ -449,9 +449,10 @@ frame carries (#1345, `bridge/cellgrid`): a keyframe, or a delta Go applies
 to the held keyframe (cumulative, never chained; a delta against a keyframe
 Go skipped asks for a new one). Grid glow is artificial light; the window
 raises an unroofed cell's glow to the frame's `sky_glow`, so `SiteCell.Glow`
-is total light. A client without a stream reads the window through
-`observations_get_cells` (compact row bands) and decodes it with
-`bridge.PlanningCells`. Fogged cells carry no other facts.
+is total light; a client without a stream has no window. Fogged cells
+are not held. `observations_get_cells` answers the same grid over a
+requested rectangle (#1346), with foundation bytes for the map survey and
+thing rows on request.
 The step attaches a
 refresher to its context (`observation.WithPlanningWindow`); a planning
 colony read whose reply lists no cells asks it, and every ask cuts the

@@ -82,20 +82,12 @@ func run(ctx context.Context, s cases.Session) error {
 	ownedPawn, _ := na.AsMap(owned["pawn"])
 	origin, _ := na.AsMap(ownedPawn["position"])
 	originX, originZ := na.AsNumber(origin["x"]), na.AsNumber(origin["z"])
-	var exactCells []any
-	for dx := -5; dx <= 5; dx++ {
-		for dz := -5; dz <= 5; dz++ {
-			distance := dx*dx + dz*dz
-			x, z := originX+float64(dx), originZ+float64(dz)
-			if distance < 4 || distance > 25 || x < 0 || z < 0 {
-				continue
-			}
-			exactCells = append(exactCells, map[string]any{"x": x, "z": z})
-		}
-	}
+	// The lab map is far larger than the pawn's reach, so the 11x11
+	// square around it only clips at the map's low edges.
 	cellsReply, err := h.Wire(ctx, "candidate-cells", "observations_get_cells", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "exactCells": map[string]any{"cells": exactCells},
-		"fields": map[string]any{"terrain": true, "visibility": true, "traversal": true},
+		"scope": map[string]any{"expectedIdentity": identity}, "rectangle": map[string]any{
+			"minimum": map[string]any{"x": max(originX-5, 0), "z": max(originZ-5, 0)},
+			"maximum": map[string]any{"x": originX + 5, "z": originZ + 5}},
 	})
 	if err != nil {
 		return err
@@ -149,25 +141,20 @@ func run(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
-// candidates filters and orders an observations_get_cells reply's cells to the exact
-// set of nearby, walkable, passable, unfogged candidates.
+// candidates filters and orders an observations_get_cells reply's grid
+// to the exact set of nearby, walkable, unfogged candidates.
 func candidates(snapshot, origin map[string]any) ([]map[string]any, error) {
-	rows := na.AsSlice(snapshot["cells"])
+	_, grid, err := na.DecodeCells(snapshot)
+	if err != nil {
+		return nil, fmt.Errorf("candidate cells: %w", err)
+	}
 	originX, originZ := na.AsNumber(origin["x"]), na.AsNumber(origin["z"])
 	var result []map[string]any
-	for _, raw := range rows {
-		row, _ := na.AsMap(raw)
-		cell, _ := na.AsMap(row["cell"])
-		cx, cz := na.AsNumber(cell["x"]), na.AsNumber(cell["z"])
+	for _, cell := range grid.Cells() {
+		cx, cz := float64(cell.Cell.X), float64(cell.Cell.Z)
 		distance := (cx-originX)*(cx-originX) + (cz-originZ)*(cz-originZ)
-		walkable, _ := na.AsBool(row["walkable"])
-		passable, _ := na.AsBool(row["passable"])
-		fogged, _ := na.AsBool(row["fogged"])
-		if distance >= 4 && distance <= 25 && walkable && passable && !fogged {
-			if row["terrain"] == nil {
-				return nil, fmt.Errorf("candidate cells: missing terrain for a walkable cell: %#v", row)
-			}
-			result = append(result, cell)
+		if walkable, known := cell.Walkable.Value(); distance >= 4 && distance <= 25 && known && walkable {
+			result = append(result, map[string]any{"x": cx, "z": cz})
 		}
 	}
 	sort.Slice(result, func(i, j int) bool {

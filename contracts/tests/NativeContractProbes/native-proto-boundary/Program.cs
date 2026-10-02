@@ -23,7 +23,6 @@ internal static class NativeProtoBoundaryProbe {
     }
     internal static void Invoke(string[] args) {
         CompactObservations();
-        PackedPlanningCells();
         Case("empty identity syntax", "{}", true);
         Case("unknown field", "{\"unknown\":1}", false);
         Case("trailing junk", "{}x", false);
@@ -101,55 +100,22 @@ internal static class NativeProtoBoundaryProbe {
         CheckSdkBinder(args[0]);
         Console.WriteLine("Boundary probe passed: "+checks+" checks; actual SDK binder plus journal/game seams; no journal integration or gameplay acceptance.");
     }
-    static void PackedPlanningCells() {
-        var snapshot = new RimGovernor.Protocol.Observations.CellsSnapshot {
-            Region = new RimGovernor.Protocol.Observations.Rectangle {
-                Minimum = new Common.Cell { X = 7, Z = 8 }, Maximum = new Common.Cell { X = 9, Z = 8 } },
-            AppliedFields = new RimGovernor.Protocol.Observations.CellFields()
-        };
-        snapshot.Cells.Add(new RimGovernor.Protocol.Observations.CellState {
-            Cell = new Common.Cell { X = 7, Z = 8 }, Walkable = true, Passable = true,
-            Occupied = true, Doorway = true, SupportsLight = true, StorageEmpty = true,
-            Indoors = true, Polluted = true, Roof = "RoofConstructed", ZoneId = "7", RoomId = "9",
-            Glow = .123456789, Fertility = 1.23456789
-        });
-        snapshot.Cells.Add(new RimGovernor.Protocol.Observations.CellState { Cell = new Common.Cell { X = 8, Z = 8 }, Fogged = true });
-        CompactCellEncoding.Encode(snapshot);
-        Check(snapshot.Cells.Count == 0 && snapshot.Compact.Rows[0].Equals(ByteString.CopyFrom(new byte[] { 0xfc, 0x3f, 0, 1, 2, 0, 2, 0, 1, 0 })), "packed flags match Go decoder golden including fog and unchanged");
-        Check(snapshot.Compact.Fertility[0] == 1.23456789 && snapshot.Compact.Glow[0] == .123456789 && snapshot.Compact.Strings[2] == "9", "packed metadata lossless");
-        snapshot = new RimGovernor.Protocol.Observations.CellsSnapshot {
-            Region = new RimGovernor.Protocol.Observations.Rectangle {
-                Minimum = new Common.Cell { X = 0, Z = 0 }, Maximum = new Common.Cell { X = 249, Z = 249 } },
-            AppliedFields = new RimGovernor.Protocol.Observations.CellFields()
-        };
-        for (int z = 0; z < 250; z++) for (int x = 0; x < 250; x++)
-            snapshot.Cells.Add(new RimGovernor.Protocol.Observations.CellState {
-                Cell = new Common.Cell { X = x, Z = z }, Walkable = true, Passable = true,
-                SupportsLight = true, StorageEmpty = true, Indoors = false, Polluted = false,
-                Occupied = false, Doorway = false, Fertility = 1, Glow = 1, RoomId = "1"
-            });
-        CompactCellEncoding.Encode(snapshot);
-        var json = (string)ProtoBoundary.Encode(snapshot, compact: true)["payload"];
-        Check(Encoding.UTF8.GetByteCount(json) < 768 * 1024, "250x250 coverage retains envelope headroom");
-        Console.WriteLine("Compact 250x250 planning bytes/cell: " + Encoding.UTF8.GetByteCount(json) / 62500.0);
-    }
     static void RawTransport(object request=null) { }
     static void CompactObservations() {
-        var cells = new RimGovernor.Protocol.Observations.CellsSnapshot();
+        var things = new RimGovernor.Protocol.Observations.ThingsSnapshot();
         for (int i = 0; i < 2025; i++) {
-            var cell = new RimGovernor.Protocol.Observations.CellState {
-                Cell = new Common.Cell { X = i % 45, Z = i / 45 },
-                Terrain = "2026-09-12T00:00:00Z", Roof = "spaces and \"quotes\" \\ \u00e9",
-                Fertility = .12345678901234567, TemperatureC = i % 2 == 0 ? double.Epsilon : double.MaxValue,
-                Fogged = false, Walkable = true, Occupied = false, Indoors = true
-            };
-            cells.Cells.Add(cell);
+            things.Things.Add(new RimGovernor.Protocol.Observations.Thing {
+                Thing_ = new RimGovernor.Protocol.Observations.EntityRef { Id = "Thing_" + i, Position = new Common.Cell { X = i % 45, Z = i / 45 } },
+                ClassName = "2026-09-12T00:00:00Z", Stuff = "spaces and \"quotes\" \\ \u00e9",
+                Growth = .12345678901234567, TemperatureC = i % 2 == 0 ? double.Epsilon : double.MaxValue,
+                Forbidden = false, Roofed = true
+            });
         }
-        var compact = (string)ProtoBoundary.Encode(cells, compact: true)["payload"];
-        Check(RimGovernor.Protocol.Observations.CellsSnapshot.Parser.ParseJson(compact).Equals(cells),
-            "compact complete grid preserves strings, false presence, floating values and all cells");
-        Check(Encoding.UTF8.GetByteCount(compact) < Encoding.UTF8.GetByteCount(ProtoBoundary.Format(cells)),
-            "compact grid reduces envelope bytes");
+        var compact = (string)ProtoBoundary.Encode(things, compact: true)["payload"];
+        Check(RimGovernor.Protocol.Observations.ThingsSnapshot.Parser.ParseJson(compact).Equals(things),
+            "compact rows preserve strings, false presence, floating values and all rows");
+        Check(Encoding.UTF8.GetByteCount(compact) < Encoding.UTF8.GetByteCount(ProtoBoundary.Format(things)),
+            "compact rows reduce envelope bytes");
         var capture = Environment.GetEnvironmentVariable("RIMGOVERNOR_NATIVE_COLONY_CAPTURE");
         if (!string.IsNullOrEmpty(capture)) {
             var original = RimGovernor.Protocol.Observations.ColonyFactsReply.Parser.ParseJson(System.IO.File.ReadAllText(capture));

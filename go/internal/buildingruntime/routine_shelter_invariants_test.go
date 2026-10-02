@@ -8,7 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -180,19 +179,14 @@ func checkAdmittedShell(t *testing.T, n *sleepingNative, door domain.Building, r
 func offeredSite(n *sleepingNative) (map[domain.Cell]bool, domain.Cell) {
 	cells := n.cells
 	offered := map[domain.Cell]bool{}
+	is := func(f domain.Fact[bool]) bool { v, _ := f.Value(); return v }
 	for _, cell := range cells.Cells {
-		roofed := cell.Roof != nil
-		for _, issue := range cell.Issues {
-			if issue.GetField() == "roof" {
-				roofed = false
-			}
-		}
-		if cell.GetIndoors() || roofed || !cell.GetWalkable() || cell.GetOccupied() || !cell.GetSupportsLight() || cell.ZoneId != nil {
+		if _, zoned := cell.ZoneID.Value(); is(cell.Indoors) || is(cell.Roofed) || !is(cell.Walkable) || is(cell.Occupied) || !is(cell.SupportsLight) || zoned {
 			continue
 		}
-		offered[domain.Cell{X: cell.Cell.GetX(), Z: cell.Cell.GetZ()}] = true
+		offered[cell.Cell] = true
 	}
-	return offered, domain.Cell{X: cells.Region.Maximum.GetX(), Z: cells.Region.Maximum.GetZ()}
+	return offered, domain.Cell{X: cells.Region.X + cells.Region.Width - 1, Z: cells.Region.Z + cells.Region.Height - 1}
 }
 
 // Ground the game already roofed is no site for a shell: the planner has no
@@ -200,14 +194,9 @@ func offeredSite(n *sleepingNative) (map[domain.Cell]bool, domain.Cell) {
 func TestRoutineShelterRefusesAlreadyRoofedGround(t *testing.T) {
 	t.Parallel()
 	planner, _, n := shelterSiteFixture(t)
-	for _, cell := range n.cells.Cells {
-		var issues []*o.ReadIssue
-		for _, issue := range cell.Issues {
-			if issue.GetField() != "roof" {
-				issues = append(issues, issue)
-			}
-		}
-		cell.Issues, cell.Roof = issues, proto.String("RoofRockThick")
+	for i := range n.cells.Cells {
+		cell := &n.cells.Cells[i]
+		cell.Roofed, cell.Roof = domain.Known(true), domain.Known("RoofRockThick")
 	}
 	result, err := planner.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodNoSpace {

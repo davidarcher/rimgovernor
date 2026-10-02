@@ -41,19 +41,11 @@ internal static class NativeProtoObservationsProbe
         Check(Valid("ValidateStatus","StatusRequest",request("\"colonists\":false,\"threats\":false,\"predatorRadius\":0")),"known false and zero accepted");
         foreach(var invalid in new[]{"{}",request("\"page\":{\"limit\":0}"),request("\"page\":{\"limit\":257}"),request("\"page\":{\"cursor\":\"stale\"}"),request("\"predatorRadius\":-1"),request("\"predatorRadius\":\"NaN\""),request("\"predatorRadius\":\"Infinity\"")})
             Check(!Valid("ValidateStatus","StatusRequest",invalid),"invalid status refused");
-        const string selection="\"exactCells\":{\"cells\":[{\"x\":0,\"z\":0}]}";
-        const string noFields="\"fields\":{\"terrain\":false,\"roof\":false,\"visibility\":false,\"traversal\":false,\"zone\":false,\"areas\":false,\"things\":false,\"designations\":false,\"room\":false,\"growth\":false}";
-        var anchor=request(selection+","+noFields+",\"page\":{\"limit\":1}");
-        Check(Valid("ValidateCells","GetCellsRequest",anchor),"Go singleton map-bounds request accepted");
-        var parsed=Wire("GetCellsRequest",anchor);
-        var fields=tools.GetMethod("Fields",Flags)!.Invoke(null,new[]{Get(parsed,"Fields")})!;
-        foreach(var name in new[]{"Terrain","Roof","Visibility","Traversal","Zone","Areas","Things","Designations","Room","Growth"})
-            Check((bool)Get(fields,"Has"+name)&&!(bool)Get(fields,name),"explicit false applied: "+name);
-        var cells=(IList)tools.GetMethod("Selection",Flags)!.Invoke(null,new[]{parsed})!;
-        Check(cells.Count==1,"singleton complete selection");
-        foreach(var invalid in new[]{request(""),request("\"exactCells\":{\"cells\":[]}"),request(selection.Replace("\"z\":0","\"z\":null")),request("\"exactCells\":{\"cells\":[{\"x\":0,\"z\":0},{\"x\":0,\"z\":0}]}"),request(selection+",\"fields\":{\"areas\":true}"),request(selection+",\"fields\":{\"designations\":true}"),request("\"rectangle\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":2147483647,\"z\":2147483647}}")})
-            Check(!Valid("ValidateCells","GetCellsRequest",invalid),"invalid/unsupported cells refused");
-        Check(Valid("ValidateCells","GetCellsRequest",request("\"rectangle\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":15,\"z\":15}}")),"bounded rectangle accepted");
+        Func<int,int,int,int,string> rect=(x0,z0,x1,z1)=>"\"rectangle\":{\"minimum\":{\"x\":"+x0+",\"z\":"+z0+"},\"maximum\":{\"x\":"+x1+",\"z\":"+z1+"}}";
+        Check(Valid("ValidateCells","GetCellsRequest",request(rect(2,3,2,3))),"Go singleton map-bounds request accepted");
+        Check(Valid("ValidateCells","GetCellsRequest",request(rect(0,0,1023,1023)+",\"foundation\":true,\"things\":true")),"whole-map rectangle accepted");
+        foreach(var invalid in new[]{request(""),request(rect(0,0,1024,1023)),request(rect(1,0,0,0)),request(rect(-1,0,0,0)),request(rect(0,0,0,0).Replace("\"z\":0}}","\"z\":null}}")),request(rect(0,0,2147483647,2147483647))})
+            Check(!Valid("ValidateCells","GetCellsRequest",invalid),"invalid/oversized cells refused");
         var server=Assembly.LoadFrom(directories.Select(d=>Path.Combine(d,"RimBridgeServer.dll")).First(File.Exists));
         var binder=server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
         foreach(var methodName in new[]{"ReadStatus","GetCells"}) foreach(var value in new object?[]{"{}",new Dictionary<string,object>(),new List<object>(),null,17,true}) {

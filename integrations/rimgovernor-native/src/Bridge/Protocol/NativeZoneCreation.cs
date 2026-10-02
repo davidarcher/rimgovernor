@@ -143,7 +143,7 @@ namespace HomeBridge.BridgeTools
             return true;
         }
         // StorageEmpty is the one definition of a cell with nothing stored or
-        // built on it, shared by the cell census (CellState.StorageEmpty,
+        // built on it, shared by the cell grid (storage_empty,
         // colony facts) and stockpile zone creation so a site the controller
         // chose from the census is the site native accepts.
         internal static bool StorageEmpty(IntVec3 c, Map map)

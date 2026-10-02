@@ -81,23 +81,25 @@ namespace HomeBridge.BridgeTools
                 Codes != null ? Codes[j] == 0 : Numbers != null ? double.IsNaN(Numbers[j]) : Strings![j] == null;
         }
 
-        /// One read of the whole map, as Attach encodes it.
+        /// One read of a rect of the map (the whole map for a frame), as
+        /// Encode encodes it.
         internal sealed class GridRead
         {
-            internal int MapId, Width, Height;
+            internal int MapId, X, Z, Width, Height;
             internal double SkyGlow;
             internal Column[] Columns = Array.Empty<Column>();
             internal int Count => Width * Height;
         }
 
         // On the game thread: every cell of map. A fogged cell is not held
-        // (every array at its sentinel); a held cell reads as the get_cells
-        // planning fields do (NativeObservationTools.ReadCells), glow with
-        // the sky left out.
-        internal static GridRead Read(Map map)
+        // (every array at its sentinel); glow leaves the sky out.
+        internal static GridRead Read(Map map) => Read(map, 0, 0, map.Size.x, map.Size.z);
+
+        // On the game thread: the w x h rect at (x0, z0), on the map.
+        internal static GridRead Read(Map map, int x0, int z0, int w, int h)
         {
-            int w = map.Size.x, h = map.Size.z, n = w * h;
-            var read = new GridRead { MapId = map.uniqueID, Width = w, Height = h, SkyGlow = Finite(map.skyManager.CurSkyGlow), Columns = new Column[Fields.Length] };
+            int n = w * h, mapWidth = map.Size.x;
+            var read = new GridRead { MapId = map.uniqueID, X = x0, Z = z0, Width = w, Height = h, SkyGlow = Finite(map.skyManager.CurSkyGlow), Columns = new Column[Fields.Length] };
             for (int i = 0; i < Fields.Length; i++)
             {
                 var column = new Column();
@@ -114,15 +116,16 @@ namespace HomeBridge.BridgeTools
             var player = Faction.OfPlayerSilentFail;
             var biotech = ModsConfig.BiotechActive;
             List<RectTrigger>? triggers = null;
-            // A room's key is its first held cell's index (row-major), not
-            // Room.ID: RimWorld regenerates rooms near any edifice change
-            // with fresh ids, which would make every room cell differ from
-            // the keyframe; the first cell stays put unless it changes.
+            // A room's key is the whole-map index (row-major) of its first
+            // held cell in the read, not Room.ID: RimWorld regenerates rooms
+            // near any edifice change with fresh ids, which would make every
+            // room cell differ from the keyframe; the first cell stays put
+            // unless it changes.
             var roomKeys = new Dictionary<Room, string>();
             for (int z = 0; z < h; z++)
                 for (int x = 0; x < w; x++)
                 {
-                    var cell = new IntVec3(x, 0, z);
+                    var cell = new IntVec3(x0 + x, 0, z0 + z);
                     var j = z * w + x;
                     if (cell.Fogged(map)) continue;
                     c[Cell].Codes![j] = 1;
@@ -149,7 +152,7 @@ namespace HomeBridge.BridgeTools
                     var room = cell.GetRoom(map);
                     if (room != null)
                     {
-                        if (!roomKeys.TryGetValue(room, out var key)) roomKeys[room] = key = j.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        if (!roomKeys.TryGetValue(room, out var key)) roomKeys[room] = key = (cell.z * mapWidth + cell.x).ToString(System.Globalization.CultureInfo.InvariantCulture);
                         c[Room].Strings![j] = key;
                     }
                     c[Indoors].Codes![j] = B(CellTracking.Indoors(room));
@@ -175,7 +178,7 @@ namespace HomeBridge.BridgeTools
             var now = Stopwatch.GetTimestamp();
             var held = keyframe;
             Mirror.CellGrid? grid = null;
-            if (!streamKeyframe && held != null && held.MapId == read.MapId && held.Width == read.Width && held.Height == read.Height
+            if (!streamKeyframe && held != null && held.MapId == read.MapId && held.X == read.X && held.Z == read.Z && held.Width == read.Width && held.Height == read.Height
                 && now - keyframeAt < KeyframeSeconds * Stopwatch.Frequency)
                 grid = Encode(read, held);
             if (grid == null)
@@ -196,7 +199,7 @@ namespace HomeBridge.BridgeTools
         internal static Mirror.CellGrid? Encode(GridRead read, GridRead? against)
         {
             var n = read.Count;
-            var grid = new Mirror.CellGrid { Rect = new Mirror.CellRect { X = 0, Z = 0, Width = read.Width, Height = read.Height } };
+            var grid = new Mirror.CellGrid { Rect = new Mirror.CellRect { X = read.X, Z = read.Z, Width = read.Width, Height = read.Height } };
             var table = new Dictionary<string, uint>(StringComparer.Ordinal);
             var carried = 0;
             var changed = new List<int>();

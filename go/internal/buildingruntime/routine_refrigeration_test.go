@@ -43,15 +43,15 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 		for z := int32(0); z < 5; z++ {
 			inside := x >= 1 && x <= 2 && z >= 1 && z <= 2
 			wall := !inside && x <= 3 && z <= 3
-			row := &o.CellState{Cell: cell(x, z), Indoors: proto.Bool(inside), Fogged: proto.Bool(false), Walkable: proto.Bool(!wall), Occupied: proto.Bool(wall), SupportsLight: proto.Bool(true), Issues: []*o.ReadIssue{{Field: proto.String("zone_id"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}}
+			row := openCell(x, z)
+			row.Indoors, row.Walkable, row.Occupied = domain.Known(inside), domain.Known(!wall), domain.Known(wall)
 			if inside || wall {
-				row.Roof = proto.String("RoofConstructed")
-			} else {
-				row.Issues = append(row.Issues, &o.ReadIssue{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
+				row = roofed(row)
 			}
 			cells.Cells = append(cells.Cells, row)
 		}
 	}
+	bridge.SortSiteCells(cells.Cells)
 	room := n.rooms.GetObserved().Rooms[0]
 	room.Cells = []*c.Cell{cell(1, 1), cell(1, 2), cell(2, 1), cell(2, 2)}
 	room.Extents = &o.Rectangle{Minimum: cell(1, 1), Maximum: cell(2, 2)}

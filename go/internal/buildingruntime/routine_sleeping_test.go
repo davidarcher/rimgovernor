@@ -78,11 +78,13 @@ func sleepingFacts(n *routineNative) {
 	v.Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
 	n.catalog = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("SleepingSpot")}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}}}
 	cells := n.cells
-	cells.Region.Maximum = &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}
+	cells.Region = policy.Rectangle{Width: 5, Height: 5}
 	cells.Cells = nil
-	for x := int32(0); x < 5; x++ {
-		for z := int32(0); z < 5; z++ {
-			cells.Cells = append(cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Roof: proto.String("RoofConstructed"), Indoors: proto.Bool(true), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(true), Issues: []*o.ReadIssue{{Field: proto.String("zone_id"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}})
+	for z := int32(0); z < 5; z++ {
+		for x := int32(0); x < 5; x++ {
+			cell := roofed(openCell(x, z))
+			cell.Indoors = domain.Known(true)
+			cells.Cells = append(cells.Cells, cell)
 		}
 	}
 }
@@ -138,8 +140,8 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 			case "prerequisite":
 				n.catalog[0].ConstructionSkill = nil
 			case "unknown-room":
-				for _, cell := range n.cells.Cells {
-					cell.Indoors = nil
+				for i := range n.cells.Cells {
+					n.cells.Cells[i].Indoors = domain.Unknown[bool]()
 				}
 			default:
 				n.onPreview = func(_ context.Context, v *bridge.BuildingPreview) {
@@ -308,9 +310,9 @@ func TestRoutineSleepingKeepsDoorwayAislesClear(t *testing.T) {
 	// the cells beside it are the entrance aisle, never furniture, even when
 	// the colony centre makes the aisle the nearest candidate.
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(1)}
-	for _, row := range n.cells.Cells {
-		if row.Cell.GetX() == 2 && row.Cell.GetZ() == 0 {
-			row.Doorway, row.Occupied, row.Walkable = proto.Bool(true), proto.Bool(true), proto.Bool(true)
+	for i, row := range n.cells.Cells {
+		if row.Cell == (domain.Cell{X: 2, Z: 0}) {
+			n.cells.Cells[i].Doorway, n.cells.Cells[i].Occupied, n.cells.Cells[i].Walkable = domain.Known(true), domain.Known(true), domain.Known(true)
 		}
 	}
 	result, err := r.Step(context.Background())

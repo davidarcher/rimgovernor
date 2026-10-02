@@ -25,14 +25,11 @@ func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *s
 		n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
 	n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, Stuff: proto.String("WoodLog"), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
-	n.cells.Region.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(8)}
+	n.cells.Region = policy.Rectangle{Width: 9, Height: 9}
 	n.cells.Cells = nil
 	for x := int32(0); x < 9; x++ {
 		for z := int32(0); z < 9; z++ {
-			n.cells.Cells = append(n.cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(true), Issues: []*o.ReadIssue{
-				{Field: proto.String("zone_id"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
-				{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
-			}})
+			n.cells.Cells = append(n.cells.Cells, openCell(x, z))
 		}
 	}
 	n.onPreview = func(_ context.Context, v *bridge.BuildingPreview) {
@@ -248,14 +245,13 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 			case "definition":
 				n.catalogRow("Door").Size.Width = proto.Uint32(2)
 			case "room-unknown":
-				n.cells.Cells[40].Indoors = nil
+				n.cells.Cells[40].Indoors = domain.Unknown[bool]()
 			case "terrain":
-				n.cells.Cells[40].SupportsLight = nil
+				n.cells.Cells[40].SupportsLight = domain.Unknown[bool]()
 			case "zone":
-				n.cells.Cells[40].ZoneId = proto.String("player-zone")
-				n.cells.Cells[40].Issues = n.cells.Cells[40].Issues[1:]
+				n.cells.Cells[40].Zone, n.cells.Cells[40].ZoneID = domain.Known(true), domain.Known("player-zone")
 			case "protected":
-				n.cells.Cells[40].Occupied = proto.Bool(true)
+				n.cells.Cells[40].Occupied = domain.Known(true)
 			}
 			result, err := r.Step(context.Background())
 			if err == nil && result.Reason == BuildingMethodAdmitted {
@@ -452,11 +448,10 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 	}
 	// Some of the room is now roofed and can hold spots; the native capacity
 	// census still refuses to count a room with any open roof cells.
-	for _, c := range n.cells.Cells {
-		c.Indoors = proto.Bool(true)
-		if c.Cell.GetX() >= 2 && c.Cell.GetX() <= 5 && c.Cell.GetZ() >= 2 && c.Cell.GetZ() <= 5 {
-			c.Roof = proto.String("RoofConstructed")
-			c.Issues = c.Issues[:1]
+	for i, c := range n.cells.Cells {
+		n.cells.Cells[i].Indoors = domain.Known(true)
+		if c.Cell.X >= 2 && c.Cell.X <= 5 && c.Cell.Z >= 2 && c.Cell.Z <= 5 {
+			n.cells.Cells[i] = roofed(n.cells.Cells[i])
 		}
 	}
 	furnish, err := r.Step(ctx)
@@ -501,14 +496,13 @@ func hutCells(n *sleepingNative, side int32, lit func(x, z int32) bool) {
 			v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(600))}}
 		}
 	}
-	n.cells.Region.Maximum = &c.Cell{X: proto.Int32(side - 1), Z: proto.Int32(side - 1)}
+	n.cells.Region = policy.Rectangle{Width: side, Height: side}
 	n.cells.Cells = nil
 	for x := int32(0); x < side; x++ {
 		for z := int32(0); z < side; z++ {
-			n.cells.Cells = append(n.cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(lit(x, z)), Issues: []*o.ReadIssue{
-				{Field: proto.String("zone_id"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
-				{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
-			}})
+			cell := openCell(x, z)
+			cell.SupportsLight = domain.Known(lit(x, z))
+			n.cells.Cells = append(n.cells.Cells, cell)
 		}
 	}
 }

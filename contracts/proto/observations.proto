@@ -652,7 +652,6 @@ message ZoneState {
 message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ZoneState zones = 2; Completeness completeness = 3; reserved 4, 5, 6, 7; reserved "map_snapshot"; }
 message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optional string name_contains = 3; Rectangle region = 4; optional bool include_cells = 5; optional bool include_contents = 6; optional bool include_filter = 7; reserved 8, 9; }
 message ListZonesReply { oneof outcome { ZonesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message DesignationState { optional string def_name = 1; TargetRef target = 2; }
 // A thing's canonical row (#1343), from one native builder: the cells
 // read's things and the bundle's things table. thing.snapshot is the
 // thing's own CAS token. The food facts (14-27) are set for an ingestible
@@ -666,51 +665,29 @@ message Thing { EntityRef thing = 1; optional string class_name = 2; optional in
   optional bool corpse = 19; optional double meat_amount = 20; optional double body_size = 21; optional int64 tile_footprint = 22;
   optional bool is_human_meat = 23; optional bool is_humanlike = 24; optional bool vegetable = 25; optional bool raw_meat = 26; optional FoodIngredientClass raw_class = 27; }
 message ThingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Thing things = 2; }
-message CellState {
-  rimgovernor.common.v1.Cell cell = 1; optional string terrain = 2; optional string roof = 3; optional bool fogged = 4;
-  optional bool walkable = 5; optional bool passable = 6; optional string zone_id = 7; repeated string area_ids = 8;
-  repeated Thing things = 9; repeated DesignationState designations = 10; optional string room_id = 11;
-  optional double fertility = 12; optional double temperature_c = 13; optional bool indoors = 14;
-  optional bool storage_empty = 15; optional bool supports_light = 16; repeated ReadIssue issues = 17;
-  optional bool occupied = 18; // Native edifice, blueprint or frame occupies this cell.
-  optional bool doorway = 19; // A door, or a door blueprint or frame, occupies this cell.
-  optional bool reachable = 20; // An available colonist can path to this cell without danger.
-  optional bool polluted = 21; // Growth field; false when Biotech is inactive.
-  optional double glow = 22; // Native ground glow, including artificial light.
-  optional bool natural_rock = 23; // The edifice is natural rock: a shell reuses it as wall or mines it (#700).
-  optional bool ruin = 24; // The edifice is an unowned building the player may deconstruct, outside any ancient danger: a shell ring clears it, then builds (#709).
-  optional string player_edifice = 25; // Definition of a player-owned edifice on the cell: a shell ring reuses a wall of its own kind (#709).
-  optional string claimable_ruin = 26; // Definition of a ruin (ruin set) the player may claim: a shell ring claims a wall of its own kind and reuses it (#718).
-  optional bool supports_heavy = 27; // Foundation field: the terrain takes a wall (Heavy affordance); marsh, mud and water do not (#727).
-  optional bool resource_rock = 28; // Foundation field: the edifice is mineable ore (a resource rock) (#778).
-  optional bool tree = 29; // Foundation field: a tree grows on the cell (#778).
-  optional bool bridgeable = 30; // Foundation field: the terrain takes a bridge (Bridgeable affordance) (#949).
-  optional bool dries = 31; // Foundation field: a moisture pump dries the terrain to firm ground (TerrainDef.driesTo) (#949).
+// One observations_get_cells read (#1346): the map's dimensions and the
+// requested rectangle as a CellGrid keyframe (mirror.proto's arrays and
+// sentinels: a fogged cell is not held; glow is artificial light only).
+// room keys a native room by the whole-map row-major index of its first
+// held cell inside the read. foundation, when requested, is one byte per
+// grid cell (row-major, 0 on a cell the grid does not hold): bit 0
+// supports_heavy (the terrain takes a wall), bit 1 supports_light, bit 2
+// resource_rock (mineable ore), bit 3 tree, bit 4 bridgeable, bit 5 dries
+// (a moisture pump dries it), each of the natural ground under any
+// bridge or floor. things, when requested, are the canonical rows (#1343)
+// of the things standing on the grid's held cells, each once, in id
+// order, at its own thing.position.
+message CellsSnapshot {
+  rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2;
+  rimgovernor.mirror.v1.CellGrid grid = 11; bytes foundation = 12; repeated Thing things = 13;
+  reserved 3 to 10; reserved "region", "cells", "applied_fields", "compact", "map_snapshot";
 }
-message CellFields { optional bool terrain = 1; optional bool roof = 2; optional bool visibility = 3; optional bool traversal = 4; optional bool zone = 5; optional bool areas = 6; optional bool things = 7; optional bool designations = 8; optional bool room = 9; optional bool growth = 10; optional bool foundation = 11; }
-message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; reserved 5; CellFields applied_fields = 6; reserved 7; reserved "map_snapshot"; CompactCells compact = 10; reserved 8, 9; }
-message GetCellsRequest { ReadScope scope = 1; oneof selection { Rectangle rectangle = 2; CellSelection exact_cells = 3; } CellFields fields = 4; optional bool compact = 7; reserved 5, 6; }
-// Planning fields only. One byte string per region z, x ascending. Each cell
-// starts with little-endian uint16 flags: unchanged, fogged, walkable, passable,
-// occupied, doorway, supports_light, storage_empty, indoors, polluted,
-// fertility-present, roof-present, zone-present, room-present, natural-rock,
-// edifice-present (bits 0..15). Unchanged/fogged have no other flags or data.
-// Visible cells append unsigned varint string-table indices for present
-// roof/zone/room, then for a present edifice a varint v: 0 an unclaimable
-// ruin, odd v the player edifice definition at string index (v-1)/2, even
-// v a claimable ruin whose definition is at string index (v-2)/2; then a
-// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy, bit 1 resource_rock, bit 2 tree,
-// bit 3 bridgeable, bit 4 dries.
-// Fertility values (>0) follow flagged cells in row-major order; no quantization.
-// Cells and compact are mutually exclusive. Counts count changed cells, including
-// fogged. The unchanged flag is never set since changed-since reads were removed (#858).
-message CompactCells {
-  repeated bytes rows = 1;
-  repeated string strings = 2;
-  repeated double glow = 3;
-  repeated double fertility = 4;
+// GetCellsRequest reads the inclusive rectangle, on the map, of at most
+// 1048576 cells.
+message GetCellsRequest {
+  ReadScope scope = 1; Rectangle rectangle = 2; optional bool foundation = 8; optional bool things = 9;
+  reserved 3 to 7; reserved "exact_cells", "fields", "compact";
 }
-message CellSelection { repeated rimgovernor.common.v1.Cell cells = 1; }
 message GetCellsReply { oneof outcome { CellsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ResearchUnlock { optional string def_name = 1; optional string native_type = 2; optional string label = 3; }
 // TechLevel is the vanilla TechLevel.

@@ -61,10 +61,9 @@ func deepDrillDispatchFixture(t *testing.T, existing bool, drills []*o.DeepDrill
 		Drills: drills,
 	}}}
 	sleeping.catalog = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("DeepDrill")}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}}}
-	for _, cell := range sleeping.cells.Cells {
-		cell.Roof = nil
-		cell.Issues = append(cell.Issues, &o.ReadIssue{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
-		cell.Indoors = proto.Bool(false)
+	for i := range sleeping.cells.Cells {
+		cell := &sleeping.cells.Cells[i]
+		cell.Roof, cell.Roofed, cell.Indoors = domain.Unknown[string](), domain.Known(false), domain.Known(false)
 	}
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
