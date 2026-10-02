@@ -42,7 +42,7 @@ func TestNativePowerMethodsReplay(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		facts, err := DecodeColony(reply, identity)
+		facts, err := DecodeColony(reply, identity, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

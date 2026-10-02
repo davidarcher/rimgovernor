@@ -18,10 +18,10 @@ func TestRoutinePowerCensusReachesDurableNeed(t *testing.T) {
 		p := &o.DevelopmentFacts{}
 		want := domain.NeedRecovered
 		if phase != "no-consumers" {
-			p.Power = []*o.DevelopmentPower{{BaseW: proto.Float64(-200), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("consumer"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Service: &o.BuildingServiceState{Connected: proto.Bool(false), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}}
+			p.Power = []*o.DevelopmentPower{{BaseW: proto.Float64(-200), Building: native.building(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("consumer"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Service: &o.BuildingServiceState{Connected: proto.Bool(false), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}})}}
 			want = domain.NeedDeficit
 			if phase == "powered" {
-				s := p.Power[0].Building.Service
+				s := native.buildings["consumer"].Service
 				s.Connected, s.PowerOn, s.PowerNetId = proto.Bool(true), proto.Bool(true), proto.String("net")
 				want = domain.NeedRecovered
 			}

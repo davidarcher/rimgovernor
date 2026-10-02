@@ -43,7 +43,7 @@ func TestNativeTemperatureMethodsReplay(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		facts, err := DecodeColony(colony, identity)
+		facts, err := DecodeColony(colony, identity, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

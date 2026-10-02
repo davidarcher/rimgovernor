@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                 // native -1 sentinel and cannot be repair targets.
                 var rows = sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).ToList();
                 var values = rows.Select(b => new Obs.UpkeepStructure {
-                    Building = new Obs.BuildingState { Building = Ref(b), HitPoints = b.HitPoints, MaxHitPoints = b.MaxHitPoints },
+                    Building = Ref(b),
                     Home = b.OccupiedRect().All(c => map.areaManager.Home[c]), Flammability = Number(b.GetStatValue(StatDefOf.Flammability)),
                     RepairPriority = b.TryGetComp<CompTempControl>() != null || b.TryGetComp<CompPowerPlant>() != null
                         || b is Building_Bed bed && bed.Medical ? 0
@@ -187,17 +187,7 @@ namespace HomeBridge.BridgeTools
                 }
                 foreach (var b in lamps) {
                     var glower = b.TryGetComp<CompGlower>();
-                    var service = new Obs.BuildingServiceState { SwitchedOn = b.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
-                    var power = b.TryGetComp<CompPowerTrader>();
-                    if (power != null) { service.Connected = power.PowerNet != null; service.PowerOn = power.PowerOn; service.PowerOutputW = Number(power.PowerOutput); }
-                    service.BrokenDown = b.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false;
-                    var fuel = b.TryGetComp<CompRefuelable>();
-                    if (fuel != null) {
-                        service.Fuel = Number(fuel.Fuel); service.TargetFuel = Number(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
-                        var defs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToList();
-                        service.AllowedFuelDefs.Add(defs);
-                    }
-                    var row = new Obs.LampState { Building = new Obs.BuildingState { Building = Ref(b), Service = service },
+                    var row = new Obs.LampState { Building = Ref(b),
                         GlowRadius = Number(glower.Props.glowRadius), Lit = glower.Glows };
                     var room = b.Position.GetRoom(map);
                     if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);

@@ -277,12 +277,20 @@ func readPowerFacts(ctx context.Context, h *na.Harness, identity map[string]any,
 	if len(power) == 0 {
 		return nil, fmt.Errorf("%s: no development power rows observed", label)
 	}
+	rows, err := h.BuildingRows(ctx, label+"-buildings", identity)
+	if err != nil {
+		return nil, err
+	}
 	for i, raw := range power {
 		row, _ := na.AsMap(raw)
-		building, _ := na.AsMap(row["building"])
+		entity, _ := na.AsMap(row["building"])
+		building, ok := rows[na.AsString(entity["id"])]
+		if !ok {
+			return nil, fmt.Errorf("%s: power row %d (%v) is not in the building table", label, i, entity["id"])
+		}
 		service, _ := na.AsMap(building["service"])
 		if _, ok := service["outOfFuel"]; !ok {
-			if entity, _ := na.AsMap(building["building"]); na.AsString(entity["defName"]) == "WoodFiredGenerator" {
+			if na.AsString(entity["defName"]) == "WoodFiredGenerator" {
 				return nil, fmt.Errorf("%s: power row %d (WoodFiredGenerator) lacks the refuelable service facts", label, i)
 			}
 		}

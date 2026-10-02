@@ -401,10 +401,17 @@ func readLighting(ctx context.Context, h *na.Harness, identity map[string]any, l
 		sensitive, _ := na.AsBool(row["lightSensitive"])
 		s.cells[na.AsString(bench["id"])] = workCellRow{cell: domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}, glow: na.AsNumber(row["glow"]), roofed: roofed, lightSensitive: sensitive}
 	}
+	rows, err := h.BuildingRows(ctx, label+"-buildings", identity)
+	if err != nil {
+		return lightingSummary{}, err
+	}
 	for _, raw := range na.AsSlice(facts["lamps"]) {
 		row, _ := na.AsMap(raw)
-		building, _ := na.AsMap(row["building"])
-		ref, _ := na.AsMap(building["building"])
+		ref, _ := na.AsMap(row["building"])
+		building, ok := rows[na.AsString(ref["id"])]
+		if !ok {
+			return lightingSummary{}, fmt.Errorf("%s: lamp %v is not in the building table", label, ref["id"])
+		}
 		position, _ := na.AsMap(ref["position"])
 		service, _ := na.AsMap(building["service"])
 		lit, _ := na.AsBool(row["lit"])

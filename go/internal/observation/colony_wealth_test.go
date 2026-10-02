@@ -23,7 +23,7 @@ func TestColonyWealthReachesRoutineFacts(t *testing.T) {
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 	wealth := &o.ThreatFacts{WealthItems: proto.Float64(30000), WealthBuildings: proto.Float64(10000), WealthPawns: proto.Float64(8000), WealthTotal: proto.Float64(48000)}
 	reply.GetObserved().Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: wealth}}
-	projection, err := DecodeColony(reply, expected)
+	projection, err := DecodeColony(reply, expected, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestColonyWealthReachesRoutineFacts(t *testing.T) {
 	for _, field := range []**float64{&wealth.WealthItems, &wealth.WealthBuildings, &wealth.WealthPawns, &wealth.WealthTotal} {
 		saved := *field
 		*field = nil
-		projection, err = DecodeColony(reply, expected)
+		projection, err = DecodeColony(reply, expected, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -43,7 +43,7 @@ func TestColonyWealthReachesRoutineFacts(t *testing.T) {
 		*field = saved
 	}
 	reply.GetObserved().Threat = nil
-	projection, err = DecodeColony(reply, expected)
+	projection, err = DecodeColony(reply, expected, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

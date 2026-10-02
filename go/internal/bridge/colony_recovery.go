@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -24,42 +23,11 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 		return contract("invalid recovery context or outcome")
 	}
 	seen := map[string]bool{}
-	for _, b := range v.Buildings {
-		if b == nil || !powerEntity(b.Building, colony.Context.Identity, colony.MapSize) || seen[b.Building.GetId()] {
+	for _, ref := range v.Buildings {
+		if !powerEntity(ref, colony.Context.Identity, colony.MapSize) || seen[ref.GetId()] {
 			return contract("invalid recovery building identity")
 		}
-		seen[b.Building.GetId()] = true
-		if !proto.Equal(b, &o.BuildingState{Building: b.Building, UsesHitPoints: b.UsesHitPoints, HitPoints: b.HitPoints, MaxHitPoints: b.MaxHitPoints, Burning: b.Burning, Settings: b.Settings, Service: b.Service}) {
-			return contract("unsupported recovery building detail")
-		}
-		if b.Settings == nil || !proto.Equal(b.Settings, &o.BuildingSettings{Forbidden: b.Settings.Forbidden}) {
-			return contract("invalid recovery settings")
-		}
-		if b.HitPoints != nil && b.GetHitPoints() < 0 || b.MaxHitPoints != nil && b.GetMaxHitPoints() <= 0 || b.HitPoints != nil && b.MaxHitPoints != nil && b.GetHitPoints() > b.GetMaxHitPoints() || b.UsesHitPoints != nil && !b.GetUsesHitPoints() && (b.HitPoints != nil || b.MaxHitPoints != nil) {
-			return contract("invalid recovery hit points")
-		}
-		s := b.Service
-		if s == nil || !proto.Equal(s, &o.BuildingServiceState{BrokenDown: s.BrokenDown, Fuel: s.Fuel, TargetFuel: s.TargetFuel, AllowedFuelDefs: s.AllowedFuelDefs, Issues: s.Issues}) || !combatNumber(s.Fuel, true) || !combatNumber(s.TargetFuel, true) {
-			return contract("invalid recovery service")
-		}
-		defs := map[string]bool{}
-		for _, d := range s.AllowedFuelDefs {
-			if validID(d) != nil || defs[d] {
-				return contract("invalid recovery fuel definition")
-			}
-			defs[d] = true
-		}
-		if err := pawnsIssues(s.Issues, s.ProtoReflect()); err != nil {
-			return err
-		}
-		if len(s.Issues) > 1 {
-			return contract("unexpected recovery issue")
-		}
-		for _, issue := range s.Issues {
-			if issue.GetField() != "fuel" || issue.GetUnavailable().GetReason() != c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE || s.Fuel != nil || s.TargetFuel != nil || len(s.AllowedFuelDefs) > 0 {
-				return contract("conflicting recovery fuel availability")
-			}
-		}
+		seen[ref.GetId()] = true
 	}
 	seen = map[string]bool{}
 	for _, r := range v.Restrictions {

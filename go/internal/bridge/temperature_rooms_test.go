@@ -11,7 +11,7 @@ import (
 
 func temperatureTestSnapshot() *o.RoomsSnapshot {
 	cell := &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}
-	return &o.RoomsSnapshot{Context: authorityTestContext(7), Completeness: emergencyCounts(1), Rooms: []*o.RoomState{{Id: proto.String("42"), ProperRoom: proto.Bool(true), Doorway: proto.Bool(false), Outdoors: proto.Bool(false), PsychologicallyOutdoors: proto.Bool(false), TouchesMapEdge: proto.Bool(false), OpenRoofCount: proto.Uint32(0), CellCount: proto.Uint32(1), TemperatureC: proto.Float64(5), Center: cell, Extents: &o.Rectangle{Minimum: cell, Maximum: cell}, Cells: []*c.Cell{cell}, Contents: []*o.Quantity{{DefName: proto.String("SleepingSpot"), Units: proto.Int64(1)}}, Beds: []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("SleepingSpot"), MapId: proto.Int32(0), Position: cell}, Status: o.BuildingStatus_BUILDING_STATUS_BUILT.Enum()}}}}}
+	return &o.RoomsSnapshot{Context: authorityTestContext(7), Completeness: emergencyCounts(1), Rooms: []*o.RoomState{{Id: proto.String("42"), ProperRoom: proto.Bool(true), Doorway: proto.Bool(false), Outdoors: proto.Bool(false), PsychologicallyOutdoors: proto.Bool(false), TouchesMapEdge: proto.Bool(false), OpenRoofCount: proto.Uint32(0), CellCount: proto.Uint32(1), TemperatureC: proto.Float64(5), Center: cell, Extents: &o.Rectangle{Minimum: cell, Maximum: cell}, Cells: []*c.Cell{cell}, Contents: []*o.Quantity{{DefName: proto.String("SleepingSpot"), Units: proto.Int64(1)}}, Beds: []*o.EntityRef{{Id: proto.String("bed"), DefName: proto.String("SleepingSpot"), MapId: proto.Int32(0), Position: cell}}}}}
 }
 
 func TestTemperatureRoomsRejectMalformedEvidence(t *testing.T) {
@@ -25,13 +25,10 @@ func TestTemperatureRoomsRejectMalformedEvidence(t *testing.T) {
 		"outdoors":         func(v *o.RoomsSnapshot) { v.Rooms[0].PsychologicallyOutdoors = proto.Bool(true) },
 		"extents":          func(v *o.RoomsSnapshot) { v.Rooms[0].Extents.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(7)} },
 		"bed-outside": func(v *o.RoomsSnapshot) {
-			v.Rooms[0].Beds[0].Building.Position = &c.Cell{X: proto.Int32(8), Z: proto.Int32(7)}
+			v.Rooms[0].Beds[0].Position = &c.Cell{X: proto.Int32(8), Z: proto.Int32(7)}
 		},
 		"bed-duplicate": func(v *o.RoomsSnapshot) { v.Rooms[0].Beds = append(v.Rooms[0].Beds, v.Rooms[0].Beds[0]) },
-		"bed-map":       func(v *o.RoomsSnapshot) { v.Rooms[0].Beds[0].Building.MapId = proto.Int32(2) },
-		"bed-status": func(v *o.RoomsSnapshot) {
-			v.Rooms[0].Beds[0].Status = o.BuildingStatus_BUILDING_STATUS_BLUEPRINT.Enum()
-		},
+		"bed-map":       func(v *o.RoomsSnapshot) { v.Rooms[0].Beds[0].MapId = proto.Int32(2) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := temperatureTestSnapshot()

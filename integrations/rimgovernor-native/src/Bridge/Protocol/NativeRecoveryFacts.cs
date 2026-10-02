@@ -18,20 +18,9 @@ namespace HomeBridge.BridgeTools
                 var buildings = map.listerBuildings.allBuildingsColonist.Where(b => !b.Position.Fogged(map)).OrderBy(b => b.thingIDNumber).ToList();
                 var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
                 var result = new Obs.RecoverySnapshot { Context = context };
-                foreach (var building in buildings) {
-                    var service = new Obs.BuildingServiceState { BrokenDown = building.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false };
-                    var fuel = building.TryGetComp<CompRefuelable>();
-                    if (fuel != null) {
-                        service.Fuel = Number(fuel.Fuel); service.TargetFuel = Number(fuel.TargetFuelLevel);
-                        var defs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToList();
-                        service.AllowedFuelDefs.Add(defs);
-                    } else service.Issues.Add(new Obs.ReadIssue { Field = "fuel", Unavailable = new Common.Unavailable {
-                        Reason = Common.UnavailableReason.NotApplicable, Detail = "Building has no refuelable component." } });
-                    var row = new Obs.BuildingState { Building = Entity(building), UsesHitPoints = building.def.useHitPoints,
-                        Burning = building.IsBurning(), Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } };
-                    if (building.def.useHitPoints) { row.HitPoints = building.HitPoints; row.MaxHitPoints = building.MaxHitPoints; }
-                    result.Buildings.Add(row);
-                }
+                // Each building's hit points, fuel and breakdown state is its
+                // row in the bundle's building table (#1343).
+                foreach (var building in buildings) result.Buildings.Add(Entity(building));
                 foreach (var pawn in pawns) {
                     var row = new Obs.RecoveryRestriction { Pawn = Entity(pawn) };
                     var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
@@ -44,7 +33,6 @@ namespace HomeBridge.BridgeTools
                     Detail = "Complete bounded recovery census is unavailable." } };
             }
         }
-        private static double Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid service quantity."); return value; }
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
         private static Obs.EntityRef Entity(Thing t) => new Obs.EntityRef { Id = t.GetUniqueLoadID(), DefName = t.def.defName, MapId = t.Map.uniqueID, Position = Cell(t.Position) };
     }

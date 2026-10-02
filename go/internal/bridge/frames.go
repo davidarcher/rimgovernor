@@ -365,7 +365,10 @@ type RoutineFrame struct {
 	// Sites is the frame's all-status player building read, whose
 	// blueprint and frame rows carry their undelivered material.
 	Sites *o.BuildingsSnapshot
-	Zones *ZonesRead
+	// Buildings is Sites by id: the table every other section's building
+	// reference resolves against (#1343).
+	Buildings Buildings
+	Zones     *ZonesRead
 	// Catalog is the load's definition catalog (#1340), which the
 	// research section and the planning definitions resolve against.
 	Catalog *DefinitionCatalog
@@ -401,7 +404,7 @@ func DecodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog) (Routin
 		return RoutineFrame{}, contract("routine frame without a context")
 	}
 	identity := v.Context.Identity
-	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Catalog: catalog, Rooms: v.Rooms}
+	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Buildings: BuildingTable(v.Buildings), Catalog: catalog, Rooms: v.Rooms}
 	var err error
 	if v.Emergency != nil {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, identity); err != nil {

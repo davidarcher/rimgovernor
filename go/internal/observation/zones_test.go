@@ -22,7 +22,7 @@ func TestPoliciesUseZonesNotAggregateZoneFields(t *testing.T) {
 	v := reply.GetObserved()
 	// Existing captures still decode, but the aggregate cannot supply zone facts.
 	v.FoodStorage = proto.Bool(true)
-	p, err := DecodeColony(reply, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))})
+	p, err := DecodeColony(reply, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

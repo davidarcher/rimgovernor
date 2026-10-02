@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -8,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
+func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts, buildings bridge.Buildings) {
 	if !hasIssue(v.Issues, "environment") {
 		conditions := make([]policy.DisasterCondition, 0, len(v.Environment))
 		for _, row := range v.Environment {
@@ -21,16 +22,17 @@ func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
 		facts.DisasterConditions = domain.Known(conditions)
 	}
 	facts.DisasterTick = domain.Tick(v.Context.GetTick())
-	if recovery := v.GetRecovery().GetObserved(); recovery != nil {
+	if recovery := v.GetRecovery().GetObserved(); recovery != nil && resolved(buildings, recovery.Buildings, func(ref *o.EntityRef) *o.EntityRef { return ref }) {
 		safety := policy.RecoverySafety{}
 		for _, restriction := range recovery.Restrictions {
 			safety.Restrictions = append(safety.Restrictions, policy.RecoveryRestriction{Pawn: policy.PawnID(restriction.Pawn.GetId()), Area: domain.Known(restriction.GetAreaId())})
 		}
 		facts.RecoverySafety = domain.Known(safety)
-		buildings := make([]policy.RecoveryBuilding, 0, len(recovery.Buildings))
-		for _, row := range recovery.Buildings {
+		rows := make([]policy.RecoveryBuilding, 0, len(recovery.Buildings))
+		for _, ref := range recovery.Buildings {
+			row, _ := buildings.Row(ref)
 			s := row.Service
-			b := policy.RecoveryBuilding{ID: row.Building.GetId(), UsesHitPoints: optional(row.UsesHitPoints), Broken: optional(s.BrokenDown), Forbidden: optional(row.Settings.Forbidden), Burning: optional(row.Burning), Fuel: optional(s.Fuel), FuelTarget: optional(s.TargetFuel)}
+			b := policy.RecoveryBuilding{ID: ref.GetId(), UsesHitPoints: optional(row.UsesHitPoints), Broken: optional(s.BrokenDown), Forbidden: optional(row.Settings.Forbidden), Burning: optional(row.Burning), Fuel: optional(s.Fuel), FuelTarget: optional(s.TargetFuel)}
 			if row.HitPoints != nil {
 				b.HitPoints = domain.Known(int64(row.GetHitPoints()))
 			}
@@ -45,9 +47,9 @@ func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
 					b.Refuelable = domain.Known(false)
 				}
 			}
-			buildings = append(buildings, b)
+			rows = append(rows, b)
 		}
-		facts.RecoveryBuildings = domain.Known(buildings)
+		facts.RecoveryBuildings = domain.Known(rows)
 	}
 }
 

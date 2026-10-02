@@ -61,7 +61,7 @@ func colonyStoneStructures(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.StoneS
 	}
 	rows := []policy.StoneStructure{}
 	for _, r := range u.Structures {
-		rows = append(rows, policy.StoneStructure{ID: r.Building.Building.GetId(), Definition: policy.Resource(r.Building.Building.GetDefName()), Flammability: optional(r.Flammability)})
+		rows = append(rows, policy.StoneStructure{ID: r.Building.GetId(), Definition: policy.Resource(r.Building.GetDefName()), Flammability: optional(r.Flammability)})
 	}
 	return domain.Known(rows)
 }

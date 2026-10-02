@@ -59,7 +59,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection, err := DecodeColony(&reply, identity)
+	projection, err := DecodeColony(&reply, identity, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -49,7 +49,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection, err := DecodeColony(&colony, identity)
+	projection, err := DecodeColony(&colony, identity, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

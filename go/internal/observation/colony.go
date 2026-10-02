@@ -192,6 +192,17 @@ type CookingBench struct {
 	AutoRefuel domain.Fact[bool]
 }
 
+// resolved reports whether buildings holds the building every row refers
+// to (#1343).
+func resolved[R any](buildings bridge.Buildings, rows []R, ref func(R) *o.EntityRef) bool {
+	for _, row := range rows {
+		if _, ok := buildings.Row(ref(row)); !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func optional[T any](p *T) domain.Fact[T] {
 	if p == nil {
 		return domain.Unknown[T]()
@@ -218,7 +229,11 @@ func nativePresence(value *string, issues []*o.ReadIssue, field string) domain.F
 
 // DecodeColony projects only same-tick validated facts. Native raw food runway
 // cannot stand in for the diet/rot/competing-feed forecast needed by FoodDays.
-func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjection, error) {
+//
+// buildings is the frame's building table every building reference
+// resolves against (#1343); a family with a reference it does not hold is
+// unknown until a later frame.
+func DecodeColony(reply *o.ColonyFactsReply, expected Identity, buildings bridge.Buildings) (ColonyProjection, error) {
 	if err := expected.Validate(); err != nil {
 		return ColonyProjection{}, err
 	}
@@ -261,16 +276,16 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
 	threat := bridge.ProjectColonyThreat(v)
 	items, itemsKnown := threat.WealthItems.Value()
-	buildings, buildingsKnown := threat.WealthBuildings.Value()
+	wealthBuildings, buildingsKnown := threat.WealthBuildings.Value()
 	pawns, pawnsKnown := threat.WealthPawns.Value()
 	total, totalKnown := threat.WealthTotal.Value()
 	if itemsKnown && buildingsKnown && pawnsKnown && totalKnown {
-		r.Facts.Wealth = domain.Known(policy.WealthFacts{Items: items, Buildings: buildings, Pawns: pawns, Total: total})
+		r.Facts.Wealth = domain.Known(policy.WealthFacts{Items: items, Buildings: wealthBuildings, Pawns: pawns, Total: total})
 	}
 	if channels, known := r.FoodChannels.Value(); known {
 		r.Facts.PenGrazing = domain.Known(channels.Grazing)
 	}
-	if development := v.GetDevelopment().GetObserved(); development != nil {
+	if development := v.GetDevelopment().GetObserved(); development != nil && resolved(buildings, development.Power, (*o.DevelopmentPower).GetBuilding) {
 		power := make([]policy.PowerBuilding, 0, len(development.Power))
 		topology := policy.PowerTopology{}
 		geometryKnown := true
@@ -284,14 +299,15 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			topology.Blackout, topology.Eclipse = domain.Known(blackout), domain.Known(eclipse)
 		}
 		for _, row := range development.Power {
-			s := row.Building.Service
-			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(row.Building.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
+			b, _ := buildings.Row(row.Building)
+			s := b.Service
+			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(b.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
 				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
 				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: optional(row.RainVulnerable), Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
-			ref := row.Building.Building
-			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(row.Building.OccupiedCells) > 0
+			ref := row.Building
+			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(b.OccupiedCells) > 0
 			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1]}
-			for _, c := range row.Building.OccupiedCells {
+			for _, c := range b.OccupiedCells {
 				site.Occupied = append(site.Occupied, domain.Cell{X: c.GetX(), Z: c.GetZ()})
 			}
 			topology.Buildings = append(topology.Buildings, site)
@@ -344,7 +360,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		r.ButcheringBenches = domain.Known(benches)
 	}
-	colonyDisaster(v, &r.Facts)
+	colonyDisaster(v, &r.Facts, buildings)
 	r.Facts.Comfort = colonyComfort(v)
 	r.Facts.BasicComfort = r.Facts.Comfort
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
@@ -354,7 +370,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v)
 	r.Facts.Waste = colonyWaste(v)
 	r.Facts.Blight = colonyBlight(v)
-	r.Facts.Upkeep = colonyUpkeep(v)
+	r.Facts.Upkeep = colonyUpkeep(v, buildings)
 	r.Facts.MedicalReserve = colonyMedicalReserve(v)
 	// The dialog section is present exactly while a force-pausing choice
 	// dialog is open (#156); native omits it otherwise.

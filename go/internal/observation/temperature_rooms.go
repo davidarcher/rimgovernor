@@ -30,7 +30,7 @@ func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.Sleepi
 	for _, room := range rooms.Rooms {
 		row := policy.Room{ID: room.GetId(), Role: roomRole(room), Temperature: optional(room.TemperatureC), Enclosed: domain.Known(room.GetProperRoom() && !room.GetDoorway() && !room.GetOutdoors() && !room.GetPsychologicallyOutdoors() && !room.GetTouchesMapEdge() && room.GetOpenRoofCount() == 0)}
 		for _, bed := range room.Beds {
-			row.Beds = append(row.Beds, bed.Building.GetId())
+			row.Beds = append(row.Beds, bed.GetId())
 		}
 		contents := []policy.Amount{}
 		for _, q := range room.Contents {

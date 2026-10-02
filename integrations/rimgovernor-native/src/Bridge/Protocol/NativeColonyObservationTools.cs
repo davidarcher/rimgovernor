@@ -251,7 +251,7 @@ namespace HomeBridge.BridgeTools
             // Traders (consumers and generators) and batteries share one census so
             // Go's power topology sees every network member that matters for
             // coverage and reserve: batteries carry base_w = 0 plus stored/capacity
-            // energy, generators carry their refuelable and breakdown service facts.
+            // energy; each member's service state is its building table row (#1343).
             var traders = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerTrader>())
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var batteries = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerBattery>())
@@ -272,11 +272,7 @@ namespace HomeBridge.BridgeTools
             if (incidents.Count > 0) result.ShortCircuitTick = incidents.Max();
             foreach (var power in traders) {
                 var building = (Building)power.parent;
-                var service = new Obs.BuildingServiceState { Connected = power.PowerNet != null, PowerOn = power.PowerOn,
-                    PowerOutputW = Finite(power.PowerOutput), SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
-                if (power.PowerNet != null) service.PowerNetId = NetId(power.PowerNet);
-                Service(building, service);
-                var row = new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = PowerState(map, building, service),
+                var row = new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = BuildingRef(map, building),
                     RainVulnerable = power.Props.shortCircuitInRain, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
                 // A turret's observed damage per second (#1188).
                 try { var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row.TurretDps = Finite(dps.Value); } catch { }
@@ -284,11 +280,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;
-                var service = new Obs.BuildingServiceState { Connected = battery.PowerNet != null, PowerOn = battery.PowerNet != null,
-                    PowerOutputW = 0, SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
-                if (battery.PowerNet != null) service.PowerNetId = NetId(battery.PowerNet);
-                Service(building, service);
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = PowerState(map, building, service), RainVulnerable = true, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = BuildingRef(map, building), RainVulnerable = true, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
                     StoredWattDays = Finite(battery.StoredEnergy), CapacityWattDays = Finite(battery.Props.storedEnergyMax) });
             }
             foreach (var conduit in conduits)
@@ -320,30 +312,12 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        private static string NetId(PowerNet net) => net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        private static string NetId(PowerNet net) => NativeBuildingObservationTools.NetId(net);
 
-        // Refuelable and breakdown service facts mirror NativeRecoveryFacts so the
-        // power planner can distinguish "waiting for ordinary refueling/repair"
-        // from "no producer" without a second census.
-        private static void Service(Building building, Obs.BuildingServiceState service)
-        {
-            service.BrokenDown = building.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false;
-            var fuel = building.TryGetComp<CompRefuelable>();
-            if (fuel == null) return;
-            service.Fuel = Finite(fuel.Fuel); service.TargetFuel = Finite(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
-            var defs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToList();
-            service.AllowedFuelDefs.Add(defs);
-        }
-
-        private static Obs.BuildingState PowerState(Map map, Building building, Obs.BuildingServiceState service)
-        {
-            var state = new Obs.BuildingState { Building = new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID,
-                    DefName = building.def.defName, Position = Cell(building.Position) },
-                Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } };
-            var occupied = building.OccupiedRect().Cells.ToList();
-            foreach (var cell in occupied) state.OccupiedCells.Add(Cell(cell));
-            return state;
-        }
+        // BuildingRef points at a building's row in the bundle's building
+        // table, which carries its service state and footprint (#1343).
+        private static Obs.EntityRef BuildingRef(Map map, Building building) => new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID,
+            DefName = building.def.defName, Position = Cell(building.Position) };
 
         private static void ReadProduction(Obs.ColonyFactsSnapshot result, Map map, List<Pawn> people,
             List<Thing> things, Func<Thing, bool> reachable, Func<ThingDef, bool> humanFood)

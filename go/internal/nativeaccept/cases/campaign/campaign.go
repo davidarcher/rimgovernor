@@ -365,7 +365,7 @@ func colonyFacts(ctx context.Context, h *na.Harness, s cases.Session, label stri
 		return nil, fmt.Errorf("%s: colony facts unavailable", label)
 	}
 	id := v.Context.Identity
-	projection, err := observation.DecodeColony(reply, observation.Identity{Colony: domain.ColonyID(id.GetColonyId()), Map: domain.MapID(id.GetMapId()), Load: domain.LoadID(id.GetLoadToken()), Tick: domain.Tick(v.Context.GetTick())})
+	projection, err := observation.DecodeColony(reply, observation.Identity{Colony: domain.ColonyID(id.GetColonyId()), Map: domain.MapID(id.GetMapId()), Load: domain.LoadID(id.GetLoadToken()), Tick: domain.Tick(v.Context.GetTick())}, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,6 @@ type ResearchRead struct {
 	CurrentProject string
 	Projects       map[string]policy.ResearchProjectFacts
 	Finished       []string
-	Benches        []policy.ResearchBench
 	Researchers    []string
 }
 
@@ -109,20 +108,6 @@ func readResearchSnapshot(v *o.ResearchSnapshot, identity *c.Identity, catalog *
 		}
 	}
 	out.CurrentProject = current
-	for _, bench := range v.Benches {
-		building := bench.GetBuilding()
-		if bench == nil || building == nil || validID(building.GetBuilding().GetDefName()) != nil || building.GetService() == nil || building.GetService().PowerOn == nil {
-			return ResearchRead{}, contract("invalid research bench")
-		}
-		row := policy.ResearchBench{DefName: building.GetBuilding().GetDefName(), Powered: building.GetService().GetPowerOn()}
-		for _, facility := range bench.GetFacilities() {
-			if facility == nil || facility.Definition == nil || validID(facility.Definition.GetDefName()) != nil {
-				return ResearchRead{}, contract("invalid research bench facility")
-			}
-			row.Facilities = append(row.Facilities, policy.ResearchBenchFacility{DefName: facility.Definition.GetDefName(), Active: facility.GetActive()})
-		}
-		out.Benches = append(out.Benches, row)
-	}
 	for _, researcher := range v.Researchers {
 		if researcher == nil || validID(researcher.GetPawn().GetId()) != nil {
 			return ResearchRead{}, contract("invalid researcher identity")

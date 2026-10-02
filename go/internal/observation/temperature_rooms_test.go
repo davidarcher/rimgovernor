@@ -11,7 +11,7 @@ import (
 
 func TestTemperatureProjectionUsesOnlyEligibleBedsAndPreservesUnknown(t *testing.T) {
 	sleeping := policy.SleepingObservation{Beds: []policy.SleepingBed{{ID: "bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false)}}}
-	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{{Id: proto.String("room"), ProperRoom: proto.Bool(true), TemperatureC: proto.Float64(5), Beds: []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("bed")}}}, Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}, Contents: []*o.Quantity{{DefName: proto.String("Campfire"), Units: proto.Int64(1)}}}}}
+	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{{Id: proto.String("room"), ProperRoom: proto.Bool(true), TemperatureC: proto.Float64(5), Beds: []*o.EntityRef{{Id: proto.String("bed")}}, Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}, Contents: []*o.Quantity{{DefName: proto.String("Campfire"), Units: proto.Int64(1)}}}}}
 	for _, mode := range []string{"observed", "medical", "prisoner", "animal", "unknown-census", "unknown-bed", "missing-temperature", "open-roof", "edge"} {
 		t.Run(mode, func(t *testing.T) {
 			s := sleeping

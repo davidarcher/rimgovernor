@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
+func colonyUpkeep(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) policy.UpkeepObservation {
 	r := policy.UpkeepObservation{}
 	u := v.GetUpkeep().GetObserved()
 	if u == nil {
@@ -31,12 +31,12 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 		rows := []policy.UpkeepStructure{}
 		known := true
 		for _, item := range u.Structures {
-			b := item.Building
-			if item.Home == nil || item.RepairPriority == nil || b.HitPoints == nil || b.MaxHitPoints == nil {
+			b, ok := buildings.Row(item.Building)
+			if !ok || item.Home == nil || item.RepairPriority == nil || b.HitPoints == nil || b.MaxHitPoints == nil {
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepStructure{ID: b.Building.GetId(), Cell: domain.Cell{X: b.Building.GetPosition().GetX(), Z: b.Building.GetPosition().GetZ()}, Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: int(item.GetRepairPriority())})
+			rows = append(rows, policy.UpkeepStructure{ID: item.Building.GetId(), Cell: domain.Cell{X: item.Building.GetPosition().GetX(), Z: item.Building.GetPosition().GetZ()}, Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: int(item.GetRepairPriority())})
 		}
 		if known {
 			r.Structures = domain.Known(rows)
@@ -71,7 +71,7 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 		}
 	}
 	if !hasIssue(u.Issues, "lighting") {
-		r.Lighting = colonyLighting(u.Lighting)
+		r.Lighting = colonyLighting(u.Lighting, buildings)
 	}
 	if !hasIssue(u.Issues, "routes") {
 		r.Routes = colonyRoutes(u.Routes)
@@ -197,7 +197,7 @@ var trafficLayers = map[o.TrafficLayer]policy.TrafficLayer{
 // colonyLighting decodes the lighting section; any row missing a measured
 // glow, roof or lit flag leaves the whole census unknown so MaintainLighting
 // keeps its previous latch instead of reasoning from half a map.
-func colonyLighting(section *o.LightingSection) domain.Fact[policy.LightingObservation] {
+func colonyLighting(section *o.LightingSection, buildings bridge.Buildings) domain.Fact[policy.LightingObservation] {
 	l := section.GetObserved()
 	if l == nil {
 		return domain.Fact[policy.LightingObservation]{}
@@ -210,12 +210,13 @@ func colonyLighting(section *o.LightingSection) domain.Fact[policy.LightingObser
 		r.WorkCells = append(r.WorkCells, policy.WorkLightCell{Bench: row.Bench.GetId(), Definition: row.Bench.GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Glow: row.GetGlow(), Roofed: row.GetRoofed(), Room: optional(row.RoomId), LightSensitive: row.GetLightSensitive()})
 	}
 	for _, row := range l.Lamps {
-		b := row.GetBuilding()
-		s := b.GetService()
-		if row.GlowRadius == nil || row.Lit == nil {
+		ref := row.GetBuilding()
+		b, ok := buildings.Row(ref)
+		if !ok || row.GlowRadius == nil || row.Lit == nil {
 			return domain.Fact[policy.LightingObservation]{}
 		}
-		r.Lamps = append(r.Lamps, policy.Lamp{ID: b.GetBuilding().GetId(), Definition: b.GetBuilding().GetDefName(), Cell: domain.Cell{X: b.GetBuilding().GetPosition().GetX(), Z: b.GetBuilding().GetPosition().GetZ()}, Radius: row.GetGlowRadius(), Lit: row.GetLit(), Room: optional(row.RoomId),
+		s := b.GetService()
+		r.Lamps = append(r.Lamps, policy.Lamp{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Radius: row.GetGlowRadius(), Lit: row.GetLit(), Room: optional(row.RoomId),
 			Powered: optional(s.PowerOn), Connected: optional(s.Connected), SwitchedOn: optional(s.SwitchedOn), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.GetAllowedFuelDefs()...)})
 	}
 	return domain.Known(r)

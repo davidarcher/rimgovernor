@@ -48,7 +48,7 @@ func TestRecordRebuildsDecodedColonyFacts(t *testing.T) {
 		}
 		id := v.Context.GetIdentity()
 		expected := observation.Identity{Colony: domain.ColonyID(id.GetColonyId()), Load: domain.LoadID(id.GetLoadToken()), Map: domain.MapID(id.GetMapId()), Tick: domain.Tick(v.Context.GetTick())}
-		decoded, err := observation.DecodeColony(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}, expected)
+		decoded, err := observation.DecodeColony(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}, expected, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

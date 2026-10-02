@@ -38,6 +38,10 @@ func (f *clockServiceFake) ReadColonyFacts(context.Context, *c.Identity, bool) (
 	return nil, bridge.Result{}, errors.New("colony read unavailable")
 }
 
+func (f *clockServiceFake) FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error) {
+	return nil, errors.New("building table unavailable")
+}
+
 func (f *clockServiceFake) ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	return bridge.EmergencyObservation{}, bridge.Result{}, errors.New("emergency read unavailable")
 }

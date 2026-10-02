@@ -231,7 +231,7 @@ namespace HomeBridge.BridgeTools
             var benches = map.listerBuildings.allBuildingsColonist.OfType<Building_ResearchBench>().ToList(); 
             foreach (var bench in benches)
             {
-                var row = new Obs.ResearchBench { Building = NativeBuildingObservationTools.Project(bench) };
+                var row = new Obs.ResearchBench { Building = NativeBuildingObservationTools.Ref(bench) };
                 var affected = bench.GetComp<CompAffectedByFacilities>();
                 if (affected != null)
                 {

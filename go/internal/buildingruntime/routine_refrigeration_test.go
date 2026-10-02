@@ -57,7 +57,7 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 	room.Extents = &o.Rectangle{Minimum: cell(1, 1), Maximum: cell(2, 2)}
 	room.Center = cell(1, 1)
 	room.TemperatureC = proto.Float64(25)
-	n.rooms.GetObserved().Rooms[0].Beds[0].Building.Position = cell(1, 1)
+	n.rooms.GetObserved().Rooms[0].Beds[0].Position = cell(1, 1)
 	v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: &o.FoodSupplyFacts{
 		Consumers: []*o.FoodConsumer{{PawnId: proto.String("builder"), NutritionPerDay: proto.Float64(1.6)}},
 		Stocks:    []*o.FoodStock{{Item: &o.EntityRef{Id: proto.String("meat"), DefName: proto.String("Meat_Muffalo")}, Count: proto.Int64(400), Nutrition: proto.Float64(20), EaterIds: []string{"builder"}, Perishable: proto.Bool(true), RotTicks: proto.Int64(2 * 60000), TemperatureC: proto.Float64(25), Roofed: proto.Bool(true), RoomId: proto.String("42")}}}}}
@@ -66,7 +66,7 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 	if cooler {
 		development := v.Development.GetObserved()
 		position := cell(3, 1)
-		development.Power = append(development.Power, &o.DevelopmentPower{BaseW: proto.Float64(-200), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("cooler"), DefName: proto.String("Cooler"), MapId: proto.Int32(0), Position: position}, OccupiedCells: []*c.Cell{position}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), PowerOutputW: proto.Float64(-200), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}})
+		development.Power = append(development.Power, &o.DevelopmentPower{BaseW: proto.Float64(-200), Building: n.building(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("cooler"), DefName: proto.String("Cooler"), MapId: proto.Int32(0), Position: position}, OccupiedCells: []*c.Cell{position}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), PowerOutputW: proto.Float64(-200), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}})})
 		snapshot := n.buildings.GetObserved()
 		snapshot.Buildings = []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("cooler"), DefName: proto.String("Cooler"), MapId: proto.Int32(0), Position: position}, Status: o.BuildingStatus_BUILDING_STATUS_BUILT.Enum(), Rotation: pp.Rotation_ROTATION_EAST.Enum(), Settings: &o.BuildingSettings{TargetTemperatureC: proto.Float64(21), Snapshot: &o.SnapshotRef{EntityId: proto.String("cooler"), Token: proto.String("tok-1")}}}}
 		snapshot.Completeness = count(1)
@@ -182,7 +182,7 @@ func TestRefrigerationDefersUnpoweredCoolerToPowerFamily(t *testing.T) {
 	t.Parallel()
 	p, _, n, _ := refrigerationFixture(t, true)
 	power := n.reply.GetObserved().Development.GetObserved().Power
-	power[len(power)-1].Building.Service.PowerOn = proto.Bool(false)
+	n.routineNative.buildings[power[len(power)-1].Building.GetId()].Service.PowerOn = proto.Bool(false)
 	// Planners plan from the review's census (#75): refresh it first.
 	if _, err := p.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
@@ -236,7 +236,7 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 		t.Fatal(err)
 	}
 	power := n.reply.GetObserved().Development.GetObserved().Power
-	power[len(power)-1].Building.Service.PowerOn = proto.Bool(false)
+	n.routineNative.buildings[power[len(power)-1].Building.GetId()].Service.PowerOn = proto.Bool(false)
 	if _, err := p.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}

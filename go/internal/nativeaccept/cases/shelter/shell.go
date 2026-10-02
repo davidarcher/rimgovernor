@@ -476,9 +476,17 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 	if len(beds) == 0 {
 		return errors.New("native hut lists no beds")
 	}
+	rows, err := h.BuildingRows(ctx, "beds", expected)
+	if err != nil {
+		return err
+	}
 	var bedReport []map[string]any
 	for _, raw := range beds {
-		bed, _ := na.AsMap(raw)
+		ref, _ := na.AsMap(raw)
+		bed, ok := rows[na.AsString(ref["id"])]
+		if !ok {
+			return fmt.Errorf("hut bed %v is not in the building table", ref["id"])
+		}
 		var occupied []domain.Cell
 		for _, rc := range na.AsSlice(bed["occupiedCells"]) {
 			m, _ := na.AsMap(rc)

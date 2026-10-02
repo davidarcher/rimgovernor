@@ -46,9 +46,8 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		if row == nil || row.Building == nil {
 			return contract("missing upkeep structure")
 		}
-		b := row.Building
-		if !entity(b.Building, seen) || b.HitPoints != nil && b.GetHitPoints() < 0 || b.MaxHitPoints != nil && b.GetMaxHitPoints() < 0 || b.HitPoints != nil && b.MaxHitPoints != nil && b.GetHitPoints() > b.GetMaxHitPoints() || row.RepairPriority != nil && (row.GetRepairPriority() < 0 || row.GetRepairPriority() > 2) ||
-			!proto.Equal(b, &o.BuildingState{Building: b.Building, HitPoints: b.HitPoints, MaxHitPoints: b.MaxHitPoints}) || !number(row.Flammability) || !proto.Equal(row, &o.UpkeepStructure{Building: b, Home: row.Home, RepairPriority: row.RepairPriority, Flammability: row.Flammability}) {
+		if !entity(row.Building, seen) || row.RepairPriority != nil && (row.GetRepairPriority() < 0 || row.GetRepairPriority() > 2) ||
+			!number(row.Flammability) || !proto.Equal(row, &o.UpkeepStructure{Building: row.Building, Home: row.Home, RepairPriority: row.RepairPriority, Flammability: row.Flammability}) {
 			return contract("invalid upkeep structure")
 		}
 	}
@@ -349,29 +348,11 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, 
 	}
 	lamps := map[string]bool{}
 	for _, row := range l.Lamps {
-		b := row.GetBuilding()
-		if row == nil || b == nil || !entity(b.Building, lamps) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.LampState{Building: b, GlowRadius: row.GlowRadius, Lit: row.Lit, RoomId: row.RoomId}) || !proto.Equal(b, &o.BuildingState{Building: b.Building, Service: b.Service}) {
+		if row == nil || !entity(row.Building, lamps) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.LampState{Building: row.Building, GlowRadius: row.GlowRadius, Lit: row.Lit, RoomId: row.RoomId}) {
 			return contract("invalid lighting lamp")
 		}
 		if row.GlowRadius != nil && (math.IsNaN(row.GetGlowRadius()) || row.GetGlowRadius() < 0 || row.GetGlowRadius() > 1e3) {
 			return contract("invalid lamp glow radius")
-		}
-		s := b.Service
-		if s == nil || !proto.Equal(s, &o.BuildingServiceState{Connected: s.Connected, PowerOn: s.PowerOn, PowerOutputW: s.PowerOutputW, SwitchedOn: s.SwitchedOn, Fuel: s.Fuel, TargetFuel: s.TargetFuel, OutOfFuel: s.OutOfFuel, BrokenDown: s.BrokenDown, AllowedFuelDefs: s.AllowedFuelDefs}) {
-			return contract("unsupported lamp service detail")
-		}
-		for _, def := range s.AllowedFuelDefs {
-			if validID(def) != nil {
-				return contract("invalid lamp fuel definition")
-			}
-		}
-		for _, value := range []*float64{s.Fuel, s.TargetFuel} {
-			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || *value < 0 || *value > 1e12) {
-				return contract("invalid lamp service quantity")
-			}
-		}
-		if s.PowerOutputW != nil && (math.IsNaN(s.GetPowerOutputW()) || math.IsInf(s.GetPowerOutputW(), 0) || math.Abs(s.GetPowerOutputW()) > 1e12) {
-			return contract("invalid lamp wattage")
 		}
 	}
 	return nil

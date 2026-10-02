@@ -84,6 +84,7 @@ namespace HomeBridge.BridgeTools
             // A player storage building (shelf) reports its storage token
             // (NativeStockpilePatch, a StockpileIntent on a building) first.
             var tempControl = thing.TryGetComp<CompTempControl>();
+            var forbidden = row.Settings.Forbidden;
             if (NativeStockpilePatch.StorageEligible(thing))
                 row.Settings = NativeStockpilePatch.Settings((Building_Storage)thing, context);
             else if (tempControl != null)
@@ -94,6 +95,7 @@ namespace HomeBridge.BridgeTools
                 row.Settings = NativeGrowerCrop.Settings((Building_PlantGrower)thing, context);
             else if (NativeClaimBuilding.Eligible(thing))
                 row.Settings = NativeClaimBuilding.Settings((Building)thing, context);
+            row.Settings.Forbidden = forbidden;
             return row;
         }
 
@@ -152,13 +154,19 @@ namespace HomeBridge.BridgeTools
                 w.Write((int)Status(thing)); w.Write(thing.HitPoints); w.Write(thing.IsBurning());
             });
 
+        // Ref points at a spawned building's row (#1343): the reference every
+        // message other than the building table and the list read carries.
+        internal static Obs.EntityRef Ref(Thing thing) => new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()),
+            DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap), MapId = thing.Map.uniqueID,
+            Position = Cell(thing.Position) };
+
+        // Project is the one building row builder: the bundle's building
+        // table and the list read emit it.
         internal static Obs.BuildingState Project(Thing thing)
         {
             if (!thing.Spawned || thing.Map == null) throw new InvalidOperationException("Building is not spawned.");
             var pending = thing is Blueprint || thing is Frame;
-            var row = new Obs.BuildingState { Building = new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()),
-                DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap), MapId = thing.Map.uniqueID,
-                Position = Cell(thing.Position) }, Status = Status(thing), Rotation = Rotation(thing.Rotation),
+            var row = new Obs.BuildingState { Building = Ref(thing), Status = Status(thing), Rotation = Rotation(thing.Rotation),
                 UsesHitPoints = thing.def.useHitPoints, Burning = thing.IsBurning() };
             var stuff = pending && thing is IConstructible constructible ? constructible.EntityToBuildStuff() : thing.Stuff;
             if (stuff != null) row.Stuff = Id(stuff.defName);
@@ -186,21 +194,43 @@ namespace HomeBridge.BridgeTools
                 row.Construction = Construction(thing, buildDef, stuff);
             }
             else row.Issues.Add(Issue("construction", Common.UnavailableReason.NotApplicable, "Completed building is not a construction site."));
-            // "settings" is reported unsupported wholesale only when this thing
-            // carries no settings row; a temp-controlled thing gets
-            // target_temperature_c, a humanlike bed its medical flag and a
-            // plant grower its crop, each with its own snapshot, filled in by
-            // the caller below (see NativeBuildingTemperature, NativeBedUse,
-            // NativeGrowerCrop) -- forbidden/power/owner/forPrisoners remain
-            // unimplemented either way.
-            var fields = NativeStockpilePatch.StorageEligible(thing) || thing.TryGetComp<CompTempControl>() != null || NativeBedUse.Eligible(thing) || NativeGrowerCrop.Eligible(thing) || NativeClaimBuilding.Eligible(thing)
-                ? new[] { "service", "thermal_sides", "bills" }
-                : new[] { "settings", "service", "thermal_sides", "bills" };
-            foreach (var field in fields)
+            // Every row carries its service state and forbidden flag; the
+            // list read adds the patchable kinds' settings with their own
+            // CAS snapshots (Row).
+            row.Service = Service(thing);
+            row.Settings = new Obs.BuildingSettings { Forbidden = Faction.OfPlayerSilentFail != null && thing.IsForbidden(Faction.OfPlayerSilentFail) };
+            foreach (var field in new[] { "thermal_sides", "bills" })
                 row.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Typed fact or exact CAS snapshot producer is not implemented."));
             row.Issues.Add(Issue("inspect_text", Common.UnavailableReason.NotRequested, "Inspect strings are not requested."));
             return row;
         }
+
+        // Service is a building's power, switch, breakdown and fuel state:
+        // a power trader's network and output, a battery's network, the
+        // flick switch (on without one) and a refuelable's fuel, else a
+        // not-applicable "fuel" issue.
+        private static Obs.BuildingServiceState Service(Thing thing)
+        {
+            var service = new Obs.BuildingServiceState { SwitchedOn = thing.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true,
+                BrokenDown = thing.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false };
+            var power = thing.TryGetComp<CompPowerTrader>();
+            var battery = thing.TryGetComp<CompPowerBattery>();
+            var net = power?.PowerNet ?? battery?.PowerNet;
+            if (power != null) { service.Connected = net != null; service.PowerOn = power.PowerOn; service.PowerOutputW = Finite(power.PowerOutput) ? power.PowerOutput : throw new InvalidOperationException("Invalid power output."); }
+            else if (battery != null) { service.Connected = net != null; service.PowerOn = net != null; service.PowerOutputW = 0; }
+            if (net != null) service.PowerNetId = NetId(net);
+            var fuel = thing.TryGetComp<CompRefuelable>();
+            if (fuel != null)
+            {
+                service.Fuel = Nonnegative(fuel.Fuel); service.TargetFuel = Nonnegative(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
+                service.AllowedFuelDefs.Add(fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal));
+            }
+            else service.Issues.Add(Issue("fuel", Common.UnavailableReason.NotApplicable, "Building has no refuelable component."));
+            return service;
+        }
+
+        // NetId names a power network for the frame it is read in.
+        internal static string NetId(PowerNet net) => net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         private static Obs.ConstructionState Construction(Thing thing, BuildableDef definition, ThingDef? stuff)
         {

@@ -17,6 +17,9 @@ import (
 type ColonySource interface {
 	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
+	// FrameBuildings is the building table the facts' building references
+	// resolve against (#1343).
+	FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error)
 }
 
 // ColonyReading is an observation read under the caller's expected world,
@@ -62,7 +65,11 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 	if err != nil {
 		return result, err
 	}
-	projection, err := DecodeColony(reply, expected)
+	buildings, err := source.FrameBuildings(ctx, id)
+	if err != nil {
+		return result, err
+	}
+	projection, err := DecodeColony(reply, expected, buildings)
 	if err != nil {
 		return result, err
 	}

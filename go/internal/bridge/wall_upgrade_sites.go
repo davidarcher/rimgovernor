@@ -95,8 +95,8 @@ func validateWallUpgradeSites(v *o.WallUpgradeSnapshot, identity *c.Identity) ([
 			return nil, contract("invalid wall upgrade site")
 		}
 		site := WallUpgradeSite{Blocker: row.GetBlocker(), NX: row.Normal.GetX(), NZ: row.Normal.GetZ(), LeftSupport: row.LeftSupport != nil, RightSupport: row.RightSupport != nil}
-		if row.Original != nil && row.Original.Building != nil {
-			if pos := row.Original.Building.Position; pos != nil {
+		if row.Original != nil {
+			if pos := row.Original.Position; pos != nil {
 				site.X, site.Z = pos.GetX(), pos.GetZ()
 			}
 		}

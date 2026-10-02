@@ -22,7 +22,7 @@ func TestFoodChannelsPresenceThroughColonyDecode(t *testing.T) {
 	identity := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 	decode := func() ColonyProjection {
 		t.Helper()
-		p, e := DecodeColony(reply, identity)
+		p, e := DecodeColony(reply, identity, nil)
 		if e != nil {
 			t.Fatal(e)
 		}

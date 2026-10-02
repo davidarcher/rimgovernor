@@ -27,7 +27,7 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 	}
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 	r.GetObserved().Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(120.5)}}}
-	p, err := DecodeColony(r, expected)
+	p, err := DecodeColony(r, expected, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 		t.Fatal(p)
 	}
 	r.GetObserved().Resources[0].Units = nil
-	p, err = DecodeColony(r, expected)
+	p, err = DecodeColony(r, expected, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 		t.Fatal("missing stock count became zero")
 	}
 	r.GetObserved().Context.Tick = proto.Int64(8)
-	if _, err = DecodeColony(r, expected); err != nil {
+	if _, err = DecodeColony(r, expected, nil); err != nil {
 		t.Fatal("facts at an earlier tick refused", err)
 	}
 }
@@ -67,7 +67,7 @@ func TestColonyCalendarReachesRoutineFacts(t *testing.T) {
 	}
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 	r.GetObserved().FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(22), SowingNow: proto.Bool(true), DayOfYear: proto.Int32(35), Season: proto.String("Fall")}
-	p, err := DecodeColony(r, expected)
+	p, err := DecodeColony(r, expected, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestColonyCalendarReachesRoutineFacts(t *testing.T) {
 	for _, drop := range []func(*o.FoodClimate){func(c *o.FoodClimate) { c.GrowingDaysUntil = nil }, func(c *o.FoodClimate) { c.NonGrowingDays = nil }} {
 		climate := proto.Clone(r.GetObserved().FoodClimate).(*o.FoodClimate)
 		drop(r.GetObserved().FoodClimate)
-		if p, err = DecodeColony(r, expected); err != nil {
+		if p, err = DecodeColony(r, expected, nil); err != nil {
 			t.Fatal(err)
 		}
 		if _, known := p.Facts.Calendar.Value(); known {
@@ -105,7 +105,7 @@ func TestColonyMapBoundsReachRoutineFacts(t *testing.T) {
 	if err = protojson.Unmarshal(data, r); err != nil {
 		t.Fatal(err)
 	}
-	p, err := DecodeColony(r, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))})
+	p, err := DecodeColony(r, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := DecodeColony(r, identity)
+	p, err := DecodeColony(r, identity, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

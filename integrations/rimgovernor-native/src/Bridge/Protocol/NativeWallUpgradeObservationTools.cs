@@ -153,7 +153,7 @@ namespace HomeBridge.BridgeTools
             var backups = cells.Select(c => ColonistWall(map, c)).Where(b => b != null && WallUpgradeSafety.Stone(b) && b.Stuff == permanent.Stuff).Select(b => b!).ToList();
             if (backups.Count == 0) return null;
             var row = Site(map, backups[0], permanent, normal, cells, context, backups);
-            row.Replacement = NativeBuildingObservationTools.Project(permanent);
+            row.Replacement = NativeBuildingObservationTools.Ref(permanent);
             var blocker = RoofSupportSafety.Blocker(backups[0], out _);
             if (blocker != null) row.Blocker = blocker;
             return row;
@@ -162,13 +162,13 @@ namespace HomeBridge.BridgeTools
         private static Obs.WallUpgradeSite Site(Map map, Building target, Building original, IntVec3 normal, List<IntVec3> cells, Common.ObservationContext context, List<Building>? backups)
         {
             var row = new Obs.WallUpgradeSite { TargetPresent = true, Normal = new Common.Cell { X = normal.x, Z = normal.z },
-                Original = NativeBuildingObservationTools.Project(original),
-                LeftSupport = NativeBuildingObservationTools.Project(ColonistWall(map, WallUpgradeSafety.LeftCell(original.Position, normal))!),
-                RightSupport = NativeBuildingObservationTools.Project(ColonistWall(map, WallUpgradeSafety.RightCell(original.Position, normal))!) };
-            row.Target = row.Original.Building.Id == target.GetUniqueLoadID() ? row.Original.Building.Clone() : NativeBuildingObservationTools.Project(target).Building;
+                Original = NativeBuildingObservationTools.Ref(original),
+                LeftSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.LeftCell(original.Position, normal))!),
+                RightSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.RightCell(original.Position, normal))!) };
+            row.Target = NativeBuildingObservationTools.Ref(target);
             row.Target.Snapshot = NativeBuildingObservationTools.Token(target, context);
             foreach (var cell in cells) row.BackupCells.Add(new Common.Cell { X = cell.x, Z = cell.z });
-            foreach (var backup in backups ?? new List<Building>()) row.CompletedBackups.Add(NativeBuildingObservationTools.Project(backup));
+            foreach (var backup in backups ?? new List<Building>()) row.CompletedBackups.Add(NativeBuildingObservationTools.Ref(backup));
             var designation = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
             var pending = WallUpgradeSafety.Pending(target);
             row.Designated = designation != null;
@@ -176,8 +176,8 @@ namespace HomeBridge.BridgeTools
             row.Snapshot = NativeObservationSnapshot.Snapshot("wall-site", context, target.GetUniqueLoadID(), w => {
                 w.Write(original.GetUniqueLoadID()); w.Write(normal.x); w.Write(normal.z); w.Write(target.HitPoints);
                 w.Write(row.Designated); w.Write(row.RemovalId ?? "");
-                w.Write(row.LeftSupport.Building.Id); w.Write(row.RightSupport.Building.Id);
-                foreach (var backup in row.CompletedBackups) w.Write(backup.Building.Id);
+                w.Write(row.LeftSupport.Id); w.Write(row.RightSupport.Id);
+                foreach (var backup in row.CompletedBackups) w.Write(backup.Id);
             });
             return row;
         }

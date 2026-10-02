@@ -145,21 +145,6 @@ func ResearchPrerequisiteQueue(projects map[ResearchProjectID]ResearchProjectFac
 	return result, nil
 }
 
-// ResearchBenchFacility mirrors one native research-facility affordance
-// attached to a bench (e.g. a multi-analyzer), as reported by the native
-// research bench census.
-type ResearchBenchFacility struct {
-	DefName string
-	Active  bool
-}
-
-// ResearchBench mirrors one native research bench's usability facts.
-type ResearchBench struct {
-	DefName    string
-	Powered    bool
-	Facilities []ResearchBenchFacility
-}
-
 // ResearchLabRequirement mirrors the current or next project's native
 // laboratory requirements (requiredResearchBuilding/requiredResearchFacilities).
 // RequiredBuilding Unknown means the native project imposes no specific bench

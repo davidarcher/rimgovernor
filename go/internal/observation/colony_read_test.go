@@ -24,11 +24,16 @@ type colonySource struct {
 	onRead     func()
 	reads      int
 	identities int
+	buildings  bridge.Buildings
 }
 
 func (s *colonySource) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
 	s.identities++
 	return nil, bridge.Result{}, errors.New("identity read inside ObserveColony")
+}
+
+func (s *colonySource) FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error) {
+	return s.buildings, nil
 }
 
 func (s *colonySource) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {

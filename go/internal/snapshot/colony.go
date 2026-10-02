@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -39,7 +40,7 @@ func decodeColonySections(sections map[string]*recSection) (*colonyDecoded, uint
 		return nil, 0, false
 	}
 	var at []uint64
-	for _, name := range bridge.ColonySections() {
+	for _, name := range append(bridge.ColonySections(), string(facts.Buildings)) {
 		if s := sections[name]; s != nil {
 			at = append(at, s.version)
 		}
@@ -76,12 +77,23 @@ func buildColony(sections map[string]*recSection) *colonyDecoded {
 	if err != nil {
 		return fail(err)
 	}
+	// The building table the facts' references resolve against (#1343).
+	buildings := bridge.Buildings{}
+	if s := sections[string(facts.Buildings)]; s != nil {
+		for _, raw := range s.rows {
+			var row *o.BuildingState
+			if err := Decode(raw, &row); err != nil {
+				return fail(err)
+			}
+			buildings[row.GetBuilding().GetId()] = row
+		}
+	}
 	at := v.GetContext()
 	identity := observation.Identity{Colony: domain.ColonyID(at.GetIdentity().GetColonyId()), Load: domain.LoadID(at.GetIdentity().GetLoadToken()), Map: domain.MapID(at.GetIdentity().GetMapId()), Tick: domain.Tick(at.GetTick())}
 	if at.NativeGeneration != nil {
 		identity.NativeGeneration = domain.Known(domain.NativeGeneration(at.GetNativeGeneration()))
 	}
-	projection, err := observation.DecodeColony(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}, identity)
+	projection, err := observation.DecodeColony(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}, identity, buildings)
 	if err != nil {
 		return fail(err)
 	}

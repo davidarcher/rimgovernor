@@ -127,7 +127,7 @@ namespace HomeBridge.BridgeTools
                             person.HarvestGoodwillChange = Math.Max(player.CalculateAdjustedGoodwillChange(home, -70), -100 - player.GoodwillWith(home));
                     }
                 }
-                if (p.ownership?.OwnedBed != null) person.OwnedBed = new Obs.BuildingState { Building = NativePawnObservationTools.Entity(p.ownership.OwnedBed) };
+                if (p.ownership?.OwnedBed is Building_Bed bed && bed.Spawned) person.OwnedBed = NativeBuildingObservationTools.Ref(bed);
                 if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
                 // The prisoner custody and interaction settings token
                 // (NativePrisonerInteractionOperations.Settings).

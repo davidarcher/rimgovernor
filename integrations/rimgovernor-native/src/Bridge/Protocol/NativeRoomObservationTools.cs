@@ -150,8 +150,8 @@ namespace HomeBridge.BridgeTools
             var colonists = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
             foreach (var bed in beds)
             {
-                row.Beds.Add(NativeBuildingObservationTools.Project(bed));
-                var membership = new Obs.RoomBedMembership { Building = NativeBuildingObservationTools.Project(bed) };
+                row.Beds.Add(NativeBuildingObservationTools.Ref(bed));
+                var membership = new Obs.RoomBedMembership { Building = NativeBuildingObservationTools.Ref(bed) };
                 var owners = bed.OwnersForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
                 membership.Owners.Add(owners.Select(Entity));
                 membership.Users.Add(colonists.Where(p => p.CurrentBed() == bed).Select(Entity));
@@ -194,7 +194,7 @@ namespace HomeBridge.BridgeTools
                 w.Write(row.CellCount); w.Write(row.OpenRoofCount); w.Write(row.Role??""); w.Write(row.Fogged);
                 foreach (var door in row.Doors) { w.Write(door.Cell.X); w.Write(door.Cell.Z); w.Write(door.Outside.X); w.Write(door.Outside.Z); w.Write(door.HasOutdoors ? (door.Outdoors ? 2 : 1) : 0); }
                 foreach (var quantity in row.Contents) { w.Write(quantity.DefName); w.Write(quantity.Units); }
-                foreach (var membership in row.BedMemberships) { w.Write(membership.Building.Building.Id); w.Write(membership.Owners.Count); w.Write(membership.Users.Count); }
+                foreach (var membership in row.BedMemberships) { w.Write(membership.Building.Id); w.Write(membership.Owners.Count); w.Write(membership.Users.Count); }
                 foreach (var membership in row.StockpileMemberships) { w.Write(membership.ZoneId??""); foreach (var stock in membership.Contents) { w.Write(stock.Definition.DefName); w.Write(stock.Units); } }
             });
             return row;

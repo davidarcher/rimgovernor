@@ -26,7 +26,7 @@ func TestNativePowerParity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection, err := DecodeColony(reply, expected)
+	projection, err := DecodeColony(reply, expected, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

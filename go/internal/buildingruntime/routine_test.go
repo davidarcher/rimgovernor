@@ -41,6 +41,29 @@ type routineNative struct {
 	// set, is the frame's finished research.
 	catalog  []*o.PlanningDefinition
 	finished []string
+	// buildings is the frame's building table (#1343).
+	buildings bridge.Buildings
+}
+
+func (n *routineNative) FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error) {
+	return n.buildings, nil
+}
+
+// building puts row in the frame's building table and returns the
+// reference a section carries to it; a row without service or settings
+// gets empty ones.
+func (n *routineNative) building(row *o.BuildingState) *o.EntityRef {
+	if n.buildings == nil {
+		n.buildings = bridge.Buildings{}
+	}
+	if row.Service == nil {
+		row.Service = &o.BuildingServiceState{}
+	}
+	if row.Settings == nil {
+		row.Settings = &o.BuildingSettings{Forbidden: proto.Bool(false)}
+	}
+	n.buildings[row.Building.GetId()] = row
+	return row.Building
 }
 
 func (n *routineNative) finishedResearch() []string { return n.finished }
@@ -153,6 +176,9 @@ func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Ident
 		return bridge.RoutineFrame{}, err
 	}
 	frame := bridge.RoutineFrame{Context: colony.GetObserved().GetContext(), Colony: colony.GetObserved()}
+	if frame.Buildings, err = source.FrameBuildings(ctx, id); err != nil {
+		return bridge.RoutineFrame{}, err
+	}
 	if s, ok := source.(interface {
 		DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error)
 	}); ok {
