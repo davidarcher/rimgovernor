@@ -24,10 +24,9 @@ namespace HomeBridge.BridgeTools
             if (!(definition is ThingDef thing) || !UsesWatchCells(thing)) return null;
             // CalculateWatchCells supplies native stand distance, same-room and
             // line-of-sight rules without spawning a hypothetical building.
-            var cells = WatchBuildingUtility.CalculateWatchCells(thing, center, rotation, map).Take(4097).ToList();
+            var cells = WatchBuildingUtility.CalculateWatchCells(thing, center, rotation, map).ToList();
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed
                 && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).ToList();
-            if (cells.Count > 4096 || people.Count > 256) return null;
             return people.Count > 0 && people.All(p => cells.Any(c => WatchCellAccessible(p, c)));
         }
 
