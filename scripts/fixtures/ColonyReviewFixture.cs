@@ -67,7 +67,6 @@ namespace HomeBridge.BridgeTools
         static void BeforeMapUpdate(Map __instance)
         {
             if (dir == null || __instance != Find.CurrentMap || Find.TickManager.TicksGame < nextTick) return;
-            EnsureTerrain(__instance);
             viewOverride = ColonyRect(__instance);
         }
 
@@ -96,15 +95,6 @@ namespace HomeBridge.BridgeTools
                 lastTick = tick;
                 nextTick = (tick / interval + 1) * interval;
             }
-        }
-
-        // A headless game never builds the map's terrain sections (the
-        // drawer's section grid stays null, so frames hold things on black);
-        // build them before the first frame, and the drawer keeps them current.
-        static void EnsureTerrain(Map map)
-        {
-            var grid = typeof(MapDrawer).GetField("sections", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
-            if (grid?.GetValue(map.mapDrawer) == null) map.mapDrawer.RegenerateEverythingNow();
         }
 
         // The home area plus every colonist and colony building, with a

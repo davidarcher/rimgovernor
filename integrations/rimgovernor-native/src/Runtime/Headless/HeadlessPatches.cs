@@ -51,15 +51,21 @@ namespace HeadlessRim
             // let the unmodified native update execute/save/finish the event.
             Patch(harmony, typeof(LongEventHandler), "LongEventsUpdate", nameof(LongEventUpdatePrefix));
 
-            // MAP MESH GENERATION (Prevents Gameplay NREs)
-            Patch(harmony, typeof(Section), "RegenerateAllLayers", nameof(SkipPrefix));
-            Patch(harmony, typeof(MapDrawer), "WholeMapChanged", nameof(SkipPrefix));
-            Patch(harmony, typeof(MapDrawer), "SectionChanged", nameof(SkipPrefix));
-            Patch(harmony, typeof(MapDrawer), "RegenerateEverythingNow", nameof(SkipPrefix));
-            Patch(harmony, typeof(MapDrawer), "MapMeshDrawerUpdate_First", nameof(SkipPrefix));
-            Patch(harmony, typeof(MapDrawer), "DrawMapMesh", nameof(SkipPrefix));
-            Patch(harmony, typeof(MapDrawer), "Dispose", nameof(DisposeMapPrefix));
-            Patch(harmony, typeof(Graphic), "Print", nameof(SkipPrefix));
+            // MAP MESH GENERATION (Prevents Gameplay NREs). Without a graphics
+            // device the map has nothing to build meshes on; a game launched
+            // with one (Case.Graphics: the colony review's screenshots) keeps
+            // the map's own terrain, wall and floor meshes.
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                Patch(harmony, typeof(Section), "RegenerateAllLayers", nameof(SkipPrefix));
+                Patch(harmony, typeof(MapDrawer), "WholeMapChanged", nameof(SkipPrefix));
+                Patch(harmony, typeof(MapDrawer), "SectionChanged", nameof(SkipPrefix));
+                Patch(harmony, typeof(MapDrawer), "RegenerateEverythingNow", nameof(SkipPrefix));
+                Patch(harmony, typeof(MapDrawer), "MapMeshDrawerUpdate_First", nameof(SkipPrefix));
+                Patch(harmony, typeof(MapDrawer), "DrawMapMesh", nameof(SkipPrefix));
+                Patch(harmony, typeof(MapDrawer), "Dispose", nameof(DisposeMapPrefix));
+                Patch(harmony, typeof(Graphic), "Print", nameof(SkipPrefix));
+            }
             // Some place workers draw while deciding (PlaceWorker_ShowTurretRadius
             // draws the turret's radius ring inside AllowsPlacing); without a
             // renderer the field-edge mesh faults and a placement preview of a
