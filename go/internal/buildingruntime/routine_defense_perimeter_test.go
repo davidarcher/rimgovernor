@@ -25,28 +25,6 @@ func perimeterSurvey(cell func(x, z int32) policy.SurveyCell) policy.MapSurvey {
 	return s
 }
 
-// perimeterRing is the open-plains ring's wall band, for placing soft
-// ground across its north side.
-func perimeterRing(t *testing.T) policy.Rectangle {
-	t.Helper()
-	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell { return policy.SurveyCell{Walkable: true, Fertility: 1} }), 3, policy.BuildTierCamp, nil).Value()
-	if !ok {
-		t.Fatal("no plan")
-	}
-	var ring policy.Rectangle
-	for _, r := range plan.Reservations {
-		if r.Kind == policy.ReservePerimeter {
-			if ring.Width == 0 {
-				ring = r.Area
-			}
-			x0, z0 := min(ring.X, r.Area.X), min(ring.Z, r.Area.Z)
-			x1, z1 := max(ring.X+ring.Width, r.Area.X+r.Area.Width), max(ring.Z+ring.Height, r.Area.Z+r.Area.Height)
-			ring = policy.Rectangle{X: x0, Z: z0, Width: x1 - x0, Height: z1 - z0}
-		}
-	}
-	return ring
-}
-
 // perimeterRecord is an anchored record on the plan's killbox, with one
 // killbox tier.
 func perimeterRecord(t *testing.T, plan policy.LayoutPlan) store.DefenseLayoutRecord {
@@ -76,11 +54,9 @@ func tierBuildings(record store.DefenseLayoutRecord, keep func(store.DefenseTier
 // removed ahead of the new sections, the pumps left standing (#954).
 func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	t.Parallel()
-	ring := perimeterRing(t)
-	z0 := ring.Z + ring.Height - 12
 	survey := func(dried bool) policy.MapSurvey {
 		return perimeterSurvey(func(x, z int32) policy.SurveyCell {
-			if !dried && z >= z0 && z < z0+4 {
+			if !dried && z%40 < 4 {
 				return policy.SurveyCell{Walkable: true, Footing: policy.FootingLight, Bridgeable: true, Dries: true, Fertility: 1}
 			}
 			return policy.SurveyCell{Walkable: true, Fertility: 1}
@@ -165,10 +141,8 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 // record already holds costs nothing more (#983).
 func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 	t.Parallel()
-	ring := perimeterRing(t)
-	z0 := ring.Z + ring.Height - 12
 	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell {
-		if z >= z0 && z < z0+4 {
+		if z%40 < 4 {
 			return policy.SurveyCell{Walkable: true, Footing: policy.FootingLight, Bridgeable: true, Dries: true, Fertility: 1}
 		}
 		return policy.SurveyCell{Walkable: true, Fertility: 1}
@@ -231,10 +205,8 @@ func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 // wall laid (#954).
 func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 	t.Parallel()
-	ring := perimeterRing(t)
-	z0 := ring.Z + ring.Height - 12
 	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell {
-		if z >= z0 && z < z0+4 {
+		if z%40 < 4 {
 			return policy.SurveyCell{Walkable: true, Footing: policy.FootingNone, Bridgeable: true}
 		}
 		return policy.SurveyCell{Walkable: true, Fertility: 1}

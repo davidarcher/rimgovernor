@@ -84,7 +84,11 @@ func TestAuditSoilCatchesSplitsAndGaps(t *testing.T) {
 	s := policy.MapSurvey{Bounds: policy.Bounds{Width: n, Height: n}}
 	for z := int32(0); z < n; z++ {
 		for x := int32(0); x < n; x++ {
-			s.Cells = append(s.Cells, policy.SurveyCell{Cell: domain.Cell{X: x, Z: z}, Walkable: true, Fertility: 1})
+			fertility := 1.0
+			if x >= 20 && x < 30 && z >= 20 && z < 30 {
+				fertility = 1.4 // the patch is rich: the wall takes in only rich soil
+			}
+			s.Cells = append(s.Cells, policy.SurveyCell{Cell: domain.Cell{X: x, Z: z}, Walkable: true, Fertility: fertility})
 		}
 	}
 	field := policy.LayoutZone{Kind: policy.ZoneField}

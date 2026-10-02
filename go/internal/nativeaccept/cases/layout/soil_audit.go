@@ -130,7 +130,7 @@ func builtCells(plan policy.LayoutPlan) map[domain.Cell]string {
 // auditSoil checks the plan and crop zones against the survey:
 //  1. planned rooms and hallways cover at most richOverlapBudget of the
 //     rich cells;
-//  2. each field zone is one fertile patch, wholly inside or wholly outside
+//  2. each rich patch of a field zone is wholly inside or wholly outside
 //     the traced ring, and no wall cell sits on it, except where the ring
 //     runs along the edge margin line (the band LayoutEdgeMargin..
 //     LayoutEdgeMargin+ringThick from the edge), where it may cross and
@@ -217,15 +217,36 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 		if z.Kind != policy.ZoneField || len(z.Runs) == 0 || lane[domain.Cell{X: z.Runs[0].X, Z: z.Runs[0].Z}] {
 			continue
 		}
-		p := map[domain.Cell]bool{}
+		// The wall takes in rich soil only: each 4-connected rich part of
+		// the zone is one patch.
+		left := map[domain.Cell]bool{}
 		for _, r := range z.Runs {
 			for x := r.X; x < r.X+r.Length; x++ {
-				c := domain.Cell{X: x, Z: r.Z}
-				p[c] = true
-				owner[c] = len(patches) + 1
+				if c := (domain.Cell{X: x, Z: r.Z}); rich[c] {
+					left[c] = true
+				}
 			}
 		}
-		patches = append(patches, p)
+		for _, start := range sortedCells(left) {
+			if !left[start] {
+				continue
+			}
+			p := map[domain.Cell]bool{start: true}
+			delete(left, start)
+			for q := []domain.Cell{start}; len(q) > 0; q = q[1:] {
+				for _, d := range four {
+					if n := step(q[0], d); left[n] {
+						delete(left, n)
+						p[n] = true
+						q = append(q, n)
+					}
+				}
+			}
+			for c := range p {
+				owner[c] = len(patches) + 1
+			}
+			patches = append(patches, p)
+		}
 	}
 	a.Patches = len(patches)
 	for i, p := range patches {
