@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf16"
 
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/setup"
 	"golang.org/x/sys/windows"
@@ -287,7 +289,7 @@ const firstPort = 8787
 func (a *app) tailFlight() error {
 	path := filepath.Join(a.layout.Root, "profile", "flight", "flight.jsonl")
 	script := strings.ReplaceAll(tailScript, "PATH", strings.ReplaceAll(path, "'", "''"))
-	cmd := exec.Command("powershell.exe", "-NoLogo", "-NoExit", "-Command", script)
+	cmd := exec.Command("powershell.exe", "-NoLogo", "-NoExit", "-EncodedCommand", encodePowerShell(script))
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NEW_CONSOLE}
 	if err := cmd.Start(); err != nil {
 		return err
@@ -296,10 +298,24 @@ func (a *app) tailFlight() error {
 	return nil
 }
 
+// encodePowerShell is script as -EncodedCommand takes it (base64 of UTF-16LE),
+// which sidesteps command-line quoting.
+func encodePowerShell(script string) string {
+	units := utf16.Encode([]rune(script))
+	raw := make([]byte, 0, len(units)*2)
+	for _, u := range units {
+		raw = append(raw, byte(u), byte(u>>8))
+	}
+	return base64.StdEncoding.EncodeToString(raw)
+}
+
 // tailScript prints the last 40 rows of PATH, then every row appended after,
-// starting over when the recorder rotates the file (Get-Content -Wait keeps
-// reading the renamed segment and goes quiet).
-const tailScript = `$Host.UI.RawUI.WindowTitle='RimGovernor flight recorder'; $p='PATH'; $pos=0; ` +
-	`if(Test-Path -LiteralPath $p){Get-Content -Tail 40 -LiteralPath $p; $pos=(Get-Item -LiteralPath $p).Length}else{Write-Host "waiting for $p"}; ` +
-	`while($true){Start-Sleep -Milliseconds 500; if(-not (Test-Path -LiteralPath $p)){continue}; $len=(Get-Item -LiteralPath $p).Length; if($len -lt $pos){$pos=0}; ` +
-	`if($len -gt $pos){$f=[IO.File]::Open($p,'Open','Read','ReadWrite'); try{[void]$f.Seek($pos,'Begin'); $r=New-Object IO.StreamReader($f); $t=$r.ReadToEnd(); $pos=$f.Position; if($t){$t.TrimEnd()}}finally{$f.Close()}}}`
+// starting over when the recorder rotates the file. The length comes from an
+// open handle: the directory entry of a file being appended reports a stale
+// size, and Get-Content -Wait goes quiet after a rotation.
+const tailScript = `$Host.UI.RawUI.WindowTitle='RimGovernor flight recorder'; $p='PATH'; Write-Host ('tailing ' + $p); $pos=-1; ` +
+	`while($true){ if(Test-Path -LiteralPath $p){ try{ $f=[IO.File]::Open($p,'Open','Read','ReadWrite'); try{ $len=$f.Length; ` +
+	`if($pos -lt 0){ [void]$f.Seek([Math]::Max(0,$len-65536),'Begin'); $r=New-Object IO.StreamReader($f); $t=$r.ReadToEnd(); $pos=$f.Position; ` +
+	`@($t.Split([char]10) | Where-Object {$_}) | Select-Object -Last 40 } ` +
+	`else { if($len -lt $pos){$pos=0}; if($len -gt $pos){ [void]$f.Seek($pos,'Begin'); $r=New-Object IO.StreamReader($f); $t=$r.ReadToEnd(); $pos=$f.Position; if($t){$t.TrimEnd()} } } ` +
+	`} finally { $f.Close() } } catch { Write-Host $_ } } else { if($pos -ne -2){ Write-Host ('waiting for ' + $p); $pos=-2 } }; Start-Sleep -Milliseconds 500 }`
