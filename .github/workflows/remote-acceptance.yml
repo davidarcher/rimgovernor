@@ -66,8 +66,7 @@ jobs:
     timeout-minutes: 10
     environment: remote-acceptance
     # Go build and module caches (restored below, saved only by pushes to
-    # main, one entry per role, go.sum and ISO week so they cannot pile up
-    # and evict the bundle cache).
+    # main, one entry per role, go.sum and ISO week so they cannot pile up).
     env:
       GOCACHE: C:\rg\gocache
       GOMODCACHE: C:\rg\gomod
@@ -237,8 +236,7 @@ jobs:
     timeout-minutes: 360
     environment: remote-acceptance
     # Go build and module caches (restored below, saved only by pushes to
-    # main, one entry per role, go.sum and ISO week so they cannot pile up
-    # and evict the bundle cache).
+    # main, one entry per role, go.sum and ISO week so they cannot pile up).
     env:
       GOCACHE: C:\rg\gocache
       GOMODCACHE: C:\rg\gomod
@@ -290,11 +288,6 @@ jobs:
       - name: Audit process exits so a vanished game leaves its exit status
         continue-on-error: true
         run: auditpol /set /subcategory:"Process Termination" /success:enable
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: cache
-        with:
-          path: C:\rg\ciphertext\rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
-          key: rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
       - name: Bootstrap private layouts and run exact shard cases
         id: run
         env:
@@ -302,11 +295,6 @@ jobs:
           REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
           SHARD: ${{ matrix.shard }}
         run: ./trusted/scripts/remote_workflow.ps1 -Phase execute -Shard $env:SHARD
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: success() && steps.cache.outputs.cache-hit != 'true'
-        with:
-          path: C:\rg\ciphertext\rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
-          key: rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !cancelled() && github.event_name == 'push' && steps.gocache.outputs.cache-hit != 'true' && matrix.shard == 's1' && matrix.rep == 1 }}
         with:

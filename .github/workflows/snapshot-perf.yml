@@ -80,10 +80,6 @@ jobs:
           $bundle = go run ./internal/nativeaccept/cmd/acceptance fetch-fixture -root C:\rg\ci
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "bundle=$(@($bundle)[-1])" >> $env:GITHUB_OUTPUT
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: C:\rg\ciphertext\rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
-          key: rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
       - name: Bootstrap and profile SnapshotFrames.Capture
         env:
           GH_TOKEN: ${{ github.token }}

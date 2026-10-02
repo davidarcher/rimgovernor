@@ -71,8 +71,8 @@ GitHub releases, Actions caches or ordinary workflow artifacts.
 
 To refresh, produce and verify a new bundle and change the trusted manifest pin.
 To roll back, select the previous manifest digest and matching age identity.
-Never replace old assets in place. A corrupt cache hit fails and must be removed
-before retrying; there are no broad cache restore prefixes. Key rotation creates
+Never replace old assets in place. A corrupt download fails validation;
+retry or republish. Key rotation creates
 a new recipient/key ID and fresh encrypted assets; previously public ciphertext
 cannot be revoked if its old identity is compromised.
 
@@ -112,12 +112,10 @@ push and schedule require protected `refs/heads/main`. The script and Go bootstr
 these against the checkout and GitHub environment before cache access. This
 check is a guard, not a substitute for trusted workflow placement or review.
 
-The workflow must apply the same gate **before** its Actions cache restore and
-before exposing the age identity. Restore only the exact key printed in the
-report: `rimgovernor-bundle-v1-windows-x64-<manifest-sha256>`. The entry script
-handles a cold miss by downloading pinned release asset IDs; both cold and warm
-paths authenticate origin metadata and verify sizes/digests before decryption.
-The cache path is the key's directory under `-Cache`, never the whole job root.
+The workflow must apply the same gate before exposing the age identity. The
+entry script downloads the pinned release asset IDs into its `-Cache`
+directory, authenticates origin metadata and verifies sizes/digests before
+decryption.
 
 The checked-in [Windows tool lock](../../scripts/remote-tools.windows.json)
 pins verified release bytes. Its schema version is 1 with exactly four `tools` entries:

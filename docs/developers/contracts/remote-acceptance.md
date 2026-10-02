@@ -156,12 +156,10 @@ repository** (maintainer choice, 2026-09-19). Only ciphertext is public; the age
 identity remains a trusted-run secret. #377 pins the repository/release/asset
 IDs during explicit maintainer publication; the example origin is synthetic.
 See [bundle tooling and bootstrap](../remote-bundles.md). Each job gets one private game
-layout and one suite worker. **Actions cache is the normal restore path**, keyed
-`rimgovernor-bundle-v1-windows-x64-<bundle-manifest-sha256>`, without broad restore
-prefixes. Cache the encrypted archive parts exactly as published at the pinned
-origin, not the extracted tree. Cold misses download, verify and populate that
-cache; hits verify the same digests. A corrupt hit fails validation and must be
-replaced under a new bundle identity or removed before retry; never extract it.
+layout and one suite worker. Each job downloads the encrypted archive parts
+from the pinned release assets into `C:\rg\ciphertext` and verifies their
+digests before decryption; nothing about the bundle is kept in the Actions
+cache. A corrupt download fails validation and is never extracted.
 
 Package one 7z archive, encrypt it using the [age v1 format](https://age-encryption.org/v1),
 then split ciphertext into the ordered parts. Reassemble parts before decryption.
@@ -169,12 +167,7 @@ Use `encryption.format: "age-v1"` with an age recipient public key at packaging
 and its private identity supplied as a trusted-run secret. `key_id` identifies
 rotation without exposing the key; #377 owns encryption tooling and key setup,
 #378 verifies decryption/inventory, #382 supplies the secret only at bootstrap.
-Cache access itself is not private on the public repository: fork workflows can
-read base-branch caches. Encryption preserves the planned Actions cache fast path
-without making licensed files readable to cache consumers. Plaintext exists only
-in the job's private layout and is never re-cached. Public dependency caches stay
-separate. See
-[cache access rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+Plaintext exists only in the job's private layout and is never cached.
 
 The public encrypted origin needs no cross-repository credential. Use the
 source repository's read-only token for authenticated release metadata/downloads
