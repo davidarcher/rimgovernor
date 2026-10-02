@@ -85,6 +85,37 @@ jobs:
             ./trusted/scripts/cleanup_remote.ps1 -Work "C:\rg\$role"
           }
           if (Test-Path C:\rg\identity.txt) { Remove-Item -LiteralPath C:\rg\identity.txt }
+      # A failed case leaves no ring, so the run's evidence is the allowlisted
+      # diagnostics remote-acceptance exports for the same suite (the run stays red).
+      - name: Record why governed processes exited
+        if: failure() && steps.gate.outcome == 'success'
+        continue-on-error: true
+        run: ./trusted/scripts/collect_crash_remote.ps1 -Out C:\rg\crash\s1
+      - name: Export allowlisted diagnostics after a native failure
+        if: failure() && steps.gate.outcome == 'success'
+        run: |
+          New-Item -ItemType Directory -Force C:\rg\evidence\s1 | Out-Null
+          $code = 1
+          try {
+            if (Test-Path C:\rg\export-jobs.json) {
+              & C:\rg\remoteaccept.exe export -root C:\rg\evidence -shard s1 -jobs C:\rg\export-jobs.json
+              $code = $LASTEXITCODE
+            }
+          } finally {
+            if ($code) { '{"passed":false,"error":"Shard export incomplete; inspect Actions job logs"}' | Set-Content C:\rg\evidence\s1\incomplete.json }
+            New-Item -ItemType Directory -Force C:\rg\public | Out-Null
+            Copy-Item -LiteralPath C:\rg\evidence\s1 -Destination C:\rg\public\s1 -Recurse
+            if (Test-Path C:\rg\crash\s1) { Copy-Item -LiteralPath C:\rg\crash\s1 -Destination C:\rg\public\s1\crash -Recurse }
+          }
+          exit $code
+      - name: Upload failure diagnostics
+        if: failure() && steps.gate.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: factory-diagnostics-${{ github.run_id }}
+          path: C:\rg\public
+          if-no-files-found: error
+          retention-days: 7
       - name: Collect the checkpoint ring
         env:
           TESTED_COMMIT: ${{ steps.gate.outputs.head }}
