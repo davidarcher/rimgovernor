@@ -119,20 +119,56 @@ func DrugEntries(pawn WorkPawn, diseaseBiome bool) ([]domain.DrugPolicyEntry, bo
 func joyEntries(inputs PawnPolicyInputs) []domain.DrugPolicyEntry {
 	entries := []domain.DrugPolicyEntry{}
 	for _, d := range RecreationDrugs {
-		risky := false
-		for _, c := range inputs.Chemicals {
-			if c.Chemical != d.Chemical {
-				continue
-			}
-			_, addicted := c.Addiction.Value()
-			tolerance, tolerant := c.Tolerance.Value()
-			risky = risky || addicted || c.Withdrawal || tolerant && tolerance >= HighTolerance
-		}
-		if !risky {
+		if !chemicalRisky(inputs, d.Chemical) {
 			entries = append(entries, joyEntry(d.Def))
 		}
 	}
 	return entries
+}
+
+// chemicalRisky reports whether pawn is addicted to chemical, in its
+// withdrawal or highly tolerant of it.
+func chemicalRisky(inputs PawnPolicyInputs, chemical string) bool {
+	for _, c := range inputs.Chemicals {
+		if c.Chemical != chemical {
+			continue
+		}
+		_, addicted := c.Addiction.Value()
+		tolerance, tolerant := c.Tolerance.Value()
+		if addicted || c.Withdrawal || tolerant && tolerance >= HighTolerance {
+			return true
+		}
+	}
+	return false
+}
+
+// CombatDrugs are the drugs a soldier carries (#1540), in preference
+// order: go-juice, or yayo when the colony is known to have no go-juice.
+// Wake-up is never carried here; ingesting on draft is #1311.
+var CombatDrugs = []RecreationDrug{{"GoJuice", "GoJuice"}, {"Yayo", "Psychite"}}
+
+// CarryEntries is the combat drug a soldier-squad member carries (#1540):
+// one go-juice (yayo when noGoJuice) taken to inventory, not for joy, under
+// the same exclusions as DrugEntries. Unknown while DrugEntries is.
+func CarryEntries(pawn WorkPawn, noGoJuice bool) ([]domain.DrugPolicyEntry, bool) {
+	if _, ok := DrugEntries(pawn, false); !ok {
+		return nil, false
+	}
+	age, _ := pawn.Age.Value()
+	traits, _ := pawn.Traits.Value()
+	inputs, _ := pawn.PolicyInputs.Value()
+	interest := 0
+	for _, t := range traits {
+		interest += TraitEffect(t).ChemicalInterest
+	}
+	d := CombatDrugs[0]
+	if noGoJuice {
+		d = CombatDrugs[1]
+	}
+	if age < childAge || interest != 0 || chemicalRisky(inputs, d.Chemical) {
+		return nil, true
+	}
+	return []domain.DrugPolicyEntry{{Drug: d.Def, TakeToInventory: 1, DaysFrequency: 1, OnlyIfMoodBelow: 1, OnlyIfJoyBelow: 1}}, true
 }
 
 // AddictionDrug is a chemical a pawn can be addicted to, the drugs that
@@ -227,17 +263,20 @@ func AddictionEntries(pawn WorkPawn, stock map[string]int64) []domain.DrugPolicy
 // DrugPolicyChanges are the per-pawn drug policy writes owed (#1537): each
 // owned pawn with a drug tracker holds the policy labelled with its short
 // name, carrying DrugEntries and AddictionEntries against the colony's
-// drug stock (#1538), allotted to pawns in order. A pawn whose short name another owned pawn
+// drug stock (#1538), allotted to pawns in order, and squad members'
+// CarryEntries (#1540). A pawn whose short name another owned pawn
 // shares (#1310 renames it) or that several policies carry waits.
 // biomeDiseases is the colony map biome's disease hediffs (#1539).
-func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount], biomeDiseases []string) []DrugPolicyChange {
+func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount], biomeDiseases []string, squad SoldierSquad) []DrugPolicyChange {
 	diseaseBiome := DiseaseBiome(biomeDiseases)
 	var remaining map[string]int64
+	noGoJuice := false
 	if rows, ok := stock.Value(); ok {
 		remaining = map[string]int64{}
 		for _, r := range rows {
 			remaining[string(r.Resource)] += r.Count
 		}
+		noGoJuice = remaining[CombatDrugs[0].Def] <= 0
 	}
 	short, count := map[PawnID]string{}, map[string]int{}
 	for _, n := range names {
@@ -254,6 +293,12 @@ func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolic
 		want, ok := DrugEntries(pawn, diseaseBiome)
 		if !ok {
 			continue
+		}
+		if squad.IsSoldier(pawn.ID) {
+			carry, _ := CarryEntries(pawn, noGoJuice)
+			for _, e := range carry {
+				want = mergeEntry(want, e)
+			}
 		}
 		for _, e := range AddictionEntries(pawn, remaining) {
 			want = mergeEntry(want, e)

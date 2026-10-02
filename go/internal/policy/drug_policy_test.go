@@ -61,7 +61,7 @@ func TestDrugEntriesPerInput(t *testing.T) {
 func TestDrugPolicyChanges(t *testing.T) {
 	adult, child := drugPawn("adult", 30, nil), drugPawn("child", 9, nil)
 	names := []OwnedName{{Pawn: "adult", Short: "Bob"}, {Pawn: "child", Short: "Tim"}}
-	changes := DrugPolicyChanges([]WorkPawn{adult, child}, names, nil, domain.Unknown[[]Amount](), nil)
+	changes := DrugPolicyChanges([]WorkPawn{adult, child}, names, nil, domain.Unknown[[]Amount](), nil, SoldierSquad{})
 	if len(changes) != 2 || changes[0].Write == nil || changes[0].Write.Name() != "Bob" || len(changes[0].Write.Entries()) != 3 || changes[0].Assign == nil {
 		t.Fatal(changes)
 	}
@@ -74,15 +74,15 @@ func TestDrugPolicyChanges(t *testing.T) {
 		{ID: "DrugPolicy_1", Label: "Bob", Entries: []domain.DrugPolicyEntry{joyEntry("SmokeleafJoint"), joyEntry("Beer"), joyEntry("PsychiteTea")}},
 		{ID: "DrugPolicy_2", Label: "Tim"},
 	}
-	if got := DrugPolicyChanges([]WorkPawn{adult}, names, held, domain.Unknown[[]Amount](), nil); len(got) != 0 {
+	if got := DrugPolicyChanges([]WorkPawn{adult}, names, held, domain.Unknown[[]Amount](), nil, SoldierSquad{}); len(got) != 0 {
 		t.Fatal(got)
 	}
 	// The child's policy exists but is not held: assign only.
-	if got := DrugPolicyChanges([]WorkPawn{child}, names, held, domain.Unknown[[]Amount](), nil); len(got) != 1 || got[0].Write != nil || got[0].Assign == nil {
+	if got := DrugPolicyChanges([]WorkPawn{child}, names, held, domain.Unknown[[]Amount](), nil, SoldierSquad{}); len(got) != 1 || got[0].Write != nil || got[0].Assign == nil {
 		t.Fatal(got)
 	}
 	// A shared short name waits for the rename.
-	if got := DrugPolicyChanges([]WorkPawn{adult}, append(names, OwnedName{Pawn: "other", Short: "bob"}), nil, domain.Unknown[[]Amount](), nil); len(got) != 0 {
+	if got := DrugPolicyChanges([]WorkPawn{adult}, append(names, OwnedName{Pawn: "other", Short: "bob"}), nil, domain.Unknown[[]Amount](), nil, SoldierSquad{}); len(got) != 0 {
 		t.Fatal(got)
 	}
 }
@@ -122,7 +122,7 @@ func TestDrugEntriesPreventivesAndDependency(t *testing.T) {
 	if s := scheduled(e); len(s) != 0 {
 		t.Fatal("neither", s)
 	}
-	if got := DrugPolicyChanges([]WorkPawn{drugPawn("adult", 30, nil)}, []OwnedName{{Pawn: "adult", Short: "ann"}}, nil, domain.Unknown[[]Amount](), []string{"Plague"}); len(got) != 1 || scheduled(got[0].Write.Entries())[Penoxycyline] != PenoxycylineDays {
+	if got := DrugPolicyChanges([]WorkPawn{drugPawn("adult", 30, nil)}, []OwnedName{{Pawn: "adult", Short: "ann"}}, nil, domain.Unknown[[]Amount](), []string{"Plague"}, SoldierSquad{}); len(got) != 1 || scheduled(got[0].Write.Entries())[Penoxycyline] != PenoxycylineDays {
 		t.Fatal("changes", got)
 	}
 }
@@ -164,7 +164,7 @@ func TestDrugPolicyChangesAllotsStock(t *testing.T) {
 	a := drugPawn("a", 30, nil, ChemicalState{Chemical: "Alcohol", Addiction: domain.Known(0.5)})
 	b := drugPawn("b", 9, nil, ChemicalState{Chemical: "Alcohol", Addiction: domain.Known(0.5)})
 	names := []OwnedName{{Pawn: "a", Short: "Ann"}, {Pawn: "b", Short: "Ben"}}
-	changes := DrugPolicyChanges([]WorkPawn{a, b}, names, nil, domain.Known([]Amount{{Resource: "Beer", Count: 5}}), nil)
+	changes := DrugPolicyChanges([]WorkPawn{a, b}, names, nil, domain.Known([]Amount{{Resource: "Beer", Count: 5}}), nil, SoldierSquad{})
 	if len(changes) != 2 {
 		t.Fatal(changes)
 	}
@@ -179,7 +179,7 @@ func TestDependencyAndAddictionMerge(t *testing.T) {
 	in, _ := p.PolicyInputs.Value()
 	in.DependencyChemicals = []string{"Alcohol"}
 	p.PolicyInputs = domain.Known(in)
-	got := DrugPolicyChanges([]WorkPawn{p}, []OwnedName{{Pawn: "p", Short: "Pat"}}, nil, domain.Unknown[[]Amount](), nil)
+	got := DrugPolicyChanges([]WorkPawn{p}, []OwnedName{{Pawn: "p", Short: "Pat"}}, nil, domain.Unknown[[]Amount](), nil, SoldierSquad{})
 	if len(got) != 1 || got[0].Write == nil {
 		t.Fatal(got)
 	}
