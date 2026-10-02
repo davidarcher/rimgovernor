@@ -604,3 +604,26 @@ func recordRoutineSnapshot(ctx context.Context, current domain.GenerationSnapsho
 		}
 	}
 }
+
+// plannedGround is the ground of the recorded plan's rooms not yet standing
+// (#1245); none while the plan or the room census is unknown, so nothing of
+// the colony's comes down on a guess. The reviewer's upkeep reading and the
+// clearance planner share it.
+func plannedGround(colony observation.ColonyProjection) []policy.Rectangle {
+	plan, known := colony.LayoutPlan.Value()
+	if !known {
+		return nil
+	}
+	rooms, known := colony.Rooms.Value()
+	if !known {
+		return nil
+	}
+	return policy.PlannedGround(plan, rooms)
+}
+
+// plannedDoors is the recorded plan's door cells; none while it is unknown
+// (then there is no planned ground either).
+func plannedDoors(colony observation.ColonyProjection) map[domain.Cell]bool {
+	plan, _ := colony.LayoutPlan.Value()
+	return policy.PlannedDoors(plan)
+}

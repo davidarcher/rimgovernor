@@ -27,6 +27,7 @@ const buildingruntimeDir = "internal/buildingruntime"
 // table equal to serve's family list and to the routine_*.go files.
 var routineFamilyFiles = map[string][]string{
 	"routine_acquisition.go":          {"acquisition"},
+	"routine_acquisition_fields.go":   {"acquisition"},
 	"routine_animal_containment.go":   {"animal-containment"},
 	"routine_animal_feed.go":          {"animal-feed"},
 	"routine_assignments.go":          {"work"},
