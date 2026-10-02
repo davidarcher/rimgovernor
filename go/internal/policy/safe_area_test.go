@@ -48,6 +48,24 @@ func TestSafeAreaOwedRaisesMaintainShelter(t *testing.T) {
 	t.Fatal("owed safe area raised no MaintainShelter goal", r.Goals)
 }
 
+// A threat raises an emergency that holds development; the owed Safe area
+// must not wait behind it, or PlanSheltering has no area to move pawns into.
+func TestSafeAreaOwedUnderThreatIsUrgent(t *testing.T) {
+	f := stableRoutine()
+	f.SafeAreaOwed = domain.Known(true)
+	f.Hostiles = domain.Known[int64](3)
+	r := needs(t, f, RoutineLatches{})
+	for _, g := range r.Goals {
+		if g.ID == MaintainShelter {
+			if g.Priority >= 3 {
+				t.Fatal("MaintainShelter under a threat stays a development goal", g)
+			}
+			return
+		}
+	}
+	t.Fatal("owed safe area raised no MaintainShelter goal", r.Goals)
+}
+
 func TestPlanSafeAreaResetThenDiffs(t *testing.T) {
 	rooms := RoomObservation{Rooms: []Room{safeRoom("a", 0, 0, 2, 1, true)}}
 	ops, cells, err := PlanSafeArea(rooms, nil, nil, false)

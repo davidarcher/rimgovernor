@@ -1287,10 +1287,17 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	// MaintainShelter (#1325): a Safe area edit is owed. A settings write,
-	// ranked with the upkeep projects; unknown raises nothing.
-	addAssessment(MaintainShelter, 3, measured(f.SafeAreaOwed, func(owed bool) bool { return !owed }))
+	// ranked with the upkeep projects; unknown raises nothing. While a
+	// sheltering trigger holds it is urgent (priority 2), so a threat's
+	// emergency, which holds development, cannot hold the Safe area that
+	// PlanSheltering moves pawns into.
+	shelterPriority := 3
+	if trigger, _ := ShelterTriggerOf(f); trigger != ShelterNone {
+		shelterPriority = 2
+	}
+	addAssessment(MaintainShelter, shelterPriority, measured(f.SafeAreaOwed, func(owed bool) bool { return !owed }))
 	if owed, known := f.SafeAreaOwed.Value(); known && owed {
-		addGoal(MaintainShelter, 3)
+		addGoal(MaintainShelter, shelterPriority)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	// MaintainFirebreak (#1548): ring work is owed. Ranked with the upkeep

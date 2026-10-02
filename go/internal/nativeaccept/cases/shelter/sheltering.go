@@ -188,7 +188,10 @@ func checkPawns(status map[string]any, expected []string, sheltered bool) error 
 // waitAreas polls the journal until every pawn's latest completed
 // allowed-area action shelters it (a non-empty area) or, restoring, clears
 // it. The plans are the sheltering planner's RecoverDisasterServices
-// methods; the native readback after the service stops is the assertion.
+// methods; restoring, a completed delete of the Safe area after the pawn's
+// last move (MaintainShelter resets its areas in a new service) also
+// unrestricts it. The native readback after the service stops is the
+// assertion.
 func waitAreas(ctx context.Context, st *store.Store, pawns []string, shelter bool, w na.Wait, report na.Report, label string) error {
 	var last map[string]string
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
@@ -228,12 +231,26 @@ func waitAreas(ctx context.Context, st *store.Store, pawns []string, shelter boo
 				}
 			}
 		}
-		last = areas
-		for _, p := range pawns {
-			area, ok := areas[p]
-			if shelter && (!ok || area == "") || !shelter && ok && area != "" {
-				return na.Signature(len(history), areas), false, nil
+		reset, known := domain.Tick(0), false
+		if goal, _, err := st.Workable(ctx, review, policy.MaintainShelter); err != nil {
+			return "", false, err
+		} else {
+			for _, m := range goal.History {
+				plan, err := st.LoadPlan(ctx, m.Plan)
+				if err != nil {
+					return "", false, err
+				}
+				for i, a := range plan.Spec.Actions() {
+					edit, ok := a.Area()
+					if v := plan.Progress[i].View(); ok && edit.Key() == policy.SafeAreaKey && edit.Operation() == domain.AreaDelete && v.Stage == domain.Completed && (!known || v.Tick > reset) {
+						reset, known = v.Tick, true
+					}
+				}
 			}
+		}
+		last = areas
+		if !areasSettled(areas, ticks, reset, known, pawns, shelter) {
+			return na.Signature(len(history), areas, reset, known), false, nil
 		}
 		return "", true, nil
 	})
@@ -242,4 +259,21 @@ func waitAreas(ctx context.Context, st *store.Store, pawns []string, shelter boo
 		return fmt.Errorf("%s: pawns' allowed areas did not settle (last %v): %w", label, last, err)
 	}
 	return nil
+}
+
+// areasSettled reports whether the journal shows every pawn sheltered (its
+// latest completed move names an area) or restored: its latest move clears
+// it, or the Safe area was deleted (resetKnown, at reset) after it. A
+// pawn with no move at all is neither: an empty journal proves nothing.
+func areasSettled(areas map[string]string, ticks map[string]domain.Tick, reset domain.Tick, resetKnown bool, pawns []string, shelter bool) bool {
+	for _, p := range pawns {
+		area, ok := areas[p]
+		if !ok {
+			return false
+		}
+		if shelter && area == "" || !shelter && area != "" && !(resetKnown && reset > ticks[p]) {
+			return false
+		}
+	}
+	return true
 }
