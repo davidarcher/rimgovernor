@@ -44,9 +44,17 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h := s.Harness()
 	identity := s.Identity()
-	prepared, err := h.Call(ctx, "reserve-prepare", reservePrepareOp, map[string]any{"reserveDays": reserveDays, "seedShare": reserveSeedShare})
-	if err != nil {
-		return err
+	// A resume from the ring (#249) reloads a mid-run save that already
+	// holds the food room and the seeded runway: preparing again would
+	// stack a second runway on it and push the upkeep items census over
+	// its bound (#1373), so the resumed run reads the fresh run's result.
+	prepared, _ := na.AsMap(cases.RestoredState(s, "fixture"))
+	var err error
+	if prepared == nil {
+		if prepared, err = h.Call(ctx, "reserve-prepare", reservePrepareOp, map[string]any{"reserveDays": reserveDays, "seedShare": reserveSeedShare}); err != nil {
+			return err
+		}
+		na.SetCheckpointState("fixture", prepared)
 	}
 	seeded, _ := prepared["pemmican"].(float64)
 	colonists, _ := prepared["colonists"].(float64)
