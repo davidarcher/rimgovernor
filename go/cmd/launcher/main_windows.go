@@ -91,6 +91,11 @@ func main() {
 			fatal(err.Error())
 		}
 	}
+	if hwnd := uintptr(w.Window()); hwnd != 0 {
+		placement := filepath.Join(repo, ".rimgovernor", "launcher-window.json")
+		restoreWindow(hwnd, placement)
+		go rememberWindow(hwnd, placement)
+	}
 	w.SetHtml(indexHTML)
 	go a.focus()
 	go a.monitor()

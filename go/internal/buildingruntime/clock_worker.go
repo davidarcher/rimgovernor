@@ -12,6 +12,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
@@ -313,12 +314,17 @@ func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 // restated the previous outcome.
 func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err error, repeats int) {
 	level, message := slog.LevelInfo, "step done"
-	if err != nil {
-		level, message = slog.LevelWarn, "step failed: "+err.Error()
-	}
 	failures := make([]string, 0, len(result.PlannerFailures))
 	for _, failure := range result.PlannerFailures {
 		failures = append(failures, failure.Error())
+	}
+	// A bare hold (no planner failed, nothing else joined) is the step
+	// waiting, not failing: the player log keeps its Warn for real faults.
+	if err != nil {
+		level, message = slog.LevelWarn, "step failed: "+err.Error()
+		if err == executor.ErrHeld && len(failures) == 0 {
+			level, message = slog.LevelInfo, "step held: "+err.Error()
+		}
 	}
 	proposals := make([]string, 0, len(result.Proposals))
 	for _, outcome := range result.Proposals {
