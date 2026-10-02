@@ -129,3 +129,31 @@ func validateCells(v *o.CellsSnapshot, identity *c.Identity, rect policy.Rectang
 	}
 	return cellsRead{Context: v.Context, Bounds: bounds, Grid: grid, Foundation: v.Foundation, Things: v.Things}, nil
 }
+
+// RectCells are an inclusive wire rectangle's cells, row-major; nil for a
+// rectangle missing a corner coordinate or inverted.
+func RectCells(r *o.Rectangle) []domain.Cell {
+	lo, hi := r.GetMinimum(), r.GetMaximum()
+	if lo == nil || hi == nil || lo.X == nil || lo.Z == nil || hi.X == nil || hi.Z == nil || hi.GetX() < lo.GetX() || hi.GetZ() < lo.GetZ() {
+		return nil
+	}
+	out := make([]domain.Cell, 0, int(hi.GetX()-lo.GetX()+1)*int(hi.GetZ()-lo.GetZ()+1))
+	for z := lo.GetZ(); z <= hi.GetZ(); z++ {
+		for x := lo.GetX(); x <= hi.GetX(); x++ {
+			out = append(out, domain.Cell{X: x, Z: z})
+		}
+	}
+	return out
+}
+
+// WireRect is the inclusive wire rectangle bounding cells; nil for none.
+func WireRect(cells []domain.Cell) *o.Rectangle {
+	if len(cells) == 0 {
+		return nil
+	}
+	lo, hi := cells[0], cells[0]
+	for _, cell := range cells[1:] {
+		lo.X, lo.Z, hi.X, hi.Z = min(lo.X, cell.X), min(lo.Z, cell.Z), max(hi.X, cell.X), max(hi.Z, cell.Z)
+	}
+	return &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(lo.X), Z: proto.Int32(lo.Z)}, Maximum: &c.Cell{X: proto.Int32(hi.X), Z: proto.Int32(hi.Z)}}
+}

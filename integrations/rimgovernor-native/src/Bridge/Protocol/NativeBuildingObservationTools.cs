@@ -175,10 +175,8 @@ namespace HomeBridge.BridgeTools
             else row.Issues.Add(Issue("faction", Common.UnavailableReason.NotApplicable, "Unowned native thing."));
             var rectangle = thing.OccupiedRect();
             foreach (var cell in rectangle.Cells)
-            {
                 if (!cell.InBounds(thing.Map)) throw new InvalidOperationException("Building geometry is outside its map.");
-                row.OccupiedCells.Add(Cell(cell));
-            }
+            row.Occupied = new Obs.Rectangle { Minimum = Cell(new IntVec3(rectangle.minX, 0, rectangle.minZ)), Maximum = Cell(new IntVec3(rectangle.maxX, 0, rectangle.maxZ)) };
             if (thing.def.useHitPoints)
             {
                 if (thing.HitPoints < 0 || thing.MaxHitPoints <= 0) throw new InvalidOperationException("Invalid native hit points.");

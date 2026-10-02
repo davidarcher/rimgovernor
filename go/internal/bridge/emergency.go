@@ -282,21 +282,9 @@ func emergencyBuilding(row *o.ThreatBuilding, ctx *c.ObservationContext) (policy
 	}
 	// The occupied rect is the ranged target: every cell in bounds, none
 	// twice, at least one (a spawned building occupies its position).
-	if len(row.OccupiedCells) == 0 {
-		return result, contract("threat building occupied cells missing")
-	}
-	cells := make([]domain.Cell, 0, len(row.OccupiedCells))
-	seen := map[domain.Cell]bool{}
-	for _, cell := range row.OccupiedCells {
-		if cell == nil || cell.X == nil || cell.Z == nil || cell.GetX() < 0 || cell.GetZ() < 0 {
-			return result, contract("invalid threat building occupied cell")
-		}
-		at := domain.Cell{X: cell.GetX(), Z: cell.GetZ()}
-		if seen[at] {
-			return result, contract("duplicate threat building occupied cell")
-		}
-		seen[at] = true
-		cells = append(cells, at)
+	cells := RectCells(row.Occupied)
+	if len(cells) == 0 || cells[0].X < 0 || cells[0].Z < 0 {
+		return result, contract("invalid threat building occupied rect")
 	}
 	result = policy.EmergencyThreat{ID: policy.PawnID(row.Building.GetId()), Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false),
 		SnapshotToken: row.Building.Snapshot.GetToken(), Definition: row.Building.GetDefName(), Cells: cells, Passive: emergencyBool(row.Passive), Mortar: row.GetMortar()}

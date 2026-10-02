@@ -54,12 +54,11 @@ func runSiteStuff(ctx context.Context, s cases.Session) error {
 		}
 		row, _ := na.AsMap(raw)
 		stuff := na.AsString(row["stuff"])
-		occupied := na.AsSlice(row["occupiedCells"])
+		occupied := na.RectCells(row["occupied"])
 		if stuff == "" || len(occupied) != 1 {
 			continue
 		}
-		cell, _ := na.AsMap(occupied[0])
-		at := map[string]any{"x": na.AsNumber(cell["x"]), "z": na.AsNumber(cell["z"])}
+		at := map[string]any{"x": float64(occupied[0].X), "z": float64(occupied[0].Z)}
 		siteReply, err := h.Wire(ctx, fmt.Sprintf("site-%d", checked), "observations_read_defense_site", map[string]any{"scope": scope, "region": map[string]any{"minimum": at, "maximum": at}})
 		if err != nil {
 			return err

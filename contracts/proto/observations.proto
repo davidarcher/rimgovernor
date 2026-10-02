@@ -596,7 +596,7 @@ enum BuildingStatus { BUILDING_STATUS_UNSPECIFIED = 0; BUILDING_STATUS_BLUEPRINT
 message BuildingState {
   EntityRef building = 1; optional rimgovernor.placement.v1.Rotation rotation = 2; optional string stuff = 3; rimgovernor.common.v1.Ref faction = 4;
   optional BuildingStatus status = 5; optional string build_def_name = 6; optional string install_of_def_name = 7;
-  optional int32 hit_points = 8; optional int32 max_hit_points = 9; repeated rimgovernor.common.v1.Cell occupied_cells = 10;
+  optional int32 hit_points = 8; optional int32 max_hit_points = 9; reserved 10; reserved "occupied_cells";
   ConstructionState construction = 11; BuildingServiceState service = 12; BuildingSettings settings = 13;
   repeated ThermalSide thermal_sides = 14; BillStack bills = 15; optional string inspect_text = 16;
   optional bool burning = 17; optional bool uses_hit_points = 18; repeated ReadIssue issues = 19;
@@ -604,6 +604,8 @@ message BuildingState {
   // The Actions/Apply key of the building intent that placed this building,
   // when one did (BuildingIntent); absent for anything else.
   optional string intent_key = 21;
+  // The building's occupied rect, inclusive (#1346).
+  Rectangle occupied = 22;
 }
 message PowerNetwork {
   optional string id = 1; optional uint32 producers = 2; optional uint32 consumers = 3; optional uint32 batteries = 4;
@@ -1409,10 +1411,10 @@ message ThreatPawn { reserved 1, 5, 8; reserved "ignored_reason", "hostile_reaso
 // a crashed ship part, a mech-cluster piece with combat power): its own CAS
 // token rides on building.snapshot for Operations.AttackTarget, and
 // nearest_colonist_distance is Chebyshev cells like a threat pawn's;
-// occupied_cells is the building's occupied rect, the cells a ranged
-// defender needs a line of fire to.
+// occupied is the building's occupied rect (inclusive), the cells a
+// ranged defender needs a line of fire to.
 // mortar (#1148) is a turret whose verb fires mortar shells.
-message ThreatBuilding { EntityRef building = 1; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional int32 nearest_colonist_distance = 5; repeated rimgovernor.common.v1.Cell occupied_cells = 6; optional bool passive = 7; optional bool mortar = 8; }
+message ThreatBuilding { EntityRef building = 1; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional int32 nearest_colonist_distance = 5; reserved 6; reserved "occupied_cells"; optional bool passive = 7; optional bool mortar = 8; Rectangle occupied = 9; }
 message ThreatsSnapshot { reserved 1 to 6; reserved "hostiles", "hunting_predators", "ignored_hunters", "wild_predators_near", "downed_near"; repeated ThreatPawn pawns = 8; repeated ThreatBuilding hostile_buildings = 7; }
 // colonists references every spawned free colonist's pawn table row
 // (#1343), complete unless issues name "colonists".

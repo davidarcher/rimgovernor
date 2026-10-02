@@ -315,11 +315,8 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
 				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: optional(row.RainVulnerable), Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
 			ref := row.Building
-			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(b.OccupiedCells) > 0
-			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1]}
-			for _, c := range b.OccupiedCells {
-				site.Occupied = append(site.Occupied, domain.Cell{X: c.GetX(), Z: c.GetZ()})
-			}
+			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1], Occupied: bridge.RectCells(b.Occupied)}
+			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(site.Occupied) > 0
 			topology.Buildings = append(topology.Buildings, site)
 			if _, gun := site.TurretDPS.Value(); gun {
 				turrets = append(turrets, policy.DefenseTurretFacts{ID: site.ID, Definition: site.Definition, Cell: site.Cell, Powered: site.Powered, DPS: site.TurretDPS})

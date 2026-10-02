@@ -9703,7 +9703,6 @@ type BuildingState struct {
 	InstallOfDefName *string                `protobuf:"bytes,7,opt,name=install_of_def_name,json=installOfDefName,proto3,oneof" json:"install_of_def_name,omitempty"`
 	HitPoints        *int32                 `protobuf:"varint,8,opt,name=hit_points,json=hitPoints,proto3,oneof" json:"hit_points,omitempty"`
 	MaxHitPoints     *int32                 `protobuf:"varint,9,opt,name=max_hit_points,json=maxHitPoints,proto3,oneof" json:"max_hit_points,omitempty"`
-	OccupiedCells    []*commonpb.Cell       `protobuf:"bytes,10,rep,name=occupied_cells,json=occupiedCells,proto3" json:"occupied_cells,omitempty"`
 	Construction     *ConstructionState     `protobuf:"bytes,11,opt,name=construction,proto3" json:"construction,omitempty"`
 	Service          *BuildingServiceState  `protobuf:"bytes,12,opt,name=service,proto3" json:"service,omitempty"`
 	Settings         *BuildingSettings      `protobuf:"bytes,13,opt,name=settings,proto3" json:"settings,omitempty"`
@@ -9716,7 +9715,9 @@ type BuildingState struct {
 	Snapshot         *SnapshotRef           `protobuf:"bytes,20,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	// The Actions/Apply key of the building intent that placed this building,
 	// when one did (BuildingIntent); absent for anything else.
-	IntentKey     *string `protobuf:"bytes,21,opt,name=intent_key,json=intentKey,proto3,oneof" json:"intent_key,omitempty"`
+	IntentKey *string `protobuf:"bytes,21,opt,name=intent_key,json=intentKey,proto3,oneof" json:"intent_key,omitempty"`
+	// The building's occupied rect, inclusive (#1346).
+	Occupied      *Rectangle `protobuf:"bytes,22,opt,name=occupied,proto3" json:"occupied,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9814,13 +9815,6 @@ func (x *BuildingState) GetMaxHitPoints() int32 {
 	return 0
 }
 
-func (x *BuildingState) GetOccupiedCells() []*commonpb.Cell {
-	if x != nil {
-		return x.OccupiedCells
-	}
-	return nil
-}
-
 func (x *BuildingState) GetConstruction() *ConstructionState {
 	if x != nil {
 		return x.Construction
@@ -9896,6 +9890,13 @@ func (x *BuildingState) GetIntentKey() string {
 		return *x.IntentKey
 	}
 	return ""
+}
+
+func (x *BuildingState) GetOccupied() *Rectangle {
+	if x != nil {
+		return x.Occupied
+	}
+	return nil
 }
 
 type PowerNetwork struct {
@@ -32773,8 +32774,8 @@ func (x *ThreatPawn) GetDowned() bool {
 // a crashed ship part, a mech-cluster piece with combat power): its own CAS
 // token rides on building.snapshot for Operations.AttackTarget, and
 // nearest_colonist_distance is Chebyshev cells like a threat pawn's;
-// occupied_cells is the building's occupied rect, the cells a ranged
-// defender needs a line of fire to.
+// occupied is the building's occupied rect (inclusive), the cells a
+// ranged defender needs a line of fire to.
 // mortar (#1148) is a turret whose verb fires mortar shells.
 type ThreatBuilding struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
@@ -32783,9 +32784,9 @@ type ThreatBuilding struct {
 	HitPoints               *int32                 `protobuf:"varint,3,opt,name=hit_points,json=hitPoints,proto3,oneof" json:"hit_points,omitempty"`
 	MaxHitPoints            *int32                 `protobuf:"varint,4,opt,name=max_hit_points,json=maxHitPoints,proto3,oneof" json:"max_hit_points,omitempty"`
 	NearestColonistDistance *int32                 `protobuf:"varint,5,opt,name=nearest_colonist_distance,json=nearestColonistDistance,proto3,oneof" json:"nearest_colonist_distance,omitempty"`
-	OccupiedCells           []*commonpb.Cell       `protobuf:"bytes,6,rep,name=occupied_cells,json=occupiedCells,proto3" json:"occupied_cells,omitempty"`
 	Passive                 *bool                  `protobuf:"varint,7,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
 	Mortar                  *bool                  `protobuf:"varint,8,opt,name=mortar,proto3,oneof" json:"mortar,omitempty"`
+	Occupied                *Rectangle             `protobuf:"bytes,9,opt,name=occupied,proto3" json:"occupied,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -32855,13 +32856,6 @@ func (x *ThreatBuilding) GetNearestColonistDistance() int32 {
 	return 0
 }
 
-func (x *ThreatBuilding) GetOccupiedCells() []*commonpb.Cell {
-	if x != nil {
-		return x.OccupiedCells
-	}
-	return nil
-}
-
 func (x *ThreatBuilding) GetPassive() bool {
 	if x != nil && x.Passive != nil {
 		return *x.Passive
@@ -32874,6 +32868,13 @@ func (x *ThreatBuilding) GetMortar() bool {
 		return *x.Mortar
 	}
 	return false
+}
+
+func (x *ThreatBuilding) GetOccupied() *Rectangle {
+	if x != nil {
+		return x.Occupied
+	}
+	return nil
 }
 
 type ThreatsSnapshot struct {
@@ -36682,8 +36683,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_target_fuelB\x0e\n" +
 	"\f_out_of_fuelB\x0e\n" +
 	"\f_broken_downB\x0f\n" +
-	"\r_power_net_id\"\xeb\n" +
-	"\n" +
+	"\r_power_net_id\"\x81\v\n" +
 	"\rBuildingState\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12C\n" +
 	"\brotation\x18\x02 \x01(\x0e2\".rimgovernor.placement.v1.RotationH\x00R\brotation\x88\x01\x01\x12\x19\n" +
@@ -36694,9 +36694,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x13install_of_def_name\x18\a \x01(\tH\x04R\x10installOfDefName\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"hit_points\x18\b \x01(\x05H\x05R\thitPoints\x88\x01\x01\x12)\n" +
-	"\x0emax_hit_points\x18\t \x01(\x05H\x06R\fmaxHitPoints\x88\x01\x01\x12B\n" +
-	"\x0eoccupied_cells\x18\n" +
-	" \x03(\v2\x1b.rimgovernor.common.v1.CellR\roccupiedCells\x12R\n" +
+	"\x0emax_hit_points\x18\t \x01(\x05H\x06R\fmaxHitPoints\x88\x01\x01\x12R\n" +
 	"\fconstruction\x18\v \x01(\v2..rimgovernor.observations.v1.ConstructionStateR\fconstruction\x12K\n" +
 	"\aservice\x18\f \x01(\v21.rimgovernor.observations.v1.BuildingServiceStateR\aservice\x12I\n" +
 	"\bsettings\x18\r \x01(\v2-.rimgovernor.observations.v1.BuildingSettingsR\bsettings\x12M\n" +
@@ -36709,7 +36707,8 @@ const file_observations_proto_rawDesc = "" +
 	"\bsnapshot\x18\x14 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12\"\n" +
 	"\n" +
 	"intent_key\x18\x15 \x01(\tH\n" +
-	"R\tintentKey\x88\x01\x01B\v\n" +
+	"R\tintentKey\x88\x01\x01\x12B\n" +
+	"\boccupied\x18\x16 \x01(\v2&.rimgovernor.observations.v1.RectangleR\boccupiedB\v\n" +
 	"\t_rotationB\b\n" +
 	"\x06_stuffB\t\n" +
 	"\a_statusB\x11\n" +
@@ -36721,7 +36720,8 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_burningB\x12\n" +
 	"\x10_uses_hit_pointsB\r\n" +
-	"\v_intent_key\"\x87\x06\n" +
+	"\v_intent_keyJ\x04\b\n" +
+	"\x10\vR\x0eoccupied_cells\"\x87\x06\n" +
 	"\fPowerNetwork\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12!\n" +
 	"\tproducers\x18\x02 \x01(\rH\x01R\tproducers\x88\x01\x01\x12!\n" +
@@ -39701,24 +39701,24 @@ const file_observations_proto_rawDesc = "" +
 	"\r_prison_breakB\x10\n" +
 	"\x0e_predator_huntB\v\n" +
 	"\t_predatorB\t\n" +
-	"\a_downedJ\x04\b\x01\x10\x02J\x04\b\x05\x10\x06J\x04\b\b\x10\tR\x0eignored_reasonR\x0ehostile_reason\"\xfa\x03\n" +
+	"\a_downedJ\x04\b\x01\x10\x02J\x04\b\x05\x10\x06J\x04\b\b\x10\tR\x0eignored_reasonR\x0ehostile_reason\"\x90\x04\n" +
 	"\x0eThreatBuilding\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12*\n" +
 	"\x0ehostile_reason\x18\x02 \x01(\tH\x00R\rhostileReason\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"hit_points\x18\x03 \x01(\x05H\x01R\thitPoints\x88\x01\x01\x12)\n" +
 	"\x0emax_hit_points\x18\x04 \x01(\x05H\x02R\fmaxHitPoints\x88\x01\x01\x12?\n" +
-	"\x19nearest_colonist_distance\x18\x05 \x01(\x05H\x03R\x17nearestColonistDistance\x88\x01\x01\x12B\n" +
-	"\x0eoccupied_cells\x18\x06 \x03(\v2\x1b.rimgovernor.common.v1.CellR\roccupiedCells\x12\x1d\n" +
+	"\x19nearest_colonist_distance\x18\x05 \x01(\x05H\x03R\x17nearestColonistDistance\x88\x01\x01\x12\x1d\n" +
 	"\apassive\x18\a \x01(\bH\x04R\apassive\x88\x01\x01\x12\x1b\n" +
-	"\x06mortar\x18\b \x01(\bH\x05R\x06mortar\x88\x01\x01B\x11\n" +
+	"\x06mortar\x18\b \x01(\bH\x05R\x06mortar\x88\x01\x01\x12B\n" +
+	"\boccupied\x18\t \x01(\v2&.rimgovernor.observations.v1.RectangleR\boccupiedB\x11\n" +
 	"\x0f_hostile_reasonB\r\n" +
 	"\v_hit_pointsB\x11\n" +
 	"\x0f_max_hit_pointsB\x1c\n" +
 	"\x1a_nearest_colonist_distanceB\n" +
 	"\n" +
 	"\b_passiveB\t\n" +
-	"\a_mortar\"\x80\x02\n" +
+	"\a_mortarJ\x04\b\x06\x10\aR\x0eoccupied_cells\"\x80\x02\n" +
 	"\x0fThreatsSnapshot\x12=\n" +
 	"\x05pawns\x18\b \x03(\v2'.rimgovernor.observations.v1.ThreatPawnR\x05pawns\x12X\n" +
 	"\x11hostile_buildings\x18\a \x03(\v2+.rimgovernor.observations.v1.ThreatBuildingR\x10hostileBuildingsJ\x04\b\x01\x10\aR\bhostilesR\x11hunting_predatorsR\x0fignored_huntersR\x13wild_predators_nearR\vdowned_near\"\xa9\x02\n" +
@@ -40809,14 +40809,14 @@ var file_observations_proto_depIdxs = []int32{
 	404, // 180: rimgovernor.observations.v1.BuildingState.rotation:type_name -> rimgovernor.placement.v1.Rotation
 	401, // 181: rimgovernor.observations.v1.BuildingState.faction:type_name -> rimgovernor.common.v1.Ref
 	14,  // 182: rimgovernor.observations.v1.BuildingState.status:type_name -> rimgovernor.observations.v1.BuildingStatus
-	397, // 183: rimgovernor.observations.v1.BuildingState.occupied_cells:type_name -> rimgovernor.common.v1.Cell
-	104, // 184: rimgovernor.observations.v1.BuildingState.construction:type_name -> rimgovernor.observations.v1.ConstructionState
-	106, // 185: rimgovernor.observations.v1.BuildingState.service:type_name -> rimgovernor.observations.v1.BuildingServiceState
-	102, // 186: rimgovernor.observations.v1.BuildingState.settings:type_name -> rimgovernor.observations.v1.BuildingSettings
-	105, // 187: rimgovernor.observations.v1.BuildingState.thermal_sides:type_name -> rimgovernor.observations.v1.ThermalSide
-	98,  // 188: rimgovernor.observations.v1.BuildingState.bills:type_name -> rimgovernor.observations.v1.BillStack
-	29,  // 189: rimgovernor.observations.v1.BuildingState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	27,  // 190: rimgovernor.observations.v1.BuildingState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	104, // 183: rimgovernor.observations.v1.BuildingState.construction:type_name -> rimgovernor.observations.v1.ConstructionState
+	106, // 184: rimgovernor.observations.v1.BuildingState.service:type_name -> rimgovernor.observations.v1.BuildingServiceState
+	102, // 185: rimgovernor.observations.v1.BuildingState.settings:type_name -> rimgovernor.observations.v1.BuildingSettings
+	105, // 186: rimgovernor.observations.v1.BuildingState.thermal_sides:type_name -> rimgovernor.observations.v1.ThermalSide
+	98,  // 187: rimgovernor.observations.v1.BuildingState.bills:type_name -> rimgovernor.observations.v1.BillStack
+	29,  // 188: rimgovernor.observations.v1.BuildingState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	27,  // 189: rimgovernor.observations.v1.BuildingState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	30,  // 190: rimgovernor.observations.v1.BuildingState.occupied:type_name -> rimgovernor.observations.v1.Rectangle
 	395, // 191: rimgovernor.observations.v1.BuildingsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
 	107, // 192: rimgovernor.observations.v1.BuildingsSnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingState
 	108, // 193: rimgovernor.observations.v1.BuildingsSnapshot.power_networks:type_name -> rimgovernor.observations.v1.PowerNetwork
@@ -41438,7 +41438,7 @@ var file_observations_proto_depIdxs = []int32{
 	49,  // 809: rimgovernor.observations.v1.ThreatPawn.pawn:type_name -> rimgovernor.observations.v1.EntityRef
 	401, // 810: rimgovernor.observations.v1.ThreatPawn.faction:type_name -> rimgovernor.common.v1.Ref
 	49,  // 811: rimgovernor.observations.v1.ThreatBuilding.building:type_name -> rimgovernor.observations.v1.EntityRef
-	397, // 812: rimgovernor.observations.v1.ThreatBuilding.occupied_cells:type_name -> rimgovernor.common.v1.Cell
+	30,  // 812: rimgovernor.observations.v1.ThreatBuilding.occupied:type_name -> rimgovernor.observations.v1.Rectangle
 	362, // 813: rimgovernor.observations.v1.ThreatsSnapshot.pawns:type_name -> rimgovernor.observations.v1.ThreatPawn
 	363, // 814: rimgovernor.observations.v1.ThreatsSnapshot.hostile_buildings:type_name -> rimgovernor.observations.v1.ThreatBuilding
 	395, // 815: rimgovernor.observations.v1.StatusSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext

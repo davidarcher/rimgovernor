@@ -124,11 +124,12 @@ namespace HomeBridge.BridgeTools
             }
             var approach = new List<IntVec3>();
             foreach (var building in threats.HostileBuildings)
-                foreach (var c in building.OccupiedCells)
-                {
-                    var cell = new IntVec3(c.X, 0, c.Z);
-                    if (!approach.Contains(cell) && approach.Count < NativeDefenseObservationTools.MaximumLineCells) approach.Add(cell);
-                }
+                for (var z = building.Occupied.Minimum.Z; z <= building.Occupied.Maximum.Z; z++)
+                    for (var x = building.Occupied.Minimum.X; x <= building.Occupied.Maximum.X; x++)
+                    {
+                        var cell = new IntVec3(x, 0, z);
+                        if (!approach.Contains(cell) && approach.Count < NativeDefenseObservationTools.MaximumLineCells) approach.Add(cell);
+                    }
             if (firing.Count == 0 || approach.Count == 0 || firing.Concat(approach).Any(c => !c.InBounds(map))) return;
             try { observed.CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context); }
             catch (System.Exception ex) { Log.Error(ObservationWork.Failed("combatLinesOfFire", ex)); }

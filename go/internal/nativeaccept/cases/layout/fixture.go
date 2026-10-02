@@ -6,7 +6,6 @@ package layout
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
@@ -40,15 +39,6 @@ func planned(sample map[string]any, match func(domain.MethodID) bool, complete b
 		}
 	}
 	return false
-}
-
-func cellsOf(raw any) []domain.Cell {
-	var out []domain.Cell
-	for _, item := range na.AsSlice(raw) {
-		row, _ := na.AsMap(item)
-		out = append(out, domain.Cell{X: int32(na.AsNumber(row["x"])), Z: int32(na.AsNumber(row["z"]))})
-	}
-	return out
 }
 
 func bounding(cells []domain.Cell) policy.Rectangle {

@@ -74,3 +74,20 @@ func ZoneCells(grid *cellgrid.Grid) map[string][]domain.Cell {
 	}
 	return out
 }
+
+// RectCells are a ProtoJSON inclusive rectangle's cells, row-major.
+func RectCells(raw any) []domain.Cell {
+	rect, _ := AsMap(raw)
+	lo, _ := AsMap(rect["minimum"])
+	hi, _ := AsMap(rect["maximum"])
+	if lo == nil || hi == nil {
+		return nil
+	}
+	var out []domain.Cell
+	for z := int32(AsNumber(lo["z"])); z <= int32(AsNumber(hi["z"])); z++ {
+		for x := int32(AsNumber(lo["x"])); x <= int32(AsNumber(hi["x"])); x++ {
+			out = append(out, domain.Cell{X: x, Z: z})
+		}
+	}
+	return out
+}

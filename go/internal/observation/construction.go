@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -35,12 +36,9 @@ func ConstructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[po
 		if err != nil {
 			return unknown, err
 		}
-		cells := make([]domain.Cell, 0, len(row.OccupiedCells))
-		for _, cell := range row.OccupiedCells {
-			if cell == nil || cell.X == nil || cell.Z == nil {
-				return unknown, ErrContract
-			}
-			cells = append(cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+		cells := bridge.RectCells(row.Occupied)
+		if row.Occupied != nil && cells == nil {
+			return unknown, ErrContract
 		}
 		r.Buildings = append(r.Buildings, policy.CurrentBuilding{ID: row.Building.GetId(), Building: b, Cells: cells, IntentKey: row.GetIntentKey()})
 	}

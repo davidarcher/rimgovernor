@@ -493,9 +493,7 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 			return fmt.Errorf("hut bed %v is not in the building table", ref["id"])
 		}
 		var occupied []domain.Cell
-		for _, rc := range na.AsSlice(bed["occupiedCells"]) {
-			m, _ := na.AsMap(rc)
-			c := domain.Cell{X: int32(na.AsNumber(m["x"])), Z: int32(na.AsNumber(m["z"]))}
+		for _, c := range na.RectCells(bed["occupied"]) {
 			occupied = append(occupied, c)
 			if !inside[c] {
 				return fmt.Errorf("bed cell %v lies outside the hut", c)
@@ -598,9 +596,8 @@ func waitBuilt(ctx context.Context, h *na.Harness, expected map[string]any, sh *
 		for _, raw := range na.AsSlice(observed["buildings"]) {
 			row, _ := na.AsMap(raw)
 			building, _ := na.AsMap(row["building"])
-			for _, c := range na.AsSlice(row["occupiedCells"]) {
-				cell, _ := na.AsMap(c)
-				built[domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}] = na.AsString(building["defName"])
+			for _, cell := range na.RectCells(row["occupied"]) {
+				built[cell] = na.AsString(building["defName"])
 			}
 		}
 		missing := 0
