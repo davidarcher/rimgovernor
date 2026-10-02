@@ -219,7 +219,8 @@ commit, not a file-by-file narrative.
   `acceptance profile-capture -root <dir>` (#1320), not a sustained run:
   it heals a stale native mod, reloads the newest `sustained/colony`
   checkpoint (its own root first, then the main checkout's and peer
-  worktrees'; `-from`, `-case`, `-save`) on the kept process, times
+  worktrees'; `-from latest-ci` downloads the CI fixture factory's,
+  #1376; `-from`, `-case`, `-save`) on the kept process, times
   `SnapshotFrames.Capture` `-n` times paused (`test/profile_capture`) and
   prints p50/p90/max and rows per family and `ObservationWork.Detail`
   span; `-equality` adds the ColonyFacts optimizations off/on check.

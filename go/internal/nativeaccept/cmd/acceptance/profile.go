@@ -29,7 +29,7 @@ import (
 )
 
 const profileUsage = `
-  acceptance profile-capture -root <dir> [-n <count> -equality -save <name> | -from <label|dir> -case <area/case> -output <dir> -game <id> -headless=false -timeout <d> -no-heal -json]
+  acceptance profile-capture -root <dir> [-n <count> -equality -save <name> | -from <label|dir|latest-ci> -case <area/case> -output <dir> -game <id> -headless=false -timeout <d> -no-heal -json]
     loads the save (default: the -case ring's newest bundle, sustained/colony) on the kept game, runs SnapshotFrames.Capture
     -n times paused and prints p50/p90/max ms and rows per family and detail span; -equality adds the ColonyFacts equality probe`
 
@@ -59,7 +59,7 @@ func parseProfile(args []string, stderr io.Writer) (profileOptions, error) {
 	fs.BoolVar(&p.Equality, "equality", false, "also run the ColonyFacts optimizations off/on equality probe")
 	fs.StringVar(&p.Save, "save", "", "profile save to load instead of a checkpoint bundle")
 	fs.StringVar(&p.Case, "case", "sustained/colony", "case whose checkpoint ring supplies the save")
-	fs.StringVar(&p.From, "from", "", "bundle: a ring label (t+7m, failed) or a bundle directory (default: the ring's newest entry, then its failed bundle)")
+	fs.StringVar(&p.From, "from", "", "bundle: a ring label (t+7m, failed), latest-ci (the fixture factory's newest ring) or a bundle directory (default: the ring's newest entry, then its failed bundle)")
 	fs.StringVar(&o.Output, "output", "", "evidence directory (default <root>/acceptance/fixture)")
 	fs.StringVar(&o.GameID, "game", "rimgovernor-trial", "configured game ID")
 	fs.BoolVar(&o.Headless, "headless", true, "use the headless profile (false: windowed)")
@@ -98,6 +98,9 @@ func parseProfile(args []string, stderr io.Writer) (profileOptions, error) {
 // a directory or a label of the case's ring, else the ring's newest entry,
 // else its failed bundle.
 func profileBundle(root, caseName, from string) (string, error) {
+	if from == latestCI {
+		return ciBundle(root, caseName)
+	}
 	if from != "" {
 		if info, err := os.Stat(from); err == nil && info.IsDir() {
 			return from, nil

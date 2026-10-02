@@ -80,6 +80,8 @@ function Resolve-Source($Event) {
         $tier = 'land'; $shards = 4; $base = [string]$Event.before
         if ($base -cnotmatch '^[0-9a-f]{40}$' -or $base -eq ('0'*40)) { $base = $head }
     }
+    # The fixture factory (fixture-factory.yml, #1376) pins its own case list.
+    if ($env:FACTORY_CASES) { $tier = 'cases'; $shards = 1; $cases = @($env:FACTORY_CASES -split ',') }
     if ($head -cnotmatch '^[0-9a-f]{40}$' -or $base -cnotmatch '^[0-9a-f]{40}$' -or
         $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','land','nightly','full','cases') -or
         $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, base, tier or shard limit; land requires an explicit ancestor base SHA' }

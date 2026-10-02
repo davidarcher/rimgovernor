@@ -1,0 +1,122 @@
+name: Fixture factory
+
+# Runs sustained/colony on the remote-acceptance runner setup and publishes
+# its checkpoint ring as the run artifact colony-checkpoints-<commit>
+# (#1376). `acceptance profile-capture -from latest-ci` and `acceptance
+# fetch-fixture` download the newest successful run's artifact. Gate,
+# planning and bootstrap are remote_workflow.ps1's, as in remote-acceptance.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tested_ref:
+        description: Same-repository branch or tag to run (resolved once at startup)
+        default: main
+        type: string
+      reviewed_commit:
+        description: I reviewed and trust the exact tested commit to access licensed game inputs
+        required: true
+        type: boolean
+        default: false
+  schedule:
+    - cron: '41 3 * * 0'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  REMOTE_ACCEPTANCE_ENABLED: ${{ vars.REMOTE_ACCEPTANCE_ENABLED }}
+  REMOTE_ACCEPTANCE_MAINTAINERS: ${{ vars.REMOTE_ACCEPTANCE_MAINTAINERS }}
+  REMOTE_BUNDLE_ASSET: ${{ vars.REMOTE_BUNDLE_ASSET }}
+  REMOTE_INVENTORY_ASSET: ${{ vars.REMOTE_INVENTORY_ASSET }}
+  REMOTE_BUNDLE_SHA256: ${{ vars.REMOTE_BUNDLE_SHA256 }}
+  REMOTE_ARTIFACT_MAX_BYTES: ${{ vars.REMOTE_ARTIFACT_MAX_BYTES || '0' }}
+  FACTORY_CASES: sustained/colony
+  GOTOOLCHAIN: local
+  GOWORK: 'off'
+  CGO_ENABLED: '0'
+
+concurrency:
+  group: fixture-factory
+  cancel-in-progress: false
+
+jobs:
+  factory:
+    if: github.repository == 'davidarcher/rimgovernor' && github.ref == 'refs/heads/main'
+    runs-on: windows-2022
+    timeout-minutes: 360
+    environment: remote-acceptance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted
+          persist-credentials: false
+      - name: Authorize before selected code, bundle cache or identity access
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase gate
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.gate.outputs.head }}
+          path: tested
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: trusted/go/.go-version
+          cache: false
+      - name: Plan the factory case
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase plan
+      - name: Compile trusted public-evidence exporter
+        working-directory: trusted/go
+        run: |
+          go build -o C:\rg\remoteaccept.exe ./cmd/remoteaccept
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: C:\rg\ciphertext\rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+          key: rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+      - name: Bootstrap and run sustained/colony
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase execute -Shard s1
+      - name: Stop this job's processes and remove identity
+        if: always() && steps.gate.outcome == 'success'
+        run: |
+          foreach ($role in @('fixture','production')) {
+            ./trusted/scripts/cleanup_remote.ps1 -Work "C:\rg\$role"
+          }
+          if (Test-Path C:\rg\identity.txt) { Remove-Item -LiteralPath C:\rg\identity.txt }
+      - name: Collect the checkpoint ring
+        env:
+          TESTED_COMMIT: ${{ steps.gate.outputs.head }}
+        run: |
+          $out = 'C:\rg\factory\checkpoints'
+          foreach ($boot in Get-ChildItem C:\rg\*\job\bootstrap.json) {
+            $root = (Get-Content -LiteralPath $boot.FullName -Raw | ConvertFrom-Json).root
+            foreach ($case in $env:FACTORY_CASES -split ',') {
+              $ring = Join-Path $root "checkpoints\$case"
+              if (Test-Path -LiteralPath (Join-Path $ring 'ring.json')) {
+                New-Item -ItemType Directory -Force (Split-Path (Join-Path $out $case)) | Out-Null
+                Copy-Item -LiteralPath $ring -Destination (Join-Path $out $case) -Recurse
+              }
+            }
+          }
+          if (-not (Test-Path $out)) { throw 'The run left no checkpoint ring' }
+          @{tested_commit=$env:TESTED_COMMIT; run_id=$env:GITHUB_RUN_ID; cases=$env:FACTORY_CASES} |
+            ConvertTo-Json | Set-Content C:\rg\factory\factory.json
+      # 90 days (the public-repository maximum) outlives the weekly cadence
+      # many times over, so the newest bundle never expires before the next.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: colony-checkpoints-${{ steps.gate.outputs.head }}
+          path: C:\rg\factory
+          if-no-files-found: error
+          retention-days: 90

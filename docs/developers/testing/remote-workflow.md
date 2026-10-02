@@ -104,6 +104,21 @@ a green report. Aggregation authenticates job conclusions, covers every planned
 shard, and recomputes native case verdicts. Cancellation, missing output or a
 failure outside the native suite cannot yield a passing aggregate.
 
+## Fixture factory
+
+`.github/workflows/fixture-factory.yml` (weekly, or dispatched with the same
+review attestation) runs `sustained/colony` through the same gate, plan and
+bootstrap phases (`FACTORY_CASES` pins the case list) and uploads its
+checkpoint ring, saves and stores included, plus `factory.json` naming the
+tested commit, as the artifact `colony-checkpoints-<commit>`. Unlike shard
+diagnostics this deliberately publishes generated saves; they carry def
+references, never licensed file contents. Retention is 90 days, so the newest
+bundle outlives the weekly cadence. A fresh clone consumes it with
+`acceptance profile-capture -root <dir> -from latest-ci`, or `acceptance
+fetch-fixture -root <dir>` to print the downloaded ring directory for snapshot
+tests; both `gh run download` the newest successful run once into
+`<root>/ci-fixtures/<run id>`.
+
 ## Validation and activation evidence
 
 `go run ./cmd/test` covers authorization refusals, portable multi-shard export,
