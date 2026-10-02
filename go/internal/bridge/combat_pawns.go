@@ -200,7 +200,7 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 				return err
 			}
 			id := v.Definition.GetDefName()
-			if seen[id] || v.Level != nil && v.GetLevel() < 0 || !combatNumber(v.StoredLevel, true) || v.Passion != nil && validID(v.GetPassion()) != nil {
+			if seen[id] || v.Level != nil && v.GetLevel() < 0 || !combatNumber(v.StoredLevel, true) || v.Passion != nil && PassionName(v.GetPassion()) == "" {
 				return contract("invalid skill")
 			}
 			seen[id] = true

@@ -6,6 +6,7 @@ import "common.proto";
 import "clock.proto";
 import "mirror.proto";
 import "placement.proto";
+import "operations.proto";
 
 // All requests are read-only; previews/admission and UI/media have other owners.
 // Validators require context, selected outcome, finite numbers and exact IDs.
@@ -314,7 +315,9 @@ message PawnEquipment {
   // gaps; 0 without a ranged primary) and the pawn's MeleeDPS stat.
   optional double ranged_dps = 9; optional double melee_dps = 10;
 }
-message Skill { DefinitionRef definition = 1; optional int32 level = 2; optional double stored_level = 3; optional string passion = 4; optional bool disabled = 5; }
+// Passion is a skill's vanilla passion level.
+enum Passion { PASSION_UNSPECIFIED = 0; PASSION_NONE = 1; PASSION_MINOR = 2; PASSION_MAJOR = 3; }
+message Skill { DefinitionRef definition = 1; optional int32 level = 2; optional double stored_level = 3; optional Passion passion = 4; optional bool disabled = 5; }
 message Trait { optional string def_name = 1; optional int32 degree = 2; }
 message WorkSetting { optional string def_name = 1; optional int32 priority = 2; optional bool disabled = 3; }
 message TimetableSlot { optional uint32 hour = 1; optional string assignment_def_name = 2; }
@@ -328,10 +331,10 @@ message Thought { optional string def_name = 1; optional string label = 2; optio
 message Relation { EntityRef other = 1; optional string relation_def_name = 2; optional int32 opinion = 3; optional bool opinion_reconstructed = 4; }
 message PawnSocial { optional bool high_expectations = 6; repeated Thought memories = 1; repeated Thought situational = 2; repeated Relation relations = 3; optional bool situational_cache_stale = 4; repeated ReadIssue issues = 5; }
 message PawnSettings {
-  reserved 1; reserved "snapshot"; optional string medical_care = 2; optional bool self_tend = 3; optional string hostility_response = 4;
+  reserved 1; reserved "snapshot"; optional rimgovernor.operations.v1.MedicalCare medical_care = 2; optional bool self_tend = 3; optional rimgovernor.operations.v1.HostilityResponse hostility_response = 4;
   optional string allowed_area_id = 5; optional string master_id = 6; optional bool follow_drafted = 7; optional bool follow_fieldwork = 8;
   repeated WorkSetting work = 9; repeated TimetableSlot schedule = 10; repeated DefinitionRef allowed_areas = 11;
-  repeated string medical_care_options = 12; repeated string hostility_response_options = 13; repeated ReadIssue issues = 14;
+  repeated rimgovernor.operations.v1.MedicalCare medical_care_options = 12; repeated rimgovernor.operations.v1.HostilityResponse hostility_response_options = 13; repeated ReadIssue issues = 14;
   optional bool work_applies = 15; optional bool manual_work_priorities = 16;
   FoodRestriction food_restriction = 17;
   optional bool drug_policy_writable = 18;
@@ -398,7 +401,7 @@ message AnimalState {
   // Medical care cap inputs (#1301), for a player animal: its
   // MedicalCareCategory name, a Bond relation to any living pawn, and the
   // same conditions block PopulationPerson.conditions carries.
-  optional string medical_care = 33; optional bool bonded = 34; PawnHealth conditions = 35;
+  optional rimgovernor.operations.v1.MedicalCare medical_care = 33; optional bool bonded = 34; PawnHealth conditions = 35;
 }
 message PawnState {
   EntityRef pawn = 1; optional string kind_def_name = 2; optional string faction_id = 3;
@@ -842,7 +845,7 @@ message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optio
   PawnHealth surgery = 17; optional string faction_id = 18; optional int32 harvest_goodwill_change = 19;
   // The MedicalCareCategory name (#1239), for a colony prisoner or a guest
   // of the colony (#1301).
-  optional string medical_care = 20;
+  optional rimgovernor.operations.v1.MedicalCare medical_care = 20;
   // Peg-leg control (#1236), for a prisoner of the colony only: it carries a
   // drug addiction (Hediff_Addiction). A prisoner gets no drugs, so an
   // addiction is withdrawal now or soon, until the addiction clears.

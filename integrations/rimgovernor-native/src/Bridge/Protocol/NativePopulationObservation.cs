@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
                 // Medical care cap inputs (#1301): colony prisoners and hosted guests.
                 if (p.IsPrisonerOfColony || (p.HostFaction == player && !p.IsPrisoner && !p.IsSlave))
                 {
-                    if (p.playerSettings != null) person.MedicalCare = p.playerSettings.medCare.ToString();
+                    if (p.playerSettings != null) person.MedicalCare = NativeEnums.Care(p.playerSettings.medCare);
                     person.Conditions = NativePawnDetails.Conditions(p);
                 }
                 if (p.IsPrisonerOfColony)
@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
                     }
                     NativePawnDetails.Surgery(p, health);
                     person.Surgery = health;
-                    if (p.playerSettings != null) person.MedicalCare = p.playerSettings.medCare.ToString();
+                    if (p.playerSettings != null) person.MedicalCare = NativeEnums.Care(p.playerSettings.medCare);
                     // Peg-leg control (#1236): an addiction a prisoner cannot feed.
                     person.Withdrawal = p.health?.hediffSet?.hediffs?.Any(h => h is Hediff_Addiction) == true;
                     var home = p.Faction == null ? null : p.HomeFaction;

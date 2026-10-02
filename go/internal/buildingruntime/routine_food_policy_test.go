@@ -22,7 +22,7 @@ func TestRoutineFoodPolicyReplansRepeatedSettingsAndRoundTrips(t *testing.T) {
 	v.Issues = append(v.Issues, missing("naming"))
 	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), FoodRestriction: &o.FoodRestriction{PolicyId: proto.String("diet"), EligibleDefs: []string{"MealSimple"}}}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
 	for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
-		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill)}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: proto.String("None")})
+		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill)}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: o.Passion_PASSION_NONE.Enum()})
 	}
 	for _, work := range []string{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Firefighter"} {
 		row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String(work), Priority: proto.Int32(1), Disabled: proto.Bool(false)})

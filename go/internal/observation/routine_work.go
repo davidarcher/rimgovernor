@@ -1,9 +1,11 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot) domain.Fact[[]policy.WorkPawn] {
@@ -51,7 +53,7 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 		}
 		w.PolicyInputs = pawnPolicyInputs(s.PolicyInputs)
 		if s.MedicalCare != nil && !hasIssue(s.Issues, "medical_care") {
-			w.MedicalCare = domain.Known(s.GetMedicalCare())
+			w.MedicalCare = domain.Known(bridge.MedicalCareName(s.GetMedicalCare()))
 		}
 		w.Applies = optional(s.WorkApplies)
 		w.Manual = optional(s.ManualWorkPriorities)
@@ -131,7 +133,7 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 	}
 	w.Inspiration = optional(row.Inspiration)
 	if s := row.Settings; s != nil && s.HostilityResponse != nil && !hasIssue(s.Issues, "hostility_response") {
-		w.Hostility = domain.Known(domain.HostilityResponse(s.GetHostilityResponse()))
+		w.Hostility = domain.Known(bridge.HostilityName(s.GetHostilityResponse()))
 	}
 	if s := row.Settings; s != nil && s.SelfTend != nil && !hasIssue(s.Issues, "self_tend") {
 		w.SelfTend = domain.Known(s.GetSelfTend())
@@ -193,9 +195,18 @@ func jobTarget(t *o.TargetRef) domain.Fact[policy.JobTarget] {
 
 // skillPassion normalises native Passion.ToString(): a pawn without passion
 // sends "None", which policy must read as "" (Passion != "" means passionate).
-func skillPassion(p string) string {
-	if p == "None" {
+// skillPassion is the passion name policy reads; no passion is "".
+func skillPassion(p o.Passion) string {
+	if p == o.Passion_PASSION_NONE {
 		return ""
 	}
-	return p
+	return bridge.PassionName(p)
+}
+
+// careName is the MedicalCareCategory name of an optional wire care tier.
+func careName(care *op.MedicalCare) domain.Fact[string] {
+	if care == nil {
+		return domain.Unknown[string]()
+	}
+	return domain.Known(bridge.MedicalCareName(*care))
 }

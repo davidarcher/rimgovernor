@@ -56,7 +56,7 @@ func prisonerProspect(person *o.PopulationPerson) domain.Fact[policy.PrisonerPro
 	}
 	p := policy.PrisonerProspect{Age: bio.GetBiologicalAgeYears(), Health: person.GetHealthSummary(), Incapable: append([]string{}, bio.IncapableWorkTypes...)}
 	for _, s := range bio.Skills {
-		p.Skills = append(p.Skills, policy.PrisonerSkill{Name: s.GetDefinition().GetDefName(), Level: int(s.GetLevel()), Passion: s.GetPassion(), Disabled: s.GetDisabled()})
+		p.Skills = append(p.Skills, policy.PrisonerSkill{Name: s.GetDefinition().GetDefName(), Level: int(s.GetLevel()), Passion: PassionName(s.GetPassion()), Disabled: s.GetDisabled()})
 	}
 	for _, t := range bio.Traits {
 		p.Traits = append(p.Traits, policy.PrisonerTrait{Def: t.GetDefName(), Degree: int(t.GetDegree())})
@@ -142,7 +142,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 		custody = append(custody, custodyRow)
 		if person.GetGuest() && !pawn.GetPrisoner() && !pawn.GetDead() && person.MedicalCare != nil {
 			conditions, life := CareConditions(person.GetConditions())
-			guests = append(guests, policy.CarePatient{ID: policy.PawnID(id), Care: domain.Known(person.GetMedicalCare()), Conditions: conditions, LifeThreatening: life})
+			guests = append(guests, policy.CarePatient{ID: policy.PawnID(id), Care: domain.Known(MedicalCareName(person.GetMedicalCare())), Conditions: conditions, LifeThreatening: life})
 		}
 		if person.GetAdmitted() && !pawn.GetDead() {
 			colony.Colonists++
@@ -185,7 +185,7 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 			f.HarvestGoodwill = domain.Known(int(person.GetHarvestGoodwillChange()))
 		}
 		if person.MedicalCare != nil {
-			f.MedicalCare = domain.Known(person.GetMedicalCare())
+			f.MedicalCare = domain.Known(MedicalCareName(person.GetMedicalCare()))
 		}
 		f.Conditions, f.LifeThreatening = CareConditions(person.GetConditions())
 		f.Executing = person.GetInteraction() == "Execution"

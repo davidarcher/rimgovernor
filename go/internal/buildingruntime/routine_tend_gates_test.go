@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	ops "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -22,7 +23,7 @@ func tendGateRow(id string, mapID int32, patient bool, reachable []string) *o.Pa
 		Health:    &o.PawnHealth{NeedsTend: proto.Bool(patient), Bleeding: proto.Bool(patient), LifeThreatening: proto.Bool(false)},
 		Equipment: &o.PawnEquipment{Armed: proto.Bool(false)},
 		Biography: &o.PawnBiography{Skills: []*o.Skill{{Definition: &o.DefinitionRef{DefName: proto.String("Medicine")}, Level: proto.Int32(8), Disabled: proto.Bool(false)}}},
-		Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), MedicalCare: proto.String("Normal"),
+		Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), MedicalCare: ops.MedicalCare_MEDICAL_CARE_NORMAL_OR_WORSE.Enum(),
 			Work: []*o.WorkSetting{{DefName: proto.String("Doctor"), Priority: proto.Int32(3), Disabled: proto.Bool(false)}}},
 		TendDoctor: &o.PawnTendDoctor{ControlEligible: proto.Bool(true), Spawned: proto.Bool(true), HasDrafter: proto.Bool(true),
 			CapacitiesOk: proto.Bool(true), WorkTypeDisabled: proto.Bool(false), ReachablePawnIds: reachable,

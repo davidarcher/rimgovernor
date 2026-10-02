@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -25,7 +26,7 @@ func TestPawnSettingsBuildsHostilityIntent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := wire.GetPawnSettings()
-	if s.GetPawnId() != "Human1" || s.GetHostilityResponse() != "Flee" {
+	if s.GetPawnId() != "Human1" || s.GetHostilityResponse() != op.HostilityResponse_HOSTILITY_RESPONSE_FLEE {
 		t.Fatalf("%v", wire)
 	}
 }
@@ -66,7 +67,7 @@ func TestPawnSettingsBuildsSelfTendIntent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s := wire.GetPawnSettings(); s.GetPawnId() != "Human1" || !s.GetSelfTend() || s.GetHostilityResponse() != "" {
+	if s := wire.GetPawnSettings(); s.GetPawnId() != "Human1" || !s.GetSelfTend() || s.GetHostilityResponse() != op.HostilityResponse_HOSTILITY_RESPONSE_UNSPECIFIED {
 		t.Fatalf("%v", wire)
 	}
 }
@@ -85,7 +86,7 @@ func TestPawnSettingsBuildsMedicineCarryIntent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s := wire.GetPawnSettings(); s.GetPawnId() != "Human1" || s.GetMedicineCarry() != 0 || s.GetSetting() == nil || s.GetHostilityResponse() != "" {
+	if s := wire.GetPawnSettings(); s.GetPawnId() != "Human1" || s.GetMedicineCarry() != 0 || s.GetSetting() == nil || s.GetHostilityResponse() != op.HostilityResponse_HOSTILITY_RESPONSE_UNSPECIFIED {
 		t.Fatalf("%v", wire)
 	}
 }

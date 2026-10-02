@@ -12,7 +12,7 @@ import (
 // pawn's best skill (#660).
 func TestApparelPolicySkillsBreakRoleTie(t *testing.T) {
 	skill := func(name string, level int32) *o.Skill {
-		return &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Level: proto.Int32(level), Passion: proto.String("None"), Disabled: proto.Bool(false)}
+		return &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Level: proto.Int32(level), Passion: o.Passion_PASSION_NONE.Enum(), Disabled: proto.Bool(false)}
 	}
 	work := func(name string) *o.WorkSetting {
 		return &o.WorkSetting{DefName: proto.String(name), Priority: proto.Int32(2), Disabled: proto.Bool(false)}

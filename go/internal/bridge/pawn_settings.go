@@ -28,7 +28,7 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 		if _, err := domain.NewHostilitySetting(v.Pawn(), v.Hostility()); err != nil {
 			return nil, contract("%v", err)
 		}
-		intent.Setting = &o.PawnSettingsIntent_HostilityResponse{HostilityResponse: string(v.Hostility())}
+		intent.Setting = &o.PawnSettingsIntent_HostilityResponse{HostilityResponse: hostilityWire[v.Hostility()]}
 	case domain.SettingSelfTend:
 		intent.Setting = &o.PawnSettingsIntent_SelfTend{SelfTend: v.SelfTend()}
 	case domain.SettingMedicineCarry:

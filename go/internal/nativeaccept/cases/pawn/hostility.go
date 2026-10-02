@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -86,8 +87,8 @@ func hostility(ctx context.Context, s cases.Session) error {
 	}
 	got := rows[0].GetSettings().GetHostilityResponse()
 	s.Report()["hostility"] = got
-	if got != string(domain.HostilityFlee) {
-		return fmt.Errorf("hostility readback %q, want Flee", got)
+	if got != op.HostilityResponse_HOSTILITY_RESPONSE_FLEE {
+		return fmt.Errorf("hostility readback %v, want Flee", got)
 	}
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // Surgery planner fixture cases (#1170, epic #1160). Each opens on
@@ -82,7 +83,7 @@ func surgeryHarvestCareLimit(ctx context.Context, s cases.Session) error {
 			continue
 		}
 		s.Report()["medical_care"] = person["medicalCare"]
-		if care := na.AsString(person["medicalCare"]); care != "HerbalOrWorse" {
+		if care := na.AsString(person["medicalCare"]); care != op.MedicalCare_MEDICAL_CARE_HERBAL_OR_WORSE.String() {
 			return fmt.Errorf("prisoner %s medical_care %q, want HerbalOrWorse", prisoner, care)
 		}
 		surgery, _ := na.AsMap(person["surgery"])

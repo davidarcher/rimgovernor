@@ -29,7 +29,9 @@ func TestTemperatureRoomsRejectMalformedEvidence(t *testing.T) {
 		},
 		"bed-duplicate": func(v *o.RoomsSnapshot) { v.Rooms[0].Beds = append(v.Rooms[0].Beds, v.Rooms[0].Beds[0]) },
 		"bed-map":       func(v *o.RoomsSnapshot) { v.Rooms[0].Beds[0].Building.MapId = proto.Int32(2) },
-		"bed-status":    func(v *o.RoomsSnapshot) { v.Rooms[0].Beds[0].Status = o.BuildingStatus_BUILDING_STATUS_BLUEPRINT.Enum() },
+		"bed-status": func(v *o.RoomsSnapshot) {
+			v.Rooms[0].Beds[0].Status = o.BuildingStatus_BUILDING_STATUS_BLUEPRINT.Enum()
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := temperatureTestSnapshot()

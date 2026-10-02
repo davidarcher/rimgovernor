@@ -466,7 +466,7 @@ namespace HomeBridge.BridgeTools
                     };
                     NativeHusbandryOperations.HerdFacts(p, state);
                     // Medical care cap inputs (#1301).
-                    if (p.playerSettings != null) state.MedicalCare = p.playerSettings.medCare.ToString();
+                    if (p.playerSettings != null) state.MedicalCare = NativeEnums.Care(p.playerSettings.medCare);
                     state.Bonded = p.relations?.DirectRelations.Any(r => r.def == PawnRelationDefOf.Bond && r.otherPawn != null && !r.otherPawn.Dead) == true;
                     state.Conditions = NativePawnDetails.Conditions(p);
                     // MaintainHerd's training deficit reads this bundle, not

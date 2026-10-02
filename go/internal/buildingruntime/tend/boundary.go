@@ -2,6 +2,7 @@ package tend
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -91,7 +92,7 @@ func NewTendPatientFacts(pawn domain.PawnID, row *n.PawnState, token string) pol
 		}
 	}
 	if settings := row.Settings; settings != nil && !boundary.IssueField(settings.Issues, "medical_care") && settings.MedicalCare != nil {
-		facts.NoCare = domain.Known(settings.GetMedicalCare() == "NoCare")
+		facts.NoCare = domain.Known(settings.GetMedicalCare() == op.MedicalCare_MEDICAL_CARE_NO_CARE)
 	}
 	return facts
 }

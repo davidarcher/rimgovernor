@@ -418,7 +418,7 @@ namespace HomeBridge.BridgeTools
                 foreach(var skill in pawn.skills.skills) {
                     var definition=DefinitionLabel(skill.def.defName,skill.def.skillLabel);
                     if(!definition.HasLabel) row.Issues.Add(Issue("skills.definition.label",Common.UnavailableReason.NotApplicable,"Native skill supplies no label."));
-                    row.Skills.Add(new Obs.Skill {Definition=definition,Level=skill.Level,StoredLevel=skill.levelInt,Passion=skill.passion.ToString(),Disabled=skill.TotallyDisabled});
+                    row.Skills.Add(new Obs.Skill {Definition=definition,Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled});
                 }
             }
             var tags=pawn.CombinedDisabledWorkTags;
@@ -446,8 +446,8 @@ namespace HomeBridge.BridgeTools
             if(settings==null) {
                 row.Issues.Add(Missing("medical_care"));row.Issues.Add(Missing("self_tend"));row.Issues.Add(Missing("hostility_response"));
             } else {
-                row.MedicalCare=settings.medCare.ToString();row.SelfTend=settings.selfTend;
-                if(settings.UsesConfigurableHostilityResponse) row.HostilityResponse=settings.hostilityResponse.ToString();
+                row.MedicalCare=NativeEnums.Care(settings.medCare);row.SelfTend=settings.selfTend;
+                if(settings.UsesConfigurableHostilityResponse) row.HostilityResponse=NativeEnums.Hostility(settings.hostilityResponse);
                 else row.Issues.Add(Issue("hostility_response",Common.UnavailableReason.NotApplicable,"Pawn has no configurable hostility response."));
             }
             row.Issues.Add(Unsupported("medical_care_options","Selectable medical care catalog is not projected."));

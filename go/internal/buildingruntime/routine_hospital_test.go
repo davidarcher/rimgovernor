@@ -65,7 +65,7 @@ func hospitalFixture(t *testing.T) (*RoutineHospitalPlanner, *store.Store, *hosp
 		Health: &o.PawnHealth{NeedsTend: proto.Bool(false), Bleeding: proto.Bool(false), ShouldSeekMedicalRest: proto.Bool(true), HediffCompleteness: hospitalCount(0), HiddenHediffs: proto.Uint32(0)},
 		Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
 	for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
-		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill)}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: proto.String("None")})
+		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill)}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: o.Passion_PASSION_NONE.Enum()})
 	}
 	for _, work := range []string{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Firefighter"} {
 		row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String(work), Priority: proto.Int32(1), Disabled: proto.Bool(false)})

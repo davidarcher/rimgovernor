@@ -65,7 +65,7 @@ func powerFixture(t *testing.T, conduit bool) (*RoutineBuildingPlanner, *store.S
 	}
 	person := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("builder"), MapId: proto.Int32(0)}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}, {Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}}
 	for _, skill := range skills {
-		person.Biography.Skills = append(person.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill.Name)}, Level: proto.Int32(int32(skill.Level)), Passion: proto.String(skill.Passion), Disabled: proto.Bool(false)})
+		person.Biography.Skills = append(person.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill.Name)}, Level: proto.Int32(int32(skill.Level)), Passion: map[string]o.Passion{"": o.Passion_PASSION_NONE, "None": o.Passion_PASSION_NONE, "Minor": o.Passion_PASSION_MINOR, "Major": o.Passion_PASSION_MAJOR}[skill.Passion].Enum(), Disabled: proto.Bool(false)})
 	}
 	for _, w := range assignment.Assignments[0].Priorities {
 		person.Settings.Work = append(person.Settings.Work, &o.WorkSetting{DefName: proto.String(string(w.Work)), Priority: proto.Int32(int32(w.Priority)), Disabled: proto.Bool(w.Disabled)})

@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	ops "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"testing"
 	"time"
 
@@ -29,9 +30,9 @@ func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
 			case "extra-settings":
 				settings.FollowDrafted = proto.Bool(true)
 			case "care":
-				settings.MedicalCare = proto.String("NormalOrWorse")
+				settings.MedicalCare = ops.MedicalCare_MEDICAL_CARE_NORMAL_OR_WORSE.Enum()
 				settings.SelfTend = proto.Bool(true)
-				settings.HostilityResponse = proto.String("Flee")
+				settings.HostilityResponse = ops.HostilityResponse_HOSTILITY_RESPONSE_FLEE.Enum()
 			}
 			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				var outer struct {

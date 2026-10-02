@@ -37,15 +37,7 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(p => p.thingIDNumber);
         }
 
-        private static MedicalCareCategory? Care(Operations.MedicalCare care) => care switch
-        {
-            Operations.MedicalCare.NoCare => MedicalCareCategory.NoCare,
-            Operations.MedicalCare.NoMedicine => MedicalCareCategory.NoMeds,
-            Operations.MedicalCare.HerbalOrWorse => MedicalCareCategory.HerbalOrWorse,
-            Operations.MedicalCare.NormalOrWorse => MedicalCareCategory.NormalOrWorse,
-            Operations.MedicalCare.Best => MedicalCareCategory.Best,
-            _ => null
-        };
+        private static MedicalCareCategory? Care(Operations.MedicalCare care) => NativeEnums.Care(care);
 
         private static Common.Failure? Resolve(Operations.PawnSettingsIntent? intent, Common.ObservationContext context,
             out Pawn? pawn, out HostilityResponseMode mode, out MedicalCareCategory care)
@@ -77,9 +69,12 @@ namespace HomeBridge.BridgeTools
                 return ResolveCarry(intent, context, out pawn, out _);
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only the hostility_response, self_tend, nickname, medicine_carry and medical_care settings are supported.");
-            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse
-                && (!Enum.TryParse(intent.HostilityResponse, false, out mode) || !Enum.IsDefined(typeof(HostilityResponseMode), mode)))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hostility response must be Ignore, Attack or Flee.");
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse)
+            {
+                if (NativeEnums.Hostility(intent.HostilityResponse) is not HostilityResponseMode parsed)
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hostility response must be Ignore, Attack or Flee.");
+                mode = parsed;
+            }
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(id);
             if (pawn == null || pawn.Dead || pawn.playerSettings == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living colony pawn with player settings is not spawned on this map.");

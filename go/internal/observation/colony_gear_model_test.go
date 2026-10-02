@@ -139,7 +139,7 @@ func TestColonyGearLoadoutModelUnknownWithoutInputs(t *testing.T) {
 	for name, change := range map[string]func(*o.GearSnapshot){
 		"no model":   func(g *o.GearSnapshot) { g.Pawns[0].LoadoutModel = nil },
 		"no role":    func(g *o.GearSnapshot) { g.Pawns[0].ApparelPolicy = nil },
-				"no comfort": func(g *o.GearSnapshot) { g.Pawns[0].ComfortableMinC = nil },
+		"no comfort": func(g *o.GearSnapshot) { g.Pawns[0].ComfortableMinC = nil },
 		"slot collision": func(g *o.GearSnapshot) {
 			hat := gearModelOption("hat", "Apparel_Tuque", "worn", []string{"Overhead"}, []string{"UpperHead"}, 0, 0, 0, nil, nil)
 			mask := gearModelOption("mask", "Apparel_ClothMask", "worn", []string{"Overhead"}, []string{"Mouth"}, 0, 0, 0, nil, nil)

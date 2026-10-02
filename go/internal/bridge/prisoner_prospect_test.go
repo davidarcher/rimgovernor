@@ -47,7 +47,7 @@ func TestPopulationDecodesHarvestFacts(t *testing.T) {
 // MaintainPopulation weighs it against (#1036).
 func TestPopulationDecodesProspectAndColony(t *testing.T) {
 	skill := func(name string, level int32) *o.Skill {
-		return &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Level: proto.Int32(level), Passion: proto.String("Major")}
+		return &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Level: proto.Int32(level), Passion: o.Passion_PASSION_MAJOR.Enum()}
 	}
 	prisoner := prisonerPerson("p", "MaintainOnly")
 	prisoner.Will, prisoner.IdeoId, prisoner.WildMan, prisoner.HealthSummary = proto.Float64(3), proto.String("Ideo_2"), proto.Bool(false), proto.Float64(0.9)

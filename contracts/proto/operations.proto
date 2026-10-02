@@ -108,6 +108,8 @@ enum ThingDesignation {
   THING_DESIGNATION_STRIP = 7;
 }
 enum PowerSetting { POWER_SETTING_UNSPECIFIED = 0; POWER_SETTING_ON = 1; POWER_SETTING_OFF = 2; }
+// HostilityResponse is vanilla HostilityResponseMode.
+enum HostilityResponse { HOSTILITY_RESPONSE_UNSPECIFIED = 0; HOSTILITY_RESPONSE_IGNORE = 1; HOSTILITY_RESPONSE_ATTACK = 2; HOSTILITY_RESPONSE_FLEE = 3; }
 enum MedicalCare {
   MEDICAL_CARE_UNSPECIFIED = 0; MEDICAL_CARE_NO_CARE = 1; MEDICAL_CARE_NO_MEDICINE = 2;
   MEDICAL_CARE_HERBAL_OR_WORSE = 3; MEDICAL_CARE_NORMAL_OR_WORSE = 4; MEDICAL_CARE_BEST = 5;
@@ -302,8 +304,8 @@ message Action {
   }
 }
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
-// #1292): exactly one arm per intent. hostility_response is a
-// HostilityResponseMode name (Ignore, Attack, Flee); native refuses a
+// #1292): exactly one arm per intent. hostility_response is the
+// pawn's HostilityResponseMode; native refuses a
 // violence-incapable pawn set to Attack. A setting that already holds
 // applies again. Evidence is a SettingsEffect on the pawn with the arm's
 // field. self_tend (#1305) is playerSettings.selfTend, refused for a pawn
@@ -321,7 +323,7 @@ message Action {
 message PawnSettingsIntent {
   optional string pawn_id = 1;
   oneof setting {
-    string hostility_response = 2;
+    HostilityResponse hostility_response = 2;
     bool self_tend = 3;
     string reading_policy = 4;
     int32 medicine_carry = 5;

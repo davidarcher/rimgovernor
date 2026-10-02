@@ -3,7 +3,6 @@ package bridge
 import (
 	"context"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -93,12 +92,12 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 			return err
 		}
 	}
-	if care && s.HostilityResponse != nil && !domain.HostilityResponse(s.GetHostilityResponse()).Valid() {
+	if care && s.HostilityResponse != nil && HostilityName(s.GetHostilityResponse()) == "" {
 		return contract("invalid hostility response")
 	}
 	if care && s.MedicalCare != nil {
-		if err := validID(s.GetMedicalCare()); err != nil {
-			return err
+		if MedicalCareName(s.GetMedicalCare()) == "" {
+			return contract("invalid medical care")
 		}
 	}
 	if schedule {
