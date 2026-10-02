@@ -12,9 +12,9 @@ param(
 $ErrorActionPreference = 'Continue'
 New-Item -ItemType Directory -Force $Out | Out-Null
 $names = 'RimWorldWin64|rimgovernor|acceptance'
-function Clean([string]$s) { ($s -replace '(?i)[a-z]:[\\/][^\s"<>]*', '[runner-path]') }
+function Get-CleanText([string]$s) { ($s -replace '(?i)[a-z]:[\\/][^\s"<>]*', '[runner-path]') }
 function Save([string]$name, [string[]]$lines) {
-    $text = ($lines | ForEach-Object { Clean $_ }) -join "`n"
+    $text = ($lines | ForEach-Object { Get-CleanText $_ }) -join "`n"
     if ($text.Length -gt 262144) { $text = $text.Substring($text.Length - 262144) }
     Set-Content -LiteralPath (Join-Path $Out $name) -Value $text -Encoding utf8
 }
