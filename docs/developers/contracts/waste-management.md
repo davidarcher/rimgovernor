@@ -26,7 +26,7 @@ Forbidden items, quest-tagged objects, packed buildings, and native dissolution,
 gas-release or explosive hazards are protected. Hazardous waste requires specialized
 containment; ordinary outdoor dumping cannot satisfy that requirement.
 
-`WasteIntent` on Actions/Apply (#940) issues one native hauling WorkGiver job;
+`GiveJobIntent` HaulWaste on Actions/Apply (#940, #1351) issues one native hauling WorkGiver job;
 applied means ordered, and the next waste census reads where the item is. It refuses
 unavailable, drafted or player-directed pawns, disabled hauling, unsafe paths,
 reservations and incompatible native filters. It preserves existing storage settings

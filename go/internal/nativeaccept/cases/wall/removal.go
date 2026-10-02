@@ -1,4 +1,4 @@
-// The wall/removal case proves the RemoveWallIntent Actions/Apply arm (#989)
+// The wall/removal case proves the wall_upgrade-guarded Designate on Actions/Apply (#989, #1351)
 // on a loaded save: NativeWallRemovalOperations resolves the guarded
 // demolition site from the wall at the named cell, refuses a wall without
 // completed stone backups, applies the original's demolition once same-stuff
@@ -88,7 +88,7 @@ func colonistWalls(ctx context.Context, h *na.Harness, scope map[string]any, lab
 func init() {
 	cases.Register(cases.Case{
 		Name: "wall/removal",
-		Scope: "Native RemoveWallIntent: site resolution from the wall at a cell, refusal without " +
+		Scope: "Native wall_upgrade-guarded Designate: site resolution from the wall at a cell, refusal without " +
 			"backups, guarded demolition of the original and of a backup by real supervised native deconstruct jobs, resend idempotency.",
 		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.LabStart()},
 		Budget: 5 * time.Minute,
@@ -185,14 +185,14 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 		_, err := clock.Acquire(ctx, label)
 		return err
 	}
-	// apply sends one RemoveWallIntent for the wall at cell under key and
+	// apply sends one wall_upgrade-guarded Designate for the wall at cell under key and
 	// returns its ActionResult.
 	apply := func(label, key string, cell map[string]any, expected string) (map[string]any, error) {
-		intent := map[string]any{"cell": cell}
+		intent := map[string]any{"designation": "THING_DESIGNATION_DECONSTRUCT", "cell": cell, "guard": "DESIGNATION_GUARD_WALL_UPGRADE"}
 		if expected != "" {
-			intent["expectedWallId"] = expected
+			intent["target"] = map[string]any{"id": expected}
 		}
-		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": key, "removeWall": intent}}})
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": key, "designate": intent}}})
 		if err != nil {
 			return nil, err
 		}

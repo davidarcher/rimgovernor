@@ -15,7 +15,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // WasteIntent on Actions/Apply (#940): order one undrafted colonist to
+    // GiveJobIntent job HaulWaste (#940, #1351): order one undrafted colonist to
     // haul one exposed waste item (spoiled, a rotting corpse, or one the
     // caller declares unwanted) to a separated dirty outdoor stockpile or an
     // empty grave, with the job the game's own Hauling WorkGiver builds.
@@ -121,33 +121,27 @@ namespace HomeBridge.BridgeTools
             pawn.carryTracker?.CarriedThing == thing || pawn.CurJob != null && pawn.CurJob.targetA.Thing == thing
                 && (pawn.CurJob.def == JobDefOf.HaulToCell || pawn.CurJob.def == JobDefOf.HaulToContainer);
 
-        private static Common.Failure? Resolve(Operations.WasteIntent? intent, Common.ObservationContext context, out Pawn? pawn, out Thing? thing)
+        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Thing? thing)
         {
-            pawn = null; thing = null;
-            if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.ThingId) || intent.PawnId == intent.ThingId)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste haul requires an exact pawn id and item id.");
-            if (!NativePawnControlState.IsReady)
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+            thing = null;
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var observed);
+            if (failure != null) return failure;
             var map = ProtoBoundary.LoadedMap(context);
-            var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
-            var foundPawn = map.mapPawns.FreeColonistsSpawned.ById(intent.PawnId);
-            if (foundPawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
-            var control = NativePawnControlState.Observe(identity, foundPawn, out var observed);
-            if (control != NativePawnControlResult.Ready || observed == null) return NativeDraftProtocol.Failure(control, context);
-            if (observed.Drafted || !observed.Eligible)
+            var foundPawn = pawn!;
+            if (!foundPawn.IsColonist || observed!.Drafted || !observed.Eligible)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste haul requires an eligible undrafted pawn.");
             var carried = foundPawn.carryTracker?.CarriedThing;
-            var foundThing = carried != null && RefIndex.Is(carried, intent.ThingId) ? carried
-                : RefIndex.Thing(map, intent.ThingId);
+            var foundThing = carried != null && RefIndex.Is(carried, intent.TargetId) ? carried
+                : RefIndex.Thing(map, intent.TargetId);
             if (foundThing == null || foundThing.Destroyed) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact waste item is unavailable.");
-            pawn = foundPawn; thing = foundThing;
-            if (Hauling(pawn, thing)) return null;
-            var unwanted = intent.Unwanted ? Set(new[] { intent.ThingId }) : Set(new string[0]);
+            thing = foundThing;
+            if (Hauling(foundPawn, thing)) return null;
+            var unwanted = intent.Unwanted ? Set(new[] { intent.TargetId }) : Set(new string[0]);
             var protection = Protection(thing, false);
             if (protection != null || Kind(thing, unwanted) == null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Item is protected or not eligible waste: " + (protection ?? "not eligible waste"));
             if (Stored(thing)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Already relocated; no further haul needed.");
-            if (FindJob(pawn, thing, false) == null)
+            if (FindJob(foundPawn, thing, false) == null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No native hauling job with an eligible separated storage or burial destination is available.");
             return null;
         }
@@ -162,9 +156,9 @@ namespace HomeBridge.BridgeTools
             }
         };
 
-        internal static Common.Failure? Validate(Operations.WasteIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.WasteIntent? intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var thing);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
@@ -174,11 +168,5 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("The pawn did not take the waste job.");
             return Evidence(pawn, thing!, job, true);
         }
-    }
-
-    internal sealed class WasteActionHandler : IActionHandler
-    {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeWasteOperations.Validate(action.Waste, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeWasteOperations.Apply(action.Waste, context);
     }
 }

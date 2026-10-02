@@ -13,6 +13,12 @@ namespace HomeBridge.BridgeTools
     internal static class DrillingGuard
     {
         private static bool patched;
+        internal static DrillingState State()
+        {
+            var state = Current.Game.GetComponent<DrillingState>();
+            if (state == null) { state = new DrillingState(Current.Game); Current.Game.components.Add(state); }
+            return state;
+        }
         internal static void Install()
         {
             if (patched) return;
@@ -27,7 +33,7 @@ namespace HomeBridge.BridgeTools
             patched = true;
         }
         private static DrillingRecord? Record(CompDeepDrill comp) => comp.parent.Spawned
-            ? MiningGuard.State().Drills.FirstOrDefault(r => r.MapId == comp.parent.Map.uniqueID
+            ? State().Drills.FirstOrDefault(r => r.MapId == comp.parent.Map.uniqueID
                 && r.ThingId == comp.parent.ThingID && r.Definition == comp.parent.def.defName
                 && r.X == comp.parent.Position.x && r.Z == comp.parent.Position.z)
             : null;
@@ -62,11 +68,11 @@ namespace HomeBridge.BridgeTools
                 record.Recovered += Math.Max(0, Stock(__instance.parent.Map, record.Resource) - __state);
         }
         private static void BeforeBlueprint(Blueprint __instance, out DrillingRecord __state)
-        { __state = MiningGuard.State().Drills.FirstOrDefault(r => r.PendingId == __instance.ThingID && r.MapId == __instance.Map?.uniqueID); }
+        { __state = State().Drills.FirstOrDefault(r => r.PendingId == __instance.ThingID && r.MapId == __instance.Map?.uniqueID); }
         private static void AfterBlueprint(bool __result, Thing createdThing, DrillingRecord __state)
         { if (__result && __state != null && createdThing is Frame) __state.PendingId = createdThing.ThingID; }
         private static void BeforeFrame(Frame __instance, out DrillingRecord __state)
-        { __state = MiningGuard.State().Drills.FirstOrDefault(r => r.PendingId == __instance.ThingID && r.MapId == __instance.Map?.uniqueID); }
+        { __state = State().Drills.FirstOrDefault(r => r.PendingId == __instance.ThingID && r.MapId == __instance.Map?.uniqueID); }
         private static void AfterFrame(DrillingRecord __state)
         {
             if (__state == null) return;
@@ -89,7 +95,7 @@ namespace HomeBridge.BridgeTools
                     || DefDatabase<ThingDef>.GetNamedSilentFail(row[3]) == null
                     || !new IntVec3(x, 0, z).InBounds(map) || records.Any(r => r.X == x && r.Z == z))
                     throw new ArgumentException("Invalid or duplicate bounded drilling facility");
-                var prior = MiningGuard.State().Drills.FirstOrDefault(r => r.MapId == map.uniqueID && r.X == x && r.Z == z);
+                var prior = State().Drills.FirstOrDefault(r => r.MapId == map.uniqueID && r.X == x && r.Z == z);
                 if (prior != null && (prior.Resource != row[3] || prior.Definition != row[0]))
                     throw new ArgumentException("Retained extraction facility requires inspection");
                 var existing = new IntVec3(x, 0, z).GetThingList(map).FirstOrDefault(t => t.TryGetComp<CompDeepDrill>() != null
@@ -101,13 +107,13 @@ namespace HomeBridge.BridgeTools
                     ThingId = existing?.ThingID, PendingId = pending?.ThingID });
             }
             if (records.Count > 32) throw new ArgumentException("Bounded drilling facility limit exceeded");
-            if (MiningGuard.State().Drills.Count + records.Count(r => !MiningGuard.State().Drills.Any(p =>
+            if (State().Drills.Count + records.Count(r => !State().Drills.Any(p =>
                 p.MapId == r.MapId && p.X == r.X && p.Z == r.Z)) > 256) throw new ArgumentException("Native drilling ownership capacity requires inspection");
             return records;
         }
         internal static void Apply(Map map, List<DrillingRecord> records)
         {
-            var retained = MiningGuard.State().Drills;
+            var retained = State().Drills;
             foreach (var prior in retained.Where(r => r.MapId == map.uniqueID)) prior.Target = 0;
             foreach (var record in records)
             {

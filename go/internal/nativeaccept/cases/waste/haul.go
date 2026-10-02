@@ -1,5 +1,5 @@
 // The waste/haul case exercises the native waste containment vertical
-// (MaintainWaste, issue #27) through WasteIntent on Actions/Apply (#940,
+// (MaintainWaste, issue #27) through GiveJobIntent HaulWaste on Actions/Apply (#940,
 // NativeWasteOperations.cs). A genuinely unwanted item (a disposable
 // WoodLog) is hauled by a real native hauling WorkGiver job, issued to an
 // undrafted colonist, into a player-designated dirty outdoor stockpile;
@@ -27,7 +27,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "waste/haul",
-		Scope: "WasteIntent (MaintainWaste) dispatch: a genuinely unwanted item is actually " +
+		Scope: "GiveJobIntent HaulWaste (MaintainWaste) dispatch: a genuinely unwanted item is actually " +
 			"hauled by a real native hauling WorkGiver job into a real player-designated dirty stockpile, " +
 			"forbidden-item protection refusal, real position change observed via native ticks and independent " +
 			"cell re-reads (not just an applied result), and key replay idempotency.",
@@ -126,7 +126,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	apply := func(key, thing string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, key, "operations_apply", map[string]any{"identity": identity,
-			"actions": []any{map[string]any{"key": key, "waste": map[string]any{"pawnId": pawnID, "thingId": thing, "unwanted": true}}}})
+			"actions": []any{map[string]any{"key": key, "giveJob": map[string]any{"pawn": map[string]any{"id": pawnID}, "job": "HaulWaste", "targets": []any{map[string]any{"id": thing}}, "options": map[string]any{"unwanted": true}}}}})
 		if err != nil {
 			return nil, err
 		}

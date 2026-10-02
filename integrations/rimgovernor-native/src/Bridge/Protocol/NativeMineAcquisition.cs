@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
         // (action-contracts.md): ResourceAcquisitionTools.Eligible plus the
         // request's cell, resource and designation rules, one rule at a time;
         // the excavation-geometry rule reports MiningBlocker's own text.
-        internal static bool Prepare(Operations.AcquireIntent command, Common.ObservationContext context, out Mineable? rock, out Common.Failure failure)
+        internal static bool Prepare(AcquireRequest command, Common.ObservationContext context, out Mineable? rock, out Common.Failure failure)
         {
             rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mining requires an exact safe mineable snapshot, an eligible miner and safe excavation geometry.");
             var map = ProtoBoundary.LoadedMap(context);
@@ -59,14 +59,11 @@ namespace HomeBridge.BridgeTools
             rock = found;
             return true;
         }
-        // Guard registers the MiningGuard record of a rock about to be
-        // designated, which the guard keeps and reports as it is mined.
-        internal static void Guard(Mineable rock)
-        {
-            MiningGuard.Install();
-            MiningGuard.State().Records.Add(new MiningRecord { ThingId = rock.ThingID, SourceId = rock.ThingID,
-                Definition = rock.def.defName, Resource = rock.def.building.mineableThing.defName, MapId = rock.Map.uniqueID,
-                X = rock.Position.x, Z = rock.Position.z, Started = Find.TickManager.TicksGame });
-        }
+        // Guard opens the acquisition-guarded Mine record of a rock about to
+        // be designated: the guard re-checks MiningBlocker before each pick
+        // and follows a mined cell that opens protected space with a wall.
+        internal static void Guard(Mineable rock) => NativeDesignationGuards.Add(new GuardedDesignation {
+            Id = "designation-" + Guid.NewGuid().ToString("N"), Guard = GuardNames.Acquisition, Designation = DesignationDefOf.Mine.defName,
+            ExpectedDef = rock.def.defName, MapId = rock.Map.uniqueID, X = rock.Position.x, Z = rock.Position.z });
     }
 }

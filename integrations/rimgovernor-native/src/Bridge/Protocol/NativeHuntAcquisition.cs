@@ -155,7 +155,7 @@ namespace HomeBridge.BridgeTools
         // the controller planned the animal, a hint only: the hunt follows
         // the animal by identity wherever it is on the map (#321), and the
         // hunter rule still bounds food prey to 100 cells.
-        internal static bool Prepare(Operations.AcquireIntent command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
+        internal static bool Prepare(AcquireRequest command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
         {
             prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot, enabled hunter, butcher bill (food prey) and fewer than two outstanding hunts.");
             var map = ProtoBoundary.LoadedMap(context);

@@ -64,7 +64,7 @@ namespace HomeBridge.BridgeTools
         // (action-contracts.md): the conjunction is Eligible plus the
         // request's own cell, resource and designation rules, evaluated one
         // rule at a time so a refusal names the fact that moved.
-        internal static bool Prepare(Operations.AcquireIntent command, Common.ObservationContext context, out Plant? plant, out Common.Failure failure)
+        internal static bool Prepare(AcquireRequest command, Common.ObservationContext context, out Plant? plant, out Common.Failure failure)
         {
             plant = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Acquisition requires an exact safe mature wild plant snapshot.");
             var map = ProtoBoundary.LoadedMap(context);
@@ -87,10 +87,20 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // AcquireIntent on Actions/Apply (#1046): the plant harvest or cut, hunt
-    // or mine designation on one census source, checked live by the same
-    // per-kind Prepare rules; with withdraw, that designation removed (the
-    // planner's stall withdraw; a hunter already on the prey is stopped).
+    // One acquisition request: the census source, its resource and cell.
+    internal sealed class AcquireRequest
+    {
+        internal string SourceId = "", ResourceDefName = "";
+        internal Common.Cell Cell = new Common.Cell();
+        internal bool Withdraw;
+    }
+
+    // The acquisition guard's resolver (#1046, #1351): a Designate of
+    // HARVEST_PLANT, HUNT or MINE on one census source (target, cell,
+    // expected_def the resource), checked live by the per-kind Prepare
+    // rules; with withdraw, that designation removed (the planner's stall
+    // withdraw; a hunter already on the prey is stopped, a plant's CutPlant
+    // goes too).
     // A source already in the requested state applies again, and a withdraw
     // of a source that is gone applies too: nothing is designated. Applied
     // means ordered; the next census reads progress.
@@ -98,9 +108,16 @@ namespace HomeBridge.BridgeTools
     {
         private const string Kind = "Acquire";
 
-        private static bool Valid(Operations.AcquireIntent intent) => ProtoBoundary.IsIdentifier(intent.SourceId)
-            && intent.HasResourceDefName && ProtoBoundary.IsIdentifier(intent.ResourceDefName)
-            && intent.Cell != null && intent.Cell.HasX && intent.Cell.HasZ && intent.Cell.X >= 0 && intent.Cell.Z >= 0;
+        private static AcquireRequest? Request(Operations.DesignateIntent intent) =>
+            intent.Target != null && ProtoBoundary.IsIdentifier(intent.Target.Id) && intent.HasExpectedDef && ProtoBoundary.IsIdentifier(intent.ExpectedDef)
+            && intent.Cell != null && intent.Cell.HasX && intent.Cell.HasZ && intent.Cell.X >= 0 && intent.Cell.Z >= 0
+            && !intent.HasThingId && intent.ClearedGround.Count == 0 && !intent.ReplaceWithWall
+                ? new AcquireRequest { SourceId = intent.Target.Id, ResourceDefName = intent.ExpectedDef, Cell = intent.Cell, Withdraw = intent.Withdraw } : null;
+
+        // The designation a source takes: hunt an animal, mine a rock,
+        // harvest (or chop) a plant.
+        private static Operations.ThingDesignation DesignationOf(Thing? source) => source is Pawn ? Operations.ThingDesignation.Hunt
+            : source is Mineable ? Operations.ThingDesignation.Mine : Operations.ThingDesignation.HarvestPlant;
 
         // Source is the live thing the intent names: a mineable, a plant or an
         // animal, found by identity.
@@ -110,12 +127,15 @@ namespace HomeBridge.BridgeTools
 
         private static bool Designated(Thing thing) => thing is Pawn prey ? NativeHuntAcquisition.Designated(prey) : ResourceAcquisitionTools.Designated(thing);
 
-        private static Common.Failure? Resolve(Operations.AcquireIntent? intent, Common.ObservationContext context, out Thing? source)
+        private static Common.Failure? Resolve(Operations.DesignateIntent designate, Common.ObservationContext context, out AcquireRequest? intent, out Thing? source)
         {
             source = null;
-            if (intent == null || !Valid(intent)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Acquire requires an exact source, its resource and a cell.");
+            intent = Request(designate);
+            if (intent == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The acquisition guard requires an exact target, its resource as expected_def and a cell.");
             var map = ProtoBoundary.LoadedMap(context);
             source = Source(map, intent.SourceId);
+            if (source != null && DesignationOf(source) != designate.Designation)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The source takes the " + DesignationOf(source) + " designation.");
             if (intent.Withdraw || source != null && source.Spawned && Designated(source)) return null;
             Common.Failure failure;
             var ok = source is Pawn ? NativeHuntAcquisition.Prepare(intent, context, out _, out failure)
@@ -124,11 +144,11 @@ namespace HomeBridge.BridgeTools
             return ok ? null : failure;
         }
 
-        internal static Common.Failure? Validate(Operations.AcquireIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _);
+        internal static Common.Failure? Validate(Operations.DesignateIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.AcquireIntent? intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.DesignateIntent designate, Common.ObservationContext context)
         {
-            var failure = Resolve(intent, context, out var source);
+            var failure = Resolve(designate, context, out var intent, out var source);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             var live = source != null && source.Spawned && !source.Destroyed;
             if (intent!.Withdraw)
@@ -153,11 +173,5 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Acquisition = new Receipts.AcquisitionEffect { SourceId = intent.SourceId, ResourceDef = intent.ResourceDefName,
                 Cell = intent.Cell.Clone(), Designated = live && Designated(source!) } };
         }
-    }
-
-    internal sealed class AcquireActionHandler : IActionHandler
-    {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAcquire.Validate(action.Acquire, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAcquire.Apply(action.Acquire, context);
     }
 }

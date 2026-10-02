@@ -7,7 +7,7 @@ import (
 // validateColonyWaste validates the generic per-tick waste census embedded in
 // ColonyFactsSnapshot, mirroring validateDirectUpkeep's entity shape: each
 // row's Thing carries an id, def name, map and cell but never a Label or
-// Snapshot: WasteIntent names the item by id and native checks it live.
+// Snapshot: GiveJobIntent HaulWaste names the item by id and native checks it live.
 func validateColonyWaste(v *o.WasteReply, size *o.MapSize, mapID int32) error {
 	if v == nil {
 		return nil

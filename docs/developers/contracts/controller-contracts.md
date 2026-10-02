@@ -265,7 +265,7 @@ bounded refueling, structural repair and breakdown-repair jobs through native
 WorkGivers. `Observations.ReadRecovery` observes exact building health, fuel, breakdown
 and electrical state. Native definitions that do not use hit points, including
 sleeping and butcher spots, do not require structural repair; unknown definitions
-retain damage risk. A `RecoverIntent` on Actions/Apply preserves work permissions, allowed
+retain damage risk. A `GiveJobIntent` service job (Repair, FixBrokenDownBuilding, Refuel) on Actions/Apply preserves work permissions, allowed
 areas, forbidden supplies, reservations and player-forced jobs. Hands previews
 again at dispatch; `service_recovered` requires fresh target health, breakdown or
 fuel evidence. Missing targets and interrupted labor never count as completion.

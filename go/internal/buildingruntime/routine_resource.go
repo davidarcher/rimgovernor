@@ -77,7 +77,7 @@ type RoutineResourceResult struct {
 	// -- against the second, independently-registered mine-acquisition
 	// vertical; any other selected method is still surfaced here for
 	// observability only, since only mine sources carry the cell
-	// this vertical's AcquireIntent needs. A native read failure
+	// this vertical's acquisition Designate needs. A native read failure
 	// here is swallowed rather than propagated, since the bench/recipe
 	// outcome above already stands on its own.
 	Sources []policy.ResourceSource
@@ -753,7 +753,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 // dispatch needs, since a mined resource can never appear in the generic
 // vertical's AcquisitionFacts census. Only a mine
 // method source carries the cell the
-// AcquireIntent needs (policy.SelectResourceSources populates them for
+// acquisition Designate needs (policy.SelectResourceSources populates them for
 // "mine" rows only); any other selected method is left to the caller's
 // observability-only Sources reporting. The caller only reaches this once
 // materialStorageZoneFallback reports handled=false, i.e. either no mine

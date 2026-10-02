@@ -15,7 +15,7 @@ import (
 // policy.SelectResourceSources needs it. A "mine" row now carries its exact
 // Cell and a CAS snapshot Token (NativeResourceSourcesTool.Project populates
 // ResourceSource.source_snapshot for Mineable rows only, via NativeMineAcquisition),
-// since an AcquireIntent can designate a mined source
+// since an acquisition Designate can designate a mined source
 // (NativeAcquire on Actions/Apply). Harvest/hunt rows still carry neither --
 // they remain reachable only through the AcquisitionFacts census path. A
 // caller dispatching acquisition against a selected source must still

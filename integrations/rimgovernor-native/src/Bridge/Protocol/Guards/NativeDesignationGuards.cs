@@ -19,9 +19,10 @@ namespace HomeBridge.BridgeTools
         internal IntVec3 Cell;
         internal Thing? Target;
         internal HashSet<IntVec3>? Ground;
+        internal WallRemovalRecord? Wall;
     }
 
-    // The game's named tick guards (#1350) and the hooks that hold guarded
+    // The game's named tick guards (#1350, #1351) and the hooks that hold guarded
     // designations to them. Admission runs Registry.Admit; the deconstruct
     // and mine job hooks re-check every open GuardState record before the
     // work lands: a failed check drops the designation and ends the job, a
@@ -32,7 +33,9 @@ namespace HomeBridge.BridgeTools
         internal static readonly GuardRegistry<GuardSubject> Registry = new GuardRegistry<GuardSubject>()
             .Register(GuardNames.Enclosure, s => s.Target is Building b ? Enclosure(b, s.Ground) : "The enclosure guard holds a building.",
                 s => s.Target is Building b ? RoofWait(b, s.Ground) : null)
-            .Register(GuardNames.MineSafety, MineSafety);
+            .Register(GuardNames.MineSafety, MineSafety)
+            .Register(GuardNames.Acquisition, s => s.Target is Mineable rock ? ResourceAcquisitionTools.MiningBlocker(rock, s.Map) : null)
+            .Register(GuardNames.WallUpgrade, s => s.Wall == null ? "The wall_upgrade guard holds a wall-upgrade site." : WallUpgradeSafety.Check(s.Wall));
 
         internal static string? Name(Operations.DesignationGuard guard)
         {
@@ -40,6 +43,8 @@ namespace HomeBridge.BridgeTools
             {
                 case Operations.DesignationGuard.Enclosure: return GuardNames.Enclosure;
                 case Operations.DesignationGuard.MineSafety: return GuardNames.MineSafety;
+                case Operations.DesignationGuard.WallUpgrade: return GuardNames.WallUpgrade;
+                case Operations.DesignationGuard.Acquisition: return GuardNames.Acquisition;
                 default: return null;
             }
         }
@@ -102,7 +107,7 @@ namespace HomeBridge.BridgeTools
                     .Where(c => c.InBounds(target.Map)).Select(c => c.GetRoom(target.Map)).OfType<Room>().ToList();
                 bool Enclosed(Room r) => r.ProperRoom && !r.TouchesMapEdge;
                 if (rooms.Any(Enclosed) && !rooms.All(Enclosed))
-                    return "Enclosing colony walls require guarded RemoveWall.";
+                    return "Enclosing colony walls require the wall_upgrade guard.";
             }
             if (!target.def.holdsRoof) return null;
             // The roof the cleared rooms still carry comes off first (RoofWait).
@@ -139,7 +144,7 @@ namespace HomeBridge.BridgeTools
             if (map == null) return null;
             var cell = CellOf(r);
             Thing? target = r.Designation == DesignationDefOf.Mine.defName ? ExcavationTools.RockAt(cell, map) : r.ThingId != null ? RefIndex.Thing(map, r.ThingId) : null;
-            return new GuardSubject { Map = map, Cell = cell, Target = target, Ground = r.Ground == null ? null : new HashSet<IntVec3>(r.Ground) };
+            return new GuardSubject { Map = map, Cell = cell, Target = target, Ground = r.Ground == null ? null : new HashSet<IntVec3>(r.Ground), Wall = r.Wall };
         }
 
         // Hold is the in-progress re-check: true holds the job off the work.
@@ -271,7 +276,10 @@ namespace HomeBridge.BridgeTools
         }
         private static void AfterPick(Thing target, GuardedDesignation? __state)
         {
-            if (__state != null && target.Destroyed) { __state.Finished = Find.TickManager.TicksGame; __state.Cancelled = false; }
+            if (__state == null || !target.Destroyed) return;
+            __state.Finished = Find.TickManager.TicksGame; __state.Cancelled = false;
+            // An acquisition mine that opens protected colony space is walled (#1133).
+            if (__state.Guard == GuardNames.Acquisition && MapOf(__state) is Map map) ResourceAcquisitionTools.ReplaceWall(CellOf(__state), map);
         }
     }
 }

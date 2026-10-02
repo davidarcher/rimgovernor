@@ -49,76 +49,28 @@ frame or building standing with its definition, stuff, anchor and rotation
 `ConstructionLineageState` survives only as an empty stand-in so older saves
 load; its records are dropped.
 
-## Mining and drilling
+## Guarded designations
 
-Sources: [saved types/rebind](../integrations/rimgovernor-native/src/Runtime/Persistence/MiningState.cs),
-[mining guard](../integrations/rimgovernor-native/src/Bridge/MiningGuard.cs),
-[current contract](../docs/developers/contracts/mining-contracts.md).
-
-| Field/key | Sole target owner | Reconstructible? |
-| --- | --- | --- |
-| `MiningState.Records/rimgovernorMining` (deep `MiningRecord`) | SQL | No. |
-| `MiningState.Drills/rimgovernorDrilling` (deep `DrillingRecord`) | SQL | No. |
-| `MiningRecord.ThingId/thingId` | SQL | Fresh; compressed rocks may receive new IDs on load. |
-| `SourceId/sourceId` | SQL | No; stable historical source association. |
-| `Definition/definition`, `Resource/resource`, `MapId/mapId`, `X/x`, `Z/z` | SQL | Fresh existing rock/deposit facts; original admission is historical. |
-| `RebindVerified/rebindVerified`, `SavedHitPoints/savedHitPoints` | SQL | No for the exact prior save; fresh HP does not prove identity. |
-| `Started/started`, `Finished/finished`, `Recovered/recovered` | SQL | No; completion tick and measured output increase are historical. |
-| `Cancelled/cancelled`, `Blocker/blocker` | SQL | No; current designation absence cannot establish who cancelled it. |
-| `DrillingRecord.Definition/definition`, `Resource/resource`, `MapId/mapId`, `X/x`, `Z/z` | SQL | Fresh facility/deposit facts, not ownership. |
-| `ThingId/thingId`, `PendingId/pendingId` | SQL | Fresh surviving object ID; blueprint/frame/building association requires events. |
-| `Recovered/recovered` | SQL | No; current stock is affected by consumption and other production. |
-
-Current saving verifies pending rocks by ID/cell/definition and captures HP;
-`FinalizeInit` rebinds verified records only to matching cell/definition/HP, otherwise
-cancels. Mining hooks recheck native safety on hits and measure output at destruction.
-`DrillingRecord.Target` is unsaved, re-admitted policy; drilling supervision and
-ordinary player simulation have different guard behavior (see the linked contract).
-
-Migration/removal: move records and output history to SQL. Before removing save-time
-rebind fields, establish timeline-associated identity evidence that handles compressed
-rocks; if required, justify a minimal save-local rebind witness as a separate native
-exception. Do not assume present coordinates/HP uniquely identify a historical rock.
-Keep only per-load native eligibility configuration, with safe retirement of already
-admitted work before forgetting which targets need protection. Disconnected ordinary
-player work must remain distinct from fresh automated admission and cannot fabricate
-recovered output. Required acceptance: compressed-rock reload, replacement at the
-same cell with same HP, cancelled designation, missing SQL, disconnected destruction,
-drill frame completion, depletion and player drill replacement. Existing entry points:
-`scripts/mining_acceptance.py` and `scripts/deep_mining_acceptance.py`.
-
-## Wall replacement
-
-Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistence/WallRemovalState.cs),
-[guard and release](../integrations/rimgovernor-native/src/Bridge/WallUpgradeSafety.cs).
+Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistence/GuardState.cs),
+[guard registry and hooks](../integrations/rimgovernor-native/src/Bridge/Protocol/Guards/NativeDesignationGuards.cs),
+[wall-upgrade site check](../integrations/rimgovernor-native/src/Bridge/WallUpgradeSafety.cs),
+[drilling](../integrations/rimgovernor-native/src/Runtime/Persistence/DrillingState.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
-| `WallRemovalState.Records/rimgovernorWallRemoval` (deep `WallRemovalRecord`) | SQL | No. |
-| `Id/id` | SQL | No; native removal receipt identity. |
-| `Target/target`, `Original/original`, `Left/left`, `Right/right`, `Permanent/permanent` | SQL | Fresh surviving IDs, not their historical roles or authorization. |
-| `Backup/backup` (list of string wall IDs) | SQL | Fresh matching enclosure, not owned temporary-wall history. |
-| `Material/material`, `MapId/mapId`, `X/x`, `Z/z`, `Nx/nx`, `Nz/nz` | SQL | Fresh geometry/material; planned orientation and original association are historical. |
-| `Load/load`, `UiRevision/uiRevision` | SQL | No; old authority must never be restored to a new load. |
-| `CompletedTick/completedTick`, `Complete/complete` | SQL | No; missing wall is not proof of safe owned demolition. |
-| `Blocker/blocker` | SQL | No; designation/cancellation history. |
+| `GuardState.Records/rimgovernorGuardedDesignation` (deep `GuardedDesignation`) | Native guard | No; which designation a Designate placed under which guard. |
+| `Guard/guard`, `Designation/designation`, `ExpectedDef/expectedDef`, `MapId/mapId`, `X/x`, `Z/z`, `ThingId/thingId` | Native guard | Fresh designation facts; the guard membership is not. |
+| `Finished/finished`, `Cancelled/cancelled`, `Blocker/blocker` | Native guard | No; closed records are dropped on save. |
+| `Wall/wallUpgrade` (deep `WallRemovalRecord`: site roles, backups, material, `Load`, `UiRevision`) | Native guard | No; old load/UI authority is never restored to a new load. |
+| `DrillingState.Drills/rimgovernorDrilling` (deep `DrillingRecord`) | SQL | No. |
 
-Current guards require supervision, matching load/UI revision and safe enclosure,
-support and resource facts. There is no `PlayerOwned` field any more: a replaced
-demolition designation is treated as an ordinary geometry/state change like any
-other, re-evaluated by `Check()` rather than permanently retiring the record.
-Release keeps records to guard already-running jobs after removing designations;
-registration is capped at 512. This is a concrete reason not to simply delete the
-component after copying its list into SQL.
-
-Migration/removal: SQL owns removal intent and completion; a per-load native guard
-must survive disconnect long enough to stop owned jobs. If ordinary save/load needs
-a minimal deny/cleanup marker for admitted jobs, demonstrate that exception before
-deleting old records. Never serialize reusable load/UI authority. Acceptance gap:
-disconnect just before final removal, save/load a running job, Manual/UI interruption,
-player re-designation, removed backup and missing SQL; verify intact roof/enclosure
-and no duplicate demolition. Entry points: `scripts/wall_upgrade_acceptance.py` and
-`scripts/wall_material_acceptance.py`.
+One ledger holds every guarded designation: enclosure, mine_safety,
+wall_upgrade and acquisition (#1350, #1351). A Mine record is keyed by cell and
+rock definition, so compressed rock recreated with fresh ids on load stays
+guarded. The job hooks re-check the guard before work lands; a failed check
+drops the designation and closes the record. Revoking authority releases
+every open record. Wall-upgrade admission is capped at 512 open records.
+`DrillingRecord.Target` is unsaved, re-admitted policy.
 
 ## Equipment ownership
 

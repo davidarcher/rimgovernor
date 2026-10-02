@@ -15,8 +15,10 @@ internal static class NativeDesignationGuardsProbe
     {
         var registry = new GuardRegistry<Site>()
             .Register(GuardNames.Enclosure, s => s.Unsafe, s => s.Waiting)
-            .Register(GuardNames.MineSafety, s => s.Unsafe);
-        foreach (var name in new[] { GuardNames.Enclosure, GuardNames.MineSafety })
+            .Register(GuardNames.MineSafety, s => s.Unsafe)
+            .Register(GuardNames.WallUpgrade, s => s.Unsafe)
+            .Register(GuardNames.Acquisition, s => s.Unsafe);
+        foreach (var name in new[] { GuardNames.Enclosure, GuardNames.MineSafety, GuardNames.WallUpgrade, GuardNames.Acquisition })
         {
             var site = new Site();
             Require(registry.Admit(name, site) == null, name + " admits a safe site");

@@ -14,8 +14,9 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // RecoverIntent on Actions/Apply (#940): order one undrafted colonist to
-    // repair, fix a breakdown or refuel one colony building with the job the
+    // GiveJobIntent jobs FixBrokenDownBuilding and Refuel (#940, #1351):
+    // order one undrafted colonist to fix a breakdown on or refuel one colony
+    // building with the job the
     // game's own WorkGiver builds (the one a player's prioritize click
     // gives). Native checks the pawn, the building and whether it still
     // needs the method live; a pawn already servicing the building applies
@@ -37,15 +38,13 @@ namespace HomeBridge.BridgeTools
         // read a successful order as interrupted and never re-issue it.
         internal const float RefuelSatisfiedFraction = 0.25f;
 
-        internal static bool Satisfied(Building building, Operations.ServiceMethod method)
+        internal static bool Satisfied(Building building, JobOrderKind method)
         {
             switch (method)
             {
-                case Operations.ServiceMethod.Repair:
-                    return !building.def.useHitPoints || building.HitPoints >= building.MaxHitPoints;
-                case Operations.ServiceMethod.Breakdown:
+                case JobOrderKind.FixBreakdown:
                     return building.TryGetComp<CompBreakdownable>()?.BrokenDown != true;
-                case Operations.ServiceMethod.Refuel:
+                case JobOrderKind.Refuel:
                     var fuel = building.TryGetComp<CompRefuelable>();
                     return fuel == null || fuel.Fuel >= fuel.TargetFuelLevel || fuel.Fuel >= RefuelSatisfiedFraction * fuel.TargetFuelLevel;
                 default:
@@ -56,33 +55,26 @@ namespace HomeBridge.BridgeTools
         // The giver is matched by class assignability: Core rearms a turret
         // barrel through WorkGiver_Refuel_Turret, a WorkGiver_Refuel subclass
         // on the RearmTurrets def, while the base class skips turrets (#205).
-        private static Type? WorkGiverType(Operations.ServiceMethod method) => method switch
+        private static Type? WorkGiverType(JobOrderKind method) => method switch
         {
-            Operations.ServiceMethod.Repair => typeof(WorkGiver_Repair),
-            Operations.ServiceMethod.Breakdown => typeof(WorkGiver_FixBrokenDownBuilding),
-            Operations.ServiceMethod.Refuel => typeof(WorkGiver_Refuel),
+            JobOrderKind.FixBreakdown => typeof(WorkGiver_FixBrokenDownBuilding),
+            JobOrderKind.Refuel => typeof(WorkGiver_Refuel),
             _ => null,
         };
 
-        private static Common.Failure? Resolve(Operations.RecoverIntent? intent, Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
+        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
         {
-            pawn = null; building = null; job = null;
-            var giverType = intent == null ? null : WorkGiverType(intent.Method);
-            if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.ThingId) || giverType == null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an exact pawn, exact building target and a repair/breakdown/refuel method.");
-            if (!NativePawnControlState.IsReady) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+            building = null; job = null;
+            var giverType = WorkGiverType(intent.Kind)!;
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
+            if (failure != null) return failure;
             var map = ProtoBoundary.LoadedMap(context);
-            var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
-            pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
-            if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map.");
-            var control = NativePawnControlState.Observe(identity, pawn, out var snapshot);
-            if (control != NativePawnControlResult.Ready || snapshot == null) return NativeDraftProtocol.Failure(control, context);
-            if (snapshot.Drafted || !snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an eligible undrafted pawn.");
-            building = map.listerBuildings.allBuildingsColonist.ById(intent.ThingId);
+            if (snapshot!.Drafted || !snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an eligible undrafted pawn.");
+            building = map.listerBuildings.allBuildingsColonist.ById(intent.TargetId);
             if (building == null || !Eligible(building)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact serviceable building is unavailable.");
-            if (Servicing(pawn, building, giverType)) return null;
-            if (Satisfied(building, intent.Method)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Observed service no longer needs this method.");
-            job = WorkGiverDispatch.TryJob(pawn, building, def => giverType.IsAssignableFrom(def.giverClass), out _);
+            if (Servicing(pawn!, building, giverType)) return null;
+            if (Satisfied(building, intent.Kind)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Observed service no longer needs this method.");
+            job = WorkGiverDispatch.TryJob(pawn!, building, def => giverType.IsAssignableFrom(def.giverClass), out _);
             if (job == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No native service job is available for this pawn and target.");
             return null;
         }
@@ -103,9 +95,9 @@ namespace HomeBridge.BridgeTools
             }
         };
 
-        internal static Common.Failure? Validate(Operations.RecoverIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.RecoverIntent? intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var building, out var job);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
@@ -114,11 +106,5 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("The pawn did not take the service job.");
             return Evidence(pawn, building!, job.Job, true);
         }
-    }
-
-    internal sealed class RecoverActionHandler : IActionHandler
-    {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeRecoveryOperations.Validate(action.Recover, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeRecoveryOperations.Apply(action.Recover, context);
     }
 }

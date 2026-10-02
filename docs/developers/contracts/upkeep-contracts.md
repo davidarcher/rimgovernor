@@ -277,7 +277,7 @@ A `DECONSTRUCT` Designate on the building's `target` under the `enclosure` guard
 through native `Designator_Deconstruct` (#940). Native checks player
 deconstructibility, visible geometry, safe remaining roof support and a
 pending wall upgrade live when it applies. Enclosing colony walls require
-guarded `RemoveWall`; generic deconstruction cannot bypass its enclosure and
+the `wall_upgrade` guard; generic deconstruction cannot bypass its enclosure and
 replacement checks, except on cleared ground (#1366): with `cleared_ground`
 a player wall or door whose every enclosed room (all eight neighbours) lies
 inside the ground is allowed, a room reaching outside is refused, and while
@@ -306,7 +306,7 @@ loaded designations remain untouched until explicitly adopted. Revoking
 authority releases exactly the controller-owned pending designations; player
 replacements survive.
 
-A `RemoveWallIntent` on Actions/Apply creates an ordinary native deconstruction designation. Completion
+A `wall_upgrade`-guarded Deconstruct Designate on Actions/Apply creates an ordinary native deconstruction designation. Completion
 comes from the actual native deconstruction job, not disappearance of a wall. The
 guard rechecks exact supporting identities, enclosure, roofs, remaining materials
 and resource policies before completion. Jobs require active supervised simulation.

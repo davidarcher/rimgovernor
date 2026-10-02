@@ -33,6 +33,9 @@ namespace HomeBridge.BridgeTools
         public int MapId, X, Z, Finished = -1;
         public bool Cancelled;
         public List<IntVec3>? Ground;
+        // The wall_upgrade guard's site (#989): the wall-upgrade geometry and
+        // identities its re-check holds the demolition to.
+        public WallRemovalRecord? Wall;
         public bool Open => Finished < 0 && !Cancelled;
         public void ExposeData()
         {
@@ -43,6 +46,31 @@ namespace HomeBridge.BridgeTools
             Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
             Scribe_Values.Look(ref Finished, "finished", -1); Scribe_Values.Look(ref Cancelled, "cancelled");
             Scribe_Collections.Look(ref Ground, "ground", LookMode.Value);
+            Scribe_Deep.Look(ref Wall, "wallUpgrade");
+        }
+    }
+
+    // A wall-upgrade site (#989): target, the original wall, its left and right
+    // supports, the completed backups or the permanent wall, and the material.
+    public sealed class WallRemovalRecord : IExposable
+    {
+        public string Id = "", Target = "", Original = "", Left = "", Right = "";
+        public string? Permanent, Material, Load, Blocker;
+        public List<string> Backup = new List<string>();
+        public int MapId, X, Z, Nx, Nz;
+        public long UiRevision;
+        public void ExposeData()
+        {
+            Scribe_Values.Look(ref Id, "id", ""); Scribe_Values.Look(ref Target, "target", "");
+            Scribe_Values.Look(ref Original, "original", ""); Scribe_Values.Look(ref Left, "left", "");
+            Scribe_Values.Look(ref Right, "right", ""); Scribe_Values.Look(ref Permanent, "permanent");
+            Scribe_Values.Look(ref Material, "material");
+            Scribe_Values.Look(ref Load, "load"); Scribe_Values.Look(ref Blocker, "blocker");
+            Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
+            Scribe_Values.Look(ref Nx, "nx"); Scribe_Values.Look(ref Nz, "nz");
+            Scribe_Values.Look(ref UiRevision, "uiRevision");
+            Scribe_Collections.Look(ref Backup, "backup", LookMode.Value);
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && Backup == null) Backup = new List<string>();
         }
     }
 }

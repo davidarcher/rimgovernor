@@ -15,32 +15,13 @@ namespace HomeBridge.BridgeTools
 {
     internal static class WallUpgradeSafety
     {
-        private static bool installed;
-        private static WallRemovalState? State()
-        {
-            return Current.Game?.GetComponent<WallRemovalState>();
-        }
-        private static WallRemovalState Ledger()
-        {
-            var game = Current.Game ?? throw new InvalidOperationException("No loaded game holds the wall removal ledger.");
-            var state = game.GetComponent<WallRemovalState>();
-            if (state == null) { state = new WallRemovalState(game); game.components.Add(state); }
-            return state;
-        }
         private static string? Load => Current.Game?.GetComponent<ColonyIdentity>()?.LoadToken;
+        // The wall_upgrade guard's hooks are NativeDesignationGuards'; the
+        // site's re-check needs player UI revisions observed.
         internal static void Install()
         {
-            if (installed) return;
             PlayerUiRevision.Observe();
-            var harmony = new Harmony("rimgovernor.wall-upgrade");
-            harmony.Patch(AccessTools.Method(typeof(WorkGiver_Deconstruct), nameof(WorkGiver_Deconstruct.HasJobOnThing)),
-                postfix: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(Eligible)));
-            harmony.Patch(AccessTools.Method(typeof(JobDriver_Deconstruct), "FinishedRemoving"),
-                prefix: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(BeforeRemoval)),
-                finalizer: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(AfterRemoval)));
-            harmony.Patch(AccessTools.Method(typeof(JobDriver_Deconstruct), "MakeNewToils"),
-                postfix: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(GuardJob)));
-            installed = true;
+            NativeDesignationGuards.Install();
         }
         internal static Building? Wall(Map map, string id) => map.listerBuildings.allBuildingsColonist
             .ById(id) is Building b && b.def == ThingDefOf.Wall ? b : null;
@@ -118,43 +99,12 @@ namespace HomeBridge.BridgeTools
             }
             return RoofSupportSafety.Blocker(target, out _);
         }
-        private static WallRemovalRecord? Claim(Thing t) => t == null ? null : State()?.Records.LastOrDefault(r =>
-            r.Target == t.GetUniqueLoadID() && !r.Complete);
-        /// <summary>The ledger's open removal of this exact wall, if any; read-only for the typed census.</summary>
-        internal static WallRemovalRecord? Pending(Thing t) => Claim(t);
-        private static void Eligible(Thing t, ref bool __result)
+        /// <summary>The open wall_upgrade designation on this exact wall, if any.</summary>
+        internal static GuardedDesignation? Pending(Thing t)
         {
-            var r = Claim(t); if (r == null || !__result) return;
-            if (!Supervisor.IsActive) { __result = false; return; }
-            var blocker = Check(r); if (blocker != null) { r.Blocker = blocker; __result = false; }
-        }
-        private static void GuardJob(JobDriver_Deconstruct __instance)
-        {
-            if (Claim(__instance.job.targetA.Thing) == null) return;
-            __instance.FailOn(() => {
-                var r = Claim(__instance.job.targetA.Thing);
-                if (r == null) return false;
-                var blocker = Check(r);
-                if (blocker != null) r.Blocker = blocker;
-                return blocker != null || !Supervisor.IsActive;
-            });
-        }
-        private static bool BeforeRemoval(JobDriver_Deconstruct __instance, out WallRemovalRecord? __state)
-        {
-            __state = Claim(__instance.job.targetA.Thing);
-            if (__state == null) return true;
-            if (!Supervisor.IsActive) { __state.Blocker = "Demolition requires an active supervised automation window"; return false; }
-            var blocker = Check(__state);
-            if (blocker != null) { __state.Blocker = blocker; return false; }
-            return true;
-        }
-        private static Exception? AfterRemoval(JobDriver_Deconstruct __instance, WallRemovalRecord __state, Exception __exception)
-        {
-            if (__state == null || __state.Blocker != null) return __exception;
-            if (__exception != null || __instance.job.targetA.Thing?.Destroyed != true)
-                __state.Blocker = "Native demolition outcome is unverified";
-            else { __state.Complete = true; __state.CompletedTick = Find.TickManager.TicksGame; }
-            return __exception;
+            if (Current.Game == null || t == null) return null;
+            var id = t.GetUniqueLoadID();
+            return NativeDesignationGuards.State().Records.LastOrDefault(r => r.Open && r.Guard == GuardNames.WallUpgrade && r.ThingId == id);
         }
         internal static WallRemovalRecord NewRecord(Map map, string target, string original, string left, string right, IEnumerable<string> backup,
             string permanent, string material, int x, int z, int nx, int nz) => new WallRemovalRecord {
@@ -167,7 +117,7 @@ namespace HomeBridge.BridgeTools
             Install();
             workers = new List<Pawn>();
             var map = Find.CurrentMap;
-            if (map == null || Ledger().Records.Count >= 512) return "Native removal ledger unavailable";
+            if (map == null || NativeDesignationGuards.State().Records.Count(g => g.Open) >= 512) return "Native removal ledger unavailable";
             var wall = Wall(map, r.Target);
             if (wall == null) return "Exact native wall is unavailable";
             var blocker = Check(r, requireDesignation: false);
@@ -185,17 +135,17 @@ namespace HomeBridge.BridgeTools
                 && p.CanReserveAndReach(wall, PathEndMode.Touch, Danger.None)).ToList();
             return workers.Count == 0 ? "No enabled available builder with safe native access" : null;
         }
-        /// <summary>Record the guarded removal and place its native deconstruct designation; null on success.</summary>
+        /// <summary>Place the native deconstruct designation and record it under the wall_upgrade guard; null on success.</summary>
         internal static string? Commit(WallRemovalRecord r)
         {
             var map = Find.CurrentMap ?? throw new InvalidOperationException("No current map to commit a wall removal on.");
             var wall = Wall(map, r.Target) ?? throw new InvalidOperationException("Exact native wall is unavailable.");
-            Ledger().Records.Add(r);
             // An adopted standing designation is not placed twice.
-            try { if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null) new Designator_Deconstruct().DesignateThing(wall); }
-            catch { r.Blocker = "Native designation outcome is uncertain"; throw; }
-            return map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null
-                ? "Native demolition designation was not observed" : null;
+            if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null) new Designator_Deconstruct().DesignateThing(wall);
+            if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null) return "Native demolition designation was not observed";
+            NativeDesignationGuards.Add(new GuardedDesignation { Id = r.Id, Guard = GuardNames.WallUpgrade, Designation = DesignationDefOf.Deconstruct.defName,
+                ExpectedDef = wall.def.defName, MapId = map.uniqueID, X = wall.Position.x, Z = wall.Position.z, ThingId = r.Target, Wall = r });
+            return null;
         }
     }
 }

@@ -19,6 +19,10 @@ const (
 	JobArrest      = "Arrest"
 	JobAttackMelee = "AttackMelee"
 	JobUseItem     = "UseItem"
+	// Recovery service and waste hauling (#1351).
+	JobFixBrokenDownBuilding = "FixBrokenDownBuilding"
+	JobRefuel                = "Refuel"
+	JobHaulWaste             = "HaulWaste"
 )
 
 // giveJob is the GiveJobIntent of one pawn, one vanilla job and its targets

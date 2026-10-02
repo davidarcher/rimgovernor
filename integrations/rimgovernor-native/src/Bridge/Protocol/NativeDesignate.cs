@@ -16,7 +16,9 @@ namespace HomeBridge.BridgeTools
     // through the game's own designator and held by the named guard the
     // intent selects (NativeDesignationGuards). A designation already
     // standing (a player one is adopted) or a cell already cleared applies
-    // again. A Deconstruct may swap a door for a wall (#1245).
+    // again. A Deconstruct may swap a door for a wall (#1245); one under the
+    // wall_upgrade guard resolves its site in NativeWallRemovalOperations,
+    // and the acquisition guard's designations resolve in NativeAcquire.
     internal static class NativeDesignate
     {
         private const string Kind = "Designate";
@@ -177,14 +179,37 @@ namespace HomeBridge.BridgeTools
             return DesignatorRefusal(plan);
         }
 
+        private static bool WallUpgrade(Operations.DesignateIntent intent) => intent.HasGuard && intent.Guard == Operations.DesignationGuard.WallUpgrade;
+        // The acquisition designations (#1046): HUNT, HARVEST_PLANT or MINE of
+        // a census source, and their withdraw.
+        private static bool Acquisition(Operations.DesignateIntent intent) => intent.HasGuard && intent.Guard == Operations.DesignationGuard.Acquisition;
+        private static string? AcquisitionPairing(Operations.DesignateIntent intent) =>
+            intent.Designation == Operations.ThingDesignation.Hunt || intent.Designation == Operations.ThingDesignation.HarvestPlant || intent.Designation == Operations.ThingDesignation.Mine
+                ? null : "the acquisition guard holds HUNT, HARVEST_PLANT or MINE";
+        private static Common.Failure? Pairing(Operations.DesignateIntent intent)
+        {
+            string? refusal = null;
+            if (intent.Withdraw && !Acquisition(intent)) refusal = "only the acquisition guard withdraws";
+            else if (Acquisition(intent)) refusal = AcquisitionPairing(intent);
+            return refusal == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, refusal));
+        }
+
         internal static Common.Failure? Validate(Operations.DesignateIntent intent, Common.ObservationContext context)
         {
+            var pairing = Pairing(intent);
+            if (pairing != null) return pairing;
+            if (WallUpgrade(intent)) return NativeWallRemovalOperations.Validate(intent, context);
+            if (Acquisition(intent)) return NativeAcquire.Validate(intent, context);
             var refusal = Resolve(intent, context, out _, out var code);
             return refusal == null ? null : ProtoBoundary.Fail(code, ApplyPreconditions.Detail(Kind, refusal));
         }
 
         internal static Receipts.EffectEvidence Apply(Operations.DesignateIntent intent, Common.ObservationContext context)
         {
+            var pairing = Pairing(intent);
+            if (pairing != null) throw new InvalidOperationException(pairing.Detail);
+            if (WallUpgrade(intent)) return NativeWallRemovalOperations.Apply(intent, context);
+            if (Acquisition(intent)) return NativeAcquire.Apply(intent, context);
             var refusal = Resolve(intent, context, out var plan, out _);
             if (refusal != null) throw new InvalidOperationException("Designate prerequisites changed before apply: " + refusal);
             if (plan.Cleared) return Evidence(plan, null, adopted: false);

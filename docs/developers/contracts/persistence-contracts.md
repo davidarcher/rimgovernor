@@ -8,7 +8,7 @@ save is reloaded. A second copy of a fact is a bug, not a cache.
 | Home | Holds | On reload |
 |---|---|---|
 | Native save, `GovernorState` blobs | Go intent the world cannot show: goals (`goal/<id>`), family plans (`family/*`) and the soldier squad (`family/soldier_squad`), written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
-| Native save, other components | Colony identity and native tick guards (wall removal, mining, home coverage, the guarded designations of `GuardState`, #1350) | Follows the save |
+| Native save, other components | Colony identity and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition, #1350, #1351; deep drilling; home coverage) | Follows the save |
 | SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
 | Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token, #1340); the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`, #1354); the `goals`, `goal_methods` and family tables are such views of the save blobs (`RebuildGoals`, `RebuildFamilies`) | Rebuilt from the save and the live world |
 | `flight.jsonl` | All controller telemetry; `--debug` goes to stderr only; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |

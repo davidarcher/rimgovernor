@@ -11,10 +11,12 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // RemoveWallIntent (#989) admits one guarded native deconstruct
-    // designation through the WallUpgradeSafety ledger, whose Harmony guards
-    // keep re-checking enclosure, supports and roof support until the pawn
-    // finishes. The intent names the wall's cell, so the site is resolved here
+    // The wall_upgrade guard's resolver (#989, #1351): a DECONSTRUCT
+    // Designate on a wall cell admits one native deconstruct designation
+    // held by the wall_upgrade guard (WallUpgradeSafety.Check), which the
+    // designation-guard hooks keep re-checking against the site's enclosure,
+    // supports and roof support until the pawn finishes. The intent names
+    // the wall's cell, so the site is resolved here
     // from the ListWallUpgradeSites census:
     //  1. a straight replacement site whose backup cells all hold same-stuff
     //     stone walls (demolish the original);
@@ -97,24 +99,27 @@ namespace HomeBridge.BridgeTools
             return new List<List<Candidate>> { straight, cleanup, corner };
         }
 
-        // The apply-time precondition list for RemoveWallIntent. wall is null
+        // The apply-time precondition list for a wall_upgrade Designate. wall is null
         // when no colonist wall stands at the cell (already removed: applies
         // again); pending is the ledger's open removal of the wall, which
         // applies again with its evidence; otherwise candidate is the one
         // admissible site.
-        private static string? Refusal(Operations.RemoveWallIntent? intent, Common.ObservationContext context,
-            out Building? wall, out WallRemovalRecord? pending, out Candidate? candidate, out Common.FailureCode code)
+        private static string? Refusal(Operations.DesignateIntent intent, Common.ObservationContext context,
+            out Building? wall, out GuardedDesignation? pending, out Candidate? candidate, out Common.FailureCode code)
         {
             wall = null; pending = null; candidate = null; code = Common.FailureCode.InvalidRequest;
-            if (intent?.Cell == null || !intent.Cell.HasX || !intent.Cell.HasZ || intent.HasExpectedWallId && !ProtoBoundary.IsIdentifier(intent.ExpectedWallId))
-                return "RemoveWall requires one wall cell.";
+            var expected = intent.Target?.Id;
+            if (intent.Cell == null || !intent.Cell.HasX || !intent.Cell.HasZ || intent.Target != null && !ProtoBoundary.IsIdentifier(expected))
+                return "The wall_upgrade guard requires one wall cell.";
+            if (intent.Designation != Operations.ThingDesignation.Deconstruct || intent.ClearedGround.Count > 0 || intent.ReplaceWithWall || intent.HasExpectedDef || intent.HasThingId)
+                return "The wall_upgrade guard takes DECONSTRUCT on a cell and an optional target only.";
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return "Loaded map required.";
             var cell = new IntVec3(intent.Cell.X, 0, intent.Cell.Z);
             if (!cell.InBounds(map)) return "Wall cell is outside the map.";
             wall = NativeWallUpgradeObservationTools.ColonistWall(map, cell);
             if (wall == null) return null;
-            if (intent.HasExpectedWallId && wall.GetUniqueLoadID() != intent.ExpectedWallId)
+            if (expected != null && wall.GetUniqueLoadID() != expected)
             { code = Common.FailureCode.StaleIdentity; return "A different wall stands at the cell."; }
             pending = WallUpgradeSafety.Pending(wall);
             if (pending != null) return null;
@@ -127,21 +132,21 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.RemoveWallIntent? intent, Common.ObservationContext context)
+        internal static Common.Failure? Validate(Operations.DesignateIntent intent, Common.ObservationContext context)
         {
             var refusal = Refusal(intent, context, out _, out _, out _, out var code);
             return refusal == null ? null : ProtoBoundary.Fail(code, refusal);
         }
 
-        internal static Receipts.EffectEvidence Apply(Operations.RemoveWallIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.DesignateIntent intent, Common.ObservationContext context)
         {
             var refusal = Refusal(intent, context, out var wall, out var pending, out var candidate, out _);
             if (refusal != null) throw new InvalidOperationException("Wall removal prerequisites changed before apply: " + refusal);
             if (wall == null)
-                return new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { TargetId = intent.HasExpectedWallId ? intent.ExpectedWallId : "", DemolitionObserved = false } };
+                return new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { TargetId = intent.Target?.Id ?? "", DemolitionObserved = false } };
             var id = wall.GetUniqueLoadID();
             if (pending != null)
-                return new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id, DemolitionObserved = pending.Complete } };
+                return new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id, DemolitionObserved = false } };
             var chosen = candidate!;
             var before = chosen.Site.Snapshot?.Token ?? "";
             if (WallUpgradeSafety.Prepare(chosen.Record, out _) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
@@ -154,11 +159,5 @@ namespace HomeBridge.BridgeTools
             if (after?.Snapshot != null) effect.Site.AfterToken = after.Snapshot.Token;
             return new Receipts.EffectEvidence { Wall = effect };
         }
-    }
-
-    internal sealed class RemoveWallActionHandler : IActionHandler
-    {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeWallRemovalOperations.Validate(action.RemoveWall, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeWallRemovalOperations.Apply(action.RemoveWall, context);
     }
 }

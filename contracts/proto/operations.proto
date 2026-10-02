@@ -200,13 +200,6 @@ message ZoneIntent {
 // def_name (epic #1249). A cell already designated, or without that floor,
 // applies again.
 message RemoveFloorIntent { rimgovernor.common.v1.Cell cell = 1; optional string def_name = 2; }
-enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; SERVICE_METHOD_BREAKDOWN = 2; SERVICE_METHOD_REFUEL = 3; }
-// expected_target_snapshot_token is decoupled from target's own EntityPrecondition
-// (whose token field is unused for this operation; only entity_id identity is
-// required) because the target's recovery-specific CAS token
-// (NativeRecoveryOperations.Token) has no existing observation read that could
-// produce it ahead of time: an unconstrained preview (this field omitted)
-// establishes the baseline.
 enum Need { NEED_UNSPECIFIED = 0; NEED_FOOD = 1; NEED_REST = 2; NEED_JOY = 3; }
 // Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
 // Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
@@ -271,7 +264,7 @@ message Action {
   // "activity" overlay shows it over the pawn; it never changes the apply.
   optional string purpose = 2;
   // Melee attacks are combat orders; subdue is GiveJobIntent AttackMelee.
-  reserved 14, 26, 27, 28, 29, 30, 31, 32, 34, 35, 41, 42, 43, 47; reserved "melee", "home", "remove_foundation", "cover", "deconstruct", "excavate", "create_zone", "delete_zone", "zone_cells", "stockpile", "pawn_order", "need_relief", "use_item", "surgery";
+  reserved 14, 26, 27, 28, 29, 30, 31, 32, 34, 35, 36, 37, 40, 41, 42, 43, 46, 47; reserved "melee", "waste", "recover", "remove_wall", "acquire", "home", "remove_foundation", "cover", "deconstruct", "excavate", "create_zone", "delete_zone", "zone_cells", "stockpile", "pawn_order", "need_relief", "use_item", "surgery";
   oneof intent {
     TradeIntent trade = 10;
     BuildingIntent building = 11;
@@ -291,15 +284,11 @@ message Action {
     // Applied evidence names the zone (or the storage building's settings).
     ZoneIntent zone = 58;
     DesignateIntent designate = 33;
-    WasteIntent waste = 36;
-    RecoverIntent recover = 37;
     RelocateIntent relocate = 38;
     BuildingPatchIntent building_patch = 39;
-    RemoveWallIntent remove_wall = 40;
     GiveJobIntent give_job = 59;
     DraftIntent draft = 44;
     CombatOrders combat_orders = 45;
-    AcquireIntent acquire = 46;
     AreaIntent area = 48;
     AutoHomeAreaIntent auto_home_area = 49;
     PawnSettingsIntent pawn_settings = 50;
@@ -404,13 +393,6 @@ message FoodPolicyIntent { optional string name = 1; repeated string allowed_def
 // AUTO_HOME_AREA field: APPLIED when it changed, UNCHANGED when it already
 // held. The colony read reports the value (UpkeepFacts.auto_home_area).
 message AutoHomeAreaIntent { optional bool enabled = 1; }
-// Designate one census source for its resource: a plant harvest or cut, a
-// hunt (the animal wherever it is now, cell the hint) or a mine cell. With
-// withdraw, remove that designation instead (the planner's stall withdraw,
-// #1046). Native checks the source live; a designation already in the
-// requested state applies again. Applied means ordered; the next census
-// reads progress.
-message AcquireIntent { optional string source_id = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional bool withdraw = 4; }
 // Draft or undraft one eligible colonist (#939). Drafts are plan-owned: the
 // controller drafts for a plan and undrafts any drafted colonist no live plan
 // needs. A pawn already in the wanted state applies again.
@@ -432,6 +414,15 @@ message DraftIntent { optional string pawn_id = 1; optional bool drafted = 2; }
 //   UseItem: targets [item, target pawn]; the target verb of an item the
 //   pawn wears or equips (Verb_CastTargetEffect) or the use job of a
 //   CompTargetable item, each with its own target checks.
+//   FixBrokenDownBuilding, Refuel: targets [colony building]; an undrafted
+//   colonist services it with the game's own WorkGiver job (the turret
+//   rearm giver included for Refuel), refused once it is fixed or holds a
+//   quarter of its target fuel.
+//   HaulWaste: targets [item]; an undrafted colonist hauls one exposed waste
+//   item (spoiled, a rotting corpse, or with options.unwanted one the caller
+//   declares unwanted) to a separated dirty outdoor stockpile or an empty
+//   grave with the game's Hauling WorkGiver job. Protected items
+//   (forbidden, quest, hazardous, named or colony corpses) are refused.
 // options.relieve_need with no job offers an undrafted colonist the job its
 // own need giver issues for that deficient need (food, rest, recreation);
 // the giver picks the target, a timetable or medical rest refuses it.
@@ -440,7 +431,7 @@ message DraftIntent { optional string pawn_id = 1; optional bool drafted = 2; }
 // the first work giver the pawn may do that builds exactly this JobDef on
 // targets[0] with forced set builds it, and the pawn takes it as a
 // player-forced order.
-message GiveJobOptions { optional bool prioritized = 1; optional Need relieve_need = 2; }
+message GiveJobOptions { optional bool prioritized = 1; optional Need relieve_need = 2; optional bool unwanted = 3; }
 message GiveJobIntent {
   rimgovernor.common.v1.Ref pawn = 1;
   optional string job = 2;
@@ -476,6 +467,10 @@ message DesignateIntent {
   // DECONSTRUCT only (#1245): swap a 1x1 player door for a Wall of its own
   // stuff, ordering the nearest capable builder (player-forced work).
   optional bool replace_with_wall = 8;
+  // ACQUISITION only (#1046): remove the designation instead (the planner's
+  // stall withdraw); a hunter already on the prey is stopped and a plant's
+  // CutPlant goes too. A source that is gone applies.
+  optional bool withdraw = 9;
 }
 // The tick-level safety a guarded designation keeps (#1350). Native checks
 // the guard at admission and re-checks it before the job's work lands until
@@ -491,16 +486,25 @@ enum DesignationGuard {
   // with no structure on the cell, away from the map edge, and counterfactual
   // roof support for the cell.
   DESIGNATION_GUARD_MINE_SAFETY = 2;
+  // Stone-shell wall upgrade (DECONSTRUCT on cell, #989): native resolves
+  // the wall-upgrade site from the colonist wall at cell (the original a
+  // replacement rebuilds, or a backup that held the shell open; several
+  // admissible sites refuse) and holds the demolition to the site's
+  // enclosure, supports, materials and roof support until a pawn finishes.
+  // target, when set, must name the wall at cell. A cell whose wall is gone
+  // applies again; evidence is the WallEffect. Go waits for the census to
+  // show the cell clear before releasing work that needs it.
+  DESIGNATION_GUARD_WALL_UPGRADE = 3;
+  // Resource acquisition (#1046): HUNT, HARVEST_PLANT or MINE on one census
+  // source (target, cell, expected_def the resource it yields), the
+  // designation the source takes. Native checks the source's census rules
+  // live (a hunt follows the animal wherever it is, cell the hint); a
+  // designation already in the requested state applies again and evidence
+  // is the AcquisitionEffect. A MINE is re-checked for excavation safety
+  // before each pick, and a mined cell that opens protected colony space is
+  // walled.
+  DESIGNATION_GUARD_ACQUISITION = 4;
 }
-// Order one undrafted colonist to haul one exposed waste item (spoiled, a
-// rotting corpse, or one the caller declares unwanted) to a separated dirty
-// outdoor stockpile or an empty grave, with the game's own Hauling
-// WorkGiver job. Protected items (forbidden, quest, hazardous, named or
-// colony corpses) are refused; a pawn already hauling the item applies again.
-// Order one undrafted colonist to repair, fix a breakdown on or refuel one
-// colony building with the game's own WorkGiver job. Native refuses a
-// building that no longer needs the method; a pawn already servicing the
-// building applies again.
 // Move one exact installed player building (or install a packed item, named
 // by its own id or its inner building's) at destination/rotation through the
 // game's reinstall or install blueprint; with uninstall, designate the
@@ -518,17 +522,6 @@ message BuildingPatchIntent {
   optional string thing_id = 1;
   oneof change { float target_temperature = 2; bool medical = 3; Clear for_prisoners = 4; string plant_def = 5; Clear claim = 6; Clear for_slaves = 7; bool auto_refuel = 8; }
 }
-message RecoverIntent { optional string pawn_id = 1; optional string thing_id = 2; optional ServiceMethod method = 3; }
-message WasteIntent { optional string pawn_id = 1; optional string thing_id = 2; optional bool unwanted = 3; }
-// Designate the guarded stone-shell removal of the colonist wall standing at
-// cell (the original a replacement rebuilds, or a backup that held the shell
-// open). Native resolves the wall-upgrade site from the wall live (several
-// admissible sites refuse) and its guards hold the demolition to enclosure,
-// support and roof safety until a pawn finishes. expected_wall_id, when set,
-// must name the wall at cell. A removal this controller already designated,
-// or a cell whose wall is already gone, applies again. Go waits for the
-// census to show the cell clear before releasing work that needs it (#989).
-message RemoveWallIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_wall_id = 2; }
 // Mark cells in the vanilla remove-roof (NoRoof) area (#1366): clearance issues it over an
 // enclosed room's roofed cells before deconstructing its walls. Native
 // refuses a fogged or out-of-bounds cell and a thick (overhead mountain)

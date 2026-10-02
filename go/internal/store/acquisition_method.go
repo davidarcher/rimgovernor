@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -64,7 +63,7 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, 
 // native hunt census names its resource by the prey's corpse definition.
 func huntAcquisition(action domain.Action) bool {
 	acquisition, ok := action.Acquisition()
-	return ok && strings.HasPrefix(acquisition.Definition(), "Corpse_")
+	return ok && acquisition.Hunt()
 }
 
 // pestGoal reports the routine ClearPests goal (#247), whose hunts are

@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
 {
     // The single-target jobs a GiveJobIntent names, each validated and built
     // by its own operations class against live state.
-    internal enum JobOrderKind { Repair, Clean, OpenCasket, Tend, Equip, Wear, Rescue, Capture, Arrest, Subdue }
+    internal enum JobOrderKind { Repair, Clean, OpenCasket, Tend, Equip, Wear, Rescue, Capture, Arrest, Subdue, FixBreakdown, Refuel, Waste }
 
     // One pawn, one target (and Arrest's bed) for a JobOrderKind.
     internal sealed class JobOrder
@@ -21,6 +21,8 @@ namespace HomeBridge.BridgeTools
         internal JobOrderKind Kind;
         internal string PawnId = "", TargetId = "";
         internal string? BedId;
+        // HaulWaste only: the caller declares the item unwanted waste.
+        internal bool Unwanted;
         internal bool HasBedId => BedId != null;
     }
 
@@ -34,9 +36,13 @@ namespace HomeBridge.BridgeTools
             ["Repair"] = JobOrderKind.Repair, ["Clean"] = JobOrderKind.Clean, ["Open"] = JobOrderKind.OpenCasket,
             ["TendPatient"] = JobOrderKind.Tend, ["Equip"] = JobOrderKind.Equip, ["Wear"] = JobOrderKind.Wear,
             ["Rescue"] = JobOrderKind.Rescue, ["Capture"] = JobOrderKind.Capture, ["Arrest"] = JobOrderKind.Arrest,
-            ["AttackMelee"] = JobOrderKind.Subdue,
+            ["AttackMelee"] = JobOrderKind.Subdue, ["FixBrokenDownBuilding"] = JobOrderKind.FixBreakdown,
+            ["Refuel"] = JobOrderKind.Refuel, [HaulWaste] = JobOrderKind.Waste,
         };
         internal const string UseItem = "UseItem";
+        // HaulWaste names the waste haul (NativeWasteOperations): the Hauling
+        // giver's HaulToCell or burial job to a separated destination.
+        internal const string HaulWaste = "HaulWaste";
 
         private static string? Id(Common.Ref? r) => r != null && r.HasId && ProtoBoundary.IsIdentifier(r.Id) ? r.Id : null;
 
@@ -67,7 +73,8 @@ namespace HomeBridge.BridgeTools
             {
                 var arrest = kind == JobOrderKind.Arrest;
                 if (targets.Count != (arrest ? 2 : 1)) { refusal = arrest ? "Arrest requires targets [target, prisoner bed]." : intent.Job + " requires one target."; return Arm.Invalid; }
-                order = new JobOrder { Kind = kind, PawnId = pawn, TargetId = targets[0]!, BedId = arrest ? targets[1] : null };
+                if (options != null && options.Unwanted && kind != JobOrderKind.Waste) { refusal = "Only HaulWaste takes unwanted."; return Arm.Invalid; }
+                order = new JobOrder { Kind = kind, PawnId = pawn, TargetId = targets[0]!, BedId = arrest ? targets[1] : null, Unwanted = options?.Unwanted == true };
                 return Arm.Order;
             }
             if (options != null && options.Prioritized)
@@ -116,6 +123,8 @@ namespace HomeBridge.BridgeTools
                 case JobOrderKind.Rescue: case JobOrderKind.Capture: return NativeCustodyOperations.Validate(order, context);
                 case JobOrderKind.Arrest: return NativeArrestOperations.Validate(order, context);
                 case JobOrderKind.Subdue: return NativeSubdueOperations.Validate(order, context);
+                case JobOrderKind.FixBreakdown: case JobOrderKind.Refuel: return NativeRecoveryOperations.Validate(order, context);
+                case JobOrderKind.Waste: return NativeWasteOperations.Validate(order, context);
                 default: return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Unsupported job order.");
             }
         }
@@ -133,6 +142,8 @@ namespace HomeBridge.BridgeTools
                 case JobOrderKind.Rescue: case JobOrderKind.Capture: return NativeCustodyOperations.Apply(order, context);
                 case JobOrderKind.Arrest: return NativeArrestOperations.Apply(order, context);
                 case JobOrderKind.Subdue: return NativeSubdueOperations.Apply(order, context);
+                case JobOrderKind.FixBreakdown: case JobOrderKind.Refuel: return NativeRecoveryOperations.Apply(order, context);
+                case JobOrderKind.Waste: return NativeWasteOperations.Apply(order, context);
                 default: throw new InvalidOperationException("Unsupported job order.");
             }
         }

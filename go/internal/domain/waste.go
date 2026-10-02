@@ -5,7 +5,7 @@ import "errors"
 // Waste is explicit intent to have one pawn haul or bury one specific exposed
 // native waste item (spoiled, a rotting corpse). The pawn is not drafted;
 // native checks eligibility, the item and the haul-or-bury destination live
-// when the WasteIntent applies. Cell is the census position the planner saw.
+// when the HaulWaste job applies. Cell is the census position the planner saw.
 type Waste struct {
 	pawn   PawnID
 	target string

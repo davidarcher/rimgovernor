@@ -1,6 +1,6 @@
 // The recovery/service case exercises the disaster-recovery service vertical
-// (issue #27) through RecoverIntent on Actions/Apply (#940,
-// NativeRecoveryOperations.cs). A genuinely damaged player Wall is repaired
+// (issue #27) through GiveJobIntent Repair on Actions/Apply (#940,
+// NativeRepairOperations.cs). A genuinely damaged player Wall is repaired
 // by a real native WorkGiver_Repair job ordered for an undrafted colonist,
 // observed via real game ticks and independently confirmed via
 // rimgovernor/observations_list_buildings (HitPoints == MaxHitPoints), not
@@ -24,7 +24,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "recovery/service",
-		Scope: "RecoverIntent (disaster-recovery service) dispatch: a genuinely damaged player Wall is " +
+		Scope: "GiveJobIntent Repair (disaster-recovery service) dispatch: a genuinely damaged player Wall is " +
 			"actually repaired by a real native WorkGiver_Repair job, unknown-pawn refusal, real HitPoints change " +
 			"observed via native ticks (not just an applied result), and key replay idempotency.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/recovery_service_prepare"},
@@ -99,7 +99,7 @@ func runService(ctx context.Context, s cases.Session) error {
 
 	apply := func(key, pawn string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, key, "operations_apply", map[string]any{"identity": identity,
-			"actions": []any{map[string]any{"key": key, "recover": map[string]any{"pawnId": pawn, "thingId": wallID, "method": "SERVICE_METHOD_REPAIR"}}}})
+			"actions": []any{map[string]any{"key": key, "giveJob": na.GiveJob(pawn, "Repair", wallID)["giveJob"]}}})
 		if err != nil {
 			return nil, err
 		}

@@ -50,6 +50,6 @@ namespace HomeBridge.BridgeTools
 
     internal static class GuardNames
     {
-        internal const string Enclosure = "enclosure", MineSafety = "mine_safety";
+        internal const string Enclosure = "enclosure", MineSafety = "mine_safety", WallUpgrade = "wall_upgrade", Acquisition = "acquisition";
     }
 }
