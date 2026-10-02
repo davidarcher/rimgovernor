@@ -65,24 +65,23 @@ func composeStep(ctx context.Context, request bridge.StepRequest, parts bundlePa
 		if err != nil {
 			return nil, raw, err
 		}
-		observed.Emergency = emergencySnapshot(observed.Context, emergency.Facts)
+		observed.Emergency, observed.Pawns = emergencySnapshot(observed.Context, emergency.Facts)
 	}
 	return observed, raw, nil
 }
 
 // emergencySnapshot encodes the facts a fake serves as the status snapshot
 // bridge.BundleEmergency decodes them from.
-func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFacts) *o.StatusSnapshot {
-	// An incomplete census is one that filtered a row out.
-	completeness := func(fact domain.Fact[bool]) *o.Completeness {
-		complete, known := fact.Value()
-		if !known {
-			return nil
+func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFacts) (*o.StatusSnapshot, *o.PawnSnapshot) {
+	// The census references its pawns' rows in the pawn table (#1343).
+	table := &o.PawnSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Completeness: &o.Completeness{}}
+	rows := map[string]*o.PawnState{}
+	ref := func(id policy.PawnID, row *o.PawnState) *o.EntityRef {
+		if _, ok := rows[string(id)]; !ok {
+			rows[string(id)] = row
+			table.Pawns = append(table.Pawns, row)
 		}
-		if complete {
-			return &o.Completeness{}
-		}
-		return &o.Completeness{Filtered: proto.Uint64(1)}
+		return &o.EntityRef{Id: proto.String(string(id))}
 	}
 	known := func(fact domain.Fact[bool]) *bool {
 		if v, ok := fact.Value(); ok {
@@ -90,19 +89,22 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 		}
 		return nil
 	}
-	colonists := &o.PawnSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Completeness: completeness(facts.ColonistsComplete)}
+	var colonists []*o.EntityRef
 	for _, pawn := range facts.Colonists {
 		row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(string(pawn.ID))}, Dead: known(pawn.Dead), Downed: known(pawn.Downed), Health: &o.PawnHealth{Bleeding: known(pawn.Bleeding), NeedsTend: known(pawn.NeedsTend)}}
 		if mental, ok := pawn.MentalState.Value(); ok {
 			row.MentalState, row.MentalStateIsAggro, row.MentalStateTicks = proto.String(mental.DefName), proto.Bool(mental.IsAggro), proto.Int32(mental.TicksInState)
 		}
-		colonists.Pawns = append(colonists.Pawns, row)
+		colonists = append(colonists, ref(pawn.ID, row))
 	}
 	threats := &o.ThreatsSnapshot{}
 	for _, threat := range facts.Threats {
-		row := &o.ThreatPawn{Pawn: &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(string(threat.ID))}, Dead: known(threat.Dead), Downed: known(threat.Downed), Animal: known(threat.Animal)}}
+		row := &o.ThreatPawn{}
+		if threat.Kind != policy.HostileBuilding {
+			row.Pawn = ref(threat.ID, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(string(threat.ID))}, Dead: known(threat.Dead), Downed: known(threat.Downed), Animal: known(threat.Animal)})
+		}
 		if distance, ok := threat.Distance.Value(); ok {
-			row.Pawn.NearestColonistDistance = proto.Float64(distance)
+			row.NearestColonistDistance = proto.Float64(distance)
 		}
 		switch threat.Kind {
 		case policy.Hostile:
@@ -127,5 +129,11 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 			threats.HostileBuildings = append(threats.HostileBuildings, building)
 		}
 	}
-	return &o.StatusSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Colonists: colonists, Threats: threats}
+	status := &o.StatusSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Colonists: colonists, Threats: threats}
+	// A census not known complete is one the read could not list.
+	if complete, ok := facts.ColonistsComplete.Value(); !ok || !complete {
+		status.Colonists = nil
+		status.Issues = []*o.ReadIssue{{Field: proto.String("colonists"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
+	}
+	return status, table
 }

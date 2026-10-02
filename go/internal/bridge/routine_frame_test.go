@@ -66,7 +66,6 @@ func TestDecodeRoutineFrameChecksSectionIdentity(t *testing.T) {
 		t.Run("emergency/"+name, func(t *testing.T) {
 			frame := bundleTestSnapshot()
 			frame.Emergency.Context.Identity = identity
-			frame.Emergency.Colonists.Context.Identity = identity
 			if _, err := DecodeRoutineFrame(frame, nil); err == nil {
 				t.Fatal("foreign emergency section accepted")
 			}

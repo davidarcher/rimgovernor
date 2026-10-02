@@ -105,7 +105,8 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 	if err != nil {
 		return bridge.Combat{}, err
 	}
-	frame := &o.BundleSnapshot{Context: emergency.Context, Emergency: emergencySnapshot(emergency.Context, emergency.Facts)}
+	frame := &o.BundleSnapshot{Context: emergency.Context}
+	frame.Emergency, frame.Pawns = emergencySnapshot(emergency.Context, emergency.Facts)
 	if m, ok := f.legacyDefense.(interface{ combatMirror() []*mp.CombatPawn }); ok {
 		frame.CombatPawns = m.combatMirror()
 	}
@@ -134,7 +135,9 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 	if err != nil {
 		return bridge.Combat{}, err
 	}
-	// Native captures only the combat families, scoped to the frame.
+	// Native captures the combat families into the pawn table rows,
+	// scoped to the frame (#1343); the census facts stay the fake's.
+	var detailRows []*o.PawnState
 	if reply.GetObserved() != nil {
 		detail := proto.Clone(reply.GetObserved()).(*o.PawnSnapshot)
 		detail.Context = proto.Clone(emergency.Context).(*c.ObservationContext)
@@ -149,10 +152,19 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 			}
 		}
 		scopeRefs(detail.ProtoReflect(), emergency.Context)
-		frame.CombatDetail = detail
+		detailRows = detail.Pawns
+		for i, row := range frame.Pawns.Pawns {
+			for _, rich := range detail.Pawns {
+				if rich.GetPawn().GetId() == row.GetPawn().GetId() {
+					merged := proto.Clone(rich).(*o.PawnState)
+					proto.Merge(merged, row)
+					frame.Pawns.Pawns[i] = merged
+				}
+			}
+		}
 	}
 	var firing, approach []domain.Cell
-	for _, row := range frame.CombatDetail.GetPawns() {
+	for _, row := range detailRows {
 		if !seen[row.GetPawn().GetId()] || row.Pawn.Position == nil || primaryRange(row.Equipment) <= 0 {
 			continue
 		}

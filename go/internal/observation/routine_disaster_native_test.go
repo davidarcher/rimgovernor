@@ -50,18 +50,15 @@ func TestNativeRoutineDisasterReplay(t *testing.T) {
 		}
 	}
 	v, p, s := colony.GetObserved(), pawns.GetObserved(), status.GetObserved()
-	if p == nil || s == nil || s.Colonists == nil || !proto.Equal(v.Context, p.Context) || !proto.Equal(v.Context, s.Context) {
+	if p == nil || s == nil || len(s.Issues) > 0 || !proto.Equal(v.Context, p.Context) || !proto.Equal(v.Context, s.Context) {
 		t.Fatal("recovery workers escaped paused bracket")
-	}
-	counts := s.Colonists.Completeness
-	if counts.GetFiltered() != 0 {
-		t.Fatal("incomplete recovery worker census")
 	}
 	emergency := policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}
 	ids := []string{}
-	for _, row := range s.Colonists.Pawns {
-		ids = append(ids, row.Pawn.GetId())
-		emergency.Colonists = append(emergency.Colonists, policy.EmergencyPawn{ID: policy.PawnID(row.Pawn.GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed)})
+	for _, ref := range s.Colonists {
+		row := censusRow(p, ref.GetId())
+		ids = append(ids, ref.GetId())
+		emergency.Colonists = append(emergency.Colonists, policy.EmergencyPawn{ID: policy.PawnID(ref.GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed)})
 	}
 	if err = bridge.ValidateRoutinePawnSnapshot(p, v.Context.Identity, ids); err != nil {
 		t.Fatal(err)
@@ -100,7 +97,11 @@ func TestNativeRoutineDisasterReplay(t *testing.T) {
 		t.Fatal("missing native generation")
 	}
 	request := store.RoutineReviewRequest{Current: domain.GenerationSnapshot{Colony: id.Colony, Load: id.Load, Map: id.Map, Native: native, Plan: "disaster-native-replay", Revision: 1}, Tick: id.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
-	emergencyObservation, err := bridge.DecodeEmergencyStatus(s, v.Context.Identity)
+	table, err := bridge.PawnTable(p, v.Context.Identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	emergencyObservation, err := bridge.DecodeEmergencyStatus(s, table, v.Context.Identity)
 	if err != nil {
 		t.Fatal(err)
 	}

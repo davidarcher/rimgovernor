@@ -91,8 +91,9 @@ namespace HomeBridge.BridgeTools
         }
 
         // The bundle's pawn table (#1343): every spawned pawn on the map,
-        // each built by the one row builder with the detail its kind needs.
-        internal static Obs.PawnSnapshot Table(Map map, Common.ObservationContext context)
+        // each built by the one row builder with the detail its kind needs;
+        // combat names the pawns the defense planner reads combat detail of.
+        internal static Obs.PawnSnapshot Table(Map map, Common.ObservationContext context, ISet<string> combat)
         {
             var source = map.mapPawns.AllPawnsSpawned.ToList();
             if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
@@ -100,7 +101,8 @@ namespace HomeBridge.BridgeTools
             var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(source.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
             double? raidArmor = null; var armorRead = false;
             foreach (var pawn in source.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) {
-                var details = !pawn.Dead && pawn.IsFreeColonist ? ColonistDetail : pawn.RaceProps.Animal ? AnimalDetail : CoreDetail;
+                var details = !pawn.Dead && pawn.IsFreeColonist ? ColonistDetail : combat.Contains(Id(pawn.GetUniqueLoadID())) ? CombatDetail
+                    : pawn.RaceProps.Animal ? AnimalDetail : CoreDetail;
                 if (details.Equipment && !armorRead) { raidArmor = NativeGearFacts.RaidArmor(map); armorRead = true; }
                 result.Pawns.Add(Detail(pawn, colonists, Core(pawn, colonists, context), details, raidArmor, context));
             }
@@ -108,8 +110,10 @@ namespace HomeBridge.BridgeTools
         }
 
         // The table's detail families: a free colonist every one but tend,
-        // an animal its animal state, any other pawn none.
+        // a combat pawn health, gear, biography and animal state, another
+        // animal its animal state, any other pawn none.
         private static readonly Obs.PawnDetails ColonistDetail = new Obs.PawnDetails { Needs = true, Health = true, Equipment = true, Biography = true, Settings = true, Social = true, Animals = true, Work = true, Schedule = true, Tend = false };
+        private static readonly Obs.PawnDetails CombatDetail = new Obs.PawnDetails { Needs = false, Health = true, Equipment = true, Biography = true, Settings = false, Social = false, Animals = true };
         private static readonly Obs.PawnDetails AnimalDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = true };
         private static readonly Obs.PawnDetails CoreDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = false };
 

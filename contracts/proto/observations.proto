@@ -1400,7 +1400,12 @@ message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rim
 // hives only: true when the thing is dormant or awake but not engaging (no
 // insect targets a player thing and no colonist is inside the hive's
 // boundary). A passive threat is left alone, never held for or attacked.
-message ThreatPawn { PawnState pawn = 1; EntityRef prey = 2; optional bool prey_is_ours = 3; optional bool predator_is_ours = 4; optional string ignored_reason = 5; optional bool passive = 6; }
+// pawn references the bundle's pawn table row (#1343); hostile_reason and
+// nearest_colonist_distance (Chebyshev cells to the nearest free colonist)
+// are the classification's own, per list: a downed predator is listed
+// twice with different reasons.
+message ThreatPawn { reserved 1; EntityRef prey = 2; optional bool prey_is_ours = 3; optional bool predator_is_ours = 4; optional string ignored_reason = 5; optional bool passive = 6;
+  EntityRef pawn = 7; optional string hostile_reason = 8; optional double nearest_colonist_distance = 9; }
 // A hostile-faction building that is itself a combat target (an insect hive,
 // a crashed ship part, a mech-cluster piece with combat power): its own CAS
 // token rides on building.snapshot for Operations.AttackTarget, and
@@ -1410,8 +1415,10 @@ message ThreatPawn { PawnState pawn = 1; EntityRef prey = 2; optional bool prey_
 // mortar (#1148) is a turret whose verb fires mortar shells.
 message ThreatBuilding { EntityRef building = 1; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional int32 nearest_colonist_distance = 5; repeated rimgovernor.common.v1.Cell occupied_cells = 6; optional bool passive = 7; optional bool mortar = 8; }
 message ThreatsSnapshot { repeated ThreatPawn hostiles = 1; repeated ThreatPawn hunting_predators = 2; repeated ThreatPawn ignored_hunters = 3; repeated ThreatPawn wild_predators_near = 4; repeated ThreatPawn downed_near = 5; reserved 6; repeated ThreatBuilding hostile_buildings = 7; }
-message StatusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; PawnSnapshot colonists = 2; ThreatsSnapshot threats = 3; repeated ReadIssue issues = 4; }
-message StatusRequest { ReadScope scope = 1; optional bool colonists = 2; optional bool threats = 3; optional bool colonist_detail = 4; optional double predator_radius = 5; reserved 6; }
+// colonists references every spawned free colonist's pawn table row
+// (#1343), complete unless issues name "colonists".
+message StatusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; reserved 2; ThreatsSnapshot threats = 3; repeated ReadIssue issues = 4; repeated EntityRef colonists = 5; }
+message StatusRequest { ReadScope scope = 1; optional bool colonists = 2; optional bool threats = 3; reserved 4; reserved "colonist_detail"; optional double predator_radius = 5; reserved 6; }
 message StatusReply { oneof outcome { StatusSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // A snapshot stream frame, and the scheduler's step read the controller
 // composes (clock_status is set only there: frames never carry it).
@@ -1424,7 +1431,7 @@ message BundleSnapshot {
   ColonyFactsSnapshot colony_facts = 6;
   PopulationSnapshot population = 7;
   ResearchSnapshot research = 8;
-  // The pawn table (32) replaces the colonist detail section (#1343).
+  // The pawn table (35) replaces the colonist detail section (#1343).
   reserved 9; reserved "colonist_pawns";
   BuildingsSnapshot buildings = 10;
   BillsSnapshot bills = 12;
@@ -1443,17 +1450,16 @@ message BundleSnapshot {
   repeated rimgovernor.mirror.v1.CombatEventRow combat_events = 21;
   // The defense planner's other combat inputs (#853), in the same frame,
   // while the emergency census lists a threat or a colonist in a mental
-  // state, else unset. combat_detail is list_pawns with the combat details
-  // (health, equipment, biography, animals; include dead) for every census
-  // colonist, then every hostile and hunting predator, at most 256 pawns.
-  // combat_lines_of_fire is read_lines_of_fire from every colonist cell
+  // state, else unset. The pawn table carries the combat detail (health,
+  // equipment, biography, animals) of every hostile and hunting predator
+  // (#1343). combat_lines_of_fire is read_lines_of_fire from every colonist cell
   // with a ranged primary to every hostile building's occupied cells, at
   // most 64 cells a side, unset when either side is empty.
-  PawnSnapshot combat_detail = 22;
+  reserved 22; reserved "combat_detail";
   LinesOfFireSnapshot combat_lines_of_fire = 23;
   // Combat rooms (#897) are read from the rooms census (27).
   reserved 24;
-  // Every damaged spawned player door (#900), with combat_detail, at most
+  // Every damaged spawned player door (#900), with the combat inputs, at most
   // 64: the doors a fight may send a gunner to repair.
   repeated rimgovernor.mirror.v1.CombatDoorRow combat_doors = 25;
   // Planning definitions are the definition catalog's (#1340).
@@ -1461,14 +1467,14 @@ message BundleSnapshot {
   // list_rooms without outdoor rooms or boundary buildings, with cells:
   // the room census temperature, comfort and hospital planning read (#944).
   RoomsSnapshot rooms = 27;
-  // Every spawned unroofed player mortar (#931), with combat_detail, at
+  // Every spawned unroofed player mortar (#931), with the combat inputs, at
   // most 16: the guns a fight may crew for counter-battery.
   repeated rimgovernor.mirror.v1.CombatMortarRow combat_mortars = 28;
   // The outdoor temperature a fight shelters from (#1077) is
   // colony_facts.outdoor_temperature_c.
   reserved 29;
   // The hottest live hive's cell temperature in degrees Celsius (#1073),
-  // with combat_detail: an infestation's heat-stroke hold and entry check.
+  // with the combat inputs: an infestation's heat-stroke hold and entry check.
   optional float combat_hive_temperature_c = 30;
   // The watermark of every omittable section (#1347), carried or not:
   // emergency, colony_facts, population, research, traders and
@@ -1480,8 +1486,9 @@ message BundleSnapshot {
   repeated SectionWatermark watermarks = 31;
   // The pawn table (#1343): every spawned pawn on the map, the rows every
   // other section's pawn reference resolves against. A free colonist
-  // carries every detail family but tend; an animal its animal state; any
-  // other pawn the core row.
+  // carries every detail family but tend; a hostile or hunting predator
+  // the emergency census lists the combat detail; another animal its
+  // animal state; any other pawn the core row.
   PawnSnapshot pawns = 35;
   // The whole map as a cell grid (#1345), every frame: a keyframe on an
   // open or keyframe request, on a map change and at least every 30

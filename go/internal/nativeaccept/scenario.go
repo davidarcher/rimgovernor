@@ -668,8 +668,9 @@ func (s *ScenarioClock) Poll(ctx context.Context) ([]any, error) {
 }
 
 // readSafetyStatus is observations_read_status with colonists and threats
-// on the clock's identity; complete is false when the read is not observed
-// or carries an issue.
+// on the clock's identity, its colonist references joined to their pawn
+// rows (#1343), with health, under colonistRows; complete is false when a read is not
+// observed, carries an issue or misses a colonist's row.
 func readSafetyStatus(ctx context.Context, clock *ScenarioClock, label string) (observed map[string]any, complete bool, err error) {
 	reply, err := clock.Wire(ctx, label, "observations_read_status", map[string]any{
 		"scope": map[string]any{"expectedIdentity": clock.Identity}, "colonists": true, "threats": true,
@@ -678,7 +679,28 @@ func readSafetyStatus(ctx context.Context, clock *ScenarioClock, label string) (
 		return nil, false, err
 	}
 	_, observed, outcomeErr := Outcome(reply, "observed")
-	return observed, outcomeErr == nil && len(AsSlice(observed["issues"])) == 0, nil
+	if outcomeErr != nil || len(AsSlice(observed["issues"])) > 0 {
+		return observed, false, nil
+	}
+	var ids []any
+	for _, raw := range AsSlice(observed["colonists"]) {
+		ref, _ := AsMap(raw)
+		ids = append(ids, AsString(ref["id"]))
+	}
+	if len(ids) == 0 {
+		return observed, true, nil
+	}
+	reply, err = clock.Wire(ctx, label+"-pawns", "observations_list_pawns", map[string]any{
+		"scope": map[string]any{"expectedIdentity": clock.Identity}, "filter": map[string]any{"ids": ids},
+		"details": map[string]any{"needs": false, "health": true, "equipment": false, "biography": false, "settings": false, "social": false, "animals": false},
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	_, pawns, outcomeErr := Outcome(reply, "observed")
+	rows := AsSlice(pawns["pawns"])
+	observed["colonistRows"] = rows
+	return observed, outcomeErr == nil && len(rows) == len(ids), nil
 }
 
 // ScenarioRuntime is the minimal advance_game(rt, ...) surface a Go acceptance
@@ -1019,7 +1041,7 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 				if err := require(complete, "Safety observation incomplete"); err != nil {
 					return err
 				}
-				colonists := AsSlice(dig(status, "colonists", "pawns"))
+				colonists := AsSlice(status["colonistRows"])
 				standing := len(colonists) > 0
 				for _, raw := range colonists {
 					pawn, ok := AsMap(raw)
@@ -1126,7 +1148,7 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 			if err := require(len(hostiles) == 0 && len(hunting) == 0, "Active threat"); err != nil {
 				return err
 			}
-			pawns := AsSlice(dig(status, "colonists", "pawns"))
+			pawns := AsSlice(status["colonistRows"])
 			allSafe := len(pawns) > 0
 			for _, raw := range pawns {
 				pawn, ok := AsMap(raw)

@@ -11,8 +11,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ReadEmergency observes basic health and the full status threat census. It does
-// not bind a controller direction/plan or authorize treatment, combat or building.
+// ReadEmergency observes basic health and the full status threat census,
+// its pawn references joined against the pawn table (#1343). It does not
+// bind a controller direction/plan or authorize treatment, combat or building.
 func (client *Client) ReadEmergency(ctx context.Context, id *c.Identity) (EmergencyObservation, Result, error) {
 	var empty EmergencyObservation
 	if err := ValidateIdentity(id); err != nil {
@@ -31,7 +32,11 @@ func (client *Client) ReadEmergency(ctx context.Context, id *c.Identity) (Emerge
 	case *o.StatusReply_Failure:
 		return empty, raw, failure(v.Failure, raw)
 	case *o.StatusReply_Observed:
-		result, err := DecodeEmergencyStatus(v.Observed, id)
+		pawns, err := client.FramePawns(ctx, id)
+		if err != nil {
+			return empty, raw, err
+		}
+		result, err := DecodeEmergencyStatus(v.Observed, pawns, id)
 		return result, raw, err
 	default:
 		return empty, raw, contract("emergency status outcome missing")
@@ -41,12 +46,14 @@ func (client *Client) ReadEmergency(ctx context.Context, id *c.Identity) (Emerge
 // emergencyRequest is the status read ReadEmergency issues; a bundle's
 // emergency section is seeded into the step cache under the same request.
 func emergencyRequest(id *c.Identity) *o.StatusRequest {
-	return &o.StatusRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(id).(*c.Identity)}, Colonists: proto.Bool(true), Threats: proto.Bool(true), ColonistDetail: proto.Bool(false)}
+	return &o.StatusRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(id).(*c.Identity)}, Colonists: proto.Bool(true), Threats: proto.Bool(true)}
 }
 
 // DecodeEmergencyStatus shares live boundary validation with captured replay.
+// Each pawn reference resolves against pawns, the frame's pawn table; one
+// the table lacks leaves that pawn's facts unknown until a later frame.
 // The returned facts carry no player authority or controller plan identity.
-func DecodeEmergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation, error) {
+func DecodeEmergencyStatus(v *o.StatusSnapshot, pawns Pawns, id *c.Identity) (EmergencyObservation, error) {
 	if err := ValidateIdentity(id); err != nil {
 		return EmergencyObservation{}, err
 	}
@@ -56,7 +63,7 @@ func DecodeEmergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObserv
 	if err := buildingUnknown(v); err != nil {
 		return EmergencyObservation{}, err
 	}
-	return emergencyStatus(v, id)
+	return emergencyStatus(v, pawns, id)
 }
 func emergencyBool(v *bool) domain.Fact[bool] {
 	if v == nil {
@@ -65,14 +72,6 @@ func emergencyBool(v *bool) domain.Fact[bool] {
 	return domain.Known(*v)
 }
 
-// emergencyCompleteness is unknown without a census record and complete
-// when no row was filtered out.
-func emergencyCompleteness(v *o.Completeness) domain.Fact[bool] {
-	if v == nil {
-		return domain.Unknown[bool]()
-	}
-	return domain.Known(v.GetFiltered() == 0)
-}
 func emergencyIssues(issues []*o.ReadIssue, present func(string) bool) error {
 	for _, issue := range issues {
 		if issue == nil || issue.Field == nil || validID(issue.GetField()) != nil {
@@ -87,14 +86,22 @@ func emergencyIssues(issues []*o.ReadIssue, present func(string) bool) error {
 	}
 	return nil
 }
-func emergencyPawn(row *o.PawnState) (policy.EmergencyPawn, error) {
+
+// emergencyPawn reads one census reference's facts from its table row,
+// returned too; an unresolved reference has only its id known.
+func emergencyPawn(ref *o.EntityRef, pawns Pawns) (policy.EmergencyPawn, *o.PawnState, error) {
+	if !pawnRef(ref, map[string]bool{}) || ref.Snapshot != nil {
+		return policy.EmergencyPawn{}, nil, contract("emergency pawn reference malformed")
+	}
+	row, ok := pawns.Row(ref)
+	if !ok {
+		return policy.EmergencyPawn{ID: policy.PawnID(ref.GetId())}, nil, nil
+	}
+	result, err := emergencyFacts(row)
+	return result, row, err
+}
+func emergencyFacts(row *o.PawnState) (policy.EmergencyPawn, error) {
 	var result policy.EmergencyPawn
-	if row == nil || row.Pawn == nil || row.Pawn.Id == nil || validID(row.Pawn.GetId()) != nil {
-		return result, contract("emergency pawn identity missing")
-	}
-	if row.Pawn.MapId != nil && row.Pawn.GetMapId() < 0 {
-		return result, contract("negative emergency pawn map")
-	}
 	if err := emergencyIssues(row.Issues, func(field string) bool {
 		switch field {
 		case "dead":
@@ -133,7 +140,7 @@ func emergencyPawn(row *o.PawnState) (policy.EmergencyPawn, error) {
 	}
 	return result, nil
 }
-func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation, error) {
+func emergencyStatus(v *o.StatusSnapshot, pawns Pawns, id *c.Identity) (EmergencyObservation, error) {
 	var result EmergencyObservation
 	if v == nil {
 		return result, contract("emergency status missing")
@@ -144,19 +151,20 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 	if !sameIdentity(v.Context.Identity, id) {
 		return result, contract("emergency identity mismatch")
 	}
-	if v.Colonists == nil || v.Threats == nil {
+	// Both sections are requested. The colonist census is complete unless
+	// an issue names it, and then it lists no one.
+	if v.Threats == nil {
 		return result, contract("requested emergency section missing")
 	}
-	if err := emergencyIssues(v.Issues, func(field string) bool { return field == "colonists" || field == "threats" }); err != nil {
+	if err := emergencyIssues(v.Issues, func(field string) bool { return field == "colonists" && len(v.Colonists) > 0 || field == "threats" }); err != nil {
 		return result, err
 	}
-	if err := ValidateContext(v.Colonists.Context); err != nil {
-		return result, err
+	result.Facts.ColonistsComplete = domain.Known(true)
+	for _, issue := range v.Issues {
+		if issue.GetField() == "colonists" {
+			result.Facts.ColonistsComplete = domain.Unknown[bool]()
+		}
 	}
-	if !proto.Equal(v.Colonists.Context, v.Context) {
-		return result, contract("colonist context mismatch")
-	}
-	result.Facts.ColonistsComplete = emergencyCompleteness(v.Colonists.Completeness)
 	type category struct {
 		kind policy.ThreatKind
 		rows []*o.ThreatPawn
@@ -187,8 +195,8 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 		return nil
 	}
 	seen := map[policy.PawnID]bool{}
-	for _, row := range v.Colonists.Pawns {
-		pawn, err := emergencyPawn(row)
+	for _, ref := range v.Colonists {
+		pawn, _, err := emergencyPawn(ref, pawns)
 		if err != nil {
 			return EmergencyObservation{}, err
 		}
@@ -207,9 +215,12 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 			if row == nil {
 				return EmergencyObservation{}, contract("missing threat pawn")
 			}
-			pawn, err := emergencyPawn(row.Pawn)
+			pawn, state, err := emergencyPawn(row.Pawn, pawns)
 			if err != nil {
 				return EmergencyObservation{}, err
+			}
+			if row.NearestColonistDistance != nil && !(row.GetNearestColonistDistance() >= 0) || row.HostileReason != nil && !presentationText(row.HostileReason, 4096) {
+				return EmergencyObservation{}, contract("invalid emergency threat facts")
 			}
 			if seen[pawn.ID] {
 				return EmergencyObservation{}, contract("duplicate emergency threat")
@@ -218,12 +229,15 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 			if err = observe(pawn); err != nil {
 				return EmergencyObservation{}, err
 			}
-			threat := policy.EmergencyThreat{ID: pawn.ID, Kind: group.kind, Dead: pawn.Dead, Downed: pawn.Downed, Animal: emergencyBool(row.Pawn.Animal), Fogged: emergencyBool(row.Pawn.Fogged), Passive: emergencyBool(row.Passive)}
-			if row.Pawn.NearestColonistDistance != nil {
-				threat.Distance = domain.Known(row.Pawn.GetNearestColonistDistance())
+			threat := policy.EmergencyThreat{ID: pawn.ID, Kind: group.kind, Dead: pawn.Dead, Downed: pawn.Downed, Passive: emergencyBool(row.Passive)}
+			if row.NearestColonistDistance != nil {
+				threat.Distance = domain.Known(row.GetNearestColonistDistance())
 			}
-			if at := row.Pawn.GetPawn().GetPosition(); at != nil && at.X != nil && at.Z != nil {
-				threat.Position = domain.Known(domain.Cell{X: at.GetX(), Z: at.GetZ()})
+			if state != nil {
+				threat.Animal, threat.Fogged = emergencyBool(state.Animal), emergencyBool(state.Fogged)
+				if at := state.GetPawn().GetPosition(); at != nil && at.X != nil && at.Z != nil {
+					threat.Position = domain.Known(domain.Cell{X: at.GetX(), Z: at.GetZ()})
+				}
 			}
 			result.Facts.Threats = append(result.Facts.Threats, threat)
 		}

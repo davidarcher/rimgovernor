@@ -38,21 +38,18 @@ func TestNativeRoutineWorkParity(t *testing.T) {
 	v := colony.GetObserved()
 	s := status.GetObserved()
 	p := pawns.GetObserved()
-	if v == nil || s == nil || p == nil || s.Colonists == nil || !proto.Equal(v.Context, s.Context) || !proto.Equal(v.Context, p.Context) {
+	if v == nil || s == nil || p == nil || len(s.Issues) > 0 || !proto.Equal(v.Context, s.Context) || !proto.Equal(v.Context, p.Context) {
 		t.Fatal("inconsistent native captures")
 	}
 	if err := bridge.ValidateColonyFacts(v, v.Context.Identity); err != nil {
 		t.Fatal(err)
 	}
-	census := s.Colonists.Completeness
-	if census.GetFiltered() != 0 {
-		t.Fatal("incomplete native status")
-	}
 	e := policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}
 	ids := []string{}
-	for _, row := range s.Colonists.Pawns {
-		ids = append(ids, row.Pawn.GetId())
-		e.Colonists = append(e.Colonists, policy.EmergencyPawn{ID: policy.PawnID(row.Pawn.GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed)})
+	for _, ref := range s.Colonists {
+		row := censusRow(p, ref.GetId())
+		ids = append(ids, ref.GetId())
+		e.Colonists = append(e.Colonists, policy.EmergencyPawn{ID: policy.PawnID(ref.GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed)})
 	}
 	if err := bridge.ValidateRoutinePawnSnapshot(p, v.Context.Identity, ids); err != nil {
 		t.Fatal(err)
@@ -141,4 +138,15 @@ func TestWorkPawnRowPsyfocus(t *testing.T) {
 	if v, known := optional((&o.PawnSnapshot{MeditateAssignmentAvailable: proto.Bool(false)}).MeditateAssignmentAvailable).Value(); !known || v {
 		t.Fatal("Core-only Meditate availability not decoded as known false")
 	}
+}
+
+// censusRow is id's row in a captured pawn list, the table the status
+// census references (#1343); empty when the capture lacks it.
+func censusRow(p *o.PawnSnapshot, id string) *o.PawnState {
+	for _, row := range p.GetPawns() {
+		if row.GetPawn().GetId() == id {
+			return row
+		}
+	}
+	return &o.PawnState{}
 }

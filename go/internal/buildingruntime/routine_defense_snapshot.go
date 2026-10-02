@@ -24,7 +24,7 @@ type defenseRecorder struct {
 	lines     *bridge.LinesOfFire
 }
 
-// ReadCombat keeps the frame's census, combat detail rows and building
+// ReadCombat keeps the frame's census, its pawn table rows and building
 // lines of fire, in the shapes of the reads they replace (#853).
 func (d *defenseRecorder) ReadCombat(ctx context.Context, id *c.Identity) (bridge.Combat, error) {
 	v, err := d.RoutineDefenseSource.ReadCombat(ctx, id)
@@ -32,7 +32,7 @@ func (d *defenseRecorder) ReadCombat(ctx context.Context, id *c.Identity) (bridg
 		return v, err
 	}
 	d.emergency = &v.Emergency
-	if detail := v.Frame.GetCombatDetail(); detail != nil {
+	if detail := v.Frame.GetPawns(); detail != nil {
 		d.pawns = &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: detail}}
 	}
 	if lines := v.Frame.GetCombatLinesOfFire(); lines != nil {

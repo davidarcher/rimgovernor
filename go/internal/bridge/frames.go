@@ -263,8 +263,11 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte,
 	}
 	var emergency EmergencyObservation
 	if v.Emergency != nil {
-		var err error
-		if emergency, err = DecodeEmergencyStatus(v.Emergency, v.Context.Identity); err != nil {
+		pawns, err := PawnTable(v.Pawns, v.Context.Identity)
+		if err != nil {
+			return nil, nil, held, gap, frameGrid{}, gridKind, err
+		}
+		if emergency, err = DecodeEmergencyStatus(v.Emergency, pawns, v.Context.Identity); err != nil {
 			return nil, nil, held, gap, frameGrid{}, gridKind, err
 		}
 	}
@@ -416,7 +419,7 @@ func DecodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog) (Routin
 	}
 	out.Tables = Tables{Buildings: BuildingTable(v.Buildings), Pawns: pawns}
 	if v.Emergency != nil {
-		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, identity); err != nil {
+		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, pawns, identity); err != nil {
 			return RoutineFrame{}, err
 		}
 		podsPending(&out.Emergency, v.CombatEvents)
@@ -468,7 +471,11 @@ func BundleEmergency(v *o.BundleSnapshot) (EmergencyObservation, error) {
 	if v == nil || v.Emergency == nil {
 		return EmergencyObservation{}, contract("emergency section missing")
 	}
-	out, err := DecodeEmergencyStatus(v.Emergency, v.Context.GetIdentity())
+	pawns, err := PawnTable(v.Pawns, v.Context.GetIdentity())
+	if err != nil {
+		return EmergencyObservation{}, err
+	}
+	out, err := DecodeEmergencyStatus(v.Emergency, pawns, v.Context.GetIdentity())
 	if err != nil {
 		return EmergencyObservation{}, err
 	}
@@ -677,7 +684,8 @@ type Combat struct {
 	Pawns     []*mp.CombatPawn
 	Events    []*mp.CombatEventRow
 	Emergency EmergencyObservation
-	// Detail is keyed by pawn id; nil when the frame carries none.
+	// Detail is the frame's pawn table cut to the emergency census
+	// (#1343): colonists, hostiles and predators with their combat detail.
 	Detail map[string]*o.PawnState
 	Lines  []LineOfFire
 	// Rooms are the map's standing rectangular rooms (#897).
@@ -710,11 +718,36 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 	return DecodeCombat(reply)
 }
 
-// combatFrame is the part of frame v a combat read answers.
+// combatFrame is the part of frame v a combat read answers: its pawn
+// table cut to the rows the emergency census references.
 func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
-	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, Rooms: v.Rooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
+	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, Pawns: censusPawns(v), CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatLinesOfFire: v.CombatLinesOfFire, Rooms: v.Rooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
 	if t := frameOutdoorC(v); t != nil {
 		out.ColonyFacts = &o.ColonyFactsSnapshot{OutdoorTemperatureC: t}
+	}
+	return out
+}
+
+// censusPawns is v's pawn table rows the emergency census references.
+func censusPawns(v *o.BundleSnapshot) *o.PawnSnapshot {
+	if v.Pawns == nil || v.Emergency == nil {
+		return nil
+	}
+	ids := map[string]bool{}
+	for _, ref := range v.Emergency.Colonists {
+		ids[ref.GetId()] = true
+	}
+	t := v.Emergency.GetThreats()
+	for _, group := range [][]*o.ThreatPawn{t.GetHostiles(), t.GetHuntingPredators(), t.GetIgnoredHunters(), t.GetWildPredatorsNear(), t.GetDownedNear()} {
+		for _, row := range group {
+			ids[row.GetPawn().GetId()] = true
+		}
+	}
+	out := &o.PawnSnapshot{Context: v.Pawns.Context, Completeness: v.Pawns.Completeness, MeditateAssignmentAvailable: v.Pawns.MeditateAssignmentAvailable}
+	for _, row := range v.Pawns.Pawns {
+		if ids[row.GetPawn().GetId()] {
+			out.Pawns = append(out.Pawns, row)
+		}
 	}
 	return out
 }
@@ -730,26 +763,18 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 	}
 	out := Combat{Context: v.Context, Pawns: v.CombatPawns, Events: v.CombatEvents, Doors: v.CombatDoors, Frame: v}
 	identity := v.Context.Identity
+	pawns, err := PawnTable(v.Pawns, identity)
+	if err != nil {
+		return Combat{}, err
+	}
+	out.Detail = pawns
 	if v.Emergency != nil {
-		emergency, err := DecodeEmergencyStatus(v.Emergency, identity)
+		emergency, err := DecodeEmergencyStatus(v.Emergency, pawns, identity)
 		if err != nil {
 			return Combat{}, err
 		}
 		podsPending(&emergency, v.CombatEvents)
 		out.Emergency = emergency
-	}
-	if v.CombatDetail != nil {
-		ids := map[string]bool{}
-		for _, row := range v.CombatDetail.Pawns {
-			ids[row.GetPawn().GetId()] = true
-		}
-		if err := pawnsSnapshotSelected(v.CombatDetail, identity, ids, pawnDetails{Combat: true}); err != nil {
-			return Combat{}, err
-		}
-		out.Detail = make(map[string]*o.PawnState, len(v.CombatDetail.Pawns))
-		for _, row := range v.CombatDetail.Pawns {
-			out.Detail[row.Pawn.GetId()] = row
-		}
 	}
 	if v.CombatLinesOfFire != nil {
 		var firing, approach []domain.Cell

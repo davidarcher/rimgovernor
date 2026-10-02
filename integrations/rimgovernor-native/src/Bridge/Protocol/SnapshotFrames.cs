@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
             var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
             var status = new Obs.StatusRequest { Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
-                Colonists = true, Threats = true, ColonistDetail = false };
+                Colonists = true, Threats = true };
             var statusBegan = Now();
             var statusRead = NativeObservationTools.TryStatus(map, status, context, out var emergency, out _);
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
@@ -52,38 +52,38 @@ namespace HomeBridge.BridgeTools
             ObservationWork.Captured("combat", Now() - combatBegan, observed.CombatPawns.Count + observed.CombatEvents.Count);
             var inputsBegan = Now();
             CombatInputs(map, context, observed);
-            ObservationWork.Captured("combatInputs", Now() - inputsBegan, observed.CombatDetail != null ? observed.CombatDetail.Pawns.Count : 0);
+            ObservationWork.Captured("combatInputs", Now() - inputsBegan, observed.CombatDoors.Count + observed.CombatMortars.Count);
             return observed;
         }
 
-        // On the main thread. The defense planner's combat inputs (#853):
-        // the combat pawn detail for the census colonists, hostiles and
-        // hunting predators, and the lines of fire from ranged colonists to
-        // hostile buildings, while the census lists a threat or a colonist
-        // in a mental state. Each is omitted when it fails to read.
+        // The census pawns the pawn table carries combat detail for (#1343):
+        // every hostile and hunting predator.
+        private static ISet<string> CombatSet(Obs.StatusSnapshot? census)
+        {
+            var ids = new HashSet<string>(System.StringComparer.Ordinal);
+            var threats = census?.Threats;
+            if (threats == null) return ids;
+            foreach (var threat in threats.Hostiles.Concat(threats.HuntingPredators))
+                if (threat?.Pawn?.Id != null) ids.Add(threat.Pawn.Id);
+            return ids;
+        }
+
+        // On the main thread. The defense planner's other combat inputs
+        // (#853), the pawn detail being the pawn table's: the hive
+        // temperature, damaged doors, mortars and the lines of fire from
+        // ranged colonists to hostile buildings, while the census lists a
+        // threat or a colonist in a mental state. Each is omitted when it
+        // fails to read.
         private static void CombatInputs(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             var census = observed.Emergency;
             var threats = census?.Threats;
-            if (census?.Colonists == null || threats == null) return;
-            var colonists = census.Colonists.Pawns;
+            var table = observed.Pawns;
+            if (census == null || threats == null || table == null) return;
+            var colonistIds = new HashSet<string>(census.Colonists.Select(p => p.Id ?? ""), System.StringComparer.Ordinal);
+            var colonists = table.Pawns.Where(p => colonistIds.Contains(p.Pawn?.Id ?? "")).ToList();
             if (threats.Hostiles.Count + threats.HuntingPredators.Count + threats.HostileBuildings.Count == 0
                 && !colonists.Any(p => p.HasMentalState)) return;
-            var ids = new List<string>();
-            foreach (var row in colonists.Concat(threats.Hostiles.Select(t => t.Pawn)).Concat(threats.HuntingPredators.Select(t => t.Pawn)))
-            {
-                var id = row?.Pawn?.Id;
-                if (id != null && !ids.Contains(id)) ids.Add(id);
-            }
-            if (ids.Count == 0 || ids.Count > 256) return;
-            var pawns = new Obs.ListPawnsRequest {
-                Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
-                Filter = new Obs.PawnFilter { IncludeDead = true },
-                Details = new Obs.PawnDetails { Needs = false, Health = true, Equipment = true, Biography = true, Settings = false, Social = false, Animals = true },
-            };
-            pawns.Filter.Ids.AddRange(ids);
-            if (!NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) return;
-            observed.CombatDetail = detail;
             // The hottest live hive's temperature (#1073), for the heat-stroke hold.
             foreach (var hive in map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Hive))
             {
@@ -111,11 +111,10 @@ namespace HomeBridge.BridgeTools
                 var loaded = mortar.gun?.TryGetComp<RimWorld.CompChangeableProjectile>()?.LoadedShell;
                 if (loaded != null) observed.CombatMortars[observed.CombatMortars.Count - 1].LoadedShell = loaded.defName;
             }
-            var colonistIds = new HashSet<string>(colonists.Select(p => p.Pawn?.Id ?? ""));
             var firing = new List<IntVec3>();
-            foreach (var row in detail.Pawns)
+            foreach (var row in colonists)
             {
-                if (row.Pawn?.Position == null || !colonistIds.Contains(row.Pawn.Id) || row.Equipment == null || !row.Equipment.HasPrimaryId) continue;
+                if (row.Pawn?.Position == null || row.Equipment == null || !row.Equipment.HasPrimaryId) continue;
                 var primary = row.Equipment.Equipped.FirstOrDefault(g => g.Thing?.Id == row.Equipment.PrimaryId);
                 if (primary == null || !primary.Ranged || !primary.HasRange || primary.Range <= 0) continue;
                 var cell = new IntVec3(row.Pawn.Position.X, 0, row.Pawn.Position.Z);
@@ -158,7 +157,7 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                try { observed.Pawns = NativePawnObservationTools.Table(map, context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("pawns", ex)); }
+                try { observed.Pawns = NativePawnObservationTools.Table(map, context, CombatSet(observed.Emergency)); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("pawns", ex)); }
                 ObservationWork.Captured("pawns", Now() - began, observed.Pawns != null ? observed.Pawns.Pawns.Count : 0);
             }
         }

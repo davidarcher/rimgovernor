@@ -62,10 +62,19 @@ func (client *Client) ReadStep(ctx context.Context, request StepRequest) (*o.Bun
 		}
 		switch value := reply.Outcome.(type) {
 		case *o.StatusReply_Observed:
-			if _, err := DecodeEmergencyStatus(value.Observed, identity); err != nil {
+			// The census references resolve against the pawn table (#1343).
+			table, err := client.framePawnSnapshot(ctx, identity)
+			if err != nil {
 				return nil, emergencyRaw, err
 			}
-			v.Emergency = proto.Clone(value.Observed).(*o.StatusSnapshot)
+			pawns, err := PawnTable(table, identity)
+			if err != nil {
+				return nil, emergencyRaw, err
+			}
+			if _, err := DecodeEmergencyStatus(value.Observed, pawns, identity); err != nil {
+				return nil, emergencyRaw, err
+			}
+			v.Emergency, v.Pawns = proto.Clone(value.Observed).(*o.StatusSnapshot), table
 		case *o.StatusReply_Unavailable:
 			return nil, emergencyRaw, unavailable(value.Unavailable, emergencyRaw)
 		case *o.StatusReply_Failure:

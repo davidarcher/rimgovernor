@@ -258,17 +258,15 @@ namespace HomeBridge.BridgeTools
             }
             var spawned = map.mapPawns.AllPawnsSpawned.ToList();
             var colonists = spawned.Where(p => !p.Dead && p.IsFreeColonist).ToList();
-            if (wantColonists) {
-                var snapshot = new Obs.PawnSnapshot { Context = context, Completeness = Complete(colonists.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
-                foreach (var pawn in colonists) snapshot.Pawns.Add(PawnRow(pawn, request.ColonistDetail, context));
-                result.Colonists = snapshot;
-            } else result.Issues.Add(Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested."));
+            // Colonists and threats are pawn table references (#1343).
+            if (wantColonists) foreach (var pawn in colonists) result.Colonists.Add(NativePawnObservationTools.Ref(pawn));
+            else result.Issues.Add(Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested."));
             if (!wantThreats) { result.Issues.Add(Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")); return result; }
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var threats = new Obs.ThreatsSnapshot(); var radius = request.HasPredatorRadius ? request.PredatorRadius : 30;
             var colonistCells = colonists.Select(p => (p.Position.x, p.Position.z)).ToList();
             NativeThreatClassifier.Collect(spawned.Where(p => !p.Dead && !p.IsColonist).ToList(), pawn => ThreatFactsOf(pawn, player),
-                colonistCells, radius, pawn => PawnRow(pawn, false, context), pawn => Entity(HuntedPawn(pawn)!), threats);
+                colonistCells, radius, NativePawnObservationTools.Ref, pawn => Entity(HuntedPawn(pawn)!), threats);
             foreach (var building in HostileBuildings(map, player)) {
                 var row = new Obs.ThreatBuilding { Building = Entity(building), HostileReason = "faction:"+building.Faction!.GetUniqueLoadID(),
                     HitPoints = building.HitPoints, MaxHitPoints = building.MaxHitPoints };

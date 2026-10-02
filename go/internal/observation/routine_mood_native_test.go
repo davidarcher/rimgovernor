@@ -38,7 +38,7 @@ func TestNativeRoutineMoodReplay(t *testing.T) {
 	read("work-pawns", pawns)
 	read("work-status", status)
 	v, p, s := colony.GetObserved(), pawns.GetObserved(), status.GetObserved()
-	if v == nil || p == nil || s == nil || s.Colonists == nil || !proto.Equal(v.Context, p.Context) || !proto.Equal(v.Context, s.Context) {
+	if v == nil || p == nil || s == nil || len(s.Issues) > 0 || !proto.Equal(v.Context, p.Context) || !proto.Equal(v.Context, s.Context) {
 		t.Fatal("native mood escaped paused bracket")
 	}
 	identity, err := contextIdentity(v.Context)
@@ -49,15 +49,12 @@ func TestNativeRoutineMoodReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	counts := s.Colonists.Completeness
-	if counts.GetFiltered() != 0 {
-		t.Fatal("incomplete native mood census")
-	}
 	e := policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}
 	ids := []string{}
-	for _, row := range s.Colonists.Pawns {
-		ids = append(ids, row.Pawn.GetId())
-		e.Colonists = append(e.Colonists, policy.EmergencyPawn{ID: policy.PawnID(row.Pawn.GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed)})
+	for _, ref := range s.Colonists {
+		row := censusRow(p, ref.GetId())
+		ids = append(ids, ref.GetId())
+		e.Colonists = append(e.Colonists, policy.EmergencyPawn{ID: policy.PawnID(ref.GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed)})
 	}
 	if err = bridge.ValidateRoutinePawnSnapshot(p, v.Context.Identity, ids); err != nil {
 		t.Fatal(err)

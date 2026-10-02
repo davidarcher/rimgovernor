@@ -74,7 +74,7 @@ func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *
 	if v == nil || buildingContext(v.Context, identity, 0, false) != nil {
 		return SupplyRead{}, contract("supply census unavailable")
 	}
-	if yes, known := emergencyCompleteness(v.Completeness).Value(); !known || !yes {
+	if v.Completeness == nil || v.Completeness.GetFiltered() != 0 {
 		return SupplyRead{}, contract("incomplete supply census")
 	}
 	out := SupplyRead{Context: proto.Clone(v.Context).(*c.ObservationContext), Targets: []SupplyTarget{}}

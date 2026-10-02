@@ -53,7 +53,7 @@ func decodeEquipWeapons(reply *o.ListSuppliesReply, identity *c.Identity, minimu
 	if v == nil || buildingContext(v.Context, identity, 0, false) != nil {
 		return EquipRead{}, contract("equip census unavailable")
 	}
-	if yes, known := emergencyCompleteness(v.Completeness).Value(); !known || !yes {
+	if v.Completeness == nil || v.Completeness.GetFiltered() != 0 {
 		return EquipRead{}, contract("incomplete equip census")
 	}
 	out := EquipRead{Context: proto.Clone(v.Context).(*c.ObservationContext), Targets: []EquipCandidate{}}

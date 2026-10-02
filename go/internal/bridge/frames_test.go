@@ -28,7 +28,6 @@ import (
 func bundleTestSnapshot() *o.BundleSnapshot {
 	emergency := emergencyFixture()
 	emergency.Context = authorityTestContext(7)
-	emergency.Colonists.Context = authorityTestContext(7)
 	return &o.BundleSnapshot{Context: authorityTestContext(7), Paused: proto.Bool(false), ClockStatus: clockTestStatus(), Emergency: emergency}
 }
 
@@ -135,8 +134,7 @@ func newBundleFamilyServer(t *testing.T) *bundleFamilyServer {
 	pawns := combatPawnsFixture()
 	pawns.Pawns[0].Settings = &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(false), Work: []*o.WorkSetting{{DefName: proto.String("Construction"), Priority: proto.Int32(3), Disabled: proto.Bool(false)}}}
 	s.pawns = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: pawns}}
-	s.snapshot.Emergency.Colonists.Pawns = []*o.PawnState{emergencyRow("pawn-1")}
-	s.snapshot.Emergency.Colonists.Completeness = emergencyCounts(1)
+	s.snapshot.Emergency.Colonists = []*o.EntityRef{emergencyRef("pawn-1")}
 	s.snapshot.ColonyFacts = proto.Clone(s.colony.GetObserved()).(*o.ColonyFactsSnapshot)
 	s.snapshot.Population = proto.Clone(s.population.GetObserved()).(*o.PopulationSnapshot)
 	s.snapshot.Research = proto.Clone(s.research.GetObserved()).(*o.ResearchSnapshot)

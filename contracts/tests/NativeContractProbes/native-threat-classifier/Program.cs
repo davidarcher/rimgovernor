@@ -27,7 +27,7 @@ internal static class NativeThreatClassifierProbe
         var threats = new Obs.ThreatsSnapshot();
         var hop = ObservationWork.Begin();
         var scan = NativeThreatClassifier.Collect(pawns, p => p.F, colonists, radius,
-            p => { projected++; ProjectedIds.Add(p.Id); return new Obs.PawnState { Pawn = new Obs.EntityRef { Id = p.Id } }; },
+            p => { projected++; ProjectedIds.Add(p.Id); return new Obs.EntityRef { Id = p.Id }; },
             p => new Obs.EntityRef { Id = "prey-" + p.Id }, threats);
         ObservationWork.End();
         var report = ObservationWork.Report(hop);
@@ -37,7 +37,7 @@ internal static class NativeThreatClassifierProbe
         return (threats, scan);
     }
 
-    private static string Ids(IEnumerable<Obs.ThreatPawn> rows) { return string.Join(",", rows.Select(r => r.Pawn.Pawn.Id)); }
+    private static string Ids(IEnumerable<Obs.ThreatPawn> rows) { return string.Join(",", rows.Select(r => r.Pawn.Id)); }
 
     internal static void Invoke()
     {
@@ -70,22 +70,22 @@ internal static class NativeThreatClassifierProbe
         var (t, scan) = Run(pawns, Colonists, 30);
 
         Check(Ids(t.Hostiles) == "raider,wolf,hostileDowned", "hostiles in scan order: " + Ids(t.Hostiles));
-        Check(t.Hostiles[0].Pawn.HostileReason == "faction:Faction_9" && t.Hostiles[0].Pawn.NearestColonistDistance == 40 && t.Hostiles[0].Pawn.Hostile, "faction hostile");
-        Check(t.Hostiles[1].Pawn.HostileReason == "manhunter:ManhunterPermanent" && t.Hostiles[1].Pawn.NearestColonistDistance == 100, "manhunter wins over faction");
+        Check(t.Hostiles[0].HostileReason == "faction:Faction_9" && t.Hostiles[0].NearestColonistDistance == 40, "faction hostile");
+        Check(t.Hostiles[1].HostileReason == "manhunter:ManhunterPermanent" && t.Hostiles[1].NearestColonistDistance == 100, "manhunter wins over faction");
         Check(t.Hostiles[2].Prey == null && !t.Hostiles[2].HasPredatorIsOurs, "hostility precedes the hunt branch");
         Check(Ids(t.IgnoredHunters) == "ourHunter,wildOnDeer", "ignored hunters: " + Ids(t.IgnoredHunters));
         Check(t.IgnoredHunters[0].IgnoredReason == "player-owned predator" && t.IgnoredHunters[0].PredatorIsOurs && t.IgnoredHunters[0].Prey.Id == "prey-ourHunter" && !t.IgnoredHunters[0].PreyIsOurs, "player-owned hunter");
-        Check(t.IgnoredHunters[1].IgnoredReason == "prey is not player-owned" && !t.IgnoredHunters[1].PredatorIsOurs && t.IgnoredHunters[1].Pawn.HostileReason == "predatorHunt" && t.IgnoredHunters[1].Pawn.NearestColonistDistance == 50, "hunter on non-player prey");
+        Check(t.IgnoredHunters[1].IgnoredReason == "prey is not player-owned" && !t.IgnoredHunters[1].PredatorIsOurs && t.IgnoredHunters[1].HostileReason == "predatorHunt" && t.IgnoredHunters[1].NearestColonistDistance == 50, "hunter on non-player prey");
         Check(Ids(t.HuntingPredators) == "wildOnCorpse,wildNoPrey", "hunting predators: " + Ids(t.HuntingPredators));
-        Check(t.HuntingPredators[0].PreyIsOurs && t.HuntingPredators[0].Prey.Id == "prey-wildOnCorpse" && t.HuntingPredators[0].Pawn.NearestColonistDistance == 7, "hunt on our corpse");
-        Check(t.HuntingPredators[1].Prey == null && !t.HuntingPredators[1].HasPreyIsOurs && !t.HuntingPredators[1].HasIgnoredReason && t.HuntingPredators[1].Pawn.HostileReason == "predatorHunt", "missing prey is hunting");
+        Check(t.HuntingPredators[0].PreyIsOurs && t.HuntingPredators[0].Prey.Id == "prey-wildOnCorpse" && t.HuntingPredators[0].NearestColonistDistance == 7, "hunt on our corpse");
+        Check(t.HuntingPredators[1].Prey == null && !t.HuntingPredators[1].HasPreyIsOurs && !t.HuntingPredators[1].HasIgnoredReason && t.HuntingPredators[1].HostileReason == "predatorHunt", "missing prey is hunting");
         Check(Ids(t.DownedNear) == "neutralDowned,downedPredator", "downed near: " + Ids(t.DownedNear));
-        Check(t.DownedNear.All(r => r.Pawn.HostileReason == "downed" && r.Pawn.HasHostile && !r.Pawn.Hostile), "downed reasons");
-        Check(t.DownedNear[0].Pawn.NearestColonistDistance == 5, "downed distance");
+        Check(t.DownedNear.All(r => r.HostileReason == "downed"), "downed reasons");
+        Check(t.DownedNear[0].NearestColonistDistance == 5, "downed distance");
         Check(Ids(t.WildPredatorsNear) == "downedPredator,edgePredator", "predators near (radius inclusive): " + Ids(t.WildPredatorsNear));
-        Check(t.WildPredatorsNear.All(r => r.Pawn.HostileReason == "predator_near"), "predator reasons");
-        Check(!ReferenceEquals(t.DownedNear[1].Pawn, t.WildPredatorsNear[0].Pawn), "a pawn in two lists shares no mutable row");
-        Check(t.WildPredatorsNear[1].Pawn.NearestColonistDistance == 30, "edge distance");
+        Check(t.WildPredatorsNear.All(r => r.HostileReason == "predator_near"), "predator reasons");
+        Check(!ReferenceEquals(t.DownedNear[1], t.WildPredatorsNear[0]), "a pawn in two lists shares no mutable row");
+        Check(t.WildPredatorsNear[1].NearestColonistDistance == 30, "edge distance");
 
         // Eleven rows from ten kept pawns; the 500 hares, the far predator
         // and our own downed animal are never projected, and only the far
@@ -106,8 +106,8 @@ internal static class NativeThreatClassifierProbe
             Pawn("downedPredator", new ThreatFacts { Downed = true, Predator = true }),
         };
         var (t, scan) = Run(pawns, new List<(int X, int Z)>(), 30);
-        Check(t.Hostiles.Count == 1 && !t.Hostiles[0].Pawn.HasNearestColonistDistance, "no distance without colonists");
-        Check(t.HuntingPredators.Count == 1 && !t.HuntingPredators[0].Pawn.HasNearestColonistDistance, "hunt kept without colonists");
+        Check(t.Hostiles.Count == 1 && !t.Hostiles[0].HasNearestColonistDistance, "no distance without colonists");
+        Check(t.HuntingPredators.Count == 1 && !t.HuntingPredators[0].HasNearestColonistDistance, "hunt kept without colonists");
         Check(t.DownedNear.Count == 0 && t.WildPredatorsNear.Count == 0, "nothing is near without colonists");
         Check(projected == 2 && scan.ProximityChecks == 0, "no projection or scan for the unplaceable");
     }
@@ -136,7 +136,7 @@ internal static class NativeThreatClassifierProbe
             Pawn("downedPredator", new ThreatFacts { Downed = true, Predator = true, X = 0, Z = 0 }),
         };
         var (t, scan) = Run(pawns, Colonists, 0);
-        Check(t.Hostiles.Count == 1 && t.Hostiles[0].Pawn.NearestColonistDistance == 0, "hostile at distance zero");
+        Check(t.Hostiles.Count == 1 && t.Hostiles[0].NearestColonistDistance == 0, "hostile at distance zero");
         Check(t.DownedNear.Count == 0 && t.WildPredatorsNear.Count == 0, "zero radius keeps no proximity threat");
         Check(projected == 1 && scan.ProximityChecks == 1, "zero radius skips the proximity scan");
     }
@@ -150,6 +150,6 @@ internal static class NativeThreatClassifierProbe
             Pawn("held", new ThreatFacts { X = 3, Z = 0 }),
         };
         var (t, _) = Run(pawns, Colonists, 30);
-        Check(t.Hostiles.Count == 1 && t.Hostiles[0].Pawn.HostileReason == "prison_break" && t.Hostiles[0].Pawn.Hostile, "escapee is hostile");
+        Check(t.Hostiles.Count == 1 && t.Hostiles[0].HostileReason == "prison_break", "escapee is hostile");
     }
 }

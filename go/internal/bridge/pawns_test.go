@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -145,12 +146,17 @@ func TestPawnsIdleNativeJobAndEmergencyProjection(t *testing.T) {
 	snapshot := pawnsTestSnapshot()
 	snapshot.Pawns[0].Job = job
 	status := emergencyFixture()
-	status.Colonists.Pawns = []*o.PawnState{emergencyRow("pawn-1")}
-	status.Colonists.Pawns[0].Job = proto.Clone(job).(*o.JobEvidence)
-	status.Colonists.Completeness = emergencyCounts(1)
+	status.Colonists = []*o.EntityRef{emergencyRef("pawn-1")}
+	row := emergencyRow("pawn-1")
+	row.Job = proto.Clone(job).(*o.JobEvidence)
+	table := &o.PawnSnapshot{Context: pbContext(), Completeness: &o.Completeness{}, Pawns: []*o.PawnState{row}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		switch arg.Tool {
 		case "rimgovernor/observations_list_pawns":
+			// The unfiltered read is the pawn table the census joins (#1343).
+			if !strings.Contains(string(arg.Arguments), "pawn-1") {
+				return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: table}}), nil
+			}
 			return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: snapshot}}), nil
 		case "rimgovernor/observations_read_status":
 			return pbResult(&o.StatusReply{Outcome: &o.StatusReply_Observed{Observed: status}}), nil

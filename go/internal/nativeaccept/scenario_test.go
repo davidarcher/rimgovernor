@@ -501,11 +501,14 @@ func TestLetterApproval(t *testing.T) {
 
 func TestAdvanceGameCombatContinuesPastColonistHealthStop(t *testing.T) {
 	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
-	standing := map[string]any{"observed": map[string]any{
-		"colonists": map[string]any{"pawns": []any{map[string]any{"dead": false, "downed": false, "health": map[string]any{"bleeding": true}}}},
+	// The census references the colonist; its row is a list read (#1343).
+	standing := map[string]any{"observed": map[string]any{"colonists": []any{map[string]any{"id": "c"}}}}
+	rows := map[string]any{"observed": map[string]any{
+		"pawns": []any{map[string]any{"dead": false, "downed": false, "health": map[string]any{"bleeding": true}}},
 	}}
 	fw := &fakeWire{replies: map[string][]map[string]any{
 		"observations_read_status": {standing},
+		"observations_list_pawns":  {rows},
 		"clock_read_status": {
 			{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}},
 			{"status": stoppedStatus("owner-1", 1, 0, 20, 60, 0, "STOP_REASON_COLONIST_HEALTH", true)},
@@ -547,11 +550,11 @@ func TestAdvanceGameCombatContinuesPastColonistHealthStop(t *testing.T) {
 
 func TestAdvanceGameCombatHealthStopInterruptsWhenColonistDowned(t *testing.T) {
 	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
-	downed := map[string]any{"observed": map[string]any{
-		"colonists": map[string]any{"pawns": []any{map[string]any{"dead": false, "downed": true}}},
-	}}
+	downed := map[string]any{"observed": map[string]any{"colonists": []any{map[string]any{"id": "c"}}}}
+	rows := map[string]any{"observed": map[string]any{"pawns": []any{map[string]any{"dead": false, "downed": true}}}}
 	fw := &fakeWire{replies: map[string][]map[string]any{
 		"observations_read_status": {downed},
+		"observations_list_pawns":  {rows},
 		"clock_read_status": {
 			{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}},
 			{"status": stoppedStatus("owner-1", 1, 0, 20, 60, 0, "STOP_REASON_COLONIST_HEALTH", true)},

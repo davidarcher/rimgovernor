@@ -14,20 +14,41 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func emergencyCounts(n uint64) *o.Completeness {
+func emergencyCounts(uint64) *o.Completeness {
 	return &o.Completeness{Filtered: proto.Uint64(0)}
 }
 func emergencyFixture() *o.StatusSnapshot {
-	return &o.StatusSnapshot{Context: pbContext(), Colonists: &o.PawnSnapshot{Context: pbContext(), Completeness: emergencyCounts(0)}, Threats: &o.ThreatsSnapshot{}}
+	return &o.StatusSnapshot{Context: pbContext(), Threats: &o.ThreatsSnapshot{}}
 }
 func emergencyRow(id string) *o.PawnState {
 	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Dead: proto.Bool(false), Downed: proto.Bool(false), InBed: proto.Bool(true), Health: &o.PawnHealth{Bleeding: proto.Bool(false), NeedsTend: proto.Bool(false)}}
 }
+
+// emergencyRef is a census reference into the pawn table (#1343).
+func emergencyRef(id string) *o.EntityRef { return &o.EntityRef{Id: proto.String(id)} }
+
+// emergencyThreat is a threat row referencing id.
+func emergencyThreat(id string) *o.ThreatPawn { return &o.ThreatPawn{Pawn: emergencyRef(id)} }
+
+// emergencyTable is a pawn table holding rows.
+func emergencyTable(rows ...*o.PawnState) Pawns {
+	out := Pawns{}
+	for _, row := range rows {
+		out[row.Pawn.GetId()] = row
+	}
+	return out
+}
+
+// The status read references its pawns; ReadEmergency joins them against
+// the pawn table, a list read without a stream.
 func TestEmergencyReadExactRequestAndOwnedFacts(t *testing.T) {
 	original := emergencyFixture()
 	original.Context.NativeGeneration = nil
-	original.Colonists.Context.NativeGeneration = nil
+	original.Colonists = []*o.EntityRef{emergencyRef("c")}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
+		if arg.Tool == "rimgovernor/observations_list_pawns" {
+			return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: pbContext(), Completeness: &o.Completeness{}, Pawns: []*o.PawnState{emergencyRow("c")}}}}), nil
+		}
 		if arg.Tool != "rimgovernor/observations_read_status" {
 			t.Fatal(arg.Tool)
 		}
@@ -38,7 +59,7 @@ func TestEmergencyReadExactRequestAndOwnedFacts(t *testing.T) {
 			t.Fatal(e)
 		}
 		q := &o.StatusRequest{}
-		if e := protojson.Unmarshal([]byte(outer.Request), q); e != nil || q.Colonists == nil || !q.GetColonists() || q.Threats == nil || !q.GetThreats() || q.ColonistDetail == nil || q.GetColonistDetail() || q.PredatorRadius != nil || !proto.Equal(q.Scope.ExpectedIdentity, pbIdentity()) {
+		if e := protojson.Unmarshal([]byte(outer.Request), q); e != nil || q.Colonists == nil || !q.GetColonists() || q.Threats == nil || !q.GetThreats() || q.PredatorRadius != nil || !proto.Equal(q.Scope.ExpectedIdentity, pbIdentity()) {
 			t.Fatal(q, e)
 		}
 		return pbResult(&o.StatusReply{Outcome: &o.StatusReply_Observed{Observed: original}}), nil
@@ -48,7 +69,10 @@ func TestEmergencyReadExactRequestAndOwnedFacts(t *testing.T) {
 		t.Fatal(result, e)
 	}
 	if x, k := result.Facts.ColonistsComplete.Value(); !x || !k {
-		t.Fatal("empty complete lost")
+		t.Fatal("complete census lost")
+	}
+	if inBed, known := result.Facts.Colonists[0].InBed.Value(); !known || !inBed {
+		t.Fatal("table row not joined", result.Facts.Colonists)
 	}
 	original.Context.Identity.LoadToken = proto.String("changed")
 	if result.Context.Identity.GetLoadToken() != "load" {
@@ -57,16 +81,17 @@ func TestEmergencyReadExactRequestAndOwnedFacts(t *testing.T) {
 }
 func TestEmergencyPartialMedicalAndCategories(t *testing.T) {
 	v := emergencyFixture()
-	v.Colonists.Pawns = []*o.PawnState{emergencyRow("c")}
-	v.Colonists.Completeness = emergencyCounts(1)
-	v.Colonists.Pawns[0].Health = nil
-	v.Colonists.Pawns[0].Issues = []*o.ReadIssue{{Field: proto.String("health"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING.Enum()}}}
-	v.Threats.Hostiles = []*o.ThreatPawn{{Pawn: emergencyRow("h")}}
-	v.Threats.HuntingPredators = []*o.ThreatPawn{{Pawn: emergencyRow("p")}}
-	v.Threats.IgnoredHunters = []*o.ThreatPawn{{Pawn: emergencyRow("i")}}
-	v.Threats.WildPredatorsNear = []*o.ThreatPawn{{Pawn: emergencyRow("same")}}
-	v.Threats.DownedNear = []*o.ThreatPawn{{Pawn: emergencyRow("same")}}
-	got, e := emergencyStatus(v, pbIdentity())
+	colonist := emergencyRow("c")
+	colonist.Health = nil
+	colonist.Issues = []*o.ReadIssue{{Field: proto.String("health"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING.Enum()}}}
+	pawns := emergencyTable(colonist, emergencyRow("h"), emergencyRow("p"), emergencyRow("i"), emergencyRow("same"))
+	v.Colonists = []*o.EntityRef{emergencyRef("c")}
+	v.Threats.Hostiles = []*o.ThreatPawn{emergencyThreat("h")}
+	v.Threats.HuntingPredators = []*o.ThreatPawn{emergencyThreat("p")}
+	v.Threats.IgnoredHunters = []*o.ThreatPawn{emergencyThreat("i")}
+	v.Threats.WildPredatorsNear = []*o.ThreatPawn{emergencyThreat("same")}
+	v.Threats.DownedNear = []*o.ThreatPawn{emergencyThreat("same")}
+	got, e := emergencyStatus(v, pawns, pbIdentity())
 	if e != nil || len(got.Facts.Threats) != 5 {
 		t.Fatal(got, e)
 	}
@@ -76,8 +101,10 @@ func TestEmergencyPartialMedicalAndCategories(t *testing.T) {
 	if got.Facts.Threats[4].Kind != policy.NearbyDowned {
 		t.Fatal("category lost")
 	}
-	v.Colonists.Completeness = nil
-	got, e = emergencyStatus(v, pbIdentity())
+	// A colonist census issue leaves completeness unknown.
+	v.Colonists = nil
+	v.Issues = []*o.ReadIssue{{Field: proto.String("colonists"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
+	got, e = emergencyStatus(v, pawns, pbIdentity())
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -85,26 +112,61 @@ func TestEmergencyPartialMedicalAndCategories(t *testing.T) {
 		t.Fatal("missing completeness fabricated")
 	}
 }
+
+// A census reference the pawn table lacks is a known member with unknown
+// facts until a later frame (#1343).
+func TestEmergencyUnresolvedReferenceIsUnknown(t *testing.T) {
+	v := emergencyFixture()
+	v.Colonists = []*o.EntityRef{emergencyRef("gone")}
+	hostile := emergencyThreat("raider")
+	hostile.NearestColonistDistance = proto.Float64(12)
+	v.Threats.Hostiles = []*o.ThreatPawn{hostile}
+	got, e := emergencyStatus(v, Pawns{}, pbIdentity())
+	if e != nil || len(got.Facts.Colonists) != 1 || len(got.Facts.Threats) != 1 {
+		t.Fatal(got, e)
+	}
+	if got.Facts.Colonists[0].ID != "gone" {
+		t.Fatal(got.Facts.Colonists)
+	}
+	if _, known := got.Facts.Colonists[0].Dead.Value(); known {
+		t.Fatal("unresolved colonist status fabricated")
+	}
+	threat := got.Facts.Threats[0]
+	if _, known := threat.Downed.Value(); known {
+		t.Fatal("unresolved threat status fabricated")
+	}
+	if _, known := threat.Position.Value(); known {
+		t.Fatal("unresolved threat position fabricated")
+	}
+	if distance, known := threat.Distance.Value(); !known || distance != 12 {
+		t.Fatal("the classification's own distance lost", threat)
+	}
+}
 func TestEmergencyContradictoryMalformedFacts(t *testing.T) {
 	for name, edit := range map[string]func(*o.StatusSnapshot){
 		"missing": func(v *o.StatusSnapshot) { v.Threats = nil }, "world": func(v *o.StatusSnapshot) { v.Context.Identity.LoadToken = proto.String("other") }, "generation": func(v *o.StatusSnapshot) { v.Context.NativeGeneration = proto.Uint64(0) }, "duplicate": func(v *o.StatusSnapshot) {
-			v.Colonists.Pawns = []*o.PawnState{emergencyRow("c"), emergencyRow("c")}
-			v.Colonists.Completeness = emergencyCounts(2)
+			v.Colonists = []*o.EntityRef{emergencyRef("c"), emergencyRef("c")}
 		}, "categoryduplicate": func(v *o.StatusSnapshot) {
-			v.Threats.Hostiles = []*o.ThreatPawn{{Pawn: emergencyRow("x")}, {Pawn: emergencyRow("x")}}
-		}, "conflicting": func(v *o.StatusSnapshot) {
-			a, b := emergencyRow("x"), emergencyRow("x")
-			b.Downed = proto.Bool(true)
-			v.Threats.Hostiles = []*o.ThreatPawn{{Pawn: a}}
-			v.Threats.DownedNear = []*o.ThreatPawn{{Pawn: b}}
+			v.Threats.Hostiles = []*o.ThreatPawn{emergencyThreat("x"), emergencyThreat("x")}
+		}, "fullref": func(v *o.StatusSnapshot) {
+			v.Colonists = []*o.EntityRef{{Id: proto.String("c"), DefName: proto.String("Human")}}
+		}, "missingref": func(v *o.StatusSnapshot) {
+			v.Threats.Hostiles = []*o.ThreatPawn{{}}
+		}, "distance": func(v *o.StatusSnapshot) {
+			threat := emergencyThreat("x")
+			threat.NearestColonistDistance = proto.Float64(-1)
+			v.Threats.Hostiles = []*o.ThreatPawn{threat}
 		}, "issueContradiction": func(v *o.StatusSnapshot) {
+			v.Colonists = []*o.EntityRef{emergencyRef("c")}
 			v.Issues = []*o.ReadIssue{{Field: proto.String("colonists"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}
+		}, "threatsIssue": func(v *o.StatusSnapshot) {
+			v.Issues = []*o.ReadIssue{{Field: proto.String("threats"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := emergencyFixture()
 			edit(v)
-			if _, e := emergencyStatus(v, pbIdentity()); e == nil {
+			if _, e := emergencyStatus(v, emergencyTable(emergencyRow("c"), emergencyRow("x")), pbIdentity()); e == nil {
 				t.Fatal("invalid accepted")
 			}
 		})
@@ -136,16 +198,18 @@ func TestEmergencyUnavailableAndRefusal(t *testing.T) {
 	}
 }
 
-// A threat row's race and nearest-colonist distance reach the policy so a
-// distant animal can be watched rather than held; a row without them stays
-// unknown, which the policy holds (#66).
+// A threat's race comes from its pawn table row and its nearest-colonist
+// distance from the threat row, so a distant animal can be watched rather
+// than held; a pawn without them stays unknown, which the policy holds (#66).
 func TestEmergencyThreatCarriesRaceAndDistance(t *testing.T) {
 	v := emergencyFixture()
 	far := emergencyRow("far")
 	far.Animal = proto.Bool(true)
-	far.NearestColonistDistance = proto.Float64(120)
-	v.Threats.Hostiles = []*o.ThreatPawn{{Pawn: far}, {Pawn: emergencyRow("bare")}}
-	got, e := emergencyStatus(v, pbIdentity())
+	threat := emergencyThreat("far")
+	threat.NearestColonistDistance = proto.Float64(120)
+	threat.HostileReason = proto.String("manhunter:Manhunter")
+	v.Threats.Hostiles = []*o.ThreatPawn{threat, emergencyThreat("bare")}
+	got, e := emergencyStatus(v, emergencyTable(far, emergencyRow("bare")), pbIdentity())
 	if e != nil || len(got.Facts.Threats) != 2 {
 		t.Fatal(got, e)
 	}

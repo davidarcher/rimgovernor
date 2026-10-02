@@ -130,7 +130,7 @@ func (caller *Client) Status(ctx context.Context, identity *c.Identity) (*o.Stat
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
-	request := &o.StatusRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Colonists: proto.Bool(false), Threats: proto.Bool(false), ColonistDetail: proto.Bool(false)}
+	request := &o.StatusRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Colonists: proto.Bool(false), Threats: proto.Bool(false)}
 	reply := &o.StatusReply{}
 	raw, err := caller.protoRead(ctx, "rimgovernor/observations_read_status", request, reply)
 	if err != nil {

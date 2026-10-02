@@ -30,7 +30,7 @@ func TestMentalStatePresence(t *testing.T) {
 				t.Fatal(err)
 			}
 			row.Pawn = &o.EntityRef{Id: proto.String("pawn")}
-			got, err := emergencyPawn(row)
+			got, err := emergencyFacts(row)
 			if (err != nil) != tt.invalid {
 				t.Fatalf("error = %v", err)
 			}

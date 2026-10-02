@@ -36,9 +36,8 @@ namespace HomeBridge.BridgeTools
 
     /// Filter-first threat classification (#646): each pawn is classified
     /// from its ThreatFacts, and only a pawn that lands in a threat list gets
-    /// its full PawnState projection (entity, job, lord, needs, the pawn
-    /// control observation) and its nearest-colonist distance. Healthy
-    /// non-predator wildlife costs one facts read and nothing else. A retained
+    /// its pawn table reference (#1343) and its nearest-colonist distance.
+    /// Healthy non-predator wildlife costs one facts read and nothing else. A retained
     /// candidate still pays an O(colonists) Chebyshev scan, so the worst case
     /// stays O(pawns * colonists).
     ///
@@ -51,7 +50,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Scan Collect<T>(IReadOnlyList<T> pawns, Func<T, ThreatFacts> facts,
             IReadOnlyList<(int X, int Z)> colonists, double radius,
-            Func<T, Obs.PawnState> project, Func<T, Obs.EntityRef> prey, Obs.ThreatsSnapshot threats)
+            Func<T, Obs.EntityRef> project, Func<T, Obs.EntityRef> prey, Obs.ThreatsSnapshot threats)
         {
             var scan = new Scan();
             foreach (var pawn in pawns) {
@@ -71,23 +70,21 @@ namespace HomeBridge.BridgeTools
                 }
                 scan.Candidates++;
                 scan.Projections++;
-                var row = project(pawn);
-                if (nearest.HasValue) row.NearestColonistDistance = nearest.Value;
-                row.Hostile = hostile;
-                var threat = new Obs.ThreatPawn { Pawn = row };
+                var threat = new Obs.ThreatPawn { Pawn = project(pawn) };
+                if (nearest.HasValue) threat.NearestColonistDistance = nearest.Value;
                 if (hostile && f.Passive.HasValue) threat.Passive = f.Passive.Value;
-                if (hostile) { row.HostileReason = manhunter ? "manhunter:"+f.Mental : f.PrisonBreak ? "prison_break" : "faction:"+f.FactionId; threats.Hostiles.Add(threat); }
+                if (hostile) { threat.HostileReason = manhunter ? "manhunter:"+f.Mental : f.PrisonBreak ? "prison_break" : "faction:"+f.FactionId; threats.Hostiles.Add(threat); }
                 else if (f.PredatorHunt) {
                     threat.PredatorIsOurs = f.Ours;
                     if (f.HasPrey) { threat.Prey = prey(pawn); threat.PreyIsOurs = f.PreyOurs; }
-                    row.HostileReason = "predatorHunt";
+                    threat.HostileReason = "predatorHunt";
                     if (f.Ours || f.HasPrey && !f.PreyOurs) { threat.IgnoredReason = f.Ours ? "player-owned predator" : "prey is not player-owned"; threats.IgnoredHunters.Add(threat); }
                     else threats.HuntingPredators.Add(threat);
                 } else {
                     // A downed predator is in both lists: the downed copy is
                     // cloned before the predator reason is written.
-                    if (f.Downed) { var downed = threat.Clone(); downed.Pawn.HostileReason = "downed"; threats.DownedNear.Add(downed); }
-                    if (f.Predator) { row.HostileReason = "predator_near"; threats.WildPredatorsNear.Add(threat); }
+                    if (f.Downed) { var downed = threat.Clone(); downed.HostileReason = "downed"; threats.DownedNear.Add(downed); }
+                    if (f.Predator) { threat.HostileReason = "predator_near"; threats.WildPredatorsNear.Add(threat); }
                 }
             }
             ObservationWork.ThreatScan(scan.Examined, scan.Candidates, scan.Projections, scan.ProximityChecks);

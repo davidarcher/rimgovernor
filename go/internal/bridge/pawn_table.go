@@ -100,6 +100,15 @@ const framePawnsMethod = "rimgovernor/snapshot_frame_pawns"
 // FramePawns is the pawn table of the newest frame, or every spawned pawn
 // read over GABP without a stream.
 func (caller *Client) FramePawns(ctx context.Context, identity *c.Identity) (Pawns, error) {
+	v, err := caller.framePawnSnapshot(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+	return PawnTable(v, identity)
+}
+
+// framePawnSnapshot is FramePawns' table as the wire carries it.
+func (caller *Client) framePawnSnapshot(ctx context.Context, identity *c.Identity) (*o.PawnSnapshot, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, err
 	}
@@ -110,7 +119,7 @@ func (caller *Client) FramePawns(ctx context.Context, identity *c.Identity) (Paw
 			return nil, err
 		}
 		if served {
-			return PawnTable(reply, identity)
+			return reply, nil
 		}
 	}
 	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Details: &o.PawnDetails{Tend: proto.Bool(false)}}
@@ -125,5 +134,8 @@ func (caller *Client) FramePawns(ctx context.Context, identity *c.Identity) (Paw
 	case *o.ListPawnsReply_Unavailable:
 		return nil, unavailable(v.Unavailable, raw)
 	}
-	return PawnTable(reply.GetObserved(), identity)
+	if reply.GetObserved() == nil {
+		return nil, contract("pawn table outcome missing")
+	}
+	return reply.GetObserved(), nil
 }

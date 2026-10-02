@@ -87,7 +87,7 @@ func run(ctx context.Context, s cases.Session) error {
 			report["food_postmortem_error"] = err.Error()
 		}
 		if reply, err := ph.Wire(stopCtx, "threats-postmortem", "observations_read_status", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "colonists": false, "threats": true, "colonistDetail": false,
+			"scope": map[string]any{"expectedIdentity": identity}, "colonists": false, "threats": true,
 		}); err == nil {
 			if _, observed, err := na.Outcome(reply, "observed"); err == nil {
 				report["threats_postmortem"] = observed["threats"]
