@@ -40,6 +40,14 @@ on:
     - cron: '23 7 * * *'
   push:
     branches: [main]
+    # A push that changes only these cannot change game behaviour, so it
+    # runs no acceptance (a mixed push still runs).
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.claude/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
 
 permissions:
   contents: read
