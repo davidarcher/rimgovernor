@@ -55,6 +55,31 @@ func PlanHomeArea(bounds domain.Fact[Bounds], construction domain.Fact[CurrentCo
 	if !known {
 		return unknown, nil
 	}
+	target := homeBase(value)
+	plan := HomeAreaPlan{AutoOff: auto, Set: []domain.Cell{}, Clear: []domain.Cell{}}
+	have := map[domain.Cell]bool{}
+	for _, c := range current {
+		if have[c] {
+			continue
+		}
+		have[c] = true
+		if !target[c] {
+			plan.Clear = append(plan.Clear, c)
+		}
+	}
+	for c := range target {
+		if !have[c] {
+			plan.Set = append(plan.Set, c)
+		}
+	}
+	sort.Slice(plan.Set, func(i, j int) bool { return extentCellLess(plan.Set[i], plan.Set[j]) })
+	sort.Slice(plan.Clear, func(i, j int) bool { return extentCellLess(plan.Clear[i], plan.Clear[j]) })
+	return domain.Known(plan), nil
+}
+
+// homeBase is the base footprint of an extent: its largest region and every
+// region within HomeAreaOutlier of it.
+func homeBase(value ColonyExtent) map[domain.Cell]bool {
 	target := map[domain.Cell]bool{}
 	if len(value.Regions) > 0 {
 		base := 0
@@ -99,23 +124,5 @@ func PlanHomeArea(bounds domain.Fact[Bounds], construction domain.Fact[CurrentCo
 			}
 		}
 	}
-	plan := HomeAreaPlan{AutoOff: auto, Set: []domain.Cell{}, Clear: []domain.Cell{}}
-	have := map[domain.Cell]bool{}
-	for _, c := range current {
-		if have[c] {
-			continue
-		}
-		have[c] = true
-		if !target[c] {
-			plan.Clear = append(plan.Clear, c)
-		}
-	}
-	for c := range target {
-		if !have[c] {
-			plan.Set = append(plan.Set, c)
-		}
-	}
-	sort.Slice(plan.Set, func(i, j int) bool { return extentCellLess(plan.Set[i], plan.Set[j]) })
-	sort.Slice(plan.Clear, func(i, j int) bool { return extentCellLess(plan.Clear[i], plan.Clear[j]) })
-	return domain.Known(plan), nil
+	return target
 }
