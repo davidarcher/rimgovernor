@@ -1,5 +1,7 @@
 name: Remote acceptance
 
+run-name: Remote acceptance ${{ inputs.label || github.event_name }}${{ inputs.cases && format(' / {0}', inputs.cases) || '' }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -13,6 +15,10 @@ on:
         type: string
       base_commit:
         description: Full ancestor SHA (required for land; otherwise defaults to tested commit)
+        required: false
+        type: string
+      label:
+        description: Free text shown in the run title, to tell concurrent runs apart (e.g. 1248 ied-lane)
         required: false
         type: string
       tier:
