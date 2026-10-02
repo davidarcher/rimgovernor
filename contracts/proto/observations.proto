@@ -1154,21 +1154,10 @@ message LightingSection { oneof outcome { LightingFacts observed = 1; rimgoverno
 // whose floor is already ordered carries the pending floor definition so the
 // planner never doubles an open blueprint or frame.
 message FloorCell { rimgovernor.common.v1.Cell cell = 1; optional string terrain = 2; optional string pending = 3; }
-// Room stats live on the upkeep room census (UpkeepRoom), not here (#821).
+// Room stats live on the bundle rooms census (RoomState.stats), not here (#821, #1338).
 message FloorRoom { optional string room_id = 1; optional string role = 2; repeated FloorCell cells = 3; reserved 4; reserved "quality"; }
 message FloorTerrain { optional string def_name = 1; optional double cleanliness = 2; optional int32 path_cost = 3; optional double beauty = 4; optional double flammability = 5; optional bool natural = 6; }
 message FlooringFacts { repeated FloorRoom rooms = 1; repeated FloorTerrain terrains = 2; reserved 3; }
-// Room quality census: every room holding a colonist bed or carrying a common
-// role (dining, rec room), with the native room stats. Bound 256 rooms; past it
-// the section is unavailable (issue "rooms"), never truncated. The stats are
-// the room's native RoomStatDefOf readout as Room.GetStat returns them (#821
-// flattened the former nested RoomQuality message).
-message UpkeepRoom {
-  optional string room_id = 1; optional string role = 2; reserved 3; reserved "quality"; optional uint32 cell_count = 4; repeated string bed_ids = 5;
-  optional double impressiveness = 6; optional double wealth = 7; optional double beauty = 8; optional double space = 9; optional double cleanliness = 10;
-}
-message UpkeepRoomsFacts { repeated UpkeepRoom rooms = 1; reserved 2; }
-message UpkeepRoomsSection { oneof outcome { UpkeepRoomsFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message FlooringSection { oneof outcome { FlooringFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Routes census (issue #6 slice 5): each colony facility a colonist must
 // reach (bed, work bench, storage, dining surface, defence emplacement) with
@@ -1200,7 +1189,7 @@ message UpkeepFacts {
   repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11; repeated FeedDefinition feed_definitions = 12;
   repeated AnimalFeed animals = 13; reserved 14; repeated ReadIssue issues = 15;
   HaulingSection hauling = 16; WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
-  repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; UpkeepRoomsSection rooms = 23; repeated UpkeepPerson slaves = 24;
+  repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; reserved 23; /* rooms: the bundle rooms census */ repeated UpkeepPerson slaves = 24;
   // Find.PlaySettings.autoHomeArea: the game expands the home area around
   // new player buildings while true (AutoHomeAreaIntent, #1322).
   optional bool auto_home_area = 25;
@@ -1377,9 +1366,8 @@ message BundleSnapshot {
   // most 64 cells a side, unset when either side is empty.
   PawnSnapshot combat_detail = 22;
   LinesOfFireSnapshot combat_lines_of_fire = 23;
-  // The map's standing proper rooms (#897), while combat pawns are
-  // captured: every room of at most 1024 cells (larger enclosures are not combat rooms).
-  repeated rimgovernor.mirror.v1.CombatRoom combat_rooms = 24;
+  // Combat rooms (#897) are read from the rooms census (27).
+  reserved 24;
   // Every damaged spawned player door (#900), with combat_detail, at most
   // 64: the doors a fight may send a gunner to repair.
   repeated rimgovernor.mirror.v1.CombatDoorRow combat_doors = 25;

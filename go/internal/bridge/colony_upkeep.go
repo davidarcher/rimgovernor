@@ -21,9 +21,6 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	if v.Routes != nil {
 		counts["routes"] = 1
 	}
-	if v.Rooms != nil {
-		counts["rooms"] = 1
-	}
 	for _, issue := range v.Issues {
 		if counts[issue.GetField()] != 0 {
 			return contract("unavailable upkeep section contains rows")
@@ -197,11 +194,6 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 			return err
 		}
 	}
-	if v.Rooms != nil {
-		if err := validateUpkeepRooms(v.Rooms); err != nil {
-			return err
-		}
-	}
 	if v.Routes != nil {
 		if err := validateRoutes(v.Routes, size, mapID, entity); err != nil {
 			return err
@@ -234,42 +226,6 @@ func validTitle(t *o.RoyalTitleFacts) bool {
 		}
 	}
 	return true
-}
-
-// validateUpkeepRooms checks the upkeep room census: unique rooms with finite quality stats, a non-negative space and wealth, and bed
-// ids unique across the whole census.
-func validateUpkeepRooms(section *o.UpkeepRoomsSection) error {
-	f := section.GetObserved()
-	if f == nil {
-		return validateUnavailable(section.GetUnavailable())
-	}
-	if !proto.Equal(f, &o.UpkeepRoomsFacts{Rooms: f.Rooms}) {
-		return contract("invalid room quality census")
-	}
-	rooms := map[string]bool{}
-	beds := map[string]bool{}
-	for _, r := range f.Rooms {
-		if r == nil || validID(r.GetRoomId()) != nil || rooms[r.GetRoomId()] || r.Role != nil && validID(r.GetRole()) != nil ||
-			!proto.Equal(r, &o.UpkeepRoom{RoomId: r.RoomId, Role: r.Role, CellCount: r.CellCount, BedIds: r.BedIds, Impressiveness: r.Impressiveness, Wealth: r.Wealth, Beauty: r.Beauty, Space: r.Space, Cleanliness: r.Cleanliness}) {
-			return contract("invalid room quality row")
-		}
-		rooms[r.GetRoomId()] = true
-		for _, value := range []*float64{r.Impressiveness, r.Wealth, r.Beauty, r.Space, r.Cleanliness} {
-			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || math.Abs(*value) > 1e9) {
-				return contract("invalid room quality stat")
-			}
-		}
-		if r.GetWealth() < 0 || r.GetSpace() < 0 {
-			return contract("invalid room quality stat")
-		}
-		for _, id := range r.BedIds {
-			if validID(id) != nil || beds[id] {
-				return contract("invalid room quality bed")
-			}
-			beds[id] = true
-		}
-	}
-	return nil
 }
 
 // validateRoutes checks the routes section: unique facility refs at in-map

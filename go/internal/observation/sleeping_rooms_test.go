@@ -3,6 +3,7 @@ package observation
 import (
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -12,9 +13,7 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 	u := &o.UpkeepFacts{
 		People: []*o.UpkeepPerson{{Pawn: &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn")}}, PartnerIds: []string{"lover"}, BedSharingAllowed: proto.Bool(false),
 			Title: &o.RoyalTitleFacts{DefName: proto.String("Knight"), Seniority: proto.Int32(100), BedroomMinArea: proto.Int32(24), BedroomMinImpressiveness: proto.Int32(40), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"DoubleBed", "RoyalBed"}, Count: proto.Int32(1)}}}}},
-		Beds: []*o.UpkeepBed{{Bed: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}, RoomId: proto.String("7"), Quality: proto.String("Good")}},
-		Rooms: &o.UpkeepRoomsSection{Outcome: &o.UpkeepRoomsSection_Observed{Observed: &o.UpkeepRoomsFacts{Rooms: []*o.UpkeepRoom{
-			{RoomId: proto.String("7"), Role: proto.String("Bedroom"), Space: proto.Float64(20), Beauty: proto.Float64(1), Cleanliness: proto.Float64(0), Wealth: proto.Float64(900), Impressiveness: proto.Float64(35), CellCount: proto.Uint32(16), BedIds: []string{"bed"}}}}}},
+		Beds: []*o.UpkeepBed{{Bed: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}, RoomId: proto.String("7"), Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
 	}
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	r, known := colonySleeping(v).Value()
@@ -38,8 +37,20 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 	if q, k := r.Beds[0].Quality.Value(); !k || q != "Good" {
 		t.Fatal("bed quality", q)
 	}
-	rooms, k := r.Rooms.Value()
-	if !k || len(rooms) != 1 || rooms[0].ID != "7" || rooms[0].Role != "Bedroom" || len(rooms[0].Beds) != 1 {
+	stat := func(name string, value float64) *o.RoomStat {
+		return &o.RoomStat{DefName: proto.String(name), Value: proto.Float64(value)}
+	}
+	stats := func() []*o.RoomStat {
+		return []*o.RoomStat{stat("Space", 20), stat("Beauty", 1), stat("Cleanliness", 0), stat("Wealth", 900), stat("Impressiveness", 35)}
+	}
+	census := &o.RoomsSnapshot{Rooms: []*o.RoomState{
+		{Id: proto.String("7"), Role: proto.String("Bedroom"), CellCount: proto.Uint32(16), Stats: stats()},
+		{Id: proto.String("8"), Role: proto.String("DiningRoom"), CellCount: proto.Uint32(30), Stats: stats()},
+		{Id: proto.String("9"), Role: proto.String("Workshop"), CellCount: proto.Uint32(30), Stats: stats()},
+		{Id: proto.String("10"), Role: proto.String("RecRoom"), Fogged: proto.Bool(true), CellCount: proto.Uint32(30), Stats: stats()},
+	}}
+	rooms, k := upkeepRooms(census, r.Beds).Value()
+	if !k || len(rooms) != 2 || rooms[1].ID != "8" || len(rooms[1].Beds) != 0 || rooms[0].ID != "7" || rooms[0].Role != "Bedroom" || len(rooms[0].Beds) != 1 {
 		t.Fatal(rooms, k)
 	}
 	if q, k := rooms[0].Quality.Value(); !k || q.Impressiveness != 35 || q.Wealth != 900 {
@@ -49,22 +60,23 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 		t.Fatal("cells", cells)
 	}
 
-	u.Rooms.GetObserved().Rooms[0].Wealth = nil
-	r, _ = colonySleeping(v).Value()
-	if rooms, _ := r.Rooms.Value(); func() bool { _, k := rooms[0].Quality.Value(); return k }() {
+	census.Rooms[0].Stats[3].Value = nil
+	if rooms, _ := upkeepRooms(census, r.Beds).Value(); func() bool { _, k := rooms[0].Quality.Value(); return k }() {
 		t.Fatal("partial quality became known")
 	}
 
-	// No title stays nil; a rooms issue leaves the census unknown while the
-	// people and beds stay known.
+	// No title stays nil; the colony read alone leaves room quality unknown
+	// (the frame's rooms census fills it), and so does a bed of unknown kind.
 	u.People[0].Title = nil
-	u.Rooms = nil
-	u.Issues = []*o.ReadIssue{{Field: proto.String("rooms")}}
 	r, known = colonySleeping(v).Value()
 	if !known || r.People[0].Title != nil {
 		t.Fatal("title", r.People[0].Title)
 	}
 	if _, k := r.Rooms.Value(); k {
-		t.Fatal("unavailable rooms became known")
+		t.Fatal("rooms known without the census")
+	}
+	r.Beds[0].Medical = domain.Unknown[bool]()
+	if _, k := upkeepRooms(census, r.Beds).Value(); k {
+		t.Fatal("rooms known with a bed of unknown kind")
 	}
 }

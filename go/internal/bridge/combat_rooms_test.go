@@ -12,23 +12,29 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// A frame's standing rooms (#897) decode as the pods tactic's rooms: a
-// room whose cells fill its bounds with its doors; an L-shaped room (its
-// count short of its bounds) is left out.
+// The frame's rooms census (#897, #1338) decodes as the pods tactic's rooms:
+// a proper room whose cells fill its extents, with its boundary doors and
+// whether its roof is whole; an L-shaped room (its count short of its
+// extents), an improper room and one past the size bound are left out.
 func TestDecodeCombatRooms(t *testing.T) {
-	frame := &o.BundleSnapshot{Context: authorityTestContext(7), CombatRooms: []*mp.CombatRoom{
-		{RoomId: proto.String("3"), Min: combatCell(45, 55), Max: combatCell(55, 65), CellCount: proto.Uint32(121), Doors: []*c.Cell{combatCell(50, 54)}},
-		{RoomId: proto.String("4"), Min: combatCell(10, 10), Max: combatCell(13, 13), CellCount: proto.Uint32(12)},
-	}}
+	box := func(x0, z0, x1, z1 int32) *o.Rectangle {
+		return &o.Rectangle{Minimum: combatCell(x0, z0), Maximum: combatCell(x1, z1)}
+	}
+	frame := &o.BundleSnapshot{Context: authorityTestContext(7), Rooms: &o.RoomsSnapshot{Rooms: []*o.RoomState{
+		{Id: proto.String("3"), ProperRoom: proto.Bool(true), Extents: box(45, 55, 55, 65), CellCount: proto.Uint32(121), OpenRoofCount: proto.Uint32(0), Doors: []*o.RoomDoor{{Cell: combatCell(50, 54), Outside: combatCell(50, 53)}}},
+		{Id: proto.String("4"), ProperRoom: proto.Bool(true), Extents: box(10, 10, 13, 13), CellCount: proto.Uint32(12)},
+		{Id: proto.String("5"), ProperRoom: proto.Bool(false), Extents: box(20, 20, 21, 21), CellCount: proto.Uint32(4)},
+		{Id: proto.String("6"), ProperRoom: proto.Bool(true), Extents: box(0, 0, 32, 32), CellCount: proto.Uint32(33 * 33)},
+	}}}
 	combat, err := DecodeCombat(frame)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []policy.CombatRoom{{Interior: policy.Rectangle{X: 45, Z: 55, Width: 11, Height: 11}, Doors: []domain.Cell{{X: 50, Z: 54}}}}
+	want := []policy.CombatRoom{{Interior: policy.Rectangle{X: 45, Z: 55, Width: 11, Height: 11}, Doors: []domain.Cell{{X: 50, Z: 54}}, Roofed: true}}
 	if !reflect.DeepEqual(combat.Rooms, want) {
 		t.Fatalf("%+v", combat.Rooms)
 	}
-	if got := combatFrame(frame); len(got.CombatRooms) != 2 {
+	if got := combatFrame(frame); len(got.GetRooms().GetRooms()) != 4 {
 		t.Fatal("the combat read drops the frame's rooms")
 	}
 }

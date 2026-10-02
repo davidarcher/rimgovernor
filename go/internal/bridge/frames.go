@@ -694,7 +694,7 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 
 // combatFrame is the part of frame v a combat read answers.
 func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
-	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
+	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, Rooms: v.Rooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
 	if t := frameOutdoorC(v); t != nil {
 		out.ColonyFacts = &o.ColonyFactsSnapshot{OutdoorTemperatureC: t}
 	}
@@ -764,7 +764,7 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 	if v.CombatHiveTemperatureC != nil {
 		out.HiveTemperatureC = domain.Known(float64(v.GetCombatHiveTemperatureC()))
 	}
-	for _, row := range v.CombatRooms {
+	for _, row := range v.GetRooms().GetRooms() {
 		if room, ok := combatRoom(row); ok {
 			out.Rooms = append(out.Rooms, room)
 		}
@@ -772,12 +772,19 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 	return out, nil
 }
 
-// combatRoom is a frame room row (#897) as the pods tactic's room: a room
-// whose cells fill its bounds, and the doors on the ring around them. A
-// room of any other shape is left out.
-func combatRoom(row *mp.CombatRoom) (policy.CombatRoom, bool) {
-	lo, okLo := protoCell(row.GetMin())
-	hi, okHi := protoCell(row.GetMax())
+// maxCombatRoomCells bounds a combat room: a larger enclosure is not one.
+const maxCombatRoomCells = 1024
+
+// combatRoom is a frame room census row (#897, #1338) as the pods tactic's
+// room: a proper room of at most maxCombatRoomCells whose cells fill its
+// extents, with the doors in its boundary. A room of any other shape is
+// left out.
+func combatRoom(row *o.RoomState) (policy.CombatRoom, bool) {
+	if !row.GetProperRoom() || row.GetDoorway() || row.GetCellCount() == 0 || row.GetCellCount() > maxCombatRoomCells {
+		return policy.CombatRoom{}, false
+	}
+	lo, okLo := protoCell(row.GetExtents().GetMinimum())
+	hi, okHi := protoCell(row.GetExtents().GetMaximum())
 	if !okLo || !okHi || hi.X < lo.X || hi.Z < lo.Z {
 		return policy.CombatRoom{}, false
 	}
@@ -785,9 +792,9 @@ func combatRoom(row *mp.CombatRoom) (policy.CombatRoom, bool) {
 	if int64(w)*int64(h) != int64(row.GetCellCount()) {
 		return policy.CombatRoom{}, false
 	}
-	room := policy.CombatRoom{Interior: policy.Rectangle{X: lo.X, Z: lo.Z, Width: w, Height: h}, Roofed: row.GetRoofed()}
+	room := policy.CombatRoom{Interior: policy.Rectangle{X: lo.X, Z: lo.Z, Width: w, Height: h}, Roofed: row.OpenRoofCount != nil && row.GetOpenRoofCount() == 0}
 	for _, d := range row.GetDoors() {
-		if c, ok := protoCell(d); ok {
+		if c, ok := protoCell(d.GetCell()); ok {
 			room.Doors = append(room.Doors, c)
 		}
 	}

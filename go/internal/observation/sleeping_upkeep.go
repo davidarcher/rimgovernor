@@ -31,30 +31,53 @@ func colonySleeping(v *o.ColonyFactsSnapshot) domain.Fact[policy.SleepingObserva
 	for _, b := range u.Beds {
 		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(b.Bed.GetDefName()), Humanlike: optional(b.Humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: optional(b.RestEffectiveness), Temperature: optional(b.TemperatureC), Owners: ids(b.Owners), Users: ids(b.Users), AccessibleTo: ids(b.AccessibleTo), Room: optional(b.RoomId), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: b.Bed.GetPosition().GetX(), Z: b.Bed.GetPosition().GetZ()}})
 	}
-	if !hasIssue(u.Issues, "rooms") {
-		r.Rooms = upkeepRooms(u.Rooms)
-	}
 	return domain.Known(r)
 }
 
-// upkeepRooms decodes the upkeep room census; a missing or unavailable
-// section is unknown, and a row missing any quality stat has unknown quality.
-func upkeepRooms(section *o.UpkeepRoomsSection) domain.Fact[[]policy.UpkeepRoom] {
-	f := section.GetObserved()
-	if f == nil {
-		return domain.Unknown[[]policy.UpkeepRoom]()
+// upkeepRooms is the room-quality view of the frame's rooms census (#1338):
+// every room holding a colonist bed (humanlike, not medical, not for
+// prisoners) or carrying a common role (dining, rec room) and not fogged,
+// with its native stats. Unknown when a bed's kind or room is unknown; a
+// room missing any quality stat has unknown quality.
+func upkeepRooms(census *o.RoomsSnapshot, beds []policy.SleepingBed) domain.Fact[[]policy.UpkeepRoom] {
+	owned := map[string][]string{}
+	for _, b := range beds {
+		human, hk := b.Humanlike.Value()
+		medical, mk := b.Medical.Value()
+		prisoners, pk := b.Prisoners.Value()
+		if !hk || !mk || !pk {
+			return domain.Unknown[[]policy.UpkeepRoom]()
+		}
+		if !human || medical || prisoners {
+			continue
+		}
+		room, known := b.Room.Value()
+		if !known {
+			return domain.Unknown[[]policy.UpkeepRoom]()
+		}
+		owned[room] = append(owned[room], b.ID)
 	}
 	rows := []policy.UpkeepRoom{}
-	for _, r := range f.Rooms {
+	for _, r := range census.GetRooms() {
+		role := r.GetRole()
+		if len(owned[r.GetId()]) == 0 && (r.GetFogged() || role != "DiningRoom" && role != "RecRoom") {
+			continue
+		}
 		cells := domain.Unknown[int]()
 		if r.CellCount != nil {
 			cells = domain.Known(int(r.GetCellCount()))
 		}
 		quality := domain.Unknown[policy.RoomQuality]()
-		if q := r; q.Space != nil && q.Beauty != nil && q.Cleanliness != nil && q.Wealth != nil && q.Impressiveness != nil {
-			quality = domain.Known(policy.RoomQuality{Space: q.GetSpace(), Beauty: q.GetBeauty(), Cleanliness: q.GetCleanliness(), Wealth: q.GetWealth(), Impressiveness: q.GetImpressiveness()})
+		space, beauty, clean, wealth, impressive := roomStat(r, "Space"), roomStat(r, "Beauty"), roomStat(r, "Cleanliness"), roomStat(r, "Wealth"), roomStat(r, "Impressiveness")
+		s, sk := space.Value()
+		b, bk := beauty.Value()
+		c, ck := clean.Value()
+		w, wk := wealth.Value()
+		i, ik := impressive.Value()
+		if sk && bk && ck && wk && ik {
+			quality = domain.Known(policy.RoomQuality{Space: s, Beauty: b, Cleanliness: c, Wealth: w, Impressiveness: i})
 		}
-		rows = append(rows, policy.UpkeepRoom{ID: r.GetRoomId(), Role: r.GetRole(), Quality: quality, Cells: cells, Beds: append([]string{}, r.BedIds...)})
+		rows = append(rows, policy.UpkeepRoom{ID: r.GetId(), Role: role, Quality: quality, Cells: cells, Beds: append([]string{}, owned[r.GetId()]...)})
 	}
 	return domain.Known(rows)
 }

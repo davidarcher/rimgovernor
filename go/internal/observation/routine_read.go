@@ -131,13 +131,20 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		p.Facts.OwnedNames = frame.Population.Names
 		p.Facts.Guests = frame.Population.Guests
 	}
+	// The frame's rooms census is the one room table: room quality reads it
+	// on every reading, the room census sections only when asked.
+	if frame.Rooms != nil {
+		if err := bridge.ValidateTemperatureRooms(frame.Rooms, id); err != nil {
+			return RoutineReading{}, err
+		}
+		if sleeping, known := p.Facts.Sleeping.Value(); known {
+			sleeping.Rooms = upkeepRooms(frame.Rooms, sleeping.Beds)
+			p.Facts.Sleeping = domain.Known(sleeping)
+		}
+	}
 	var roomCensus *o.RoomsSnapshot
 	if rooms {
-		if roomCensus = frame.Rooms; roomCensus != nil {
-			if err := bridge.ValidateTemperatureRooms(roomCensus, id); err != nil {
-				return RoutineReading{}, err
-			}
-		}
+		roomCensus = frame.Rooms
 		temperature := domain.Unknown[policy.RoomObservation]()
 		if roomCensus != nil {
 			temperature = temperatureRooms(roomCensus, colonySleeping(colony))

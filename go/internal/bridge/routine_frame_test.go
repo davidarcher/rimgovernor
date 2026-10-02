@@ -8,6 +8,34 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// The frame's one buildings family (#1338) keeps open blueprints and frames
+// as construction sites; the construction census is its built rows.
+func TestDecodeRoutineFrameKeepsBlueprintSites(t *testing.T) {
+	t.Parallel()
+	frame := bundleTestSnapshot()
+	row := func(id string, status o.BuildingStatus) *o.BuildingState {
+		return &o.BuildingState{Building: &o.EntityRef{Id: proto.String(id)}, Status: status.Enum()}
+	}
+	frame.Buildings = &o.BuildingsSnapshot{Context: authorityTestContext(7), Buildings: []*o.BuildingState{
+		row("blueprint", o.BuildingStatus_BUILDING_STATUS_BLUEPRINT), row("frame", o.BuildingStatus_BUILDING_STATUS_FRAME), row("wall", o.BuildingStatus_BUILDING_STATUS_BUILT)}}
+	out, err := DecodeRoutineFrame(frame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := func(v *o.BuildingsSnapshot) (out []string) {
+		for _, r := range v.GetBuildings() {
+			out = append(out, r.GetBuilding().GetId())
+		}
+		return out
+	}
+	if got := ids(out.Sites); len(got) != 3 || got[0] != "blueprint" || got[1] != "frame" {
+		t.Fatalf("sites %v", got)
+	}
+	if got := ids(out.Construction); len(got) != 1 || got[0] != "wall" {
+		t.Fatalf("construction %v", got)
+	}
+}
+
 // DecodeRoutineFrame checks every section against the frame's own identity
 // (#884): a section naming another colony, load or map is a contract error.
 func TestDecodeRoutineFrameChecksSectionIdentity(t *testing.T) {

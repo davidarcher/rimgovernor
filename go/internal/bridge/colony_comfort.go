@@ -8,7 +8,7 @@ import (
 )
 
 func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
-	if v == nil || !proto.Equal(v, &o.UpkeepFacts{Comfort: v.Comfort, Issues: v.Issues, Items: v.Items, Structures: v.Structures, Fires: v.Fires, Filth: v.Filth, Animals: v.Animals, People: v.People, Beds: v.Beds, HomeCoverage: v.HomeCoverage, Lighting: v.Lighting, WildAnimals: v.WildAnimals, Flooring: v.Flooring, Routes: v.Routes, Rooms: v.Rooms, AutoHomeArea: v.AutoHomeArea, HomeCells: v.HomeCells}) {
+	if v == nil || !proto.Equal(v, &o.UpkeepFacts{Comfort: v.Comfort, Issues: v.Issues, Items: v.Items, Structures: v.Structures, Fires: v.Fires, Filth: v.Filth, Animals: v.Animals, People: v.People, Beds: v.Beds, HomeCoverage: v.HomeCoverage, Lighting: v.Lighting, WildAnimals: v.WildAnimals, Flooring: v.Flooring, Routes: v.Routes, AutoHomeArea: v.AutoHomeArea, HomeCells: v.HomeCells}) {
 		return contract("unsupported upkeep projection")
 	}
 	home := map[[2]int32]bool{}

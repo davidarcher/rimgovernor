@@ -419,28 +419,6 @@ namespace HomeBridge.BridgeTools
                 }).ToList();
                 result.Beds.AddRange(values);
             });
-            Read("rooms", result, () => {
-                // Every room holding a colonist bed (humanlike, not medical,
-                // not for prisoners) or carrying a common role (dining, rec
-                // room), with the native room stats room-quality goals read.
-                var colonistBeds = sets.PlayerBuildings.OfType<Building_Bed>().Where(b => b.def.building.bed_humanlike
-                    && !b.Medical && !b.ForPrisoners).OrderBy(b => b.thingIDNumber).ToList();
-                var rooms = new Dictionary<int, Room>();
-                foreach (var b in colonistBeds) { var r = b.GetRoom(); if (r != null) rooms[r.ID] = r; }
-                foreach (var r in map.regionGrid.AllRooms.Where(r => !r.Fogged && (r.Role?.defName == "DiningRoom" || r.Role?.defName == "RecRoom"))) rooms[r.ID] = r;
-                var facts = new Obs.UpkeepRoomsFacts();
-                foreach (var r in rooms.Values.OrderBy(r => r.ID)) {
-                    var row = new Obs.UpkeepRoom { RoomId = r.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), CellCount = checked((uint)r.CellCount),
-                        Space = Number(r.GetStat(RoomStatDefOf.Space)), Beauty = Number(r.GetStat(RoomStatDefOf.Beauty)),
-                            Cleanliness = Number(r.GetStat(RoomStatDefOf.Cleanliness)), Wealth = Number(r.GetStat(RoomStatDefOf.Wealth)),
-                            Impressiveness = Number(r.GetStat(RoomStatDefOf.Impressiveness)) };
-                    if (r.Role != null) row.Role = Id(r.Role.defName);
-                    var beds = colonistBeds.Where(b => b.GetRoom() == r).Select(b => Id(b.GetUniqueLoadID())).ToList();
-                    row.BedIds.AddRange(beds);
-                    facts.Rooms.Add(row);
-                }
-                result.Rooms = new Obs.UpkeepRoomsSection { Observed = facts };
-            });
             Read("animals", result, () => {
                 var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                     && p.Faction == Faction.OfPlayerSilentFail).OrderBy(p => p.thingIDNumber).ToList();
