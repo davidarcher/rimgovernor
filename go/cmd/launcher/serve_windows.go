@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"unicode/utf16"
 
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/setup"
 	"golang.org/x/sys/windows"
@@ -284,40 +282,3 @@ func (a *app) activePort() int {
 // checkout's controller moves it up. Players never pick a port.
 const firstPort = 8787
 
-// tailFlight opens a console following the flight recorder's newest file
-// (the controller's native requests, responses, errors and service events).
-func (a *app) tailFlight() error {
-	path := filepath.Join(a.layout.Root, "profile", "flight", "flight.jsonl")
-	script := strings.ReplaceAll(tailScript, "PATH", strings.ReplaceAll(path, "'", "''"))
-	// Started directly, a nil Stdout makes Go hand the child the NUL device, so
-	// its new console stays blank; `start` gives the window its own console.
-	cmd := exec.Command("cmd.exe", "/c", "start", "RimGovernor flight recorder", "powershell.exe", "-NoLogo", "-NoExit", "-EncodedCommand", encodePowerShell(script))
-	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NO_WINDOW}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	go cmd.Wait()
-	return nil
-}
-
-// encodePowerShell is script as -EncodedCommand takes it (base64 of UTF-16LE),
-// which sidesteps command-line quoting.
-func encodePowerShell(script string) string {
-	units := utf16.Encode([]rune(script))
-	raw := make([]byte, 0, len(units)*2)
-	for _, u := range units {
-		raw = append(raw, byte(u), byte(u>>8))
-	}
-	return base64.StdEncoding.EncodeToString(raw)
-}
-
-// tailScript prints the last 40 rows of PATH, then every row appended after,
-// starting over when the recorder rotates the file. The length comes from an
-// open handle: the directory entry of a file being appended reports a stale
-// size, and Get-Content -Wait goes quiet after a rotation.
-const tailScript = `$Host.UI.RawUI.WindowTitle='RimGovernor flight recorder'; $p='PATH'; Write-Host ('tailing ' + $p); $pos=-1; ` +
-	`while($true){ if(Test-Path -LiteralPath $p){ try{ $f=[IO.File]::Open($p,'Open','Read','ReadWrite'); try{ $len=$f.Length; ` +
-	`if($pos -lt 0){ [void]$f.Seek([Math]::Max(0,$len-65536),'Begin'); $r=New-Object IO.StreamReader($f); $t=$r.ReadToEnd(); $pos=$f.Position; ` +
-	`@($t.Split([char]10) | Where-Object {$_}) | Select-Object -Last 40 } ` +
-	`else { if($len -lt $pos){$pos=0}; if($len -gt $pos){ [void]$f.Seek($pos,'Begin'); $r=New-Object IO.StreamReader($f); $t=$r.ReadToEnd(); $pos=$f.Position; if($t){$t.TrimEnd()} } } ` +
-	`} finally { $f.Close() } } catch { Write-Host $_ } } else { if($pos -ne -2){ Write-Host ('waiting for ' + $p); $pos=-2 } }; Start-Sleep -Milliseconds 500 }`
