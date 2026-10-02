@@ -14,7 +14,7 @@ import (
 )
 
 func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
-	env := &o.ControlledEnvironment{OutdoorTemperatureC: proto.Float64(-5), Daylight: proto.Bool(false),
+	env := &o.ControlledEnvironment{Daylight: proto.Bool(false),
 		Lights:   []*o.GrowLight{{Building: &o.EntityRef{Id: proto.String("lamp-1"), DefName: proto.String("SunLamp"), Position: &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}}, RoomId: proto.String("7"), Powered: proto.Bool(true), PowerW: proto.Float64(2900), LitNow: proto.Bool(true), PowerNetId: proto.String("net-a"), GrowthCells: []*c.Cell{{X: proto.Int32(10), Z: proto.Int32(10)}, {X: proto.Int32(11), Z: proto.Int32(10)}}}},
 		Growers:  []*o.PlantGrower{{Building: &o.EntityRef{Id: proto.String("basin-1"), DefName: proto.String("HydroponicsBasin"), Position: &c.Cell{X: proto.Int32(20), Z: proto.Int32(10)}}, Fertility: proto.Float64(2.8), SowTag: proto.String("Hydroponic"), CanSow: proto.Bool(true), PowerNetId: proto.String("net-a"), PlantCells: []*c.Cell{{X: proto.Int32(20), Z: proto.Int32(10)}, {X: proto.Int32(20), Z: proto.Int32(11)}, {X: proto.Int32(20), Z: proto.Int32(12)}, {X: proto.Int32(20), Z: proto.Int32(13)}}}},
 		Rooms:    []*o.GrowRoom{{RoomId: proto.String("7"), TemperatureC: proto.Float64(21), CellCount: proto.Uint32(36), OpenRoofCount: proto.Uint32(0), ProperRoom: proto.Bool(true), PsychologicallyOutdoors: proto.Bool(false), LitCells: proto.Uint32(30)}},

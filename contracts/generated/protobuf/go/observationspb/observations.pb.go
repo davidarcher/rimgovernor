@@ -20606,7 +20606,6 @@ type GearSnapshot struct {
 	ActiveWeather                *GearWeatherCondition        `protobuf:"bytes,7,opt,name=active_weather,json=activeWeather,proto3" json:"active_weather,omitempty"`
 	StoredApparel                *GearStorage                 `protobuf:"bytes,8,opt,name=stored_apparel,json=storedApparel,proto3" json:"stored_apparel,omitempty"`
 	FinishedResearch             []string                     `protobuf:"bytes,9,rep,name=finished_research,json=finishedResearch,proto3" json:"finished_research,omitempty"` // finished ResearchProjectDef names, sorted
-	OutdoorTemperatureC          *float64                     `protobuf:"fixed64,10,opt,name=outdoor_temperature_c,json=outdoorTemperatureC,proto3,oneof" json:"outdoor_temperature_c,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
@@ -20695,13 +20694,6 @@ func (x *GearSnapshot) GetFinishedResearch() []string {
 		return x.FinishedResearch
 	}
 	return nil
-}
-
-func (x *GearSnapshot) GetOutdoorTemperatureC() float64 {
-	if x != nil && x.OutdoorTemperatureC != nil {
-		return *x.OutdoorTemperatureC
-	}
-	return 0
 }
 
 // Aggregate only usable, untainted, unforbidden apparel in valid storage.
@@ -25795,16 +25787,15 @@ func (x *PowerHeadroom) GetHasActiveSource() bool {
 }
 
 type ControlledEnvironment struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Lights              []*GrowLight           `protobuf:"bytes,1,rep,name=lights,proto3" json:"lights,omitempty"`
-	Growers             []*PlantGrower         `protobuf:"bytes,2,rep,name=growers,proto3" json:"growers,omitempty"`
-	Rooms               []*GrowRoom            `protobuf:"bytes,3,rep,name=rooms,proto3" json:"rooms,omitempty"`
-	Networks            []*PowerHeadroom       `protobuf:"bytes,4,rep,name=networks,proto3" json:"networks,omitempty"`
-	OutdoorTemperatureC *float64               `protobuf:"fixed64,5,opt,name=outdoor_temperature_c,json=outdoorTemperatureC,proto3,oneof" json:"outdoor_temperature_c,omitempty"`
-	Daylight            *bool                  `protobuf:"varint,6,opt,name=daylight,proto3,oneof" json:"daylight,omitempty"`
-	Issues              []*ReadIssue           `protobuf:"bytes,8,rep,name=issues,proto3" json:"issues,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Lights        []*GrowLight           `protobuf:"bytes,1,rep,name=lights,proto3" json:"lights,omitempty"`
+	Growers       []*PlantGrower         `protobuf:"bytes,2,rep,name=growers,proto3" json:"growers,omitempty"`
+	Rooms         []*GrowRoom            `protobuf:"bytes,3,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	Networks      []*PowerHeadroom       `protobuf:"bytes,4,rep,name=networks,proto3" json:"networks,omitempty"`
+	Daylight      *bool                  `protobuf:"varint,6,opt,name=daylight,proto3,oneof" json:"daylight,omitempty"`
+	Issues        []*ReadIssue           `protobuf:"bytes,8,rep,name=issues,proto3" json:"issues,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ControlledEnvironment) Reset() {
@@ -25863,13 +25854,6 @@ func (x *ControlledEnvironment) GetNetworks() []*PowerHeadroom {
 		return x.Networks
 	}
 	return nil
-}
-
-func (x *ControlledEnvironment) GetOutdoorTemperatureC() float64 {
-	if x != nil && x.OutdoorTemperatureC != nil {
-		return *x.OutdoorTemperatureC
-	}
-	return 0
 }
 
 func (x *ControlledEnvironment) GetDaylight() bool {
@@ -33269,9 +33253,6 @@ type BundleSnapshot struct {
 	// Every spawned unroofed player mortar (#931), with combat_detail, at
 	// most 16: the guns a fight may crew for counter-battery.
 	CombatMortars []*mirrorpb.CombatMortarRow `protobuf:"bytes,28,rep,name=combat_mortars,json=combatMortars,proto3" json:"combat_mortars,omitempty"`
-	// The map's outdoor temperature in degrees Celsius (#1077), with
-	// combat_detail: in extreme cold or heat a fight shelters indoors.
-	CombatOutdoorTemperatureC *float32 `protobuf:"fixed32,29,opt,name=combat_outdoor_temperature_c,json=combatOutdoorTemperatureC,proto3,oneof" json:"combat_outdoor_temperature_c,omitempty"`
 	// The hottest live hive's cell temperature in degrees Celsius (#1073),
 	// with combat_detail: an infestation's heat-stroke hold and entry check.
 	CombatHiveTemperatureC *float32 `protobuf:"fixed32,30,opt,name=combat_hive_temperature_c,json=combatHiveTemperatureC,proto3,oneof" json:"combat_hive_temperature_c,omitempty"`
@@ -33475,13 +33456,6 @@ func (x *BundleSnapshot) GetCombatMortars() []*mirrorpb.CombatMortarRow {
 		return x.CombatMortars
 	}
 	return nil
-}
-
-func (x *BundleSnapshot) GetCombatOutdoorTemperatureC() float32 {
-	if x != nil && x.CombatOutdoorTemperatureC != nil {
-		return *x.CombatOutdoorTemperatureC
-	}
-	return 0
 }
 
 func (x *BundleSnapshot) GetCombatHiveTemperatureC() float32 {
@@ -38031,7 +38005,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x06traits\x18\x02 \x03(\v2\".rimgovernor.observations.v1.TraitR\x06traits\x12B\n" +
 	"\x04worn\x18\x03 \x03(\v2..rimgovernor.observations.v1.GearLoadoutOptionR\x04worn\x12H\n" +
 	"\aoptions\x18\x04 \x03(\v2..rimgovernor.observations.v1.GearLoadoutOptionR\aoptionsB\t\n" +
-	"\a_female\"\xa0\x05\n" +
+	"\a_female\"\xd3\x04\n" +
 	"\fGearSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12>\n" +
 	"\x05pawns\x18\x02 \x03(\v2(.rimgovernor.observations.v1.GearLoadoutR\x05pawns\x12F\n" +
@@ -38040,12 +38014,10 @@ const file_observations_proto_rawDesc = "" +
 	"\x15ticks_to_next_twelfth\x18\x06 \x01(\x05H\x01R\x12ticksToNextTwelfth\x88\x01\x01\x12X\n" +
 	"\x0eactive_weather\x18\a \x01(\v21.rimgovernor.observations.v1.GearWeatherConditionR\ractiveWeather\x12O\n" +
 	"\x0estored_apparel\x18\b \x01(\v2(.rimgovernor.observations.v1.GearStorageR\rstoredApparel\x12+\n" +
-	"\x11finished_research\x18\t \x03(\tR\x10finishedResearch\x127\n" +
-	"\x15outdoor_temperature_c\x18\n" +
-	" \x01(\x01H\x02R\x13outdoorTemperatureC\x88\x01\x01B\x12\n" +
+	"\x11finished_research\x18\t \x03(\tR\x10finishedResearchB\x12\n" +
 	"\x10_current_twelfthB\x18\n" +
-	"\x16_ticks_to_next_twelfthB\x18\n" +
-	"\x16_outdoor_temperature_cJ\x04\b\x03\x10\x04\"\xd7\x01\n" +
+	"\x16_ticks_to_next_twelfthJ\x04\b\x03\x10\x04J\x04\b\n" +
+	"\x10\v\"\xd7\x01\n" +
 	"\tGearStock\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05stuff\x18\x02 \x01(\tH\x01R\x05stuff\x88\x01\x01\x12\x1d\n" +
@@ -38835,17 +38807,15 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_consumption_wB\x13\n" +
 	"\x11_stored_watt_daysB\x15\n" +
 	"\x13_capacity_watt_daysB\x14\n" +
-	"\x12_has_active_source\"\xe7\x03\n" +
+	"\x12_has_active_source\"\x9a\x03\n" +
 	"\x15ControlledEnvironment\x12>\n" +
 	"\x06lights\x18\x01 \x03(\v2&.rimgovernor.observations.v1.GrowLightR\x06lights\x12B\n" +
 	"\agrowers\x18\x02 \x03(\v2(.rimgovernor.observations.v1.PlantGrowerR\agrowers\x12;\n" +
 	"\x05rooms\x18\x03 \x03(\v2%.rimgovernor.observations.v1.GrowRoomR\x05rooms\x12F\n" +
-	"\bnetworks\x18\x04 \x03(\v2*.rimgovernor.observations.v1.PowerHeadroomR\bnetworks\x127\n" +
-	"\x15outdoor_temperature_c\x18\x05 \x01(\x01H\x00R\x13outdoorTemperatureC\x88\x01\x01\x12\x1f\n" +
-	"\bdaylight\x18\x06 \x01(\bH\x01R\bdaylight\x88\x01\x01\x12>\n" +
-	"\x06issues\x18\b \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x18\n" +
-	"\x16_outdoor_temperature_cB\v\n" +
-	"\t_daylightJ\x04\b\a\x10\b\"\x98\x03\n" +
+	"\bnetworks\x18\x04 \x03(\v2*.rimgovernor.observations.v1.PowerHeadroomR\bnetworks\x12\x1f\n" +
+	"\bdaylight\x18\x06 \x01(\bH\x00R\bdaylight\x88\x01\x01\x12>\n" +
+	"\x06issues\x18\b \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\v\n" +
+	"\t_daylightJ\x04\b\x05\x10\x06J\x04\b\a\x10\b\"\x98\x03\n" +
 	"\rPlanningFacts\x12Q\n" +
 	"\vdefinitions\x18\x01 \x03(\v2/.rimgovernor.observations.v1.PlanningDefinitionR\vdefinitions\x12@\n" +
 	"\x05cells\x18\x02 \x01(\v2*.rimgovernor.observations.v1.CellsSnapshotR\x05cells\x12=\n" +
@@ -39762,7 +39732,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2+.rimgovernor.observations.v1.StatusSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xa4\x10\n" +
+	"\aoutcome\"\xc3\x0f\n" +
 	"\x0eBundleSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1b\n" +
 	"\x06paused\x18\x02 \x01(\bH\x00R\x06paused\x88\x01\x01\x12?\n" +
@@ -39790,12 +39760,10 @@ const file_observations_proto_rawDesc = "" +
 	"\fcombat_doors\x18\x19 \x03(\v2$.rimgovernor.mirror.v1.CombatDoorRowR\vcombatDoors\x12`\n" +
 	"\x13project_definitions\x18\x1a \x03(\v2/.rimgovernor.observations.v1.PlanningDefinitionR\x12projectDefinitions\x12@\n" +
 	"\x05rooms\x18\x1b \x01(\v2*.rimgovernor.observations.v1.RoomsSnapshotR\x05rooms\x12M\n" +
-	"\x0ecombat_mortars\x18\x1c \x03(\v2&.rimgovernor.mirror.v1.CombatMortarRowR\rcombatMortars\x12D\n" +
-	"\x1ccombat_outdoor_temperature_c\x18\x1d \x01(\x02H\x01R\x19combatOutdoorTemperatureC\x88\x01\x01\x12>\n" +
-	"\x19combat_hive_temperature_c\x18\x1e \x01(\x02H\x02R\x16combatHiveTemperatureC\x88\x01\x01B\t\n" +
-	"\a_pausedB\x1f\n" +
-	"\x1d_combat_outdoor_temperature_cB\x1c\n" +
-	"\x1a_combat_hive_temperature_cJ\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14\"\xb6\x05\n" +
+	"\x0ecombat_mortars\x18\x1c \x03(\v2&.rimgovernor.mirror.v1.CombatMortarRowR\rcombatMortars\x12>\n" +
+	"\x19combat_hive_temperature_c\x18\x1e \x01(\x02H\x01R\x16combatHiveTemperatureC\x88\x01\x01B\t\n" +
+	"\a_pausedB\x1c\n" +
+	"\x1a_combat_hive_temperature_cJ\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x1d\x10\x1e\"\xb6\x05\n" +
 	"\x18ObservationBatchSnapshot\x12N\n" +
 	"\rstart_context\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\fstartContext\x12J\n" +
 	"\vend_context\x18\x02 \x01(\v2).rimgovernor.common.v1.ObservationContextR\n" +

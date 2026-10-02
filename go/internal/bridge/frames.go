@@ -668,7 +668,7 @@ type Combat struct {
 	Doors []*mp.CombatDoorRow
 	// Mortars are the unroofed player mortars (#931).
 	Mortars []policy.CombatMortar
-	// OutdoorTemperatureC is the map outdoor temperature (#1077).
+	// OutdoorTemperatureC is the colony facts outdoor temperature (#1077).
 	OutdoorTemperatureC domain.Fact[float64]
 	// HiveTemperatureC is the hottest live hive's temperature (#1073).
 	HiveTemperatureC domain.Fact[float64]
@@ -694,7 +694,11 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 
 // combatFrame is the part of frame v a combat read answers.
 func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
-	return &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatOutdoorTemperatureC: v.CombatOutdoorTemperatureC, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
+	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatDetail: v.CombatDetail, CombatLinesOfFire: v.CombatLinesOfFire, CombatRooms: v.CombatRooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
+	if t := frameOutdoorC(v); t != nil {
+		out.ColonyFacts = &o.ColonyFactsSnapshot{OutdoorTemperatureC: t}
+	}
+	return out
 }
 
 // DecodeCombat validates and decodes a frame's combat part (ReadCombat,
@@ -754,8 +758,8 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 		c, _ := protoCell(row.GetCell())
 		out.Mortars = append(out.Mortars, policy.CombatMortar{ID: row.GetId(), Cell: c, MinRange: float64(row.GetMinRange()), MaxRange: float64(row.GetMaxRange()), Loaded: row.GetLoadedShell()})
 	}
-	if v.CombatOutdoorTemperatureC != nil {
-		out.OutdoorTemperatureC = domain.Known(float64(v.GetCombatOutdoorTemperatureC()))
+	if t := frameOutdoorC(v); t != nil {
+		out.OutdoorTemperatureC = domain.Known(*t)
 	}
 	if v.CombatHiveTemperatureC != nil {
 		out.HiveTemperatureC = domain.Known(float64(v.GetCombatHiveTemperatureC()))
@@ -792,7 +796,7 @@ func combatRoom(row *mp.CombatRoom) (policy.CombatRoom, bool) {
 
 // validateCombat checks a frame's combat rows (#851).
 func validateCombat(v *o.BundleSnapshot) error {
-	if t := v.CombatOutdoorTemperatureC; t != nil && (*t != *t || *t < -300 || *t > 300) {
+	if t := frameOutdoorC(v); t != nil && (*t != *t || *t < -300 || *t > 300) {
 		return contract("combat outdoor temperature")
 	}
 	if t := v.CombatHiveTemperatureC; t != nil && (*t != *t || *t < -300 || *t > 1000) {
@@ -870,4 +874,13 @@ func builtBuildings(v *o.BuildingsSnapshot) *o.BuildingsSnapshot {
 		}
 	}
 	return out
+}
+
+// frameOutdoorC is frame v's colony facts outdoor temperature, nil when
+// the frame carries none.
+func frameOutdoorC(v *o.BundleSnapshot) *float64 {
+	if v.GetColonyFacts() == nil {
+		return nil
+	}
+	return v.ColonyFacts.OutdoorTemperatureC
 }

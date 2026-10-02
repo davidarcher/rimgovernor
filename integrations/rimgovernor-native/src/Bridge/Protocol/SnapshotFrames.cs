@@ -111,8 +111,6 @@ namespace HomeBridge.BridgeTools
             pawns.Filter.Ids.AddRange(ids);
             if (!NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) return;
             observed.CombatDetail = detail;
-            // The outdoor temperature (#1077), for sheltering in extreme cold or heat.
-            observed.CombatOutdoorTemperatureC = map.mapTemperature.OutdoorTemp;
             // The hottest live hive's temperature (#1073), for the heat-stroke hold.
             foreach (var hive in map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Hive))
             {

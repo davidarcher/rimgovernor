@@ -55,8 +55,8 @@ func gearModelCensus() *o.ColonyFactsSnapshot {
 			LoadoutModel:    &o.GearLoadoutModel{Female: proto.Bool(female), Worn: []*o.GearLoadoutOption{worn}, Options: catalog()},
 		}
 	}
-	gear := &o.GearSnapshot{Pawns: []*o.GearLoadout{pawn("soldier-a", true, false), pawn("soldier-b", true, true), pawn("grower", false, false)}, FinishedResearch: []string{"ComplexClothing", "FlakArmor", "Smithing"}, OutdoorTemperatureC: proto.Float64(21)}
-	return &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(3), Planning: &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: &o.PlanningFacts{Gear: gear}}}}
+	gear := &o.GearSnapshot{Pawns: []*o.GearLoadout{pawn("soldier-a", true, false), pawn("soldier-b", true, true), pawn("grower", false, false)}, FinishedResearch: []string{"ComplexClothing", "FlakArmor", "Smithing"}}
+	return &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(3), OutdoorTemperatureC: proto.Float64(21), Planning: &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: &o.PlanningFacts{Gear: gear}}}}
 }
 
 // A native census carrying the loadout model plans both soldiers a flak vest
@@ -131,11 +131,15 @@ func TestColonyGearLoadoutModelPlansSoldierArmour(t *testing.T) {
 // unknown, so the census keeps the native deficit path; so does a model the
 // policy's bounds refuse (two worn helmets on one slot).
 func TestColonyGearLoadoutModelUnknownWithoutInputs(t *testing.T) {
+	v := gearModelCensus()
+	v.OutdoorTemperatureC = nil
+	if gear, _ := colonyGear(v).Value(); func() bool { _, k := gear.Pawns[0].LoadoutModel.Value(); return k }() {
+		t.Fatal("model known without the outdoor temperature")
+	}
 	for name, change := range map[string]func(*o.GearSnapshot){
 		"no model":   func(g *o.GearSnapshot) { g.Pawns[0].LoadoutModel = nil },
 		"no role":    func(g *o.GearSnapshot) { g.Pawns[0].ApparelPolicy = nil },
-		"no outdoor": func(g *o.GearSnapshot) { g.OutdoorTemperatureC = nil },
-		"no comfort": func(g *o.GearSnapshot) { g.Pawns[0].ComfortableMinC = nil },
+				"no comfort": func(g *o.GearSnapshot) { g.Pawns[0].ComfortableMinC = nil },
 		"slot collision": func(g *o.GearSnapshot) {
 			hat := gearModelOption("hat", "Apparel_Tuque", "worn", []string{"Overhead"}, []string{"UpperHead"}, 0, 0, 0, nil, nil)
 			mask := gearModelOption("mask", "Apparel_ClothMask", "worn", []string{"Overhead"}, []string{"Mouth"}, 0, 0, 0, nil, nil)

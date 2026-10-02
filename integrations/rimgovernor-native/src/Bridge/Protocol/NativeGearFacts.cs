@@ -17,7 +17,6 @@ namespace HomeBridge.BridgeTools
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
             var result = new Obs.GearSnapshot { Context = context.Clone()};
             ReadClimate(map, result);
-            result.OutdoorTemperatureC = Number(map.mapTemperature.OutdoorTemp);
             result.FinishedResearch.Add(DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(r => r.IsFinished)
                 .Select(r => Id(r.defName)).OrderBy(n => n, StringComparer.Ordinal));
             var catalog = Catalog();

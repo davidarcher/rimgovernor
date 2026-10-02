@@ -469,7 +469,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") {
-		r.Environment = domain.Known(colonyEnvironment(planning.Environment))
+		r.Environment = domain.Known(colonyEnvironment(planning.Environment, v.OutdoorTemperatureC))
 	}
 	r.Facts.Gear = colonyGear(v)
 	return r, nil
@@ -516,8 +516,8 @@ func cellsOf(rows []*c.Cell) []domain.Cell {
 // colonyEnvironment decodes the native controlled-growing census. Rows keep
 // their native order (ids ascending); every scalar stays unknown when the
 // native side omitted it.
-func colonyEnvironment(v *o.ControlledEnvironment) policy.ControlledEnvironment {
-	e := policy.ControlledEnvironment{OutdoorTemperatureC: optional(v.OutdoorTemperatureC), Daylight: optional(v.Daylight)}
+func colonyEnvironment(v *o.ControlledEnvironment, outdoor *float64) policy.ControlledEnvironment {
+	e := policy.ControlledEnvironment{OutdoorTemperatureC: optional(outdoor), Daylight: optional(v.Daylight)}
 	for _, row := range v.Lights {
 		ref := row.Building
 		e.Lights = append(e.Lights, policy.GrowLight{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optional(row.RoomId), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), LitNow: optional(row.LitNow), GrowthCells: cellsOf(row.GrowthCells)})

@@ -313,9 +313,6 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 	if err := pawnsIssues(e.Issues, e.ProtoReflect()); err != nil {
 		return err
 	}
-	if !combatNumber(e.OutdoorTemperatureC, false) {
-		return contract("invalid environment temperature")
-	}
 	optionalID := func(v *string) bool { return v == nil || validID(*v) == nil }
 	entity := func(ref *o.EntityRef) bool {
 		return ref != nil && validID(ref.GetId()) == nil && validID(ref.GetDefName()) == nil && colonyCell(ref.Position, size)

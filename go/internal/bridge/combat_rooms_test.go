@@ -33,11 +33,11 @@ func TestDecodeCombatRooms(t *testing.T) {
 	}
 }
 
-// The frame's outdoor temperature (#1077) decodes as a known fact and
+// The frame colony facts outdoor temperature (#1077) decodes as a known fact and
 // survives the combat read; absent it is unknown; NaN or out of range is
 // a contract failure.
 func TestDecodeCombatOutdoorTemperature(t *testing.T) {
-	frame := &o.BundleSnapshot{Context: authorityTestContext(7), CombatOutdoorTemperatureC: proto.Float32(-32.5)}
+	frame := &o.BundleSnapshot{Context: authorityTestContext(7), ColonyFacts: &o.ColonyFactsSnapshot{OutdoorTemperatureC: proto.Float64(-32.5)}}
 	combat, err := DecodeCombat(frame)
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +45,7 @@ func TestDecodeCombatOutdoorTemperature(t *testing.T) {
 	if got, ok := combat.OutdoorTemperatureC.Value(); !ok || got != -32.5 {
 		t.Fatalf("temperature %v %v", got, ok)
 	}
-	if combatFrame(frame).CombatOutdoorTemperatureC == nil {
+	if frameOutdoorC(combatFrame(frame)) == nil {
 		t.Fatal("the combat read drops the frame's outdoor temperature")
 	}
 	combat, err = DecodeCombat(&o.BundleSnapshot{Context: authorityTestContext(7)})
@@ -54,8 +54,8 @@ func TestDecodeCombatOutdoorTemperature(t *testing.T) {
 	}
 	nan := float32(0)
 	nan /= nan
-	for _, bad := range []float32{nan, 1000} {
-		if _, err := DecodeCombat(&o.BundleSnapshot{Context: authorityTestContext(7), CombatOutdoorTemperatureC: proto.Float32(bad)}); err == nil {
+	for _, bad := range []float64{float64(nan), 1000} {
+		if _, err := DecodeCombat(&o.BundleSnapshot{Context: authorityTestContext(7), ColonyFacts: &o.ColonyFactsSnapshot{OutdoorTemperatureC: proto.Float64(bad)}}); err == nil {
 			t.Fatalf("temperature %v accepted", bad)
 		}
 	}

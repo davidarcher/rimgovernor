@@ -25,7 +25,7 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 		row.Apparel = GearApparelFacts(p.Equipment)
 		row.Policy = ApparelPolicyFacts(p)
 		row.Climate = GearClimateFacts(gear)
-		row.LoadoutModel = GearLoadoutModelFacts(gear, p, row.Policy)
+		row.LoadoutModel = GearLoadoutModelFacts(gear, v.OutdoorTemperatureC, p, row.Policy)
 		result.Pawns = append(result.Pawns, row)
 	}
 	return domain.Known(result)
@@ -38,13 +38,13 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 // the producer sent no model, role or temperatures, or when the model falls
 // outside the policy's bounds (PlanGearLoadout's Validate): the census then
 // keeps the native deficit path.
-func GearLoadoutModelFacts(gear *o.GearSnapshot, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
+func GearLoadoutModelFacts(gear *o.GearSnapshot, outdoor *float64, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
 	m := p.GetLoadoutModel()
 	role, known := state.Value()
-	if m == nil || !known || gear.OutdoorTemperatureC == nil || p.ComfortableMinC == nil || p.ComfortableMaxC == nil {
+	if m == nil || !known || outdoor == nil || p.ComfortableMinC == nil || p.ComfortableMaxC == nil {
 		return domain.Unknown[policy.GearLoadoutInput]()
 	}
-	in := policy.GearLoadoutInput{Role: role.Role, Female: m.GetFemale(), Research: append([]string{}, gear.GetFinishedResearch()...), Ambient: gear.GetOutdoorTemperatureC(), ComfortableMin: p.GetComfortableMinC(), ComfortableMax: p.GetComfortableMaxC()}
+	in := policy.GearLoadoutInput{Role: role.Role, Female: m.GetFemale(), Research: append([]string{}, gear.GetFinishedResearch()...), Ambient: *outdoor, ComfortableMin: p.GetComfortableMinC(), ComfortableMax: p.GetComfortableMaxC()}
 	traits := []policy.PawnTrait{}
 	for _, t := range m.GetTraits() {
 		traits = append(traits, policy.PawnTrait{Name: t.GetDefName(), Degree: int(t.GetDegree())})

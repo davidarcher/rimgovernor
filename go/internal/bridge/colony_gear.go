@@ -40,8 +40,8 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 			}
 		}
 	}
-	if err := combatIDs(v.FinishedResearch); err != nil || !combatNumber(v.OutdoorTemperatureC, false) {
-		return contract("invalid gear research or outdoor temperature")
+	if err := combatIDs(v.FinishedResearch); err != nil {
+		return contract("invalid gear research")
 	}
 	people := map[string]bool{}
 	for _, p := range v.Pawns {
