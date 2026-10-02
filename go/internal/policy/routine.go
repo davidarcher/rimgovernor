@@ -282,6 +282,13 @@ type RoutineFacts struct {
 	// rooms (PlanSafeArea, #1325); it holds MaintainShelter open. Unknown
 	// unless the MaintainShelter method is composed.
 	SafeAreaOwed domain.Fact[bool]
+	// ShelterArea is the Safe allowed area's native load id, "" when the
+	// map has none (PlanSheltering, #1326).
+	ShelterArea domain.Fact[string]
+	// ShelterCombatants is the squad's draft set during a threat: the
+	// colonists a raid or manhunter pack does not shelter. Unknown shelters
+	// no colonist for a threat.
+	ShelterCombatants domain.Fact[[]PawnID]
 	// SaleArt counts the packed art no owed room reserves (SaleSculptures);
 	// read only while the wealth headroom is negative, it opens a trade as
 	// the shed_art need (#1247).
@@ -1433,7 +1440,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	areaChanges := PlanAllowedAreas(f)
+	areaChanges := PlanSheltering(f)
 	if _, safetyKnown := f.RecoverySafety.Value(); r.Disaster != nil || safetyKnown {
 		need := RecoveryNeed(r.Disaster, f.RecoverySafety)
 		if len(areaChanges) > 0 {
@@ -1441,9 +1448,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		}
 		priority := r.Disaster.Promote(RecoverDisasterServices, 3)
 		if len(areaChanges) > 0 {
-			priority = 2
-		}
-		if s, k := f.RecoverySafety.Value(); k && positive(s.RoofHazard) {
 			priority = 2
 		}
 		r.Assessments = append(r.Assessments, RoutineAssessment{ID: RecoverDisasterServices, Priority: priority, Need: need})

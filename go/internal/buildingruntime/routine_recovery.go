@@ -94,7 +94,12 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	facts := read.Projection.Facts
-	changes := policy.PlanAllowedAreas(facts)
+	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, read.Emergency)
+	if err != nil {
+		return RoutineRecoveryResult{}, err
+	}
+	facts.Hostiles, _ = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
+	changes := policy.PlanSheltering(facts)
 	workers, _ := read.Projection.WorkPawns.Value()
 	if err = p.current(call, epoch); err != nil {
 		return RoutineRecoveryResult{}, err

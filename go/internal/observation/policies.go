@@ -85,3 +85,17 @@ func pawnPolicyInputs(p *o.PawnPolicyInputs) domain.Fact[policy.PawnPolicyInputs
 	}
 	return domain.Known(r)
 }
+
+// shelterArea is the Safe allowed area's load id, "" when the map has none.
+func shelterArea(p domain.Fact[Policies]) domain.Fact[string] {
+	v, known := p.Value()
+	if !known {
+		return domain.Unknown[string]()
+	}
+	for _, a := range v.AllowedAreas {
+		if a.Label == policy.SafeAreaLabel {
+			return domain.Known(a.ID)
+		}
+	}
+	return domain.Known("")
+}

@@ -67,41 +67,6 @@ func TestTakeoverScheduleEditOpensWorkAssignments(t *testing.T) {
 	}
 }
 
-// takeover/allowed-areas, tick 15, recorded at 476208aa7 (#769): the player
-// restricted a colonist (Thing_Human724) and the husky to an area without
-// food. With no roof hazard Auto clears both (empty Area), and once the
-// census reads them unrestricted nothing is replanned.
-func TestTakeoverAllowedAreaRestrictionIsCleared(t *testing.T) {
-	r := load(t, "testdata/takeover-allowed-areas-restricted.json.gz")
-	changes := policy.PlanAllowedAreas(r.Facts)
-	colonist, animal := false, false
-	for _, c := range changes {
-		if c.Area != "" {
-			t.Fatal("restricted instead of cleared", c)
-		}
-		colonist = colonist || !c.Animal && c.Pawn == "Thing_Human724"
-		animal = animal || c.Animal && c.Pawn == "Thing_Husky44693"
-	}
-	if len(changes) != 2 || !colonist || !animal {
-		t.Fatal(changes)
-	}
-	safety, _ := r.Facts.RecoverySafety.Value()
-	safety.Restrictions = slices.Clone(safety.Restrictions)
-	for i := range safety.Restrictions {
-		safety.Restrictions[i].Area = domain.Known("")
-	}
-	r.Facts.RecoverySafety = domain.Known(safety)
-	animals, _ := r.Facts.AnimalUpkeep.Animals.Value()
-	animals = slices.Clone(animals)
-	for i := range animals {
-		animals[i].AllowedArea = domain.Known("")
-	}
-	r.Facts.AnimalUpkeep.Animals = domain.Known(animals)
-	if after := policy.PlanAllowedAreas(r.Facts); len(after) != 0 {
-		t.Fatal("replanned after the restrictions cleared", after)
-	}
-}
-
 // takeover/suspended-bill, tick 15: the player's suspended kibble bill leaves
 // the pet unfed; Auto opens MaintainAnimalFeed with a method available.
 func TestTakeoverSuspendedBillOpensAnimalFeed(t *testing.T) {

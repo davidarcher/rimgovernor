@@ -63,6 +63,7 @@ const (
 	ConditionVolcanicWinter = "VolcanicWinter"
 	ConditionColdSnap       = "ColdSnap"
 	ConditionHeatWave       = "HeatWave"
+	ConditionToxicFallout   = "ToxicFallout"
 )
 
 // ConditionRemainingTicks is the longest observed remaining duration of any

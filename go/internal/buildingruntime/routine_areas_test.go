@@ -52,6 +52,8 @@ func TestAreaPlannerFreshRestriction(t *testing.T) {
 		Context: v.Context, RoofHazard: proto.Bool(false),
 		Restrictions: []*o.RecoveryRestriction{{Pawn: entity, AreaId: proto.String("manual")}},
 	}}}
+	// "manual" is the Safe area and no sheltering trigger holds (#1326).
+	v.Policies = &o.PolicySection{Outcome: &o.PolicySection_Observed{Observed: &o.PolicyFacts{AllowedAreas: []*o.AllowedAreaEntry{{Id: proto.String("manual"), Label: proto.String(policy.SafeAreaLabel)}}}}}
 	ctx := context.Background()
 	if _, err := r.Step(ctx); err != nil {
 		t.Fatal(err)
