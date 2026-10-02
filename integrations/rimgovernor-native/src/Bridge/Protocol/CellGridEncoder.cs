@@ -114,6 +114,11 @@ namespace HomeBridge.BridgeTools
             var player = Faction.OfPlayerSilentFail;
             var biotech = ModsConfig.BiotechActive;
             List<RectTrigger>? triggers = null;
+            // A room's key is its first held cell's index (row-major), not
+            // Room.ID: RimWorld regenerates rooms near any edifice change
+            // with fresh ids, which would make every room cell differ from
+            // the keyframe; the first cell stays put unless it changes.
+            var roomKeys = new Dictionary<Room, string>();
             for (int z = 0; z < h; z++)
                 for (int x = 0; x < w; x++)
                 {
@@ -142,7 +147,11 @@ namespace HomeBridge.BridgeTools
                     if (zone != null) c[ZoneId].Strings![j] = zone.GetUniqueLoadID();
                     c[StorageEmpty].Codes![j] = B(NativeZoneCreation.StorageEmpty(cell, map));
                     var room = cell.GetRoom(map);
-                    if (room != null) c[Room].Strings![j] = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (room != null)
+                    {
+                        if (!roomKeys.TryGetValue(room, out var key)) roomKeys[room] = key = j.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        c[Room].Strings![j] = key;
+                    }
                     c[Indoors].Codes![j] = B(CellTracking.Indoors(room));
                     c[Polluted].Codes![j] = B(biotech && map.pollutionGrid.IsPolluted(cell));
                     c[Glow].Numbers![j] = Finite(map.glowGrid.GroundGlowAt(cell, false, true));

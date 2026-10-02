@@ -8746,7 +8746,9 @@ namespace RimGovernor.Protocol.Mirror {
   /// carries every array is a keyframe. strings is this grid's own table.
   /// glow is artificial light only (GroundGlowAt ignoring the sky); the
   /// frame's sky_glow is the map's sky light, lighting an unroofed cell to
-  /// max(glow, sky_glow). room names the native room holding the cell.
+  /// max(glow, sky_glow). room keys the native room holding the cell by the
+  /// index of that room's first held cell (row-major), stable across the room
+  /// regeneration an edifice change triggers; it is not the native room id.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class CellGrid : pb::IMessage<CellGrid>

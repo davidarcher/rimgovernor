@@ -1980,7 +1980,9 @@ func (x *SparseArray) GetNumber() []float64 {
 // carries every array is a keyframe. strings is this grid's own table.
 // glow is artificial light only (GroundGlowAt ignoring the sky); the
 // frame's sky_glow is the map's sky light, lighting an unroofed cell to
-// max(glow, sky_glow). room names the native room holding the cell.
+// max(glow, sky_glow). room keys the native room holding the cell by the
+// index of that room's first held cell (row-major), stable across the room
+// regeneration an edifice change triggers; it is not the native room id.
 type CellGrid struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rect          *CellRect              `protobuf:"bytes,1,opt,name=rect,proto3" json:"rect,omitempty"`
