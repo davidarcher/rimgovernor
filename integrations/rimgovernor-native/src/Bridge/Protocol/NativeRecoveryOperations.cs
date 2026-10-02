@@ -73,12 +73,12 @@ namespace HomeBridge.BridgeTools
             if (!NativePawnControlState.IsReady) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             var map = ProtoBoundary.LoadedMap(context);
             var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
-            pawn = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map.");
             var control = NativePawnControlState.Observe(identity, pawn, out var snapshot);
             if (control != NativePawnControlResult.Ready || snapshot == null) return NativeDraftProtocol.Failure(control, context);
             if (snapshot.Drafted || !snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an eligible undrafted pawn.");
-            building = map.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == intent.ThingId);
+            building = map.listerBuildings.allBuildingsColonist.ById(intent.ThingId);
             if (building == null || !Eligible(building)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact serviceable building is unavailable.");
             if (Servicing(pawn, building, giverType)) return null;
             if (Satisfied(building, intent.Method)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Observed service no longer needs this method.");

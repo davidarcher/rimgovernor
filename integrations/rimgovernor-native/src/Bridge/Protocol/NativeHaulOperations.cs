@@ -41,14 +41,14 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             var map = ProtoBoundary.LoadedMap(context);
             var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
-            var foundPawn = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            var foundPawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (foundPawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, ApplyPreconditions.Detail(Kind, "the exact pawn is not spawned on this map"));
             var control = NativePawnControlState.Observe(identity, foundPawn, out var observed);
             if (control != NativePawnControlResult.Ready || observed == null) return NativeDraftProtocol.Failure(control, context);
             var carried = foundPawn.carryTracker?.CarriedThing;
-            var foundThing = carried != null && carried.GetUniqueLoadID() == intent.ThingId
+            var foundThing = carried != null && RefIndex.Is(carried, intent.ThingId)
                 ? carried
-                : map.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId);
+                : RefIndex.Thing(map, intent.ThingId);
             var facts = observed.Facts;
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !facts.Dead && !facts.Downed, "the pawn is dead or downed")

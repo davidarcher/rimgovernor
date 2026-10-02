@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
         {
             bed = null;
             if (!ProtoBoundary.IsIdentifier(intent.ThingId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A bed patch requires an exact bed.");
-            var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId);
+            var thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
             if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact humanlike bed is unavailable.");
             bed = (Building_Bed)thing;
             if (Prisoners(intent) && (bed.ForHumanBabies || !(bed.GetRoom() is Room room) || !Building_Bed.RoomCanBePrisonCell(room)))

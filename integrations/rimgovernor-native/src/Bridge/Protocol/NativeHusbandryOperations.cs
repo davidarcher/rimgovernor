@@ -105,9 +105,9 @@ namespace HomeBridge.BridgeTools
         internal static bool SupportsAllowedAreas(Pawn animal) => animal.playerSettings != null && animal.playerSettings.SupportsAllowedAreas && animal.MapHeld != null;
 
         internal static Area_Allowed? ResolveArea(Pawn animal, string entityId) => animal.Map?.areaManager.AllAreas.OfType<Area_Allowed>()
-            .FirstOrDefault(a => a.GetUniqueLoadID() == entityId || a.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) == entityId);
+            .FirstOrDefault(a => RefIndex.Is(a, entityId) || a.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) == entityId);
         internal static Pawn? ResolveMaster(Pawn animal, string entityId) => animal.Map?.mapPawns.FreeColonistsSpawned
-            .FirstOrDefault(p => p.GetUniqueLoadID() == entityId && !p.Dead);
+            .ById(entityId) is Pawn p && !p.Dead ? p : null;
     }
 
     // HusbandryIntent (#941): one animal's training request, slaughter, tame
@@ -164,7 +164,7 @@ namespace HomeBridge.BridgeTools
         {
             var target = new Target();
             if (!Valid(intent)) return target;
-            target.Animal = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent!.AnimalId);
+            target.Animal = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent!.AnimalId);
             if (!NativeHusbandryOperations.Observable(target.Animal)) { target.Animal = null; return target; }
             if (intent!.Order == Operations.HusbandryOrder.Train) target.Trainable = DefDatabase<TrainableDef>.GetNamedSilentFail(intent.TrainableDef);
             if (intent.Order == Operations.HusbandryOrder.AllowedArea && intent.HasTargetId) target.Area = NativeHusbandryOperations.ResolveArea(target.Animal!, intent.TargetId);

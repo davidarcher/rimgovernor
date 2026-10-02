@@ -27,9 +27,9 @@ namespace HomeBridge.BridgeTools
             var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out _);
             if (failure != null) return failure;
             if (!pawn!.IsFreeColonist) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact free colonist is not spawned on this map.");
-            apparel = pawn.apparel?.WornApparel.SingleOrDefault(a => a.GetUniqueLoadID() == intent.TargetId);
+            apparel = pawn.apparel?.WornApparel.ById(intent.TargetId);
             if (apparel != null) return null;
-            apparel = ProtoBoundary.LoadedMap(context).listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().SingleOrDefault(a => a.GetUniqueLoadID() == intent.TargetId);
+            apparel = ProtoBoundary.LoadedMap(context).listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ById(intent.TargetId);
             if (apparel == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact loose apparel is unavailable.");
             if (Running(pawn, apparel)) return null;
             var blocked = GearUpkeepTools.Available(pawn);

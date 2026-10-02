@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
         internal static List<IntVec3>? FullScope(Map map, string target)
         {
             var cells = new HashSet<IntVec3>();
-            var building = map.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == target);
+            var building = map.listerBuildings.allBuildingsColonist.ById(target);
             if (building != null) {
                 if (building.IsForbidden(Faction.OfPlayerSilentFail) || building.IsBurning()) return null;
                 var rooms = new Dictionary<Room, bool>();
@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                 }
                 cells = HomeCoverageGeometry.Connected(building.OccupiedRect(), Neighbors, Interior);
             } else {
-                var zone = map.zoneManager.AllZones.OfType<Zone_Stockpile>().SingleOrDefault(z => z.GetUniqueLoadID() == target);
+                var zone = RefIndex.Zone<Zone_Stockpile>(map, target);
                 if (zone == null) return null;
                 cells.UnionWith(zone.cells);
             }

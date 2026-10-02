@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
             if (failure != null) return failure;
             if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Tend requires an eligible doctor.");
             var map = ProtoBoundary.LoadedMap(context);
-            patient = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.TargetId);
+            patient = map.mapPawns.AllPawnsSpawned.ById(intent.TargetId);
             if (patient == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map.");
             if (patient.Dead) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The patient is dead and cannot be tended.");
             if (Running(pawn!, patient)) return null;

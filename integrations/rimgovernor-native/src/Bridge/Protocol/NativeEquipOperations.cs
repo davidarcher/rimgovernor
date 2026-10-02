@@ -30,8 +30,8 @@ namespace HomeBridge.BridgeTools
             if (failure != null) return failure;
             if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an eligible pawn.");
             var map = ProtoBoundary.LoadedMap(context);
-            weapon = pawn!.equipment?.Primary?.GetUniqueLoadID() == intent.TargetId ? pawn.equipment.Primary
-                : map.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.TargetId);
+            weapon = RefIndex.Is(pawn!.equipment?.Primary, intent.TargetId) ? pawn.equipment!.Primary
+                : RefIndex.Thing(map, intent.TargetId);
             if (weapon != null && (Holds(pawn, weapon) || Running(pawn, weapon))) return null;
             if (weapon == null || !Eligible(weapon)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact equippable weapon is unavailable.");
             if (pawn.equipment == null)

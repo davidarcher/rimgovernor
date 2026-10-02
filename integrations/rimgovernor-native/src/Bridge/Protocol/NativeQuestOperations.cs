@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
             QuestUtility.CanAcceptQuest(quest).Accepted.ToString()));
 
         internal static Quest? Find(string questId) => global::Verse.Find.QuestManager.QuestsListForReading
-            .SingleOrDefault(q => q.GetUniqueLoadID() == questId && !q.hidden && !q.hiddenInUI);
+            .ById(questId) is Quest q && !q.hidden && !q.hiddenInUI ? q : null;
 
         // Resolve checks what the game checks before Quest.Accept: a visible
         // not-yet-accepted quest, at most one choice part with the selected
@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
             if (command == null || !command.HasQuestId || !ProtoBoundary.IsIdentifier(command.QuestId) || (command.HasAccepterPawnId && !ProtoBoundary.IsIdentifier(command.AccepterPawnId)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A quest acceptance requires a quest id.");
             var id = command.QuestId;
-            var any = global::Verse.Find.QuestManager.QuestsListForReading.SingleOrDefault(q => q.GetUniqueLoadID() == id);
+            var any = global::Verse.Find.QuestManager.QuestsListForReading.ById(id);
             if (any != null && any.State != QuestState.NotYetAccepted && any.acceptanceTick >= 0)
             { quest = any; accepted = true; return null; }
             quest = Find(id);
@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
                 if (!command.HasAccepterPawnId)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "This quest requires an exact accepter colonist.");
                 var accepter = command.AccepterPawnId;
-                pawn = global::Verse.Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).SingleOrDefault(p => p.GetUniqueLoadID() == accepter);
+                pawn = global::Verse.Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).ById(accepter);
                 if (pawn == null || !QuestUtility.CanPawnAcceptQuest(pawn, quest))
                     return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Colonist does not meet native quest acceptance requirements.");
             }

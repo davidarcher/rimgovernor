@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
                         MissingCells = checked((uint)missing.Count), ExcludedCells = 0 };
                     row.Cells.AddRange(cells.Select(Cell));
                     row.ExtentGeometry = new Obs.HomeExtentGeometry();
-                    var building = map.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == target);
+                    var building = map.listerBuildings.allBuildingsColonist.ById(target);
                     if (building != null) {
                         var footprint = new HashSet<IntVec3>(building.OccupiedRect());
                         foreach (var cell in full.Where(c => !footprint.Contains(c))) {

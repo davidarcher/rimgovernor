@@ -130,15 +130,15 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             var map = ProtoBoundary.LoadedMap(context);
             var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
-            var foundPawn = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            var foundPawn = map.mapPawns.FreeColonistsSpawned.ById(intent.PawnId);
             if (foundPawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
             var control = NativePawnControlState.Observe(identity, foundPawn, out var observed);
             if (control != NativePawnControlResult.Ready || observed == null) return NativeDraftProtocol.Failure(control, context);
             if (observed.Drafted || !observed.Eligible)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste haul requires an eligible undrafted pawn.");
             var carried = foundPawn.carryTracker?.CarriedThing;
-            var foundThing = carried != null && carried.GetUniqueLoadID() == intent.ThingId ? carried
-                : map.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId);
+            var foundThing = carried != null && RefIndex.Is(carried, intent.ThingId) ? carried
+                : RefIndex.Thing(map, intent.ThingId);
             if (foundThing == null || foundThing.Destroyed) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact waste item is unavailable.");
             pawn = foundPawn; thing = foundThing;
             if (Hauling(pawn, thing)) return null;

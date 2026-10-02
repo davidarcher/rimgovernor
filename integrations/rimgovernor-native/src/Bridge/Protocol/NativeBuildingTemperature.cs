@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.IsIdentifier(intent.ThingId) || float.IsNaN(intent.TargetTemperature) || float.IsInfinity(intent.TargetTemperature)
                 || intent.TargetTemperature < MinCelsius || intent.TargetTemperature > MaxCelsius)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A temperature patch requires an exact building and a target in the game's -273.15 to 1000 C interface range.");
-            thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId);
+            thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
             if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact building with CompTempControl is unavailable.");
             return null;
         }

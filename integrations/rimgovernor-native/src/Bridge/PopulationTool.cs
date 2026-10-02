@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Humanlike).ToList();
                 if (interaction != null)
                 {
-                    var p = people.SingleOrDefault(x => x.GetUniqueLoadID() == pawn);
+                    var p = people.ById(pawn);
                     if (p == null || p.Dead || !p.IsPrisonerOfColony || p.guest == null)
                         return new { success = false, error = "Target is not a living current-map colony prisoner" };
                     if (p.guest.ExclusiveInteractionMode?.defName != expectedInteraction)

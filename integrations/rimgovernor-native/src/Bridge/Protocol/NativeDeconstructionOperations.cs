@@ -136,7 +136,7 @@ namespace HomeBridge.BridgeTools
             target = null; code = Common.FailureCode.InvalidRequest;
             if (intent == null || !intent.HasTargetId || !ProtoBoundary.IsIdentifier(intent.TargetId)) return "Deconstruct requires an exact target.";
             var map = ProtoBoundary.ResolveMap(context);
-            target = map?.listerThings.AllThings.OfType<Building>().FirstOrDefault(b => b.GetUniqueLoadID() == intent.TargetId);
+            target = RefIndex.Thing<Building>(map, intent.TargetId);
             if (target == null) { code = Common.FailureCode.NotFound; return "Exact deconstruction target is absent."; }
             var blocker = Safety(target);
             if (blocker != null) return blocker;

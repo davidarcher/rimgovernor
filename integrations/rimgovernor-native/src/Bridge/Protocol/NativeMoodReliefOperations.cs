@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
             pawn = null; giver = null;
             if (intent == null || !intent.HasPawnId || !ProtoBoundary.IsIdentifier(intent.PawnId) || !intent.HasNeed || intent.Need == Operations.Need.Unspecified)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Need relief requires a pawn id and a need.");
-            pawn = ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.ById(intent.PawnId);
             if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
             if (pawn.Dead || pawn.Downed || pawn.Drafted || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn unavailable, drafted or in an active mental break.");

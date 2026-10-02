@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
             if (!NativePawnControlState.IsReady) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             var map = ProtoBoundary.LoadedMap(context);
             var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
-            pawn = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map.");
             var control = NativePawnControlState.Observe(identity, pawn, out snapshot);
             if (control != NativePawnControlResult.Ready || snapshot == null) return NativeDraftProtocol.Failure(control, context);

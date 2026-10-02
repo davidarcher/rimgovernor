@@ -27,8 +27,8 @@ namespace HomeBridge.BridgeTools
             if (!intent.HasBedId || !ProtoBoundary.IsIdentifier(intent.BedId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Arrest requires the exact prisoner bed.");
             var map = ProtoBoundary.LoadedMap(context);
-            target = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.TargetId);
-            bed = map.listerThings.AllThings.OfType<Building_Bed>().SingleOrDefault(b => b.GetUniqueLoadID() == intent.BedId);
+            target = map.mapPawns.AllPawnsSpawned.ById(intent.TargetId);
+            bed = RefIndex.Thing<Building_Bed>(map, intent.BedId);
             if (target == null || bed == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact arrest target or bed is not spawned on this map.");
             if (!NativeMovementOperations.Owns(snapshot!))

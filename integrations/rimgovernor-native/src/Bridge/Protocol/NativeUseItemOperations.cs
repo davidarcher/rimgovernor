@@ -31,8 +31,8 @@ namespace HomeBridge.BridgeTools
         // The verb of an item the pawn wears or equips, when it is a target-effect verb.
         private static Verb? HeldVerb(Pawn pawn, string itemId, out Thing? item)
         {
-            item = (Thing?)pawn.apparel?.WornApparel.FirstOrDefault(a => a.GetUniqueLoadID() == itemId)
-                ?? pawn.equipment?.AllEquipmentListForReading.FirstOrDefault(e => e.GetUniqueLoadID() == itemId);
+            item = (Thing?)pawn.apparel?.WornApparel.ById(itemId)
+                ?? pawn.equipment?.AllEquipmentListForReading.ById(itemId);
             if (item is not ThingWithComps owner) return null;
             var verbs = owner.TryGetComp<CompApparelVerbOwner>()?.AllVerbs ?? owner.TryGetComp<CompEquippable>()?.AllVerbs;
             return verbs?.FirstOrDefault(v => v is Verb_CastTargetEffect);
@@ -69,11 +69,11 @@ namespace HomeBridge.BridgeTools
             if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.ItemId) || !ProtoBoundary.IsIdentifier(intent.TargetId) || intent.PawnId == intent.TargetId)
                 return Fail(Common.FailureCode.InvalidRequest, "Use item requires distinct pawn, item and target ids.");
             var map = ProtoBoundary.LoadedMap(context);
-            pawn = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            pawn = map.mapPawns.FreeColonistsSpawned.ById(intent.PawnId);
             if (pawn == null) return Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
             if (pawn.Dead || pawn.Downed || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
                 return Fail(Common.FailureCode.InvalidRequest, "Colonist is not player-controlled and able.");
-            target = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.TargetId);
+            target = map.mapPawns.AllPawnsSpawned.ById(intent.TargetId);
             if (target == null) return Fail(Common.FailureCode.NotFound, "Exact target pawn is not spawned on this map.");
             if (target.Dead) return Fail(Common.FailureCode.InvalidRequest, "Target is dead.");
             verb = HeldVerb(pawn, intent.ItemId, out item);
@@ -88,8 +88,8 @@ namespace HomeBridge.BridgeTools
                     return Fail(Common.FailureCode.InvalidRequest, "Item verb refuses this target.");
                 return null;
             }
-            var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == intent.ItemId)
-                ?? pawn.inventory?.innerContainer.FirstOrDefault(t => t.GetUniqueLoadID() == intent.ItemId);
+            var thing = RefIndex.Thing(map, intent.ItemId)
+                ?? pawn.inventory?.innerContainer.ById(intent.ItemId);
             item = thing;
             var targetable = (thing as ThingWithComps)?.GetComps<CompTargetable>().FirstOrDefault();
             usable = (thing as ThingWithComps)?.TryGetComp<CompUsable>();

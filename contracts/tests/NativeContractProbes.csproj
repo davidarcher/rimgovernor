@@ -110,6 +110,8 @@
     <Compile Include="NativeContractProbes/native-attempt-ledger/Program.cs" />
     <Compile Include="NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs" />
     <Compile Include="NativeContractProbes/native-construction-causality/Program.cs" />
+    <Compile Include="NativeContractProbes/native-ref-index/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/LoadIdIndex.cs" Link="Production/LoadIdIndex.cs" />
   </ItemGroup>
 
   <!-- Category 4 (hybrid): reuses the same unified fake stub + real ProtoBoundary/NativeControlAuthority above. -->

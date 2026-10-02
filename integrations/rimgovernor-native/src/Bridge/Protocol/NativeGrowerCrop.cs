@@ -63,7 +63,7 @@ namespace HomeBridge.BridgeTools
         {
             grower = null; plant = null;
             if (!ProtoBoundary.IsIdentifier(intent.ThingId) || string.IsNullOrEmpty(intent.PlantDef)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A grower patch requires an exact grower and a plant definition.");
-            var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId);
+            var thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
             if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact plant grower is unavailable.");
             grower = (Building_PlantGrower)thing;
             plant = DefDatabase<ThingDef>.GetNamedSilentFail(intent.PlantDef);

@@ -48,7 +48,7 @@ namespace HomeBridge.BridgeTools
                 if (Faction.OfPlayerSilentFail == null || map.listerThings == null)
                     return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map things are unavailable.") };
                 var benches = Benches(map, parsed.AllFactions);
-                if (parsed.HasBenchId) benches = benches.Where(b => b.GetUniqueLoadID() == parsed.BenchId).ToList();
+                if (parsed.HasBenchId) benches = benches.Where(b => RefIndex.Is(b, parsed.BenchId)).ToList();
                 var snapshot = new Obs.BillsSnapshot { Context = context };
                 foreach (var bench in benches) snapshot.Benches.Add(Stack(bench, map, context));
                 return new Obs.BillsReply { Observed = snapshot };
@@ -85,7 +85,7 @@ namespace HomeBridge.BridgeTools
                         }
                         return ProtoBoundary.Encode(new Obs.RecipesReply { Observed = definitions });
                     }
-                    var bench = Benches(map, true).FirstOrDefault(b => b.GetUniqueLoadID() == parsed.BenchId);
+                    var bench = Benches(map, true).ById(parsed.BenchId);
                     if (bench == null)
                         return ProtoBoundary.Encode(new Obs.RecipesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned bench with that id is on the current map.") });
                     var recipes = (bench.def.AllRecipes ?? new List<RecipeDef>()).Where(r => r != null).OrderBy(r => r.defName, StringComparer.Ordinal).ToList();

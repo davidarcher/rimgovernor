@@ -260,10 +260,10 @@ namespace HomeBridge.BridgeTools
             if (TradeSession.Active) { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A TradeSession is already open outside this adapter."); return false; }
             var map = ProtoBoundary.ResolveMap(identity);
             if (map == null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No current map."); return false; }
-            trader = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == traderId && p.trader != null && p.trader.traderKind != null);
+            trader = map.mapPawns.AllPawnsSpawned.ById(traderId) is Pawn p && p.trader != null && p.trader.traderKind != null ? p : null;
             if (trader == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact map caravan trader is unavailable; this adapter does not support direct orbital open."); return false; }
             if (!SafeCanTradeNow(trader)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Trader reports CanTradeNow:false."); return false; }
-            var negotiatorPawn = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == negotiatorId);
+            var negotiatorPawn = map.mapPawns.FreeColonistsSpawned.ById(negotiatorId);
             negotiator = negotiatorPawn;
             if (negotiatorPawn == null || SafeBool(() => negotiatorPawn.Dead) || SafeBool(() => negotiatorPawn.Downed) || SafeBool(() => negotiatorPawn.InMentalState)
                 || SafeBool(() => negotiatorPawn.WorkTagIsDisabled(WorkTags.Social)))

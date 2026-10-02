@@ -85,7 +85,7 @@ namespace HomeBridge.BridgeTools
             Plant? found = null;
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => intent.HasThingId && ProtoBoundary.IsIdentifier(intent.ThingId), "CutPlant requires an exact blighted plant")
-                .Present(() => (found = map.listerThings.AllThings.OfType<Plant>().SingleOrDefault(p => p.GetUniqueLoadID() == intent.ThingId)) != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
+                .Present(() => (found = RefIndex.Thing<Plant>(map, intent.ThingId)) != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
                 .Require(() => found!.Blighted, "the plant is not blighted")
                 .Require(() => !found!.Position.Fogged(map), "the plant's cell is fogged")
                 .Require(() => InColony(found!, map), "the plant stands outside the colony's growing zones and home area")

@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
             installed = true;
         }
         internal static Building? Wall(Map map, string id) => map.listerBuildings.allBuildingsColonist
-            .FirstOrDefault(b => b.def == ThingDefOf.Wall && b.GetUniqueLoadID() == id);
+            .ById(id) is Building b && b.def == ThingDefOf.Wall ? b : null;
         internal static bool Stone(Building? b) => b?.Stuff?.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) == true;
         private static bool At(Building? b, IntVec3 cell) => b != null && b.Spawned && b.Position == cell
             && !b.IsForbidden(Faction.OfPlayerSilentFail) && !b.IsBurning();
@@ -218,7 +218,7 @@ namespace HomeBridge.BridgeTools
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null) return new { success = false, error = "Exact wall unavailable" };
-                var wall = map.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == target && b.def == ThingDefOf.Wall);
+                var wall = map.listerBuildings.allBuildingsColonist.ById(target) is Building b && b.def == ThingDefOf.Wall ? b : null;
                 if (wall == null) return new { success = false, error = "Exact wall unavailable" };
                 var sites = new List<object>();
                 foreach (var normal in WallUpgradeSafety.Directions) {

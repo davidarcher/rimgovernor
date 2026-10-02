@@ -62,7 +62,7 @@ namespace HomeBridge.BridgeTools
             var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
             if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Custody requires an eligible pawn.");
-            patient = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.TargetId);
+            patient = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.TargetId);
             if (patient == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map.");
             if (Running(intent.Kind, pawn!, patient)) return null;
             bool capture = intent.Kind == Operations.PawnOrderKind.Capture;

@@ -63,7 +63,7 @@ namespace HomeBridge.BridgeTools
         {
             building = null;
             if (!ProtoBoundary.IsIdentifier(intent.ThingId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A claim requires an exact building.");
-            var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId);
+            var thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
             if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact claimable building is unavailable.");
             building = (Building)thing;
             var player = Faction.OfPlayerSilentFail;

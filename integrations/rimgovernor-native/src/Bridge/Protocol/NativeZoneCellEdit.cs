@@ -70,7 +70,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Zone? Resolve(Operations.ZoneCellsIntent? intent, Map map) =>
-            Valid(intent) ? map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == intent!.ZoneId && z.Cells.Count > 0) : null;
+            Valid(intent) ? RefIndex.Zone(map, intent!.ZoneId) is Zone z && z.Cells.Count > 0 ? z : null : null;
 
         private static IntVec3[] Requested(Operations.ZoneCellsIntent intent) =>
             intent.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();

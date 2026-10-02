@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
             ? thing.Map.designationManager.DesignationAt(thing.Position, DesignationDefOf.Mine) != null
             : thing.Map.designationManager.DesignationOn(thing, ChopWood(thing, designation) ? DesignationDefOf.HarvestPlant : Def(designation)) != null;
 
-        private static Thing? Find(Map map, string id) => map.listerThings.AllThings.FirstOrDefault(t => t.Spawned && t.GetUniqueLoadID() == id);
+        private static Thing? Find(Map map, string id) => RefIndex.Thing(map, id);
 
         private static bool Worker(Pawn p, Thing thing, WorkTypeDef work) => p.workSettings?.Initialized == true
             && p.workSettings.GetPriority(work) > 0 && !p.WorkTypeIsDisabled(work)

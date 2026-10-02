@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Opening a casket requires an eligible colonist.");
             var map = ProtoBoundary.LoadedMap(context);
             casket = map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingArtificial).OfType<Building_AncientCryptosleepCasket>()
-                .SingleOrDefault(b => b.GetUniqueLoadID() == intent.TargetId);
+                .ById(intent.TargetId);
             if (casket == null || casket.Destroyed || !casket.Spawned || casket.Map != map)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact spawned ancient cryptosleep casket is unavailable.");
             if (Running(pawn!, casket)) return null;

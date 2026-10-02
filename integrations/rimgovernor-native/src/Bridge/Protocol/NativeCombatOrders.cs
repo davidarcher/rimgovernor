@@ -121,7 +121,7 @@ namespace HomeBridge.BridgeTools
 
         private static (Pawn? pawn, string refusal) Admit(NativeControlIdentity identity, Map map, Operations.EntityPrecondition entity)
         {
-            var pawn = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == entity.EntityId);
+            var pawn = map.mapPawns.AllPawnsSpawned.ById(entity.EntityId);
             if (pawn == null) return (null, "not_found");
             if (!NativeDraftProtocol.TokenSent(entity)) return (pawn, "");
             var check = NativePawnControlState.Check(identity, pawn, entity.ExpectedSnapshotToken, out _);
@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.CombatOrder.OrderOneofCase.Attack:
                 {
                     var player = Faction.OfPlayerSilentFail;
-                    Thing? target = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == order.Attack.EntityId)
+                    Thing? target = map.mapPawns.AllPawnsSpawned.ById(order.Attack.EntityId)
                         ?? (player == null ? null : NativeObservationTools.HostileBuildingThing(map, player, order.Attack.EntityId));
                     if (target == null) return "not_found";
                     if (NativeDraftProtocol.TokenSent(order.Attack))
@@ -195,7 +195,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.CombatOrder.OrderOneofCase.Rescue:
                 {
                     // The pawn-target rescue order's rules (NativeCustodyOperations).
-                    var patient = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == order.Rescue.Downed.EntityId);
+                    var patient = map.mapPawns.AllPawnsSpawned.ById(order.Rescue.Downed.EntityId);
                     if (patient == null) return "not_found";
                     if (NativeDraftProtocol.TokenSent(order.Rescue.Downed)
                         && NativePawnControlState.Check(identity, patient, order.Rescue.Downed.ExpectedSnapshotToken, out _) != NativePawnControlResult.Ready) return "stale_snapshot";
@@ -256,7 +256,7 @@ namespace HomeBridge.BridgeTools
             if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Release)
             {
                 if (animal.training == null || !animal.training.HasLearned(TrainableDefOf.Release)) return "untrained";
-                var target = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == order.Release.EntityId);
+                var target = map.mapPawns.AllPawnsSpawned.ById(order.Release.EntityId);
                 if (target == null) return "not_found";
                 if (NativeDraftProtocol.TokenSent(order.Release)
                     && NativePawnControlState.Check(identity, target, order.Release.ExpectedSnapshotToken, out _) != NativePawnControlResult.Ready) return "stale_snapshot";
@@ -430,7 +430,7 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A draft requires a pawn id and the wanted draft state.");
             if (!NativePawnControlState.IsReady) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             var map = ProtoBoundary.LoadedMap(context);
-            pawn = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (pawn == null || pawn.Dead) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The pawn is not alive and spawned on this map.");
             var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
             var check = NativePawnControlState.Observe(identity, pawn, out var snapshot);

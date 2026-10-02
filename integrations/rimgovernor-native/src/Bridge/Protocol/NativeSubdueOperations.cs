@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
             target = null;
             var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
-            target = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.TargetId);
+            target = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.TargetId);
             if (target == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Subdue target is not spawned.");
             string? reason = null;
             if (!snapshot!.Eligible || !pawn!.IsColonistPlayerControlled || pawn.WorkTagIsDisabled(WorkTags.Violent)) reason = "incapable colonist";

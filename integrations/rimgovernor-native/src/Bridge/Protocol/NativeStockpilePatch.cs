@@ -37,8 +37,8 @@ namespace HomeBridge.BridgeTools
 
         internal static IStoreSettingsParent? Resolve(Map map, string id)
         {
-            if (map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == id) is Zone_Stockpile zone) return zone;
-            var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
+            if (RefIndex.Zone(map, id) is Zone_Stockpile zone) return zone;
+            var thing = RefIndex.Thing(map, id);
             return thing != null && StorageEligible(thing) ? (Building_Storage)thing : null;
         }
     }

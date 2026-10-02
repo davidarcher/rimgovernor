@@ -28,14 +28,14 @@ namespace HomeBridge.BridgeTools
                 || (intent.HasPartIndex && intent.PartIndex < 0))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Surgery requires an exact patient, an exact recipe and a whole-body or exact part index.");
             var map = ProtoBoundary.LoadedMap(context);
-            pawn = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (pawn == null || pawn.Dead || !pawn.RaceProps.Humanlike
                 || !(pawn.Faction == Faction.OfPlayer || pawn.IsPrisonerOfColony))
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living humanlike colony patient is not spawned on this map.");
             if (intent.HasSurgeonId)
             {
                 var id = intent.SurgeonId;
-                surgeon = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
+                surgeon = map.mapPawns.FreeColonistsSpawned.ById(id);
                 if (surgeon == null || surgeon == pawn || surgeon.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
                     return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Surgeon " + id + " is not a spawned free colonist who can doctor.");
             }

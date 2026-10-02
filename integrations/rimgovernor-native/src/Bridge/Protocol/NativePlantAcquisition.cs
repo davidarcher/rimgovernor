@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
         {
             plant = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Acquisition requires an exact safe mature wild plant snapshot.");
             var map = ProtoBoundary.LoadedMap(context);
-            var found = map.listerThings.AllThings.OfType<Plant>().SingleOrDefault(p => p.GetUniqueLoadID() == command.SourceId);
+            var found = RefIndex.Thing<Plant>(map, command.SourceId);
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
@@ -106,8 +106,8 @@ namespace HomeBridge.BridgeTools
         // Source is the live thing the intent names: a mineable, a plant or an
         // animal, found by identity.
         private static Thing? Source(Map map, string id) =>
-            (Thing?)map.listerThings.AllThings.FirstOrDefault(t => (t is Plant || t is Mineable) && t.GetUniqueLoadID() == id)
-            ?? map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == id);
+            (RefIndex.Thing(map, id) is Thing t && (t is Plant || t is Mineable) ? t : null)
+            ?? map.mapPawns.AllPawnsSpawned.ById(id);
 
         private static bool Designated(Thing thing) => thing is Pawn prey ? NativeHuntAcquisition.Designated(prey) : ResourceAcquisitionTools.Designated(thing);
 

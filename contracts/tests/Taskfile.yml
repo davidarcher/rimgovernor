@@ -36,6 +36,7 @@ tasks:
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-reply-encoder'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-threat-classifier'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-acquisition-token'
+      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-ref-index'
       # Binds against the installed RimBridgeServer.dll; like native:build,
       # reports unavailable when the SDK is not installed.
       - |

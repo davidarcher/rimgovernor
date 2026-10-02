@@ -64,7 +64,7 @@ namespace HomeBridge.BridgeTools
             Designator designator = forbid ? (Designator)new Designator_Forbid() : new Designator_Unforbid();
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => intent.HasThingId && ProtoBoundary.IsIdentifier(intent.ThingId), "Allow/Forbid requires an exact item")
-                .Present(() => (found = map.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId)) != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact item is no longer spawned on this map")
+                .Present(() => (found = RefIndex.Thing(map, intent.ThingId)) != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact item is no longer spawned on this map")
                 .Require(() => found!.def.EverHaulable && found.def.category == ThingCategory.Item && found.TryGetComp<CompForbiddable>() != null, "the item is not a forbiddable haulable item")
                 .Require(() => !found!.Position.Fogged(found.Map), "the item's cell is fogged")
                 .Require(() => Faction.OfPlayerSilentFail != null && (found!.Faction == null || found.Faction == Faction.OfPlayerSilentFail), "the item belongs to another faction")

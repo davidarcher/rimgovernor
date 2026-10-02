@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
 
         private static Zone? Resolve(Operations.DeleteZoneIntent? intent, Map map) =>
             intent != null && intent.HasZoneId && ProtoBoundary.IsIdentifier(intent.ZoneId)
-                ? map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == intent.ZoneId && z.Cells.Count > 0) : null;
+                ? RefIndex.Zone(map, intent.ZoneId) is Zone z && z.Cells.Count > 0 ? z : null : null;
 
         private static ApplyPreconditions Rules(Operations.DeleteZoneIntent? intent, Zone? zone, Map map)
         {

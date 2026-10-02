@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
             var lords = new HashSet<Lord>();
             foreach (var id in command.PawnIds)
             {
-                var pawn = Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).FirstOrDefault(p => p.GetUniqueLoadID() == id);
+                var pawn = Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).ById(id);
                 var lord = pawn?.GetLord();
                 if (lord == null || !(lord.LordJob is LordJob_FormAndSendCaravan)) return false;
                 lords.Add(lord);
@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
             var selected = new List<Pawn>();
             foreach (var id in command.PawnIds)
             {
-                var group = built.transferables.SingleOrDefault(g => g.AnyThing is Pawn p && p.GetUniqueLoadID() == id);
+                var group = built.transferables.SingleOrDefault(g => g.AnyThing is Pawn p && RefIndex.Is(p, id));
                 if (!(group?.AnyThing is Pawn pawn) || !NativeCaravanCatalog.PawnEligible(pawn))
                     return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible home colonist is unavailable: " + id);
                 selected.Add(pawn);

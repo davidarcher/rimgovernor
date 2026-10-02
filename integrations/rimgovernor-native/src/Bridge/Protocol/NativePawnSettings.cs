@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (string.IsNullOrWhiteSpace(intent.Nickname))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Nickname names the short name the pawn must leave.");
-                pawn = OwnedNamedPawns().SingleOrDefault(p => p.GetUniqueLoadID() == id);
+                pawn = OwnedNamedPawns().ById(id);
                 return pawn == null ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living named pawn the colony owns is not found.") : null;
             }
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare)
@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Medical care must be one of the five MedicalCareCategory tiers.");
                 care = tier.Value;
                 var player = Faction.OfPlayerSilentFail;
-                pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
+                pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(id);
                 return pawn == null || pawn.Dead || pawn.playerSettings == null || player == null || pawn.Faction != player && pawn.HostFaction != player
                     ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living pawn of the colony with medical care settings is not spawned on this map.") : null;
             }
@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse
                 && (!Enum.TryParse(intent.HostilityResponse, false, out mode) || !Enum.IsDefined(typeof(HostilityResponseMode), mode)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hostility response must be Ignore, Attack or Flee.");
-            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(id);
             if (pawn == null || pawn.Dead || pawn.playerSettings == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living colony pawn with player settings is not spawned on this map.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
@@ -141,7 +141,7 @@ namespace HomeBridge.BridgeTools
             if (intent.MedicineCarry < group.min || intent.MedicineCarry > group.max)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, $"Medicine carry must be {group.min}-{group.max}.");
             var id = intent.PawnId;
-            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(id);
             if (pawn == null || pawn.Dead || pawn.playerSettings == null || pawn.inventoryStock == null || !pawn.IsColonist)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living colonist with an inventory stock is not spawned on this map.");
             var care = pawn.playerSettings.medCare;

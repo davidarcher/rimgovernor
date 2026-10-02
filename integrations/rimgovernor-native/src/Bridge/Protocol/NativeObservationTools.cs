@@ -321,7 +321,7 @@ namespace HomeBridge.BridgeTools
         // cluster walls, a siege's sandbag or mortar frame).
         internal static Thing? HostileBuildingThing(Map map, Faction player, string id) =>
             map.listerThings.ThingsOfDef(ThingDefOf.Hive).Concat(map.listerBuildings.allBuildingsNonColonist)
-                .FirstOrDefault(t => t.GetUniqueLoadID() == id && HostileThing(t, player));
+                .ById(id) is Thing t && HostileThing(t, player) ? t : null;
         internal static List<Thing> HostileBuildings(Map map, Faction player)
         {
             var found = new List<Thing>();

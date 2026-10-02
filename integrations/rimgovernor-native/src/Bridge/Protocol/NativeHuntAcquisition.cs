@@ -160,7 +160,7 @@ namespace HomeBridge.BridgeTools
         {
             prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot, enabled hunter, butcher bill (food prey) and fewer than two outstanding hunts.");
             var map = ProtoBoundary.LoadedMap(context);
-            var found = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.SourceId);
+            var found = map.mapPawns.AllPawnsSpawned.ById(command.SourceId);
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => Pending(map) < 2, "two hunts are already outstanding on this map")
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")

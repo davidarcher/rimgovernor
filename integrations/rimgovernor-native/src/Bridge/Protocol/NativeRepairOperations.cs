@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
             if (snapshot!.Drafted || !snapshot.Eligible)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Repair requires an eligible undrafted pawn.");
             var map = ProtoBoundary.LoadedMap(context);
-            building = map.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == intent.TargetId);
+            building = map.listerBuildings.allBuildingsColonist.ById(intent.TargetId);
             if (building == null || building.Destroyed || !building.Spawned || building.Map != map)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact spawned player building is unavailable.");
             if (Running(pawn!, building)) return null;

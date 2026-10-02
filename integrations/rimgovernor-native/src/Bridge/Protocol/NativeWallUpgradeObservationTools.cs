@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
                     var rows = new List<Obs.WallUpgradeSite>();
                     if (parsed.HasTargetId)
                     {
-                        var wall = walls.FirstOrDefault(b => b.GetUniqueLoadID() == parsed.TargetId);
+                        var wall = walls.ById(parsed.TargetId);
                         if (wall == null)
                             return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map.") });
                         var materials = Materials();

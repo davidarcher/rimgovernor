@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
             if (snapshot!.Drafted || !snapshot.Eligible)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Clean requires an eligible undrafted pawn.");
             var map = ProtoBoundary.LoadedMap(context);
-            filth = map.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.TargetId) as Filth;
+            filth = RefIndex.Thing(map, intent.TargetId) as Filth;
             if (filth == null || filth.Destroyed || !filth.Spawned || filth.Map != map)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact spawned filth is unavailable.");
             if (Running(pawn!, filth)) return null;

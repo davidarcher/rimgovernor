@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
             Thing? found = null;
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => intent.HasThingId && ProtoBoundary.IsIdentifier(intent.ThingId), "Strip requires an exact pawn or corpse")
-                .Present(() => (found = map.listerThings.AllThings.FirstOrDefault(t => (t is Pawn || t is Corpse) && t.GetUniqueLoadID() == intent.ThingId)) != null
+                .Present(() => (found = RefIndex.Thing(map, intent.ThingId) is Thing t && (t is Pawn || t is Corpse) ? t : null) != null
                     && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn or corpse is not spawned on this map")
                 .Require(() => !Designated(found!), "the target is already designated for stripping")
                 .Require(() => found is IStrippable strippable && strippable.AnythingToStrip(), "the target has nothing to strip")

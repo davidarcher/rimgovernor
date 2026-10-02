@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         // allowed_area_id, or the Area.ID integer scheme
         // NativeRecoveryFacts's roofed-refuge census publishes.
         internal static Area_Allowed? ResolveArea(Pawn pawn, string entityId) => pawn.Map?.areaManager.AllAreas.OfType<Area_Allowed>()
-            .FirstOrDefault(a => a.GetUniqueLoadID() == entityId || a.ID.ToString(CultureInfo.InvariantCulture) == entityId);
+            .FirstOrDefault(a => RefIndex.Is(a, entityId) || a.ID.ToString(CultureInfo.InvariantCulture) == entityId);
 
         // Checked when a restriction is applied: weather, roof geometry and
         // paths move. Removing a saved restriction restores ordinary native
@@ -96,7 +96,7 @@ namespace HomeBridge.BridgeTools
             if (intent.AllowedArea == null) return true;
             var current = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
             if (intent.AllowedArea.ValueCase == Operations.Assignment.ValueOneofCase.Clear) return current == null;
-            return current != null && (current.GetUniqueLoadID() == intent.AllowedArea.EntityId
+            return current != null && (RefIndex.Is(current, intent.AllowedArea.EntityId)
                 || current.ID.ToString(CultureInfo.InvariantCulture) == intent.AllowedArea.EntityId);
         }
 
@@ -108,7 +108,7 @@ namespace HomeBridge.BridgeTools
             pawn = null!; holds = false;
             if (!Valid(intent))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact pawn and a supported settings change.");
-            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent!.PawnId);
+            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent!.PawnId);
             bool Target(Pawn p) => !p.Dead && p.IsFreeColonist;
             if (found != null && Target(found) && Holds(found, intent!)) { pawn = found; holds = true; return null; }
             var manual = PawnSettingsRead.ManualPriorities();

@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
         {
             thing = null;
             if (!ProtoBoundary.IsIdentifier(intent.ThingId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An auto-refuel switch requires an exact building.");
-            thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId);
+            thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
             if (thing == null || Comp(thing) == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact player building with an auto-refuel toggle is unavailable.");
             return null;
         }

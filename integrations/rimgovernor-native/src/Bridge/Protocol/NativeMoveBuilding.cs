@@ -26,11 +26,10 @@ namespace HomeBridge.BridgeTools
     {
         internal const string Kind = "Move building";
 
-        internal static Building? Find(Map map, string id) => map.listerThings.AllThings.OfType<Building>()
-            .FirstOrDefault(b => b.GetUniqueLoadID() == id);
+        internal static Building? Find(Map map, string id) => RefIndex.Thing<Building>(map, id);
 
-        private static MinifiedThing? FindPacked(Map map, string id) => map.listerThings.AllThings.OfType<MinifiedThing>()
-            .FirstOrDefault(t => t.GetUniqueLoadID() == id || t.InnerThing?.GetUniqueLoadID() == id);
+        private static MinifiedThing? FindPacked(Map map, string id) => 
+            RefIndex.Thing(map, id) as MinifiedThing ?? RefIndex.ThingOrMinified(map, id)?.ParentHolder as MinifiedThing;
 
         // Mover: someone with construction enabled must be able to reach
         // the piece now; whether it is free is the game's reservation, later.

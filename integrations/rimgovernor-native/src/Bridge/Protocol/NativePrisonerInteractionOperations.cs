@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
             pawn = null!; def = null!;
             if (intent == null || !intent.HasPawnId || !ProtoBoundary.IsIdentifier(intent.PawnId) || !intent.HasInteraction)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction requires a pawn and an interaction.");
-            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (found == null || found.Destroyed || found.Dead || !found.IsPrisonerOfColony || found.guest == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible current-map colony prisoner is unavailable.");
             var name = DefName(intent.Interaction);

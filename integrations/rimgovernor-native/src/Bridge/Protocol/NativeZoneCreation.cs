@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
                 if (!ModsConfig.OdysseyActive || DefDatabase<ResearchProjectDef>.GetNamedSilentFail("Fishing")?.IsFinished != true)
                 { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing requires Odyssey and completed Fishing research."); return false; }
                 var body = cells[0].InBounds(map) ? cells[0].GetWaterBody(map) : null;
-                var existing = command.HasExtendZoneId ? map.zoneManager.AllZones.OfType<Zone_Fishing>().FirstOrDefault(z => z.GetUniqueLoadID() == command.ExtendZoneId) : null;
+                var existing = command.HasExtendZoneId ? RefIndex.Zone<Zone_Fishing>(map, command.ExtendZoneId) : null;
                 if (command.HasExtendZoneId && (existing == null || existing.label != command.Label || !existing.Allowed || existing.Cells.Count >= cells.Length
                     || existing.Cells.Any(c => !selected.Contains(c) || map.zoneManager.ZoneAt(c) != existing || c.GetWaterBody(map) != body)))
                 { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing extension requires the exact zone and a larger complete footprint in the same body."); return false; }
@@ -190,7 +190,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.ZoneType.Fishing:
                     return zone is Zone_Fishing fishing && fishing.Allowed && fishing.repeatMode == FishRepeatMode.DoForever
                         && Math.Abs(fishing.targetPopulationPct - command.Fishing.PopulationFloor) < 0.000001
-                        && (!command.HasExtendZoneId || zone.GetUniqueLoadID() == command.ExtendZoneId) ? zone : null;
+                        && (!command.HasExtendZoneId || RefIndex.Is(zone, command.ExtendZoneId)) ? zone : null;
                 case Operations.ZoneType.Growing:
                     if (!(zone is Zone_Growing growing) || !growing.allowSow || !growing.allowCut) return null;
                     var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;
@@ -206,7 +206,7 @@ namespace HomeBridge.BridgeTools
         {
             var cells = Cells(command);
             if (command.Type == Operations.ZoneType.Fishing) {
-                var fishing = command.HasExtendZoneId ? map.zoneManager.AllZones.OfType<Zone_Fishing>().Single(z => z.GetUniqueLoadID() == command.ExtendZoneId) : new Zone_Fishing(map.zoneManager);
+                var fishing = command.HasExtendZoneId ? RefIndex.Zone<Zone_Fishing>(map, command.ExtendZoneId)! : new Zone_Fishing(map.zoneManager);
                 if (!command.HasExtendZoneId) map.zoneManager.RegisterZone(fishing);
                 fishing.label = command.Label; fishing.repeatMode = FishRepeatMode.DoForever; fishing.targetPopulationPct = (float)command.Fishing.PopulationFloor;
                 foreach (var cell in cells) if (!fishing.Cells.Contains(cell)) fishing.AddCell(cell);

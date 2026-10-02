@@ -60,8 +60,8 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed assignment requires an exact pawn, bed and expected previous bed.");
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required.");
-            var found = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(x => x.GetUniqueLoadID() == intent!.PawnId);
-            var target = map.listerThings.AllThings.OfType<Building_Bed>().SingleOrDefault(b => b.GetUniqueLoadID() == intent!.BedId);
+            var found = map.mapPawns.FreeColonistsSpawned.ById(intent!.PawnId);
+            var target = RefIndex.Thing<Building_Bed>(map, intent!.BedId);
             if (found?.ownership != null && target != null && found.ownership.OwnedBed == target)
             { pawn = found; bed = target; return null; }
             // Assigning a bed interrupts no job, so the pawn's current order,

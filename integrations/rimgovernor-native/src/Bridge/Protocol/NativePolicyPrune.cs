@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
                 var map = ProtoBoundary.LoadedMap(context);
                 foreach (var id in intent.DeleteIds)
                 {
-                    var area = map.areaManager.AllAreas.OfType<Area_Allowed>().FirstOrDefault(a => a.GetUniqueLoadID() == id);
+                    var area = map.areaManager.AllAreas.OfType<Area_Allowed>().ById(id);
                     if (area == null) continue;
                     foreach (var pawn in Holders().Where(p => p.MapHeld == map && p.playerSettings?.AreaRestrictionInPawnCurrentMap == area))
                     {
@@ -98,7 +98,7 @@ namespace HomeBridge.BridgeTools
                 effect.Database = db.Name;
                 foreach (var id in intent.DeleteIds)
                 {
-                    var policy = db.All().FirstOrDefault(v => v.GetUniqueLoadID() == id);
+                    var policy = db.All().ById(id);
                     if (policy == null) continue;
                     foreach (var pawn in Holders().Where(p => db.Get(p) == policy))
                     {
