@@ -25,15 +25,14 @@ func TestStarterShellPlansTheStorageRoomAtCamp(t *testing.T) {
 	}
 }
 
-func TestPlannedRoomOwedOnlyFromMasonryUntilTheRoomStands(t *testing.T) {
+func TestPlannedRoomOwedAtAnyTierUntilTheRoomStands(t *testing.T) {
 	kitchen := policy.LayoutRoom{Role: policy.ModuleKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
 	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{kitchen}}), Rooms: domain.Known(policy.RoomObservation{}), BuildTier: domain.Known(policy.BuildTierCamp)}
-	if _, owed := plannedRoomOwed(facts, policy.ModuleKitchen); owed {
-		t.Fatal("a Camp colony shelled the planned kitchen")
-	}
-	facts.BuildTier = domain.Known(policy.BuildTierMasonry)
-	if r, owed := plannedRoomOwed(facts, policy.ModuleKitchen); !owed || r.Interior != kitchen.Interior {
-		t.Fatal("the planned kitchen is not owed at Masonry", r, owed)
+	for _, tier := range []policy.BuildTier{policy.BuildTierCamp, policy.BuildTierMasonry} {
+		facts.BuildTier = domain.Known(tier)
+		if r, owed := plannedRoomOwed(facts, policy.ModuleKitchen); !owed || r.Interior != kitchen.Interior {
+			t.Fatal("the planned kitchen is not owed at tier", tier, r, owed)
+		}
 	}
 	if plannedRoomCells(facts, policy.ModuleKitchen) != nil {
 		t.Fatal("an unbuilt kitchen restricted the stove")

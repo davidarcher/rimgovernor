@@ -26,13 +26,14 @@ func (r *RoutineBuildingPlanner) plannedRoomModule() (policy.ModuleRole, bool) {
 	return "", false
 }
 
-// plannedLayout is the v2 plan and room census, known only at Masonry and
-// above, where the plan anchors building (#785).
+// plannedLayout is the v2 plan and room census, known whenever both are
+// read. The build tier does not gate it: a colony that holds the materials
+// raises a planned room at any tier, and the stuff ladder (WallStuff) says
+// what it is built from.
 func plannedLayout(facts observation.ColonyProjection) (policy.LayoutPlan, policy.RoomObservation, bool) {
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
-	tier, tk := facts.BuildTier.Value()
-	return plan, rooms, pk && rk && tk && tier >= policy.BuildTierMasonry
+	return plan, rooms, pk && rk
 }
 
 // plannedRoomOwed is the first planned room of module with nothing
