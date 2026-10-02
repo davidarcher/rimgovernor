@@ -10,8 +10,8 @@ save is reloaded. A second copy of a fact is a bug, not a cache.
 | Native save, `GovernorState` blobs | Go intent the world cannot show: goals (`goal/<id>`) and family plans (`family/*`), written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
 | Native save, other components | Colony identity and native tick guards (wall removal, mining, home coverage) | Follows the save |
 | SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors, request-ID replay | Not restored; read across launches only by postmortem |
-| Go memory | Everything derivable: plans, receipts, snapshots, the goal and family views | Rebuilt from the save and the live world |
-| `flight.jsonl` | All telemetry; `--debug` goes to stderr only, snapshot dumps are opt-in | Diagnostics only |
+| Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots; the `goals`, `goal_methods` and family tables are such views of the save blobs (`RebuildGoals`, `RebuildFamilies`) | Rebuilt from the save and the live world |
+| `flight.jsonl` | All controller telemetry; `--debug` goes to stderr only; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
 
 Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go
 keeps no durable copy of what the save holds. Decided 2026-10-02 (#1355).
