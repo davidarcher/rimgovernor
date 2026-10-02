@@ -64,6 +64,11 @@ jobs:
     environment: remote-acceptance
     outputs:
       report: ${{ steps.report.outputs.name }}
+    # The shards' Go caches (remote-acceptance.yml saves them from main
+    # pushes); restored only, never saved from here.
+    env:
+      GOCACHE: C:\rg\gocache
+      GOMODCACHE: C:\rg\gomod
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -85,6 +90,13 @@ jobs:
         with:
           go-version-file: trusted/go/.go-version
           cache: false
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            C:\rg\gocache
+            C:\rg\gomod
+          key: go-shard-windows-${{ hashFiles('tested/go/go.sum') }}
+          restore-keys: go-shard-windows-${{ hashFiles('tested/go/go.sum') }}-
       - name: Plan the review case
         env:
           RIMGOVERNOR_REVIEW_SEED: ${{ inputs.seed }}
@@ -97,6 +109,9 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           go build -o C:\rg\colonyreview.exe ./cmd/colonyreview
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Audit process exits so a vanished game leaves its exit status
+        continue-on-error: true
+        run: auditpol /set /subcategory:"Process Termination" /success:enable
       # The recorder renders through a graphics device: the headless game
       # keeps one (no -nographics) under RIMGOVERNOR_ACCEPT_GRAPHICS.
       - name: Bootstrap and play the review week
@@ -109,6 +124,10 @@ jobs:
           RIMGOVERNOR_REVIEW_SEED: ${{ inputs.seed }}
           RIMGOVERNOR_REVIEW_DAYS: ${{ inputs.days }}
         run: ./trusted/scripts/remote_workflow.ps1 -Phase execute -Shard s1
+      - name: Record why governed processes exited (#1358)
+        if: always() && steps.gate.outcome == 'success'
+        continue-on-error: true
+        run: ./trusted/scripts/collect_crash_remote.ps1 -Out C:\rg\crash\s1
       - name: Stop this job's processes and remove identity
         if: always() && steps.gate.outcome == 'success'
         run: |
@@ -126,6 +145,7 @@ jobs:
           if (Test-Path C:\rg\export-jobs.json) {
             & C:\rg\remoteaccept.exe export -root C:\rg\evidence -shard s1 -jobs C:\rg\export-jobs.json
           }
+          if (Test-Path C:\rg\crash\s1) { Copy-Item -LiteralPath C:\rg\crash\s1 -Destination C:\rg\evidence\s1\crash -Recurse }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && steps.gate.outcome == 'success'
         with:
