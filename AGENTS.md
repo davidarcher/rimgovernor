@@ -12,7 +12,7 @@ once acceptance passes, and land immediately.
 
 1. Work on a task branch in your own worktree; `git fetch origin main &&
    git merge origin/main` once at session start (local `main` may be
-   behind: remote agents push `origin/main` directly).
+   behind: every agent pushes `origin/main` directly).
 2. Edit; `go run ./cmd/test` from `go/` is the test loop. It tests the
    packages the working tree changed and their in-module importers
    (`./...` only when `go.mod`/`go.sum` changed) and names the acceptance
@@ -74,23 +74,27 @@ body; do not open an issue for it. The next
 full-suite pass (#363, acceptance on CI) verifies every unverified landing
 at once; per-landing issues only pile up until then.
 
-## Remote agents
+## Pushing to origin/main
 
-A remote agent (a cloud session in a fresh Linux clone, with no shared
-`main` checkout and no game) lands straight onto GitHub's `main`. The
-maintainer pushes local landings to `origin/main` at any time, so:
+Local agents (on the maintainer's Windows machine) and remote agents (cloud
+sessions in a fresh Linux clone, with no shared `main` checkout and no
+game) all land against GitHub's `main`, and the maintainer pushes there at
+any time too, so every agent:
 
-1. Start from `origin/main`: `git fetch origin main`, then branch from
+1. Starts from `origin/main`: `git fetch origin main`, then branches from
    `origin/main`.
-2. Land with the loop above (`go run ./cmd/land` fetches and
+2. Lands with the loop above (`go run ./cmd/land` fetches and
    fast-forwards `main` to `origin/main` itself).
-3. `git fetch origin main`, then `git push origin main` immediately. If
-   the push is rejected, fetch,
+3. Runs `git fetch origin main`, then `git push origin main` immediately.
+   If the push is rejected, fetch,
    `git rebase origin/main main` (only your unpushed landing moves), rerun
    `go run ./cmd/test`, and push again. Never force-push `main`.
-4. No acceptance runs are possible; say `Unverified: no acceptance run
+
+Remote agents additionally:
+
+1. Run no acceptance; say `Unverified: no acceptance run
    (remote agent)` in the commit body and let the nightly verify it.
-5. A C# change is compile-checked with `scripts/build_native_ref.sh`
+2. Compile-check a C# change with `scripts/build_native_ref.sh`
    (fixture switches pass through, e.g. `-p:UpkeepFixture=true`): it builds
    against public NuGet reference assemblies, never the game. It needs
    `apt-get install -y dotnet-sdk-8.0` (Microsoft's installer host is
@@ -110,9 +114,8 @@ first fix failed. Every landing report ends with one line:
 ## Never
 
 - Open a pull request (they are disabled), push any branch but `main`, or
-  force-push. Local agents never push: the maintainer pushes `main` by
-  hand. Remote agents push `main` only as [Remote agents](#remote-agents)
-  describes.
+  force-push. Push `main` only as
+  [Pushing to origin/main](#pushing-to-originmain) describes.
 - `git reset --soft main` to squash, or edit the `main` checkout directly,
   not even to try a fix on the user's launcher game (which builds from
   `main`): land it, then restart the launcher (#965).
