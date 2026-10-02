@@ -340,6 +340,11 @@ jobs:
           "Soak: $env:REPEAT runs per case" >> $env:GITHUB_STEP_SUMMARY
           go run ./cmd/remoteaccept soak -root C:\rg\evidence -soak C:\rg\soak -repeat $env:REPEAT | ForEach-Object { "- $_" } >> $env:GITHUB_STEP_SUMMARY
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Index per-case evidence
+        if: always()
+        continue-on-error: true
+        working-directory: trusted/go
+        run: go run ./cmd/remoteaccept index -root C:\rg\evidence
       - name: Upload complete verdict and diagnostics
         id: upload
         if: always()

@@ -26,7 +26,7 @@ func run(args []string) error {
 		return nil
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("usage: remoteaccept aggregate|import|export|soak [flags]")
+		return fmt.Errorf("usage: remoteaccept aggregate|import|export|soak|index [flags]")
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	root := f.String("root", "", "evidence root for aggregation")
@@ -105,6 +105,29 @@ func run(args []string) error {
 			return fmt.Errorf("%s: %s", e.Aggregate.Status, *e.Aggregate.Error)
 		}
 		fmt.Printf("%d cases passed; aggregate.json and result.json written (import required before landing)\n", len(e.Aggregate.Cases))
+		return nil
+	case "index":
+		// Display only: the workflow step is continue-on-error.
+		if *root == "" {
+			return fmt.Errorf("-root is required")
+		}
+		x, err := remoteaccept.BuildIndex(*root)
+		if err != nil {
+			return err
+		}
+		if _, err = remoteaccept.WriteJSON(*root, "index.json", x); err != nil {
+			return err
+		}
+		if s := os.Getenv("GITHUB_STEP_SUMMARY"); s != "" {
+			f, err := os.OpenFile(s, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			_, err = f.WriteString(x.Markdown())
+			return err
+		}
+		fmt.Print(x.Markdown())
 		return nil
 	case "soak":
 		rates, err := remoteaccept.SoakRates(*root, *soak, *repeat)

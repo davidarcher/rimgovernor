@@ -19,6 +19,13 @@ it to offload targeted runs, for example
 To tell an intermittent case from a regression, add `-f repeat=N` (cases tier, 1-50): every
 shard runs N times and the verdict summary lists `case: passed/N passed`. Run 1 alone is the
 verdict and landing evidence; repetitions 2..N upload `soak-*` artifacts that feed only the rate.
+After the verdict, `remoteaccept index -root C:\rg\evidence` (display only, continue-on-error)
+writes `index.json` into the verdict artifact and appends a table to the run summary, failing
+cases first: each case's status, attempt count, shard, the `gh run download -n` artifact name
+(`acceptance-<run>-<attempt>-shard-<id>`), up to eight postmortem lines from its report's
+`diagnosis`, and its paths inside that artifact: `<shard>/fixture/<case>/result.json` (native
+report), `<shard>/fixture/<case>/flight.jsonl`, `<shard>/fixture/<case>.log` and
+`<shard>/fixture/snapshots/<case>/routine-stream-*.jsonl`. A path is listed only when exported.
 Reruns need
 **Re-run all jobs**: an attempt cannot borrow a previous attempt's plan/artifacts.
 
