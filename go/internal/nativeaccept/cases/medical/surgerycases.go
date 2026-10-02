@@ -77,9 +77,7 @@ func surgeryHarvestCareLimit(ctx context.Context, s cases.Session) error {
 	}
 	for _, raw := range na.AsSlice(observed["persons"]) {
 		person, _ := na.AsMap(raw)
-		state, _ := na.AsMap(person["pawn"])
-		ref, _ := na.AsMap(state["pawn"])
-		if prisoner == "" || na.AsString(ref["id"]) != prisoner {
+		if prisoner == "" || na.PawnRef(person) != prisoner {
 			continue
 		}
 		s.Report()["medical_care"] = person["medicalCare"]
@@ -459,9 +457,7 @@ func harvestFacts(ctx context.Context, s cases.Session, prisoner string) error {
 	precept := na.AsString(observed["organUsePrecept"])
 	for _, raw := range na.AsSlice(observed["persons"]) {
 		person, _ := na.AsMap(raw)
-		state, _ := na.AsMap(person["pawn"])
-		ref, _ := na.AsMap(state["pawn"])
-		if na.AsString(ref["id"]) != prisoner {
+		if na.PawnRef(person) != prisoner {
 			continue
 		}
 		surgery, _ := na.AsMap(person["surgery"])

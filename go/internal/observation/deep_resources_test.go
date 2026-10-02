@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -22,7 +23,7 @@ func TestDeepResourcesProjectionPresence(t *testing.T) {
 	id := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 	for _, section := range []*o.DeepResourcesSection{nil, {Outcome: &o.DeepResourcesSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum(), Detail: proto.String("unreadable")}}}} {
 		r.GetObserved().DeepResources = section
-		p, err := DecodeColony(r, id, nil)
+		p, err := DecodeColony(r, id, bridge.Tables{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -32,7 +33,7 @@ func TestDeepResourcesProjectionPresence(t *testing.T) {
 	}
 	f := &o.DeepResourcesFacts{}
 	r.GetObserved().DeepResources = &o.DeepResourcesSection{Outcome: &o.DeepResourcesSection_Observed{Observed: f}}
-	p, err := DecodeColony(r, id, nil)
+	p, err := DecodeColony(r, id, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +43,7 @@ func TestDeepResourcesProjectionPresence(t *testing.T) {
 	f.Lumps = []*o.DeepResourceLump{{DefName: proto.String("Plasteel"), Count: proto.Int64(300), Centre: &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}, CellCount: proto.Uint32(3)}}
 	f.GroundScanners = []*o.MineralScannerState{{BuildingId: proto.String("scanner"), DefName: proto.String("GroundPenetratingScanner"), Position: &c.Cell{X: proto.Int32(11), Z: proto.Int32(10)}, Built: proto.Bool(true), Powered: proto.Bool(false)}}
 	f.LongRangeScanners = []*o.MineralScannerState{{BuildingId: proto.String("long"), DefName: proto.String("LongRangeMineralScanner"), Position: &c.Cell{X: proto.Int32(12), Z: proto.Int32(10)}, Built: proto.Bool(true), Working: proto.Bool(false), TicksToNextFind: proto.Int64(0), TargetResource: proto.String("Gold")}}
-	p, err = DecodeColony(r, id, nil)
+	p, err = DecodeColony(r, id, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}

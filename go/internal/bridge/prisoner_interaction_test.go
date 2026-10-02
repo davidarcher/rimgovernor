@@ -12,6 +12,26 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// populationPawns is the pawn table a test population refers to: each
+// person a live pawn, a prisoner unless admitted.
+func populationPawns(v *o.PopulationSnapshot) Pawns {
+	out := Pawns{}
+	for _, person := range v.GetPersons() {
+		id := person.GetPawn().GetId()
+		out[id] = &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Dead: proto.Bool(false), Prisoner: proto.Bool(!person.GetAdmitted())}
+	}
+	return out
+}
+
+// populationTable is populationPawns as a list read answers it.
+func populationTable(v *o.PopulationSnapshot) *o.ListPawnsReply {
+	out := &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: &o.Completeness{}}
+	for _, person := range v.GetPersons() {
+		out.Pawns = append(out.Pawns, populationPawns(v)[person.GetPawn().GetId()])
+	}
+	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: out}}
+}
+
 func populationReply(persons ...*o.PopulationPerson) *o.PopulationReply {
 	return &o.PopulationReply{Outcome: &o.PopulationReply_Observed{Observed: &o.PopulationSnapshot{
 		Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(7), NativeGeneration: proto.Uint64(1)},
@@ -20,10 +40,7 @@ func populationReply(persons ...*o.PopulationPerson) *o.PopulationReply {
 }
 
 func prisonerPerson(id, interaction string) *o.PopulationPerson {
-	person := &o.PopulationPerson{Pawn: &o.PawnState{
-		Pawn: &o.EntityRef{Id: proto.String(id)}, Snapshot: &o.SnapshotRef{Token: proto.String("tok-" + id)},
-		Dead: proto.Bool(false), Prisoner: proto.Bool(true),
-	}, Recruitable: proto.Bool(true)}
+	person := &o.PopulationPerson{Pawn: &o.EntityRef{Id: proto.String(id), Snapshot: &o.SnapshotRef{Token: proto.String("tok-" + id)}}, Recruitable: proto.Bool(true)}
 	if interaction != "" {
 		person.Interaction = proto.String(interaction)
 	}
@@ -46,10 +63,14 @@ func TestPrisonerInteractionReadsEveryExposedMode(t *testing.T) {
 	}
 	reply := populationReply(persons...)
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
-		if arg.Tool != "rimgovernor/observations_read_population" {
-			t.Fatal(arg.Tool)
+		switch arg.Tool {
+		case "rimgovernor/observations_read_population":
+			return pbResult(reply), nil
+		case "rimgovernor/observations_list_pawns":
+			return pbResult(populationTable(reply.GetObserved())), nil
 		}
-		return pbResult(reply), nil
+		t.Fatal(arg.Tool)
+		return nil, nil
 	}}, time.Second)
 	census, _, err := client.ReadRoutinePopulation(context.Background(), pbIdentity())
 	if err != nil {

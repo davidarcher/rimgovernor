@@ -72,8 +72,8 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 }
 
 // pawnDetailsRequest is the exact request readPawnDetails issues for ids
-// (validated, in the caller's order); the bundle seeds its colonist_pawns
-// section under the routine form of it (ReadRoutinePawns).
+// (validated, in the caller's order); the bundle seeds its pawn table's
+// colonist rows under the routine form of it (ReadRoutinePawns).
 func pawnDetailsRequest(identity *c.Identity, ids []string, want pawnDetails) *o.ListPawnsRequest {
 	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: append([]string(nil), ids...), IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(want.Combat), Equipment: proto.Bool(want.Combat), Biography: proto.Bool(want.Combat), Settings: proto.Bool(want.Care), Social: proto.Bool(want.Social), Animals: proto.Bool(want.Combat)}}
 	if want.Work {

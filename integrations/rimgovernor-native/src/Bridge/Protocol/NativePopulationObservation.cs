@@ -63,9 +63,7 @@ namespace HomeBridge.BridgeTools
             var snapshot = new Obs.PopulationSnapshot { Context = context };
             foreach (var p in people)
             {
-                var row = NativeObservationTools.PawnRow(p, false, context);
-                row.Pawn.Label = NativePawnObservationTools.Text(p.LabelCap);
-                var person = new Obs.PopulationPerson { Pawn = row, Admitted = p.IsFreeColonist && p.Faction == player, Guest = p.HostFaction == player };
+                var person = new Obs.PopulationPerson { Pawn = NativePawnObservationTools.Ref(p), Admitted = p.IsFreeColonist && p.Faction == player, Guest = p.HostFaction == player };
                 if (p.guest != null)
                 {
                     person.Recruitable = p.guest.Recruitable;
@@ -131,7 +129,7 @@ namespace HomeBridge.BridgeTools
                 if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
                 // The prisoner custody and interaction settings token
                 // (NativePrisonerInteractionOperations.Settings).
-                row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
+                person.Pawn.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = person.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
                 snapshot.Persons.Add(person);
             }
             // Owned-pawn names (#1310): the census the unique-name planner reads.

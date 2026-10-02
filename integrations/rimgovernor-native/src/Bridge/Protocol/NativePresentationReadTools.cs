@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("rimgovernor/presentation_colonists", Title = "Read native colonist roster", Description = "Complete bounded FreeColonistsSpawned roster. Default includes all loaded maps; currentMapOnly narrows it; includeDossier attaches each colonist's observation PawnState (needs, health, equipment, biography, social). No world caravan, prisoner, slave or unspawned-pawn claim.")]
+        [Tool("rimgovernor/presentation_colonists", Title = "Read native colonist roster", Description = "Complete bounded FreeColonistsSpawned roster. Default includes all loaded maps; currentMapOnly narrows it; the controller joins includeDossier from its bundle pawn table. No world caravan, prisoner, slave or unspawned-pawn claim.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ColonistRosterReply; usable in headless and graphical games.", Always = true)]
         public async Task<object> Colonists(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ColonistRosterRequest string in raw transport value.")] object? request = null)
@@ -100,7 +100,6 @@ namespace HomeBridge.BridgeTools
                         var reference = new Presentation.ColonistReference { PawnId = Id(pawn.GetUniqueLoadID()),
                             Name = Diagnostic(pawn.Name?.ToStringShort ?? pawn.LabelShort), MapId = pawn.Map.uniqueID,
                             Spawned = true, Position = Cell(pawn.Position) };
-                        if (parsed.IncludeDossier) reference.Dossier = Dossier(pawn, pawns, context);
                         roster.Colonists.Add(reference);
                     }
                     if (roster.Colonists.Select(p => p.PawnId).Distinct(StringComparer.Ordinal).Count() != roster.Colonists.Count)
@@ -109,19 +108,6 @@ namespace HomeBridge.BridgeTools
                 }
                 catch (Exception errorRead) { return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = ReadFailure(errorRead) }); }
             }, cancellationToken).ConfigureAwait(false);
-        }
-
-        // The roster dossier is the observation PawnState the ListPawns reader
-        // projects, minus settings and animal detail: the same needs, health,
-        // equipment, biography and social facts, from the same native reads.
-        private static Obs.PawnState Dossier(Pawn pawn, List<Pawn> colonists, Common.ObservationContext context)
-        {
-            var row = NativePawnObservationTools.Core(pawn, colonists, context);
-            NativePawnDetails.Apply(pawn, colonists, row, new Obs.PawnDetails {
-                Needs = true, Health = true, Equipment = true, Biography = true, Social = true,
-                Settings = false, Animals = false, VisibleHediffsOnly = true }, context);
-            row.Snapshot = NativePawnObservationTools.PawnSnapshotToken(pawn, row, context);
-            return row;
         }
 
         internal static bool ValidateRead(Presentation.ReadRequest request, out Common.Failure failure)

@@ -140,7 +140,8 @@ func newBundleFamilyServer(t *testing.T) *bundleFamilyServer {
 	s.snapshot.ColonyFacts = proto.Clone(s.colony.GetObserved()).(*o.ColonyFactsSnapshot)
 	s.snapshot.Population = proto.Clone(s.population.GetObserved()).(*o.PopulationSnapshot)
 	s.snapshot.Research = proto.Clone(s.research.GetObserved()).(*o.ResearchSnapshot)
-	s.snapshot.ColonistPawns = proto.Clone(pawns).(*o.PawnSnapshot)
+	s.snapshot.Pawns = proto.Clone(pawns).(*o.PawnSnapshot)
+	s.snapshot.Pawns.Pawns = append(s.snapshot.Pawns.Pawns, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("prisoner-1")}, Prisoner: proto.Bool(true)})
 	return s
 }
 

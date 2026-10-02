@@ -219,10 +219,9 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		for _, entry := range na.AsSlice(observed["persons"]) {
 			person, _ := na.AsMap(entry)
-			pawn, _ := na.AsMap(person["pawn"])
-			ref, _ := na.AsMap(pawn["pawn"])
-			if na.AsString(ref["id"]) == candidateID {
-				return person, supported, nil
+			if na.PawnRef(person) == candidateID {
+				// The custody facts ride the pawn table row (#1343).
+				return person, supported, h.JoinPawn(ctx, label, identity, person)
 			}
 		}
 		return nil, supported, fmt.Errorf("%s: candidate %s missing from the population census", label, candidateID)

@@ -86,14 +86,46 @@ namespace HomeBridge.BridgeTools
             // The tend detail is pairwise across the page, so it runs once over
             // the whole page before the per-row snapshot tokens are taken.
             if (details.Tend) NativePawnDetails.Tend(page);
-            foreach (var item in page) {
-                if (raidArmor.HasValue) item.Value.RaidArmor = raidArmor.Value;
-                NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details, context);
-                item.Value.Snapshot = PawnSnapshotToken(item.Key, item.Value, context);
-                result.Pawns.Add(item.Value);
+            foreach (var item in page) result.Pawns.Add(Detail(item.Key, colonists, item.Value, parsed.Details, raidArmor, context));
+            return result;
+        }
+
+        // The bundle's pawn table (#1343): every spawned pawn on the map,
+        // each built by the one row builder with the detail its kind needs.
+        internal static Obs.PawnSnapshot Table(Map map, Common.ObservationContext context)
+        {
+            var source = map.mapPawns.AllPawnsSpawned.ToList();
+            if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
+            var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
+            var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(source.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
+            double? raidArmor = null; var armorRead = false;
+            foreach (var pawn in source.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) {
+                var details = !pawn.Dead && pawn.IsFreeColonist ? ColonistDetail : pawn.RaceProps.Animal ? AnimalDetail : CoreDetail;
+                if (details.Equipment && !armorRead) { raidArmor = NativeGearFacts.RaidArmor(map); armorRead = true; }
+                result.Pawns.Add(Detail(pawn, colonists, Core(pawn, colonists, context), details, raidArmor, context));
             }
             return result;
         }
+
+        // The table's detail families: a free colonist every one but tend,
+        // an animal its animal state, any other pawn none.
+        private static readonly Obs.PawnDetails ColonistDetail = new Obs.PawnDetails { Needs = true, Health = true, Equipment = true, Biography = true, Settings = true, Social = true, Animals = true, Work = true, Schedule = true, Tend = false };
+        private static readonly Obs.PawnDetails AnimalDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = true };
+        private static readonly Obs.PawnDetails CoreDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = false };
+
+        // Detail is the one pawn row builder (#1343): the core row with the
+        // requested detail families and the row's snapshot token.
+        private static Obs.PawnState Detail(Pawn pawn, List<Pawn> colonists, Obs.PawnState row, Obs.PawnDetails details, double? raidArmor, Common.ObservationContext context)
+        {
+            if (raidArmor.HasValue && NativePawnDetails.Defaults(details).Equipment) row.RaidArmor = raidArmor.Value;
+            NativePawnDetails.Apply(pawn, colonists, row, details, context);
+            row.Snapshot = PawnSnapshotToken(pawn, row, context);
+            return row;
+        }
+
+        // A reference to a pawn's table row: every other message names a
+        // pawn this way (#1343).
+        internal static Obs.EntityRef Ref(Pawn pawn) => new Obs.EntityRef { Id = Id(pawn.GetUniqueLoadID()) };
 
         internal static bool Validate(Obs.ListPawnsRequest request, out Common.Failure failure)
         {

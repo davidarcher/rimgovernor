@@ -40,7 +40,7 @@ func decodeColonySections(sections map[string]*recSection) (*colonyDecoded, uint
 		return nil, 0, false
 	}
 	var at []uint64
-	for _, name := range append(bridge.ColonySections(), string(facts.Buildings)) {
+	for _, name := range append(bridge.ColonySections(), string(facts.Buildings), string(facts.Pawns)) {
 		if s := sections[name]; s != nil {
 			at = append(at, s.version)
 		}
@@ -77,15 +77,24 @@ func buildColony(sections map[string]*recSection) *colonyDecoded {
 	if err != nil {
 		return fail(err)
 	}
-	// The building table the facts' references resolve against (#1343).
-	buildings := bridge.Buildings{}
+	// The keyed tables the facts' references resolve against (#1343).
+	tables := bridge.Tables{Buildings: bridge.Buildings{}, Pawns: bridge.Pawns{}}
 	if s := sections[string(facts.Buildings)]; s != nil {
 		for _, raw := range s.rows {
 			var row *o.BuildingState
 			if err := Decode(raw, &row); err != nil {
 				return fail(err)
 			}
-			buildings[row.GetBuilding().GetId()] = row
+			tables.Buildings[row.GetBuilding().GetId()] = row
+		}
+	}
+	if s := sections[string(facts.Pawns)]; s != nil {
+		for _, raw := range s.rows {
+			var row *o.PawnState
+			if err := Decode(raw, &row); err != nil {
+				return fail(err)
+			}
+			tables.Pawns[row.GetPawn().GetId()] = row
 		}
 	}
 	at := v.GetContext()
@@ -93,7 +102,7 @@ func buildColony(sections map[string]*recSection) *colonyDecoded {
 	if at.NativeGeneration != nil {
 		identity.NativeGeneration = domain.Known(domain.NativeGeneration(at.GetNativeGeneration()))
 	}
-	projection, err := observation.DecodeColony(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}, identity, buildings)
+	projection, err := observation.DecodeColony(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}, identity, tables)
 	if err != nil {
 		return fail(err)
 	}

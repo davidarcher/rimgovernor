@@ -17,7 +17,7 @@ func TestPopulationDecodesHarvestFacts(t *testing.T) {
 		Kind: o.SurgeryKind_SURGERY_KIND_HARVEST, YieldMarketValue: proto.Float64(900)}}}
 	snapshot := populationReply(prisoner, prisonerPerson("q", "")).GetObserved()
 	snapshot.OrganUsePrecept = proto.String("OrganUse_Acceptable")
-	census, err := decodePopulation(snapshot)
+	census, err := decodePopulation(snapshot, populationPawns(snapshot))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,12 +52,12 @@ func TestPopulationDecodesProspectAndColony(t *testing.T) {
 	prisoner := prisonerPerson("p", "MaintainOnly")
 	prisoner.Will, prisoner.IdeoId, prisoner.WildMan, prisoner.HealthSummary = proto.Float64(3), proto.String("Ideo_2"), proto.Bool(false), proto.Float64(0.9)
 	prisoner.Biography = &o.PawnBiography{BiologicalAgeYears: proto.Float64(30), Skills: []*o.Skill{skill("Cooking", 9)}, Traits: []*o.Trait{{DefName: proto.String("Tough"), Degree: proto.Int32(0)}}, IncapableWorkTypes: []string{"Mining"}}
-	colonist := &o.PopulationPerson{Pawn: &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("c")}, Dead: proto.Bool(false), Prisoner: proto.Bool(false)}, Admitted: proto.Bool(true),
+	colonist := &o.PopulationPerson{Pawn: &o.EntityRef{Id: proto.String("c")}, Admitted: proto.Bool(true),
 		Biography: &o.PawnBiography{BiologicalAgeYears: proto.Float64(40), Skills: []*o.Skill{skill("Cooking", 4), skill("Mining", 11)}}}
 	reply := populationReply(prisoner, colonist)
 	snapshot := reply.GetObserved()
 	snapshot.IdeologyActive, snapshot.ColonyIdeoId, snapshot.SlaveryPrecept = proto.Bool(true), proto.String("Ideo_1"), proto.String("Slavery_Acceptable")
-	census, err := decodePopulation(snapshot)
+	census, err := decodePopulation(snapshot, populationPawns(snapshot))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,8 @@ func TestPopulationDecodesProspectAndColony(t *testing.T) {
 		t.Fatalf("row %+v prospect %+v", row, prospect)
 	}
 	// A producer without the biography leaves the prospect unknown.
-	census, _ = decodePopulation(populationReply(prisonerPerson("q", "")).GetObserved())
+	q := populationReply(prisonerPerson("q", "")).GetObserved()
+	census, _ = decodePopulation(q, populationPawns(q))
 	rows, _ = census.Prisoners.Value()
 	if _, known := rows[0].Prospect.Value(); known {
 		t.Fatal("prospect should be unknown")

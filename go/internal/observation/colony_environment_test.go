@@ -41,7 +41,7 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := DecodeColony(reply, id, nil)
+	p, err := DecodeColony(reply, id, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,12 +88,12 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 	}
 	planning.Environment = nil
 	planning.Issues = append(planning.Issues, &o.ReadIssue{Field: proto.String("environment"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}})
-	p, err = DecodeColony(reply, id, nil)
+	p, err = DecodeColony(reply, id, bridge.Tables{})
 	if _, known := p.Environment.Value(); err != nil || known {
 		t.Fatal("environment issue ignored", err)
 	}
 	planning.Issues, planning.Environment = nil, nil
-	p, _ = DecodeColony(reply, id, nil)
+	p, _ = DecodeColony(reply, id, bridge.Tables{})
 	if _, known := p.Environment.Value(); known {
 		t.Fatal("absent environment became known")
 	}

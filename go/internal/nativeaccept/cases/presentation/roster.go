@@ -1,14 +1,20 @@
 // The presentation/roster case checks the colonist roster's dossier against a
-// real headless game: with include_dossier every row carries the observation
-// PawnState of its own pawn, with the families the dashboard's Colony view
-// renders (needs, health, biography, equipment) read from the live colony and
-// the settings family kept out. Without the flag no row carries one.
+// real headless game: native never fills a dossier; with include_dossier the
+// controller joins every row to its pawn table row (#1343), with the
+// families the dashboard's Colony view renders (needs, health, biography,
+// equipment) read from the live colony and the settings family kept out.
 package presentation
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
+
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -17,7 +23,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name:   "presentation/roster",
-		Scope:  "presentation_colonists with include_dossier attaches each colonist's own PawnState (mood, health summary, skills, equipment present; settings absent) and the plain roster names the same colonists with no dossier.",
+		Scope:  "presentation_colonists carries no dossier; the controller's include_dossier join attaches each colonist's pawn table row (mood, health summary, skills, equipment present; settings absent). Native: the roster read and the pawn table list read.",
 		Start:  cases.LabStart(),
 		Budget: 3 * time.Minute,
 		Run:    runRoster,
@@ -39,10 +45,10 @@ func runRoster(ctx context.Context, s cases.Session) error {
 	}
 	for _, row := range plain {
 		if _, ok := row["dossier"]; ok {
-			return fmt.Errorf("colonists: %q carries a dossier without include_dossier", na.AsString(row["pawnId"]))
+			return fmt.Errorf("colonists: native %q carries a dossier", na.AsString(row["pawnId"]))
 		}
 	}
-	detailed, err := rosterRows(ctx, h, "colonists-dossier", map[string]any{"identity": identity, "currentMapOnly": true, "includeDossier": true})
+	detailed, err := joinedRoster(ctx, h, identity)
 	if err != nil {
 		return err
 	}
@@ -94,6 +100,37 @@ func runRoster(ctx context.Context, s cases.Session) error {
 	}
 	report["dossiers"] = summary
 	return nil
+}
+
+// joinedRoster is the roster the controller serves the dashboard: the
+// native roster with each colonist's pawn table row joined (#1343).
+func joinedRoster(ctx context.Context, h *na.Harness, identity map[string]any) ([]map[string]any, error) {
+	data, err := json.Marshal(identity)
+	if err != nil {
+		return nil, err
+	}
+	id := &c.Identity{}
+	if err := protojson.Unmarshal(data, id); err != nil {
+		return nil, err
+	}
+	reply, _, err := h.Client.ReadColonistRoster(ctx, &p.ColonistRosterRequest{Identity: id, CurrentMapOnly: proto.Bool(true), IncludeDossier: proto.Bool(true)})
+	if err != nil {
+		return nil, fmt.Errorf("colonists-dossier: %w", err)
+	}
+	data, err = protojson.Marshal(reply.GetRoster())
+	if err != nil {
+		return nil, err
+	}
+	roster := map[string]any{}
+	if err := json.Unmarshal(data, &roster); err != nil {
+		return nil, err
+	}
+	rows := []map[string]any{}
+	for _, raw := range na.AsSlice(roster["colonists"]) {
+		row, _ := na.AsMap(raw)
+		rows = append(rows, row)
+	}
+	return rows, nil
 }
 
 func rosterRows(ctx context.Context, h *na.Harness, label string, request map[string]any) ([]map[string]any, error) {

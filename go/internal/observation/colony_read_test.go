@@ -25,6 +25,7 @@ type colonySource struct {
 	reads      int
 	identities int
 	buildings  bridge.Buildings
+	pawns      bridge.Pawns
 }
 
 func (s *colonySource) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
@@ -32,8 +33,8 @@ func (s *colonySource) Identity(ctx context.Context) (*l.IdentityReply, bridge.R
 	return nil, bridge.Result{}, errors.New("identity read inside ObserveColony")
 }
 
-func (s *colonySource) FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error) {
-	return s.buildings, nil
+func (s *colonySource) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
+	return bridge.Tables{Buildings: s.buildings, Pawns: s.pawns}, nil
 }
 
 func (s *colonySource) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {

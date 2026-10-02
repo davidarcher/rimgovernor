@@ -159,7 +159,11 @@ func auditStableFood(ctx context.Context, h *na.Harness, s cases.Session, report
 		return fmt.Errorf("final colony facts unavailable")
 	}
 	id := v.Context.Identity
-	projection, err := observation.DecodeColony(reply, observation.Identity{Colony: domain.ColonyID(id.GetColonyId()), Map: domain.MapID(id.GetMapId()), Load: domain.LoadID(id.GetLoadToken()), Tick: domain.Tick(v.Context.GetTick())}, nil)
+	tables, err := h.Client.FrameTables(ctx, id)
+	if err != nil {
+		return err
+	}
+	projection, err := observation.DecodeColony(reply, observation.Identity{Colony: domain.ColonyID(id.GetColonyId()), Map: domain.MapID(id.GetMapId()), Load: domain.LoadID(id.GetLoadToken()), Tick: domain.Tick(v.Context.GetTick())}, tables)
 	if err != nil {
 		return err
 	}

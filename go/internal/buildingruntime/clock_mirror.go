@@ -29,15 +29,11 @@ const (
 	benchSectionName = "benches"
 )
 
-// publishPawns publishes the review frame's colonist pawn detail as the
-// pawn section keyed by pawn id; the recording keeps only the rows that
+// publishPawns publishes the review frame's pawn table (#1343) as the pawn
+// section keyed by pawn id; the recording keeps only the rows that
 // changed.
-func publishPawns(m *facts.Store, scope facts.Scope, observed *o.PawnSnapshot) {
-	rows := make(map[string]*o.PawnState, len(observed.GetPawns()))
-	for _, row := range observed.GetPawns() {
-		rows[row.GetPawn().GetId()] = row
-	}
-	facts.PutTable(m, scope, pawnSectionName, rows, facts.At(observed.GetContext().GetTick()))
+func publishPawns(m *facts.Store, scope facts.Scope, pawns bridge.Pawns, tick int64) {
+	facts.PutTable(m, scope, pawnSectionName, map[string]*o.PawnState(pawns), facts.At(tick))
 }
 
 // publishBenches reads the gear bench census (each bench's bill stack and

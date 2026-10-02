@@ -1105,9 +1105,8 @@ type ColonistRosterRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Identity       *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
 	CurrentMapOnly *bool                  `protobuf:"varint,2,opt,name=current_map_only,json=currentMapOnly,proto3,oneof" json:"current_map_only,omitempty"`
-	// include_dossier attaches the observation PawnState (needs, health,
-	// equipment, biography, social) to every reference; settings and animal
-	// detail stay out of the roster.
+	// include_dossier asks the controller to attach each colonist's row of
+	// its latest bundle pawn table (#1343); native never fills dossier.
 	IncludeDossier *bool `protobuf:"varint,3,opt,name=include_dossier,json=includeDossier,proto3,oneof" json:"include_dossier,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -1171,7 +1170,8 @@ type ColonistReference struct {
 	MapId    *int32                 `protobuf:"varint,3,opt,name=map_id,json=mapId,proto3,oneof" json:"map_id,omitempty"`
 	Spawned  *bool                  `protobuf:"varint,4,opt,name=spawned,proto3,oneof" json:"spawned,omitempty"`
 	Position *commonpb.Cell         `protobuf:"bytes,5,opt,name=position,proto3" json:"position,omitempty"`
-	// Present only when the request asked for it; dossier.pawn.id == pawn_id.
+	// Joined by the controller when the request asked for it;
+	// dossier.pawn.id == pawn_id.
 	Dossier       *observationspb.PawnState `protobuf:"bytes,6,opt,name=dossier,proto3" json:"dossier,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

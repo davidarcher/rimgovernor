@@ -844,7 +844,7 @@ message ResourceSourcesSnapshot { rimgovernor.common.v1.ObservationContext conte
 message ResourceSourcesRequest { ReadScope scope = 1; optional string resource = 2; optional bool include_development = 3; reserved 4; }
 message ResourceSourcesReply { oneof outcome { ResourceSourcesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message HandlerState { EntityRef pawn = 1; optional int32 skill = 2; optional int32 priority = 3; optional bool eligible = 4; optional string reason = 5; }
-message HusbandryAnimal { PawnState pawn = 1; AnimalState animal = 3; repeated HandlerState handlers = 4; reserved 2, 5; reserved "settings_snapshot", "census_snapshot"; }
+message HusbandryAnimal { reserved 1; EntityRef pawn = 6; AnimalState animal = 3; repeated HandlerState handlers = 4; reserved 2, 5; reserved "settings_snapshot", "census_snapshot"; }
 message HusbandrySnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef census = 2; repeated HusbandryAnimal animals = 3; reserved 4; }
 message HusbandryRequest { ReadScope scope = 1; optional bool include_wild = 3; reserved 2; }
 message HusbandryReply { oneof outcome { HusbandrySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -860,7 +860,9 @@ message RecoveryRestriction { EntityRef pawn = 1; optional string area_id = 2; o
 message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; reserved 2, 3; reserved "roof_hazard", "areas"; repeated RecoveryRestriction restrictions = 4; reserved 5, 6; repeated EntityRef buildings = 7; }
 message RecoveryRequest { ReadScope scope = 1; reserved 2; }
 message RecoveryReply { oneof outcome { RecoverySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; reserved 7; EntityRef owned_bed = 23; optional double nutrition_per_day = 8; optional int64 prisoner_ticks = 9;
+// pawn refers to the bundle pawn table row (#1343); its snapshot is the
+// prisoner custody and interaction settings token.
+message PopulationPerson { reserved 1; EntityRef pawn = 24; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; reserved 7; EntityRef owned_bed = 23; optional double nutrition_per_day = 8; optional int64 prisoner_ticks = 9;
   // Prisoner prospect facts MaintainPopulation judges a prisoner's use by
   // (#1036): Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
   // id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
@@ -1047,7 +1049,7 @@ message ProtectedCell { rimgovernor.common.v1.Cell cell = 1; optional bool home 
 // to share a bed with every listed partner (the SharedBed precepts; with no
 // partner, the plain SharedBed precept), true without Ideology. title: the
 // most senior royal title, absent without one or when Royalty is inactive.
-message UpkeepPerson { PawnState pawn = 1; optional string owned_bed_id = 2; optional double comfortable_min_c = 3; optional double comfortable_max_c = 4; optional double temperature_c = 5; repeated string partner_ids = 6; optional bool bed_sharing_allowed = 7; RoyalTitleFacts title = 8; }
+message UpkeepPerson { reserved 1; EntityRef pawn = 9; optional string owned_bed_id = 2; optional double comfortable_min_c = 3; optional double comfortable_max_c = 4; optional double temperature_c = 5; repeated string partner_ids = 6; optional bool bed_sharing_allowed = 7; RoyalTitleFacts title = 8; }
 // Bedroom requirements read from RoyalTitleDef.GetBedroomRequirements for the
 // holder (none for an ascetic), skipping requirements an ideo precept disables.
 // things: each row is one requirement met by count of any listed def.
@@ -1065,7 +1067,9 @@ message FeedDefinition { optional string def_name = 1; optional double nutrition
 // reachable by the animal and a hauler) near the animal on which such a
 // zone could be made; empty when no hauler exists or no cell qualifies.
 message AnimalFeedStorage { optional string zone_id = 1; repeated string accepts = 2; }
-message AnimalFeed { PawnState pawn = 1; optional string diet = 2; optional bool requires_pen = 3; optional string suitable_pen_id = 4; repeated FoodStock reachable_stored_feed = 5; repeated string reachable_bench_ids = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
+// pawn refers to the bundle pawn table row (#1343), whose animal_state
+// carries the herd facts.
+message AnimalFeed { reserved 1; EntityRef pawn = 9; optional string diet = 2; optional bool requires_pen = 3; optional string suitable_pen_id = 4; repeated FoodStock reachable_stored_feed = 5; repeated string reachable_bench_ids = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
 message DevelopmentPower { reserved 1; EntityRef building = 8; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool rain_vulnerable = 5; optional bool roofed = 6;
   // A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
   optional double turret_dps = 7; }
@@ -1420,7 +1424,8 @@ message BundleSnapshot {
   ColonyFactsSnapshot colony_facts = 6;
   PopulationSnapshot population = 7;
   ResearchSnapshot research = 8;
-  PawnSnapshot colonist_pawns = 9;
+  // The pawn table (32) replaces the colonist detail section (#1343).
+  reserved 9; reserved "colonist_pawns";
   BuildingsSnapshot buildings = 10;
   BillsSnapshot bills = 12;
   ZonesSnapshot zones = 13;
@@ -1473,6 +1478,11 @@ message BundleSnapshot {
   // with a seq other than the one the reader holds was published in a
   // frame the reader missed: it asks for a keyframe.
   repeated SectionWatermark watermarks = 31;
+  // The pawn table (#1343): every spawned pawn on the map, the rows every
+  // other section's pawn reference resolves against. A free colonist
+  // carries every detail family but tend; an animal its animal state; any
+  // other pawn the core row.
+  PawnSnapshot pawns = 35;
   // The whole map as a cell grid (#1345), every frame: a keyframe on an
   // open or keyframe request, on a map change and at least every 30
   // seconds, else a delta against that keyframe. keyframe_seq numbers

@@ -2,6 +2,7 @@ package observation
 
 import (
 	"encoding/json"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"os"
 	"path/filepath"
 	"testing"
@@ -42,7 +43,7 @@ func TestNativePowerMethodsReplay(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		facts, err := DecodeColony(reply, identity, nil)
+		facts, err := DecodeColony(reply, identity, bridge.Tables{})
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -73,7 +73,7 @@ func TestPestAcquisitionPlannerRequiresAnAcquisitionNeed(t *testing.T) {
 
 // pestFixture stages one wild alphabeaver in the wild-animal census and as a
 // pest hunt row, with a hunting budget of two and no colonist restrictions.
-func pestFixture(t *testing.T) (*RoutineAcquisitionPlanner, *RoutineReviewer, *store.Store, *o.ColonyFactsSnapshot) {
+func pestFixture(t *testing.T) (*RoutineAcquisitionPlanner, *RoutineReviewer, *store.Store, *o.ColonyFactsSnapshot, *routineNative) {
 	t.Helper()
 	reviewer, db, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()
@@ -82,7 +82,7 @@ func pestFixture(t *testing.T) (*RoutineAcquisitionPlanner, *RoutineReviewer, *s
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
-	addPest(v, "beaver-1", 7, 7)
+	addPest(native, v, "beaver-1", 7, 7)
 	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearPests})
 	if _, err := reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
@@ -91,23 +91,24 @@ func pestFixture(t *testing.T) (*RoutineAcquisitionPlanner, *RoutineReviewer, *s
 	if err != nil {
 		t.Fatal(err)
 	}
-	return planner, reviewer, db, v
+	return planner, reviewer, db, v, native
 }
 
 // addPest puts a wild alphabeaver at a cell into both censuses of the
 // native reply: the wild-animal census (what the goal counts) and the
 // acquisition census (what the planner hunts).
-func addPest(v *o.ColonyFactsSnapshot, id string, x, z int32) {
+func addPest(native *routineNative, v *o.ColonyFactsSnapshot, id string, x, z int32) {
 	beaver := &o.EntityRef{Id: proto.String(id), DefName: proto.String("Alphabeaver"), MapId: v.Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}
+	native.pawn(&o.PawnState{Pawn: beaver, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false), MinimumHandlingSkill: proto.Int32(8)}})
 	upkeep := v.Upkeep.GetObserved()
-	upkeep.WildAnimals = append(upkeep.WildAnimals, &o.AnimalFeed{Pawn: &o.PawnState{Pawn: beaver, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false), MinimumHandlingSkill: proto.Int32(8)}}, Diet: proto.String("DendrovoreAnimal"), RequiresPen: proto.Bool(false)})
+	upkeep.WildAnimals = append(upkeep.WildAnimals, &o.AnimalFeed{Pawn: &o.EntityRef{Id: proto.String(id)}, Diet: proto.String("DendrovoreAnimal"), RequiresPen: proto.Bool(false)})
 	v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Alphabeaver"), MapId: v.Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), WeaponRange: proto.Float64(30), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)})
 }
 
 func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	planner, reviewer, db, v := pestFixture(t)
+	planner, reviewer, db, v, native := pestFixture(t)
 	result, err := planner.Step(ctx)
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
@@ -127,7 +128,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 	// A second animal is planned beside the open hunt, not behind it:
 	// the pack is hunted animal by animal, two hunts outstanding at a
 	// time, and one hunt awaiting its kill never holds the next back.
-	addPest(v, "beaver-2", 9, 9)
+	addPest(native, v, "beaver-2", 9, 9)
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -153,12 +154,12 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	planner, reviewer, db, v := pestFixture(t)
+	planner, reviewer, db, v, native := pestFixture(t)
 	first, err := planner.Step(ctx)
 	if err != nil || first.Reason != BuildingMethodAdmitted {
 		t.Fatal(first, err)
 	}
-	addPest(v, "beaver-2", 9, 9)
+	addPest(native, v, "beaver-2", 9, 9)
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +262,7 @@ func retick(m protoreflect.Message, tick int64) {
 func TestPestAcquisitionPlannerNeedsARangedHunter(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	planner, reviewer, _, v := pestFixture(t)
+	planner, reviewer, _, v, _ := pestFixture(t)
 	n := reviewer.native.(*routineNative)
 	// The emergency census names the colonist so the roster is known.
 	reviewer.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: n}}

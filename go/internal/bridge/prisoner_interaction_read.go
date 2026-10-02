@@ -86,30 +86,50 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 	if err = buildingUnknown(reply); err != nil {
 		return PrisonerCensus{}, raw, err
 	}
-	out, err := decodePopulation(reply.GetObserved())
+	pawns, err := client.FramePawns(ctx, identity)
+	if err != nil {
+		return PrisonerCensus{}, raw, err
+	}
+	out, err := decodePopulation(reply.GetObserved(), pawns)
 	return out, raw, err
 }
 
-// decodePopulation is a population snapshot's prisoner and custody census.
-func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
+// decodePopulation is a population snapshot's prisoner and custody census,
+// each person joined to its pawn table row (#1343). A person the table
+// does not hold leaves the person facts (prisoners, custody, colony,
+// guests) unknown until a later frame.
+func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns) (PrisonerCensus, error) {
 	if observed == nil {
 		return PrisonerCensus{}, ErrUnavailable
 	}
+	names := make([]policy.OwnedName, 0, len(observed.OwnedNames))
+	seenNames := map[string]bool{}
+	for _, n := range observed.OwnedNames {
+		if validID(n.GetPawnId()) != nil || seenNames[n.GetPawnId()] || n.ShortName == nil || n.ThingId == nil {
+			return PrisonerCensus{}, contract("invalid or duplicate owned name")
+		}
+		seenNames[n.GetPawnId()] = true
+		names = append(names, policy.OwnedName{Pawn: policy.PawnID(n.GetPawnId()), Short: n.GetShortName(), ThingID: int(n.GetThingId())})
+	}
 	seen := map[string]bool{}
+	resolved := make([]*o.PawnState, len(observed.Persons))
+	for i, person := range observed.Persons {
+		if person == nil || !pawnRef(person.Pawn, seen) {
+			return PrisonerCensus{}, contract("invalid or duplicate population person")
+		}
+		row, ok := pawns.Row(person.Pawn)
+		if !ok {
+			return PrisonerCensus{Context: observed.Context, Outlook: decodeOutlook(observed), Names: domain.Known(names)}, nil
+		}
+		resolved[i] = row
+	}
 	colony := policy.PrisonerColony{BestSkill: map[string]int{}, Medicine: map[domain.PawnID]int{}, IdeologyActive: observed.GetIdeologyActive(), ClassicIdeo: observed.GetClassicIdeoMode(), Ideo: observed.GetColonyIdeoId(), SlaveryPrecept: observed.GetSlaveryPrecept(), OrganUsePrecept: observed.GetOrganUsePrecept()}
 	rows := make([]policy.PrisonerFacts, 0, len(observed.Persons))
 	guests := []policy.CarePatient{}
 	custody := make([]policy.CustodyFacts, 0, len(observed.Persons))
-	for _, person := range observed.Persons {
-		if person == nil || person.GetPawn().GetPawn() == nil {
-			return PrisonerCensus{}, contract("population person missing pawn identity")
-		}
-		id := person.GetPawn().GetPawn().GetId()
-		if validID(id) != nil || seen[id] {
-			return PrisonerCensus{}, contract("invalid or duplicate population person")
-		}
-		seen[id] = true
-		pawn := person.GetPawn()
+	for i, person := range observed.Persons {
+		id := person.GetPawn().GetId()
+		pawn := resolved[i]
 		custodyRow := policy.CustodyFacts{Pawn: domain.PawnID(id)}
 		if pawn.Dead != nil {
 			custodyRow.Dead = domain.Known(pawn.GetDead())
@@ -198,15 +218,6 @@ func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 			}
 		}
 		rows = append(rows, f)
-	}
-	names := make([]policy.OwnedName, 0, len(observed.OwnedNames))
-	seenNames := map[string]bool{}
-	for _, n := range observed.OwnedNames {
-		if validID(n.GetPawnId()) != nil || seenNames[n.GetPawnId()] || n.ShortName == nil || n.ThingId == nil {
-			return PrisonerCensus{}, contract("invalid or duplicate owned name")
-		}
-		seenNames[n.GetPawnId()] = true
-		names = append(names, policy.OwnedName{Pawn: policy.PawnID(n.GetPawnId()), Short: n.GetShortName(), ThingID: int(n.GetThingId())})
 	}
 	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody), Colony: domain.Known(colony), Guests: domain.Known(guests), Outlook: decodeOutlook(observed), Names: domain.Known(names)}, nil
 }

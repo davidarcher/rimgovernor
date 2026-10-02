@@ -17133,7 +17133,7 @@ func (x *HandlerState) GetReason() string {
 
 type HusbandryAnimal struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pawn          *PawnState             `protobuf:"bytes,1,opt,name=pawn,proto3" json:"pawn,omitempty"`
+	Pawn          *EntityRef             `protobuf:"bytes,6,opt,name=pawn,proto3" json:"pawn,omitempty"`
 	Animal        *AnimalState           `protobuf:"bytes,3,opt,name=animal,proto3" json:"animal,omitempty"`
 	Handlers      []*HandlerState        `protobuf:"bytes,4,rep,name=handlers,proto3" json:"handlers,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -17170,7 +17170,7 @@ func (*HusbandryAnimal) Descriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{158}
 }
 
-func (x *HusbandryAnimal) GetPawn() *PawnState {
+func (x *HusbandryAnimal) GetPawn() *EntityRef {
 	if x != nil {
 		return x.Pawn
 	}
@@ -17998,9 +17998,11 @@ func (*RecoveryReply_Unavailable) isRecoveryReply_Outcome() {}
 
 func (*RecoveryReply_Failure) isRecoveryReply_Outcome() {}
 
+// pawn refers to the bundle pawn table row (#1343); its snapshot is the
+// prisoner custody and interaction settings token.
 type PopulationPerson struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Pawn            *PawnState             `protobuf:"bytes,1,opt,name=pawn,proto3" json:"pawn,omitempty"`
+	Pawn            *EntityRef             `protobuf:"bytes,24,opt,name=pawn,proto3" json:"pawn,omitempty"`
 	Admitted        *bool                  `protobuf:"varint,2,opt,name=admitted,proto3,oneof" json:"admitted,omitempty"`
 	Guest           *bool                  `protobuf:"varint,3,opt,name=guest,proto3,oneof" json:"guest,omitempty"`
 	Recruitable     *bool                  `protobuf:"varint,4,opt,name=recruitable,proto3,oneof" json:"recruitable,omitempty"`
@@ -18077,7 +18079,7 @@ func (*PopulationPerson) Descriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{170}
 }
 
-func (x *PopulationPerson) GetPawn() *PawnState {
+func (x *PopulationPerson) GetPawn() *EntityRef {
 	if x != nil {
 		return x.Pawn
 	}
@@ -25032,7 +25034,7 @@ func (x *ProtectedCell) GetRoofed() bool {
 // most senior royal title, absent without one or when Royalty is inactive.
 type UpkeepPerson struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Pawn              *PawnState             `protobuf:"bytes,1,opt,name=pawn,proto3" json:"pawn,omitempty"`
+	Pawn              *EntityRef             `protobuf:"bytes,9,opt,name=pawn,proto3" json:"pawn,omitempty"`
 	OwnedBedId        *string                `protobuf:"bytes,2,opt,name=owned_bed_id,json=ownedBedId,proto3,oneof" json:"owned_bed_id,omitempty"`
 	ComfortableMinC   *float64               `protobuf:"fixed64,3,opt,name=comfortable_min_c,json=comfortableMinC,proto3,oneof" json:"comfortable_min_c,omitempty"`
 	ComfortableMaxC   *float64               `protobuf:"fixed64,4,opt,name=comfortable_max_c,json=comfortableMaxC,proto3,oneof" json:"comfortable_max_c,omitempty"`
@@ -25074,7 +25076,7 @@ func (*UpkeepPerson) Descriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{248}
 }
 
-func (x *UpkeepPerson) GetPawn() *PawnState {
+func (x *UpkeepPerson) GetPawn() *EntityRef {
 	if x != nil {
 		return x.Pawn
 	}
@@ -25391,9 +25393,11 @@ func (x *AnimalFeedStorage) GetAccepts() []string {
 	return nil
 }
 
+// pawn refers to the bundle pawn table row (#1343), whose animal_state
+// carries the herd facts.
 type AnimalFeed struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
-	Pawn                *PawnState             `protobuf:"bytes,1,opt,name=pawn,proto3" json:"pawn,omitempty"`
+	Pawn                *EntityRef             `protobuf:"bytes,9,opt,name=pawn,proto3" json:"pawn,omitempty"`
 	Diet                *string                `protobuf:"bytes,2,opt,name=diet,proto3,oneof" json:"diet,omitempty"`
 	RequiresPen         *bool                  `protobuf:"varint,3,opt,name=requires_pen,json=requiresPen,proto3,oneof" json:"requires_pen,omitempty"`
 	SuitablePenId       *string                `protobuf:"bytes,4,opt,name=suitable_pen_id,json=suitablePenId,proto3,oneof" json:"suitable_pen_id,omitempty"`
@@ -25435,7 +25439,7 @@ func (*AnimalFeed) Descriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{253}
 }
 
-func (x *AnimalFeed) GetPawn() *PawnState {
+func (x *AnimalFeed) GetPawn() *EntityRef {
 	if x != nil {
 		return x.Pawn
 	}
@@ -34286,7 +34290,6 @@ type BundleSnapshot struct {
 	ColonyFacts      *ColonyFactsSnapshot         `protobuf:"bytes,6,opt,name=colony_facts,json=colonyFacts,proto3" json:"colony_facts,omitempty"`
 	Population       *PopulationSnapshot          `protobuf:"bytes,7,opt,name=population,proto3" json:"population,omitempty"`
 	Research         *ResearchSnapshot            `protobuf:"bytes,8,opt,name=research,proto3" json:"research,omitempty"`
-	ColonistPawns    *PawnSnapshot                `protobuf:"bytes,9,opt,name=colonist_pawns,json=colonistPawns,proto3" json:"colonist_pawns,omitempty"`
 	Buildings        *BuildingsSnapshot           `protobuf:"bytes,10,opt,name=buildings,proto3" json:"buildings,omitempty"`
 	Bills            *BillsSnapshot               `protobuf:"bytes,12,opt,name=bills,proto3" json:"bills,omitempty"`
 	Zones            *ZonesSnapshot               `protobuf:"bytes,13,opt,name=zones,proto3" json:"zones,omitempty"`
@@ -34330,6 +34333,11 @@ type BundleSnapshot struct {
 	// with a seq other than the one the reader holds was published in a
 	// frame the reader missed: it asks for a keyframe.
 	Watermarks []*SectionWatermark `protobuf:"bytes,31,rep,name=watermarks,proto3" json:"watermarks,omitempty"`
+	// The pawn table (#1343): every spawned pawn on the map, the rows every
+	// other section's pawn reference resolves against. A free colonist
+	// carries every detail family but tend; an animal its animal state; any
+	// other pawn the core row.
+	Pawns *PawnSnapshot `protobuf:"bytes,35,opt,name=pawns,proto3" json:"pawns,omitempty"`
 	// The whole map as a cell grid (#1345), every frame: a keyframe on an
 	// open or keyframe request, on a map change and at least every 30
 	// seconds, else a delta against that keyframe. keyframe_seq numbers
@@ -34419,13 +34427,6 @@ func (x *BundleSnapshot) GetPopulation() *PopulationSnapshot {
 func (x *BundleSnapshot) GetResearch() *ResearchSnapshot {
 	if x != nil {
 		return x.Research
-	}
-	return nil
-}
-
-func (x *BundleSnapshot) GetColonistPawns() *PawnSnapshot {
-	if x != nil {
-		return x.ColonistPawns
 	}
 	return nil
 }
@@ -34531,6 +34532,13 @@ func (x *BundleSnapshot) GetCombatHiveTemperatureC() float32 {
 func (x *BundleSnapshot) GetWatermarks() []*SectionWatermark {
 	if x != nil {
 		return x.Watermarks
+	}
+	return nil
+}
+
+func (x *BundleSnapshot) GetPawns() *PawnSnapshot {
+	if x != nil {
+		return x.Pawns
 	}
 	return nil
 }
@@ -38826,11 +38834,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_skillB\v\n" +
 	"\t_priorityB\v\n" +
 	"\t_eligibleB\t\n" +
-	"\a_reason\"\x86\x02\n" +
+	"\a_reason\"\x8c\x02\n" +
 	"\x0fHusbandryAnimal\x12:\n" +
-	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12@\n" +
+	"\x04pawn\x18\x06 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12@\n" +
 	"\x06animal\x18\x03 \x01(\v2(.rimgovernor.observations.v1.AnimalStateR\x06animal\x12E\n" +
-	"\bhandlers\x18\x04 \x03(\v2).rimgovernor.observations.v1.HandlerStateR\bhandlersJ\x04\b\x02\x10\x03J\x04\b\x05\x10\x06R\x11settings_snapshotR\x0fcensus_snapshot\"\xe8\x01\n" +
+	"\bhandlers\x18\x04 \x03(\v2).rimgovernor.observations.v1.HandlerStateR\bhandlersJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x05\x10\x06R\x11settings_snapshotR\x0fcensus_snapshot\"\xe8\x01\n" +
 	"\x11HusbandrySnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12@\n" +
 	"\x06census\x18\x02 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\x06census\x12F\n" +
@@ -38900,10 +38908,10 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2-.rimgovernor.observations.v1.RecoverySnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xd3\n" +
+	"\aoutcome\"\xd9\n" +
 	"\n" +
 	"\x10PopulationPerson\x12:\n" +
-	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12\x1f\n" +
+	"\x04pawn\x18\x18 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12\x1f\n" +
 	"\badmitted\x18\x02 \x01(\bH\x00R\badmitted\x88\x01\x01\x12\x19\n" +
 	"\x05guest\x18\x03 \x01(\bH\x01R\x05guest\x88\x01\x01\x12%\n" +
 	"\vrecruitable\x18\x04 \x01(\bH\x02R\vrecruitable\x88\x01\x01\x12#\n" +
@@ -38951,7 +38959,7 @@ const file_observations_proto_rawDesc = "" +
 	"\v_faction_idB\x1a\n" +
 	"\x18_harvest_goodwill_changeB\x0f\n" +
 	"\r_medical_careB\r\n" +
-	"\v_withdrawalJ\x04\b\a\x10\b\"\xe0\a\n" +
+	"\v_withdrawalJ\x04\b\x01\x10\x02J\x04\b\a\x10\b\"\xe0\a\n" +
 	"\x12PopulationSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
 	"\apersons\x18\x02 \x03(\v2-.rimgovernor.observations.v1.PopulationPersonR\apersons\x12a\n" +
@@ -39879,9 +39887,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x04home\x18\x02 \x01(\bH\x00R\x04home\x88\x01\x01\x12\x1b\n" +
 	"\x06roofed\x18\x03 \x01(\bH\x01R\x06roofed\x88\x01\x01B\a\n" +
 	"\x05_homeB\t\n" +
-	"\a_roofed\"\xfe\x03\n" +
+	"\a_roofed\"\x84\x04\n" +
 	"\fUpkeepPerson\x12:\n" +
-	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12%\n" +
+	"\x04pawn\x18\t \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12%\n" +
 	"\fowned_bed_id\x18\x02 \x01(\tH\x00R\n" +
 	"ownedBedId\x88\x01\x01\x12/\n" +
 	"\x11comfortable_min_c\x18\x03 \x01(\x01H\x01R\x0fcomfortableMinC\x88\x01\x01\x12/\n" +
@@ -39895,7 +39903,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x12_comfortable_min_cB\x14\n" +
 	"\x12_comfortable_max_cB\x10\n" +
 	"\x0e_temperature_cB\x16\n" +
-	"\x14_bed_sharing_allowed\"U\n" +
+	"\x14_bed_sharing_allowedJ\x04\b\x01\x10\x02\"U\n" +
 	"\x17BedroomThingRequirement\x12\x15\n" +
 	"\x06any_of\x18\x01 \x03(\tR\x05anyOf\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x05H\x00R\x05count\x88\x01\x01B\b\n" +
@@ -39923,10 +39931,10 @@ const file_observations_proto_rawDesc = "" +
 	"\azone_id\x18\x01 \x01(\tH\x00R\x06zoneId\x88\x01\x01\x12\x18\n" +
 	"\aaccepts\x18\x02 \x03(\tR\aacceptsB\n" +
 	"\n" +
-	"\b_zone_id\"\x99\x04\n" +
+	"\b_zone_id\"\x9f\x04\n" +
 	"\n" +
 	"AnimalFeed\x12:\n" +
-	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12\x17\n" +
+	"\x04pawn\x18\t \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12\x17\n" +
 	"\x04diet\x18\x02 \x01(\tH\x00R\x04diet\x88\x01\x01\x12&\n" +
 	"\frequires_pen\x18\x03 \x01(\bH\x01R\vrequiresPen\x88\x01\x01\x12+\n" +
 	"\x0fsuitable_pen_id\x18\x04 \x01(\tH\x02R\rsuitablePenId\x88\x01\x01\x12Z\n" +
@@ -39936,7 +39944,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x12storage_candidates\x18\b \x03(\v2\x1b.rimgovernor.common.v1.CellR\x11storageCandidatesB\a\n" +
 	"\x05_dietB\x0f\n" +
 	"\r_requires_penB\x12\n" +
-	"\x10_suitable_pen_id\"\xae\x03\n" +
+	"\x10_suitable_pen_idJ\x04\b\x01\x10\x02\"\xae\x03\n" +
 	"\x10DevelopmentPower\x12B\n" +
 	"\bbuilding\x18\b \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12\x1a\n" +
 	"\x06base_w\x18\x02 \x01(\x01H\x00R\x05baseW\x88\x01\x01\x12-\n" +
@@ -41110,7 +41118,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2+.rimgovernor.observations.v1.StatusSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xd7\x0f\n" +
+	"\aoutcome\"\xdc\x0f\n" +
 	"\x0eBundleSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1b\n" +
 	"\x06paused\x18\x02 \x01(\bH\x00R\x06paused\x88\x01\x01\x12?\n" +
@@ -41120,8 +41128,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"population\x18\a \x01(\v2/.rimgovernor.observations.v1.PopulationSnapshotR\n" +
 	"population\x12I\n" +
-	"\bresearch\x18\b \x01(\v2-.rimgovernor.observations.v1.ResearchSnapshotR\bresearch\x12P\n" +
-	"\x0ecolonist_pawns\x18\t \x01(\v2).rimgovernor.observations.v1.PawnSnapshotR\rcolonistPawns\x12L\n" +
+	"\bresearch\x18\b \x01(\v2-.rimgovernor.observations.v1.ResearchSnapshotR\bresearch\x12L\n" +
 	"\tbuildings\x18\n" +
 	" \x01(\v2..rimgovernor.observations.v1.BuildingsSnapshotR\tbuildings\x12@\n" +
 	"\x05bills\x18\f \x01(\v2*.rimgovernor.observations.v1.BillsSnapshotR\x05bills\x12@\n" +
@@ -41139,14 +41146,16 @@ const file_observations_proto_rawDesc = "" +
 	"\x19combat_hive_temperature_c\x18\x1e \x01(\x02H\x01R\x16combatHiveTemperatureC\x88\x01\x01\x12M\n" +
 	"\n" +
 	"watermarks\x18\x1f \x03(\v2-.rimgovernor.observations.v1.SectionWatermarkR\n" +
-	"watermarks\x123\n" +
+	"watermarks\x12?\n" +
+	"\x05pawns\x18# \x01(\v2).rimgovernor.observations.v1.PawnSnapshotR\x05pawns\x123\n" +
 	"\x04grid\x18  \x01(\v2\x1f.rimgovernor.mirror.v1.CellGridR\x04grid\x12&\n" +
 	"\fkeyframe_seq\x18! \x01(\x04H\x02R\vkeyframeSeq\x88\x01\x01\x12\x1e\n" +
 	"\bsky_glow\x18\" \x01(\x01H\x03R\askyGlow\x88\x01\x01B\t\n" +
 	"\a_pausedB\x1c\n" +
 	"\x1a_combat_hive_temperature_cB\x0f\n" +
 	"\r_keyframe_seqB\v\n" +
-	"\t_sky_glowJ\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x11\x10\x12J\x04\b\x18\x10\x19J\x04\b\x1a\x10\x1bJ\x04\b\x1d\x10\x1eR\x13project_definitions\"\x98\x01\n" +
+	"\t_sky_glowJ\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\t\x10\n" +
+	"J\x04\b\x11\x10\x12J\x04\b\x18\x10\x19J\x04\b\x1a\x10\x1bJ\x04\b\x1d\x10\x1eR\x0ecolonist_pawnsR\x13project_definitions\"\x98\x01\n" +
 	"\x10SectionWatermark\x12\x1d\n" +
 	"\asection\x18\x01 \x01(\tH\x00R\asection\x88\x01\x01\x12\x15\n" +
 	"\x03seq\x18\x02 \x01(\x04H\x01R\x03seq\x88\x01\x01\x12(\n" +
@@ -42396,7 +42405,7 @@ var file_observations_proto_depIdxs = []int32{
 	406, // 390: rimgovernor.observations.v1.ResourceSourcesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	408, // 391: rimgovernor.observations.v1.ResourceSourcesReply.failure:type_name -> rimgovernor.common.v1.Failure
 	49,  // 392: rimgovernor.observations.v1.HandlerState.pawn:type_name -> rimgovernor.observations.v1.EntityRef
-	79,  // 393: rimgovernor.observations.v1.HusbandryAnimal.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	49,  // 393: rimgovernor.observations.v1.HusbandryAnimal.pawn:type_name -> rimgovernor.observations.v1.EntityRef
 	78,  // 394: rimgovernor.observations.v1.HusbandryAnimal.animal:type_name -> rimgovernor.observations.v1.AnimalState
 	183, // 395: rimgovernor.observations.v1.HusbandryAnimal.handlers:type_name -> rimgovernor.observations.v1.HandlerState
 	405, // 396: rimgovernor.observations.v1.HusbandrySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
@@ -42425,7 +42434,7 @@ var file_observations_proto_depIdxs = []int32{
 	193, // 419: rimgovernor.observations.v1.RecoveryReply.observed:type_name -> rimgovernor.observations.v1.RecoverySnapshot
 	406, // 420: rimgovernor.observations.v1.RecoveryReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	408, // 421: rimgovernor.observations.v1.RecoveryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	79,  // 422: rimgovernor.observations.v1.PopulationPerson.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	49,  // 422: rimgovernor.observations.v1.PopulationPerson.pawn:type_name -> rimgovernor.observations.v1.EntityRef
 	49,  // 423: rimgovernor.observations.v1.PopulationPerson.owned_bed:type_name -> rimgovernor.observations.v1.EntityRef
 	68,  // 424: rimgovernor.observations.v1.PopulationPerson.biography:type_name -> rimgovernor.observations.v1.PawnBiography
 	59,  // 425: rimgovernor.observations.v1.PopulationPerson.surgery:type_name -> rimgovernor.observations.v1.PawnHealth
@@ -42577,10 +42586,10 @@ var file_observations_proto_depIdxs = []int32{
 	49,  // 571: rimgovernor.observations.v1.FireState.fire:type_name -> rimgovernor.observations.v1.EntityRef
 	49,  // 572: rimgovernor.observations.v1.FilthState.filth:type_name -> rimgovernor.observations.v1.EntityRef
 	407, // 573: rimgovernor.observations.v1.ProtectedCell.cell:type_name -> rimgovernor.common.v1.Cell
-	79,  // 574: rimgovernor.observations.v1.UpkeepPerson.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	49,  // 574: rimgovernor.observations.v1.UpkeepPerson.pawn:type_name -> rimgovernor.observations.v1.EntityRef
 	276, // 575: rimgovernor.observations.v1.UpkeepPerson.title:type_name -> rimgovernor.observations.v1.RoyalTitleFacts
 	275, // 576: rimgovernor.observations.v1.RoyalTitleFacts.bedroom_things:type_name -> rimgovernor.observations.v1.BedroomThingRequirement
-	79,  // 577: rimgovernor.observations.v1.AnimalFeed.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	49,  // 577: rimgovernor.observations.v1.AnimalFeed.pawn:type_name -> rimgovernor.observations.v1.EntityRef
 	253, // 578: rimgovernor.observations.v1.AnimalFeed.reachable_stored_feed:type_name -> rimgovernor.observations.v1.FoodStock
 	278, // 579: rimgovernor.observations.v1.AnimalFeed.reachable_storage:type_name -> rimgovernor.observations.v1.AnimalFeedStorage
 	407, // 580: rimgovernor.observations.v1.AnimalFeed.storage_candidates:type_name -> rimgovernor.common.v1.Cell
@@ -42809,21 +42818,21 @@ var file_observations_proto_depIdxs = []int32{
 	361, // 803: rimgovernor.observations.v1.BundleSnapshot.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
 	197, // 804: rimgovernor.observations.v1.BundleSnapshot.population:type_name -> rimgovernor.observations.v1.PopulationSnapshot
 	140, // 805: rimgovernor.observations.v1.BundleSnapshot.research:type_name -> rimgovernor.observations.v1.ResearchSnapshot
-	83,  // 806: rimgovernor.observations.v1.BundleSnapshot.colonist_pawns:type_name -> rimgovernor.observations.v1.PawnSnapshot
-	109, // 807: rimgovernor.observations.v1.BundleSnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingsSnapshot
-	217, // 808: rimgovernor.observations.v1.BundleSnapshot.bills:type_name -> rimgovernor.observations.v1.BillsSnapshot
-	122, // 809: rimgovernor.observations.v1.BundleSnapshot.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
-	242, // 810: rimgovernor.observations.v1.BundleSnapshot.traders:type_name -> rimgovernor.observations.v1.TradersSnapshot
-	214, // 811: rimgovernor.observations.v1.BundleSnapshot.world_progression:type_name -> rimgovernor.observations.v1.WorldProgressionSnapshot
-	180, // 812: rimgovernor.observations.v1.BundleSnapshot.resource_sources:type_name -> rimgovernor.observations.v1.ResourceSourcesSnapshot
-	418, // 813: rimgovernor.observations.v1.BundleSnapshot.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
-	419, // 814: rimgovernor.observations.v1.BundleSnapshot.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
-	83,  // 815: rimgovernor.observations.v1.BundleSnapshot.combat_detail:type_name -> rimgovernor.observations.v1.PawnSnapshot
-	154, // 816: rimgovernor.observations.v1.BundleSnapshot.combat_lines_of_fire:type_name -> rimgovernor.observations.v1.LinesOfFireSnapshot
-	420, // 817: rimgovernor.observations.v1.BundleSnapshot.combat_doors:type_name -> rimgovernor.mirror.v1.CombatDoorRow
-	118, // 818: rimgovernor.observations.v1.BundleSnapshot.rooms:type_name -> rimgovernor.observations.v1.RoomsSnapshot
-	421, // 819: rimgovernor.observations.v1.BundleSnapshot.combat_mortars:type_name -> rimgovernor.mirror.v1.CombatMortarRow
-	379, // 820: rimgovernor.observations.v1.BundleSnapshot.watermarks:type_name -> rimgovernor.observations.v1.SectionWatermark
+	109, // 806: rimgovernor.observations.v1.BundleSnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingsSnapshot
+	217, // 807: rimgovernor.observations.v1.BundleSnapshot.bills:type_name -> rimgovernor.observations.v1.BillsSnapshot
+	122, // 808: rimgovernor.observations.v1.BundleSnapshot.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
+	242, // 809: rimgovernor.observations.v1.BundleSnapshot.traders:type_name -> rimgovernor.observations.v1.TradersSnapshot
+	214, // 810: rimgovernor.observations.v1.BundleSnapshot.world_progression:type_name -> rimgovernor.observations.v1.WorldProgressionSnapshot
+	180, // 811: rimgovernor.observations.v1.BundleSnapshot.resource_sources:type_name -> rimgovernor.observations.v1.ResourceSourcesSnapshot
+	418, // 812: rimgovernor.observations.v1.BundleSnapshot.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
+	419, // 813: rimgovernor.observations.v1.BundleSnapshot.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
+	83,  // 814: rimgovernor.observations.v1.BundleSnapshot.combat_detail:type_name -> rimgovernor.observations.v1.PawnSnapshot
+	154, // 815: rimgovernor.observations.v1.BundleSnapshot.combat_lines_of_fire:type_name -> rimgovernor.observations.v1.LinesOfFireSnapshot
+	420, // 816: rimgovernor.observations.v1.BundleSnapshot.combat_doors:type_name -> rimgovernor.mirror.v1.CombatDoorRow
+	118, // 817: rimgovernor.observations.v1.BundleSnapshot.rooms:type_name -> rimgovernor.observations.v1.RoomsSnapshot
+	421, // 818: rimgovernor.observations.v1.BundleSnapshot.combat_mortars:type_name -> rimgovernor.mirror.v1.CombatMortarRow
+	379, // 819: rimgovernor.observations.v1.BundleSnapshot.watermarks:type_name -> rimgovernor.observations.v1.SectionWatermark
+	83,  // 820: rimgovernor.observations.v1.BundleSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnSnapshot
 	422, // 821: rimgovernor.observations.v1.BundleSnapshot.grid:type_name -> rimgovernor.mirror.v1.CellGrid
 	405, // 822: rimgovernor.observations.v1.ObservationBatchSnapshot.start_context:type_name -> rimgovernor.common.v1.ObservationContext
 	405, // 823: rimgovernor.observations.v1.ObservationBatchSnapshot.end_context:type_name -> rimgovernor.common.v1.ObservationContext

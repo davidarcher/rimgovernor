@@ -35,7 +35,7 @@ func TestNativeRoutineDisasterReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection, err := DecodeColony(colony, id, nil)
+	projection, err := DecodeColony(colony, id, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}

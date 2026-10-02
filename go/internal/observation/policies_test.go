@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"os"
 	"testing"
 
@@ -20,7 +21,7 @@ func TestPolicyDatabasesDecode(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
-	p, err := DecodeColony(r, id, nil)
+	p, err := DecodeColony(r, id, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestPolicyDatabasesDecode(t *testing.T) {
 		AllowedAreas: []*o.AllowedAreaEntry{{Id: proto.String("Area_3"), Label: proto.String("Area 1"), PawnIds: []string{"Human2"}}},
 	}
 	r.GetObserved().Policies = &o.PolicySection{Outcome: &o.PolicySection_Observed{Observed: f}}
-	if p, err = DecodeColony(r, id, nil); err != nil {
+	if p, err = DecodeColony(r, id, bridge.Tables{}); err != nil {
 		t.Fatal(err)
 	}
 	v, known := p.Policies.Value()
@@ -42,7 +43,7 @@ func TestPolicyDatabasesDecode(t *testing.T) {
 	}
 	// A pawn holding two policies of one database is a contract failure.
 	f.Outfit[1].PawnIds = []string{"Human1"}
-	if _, err = DecodeColony(r, id, nil); err == nil {
+	if _, err = DecodeColony(r, id, bridge.Tables{}); err == nil {
 		t.Fatal("doubly assigned pawn accepted")
 	}
 }

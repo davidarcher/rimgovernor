@@ -170,10 +170,9 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		for _, raw := range na.AsSlice(upkeep["animals"]) {
 			row, _ := na.AsMap(raw)
-			pawnState, _ := na.AsMap(row["pawn"])
-			pawnRef, _ := na.AsMap(pawnState["pawn"])
-			if na.AsString(pawnRef["id"]) == id {
-				return row, nil
+			if na.PawnRef(row) == id {
+				// The herd facts ride the pawn table row (#1343).
+				return row, h.JoinPawn(ctx, label, identity, row)
 			}
 		}
 		return nil, fmt.Errorf("%s: animal %s not found in upkeep census", label, id)

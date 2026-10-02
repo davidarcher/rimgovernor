@@ -3,6 +3,7 @@ package observation
 import (
 	"context"
 	"encoding/json"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"math"
 	"os"
 	"reflect"
@@ -59,7 +60,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection, err := DecodeColony(&reply, identity, nil)
+	projection, err := DecodeColony(&reply, identity, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}

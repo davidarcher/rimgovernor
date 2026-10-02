@@ -11,7 +11,7 @@ import (
 
 func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 	u := &o.UpkeepFacts{
-		People: []*o.UpkeepPerson{{Pawn: &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn")}}, PartnerIds: []string{"lover"}, BedSharingAllowed: proto.Bool(false),
+		People: []*o.UpkeepPerson{{Pawn: &o.EntityRef{Id: proto.String("pawn")}, PartnerIds: []string{"lover"}, BedSharingAllowed: proto.Bool(false),
 			Title: &o.RoyalTitleFacts{DefName: proto.String("Knight"), Seniority: proto.Int32(100), BedroomMinArea: proto.Int32(24), BedroomMinImpressiveness: proto.Int32(40), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"DoubleBed", "RoyalBed"}, Count: proto.Int32(1)}}}}},
 		Beds: []*o.UpkeepBed{{Bed: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}, RoomId: proto.String("7"), Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
 	}

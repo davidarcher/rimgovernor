@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -27,7 +28,7 @@ func TestColonyStartingSuppliesPreservesRowsAndUnavailableCensus(t *testing.T) {
 	}
 	mapID := r.GetObserved().Context.Identity.MapId
 	r.GetObserved().ForbiddenSupplies = []*o.EntityRef{{Id: proto.String("Thing_Pemmican1"), DefName: proto.String("Pemmican"), MapId: mapID, Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}}}
-	p, err := DecodeColony(r, id, nil)
+	p, err := DecodeColony(r, id, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +41,7 @@ func TestColonyStartingSuppliesPreservesRowsAndUnavailableCensus(t *testing.T) {
 		t.Fatal("projection aliases wire cells")
 	}
 	r.GetObserved().ForbiddenSupplies = nil
-	p, err = DecodeColony(r, id, nil)
+	p, err = DecodeColony(r, id, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +50,7 @@ func TestColonyStartingSuppliesPreservesRowsAndUnavailableCensus(t *testing.T) {
 		t.Fatal("complete empty census lost", rows, known)
 	}
 	r.GetObserved().Issues = append(r.GetObserved().Issues, &o.ReadIssue{Field: proto.String("forbidden_supplies"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum(), Detail: proto.String("unavailable")}})
-	p, err = DecodeColony(r, id, nil)
+	p, err = DecodeColony(r, id, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}

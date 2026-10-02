@@ -32,7 +32,7 @@ func (f *fakeResourceSourceNative) Identity(context.Context) (*l.IdentityReply, 
 func (f *fakeResourceSourceNative) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	panic("unused")
 }
-func (f *fakeResourceSourceNative) FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error) {
+func (f *fakeResourceSourceNative) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
 	panic("unused")
 }
 func (f *fakeResourceSourceNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {

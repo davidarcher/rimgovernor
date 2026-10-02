@@ -96,9 +96,7 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		for _, raw := range na.AsSlice(observed["animals"]) {
 			row, _ := na.AsMap(raw)
-			pawnState, _ := na.AsMap(row["pawn"])
-			pawnRef, _ := na.AsMap(pawnState["pawn"])
-			if na.AsString(pawnRef["id"]) == animalID {
+			if na.PawnRef(row) == animalID {
 				return row, nil
 			}
 		}
@@ -298,11 +296,14 @@ func run(ctx context.Context, s cases.Session) error {
 	wildCensusFound := false
 	for _, raw := range na.AsSlice(upkeep["wildAnimals"]) {
 		row, _ := na.AsMap(raw)
-		pawnState, _ := na.AsMap(row["pawn"])
-		pawnRef, _ := na.AsMap(pawnState["pawn"])
-		if na.AsString(pawnRef["id"]) != wildID {
+		if na.PawnRef(row) != wildID {
 			continue
 		}
+		// The tame facts ride the pawn table row (#1343).
+		if err := h.JoinPawn(ctx, "colony-facts-wild", identity, row); err != nil {
+			return err
+		}
+		pawnState, _ := na.AsMap(row["pawn"])
 		state, _ := na.AsMap(pawnState["animalState"])
 		if tameable, _ := na.AsBool(state["tameable"]); !tameable {
 			return fmt.Errorf("colony-facts-wild: expected tameable in the wild census, got %#v", state)
@@ -314,9 +315,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	for _, raw := range na.AsSlice(upkeep["animals"]) {
 		row, _ := na.AsMap(raw)
-		pawnState, _ := na.AsMap(row["pawn"])
-		pawnRef, _ := na.AsMap(pawnState["pawn"])
-		if na.AsString(pawnRef["id"]) == wildID {
+		if na.PawnRef(row) == wildID {
 			return fmt.Errorf("colony-facts-wild: factionless muffalo must not be in the player animal census")
 		}
 	}

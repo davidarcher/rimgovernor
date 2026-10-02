@@ -495,10 +495,14 @@ namespace HomeBridge.BridgeTools
             for(var hour=0;hour<times.Count;hour++) row.Schedule.Add(new Obs.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(times[hour].defName)});
         }
 
-        private static Obs.AnimalState Animal(Pawn pawn)
+        // The one animal state builder (#1343): body, herd and training
+        // facts for every animal; for a player animal its pen, area, care
+        // and the release/slaughter guards; for a wild one its tame facts.
+        internal static Obs.AnimalState Animal(Pawn pawn)
         {
-            var row=new Obs.AnimalState {Gender=pawn.gender.ToString(),BodySize=Number(pawn.RaceProps.baseBodySize)};
-            if(pawn.ageTracker!=null) row.AgeYears=Number(pawn.ageTracker.AgeBiologicalYearsFloat); else row.Issues.Add(Missing("age_years"));
+            var row=new Obs.AnimalState {BodySize=Number(pawn.RaceProps.baseBodySize)};
+            if(pawn.ageTracker!=null) NativeHusbandryOperations.HerdFacts(pawn,row);
+            else {row.Gender=pawn.gender.ToString();row.Issues.Add(Missing("age_years"));}
             if(pawn.training==null) row.Issues.Add(Missing("training"));
             else {
                 var defs=DefDatabase<TrainableDef>.AllDefsListForReading;
@@ -509,14 +513,38 @@ namespace HomeBridge.BridgeTools
                     row.Training.Add(item);
                 }
             }
-            if(pawn.MapHeld?.designationManager==null) {row.Issues.Add(Missing("slaughter"));row.Issues.Add(Missing("release"));}
+            var map=pawn.MapHeld;
+            if(map?.designationManager==null) {row.Issues.Add(Missing("slaughter"));row.Issues.Add(Missing("release"));}
             else {
-                var all=pawn.MapHeld.designationManager.AllDesignationsOn(pawn);
+                var all=map.designationManager.AllDesignationsOn(pawn);
                 row.Slaughter=all.Any(d=>d.def==DesignationDefOf.Slaughter);row.Release=all.Any(d=>d.def==DesignationDefOf.ReleaseAnimalToWild);
             }
             var milk=pawn.GetComp<CompMilkable>();if(milk!=null) row.MilkFullness=Number(milk.Fullness);else row.Issues.Add(Issue("milk_fullness",Common.UnavailableReason.NotApplicable,"No milk component."));
             var wool=pawn.GetComp<CompShearable>();if(wool!=null) row.WoolFullness=Number(wool.Fullness);else row.Issues.Add(Issue("wool_fullness",Common.UnavailableReason.NotApplicable,"No wool component."));
-            foreach(var field in new[]{"fertile_adult","pregnant","gestation","pen_id","contained","parent_ids","safe_to_slaughter","minimum_handling_skill"}) row.Issues.Add(Unsupported(field,"Animal reproduction, pen and handling detail is not projected."));
+            foreach(var field in new[]{"fertile_adult","pregnant","gestation","parent_ids"}) row.Issues.Add(Unsupported(field,"Animal reproduction detail is not projected."));
+            // Live spawned animals only: the guards and pen reads assume one.
+            if(pawn.Dead || !pawn.Spawned) return row;
+            if(pawn.Faction!=null && pawn.Faction==Faction.OfPlayerSilentFail) {
+                var eligible=NativeHusbandryOperations.Eligible(pawn);
+                row.SafeToRelease=eligible && NativeHusbandryOperations.SafeToRelease(pawn);
+                row.SafeToSlaughter=eligible && NativeHusbandryOperations.SafeToSlaughter(pawn);
+                // Medical care cap inputs (#1301).
+                if(pawn.playerSettings!=null) row.MedicalCare=NativeEnums.Care(pawn.playerSettings.medCare);
+                row.Bonded=pawn.relations?.DirectRelations.Any(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead)==true;
+                row.Conditions=Conditions(pawn);
+                if(AnimalPenUtility.NeedsToBeManagedByRope(pawn)) {
+                    var pen=AnimalPenUtility.GetCurrentPenOf(pawn,false);
+                    row.Contained=pen!=null;
+                    if(pen!=null) row.PenId=Id(pen.parent.GetUniqueLoadID());
+                }
+                // Area reconciliation (#500): the saved restriction.
+                if(eligible) {row.AllowedAreaId=NativeHusbandryOperations.AreaId(pawn);row.SupportsAllowedAreas=NativeHusbandryOperations.SupportsAllowedAreas(pawn);}
+            } else if(pawn.Faction==null) {
+                // The tame target facts a MaintainHerd tame write needs.
+                row.Tameable=NativeHusbandryOperations.Tameable(pawn);
+                row.Tame=map?.designationManager?.DesignationOn(pawn,DesignationDefOf.Tame)!=null;
+                row.MinimumHandlingSkill=TrainableUtility.MinimumHandlingSkill(pawn);
+            }
             return row;
         }
         // Non-mutating: never calls Pawn_RelationsTracker.OpinionOf or anything that

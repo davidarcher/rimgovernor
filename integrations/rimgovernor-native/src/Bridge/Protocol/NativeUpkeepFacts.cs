@@ -379,7 +379,7 @@ namespace HomeBridge.BridgeTools
             Read("people", result, () => {
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 Obs.UpkeepPerson Person(Pawn p) => new Obs.UpkeepPerson {
-                    Pawn = new Obs.PawnState { Pawn = Ref(p) }, OwnedBedId = p.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
+                    Pawn = NativePawnObservationTools.Ref(p), OwnedBedId = p.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
                     ComfortableMinC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMax)), TemperatureC = Number(p.AmbientTemperature)
                 };
@@ -424,38 +424,11 @@ namespace HomeBridge.BridgeTools
                     && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
                 var values = animals.Select(p => {
                     var requiresPen = AnimalPenUtility.NeedsToBeManagedByRope(p);
-                    var pen = requiresPen ? AnimalPenUtility.GetCurrentPenOf(p, false) : null;
                     var suitable = requiresPen ? AnimalPenUtility.ClosestSuitablePen(p, false) : null;
-                    var state = new Obs.AnimalState {
-                        Release = map.designationManager.DesignationOn(p, DesignationDefOf.ReleaseAnimalToWild) != null,
-                        Slaughter = map.designationManager.DesignationOn(p, DesignationDefOf.Slaughter) != null,
-                        SafeToRelease = NativeHusbandryOperations.Eligible(p) && NativeHusbandryOperations.SafeToRelease(p),
-                        SafeToSlaughter = NativeHusbandryOperations.Eligible(p) && NativeHusbandryOperations.SafeToSlaughter(p)
-                    };
-                    NativeHusbandryOperations.HerdFacts(p, state);
-                    // Medical care cap inputs (#1301).
-                    if (p.playerSettings != null) state.MedicalCare = NativeEnums.Care(p.playerSettings.medCare);
-                    state.Bonded = p.relations?.DirectRelations.Any(r => r.def == PawnRelationDefOf.Bond && r.otherPawn != null && !r.otherPawn.Dead) == true;
-                    state.Conditions = NativePawnDetails.Conditions(p);
-                    // MaintainHerd's training deficit reads this bundle, not
-                    // the husbandry read: without the rows no trainable is ever due.
-                    if (p.training != null)
-                        foreach (var def in DefDatabase<TrainableDef>.AllDefsListForReading)
-                        {
-                            var report = p.training.CanAssignToTrain(def, out var visible);
-                            state.Training.Add(new Obs.TrainingEntry { DefName = Id(def.defName), Learned = p.training.HasLearned(def), Wanted = p.training.GetWanted(def), Available = report.Accepted && visible });
-                        }
-                    if (requiresPen) state.Contained = pen != null;
-                    if (pen != null) state.PenId = Id(pen.parent.GetUniqueLoadID());
-                    // Area reconciliation (#500) reads the colony bundle, not
-                    // the husbandry read: the saved restriction must travel here.
-                    if (NativeHusbandryOperations.Eligible(p))
-                    {
-                        state.AllowedAreaId = NativeHusbandryOperations.AreaId(p);
-                        state.SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(p);
-                    }
+                    // The herd facts (pen, training, area, care) ride the
+                    // pawn table row's animal state (#1343).
                     var value = new Obs.AnimalFeed {
-                        Pawn = new Obs.PawnState { Pawn = Ref(p), Predator = p.RaceProps.predator, AnimalState = state },
+                        Pawn = NativePawnObservationTools.Ref(p),
                         Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = requiresPen
                     };
                     if (suitable != null) value.SuitablePenId = Id(suitable.parent.GetUniqueLoadID());
@@ -503,16 +476,8 @@ namespace HomeBridge.BridgeTools
             Read("wild_animals", result, () => {
                 var wild = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal && p.Faction == null)
                     .OrderBy(p => p.thingIDNumber).ToList();
-                result.WildAnimals.AddRange(wild.Select(p => {
-                    var state = new Obs.AnimalState {
-                        Tameable = NativeHusbandryOperations.Tameable(p),
-                        Tame = map.designationManager.DesignationOn(p, DesignationDefOf.Tame) != null,
-                        MinimumHandlingSkill = TrainableUtility.MinimumHandlingSkill(p) };
-                    NativeHusbandryOperations.HerdFacts(p, state);
-                    return new Obs.AnimalFeed {
-                        Pawn = new Obs.PawnState { Pawn = Ref(p), Wild = true, Predator = p.RaceProps.predator, AnimalState = state },
-                        Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = false };
-                }));
+                result.WildAnimals.AddRange(wild.Select(p => new Obs.AnimalFeed {
+                    Pawn = NativePawnObservationTools.Ref(p), Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = false }));
             });
         }
 

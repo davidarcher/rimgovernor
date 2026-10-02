@@ -2,6 +2,7 @@ package observation
 
 import (
 	"encoding/json"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"os"
@@ -26,7 +27,7 @@ func TestNativePowerParity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection, err := DecodeColony(reply, expected, nil)
+	projection, err := DecodeColony(reply, expected, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}

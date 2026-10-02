@@ -230,10 +230,11 @@ func nativePresence(value *string, issues []*o.ReadIssue, field string) domain.F
 // DecodeColony projects only same-tick validated facts. Native raw food runway
 // cannot stand in for the diet/rot/competing-feed forecast needed by FoodDays.
 //
-// buildings is the frame's building table every building reference
-// resolves against (#1343); a family with a reference it does not hold is
+// tables are the frame's keyed tables every building and pawn reference
+// resolves against (#1343); a family with a reference they do not hold is
 // unknown until a later frame.
-func DecodeColony(reply *o.ColonyFactsReply, expected Identity, buildings bridge.Buildings) (ColonyProjection, error) {
+func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Tables) (ColonyProjection, error) {
+	buildings := tables.Buildings
 	if err := expected.Validate(); err != nil {
 		return ColonyProjection{}, err
 	}
@@ -366,8 +367,8 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, buildings bridge
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
 	r.Facts.StoneStructures = colonyStoneStructures(v)
 	r.Facts.Sleeping = colonySleeping(v)
-	r.Facts.AnimalUpkeep.Animals = mergeHerdFoodFacts(colonyAnimals(v), r.FoodChannels)
-	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v)
+	r.Facts.AnimalUpkeep.Animals = mergeHerdFoodFacts(colonyAnimals(v, tables.Pawns), r.FoodChannels)
+	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v, tables.Pawns)
 	r.Facts.Waste = colonyWaste(v)
 	r.Facts.Blight = colonyBlight(v)
 	r.Facts.Upkeep = colonyUpkeep(v, buildings)

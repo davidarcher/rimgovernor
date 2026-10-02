@@ -42,11 +42,11 @@ the server; the dashboard does not recalculate the ledger. Failed refreshes
 retain the last plan with a stale notice; a null plan clears it.
 
 Colony shows `GET /api/presentation/colonists`: each spawned free colonist's
-id, name, map and position plus a dossier, the observation `PawnState` the
-roster requests with `include_dossier` (needs, health and visible hediffs,
-worn gear and weapons, biography with skills and traits, mood memories, the
-current job). Settings and animal detail stay out of the roster; the bridge
-rejects a dossier whose pawn differs from the reference or that carries them.
+id, name, map and position plus a dossier: with `include_dossier` the
+bridge joins each colonist to its row of the snapshot frame's pawn table
+(#1343; needs, health and hediffs, worn gear and weapons, biography with
+skills and traits, mood memories, the current job). Settings and animal
+detail stay out of the roster; native never sends a dossier.
 Job history is not observed anywhere; the dossier reports the current job only.
 Beside the raw traits and skills the dossier shows the roster planner's view
 of the same pawn from `GET /api/routines` `roster` (#448): the typed trait

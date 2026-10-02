@@ -18,22 +18,26 @@ func pawnRow(id, kind string) *o.PawnState {
 	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, KindDefName: proto.String(kind)}
 }
 
-// TestPawnSectionPublishesTable: the review frame's pawn detail is a
+// TestPawnSectionPublishesTable: the review frame's pawn table is a
 // mirror section keyed by pawn id, and a later frame drops rows the roster
 // dropped.
 func TestPawnSectionPublishesTable(t *testing.T) {
 	t.Parallel()
 	m := facts.NewStore()
 	scope := facts.Scope{Load: "l", Map: 1, Generation: 2}
-	frame := func(tick int64, pawns ...*o.PawnState) *o.PawnSnapshot {
-		return &o.PawnSnapshot{Context: &c.ObservationContext{Tick: proto.Int64(tick)}, Pawns: pawns}
+	frame := func(pawns ...*o.PawnState) bridge.Pawns {
+		out := bridge.Pawns{}
+		for _, row := range pawns {
+			out[row.Pawn.GetId()] = row
+		}
+		return out
 	}
-	publishPawns(m, scope, frame(100, pawnRow("Pawn_2", "a"), pawnRow("Pawn_1", "b")))
+	publishPawns(m, scope, frame(pawnRow("Pawn_2", "a"), pawnRow("Pawn_1", "b")), 100)
 	table, ok := facts.GetTable[string, *o.PawnState](m, scope, pawnSectionName)
 	if !ok || len(table.Rows) != 2 || table.AsOf != facts.At(100) {
 		t.Fatalf("table = %+v ok=%v", table, ok)
 	}
-	publishPawns(m, scope, frame(130, pawnRow("Pawn_1", "c")))
+	publishPawns(m, scope, frame(pawnRow("Pawn_1", "c")), 130)
 	table, _ = facts.GetTable[string, *o.PawnState](m, scope, pawnSectionName)
 	if len(table.Rows) != 1 || table.Rows["Pawn_1"].GetKindDefName() != "c" || table.AsOf != facts.At(130) {
 		t.Fatalf("table after roster change = %+v", table)

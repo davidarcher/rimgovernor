@@ -157,7 +157,7 @@ func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePoli
 	return r.staged().Seasonal(facts.Calendar, facts.DisasterConditions)
 }
 
-// publishFrame puts the review frame's colony facts and colonist pawn rows
+// publishFrame puts the review frame's colony facts and pawn table
 // into the colony mirror (#795), which recordings and planners serve. A
 // section the frame lacks keeps the table the mirror holds, and its tick
 // (#1347).
@@ -168,8 +168,8 @@ func (r *RoutineReviewer) publishFrame(expected observation.Identity, frame brid
 	}
 	generation, _ := expected.NativeGeneration.Value()
 	scope := facts.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
-	if frame.Pawns != nil {
-		publishPawns(r.store, scope, frame.Pawns)
+	if frame.Tables.Pawns != nil {
+		publishPawns(r.store, scope, frame.Tables.Pawns, frame.Context.GetTick())
 	}
 	if frame.Colony != nil {
 		r.census.rememberColony(publishColony(r.store, scope, frame.Colony))

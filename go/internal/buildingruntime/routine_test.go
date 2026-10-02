@@ -41,12 +41,13 @@ type routineNative struct {
 	// set, is the frame's finished research.
 	catalog  []*o.PlanningDefinition
 	finished []string
-	// buildings is the frame's building table (#1343).
+	// buildings and pawns are the frame's keyed tables (#1343).
 	buildings bridge.Buildings
+	pawns     bridge.Pawns
 }
 
-func (n *routineNative) FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error) {
-	return n.buildings, nil
+func (n *routineNative) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
+	return bridge.Tables{Buildings: n.buildings, Pawns: n.pawns}, nil
 }
 
 // building puts row in the frame's building table and returns the
@@ -64,6 +65,16 @@ func (n *routineNative) building(row *o.BuildingState) *o.EntityRef {
 	}
 	n.buildings[row.Building.GetId()] = row
 	return row.Building
+}
+
+// pawn puts row in the frame's pawn table and returns the reference a
+// section carries to it.
+func (n *routineNative) pawn(row *o.PawnState) *o.EntityRef {
+	if n.pawns == nil {
+		n.pawns = bridge.Pawns{}
+	}
+	n.pawns[row.Pawn.GetId()] = row
+	return &o.EntityRef{Id: row.Pawn.Id}
 }
 
 func (n *routineNative) finishedResearch() []string { return n.finished }
@@ -176,7 +187,7 @@ func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Ident
 		return bridge.RoutineFrame{}, err
 	}
 	frame := bridge.RoutineFrame{Context: colony.GetObserved().GetContext(), Colony: colony.GetObserved()}
-	if frame.Buildings, err = source.FrameBuildings(ctx, id); err != nil {
+	if frame.Tables, err = source.FrameTables(ctx, id); err != nil {
 		return bridge.RoutineFrame{}, err
 	}
 	if s, ok := source.(interface {

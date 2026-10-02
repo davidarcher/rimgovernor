@@ -27,8 +27,8 @@ func (f failingBuildingSource) Identity(context.Context) (*l.IdentityReply, brid
 func (f failingBuildingSource) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	return nil, bridge.Result{}, f.err
 }
-func (f failingBuildingSource) FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error) {
-	return nil, f.err
+func (f failingBuildingSource) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
+	return bridge.Tables{}, f.err
 }
 func (f failingBuildingSource) PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {
 	return bridge.BuildingPreview{}, bridge.Result{}, f.err

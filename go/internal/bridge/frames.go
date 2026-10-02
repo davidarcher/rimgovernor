@@ -315,8 +315,11 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 	if v.Research != nil {
 		seed("rimgovernor/observations_read_research", researchRequest(identity), &o.ResearchReply{Outcome: &o.ResearchReply_Observed{Observed: v.Research}})
 	}
-	if ids := routinePawnIDs(emergency); v.ColonistPawns != nil && len(ids) > 0 {
-		seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, ids, pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true}), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: v.ColonistPawns}})
+	if v.Pawns != nil {
+		seed(framePawnsMethod, nil, v.Pawns)
+		if colonists, ok := routinePawns(v.Pawns, emergency); ok {
+			seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, routinePawnIDs(emergency), pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true}), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: colonists}})
+		}
 	}
 	if v.Buildings != nil {
 		seed("rimgovernor/observations_list_buildings", buildingsListRequest(identity), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.Buildings}})
@@ -341,7 +344,7 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 	}
 	seed(combatFrameMethod, nil, combatFrame(v))
 	seed(routineFrameMethod, nil, &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
-		ColonistPawns: v.ColonistPawns, Buildings: v.Buildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
+		Pawns: v.Pawns, Buildings: v.Buildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
 		Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)})
 }
 
@@ -353,9 +356,11 @@ const routineFrameMethod = "rimgovernor/snapshot_frame_routine"
 // decoded: every row has the frame's tick, so no section is checked
 // against another. A nil section is one the frame does not carry.
 type RoutineFrame struct {
-	Context      *c.ObservationContext
-	Colony       *o.ColonyFactsSnapshot
-	Emergency    EmergencyObservation
+	Context   *c.ObservationContext
+	Colony    *o.ColonyFactsSnapshot
+	Emergency EmergencyObservation
+	// Pawns is the census colonists' rows of the pawn table, as the
+	// routine list read answers them; nil without a complete census.
 	Pawns        *o.PawnSnapshot
 	Population   *PrisonerCensus
 	Research     *ResearchRead
@@ -365,10 +370,10 @@ type RoutineFrame struct {
 	// Sites is the frame's all-status player building read, whose
 	// blueprint and frame rows carry their undelivered material.
 	Sites *o.BuildingsSnapshot
-	// Buildings is Sites by id: the table every other section's building
-	// reference resolves against (#1343).
-	Buildings Buildings
-	Zones     *ZonesRead
+	// Tables are the frame's keyed tables every other section's
+	// references resolve against (#1343): Sites by id and the pawn table.
+	Tables Tables
+	Zones  *ZonesRead
 	// Catalog is the load's definition catalog (#1340), which the
 	// research section and the planning definitions resolve against.
 	Catalog *DefinitionCatalog
@@ -404,16 +409,23 @@ func DecodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog) (Routin
 		return RoutineFrame{}, contract("routine frame without a context")
 	}
 	identity := v.Context.Identity
-	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Buildings: BuildingTable(v.Buildings), Catalog: catalog, Rooms: v.Rooms}
-	var err error
+	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Catalog: catalog, Rooms: v.Rooms}
+	pawns, err := PawnTable(v.Pawns, identity)
+	if err != nil {
+		return RoutineFrame{}, err
+	}
+	out.Tables = Tables{Buildings: BuildingTable(v.Buildings), Pawns: pawns}
 	if v.Emergency != nil {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, identity); err != nil {
 			return RoutineFrame{}, err
 		}
 		podsPending(&out.Emergency, v.CombatEvents)
+		if colonists, ok := routinePawns(v.Pawns, out.Emergency); ok {
+			out.Pawns = colonists
+		}
 	}
 	if v.Population != nil {
-		population, err := decodePopulation(v.Population)
+		population, err := decodePopulation(v.Population, pawns)
 		if err != nil {
 			return RoutineFrame{}, err
 		}
@@ -485,6 +497,25 @@ func podsPending(e *EmergencyObservation, events []*mp.CombatEventRow) {
 			e.Facts.PodsOpen = domain.Tick(open)
 		}
 	}
+}
+
+// routinePawns is the census colonists' rows of table as the routine
+// list read answers them, false without a complete census or when the
+// table misses one.
+func routinePawns(table *o.PawnSnapshot, emergency EmergencyObservation) (*o.PawnSnapshot, bool) {
+	ids := routinePawnIDs(emergency)
+	if table == nil || len(ids) == 0 {
+		return nil, false
+	}
+	rows := make(Pawns, len(table.Pawns))
+	for _, row := range table.Pawns {
+		rows[row.GetPawn().GetId()] = row
+	}
+	out, ok := rows.Snapshot(table.Context, ids)
+	if ok {
+		out.MeditateAssignmentAvailable = table.MeditateAssignmentAvailable
+	}
+	return out, ok
 }
 
 // routinePawnIDs lists the colonists the routine census reads pawn detail

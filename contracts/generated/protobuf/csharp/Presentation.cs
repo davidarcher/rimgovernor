@@ -5025,9 +5025,8 @@ namespace RimGovernor.Protocol.Presentation {
 
     private bool includeDossier_;
     /// <summary>
-    /// include_dossier attaches the observation PawnState (needs, health,
-    /// equipment, biography, social) to every reference; settings and animal
-    /// detail stay out of the roster.
+    /// include_dossier asks the controller to attach each colonist's row of
+    /// its latest bundle pawn table (#1343); native never fills dossier.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -5423,7 +5422,8 @@ namespace RimGovernor.Protocol.Presentation {
     public const int DossierFieldNumber = 6;
     private global::RimGovernor.Protocol.Observations.PawnState dossier_;
     /// <summary>
-    /// Present only when the request asked for it; dossier.pawn.id == pawn_id.
+    /// Joined by the controller when the request asked for it;
+    /// dossier.pawn.id == pawn_id.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

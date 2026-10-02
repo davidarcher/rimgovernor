@@ -531,9 +531,7 @@ func verifyFeed(ctx context.Context, h *na.Harness, identity, prepared map[strin
 	}
 	for _, raw := range na.AsSlice(upkeep["animals"]) {
 		row, _ := na.AsMap(raw)
-		pawn, _ := na.AsMap(row["pawn"])
-		ref, _ := na.AsMap(pawn["pawn"])
-		if na.AsString(ref["id"]) != pet {
+		if na.PawnRef(row) != pet {
 			continue
 		}
 		feed := na.AsSlice(row["reachableStoredFeed"])

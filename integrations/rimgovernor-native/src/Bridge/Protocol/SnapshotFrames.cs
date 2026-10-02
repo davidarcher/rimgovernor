@@ -156,21 +156,10 @@ namespace HomeBridge.BridgeTools
                 ObservationWork.Captured("research", Now() - began, read ? research!.Projects.Count : 0);
                 if (read) { observed.Research = research; }
             }
-            if (observed.Emergency?.Colonists != null
-                && observed.Emergency.Colonists.Pawns.Count > 0)
             {
-                var pawns = new Obs.ListPawnsRequest {
-                    Scope = Scope(),
-                    Filter = new Obs.PawnFilter { IncludeDead = true },
-                    Details = new Obs.PawnDetails { Needs = true, Health = true, Equipment = true, Biography = true, Settings = true, Social = true, Animals = true, Work = true, Schedule = true },
-                };
-                foreach (var row in observed.Emergency.Colonists.Pawns) pawns.Filter.Ids.Add(row.Pawn.Id);
                 var began = Now();
-                var read = NativePawnObservationTools.TryRead(map, pawns, context, out var detail);
-                // The colonists asked for are the candidates; the detail rows
-                // returned are what the section produced.
-                ObservationWork.Captured("colonistPawns", Now() - began, read ? detail!.Pawns.Count : 0, pawns.Filter.Ids.Count);
-                if (read) { observed.ColonistPawns = detail; }
+                try { observed.Pawns = NativePawnObservationTools.Table(map, context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("pawns", ex)); }
+                ObservationWork.Captured("pawns", Now() - began, observed.Pawns != null ? observed.Pawns.Pawns.Count : 0);
             }
         }
 

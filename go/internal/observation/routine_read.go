@@ -53,8 +53,8 @@ func (f frameColony) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.Col
 	return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: f.frame.Colony}}, bridge.Result{}, nil
 }
 
-func (f frameColony) FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error) {
-	return f.frame.Buildings, nil
+func (f frameColony) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
+	return f.frame.Tables, nil
 }
 
 func (f frameColony) ReadZoneSection(context.Context, *c.Identity) (bridge.ZonesRead, bridge.Result, error) {

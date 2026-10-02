@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"os"
 	"testing"
 
@@ -39,7 +40,7 @@ func forecastFixture(t *testing.T) (*o.ColonyFactsReply, Identity) {
 }
 func TestCombinedFoodForecastReachesRoutineFacts(t *testing.T) {
 	r, identity := forecastFixture(t)
-	p, err := DecodeColony(r, identity, nil)
+	p, err := DecodeColony(r, identity, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +48,7 @@ func TestCombinedFoodForecastReachesRoutineFacts(t *testing.T) {
 		t.Fatal("animal competition was not counted", p.Facts.FoodDays)
 	}
 	r.GetObserved().Forecast.GetObserved().CombinedFoodSupply.Stocks[0].Nutrition = nil
-	p, err = DecodeColony(r, identity, nil)
+	p, err = DecodeColony(r, identity, bridge.Tables{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +66,7 @@ func TestCombinedFoodForecastRejectsContradictoryCensus(t *testing.T) {
 	} {
 		r, identity := forecastFixture(t)
 		change(r.GetObserved().Forecast.GetObserved())
-		if _, err := DecodeColony(r, identity, nil); err == nil {
+		if _, err := DecodeColony(r, identity, bridge.Tables{}); err == nil {
 			t.Fatal("invalid forecast accepted")
 		}
 	}

@@ -3,10 +3,12 @@ package bridge
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"unicode/utf8"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -85,6 +87,9 @@ func (client *Client) ReadColonistRoster(ctx context.Context, request *p.Colonis
 		return reply, raw, failure(v.Failure, raw)
 	case *p.ColonistRosterReply_Roster:
 		err = validateRoster(v.Roster, request)
+		if err == nil && request.GetIncludeDossier() {
+			err = client.joinDossiers(ctx, v.Roster, request.Identity)
+		}
 	default:
 		err = contract("roster outcome required")
 	}
@@ -92,6 +97,29 @@ func (client *Client) ReadColonistRoster(ctx context.Context, request *p.Colonis
 		return nil, raw, err
 	}
 	return reply, raw, nil
+}
+
+// joinDossiers attaches each colonist's pawn table row (#1343) without its
+// settings and animal detail. A colonist the table does not hold leaves
+// the roster unavailable until a later frame.
+func (client *Client) joinDossiers(ctx context.Context, roster *p.ColonistRoster, identity *c.Identity) error {
+	pawns, err := client.FramePawns(ctx, identity)
+	if err != nil {
+		return err
+	}
+	for _, item := range roster.Colonists {
+		row, ok := pawns[item.GetPawnId()]
+		if !ok {
+			return fmt.Errorf("%w: colonist %s is not in the pawn table yet", ErrUnavailable, item.GetPawnId())
+		}
+		d := proto.Clone(row).(*o.PawnState)
+		d.Settings, d.AnimalState = nil, nil
+		if !d.GetColonist() || d.GetDead() {
+			return contract("dossier is not a live colonist")
+		}
+		item.Dossier = d
+	}
+	return nil
 }
 
 // RenderState is a zero-side-effect observation: it never extends or shortens
@@ -278,34 +306,9 @@ func validateRoster(v *p.ColonistRoster, q *p.ColonistRosterRequest) error {
 		if item.MapId != nil && (item.GetMapId() < 0 || (q.GetCurrentMapOnly() && item.GetMapId() != q.Identity.GetMapId())) {
 			return contract("invalid roster map")
 		}
-		if err := validateDossier(item, q); err != nil {
-			return err
+		if item.Dossier != nil {
+			return contract("native colonist dossier")
 		}
-	}
-	return nil
-}
-
-// A dossier is the observation PawnState for the same pawn, present exactly
-// when the request asked for it; settings and animal detail never ride along.
-func validateDossier(item *p.ColonistReference, q *p.ColonistRosterRequest) error {
-	if item.Dossier == nil {
-		if q.GetIncludeDossier() {
-			return contract("missing colonist dossier")
-		}
-		return nil
-	}
-	if !q.GetIncludeDossier() {
-		return contract("unrequested colonist dossier")
-	}
-	d := item.Dossier
-	if d.GetPawn().GetId() == "" || d.GetPawn().GetId() != item.GetPawnId() {
-		return contract("dossier pawn mismatch")
-	}
-	if d.Settings != nil || d.AnimalState != nil {
-		return contract("dossier carries unrequested detail")
-	}
-	if !d.GetColonist() || d.GetDead() {
-		return contract("dossier is not a live colonist")
 	}
 	return nil
 }

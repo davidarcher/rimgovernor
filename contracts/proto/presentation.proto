@@ -61,16 +61,16 @@ message SelectionReply {
 message ColonistRosterRequest {
   rimgovernor.common.v1.Identity identity = 1;
   optional bool current_map_only = 2;
-  // include_dossier attaches the observation PawnState (needs, health,
-  // equipment, biography, social) to every reference; settings and animal
-  // detail stay out of the roster.
+  // include_dossier asks the controller to attach each colonist's row of
+  // its latest bundle pawn table (#1343); native never fills dossier.
   optional bool include_dossier = 3;
 }
 message ColonistReference {
   optional string pawn_id = 1; optional string name = 2;
   optional int32 map_id = 3; optional bool spawned = 4;
   rimgovernor.common.v1.Cell position = 5;
-  // Present only when the request asked for it; dossier.pawn.id == pawn_id.
+  // Joined by the controller when the request asked for it;
+  // dossier.pawn.id == pawn_id.
   rimgovernor.observations.v1.PawnState dossier = 6;
 }
 message ColonistRoster {

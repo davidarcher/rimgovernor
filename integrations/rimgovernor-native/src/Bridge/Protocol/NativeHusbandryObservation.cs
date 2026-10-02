@@ -56,9 +56,7 @@ namespace HomeBridge.BridgeTools
             var snapshot = new Obs.HusbandrySnapshot { Context = context };
             foreach (var a in animals)
             {
-                var pawnRow = NativeObservationTools.PawnRow(a, false, context);
-                pawnRow.Pawn.Label = NativePawnObservationTools.Text(a.LabelCap);
-                var row = new Obs.HusbandryAnimal { Pawn = pawnRow, Animal = AnimalRow(a) };
+                var row = new Obs.HusbandryAnimal { Pawn = NativePawnObservationTools.Ref(a), Animal = AnimalRow(a) };
                 snapshot.Animals.Add(row);
             }
             return snapshot;

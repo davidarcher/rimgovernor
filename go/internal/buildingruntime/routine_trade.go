@@ -27,7 +27,7 @@ import (
 type RoutineTradeSource interface {
 	ReadConstructionDeficits(context.Context, *c.Identity) (bridge.ConstructionDeficitRead, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
-	FrameBuildings(context.Context, *c.Identity) (bridge.Buildings, error)
+	FrameTables(context.Context, *c.Identity) (bridge.Tables, error)
 	ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
 	ReadTradeSession(context.Context, *c.Identity) (bridge.TradeSessionRead, bridge.Result, error)
 	ReadTradeSheet(context.Context, *c.Identity) (bridge.TradeSheetRead, bridge.Result, error)
@@ -477,11 +477,11 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	}
 	// Refresh through the same projection and per-tick plan owner used by
 	// goal review; a staged trade never relies on a previous tick's need.
-	buildings, err := r.native.FrameBuildings(call, identity)
+	tables, err := r.native.FrameTables(call, identity)
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	projection, err := observation.DecodeColony(reply, observation.Identity{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map, Tick: domain.Tick(observed.Context.GetTick())}, buildings)
+	projection, err := observation.DecodeColony(reply, observation.Identity{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map, Tick: domain.Tick(observed.Context.GetTick())}, tables)
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}

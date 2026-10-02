@@ -76,7 +76,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		return true
 	}
 	for _, row := range append(append([]*o.UpkeepPerson{}, v.People...), v.Slaves...) {
-		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || !proto.Equal(row.Pawn, &o.PawnState{Pawn: row.Pawn.Pawn}) || row.OwnedBedId != nil && row.GetOwnedBedId() != "" && validID(row.GetOwnedBedId()) != nil || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !ids(row.PartnerIds) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBedId: row.OwnedBedId, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, PartnerIds: row.PartnerIds, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
+		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || row.OwnedBedId != nil && row.GetOwnedBedId() != "" && validID(row.GetOwnedBedId()) != nil || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !ids(row.PartnerIds) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBedId: row.OwnedBedId, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, PartnerIds: row.PartnerIds, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
 			return contract("invalid sleeping person")
 		}
 	}
@@ -88,7 +88,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Animals {
-		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || row.Pawn.AnimalState == nil || row.Diet != nil && validID(row.GetDiet()) != nil || row.SuitablePenId != nil && validID(row.GetSuitablePenId()) != nil || !ids(row.ReachableBenchIds) {
+		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || row.Diet != nil && validID(row.GetDiet()) != nil || row.SuitablePenId != nil && validID(row.GetSuitablePenId()) != nil || !ids(row.ReachableBenchIds) {
 			return contract("invalid upkeep animal")
 		}
 		for _, zone := range row.ReachableStorage {
@@ -102,37 +102,22 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 			}
 		}
 		p := row.Pawn
-		a := p.AnimalState
-		// Training rows carry MaintainHerd's training deficit: one per
-		// trainable def, each with its own facts.
-		trainables := map[string]bool{}
-		for _, entry := range a.Training {
-			if entry == nil || validID(entry.GetDefName()) != nil || trainables[entry.GetDefName()] || !proto.Equal(entry, &o.TrainingEntry{DefName: entry.DefName, Learned: entry.Learned, Wanted: entry.Wanted, Available: entry.Available}) {
-				return contract("invalid upkeep animal training")
-			}
-			trainables[entry.GetDefName()] = true
-		}
-		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, Predator: p.Predator, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Contained: a.Contained, PenId: a.PenId, Release: a.Release, Slaughter: a.Slaughter, SafeToRelease: a.SafeToRelease, AllowedAreaId: a.AllowedAreaId, SupportsAllowedAreas: a.SupportsAllowedAreas, Training: a.Training, SafeToSlaughter: a.SafeToSlaughter, Gender: a.Gender, AgeYears: a.AgeYears, LifeExpectancyYears: a.LifeExpectancyYears, Adult: a.Adult, Sick: a.Sick, ManhunterOnTameFail: a.ManhunterOnTameFail, SlaughterBarred: a.SlaughterBarred, Venerated: a.Venerated, MedicalCare: a.MedicalCare, Bonded: a.Bonded, Conditions: a.Conditions}) || a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || row.RequiresPen != nil && !row.GetRequiresPen() && (a.Contained != nil || a.PenId != nil || row.SuitablePenId != nil) || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenchIds: row.ReachableBenchIds, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
+		if row.RequiresPen != nil && !row.GetRequiresPen() && row.SuitablePenId != nil || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenchIds: row.ReachableBenchIds, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
 			return contract("conflicting upkeep animal fields")
 		}
 		stocks := map[string]bool{}
 		for _, stock := range row.ReachableStoredFeed {
-			if stock == nil || !entity(stock.Item, stocks) || !number(stock.Nutrition) || stock.Count != nil && stock.GetCount() < 0 || stock.RotTicks != nil && stock.GetRotTicks() < 0 || stock.HolderId != nil && stock.GetHolderId() != "" || len(stock.EaterIds) != 1 || stock.EaterIds[0] != p.Pawn.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Count: stock.Count, HolderId: stock.HolderId, Nutrition: stock.Nutrition, EaterIds: stock.EaterIds, Perishable: stock.Perishable, RotTicks: stock.RotTicks, Roofed: stock.Roofed}) {
+			if stock == nil || !entity(stock.Item, stocks) || !number(stock.Nutrition) || stock.Count != nil && stock.GetCount() < 0 || stock.RotTicks != nil && stock.GetRotTicks() < 0 || stock.HolderId != nil && stock.GetHolderId() != "" || len(stock.EaterIds) != 1 || stock.EaterIds[0] != p.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Count: stock.Count, HolderId: stock.HolderId, Nutrition: stock.Nutrition, EaterIds: stock.EaterIds, Perishable: stock.Perishable, RotTicks: stock.RotTicks, Roofed: stock.Roofed}) {
 				return contract("invalid reachable animal feed")
 			}
 		}
 	}
-	// A wild row is the factionless tame census: native tame eligibility
-	// and the tame designation only, never feed, pen or ownership facts.
+	// A wild row is the factionless tame census: its diet only, never
+	// feed, pen or ownership facts; the tame facts ride the table row.
 	seen = map[string]bool{}
 	for _, row := range v.WildAnimals {
-		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || row.Pawn.AnimalState == nil || !row.Pawn.GetWild() || row.Diet != nil && validID(row.GetDiet()) != nil || row.RequiresPen != nil && row.GetRequiresPen() {
+		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || row.Diet != nil && validID(row.GetDiet()) != nil || row.RequiresPen != nil && row.GetRequiresPen() || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, Diet: row.Diet, RequiresPen: row.RequiresPen}) {
 			return contract("invalid wild animal")
-		}
-		p := row.Pawn
-		a := p.AnimalState
-		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, Wild: p.Wild, Predator: p.Predator, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Tameable: a.Tameable, Tame: a.Tame, MinimumHandlingSkill: a.MinimumHandlingSkill, Gender: a.Gender, AgeYears: a.AgeYears, LifeExpectancyYears: a.LifeExpectancyYears, Adult: a.Adult, Sick: a.Sick, ManhunterOnTameFail: a.ManhunterOnTameFail, SlaughterBarred: a.SlaughterBarred, Venerated: a.Venerated, MedicalCare: a.MedicalCare, Bonded: a.Bonded, Conditions: a.Conditions}) || a.MinimumHandlingSkill != nil && a.GetMinimumHandlingSkill() < 0 || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen}) {
-			return contract("conflicting wild animal fields")
 		}
 	}
 	if v.HomeCoverage != nil {

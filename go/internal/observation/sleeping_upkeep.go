@@ -20,7 +20,7 @@ func colonySleeping(v *o.ColonyFactsSnapshot) domain.Fact[policy.SleepingObserva
 		return rows
 	}
 	person := func(p *o.UpkeepPerson) policy.SleepingPerson {
-		return policy.SleepingPerson{ID: policy.PawnID(p.Pawn.Pawn.GetId()), OwnedBed: optional(p.OwnedBedId), ComfortableMin: optional(p.ComfortableMinC), ComfortableMax: optional(p.ComfortableMaxC), Partners: ids(p.PartnerIds), BedSharingAllowed: optional(p.BedSharingAllowed), Title: royalTitle(p.Title)}
+		return policy.SleepingPerson{ID: policy.PawnID(p.Pawn.GetId()), OwnedBed: optional(p.OwnedBedId), ComfortableMin: optional(p.ComfortableMinC), ComfortableMax: optional(p.ComfortableMaxC), Partners: ids(p.PartnerIds), BedSharingAllowed: optional(p.BedSharingAllowed), Title: royalTitle(p.Title)}
 	}
 	for _, p := range u.People {
 		r.People = append(r.People, person(p))

@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -22,7 +23,7 @@ func TestFoodChannelsPresenceThroughColonyDecode(t *testing.T) {
 	identity := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 	decode := func() ColonyProjection {
 		t.Helper()
-		p, e := DecodeColony(reply, identity, nil)
+		p, e := DecodeColony(reply, identity, bridge.Tables{})
 		if e != nil {
 			t.Fatal(e)
 		}
