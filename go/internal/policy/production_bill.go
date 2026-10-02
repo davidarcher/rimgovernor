@@ -28,6 +28,9 @@ type ProductionProduct struct {
 	Name                       string
 	Nutrition, Demand, RotDays domain.Fact[float64]
 	Edible, Perishable         domain.Fact[bool]
+	// Storable is the count of the product protected, reachable storage
+	// accepting it can hold: stored stock plus empty stack slots.
+	Storable domain.Fact[int64]
 }
 type ProductionRecipe struct {
 	Name                                       string

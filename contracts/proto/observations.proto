@@ -1073,7 +1073,10 @@ message GrowRoom { optional string room_id = 1; optional double temperature_c = 
 message PowerHeadroom { optional string id = 1; optional double generation_w = 2; optional double solar_w = 3; optional double wind_w = 4; optional double consumption_w = 5; optional double stored_watt_days = 6; optional double capacity_watt_days = 7; optional bool has_active_source = 8; }
 message ControlledEnvironment { repeated GrowLight lights = 1; repeated PlantGrower growers = 2; repeated GrowRoom rooms = 3; repeated PowerHeadroom networks = 4; optional double outdoor_temperature_c = 5; optional bool daylight = 6; reserved 7; repeated ReadIssue issues = 8; }
 message PlanningFacts { repeated PlanningDefinition definitions = 1; CellsSnapshot cells = 2; GearSnapshot gear = 3; reserved 4; repeated ReadIssue issues = 5; reserved 6; reserved "zone_map_snapshot"; ControlledEnvironment environment = 7; }
-message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; optional double nutrition = 4; optional double nutrition_demand_per_day = 5; optional double rot_days = 6; optional bool perishable = 7; }
+message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; optional double nutrition = 4; optional double nutrition_demand_per_day = 5; optional double rot_days = 6; optional bool perishable = 7;
+  // storable is the product count roofed, reachable storage accepting it can
+  // hold: stored stacks plus empty stack slots (#1359). Caps reserve bill targets.
+  optional int64 storable = 8; }
 message FoodProduction { optional string recipe = 1; optional bool available = 2; repeated FoodProduct products = 3; }
 message CookingFacts { EntityRef bench = 1; optional bool usable = 2; repeated RecipeState recipes = 3; repeated BillState bills = 4; repeated FoodProduction production = 5; optional string room_id = 6;
   // auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel, #1180).

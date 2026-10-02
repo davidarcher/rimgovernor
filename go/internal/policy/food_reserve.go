@@ -152,6 +152,7 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 // SelectReserveBill selects a standing native target-count bill. Its target
 // includes existing stock of the selected product because native counts that
 // stock toward satisfaction; only other reserve products reduce the target.
+// The target never exceeds the product's observed storable count.
 // Matching bills are corrected under Auto; unrelated recipes are retained.
 func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReserveReview) (BillSelection, bool) {
 	rows, known := benches.Value()
@@ -180,6 +181,11 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 			}
 
 			target := math.Ceil((reserve.TargetNutrition - reserve.StockNutrition + reserve.ByDefinition[def]) / nutrition)
+			// Native cannot finish a bill whose product has nowhere to go:
+			// cap the target at what storage accepting it can hold (#1359).
+			if storable, sk := product.Storable.Value(); sk && target > float64(storable) {
+				target = float64(storable)
+			}
 			if !fieldPositive(target) || target > 10000 {
 				continue
 			}

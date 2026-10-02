@@ -122,3 +122,35 @@ func TestDropReserveHeldKeepsSuppliesOffReserveFood(t *testing.T) {
 		t.Fatalf("kept %v, want %v", things, want)
 	}
 }
+
+// A full stockpile caps the bill at what storage can hold, so native can
+// satisfy it instead of stalling on product with nowhere to go (#1359).
+func TestReserveBillCapsAtStorableProduct(t *testing.T) {
+	r, err := ReviewFoodReserve(reserveFixture(), nil, 5, 3, domain.Known([]float64{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pemmican := func(storable domain.Fact[int64]) domain.Fact[[]ProductionBench] {
+		return domain.Known([]ProductionBench{{ID: "stove", Token: domain.Known("token"), Usable: domain.Known(true), Recipes: []ProductionRecipe{
+			{Name: "MakePemmican", Available: domain.Known(true), Products: []ProductionProduct{{Name: "Pemmican", Nutrition: domain.Known(.05), Edible: domain.Known(true), Storable: storable}}},
+		}}})
+	}
+	for _, tc := range []struct {
+		name     string
+		storable domain.Fact[int64]
+		target   int32
+		ok       bool
+	}{
+		{"unobserved storage", domain.Unknown[int64](), 300, true},
+		{"room to spare", domain.Known[int64](1000), 300, true},
+		{"full stockpile", domain.Known[int64](120), 120, true},
+		{"no storage", domain.Known[int64](0), 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b, ok := SelectReserveBill(pemmican(tc.storable), r)
+			if ok != tc.ok || b.Target != tc.target {
+				t.Fatal(b, ok)
+			}
+		})
+	}
+}

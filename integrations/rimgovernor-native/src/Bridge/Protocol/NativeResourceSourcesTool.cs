@@ -123,8 +123,35 @@ namespace HomeBridge.BridgeTools
         // Go side reads either yet.
         private static Obs.StorageCapacity Storage(Map map, ThingDef def)
         {
-            var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
-                && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
+            var haulers = Haulers(map);
+            var capacity = Capacity(map, def, haulers, out var stored);
+            bool Accessible(IntVec3 c) => !c.Fogged(map) && c.Standable(map) && haulers.Any(p => !c.IsForbidden(p)
+                && p.CanReach(c, PathEndMode.OnCell, Danger.None));
+            var durable = def.GetStatValueAbstract(StatDefOf.DeteriorationRate) <= 0;
+            bool Protected(IntVec3 c) => durable || c.Roofed(map);
+            var border = typeof(AutoHomeAreaMaker).GetField("BorderWidth", BindingFlags.Static | BindingFlags.NonPublic)?.GetRawConstantValue();
+            var knownBorder = border is int width && width >= 0 && width <= 32;
+            var margin = knownBorder ? (int)(border ?? 0) + 1 : 0;
+            var candidates = haulers.Count == 0 || !knownBorder ? new List<IntVec3>() : GenRadial.RadialCellsAround(haulers[0].Position, 20, true)
+                // Cheapest tests first; reachability last (#1295).
+                .Where(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == null
+                    && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)
+                    && Protected(c) && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
+                    && Accessible(c)).ToList();
+            var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored, StackLimit = def.stackLimit };
+            result.Haulers.AddRange(haulers.Select(p => new Obs.EntityRef { Id = p.GetUniqueLoadID(), DefName = p.def.defName,
+                MapId = map.uniqueID, Position = new Common.Cell { X = p.Position.x, Z = p.Position.z } }));
+            result.Candidates.AddRange(candidates.Select(c => new Common.Cell { X = c.x, Z = c.z }));
+            return result;
+        }
+
+        internal static List<Pawn> Haulers(Map map) => map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted
+            && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
+
+        // Empty-slot capacity (count) of protected, hauler-reachable storage
+        // accepting def, and the count of def already stored there.
+        internal static long Capacity(Map map, ThingDef def, List<Pawn> haulers, out long stored)
+        {
             bool Accessible(IntVec3 c) => !c.Fogged(map) && c.Standable(map) && haulers.Any(p => !c.IsForbidden(p)
                 && p.CanReach(c, PathEndMode.OnCell, Danger.None));
             var durable = def.GetStatValueAbstract(StatDefOf.DeteriorationRate) <= 0;
@@ -141,24 +168,10 @@ namespace HomeBridge.BridgeTools
                 var reached = haulers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None));
                 return reached ? Math.Max(0, edifice.def.building.maxItemsInCell - items) : 0;
             }
-            var capacity = (long)map.haulDestinationManager.AllGroups.Where(g => g.Settings.filter.Allows(def))
+            stored = map.haulDestinationManager.AllGroups.SelectMany(g => g.HeldThings
+                .Where(t => t.def == def && g.Settings.AllowedToAccept(t))).Distinct().Sum(t => (long)t.stackCount);
+            return (long)map.haulDestinationManager.AllGroups.Where(g => g.Settings.filter.Allows(def))
                 .SelectMany(g => g.CellsList).Distinct().Where(Protected).Sum(Slots) * def.stackLimit;
-            var stored = map.haulDestinationManager.AllGroups.SelectMany(g => g.HeldThings
-                .Where(t => t.def == def && g.Settings.AllowedToAccept(t))).Distinct().Sum(t => t.stackCount);
-            var border = typeof(AutoHomeAreaMaker).GetField("BorderWidth", BindingFlags.Static | BindingFlags.NonPublic)?.GetRawConstantValue();
-            var knownBorder = border is int width && width >= 0 && width <= 32;
-            var margin = knownBorder ? (int)(border ?? 0) + 1 : 0;
-            var candidates = haulers.Count == 0 || !knownBorder ? new List<IntVec3>() : GenRadial.RadialCellsAround(haulers[0].Position, 20, true)
-                // Cheapest tests first; reachability last (#1295).
-                .Where(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == null
-                    && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)
-                    && Protected(c) && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
-                    && Accessible(c)).ToList();
-            var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored, StackLimit = def.stackLimit };
-            result.Haulers.AddRange(haulers.Select(p => new Obs.EntityRef { Id = p.GetUniqueLoadID(), DefName = p.def.defName,
-                MapId = map.uniqueID, Position = new Common.Cell { X = p.Position.x, Z = p.Position.z } }));
-            result.Candidates.AddRange(candidates.Select(c => new Common.Cell { X = c.x, Z = c.z }));
-            return result;
         }
 
         private static Obs.ResourceSource Project(Thing thing, Map map, double distance, Common.ObservationContext context, bool buried, HashSet<Thing>? reserved)

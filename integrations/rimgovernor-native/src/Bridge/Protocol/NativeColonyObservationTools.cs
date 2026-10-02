@@ -356,6 +356,7 @@ namespace HomeBridge.BridgeTools
         {
             var benches = things.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer && reachable(b)
                 && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef)))).OrderBy(b => b.thingIDNumber).ToList();
+            var haulers = NativeResourceSourcesTool.Haulers(map);
             foreach (var bench in benches) {
                 var row = new Obs.CookingFacts { Bench = new Obs.EntityRef { Id = bench.GetUniqueLoadID(), DefName = bench.def.defName,
                     MapId = map.uniqueID, Position = Cell(bench.Position), Snapshot = NativeProductionBills.Snapshot(bench,bench,result.Context) },
@@ -369,6 +370,7 @@ namespace HomeBridge.BridgeTools
                         var rot=product.thingDef.GetCompProperties<CompProperties_Rottable>();
                         var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef),Nutrition=product.thingDef.GetStatValueAbstract(StatDefOf.Nutrition),NutritionDemandPerDay=result.NutritionPerDay,Perishable=rot!=null};
                         if(rot!=null)food.RotDays=rot.daysToRotStart;
+                        food.Storable=NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored)+stored;
                         production.Products.Add(food);
                     }
                     row.Production.Add(production);
