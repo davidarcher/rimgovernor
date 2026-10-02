@@ -30,7 +30,7 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	if first == nil || first.Selection.Reason != policy.RecoveryAdmissionRequired || len(first.Selection.Candidates) != 1 {
 		t.Fatal(first)
 	}
-	if i := routineIncident(t, out, policy.RecoverDisasterServices); routineIncidentNeed(t, out, policy.RecoverDisasterServices) != domain.NeedDeficit || i.Incident.Priority != 2 {
+	if i := routineIncident(t, out, policy.RecoverDisasterServices); routineIncidentNeed(t, out, policy.RecoverDisasterServices) != domain.NeedDeficit || i.Incident.Priority != 3 {
 		t.Fatal(i)
 	}
 	s.Close()
