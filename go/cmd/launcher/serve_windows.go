@@ -286,7 +286,7 @@ const firstPort = 8787
 // (the controller's native requests, responses, errors and service events).
 func (a *app) tailFlight() error {
 	path := filepath.Join(a.layout.Root, "profile", "flight", "flight.jsonl")
-	script := "$Host.UI.RawUI.WindowTitle='RimGovernor flight recorder'; Get-Content -Wait -Tail 40 -LiteralPath '" + strings.ReplaceAll(path, "'", "''") + "'"
+	script := strings.ReplaceAll(tailScript, "PATH", strings.ReplaceAll(path, "'", "''"))
 	cmd := exec.Command("powershell.exe", "-NoLogo", "-NoExit", "-Command", script)
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NEW_CONSOLE}
 	if err := cmd.Start(); err != nil {
@@ -295,3 +295,11 @@ func (a *app) tailFlight() error {
 	go cmd.Wait()
 	return nil
 }
+
+// tailScript prints the last 40 rows of PATH, then every row appended after,
+// starting over when the recorder rotates the file (Get-Content -Wait keeps
+// reading the renamed segment and goes quiet).
+const tailScript = `$Host.UI.RawUI.WindowTitle='RimGovernor flight recorder'; $p='PATH'; $pos=0; ` +
+	`if(Test-Path -LiteralPath $p){Get-Content -Tail 40 -LiteralPath $p; $pos=(Get-Item -LiteralPath $p).Length}else{Write-Host "waiting for $p"}; ` +
+	`while($true){Start-Sleep -Milliseconds 500; if(-not (Test-Path -LiteralPath $p)){continue}; $len=(Get-Item -LiteralPath $p).Length; if($len -lt $pos){$pos=0}; ` +
+	`if($len -gt $pos){$f=[IO.File]::Open($p,'Open','Read','ReadWrite'); try{[void]$f.Seek($pos,'Begin'); $r=New-Object IO.StreamReader($f); $t=$r.ReadToEnd(); $pos=$f.Position; if($t){$t.TrimEnd()}}finally{$f.Close()}}}`
