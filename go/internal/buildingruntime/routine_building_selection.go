@@ -218,6 +218,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		if unknown {
 			return 0, "", BuildingMethodUnknown
 		}
+		if campfireIntentStanding(facts.Facts.ConstructionClaims, facts.Facts.CurrentConstruction) {
+			return 0, "", BuildingExistingFacility
+		}
 		return 1, "campfire", ""
 	default:
 		return 0, "", BuildingMethodUnknown
@@ -243,4 +246,29 @@ func butchersAllColocated(benches []observation.CookingBench, rooms domain.Fact[
 		}
 	}
 	return true
+}
+
+// campfireIntentStanding is true when a complete census shows a campfire
+// blueprint or frame placed by any recorded claim (#1534). The cooking bench
+// census holds only built benches and the pending-work gate reads only open
+// plans, so a retired plan's standing blueprint otherwise let the planner
+// stage another campfire, up to sleepingBedsPerEpoch of them.
+func campfireIntentStanding(claims domain.Fact[[]policy.ConstructionClaim], observed domain.Fact[policy.CurrentConstruction]) bool {
+	census, known := observed.Value()
+	if !known || !census.Colony {
+		return false
+	}
+	history, _ := claims.Value()
+	campfire := map[domain.ActionID]bool{}
+	for _, claim := range history {
+		if claim.Building.Definition() == "Campfire" {
+			campfire[claim.Action] = true
+		}
+	}
+	for _, in := range census.Intents {
+		if action, ok := policy.IntentAction(in.Key); ok && campfire[action] {
+			return true
+		}
+	}
+	return false
 }

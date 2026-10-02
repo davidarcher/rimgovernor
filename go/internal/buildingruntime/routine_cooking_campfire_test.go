@@ -97,3 +97,29 @@ func TestHeatTemperatureOwed(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A campfire blueprint from an earlier (retired) cooking plan still standing
+// is the camp's campfire: the planner stages no other (#1534).
+func TestCookingSelectionCountsStandingCampfireBlueprint(t *testing.T) {
+	t.Parallel()
+	building, err := domain.NewBuilding("Campfire", domain.Cell{X: 10, Z: 10}, domain.North, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var facts observation.ColonyProjection
+	facts.Facts.FoodPlan = domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: policy.FoodChannel{Kind: policy.FoodCook, ID: "cooking-capacity"}, Decision: policy.FoodPlanOpen}}})
+	facts.Facts.Colonists = domain.Known(int64(3))
+	facts.Facts.Cooking = domain.Known(false)
+	facts.CookingBenches = domain.Known([]observation.CookingBench{})
+	facts.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Plan: "p1", Action: "p1-0", Goal: "g", Building: building}})
+	r := &RoutineBuildingPlanner{goal: policy.EnsureCooking, definition: "Campfire"}
+
+	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
+	if n, method, reason := r.selection(facts); n != 1 || method != "campfire" {
+		t.Fatal("no campfire standing:", n, method, reason)
+	}
+	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Intents: []policy.ConstructionIntent{{Key: "p1-0/0", Stage: "blueprint"}}})
+	if n, _, reason := r.selection(facts); n != 0 || reason != BuildingExistingFacility {
+		t.Fatal("standing blueprint:", n, reason)
+	}
+}
