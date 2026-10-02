@@ -279,3 +279,49 @@ func stockpileGearSites(r StockpileRequest, anchor domain.Cell, store, room []do
 	}
 	return RankSitesByHaul(sites, costs), nil
 }
+
+// stockpileGearMoves deletes a gear zone standing outside its role's room
+// (the storage room or barracks) once a free patch in that room can take
+// its replacement, which the create step then raises there; the things
+// stored in it rehome like a moved meal site's.
+func stockpileGearMoves(r StockpileRequest) []StockpileEdit {
+	var out []StockpileEdit
+	var store []domain.Cell
+	for _, z := range r.Zones {
+		if z.Role == domain.GeneralRole {
+			store = append(store, z.Cells...)
+		}
+	}
+	store = stockpileSorted(store)
+	anchor := r.Anchor
+	if len(store) > 0 {
+		anchor = store[0]
+	}
+	for _, spec := range domain.GearAndDumpRoles() {
+		room := r.GearRooms[spec.Role]
+		if spec.Priority == domain.LowPriority || len(room) == 0 {
+			continue
+		}
+		inRoom := cellSet(room)
+		sites, err := stockpileGearSites(r, anchor, store, room)
+		fits := false
+		for _, site := range sites {
+			all := true
+			for _, c := range rectCells(site) {
+				all = all && inRoom[c]
+			}
+			fits = fits || all
+		}
+		if err != nil || !fits {
+			continue
+		}
+		for _, z := range r.Zones {
+			if z.Role != spec.Role || stockpileTouches(z.Cells, inRoom) {
+				continue
+			}
+			out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, Hauls: z.Used(),
+				Explanation: fmt.Sprintf("stockpile %s (%s): outside its room, delete; %d used cells rehome", z.ID, z.Role, z.Used())})
+		}
+	}
+	return out
+}

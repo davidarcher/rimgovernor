@@ -35,12 +35,16 @@ namespace HomeBridge.BridgeTools
 
         private static bool CropGround(Map map, IntVec3 cell) => map.zoneManager.ZoneAt(cell) is Zone_Growing || cell.GetEdifice(map) is Building_PlantGrower;
 
-        // Plants the area cut owns on a visible cell: non-crop plants off crop ground.
+        // A wild plant that yields food (berry bushes, forage) is
+        // the colony's forage and stays standing; trees are still chopped.
+        private static bool Forage(Plant plant) => !plant.def.plant.IsTree && plant.def.plant.harvestedThingDef?.IsNutritionGivingIngestible == true;
+
+        // Plants the area cut owns on a visible cell: non-crop, non-forage plants off crop ground.
         private static IEnumerable<Plant> Plants(Map map, IntVec3 cell)
         {
             if (!cell.InBounds(map) || cell.Fogged(map) || CropGround(map, cell)) yield break;
             foreach (var thing in cell.GetThingList(map).ToList())
-                if (thing is Plant plant && plant.Spawned && !plant.Destroyed && plant.Position == cell && !plant.IsCrop) yield return plant;
+                if (thing is Plant plant && plant.Spawned && !plant.Destroyed && plant.Position == cell && !plant.IsCrop && !Forage(plant)) yield return plant;
         }
 
         // Standing is a plant an apply would designate now: undesignated and

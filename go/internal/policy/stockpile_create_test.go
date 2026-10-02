@@ -144,3 +144,33 @@ func TestStockpileGearZoneGoesInItsRoom(t *testing.T) {
 		}
 	}
 }
+
+// An apparel zone standing outside its room is deleted once the room has a
+// free patch; one already inside stays.
+func TestStockpileGearZoneOutsideItsRoomIsDeleted(t *testing.T) {
+	r := stockpileCreateRequest()
+	var room []domain.Cell
+	for x := int32(6); x < 10; x++ {
+		for z := int32(12); z < 16; z++ {
+			room = append(room, domain.Cell{X: x, Z: z})
+		}
+	}
+	r.GearRooms = map[string][]domain.Cell{domain.ApparelRole: room}
+	stray := []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}, {X: 4, Z: 7}, {X: 5, Z: 7}}
+	r.Zones = append(r.Zones, StockpileZone{ID: "Zone_2", Role: domain.ApparelRole, Cells: stray, Filter: domain.GeneralFilter(), Priority: domain.NormalPriority})
+	deleted := func() bool {
+		for _, e := range PlanStockpileMaintenance(r).Edits {
+			if e.Kind == StockpileDelete && e.Zone == "Zone_2" {
+				return true
+			}
+		}
+		return false
+	}
+	if !deleted() {
+		t.Fatalf("apparel zone outside its room kept")
+	}
+	r.Zones[1].Cells = room[:4]
+	if deleted() {
+		t.Fatalf("apparel zone inside its room deleted")
+	}
+}

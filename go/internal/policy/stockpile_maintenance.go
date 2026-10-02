@@ -249,6 +249,9 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	for _, e := range stockpileSiteMoves(r) {
 		take(e, true)
 	}
+	for _, e := range stockpileGearMoves(r) {
+		take(e, true)
+	}
 	for _, z := range zones {
 		take(stockpileSettingsEdit(r.Roles, z))
 	}

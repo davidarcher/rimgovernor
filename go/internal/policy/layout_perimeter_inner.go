@@ -105,46 +105,51 @@ func innerWallsAt(core Rectangle, innerYard int32, inside func(domain.Cell) bool
 			return domain.Cell{X: outerEdge.X + outerEdge.Width + k, Z: along + off - 1 + t}
 		}
 		placed := false
-		for _, strict := range []bool{true, false} {
-			for dd := int32(0); dd <= span && !placed; dd++ {
-				for _, off := range []int32{dd, -dd} {
-					var run []domain.Cell
-					reached := false
-					for k := int32(0); ; k++ {
-						out := 0
-						for t := int32(0); t < perimeterThick; t++ {
-							if !inside(cell(off, k, t)) {
-								out++
+		// The wall starts clear of the ring gate in the side's middle, which
+		// would otherwise open onto the wall's end; only a core too small for
+		// that takes the middle.
+		for _, from := range []int32{perimeterThick + 1, 0} {
+			for _, strict := range []bool{true, false} {
+				for dd := from; dd <= span && !placed; dd++ {
+					for _, off := range []int32{dd, -dd} {
+						var run []domain.Cell
+						reached := false
+						for k := int32(0); ; k++ {
+							out := 0
+							for t := int32(0); t < perimeterThick; t++ {
+								if !inside(cell(off, k, t)) {
+									out++
+								}
+							}
+							if out == int(perimeterThick) {
+								reached = true
+								break
+							}
+							if out != 0 {
+								break
+							}
+							clear := true
+							for t := int32(0); t < perimeterThick; t++ {
+								c := cell(off, k, t)
+								clear = clear && free(c, strict) && !ring[c]
+								run = append(run, c)
+							}
+							if !clear {
+								break
 							}
 						}
-						if out == int(perimeterThick) {
-							reached = true
-							break
+						if !reached || len(run) == 0 {
+							continue
 						}
-						if out != 0 {
-							break
+						placed = true
+						for _, c := range run {
+							walls[c] = true
 						}
-						clear := true
-						for t := int32(0); t < perimeterThick; t++ {
-							c := cell(off, k, t)
-							clear = clear && free(c, strict) && !ring[c]
-							run = append(run, c)
-						}
-						if !clear {
-							break
-						}
+						// The gate halfway along, across the wall's thickness.
+						k := int32(len(run)/int(perimeterThick)) / 2
+						gates = append(gates, rectOf(cell(off, k, 0), cell(off, k, perimeterThick-1)))
+						break
 					}
-					if !reached || len(run) == 0 {
-						continue
-					}
-					placed = true
-					for _, c := range run {
-						walls[c] = true
-					}
-					// The gate halfway along, across the wall's thickness.
-					k := int32(len(run)/int(perimeterThick)) / 2
-					gates = append(gates, rectOf(cell(off, k, 0), cell(off, k, perimeterThick-1)))
-					break
 				}
 			}
 		}
