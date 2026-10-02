@@ -38,8 +38,8 @@ on:
         default: false
   schedule:
     - cron: '23 7 * * *'
-  # push to main is off until the issue filer dedupes and caps (#1375):
-  # it filed one issue per case while every case failed at bootstrap.
+  push:
+    branches: [main]
 
 # Push runs share one group without cancelling: the running push run
 # finishes and only the newest waiting push is kept, so landings arriving
@@ -369,7 +369,9 @@ jobs:
   # and close them when a later push run is green (#1375).
   report:
     needs: [plan, verdict]
-    if: always() && github.event_name == 'push' && needs.plan.outputs.head != '' && needs.verdict.result != 'cancelled'
+    # Off until it dedupes and caps per run (#1375): it filed one issue per
+    # case on every push while every case failed at bootstrap.
+    if: false
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
