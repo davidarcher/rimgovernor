@@ -76,6 +76,7 @@ namespace HomeBridge.BridgeTools
             var tick = Find.TickManager.TicksGame;
             try
             {
+                if (frames == 0) LogSections(__instance);
                 Render(rect, $"colony-{tick:D8}.jpg");
                 if (lastTick < 0 || tick / DayTicks != lastTick / DayTicks)
                 {
@@ -95,6 +96,26 @@ namespace HomeBridge.BridgeTools
                 lastTick = tick;
                 nextTick = (tick / interval + 1) * interval;
             }
+        }
+
+        // Why a frame might lack terrain: what the map drawer holds for the
+        // section under the map centre (layers, submeshes, shaders).
+        static void LogSections(Map map)
+        {
+            try
+            {
+                var sections = Traverse.Create(map.mapDrawer).Field("sections").GetValue<Array>();
+                var section = (Section)sections.GetValue(sections.GetLength(0) / 2, sections.GetLength(1) / 2);
+                var lines = new List<string>();
+                foreach (var layer in Traverse.Create(section).Field("layers").GetValue<List<SectionLayer>>())
+                {
+                    var subMeshes = Traverse.Create(layer).Field("subMeshes").GetValue<List<LayerSubMesh>>();
+                    lines.Add($"{layer.GetType().Name} visible={layer.Visible} " + string.Join(",", subMeshes.Select(m =>
+                        $"[{m.material?.shader?.name} supported={m.material?.shader?.isSupported} verts={m.mesh?.vertexCount} finalized={m.finalized} disabled={m.disabled}]")));
+                }
+                Log.Message($"[RimGovernor] colony review sections: camera mask={Find.Camera.cullingMask} clear={Find.Camera.clearFlags} far={Find.Camera.farClipPlane} y={Find.Camera.transform.position.y}\n" + string.Join("\n", lines));
+            }
+            catch (Exception e) { Log.Warning("[RimGovernor] colony review section probe failed: " + e.Message); }
         }
 
         // The home area plus every colonist and colony building, with a
