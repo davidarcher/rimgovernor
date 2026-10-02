@@ -1241,11 +1241,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		squadUnanswered = domain.Known(out.Defense.Reason == BuildingMethodNoSquad)
 	}
 	// A complete sheltering response lets the threat be waited out (#1560):
-	// the wait is work of its own, on game time.
-	sheltered := domain.Unknown[bool]()
-	if out.Recovery != nil {
-		sheltered = domain.Known(out.Recovery.Sheltered)
-		work = work || out.Recovery.Sheltered
+	// the wait is work of its own, on game time. It reads the review's
+	// facts, so it holds whether or not the recovery planner ran this step.
+	sheltered := clockShelterHeld(out.Routine)
+	if held, _ := sheltered.Value(); held {
+		work = true
 	}
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
@@ -1894,6 +1894,15 @@ func clockWatchedKind(kind domain.ActionKind) bool {
 
 // routineWork is clockSchedulerWork over the authorized routine plans of
 // the catalog (every plan but the root's own).
+// clockShelterHeld is policy.ShelterHeld over the review's facts: unknown
+// without an enabled review.
+func clockShelterHeld(review *store.RoutineReviewResult) domain.Fact[bool] {
+	if review == nil || review.Detection == nil {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(policy.ShelterHeld(review.Detection.Facts))
+}
+
 func (s *ClockScheduler) routineWork(call context.Context, root domain.GenerationSnapshot, plans []store.PlanState) (bool, []clockWorkItem, error) {
 	work := false
 	var fingerprint []clockWorkItem

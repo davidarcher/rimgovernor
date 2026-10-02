@@ -27,9 +27,6 @@ type RoutineRecoveryPlanner struct {
 type RoutineRecoveryResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
-	// Sheltered reports policy.ShelterHeld at this step; the clock
-	// window watches a threat the colony is sheltered from (#1560).
-	Sheltered bool
 }
 
 func NewRoutineRecoveryPlanner(reviewer *RoutineReviewer) (*RoutineRecoveryPlanner, error) {
@@ -53,12 +50,6 @@ func recoveryServiceMethod(method policy.RecoveryMethod) (domain.RecoveryMethod,
 }
 
 func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (result RoutineRecoveryResult, err error) {
-	sheltered := false
-	defer func() {
-		if err == nil {
-			result.Sheltered = sheltered
-		}
-	}()
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -116,7 +107,6 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	changes := policy.PlanSheltering(facts)
-	sheltered = policy.ShelterHeld(facts)
 	workers, _ := read.Projection.WorkPawns.Value()
 	if err = p.current(call, epoch); err != nil {
 		return RoutineRecoveryResult{}, err
