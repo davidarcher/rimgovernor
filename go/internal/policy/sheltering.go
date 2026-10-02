@@ -14,9 +14,9 @@ type AllowedAreaChange struct {
 	Area   string
 }
 
-// SafeAreaLabel is the native label of the bot-owned Safe allowed area
-// (NativeAreaIntent.LabelPrefix + SafeAreaKey).
-const SafeAreaLabel = "RimGovernor " + SafeAreaKey
+// SafeAreaLabel is the native label of the bot-owned Safe allowed area;
+// AreaIntent labels an area with its plain key.
+const SafeAreaLabel = SafeAreaKey
 
 // ShelterTrigger is why pawns shelter now.
 type ShelterTrigger string
