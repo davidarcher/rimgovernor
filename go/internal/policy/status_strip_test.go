@@ -64,7 +64,7 @@ func TestStatusRowsSeverityAndOrder(t *testing.T) {
 		{"emergency", "EMERGENCY ManageSupplySafety", StatusCritical, false},
 		{"refusal", "refused Building no_path", StatusWarning, false},
 		{"domain.Food", "Food", StatusInfo, true},
-		{"goal.EnsureFoodSupply", "Standard EnsureFoodSupply: hunt - no_target", StatusWarning, true},
+		{"goal.EnsureFoodSupply", "Standard EnsureFoodSupply: hunt - no target", StatusWarning, true},
 		{"domain.Industry", "Industry", StatusInfo, true},
 		{"goal.EnsureBasicPower", "Project EnsureBasicPower: build", StatusInfo, true},
 	}

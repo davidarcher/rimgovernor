@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -150,10 +151,10 @@ func StatusRows(in StatusInput) []StatusRow {
 		}
 		severity := StatusInfo
 		if top.Blocked.Actionable() {
-			text += " - blocked " + string(top.Blocked)
+			text += " - blocked: " + statusReason(top.Blocked)
 			severity = StatusWarning
 		} else if top.Blocked != "" {
-			text += " - " + string(top.Blocked)
+			text += " - " + statusReason(top.Blocked)
 		}
 		rows = append(rows, StatusRow{Key: "goal", Text: text, Severity: severity, Target: goalCell(in.GoalCells, top.Goal)})
 	} else if in.Stage != nil {
@@ -249,7 +250,7 @@ func detailRows(in StatusInput) []StatusRow {
 				}
 				severity := StatusInfo
 				if actionable {
-					text += " - " + string(g.Blocked)
+					text += " - " + statusReason(g.Blocked)
 					severity = StatusWarning
 				}
 				body = append(body, StatusRow{Key: "goal." + string(g.Goal), Text: text, Severity: severity, Target: goalCell(in.GoalCells, g.Goal), Detail: true})
@@ -283,10 +284,34 @@ func detailRows(in StatusInput) []StatusRow {
 // statusMethod is the method a strip row names: the "assess" placeholder
 // (no committed method) only once the goal's planner has run and said why.
 func statusMethod(g GoalProgress) string {
-	if g.Method == "assess" && g.Planner == "" {
+	if g.Method == "assess" {
 		return ""
 	}
 	return g.Method
+}
+
+// statusReason words a blocked reason for the player: the raw codes
+// ("no_method", "planner:unknown_prerequisite") mean nothing on screen.
+func statusReason(b BlockedReason) string {
+	switch b {
+	case BlockedNoMethod:
+		return "nothing to do right now"
+	case BlockedNoWorker:
+		return "no colonist free to do it"
+	case BlockedNativeIneligible:
+		return "the game refuses the order"
+	case BlockedReconciling:
+		return "confirming the last change"
+	case BlockedCooldown:
+		return "retrying later"
+	}
+	raw := string(b)
+	for prefix, lead := range map[string]string{blockedPlanner: "can't plan yet: ", blockedPrerequisite: "waiting on ", blockedHeld: "on hold: "} {
+		if rest, ok := strings.CutPrefix(raw, prefix); ok {
+			return lead + strings.ReplaceAll(rest, "_", " ")
+		}
+	}
+	return strings.ReplaceAll(raw, "_", " ")
 }
 
 // goalCell is goal's target cell, unknown when its plans name none.

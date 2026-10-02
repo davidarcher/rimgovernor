@@ -33,7 +33,7 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
  WHERE json_extract(g.payload,'$.Source')=? AND json_extract(g.payload,'$.Snapshot.Colony')=?
  AND json_extract(g.payload,'$.Snapshot.Load')=? AND json_extract(g.payload,'$.Snapshot.Map')=?
  AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='zone_create' AND json_extract(t.payload,'$.Kind') IN ('observe','receipt'))
- ORDER BY m.plan_id LIMIT 257`, domain.AutopilotGoal, current.Colony, current.Load, current.Map)
+ ORDER BY m.plan_id`, domain.AutopilotGoal, current.Colony, current.Load, current.Map)
 	if err != nil {
 		return unknown, err
 	}
@@ -54,9 +54,6 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 	rows.Close()
 	if err != nil {
 		return unknown, err
-	}
-	if len(links) > 256 {
-		return unknown, nil
 	}
 	result := []OwnedZone{}
 	goals := map[domain.GoalID]GoalState{}
@@ -85,9 +82,6 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 				continue
 			}
 			result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role(), Goal: link.goal, Filter: zone.Filter(), Priority: zone.Priority()})
-			if len(result) > 256 {
-				return unknown, nil
-			}
 		}
 	}
 	return domain.Known(result), nil

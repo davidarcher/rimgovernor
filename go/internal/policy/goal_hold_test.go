@@ -26,8 +26,8 @@ func TestStatusRowsActionableFirstHeldCollapsed(t *testing.T) {
 		"Shelter",
 		"held EnsureComfort, MaintainLighting",
 		"Industry",
-		"Project EnsureResearch - no_method",
-		"Project EnsureBasicPower: assess - planner:insufficient_verified_space",
+		"Project EnsureResearch - nothing to do right now",
+		"Project EnsureBasicPower - can't plan yet: insufficient verified space",
 		"Standard MaintainResource: mine",
 	}
 	if len(got) != len(want) {
@@ -40,11 +40,11 @@ func TestStatusRowsActionableFirstHeldCollapsed(t *testing.T) {
 	}
 	// Nothing worked: the top row is the first actionable goal, not a held one.
 	rows = StatusRows(StatusInput{Progress: []GoalProgress{{Goal: EnsureComfort, Method: "assess", Blocked: HeldStage}, {Goal: EnsureResearch, Method: "assess", Blocked: BlockedNoMethod}}})
-	if rows[0].Text != "goal EnsureResearch - blocked no_method" || rows[0].Severity != StatusWarning {
+	if rows[0].Text != "goal EnsureResearch - blocked: nothing to do right now" || rows[0].Severity != StatusWarning {
 		t.Fatalf("%+v", rows[0])
 	}
 	rows = StatusRows(StatusInput{Progress: []GoalProgress{{Goal: EnsureComfort, Method: "assess", Blocked: HeldStage}}})
-	if rows[0].Text != "goal EnsureComfort - held:stage" || rows[0].Severity != StatusInfo {
+	if rows[0].Text != "goal EnsureComfort - on hold: stage" || rows[0].Severity != StatusInfo {
 		t.Fatalf("%+v", rows[0])
 	}
 }
