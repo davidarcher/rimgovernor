@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PawnOrderIntent kind CLEAN (#939), the bounded cleaning response of
+    // GiveJobIntent Clean (#939), the bounded cleaning response of
     // MaintainCleanFacilities: exact spawned filth inside the home area, an
     // undrafted worker who can reach it and needs no tending, plus
     // WorkGiver_CleanFilth's own HasJobOnThing (reservable, thickened at
@@ -30,10 +30,10 @@ namespace HomeBridge.BridgeTools
         private static bool Running(Pawn pawn, Thing filth) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Clean
             && (pawn.CurJob.targetA.Thing == filth || pawn.CurJob.GetTargetQueue(TargetIndex.A).Any(t => t.Thing == filth));
 
-        private static Common.Failure? Resolve(Operations.PawnOrderIntent intent, Common.ObservationContext context, out Pawn? pawn, out Filth? filth)
+        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Filth? filth)
         {
             filth = null;
-            var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
             if (snapshot!.Drafted || !snapshot.Eligible)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Clean requires an eligible undrafted pawn.");
@@ -62,18 +62,18 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.PawnOrderIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.PawnOrderIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var filth);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, filth!)) return NativePawnOrderIntent.Evidence(pawn!, filth!, pawn!.CurJob, false);
+            if (Running(pawn!, filth!)) return NativeGiveJob.Evidence(pawn!, filth!, pawn!.CurJob, false);
             var job = JobMaker.MakeJob(JobDefOf.Clean);
             job.AddQueuedTarget(TargetIndex.A, filth);
             if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
                 throw new InvalidOperationException("The pawn did not take the clean job.");
-            return NativePawnOrderIntent.Evidence(pawn, filth!, job, true);
+            return NativeGiveJob.Evidence(pawn, filth!, job, true);
         }
     }
 }

@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PawnOrderIntent kind ARREST (#939): the arrester's owned draft (the
+    // GiveJobIntent Arrest (#939): the arrester's owned draft (the
     // plan couples a draft intent ahead of it) takes JobDefOf.Arrest onto the
     // exact prisoner bed. Checked live at apply; an arrester already running
     // the arrest applies again.
@@ -19,10 +19,10 @@ namespace HomeBridge.BridgeTools
         private static bool Running(Pawn pawn, Pawn target, Building_Bed bed) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Arrest
             && pawn.CurJob.targetA.Thing == target && pawn.CurJob.targetB.Thing == bed;
 
-        private static Common.Failure? Resolve(Operations.PawnOrderIntent intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? target, out Building_Bed? bed)
+        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? target, out Building_Bed? bed)
         {
             target = null; bed = null;
-            var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
             if (!intent.HasBedId || !ProtoBoundary.IsIdentifier(intent.BedId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Arrest requires the exact prisoner bed.");
@@ -51,17 +51,17 @@ namespace HomeBridge.BridgeTools
             return reason == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Arrest refused: " + reason + ".");
         }
 
-        internal static Common.Failure? Validate(Operations.PawnOrderIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.PawnOrderIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var bed);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, target!, bed!)) return NativePawnOrderIntent.Evidence(pawn!, target!, pawn!.CurJob, false);
+            if (Running(pawn!, target!, bed!)) return NativeGiveJob.Evidence(pawn!, target!, pawn!.CurJob, false);
             var job = JobMaker.MakeJob(JobDefOf.Arrest, target, bed); job.count = 1;
             if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
                 throw new InvalidOperationException("The arrester did not take the arrest job.");
-            return NativePawnOrderIntent.Evidence(pawn, target!, job, true);
+            return NativeGiveJob.Evidence(pawn, target!, job, true);
         }
     }
 }

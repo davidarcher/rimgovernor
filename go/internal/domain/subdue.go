@@ -3,7 +3,7 @@ package domain
 import "errors"
 
 // Subdue is explicit intent to beat a colonist in an aggressive mental break
-// down (#939: the PawnOrderIntent SUBDUE). It rides a preceding owned draft
+// down (#939: a GiveJobIntent AttackMelee). It rides a preceding owned draft
 // of the same pawn, which keeps the subduer drafted while the plan lives; it
 // proves nothing about the target's eligibility or reachability.
 type Subdue struct {

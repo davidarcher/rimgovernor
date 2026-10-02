@@ -66,7 +66,7 @@ native job-giver choices. Thoughts without a measured eligible corrective method
 produce an explicit blocker, including relationship and ideology choices requiring
 player direction. A facility placement is never a mood or need postcondition.
 
-A `NeedReliefIntent` on Actions/Apply offers one ordinary food, rest or recreation job. It checks an
+A `GiveJobIntent` with `relieve_need` on Actions/Apply offers one ordinary food, rest or recreation job. It checks an
 exact pawn and current job identity, current timetable assignment,
 draft/mental/medical state, carried cargo, fire, native priority,
 target restrictions, safe reachability and reservations. It uses the installed
@@ -100,7 +100,7 @@ it neither activates ActiveCombat nor selects a subdue response. Independent
 hostile threats and urgent medical needs retain their emergency classification.
 
 Other standing aggressive colonists activate defense. The controller drafts one or
-two nearest healthy armed-melee colonists and applies a SUBDUE PawnOrderIntent (#939); the
+two nearest healthy armed-melee colonists and applies an AttackMelee GiveJobIntent (#939, #1352); the
 undraft sweep releases them afterward. Other dispatch stays outside an eight-cell radius
 of the target; uncertain attempts remain reconcilable. Downing
 the target ends containment and lets the ordinary RESCUE planner carry the pawn
@@ -167,7 +167,7 @@ back through the profile.
 
 ## Native subdual
 
-PAWN_ORDER_KIND_SUBDUE accepts exact colonist snapshots and an aggressive,
+The AttackMelee GiveJobIntent accepts exact colonist snapshots and an aggressive,
 standing colonist target. It drafts an undrafted responder (the plan's draft
 keeps it drafted, #939) and issues an ordinary AttackMelee job; an existing
 draft is retained.

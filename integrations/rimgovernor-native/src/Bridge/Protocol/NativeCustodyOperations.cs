@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PawnOrderIntent kinds CAPTURE and RESCUE (#939). Both are single fixed
+    // GiveJobIntent Capture and Rescue (#939). Both are single fixed
     // vanilla jobs (Capture, Rescue) that carry a downed patient to a bed -- a
     // prisoner bed for capture, an ordinary or guest bed for rescue. Checked
     // live at apply; a pawn already carrying out the job on the patient
@@ -43,29 +43,29 @@ namespace HomeBridge.BridgeTools
             && patient.Map == pawn.Map && !ReferenceEquals(patient, pawn)
             && HealthAIUtility.CanRescueNow(pawn, patient, true) && !HostileToPlayer(patient);
 
-        internal static bool FindBed(Operations.PawnOrderKind kind, Pawn pawn, Pawn patient, out Building_Bed? bed)
+        internal static bool FindBed(JobOrderKind kind, Pawn pawn, Pawn patient, out Building_Bed? bed)
         {
-            bed = kind == Operations.PawnOrderKind.Capture
+            bed = kind == JobOrderKind.Capture
                 ? RestUtility.FindBedFor(patient, pawn, false, false, GuestStatus.Prisoner)
                 : RestUtility.FindBedFor(patient, pawn, checkSocialProperness: false)
                     ?? RestUtility.FindBedFor(patient, pawn, false, ignoreOtherReservations: true);
             return bed != null;
         }
 
-        private static JobDef Def(Operations.PawnOrderKind kind) => kind == Operations.PawnOrderKind.Capture ? JobDefOf.Capture : JobDefOf.Rescue;
+        private static JobDef Def(JobOrderKind kind) => kind == JobOrderKind.Capture ? JobDefOf.Capture : JobDefOf.Rescue;
 
-        private static bool Running(Operations.PawnOrderKind kind, Pawn pawn, Pawn patient) => pawn.CurJob != null && pawn.CurJob.def == Def(kind) && pawn.CurJob.targetA.Thing == patient;
+        private static bool Running(JobOrderKind kind, Pawn pawn, Pawn patient) => pawn.CurJob != null && pawn.CurJob.def == Def(kind) && pawn.CurJob.targetA.Thing == patient;
 
-        private static Common.Failure? Resolve(Operations.PawnOrderIntent intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Building_Bed? bed)
+        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Building_Bed? bed)
         {
             patient = null; bed = null;
-            var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
             if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Custody requires an eligible pawn.");
             patient = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.TargetId);
             if (patient == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map.");
             if (Running(intent.Kind, pawn!, patient)) return null;
-            bool capture = intent.Kind == Operations.PawnOrderKind.Capture;
+            bool capture = intent.Kind == JobOrderKind.Capture;
             if (capture ? !CaptureEligible(pawn!, patient) : !RescueEligible(pawn!, patient))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, capture
                     ? "Capture refused: the patient must be a downed, capturable hostile the pawn can carry."
@@ -77,18 +77,18 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.PawnOrderIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.PawnOrderIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var patient, out var bed);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(intent.Kind, pawn!, patient!)) return NativePawnOrderIntent.Evidence(pawn!, patient!, pawn!.CurJob, false);
+            if (Running(intent.Kind, pawn!, patient!)) return NativeGiveJob.Evidence(pawn!, patient!, pawn!.CurJob, false);
             var job = JobMaker.MakeJob(Def(intent.Kind), patient, bed);
             job.count = 1;
             if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
                 throw new InvalidOperationException("The pawn did not take the custody job.");
-            return NativePawnOrderIntent.Evidence(pawn, patient!, job, true);
+            return NativeGiveJob.Evidence(pawn, patient!, job, true);
         }
     }
 }

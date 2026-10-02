@@ -1,6 +1,6 @@
 // The mood/relief case exercises EnsureMood need relief (G01.07e) end to
 // end against a live game: a disposable fixture pawn with a genuinely
-// deficient need, the NeedReliefIntent on Actions/Apply (#939, the intent
+// deficient need, the GiveJobIntent relieve_need on Actions/Apply (#939, the intent
 // bridge's moodReliefAction sends) starting an actual JobGiver_GetJoy job,
 // and real game ticks carrying the need back above the native recovery
 // threshold. Uses a private disposable fixture (test/mood_setup) since a
@@ -21,7 +21,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "mood/relief",
-		Scope: "EnsureMood relief through the NeedReliefIntent on Actions/Apply: an actual JobGiver_GetJoy " +
+		Scope: "EnsureMood relief through the GiveJobIntent relieve_need on Actions/Apply: an actual JobGiver_GetJoy " +
 			"job started for a deficient pawn, a resend that applies again without a second job, relief admitted over a " +
 			"player-forced current job (#474), a refusal for a pawn in a mental break, and real need recovery observed via native ticks.",
 		Start:  cases.LabStart(),
@@ -84,7 +84,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return pawnID, nil
 	}
 	relieve := func(label, pawnID string) (map[string]any, error) {
-		return na.ApplyOne(ctx, h, label, identity, label, map[string]any{"needRelief": map[string]any{"pawnId": pawnID, "need": "NEED_JOY"}})
+		return na.ApplyOne(ctx, h, label, identity, label, map[string]any{"giveJob": map[string]any{"pawn": map[string]any{"id": pawnID}, "options": map[string]any{"relieveNeed": "NEED_JOY"}}})
 	}
 	issued := func(label, pawnID string, result map[string]any, want bool) error {
 		job, err := na.AppliedJob(label, result)

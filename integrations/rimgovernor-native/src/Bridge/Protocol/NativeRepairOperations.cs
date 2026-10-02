@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PawnOrderIntent kind REPAIR (#939), the bounded repair response of
+    // GiveJobIntent Repair (#939), the bounded repair response of
     // MaintainEssentialRepairs: an exact damaged player building, an
     // undrafted eligible worker who can reach it and needs no tending,
     // WorkGiver_Repair's own HasJobOnThing (home area, reservable, not
@@ -21,10 +21,10 @@ namespace HomeBridge.BridgeTools
     {
         private static bool Running(Pawn pawn, Thing target) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Repair && pawn.CurJob.targetA.Thing == target;
 
-        private static Common.Failure? Resolve(Operations.PawnOrderIntent intent, Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
+        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
         {
             pawn = null; building = null; job = null;
-            var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
             if (snapshot!.Drafted || !snapshot.Eligible)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Repair requires an eligible undrafted pawn.");
@@ -48,17 +48,17 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.PawnOrderIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.PawnOrderIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var building, out var result);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, building!)) return NativePawnOrderIntent.Evidence(pawn!, building!, pawn!.CurJob, false);
+            if (Running(pawn!, building!)) return NativeGiveJob.Evidence(pawn!, building!, pawn!.CurJob, false);
             var job = result!.Job;
             if (!pawn!.jobs.TryTakeOrderedJobPrioritizedWork(job, result.Scanner, building!.Position) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
                 throw new InvalidOperationException("The pawn did not take the repair job.");
-            return NativePawnOrderIntent.Evidence(pawn, building, job, true);
+            return NativeGiveJob.Evidence(pawn, building, job, true);
         }
     }
 }

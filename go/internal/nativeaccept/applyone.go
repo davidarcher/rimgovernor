@@ -6,6 +6,16 @@ import (
 	"strings"
 )
 
+// GiveJob is the GiveJobIntent (#1352) of pawn taking the vanilla JobDef
+// job on targets, in job target order.
+func GiveJob(pawn, job string, targets ...string) map[string]any {
+	refs := make([]any, 0, len(targets))
+	for _, t := range targets {
+		refs = append(refs, map[string]any{"id": t})
+	}
+	return map[string]any{"giveJob": map[string]any{"pawn": map[string]any{"id": pawn}, "job": job, "targets": refs}}
+}
+
 // ApplyOne sends one Actions/Apply intent under key and returns its result:
 // a map holding "applied" (a receipt) or "refused" (code, reason).
 func ApplyOne(ctx context.Context, h *Harness, label string, identity map[string]any, key string, intent map[string]any) (map[string]any, error) {

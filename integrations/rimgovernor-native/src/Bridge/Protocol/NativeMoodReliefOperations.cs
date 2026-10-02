@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The NeedReliefIntent arm of Actions/Apply (#939), EnsureMood-* relief.
+    // GiveJobIntent options.relieve_need (#939, #1352), EnsureMood-* relief.
     // Never changes needs, thoughts, timetables, restrictions, traits,
     // ideology or mental states; only offers one ordinary native food, rest
     // or recreation job to an undrafted colonist, checked live at apply. A
@@ -62,44 +62,44 @@ namespace HomeBridge.BridgeTools
             }
         };
 
-        private static Common.Failure? Resolve(Operations.NeedReliefIntent? intent, Common.ObservationContext context, out Pawn? pawn, out ThinkNode_JobGiver? giver)
+        private static Common.Failure? Resolve(string pawnId, Operations.Need need, Common.ObservationContext context, out Pawn? pawn, out ThinkNode_JobGiver? giver)
         {
             pawn = null; giver = null;
-            if (intent == null || !intent.HasPawnId || !ProtoBoundary.IsIdentifier(intent.PawnId) || !intent.HasNeed || intent.Need == Operations.Need.Unspecified)
+            if (!ProtoBoundary.IsIdentifier(pawnId) || need == Operations.Need.Unspecified)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Need relief requires a pawn id and a need.");
-            pawn = ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.ById(intent.PawnId);
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.ById(pawnId);
             if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
             if (pawn.Dead || pawn.Downed || pawn.Drafted || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn unavailable, drafted or in an active mental break.");
-            if (Running(pawn, intent.Need)) return null;
+            if (Running(pawn, need)) return null;
             if (HealthAIUtility.ShouldSeekMedicalRest(pawn))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Medical rest takes precedence.");
             if (!pawn.jobs.IsCurrentJobPlayerInterruptible() || pawn.carryTracker?.CarriedThing != null || pawn.IsBurning())
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current job, carried cargo or fire prevents safe interruption.");
-            var level = NeedLevel(pawn, intent.Need);
+            var level = NeedLevel(pawn, need);
             if (level == null || level >= 0.5f)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Need is absent or no longer deficient.");
-            giver = Giver(intent.Need);
+            giver = Giver(need);
             if (giver == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Unknown need.");
             var assignment = pawn.timetable?.CurrentAssignment;
-            if (intent.Need == Operations.Need.Joy
+            if (need == Operations.Need.Joy
                     ? assignment != TimeAssignmentDefOf.Anything && assignment != TimeAssignmentDefOf.Joy
                     : giver.GetPriority(pawn) <= 0)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native need priority or player timetable prevents recovery now.");
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.NeedReliefIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static Common.Failure? Validate(string pawnId, Operations.Need need, Common.ObservationContext context) => Resolve(pawnId, need, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.NeedReliefIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(string pawnId, Operations.Need need, Common.ObservationContext context)
         {
-            var failure = Resolve(intent, context, out var pawn, out var giver);
+            var failure = Resolve(pawnId, need, context, out var pawn, out var giver);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, intent.Need)) return Evidence(pawn!, pawn!.CurJob, false);
+            if (Running(pawn!, need)) return Evidence(pawn!, pawn!.CurJob, false);
             giver!.ResolveReferences();
             var job = giver.TryIssueJobPackage(pawn!, default(JobIssueParams)).Job;
             if (job == null) throw new InvalidOperationException("No eligible native need job; inspect access, resources and recreation tolerance.");
-            if (intent.Need == Operations.Need.Food && job.def != JobDefOf.Ingest)
+            if (need == Operations.Need.Food && job.def != JobDefOf.Ingest)
                 throw new InvalidOperationException("Food recovery requires an available ingestible; production remains a separate goal.");
             if (job.targetA.IsValid && (!pawn!.CanReach(job.targetA, PathEndMode.Touch, Danger.None) || job.targetA.Cell.IsForbidden(pawn)))
                 throw new InvalidOperationException("Need target is not safely reachable under current restrictions.");
@@ -109,11 +109,5 @@ namespace HomeBridge.BridgeTools
             if (pawn.CurJob != job) throw new InvalidOperationException("The pawn did not start the need job.");
             return Evidence(pawn, job, true);
         }
-    }
-
-    internal sealed class NeedReliefActionHandler : IActionHandler
-    {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeMoodReliefOperations.Validate(action.NeedRelief, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeMoodReliefOperations.Apply(action.NeedRelief, context);
     }
 }

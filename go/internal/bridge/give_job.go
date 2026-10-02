@@ -6,15 +6,47 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// pawnOrderIntent is the PawnOrderIntent of one pawn, one target and one
-// order kind. Native checks both live and builds the game's own job; a pawn
-// already running it on the target applies again.
-func pawnOrderIntent(pawn domain.PawnID, target string, kind o.PawnOrderKind) (*o.Action, error) {
-	if validID(string(pawn)) != nil || validID(target) != nil || string(pawn) == target {
-		return nil, contract("pawn order intent requires a distinct pawn and target")
+// Vanilla JobDef names a GiveJobIntent orders (#1352).
+const (
+	JobRepair      = "Repair"
+	JobClean       = "Clean"
+	JobOpen        = "Open"
+	JobTendPatient = "TendPatient"
+	JobEquip       = "Equip"
+	JobWear        = "Wear"
+	JobRescue      = "Rescue"
+	JobCapture     = "Capture"
+	JobArrest      = "Arrest"
+	JobAttackMelee = "AttackMelee"
+	JobUseItem     = "UseItem"
+)
+
+// giveJob is the GiveJobIntent of one pawn, one vanilla job and its targets
+// in job target order. Native checks the game rules live and builds the
+// game's own job; a pawn already running it on the targets applies again.
+func giveJob(pawn domain.PawnID, job string, targets ...string) (*o.Action, error) {
+	if validID(string(pawn)) != nil || validID(job) != nil || len(targets) == 0 {
+		return nil, contract("give job intent requires a pawn, a job and a target")
 	}
-	return &o.Action{Intent: &o.Action_PawnOrder{PawnOrder: &o.PawnOrderIntent{
-		PawnId: proto.String(string(pawn)), TargetId: proto.String(target), Kind: kind.Enum()}}}, nil
+	for _, t := range targets {
+		if validID(t) != nil || t == string(pawn) {
+			return nil, contract("give job intent requires valid targets distinct from the pawn")
+		}
+	}
+	return &o.Action{Intent: &o.Action_GiveJob{GiveJob: &o.GiveJobIntent{
+		Pawn: NewRef(string(pawn)), Job: proto.String(job), Targets: NewRefs(targets)}}}, nil
+}
+
+// PrioritizedJob is the vanilla "Prioritize" order (#1352): pawn takes job
+// (a JobDef name such as FinishFrame, HaulToContainer or Deconstruct) on
+// target as a player-forced order, built by the first work giver the pawn
+// may do that makes exactly that job.
+func PrioritizedJob(pawn domain.PawnID, job, target string) (*o.Action, error) {
+	out, err := giveJob(pawn, job, target)
+	if err == nil {
+		out.GetGiveJob().Options = &o.GiveJobOptions{Prioritized: proto.Bool(true)}
+	}
+	return out, err
 }
 
 // draftAction drafts one plan-owned pawn (#939).
@@ -40,7 +72,7 @@ func subdueAction(action domain.Action) (*o.Action, error) {
 	if !ok {
 		return nil, contract("not a subdue action")
 	}
-	return pawnOrderIntent(v.Pawn(), string(v.Target()), o.PawnOrderKind_PAWN_ORDER_KIND_SUBDUE)
+	return giveJob(v.Pawn(), JobAttackMelee, string(v.Target()))
 }
 
 func repairAction(action domain.Action) (*o.Action, error) {
@@ -48,7 +80,7 @@ func repairAction(action domain.Action) (*o.Action, error) {
 	if !ok {
 		return nil, contract("not a repair action")
 	}
-	return pawnOrderIntent(v.Pawn(), v.Structure(), o.PawnOrderKind_PAWN_ORDER_KIND_REPAIR)
+	return giveJob(v.Pawn(), JobRepair, v.Structure())
 }
 
 func cleanAction(action domain.Action) (*o.Action, error) {
@@ -56,7 +88,7 @@ func cleanAction(action domain.Action) (*o.Action, error) {
 	if !ok {
 		return nil, contract("not a clean action")
 	}
-	return pawnOrderIntent(v.Pawn(), v.Filth(), o.PawnOrderKind_PAWN_ORDER_KIND_CLEAN)
+	return giveJob(v.Pawn(), JobClean, v.Filth())
 }
 
 func openCasketAction(action domain.Action) (*o.Action, error) {
@@ -64,7 +96,7 @@ func openCasketAction(action domain.Action) (*o.Action, error) {
 	if !ok {
 		return nil, contract("not an open casket action")
 	}
-	return pawnOrderIntent(v.Pawn(), v.Casket(), o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET)
+	return giveJob(v.Pawn(), JobOpen, v.Casket())
 }
 
 func tendAction(action domain.Action) (*o.Action, error) {
@@ -72,7 +104,7 @@ func tendAction(action domain.Action) (*o.Action, error) {
 	if !ok {
 		return nil, contract("not a tend action")
 	}
-	return pawnOrderIntent(v.Doctor(), string(v.Patient()), o.PawnOrderKind_PAWN_ORDER_KIND_TEND)
+	return giveJob(v.Doctor(), JobTendPatient, string(v.Patient()))
 }
 
 func equipAction(action domain.Action) (*o.Action, error) {
@@ -80,7 +112,7 @@ func equipAction(action domain.Action) (*o.Action, error) {
 	if !ok {
 		return nil, contract("not an equip action")
 	}
-	return pawnOrderIntent(v.Pawn(), v.Thing(), o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP)
+	return giveJob(v.Pawn(), JobEquip, v.Thing())
 }
 
 func rescueAction(action domain.Action) (*o.Action, error) {
@@ -88,7 +120,7 @@ func rescueAction(action domain.Action) (*o.Action, error) {
 	if !ok {
 		return nil, contract("not a rescue action")
 	}
-	return pawnOrderIntent(v.Rescuer(), string(v.Patient()), o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE)
+	return giveJob(v.Rescuer(), JobRescue, string(v.Patient()))
 }
 
 // captureAction orders a capture of a downed pawn, or, with a bed, an arrest
@@ -99,16 +131,12 @@ func captureAction(action domain.Action) (*o.Action, error) {
 		return nil, contract("not a capture action")
 	}
 	if !v.Arrest() {
-		return pawnOrderIntent(v.Capturer(), string(v.Patient()), o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE)
+		return giveJob(v.Capturer(), JobCapture, string(v.Patient()))
 	}
 	if validID(v.Bed()) != nil {
 		return nil, contract("arrest intent requires a valid bed")
 	}
-	out, err := pawnOrderIntent(v.Capturer(), string(v.Patient()), o.PawnOrderKind_PAWN_ORDER_KIND_ARREST)
-	if err == nil {
-		out.GetPawnOrder().BedId = proto.String(v.Bed())
-	}
-	return out, err
+	return giveJob(v.Capturer(), JobArrest, string(v.Patient()), v.Bed())
 }
 
 // wearAction orders a pawn to wear one loose apparel item as ordered work,
@@ -118,26 +146,25 @@ func wearAction(action domain.Action) (*o.Action, error) {
 	if !ok {
 		return nil, contract("not a gear replace action")
 	}
-	return pawnOrderIntent(v.Pawn(), v.Thing(), o.PawnOrderKind_PAWN_ORDER_KIND_WEAR)
+	return giveJob(v.Pawn(), JobWear, v.Thing())
 }
 
-// useItemAction is the UseItemIntent (#1038): one colonist uses one
-// targetable item (a worn lance's verb, a CompTargetable item) on one pawn;
-// native validates the verb or use comp against the target live.
+// useItemAction (#1038): one colonist uses one targetable item (a worn
+// lance's verb, a CompTargetable item) on one pawn; native validates the
+// verb or use comp against the target live.
 func useItemAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.UseItem()
 	if !ok {
 		return nil, contract("not a use item action")
 	}
-	if validID(string(v.Pawn())) != nil || validID(v.Item()) != nil || validID(string(v.Target())) != nil || v.Pawn() == v.Target() {
-		return nil, contract("use item intent requires a distinct pawn, item and target")
+	if v.Item() == string(v.Target()) {
+		return nil, contract("use item intent requires a distinct item and target")
 	}
-	return &o.Action{Intent: &o.Action_UseItem{UseItem: &o.UseItemIntent{
-		PawnId: proto.String(string(v.Pawn())), ItemId: proto.String(v.Item()), TargetId: proto.String(string(v.Target()))}}}, nil
+	return giveJob(v.Pawn(), JobUseItem, v.Item(), string(v.Target()))
 }
 
-// moodReliefAction is the NeedReliefIntent: native offers the pawn the job
-// its own need giver issues, checked live.
+// moodReliefAction offers the pawn the job its own need giver issues for
+// one deficient need, checked live; the giver picks the target.
 func moodReliefAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.MoodRelief()
 	if !ok {
@@ -157,5 +184,6 @@ func moodReliefAction(action domain.Action) (*o.Action, error) {
 	if validID(string(v.Pawn())) != nil {
 		return nil, contract("mood relief intent requires a valid pawn")
 	}
-	return &o.Action{Intent: &o.Action_NeedRelief{NeedRelief: &o.NeedReliefIntent{PawnId: proto.String(string(v.Pawn())), Need: need.Enum()}}}, nil
+	return &o.Action{Intent: &o.Action_GiveJob{GiveJob: &o.GiveJobIntent{
+		Pawn: NewRef(string(v.Pawn())), Options: &o.GiveJobOptions{RelieveNeed: need.Enum()}}}}, nil
 }

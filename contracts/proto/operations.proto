@@ -216,7 +216,6 @@ enum PrisonerInteraction {
   PRISONER_INTERACTION_UNSPECIFIED = 0; PRISONER_INTERACTION_ATTEMPT_RECRUIT = 1; PRISONER_INTERACTION_MAINTAIN_ONLY = 2;
   PRISONER_INTERACTION_REDUCE_RESISTANCE = 3; PRISONER_INTERACTION_RELEASE = 4; PRISONER_INTERACTION_ENSLAVE = 5; PRISONER_INTERACTION_CONVERT = 6;
 }
-enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_ARREST = 12; PAWN_ORDER_KIND_WEAR = 13; PAWN_ORDER_KIND_SUBDUE = 14; reserved 5, 6, 10, 11; reserved "PAWN_ORDER_KIND_HAUL", "PAWN_ORDER_KIND_WORK"; }
 // Trade steps, sent as TradeIntent through Actions/Apply, act on RimWorld's
 // one live trade session. Native validates each against live state when it
 // applies and refuses with a reason when the session is gone or held by a
@@ -271,8 +270,8 @@ message Action {
   // the jobs, blueprints and designations the apply places and the
   // "activity" overlay shows it over the pawn; it never changes the apply.
   optional string purpose = 2;
-  // Melee attacks are combat orders; subdue is PawnOrderIntent SUBDUE (#939).
-  reserved 14, 26, 27, 28, 29, 31; reserved "melee", "home", "create_zone", "delete_zone", "zone_cells", "stockpile";
+  // Melee attacks are combat orders; subdue is GiveJobIntent AttackMelee.
+  reserved 14, 26, 27, 28, 29, 31, 41, 42, 43; reserved "melee", "home", "create_zone", "delete_zone", "zone_cells", "stockpile", "pawn_order", "need_relief", "use_item";
   oneof intent {
     TradeIntent trade = 10;
     BuildingIntent building = 11;
@@ -301,9 +300,7 @@ message Action {
     RelocateIntent relocate = 38;
     BuildingPatchIntent building_patch = 39;
     RemoveWallIntent remove_wall = 40;
-    PawnOrderIntent pawn_order = 41;
-    NeedReliefIntent need_relief = 42;
-    UseItemIntent use_item = 43;
+    GiveJobIntent give_job = 59;
     DraftIntent draft = 44;
     CombatOrders combat_orders = 45;
     AcquireIntent acquire = 46;
@@ -435,30 +432,40 @@ message AcquireIntent { optional string source_id = 1; optional string resource_
 // controller drafts for a plan and undrafts any drafted colonist no live plan
 // needs. A pawn already in the wanted state applies again.
 message DraftIntent { optional string pawn_id = 1; optional bool drafted = 2; }
-// Order one pawn onto one target with the job the game's own work giver or
-// float menu builds for that kind (repair, clean, open a casket, tend,
-// equip, rescue, capture, arrest). Native checks the pawn and the target
-// live; a pawn already running that job on the target applies again.
-// Applied means ordered, not finished; the next census reads the outcome.
-// ARREST alone names bed_id, the exact prisoner bed; it needs an armed,
-// drafted arrester and a target in an arrestable mental state. SUBDUE puts
-// the pawn (drafted if it is not) on a blunt containment melee attack on an
-// aggressive colonist, ending once the target is downed or out of the break.
-message PawnOrderIntent { optional string pawn_id = 1; optional string target_id = 2; optional PawnOrderKind kind = 3; optional string bed_id = 4; }
-// Offer one undrafted colonist the ordinary native job for one deficient
-// need (food, rest or recreation), the job its own need giver issues.
-// Native checks the pawn, its current job, timetable and the need live; a
-// pawn already running the need's job applies again. Applied means the job
-// was started; the next census reads the need.
-message NeedReliefIntent { optional string pawn_id = 1; optional Need need = 2; }
-// Order one colonist to use one targetable item on one pawn (#1038): the
-// target verb of an item the pawn wears or equips (Verb_CastTargetEffect,
-// the psychic shock and insanity lances), or the use job of a CompTargetable
-// item. Native checks the pawn is a player-controlled colonist able to use
-// it, the verb's charges and its own ValidateTarget (or the comp's target
-// check) live; a pawn already running that job on the target applies again.
-// Applied means ordered, not cast; the next census reads the target.
-message UseItemIntent { optional string pawn_id = 1; optional string item_id = 2; optional string target_id = 3; }
+// Give one pawn one job (#1352): job names a vanilla JobDef, targets the
+// things it acts on in JobDef target order (targetA, targetB, ...). Go
+// chooses the pawn and the targets; native checks the game rules
+// (reservation, reachability, CanDoJob, the job's own preconditions) live
+// and builds the job the game's work giver or float menu builds. A pawn
+// already running that job on those targets applies again. Applied means
+// ordered, not finished; the next census reads the outcome. Evidence is the
+// JobEffect.
+//   Repair, Clean, Open (a casket), TendPatient, Equip, Wear, Rescue and
+//   Capture: targets [target]. Arrest: targets [target, prisoner bed]; it
+//   needs an armed, drafted arrester and a target in an arrestable mental
+//   state. AttackMelee: a blunt containment attack on an aggressive
+//   colonist (drafting the pawn if it is not), ending once the target is
+//   downed or out of the break; drafted combat is CombatOrders.
+//   UseItem: targets [item, target pawn]; the target verb of an item the
+//   pawn wears or equips (Verb_CastTargetEffect) or the use job of a
+//   CompTargetable item, each with its own target checks.
+// options.relieve_need with no job offers an undrafted colonist the job its
+// own need giver issues for that deficient need (food, rest, recreation);
+// the giver picks the target, a timetable or medical rest refuses it.
+// options.prioritized is the vanilla "Prioritize" order for any other job
+// (FinishFrame, HaulToContainer to a blueprint or frame, Deconstruct, ...):
+// the first work giver the pawn may do that builds exactly this JobDef on
+// targets[0] with forced set builds it, and the pawn takes it as a
+// player-forced order.
+message GiveJobOptions { optional bool prioritized = 1; optional Need relieve_need = 2; }
+message GiveJobIntent {
+  rimgovernor.common.v1.Ref pawn = 1;
+  optional string job = 2;
+  repeated rimgovernor.common.v1.Ref targets = 3;
+  repeated rimgovernor.common.v1.Cell cells = 4;
+  optional int32 count = 5;
+  GiveJobOptions options = 6;
+}
 // Place the one designation (Mine, CutPlant, Haul or Deconstruct) that
 // removes the raider cover thing_id standing at cell. Native checks the
 // thing, its kind, the kind's safety rule, the game designator and a

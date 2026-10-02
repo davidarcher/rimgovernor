@@ -167,7 +167,7 @@ and forced/locked state. It rechecks eligibility at dispatch and starts ordinary
 preserved. Production also rechecks the retained pawn/loadout prerequisite and
 available replacements before adding its bill.
 
-On Actions/Apply the apparel order is a `PawnOrderIntent` of kind `WEAR`
+On Actions/Apply the apparel order is a `GiveJobIntent` with job `Wear`
 (#939, `NativeGearOperations`). Native checks the pawn, the apparel and a
 material native gain live, then issues the `Wear` job as ordered (not forced)
 work. A pawn already wearing the apparel or walking to it applies again.

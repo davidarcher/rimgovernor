@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     internal static class WorkGiverDispatch
     {
-        internal static WorkGiverJobResult? TryJob(Pawn? pawn, Thing? thing, Func<WorkGiverDef, bool> accept, out string? failReason)
+        internal static WorkGiverJobResult? TryJob(Pawn? pawn, Thing? thing, Func<WorkGiverDef, bool> accept, out string? failReason, JobDef? jobDef = null)
         {
             failReason = null;
             List<WorkTypeDef> types;
@@ -78,7 +78,7 @@ namespace HomeBridge.BridgeTools
                         var job = BridgeCommon.Try<Job?>(
                             () => scanner.HasJobOnThing(pawn, thing, true) ? scanner.JobOnThing(pawn, thing, true) : null,
                             null);
-                        if (job == null)
+                        if (job == null || (jobDef != null && job.def != jobDef))
                             continue;
 
                         try { job.workGiverDef = scanner.def; } catch { }

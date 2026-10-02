@@ -14,8 +14,8 @@ const shockLance = "Apparel_PsychicShockLance"
 func init() {
 	cases.Register(cases.Case{
 		Name: "combatlab/shock-lance",
-		Scope: "UseItemIntent on Actions/Apply (#1038), a native op contract and vanilla hediff physics no snapshot can prove: on lab-open cut to one club raider, " +
-			"colonist 0 wears a psychic shock lance; one Actions/Apply use_item of the worn lance on the raider applies, the colonist takes the verb's " +
+		Scope: "GiveJobIntent UseItem on Actions/Apply (#1038), a native op contract and vanilla hediff physics no snapshot can prove: on lab-open cut to one club raider, " +
+			"colonist 0 wears a psychic shock lance; one Actions/Apply UseItem job of the worn lance on the raider applies, the colonist takes the verb's " +
 			"UseVerbOnThingStatic job on the raider, and within 1200 ticks the raider is down with PsychicShock and alive. The planner's choice of target " +
 			"and wearer is the policy test (population_lance_test.go).",
 		Start:       cases.Lab{Colonists: 3},
@@ -74,7 +74,7 @@ func runShockLance(ctx context.Context, s cases.Session) error {
 	}
 	reply, err := h.Wire(ctx, "lance-apply", "operations_apply", map[string]any{
 		"identity": s.Identity(),
-		"actions":  []any{map[string]any{"key": "lance-1", "useItem": map[string]any{"pawnId": user, "itemId": lance, "targetId": raider}}},
+		"actions":  []any{map[string]any{"key": "lance-1", "giveJob": na.GiveJob(user, "UseItem", lance, raider)["giveJob"]}},
 	})
 	if err != nil {
 		return err

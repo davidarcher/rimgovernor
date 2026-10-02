@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PawnOrderIntent kind TEND (#939), the doctor dispatch of
+    // GiveJobIntent TendPatient (#939), the doctor dispatch of
     // MaintainMedicalCare and CriticalMedical. First WorkGiver_Tend's own
     // JobOnThing, which is what "Prioritize tending X" issues for a patient
     // in a bed and chooses the medicine; when that yields nothing and the
@@ -29,10 +29,10 @@ namespace HomeBridge.BridgeTools
 
         // Resolve names the first gate the order fails and builds the job it
         // would issue.
-        private static Common.Failure? Resolve(Operations.PawnOrderIntent intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Job? job)
+        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Job? job)
         {
             patient = null; job = null;
-            var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
             if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Tend requires an eligible doctor.");
             var map = ProtoBoundary.LoadedMap(context);
@@ -73,16 +73,16 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.PawnOrderIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.PawnOrderIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var patient, out var job);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, patient!)) return NativePawnOrderIntent.Evidence(pawn!, patient!, pawn!.CurJob, false);
+            if (Running(pawn!, patient!)) return NativeGiveJob.Evidence(pawn!, patient!, pawn!.CurJob, false);
             if (!pawn!.jobs.TryTakeOrderedJob(job!, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job!.loadID)
                 throw new InvalidOperationException("The doctor did not take the tend job.");
-            return NativePawnOrderIntent.Evidence(pawn, patient!, job, true);
+            return NativeGiveJob.Evidence(pawn, patient!, job, true);
         }
     }
 }

@@ -16,10 +16,10 @@ namespace HomeBridge.BridgeTools
     // is drafted when it is not; the plan's draft keeps it drafted.
     internal static class NativeSubdueOperations
     {
-        internal static Common.Failure? Resolve(Operations.PawnOrderIntent intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? target)
+        internal static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? target)
         {
             target = null;
-            var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
             target = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.TargetId);
             if (target == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Subdue target is not spawned.");
@@ -31,18 +31,18 @@ namespace HomeBridge.BridgeTools
             return reason == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Subdue refused: " + reason);
         }
 
-        internal static Common.Failure? Validate(Operations.PawnOrderIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.PawnOrderIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var victim);
             if (failure != null) throw new InvalidOperationException("Subdue prerequisites changed before apply: " + failure.Detail);
-            if (Running(pawn!, victim!)) return NativePawnOrderIntent.Evidence(pawn!, victim!, pawn!.CurJob, false);
+            if (Running(pawn!, victim!)) return NativeGiveJob.Evidence(pawn!, victim!, pawn!.CurJob, false);
             if (!pawn!.drafter.Drafted) pawn.drafter.Drafted = true;
             if (!pawn.drafter.Drafted) throw new InvalidOperationException("Subduer could not be drafted.");
             var job = MakeJob(pawn, victim!);
             if (!Take(pawn, job, victim!)) throw new InvalidOperationException("Native subdue job was not taken.");
-            return NativePawnOrderIntent.Evidence(pawn, victim!, job, true);
+            return NativeGiveJob.Evidence(pawn, victim!, job, true);
         }
 
         private static bool Running(Pawn pawn, Pawn target) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.AttackMelee && ReferenceEquals(pawn.CurJob.targetA.Thing, target);

@@ -1,5 +1,5 @@
 // The custody/population case exercises population custody (G01.07e, issue
-// #27): the CAPTURE and RESCUE PawnOrderIntents on Actions/Apply (#939), the
+// #27): the Capture and Rescue GiveJobIntents on Actions/Apply (#939), the
 // same intents bridge's captureAction and rescueAction send. A downed
 // hostile is actually captured into prisoner custody and a downed,
 // unadmitted friendly guest is actually rescued into an ordinary bed --
@@ -26,7 +26,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "custody/population",
-		Scope: "Population custody through PawnOrderIntents on Actions/Apply: an actual Capture job carries a downed hostile " +
+		Scope: "Population custody through GiveJobIntents on Actions/Apply: an actual Capture job carries a downed hostile " +
 			"into prisoner custody and an actual Rescue job carries a downed unadmitted guest into an ordinary bed, " +
 			"with live refusals (capture of a non-hostile guest, a missing patient), a resend that applies again without " +
 			"a second job, and real roster/status change observed via native ticks. The captured prisoner then " +
@@ -109,7 +109,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return row, nil
 	}
 	order := func(targetID, kind string) map[string]any {
-		return map[string]any{"pawnOrder": map[string]any{"pawnId": capturerID, "targetId": targetID, "kind": kind}}
+		return na.GiveJob(capturerID, kind, targetID)
 	}
 	// ordered applies one custody intent, checks it issued jobDef, then
 	// resends it and checks the resend applies without a second job.
@@ -165,14 +165,14 @@ func run(ctx context.Context, s cases.Session) error {
 
 	// Refusals, checked live at apply: a non-hostile guest cannot be
 	// captured, and an absent patient is not found.
-	friendly, err := na.ApplyOne(ctx, h, "apply-capture-guest", identity, "custody-capture-guest", order(visitorID, "PAWN_ORDER_KIND_CAPTURE"))
+	friendly, err := na.ApplyOne(ctx, h, "apply-capture-guest", identity, "custody-capture-guest", order(visitorID, "Capture"))
 	if err != nil {
 		return err
 	}
 	if err := na.Refused("capture-guest", friendly, "Capture refused"); err != nil {
 		return err
 	}
-	missing, err := na.ApplyOne(ctx, h, "apply-capture-missing", identity, "custody-capture-missing", order("Thing_NoSuchPatient", "PAWN_ORDER_KIND_CAPTURE"))
+	missing, err := na.ApplyOne(ctx, h, "apply-capture-missing", identity, "custody-capture-missing", order("Thing_NoSuchPatient", "Capture"))
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("apply-capture-missing: expected a NOT_FOUND refusal, got %#v", missing)
 	}
 
-	if err := ordered("custody-capture", candidateID, "PAWN_ORDER_KIND_CAPTURE", "Capture"); err != nil {
+	if err := ordered("custody-capture", candidateID, "Capture", "Capture"); err != nil {
 		return err
 	}
 	// Observe: run real game time forward until the candidate is actually a
@@ -370,7 +370,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if inBed, _ := na.AsBool(visitorRowBefore["inBed"]); inBed {
 		return fmt.Errorf("visitor-before: expected the fixture guest not yet admitted to a bed: %#v", visitorRowBefore)
 	}
-	if err := ordered("custody-rescue", visitorID, "PAWN_ORDER_KIND_RESCUE", "Rescue"); err != nil {
+	if err := ordered("custody-rescue", visitorID, "Rescue", "Rescue"); err != nil {
 		return err
 	}
 	if err := until("observe-rescue", visitorID, func(row map[string]any) bool {

@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PawnOrderIntent kind EQUIP (#939): FloatMenuOptionProvider_Equip's
+    // GiveJobIntent Equip (#939): FloatMenuOptionProvider_Equip's
     // gates in order, then the exact JobDefOf.Equip job a player's float-menu
     // click would produce. Equip applies no draft gate, so this checks pawn
     // eligibility but not Drafted. Checked live at apply; a pawn already
@@ -23,10 +23,10 @@ namespace HomeBridge.BridgeTools
         private static bool Holds(Pawn pawn, Thing weapon) => ReferenceEquals(pawn.equipment?.Primary, weapon);
         private static bool Running(Pawn pawn, Thing weapon) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Equip && pawn.CurJob.targetA.Thing == weapon;
 
-        private static Common.Failure? Resolve(Operations.PawnOrderIntent intent, Common.ObservationContext context, out Pawn? pawn, out Thing? weapon)
+        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Thing? weapon)
         {
             weapon = null;
-            var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
             if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an eligible pawn.");
             var map = ProtoBoundary.LoadedMap(context);
@@ -50,20 +50,20 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.PawnOrderIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.PawnOrderIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var weapon);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, weapon!)) return NativePawnOrderIntent.Evidence(pawn!, weapon!, pawn!.CurJob, false);
+            if (Running(pawn!, weapon!)) return NativeGiveJob.Evidence(pawn!, weapon!, pawn!.CurJob, false);
             var job = JobMaker.MakeJob(JobDefOf.Equip, weapon);
-            if (Holds(pawn!, weapon!)) return NativePawnOrderIntent.Evidence(pawn!, weapon!, job, false);
+            if (Holds(pawn!, weapon!)) return NativeGiveJob.Evidence(pawn!, weapon!, job, false);
             // Equipping a weapon at the pawn's own feet can complete within
             // the call; the weapon in hand counts as taken.
             if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !Holds(pawn, weapon!) && (pawn.CurJob == null || pawn.CurJob.loadID != job.loadID))
                 throw new InvalidOperationException("The pawn did not take the equip job.");
-            return NativePawnOrderIntent.Evidence(pawn, weapon!, job, true);
+            return NativeGiveJob.Evidence(pawn, weapon!, job, true);
         }
     }
 }

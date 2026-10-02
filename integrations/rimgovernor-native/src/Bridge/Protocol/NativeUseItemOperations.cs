@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The UseItemIntent arm of Actions/Apply (#1038): one player-controlled
+    // GiveJobIntent UseItem (#1038, #1352): one player-controlled
     // colonist uses one targetable item on one spawned pawn. Two native
     // shapes are generic here:
     //  - an item the pawn wears or equips whose verb is a
@@ -63,20 +63,20 @@ namespace HomeBridge.BridgeTools
                 : job.targetA.Thing == item && job.targetB.Thing == target && job.def == (item as ThingWithComps)?.TryGetComp<CompUsable>()?.Props.useJob;
         }
 
-        private static Common.Failure? Resolve(Operations.UseItemIntent? intent, Common.ObservationContext context, out Pawn? pawn, out Thing? item, out Pawn? target, out Verb? verb, out CompUsable? usable)
+        private static Common.Failure? Resolve(string pawnId, string itemId, string targetId, Common.ObservationContext context, out Pawn? pawn, out Thing? item, out Pawn? target, out Verb? verb, out CompUsable? usable)
         {
             pawn = null; item = null; target = null; verb = null; usable = null;
-            if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.ItemId) || !ProtoBoundary.IsIdentifier(intent.TargetId) || intent.PawnId == intent.TargetId)
+            if (!ProtoBoundary.IsIdentifier(pawnId) || !ProtoBoundary.IsIdentifier(itemId) || !ProtoBoundary.IsIdentifier(targetId) || pawnId == targetId)
                 return Fail(Common.FailureCode.InvalidRequest, "Use item requires distinct pawn, item and target ids.");
             var map = ProtoBoundary.LoadedMap(context);
-            pawn = map.mapPawns.FreeColonistsSpawned.ById(intent.PawnId);
+            pawn = map.mapPawns.FreeColonistsSpawned.ById(pawnId);
             if (pawn == null) return Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
             if (pawn.Dead || pawn.Downed || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
                 return Fail(Common.FailureCode.InvalidRequest, "Colonist is not player-controlled and able.");
-            target = map.mapPawns.AllPawnsSpawned.ById(intent.TargetId);
+            target = map.mapPawns.AllPawnsSpawned.ById(targetId);
             if (target == null) return Fail(Common.FailureCode.NotFound, "Exact target pawn is not spawned on this map.");
             if (target.Dead) return Fail(Common.FailureCode.InvalidRequest, "Target is dead.");
-            verb = HeldVerb(pawn, intent.ItemId, out item);
+            verb = HeldVerb(pawn, itemId, out item);
             if (verb != null)
             {
                 if (Running(pawn, item!, target, verb)) return null;
@@ -88,8 +88,8 @@ namespace HomeBridge.BridgeTools
                     return Fail(Common.FailureCode.InvalidRequest, "Item verb refuses this target.");
                 return null;
             }
-            var thing = RefIndex.Thing(map, intent.ItemId)
-                ?? pawn.inventory?.innerContainer.ById(intent.ItemId);
+            var thing = RefIndex.Thing(map, itemId)
+                ?? pawn.inventory?.innerContainer.ById(itemId);
             item = thing;
             var targetable = (thing as ThingWithComps)?.GetComps<CompTargetable>().FirstOrDefault();
             usable = (thing as ThingWithComps)?.TryGetComp<CompUsable>();
@@ -112,11 +112,11 @@ namespace HomeBridge.BridgeTools
             }
         };
 
-        internal static Common.Failure? Validate(Operations.UseItemIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _, out _, out _);
+        internal static Common.Failure? Validate(string pawnId, string itemId, string targetId, Common.ObservationContext context) => Resolve(pawnId, itemId, targetId, context, out _, out _, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.UseItemIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(string pawnId, string itemId, string targetId, Common.ObservationContext context)
         {
-            var failure = Resolve(intent, context, out var pawn, out var item, out var target, out var verb, out var usable);
+            var failure = Resolve(pawnId, itemId, targetId, context, out var pawn, out var item, out var target, out var verb, out var usable);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             if (Running(pawn!, item!, target!, verb)) return Evidence(pawn!, target!, pawn!.CurJob, false);
             if (verb != null) verb.OrderForceTarget(target);
@@ -128,11 +128,5 @@ namespace HomeBridge.BridgeTools
             if (!Running(pawn!, item!, target!, verb)) throw new InvalidOperationException("The colonist did not take the use job.");
             return Evidence(pawn!, target!, pawn!.CurJob, true);
         }
-    }
-
-    internal sealed class UseItemActionHandler : IActionHandler
-    {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeUseItemOperations.Validate(action.UseItem, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeUseItemOperations.Apply(action.UseItem, context);
     }
 }

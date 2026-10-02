@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PawnOrderIntent kind OPEN_CASKET (#460, #939): the opener of
+    // GiveJobIntent Open (#460, #939): the opener of
     // ClearAncientShrine's melee lock runs the vanilla Open job on one filled
     // ancient cryptosleep casket. Opening one casket ejects every casket of
     // the shrine group, so a plan carries one order after the drafts and
@@ -33,10 +33,10 @@ namespace HomeBridge.BridgeTools
 
         private static bool Running(Pawn pawn, Thing casket) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Open && pawn.CurJob.targetA.Thing == casket;
 
-        private static Common.Failure? Resolve(Operations.PawnOrderIntent intent, Common.ObservationContext context, out Pawn? pawn, out Building_AncientCryptosleepCasket? casket)
+        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building_AncientCryptosleepCasket? casket)
         {
             casket = null;
-            var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
+            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
             if (failure != null) return failure;
             if (!snapshot!.Eligible)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Opening a casket requires an eligible colonist.");
@@ -57,13 +57,13 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.PawnOrderIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.PawnOrderIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var casket);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, casket!)) return NativePawnOrderIntent.Evidence(pawn!, casket!, pawn!.CurJob, false);
+            if (Running(pawn!, casket!)) return NativeGiveJob.Evidence(pawn!, casket!, pawn!.CurJob, false);
             var map = casket!.Map;
             if (map.designationManager.DesignationOn(casket, DesignationDefOf.Open) == null)
                 map.designationManager.AddDesignation(new Designation(casket, DesignationDefOf.Open));
@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("The pawn did not take the Open job.");
             }
             pawn.jobs.curDriver.AddFinishAction(_ => { if (casket.HasAnyContents) Undesignate(casket); });
-            return NativePawnOrderIntent.Evidence(pawn, casket, job, true);
+            return NativeGiveJob.Evidence(pawn, casket, job, true);
         }
     }
 }

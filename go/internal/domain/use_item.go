@@ -6,7 +6,7 @@ import "errors"
 // (#1038): a worn or equipped item's target verb (the psychic shock and
 // insanity lances' Verb_CastTargetEffect) or a CompTargetable item's use
 // job. Native validates the user, the item's verb or use comp and the
-// target live when the UseItemIntent applies.
+// target live when the GiveJobIntent UseItem applies.
 type UseItem struct {
 	pawn, target PawnID
 	item         string

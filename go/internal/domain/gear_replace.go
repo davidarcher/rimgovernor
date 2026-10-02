@@ -4,7 +4,7 @@ import "errors"
 
 // GearReplace is explicit intent to wear one already-observed apparel or
 // weapon replacement already carried, produced or otherwise reachable by an
-// already-observed pawn. Native applies it as a PawnOrderIntent WEAR.
+// already-observed pawn. Native applies it as a GiveJobIntent Wear.
 // Native reachability, forced/locked gear and current outfit eligibility are
 // established at inspection, not here.
 type GearReplace struct {
