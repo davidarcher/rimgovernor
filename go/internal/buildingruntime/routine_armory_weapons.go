@@ -25,6 +25,9 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 	if !workable {
 		return RoutineArmoryResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	if !equipmentRanked(review) {
+		return RoutineArmoryResult{Reason: BuildingMethodNoDeficit}, nil
+	}
 	if _, refused, err := equipmentSlots(call, p, review); err != nil || refused != "" {
 		return RoutineArmoryResult{Reason: refused}, err
 	}

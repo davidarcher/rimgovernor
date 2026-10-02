@@ -171,6 +171,23 @@ func equipmentSlots(call context.Context, p *Player, review store.RoutineReview)
 	return limit, "", nil
 }
 
+// equipmentRanked: the review ranked MaintainEquipment. The ranking drops
+// the goal before its colony stage (raisedAtStage), so it has no row and no
+// slot, and a wear order or bill admitted for it is refused on every tick.
+// Settings writes hold no slot and go ahead regardless. A review with no
+// rows at all predates the ranking.
+func equipmentRanked(review store.RoutineReview) bool {
+	if len(review.Development.Rows) == 0 {
+		return true
+	}
+	for _, row := range review.Development.Rows {
+		if row.Goal == policy.MaintainEquipment {
+			return true
+		}
+	}
+	return false
+}
+
 func apparelPolicyPlan(spec domain.PlanSpec) bool {
 	for _, action := range spec.Actions() {
 		_, write := action.ApparelPolicy()
@@ -316,6 +333,9 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		if err != nil || result.Plan != "" {
 			return result, err
 		}
+	}
+	if !equipmentRanked(review) {
+		return RoutineGearResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {

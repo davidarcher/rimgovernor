@@ -285,6 +285,7 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	v.Planning.GetObserved().Gear = &o.GearSnapshot{Context: observedContext(), Pawns: []*o.GearLoadout{loadout("a", true, log), loadout("b", false)}}
 	n := &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}
 	reviewer.native = n
+	reviewer.policy.Stage.Floor = policy.StageStable // MaintainEquipment is raised from Stable
 	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -299,5 +300,29 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	}
 	if n.benchReads != 1 {
 		t.Fatal("bench census not consulted once the weapon was skipped", n.benchReads)
+	}
+}
+
+// Before its colony stage the ranking drops MaintainEquipment (no row, no
+// slot): the planner waits quietly instead of admitting a wear order or bill
+// that the development check refuses on every tick.
+func TestGearPlannerWaitsWhileTheGoalIsNotRaised(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	reviewer, _, _, _, native := routineFixture(t)
+	setGearProductionNeed(native.reply.GetObserved())
+	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
+	reviewer.native = n
+	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineGearPlanner(reviewer, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodNoDeficit {
+		t.Fatal(result, err)
 	}
 }
