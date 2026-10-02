@@ -1268,8 +1268,8 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	// cannot pass (walls, fences and turrets), not the traps, the safe
 	// lane's doors, conduits or floors: a spike trap stays walkable, a
 	// colonist opens the colony's own door, and a conduit or a floor lies
-	// under the pawn. The corridor's pricing keeps colonists off the trap
-	// cells (#619); trap cells are kept off their resting positions
+	// under the pawn. Colonists price their known traps and the hallway
+	// keeps them a trap-free route (#619, #1544); trap cells are kept off their resting positions
 	// separately.
 	blocked := map[domain.Cell]bool{}
 	var blockedCells []domain.Cell

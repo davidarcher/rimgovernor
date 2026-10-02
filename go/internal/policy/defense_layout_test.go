@@ -133,7 +133,7 @@ func TestDefenseLayoutKillboxShape(t *testing.T) {
 			}
 		}
 	}
-	if traps < 4 {
+	if traps < 3 {
 		t.Fatal("traps", traps)
 	}
 	choke, _ := layout.Tier(TierChokepoint)
@@ -280,10 +280,11 @@ func TestDefenseLayoutRaidersWalkEveryLeg(t *testing.T) {
 	}
 }
 
-// Colonists cross no trap walking the corridor from the kill zone out, or
-// from Home to the edge, and every trap is in reach of that route without
-// stepping on another.
-func TestDefenseLayoutColonistsRearmEveryTrapOffTheirRoute(t *testing.T) {
+// Every trap lies on the raiders' cheapest line, raiders not knowing the
+// player's traps; colonists, who price their known traps, cross none
+// walking the hallway from the kill zone out or from Home to the edge, and
+// every trap is in reach of that route without stepping on another.
+func TestDefenseLayoutTrapsOnRaidersLineOffColonistsRoute(t *testing.T) {
 	r := defenseFixture()
 	layout, err := DefenseLayouts(r)
 	if err != nil {
@@ -291,7 +292,22 @@ func TestDefenseLayoutColonistsRearmEveryTrapOffTheirRoute(t *testing.T) {
 	}
 	s, _ := newDefenseSite(r)
 	k, _ := standingCosts(layout, nil)
-	route, ok := s.cheapestRoutes(k, layout.KillZone(), []domain.Cell{layout.Entry})
+	raiderLine, ok := s.cheapestRoutes(raiderCosts(k, nil), layout.Entry, []domain.Cell{layout.KillZone()})
+	if !ok || len(k.traps) == 0 {
+		t.Fatal("no raider line or no traps", ok)
+	}
+	for trap := range k.traps {
+		if !raiderLine[trap] {
+			t.Fatal("trap off the raiders' cheapest line", trap)
+		}
+	}
+	lane := map[domain.Cell]bool{}
+	for _, c := range layout.TrapLane {
+		lane[c] = true
+	}
+	hall := k
+	hall.within = lane
+	route, ok := s.cheapestRoutes(hall, layout.KillZone(), []domain.Cell{layout.Entry})
 	if !ok || crossesAny(route, k.traps) {
 		t.Fatal("colonist route through the corridor crosses a trap", ok)
 	}
@@ -460,8 +476,10 @@ func TestDefenseLayoutRefusesProtectedAndCutOff(t *testing.T) {
 		t.Fatal("wall on a protected walkway")
 	}
 	r = defenseFixture()
-	r.Protected = cells(12, 8)
-	if _, err := DefenseLayouts(r); err == nil {
+	r.Protected = cells(15, 9)
+	if layout, err := DefenseLayouts(r); err != nil {
+		t.Fatal(err)
+	} else if corridor, _ := layout.Tier(TierTrapCorridor); placed(t, corridor)[domain.Cell{X: 15, Z: 9}] != "" {
 		t.Fatal("trap on a protected walkway")
 	}
 	r = defenseFixture()

@@ -11,14 +11,15 @@ import (
 // PathFinderJob's move ticks, the Fence def's pathCost, and
 // Building_Door.TicksToOpenNow (45 / DoorOpenSpeed, 1.2 for wood) which
 // PathUtility.GetDoorCost charges a pawn that can open the door. A spike
-// trap has no pathCost, and the player's own pawns get no avoid grid, so
-// colonists cross their own traps for free unless the layout prices the
-// trap lane above the safe lane for them.
+// trap has no pathCost; Building_Trap.PathFindCostFor charges 800 to a
+// pawn that knows of it (the player's own faction) and nothing to raiders,
+// who do not know the player's traps and walk over them.
 const (
-	pathMoveCardinal = 13
-	pathMoveDiagonal = 18
-	pathFenceCost    = 80
-	pathWoodDoorCost = 38
+	pathMoveCardinal  = 13
+	pathMoveDiagonal  = 18
+	pathFenceCost     = 80
+	pathWoodDoorCost  = 38
+	pathKnownTrapCost = 800
 	// pathWallBashCost is the cheapest planned wall to path through by
 	// destroying it: Cost_BlockedWallBase 70 plus 0.2 per hit point of a
 	// wooden wall (195), the weakest stuff the layout may build.
@@ -27,11 +28,12 @@ const (
 
 // corridorCosts is the layout's effect on colonist pathing: walls close a
 // cell, fences and doors add their entry cost, doors (full-fill edifices)
-// also forbid the diagonal steps that cut their corner, and traps mark the
-// cells no cheapest colonist route may enter.
+// also forbid the diagonal steps that cut their corner, and traps add the
+// known-trap cost colonists pay (raiderCosts drops it). A non-nil within
+// confines routes to its cells.
 type corridorCosts struct {
-	closed, full, traps map[domain.Cell]bool
-	cost                map[domain.Cell]int
+	closed, full, traps, within map[domain.Cell]bool
+	cost                        map[domain.Cell]int
 }
 
 func newCorridorCosts() corridorCosts {
@@ -42,7 +44,7 @@ func newCorridorCosts() corridorCosts {
 // cell's fence or door, or -1 when the step is impossible. An observed
 // colony door prices like the layout's own.
 func (s defenseSite) stepCost(k corridorCosts, from, to domain.Cell) int {
-	if k.closed[to] || !s.passable(to) {
+	if k.closed[to] || !s.passable(to) || k.within != nil && !k.within[to] {
 		return -1
 	}
 	move := pathMoveCardinal
@@ -57,6 +59,9 @@ func (s defenseSite) stepCost(k corridorCosts, from, to domain.Cell) int {
 	extra, priced := k.cost[to]
 	if !priced && positive(s.cells[to].Door) {
 		extra = pathWoodDoorCost
+	}
+	if k.traps[to] {
+		extra += pathKnownTrapCost
 	}
 	return move + extra
 }
@@ -182,7 +187,19 @@ func crossesAny(route, cells map[domain.Cell]bool) bool {
 // of the layout's planned walls is priced in: a tie with a bash counts as
 // one.
 func (s defenseSite) raiderWalksCorridor(k corridorCosts, l DefenseLayout, walls, goals []domain.Cell) bool {
-	raider := corridorCosts{closed: map[domain.Cell]bool{}, full: map[domain.Cell]bool{}, traps: k.traps, cost: map[domain.Cell]int{}}
+	raider := raiderCosts(k, walls)
+	bashable := map[domain.Cell]bool{}
+	for _, c := range walls {
+		bashable[c] = true
+	}
+	route, ok := s.cheapestRoutes(raider, l.Entry, goals)
+	return ok && !crossesAny(route, bashable)
+}
+
+// raiderCosts is k as a raider prices it: the player's traps unknown and
+// free, and each of walls bashable at pathWallBashCost rather than closed.
+func raiderCosts(k corridorCosts, walls []domain.Cell) corridorCosts {
+	raider := corridorCosts{closed: map[domain.Cell]bool{}, full: map[domain.Cell]bool{}, traps: map[domain.Cell]bool{}, cost: map[domain.Cell]int{}}
 	bashable := map[domain.Cell]bool{}
 	for _, c := range walls {
 		bashable[c] = true
@@ -201,6 +218,5 @@ func (s defenseSite) raiderWalksCorridor(k corridorCosts, l DefenseLayout, walls
 	for c := range bashable {
 		raider.cost[c], raider.full[c] = pathWallBashCost, true
 	}
-	route, ok := s.cheapestRoutes(raider, l.Entry, goals)
-	return ok && !crossesAny(route, bashable)
+	return raider
 }

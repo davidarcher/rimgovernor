@@ -6,10 +6,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Vanilla pawns cross their own traps for free (#619), so a trap on the
-// cheapest line is one a colonist steps on. The layout's pocket traps are
-// off every cheapest colonist route; one in the 1-tile entrance is on all
-// of them, and a corridor walled at the mouth leaves Home no way out once
+// Colonists price their faction's known traps, so the layout's traps are
+// off every cheapest colonist route; one in the 1-tile entrance is on every
+// route through the hallway, and a corridor walled at the mouth leaves Home no way out once
 // the gate is gone.
 func TestColonistRoutesAvoidTraps(t *testing.T) {
 	r := defenseFixture()
@@ -28,7 +27,11 @@ func TestColonistRoutesAvoidTraps(t *testing.T) {
 		}
 	}
 	k.traps[domain.Cell{X: 15, Z: 7}] = true
-	if route, ok := s.cheapestRoutes(k, layout.KillZone(), []domain.Cell{layout.Entry}); !ok || !crossesAny(route, k.traps) {
+	lane := map[domain.Cell]bool{}
+	for _, c := range layout.TrapLane {
+		lane[c] = true
+	}
+	if s.hallwayAvoidsTraps(k, lane, layout.KillZone(), layout.Entry) {
 		t.Fatal("a trap in the entrance read as off the route")
 	}
 	for i := range r.Cells {

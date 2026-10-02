@@ -52,3 +52,4 @@ issue-*.md
 
 # acceptance run evidence (-output dirs)
 /out/
+/go/remoteaccept

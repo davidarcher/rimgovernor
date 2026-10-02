@@ -186,8 +186,9 @@ const (
 
 // hallway is a corridor shape in killbox coordinates (X the column, Z the
 // row): lane is every corridor cell, the ring entrance first and the exit
-// last; walls are what it builds; pockets are the trap sites, the corners
-// beside each tooth and at each U-turn; rows is its depth.
+// last; walls are what it builds; pockets mark the turns, the corners
+// beside each tooth and at each U-turn, traps going on the raiders' line
+// near them; rows is its depth.
 type hallway struct {
 	lane, walls, pockets []domain.Cell
 	rows                 int32
@@ -503,27 +504,58 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		funnelReserved = append(funnelReserved, c)
 		costs.cost[c], costs.full[c] = pathWoodDoorCost, true
 	}
-	// Spike traps in the pockets off every cheapest colonist line through
-	// the corridor, so colonists rearm them from it and walk through
-	// without stepping on one (#619: vanilla colonists path over their own
-	// traps at no cost), never beside another (PlaceWorker_NeverAdjacentTrap).
-	cheapest, _ := s.cheapestRoutes(costs, exit, []domain.Cell{entry})
-	for _, c := range hall.pockets {
-		t := at(c.Z, c.X)
-		if cheapest[t] || costs.traps[t] {
+	// Spike traps on the raiders' cheapest line at each turn: hostile
+	// pawns do not know the player's traps and walk over them, while
+	// colonists price their faction's known traps (Building_Trap
+	// PathFindCostFor) and take the hallway's trap-free side, from which
+	// they rearm them. Never beside another (PlaceWorker_NeverAdjacentTrap),
+	// never where the colonists' cheapest hallway route would cross one.
+	raiderLine, _ := s.cheapestRoutes(raiderCosts(costs, nil), entry, []domain.Cell{exit})
+	type site struct {
+		cell domain.Cell
+		near int32
+	}
+	var sites []site
+	for c := range raiderLine {
+		if !lane[c] || c == entry || c == exit {
 			continue
 		}
-		beside := false
+		near := int32(math.MaxInt32)
+		for _, q := range hall.pockets {
+			t := at(q.Z, q.X)
+			near = min(near, max(abs32(t.X-c.X), abs32(t.Z-c.Z)))
+		}
+		if near <= 2 {
+			sites = append(sites, site{c, near})
+		}
+	}
+	order := map[domain.Cell]int{}
+	for i, c := range layout.TrapLane {
+		order[c] = i
+	}
+	sort.Slice(sites, func(i, j int) bool {
+		if sites[i].near != sites[j].near {
+			return sites[i].near < sites[j].near
+		}
+		return order[sites[i].cell] < order[sites[j].cell]
+	})
+	for _, st := range sites {
+		t := st.cell
+		beside := costs.traps[t]
 		for _, d := range pathSteps {
 			beside = beside || costs.traps[addCell(t, d)]
 		}
-		if beside {
+		if beside || !s.free(t) {
+			continue
+		}
+		costs.traps[t] = true
+		if !s.hallwayAvoidsTraps(costs, lane, exit, entry) {
+			delete(costs.traps, t)
 			continue
 		}
 		if err := build(&corridor, r.Definitions.Trap, r.Definitions.TrapStuff, t, "trap"); err != nil {
 			return DefenseLayout{}, err
 		}
-		costs.traps[t] = true
 	}
 	// The fence T: a continuous bar across the kill zone and a stem toward
 	// the exit, so raiders climb fences under fire. Raider-side shaping is
@@ -601,7 +633,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			return DefenseLayout{}, errors.New("layout would cut an entrance off from the map edge or route colonists over a trap")
 		}
 	}
-	if route, ok := s.cheapestRoutes(costs, exit, []domain.Cell{entry}); !ok || crossesAny(route, costs.traps) {
+	if !s.hallwayAvoidsTraps(costs, lane, exit, entry) {
 		return DefenseLayout{}, errors.New("colonists would cross a trap walking the hallway")
 	}
 	// Raiders walk every leg into the kill zone rather than bash through
@@ -687,4 +719,12 @@ func (l DefenseLayout) KillZone() domain.Cell {
 		return l.TrapLane[n-1]
 	}
 	return l.Entry
+}
+
+// hallwayAvoidsTraps reports whether colonists walking the hallway alone
+// from exit to entry have a cheapest route that crosses no trap.
+func (s defenseSite) hallwayAvoidsTraps(k corridorCosts, lane map[domain.Cell]bool, exit, entry domain.Cell) bool {
+	k.within = lane
+	route, ok := s.cheapestRoutes(k, exit, []domain.Cell{entry})
+	return ok && !crossesAny(route, k.traps)
 }

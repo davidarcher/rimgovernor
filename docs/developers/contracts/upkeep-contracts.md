@@ -185,10 +185,12 @@ bar with a stem toward the exit, then sandbags, shooters, retreat cells
 and a 2-thick back wall with one defenders' doorway. Raider-side shaping
 is walls and fences only: a 1.6 pawn stands on a sandbag or barricade and
 keeps its cover, so sandbags stand only on the defenders' line. The
-layout is priced for the game's own pathfinder (#619): vanilla colonists
-cross their own traps at no cost, so spike traps sit in the turn pockets
-off every cheapest colonist route through the corridor
-(`policy.colonistRouteAvoidsTraps`), and every cheapest raider route walks
+layout is priced for the game's own pathfinder (#619): a spike trap costs
+a pawn of the player's faction 800 to enter (`Building_Trap.PathFindCostFor`)
+and raiders, who do not know the player's traps, nothing. Spike traps sit
+on the raiders' cheapest line at each turn while the 3-wide hallway keeps
+colonists a cheaper trap-free route (`policy.hallwayAvoidsTraps`,
+`policy.colonistRouteAvoidsTraps`), and every cheapest raider route walks
 each leg when bashing a planned wall is priced in (wooden wall, 109). The firing line
 floors each shooter cell beside its barricade (#224): a floor is terrain,
 so the census reads it from the cell's terrain rather than its edifice,
