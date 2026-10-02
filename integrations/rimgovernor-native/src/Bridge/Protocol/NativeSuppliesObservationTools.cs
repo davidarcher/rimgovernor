@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
                     var reserved = new HashSet<Thing>(map.reservationManager.AllReservedThings());
                     var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
                     var selected = groups.Where(g => Ownership(filter) == Obs.StockOwnership.All || g.Any(e => e.Ours)).ToList();
-                    var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count, groups.Count - selected.Count) };
+                    var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count) };
                     foreach (var group in selected)
                     {
                         var entriesForDefinition = group.ToList();
