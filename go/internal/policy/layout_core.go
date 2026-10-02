@@ -40,7 +40,9 @@ var coreRoomSize = map[ModuleRole][2]int32{
 }
 
 // coreBaseRooms is every colony's fixed set, in placement order: pairs
-// that trade goods sit side by side.
+// that trade goods sit side by side. Each room takes the nearest free slot,
+// so order is centrality: dining lands near the centre and the tomb (and
+// the battery room PlanUtilities adds after) at the fringe (#1535).
 var coreBaseRooms = []ModuleRole{
 	ModuleBarracks, ModuleKitchen, ModuleFreezer, ModuleDining, ModuleRec,
 	ModuleWorkshop, ModuleStorage, ModuleHospital, ModulePrison, ModuleLab,

@@ -259,3 +259,35 @@ func TestGrowBranchesIntoCrossings(t *testing.T) {
 		}
 	}
 }
+
+// Dining sits nearer the core's centre than the tomb and battery room (#1535).
+func TestDiningCentralTombAndBatteryAtTheFringe(t *testing.T) {
+	for _, rock := range []int32{50, 80} {
+		zones := Zone(zoningSurvey(120, func(x, z int32) SurveyCell {
+			if x >= rock {
+				return SurveyCell{Rock: true}
+			}
+			return SurveyCell{Walkable: true, Fertility: 1}
+		}))
+		centre, _ := newCoreGrid(zones, nil).seed()
+		for _, tier := range []BuildTier{BuildTierCamp, BuildTierPowered} {
+			for _, pawns := range []int{1, 4, 8} {
+				p := PlanUtilities(Grow(LayoutPlan{Zones: zones}, pawns, 1, tier), UtilityWants{})
+				dist := map[ModuleRole]int32{}
+				for _, r := range p.Rooms {
+					dx := r.Interior.X + r.Interior.Width/2 - centre.X
+					dz := r.Interior.Z + r.Interior.Height/2 - centre.Z
+					dist[r.Role] = max(dx, -dx) + max(dz, -dz)
+				}
+				for _, far := range []ModuleRole{ModuleTomb, ModuleBattery} {
+					if _, ok := dist[far]; !ok {
+						t.Fatal(rock, "no", far, "room")
+					}
+					if dist[ModuleDining] >= dist[far] {
+						t.Errorf("rock %d tier %v pawns %d: dining %d from the centre, %s %d", rock, tier, pawns, dist[ModuleDining], far, dist[far])
+					}
+				}
+			}
+		}
+	}
+}
