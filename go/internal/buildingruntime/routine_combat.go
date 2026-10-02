@@ -226,6 +226,8 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 				memory = memory.RefuseHit(order, from)
 			} else if row.Refusal == bridge.CombatRefusalNoShell || row.Refusal == bridge.CombatRefusalUnknownShell {
 				memory = memory.RefuseShell(order)
+			} else if order.Kind == policy.OrderMove && row.Refusal == bridge.CombatRefusalUnreachable {
+				memory = memory.RefuseCell(order.Cell).Forget(order.Pawn)
 			} else {
 				memory = memory.Forget(order.Pawn)
 			}

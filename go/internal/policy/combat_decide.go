@@ -106,7 +106,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 				// A flank answer (#1062) holds no cover candidates.
 				formGeometry = GeometryReply{Answered: true, Lines: geometry.Lines}
 			}
-			next.Tactic, next.Roles, next.Refusal = formation(view, formGeometry, next.Relieved)
+			next.Tactic, next.Roles, next.Refusal = formation(view, formGeometry, next.Relieved, next.Unreachable)
 		}
 		next.Formed, formed = view.Tick, true
 		next.Flank = nil
@@ -568,6 +568,9 @@ type CombatMemory struct {
 	// while the shooter stands on the cell it was refused from, so the
 	// fight retargets or waits instead of re-sending them every stop.
 	CannotHit []HitRefusal `json:",omitempty"`
+	// Unreachable are the cells native refused a move to as unreachable: the
+	// fight re-forms around them instead of sending the same order each stop.
+	Unreachable []domain.Cell `json:",omitempty"`
 	// Flank is the hold's flanking detachment (#1062).
 	Flank *CombatFlank `json:",omitempty"`
 	// Animals are the colony animals' last release or zone (#1058);
@@ -663,6 +666,16 @@ func keepHitRefusals(view CombatView, refusals []HitRefusal) []HitRefusal {
 
 // Forget drops pawn's last order, so the next stop gives it again (native
 // refused it).
+// RefuseCell remembers cell as one native could not path to, so the next
+// formation picks another and a hold standing on it re-forms.
+func (m CombatMemory) RefuseCell(cell domain.Cell) CombatMemory {
+	m = m.clone()
+	if !slices.Contains(m.Unreachable, cell) {
+		m.Unreachable = append(m.Unreachable, cell)
+	}
+	return m
+}
+
 func (m CombatMemory) Forget(pawn domain.PawnID) CombatMemory {
 	m = m.clone()
 	m.Issued = slices.DeleteFunc(m.Issued, func(o IssuedOrder) bool { return o.Pawn == pawn })
@@ -685,6 +698,7 @@ func (m CombatMemory) clone() CombatMemory {
 	m.WaitDoors = slices.Clone(m.WaitDoors)
 	m.Repairs = slices.Clone(m.Repairs)
 	m.CannotHit = slices.Clone(m.CannotHit)
+	m.Unreachable = slices.Clone(m.Unreachable)
 	m.Animals = slices.Clone(m.Animals)
 	m.Untrained = slices.Clone(m.Untrained)
 	m.NoShells = slices.Clone(m.NoShells)
@@ -791,6 +805,11 @@ func interruptsAim(s CombatPawnState) bool {
 func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 	if len(m.Roles) == 0 || stop.Kind == StopRaidPhase || stop.Kind == StopBreach {
 		return true
+	}
+	for _, r := range m.Roles {
+		if r.Cell != nil && slices.Contains(m.Unreachable, *r.Cell) {
+			return true
+		}
 	}
 	if m.Tactic == TacticSiege || siegeMode(view, m) != "" {
 		return reformSiege(view, m)
@@ -925,7 +944,7 @@ const maxGeometryHostiles = 16
 // or squad defense. The hold's candidate cells are the layout's firing
 // cells first, then the game's covered cells behind the line (#871), so a
 // defender the line has no room for still gets a covered cell.
-func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID) (CombatTactic, []CombatRole, string) {
+func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID, unreachable []domain.Cell) (CombatTactic, []CombatRole, string) {
 	refusal := "no complete defense layout"
 	if layout, ok := view.Layout.Value(); ok {
 		cells := slices.Clone(layout.Firing)
@@ -949,6 +968,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 		} else {
 			cells = RankByCover(cells, geometry.Scored)
 		}
+		cells = slices.DeleteFunc(cells, func(c domain.Cell) bool { return slices.Contains(unreachable, c) })
 		cells = spaceCells(cells, firingGap(view))
 		defenders, tanks := splitTanks(view)
 		positions, refusal = explainDefensivePositions(cells, layout.Toward, chokeHeld(view, layout), markMechs(view), defenders)

@@ -121,7 +121,7 @@ func TestReformationKeepsBlockerRotation(t *testing.T) {
 	if !reflect.DeepEqual(next.Relieved, []domain.PawnID{"e"}) {
 		t.Fatalf("relieved %v", next.Relieved)
 	}
-	_, roles, _ := formation(view, GeometryReply{Answered: true, Proposals: chokeCells}, next.Relieved)
+	_, roles, _ := formation(view, GeometryReply{Answered: true, Proposals: chokeCells}, next.Relieved, nil)
 	duties := map[domain.PawnID]CombatDuty{}
 	for _, r := range roles {
 		duties[r.Pawn] = r.Duty
@@ -150,5 +150,32 @@ func TestBlockingHoldNamesCoverAroundLine(t *testing.T) {
 		if o.Cell == corner {
 			t.Fatalf("%+v", o)
 		}
+	}
+}
+
+// A firing cell native refused as unreachable is not given to anyone again:
+// the next formation picks other cells instead of re-sending the same move.
+func TestFormationSkipsUnreachableCells(t *testing.T) {
+	view := chokeView()
+	_, roles, _ := formation(view, GeometryReply{Answered: true, Proposals: chokeCells}, nil, nil)
+	var bad domain.Cell
+	for _, r := range roles {
+		if r.Ranged && r.Cell != nil {
+			bad = *r.Cell
+			break
+		}
+	}
+	if bad == (domain.Cell{}) {
+		t.Skip("fixture forms no ranged cell")
+	}
+	_, roles, _ = formation(view, GeometryReply{Answered: true, Proposals: chokeCells}, nil, []domain.Cell{bad})
+	for _, r := range roles {
+		if r.Cell != nil && *r.Cell == bad {
+			t.Fatalf("%s still posted on the unreachable cell %v", r.Pawn, bad)
+		}
+	}
+	memory := CombatMemory{Roles: []CombatRole{{Pawn: "a", Cell: &bad, Ranged: true}}}.RefuseCell(bad)
+	if !reform(view, StopEvent{}, memory) {
+		t.Fatal("a role on an unreachable cell must re-form")
 	}
 }
