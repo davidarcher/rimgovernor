@@ -17,7 +17,11 @@ Pages for a person (or a model) to skim for bugs.
   in-game hour. It needs a graphics device: the case sets
   `Graphics`, which drops `-nographics` from the headless profile (the
   camera renders on demand, no window opens, so it runs on hosted runners
-  unlike a `Rendered` case) and always launches a fresh game.
+  unlike a `Rendered` case) and always launches a fresh game. With a
+  device the headless mod keeps the map's terrain, wall and floor meshes
+  (`HeadlessPatches` skips them only when the device is Null); that mesh
+  work is why other cases keep `-nographics`: a one-day trial took 3m05s
+  against 2m37s without it.
 - **Report** `go run ./cmd/colonyreview report -in <case output> -out <run dir>`
   reads `result.json`'s timeline and the screenshots and writes
   `index.html` (summary, trends, flagged hours, daily map shots, hourly
