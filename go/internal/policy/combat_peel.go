@@ -110,3 +110,37 @@ func (v CombatView) hostileDown(id domain.PawnID) bool {
 	}
 	return false
 }
+
+// holdBrawlerBesideGunners keeps one melee-only defender of a squad fight
+// beside the colony's shooters as their peeler instead of charging out alone
+// ahead of them: it engages a raider who reaches a gunner (peel) and
+// otherwise waits. No shooter on the field, or no known place for them,
+// leaves the squad's melee assignment as it was.
+func holdBrawlerBesideGunners(view CombatView, roles []CombatRole) []CombatRole {
+	var gunner *domain.Cell
+	for _, d := range view.Defenders {
+		if !positive(d.RangedEquipped) {
+			continue
+		}
+		for _, p := range view.Pawns {
+			if at, ok := p.Cell.Value(); ok && p.ID == d.ID && !p.Dead && !p.Downed && gunner == nil {
+				gunner = &at
+			}
+		}
+	}
+	if gunner == nil {
+		return roles
+	}
+	melee := map[domain.PawnID]bool{}
+	for _, d := range brawlers(view.Defenders) {
+		melee[d.ID] = true
+	}
+	roles = slices.Clone(roles)
+	for i, r := range roles {
+		if melee[r.Pawn] && !r.Ranged {
+			roles[i] = CombatRole{Pawn: r.Pawn, Duty: DutyPeeler, Cell: gunner, Home: gunner}
+			break
+		}
+	}
+	return roles
+}

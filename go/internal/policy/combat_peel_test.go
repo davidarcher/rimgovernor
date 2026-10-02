@@ -116,3 +116,24 @@ func TestDecideCombatPeelerReturnsAfterKill(t *testing.T) {
 		}
 	}
 }
+
+// A squad fight with a shooter on the field keeps the brawler beside the
+// shooter as its peeler, with no target, instead of charging out alone.
+func TestHoldBrawlerBesideGunners(t *testing.T) {
+	view := peelView()
+	gunner := view.Defenders[0].ID
+	at := domain.Cell{X: 12, Z: 30}
+	for i := range view.Pawns {
+		if view.Pawns[i].ID == gunner {
+			view.Pawns[i].Cell = domain.Known(at)
+		}
+	}
+	roles := holdBrawlerBesideGunners(view, []CombatRole{{Pawn: "p", Target: "r1"}})
+	if len(roles) != 1 || roles[0].Duty != DutyPeeler || roles[0].Target != "" || roles[0].Cell == nil || *roles[0].Cell != at {
+		t.Fatalf("roles = %+v, want the brawler holding beside the gunner", roles)
+	}
+	view.Defenders = brawlers(view.Defenders)
+	if got := holdBrawlerBesideGunners(view, []CombatRole{{Pawn: "p", Target: "r1"}}); got[0].Target != "r1" {
+		t.Fatalf("with no shooter the brawler keeps its assignment: %+v", got)
+	}
+}

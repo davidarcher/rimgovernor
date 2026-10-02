@@ -1013,6 +1013,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 	for _, a := range assignments {
 		roles = append(roles, CombatRole{Pawn: a.Defender, Target: domain.PawnID(a.Target), Ranged: a.Mode == SquadRanged})
 	}
+	roles = holdBrawlerBesideGunners(view, roles)
 	return TacticSquad, sortRoles(roles), refusal
 }
 
