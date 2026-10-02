@@ -147,6 +147,13 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,target,zone_payload) VALUES(?,?,?,'area',?,NULLIF(?,''),?)", a.ID(), plan, ordinal, string(area.Operation()), area.Key(), data)
 	} else if settings, ok := a.PawnSettings(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition) VALUES(?,?,?,'pawn_settings',?,?)", a.ID(), plan, ordinal, string(settings.Pawn()), pawnSettingDefinition(settings))
+	} else if roof, ok := a.RemoveRoof(); ok {
+		// zone_payload is the canonical cells (#1366).
+		data, encodeErr := json.Marshal(roof.Cells())
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'remove_roof',?)", a.ID(), plan, ordinal, data)
 	} else if prune, ok := a.PolicyPrune(); ok {
 		// definition is the database, zone_payload the canonical ids (#1298).
 		data, encodeErr := json.Marshal(prune.IDs())
@@ -319,6 +326,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		action, err := domain.NewZoneCreateAction(id, value)
 		return action, ordinal, err
+	}
+	if kind == "remove_roof" && !def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+		var cells []domain.Cell
+		if json.Unmarshal(zone, &cells) != nil {
+			return domain.Action{}, 0, errors.New("invalid remove roof payload")
+		}
+		roof, err := domain.NewRemoveRoof(cells)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewRemoveRoofAction(id, roof)
+		return a, ordinal, err
 	}
 	if kind == "policy_prune" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
 		var ids []string

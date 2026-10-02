@@ -298,6 +298,7 @@ message Action {
     PawnSettingsIntent pawn_settings = 50;
     PolicyPruneIntent policy_prune = 51;
     RemoveFloorIntent remove_floor = 52;
+    RemoveRoofIntent remove_roof = 53;
   }
 }
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
@@ -456,6 +457,11 @@ message WasteIntent { optional string pawn_id = 1; optional string thing_id = 2;
 // or a cell whose wall is already gone, applies again. Go waits for the
 // census to show the cell clear before releasing work that needs it (#989).
 message RemoveWallIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_wall_id = 2; }
+// Mark cells in the vanilla remove-roof (NoRoof) area (#1366): clearance issues it over an
+// enclosed room's roofed cells before deconstructing its walls. Native
+// refuses a fogged or out-of-bounds cell and a thick (overhead mountain)
+// roof; a cell already unroofed or already designated applies again.
+message RemoveRoofIntent { repeated rimgovernor.common.v1.Cell cells = 1; }
 message ExcavateIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree): window_id plus the exact observed option index
