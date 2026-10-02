@@ -198,10 +198,12 @@ func zoneShelves(ctx context.Context, journal *store.Store, goal domain.GoalID, 
 		if !policy.PlanBuilt(plan.Progress, census) {
 			continue
 		}
-		built, _ := policy.BuiltActions(census)
+		current, _ := census.Value()
 		for _, progress := range plan.Progress {
-			if id, ok := built[progress.View().Action]; ok {
-				record.Building = id
+			if b, ok := progress.Action().Building(); ok {
+				if id, built := current.Built(b); built {
+					record.Building = id
+				}
 			}
 		}
 		if record.Building == "" {

@@ -935,14 +935,14 @@ func CombatEventID(row *mp.CombatEventRow) string {
 }
 
 // builtBuildings is the construction census carried by a frame's single
-// buildings family: its rows whose status is built (#1338), plus the open
-// intents. Without the intents every placed blueprint reads as gone and its
-// plan retires on the next review.
+// buildings family: its rows whose status is built (#1338). The
+// blueprints and frames reach the census from the unfiltered read
+// (observation.WithSites, #1355).
 func builtBuildings(v *o.BuildingsSnapshot) *o.BuildingsSnapshot {
 	if v == nil {
 		return nil
 	}
-	out := &o.BuildingsSnapshot{Context: v.Context, Completeness: v.Completeness, Intents: v.Intents}
+	out := &o.BuildingsSnapshot{Context: v.Context, Completeness: v.Completeness}
 	for _, row := range v.Buildings {
 		if row.GetStatus() == o.BuildingStatus_BUILDING_STATUS_BUILT {
 			out.Buildings = append(out.Buildings, row)

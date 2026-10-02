@@ -135,16 +135,16 @@ func TestReadyWorkExposesIndependentWallBesideBlockedBed(t *testing.T) {
 	// Applied is only the blueprint: while the census shows it (or cannot
 	// say) the floor stays awaiting and the bed keeps waiting on it.
 	plan.Progress[0] = readyProgress(t, spec, "floor", "completed")
-	blueprint := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{}, Intents: []ConstructionIntent{{Key: "floor/1", Stage: "blueprint"}}})
+	b, _ := floor.Building()
+	blueprint := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{}, Sites: []ConstructionSite{{Building: b, Stage: "blueprint"}}})
 	for _, census := range []domain.Fact[CurrentConstruction]{domain.Unknown[CurrentConstruction](), blueprint} {
 		got = byStage(ProjectReadyWork(ReadyRequest{Snapshot: readySnap("p"), Plans: []ReadyPlan{plan}, Construction: census}))
 		if got["building:WoodPlankFloor"].State != ReadyAwaiting || got["building:Bed"].State != ReadyBlocked {
 			t.Fatalf("floor blueprint standing %+v", got)
 		}
 	}
-	// Built under its key, the floor leaves the projection and frees the bed.
-	b, _ := floor.Building()
-	built := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{{ID: "floor-thing", Building: b, Cells: []domain.Cell{b.Cell()}, IntentKey: "floor/1"}}})
+	// Built where it was ordered, the floor leaves the projection and frees the bed.
+	built := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{{ID: "floor-thing", Building: b, Cells: []domain.Cell{b.Cell()}}}})
 	got = byStage(ProjectReadyWork(ReadyRequest{Snapshot: readySnap("p"), Plans: []ReadyPlan{plan}, Construction: built}))
 	if _, ok := got["building:WoodPlankFloor"]; ok || got["building:Bed"].State != ReadyRunnable {
 		t.Fatalf("after floor %+v", got)

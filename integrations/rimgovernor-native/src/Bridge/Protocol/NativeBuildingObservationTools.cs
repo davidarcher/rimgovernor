@@ -47,17 +47,7 @@ namespace HomeBridge.BridgeTools
                 var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
                 var snapshot = new Obs.BuildingsSnapshot { Context = context };
                 snapshot.Completeness = Complete(matched.Count, source.Count - matched.Count);
-                var keys = ConstructionLineage.Keys(map);
-                foreach (var thing in matched)
-                {
-                    var row = Row(thing, context);
-                    if (keys.TryGetValue(thing.GetUniqueLoadID(), out var key)) row.IntentKey = key;
-                    snapshot.Buildings.Add(row);
-                }
-                // The keyed blueprints and frames still standing: the census's
-                // open building intents (#856).
-                foreach (var open in ConstructionLineage.OpenIntents(map))
-                    snapshot.Intents.Add(new Obs.ConstructionIntent { Key = open.Key, Stage = Stage(open.Stage) });
+                foreach (var thing in matched) snapshot.Buildings.Add(Row(thing, context));
                 return new Obs.ListBuildingsReply { Observed = snapshot };
             }
             catch (Exception) { return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }; }
@@ -280,8 +270,6 @@ namespace HomeBridge.BridgeTools
         private static Obs.BuildingStatus Status(Thing thing) => thing is Blueprint ? Obs.BuildingStatus.Blueprint : thing is Frame ? Obs.BuildingStatus.Frame : Obs.BuildingStatus.Built;
         // StatusFilter is the request filter's name for a status.
         private static string StatusFilter(Obs.BuildingStatus status) => status == Obs.BuildingStatus.Blueprint ? "blueprint" : status == Obs.BuildingStatus.Frame ? "frame" : "built";
-        internal static Obs.BuildingStatus Stage(string stage) => stage == "blueprint" ? Obs.BuildingStatus.Blueprint : stage == "frame" ? Obs.BuildingStatus.Frame
-            : stage == "built" ? Obs.BuildingStatus.Built : throw new InvalidOperationException("Invalid construction stage.");
         private static Thing InstallTarget(Blueprint_Install install)
         {
             var held = install.MiniToInstallOrBuildingToReinstall;

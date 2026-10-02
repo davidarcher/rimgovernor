@@ -114,7 +114,7 @@ func TestRoutineUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.
 		t.Fatal(err)
 	}
 	// An applied building closes once the census shows it built (#856).
-	r.Facts.CurrentConstruction = builtCensus(t, "wall", "a2/1")
+	r.Facts.CurrentConstruction = builtCensus(t, "wall")
 	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Goal.Need != domain.NeedRecovered {
 		t.Fatal(g)
 	}

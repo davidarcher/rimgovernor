@@ -8,15 +8,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// builtCensus is a complete census holding the plan() helper's wall, built
-// by the building intent key (empty for a player-built wall).
-func builtCensus(t *testing.T, id, key string) domain.Fact[policy.CurrentConstruction] {
+// builtCensus is a complete census holding the plan() helper's wall.
+func builtCensus(t *testing.T, id string) domain.Fact[policy.CurrentConstruction] {
 	t.Helper()
 	b, err := domain.NewBuilding("Modded_Wall", domain.Cell{X: 3, Z: 7}, domain.East, "GraniteBlocks")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: id, Building: b, Cells: []domain.Cell{b.Cell()}, IntentKey: key}}})
+	return domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: id, Building: b, Cells: []domain.Cell{b.Cell()}}}})
 }
 
 func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
@@ -50,7 +49,7 @@ func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Retirement reads the census: the intent's building stands built (#856).
-	request.Facts.CurrentConstruction = builtCensus(t, "wall", "placed/1")
+	request.Facts.CurrentConstruction = builtCensus(t, "wall")
 	reviewRoutine(t, s, &request)
 	retired, err := s.LoadPlan(ctx, "method")
 	if err != nil || !retired.Retired {

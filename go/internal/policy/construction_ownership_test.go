@@ -6,20 +6,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestConstructionOwnershipRequiresIntentKeyAndUnchangedGeometry(t *testing.T) {
+func TestConstructionOwnershipRequiresUnchangedGeometry(t *testing.T) {
 	building, err := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.East, "WoodLog")
 	if err != nil {
 		t.Fatal(err)
 	}
 	claim := ConstructionClaim{Plan: "method", Action: "action", Goal: "goal", Building: building}
-	for _, kind := range []string{"same", "unkeyed", "other intent", "moved", "rotated", "material", "unknown"} {
+	for _, kind := range []string{"same", "moved", "rotated", "material", "unknown"} {
 		cell, rotation, stuff := building.Cell(), building.Rotation(), building.Stuff()
-		key := "action/1"
 		switch kind {
-		case "unkeyed":
-			key = ""
-		case "other intent":
-			key = "other/1"
 		case "moved":
 			cell.X++
 		case "rotated":
@@ -28,7 +23,7 @@ func TestConstructionOwnershipRequiresIntentKeyAndUnchangedGeometry(t *testing.T
 			stuff = "GraniteBlocks"
 		}
 		b, _ := domain.NewBuilding("Wall", cell, rotation, stuff)
-		observed := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{{ID: "wall", Building: b, Cells: []domain.Cell{cell}, IntentKey: key}}})
+		observed := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{{ID: "wall", Building: b, Cells: []domain.Cell{cell}}}})
 		if kind == "unknown" {
 			observed = domain.Unknown[CurrentConstruction]()
 		}

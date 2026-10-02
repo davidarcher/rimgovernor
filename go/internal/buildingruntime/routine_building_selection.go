@@ -259,14 +259,8 @@ func campfireIntentStanding(claims domain.Fact[[]policy.ConstructionClaim], obse
 		return false
 	}
 	history, _ := claims.Value()
-	campfire := map[domain.ActionID]bool{}
 	for _, claim := range history {
-		if claim.Building.Definition() == "Campfire" {
-			campfire[claim.Action] = true
-		}
-	}
-	for _, in := range census.Intents {
-		if action, ok := policy.IntentAction(in.Key); ok && campfire[action] {
+		if claim.Building.Definition() == "Campfire" && policy.WorkOpen(claim.Building, observed) == policy.BuildingOpen {
 			return true
 		}
 	}

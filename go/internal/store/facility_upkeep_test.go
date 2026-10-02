@@ -102,7 +102,7 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	s, path, _, building := completedFacility(t, domain.AutopilotGoal, true, false)
 	r := routineRequest()
 	r.Tick = 12
-	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: building, Cells: []domain.Cell{building.Cell()}, IntentKey: "placed/1"}}})
+	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: building, Cells: []domain.Cell{building.Cell()}}}})
 	r.Facts.MapBounds = domain.Known(policy.Bounds{Width: 250, Height: 250})
 	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Revision: 1, Targets: []policy.HomeCoverageTarget{{ID: "wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(1)), Cells: []domain.Cell{{X: 3, Z: 7}}, ExtentGeometry: domain.Known(policy.HomeExtentGeometry{})}}, Home: domain.Known([]domain.Cell{}), AutoHome: domain.Known(false)})
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})

@@ -43,35 +43,11 @@ ambiguous association must hold and preserve newer history separately.
 
 ## Construction lineage
 
-Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistence/ConstructionLineageState.cs),
-[transition hooks](../integrations/rimgovernor-native/src/Bridge/ConstructionLineage.cs).
-
-| Field/key | Sole target owner | Reconstructible? |
-| --- | --- | --- |
-| `ConstructionLineageState.Records/rimgovernorConstructionLineage` (deep `ConstructionLineageRecord`) | SQL | No; container of historical associations. |
-| `Origin/origin` | SQL | No after the blueprint is replaced. |
-| `Current/current` | SQL | Fresh object ID; origin-to-current association requires evidence. |
-| `Definition/definition`, `Stuff/stuff` | SQL | Fresh while matching object survives; original specification is historical. |
-| `Stage/stage` | SQL | Fresh object stage, not historical completion of an owned action. |
-| `Blocker/blocker`, `Failures/failures` | SQL | No; ambiguous transitions and prior failed builds are history. |
-| `MapId/mapId`, `X/x`, `Z/z`, `Rotation/rotation` | SQL | Fresh for surviving objects; original association is historical. |
-| `Started/started` | SQL | No. |
-
-Current hooks follow blueprint -> frame -> building and failed frame -> blueprint.
-Registration refuses above 4096 records. Hooks update records without controller
-connectivity while installed; reads compare current objects with recorded geometry.
-Migration: consume typed identity-transition events durably in SQL, then remove
-this authoritative native list. Retain a bounded native delivery journal only if
-missed transitions cannot safely be reconstructed; it may not become a plan ledger.
-Disconnect must retain delivery evidence or explicitly report a gap, never infer
-that a similar building at the same cell completed this action.
-
-Acceptance gap: disconnect before each transition, including a failed build;
-destroy/rebuild the same definition at the same cell; save/load at each stage;
-overflow and crash around event acknowledgement. Verify no substituted ownership
-and no duplicated construction. Existing entry points include
-`scripts/construction_resume_acceptance.py` and
-`scripts/construction_recovery_acceptance.py`; these do not certify the new journal.
+Removed (#1355). Go matches each applied building intent to the blueprint,
+frame or building standing with its definition, stuff, anchor and rotation
+(`policy.WorkOpen`); a match placed by anyone is the same end state.
+`ConstructionLineageState` survives only as an empty stand-in so older saves
+load; its records are dropped.
 
 ## Mining and drilling
 

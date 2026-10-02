@@ -71,7 +71,8 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	if result, err = f.executor.runOne(ctx, plan.ID(), "finish"); err == nil || result.NativeCalled {
 		t.Fatal("blueprint released its successor", result, err)
 	}
-	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "Wall1", IntentKey: "foundation/1"}}}
+	foundation, _ := actions[0].Building()
+	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "Wall1", Building: foundation, Cells: []domain.Cell{foundation.Cell()}}}}
 	if _, err = f.store.ReviewRoutine(ctx, store.RoutineReviewRequest{Current: scope, Tick: 101, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}); err != nil {
 		t.Fatal(err)
 	}

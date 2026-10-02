@@ -58,7 +58,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 		t.Fatal(err)
 	}
 	// An applied building closes once the census shows it built (#856).
-	r.Facts.CurrentConstruction = builtCensus(t, "wall", "a2/1")
+	r.Facts.CurrentConstruction = builtCensus(t, "wall")
 	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Goal.Need != domain.NeedRecovered {
 		t.Fatal(g)
 	}

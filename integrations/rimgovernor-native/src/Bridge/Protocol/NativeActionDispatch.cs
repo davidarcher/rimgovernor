@@ -167,13 +167,9 @@ namespace HomeBridge.BridgeTools
     // BuildingIntent: place one ordinary blueprint (or an instant building)
     // through NativeConstructionPlan, validated against the live map. A
     // matching blueprint, frame or building already on the cell is applied
-    // as it stands. Whatever the intent places or finds is stamped with its
-    // key in ConstructionLineage, which follows it blueprint -> frame ->
-    // building and is saved with the game.
+    // as it stands. Go matches what stands by geometry (#1355).
     internal sealed class BuildingActionHandler : IActionHandler
     {
-        internal BuildingActionHandler() { ConstructionLineage.Install(); }
-
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
@@ -188,14 +184,12 @@ namespace HomeBridge.BridgeTools
             var existing = Existing(map, candidate);
             if (existing != null)
             {
-                ConstructionLineage.Claim(existing.Value.Thing, existing.Value.Definition, action.Key);
                 return new Receipts.EffectEvidence { Construction = Effect(existing.Value.Thing, candidate) };
             }
             if (!NativeConstructionPlan.Prepare(map, candidate, context, out var plan, out _, out var failure))
                 throw new InvalidOperationException("Placement became invalid: " + failure.Detail);
             var observed = plan.Proposed();
             var placed = plan.Place(observed) ?? throw new InvalidOperationException("Native placement returned no object.");
-            ConstructionLineage.Register(placed, plan.Definition, action.Key);
             observed.OriginThingId = observed.CurrentThingId = placed.GetUniqueLoadID();
             observed.Stage = Stage(placed);
             observed.Present = true; observed.Started = true; observed.Failed = false;

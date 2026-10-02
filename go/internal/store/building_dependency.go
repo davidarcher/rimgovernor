@@ -192,3 +192,35 @@ func abandonStuckWallRemovals(ctx context.Context, tx *sql.Tx, cells []WallCell,
 	}
 	return nil
 }
+
+// builtActions is every live plan's building action whose building stands
+// built in the census, matched by definition, stuff, anchor and rotation
+// (#1355), sorted.
+func builtActions(ctx context.Context, tx *sql.Tx, census policy.CurrentConstruction) ([]domain.ActionID, error) {
+	rows, err := tx.QueryContext(ctx, "SELECT a.id,a.definition,a.x,a.z,a.rotation,a.stuff FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.kind='building' AND p.retired=0")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []domain.ActionID{}
+	for rows.Next() {
+		var id domain.ActionID
+		var definition, rotation, stuff string
+		var x, z int32
+		if err = rows.Scan(&id, &definition, &x, &z, &rotation, &stuff); err != nil {
+			return nil, err
+		}
+		b, err := domain.NewBuilding(definition, domain.Cell{X: x, Z: z}, domain.Rotation(rotation), stuff)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := census.Built(b); ok {
+			out = append(out, id)
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	slices.Sort(out)
+	return out, nil
+}

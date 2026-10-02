@@ -601,9 +601,7 @@ message BuildingState {
   repeated ThermalSide thermal_sides = 14; BillStack bills = 15; optional string inspect_text = 16;
   optional bool burning = 17; optional bool uses_hit_points = 18; repeated ReadIssue issues = 19;
   SnapshotRef snapshot = 20;
-  // The Actions/Apply key of the building intent that placed this building,
-  // when one did (BuildingIntent); absent for anything else.
-  optional string intent_key = 21;
+  reserved 21;
   // The building's occupied rect, inclusive (#1346).
   Rectangle occupied = 22;
 }
@@ -614,11 +612,7 @@ message PowerNetwork {
   optional bool has_source = 12; optional bool has_active_source = 13; repeated string flags = 14;
   repeated string member_ids = 15; reserved 16;
 }
-message BuildingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BuildingState buildings = 2; repeated PowerNetwork power_networks = 3; Completeness completeness = 4; reserved 5; reserved 6, 7, 8;
-  // Building intents still standing as a blueprint or frame; built ones carry intent_key on their row.
-  repeated ConstructionIntent intents = 9;
-}
-message ConstructionIntent { optional string key = 1; optional BuildingStatus stage = 2; }
+message BuildingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BuildingState buildings = 2; repeated PowerNetwork power_networks = 3; Completeness completeness = 4; reserved 5; reserved 6, 7, 8, 9; }
 message ListBuildingsRequest { ReadScope scope = 1; repeated string ids = 2; repeated string def_names = 3; repeated string statuses = 4; optional string category = 5; optional bool player_only = 6; optional double damaged_below_fraction = 7; Rectangle region = 8; optional bool inspect = 9; optional bool bill_ingredients = 10; reserved 11, 12; }
 message ListBuildingsReply { oneof outcome { BuildingsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RoomStat { optional string def_name = 1; optional double value = 2; optional string display = 3; optional string unit = 4; optional string cost = 5; rimgovernor.common.v1.Unavailable unavailable = 6; }

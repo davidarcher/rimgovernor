@@ -101,6 +101,9 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		if p.Facts.CurrentConstruction, err = ConstructionBuildings(frame.Construction, nil); err != nil {
 			return RoutineReading{}, err
 		}
+		if p.Facts.CurrentConstruction, err = WithSites(p.Facts.CurrentConstruction, frame.Sites); err != nil {
+			return RoutineReading{}, err
+		}
 	}
 	p.Facts.ConstructionDeficit = ConstructionDeficit(frame.Sites)
 	p.Facts.BillReservations = BillReservations(frame.Bills)

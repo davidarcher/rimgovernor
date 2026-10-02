@@ -118,7 +118,7 @@ func TestCookingSelectionCountsStandingCampfireBlueprint(t *testing.T) {
 	if n, method, reason := r.selection(facts); n != 1 || method != "campfire" {
 		t.Fatal("no campfire standing:", n, method, reason)
 	}
-	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Intents: []policy.ConstructionIntent{{Key: "p1-0/0", Stage: "blueprint"}}})
+	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Sites: []policy.ConstructionSite{{Building: building, Stage: "blueprint"}}})
 	if n, _, reason := r.selection(facts); n != 0 || reason != BuildingExistingFacility {
 		t.Fatal("standing blueprint:", n, reason)
 	}

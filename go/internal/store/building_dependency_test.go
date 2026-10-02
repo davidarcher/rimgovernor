@@ -20,11 +20,16 @@ func reviewCensus(t *testing.T, s *Store, current domain.GenerationSnapshot, tic
 		t.Fatal(err)
 	}
 	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{}}
-	for i, a := range built {
-		census.Buildings = append(census.Buildings, policy.CurrentBuilding{ID: fmt.Sprintf("Thing%d", i), IntentKey: string(a) + "/1"})
+	// Every plan() action is the same wall, so one row stands for them all.
+	wall, err := domain.NewBuilding("Modded_Wall", domain.Cell{X: 3, Z: 7}, domain.East, "GraniteBlocks")
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, a := range blueprints {
-		census.Intents = append(census.Intents, policy.ConstructionIntent{Key: string(a) + "/1", Stage: "blueprint"})
+	if len(built) > 0 {
+		census.Buildings = append(census.Buildings, policy.CurrentBuilding{ID: "Thing0", Building: wall, Cells: []domain.Cell{wall.Cell()}})
+	}
+	if len(blueprints) > 0 {
+		census.Sites = append(census.Sites, policy.ConstructionSite{Building: wall, Stage: "blueprint"})
 	}
 	r := RoutineReviewRequest{Revision: previous.Revision, Current: current, Tick: tick, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}
 	if _, err = s.ReviewRoutine(ctx, r); err != nil {

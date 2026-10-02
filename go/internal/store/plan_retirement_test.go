@@ -43,7 +43,7 @@ func TestRoutinePlanRetirementNoDoubleSpend(t *testing.T) {
 				t.Fatal(err)
 			}
 			built, _ := q.Plan.Actions()[0].Building()
-			r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: built, Cells: []domain.Cell{built.Cell()}, IntentKey: string(action) + "/1"}}})
+			r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: built, Cells: []domain.Cell{built.Cell()}}}})
 			r.Tick = 20
 			reviewRoutine(t, s, &r)
 			s.Close()

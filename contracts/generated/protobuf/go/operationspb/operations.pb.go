@@ -7510,9 +7510,8 @@ func (x *HaulIntent) GetThingId() string {
 // Place one ordinary blueprint (or an instant building). Native validates the
 // placement against live state and refuses with the placement reason; a
 // matching blueprint, frame or building already on the cell counts as
-// applied. Native stamps what it places with the action key and carries the
-// key blueprint -> frame -> building, saved with the game, so the building
-// census reports which intent built each building (BuildingState.intent_key).
+// applied. Go reads what stands from the building census by definition,
+// stuff, anchor and rotation (#1355); nothing is stamped or saved.
 type BuildingIntent struct {
 	state         protoimpl.MessageState          `protogen:"open.v1"`
 	Placement     *placementpb.PlacementCandidate `protobuf:"bytes,1,opt,name=placement,proto3" json:"placement,omitempty"`

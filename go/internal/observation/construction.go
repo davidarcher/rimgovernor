@@ -13,8 +13,8 @@ import (
 // value maps to the empty rotation, which domain validation refuses.
 var rotations = map[p.Rotation]domain.Rotation{p.Rotation_ROTATION_NORTH: domain.North, p.Rotation_ROTATION_EAST: domain.East, p.Rotation_ROTATION_SOUTH: domain.South, p.Rotation_ROTATION_WEST: domain.West}
 
-// intentStages maps the open-intent construction stages onto policy's.
-var intentStages = map[o.BuildingStatus]string{o.BuildingStatus_BUILDING_STATUS_BLUEPRINT: "blueprint", o.BuildingStatus_BUILDING_STATUS_FRAME: "frame"}
+// siteStages maps the blueprint and frame stages onto policy's.
+var siteStages = map[o.BuildingStatus]string{o.BuildingStatus_BUILDING_STATUS_BLUEPRINT: "blueprint", o.BuildingStatus_BUILDING_STATUS_FRAME: "frame"}
 
 // ConstructionBuildings projects a validated player-only building read. Empty IDs
 // identifies a complete colony census, independent of controller action history.
@@ -40,14 +40,30 @@ func ConstructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[po
 		if row.Occupied != nil && cells == nil {
 			return unknown, ErrContract
 		}
-		r.Buildings = append(r.Buildings, policy.CurrentBuilding{ID: row.Building.GetId(), Building: b, Cells: cells, IntentKey: row.GetIntentKey()})
+		r.Buildings = append(r.Buildings, policy.CurrentBuilding{ID: row.Building.GetId(), Building: b, Cells: cells})
 	}
-	for _, in := range v.Intents {
-		stage, ok := intentStages[in.GetStage()]
-		if in.GetKey() == "" || !ok {
-			return unknown, ErrContract
+	return domain.Known(r), nil
+}
+
+// WithSites adds the player's standing blueprints and frames (the
+// unfiltered buildings read) to a colony census: an applied building
+// intent with a site standing as its building is still open (#1355).
+func WithSites(census domain.Fact[policy.CurrentConstruction], v *o.BuildingsSnapshot) (domain.Fact[policy.CurrentConstruction], error) {
+	r, known := census.Value()
+	if !known || !r.Colony {
+		return census, nil
+	}
+	r.Sites = []policy.ConstructionSite{}
+	for _, row := range v.GetBuildings() {
+		stage, ok := siteStages[row.GetStatus()]
+		if !ok || row.GetBuildDefName() == "" {
+			continue
 		}
-		r.Intents = append(r.Intents, policy.ConstructionIntent{Key: in.GetKey(), Stage: stage})
+		b, err := domain.NewBuilding(row.GetBuildDefName(), domain.Cell{X: row.Building.GetPosition().GetX(), Z: row.Building.GetPosition().GetZ()}, rotations[row.GetRotation()], row.GetStuff())
+		if err != nil {
+			return domain.Unknown[policy.CurrentConstruction](), err
+		}
+		r.Sites = append(r.Sites, policy.ConstructionSite{Building: b, Stage: stage})
 	}
 	return domain.Known(r), nil
 }
