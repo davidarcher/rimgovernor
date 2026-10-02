@@ -1295,6 +1295,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	}
 	if refusal := access.Refusal(); refusal != "" {
 		clockSchedulerLog("defense-layout.admit: tier=%s access audit refused: %s (blocked %d cells)", tier.Name, refusal, len(blockedCells))
+		r.logAccessSplit(call, state, record, targets)
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused, Tier: tier.Name}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
@@ -1331,6 +1332,36 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		clockSchedulerLog("defense-layout.admit: tier=%s refused=%+v", tier.Name, decision.Refused)
 	}
 	return RoutineDefenseLayoutResult{Reason: reason, Plan: id, Tier: tier.Name}, nil
+}
+
+// logAccessSplit re-audits a refused layout's perimeter and killbox
+// blocks separately and logs which of the two loses colonist access
+// (#1248): the combined audit names only the losing pawn.
+func (r *RoutineDefenseLayoutPlanner) logAccessSplit(call context.Context, state ControlState, record store.DefenseLayoutRecord, targets []domain.Cell) {
+	var perimeter, killbox []domain.Cell
+	for _, t := range record.Tiers {
+		for _, b := range t.Buildings {
+			if !defenseAuditBlocks(b.Definition) {
+				continue
+			}
+			if policy.IsPerimeterTier(t.Name) {
+				perimeter = append(perimeter, b.Cell)
+			} else {
+				killbox = append(killbox, b.Cell)
+			}
+		}
+	}
+	for _, group := range []struct {
+		name  string
+		cells []domain.Cell
+	}{{"perimeter", perimeter}, {"killbox", killbox}} {
+		access, _, err := r.native.ReadSpatialAccess(call, boundary.Identity(state.Snapshot), group.cells, targets, nil)
+		if err != nil {
+			clockSchedulerLog("defense-layout.admit: %s access audit: %v", group.name, err)
+			continue
+		}
+		clockSchedulerLog("defense-layout.admit: %s alone (%d cells) access refusal=%q", group.name, len(group.cells), access.Refusal())
+	}
 }
 
 // defenseWithoutFloors is the tier's buildings less the shooter floors on
