@@ -6,6 +6,17 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// planCore is the persisted layout plan's core (#1534), or the colony
+// centre when no plan is stored.
+func planCore(facts observation.ColonyProjection) domain.Cell {
+	if plan, ok := facts.LayoutPlan.Value(); ok {
+		if core, ok := plan.Core(); ok {
+			return core
+		}
+	}
+	return facts.Center
+}
+
 // layoutAnchor is the cell a routine anchors its site search on. At
 // Masonry and above it reads the v2 layout plan first (#785): the centre of
 // the district's planned room (or field zone run) whose cells are all

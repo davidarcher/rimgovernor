@@ -104,6 +104,23 @@ func (p LayoutPlan) Anchor(want ModuleRole, free func(room Rectangle) bool) (dom
 	return domain.Cell{}, false
 }
 
+// Core is the cell the base clusters around: the first storeroom's
+// interior centre, else the main spine's midpoint (#1534). Stockpiles and
+// the cooking campfire anchor here rather than on the colonists' centroid,
+// which on a fresh landing is the map centre. False means an empty plan.
+func (p LayoutPlan) Core() (domain.Cell, bool) {
+	for _, r := range p.AllRooms() {
+		if r.Role == ModuleStorage {
+			return domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}, true
+		}
+	}
+	if len(p.Spine) > 0 {
+		s := p.Spine[0]
+		return domain.Cell{X: (s.From.X + s.To.X) / 2, Z: (s.From.Z + s.To.Z) / 2}, true
+	}
+	return domain.Cell{}, false
+}
+
 // Valid reports a plan a store may persist: at least one room, straight
 // spine segments, non-empty rectangles and runs, and a real door rotation.
 func (p LayoutPlan) Valid() bool {
