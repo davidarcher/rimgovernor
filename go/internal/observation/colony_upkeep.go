@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -153,7 +154,7 @@ func colonyRoutes(section *o.RoutesSection) domain.Fact[policy.RoutesObservation
 		r.TrafficSince = domain.Known(domain.Tick(f.GetTrafficSinceTick()))
 	}
 	for _, row := range f.Facilities {
-		out := policy.RouteFacility{ID: row.Facility.GetId(), Definition: row.Facility.GetDefName(), Kind: row.GetKind(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Travel: []policy.RouteTravel{}, Breaches: []policy.RouteBreach{}}
+		out := policy.RouteFacility{ID: row.Facility.GetId(), Definition: row.Facility.GetDefName(), Kind: bridge.RouteKindName(row.GetKind()), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Travel: []policy.RouteTravel{}, Breaches: []policy.RouteBreach{}}
 		if row.RoomId != nil {
 			out.Room = domain.Known(row.GetRoomId())
 		}

@@ -154,7 +154,7 @@ namespace HomeBridge.BridgeTools
             IDictionary<ResearchProjectDef, float> progress, IDictionary<ResearchProjectDef, float> knowledge,
             bool anomaly, Faction player, float points, float cost, bool finished, bool current)
         {
-            var row = new Obs.ResearchProject { Project = Definition(def), TechLevel = Id(def.techLevel.ToString()), Finished = finished, Current = current };
+            var row = new Obs.ResearchProject { Project = Definition(def), TechLevel = NativeEnums.Tech(def.techLevel), Finished = finished, Current = current };
             var factor = def.CostFactor(player.def.techLevel); Number(factor); Number(cost * factor); Number(def.baseCost);
             row.BaseCost = def.baseCost; row.ApparentCost = cost * factor; row.CostFactor = factor; row.Progress = points;
             if (cost > 0) row.ProgressFraction = Fraction(points, cost);

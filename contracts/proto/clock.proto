@@ -266,7 +266,7 @@ message Status {
   optional int64 newest_cursor = 9;
   optional string watcher_error = 10;
   optional uint64 force_pause_waiting_ms = 11;
-  optional string force_pause_kind = 12;
+  optional ForcePauseKind force_pause_kind = 12;
   optional int64 max_probe_tick_gap = 13;
   optional uint64 probe_count = 14;
   repeated Alert baseline_alerts = 15;
@@ -560,9 +560,11 @@ message ForcePauseWaiting {
   optional uint64 waited_ms = 2;
   optional uint32 grace_ms = 3;
 }
+// ForcePauseKind is what held the clock: a long event (an autosave) or a pause with no window behind it.
+enum ForcePauseKind { FORCE_PAUSE_KIND_UNSPECIFIED = 0; FORCE_PAUSE_KIND_LONG_EVENT = 1; FORCE_PAUSE_KIND_TRANSIENT = 2; }
 message ForcePauseCleared {
   optional uint64 waited_ms = 1;
-  optional string force_pause_kind = 2;
+  optional ForcePauseKind force_pause_kind = 2;
   optional bool speed_restored = 3;
 }
 message Event {

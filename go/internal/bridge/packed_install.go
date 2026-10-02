@@ -30,7 +30,7 @@ func (client *Client) ReadPackedItems(ctx context.Context, identity *c.Identity,
 		return nil, Result{}, contract("invalid packed items read")
 	}
 	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
-		Filter: &o.StockFilter{DefNames: []string{packedDef}, Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false)}}
+		Filter: &o.StockFilter{DefNames: []string{packedDef}, Ownership: o.StockOwnership_STOCK_OWNERSHIP_OURS.Enum(), IncludeHeld: proto.Bool(false)}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {

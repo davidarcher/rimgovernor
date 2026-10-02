@@ -32,7 +32,7 @@ func TestReserveSupplyCensusLocatesFoodAndRetainsScopeChecks(t *testing.T) {
 			if arg.Tool != "rimgovernor/observations_list_supplies" {
 				t.Fatal(arg.Tool)
 			}
-			protoTestRequest(t, arg, &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, Filter: &o.StockFilter{DefNames: []string{"Pemmican", "MealSurvivalPack"}, Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}})
+			protoTestRequest(t, arg, &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, Filter: &o.StockFilter{DefNames: []string{"Pemmican", "MealSurvivalPack"}, Ownership: o.StockOwnership_STOCK_OWNERSHIP_OURS.Enum(), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}})
 			return pbResult(v), nil
 		}}, time.Second)
 		read, _, err := client.ReadFoodReserveSupplies(context.Background(), pbIdentity(), forbid)

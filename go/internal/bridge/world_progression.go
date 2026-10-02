@@ -283,7 +283,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 	seenQuests := map[string]bool{}
 	quests := make([]QuestOffer, len(v.Quests))
 	for i, row := range v.Quests {
-		if row == nil || validID(row.GetId()) != nil || seenQuests[row.GetId()] || row.State == nil || row.RequiresAccepter == nil || row.CanAccept == nil {
+		if row == nil || validID(row.GetId()) != nil || seenQuests[row.GetId()] || QuestStatusName(row.GetState()) == "" || row.RequiresAccepter == nil || row.CanAccept == nil {
 			return WorldProgressionRead{}, contract("invalid or duplicate world progression quest")
 		}
 		seenQuests[row.GetId()] = true
@@ -307,7 +307,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			pawnIDs[j] = pawn.GetId()
 		}
 		quest := QuestOffer{
-			ID: row.GetId(), ScriptDef: row.GetScriptDef(), State: row.GetState(), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
+			ID: row.GetId(), ScriptDef: row.GetScriptDef(), State: QuestStatusName(row.GetState()), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
 			ChoiceCount: int32(len(choices)), EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
 		}
 		requests := make([]QuestTradeRequestFact, len(row.TradeRequests))

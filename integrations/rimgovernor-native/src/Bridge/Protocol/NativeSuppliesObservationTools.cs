@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
                     var entries = new Census(map, player, filter).Read();
                     var reserved = new HashSet<Thing>(map.reservationManager.AllReservedThings());
                     var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
-                    var selected = groups.Where(g => Ownership(filter) == "all" || g.Any(e => e.Ours)).ToList();
+                    var selected = groups.Where(g => Ownership(filter) == Obs.StockOwnership.All || g.Any(e => e.Ours)).ToList();
                     var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count, groups.Count - selected.Count) };
                     foreach (var group in selected)
                     {
@@ -69,8 +69,8 @@ namespace HomeBridge.BridgeTools
             if (filter == null) return true;
             if (filter.DefNames.Count > 256 || filter.DefNames.Any(d => !ProtoBoundary.IsIdentifier(d))
                 || filter.DefNames.Distinct(StringComparer.Ordinal).Count() != filter.DefNames.Count) return false;
-            if (filter.HasCategory && !new[] { "haulable", "food", "weapons", "all", "buildings" }.Contains(filter.Category)) return false;
-            if (filter.HasOwnership && filter.Ownership != "ours" && filter.Ownership != "all") return false;
+            if (filter.HasCategory && (filter.Category == Obs.StockCategory.Unspecified || !Enum.IsDefined(typeof(Obs.StockCategory), filter.Category))) return false;
+            if (filter.HasOwnership && filter.Ownership != Obs.StockOwnership.Ours && filter.Ownership != Obs.StockOwnership.All) return false;
             return filter.Region == null || CellPresent(filter.Region.Minimum) && CellPresent(filter.Region.Maximum)
                 && filter.Region.Minimum.X <= filter.Region.Maximum.X && filter.Region.Minimum.Z <= filter.Region.Maximum.Z;
         }
@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
             {
                 var all = map.listerThings.AllThings.ToList();
                 var category = Category(filter);
-                IEnumerable<Thing> spawned = category == "all" ? all : category == "buildings"
+                IEnumerable<Thing> spawned = category == Obs.StockCategory.All ? all : category == Obs.StockCategory.Buildings
                     ? map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingArtificial)
                     : map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver);
                 foreach (var thing in spawned) Add(thing, null, thing.Position);
@@ -182,10 +182,10 @@ namespace HomeBridge.BridgeTools
                 Player = value.Player, Other = value.Other, Trader = value.Trader, Dead = value.Dead };
         }
 
-        internal static bool MatchesCategory(ThingDef definition, string category, bool held) => category == "all"
-            || category == "buildings" && !held && definition.category == ThingCategory.Building
-            || category == "food" && definition.IsNutritionGivingIngestible
-            || category == "weapons" && definition.IsWeapon || category == "haulable" && definition.EverHaulable;
+        internal static bool MatchesCategory(ThingDef definition, Obs.StockCategory category, bool held) => category == Obs.StockCategory.All
+            || category == Obs.StockCategory.Buildings && !held && definition.category == ThingCategory.Building
+            || category == Obs.StockCategory.Food && definition.IsNutritionGivingIngestible
+            || category == Obs.StockCategory.Weapons && definition.IsWeapon || category == Obs.StockCategory.Haulable && definition.EverHaulable;
 
         internal static bool IsOurs(bool fogged, bool held, bool playerFaction, bool otherFaction, bool deadHolder)
             => !fogged && (held ? playerFaction && !deadHolder : !otherFaction);
@@ -267,8 +267,8 @@ namespace HomeBridge.BridgeTools
             }
             return entity;
         }
-        private static string Category(Obs.StockFilter filter) => filter.HasCategory ? filter.Category : "haulable";
-        private static string Ownership(Obs.StockFilter filter) => filter.HasOwnership ? filter.Ownership : "ours";
+        private static Obs.StockCategory Category(Obs.StockFilter filter) => filter.HasCategory ? filter.Category : Obs.StockCategory.Haulable;
+        private static Obs.StockOwnership Ownership(Obs.StockFilter filter) => filter.HasOwnership ? filter.Ownership : Obs.StockOwnership.Ours;
         private static bool IncludeHeld(Obs.StockFilter filter) => !filter.HasIncludeHeld || filter.IncludeHeld;
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
         private static IntVec3 NativeCell(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);

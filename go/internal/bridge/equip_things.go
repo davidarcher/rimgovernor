@@ -33,7 +33,7 @@ func (client *Client) ReadEquipWeapons(ctx context.Context, identity *c.Identity
 		return EquipRead{}, Result{}, contract("invalid equip scope")
 	}
 	region := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(minimum.X), Z: proto.Int32(minimum.Z)}, Maximum: &c.Cell{X: proto.Int32(maximum.X), Z: proto.Int32(maximum.Z)}}
-	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{Category: proto.String("weapons"), Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(false), Region: region}}
+	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{Category: o.StockCategory_STOCK_CATEGORY_WEAPONS.Enum(), Ownership: o.StockOwnership_STOCK_OWNERSHIP_OURS.Enum(), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(false), Region: region}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {

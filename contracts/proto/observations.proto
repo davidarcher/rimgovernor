@@ -7,6 +7,7 @@ import "clock.proto";
 import "mirror.proto";
 import "placement.proto";
 import "operations.proto";
+import "receipts.proto";
 
 // All requests are read-only; previews/admission and UI/media have other owners.
 // Validators require context, selected outcome, finite numbers and exact IDs.
@@ -296,8 +297,10 @@ message SurgeryOperation {
   // absent.
   map<string, double> doctor_chances = 16;
 }
+// Quality is the vanilla QualityCategory.
+enum Quality { QUALITY_UNSPECIFIED = 0; QUALITY_AWFUL = 1; QUALITY_POOR = 2; QUALITY_NORMAL = 3; QUALITY_GOOD = 4; QUALITY_EXCELLENT = 5; QUALITY_MASTERWORK = 6; QUALITY_LEGENDARY = 7; }
 message GearItem {
-  EntityRef thing = 1; optional string stuff = 2; optional string quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
+  EntityRef thing = 1; optional string stuff = 2; optional Quality quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
   optional double condition_fraction = 6; repeated string apparel_layers = 7; repeated string body_part_groups = 8;
   optional bool weapon = 9; optional bool apparel = 10; optional bool ranged = 11; optional bool melee = 12;
   optional bool forced = 13; optional bool locked = 14; optional double armor_sharp = 15; optional double armor_blunt = 16;
@@ -514,7 +517,10 @@ message ResourceStock {
   // Only weapon rows carry these; older producers omit them.
   repeated GearItem weapon_items = 28;
 }
-message StockFilter { repeated string def_names = 1; optional string category = 2; optional string ownership = 3; optional bool include_held = 4; optional bool forbidden_only = 5; optional bool exclude_chunks = 6; optional bool corpses = 7; Rectangle region = 8; }
+// StockCategory and StockOwnership scope a supplies read; absent means HAULABLE and OURS.
+enum StockCategory { STOCK_CATEGORY_UNSPECIFIED = 0; STOCK_CATEGORY_HAULABLE = 1; STOCK_CATEGORY_FOOD = 2; STOCK_CATEGORY_WEAPONS = 3; STOCK_CATEGORY_BUILDINGS = 4; STOCK_CATEGORY_ALL = 5; }
+enum StockOwnership { STOCK_OWNERSHIP_UNSPECIFIED = 0; STOCK_OWNERSHIP_OURS = 1; STOCK_OWNERSHIP_ALL = 2; }
+message StockFilter { repeated string def_names = 1; optional StockCategory category = 2; optional StockOwnership ownership = 3; optional bool include_held = 4; optional bool forbidden_only = 5; optional bool exclude_chunks = 6; optional bool corpses = 7; Rectangle region = 8; }
 message SuppliesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ResourceStock stocks = 2; Completeness completeness = 3; }
 message ListSuppliesRequest { ReadScope scope = 1; StockFilter filter = 2; reserved 3; }
 message ListSuppliesReply { oneof outcome { SuppliesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -561,7 +567,7 @@ message RecipeIngredientClasses { repeated FoodIngredientSlot slots = 1; }
 message BuildingSettings {
   SnapshotRef snapshot = 1; optional bool forbidden = 2; optional bool flickable = 3; optional bool desired_switch_on = 4;
   optional bool switch_on = 5; optional bool flick_designated = 6; optional bool connected = 7; optional bool powered = 8;
-  optional double target_temperature_c = 9; optional bool medical = 10; optional bool for_prisoners = 11; optional string bed_owner_type = 12;
+  optional double target_temperature_c = 9; optional bool medical = 10; optional bool for_prisoners = 11; reserved 12;
   repeated string assigned_pawn_ids = 13; optional uint32 maximum_assigned_pawns = 14; repeated EntityRef assigning_candidates = 15;
   optional bool room_can_be_prison_cell = 16; repeated ReadIssue issues = 17;
   // crop_def_name is a plant grower's current crop beside its own CAS snapshot (BuildingPatchIntent.plant_def).
@@ -628,14 +634,13 @@ message RoomDoor { rimgovernor.common.v1.Cell cell = 1; rimgovernor.common.v1.Ce
 message RoomsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated RoomState rooms = 2; Completeness completeness = 3; }
 message ListRoomsRequest { ReadScope scope = 1; Rectangle region = 2; optional bool include_outdoors = 3; optional bool include_boundary = 4; optional bool include_cells = 5; repeated string room_ids = 6; reserved 7; }
 message ListRoomsReply { oneof outcome { RoomsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message ZoneAnomaly { optional string kind = 1; rimgovernor.common.v1.Cell cell = 2; optional string grid_owner_id = 3; optional string detail = 4; }
 message ZoneState {
   reserved 1; reserved "snapshot"; optional string id = 2; optional string label = 3; optional string type = 4; Rectangle bounds = 5;
   optional string priority = 6; optional string crop_def_name = 7; optional bool explicitly_set_crop = 8;
   optional bool allow_sow = 9; optional bool allow_cut = 10; StockpileFilter filter = 11;
   repeated rimgovernor.common.v1.Cell listed_cells = 12; repeated rimgovernor.common.v1.Cell grid_cells = 13;
   optional uint32 slot_group_cells = 14; optional uint32 haul_grid_cells = 15; optional bool consistent = 16;
-  optional bool contiguous = 17; repeated ZoneAnomaly anomalies = 18; repeated Quantity contents = 19;
+  optional bool contiguous = 17; reserved 18; repeated Quantity contents = 19;
   optional uint32 free_cells = 20; optional uint32 blocked_cells = 21; optional uint32 impassable_cells = 22;
   optional uint32 crop_plants_in_listed_cells = 23; optional uint32 crop_plants_in_grid_cells = 24;
   reserved 25; reserved 26; repeated ReadIssue issues = 27;
@@ -693,8 +698,10 @@ message CompactCells {
 message CellSelection { repeated rimgovernor.common.v1.Cell cells = 1; }
 message GetCellsReply { oneof outcome { CellsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ResearchUnlock { optional string def_name = 1; optional string native_type = 2; optional string label = 3; }
+// TechLevel is the vanilla TechLevel.
+enum TechLevel { TECH_LEVEL_UNSPECIFIED = 0; TECH_LEVEL_UNDEFINED = 1; TECH_LEVEL_ANIMAL = 2; TECH_LEVEL_NEOLITHIC = 3; TECH_LEVEL_MEDIEVAL = 4; TECH_LEVEL_INDUSTRIAL = 5; TECH_LEVEL_SPACER = 6; TECH_LEVEL_ULTRA = 7; TECH_LEVEL_ARCHOTECH = 8; }
 message ResearchProject {
-  DefinitionRef project = 1; optional string tab = 2; optional string category = 3; optional string tech_level = 4;
+  DefinitionRef project = 1; optional string tab = 2; optional string category = 3; optional TechLevel tech_level = 4;
   optional double base_cost = 5; optional double apparent_cost = 6; optional double cost_factor = 7; optional double progress = 8;
   optional double progress_fraction = 9; optional bool finished = 10; optional bool current = 11; optional bool available = 12;
   optional bool can_start = 13; repeated string prerequisites = 14; repeated string hidden_prerequisites = 15;
@@ -908,7 +915,7 @@ message CaravanState {
 }
 message QuestTradeRequest { optional string resource = 1; optional int64 count = 2; optional int32 destination = 3; }
 message QuestReward { optional uint32 choice_index = 1; optional string kind = 2; optional string label = 3; repeated Quantity items = 4; }
-message QuestState { optional string id = 1; optional string label = 2; optional string description = 3; optional string state = 4; optional int64 accepted_tick = 5; optional int64 expires_in_ticks = 6; optional bool requires_accepter = 7; optional bool can_accept = 8; repeated EntityRef eligible_pawns = 9; repeated QuestTradeRequest trade_requests = 10; repeated QuestReward rewards = 11; repeated ReadIssue issues = 12; SnapshotRef snapshot = 13; optional string script_def = 14; }
+message QuestState { optional string id = 1; optional string label = 2; optional string description = 3; optional rimgovernor.receipts.v1.QuestStatus state = 4; optional int64 accepted_tick = 5; optional int64 expires_in_ticks = 6; optional bool requires_accepter = 7; optional bool can_accept = 8; repeated EntityRef eligible_pawns = 9; repeated QuestTradeRequest trade_requests = 10; repeated QuestReward rewards = 11; repeated ReadIssue issues = 12; SnapshotRef snapshot = 13; optional string script_def = 14; }
 message FactionState { optional string id = 1; optional string label = 2; optional bool player = 3; optional bool hostile = 4; optional int32 goodwill = 5; optional string relation = 6; SnapshotRef snapshot = 7; }
 message WorldMap { optional int32 id = 1; optional int32 tile = 2; optional bool home = 3; optional string label = 4; repeated PawnState pawns = 5; repeated ResourceStock stored_items = 6; reserved 7; }
 message CaravanAssembly { optional string id = 1; optional int32 map_id = 2; optional string status = 3; optional bool gathering_items = 4; repeated EntityRef pawns = 5; }
@@ -982,7 +989,9 @@ message Trader { EntityRef trader = 1; optional string kind = 2; optional string
 message TradersSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Trader traders = 2; repeated EntityRef negotiators = 3; repeated BuildingState comms_consoles = 4; reserved 5; }
 message TradersRequest { ReadScope scope = 1; reserved 2; }
 message TradersReply { oneof outcome { TradersSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message TradeLine { optional uint32 index = 1; DefinitionRef definition = 2; optional string stuff = 3; optional string category = 4; optional int64 colony_count = 5; optional int64 trader_count = 6; optional double buy_price = 7; optional double sell_price = 8; optional string buy_price_type = 9; optional string sell_price_type = 10; optional double market_value = 11; optional bool trader_will_trade = 12; optional bool currency = 13; optional bool pawn = 14; optional string pawn_description = 15; optional int64 transfer_count = 16; optional int64 minimum_count = 17; optional int64 maximum_count = 18; optional bool protected_export = 19; repeated string cannot_sell_reasons = 20; optional string line_id = 21; TradeFoodFacts food = 22; repeated Skill skills = 23; optional bool violence_capable = 24; optional string pawn_id = 25; optional string thing_id = 26; optional int32 quality = 27; }
+// PriceType is the vanilla trade PriceType.
+enum PriceType { PRICE_TYPE_UNSPECIFIED = 0; PRICE_TYPE_UNDEFINED = 1; PRICE_TYPE_VERY_CHEAP = 2; PRICE_TYPE_CHEAP = 3; PRICE_TYPE_NORMAL = 4; PRICE_TYPE_EXPENSIVE = 5; PRICE_TYPE_EXORBITANT = 6; }
+message TradeLine { optional uint32 index = 1; DefinitionRef definition = 2; optional string stuff = 3; optional string category = 4; optional int64 colony_count = 5; optional int64 trader_count = 6; optional double buy_price = 7; optional double sell_price = 8; optional PriceType buy_price_type = 9; optional PriceType sell_price_type = 10; optional double market_value = 11; optional bool trader_will_trade = 12; optional bool currency = 13; optional bool pawn = 14; optional string pawn_description = 15; optional int64 transfer_count = 16; optional int64 minimum_count = 17; optional int64 maximum_count = 18; optional bool protected_export = 19; repeated string cannot_sell_reasons = 20; optional string line_id = 21; TradeFoodFacts food = 22; repeated Skill skills = 23; optional bool violence_capable = 24; optional string pawn_id = 25; optional string thing_id = 26; optional int32 quality = 27; }
 // TradeSession is the adapter's one live trade (#856): the negotiator
 // walking to trader_id to open a session (open false), or the pair holding
 // the open session (open true). Both ids are absent when neither exists.
@@ -1190,7 +1199,8 @@ enum TrafficLayer {
 }
 message RouteTravel { optional string pawn_id = 1; optional bool reachable = 2; optional int32 path_cost = 3; optional int32 path_cells = 4; }
 message RouteBreach { rimgovernor.common.v1.Cell cell = 1; optional string edifice = 2; optional string pending = 3; optional int32 distance = 4; }
-message RouteFacility { EntityRef facility = 1; optional string kind = 2; rimgovernor.common.v1.Cell cell = 3; optional string room_id = 4; repeated RouteTravel travel = 5; repeated RouteBreach breaches = 6; }
+enum RouteFacilityKind { ROUTE_FACILITY_KIND_UNSPECIFIED = 0; ROUTE_FACILITY_KIND_BED = 1; ROUTE_FACILITY_KIND_BENCH = 2; ROUTE_FACILITY_KIND_STORAGE = 3; ROUTE_FACILITY_KIND_DINING = 4; ROUTE_FACILITY_KIND_DEFENSE = 5; ROUTE_FACILITY_KIND_STOCKPILE = 6; }
+message RouteFacility { EntityRef facility = 1; optional RouteFacilityKind kind = 2; rimgovernor.common.v1.Cell cell = 3; optional string room_id = 4; repeated RouteTravel travel = 5; repeated RouteBreach breaches = 6; }
 message TrafficCell { rimgovernor.common.v1.Cell cell = 1; optional uint32 samples = 2; optional string terrain = 3; optional bool home = 4; optional string pending = 5; TrafficLayer layer = 6; }
 message RoutesFacts { repeated RouteFacility facilities = 1; repeated string pawn_ids = 2; repeated TrafficCell traffic = 3; optional uint32 traffic_samples = 4; optional int32 traffic_since_tick = 5; reserved 6; }
 message RoutesSection { oneof outcome { RoutesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }

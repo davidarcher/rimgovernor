@@ -154,7 +154,7 @@ namespace HomeBridge.BridgeTools
                     result.HostilesCleared.DraftedColonists.Add(Rows(P(), "draftedColonists").Select(row => Pawn(row, resolvePawn, true))); break;
                 case "long_event": case "transient_force_pause":
                     result.ForcePauseWaiting = new Clock.ForcePauseWaiting { Pause = new Clock.PauseEvidence { LongEventPending = Bool(P(), "longEvent"), RequestedSpeed = ParseSpeed(String(P(), "requestedSpeed")) }, WaitedMs = 0, GraceMs = checked((uint)Number(P(), "graceMs")) }; break;
-                case "force_pause_cleared": result.ForcePauseCleared = new Clock.ForcePauseCleared { WaitedMs = checked((ulong)Number(P(), "waitedMs")), ForcePauseKind = String(P(), "forcePauseKind"), SpeedRestored = Bool(P(), "speedRestored") }; break;
+                case "force_pause_cleared": result.ForcePauseCleared = new Clock.ForcePauseCleared { WaitedMs = checked((ulong)Number(P(), "waitedMs")), ForcePauseKind = NativeEnums.ForcePause(String(P(), "forcePauseKind")), SpeedRestored = Bool(P(), "speedRestored") }; break;
                 case "pause_failed": result.PauseFailed = new Clock.PauseFailed { Pending = new Clock.StopEvent { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native pause did not take; epoch remains armed." } } }; break;
                 default:
                     var stop = new Clock.StopEvent { Reason = StopReason(kind) };

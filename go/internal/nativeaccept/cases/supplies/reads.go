@@ -62,7 +62,7 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		request := map[string]any{
 			"scope":  map[string]any{"expectedIdentity": identity},
-			"filter": map[string]any{"defNames": defNames, "ownership": "all", "includeHeld": includeHeld},
+			"filter": map[string]any{"defNames": defNames, "ownership": "STOCK_OWNERSHIP_ALL", "includeHeld": includeHeld},
 		}
 		reply, err := h.Wire(ctx, label+"-typed-census", "observations_list_supplies", request)
 		if err != nil {
@@ -287,7 +287,7 @@ func checkStock(row map[string]any, identity map[string]any, includeHeld bool) e
 func checkWeaponClasses(ctx context.Context, h *na.Harness, identity map[string]any, report map[string]any) error {
 	request := map[string]any{
 		"scope":  map[string]any{"expectedIdentity": identity},
-		"filter": map[string]any{"category": "weapons", "ownership": "all", "includeHeld": true},
+		"filter": map[string]any{"category": "STOCK_CATEGORY_WEAPONS", "ownership": "STOCK_OWNERSHIP_ALL", "includeHeld": true},
 	}
 	reply, err := h.Wire(ctx, "weapons-census", "observations_list_supplies", request)
 	if err != nil {

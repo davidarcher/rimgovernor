@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	rp "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func worldProgressionFixture() *o.WorldProgressionSnapshot {
 			HomeRoutes: []*o.WorldRoute{{Destination: proto.Int32(7), Reachable: proto.Bool(true), EstimatedTicks: proto.Int64(6000)}},
 		}},
 		Quests: []*o.QuestState{{
-			Id: proto.String("quest-1"), State: proto.String("NotYetAccepted"),
+			Id: proto.String("quest-1"), State: rp.QuestStatus_QUEST_STATUS_NOT_YET_ACCEPTED.Enum(),
 			RequiresAccepter: proto.Bool(true), CanAccept: proto.Bool(true),
 			EligiblePawns: []*o.EntityRef{{Id: proto.String("pawn-1")}},
 			Rewards:       []*o.QuestReward{{ChoiceIndex: proto.Uint32(0)}},

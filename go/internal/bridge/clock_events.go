@@ -165,7 +165,7 @@ func clockEvent(event *k.Event) error {
 		}
 		return clockPauseEvidence(v.ForcePauseWaiting.Pause)
 	case *k.Event_ForcePauseCleared:
-		if v.ForcePauseCleared == nil || !diagnostic(v.ForcePauseCleared.ForcePauseKind) {
+		if v.ForcePauseCleared == nil {
 			return contract("clock force pause clear evidence")
 		}
 	case *k.Event_OperationOutcome:

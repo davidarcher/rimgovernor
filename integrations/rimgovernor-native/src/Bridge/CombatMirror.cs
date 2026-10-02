@@ -267,7 +267,7 @@ namespace HomeBridge.BridgeTools
             if (pawn.drafter != null)
             {
                 row.Drafted = pawn.drafter.Drafted;
-                if (pawn.drafter.Drafted) row.FireMode = pawn.drafter.FireAtWill ? "fire_at_will" : "hold_fire";
+                if (pawn.drafter.Drafted) row.FireMode = pawn.drafter.FireAtWill ? RimGovernor.Protocol.Operations.CombatFireMode.AtWill : RimGovernor.Protocol.Operations.CombatFireMode.Hold;
             }
             var job = pawn.CurJob;
             if (job != null)

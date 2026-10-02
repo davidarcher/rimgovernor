@@ -154,7 +154,7 @@ func runJoiner(ctx context.Context, s cases.Session) error {
 	if na.AsString(row["scriptDef"]) != "ThreatReward_Raid_Joiner" {
 		return fmt.Errorf("census-before: quest row lacks its root script_def: %#v", row)
 	}
-	if state := na.AsString(row["state"]); state != "QUEST_STATE_NOT_YET_ACCEPTED" && state != "NotYetAccepted" {
+	if state := na.AsString(row["state"]); state != "QUEST_STATUS_NOT_YET_ACCEPTED" && state != "NotYetAccepted" {
 		return fmt.Errorf("census-before: expected a not-yet-accepted offer: %#v", row)
 	}
 	if canAccept, _ := na.AsBool(row["canAccept"]); !canAccept {

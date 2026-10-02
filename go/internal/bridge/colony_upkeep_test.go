@@ -144,7 +144,7 @@ func routesWire() *o.RoutesSection {
 		Facilities: []*o.RouteFacility{
 			{
 				Facility: &o.EntityRef{Id: proto.String("zone-3"), DefName: proto.String("Zone_Stockpile"), MapId: proto.Int32(3), Position: cell(10, 10)},
-				Kind:     proto.String("stockpile"), Cell: cell(10, 10), RoomId: proto.String("7"),
+				Kind:     o.RouteFacilityKind_ROUTE_FACILITY_KIND_STOCKPILE.Enum(), Cell: cell(10, 10), RoomId: proto.String("7"),
 				Travel: []*o.RouteTravel{
 					{PawnId: proto.String("a"), Reachable: proto.Bool(false)},
 					{PawnId: proto.String("b"), Reachable: proto.Bool(false)},
@@ -153,7 +153,7 @@ func routesWire() *o.RoutesSection {
 			},
 			{
 				Facility: &o.EntityRef{Id: proto.String("Thing_Bed1"), DefName: proto.String("Bed"), MapId: proto.Int32(3), Position: cell(20, 20)},
-				Kind:     proto.String("bed"), Cell: cell(20, 20),
+				Kind:     o.RouteFacilityKind_ROUTE_FACILITY_KIND_BED.Enum(), Cell: cell(20, 20),
 				Travel: []*o.RouteTravel{{PawnId: proto.String("a"), Reachable: proto.Bool(true), PathCost: proto.Int32(120), PathCells: proto.Int32(9)}},
 			},
 		},

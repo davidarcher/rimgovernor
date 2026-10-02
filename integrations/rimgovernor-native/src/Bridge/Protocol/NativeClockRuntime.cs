@@ -287,7 +287,7 @@ namespace HomeBridge.BridgeTools
                         if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result.Stopped.CombatEvent = TypedOf(s).CombatEvent;
                     }
                     result.MaxProbeTickGap = s.MaxProbeTickGap; result.ProbeCount = checked((ulong)s.ProbeCount);
-                    if (s.ForcePauseSinceMs != 0) { result.ForcePauseWaitingMs = checked((ulong)Math.Max(0, NowMs() - s.ForcePauseSinceMs)); result.ForcePauseKind = Text(s.ForcePauseKind); }
+                    if (s.ForcePauseSinceMs != 0) { result.ForcePauseWaitingMs = checked((ulong)Math.Max(0, NowMs() - s.ForcePauseSinceMs)); result.ForcePauseKind = NativeEnums.ForcePause(s.ForcePauseKind); }
                     foreach (var row in s.BaselineAlerts) result.BaselineAlerts.Add(NativeClockEventProjection.Alert(row));
                     // Existing suppression baselines lack full injury before/after; report incomplete evidence, never fabricate it.
                 }

@@ -94,7 +94,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["routes_before"] = before.evidence()
-	if before.kind != "stockpile" || len(before.travel) != colonists || before.reachable() != 0 {
+	if before.kind != "ROUTE_FACILITY_KIND_STOCKPILE" || len(before.travel) != colonists || before.reachable() != 0 {
 		return fmt.Errorf("routes-before: %s reads kind %s, %d of %d travel rows, %d reachable", facility, before.kind, len(before.travel), colonists, before.reachable())
 	}
 	if len(before.breaches) == 0 {

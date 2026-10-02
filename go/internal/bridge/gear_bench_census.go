@@ -329,7 +329,7 @@ func (client *Client) readSupplyStockChunk(ctx context.Context, identity *c.Iden
 	for _, n := range defNames {
 		names[n] = true
 	}
-	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{DefNames: append([]string(nil), defNames...), Ownership: proto.String("ours")}}
+	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{DefNames: append([]string(nil), defNames...), Ownership: o.StockOwnership_STOCK_OWNERSHIP_OURS.Enum()}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {

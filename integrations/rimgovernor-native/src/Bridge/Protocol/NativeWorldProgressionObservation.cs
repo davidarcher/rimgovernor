@@ -181,7 +181,7 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.QuestState
                 {
                     Id = q.GetUniqueLoadID(), Label = q.name ?? "", Description = q.description.ToString() ?? "",
-                    State = q.State.ToString(), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
+                    State = NativeEnums.Quest(q.State), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
                     RequiresAccepter = q.RequiresAccepter, ScriptDef = q.root?.defName ?? "",
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,
                     // The quest row's identity-and-state token.

@@ -32,7 +32,7 @@ func (client *Client) ReadFoodReserveSupplies(ctx context.Context, identity *c.I
 		return SupplyRead{}, Result{}, err
 	}
 	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
-		Filter: &o.StockFilter{DefNames: []string{"Pemmican", "MealSurvivalPack"}, Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}}
+		Filter: &o.StockFilter{DefNames: []string{"Pemmican", "MealSurvivalPack"}, Ownership: o.StockOwnership_STOCK_OWNERSHIP_OURS.Enum(), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {
@@ -51,7 +51,7 @@ func (client *Client) readSupplyAccess(ctx context.Context, identity *c.Identity
 		return SupplyRead{}, Result{}, contract("invalid supply scope")
 	}
 	point := &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}
-	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{Category: proto.String("haulable"), Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid), Region: &o.Rectangle{Minimum: point, Maximum: proto.Clone(point).(*c.Cell)}}}
+	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{Category: o.StockCategory_STOCK_CATEGORY_HAULABLE.Enum(), Ownership: o.StockOwnership_STOCK_OWNERSHIP_OURS.Enum(), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid), Region: &o.Rectangle{Minimum: point, Maximum: proto.Clone(point).(*c.Cell)}}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {

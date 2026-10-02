@@ -12,7 +12,7 @@ import (
 )
 
 func TestArmoryPrimary(t *testing.T) {
-	id, def, q := "r1", "Gun_Revolver", "Good"
+	id, def, q := "r1", "Gun_Revolver", o.Quality_QUALITY_GOOD
 	ranged := true
 	row := &o.PawnState{Equipment: &o.PawnEquipment{PrimaryId: &id, Equipped: []*o.GearItem{{Thing: &o.EntityRef{Id: &id, DefName: &def}, Quality: &q, Ranged: &ranged}}}}
 	if got, ok := armoryPrimary(row); !ok || got != (policy.ArmoryPrimary{Definition: def, Ranged: true, Quality: 3}) {

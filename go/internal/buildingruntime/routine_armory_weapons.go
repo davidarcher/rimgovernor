@@ -226,8 +226,6 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 	return policy.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes), policy.UnarmedFighters(pawns, candidates), nil
 }
 
-var armoryQualityRank = map[string]int{"Awful": 0, "Poor": 1, "Normal": 2, "Good": 3, "Excellent": 4, "Masterwork": 5, "Legendary": 6}
-
 // armoryPrimary is the pawn's equipped primary weapon; an unobserved
 // quality reads as normal.
 func armoryPrimary(row *o.PawnState) (policy.ArmoryPrimary, bool) {
@@ -240,9 +238,9 @@ func armoryPrimary(row *o.PawnState) (policy.ArmoryPrimary, bool) {
 		if item.GetThing().GetId() != id || item.GetThing().GetDefName() == "" {
 			continue
 		}
-		quality, ok := armoryQualityRank[item.GetQuality()]
-		if !ok {
-			quality = 2
+		quality := 2 // QualityCategory.Normal
+		if q := item.GetQuality(); q != o.Quality_QUALITY_UNSPECIFIED {
+			quality = int(q) - 1
 		}
 		return policy.ArmoryPrimary{Definition: item.GetThing().GetDefName(), Ranged: item.GetRanged(), Quality: quality}, true
 	}

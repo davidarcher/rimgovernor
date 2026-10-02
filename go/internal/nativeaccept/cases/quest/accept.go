@@ -87,7 +87,7 @@ func runAccept(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if na.AsString(questRow["state"]) != "QUEST_STATE_NOT_YET_ACCEPTED" && na.AsString(questRow["state"]) != "NotYetAccepted" {
+	if na.AsString(questRow["state"]) != "QUEST_STATUS_NOT_YET_ACCEPTED" && na.AsString(questRow["state"]) != "NotYetAccepted" {
 		return fmt.Errorf("target-before: expected a not-yet-accepted quest, got %#v", questRow)
 	}
 	if requiresAccepter, _ := na.AsBool(questRow["requiresAccepter"]); requiresAccepter {
@@ -150,7 +150,7 @@ func runAccept(ctx context.Context, s cases.Session) error {
 	}
 	if row, err := target("target-after-refusals"); err != nil {
 		return err
-	} else if na.AsString(row["state"]) != "QUEST_STATE_NOT_YET_ACCEPTED" && na.AsString(row["state"]) != "NotYetAccepted" {
+	} else if na.AsString(row["state"]) != "QUEST_STATUS_NOT_YET_ACCEPTED" && na.AsString(row["state"]) != "NotYetAccepted" {
 		return fmt.Errorf("target-after-refusals: a refused intent changed the quest: %#v", row)
 	}
 
@@ -167,7 +167,7 @@ func runAccept(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if na.AsString(questRowAccepted["state"]) == "QUEST_STATE_NOT_YET_ACCEPTED" || na.AsString(questRowAccepted["state"]) == "NotYetAccepted" {
+	if na.AsString(questRowAccepted["state"]) == "QUEST_STATUS_NOT_YET_ACCEPTED" || na.AsString(questRowAccepted["state"]) == "NotYetAccepted" {
 		return fmt.Errorf("target-after-apply: expected the quest to have left NotYetAccepted, got %#v", questRowAccepted)
 	}
 	if canAccept, _ := na.AsBool(questRowAccepted["canAccept"]); canAccept {

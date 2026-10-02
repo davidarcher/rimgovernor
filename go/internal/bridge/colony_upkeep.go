@@ -249,7 +249,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, enti
 	}
 	seen := map[string]bool{}
 	for _, row := range f.Facilities {
-		if row == nil || !entity(row.Facility, seen) || row.Kind == nil || validID(row.GetKind()) != nil || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.RouteFacility{Facility: row.Facility, Kind: row.Kind, Cell: row.Cell, RoomId: row.RoomId, Travel: row.Travel, Breaches: row.Breaches}) {
+		if row == nil || !entity(row.Facility, seen) || RouteKindName(row.GetKind()) == "" || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.RouteFacility{Facility: row.Facility, Kind: row.Kind, Cell: row.Cell, RoomId: row.RoomId, Travel: row.Travel, Breaches: row.Breaches}) {
 			return contract("invalid routes facility")
 		}
 		travelled := map[string]bool{}

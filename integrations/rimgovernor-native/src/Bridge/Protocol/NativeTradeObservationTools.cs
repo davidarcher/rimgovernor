@@ -30,6 +30,7 @@ namespace HomeBridge.BridgeTools
         private static int SafeInt(Func<int> f) { try { return f(); } catch { return 0; } }
         private static float SafeFloat(Func<float> f) { try { return f(); } catch { return 0f; } }
         private static string SafeText(Func<string?> f) { try { return f() ?? ""; } catch { return ""; } }
+        private static Obs.PriceType SafePrice(Func<RimWorld.PriceType> f) { try { return NativeEnums.Price(f()); } catch { return Obs.PriceType.Unspecified; } }
 
 
         private static Obs.EntityRef PawnRef(Pawn pawn, Common.ObservationContext context) => new Obs.EntityRef
@@ -106,7 +107,7 @@ namespace HomeBridge.BridgeTools
                 // session's own scratch state, the same write the vanilla dialog
                 // makes every frame it draws.
                 BuyPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerBuys)), SellPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerSells)),
-                BuyPriceType = SafeText(() => t.PriceTypeFor(TradeAction.PlayerBuys).ToString()), SellPriceType = SafeText(() => t.PriceTypeFor(TradeAction.PlayerSells).ToString()),
+                BuyPriceType = SafePrice(() => t.PriceTypeFor(TradeAction.PlayerBuys)), SellPriceType = SafePrice(() => t.PriceTypeFor(TradeAction.PlayerSells)),
                 MarketValue = SafeFloat(() => t.BaseMarketValue),
                 TraderWillTrade = SafeBool(() => t.TraderWillTrade), Currency = SafeBool(() => t.IsCurrency), Pawn = pawn,
                 TransferCount = SafeInt(() => t.CountToTransfer), MinimumCount = SafeInt(() => t.GetMinimumToTransfer()), MaximumCount = SafeInt(() => t.GetMaximumToTransfer()),

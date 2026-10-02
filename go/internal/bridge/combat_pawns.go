@@ -141,7 +141,7 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 					return contract("duplicate gear")
 				}
 				seen[g.Thing.GetId()] = true
-				for _, id := range []*string{g.Stuff, g.Quality} {
+				for _, id := range []*string{g.Stuff} {
 					if id != nil && validID(*id) != nil {
 						return contract("invalid gear definition")
 					}

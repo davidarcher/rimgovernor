@@ -379,7 +379,7 @@ namespace HomeBridge.BridgeTools
             NativeGearFacts.Biocode(thing, row);
             if(thing.Stuff!=null) row.Stuff=Id(thing.Stuff.defName);
             var range=WeaponRange(thing); if(range.HasValue) row.Range=range.Value;
-            if(thing.TryGetQuality(out var quality)) row.Quality=quality.ToString();
+            if(thing.TryGetQuality(out var quality)) row.Quality=NativeEnums.Quality(quality);
             if(thing.def.useHitPoints) {
                 if(thing.MaxHitPoints<=0 || thing.HitPoints<0) throw new InvalidOperationException("Invalid native hit points.");
                 row.HitPoints=thing.HitPoints;row.MaxHitPoints=thing.MaxHitPoints;

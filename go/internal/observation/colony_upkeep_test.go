@@ -167,7 +167,7 @@ func routesWireFacts() *o.RoutesFacts {
 		PawnIds: []string{"a", "b"},
 		Facilities: []*o.RouteFacility{{
 			Facility: &o.EntityRef{Id: proto.String("zone-3"), DefName: proto.String("Zone_Stockpile"), MapId: proto.Int32(3), Position: cell(10, 10)},
-			Kind:     proto.String("stockpile"), Cell: cell(10, 10), RoomId: proto.String("7"),
+			Kind:     o.RouteFacilityKind_ROUTE_FACILITY_KIND_STOCKPILE.Enum(), Cell: cell(10, 10), RoomId: proto.String("7"),
 			Travel: []*o.RouteTravel{
 				{PawnId: proto.String("a"), Reachable: proto.Bool(false)},
 				{PawnId: proto.String("b"), Reachable: proto.Bool(true), PathCost: proto.Int32(120), PathCells: proto.Int32(9)},

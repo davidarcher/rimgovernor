@@ -4,6 +4,7 @@ option csharp_namespace = "RimGovernor.Protocol.Mirror";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb;mirrorpb";
 import "common.proto";
 import "clock.proto";
+import "operations.proto";
 
 // Which side a combat pawn fights on.
 enum CombatSide {
@@ -38,7 +39,7 @@ message CombatPawn {
   optional bool dead = 7;
   optional string mental_state = 8; // def name, absent when none
   optional bool drafted = 9;
-  optional string fire_mode = 10; // "fire_at_will" or "hold_fire" (drafted colonists)
+  optional rimgovernor.operations.v1.CombatFireMode fire_mode = 10; // drafted colonists
   optional string job = 11;       // current job def
   optional string target_id = 12; // current job's target thing
   optional CombatStance stance = 13;

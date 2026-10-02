@@ -366,7 +366,7 @@ func clockStatus(s *k.Status, identity *c.Identity) error {
 	if s.NativeTickBoundary == nil || s.DurableEvents == nil || s.NewestCursor == nil || s.GetNewestCursor() < 0 || s.ObservedSpeed == nil || s.GetObservedSpeed() < 1 || s.GetObservedSpeed() > 5 || s.ActualPaused == nil {
 		return contract("clock status facts missing")
 	}
-	if !diagnostic(s.WatcherError) || !diagnostic(s.ForcePauseKind) || (s.MaxProbeTickGap != nil && s.GetMaxProbeTickGap() < 0) {
+	if !diagnostic(s.WatcherError) || (s.MaxProbeTickGap != nil && s.GetMaxProbeTickGap() < 0) {
 		return contract("clock status diagnostics")
 	}
 	switch v := s.State.(type) {

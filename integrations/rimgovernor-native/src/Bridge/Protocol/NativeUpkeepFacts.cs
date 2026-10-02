@@ -254,21 +254,21 @@ namespace HomeBridge.BridgeTools
                 // border whose outer neighbour some colonist can stand on.
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.Spawned).OrderBy(p => p.thingIDNumber).ToList();
                 var player = Faction.OfPlayerSilentFail;
-                var facilities = new System.Collections.Generic.List<(Thing thing, string kind, IntVec3 cell)>();
+                var facilities = new System.Collections.Generic.List<(Thing thing, Obs.RouteFacilityKind kind, IntVec3 cell)>();
                 foreach (var b in sets.PlayerBuildings.OfType<Building_Bed>().Where(b => b.def.building.bed_humanlike && !b.ForPrisoners).OrderBy(b => b.thingIDNumber))
-                    facilities.Add((b, "bed", b.Position));
+                    facilities.Add((b, Obs.RouteFacilityKind.Bed, b.Position));
                 foreach (var b in sets.PlayerBuildings.OfType<Building_WorkTable>().OrderBy(b => b.thingIDNumber))
-                    facilities.Add((b, "bench", b.InteractionCell));
+                    facilities.Add((b, Obs.RouteFacilityKind.Bench, b.InteractionCell));
                 foreach (var b in sets.PlayerBuildings.OfType<Building_Storage>().OrderBy(b => b.thingIDNumber))
-                    facilities.Add((b, "storage", b.Position));
+                    facilities.Add((b, Obs.RouteFacilityKind.Storage, b.Position));
                 foreach (var b in sets.PlayerBuildings.Where(b => b.def.surfaceType == SurfaceType.Eat).OrderBy(b => b.thingIDNumber))
-                    facilities.Add((b, "dining", b.Position));
+                    facilities.Add((b, Obs.RouteFacilityKind.Dining, b.Position));
                 foreach (var b in sets.PlayerBuildings.OfType<Building_Turret>().OrderBy(b => b.thingIDNumber))
-                    facilities.Add((b, "defense", b.Position));
+                    facilities.Add((b, Obs.RouteFacilityKind.Defense, b.Position));
                 var facts = new Obs.RoutesFacts();
                 facts.PawnIds.AddRange(people.Select(p => Id(p.GetUniqueLoadID())));
                 var measured = 0; long pathTicks = 0, reachTicks = 0;
-                Obs.RouteFacility Facility(Obs.EntityRef reference, string kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
+                Obs.RouteFacility Facility(Obs.EntityRef reference, Obs.RouteFacilityKind kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
                 {
                     var row = new Obs.RouteFacility { Facility = reference, Kind = kind, Cell = Cell(cell) };
                     var room = cell.GetRoom(map);
@@ -363,7 +363,7 @@ namespace HomeBridge.BridgeTools
                     var cell = zone.Cells.OrderBy(c => c.z).ThenBy(c => c.x).FirstOrDefault(c => c.Standable(map));
                     if (cell == default) continue;
                     var reference = new Obs.EntityRef { Id = Id("zone-" + zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture)), DefName = Id("Zone_Stockpile"), MapId = map.uniqueID, Position = Cell(cell) };
-                    facts.Facilities.Add(Facility(reference, "stockpile", cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell));
+                    facts.Facilities.Add(Facility(reference, Obs.RouteFacilityKind.Stockpile, cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell));
                 }
                 var traffic = map.GetComponent<TrafficState>();
                 if (traffic != null)

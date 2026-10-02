@@ -9,6 +9,7 @@ package mirrorpb
 import (
 	clockpb "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	commonpb "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	operationspb "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -231,32 +232,32 @@ func (CombatLogKind) EnumDescriptor() ([]byte, []int) {
 // row only changes when a decision could: fractions to 0.01, bleed and pain
 // to 0.05, move speed to 0.1 cells/s.
 type CombatPawn struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Id                  *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"` // load id
-	Side                *CombatSide            `protobuf:"varint,2,opt,name=side,proto3,enum=rimgovernor.mirror.v1.CombatSide,oneof" json:"side,omitempty"`
-	FactionId           *string                `protobuf:"bytes,3,opt,name=faction_id,json=factionId,proto3,oneof" json:"faction_id,omitempty"`
-	LordId              *string                `protobuf:"bytes,4,opt,name=lord_id,json=lordId,proto3,oneof" json:"lord_id,omitempty"`
-	Cell                *commonpb.Cell         `protobuf:"bytes,5,opt,name=cell,proto3" json:"cell,omitempty"`
-	Downed              *bool                  `protobuf:"varint,6,opt,name=downed,proto3,oneof" json:"downed,omitempty"`
-	Dead                *bool                  `protobuf:"varint,7,opt,name=dead,proto3,oneof" json:"dead,omitempty"`
-	MentalState         *string                `protobuf:"bytes,8,opt,name=mental_state,json=mentalState,proto3,oneof" json:"mental_state,omitempty"` // def name, absent when none
-	Drafted             *bool                  `protobuf:"varint,9,opt,name=drafted,proto3,oneof" json:"drafted,omitempty"`
-	FireMode            *string                `protobuf:"bytes,10,opt,name=fire_mode,json=fireMode,proto3,oneof" json:"fire_mode,omitempty"` // "fire_at_will" or "hold_fire" (drafted colonists)
-	Job                 *string                `protobuf:"bytes,11,opt,name=job,proto3,oneof" json:"job,omitempty"`                           // current job def
-	TargetId            *string                `protobuf:"bytes,12,opt,name=target_id,json=targetId,proto3,oneof" json:"target_id,omitempty"` // current job's target thing
-	Stance              *CombatStance          `protobuf:"varint,13,opt,name=stance,proto3,enum=rimgovernor.mirror.v1.CombatStance,oneof" json:"stance,omitempty"`
-	StanceTicksLeft     *int32                 `protobuf:"varint,14,opt,name=stance_ticks_left,json=stanceTicksLeft,proto3,oneof" json:"stance_ticks_left,omitempty"` // warmup or cooldown ticks remaining
-	Health              *float64               `protobuf:"fixed64,15,opt,name=health,proto3,oneof" json:"health,omitempty"`                                           // summary health fraction
-	BleedRate           *float64               `protobuf:"fixed64,16,opt,name=bleed_rate,json=bleedRate,proto3,oneof" json:"bleed_rate,omitempty"`                    // per day
-	Pain                *float64               `protobuf:"fixed64,17,opt,name=pain,proto3,oneof" json:"pain,omitempty"`
-	MoveSpeed           *float64               `protobuf:"fixed64,18,opt,name=move_speed,json=moveSpeed,proto3,oneof" json:"move_speed,omitempty"`          // cells per second
-	ShieldEnergy        *float64               `protobuf:"fixed64,19,opt,name=shield_energy,json=shieldEnergy,proto3,oneof" json:"shield_energy,omitempty"` // fraction of max, absent without a shield
-	ShieldBroken        *bool                  `protobuf:"varint,20,opt,name=shield_broken,json=shieldBroken,proto3,oneof" json:"shield_broken,omitempty"`
-	Weapon              *string                `protobuf:"bytes,21,opt,name=weapon,proto3,oneof" json:"weapon,omitempty"` // def name, absent when unarmed
-	WeaponRange         *float64               `protobuf:"fixed64,22,opt,name=weapon_range,json=weaponRange,proto3,oneof" json:"weapon_range,omitempty"`
-	WeaponWarmupTicks   *int32                 `protobuf:"varint,23,opt,name=weapon_warmup_ticks,json=weaponWarmupTicks,proto3,oneof" json:"weapon_warmup_ticks,omitempty"`
-	WeaponCooldownTicks *int32                 `protobuf:"varint,24,opt,name=weapon_cooldown_ticks,json=weaponCooldownTicks,proto3,oneof" json:"weapon_cooldown_ticks,omitempty"`
-	WeaponMelee         *bool                  `protobuf:"varint,25,opt,name=weapon_melee,json=weaponMelee,proto3,oneof" json:"weapon_melee,omitempty"`
+	state               protoimpl.MessageState       `protogen:"open.v1"`
+	Id                  *string                      `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"` // load id
+	Side                *CombatSide                  `protobuf:"varint,2,opt,name=side,proto3,enum=rimgovernor.mirror.v1.CombatSide,oneof" json:"side,omitempty"`
+	FactionId           *string                      `protobuf:"bytes,3,opt,name=faction_id,json=factionId,proto3,oneof" json:"faction_id,omitempty"`
+	LordId              *string                      `protobuf:"bytes,4,opt,name=lord_id,json=lordId,proto3,oneof" json:"lord_id,omitempty"`
+	Cell                *commonpb.Cell               `protobuf:"bytes,5,opt,name=cell,proto3" json:"cell,omitempty"`
+	Downed              *bool                        `protobuf:"varint,6,opt,name=downed,proto3,oneof" json:"downed,omitempty"`
+	Dead                *bool                        `protobuf:"varint,7,opt,name=dead,proto3,oneof" json:"dead,omitempty"`
+	MentalState         *string                      `protobuf:"bytes,8,opt,name=mental_state,json=mentalState,proto3,oneof" json:"mental_state,omitempty"` // def name, absent when none
+	Drafted             *bool                        `protobuf:"varint,9,opt,name=drafted,proto3,oneof" json:"drafted,omitempty"`
+	FireMode            *operationspb.CombatFireMode `protobuf:"varint,10,opt,name=fire_mode,json=fireMode,proto3,enum=rimgovernor.operations.v1.CombatFireMode,oneof" json:"fire_mode,omitempty"` // drafted colonists
+	Job                 *string                      `protobuf:"bytes,11,opt,name=job,proto3,oneof" json:"job,omitempty"`                                                                          // current job def
+	TargetId            *string                      `protobuf:"bytes,12,opt,name=target_id,json=targetId,proto3,oneof" json:"target_id,omitempty"`                                                // current job's target thing
+	Stance              *CombatStance                `protobuf:"varint,13,opt,name=stance,proto3,enum=rimgovernor.mirror.v1.CombatStance,oneof" json:"stance,omitempty"`
+	StanceTicksLeft     *int32                       `protobuf:"varint,14,opt,name=stance_ticks_left,json=stanceTicksLeft,proto3,oneof" json:"stance_ticks_left,omitempty"` // warmup or cooldown ticks remaining
+	Health              *float64                     `protobuf:"fixed64,15,opt,name=health,proto3,oneof" json:"health,omitempty"`                                           // summary health fraction
+	BleedRate           *float64                     `protobuf:"fixed64,16,opt,name=bleed_rate,json=bleedRate,proto3,oneof" json:"bleed_rate,omitempty"`                    // per day
+	Pain                *float64                     `protobuf:"fixed64,17,opt,name=pain,proto3,oneof" json:"pain,omitempty"`
+	MoveSpeed           *float64                     `protobuf:"fixed64,18,opt,name=move_speed,json=moveSpeed,proto3,oneof" json:"move_speed,omitempty"`          // cells per second
+	ShieldEnergy        *float64                     `protobuf:"fixed64,19,opt,name=shield_energy,json=shieldEnergy,proto3,oneof" json:"shield_energy,omitempty"` // fraction of max, absent without a shield
+	ShieldBroken        *bool                        `protobuf:"varint,20,opt,name=shield_broken,json=shieldBroken,proto3,oneof" json:"shield_broken,omitempty"`
+	Weapon              *string                      `protobuf:"bytes,21,opt,name=weapon,proto3,oneof" json:"weapon,omitempty"` // def name, absent when unarmed
+	WeaponRange         *float64                     `protobuf:"fixed64,22,opt,name=weapon_range,json=weaponRange,proto3,oneof" json:"weapon_range,omitempty"`
+	WeaponWarmupTicks   *int32                       `protobuf:"varint,23,opt,name=weapon_warmup_ticks,json=weaponWarmupTicks,proto3,oneof" json:"weapon_warmup_ticks,omitempty"`
+	WeaponCooldownTicks *int32                       `protobuf:"varint,24,opt,name=weapon_cooldown_ticks,json=weaponCooldownTicks,proto3,oneof" json:"weapon_cooldown_ticks,omitempty"`
+	WeaponMelee         *bool                        `protobuf:"varint,25,opt,name=weapon_melee,json=weaponMelee,proto3,oneof" json:"weapon_melee,omitempty"`
 	// Colonists (#881): worn sharp armor, the stronger of natural armor and
 	// the best worn layer (the raid_armor rule per pawn), to 0.05.
 	Armor *float64 `protobuf:"fixed64,29,opt,name=armor,proto3,oneof" json:"armor,omitempty"`
@@ -378,11 +379,11 @@ func (x *CombatPawn) GetDrafted() bool {
 	return false
 }
 
-func (x *CombatPawn) GetFireMode() string {
+func (x *CombatPawn) GetFireMode() operationspb.CombatFireMode {
 	if x != nil && x.FireMode != nil {
 		return *x.FireMode
 	}
-	return ""
+	return operationspb.CombatFireMode(0)
 }
 
 func (x *CombatPawn) GetJob() string {
@@ -2183,7 +2184,7 @@ var File_mirror_proto protoreflect.FileDescriptor
 
 const file_mirror_proto_rawDesc = "" +
 	"\n" +
-	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xad\x0e\n" +
+	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\x1a\x10operations.proto\"\xd8\x0e\n" +
 	"\n" +
 	"CombatPawn\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12:\n" +
@@ -2195,9 +2196,9 @@ const file_mirror_proto_rawDesc = "" +
 	"\x06downed\x18\x06 \x01(\bH\x04R\x06downed\x88\x01\x01\x12\x17\n" +
 	"\x04dead\x18\a \x01(\bH\x05R\x04dead\x88\x01\x01\x12&\n" +
 	"\fmental_state\x18\b \x01(\tH\x06R\vmentalState\x88\x01\x01\x12\x1d\n" +
-	"\adrafted\x18\t \x01(\bH\aR\adrafted\x88\x01\x01\x12 \n" +
+	"\adrafted\x18\t \x01(\bH\aR\adrafted\x88\x01\x01\x12K\n" +
 	"\tfire_mode\x18\n" +
-	" \x01(\tH\bR\bfireMode\x88\x01\x01\x12\x15\n" +
+	" \x01(\x0e2).rimgovernor.operations.v1.CombatFireModeH\bR\bfireMode\x88\x01\x01\x12\x15\n" +
 	"\x03job\x18\v \x01(\tH\tR\x03job\x88\x01\x01\x12 \n" +
 	"\ttarget_id\x18\f \x01(\tH\n" +
 	"R\btargetId\x88\x01\x01\x12@\n" +
@@ -2497,71 +2498,73 @@ var file_mirror_proto_goTypes = []any{
 	(*SparseArray)(nil),                 // 22: rimgovernor.mirror.v1.SparseArray
 	(*CellGrid)(nil),                    // 23: rimgovernor.mirror.v1.CellGrid
 	(*commonpb.Cell)(nil),               // 24: rimgovernor.common.v1.Cell
-	(clockpb.CombatEvent)(0),            // 25: rimgovernor.clock.v1.CombatEvent
-	(*commonpb.Identity)(nil),           // 26: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil), // 27: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Failure)(nil),            // 28: rimgovernor.common.v1.Failure
+	(operationspb.CombatFireMode)(0),    // 25: rimgovernor.operations.v1.CombatFireMode
+	(clockpb.CombatEvent)(0),            // 26: rimgovernor.clock.v1.CombatEvent
+	(*commonpb.Identity)(nil),           // 27: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil), // 28: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Failure)(nil),            // 29: rimgovernor.common.v1.Failure
 }
 var file_mirror_proto_depIdxs = []int32{
 	0,  // 0: rimgovernor.mirror.v1.CombatPawn.side:type_name -> rimgovernor.mirror.v1.CombatSide
 	24, // 1: rimgovernor.mirror.v1.CombatPawn.cell:type_name -> rimgovernor.common.v1.Cell
-	1,  // 2: rimgovernor.mirror.v1.CombatPawn.stance:type_name -> rimgovernor.mirror.v1.CombatStance
-	17, // 3: rimgovernor.mirror.v1.CombatPawn.changed:type_name -> rimgovernor.mirror.v1.Watermark
-	24, // 4: rimgovernor.mirror.v1.CombatDoorRow.cell:type_name -> rimgovernor.common.v1.Cell
-	24, // 5: rimgovernor.mirror.v1.CombatMortarRow.cell:type_name -> rimgovernor.common.v1.Cell
-	17, // 6: rimgovernor.mirror.v1.CombatEventRow.at:type_name -> rimgovernor.mirror.v1.Watermark
-	2,  // 7: rimgovernor.mirror.v1.CombatEventRow.kind:type_name -> rimgovernor.mirror.v1.CombatLogKind
-	25, // 8: rimgovernor.mirror.v1.CombatEventRow.stop:type_name -> rimgovernor.clock.v1.CombatEvent
-	24, // 9: rimgovernor.mirror.v1.CombatEventRow.cell:type_name -> rimgovernor.common.v1.Cell
-	24, // 10: rimgovernor.mirror.v1.CombatEventRow.landing_cells:type_name -> rimgovernor.common.v1.Cell
-	26, // 11: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	24, // 12: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
-	8,  // 13: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
-	10, // 14: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
-	11, // 15: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
-	12, // 16: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
-	9,  // 17: rimgovernor.mirror.v1.CombatGeometryPropose.rescue_path:type_name -> rimgovernor.mirror.v1.CombatRescuePath
-	24, // 18: rimgovernor.mirror.v1.CombatRescuePath.to:type_name -> rimgovernor.common.v1.Cell
-	24, // 19: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
-	24, // 20: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
-	24, // 21: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
-	24, // 22: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
-	24, // 23: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
-	24, // 24: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
-	13, // 25: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
-	27, // 26: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
-	14, // 27: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	14, // 28: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	15, // 29: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
-	28, // 30: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	20, // 31: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
-	21, // 32: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
-	22, // 33: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
-	18, // 34: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
-	19, // 35: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 36: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 37: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 38: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 39: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 40: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 41: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 42: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 43: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 44: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 45: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 46: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 47: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 48: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 49: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 50: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 51: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 52: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 53: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
-	54, // [54:54] is the sub-list for method output_type
-	54, // [54:54] is the sub-list for method input_type
-	54, // [54:54] is the sub-list for extension type_name
-	54, // [54:54] is the sub-list for extension extendee
-	0,  // [0:54] is the sub-list for field type_name
+	25, // 2: rimgovernor.mirror.v1.CombatPawn.fire_mode:type_name -> rimgovernor.operations.v1.CombatFireMode
+	1,  // 3: rimgovernor.mirror.v1.CombatPawn.stance:type_name -> rimgovernor.mirror.v1.CombatStance
+	17, // 4: rimgovernor.mirror.v1.CombatPawn.changed:type_name -> rimgovernor.mirror.v1.Watermark
+	24, // 5: rimgovernor.mirror.v1.CombatDoorRow.cell:type_name -> rimgovernor.common.v1.Cell
+	24, // 6: rimgovernor.mirror.v1.CombatMortarRow.cell:type_name -> rimgovernor.common.v1.Cell
+	17, // 7: rimgovernor.mirror.v1.CombatEventRow.at:type_name -> rimgovernor.mirror.v1.Watermark
+	2,  // 8: rimgovernor.mirror.v1.CombatEventRow.kind:type_name -> rimgovernor.mirror.v1.CombatLogKind
+	26, // 9: rimgovernor.mirror.v1.CombatEventRow.stop:type_name -> rimgovernor.clock.v1.CombatEvent
+	24, // 10: rimgovernor.mirror.v1.CombatEventRow.cell:type_name -> rimgovernor.common.v1.Cell
+	24, // 11: rimgovernor.mirror.v1.CombatEventRow.landing_cells:type_name -> rimgovernor.common.v1.Cell
+	27, // 12: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	24, // 13: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
+	8,  // 14: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
+	10, // 15: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
+	11, // 16: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
+	12, // 17: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
+	9,  // 18: rimgovernor.mirror.v1.CombatGeometryPropose.rescue_path:type_name -> rimgovernor.mirror.v1.CombatRescuePath
+	24, // 19: rimgovernor.mirror.v1.CombatRescuePath.to:type_name -> rimgovernor.common.v1.Cell
+	24, // 20: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
+	24, // 21: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
+	24, // 22: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
+	24, // 23: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
+	24, // 24: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
+	24, // 25: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
+	13, // 26: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
+	28, // 27: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
+	14, // 28: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	14, // 29: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	15, // 30: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
+	29, // 31: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
+	20, // 32: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
+	21, // 33: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
+	22, // 34: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
+	18, // 35: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
+	19, // 36: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 37: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 38: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 39: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 40: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 41: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 42: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 43: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 44: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 45: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 46: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 47: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 48: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 49: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 50: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 51: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 52: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 53: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 54: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
+	55, // [55:55] is the sub-list for method output_type
+	55, // [55:55] is the sub-list for method input_type
+	55, // [55:55] is the sub-list for extension type_name
+	55, // [55:55] is the sub-list for extension extendee
+	0,  // [0:55] is the sub-list for field type_name
 }
 
 func init() { file_mirror_proto_init() }
