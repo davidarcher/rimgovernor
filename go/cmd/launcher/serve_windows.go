@@ -289,8 +289,10 @@ const firstPort = 8787
 func (a *app) tailFlight() error {
 	path := filepath.Join(a.layout.Root, "profile", "flight", "flight.jsonl")
 	script := strings.ReplaceAll(tailScript, "PATH", strings.ReplaceAll(path, "'", "''"))
-	cmd := exec.Command("powershell.exe", "-NoLogo", "-NoExit", "-EncodedCommand", encodePowerShell(script))
-	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NEW_CONSOLE}
+	// Started directly, a nil Stdout makes Go hand the child the NUL device, so
+	// its new console stays blank; `start` gives the window its own console.
+	cmd := exec.Command("cmd.exe", "/c", "start", "RimGovernor flight recorder", "powershell.exe", "-NoLogo", "-NoExit", "-EncodedCommand", encodePowerShell(script))
+	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NO_WINDOW}
 	if err := cmd.Start(); err != nil {
 		return err
 	}
