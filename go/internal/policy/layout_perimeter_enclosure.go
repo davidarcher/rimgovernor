@@ -80,6 +80,10 @@ func chebyshevField(w, h int32, src []bool, limit int32) []int32 {
 	return d
 }
 
+// perimeterPatchMax is the largest rich patch the wall takes in: a bigger one
+// (a whole valley floor) would wall the map and is left outside (#1582).
+const perimeterPatchMax = 2500
+
 // planEnclosure traces the enclosure around core for plan's field patches
 // and geothermal sites on a w x h map. Only a field's rich cells (rich
 // reports them; nil takes every field cell) count: plain soil is
@@ -98,6 +102,7 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32, rich func(domain
 		cells []domain.Cell
 		clear int32 // taken in when within this of the yard
 		taken bool
+		skip  bool // too big to wall in: left outside the ring
 	}
 	var units []*unit
 	reach := pad(core, perimeterFieldReach)
@@ -116,7 +121,7 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32, rich func(domain
 			}
 		}
 		for _, comp := range components(w, h, func(i int32) bool { return in[i] }) {
-			u := &unit{clear: perimeterThick + 1}
+			u := &unit{clear: perimeterThick + 1, skip: len(comp) > perimeterPatchMax}
 			for _, i := range comp {
 				c := domain.Cell{X: i % w, Z: i / w}
 				u.cells = append(u.cells, c)
@@ -131,7 +136,7 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32, rich func(domain
 		}
 	}
 	for _, u := range units {
-		if u.taken {
+		if u.taken && !u.skip {
 			for _, c := range u.cells {
 				mark(c)
 			}
@@ -144,7 +149,7 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32, rich func(domain
 		d := chebyshevField(w, h, in, perimeterThick+1)
 		grew := false
 		for _, u := range units {
-			if u.taken {
+			if u.taken || u.skip {
 				continue
 			}
 			for _, c := range u.cells {

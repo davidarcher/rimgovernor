@@ -659,10 +659,10 @@ func TestPerimeterLGatesEveryFaceKillboxOnApproach(t *testing.T) {
 	}
 }
 
-// On an all-fertile map the patch is enclosed as far as the edge margin
-// allows: the ring runs along the margin line, crossing the patch there,
-// and the opening falls back onto the patch rather than none (#1287).
-func TestPerimeterAllFertileStopsAtMargin(t *testing.T) {
+// On an all-fertile map the single patch is the whole map, far past
+// perimeterPatchMax: it is left outside the wall, which stays near the core
+// (#1582).
+func TestPerimeterHugePatchIsNotWalledIn(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1.4} })
 	plan := PlanCore(Zone(s), 3, BuildTierCamp)
 	zone := LayoutZone{Kind: ZoneField}
@@ -672,17 +672,9 @@ func TestPerimeterAllFertileStopsAtMargin(t *testing.T) {
 	plan.Zones = append(plan.Zones, zone)
 	p := PlanPerimeter(plan, s)
 	checkPerimeter(t, p)
-	onLine := false
-	for _, kind := range []ReservationKind{ReservePerimeter, ReserveGate} {
-		for c := range reservedCells(p, kind) {
-			if c.X < LayoutEdgeMargin || c.Z < LayoutEdgeMargin || c.X >= 200-LayoutEdgeMargin || c.Z >= 200-LayoutEdgeMargin {
-				t.Fatal("wall inside the edge margin at", c)
-			}
-			onLine = onLine || c.X == LayoutEdgeMargin || c.Z == LayoutEdgeMargin
-		}
-	}
-	if !onLine {
-		t.Fatal("the ring stops short of the margin line")
+	walls := reservedCells(p, ReservePerimeter)
+	if len(walls) == 0 || len(walls) > 4000 {
+		t.Fatal("wall cells", len(walls))
 	}
 }
 
