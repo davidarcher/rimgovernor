@@ -46,6 +46,13 @@ namespace HomeBridge.BridgeTools
                     facts.Drug[i].DrugEntries.Add(NativeDrugPolicy.Entries(game.drugPolicyDatabase.AllPolicies[i]).Select(e => { e.DrugDef = Id(e.DrugDef); return e; }));
                 for (var i = 0; i < facts.Reading.Count; i++)
                     facts.Reading[i].AllowedDefs.Add(NativeReadingPolicy.Allowed(game.readingPolicyDatabase.AllReadingPolicies[i]).Select(d => Id(d)));
+                for (var i = 0; i < facts.Food.Count; i++)
+                    facts.Food[i].AllowedDefs.Add(NativeFoodPolicy.Allowed(game.foodRestrictionDatabase.AllFoodRestrictions[i]).Select(d => Id(d)));
+                foreach (var food in NativeFoodPolicy.Foods()) {
+                    var row = NativeFoodPolicy.Definition(food);
+                    row.DefName = Id(food.defName);
+                    facts.Foods.Add(row);
+                }
                 foreach (var book in NativeReadingPolicy.Books())
                     facts.Books.Add(new Obs.BookDefinition { DefName = Id(book.defName), Kind = NativeReadingPolicy.Kind(book) });
                 foreach (var hediff in DefDatabase<IncidentDef>.AllDefsListForReading

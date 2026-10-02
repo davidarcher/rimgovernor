@@ -25,7 +25,9 @@ namespace HomeBridge.BridgeTools
     // (colonist, slave, prisoner, guest, tame animal). reading_policy
     // (#1306) assigns the one ReadingPolicy carrying that label to a spawned
     // pawn of the colony with a reading tracker; drug_policy (#1537) the one
-    // DrugPolicy carrying that label to one with a drug tracker.
+    // DrugPolicy carrying that label to one with a drug tracker; food_policy
+    // (#1541) the one FoodPolicy carrying that label to one with a food
+    // restriction tracker.
     // A setting that already holds applies again.
     internal static class NativePawnSettings
     {
@@ -73,6 +75,8 @@ namespace HomeBridge.BridgeTools
                 return ResolveReading(intent, context, out pawn, out _);
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.DrugPolicy)
                 return ResolveDrug(intent, context, out pawn, out _);
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.FoodPolicy)
+                return ResolveFood(intent, context, out pawn, out _);
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require exactly one setting.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse)
@@ -113,6 +117,8 @@ namespace HomeBridge.BridgeTools
                 return ApplyReading(intent, context);
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.DrugPolicy)
                 return ApplyDrug(intent, context);
+            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.FoodPolicy)
+                return ApplyFood(intent, context);
             var settings = pawn!.playerSettings;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare) {
                 var outcome = settings.medCare == care ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
@@ -234,6 +240,38 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.DrugPolicy,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+        }
+
+        // food_policy (#1541): the one FoodPolicy labelled with the intent's
+        // name, on a spawned pawn of the colony with a food restriction.
+        private static Common.Failure? ResolveFood(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out FoodPolicy? policy)
+        {
+            pawn = null; policy = null;
+            var name = intent.FoodPolicy;
+            if (!ProtoBoundary.IsIdentifier(name))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Food policy names the policy label.");
+            var matches = Current.Game.foodRestrictionDatabase.AllFoodRestrictions.Where(p => p.label == name).ToList();
+            if (matches.Count != 1)
+                return ProtoBoundary.Fail(matches.Count == 0 ? Common.FailureCode.NotFound : Common.FailureCode.InvalidRequest, "Exactly one food policy must carry this label.");
+            policy = matches[0];
+            var id = intent.PawnId;
+            var player = Faction.OfPlayerSilentFail;
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
+            return pawn == null || pawn.Dead || pawn.foodRestriction == null || player == null || pawn.Faction != player && pawn.HostFaction != player
+                ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living pawn of the colony with a food policy is not spawned on this map.") : null;
+        }
+
+        private static Receipts.EffectEvidence ApplyFood(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
+        {
+            var failure = ResolveFood(intent, context, out var pawn, out var policy);
+            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            var unchanged = pawn!.foodRestriction.CurrentFoodPolicy == policy;
+            pawn.foodRestriction.CurrentFoodPolicy = policy;
+            if (pawn.foodRestriction.CurrentFoodPolicy != policy) throw new InvalidOperationException("Native food policy requires readback.");
+            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
+                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 

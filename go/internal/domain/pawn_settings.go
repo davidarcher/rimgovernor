@@ -9,7 +9,8 @@ import (
 // (#1299, epic #1292): a PawnSettingsIntent on Actions/Apply, one setting
 // per intent: hostility response (#1299), self-tend (#1305), nickname
 // (#1310), medicine carry (#1307), the medical care cap (#1301) and the
-// reading policy (#1306) and the drug policy (#1537). Native treats a setting that
+// reading policy (#1306), the drug policy (#1537) and the food policy
+// (#1541). Native treats a setting that
 // already holds as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
 
@@ -46,6 +47,9 @@ const (
 	// SettingDrugPolicy assigns the drug policy labelled with the pawn's
 	// short name (#1537).
 	SettingDrugPolicy SettingKind = "drug_policy"
+	// SettingFoodPolicy assigns the food policy labelled with the pawn's
+	// short name (#1541).
+	SettingFoodPolicy SettingKind = "food_policy"
 )
 
 // MedicalCare is a vanilla MedicalCareCategory name: the best medicine a
@@ -100,6 +104,7 @@ type PawnSettings struct {
 	care      MedicalCare
 	reading   string
 	drug      string
+	food      string
 }
 
 // NewDrugPolicySetting assigns the drug policy labelled name (#1537).
@@ -125,6 +130,17 @@ func NewReadingPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
 func (s PawnSettings) ReadingPolicy() (string, bool) {
 	return s.reading, s.kind == SettingReadingPolicy
 }
+
+// NewFoodPolicySetting assigns the food policy labelled name (#1541).
+func NewFoodPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
+	if !validID(string(pawn)) || !validID(name) || len(name) > 80 {
+		return PawnSettings{}, errors.New("a food policy setting requires a pawn and a policy name")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingFoodPolicy, food: name}, nil
+}
+
+// FoodPolicy is the policy label, and whether this is the food arm.
+func (s PawnSettings) FoodPolicy() (string, bool) { return s.food, s.kind == SettingFoodPolicy }
 
 // NewMedicineCarrySetting is the pawn's Medicine inventory-stock count
 // (#1307), 0 to MaxMedicineCarry.
@@ -195,6 +211,8 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewReadingPolicySetting(s.pawn, s.reading)
 	case SettingDrugPolicy:
 		return NewDrugPolicySetting(s.pawn, s.drug)
+	case SettingFoodPolicy:
+		return NewFoodPolicySetting(s.pawn, s.food)
 	}
 	return PawnSettings{}, errors.New("unknown pawn setting")
 }

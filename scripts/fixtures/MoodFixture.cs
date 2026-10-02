@@ -149,6 +149,39 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, pawn = pawn.GetUniqueLoadID() };
             }, cancellationToken);
         }
+        [Tool("test/cannibal_and_vegetarian", Description = "UNSAFE FOR MODEL EXECUTION. Keep two paused disposable colonists: a Cannibal-trait one on the colony ideoligion stripped of meat-eating precepts, and one moved to a fresh ideoligion with MeatEating_Abhorrent (#1541). Needs Ideology.")]
+        public async Task<object> CannibalAndVegetarian(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                if (!ModsConfig.IdeologyActive)
+                    throw new InvalidOperationException("Ideology is required.");
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.foodRestriction != null && p.ideo != null && p.story != null)
+                    .OrderBy(p => p.thingIDNumber).ToList();
+                if (pawns.Count < 2) throw new InvalidOperationException("Two adult colonists are required.");
+                var cannibal = pawns[0]; var vegetarian = pawns[1];
+                foreach (var other in map.mapPawns.FreeColonistsSpawned.Where(p => p != cannibal && p != vegetarian).ToList())
+                    other.Destroy(DestroyMode.Vanish);
+                var meat = PreceptDefOf.MeatEating_Abhorrent.issue;
+                void Strip(Ideo ideo) {
+                    foreach (var p in ideo.PreceptsListForReading.Where(p => p.def.issue == meat).ToList()) ideo.RemovePrecept(p);
+                }
+                var colony = cannibal.Ideo ?? throw new InvalidOperationException("The cannibal has no ideoligion.");
+                Strip(colony);
+                if (!cannibal.story.traits.HasTrait(DefDatabase<TraitDef>.GetNamed("Cannibal")))
+                    cannibal.story.traits.GainTrait(new Trait(DefDatabase<TraitDef>.GetNamed("Cannibal"), 0, true));
+                var veg = IdeoGenerator.GenerateIdeo(new IdeoGenerationParms(Faction.OfPlayer.def));
+                Strip(veg);
+                veg.AddPrecept(PreceptMaker.MakePrecept(PreceptDefOf.MeatEating_Abhorrent), true);
+                Find.IdeoManager.Add(veg);
+                vegetarian.ideo.SetIdeo(veg);
+                if (vegetarian.Ideo != veg || !veg.HasPrecept(PreceptDefOf.MeatEating_Abhorrent))
+                    throw new InvalidOperationException("The vegetarian ideoligion did not take.");
+                return new { success = true, cannibal = cannibal.GetUniqueLoadID(), vegetarian = vegetarian.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
         [Tool("test/duplicate_nickname", Description = "UNSAFE FOR MODEL EXECUTION. Give the newest of two paused disposable colonists the oldest one's nickname (#1310).")]
         public async Task<object> DuplicateNickname(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

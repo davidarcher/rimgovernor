@@ -1318,7 +1318,8 @@ message ColonyFactsSnapshot {
 // pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
 // transporter) whose current policy it is, and whether it is the
 // database default (index 0). allowed_defs is a reading policy's allowed
-// book ThingDefs (#1306); empty for the other databases. drug_entries is
+// book ThingDefs (#1306) or a food policy's allowed food ThingDefs (one of
+// PolicyFacts.foods, #1541); empty for the other databases. drug_entries is
 // a drug policy's entries that allow anything (joy, addiction, scheduled
 // use or a carried count; #1537); every other drug of it is off.
 message PolicyEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; optional bool default = 4; repeated string allowed_defs = 5;
@@ -1329,6 +1330,20 @@ message PolicyEntry { optional string id = 1; optional string label = 2; repeate
 // novel.
 enum BookKind { BOOK_KIND_UNSPECIFIED = 0; BOOK_KIND_TEXTBOOK = 1; BOOK_KIND_NOVEL = 2; BOOK_KIND_SCHEMATIC = 3; BOOK_KIND_TOME = 4; }
 message BookDefinition { optional string def_name = 1; optional BookKind kind = 2; }
+// A food ThingDef a food policy can allow (#1541): a nutrition-giving
+// ingestible that is no drug and no corpse. Meals carry their
+// FoodPreferability tier (awful, simple, fine, lavish) and ingredients
+// (FoodUtility.GetFoodKind: meat-only, meat-free or either); raw foods are
+// meat by meat source (animal, human, insect), vegetable, fungus or animal
+// product; anything else (kibble, pemmican, chocolate) is other.
+enum FoodKind {
+  FOOD_KIND_UNSPECIFIED = 0; FOOD_KIND_MEAL_AWFUL = 1; FOOD_KIND_MEAL_SIMPLE = 2; FOOD_KIND_MEAL_FINE = 3; FOOD_KIND_MEAL_LAVISH = 4;
+  FOOD_KIND_RAW_MEAT = 5; FOOD_KIND_HUMAN_MEAT = 6; FOOD_KIND_INSECT_MEAT = 7; FOOD_KIND_VEGETABLE = 8; FOOD_KIND_FUNGUS = 9;
+  FOOD_KIND_ANIMAL_PRODUCT = 10; FOOD_KIND_OTHER = 11;
+}
+enum MealIngredients { MEAL_INGREDIENTS_UNSPECIFIED = 0; MEAL_INGREDIENTS_ANY = 1; MEAL_INGREDIENTS_MEAT = 2; MEAL_INGREDIENTS_NON_MEAT = 3; }
+// ingredients is set on meals only.
+message FoodDefinition { optional string def_name = 1; optional FoodKind kind = 2; optional MealIngredients ingredients = 3; }
 // Area_Allowed on the colony map: Area.GetUniqueLoadID(), label and the
 // pawns restricted to it there.
 message AllowedAreaEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; }
@@ -1339,6 +1354,7 @@ message PolicyFacts {
   // HediffDef defNames of the colony map biome's disease incidents
   // (BiomeDef.diseases; #1539), e.g. Malaria, Plague.
   repeated string biome_diseases = 7;
+  repeated FoodDefinition foods = 8;
 }
 message PolicySection { oneof outcome { PolicyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
@@ -1536,8 +1552,8 @@ service Observations {
 // Native definition classification for bounded food purchases and crop exports.
 message TradeFoodFacts { double nutrition = 1; FoodIngredientClass ingredient_class = 2; bool prepared = 3; bool non_perishable = 4; bool crop = 5; }
 
-// Native eligibility without the saved definition whitelist. Special filters
-// and condition ranges remain part of the exact settings snapshot.
+// The pawn's current food policy: its load id, allowed definitions and
+// the definitions native diet rules let it eat.
 message FoodRestriction {
   optional string policy_id = 1;
   repeated string allowed_defs = 2;

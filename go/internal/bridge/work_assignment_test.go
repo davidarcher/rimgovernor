@@ -28,10 +28,6 @@ func TestWorkSettingsIntent(t *testing.T) {
 	if v := workTestIntent(t, w, err); len(v.Work) != 1 || v.Work[0].GetWorkTypeDef() != "Cooking" || v.Work[0].GetPriority() != 1 {
 		t.Fatal(v)
 	}
-	w, err = domain.NewFoodAssignment("pawn", []string{"MealSimple"})
-	if v := workTestIntent(t, w, err); len(v.GetFoodAllow().GetDefs()) != 1 || v.GetFoodAllow().Defs[0] != "MealSimple" {
-		t.Fatal(v)
-	}
 	w, err = domain.NewAreaAssignment("pawn", true, "")
 	if v := workTestIntent(t, w, err); v.GetAllowedArea().GetClear() == nil {
 		t.Fatal(v)

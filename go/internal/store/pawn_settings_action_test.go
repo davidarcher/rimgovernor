@@ -103,7 +103,23 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, c, carry, write, none, reading, drugWrite, drugNone, drug})
+	dietValue, err := domain.NewFoodPolicySetting("Human7", "Bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	diet, err := domain.NewPawnSettingsAction("diet", dietValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foods, err := domain.NewFoodPolicy("Bob", []string{"MealSimple", "Meat_Human"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foodWrite, err := domain.NewFoodPolicyAction("diet-write", foods)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, c, carry, write, none, reading, drugWrite, drugNone, drug, foodWrite, diet})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +133,7 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := loaded.Spec.Actions()
-	if len(got) != 11 {
+	if len(got) != 13 {
 		t.Fatal(got)
 	}
 	if v, ok := got[0].PawnSettings(); !ok || v != value {
@@ -152,5 +168,11 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	}
 	if v, ok := got[10].PawnSettings(); !ok || v != drugValue {
 		t.Fatal(v, drugValue)
+	}
+	if v, ok := got[11].FoodPolicy(); !ok || v != foods {
+		t.Fatal(v, foods)
+	}
+	if v, ok := got[12].PawnSettings(); !ok || v != dietValue {
+		t.Fatal(v, dietValue)
 	}
 }

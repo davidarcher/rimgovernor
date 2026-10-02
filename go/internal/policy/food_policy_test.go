@@ -7,27 +7,102 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestFoodPolicyFreshEligibilityAndUnknown(t *testing.T) {
-	p := WorkPawn{Available: domain.Known(true), FoodRestriction: domain.Known(FoodRestriction{PolicyID: "diet", Allowed: []string{"Rice"}, Eligible: []string{"Rice", "MealSimple"}})}
-	if got := FoodPolicyChanges(p); !slices.Equal(got, []string{"MealSimple"}) {
-		t.Fatal(got)
+var testFoods = []Food{
+	{"MealNutrientPaste", FoodKindMealAwful, MealAnyIngredients},
+	{"MealSimple", FoodKindMealSimple, MealAnyIngredients},
+	{"MealFine", FoodKindMealFine, MealAnyIngredients},
+	{"MealFine_Meat", FoodKindMealFine, MealMeatOnly},
+	{"MealFine_Veg", FoodKindMealFine, MealNonMeat},
+	{"MealLavish", FoodKindMealLavish, MealAnyIngredients},
+	{"Meat_Cow", FoodKindRawMeat, ""},
+	{"Meat_Human", FoodKindHumanMeat, ""},
+	{"Meat_Megaspider", FoodKindInsectMeat, ""},
+	{"RawPotatoes", FoodKindVegetable, ""},
+	{"RawFungus", FoodKindFungus, ""},
+	{"Milk", FoodKindAnimalProduct, ""},
+	{"Pemmican", FoodKindOther, ""},
+}
+
+func eater(id string, traits []string, precepts ...string) WorkPawn {
+	rows := []PawnTrait{}
+	for _, t := range traits {
+		rows = append(rows, PawnTrait{Name: t})
 	}
-	p.FoodRestriction = domain.Known(FoodRestriction{PolicyID: "diet", Allowed: []string{"Rice", "MealSimple"}, Eligible: []string{"Rice", "MealSimple"}})
-	if len(FoodPolicyChanges(p)) != 0 {
-		t.Fatal("settled diet changed")
+	return WorkPawn{
+		ID:              PawnID(id),
+		Traits:          domain.Known(rows),
+		PolicyInputs:    domain.Known(PawnPolicyInputs{Precepts: precepts}),
+		FoodRestriction: domain.Known(FoodRestriction{PolicyID: "FoodPolicy_1"}),
 	}
-	// The same saved filter may be edited repeatedly, without new identity.
-	p.FoodRestriction = domain.Known(FoodRestriction{PolicyID: "diet", Eligible: []string{"Rice"}})
-	if got := FoodPolicyChanges(p); !slices.Equal(got, []string{"Rice"}) {
-		t.Fatal(got)
+}
+
+func without(defs ...string) []string {
+	var out []string
+	for _, f := range testFoods {
+		if !slices.Contains(defs, f.Def) {
+			out = append(out, f.Def)
+		}
 	}
-	p.Available = domain.Known(false)
-	if len(FoodPolicyChanges(p)) != 0 {
-		t.Fatal("unavailable pawn changed")
+	slices.Sort(out)
+	return out
+}
+
+// Each diet allows its own foods (#1541): human meat only for cannibals,
+// insect meat only where loved.
+func TestDietFoods(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		pawn WorkPawn
+		want []string
+	}{
+		{"plain", eater("A", nil), without("Meat_Human", "Meat_Megaspider")},
+		{"cannibal trait", eater("A", []string{"Cannibal"}), without("Meat_Megaspider")},
+		{"cannibal precept", eater("A", nil, "Cannibalism_Preferred"), without("Meat_Megaspider")},
+		{"insect lover", eater("A", nil, "InsectMeatEating_Loved"), without("Meat_Human")},
+		{"vegetarian", eater("A", []string{"Cannibal"}, "MeatEating_Abhorrent", "InsectMeatEating_Loved"), without("Meat_Human", "Meat_Megaspider", "Meat_Cow", "MealFine_Meat")},
+		{"carnivore", eater("A", nil, "MeatEating_NonMeat_Horrible"), without("Meat_Human", "Meat_Megaspider", "RawPotatoes", "RawFungus", "MealFine_Veg")},
+		{"fungal carnivore", eater("A", nil, "MeatEating_NonMeat_Horrible", "FungusEating_Preferred"), without("Meat_Human", "Meat_Megaspider", "RawPotatoes", "MealFine_Veg")},
+		{"fungus despised", eater("A", nil, "FungusEating_Despised"), without("Meat_Human", "Meat_Megaspider", "RawFungus")},
+		{"ascetic", eater("A", []string{"Ascetic"}), without("Meat_Human", "Meat_Megaspider", "MealFine", "MealFine_Meat", "MealFine_Veg", "MealLavish")},
+		{"gourmand", eater("A", []string{"Gourmand", "Ascetic"}), without("Meat_Human", "Meat_Megaspider")},
+	} {
+		diet, ok := PawnDiet(tc.pawn)
+		if got := DietFoods(diet, testFoods); !ok || !slices.Equal(got, tc.want) {
+			t.Errorf("%s: got %v want %v", tc.name, got, tc.want)
+		}
 	}
-	p.Available = domain.Known(true)
-	p.FoodRestriction = domain.Unknown[FoodRestriction]()
-	if len(FoodPolicyChanges(p)) != 0 {
-		t.Fatal("unknown diet changed")
+	unknown := eater("A", nil)
+	unknown.Traits = domain.Unknown[[]PawnTrait]()
+	if _, ok := PawnDiet(unknown); ok {
+		t.Error("unknown traits planned")
+	}
+}
+
+// A cannibal and a vegetarian get different policies under their own
+// names; a held matching policy owes nothing; shared names wait.
+func TestDietPolicyChanges(t *testing.T) {
+	pawns := []WorkPawn{eater("A", []string{"Cannibal"}), eater("B", nil, "MeatEating_Abhorrent"), eater("C", nil), eater("D", nil), eater("E", nil), eater("F", nil)}
+	pawns[5].FoodRestriction = domain.Unknown[FoodRestriction]()
+	names := []OwnedName{{"A", "Ann", 1}, {"B", "Bo", 2}, {"C", "Cy", 3}, {"D", "Dup", 4}, {"E", "dup", 5}, {"F", "Fay", 6}}
+	policies := []FoodPolicyEntry{{ID: "FoodPolicy_3", Label: "Cy", Pawns: []PawnID{"C"}, Allowed: without("Meat_Human", "Meat_Megaspider")}}
+	got := DietPolicyChanges(pawns, names, policies, testFoods)
+	if len(got) != 2 {
+		t.Fatalf("got %d changes: %+v", len(got), got)
+	}
+	ann, bo := got[0], got[1]
+	if ann.Write == nil || ann.Write.Name() != "Ann" || !slices.Contains(ann.Write.Definitions(), "Meat_Human") || ann.Assign == nil {
+		t.Errorf("cannibal: %+v", ann)
+	}
+	if bo.Write == nil || bo.Write.Name() != "Bo" || slices.Contains(bo.Write.Definitions(), "Meat_Cow") || slices.Equal(bo.Write.Definitions(), ann.Write.Definitions()) {
+		t.Errorf("vegetarian: %+v", bo)
+	}
+	if name, ok := bo.Assign.FoodPolicy(); !ok || name != "Bo" {
+		t.Errorf("vegetarian assignment: %+v", bo.Assign)
+	}
+	// Held but drifted contents are rewritten without a reassignment.
+	policies[0].Allowed = []string{"MealSimple"}
+	got = DietPolicyChanges(pawns[2:3], names, policies, testFoods)
+	if len(got) != 1 || got[0].Write == nil || got[0].Assign != nil {
+		t.Fatalf("drift: %+v", got)
 	}
 }

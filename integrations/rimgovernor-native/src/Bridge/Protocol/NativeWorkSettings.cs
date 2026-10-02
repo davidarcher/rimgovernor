@@ -45,7 +45,7 @@ namespace HomeBridge.BridgeTools
     }
 
     // WorkSettingsIntent (#941): one free colonist's work priorities, allowed
-    // area, timetable and food additions together. Native checks the pawn and
+    // area and timetable together. Native checks the pawn and
     // each field live when it applies; settings that already hold apply again.
     internal sealed class WorkSettingsActionHandler : IActionHandler
     {
@@ -62,8 +62,8 @@ namespace HomeBridge.BridgeTools
 
         private static bool Valid(Operations.WorkSettingsIntent? intent) => intent != null
             && intent.HasPawnId && ProtoBoundary.IsIdentifier(intent.PawnId)
-            && (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null || intent.FoodAllow != null)
-                && intent.Work.Count <= 256 && NativeFoodPolicy.Valid(intent.FoodAllow)
+            && (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null)
+                && intent.Work.Count <= 256
                 && intent.Work.All(w => w.HasWorkTypeDef && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.HasPriority && w.Priority >= 0 && w.Priority <= 4)
                 && intent.Work.Select(w => w.WorkTypeDef).Distinct(StringComparer.Ordinal).Count() == intent.Work.Count
                 && ValidSchedule(intent.Schedule) && ValidArea(intent.AllowedArea);
@@ -80,7 +80,6 @@ namespace HomeBridge.BridgeTools
         // Holds says whether every requested field already reads as asked.
         private static bool Holds(Pawn pawn, Operations.WorkSettingsIntent intent)
         {
-            if (!NativeFoodPolicy.Matches(pawn, intent.FoodAllow)) return false;
             if (intent.Work.Count > 0 && pawn.workSettings?.Initialized != true) return false;
             if (!intent.Work.All(row => {
                 var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef);
@@ -119,8 +118,7 @@ namespace HomeBridge.BridgeTools
                     .Require(() => manual.GetValueOrDefault() || intent.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
                     .Require(() => AreaResolves(intent, found!, out _), "the requested allowed area is missing, unreachable or unsafe under the current roof hazard")
                     .Require(() => intent.Schedule == null || intent.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null), "a requested timetable assignment is not defined")
-                    .Require(() => intent.Schedule == null || found!.timetable?.times != null && found.timetable.times.Count == NativeWorkSettings.ScheduleHours, "the pawn has no 24-hour timetable")
-                    .Require(() => NativeFoodPolicy.Writable(found!, intent.FoodAllow), "the requested food is not natively eligible");
+                    .Require(() => intent.Schedule == null || found!.timetable?.times != null && found.timetable.times.Count == NativeWorkSettings.ScheduleHours, "the pawn has no 24-hour timetable");
             if (!rules.Holds) return rules.Failure();
             pawn = found!;
             return null;
@@ -144,7 +142,6 @@ namespace HomeBridge.BridgeTools
                 if (intent.Schedule != null)
                     for (var hour = 0; hour < NativeWorkSettings.ScheduleHours; hour++)
                         pawn.timetable.SetAssignment(hour, DefDatabase<TimeAssignmentDef>.GetNamed(intent.Schedule.AssignmentDefs[hour]));
-                NativeFoodPolicy.Apply(pawn, intent.FoodAllow);
                 if (!Holds(pawn, intent)) throw new InvalidOperationException("Native work settings did not take effect.");
             }
             return new Receipts.EffectEvidence { Settings = Evidence(intent) };
@@ -158,7 +155,6 @@ namespace HomeBridge.BridgeTools
                 WorkTypeDef = row.WorkTypeDef, Outcome = Receipts.FieldOutcome.Applied });
             if (intent.AllowedArea != null) Add(Receipts.SettingsField.AllowedArea);
             if (intent.Schedule != null) Add(Receipts.SettingsField.Schedule);
-            if (intent.FoodAllow != null) Add(Receipts.SettingsField.FoodRestriction);
             return effect;
         }
     }

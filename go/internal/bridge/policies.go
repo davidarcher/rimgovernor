@@ -24,12 +24,12 @@ func validatePolicies(v *o.ColonyFactsSnapshot) error {
 					return contract("invalid policy entry")
 				}
 				ids[row.GetId()] = true
-				if i != 3 && len(row.AllowedDefs) > 0 {
-					return contract("allowed definitions on a non-reading policy")
+				if i != 2 && i != 3 && len(row.AllowedDefs) > 0 {
+					return contract("allowed definitions on a policy without contents")
 				}
 				for _, d := range row.AllowedDefs {
 					if validID(d) != nil {
-						return contract("invalid reading policy definition")
+						return contract("invalid policy definition")
 					}
 				}
 				if i != 1 && len(row.DrugEntries) > 0 {
@@ -64,6 +64,15 @@ func validatePolicies(v *o.ColonyFactsSnapshot) error {
 			if validID(d) != nil {
 				return contract("invalid biome disease")
 			}
+		}
+		foods := map[string]bool{}
+		for _, d := range f.Foods {
+			meal := d.GetKind() >= o.FoodKind_FOOD_KIND_MEAL_AWFUL && d.GetKind() <= o.FoodKind_FOOD_KIND_MEAL_LAVISH
+			if d == nil || validID(d.GetDefName()) != nil || foods[d.GetDefName()] || d.GetKind() == o.FoodKind_FOOD_KIND_UNSPECIFIED || o.FoodKind_name[int32(d.GetKind())] == "" ||
+				meal != (d.Ingredients != nil) || meal && (d.GetIngredients() == o.MealIngredients_MEAL_INGREDIENTS_UNSPECIFIED || o.MealIngredients_name[int32(d.GetIngredients())] == "") {
+				return contract("invalid food definition")
+			}
+			foods[d.GetDefName()] = true
 		}
 		ids, pawns := map[string]bool{}, map[string]bool{}
 		for _, row := range f.AllowedAreas {

@@ -48,7 +48,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if m, ok := a.Subdue(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'subdue',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
 	} else if work, ok := a.WorkAssignment(); ok {
-		data, encodeErr := json.Marshal(workPayload{work.Settings(), work.HasArea(), work.AreaClear(), work.Area(), work.Schedule(), work.FoodAllow()})
+		data, encodeErr := json.Marshal(workPayload{work.Settings(), work.HasArea(), work.AreaClear(), work.Area(), work.Schedule()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -187,6 +187,9 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if reading, ok := a.ReadingPolicy(); ok {
 		data, _ := json.Marshal(reading.Definitions())
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,zone_payload) VALUES(?,?,?,'reading_policy',?,?)", a.ID(), plan, ordinal, reading.Name(), data)
+	} else if food, ok := a.FoodPolicy(); ok {
+		data, _ := json.Marshal(food.Definitions())
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,zone_payload) VALUES(?,?,?,'food_policy',?,?)", a.ID(), plan, ordinal, food.Name(), data)
 	} else if surgery, ok := a.Surgery(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,x,stuff,target) VALUES(?,?,?,'surgery',?,?,?,?,NULLIF(?,''))", a.ID(), plan, ordinal, string(surgery.Pawn()), surgery.Recipe(), surgery.Part(), strconv.FormatBool(surgery.AcknowledgeViolation()), string(surgery.Surgeon()))
 	} else if refuel, ok := a.AutoRefuel(); ok {
@@ -413,6 +416,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewReadingPolicyAction(id, reading)
 		return a, ordinal, err
 	}
+	if kind == "food_policy" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+		var defs []string
+		if json.Unmarshal(zone, &defs) != nil {
+			return domain.Action{}, 0, errors.New("invalid food policy payload")
+		}
+		food, err := domain.NewFoodPolicy(def.String, defs)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewFoodPolicyAction(id, food)
+		return a, ordinal, err
+	}
 	if kind == "area" && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
 		var cells []domain.Cell
 		if json.Unmarshal(zone, &cells) != nil {
@@ -463,12 +478,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		var w domain.WorkAssignment
 		var err error
-		if len(payload.FoodAllow) > 0 {
-			if payload.HasArea || len(payload.Schedule) > 0 || len(payload.Settings) > 0 {
-				return domain.Action{}, 0, errors.New("mixed food payload")
-			}
-			w, err = domain.NewFoodAssignment(domain.PawnID(pawn.String), payload.FoodAllow)
-		} else if payload.HasArea {
+		if payload.HasArea {
 			if len(payload.Settings) != 0 {
 				return domain.Action{}, 0, errors.New("mixed work/area payload not supported")
 			}
@@ -1021,8 +1031,7 @@ type workPayload struct {
 	// Schedule is the 24-hour timetable a schedule write carries (#417);
 	// omitted for work-only and area-only rows so older payloads stay
 	// canonical.
-	Schedule  []string `json:",omitempty"`
-	FoodAllow []string `json:",omitempty"`
+	Schedule []string `json:",omitempty"`
 }
 
 // zonePayload is a zone_create row. Preset and Allow are only ever read:
@@ -1151,9 +1160,9 @@ func legacyZoneFilter(payload zonePayload) (domain.StockpileFilter, error) {
 
 // pawnSettingDefinition is a pawn_settings row's definition column: the
 // hostility mode, "self_tend:<bool>" (#1305), "nickname:<name>" (#1310), a
-// MedicalCareCategory name (#1301), "reading_policy:<name>" (#1306) or
-// "drug_policy:<name>" (#1537); the
-// names never overlap.
+// MedicalCareCategory name (#1301), "reading_policy:<name>" (#1306),
+// "drug_policy:<name>" (#1537) or "food_policy:<name>" (#1541); the names
+// never overlap.
 func pawnSettingDefinition(s domain.PawnSettings) string {
 	if s.Kind() == domain.SettingSelfTend {
 		return "self_tend:" + strconv.FormatBool(s.SelfTend())
@@ -1172,6 +1181,9 @@ func pawnSettingDefinition(s domain.PawnSettings) string {
 	}
 	if name, ok := s.DrugPolicy(); ok {
 		return "drug_policy:" + name
+	}
+	if name, ok := s.FoodPolicy(); ok {
+		return "food_policy:" + name
 	}
 	return string(s.Hostility())
 }
@@ -1196,6 +1208,9 @@ func parsePawnSetting(pawn domain.PawnID, def string) (domain.PawnSettings, erro
 	}
 	if name, ok := strings.CutPrefix(def, "drug_policy:"); ok {
 		return domain.NewDrugPolicySetting(pawn, name)
+	}
+	if name, ok := strings.CutPrefix(def, "food_policy:"); ok {
+		return domain.NewFoodPolicySetting(pawn, name)
 	}
 	if care := domain.MedicalCare(def); care.Valid() {
 		return domain.NewMedicalCareSetting(pawn, care)

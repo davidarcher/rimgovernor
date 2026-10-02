@@ -57,6 +57,12 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 			return nil, contract("%v", err)
 		}
 		intent.Setting = &o.PawnSettingsIntent_DrugPolicy{DrugPolicy: name}
+	case domain.SettingFoodPolicy:
+		name, _ := v.FoodPolicy()
+		if _, err := domain.NewFoodPolicySetting(v.Pawn(), name); err != nil {
+			return nil, contract("%v", err)
+		}
+		intent.Setting = &o.PawnSettingsIntent_FoodPolicy{FoodPolicy: name}
 	default:
 		return nil, contract("unknown pawn setting")
 	}

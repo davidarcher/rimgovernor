@@ -304,6 +304,7 @@ message Action {
     ReadingPolicyIntent reading_policy = 54;
     DrugPolicyIntent drug_policy = 55;
     AreaPlantCutIntent area_plant_cut = 56;
+    FoodPolicyIntent food_policy = 57;
   }
 }
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
@@ -324,7 +325,9 @@ message Action {
 // several carry it. drug_policy (#1537) is the label of
 // the DrugPolicy the pawn should hold (its short name; a DrugPolicyIntent
 // writes the contents), refused when no policy or several carry it.
-// medical_care (#1301) is
+// food_policy (#1541) is the label of the FoodPolicy the pawn should hold,
+// likewise written by a FoodPolicyIntent and refused when no policy or
+// several carry it. medical_care (#1301) is
 // the pawn's MedicalCareCategory, any of the five tiers, on a living
 // colonist, slave, prisoner, guest or tame animal of the colony that has
 // medical care settings.
@@ -338,6 +341,7 @@ message PawnSettingsIntent {
     string nickname = 6;
     MedicalCare medical_care = 7;
     string drug_policy = 8;
+    string food_policy = 9;
   }
 }
 // Queue one medical operation bill on one patient (#1162): the recipe on the
@@ -394,6 +398,14 @@ message DrugPolicyEntry {
   optional float only_if_joy_below = 7; optional int32 take_to_inventory = 8;
 }
 message DrugPolicyIntent { optional string name = 1; repeated DrugPolicyEntry entries = 2; }
+// Write one food policy's contents (#1541): the FoodPolicy labelled name
+// (made when missing) allows exactly allowed_defs among the food ThingDefs
+// (PolicyFacts.foods); special filters keep their values. Native refuses a name
+// several policies carry or a definition that is not a food. A policy that
+// already matches applies again. PawnSettingsIntent.food_policy assigns it.
+// Evidence is a SettingsEffect on the policy's load id with the
+// FOOD_RESTRICTION field.
+message FoodPolicyIntent { optional string name = 1; repeated string allowed_defs = 2; }
 // Set the game's home-area auto-expand (Find.PlaySettings.autoHomeArea, a
 // save-level setting; #1322). Evidence is a SettingsEffect with the
 // AUTO_HOME_AREA field: APPLIED when it changed, UNCHANGED when it already
@@ -543,8 +555,8 @@ message ProductionBillIntent {
   BillSettings settings = 3;
   optional string replace_owned_bill_id = 4;
 }
-// Write one free colonist's settings: work priorities, allowed area, the
-// 24-hour timetable and food additions together, or the medicine ceiling
+// Write one free colonist's settings: work priorities, allowed area and the
+// 24-hour timetable together, or the medicine ceiling
 // alone. Native
 // checks the pawn and each field live when it applies; settings that
 // already hold apply again.
@@ -554,7 +566,7 @@ message WorkSettingsIntent {
   Assignment allowed_area = 3;
   Schedule schedule = 4;
   reserved 5; reserved "medical_care";
-  DefinitionList food_allow = 6;
+  reserved 6; reserved "food_allow";
   reserved 7; reserved "drug_policy";
 }
 // Assign one free colonist to one humanlike bed, replacing the bed it owned

@@ -36,8 +36,5 @@ func workSettingsIntent(w domain.WorkAssignment) *op.WorkSettingsIntent {
 	if w.HasSchedule() {
 		intent.Schedule = &op.Schedule{AssignmentDefs: append([]string(nil), w.Schedule()...)}
 	}
-	if defs := w.FoodAllow(); len(defs) > 0 {
-		intent.FoodAllow = &op.DefinitionList{Defs: defs}
-	}
 	return intent
 }

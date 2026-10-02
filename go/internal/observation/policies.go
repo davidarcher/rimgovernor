@@ -9,8 +9,8 @@ import (
 // PolicyEntry is one row of a native policy database (#1297): the policy's
 // load id, label, the player pawns currently holding it and whether it is
 // the database default. Allowed is a reading policy's allowed book
-// definitions (#1306); Drugs a drug policy's entries that allow anything
-// (#1537).
+// definitions (#1306) or a food policy's allowed foods (#1541); Drugs a
+// drug policy's entries that allow anything (#1537).
 type PolicyEntry struct {
 	ID, Label string
 	Pawns     []policy.PawnID
@@ -35,6 +35,28 @@ type Policies struct {
 	Books []policy.Book
 	// BiomeDiseases is the colony map biome's disease hediffs (#1539).
 	BiomeDiseases []string
+	// Foods is every food definition and its kind (#1541).
+	Foods []policy.Food
+}
+
+var foodKinds = map[o.FoodKind]policy.FoodKind{
+	o.FoodKind_FOOD_KIND_MEAL_AWFUL:     policy.FoodKindMealAwful,
+	o.FoodKind_FOOD_KIND_MEAL_SIMPLE:    policy.FoodKindMealSimple,
+	o.FoodKind_FOOD_KIND_MEAL_FINE:      policy.FoodKindMealFine,
+	o.FoodKind_FOOD_KIND_MEAL_LAVISH:    policy.FoodKindMealLavish,
+	o.FoodKind_FOOD_KIND_RAW_MEAT:       policy.FoodKindRawMeat,
+	o.FoodKind_FOOD_KIND_HUMAN_MEAT:     policy.FoodKindHumanMeat,
+	o.FoodKind_FOOD_KIND_INSECT_MEAT:    policy.FoodKindInsectMeat,
+	o.FoodKind_FOOD_KIND_VEGETABLE:      policy.FoodKindVegetable,
+	o.FoodKind_FOOD_KIND_FUNGUS:         policy.FoodKindFungus,
+	o.FoodKind_FOOD_KIND_ANIMAL_PRODUCT: policy.FoodKindAnimalProduct,
+	o.FoodKind_FOOD_KIND_OTHER:          policy.FoodKindOther,
+}
+
+var mealIngredients = map[o.MealIngredients]policy.MealIngredients{
+	o.MealIngredients_MEAL_INGREDIENTS_ANY:      policy.MealAnyIngredients,
+	o.MealIngredients_MEAL_INGREDIENTS_MEAT:     policy.MealMeatOnly,
+	o.MealIngredients_MEAL_INGREDIENTS_NON_MEAT: policy.MealNonMeat,
 }
 
 var bookKinds = map[o.BookKind]policy.BookKind{
@@ -72,6 +94,9 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading), BiomeDiseases: f.BiomeDiseases}
 	for _, b := range f.Books {
 		r.Books = append(r.Books, policy.Book{Def: b.GetDefName(), Kind: bookKinds[b.GetKind()]})
+	}
+	for _, d := range f.Foods {
+		r.Foods = append(r.Foods, policy.Food{Def: d.GetDefName(), Kind: foodKinds[d.GetKind()], Ingredients: mealIngredients[d.GetIngredients()]})
 	}
 	for _, row := range f.AllowedAreas {
 		r.AllowedAreas = append(r.AllowedAreas, AllowedArea{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds)})

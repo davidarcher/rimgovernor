@@ -131,6 +131,7 @@ type Action struct {
 	areaPlantCut        AreaPlantCut
 	readingPolicy       ReadingPolicy
 	drugPolicy          DrugPolicy
+	foodPolicy          FoodPolicy
 	autoHomeArea        bool
 	zoneDelete          ZoneDelete
 	zoneCellEdit        ZoneCellEdit
@@ -275,6 +276,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewReadingPolicyAction(a.id, a.readingPolicy)
 		case DrugPolicyAction:
 			canonical, err = NewDrugPolicyAction(a.id, a.drugPolicy)
+		case FoodPolicyAction:
+			canonical, err = NewFoodPolicyAction(a.id, a.foodPolicy)
 		case SurgeryAction:
 			canonical, err = NewSurgeryAction(a.id, a.surgery)
 		case PawnSettingsAction:

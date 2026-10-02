@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -187,14 +186,6 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if _, ck := pawn.Work.Value(); !mk || !ck || !manual {
 			continue
 		}
-		if defs := policy.FoodPolicyChanges(pawn); len(defs) > 0 {
-			w, err := domain.NewFoodAssignment(domain.PawnID(pawn.ID), defs)
-			if err != nil {
-				return RoutineWorkResult{}, err
-			}
-			work = append(work, w)
-			continue
-		}
 		changed, ok := policy.WorkChanges(pawn, assignment)
 		if !ok {
 			return RoutineWorkResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
@@ -268,6 +259,21 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			}
 		}
 	}
+	// Per-pawn food policies (#1541) likewise.
+	var food []domain.FoodPolicy
+	if changes := routineDietChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns); len(changes) > 0 {
+		if len(changes) > 8 {
+			changes = changes[:8]
+		}
+		for _, c := range changes {
+			if c.Write != nil {
+				food = append(food, *c.Write)
+			}
+			if c.Assign != nil {
+				settings = append(settings, *c.Assign)
+			}
+		}
+	}
 	for _, plan := range open {
 		if err := cancelStaleWorkActions(call, p.journal, plan, work, settings); err != nil {
 			return RoutineWorkResult{}, err
@@ -279,7 +285,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineWorkResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	if len(work) == 0 && len(settings) == 0 && len(reading) == 0 && len(drugs) == 0 {
+	if len(work) == 0 && len(settings) == 0 && len(reading) == 0 && len(drugs) == 0 && len(food) == 0 {
 		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
 	}
 	// Staleness above judged every pawn; the plan itself carries at most eight.
@@ -293,11 +299,6 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	for _, w := range work {
 		data, _ := json.Marshal(w.Settings())
 		fmt.Fprintf(hash, "%s/%s\n", w.Pawn(), data)
-		if defs := w.FoodAllow(); len(defs) > 0 {
-			// An identical Manual edit after a completed repair needs another
-			// method even when the settings token returns to its old value.
-			fmt.Fprintf(hash, "food/%q/%d\n", defs, len(goal.Methods))
-		}
 		// A timetable is not in Settings(): without it a schedule-only
 		// change repeats an earlier method (a Drowsy extension and its
 		// revert, #1318) and reads as used, so it never applies.
@@ -309,7 +310,8 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		carry, _ := s.MedicineCarry()
 		book, _ := s.ReadingPolicy()
 		drug, _ := s.DrugPolicy()
-		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%q/%q/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), book, drug, len(goal.Methods))
+		diet, _ := s.FoodPolicy()
+		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%q/%q/%q/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), book, drug, diet, len(goal.Methods))
 	}
 	for _, d := range drugs {
 		data, _ := json.Marshal(d.Entries())
@@ -317,6 +319,9 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	for _, r := range reading {
 		fmt.Fprintf(hash, "reading/%q/%q/%d\n", r.Name(), r.Definitions(), len(goal.Methods))
+	}
+	for _, f := range food {
+		fmt.Fprintf(hash, "food/%q/%q/%d\n", f.Name(), f.Definitions(), len(goal.Methods))
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -342,6 +347,13 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	for _, d := range drugs {
 		action, err := domain.NewDrugPolicyAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), d)
+		if err != nil {
+			return RoutineWorkResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	for _, f := range food {
+		action, err := domain.NewFoodPolicyAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), f)
 		if err != nil {
 			return RoutineWorkResult{}, err
 		}
@@ -418,9 +430,6 @@ func cancelStaleWorkActions(ctx context.Context, journal *store.Store, plan stor
 func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.WorkAssignment) bool {
 	now, ok := wanted[w.Pawn()]
 	if !ok {
-		return true
-	}
-	if !slices.Equal(w.FoodAllow(), now.FoodAllow()) {
 		return true
 	}
 	values := map[string]int32{}
@@ -500,4 +509,19 @@ func routineDrugChanges(policies domain.Fact[observation.Policies], names domain
 		entries = append(entries, policy.DrugPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Entries: e.Drugs})
 	}
 	return policy.DrugPolicyChanges(pawns, owned, entries, stock, p.BiomeDiseases, squad)
+}
+
+// routineDietChanges is the food policy planner's input lift (#1541); none
+// while the policy databases or the owned-pawn names are unknown.
+func routineDietChanges(policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn) []policy.FoodPolicyChange {
+	p, ok := policies.Value()
+	owned, named := names.Value()
+	if !ok || !named || len(p.Foods) == 0 {
+		return nil
+	}
+	entries := make([]policy.FoodPolicyEntry, 0, len(p.Food))
+	for _, e := range p.Food {
+		entries = append(entries, policy.FoodPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Allowed: e.Allowed})
+	}
+	return policy.DietPolicyChanges(pawns, owned, entries, p.Foods)
 }

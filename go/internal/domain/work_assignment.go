@@ -30,14 +30,13 @@ type WorkAssignment struct {
 	areaClear bool
 	areaID    string
 	schedule  string
-	food      string
 }
 
-func newWorkAssignment(pawn PawnID, settings []WorkSetting, hasArea, areaClear bool, areaID string, schedule []string, food ...string) (WorkAssignment, error) {
+func newWorkAssignment(pawn PawnID, settings []WorkSetting, hasArea, areaClear bool, areaID string, schedule []string) (WorkAssignment, error) {
 	if !validID(string(pawn)) {
 		return WorkAssignment{}, errors.New("invalid work assignment")
 	}
-	if len(settings) == 0 && !hasArea && len(schedule) == 0 && len(food) == 0 {
+	if len(settings) == 0 && !hasArea && len(schedule) == 0 {
 		return WorkAssignment{}, errors.New("invalid work assignment")
 	}
 	encodedSchedule := ""
@@ -80,34 +79,7 @@ func newWorkAssignment(pawn PawnID, settings []WorkSetting, hasArea, areaClear b
 	if len(data) > 30000 {
 		return WorkAssignment{}, errors.New("work assignment exceeds storage bound")
 	}
-	encodedFood := ""
-	if len(food) > 0 {
-		defs := append([]string(nil), food...)
-		sort.Strings(defs)
-		for i, def := range defs {
-			if !validID(def) || i > 0 && defs[i-1] == def {
-				return WorkAssignment{}, errors.New("invalid food assignment")
-			}
-		}
-		data, _ := json.Marshal(defs)
-		if len(data) > 30000 {
-			return WorkAssignment{}, errors.New("food assignment exceeds storage bound")
-		}
-		encodedFood = string(data)
-	}
-	return WorkAssignment{pawn: pawn, settings: string(data), hasArea: hasArea, areaClear: areaClear, areaID: areaID, schedule: encodedSchedule, food: encodedFood}, nil
-}
-
-// NewFoodAssignment carries a bounded diet expansion through the pawn settings CAS.
-func NewFoodAssignment(pawn PawnID, defs []string) (WorkAssignment, error) {
-	return newWorkAssignment(pawn, nil, false, false, "", nil, defs...)
-}
-func (w WorkAssignment) FoodAllow() []string {
-	var defs []string
-	if w.food != "" {
-		_ = json.Unmarshal([]byte(w.food), &defs)
-	}
-	return defs
+	return WorkAssignment{pawn: pawn, settings: string(data), hasArea: hasArea, areaClear: areaClear, areaID: areaID, schedule: encodedSchedule}, nil
 }
 
 func NewWorkAssignment(pawn PawnID, settings []WorkSetting) (WorkAssignment, error) {
@@ -163,7 +135,7 @@ func (w WorkAssignment) Schedule() []string {
 // bridge, decoding a stored payload) use it to confirm the value is still
 // exactly what NewWorkAssignment/NewAreaAssignment would have produced.
 func (w WorkAssignment) Canonical() (WorkAssignment, error) {
-	return newWorkAssignment(w.pawn, w.Settings(), w.hasArea, w.areaClear, w.areaID, w.Schedule(), w.FoodAllow()...)
+	return newWorkAssignment(w.pawn, w.Settings(), w.hasArea, w.areaClear, w.areaID, w.Schedule())
 }
 
 func NewWorkAssignmentAction(id ActionID, w WorkAssignment) (Action, error) {
