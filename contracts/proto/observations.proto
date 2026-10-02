@@ -1403,7 +1403,7 @@ message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rim
 // alone, never held for or attacked. nearest_colonist_distance is
 // Chebyshev cells to the nearest free colonist, absent with none.
 message ThreatPawn { reserved 1, 5, 8; reserved "ignored_reason", "hostile_reason"; EntityRef prey = 2; optional bool prey_is_ours = 3; optional bool ours = 4; optional bool passive = 6;
-  EntityRef pawn = 7; optional double nearest_colonist_distance = 9; optional string mental_state = 10; optional bool faction_hostile = 11; optional string faction_id = 12;
+  EntityRef pawn = 7; optional double nearest_colonist_distance = 9; optional string mental_state = 10; optional bool faction_hostile = 11; rimgovernor.common.v1.Ref faction = 12;
   optional bool prison_break = 13; optional bool predator_hunt = 14; optional bool predator = 15; optional bool downed = 16; }
 // A hostile-faction building that is itself a combat target (an insect hive,
 // a crashed ship part, a mech-cluster piece with combat power): its own CAS

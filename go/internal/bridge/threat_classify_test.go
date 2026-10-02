@@ -19,7 +19,7 @@ func TestClassifyThreat(t *testing.T) {
 		row  *o.ThreatPawn
 		want []policy.ThreatKind
 	}{
-		"faction hostile":             {&o.ThreatPawn{FactionHostile: yes, FactionId: proto.String("Faction_9"), NearestColonistDistance: at(40)}, []policy.ThreatKind{policy.Hostile}},
+		"faction hostile":             {&o.ThreatPawn{FactionHostile: yes, Faction: NewRef("Faction_9"), NearestColonistDistance: at(40)}, []policy.ThreatKind{policy.Hostile}},
 		"far faction hostile":         {&o.ThreatPawn{FactionHostile: yes, NearestColonistDistance: at(400)}, []policy.ThreatKind{policy.Hostile}},
 		"hostile without colonists":   {&o.ThreatPawn{FactionHostile: yes}, []policy.ThreatKind{policy.Hostile}},
 		"manhunter":                   {&o.ThreatPawn{MentalState: proto.String("ManhunterPermanent"), Predator: yes, NearestColonistDistance: at(100)}, []policy.ThreatKind{policy.Hostile}},

@@ -208,7 +208,7 @@ func emergencyStatus(v *o.StatusSnapshot, pawns Pawns, id *c.Identity) (Emergenc
 		if row == nil {
 			return EmergencyObservation{}, contract("missing threat pawn")
 		}
-		if row.NearestColonistDistance != nil && !(row.GetNearestColonistDistance() >= 0) || row.MentalState != nil && validID(row.GetMentalState()) != nil || row.FactionId != nil && validID(row.GetFactionId()) != nil {
+		if row.NearestColonistDistance != nil && !(row.GetNearestColonistDistance() >= 0) || row.MentalState != nil && validID(row.GetMentalState()) != nil || !optionalRef(row.Faction) {
 			return EmergencyObservation{}, contract("invalid emergency threat facts")
 		}
 		kinds := ClassifyThreat(row)

@@ -115,7 +115,7 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 		}
 		switch threat.Kind {
 		case policy.Hostile:
-			row.FactionHostile, row.FactionId = proto.Bool(true), proto.String("Faction_1")
+			row.FactionHostile, row.Faction = proto.Bool(true), bridge.NewRef("Faction_1")
 			if passive, ok := threat.Passive.Value(); ok {
 				row.Passive = proto.Bool(passive)
 			}

@@ -29,7 +29,7 @@ func emergencyRef(id string) *o.EntityRef { return &o.EntityRef{Id: proto.String
 
 // emergencyThreat is a faction-hostile threat fact row referencing id.
 func emergencyThreat(id string) *o.ThreatPawn {
-	return &o.ThreatPawn{Pawn: emergencyRef(id), FactionHostile: proto.Bool(true), FactionId: proto.String("Faction_1")}
+	return &o.ThreatPawn{Pawn: emergencyRef(id), FactionHostile: proto.Bool(true), Faction: NewRef("Faction_1")}
 }
 
 // emergencyTable is a pawn table holding rows.

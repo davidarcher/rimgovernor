@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
                     PredatorHunt = f.PredatorHunt, Predator = f.Predator, Downed = f.Downed };
                 if (nearest.HasValue) row.NearestColonistDistance = nearest.Value;
                 if (f.Mental != null) row.MentalState = f.Mental;
-                if (f.FactionId != null) row.FactionId = f.FactionId;
+                if (f.FactionId != null) row.Faction = NativeRef.Of(f.FactionId);
                 if (f.Passive.HasValue) row.Passive = f.Passive.Value;
                 if (f.HasPrey) { row.Prey = prey(pawn); row.PreyIsOurs = f.PreyOurs; }
                 threats.Pawns.Add(row);
