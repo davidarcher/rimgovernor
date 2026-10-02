@@ -125,8 +125,8 @@ What it produces:
 - `acceptance doctor -root <root> [-rimgovernor <bin> -output <dir>]` is
   the preflight (#277): one line per known pitfall with its fix -- the
   root and its game copy (path past ~140 characters), the
-  installed mod (present, stale against the worktree), the Core-only
-  baseline save, the profile's `ModsConfig.xml` against what the kept
+  installed mod (present, stale against the worktree), the
+  baseline save (an expansion it needs that the game copy lacks), the profile's `ModsConfig.xml` against what the kept
   process launched with, your own leftover game processes, the clock
   journal backlog under a kept process, a private `GOCACHE`, the runner
   and `rimgovernor` binaries against the worktree and `main`, an

@@ -128,7 +128,7 @@ func fixtureSummary(fixtures []string) string {
 
 // generators maps a `setup generate` name to the registry case that
 // writes the fixture (#739): the variant saves the sustained/matrix-*
-// diagnostics load.
+// diagnostics load, and the committed tribal8 baseline (#1260).
 // They stay registry cases so the runner hosts them, but no tier runs them.
 func generators() map[string][]string {
 	out := map[string][]string{}
@@ -136,6 +136,9 @@ func generators() map[string][]string {
 		if short, ok := strings.CutPrefix(c.Name, "tools/variantsavegen-"); ok {
 			out["variantsave-"+short] = []string{c.Name}
 			out["variantsave-all"] = append(out["variantsave-all"], c.Name)
+		}
+		if c.Name == "tools/baselinegen" {
+			out["baseline"] = []string{c.Name}
 		}
 	}
 	return out

@@ -50,8 +50,6 @@ func init() {
 		Start: cases.Fixture{Op: "test/layout_grid_prepare", ArgsFrom: startersite.Args,
 			Args: map[string]any{"sleepingSpots": 8, "stoneBlocks": 1500, "builders": true, "greedy": true},
 			On:   cases.Save{Name: sustained.BaselineSave}},
-		Expansions:  []string{"ludeon.rimworld.royalty"},
-		NoKeep:      true,
 		RequiredOps: []string{suiteTitleOp},
 		Keep:        []string{string(na.NeedFood)},
 		Serve:       &cases.ServeSpec{Families: []string{"shelter", "expansion", "sleeping"}, NativeTimeout: 30 * time.Second, Prefix: "sleeping-suites"},

@@ -468,11 +468,11 @@ by review alone.
    weather, 21 C and a quiet storyteller. It caches as
    `RimGovernor-lab-100` beside a `.stamp` of the installed mod's hash, so a
    mod or fixture rebuild regenerates it; result.json records `start.kind` `lab`.
-3. **Core-only unless the test is about DLC.** *Enforced:* the runner's
-   profile is Core-only; a `Save` start (and an `Owned` case's `Saves`)
-   activates the save's own `<modIds>` through `cfg.UseSaveExpansions`.
-   Only a DLC-content test sets `Config.Expansions` (or
-   `RIMGOVERNOR_ACCEPT_EXPANSIONS`).
+3. **Every installed DLC.** *Enforced:* the runner's profile activates
+   every expansion the game copy ships (#1258); a `Save` start (and an
+   `Owned` case's `Saves`) activates the save's own `<modIds>` through
+   `cfg.UseSaveExpansions`. `Config.Expansions` (or
+   `RIMGOVERNOR_ACCEPT_EXPANSIONS`) narrows it.
 4. **Quiet by default.** *Enforced:* `Quiet` defaults to `QuietRequired`;
    `QuietIfAvailable` (a case that must also run on a production build) and
    `Loud` (an assertion about an interruption) need a `Reason` (lint).
@@ -592,24 +592,23 @@ by review alone.
 
 ## Keep the game quiet and small
 
-Acceptance profiles are Core-only: `nativeaccept.PrepareNativeModConfig`
-drops every `ludeon.rimworld.*` expansion from the headless/rendered
-`ModsConfig.xml` it generates, because each active expansion adds def loading
-and per-tick systems no case needs unless it tests that DLC, and lists every
-expansion the game copy ships in `knownExpansions`: RimWorld activates any
-installed expansion it has not seen before at boot and rewrites the file
-with it, whatever `activeMods` said (#332). A case that
-does sets `Config.Expansions` (or the run sets
-`RIMGOVERNOR_ACCEPT_EXPANSIONS=royalty,biotech`). A save refuses to load
+Acceptance profiles load every installed DLC (#1258):
+`nativeaccept.PrepareNativeModConfig` writes the requested expansions into
+the headless/rendered `ModsConfig.xml`, every one the game copy ships when a
+run names none, and lists every shipped expansion in `knownExpansions`:
+RimWorld activates any installed expansion it has not seen before at boot
+and rewrites the file with it, whatever `activeMods` said (#332). A run
+narrows the set with `Config.Expansions` or
+`RIMGOVERNOR_ACCEPT_EXPANSIONS=royalty,biotech`. A save refuses to load
 (`save.missing_mods`) under a profile missing an expansion it was recorded
 with, so a `Save` start activates the save's own expansions (`cfg.UseSaveExpansions`)
 before `PrepareConfig`, which activates exactly the expansions in that
-save's `<modIds>` header; regenerate saves Core-only (the
-`tools/variantsavegen-*` cases do) rather than carrying DLC forward. Every committed save is Core-only
-since #192, including the tribal8 baseline (`scripts/fixtures/saves/`,
+save's `<modIds>` header. The tribal8 baseline (`scripts/fixtures/saves/`,
 Lost Tribe, eight colonists, `-seed rimgovernor-tribal-eight-e -biome TemperateForest -map-size 250
 -planet-coverage 0.3 -world-temperature LittleBitColder -difficulty
-Medium`, quiet); `Prepare`/`PrepareRendered` stage it into
+Medium`, quiet) is saved with all six expansions since #1260;
+`acceptance setup generate baseline` (`tools/baselinegen`) regenerates it
+into the root's `profile/Saves` for copying over the committed one; `Prepare`/`PrepareRendered` stage it into
 `<root>/profile/Saves` and replace an older copy there, so no root needs a
 peer's save.
 
@@ -933,7 +932,7 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
 - **off-tier** (#739): fixture generators and diagnostics no tier runs
   (`offTier` in `cmd/acceptance/tier.go`). The generators
   (`tools/variantsavegen-*`) run through
-  `acceptance setup generate <variantsave-<save>|variantsave-all>`
+  `acceptance setup generate <variantsave-<save>|variantsave-all|baseline>`
   followed by the usual run flags; the diagnostics (`sustained/colony`,
   `sustained/colony-loud`, `sustained/food`, `sustained/matrix-*`,
   `speedmatrix/*`, `lifecycle/headless-soak`,

@@ -108,6 +108,16 @@ func TestBaselineDLCFails(t *testing.T) {
 	}
 }
 
+func TestBaselineInstalledDLCPasses(t *testing.T) {
+	o, l := fakeRoot(t)
+	write(t, filepath.Join(l.GameCopy, "Data", "Royalty", "About", "About.xml"), "<ModMetaData><packageId>Ludeon.RimWorld.Royalty</packageId></ModMetaData>")
+	write(t, filepath.Join(l.Root, "profile", "Saves", na.BaselineSave), "<savegame><meta><modIds><li>ludeon.rimworld</li><li>Ludeon.RimWorld.Royalty</li></modIds></meta></savegame>")
+	c := byName(Run(context.Background(), o), "baseline")
+	if c.Status != OK {
+		t.Fatalf("baseline = %+v", c)
+	}
+}
+
 func TestBaselineMissingEverywhereFails(t *testing.T) {
 	o, l := fakeRoot(t)
 	os.Remove(filepath.Join(l.Root, "profile", "Saves", na.BaselineSave))

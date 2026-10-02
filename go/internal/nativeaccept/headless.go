@@ -725,11 +725,9 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 }
 
 // BaselineSave is the committed starting colony most save-driven harnesses
-// load: the Lost Tribe scenario with eight colonists, generated Core-only by
-// variantsavegen (#192: -scenario LostTribe -count 8 -seed
-// rimgovernor-tribal-eight-e -biome TemperateForest -map-size 250 -planet-coverage 0.3 -world-temperature
-// LittleBitColder -difficulty Medium, quiet). It lives in the checkout at
-// CommittedSavesDir/BaselineSave.
+// load: the Lost Tribe scenario with eight colonists (#192), generated with
+// every DLC active by tools/baselinegen (#1260), whose spec it is. It lives
+// in the checkout at CommittedSavesDir/BaselineSave.
 const BaselineSave = "RimGovernor-tribal8-baseline.rws"
 
 // CommittedSavesDir is where committed fixture saves live, relative to the

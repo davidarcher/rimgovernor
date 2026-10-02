@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"time"
 
@@ -117,7 +118,7 @@ func Run(ctx context.Context, o Options) []Check {
 		add(gameCopyPath(gameCopy))
 		add(mod(o, gameCopy))
 	}
-	add(baseline(o))
+	add(baseline(o, gameCopy))
 	add(modsConfig(o))
 	if gameCopy != "" {
 		_, c := process(o, gameCopy)
@@ -292,10 +293,11 @@ func fixtureFlag(repo string, installed, fixtureOps []string) string {
 	return "-fixture " + strings.Join(flags, ",")
 }
 
-// baseline is the committed Core-only baseline save (#192): missing in
-// both the checkout and the root, no save-driven case can start; a DLC
-// entry in its modIds fails save.missing_mods on the Core-only profile.
-func baseline(o Options) Check {
+// baseline is the committed baseline save (#192, every DLC since #1260):
+// missing in both the checkout and the root, no save-driven case can start;
+// an expansion in its modIds the game copy does not ship fails
+// save.missing_mods at load.
+func baseline(o Options, gameCopy string) Check {
 	c := Check{Name: "baseline"}
 	rooted := filepath.Join(o.Root, "profile", "Saves", na.BaselineSave)
 	committed := ""
@@ -329,18 +331,26 @@ func baseline(o Options) Check {
 	}
 	mods, err := saveModIDs(effective)
 	if err != nil {
-		c.Status, c.Detail, c.Fix = Fail, effective+": "+err.Error(), "regenerate the baseline (variantsavegen, Core-only) or restore it from git"
+		c.Status, c.Detail, c.Fix = Fail, effective+": "+err.Error(), "regenerate it (acceptance setup generate baseline) or restore it from git"
 		return c
 	}
-	var dlc []string
+	if gameCopy == "" {
+		return c
+	}
+	installed, err := na.InstalledExpansions(gameCopy)
+	if err != nil {
+		c.Status, c.Detail = Fail, err.Error()
+		return c
+	}
+	var missing []string
 	for _, id := range mods {
-		if strings.HasPrefix(id, na.ExpansionPrefix) {
-			dlc = append(dlc, id)
+		if strings.HasPrefix(id, na.ExpansionPrefix) && !slices.Contains(installed, id) {
+			missing = append(missing, id)
 		}
 	}
-	if len(dlc) > 0 {
-		c.Status, c.Detail = Fail, fmt.Sprintf("%s was saved with %v; the Core-only profile fails save.missing_mods at load", effective, dlc)
-		c.Fix = "use the committed Core-only baseline (git checkout -- " + na.CommittedSavesDir + ") or regenerate it Core-only"
+	if len(missing) > 0 {
+		c.Status, c.Detail = Fail, fmt.Sprintf("%s needs %v, which the game copy lacks; it fails save.missing_mods at load", effective, missing)
+		c.Fix = "install those expansions, or regenerate the baseline on this copy (acceptance setup generate baseline)"
 	}
 	return c
 }
