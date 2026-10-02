@@ -5,12 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // Every catalog entry carries a class, and the class follows the rule the
@@ -329,4 +333,41 @@ func TestClockSchedulerCutsOffTheShelterPlannerWithoutTheHold(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("the optional planner was never released")
 	}
+}
+
+// The wall budget bounds the planners, not the routine review that precedes
+// them: a review slower than the whole budget (a cold review and layout on a
+// slow runner) leaves the critical planner its full wall instead of holding
+// the step with nothing evaluated.
+func TestClockSchedulerWallExcludesTheRoutineReview(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	n := schedulerRoutine(t, s, f)
+	s.config.Budget.Wall = 400 * time.Millisecond
+	slow := &slowWindow{windowedScheduler: windowedScheduler{f, n}, delay: 600 * time.Millisecond}
+	replacement, err := NewClockScheduler(s.player, s.session, slow, s.config, s.clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	*s = *replacement
+	s.catalog = []plannerEntry{quickPlanner("tend", classCritical)}
+	got, err := s.Step(context.Background())
+	if len(got.HeldBy) != 0 || errors.Is(err, executor.ErrHeld) {
+		t.Fatalf("held %v err %v: the review's time counted against the planner wall", got.HeldBy, err)
+	}
+	if slow.reads.Load() == 0 {
+		t.Fatal("the slow review never ran, so the test proved nothing")
+	}
+}
+
+type slowWindow struct {
+	windowedScheduler
+	delay time.Duration
+	reads atomic.Int32
+}
+
+func (w *slowWindow) ReadPlanningWindow(ctx context.Context, id *c.Identity, rect policy.Rectangle) (bridge.PlanningWindow, bridge.Result, error) {
+	w.reads.Add(1)
+	time.Sleep(w.delay)
+	return w.windowedScheduler.ReadPlanningWindow(ctx, id, rect)
 }

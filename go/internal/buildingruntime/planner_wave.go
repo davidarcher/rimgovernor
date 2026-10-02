@@ -30,9 +30,10 @@ type StepBudget struct {
 	OptionalGrace time.Duration
 }
 
-// DefaultStepWall is the planner waves' wall budget: under the 30 s step
-// call so a wave that never returns holds admission with its planners
-// named instead of failing the step on the context deadline.
+// DefaultStepWall is the planner waves' wall budget, counted from the wave's
+// start (after the routine review): under the 30 s step call, so a wave that
+// never returns holds admission with its planners named instead of failing
+// the step on the context deadline, when the review is quick.
 const DefaultStepWall = 20 * time.Second
 
 // DefaultOptionalGrace is the least grace the optional wave gets after the

@@ -1524,7 +1524,6 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	defer wave.cancelOptional()
 	defer s.recordWave(call, sel, wave, status.Context.GetTick())
 	began := time.Now()
-	wall := after(s.config.Budget.wall())
 	if s.config.Routine != nil {
 		s.config.Routine.pause = clockPause(status)
 	}
@@ -1544,6 +1543,12 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		watched(0, false)
 		return nil, err
 	}
+	// The wall budget bounds the planners, not the routine review that
+	// stepPlanners ran first: a cold review and layout take seconds on a
+	// slow runner and used to leave the critical planners the rest of the
+	// budget, so a startup planner was cut at every step.
+	began = time.Now()
+	wall := after(s.config.Budget.wall())
 	if err = wave.group.WaitCritical(wall); err != nil {
 		watched(0, false)
 		if !errors.Is(err, errCutoff) {
