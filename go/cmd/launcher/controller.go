@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 	"strings"
 )
@@ -14,23 +12,6 @@ type Record struct {
 	PID  int    `json:"pid"`
 	Exe  string `json:"exe"`
 	Port int    `json:"port"`
-}
-
-func readRecord(path string) (Record, bool) {
-	var r Record
-	data, err := os.ReadFile(path)
-	if err != nil || json.Unmarshal(data, &r) != nil || r.PID == 0 {
-		return Record{}, false
-	}
-	return r, true
-}
-
-func writeRecord(path string, r Record) error {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0644)
 }
 
 // Owner is a process listening on the controller's port; Path is "" when
