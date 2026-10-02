@@ -124,6 +124,9 @@ type PrisonerFacts struct {
 	LifeThreatening domain.Fact[bool]
 	QueuedRecipes   []string
 	Executing       bool
+	// PolicyInputs is the prisoner's current drug policy and chemicals
+	// (#1554).
+	PolicyInputs domain.Fact[PawnPolicyInputs]
 }
 
 // PrisonerPlanReason names why RoutinePrisonerInteractionPlanner did or did

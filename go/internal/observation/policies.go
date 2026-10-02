@@ -112,36 +112,6 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 	return domain.Known(r)
 }
 
-func apparelRequirements(rows []*o.ApparelRequirementFact) []policy.ApparelRequirement {
-	r := make([]policy.ApparelRequirement, 0, len(rows))
-	for _, row := range rows {
-		r = append(r, policy.ApparelRequirement{BodyPartGroups: row.BodyPartGroups, RequiredDefs: row.RequiredDefs, RequiredTags: row.RequiredTags, AllowedTags: row.AllowedTags})
-	}
-	return r
-}
-
-// pawnPolicyInputs lifts a settings row's policy inputs; unknown when the
-// producer carried none.
-func pawnPolicyInputs(p *o.PawnPolicyInputs) domain.Fact[policy.PawnPolicyInputs] {
-	if p == nil {
-		return domain.Fact[policy.PawnPolicyInputs]{}
-	}
-	r := policy.PawnPolicyInputs{
-		OutfitPolicy: p.GetOutfitPolicyId(), DrugPolicy: p.GetDrugPolicyId(), ReadingPolicy: p.GetReadingPolicyId(),
-		DependencyChemicals: p.DependencyChemicals, RoyalTitle: p.GetRoyalTitle(), TitleApparel: apparelRequirements(p.TitleApparel),
-		Ideo: p.GetIdeoId(), Precepts: p.Precepts, IdeoRole: p.GetIdeoRole(), RoleApparel: apparelRequirements(p.RoleApparel), PreceptApparel: p.PreceptApparel,
-		GuestStatus: p.GetGuestStatus(), PrisonerInteraction: p.GetPrisonerInteraction(), SlaveInteraction: p.GetSlaveInteraction(),
-		TendQuality: optional(p.MedicalTendQuality),
-	}
-	for _, s := range p.InventoryStock {
-		r.InventoryStock = append(r.InventoryStock, policy.InventoryStock{Group: s.GetGroup(), Thing: s.GetThingDef(), Count: int(s.GetCount())})
-	}
-	for _, c := range p.Chemicals {
-		r.Chemicals = append(r.Chemicals, policy.ChemicalState{Chemical: c.GetChemical(), Addiction: optional(c.Addiction), Withdrawal: c.GetWithdrawal(), Tolerance: optional(c.Tolerance)})
-	}
-	return domain.Known(r)
-}
-
 // shelterArea is the Safe allowed area's load id, "" when the map has none.
 func shelterArea(p domain.Fact[Policies]) domain.Fact[string] {
 	return allowedAreaID(p, policy.SafeAreaLabel)

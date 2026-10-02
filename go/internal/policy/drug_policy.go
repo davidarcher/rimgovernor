@@ -224,6 +224,10 @@ func AddictionEntries(pawn WorkPawn, stock map[string]int64) []domain.DrugPolicy
 	if !ok {
 		return nil
 	}
+	return addictionEntries(inputs, stock)
+}
+
+func addictionEntries(inputs PawnPolicyInputs, stock map[string]int64) []domain.DrugPolicyEntry {
 	var out []domain.DrugPolicyEntry
 	for _, a := range AddictionDrugs {
 		severity, addicted := 0.0, false
@@ -267,7 +271,9 @@ func AddictionEntries(pawn WorkPawn, stock map[string]int64) []domain.DrugPolicy
 // CarryEntries (#1540). A pawn whose short name another owned pawn
 // shares (#1310 renames it) or that several policies carry waits.
 // biomeDiseases is the colony map biome's disease hediffs (#1539).
-func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount], biomeDiseases []string, squad SoldierSquad) []DrugPolicyChange {
+// Each prisoner holds its own policy too (#1554), allowing no recreation,
+// only the addiction maintenance and weaning its chemicals owe.
+func DrugPolicyChanges(pawns []WorkPawn, prisoners []PrisonerFacts, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount], biomeDiseases []string, squad SoldierSquad) []DrugPolicyChange {
 	diseaseBiome := DiseaseBiome(biomeDiseases)
 	var remaining map[string]int64
 	noGoJuice := false
@@ -283,25 +289,51 @@ func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolic
 		short[n.Pawn] = n.Short
 		count[strings.ToLower(n.Short)]++
 	}
-	var out []DrugPolicyChange
+	// owed is a policy holder; want builds its entries only once the holder
+	// passes the name checks, because it draws on the shared drug stock.
+	type owed struct {
+		id     PawnID
+		inputs PawnPolicyInputs
+		want   func() ([]domain.DrugPolicyEntry, bool)
+	}
+	var rows []owed
 	for _, pawn := range pawns {
-		inputs, ok := pawn.PolicyInputs.Value()
-		name := short[pawn.ID]
-		if !ok || inputs.DrugPolicy == "" || name == "" || count[strings.ToLower(name)] != 1 {
+		if inputs, ok := pawn.PolicyInputs.Value(); ok {
+			rows = append(rows, owed{pawn.ID, inputs, func() ([]domain.DrugPolicyEntry, bool) {
+				want, ok := DrugEntries(pawn, diseaseBiome)
+				if !ok {
+					return nil, false
+				}
+				if squad.IsSoldier(pawn.ID) {
+					carry, _ := CarryEntries(pawn, noGoJuice)
+					for _, e := range carry {
+						want = mergeEntry(want, e)
+					}
+				}
+				for _, e := range AddictionEntries(pawn, remaining) {
+					want = mergeEntry(want, e)
+				}
+				return want, true
+			}})
+		}
+	}
+	for _, prisoner := range prisoners {
+		if inputs, ok := prisoner.PolicyInputs.Value(); ok {
+			rows = append(rows, owed{PawnID(prisoner.Pawn), inputs, func() ([]domain.DrugPolicyEntry, bool) {
+				return append([]domain.DrugPolicyEntry{}, addictionEntries(inputs, remaining)...), true
+			}})
+		}
+	}
+	var out []DrugPolicyChange
+	for _, row := range rows {
+		inputs := row.inputs
+		name := short[row.id]
+		if inputs.DrugPolicy == "" || name == "" || count[strings.ToLower(name)] != 1 {
 			continue
 		}
-		want, ok := DrugEntries(pawn, diseaseBiome)
+		want, ok := row.want()
 		if !ok {
 			continue
-		}
-		if squad.IsSoldier(pawn.ID) {
-			carry, _ := CarryEntries(pawn, noGoJuice)
-			for _, e := range carry {
-				want = mergeEntry(want, e)
-			}
-		}
-		for _, e := range AddictionEntries(pawn, remaining) {
-			want = mergeEntry(want, e)
 		}
 		v, err := domain.NewDrugPolicy(name, want)
 		if err != nil {
@@ -321,7 +353,7 @@ func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolic
 			change.Write = &v
 		}
 		if len(own) == 0 || inputs.DrugPolicy != own[0].ID {
-			s, err := domain.NewDrugPolicySetting(domain.PawnID(pawn.ID), name)
+			s, err := domain.NewDrugPolicySetting(domain.PawnID(row.id), name)
 			if err != nil {
 				continue
 			}

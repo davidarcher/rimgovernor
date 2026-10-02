@@ -209,6 +209,10 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns) (PrisonerCens
 		}
 		f.Conditions, f.LifeThreatening = CareConditions(person.GetConditions())
 		f.Executing = person.GetInteraction() == "Execution"
+		if err := validatePolicyInputs(person.PolicyInputs); err != nil {
+			return PrisonerCensus{}, err
+		}
+		f.PolicyInputs = PawnPolicyInputs(person.PolicyInputs)
 		if person.Withdrawal != nil {
 			f.Withdrawal = domain.Known(person.GetWithdrawal())
 		}

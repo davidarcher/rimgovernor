@@ -49,10 +49,10 @@ func TestPolicyDatabasesDecode(t *testing.T) {
 }
 
 func TestPawnPolicyInputsDecode(t *testing.T) {
-	if _, known := pawnPolicyInputs(nil).Value(); known {
+	if _, known := bridge.PawnPolicyInputs(nil).Value(); known {
 		t.Fatal("absent inputs became known")
 	}
-	v, known := pawnPolicyInputs(&o.PawnPolicyInputs{
+	v, known := bridge.PawnPolicyInputs(&o.PawnPolicyInputs{
 		ReadingPolicyId: proto.String("ReadingPolicy_1"),
 		InventoryStock:  []*o.InventoryStockSetting{{Group: proto.String("Medicine"), ThingDef: proto.String("MedicineHerbal"), Count: proto.Int32(2)}},
 		Chemicals:       []*o.ChemicalState{{Chemical: proto.String("Alcohol"), Tolerance: proto.Float64(0.2)}, {Chemical: proto.String("GoJuice"), Addiction: proto.Float64(0.5), Withdrawal: proto.Bool(true)}},

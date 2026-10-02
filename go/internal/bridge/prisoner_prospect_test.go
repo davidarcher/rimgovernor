@@ -16,6 +16,8 @@ func TestPopulationDecodesHarvestFacts(t *testing.T) {
 	prisoner.Surgery = &o.PawnHealth{SurgeryBills: []*o.SurgeryBill{{Id: proto.String("Bill_1")}}, Operations: []*o.SurgeryOperation{{
 		Recipe: &o.DefinitionRef{DefName: proto.String("RemoveBodyPart")}, PartIndex: proto.Int32(20), PartDefName: proto.String("Kidney"),
 		Kind: o.SurgeryKind_SURGERY_KIND_HARVEST, YieldMarketValue: proto.Float64(900)}}}
+	prisoner.PolicyInputs = &o.PawnPolicyInputs{DrugPolicyId: proto.String("DrugPolicy_2"), GuestStatus: proto.String("Prisoner"),
+		Chemicals: []*o.ChemicalState{{Chemical: proto.String("Alcohol"), Addiction: proto.Float64(0.4), Withdrawal: proto.Bool(false)}}}
 	snapshot := populationReply(prisoner, prisonerPerson("q", "")).GetObserved()
 	snapshot.OrganUsePrecept = proto.String("OrganUse_Acceptable")
 	census, err := decodePopulation(snapshot, populationPawns(snapshot))
@@ -41,6 +43,13 @@ func TestPopulationDecodesHarvestFacts(t *testing.T) {
 	}
 	if _, known := rows[1].Operations.Value(); known {
 		t.Fatal("a producer without surgery facts leaves them unknown")
+	}
+	inputs, known := rows[0].PolicyInputs.Value()
+	if !known || inputs.DrugPolicy != "DrugPolicy_2" || len(inputs.Chemicals) != 1 || inputs.Chemicals[0].Chemical != "Alcohol" {
+		t.Fatalf("policy inputs %+v", rows[0].PolicyInputs)
+	}
+	if _, known := rows[1].PolicyInputs.Value(); known {
+		t.Fatal("a producer without policy inputs leaves them unknown")
 	}
 }
 

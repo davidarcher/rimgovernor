@@ -903,7 +903,10 @@ message PopulationPerson { reserved 1; rimgovernor.common.v1.Ref pawn = 24; Snap
   // Medical care cap inputs (#1301), for a colony prisoner or guest: life
   // threat, every hediff (definition, severity, immunity and their rates)
   // and the completeness; other PawnHealth fields absent.
-  PawnHealth conditions = 22; }
+  PawnHealth conditions = 22;
+  // Policy inputs (#1554), for a prisoner of the colony only: its current
+  // drug policy id and chemical state, as on the work census settings row.
+  PawnPolicyInputs policy_inputs = 26; }
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; reserved 4;
   // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
   // primary ideoligion load id and the defName of its Slavery-issue precept

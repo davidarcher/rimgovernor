@@ -140,6 +140,8 @@ a child's included, gets a scheduled dose and is never left cold turkey (#1538):
 weaned at an interval widening as severity falls when the colony's stock of the
 drug covers the weaning doses, otherwise maintained at the drug's addiction
 interval and allowed for the need; luciferium is always maintained.
+Each colony prisoner holds its own policy too (#1554, policy inputs on its
+population row): no recreation, only that maintenance.
 Recreation relief itself still excludes ingestible joy; RimWorld chooses ordinary
 drug use. `policy/drug_policy_test.go` proves the entries.
 
