@@ -66,7 +66,7 @@ func readFurniture(ctx context.Context, s cases.Session, h *na.Harness, label, i
 	}
 	row, _ := na.AsMap(rows[0])
 	ref, _ := na.AsMap(row["building"])
-	return furnitureRead{label: na.AsString(ref["label"]), stuff: na.AsString(row["stuff"]), rotation: strings.ToLower(na.AsString(row["rotation"])),
+	return furnitureRead{label: na.AsString(ref["label"]), stuff: na.AsString(row["stuff"]), rotation: strings.ToLower(strings.TrimPrefix(na.AsString(row["rotation"]), "ROTATION_")),
 		hp: int(na.AsNumber(row["hitPoints"])), cells: cellsOf(row["occupiedCells"])}, nil
 }
 

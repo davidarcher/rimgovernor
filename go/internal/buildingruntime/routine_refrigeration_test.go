@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	pp "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -67,7 +68,7 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 		position := cell(3, 1)
 		development.Power = append(development.Power, &o.DevelopmentPower{BaseW: proto.Float64(-200), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("cooler"), DefName: proto.String("Cooler"), MapId: proto.Int32(0), Position: position}, OccupiedCells: []*c.Cell{position}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), PowerOutputW: proto.Float64(-200), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}})
 		snapshot := n.buildings.GetObserved()
-		snapshot.Buildings = []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("cooler"), DefName: proto.String("Cooler"), MapId: proto.Int32(0), Position: position}, Status: proto.String("built"), Rotation: proto.String("East"), Settings: &o.BuildingSettings{TargetTemperatureC: proto.Float64(21), Snapshot: &o.SnapshotRef{EntityId: proto.String("cooler"), Token: proto.String("tok-1")}}}}
+		snapshot.Buildings = []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("cooler"), DefName: proto.String("Cooler"), MapId: proto.Int32(0), Position: position}, Status: o.BuildingStatus_BUILDING_STATUS_BUILT.Enum(), Rotation: pp.Rotation_ROTATION_EAST.Enum(), Settings: &o.BuildingSettings{TargetTemperatureC: proto.Float64(21), Snapshot: &o.SnapshotRef{EntityId: proto.String("cooler"), Token: proto.String("tok-1")}}}}
 		snapshot.Completeness = count(1)
 	}
 	n.onPreview = func(ctx context.Context, preview *bridge.BuildingPreview) {

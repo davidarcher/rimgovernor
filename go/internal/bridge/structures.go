@@ -16,8 +16,8 @@ type Structure struct {
 	Definition string
 	Stuff      string
 	Cell       domain.Cell
-	// Status is blueprint, frame or built, native's own vocabulary.
-	Status string
+	// Status is the native construction stage.
+	Status o.BuildingStatus
 }
 
 // StructureRead is the complete census of the requested definitions inside a
@@ -88,7 +88,7 @@ func (client *Client) ReadStructures(ctx context.Context, identity *c.Identity, 
 			return StructureRead{}, raw, contract("invalid structure census row")
 		}
 		switch row.GetStatus() {
-		case "blueprint", "frame", "built":
+		case o.BuildingStatus_BUILDING_STATUS_BLUEPRINT, o.BuildingStatus_BUILDING_STATUS_FRAME, o.BuildingStatus_BUILDING_STATUS_BUILT:
 		default:
 			return StructureRead{}, raw, contract("unexpected structure status")
 		}

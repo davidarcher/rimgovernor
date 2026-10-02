@@ -9,12 +9,13 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	pp "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
 func constructionTestSnapshot() *o.BuildingsSnapshot {
-	return &o.BuildingsSnapshot{Context: authorityTestContext(7), Buildings: []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Status: proto.String("built"), Rotation: proto.String("North"), Stuff: proto.String("WoodLog")}}, Completeness: &o.Completeness{Filtered: proto.Uint64(20)}}
+	return &o.BuildingsSnapshot{Context: authorityTestContext(7), Buildings: []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Status: o.BuildingStatus_BUILDING_STATUS_BUILT.Enum(), Rotation: pp.Rotation_ROTATION_NORTH.Enum(), Stuff: proto.String("WoodLog")}}, Completeness: &o.Completeness{Filtered: proto.Uint64(20)}}
 }
 
 func TestConstructionBuildingsExactQueryAndPartialMissingResult(t *testing.T) {
@@ -55,12 +56,14 @@ func TestConstructionBuildingsRejectMalformedEvidence(t *testing.T) {
 		"duplicate": func(v *o.BuildingsSnapshot) {
 			v.Buildings = append(v.Buildings, v.Buildings[0])
 		},
-		"blueprint": func(v *o.BuildingsSnapshot) { v.Buildings[0].Status = proto.String("blueprint") },
+		"blueprint": func(v *o.BuildingsSnapshot) {
+			v.Buildings[0].Status = o.BuildingStatus_BUILDING_STATUS_BLUEPRINT.Enum()
+		},
 		"map":       func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.MapId = proto.Int32(8) },
 		"def":       func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.DefName = nil },
 		"position":  func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.Position = nil },
-		"rotation":  func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = proto.String("up") },
-		"lowercase": func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = proto.String("north") },
+		"rotation":  func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = pp.Rotation_ROTATION_ALL.Enum() },
+		"lowercase": func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = pp.Rotation_ROTATION_UNSPECIFIED.Enum() },
 		"stuff":     func(v *o.BuildingsSnapshot) { v.Buildings[0].Stuff = proto.String("") },
 	}
 	for name, change := range changes {

@@ -1,13 +1,19 @@
 package observation
 
 import (
-	"strings"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 )
+
+// rotations maps a native cardinal rotation onto the domain's; any other
+// value maps to the empty rotation, which domain validation refuses.
+var rotations = map[p.Rotation]domain.Rotation{p.Rotation_ROTATION_NORTH: domain.North, p.Rotation_ROTATION_EAST: domain.East, p.Rotation_ROTATION_SOUTH: domain.South, p.Rotation_ROTATION_WEST: domain.West}
+
+// intentStages maps the open-intent construction stages onto policy's.
+var intentStages = map[o.BuildingStatus]string{o.BuildingStatus_BUILDING_STATUS_BLUEPRINT: "blueprint", o.BuildingStatus_BUILDING_STATUS_FRAME: "frame"}
 
 // ConstructionBuildings projects a validated player-only building read. Empty IDs
 // identifies a complete colony census, independent of controller action history.
@@ -25,7 +31,7 @@ func ConstructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[po
 				return unknown, nil
 			}
 		}
-		b, err := domain.NewBuilding(row.Building.GetDefName(), domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()}, domain.Rotation(strings.ToLower(row.GetRotation())), stuff)
+		b, err := domain.NewBuilding(row.Building.GetDefName(), domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()}, rotations[row.GetRotation()], stuff)
 		if err != nil {
 			return unknown, err
 		}
@@ -39,10 +45,11 @@ func ConstructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[po
 		r.Buildings = append(r.Buildings, policy.CurrentBuilding{ID: row.Building.GetId(), Building: b, Cells: cells, IntentKey: row.GetIntentKey()})
 	}
 	for _, in := range v.Intents {
-		if in.GetKey() == "" {
+		stage, ok := intentStages[in.GetStage()]
+		if in.GetKey() == "" || !ok {
 			return unknown, ErrContract
 		}
-		r.Intents = append(r.Intents, policy.ConstructionIntent{Key: in.GetKey(), Stage: in.GetStage()})
+		r.Intents = append(r.Intents, policy.ConstructionIntent{Key: in.GetKey(), Stage: stage})
 	}
 	return domain.Known(r), nil
 }
@@ -58,7 +65,7 @@ func ConstructionDeficit(v *o.BuildingsSnapshot) domain.Fact[map[policy.Resource
 	out := map[policy.Resource]int64{}
 	for _, row := range v.Buildings {
 		switch row.GetStatus() {
-		case "blueprint", "frame":
+		case o.BuildingStatus_BUILDING_STATUS_BLUEPRINT, o.BuildingStatus_BUILDING_STATUS_FRAME:
 		default:
 			continue
 		}

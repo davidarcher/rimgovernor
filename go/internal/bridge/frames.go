@@ -869,7 +869,7 @@ func builtBuildings(v *o.BuildingsSnapshot) *o.BuildingsSnapshot {
 	}
 	out := &o.BuildingsSnapshot{Context: v.Context, Completeness: v.Completeness}
 	for _, row := range v.Buildings {
-		if row.GetStatus() == "built" {
+		if row.GetStatus() == o.BuildingStatus_BUILDING_STATUS_BUILT {
 			out.Buildings = append(out.Buildings, row)
 		}
 	}

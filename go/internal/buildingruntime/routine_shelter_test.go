@@ -649,14 +649,14 @@ func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T)
 	n := &adoptingNative{sleepingNative: base}
 	walls := want.Walls()
 	standing := map[domain.Cell]bool{want.Door(): true}
-	n.standing = []bridge.Structure{{ID: "door", Definition: "Door", Cell: want.Door(), Status: "built"}}
-	for i, status := range []string{"frame", "frame", "blueprint"} {
+	n.standing = []bridge.Structure{{ID: "door", Definition: "Door", Cell: want.Door(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT}}
+	for i, status := range []o.BuildingStatus{o.BuildingStatus_BUILDING_STATUS_FRAME, o.BuildingStatus_BUILDING_STATUS_FRAME, o.BuildingStatus_BUILDING_STATUS_BLUEPRINT} {
 		w := walls[len(walls)-1-i]
 		if w == want.Door() {
 			t.Fatal("fixture picked the door")
 		}
 		standing[w] = true
-		n.standing = append(n.standing, bridge.Structure{ID: status, Definition: "Wall", Cell: w, Status: status})
+		n.standing = append(n.standing, bridge.Structure{ID: status.String(), Definition: "Wall", Cell: w, Status: status})
 	}
 	// The census must not be able to place on standing cells; the planner
 	// must skip them without asking.
@@ -718,7 +718,7 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	// only the door it had finished survives, and it is the shell's record.
 	door := domain.Cell{X: 4, Z: 3}
 	room := recordStoreroom(t, r, db, policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7})
-	n := &adoptingNative{sleepingNative: base, standing: []bridge.Structure{{ID: "door", Definition: "Door", Cell: door, Status: "built"}}}
+	n := &adoptingNative{sleepingNative: base, standing: []bridge.Structure{{ID: "door", Definition: "Door", Cell: door, Status: o.BuildingStatus_BUILDING_STATUS_BUILT}}}
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
@@ -786,12 +786,12 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 			if w == door {
 				def = "Door"
 			}
-			n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(len(n.standing)), Definition: def, Cell: w, Status: "built"})
+			n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(len(n.standing)), Definition: def, Cell: w, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 		} else {
 			own = append(own, w)
 		}
 	}
-	n.standing = append(n.standing, bridge.Structure{ID: "own", Definition: "Wall", Cell: own[0], Status: "built"})
+	n.standing = append(n.standing, bridge.Structure{ID: "own", Definition: "Wall", Cell: own[0], Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	blocked := own[1]
 	previewed := map[domain.Cell]bool{}
 	preview := base.onPreview
@@ -909,7 +909,7 @@ func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 			t.Fatal("fixture picked the door twice")
 		}
 		standing[cell] = true
-		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: ring[cell].Definition(), Cell: cell, Status: "built"})
+		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: ring[cell].Definition(), Cell: cell, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	}
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
@@ -962,7 +962,7 @@ func TestRoutineShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 			t.Fatal("fixture picked the door")
 		}
 		standing[cell] = true
-		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: "Wall", Cell: cell, Status: "built"})
+		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: "Wall", Cell: cell, Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	}
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
@@ -1033,7 +1033,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	gap := placements[len(placements)-1]
 	n := &adoptingNative{sleepingNative: base}
 	for i, b := range placements[:len(placements)-1] {
-		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: "built"})
+		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	}
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
@@ -1117,7 +1117,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	}
 	n := &adoptingNative{sleepingNative: base}
 	for i, b := range ring.Placements("Wall", "Door", "WoodLog") {
-		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: "built"})
+		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT})
 	}
 	snapshot := r.reviewer.player.session.State().Snapshot
 	snapshot.Plan, snapshot.Revision = "routine-shell-test", 1

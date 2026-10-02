@@ -3,7 +3,6 @@ package observation
 import (
 	"context"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -60,7 +59,7 @@ func ReadRefrigerationCoolers(ctx context.Context, source RefrigerationSource, e
 		if !ok {
 			return domain.Unknown[[]policy.RefrigerationCooler](), receipt, nil
 		}
-		cooler.Rotation = domain.Rotation(strings.ToLower(row.GetRotation()))
+		cooler.Rotation = rotations[row.GetRotation()]
 		settings := row.GetSettings()
 		if settings != nil {
 			cooler.Target = optional(settings.TargetTemperatureC)

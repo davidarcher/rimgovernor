@@ -5,6 +5,7 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -80,11 +81,11 @@ func ValidateConstructionBuildings(v *o.BuildingsSnapshot, identity *c.Identity,
 		}
 		seen[row.Building.GetId()] = true
 		e := row.Building
-		if e.DefName == nil || e.MapId == nil || e.Position == nil || pawnsEntity(e, v.Context) != nil || row.GetStatus() != "built" || row.Rotation == nil || row.Stuff != nil && validID(row.GetStuff()) != nil {
+		if e.DefName == nil || e.MapId == nil || e.Position == nil || pawnsEntity(e, v.Context) != nil || row.GetStatus() != o.BuildingStatus_BUILDING_STATUS_BUILT || row.Rotation == nil || row.Stuff != nil && validID(row.GetStuff()) != nil {
 			return contract("invalid building identity or geometry")
 		}
 		switch row.GetRotation() {
-		case "North", "East", "South", "West":
+		case p.Rotation_ROTATION_NORTH, p.Rotation_ROTATION_EAST, p.Rotation_ROTATION_SOUTH, p.Rotation_ROTATION_WEST:
 		default:
 			return contract("invalid building rotation")
 		}

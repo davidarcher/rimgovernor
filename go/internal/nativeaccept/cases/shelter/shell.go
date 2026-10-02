@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // The shell helpers shelter/bunks-first runs on: the durable shell plan's
@@ -525,7 +526,7 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 		if !ring[c] {
 			return fmt.Errorf("player %s at %v stands off the hut ring: a second shell was ordered", def, c)
 		}
-		if na.AsString(row["status"]) != "built" {
+		if na.AsString(row["status"]) != o.BuildingStatus_BUILDING_STATUS_BUILT.String() {
 			return fmt.Errorf("%s at %v is still %s", def, c, row["status"])
 		}
 		if _, dup := standing[c]; dup {

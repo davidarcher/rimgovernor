@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -142,10 +143,10 @@ func TestRoutineShelterAdoptionSkipsBunks(t *testing.T) {
 		t.Fatal(err)
 	}
 	n := &adoptingNative{sleepingNative: base}
-	n.standing = []bridge.Structure{{ID: "door", Definition: "Door", Cell: want.Door(), Status: "built"}}
+	n.standing = []bridge.Structure{{ID: "door", Definition: "Door", Cell: want.Door(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT}}
 	for i, w := range want.Walls() {
 		if w != want.Door() && i%2 == 0 {
-			n.standing = append(n.standing, bridge.Structure{ID: "frame", Definition: "Wall", Cell: w, Status: "frame"})
+			n.standing = append(n.standing, bridge.Structure{ID: "frame", Definition: "Wall", Cell: w, Status: o.BuildingStatus_BUILDING_STATUS_FRAME})
 		}
 	}
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n)

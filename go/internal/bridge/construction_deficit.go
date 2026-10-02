@@ -67,7 +67,7 @@ func (client *Client) ReadConstructionDeficits(ctx context.Context, identity *c.
 			return ConstructionDeficitRead{}, raw, contract("invalid construction deficit row")
 		}
 		switch row.GetStatus() {
-		case "blueprint", "frame":
+		case o.BuildingStatus_BUILDING_STATUS_BLUEPRINT, o.BuildingStatus_BUILDING_STATUS_FRAME:
 		default:
 			return ConstructionDeficitRead{}, raw, contract("unexpected construction deficit status")
 		}

@@ -3,7 +3,6 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -11,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	pl "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -53,8 +53,8 @@ func markBuilt(t *testing.T, db *store.Store, n *routineNative) {
 			row := &o.BuildingState{
 				Building:      &o.EntityRef{Id: proto.String(fmt.Sprintf("built-%d", len(n.built))), DefName: proto.String(b.Definition()), MapId: proto.Int32(int32(v.Snapshot.Map)), Position: cell},
 				OccupiedCells: []*c.Cell{cell},
-				Status:        proto.String("built"),
-				Rotation:      proto.String(strings.ToUpper(string(b.Rotation())[:1]) + string(b.Rotation())[1:]),
+				Status:        o.BuildingStatus_BUILDING_STATUS_BUILT.Enum(),
+				Rotation:      map[domain.Rotation]pl.Rotation{domain.North: pl.Rotation_ROTATION_NORTH, domain.East: pl.Rotation_ROTATION_EAST, domain.South: pl.Rotation_ROTATION_SOUTH, domain.West: pl.Rotation_ROTATION_WEST}[b.Rotation()].Enum(),
 				IntentKey:     proto.String(fmt.Sprintf("%s/%d", v.Action, v.Attempt)),
 			}
 			if b.Stuff() != "" {

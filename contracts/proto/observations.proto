@@ -5,6 +5,7 @@ option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/observa
 import "common.proto";
 import "clock.proto";
 import "mirror.proto";
+import "placement.proto";
 
 // All requests are read-only; previews/admission and UI/media have other owners.
 // Validators require context, selected outcome, finite numbers and exact IDs.
@@ -556,8 +557,8 @@ message MaterialDeficit { optional string def_name = 1; optional int64 need = 2;
 message ConstructionState { optional double total_work = 1; optional double work_left = 2; optional double percent_complete = 3; repeated MaterialDeficit resources = 4; optional bool resources_complete = 5; optional bool completable_ever = 6; repeated ReadIssue issues = 7; }
 message ConstructionLineage {
   optional string origin_id = 1; optional string current_id = 2; optional string def_name = 3; optional string stuff = 4;
-  optional int32 map_id = 5; rimgovernor.common.v1.Cell anchor = 6; optional string rotation = 7; optional int64 started_tick = 8;
-  optional string stage = 9; optional bool present = 10; repeated string failures = 11; optional string blocker = 12;
+  optional int32 map_id = 5; rimgovernor.common.v1.Cell anchor = 6; optional rimgovernor.placement.v1.Rotation rotation = 7; optional int64 started_tick = 8;
+  optional BuildingStatus stage = 9; optional bool present = 10; repeated string failures = 11; optional string blocker = 12;
 }
 message ThermalSide { optional string side = 1; rimgovernor.common.v1.Cell position = 2; optional string room_id = 3; optional bool outdoors = 4; optional double temperature_c = 5; optional bool fogged = 6; optional bool impassable = 7; repeated ReadIssue issues = 8; }
 message BuildingServiceState {
@@ -565,9 +566,11 @@ message BuildingServiceState {
   optional double fuel = 5; optional double target_fuel = 6; optional bool out_of_fuel = 7; optional bool broken_down = 8;
   repeated string allowed_fuel_defs = 9; optional string power_net_id = 10; repeated ReadIssue issues = 11;
 }
+// BuildingStatus is the native construction stage of a building row.
+enum BuildingStatus { BUILDING_STATUS_UNSPECIFIED = 0; BUILDING_STATUS_BLUEPRINT = 1; BUILDING_STATUS_FRAME = 2; BUILDING_STATUS_BUILT = 3; }
 message BuildingState {
-  EntityRef building = 1; optional string rotation = 2; optional string stuff = 3; optional string faction_id = 4;
-  optional string status = 5; optional string build_def_name = 6; optional string install_of_def_name = 7;
+  EntityRef building = 1; optional rimgovernor.placement.v1.Rotation rotation = 2; optional string stuff = 3; optional string faction_id = 4;
+  optional BuildingStatus status = 5; optional string build_def_name = 6; optional string install_of_def_name = 7;
   optional int32 hit_points = 8; optional int32 max_hit_points = 9; repeated rimgovernor.common.v1.Cell occupied_cells = 10;
   ConstructionState construction = 11; BuildingServiceState service = 12; BuildingSettings settings = 13;
   repeated ThermalSide thermal_sides = 14; BillStack bills = 15; optional string inspect_text = 16;
@@ -585,11 +588,10 @@ message PowerNetwork {
   repeated string member_ids = 15; reserved 16;
 }
 message BuildingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BuildingState buildings = 2; repeated PowerNetwork power_networks = 3; Completeness completeness = 4; reserved 5; reserved 6, 7, 8;
-  // Building intents still standing as a blueprint or frame (stage
-  // "blueprint" or "frame"); built ones carry intent_key on their row.
+  // Building intents still standing as a blueprint or frame; built ones carry intent_key on their row.
   repeated ConstructionIntent intents = 9;
 }
-message ConstructionIntent { optional string key = 1; optional string stage = 2; }
+message ConstructionIntent { optional string key = 1; optional BuildingStatus stage = 2; }
 message ListBuildingsRequest { ReadScope scope = 1; repeated string ids = 2; repeated string def_names = 3; repeated string statuses = 4; optional string category = 5; optional bool player_only = 6; optional double damaged_below_fraction = 7; Rectangle region = 8; optional bool inspect = 9; optional bool bill_ingredients = 10; reserved 11, 12; }
 message ListBuildingsReply { oneof outcome { BuildingsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RoomStat { optional string def_name = 1; optional double value = 2; optional string display = 3; optional string unit = 4; optional string cost = 5; rimgovernor.common.v1.Unavailable unavailable = 6; }
@@ -795,7 +797,7 @@ message ResourceSource {
 }
 message StorageCapacity { optional string resource = 1; optional int64 capacity = 2; optional int64 stored = 3; optional int32 stack_limit = 4; repeated EntityRef haulers = 5; repeated string blockers = 6; repeated ReadIssue issues = 7; repeated rimgovernor.common.v1.Cell candidates = 8; }
 message ExtractionWorkType { DefinitionRef definition = 1; repeated DefinitionRef work_givers = 2; }
-message ExtractionSite { SnapshotRef snapshot = 1; optional string def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional string rotation = 4; optional string resource = 5; optional bool eligible = 6; optional double power_w = 7; optional double spare_power_w = 8; repeated ExtractionWorkType work_types = 9; }
+message ExtractionSite { SnapshotRef snapshot = 1; optional string def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional rimgovernor.placement.v1.Rotation rotation = 4; optional string resource = 5; optional bool eligible = 6; optional double power_w = 7; optional double spare_power_w = 8; repeated ExtractionWorkType work_types = 9; }
 message OwnedDrill { SnapshotRef snapshot = 1; optional string def_name = 2; optional string thing_id = 3; optional string pending_id = 4; rimgovernor.common.v1.Cell cell = 5; optional string resource = 6; optional int64 recovered = 7; optional int64 stock_target = 8; optional bool missing = 9; optional bool depleted = 10; }
 message DrillObservation { BuildingState building = 1; optional string resource = 2; optional bool available = 3; optional bool flick_designated = 4; repeated string flick_worker_ids = 5; optional double progress_fraction = 6; }
 message ExtractionDevelopment { repeated BuildingState scanners = 1; repeated BuildingState drills = 2; repeated ResourceSource deposits = 3; repeated DefinitionRef definitions = 4; repeated Quantity costs = 5; repeated string research = 6; reserved 7; repeated ExtractionSite sites = 8; repeated OwnedDrill owned = 9; repeated DrillObservation drill_state = 10; optional bool scanners_active = 11; ExtractionWorkType flick_work_type = 12; }

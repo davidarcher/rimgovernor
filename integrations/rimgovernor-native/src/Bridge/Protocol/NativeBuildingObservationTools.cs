@@ -11,6 +11,7 @@ using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
+using Placement = RimGovernor.Protocol.Placement;
 
 namespace HomeBridge.BridgeTools
 {
@@ -56,7 +57,7 @@ namespace HomeBridge.BridgeTools
                 // The keyed blueprints and frames still standing: the census's
                 // open building intents (#856).
                 foreach (var open in ConstructionLineage.OpenIntents(map))
-                    snapshot.Intents.Add(new Obs.ConstructionIntent { Key = open.Key, Stage = open.Stage });
+                    snapshot.Intents.Add(new Obs.ConstructionIntent { Key = open.Key, Stage = Stage(open.Stage) });
                 return new Obs.ListBuildingsReply { Observed = snapshot };
             }
             catch (Exception) { return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }; }
@@ -69,7 +70,7 @@ namespace HomeBridge.BridgeTools
             var row = Project(thing);
             row.Snapshot = row.Construction != null
                 ? NativeObservationSnapshot.Snapshot("building", context, row.Building.Id, w => {
-                    w.Write(row.Status??""); w.Write(row.HitPoints); w.Write(row.Burning);
+                    w.Write((int)row.Status); w.Write(row.HitPoints); w.Write(row.Burning);
                     w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete);
                 })
                 : Token(thing, context);
@@ -137,8 +138,8 @@ namespace HomeBridge.BridgeTools
             if (request.DefNames.Count != 0 && !request.DefNames.Contains(thing.def.defName)
                 && (built == null || !request.DefNames.Contains(built.defName))) return false;
             var state = Status(thing);
-            if (request.Statuses.Count != 0 && !request.Statuses.Contains("all") && !request.Statuses.Contains(state)
-                && !(state != "built" && request.Statuses.Contains("pending"))) return false;
+            if (request.Statuses.Count != 0 && !request.Statuses.Contains("all") && !request.Statuses.Contains(StatusFilter(state))
+                && !(state != Obs.BuildingStatus.Built && request.Statuses.Contains("pending"))) return false;
             if (request.Region != null && (thing.Position.x < request.Region.Minimum.X || thing.Position.x > request.Region.Maximum.X
                 || thing.Position.z < request.Region.Minimum.Z || thing.Position.z > request.Region.Maximum.Z)) return false;
             if (request.HasDamagedBelowFraction && (!thing.def.useHitPoints || thing.MaxHitPoints <= 0
@@ -148,7 +149,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.SnapshotRef Token(Thing thing, Common.ObservationContext context) =>
             NativeObservationSnapshot.Snapshot("building", context, Id(thing.GetUniqueLoadID()), w => {
-                w.Write(Status(thing) ?? ""); w.Write(thing.HitPoints); w.Write(thing.IsBurning());
+                w.Write((int)Status(thing)); w.Write(thing.HitPoints); w.Write(thing.IsBurning());
             });
 
         internal static Obs.BuildingState Project(Thing thing)
@@ -248,14 +249,18 @@ namespace HomeBridge.BridgeTools
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
         private static IntVec3 NativeCell(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
-        private static string Status(Thing thing) => thing is Blueprint ? "blueprint" : thing is Frame ? "frame" : "built";
+        private static Obs.BuildingStatus Status(Thing thing) => thing is Blueprint ? Obs.BuildingStatus.Blueprint : thing is Frame ? Obs.BuildingStatus.Frame : Obs.BuildingStatus.Built;
+        // StatusFilter is the request filter's name for a status.
+        private static string StatusFilter(Obs.BuildingStatus status) => status == Obs.BuildingStatus.Blueprint ? "blueprint" : status == Obs.BuildingStatus.Frame ? "frame" : "built";
+        internal static Obs.BuildingStatus Stage(string stage) => stage == "blueprint" ? Obs.BuildingStatus.Blueprint : stage == "frame" ? Obs.BuildingStatus.Frame
+            : stage == "built" ? Obs.BuildingStatus.Built : throw new InvalidOperationException("Invalid construction stage.");
         private static Thing InstallTarget(Blueprint_Install install)
         {
             var held = install.MiniToInstallOrBuildingToReinstall;
             return (held is MinifiedThing mini ? mini.InnerThing : held) ?? throw new InvalidOperationException("Installation target unavailable.");
         }
-        private static string Rotation(Rot4 rotation) => rotation == Rot4.North ? "North" : rotation == Rot4.East ? "East"
-            : rotation == Rot4.South ? "South" : rotation == Rot4.West ? "West" : throw new InvalidOperationException("Invalid rotation.");
+        private static Placement.Rotation Rotation(Rot4 rotation) => rotation == Rot4.North ? Placement.Rotation.North : rotation == Rot4.East ? Placement.Rotation.East
+            : rotation == Rot4.South ? Placement.Rotation.South : rotation == Rot4.West ? Placement.Rotation.West : throw new InvalidOperationException("Invalid rotation.");
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native ID unavailable.");
         private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
         private static double Nonnegative(double value) => Finite(value) && value >= 0 ? value : throw new InvalidOperationException("Invalid native amount.");

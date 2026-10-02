@@ -36,6 +36,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 const prefix = "refrigeration-accept"
@@ -520,7 +521,7 @@ func readCoolers(ctx context.Context, h *na.Harness, identity map[string]any) ([
 	for _, raw := range na.AsSlice(observed["buildings"]) {
 		row, _ := na.AsMap(raw)
 		building, _ := na.AsMap(row["building"])
-		if na.AsString(building["defName"]) != "Cooler" || na.AsString(row["status"]) != "built" {
+		if na.AsString(building["defName"]) != "Cooler" || na.AsString(row["status"]) != o.BuildingStatus_BUILDING_STATUS_BUILT.String() {
 			continue
 		}
 		position, _ := na.AsMap(building["position"])
