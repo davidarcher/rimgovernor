@@ -22,9 +22,13 @@ type ClearanceTarget struct {
 	// Designated is a standing Deconstruct designation, whoever placed it: not a
 	// hold, since the Deconstruction operation adopts it rather than placing a
 	// second one, and no ownership ledger says whose it was.
-	Designated      bool
-	Salvage         *SalvageEvidence
-	SalvageSelected bool
+	Designated bool
+	// Player marks the colony's own building, reported only on planned
+	// ground (#1365); EnclosesRoom is then a wall or door bounding an
+	// indoor room.
+	Player, EnclosesRoom bool
+	Salvage              *SalvageEvidence
+	SalvageSelected      bool
 }
 
 // ClearanceChunk is one rock or slag chunk stack standing on a Home cell: a
@@ -43,6 +47,9 @@ type ClearanceCensus struct {
 	Targets   []ClearanceTarget
 	Chunks    []ClearanceChunk
 	DumpSites []domain.Cell
+	// Floors are the constructed floor cells on the planned ground the read
+	// asked for (#1365); none without it.
+	Floors []ClearanceFloor
 }
 
 type ClearanceHold struct{ Target, Reason string }

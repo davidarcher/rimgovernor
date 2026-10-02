@@ -31,18 +31,40 @@ type ClearanceSource interface {
 	ReadClearanceTargets(context.Context, *c.Identity, bool) (*o.ClearanceTargetsReply, bridge.Result, error)
 }
 
+// GroundClearanceSource widens the census to planned ground (#1365).
+type GroundClearanceSource interface {
+	ReadClearanceTargetsOnGround(context.Context, *c.Identity, bool, []*o.Rectangle) (*o.ClearanceTargetsReply, bridge.Result, error)
+}
+
 // ObserveClearanceCensus tolerates an explicit unavailable native stub as
 // unknown. Transport, malformed-contract and identity errors remain errors.
 // includeSalvage asks native for the out-of-Home salvage evidence (#984);
 // without it every row's Salvage is nil, which remote salvage reads as
 // salvage_unknown, so only callers that never read Salvage pass false.
 func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expected Identity, includeSalvage bool) (domain.Fact[ClearanceCensus], error) {
+	return ObserveClearanceCensusOnGround(ctx, source, expected, includeSalvage, nil)
+}
+
+// ObserveClearanceCensusOnGround also reads the player's buildings (Player
+// rows) and constructed floors on planned ground (#1245). A source without
+// the planned-ground read serves the plain census.
+func ObserveClearanceCensusOnGround(ctx context.Context, source ClearanceSource, expected Identity, includeSalvage bool, ground []policy.Rectangle) (domain.Fact[ClearanceCensus], error) {
 	unknown := domain.Unknown[ClearanceCensus]()
 	if source == nil || expected.Validate() != nil || !sameColonyContext(expected, expected) {
 		return unknown, ErrContract
 	}
 	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
-	reply, _, err := source.ReadClearanceTargets(ctx, id, includeSalvage)
+	var reply *o.ClearanceTargetsReply
+	var err error
+	if widened, ok := source.(GroundClearanceSource); ok && len(ground) > 0 {
+		rects := make([]*o.Rectangle, 0, len(ground))
+		for _, g := range ground {
+			rects = append(rects, &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(g.X), Z: proto.Int32(g.Z)}, Maximum: &c.Cell{X: proto.Int32(g.X + g.Width - 1), Z: proto.Int32(g.Z + g.Height - 1)}})
+		}
+		reply, _, err = widened.ReadClearanceTargetsOnGround(ctx, id, includeSalvage, rects)
+	} else {
+		reply, _, err = source.ReadClearanceTargets(ctx, id, includeSalvage)
+	}
 	if errors.Is(err, bridge.ErrUnavailable) {
 		return unknown, nil
 	}
@@ -81,7 +103,7 @@ func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expecte
 		o.ClearanceClass_CLEARANCE_CLASS_OTHER:             ClearanceOther,
 	}
 	for _, row := range v.Targets {
-		rows = append(rows, ClearanceTarget{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Faction: row.GetFaction(), Class: classes[row.Class], Minimum: domain.Cell{X: row.Occupied.Minimum.GetX(), Z: row.Occupied.Minimum.GetZ()}, Maximum: domain.Cell{X: row.Occupied.Maximum.GetX(), Z: row.Occupied.Maximum.GetZ()}, Deconstructible: row.GetDeconstructible(), InHome: row.GetInHome(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated()})
+		rows = append(rows, ClearanceTarget{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Faction: row.GetFaction(), Class: classes[row.Class], Minimum: domain.Cell{X: row.Occupied.Minimum.GetX(), Z: row.Occupied.Minimum.GetZ()}, Maximum: domain.Cell{X: row.Occupied.Maximum.GetX(), Z: row.Occupied.Maximum.GetZ()}, Deconstructible: row.GetDeconstructible(), InHome: row.GetInHome(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated(), Player: row.EnclosesRoom != nil, EnclosesRoom: row.GetEnclosesRoom()})
 		if s := row.Salvage; s != nil {
 			candidate := policy.AcquisitionCandidate{ID: row.GetEntityId(), Kind: policy.AcquisitionSalvage, PathDistance: domain.Known(s.PathLength), Labor: domain.Known(s.Labor), NeedsHaul: true, UnitsPerTrip: 75}
 			for _, y := range s.Yields {
@@ -98,5 +120,9 @@ func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expecte
 	for _, cell := range v.DumpSites {
 		sites = append(sites, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 	}
-	return domain.Known(ClearanceCensus{Targets: rows, Chunks: chunks, DumpSites: sites}), ctx.Err()
+	floors := make([]policy.ClearanceFloor, 0, len(v.Floors))
+	for _, row := range v.Floors {
+		floors = append(floors, policy.ClearanceFloor{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, DefName: row.GetDefName(), Designated: row.GetDesignated()})
+	}
+	return domain.Known(ClearanceCensus{Targets: rows, Chunks: chunks, DumpSites: sites, Floors: floors}), ctx.Err()
 }

@@ -31,6 +31,10 @@ type UpkeepObservation struct {
 	// Chunks are the same read's rock and slag stacks in Home; a pending one
 	// (no store will take it) is a clearance deficit until a dump exists.
 	Chunks domain.Fact[[]ClearanceChunk]
+	// Ground is the planned-ground clearance work of the same read
+	// (PlannedGroundWork, #1245): unplanned buildings and floors on the
+	// ground of planned rooms not yet standing.
+	Ground domain.Fact[[]string]
 	// Shrines is the ancient shrine census (#456) ClearAncientShrine
 	// measures (#458); unknown under a native without the read.
 	Shrines domain.Fact[[]AncientShrine]
@@ -329,6 +333,14 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 				if !row.Stored && !row.Forbidden {
 					selected = append(selected, row.EntityID)
 				}
+			}
+		}
+		if ground, known := v.Ground.Value(); known {
+			for _, id := range ground {
+				if !valid(seen, id) {
+					return r, errors.New("invalid planned ground target")
+				}
+				selected = append(selected, id)
 			}
 		}
 		clearanceTargets = domain.Known(selected)

@@ -295,3 +295,39 @@ func TestRoutineClearanceNextChunkBatchSkipsOrderedChunks(t *testing.T) {
 		t.Fatal(c, ok)
 	}
 }
+
+// TestGroundStepMethodOrdersRoofBeforeWalls pins the planned-ground intents
+// (#1245): a room's walls go behind remove_roof on the whole cleared ground,
+// furniture one building per method, floors as floor removals.
+func TestGroundStepMethodOrdersRoofBeforeWalls(t *testing.T) {
+	ground := []policy.Rectangle{{X: 9, Z: 9, Width: 5, Height: 5}}
+	wall := policy.ClearanceTarget{EntityID: "Wall1", DefName: "Wall", Minimum: domain.Cell{X: 11, Z: 11}, Maximum: domain.Cell{X: 11, Z: 11}, Player: true, EnclosesRoom: true}
+	prefix, actions, err := groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundWalls, Targets: []policy.ClearanceTarget{wall}, Roof: []domain.Cell{{X: 12, Z: 12}}}, ground)
+	if err != nil || prefix != "ground-walls-9-9-" || len(actions) != 2 {
+		t.Fatal(prefix, actions, err)
+	}
+	if roof, ok := actions[0].RemoveRoof(); !ok || len(roof.Cells()) != 1 {
+		t.Fatalf("remove_roof first: %v", actions[0].Kind())
+	}
+	cut, ok := actions[1].Deconstruction()
+	if !ok || cut.Target() != "Wall1" || len(cut.ClearedGround()) != 1 || cut.ClearedGround()[0] != (domain.GroundRect{Origin: domain.Cell{X: 9, Z: 9}, Width: 5, Height: 5}) {
+		t.Fatalf("wall with cleared ground: %+v", cut)
+	}
+
+	bed := policy.ClearanceTarget{EntityID: "Bed1", DefName: "Bed", Minimum: domain.Cell{X: 10, Z: 10}, Player: true}
+	prefix, actions, err = groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundFurniture, Targets: []policy.ClearanceTarget{bed, wall}}, ground)
+	if err != nil || prefix != "deconstruct-Bed1-" || len(actions) != 1 {
+		t.Fatal(prefix, actions, err)
+	}
+	if cut, ok := actions[0].Deconstruction(); !ok || cut.ClearedGround() != nil {
+		t.Fatalf("furniture is a plain deconstruction: %+v", cut)
+	}
+
+	prefix, actions, err = groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundFloors, Floors: []policy.ClearanceFloor{{Cell: domain.Cell{X: 10, Z: 10}, DefName: "WoodPlankFloor"}}}, ground)
+	if err != nil || prefix != "ground-floors-9-9-" || len(actions) != 1 {
+		t.Fatal(prefix, actions, err)
+	}
+	if floor, ok := actions[0].FloorRemoval(); !ok || floor.Cell() != (domain.Cell{X: 10, Z: 10}) {
+		t.Fatalf("floor removal: %v", actions[0].Kind())
+	}
+}

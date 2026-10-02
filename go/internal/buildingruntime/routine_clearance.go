@@ -97,7 +97,8 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}
-	read, err := observation.ObserveClearanceCensus(call, r.native, expected, true)
+	ground := plannedGround(colony.Projection)
+	read, err := observation.ObserveClearanceCensusOnGround(call, r.native, expected, true, ground)
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}
@@ -108,7 +109,8 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	// The review admitted at most one remote ruin by reach and demand from
 	// its complete facts; the planner executes that choice against the fresh
 	// census, whose native safety verdict still gates it.
-	filtered := append([]policy.ClearanceTarget(nil), census.Targets...)
+	others, player := policy.SplitGroundRows(census.Targets)
+	filtered := append([]policy.ClearanceTarget(nil), others...)
 	for i := range filtered {
 		row := &filtered[i]
 		safe := false
@@ -118,26 +120,26 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		row.SalvageSelected = !row.InHome && review.SalvageTarget != "" && row.EntityID == review.SalvageTarget && safe
 	}
 	selection := policy.SelectHomeClearance(filtered, colony.Projection.Center)
-	if len(selection.Targets) == 0 {
+	id := domain.MintPlanID()
+	var prefix string
+	var actions []domain.Action
+	if len(selection.Targets) > 0 {
+		target := selection.Targets[0]
+		prefix = fmt.Sprintf("deconstruct-%s-", target.EntityID)
+		actions, err = groundActions(id, policy.GroundStep{Phase: policy.GroundFurniture, Targets: []policy.ClearanceTarget{target}}, nil)
+	} else if step, ok := policy.PlannedGroundStep(player, census.Floors, ground, colonyRooms(colony.Projection)); ok {
+		prefix, actions, err = groundStepMethod(id, step, ground)
+	} else {
 		return r.dump(call, epoch, state, goal, review.Tick, census, started)
 	}
-	target := selection.Targets[0]
-	prefix := fmt.Sprintf("deconstruct-%s-", target.EntityID)
+	if err != nil {
+		return RoutineClearanceResult{}, err
+	}
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineClearanceResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	id := domain.MintPlanID()
-	value, err := domain.NewDeconstruction(target.EntityID, target.DefName, target.Minimum)
-	if err != nil {
-		return RoutineClearanceResult{}, err
-	}
-	action, err := domain.NewDeconstructionAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
-	if err != nil {
-		return RoutineClearanceResult{}, err
-	}
-	actions := []domain.Action{action}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
 		return RoutineClearanceResult{}, err
@@ -153,6 +155,97 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineClearanceResult{}, err
 	}
 	return RoutineClearanceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// maxGroundFloorBatch bounds one floor-removal method; the next review
+// designates the rest.
+const maxGroundFloorBatch = 64
+
+// plannedGround is the ground of the recorded plan's rooms not yet standing
+// (#1245); none while the plan or the room census is unknown, so nothing of
+// the colony's comes down on a guess.
+func plannedGround(colony observation.ColonyProjection) []policy.Rectangle {
+	plan, known := colony.LayoutPlan.Value()
+	if !known {
+		return nil
+	}
+	rooms, known := colony.Rooms.Value()
+	if !known {
+		return nil
+	}
+	return policy.PlannedGround(plan, rooms)
+}
+
+func colonyRooms(colony observation.ColonyProjection) policy.RoomObservation {
+	rooms, _ := colony.Rooms.Value()
+	return rooms
+}
+
+// groundStepMethod is a planned-ground step's method prefix and actions.
+// Furniture comes down one building per method, as home clearance does, so
+// removals cannot jointly invalidate the observed roof support; a room's
+// walls and doors go in one method on the whole cleared ground behind
+// remove_roof over the rooms they enclose (#1366); floors in batches.
+func groundStepMethod(id domain.PlanID, step policy.GroundStep, ground []policy.Rectangle) (string, []domain.Action, error) {
+	switch step.Phase {
+	case policy.GroundFurniture:
+		step.Targets = step.Targets[:1]
+		actions, err := groundActions(id, step, nil)
+		return fmt.Sprintf("deconstruct-%s-", step.Targets[0].EntityID), actions, err
+	case policy.GroundWalls:
+		actions, err := groundActions(id, step, policy.GroundRects(ground))
+		return fmt.Sprintf("ground-walls-%d-%d-", step.Ground.X, step.Ground.Z), actions, err
+	}
+	if len(step.Floors) > maxGroundFloorBatch {
+		step.Floors = step.Floors[:maxGroundFloorBatch]
+	}
+	actions, err := groundActions(id, step, nil)
+	return fmt.Sprintf("ground-floors-%d-%d-", step.Ground.X, step.Ground.Z), actions, err
+}
+
+// groundActions is the step's intents in order: remove_roof first, then
+// one deconstruction per target carrying the cleared ground, then one floor
+// removal per floor cell.
+func groundActions(id domain.PlanID, step policy.GroundStep, cleared []domain.GroundRect) ([]domain.Action, error) {
+	var actions []domain.Action
+	next := func() domain.ActionID { return domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))) }
+	if len(step.Roof) > 0 {
+		roof, err := domain.NewRemoveRoof(step.Roof)
+		if err != nil {
+			return nil, err
+		}
+		action, err := domain.NewRemoveRoofAction(next(), roof)
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, action)
+	}
+	for _, target := range step.Targets {
+		value, err := domain.NewDeconstruction(target.EntityID, target.DefName, target.Minimum)
+		if err != nil {
+			return nil, err
+		}
+		if value, err = value.WithClearedGround(cleared); err != nil {
+			return nil, err
+		}
+		action, err := domain.NewDeconstructionAction(next(), value)
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, action)
+	}
+	for _, floor := range step.Floors {
+		value, err := domain.NewFloorRemoval(floor.DefName, floor.Cell)
+		if err != nil {
+			return nil, err
+		}
+		action, err := domain.NewFloorRemovalAction(next(), value)
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, action)
+	}
+	return actions, nil
 }
 
 // dump is the chunk half of the clearance goal (#394): chunks are hauls, not

@@ -499,13 +499,16 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		if !ok {
 			return store.RoutineReviewResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
-		clearance, err := observation.ObserveClearanceCensus(ctx, source, expected, true)
+		ground := plannedGround(reading.Projection)
+		clearance, err := observation.ObserveClearanceCensusOnGround(ctx, source, expected, true, ground)
 		if err != nil {
 			return store.RoutineReviewResult{}, err
 		}
 		if census, known := clearance.Value(); known {
-			reading.Projection.Facts.Upkeep.Clearance = domain.Known(census.Targets)
+			others, player := policy.SplitGroundRows(census.Targets)
+			reading.Projection.Facts.Upkeep.Clearance = domain.Known(others)
 			reading.Projection.Facts.Upkeep.Chunks = domain.Known(census.Chunks)
+			reading.Projection.Facts.Upkeep.Ground = domain.Known(policy.PlannedGroundWork(player, census.Floors, ground))
 		}
 	}
 	if r.methodEnabled(policy.ClearAncientShrine) {
