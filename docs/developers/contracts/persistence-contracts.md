@@ -2,10 +2,20 @@
 
 [Documentation](../../README.md)
 
-The Go controller keeps one SQLite database per run (`--state`). It is a
-cache of the autopilot's own bookkeeping plus the journals that must survive a
-restart; the colony itself lives only in the game and its saves. There are no
-paired backups, manifests or archive tables.
+Every fact has exactly one home, chosen by what must happen to it when a
+save is reloaded. A second copy of a fact is a bug, not a cache.
+
+| Home | Holds | On reload |
+|---|---|---|
+| Native save, `GovernorState` blobs | Go intent the world cannot show: goals (`goal/<id>`) and family plans (`family/*`), written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
+| Native save, other components | Colony identity and native tick guards (wall removal, mining, home coverage) | Follows the save |
+| SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors, request-ID replay | Not restored; read across launches only by postmortem |
+| Go memory | Everything derivable: plans, receipts, snapshots, the goal and family views | Rebuilt from the save and the live world |
+| `flight.jsonl` | All telemetry; `--debug` goes to stderr only, snapshot dumps are opt-in | Diagnostics only |
+
+Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go
+keeps no durable copy of what the save holds. Decided 2026-10-02 (#1355).
+The rest of this page details the session journal.
 
 ## What must survive
 
@@ -53,7 +63,7 @@ Routine goals are re-derived from observation every review. A world change
 bindings, cancels their pending work and starts a fresh review under the new
 world's root plan; only work already dispatched keeps its recovery
 requirement. A pause in the same world suspends the bindings and leaves
-their work open; the next enabled review reactivates the same goals. Missing facts cannot recover goals, so nothing here needs a
+their work open; the next enabled review reactivates the same goals. Durable goals come back from the save blobs, so nothing here needs a
 restore step.
 
 ## Bounded working set

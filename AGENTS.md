@@ -254,7 +254,12 @@ execution). One shared goal/action system with deterministic Hands;
 advisers never write game orders or own colony invariants. Local LM Studio
 models only, no silent paid-provider fallback. Typed contracts at
 boundaries; explicit component ownership; integrate through the existing
-architecture. Manual control semantics are in the
+architecture. State placement is one table in
+[persistence contracts](docs/developers/contracts/persistence-contracts.md):
+Go intent lives in the save, the session journal in SQLite, derived
+state in memory, telemetry in `flight.jsonl`; a change that adds a second
+copy of a fact or a new store amends that table first. Manual control
+semantics are in the
 [control loop guide](docs/developers/architecture/control-loop.md#manual-control).
 
 ## Docs and comments

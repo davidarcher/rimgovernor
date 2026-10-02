@@ -41,7 +41,7 @@ runtime ownership.
 - Colony/map/load changes and tick rewinds invalidate pending work. Manual
   (pause, letter pause, restart) only suspends routine goals and their open
   work until control resumes in the same world.
-- Keep game saves and controller checkpoints paired across recovery.
+- Each fact has one home ([persistence contracts](../contracts/persistence-contracts.md)); goals live in the save.
 
 For implementation detail, follow the [component guides](../README.md#component-guides)
 and [subsystem contracts](../contracts/README.md). Docker isolates processes and

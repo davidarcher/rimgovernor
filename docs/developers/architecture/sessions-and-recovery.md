@@ -17,13 +17,11 @@ writes.
 
 ## Save, load and restart
 
-Saving (`POST /api/lifecycle/save`) is a plain pause-gated native save: the
-game writes a normal RimWorld save, and the controller records nothing beyond
-the request's outcome. There is no paired database backup or manifest,
-because the database is not needed to restore intent: routine goals are
-re-derived from observation, and the durable state is the receipt journal
-for uncertain writes, request-ID replay and the review cursor (see
-[persistence contracts](../contracts/persistence-contracts.md)).
+Saving (`POST /api/lifecycle/save`) is a plain pause-gated native save. The
+save carries goals and family plans in its `GovernorState` blobs, so loading
+it restores that timeline's intent; the SQLite session journal is not paired
+with it. Where each fact lives is in
+[persistence contracts](../contracts/persistence-contracts.md).
 
 Loading (`POST /api/lifecycle/load`, or the player loading in-game) issues a
 new load token. The next routine review sees the world change, invalidates
