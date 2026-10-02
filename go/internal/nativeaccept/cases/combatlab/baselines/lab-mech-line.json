@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "fixture": "lab-mech-line",
+  "ticks": 940,
+  "colonistDamage": 28.5,
+  "colonistDowns": 0,
+  "colonistDeaths": 0,
+  "enemyDowns": 0,
+  "enemyDeaths": 0,
+  "enemyFled": 2,
+  "firstContactTick": 137,
+  "resolvedTick": 952,
+  "contactToResolutionTicks": 815,
+  "winner": "colonist",
+  "friendlyFireHits": 0,
+  "ordersIssued": 12,
+  "ordersRefused": 0,
+  "stepLatencyP95Ms": 3086
+}

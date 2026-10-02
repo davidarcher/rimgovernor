@@ -116,8 +116,14 @@ func TestCombatReplayLabRanged(t *testing.T) {
 			}
 		}
 	}
-	// #863: the first attack orders name the top-scored target, which the
-	// geometry ask lists first.
+	firstAttacksTopScored(t, first, orders)
+}
+
+// firstAttacksTopScored is #863: the first attack orders name the
+// top-scored target, which the geometry ask lists first, and every gunner
+// takes it.
+func firstAttacksTopScored(t *testing.T, first combatReplayStop, orders []policy.CombatOrder) {
+	t.Helper()
 	if len(first.Ask.Hostiles) == 0 {
 		t.Fatalf("first stop asked no hostiles")
 	}
@@ -141,10 +147,26 @@ func TestCombatReplayLabRanged(t *testing.T) {
 	}
 }
 
+// lab-mech-line (#1184): lab-ranged's riflemen and held line against two
+// lancers. The squad takes the mechs on (lab-mech is the shelter case):
+// the hold forms at once and its first attacks name the top-scored
+// target (#863).
+func TestCombatReplayLabMechLine(t *testing.T) {
+	t.Parallel()
+	stops := checkCombat(t, "testdata/combat/lab-mech-line.json.gz",
+		formsTactic(firstStop, policy.TacticHold),
+		ordersOwnedDrafts(),
+		changesOnly(),
+		attacksOnPresentHostiles(),
+		noAimInterrupt(),
+	)
+	firstAttacksTopScored(t, stops[0], admission(t, stops[0]))
+}
+
 // lab-mech (#1118, #1146, #1152): one rifleman against a scyther stunned
 // at staging (recorded on 71e1045c1). No squad is viable against the
 // mech, so the fight shelters from the first stop and never attacks: the
-// top-scored-target rule (#863) has no attack to check here, and every
+// top-scored-target rule (#863) is checked on lab-mech-line, and every
 // stop's orders stay owned changes.
 func TestCombatReplayLabMech(t *testing.T) {
 	t.Parallel()

@@ -1,19 +1,19 @@
 {
   "version": 1,
   "fixture": "lab-ranged",
-  "ticks": 2307,
-  "colonistDamage": 128,
+  "ticks": 1888,
+  "colonistDamage": 110,
   "colonistDowns": 0,
   "colonistDeaths": 0,
   "enemyDowns": 0,
   "enemyDeaths": 0,
   "enemyFled": 4,
-  "firstContactTick": 155,
-  "resolvedTick": 2331,
-  "contactToResolutionTicks": 2176,
+  "firstContactTick": 130,
+  "resolvedTick": 1904,
+  "contactToResolutionTicks": 1774,
   "winner": "colonist",
   "friendlyFireHits": 0,
-  "ordersIssued": 7,
-  "ordersRefused": 4,
-  "stepLatencyP95Ms": 1187
+  "ordersIssued": 9,
+  "ordersRefused": 0,
+  "stepLatencyP95Ms": 4424
 }
