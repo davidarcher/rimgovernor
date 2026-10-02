@@ -1293,7 +1293,8 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	if err = r.sameTick(access.Context, state, projection.Identity.Tick); err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
-	if !access.Accepted() {
+	if refusal := access.Refusal(); refusal != "" {
+		clockSchedulerLog("defense-layout.admit: tier=%s access audit refused: %s (blocked %d cells)", tier.Name, refusal, len(blockedCells))
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused, Tier: tier.Name}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)

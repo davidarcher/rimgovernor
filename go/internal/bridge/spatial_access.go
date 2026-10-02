@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -49,14 +50,20 @@ type SpatialAccess struct {
 // Accepted ports the legacy tool's accepted flag: no colonist loses a
 // previously reachable cell or its exit, and every target stays reachable
 // both natively and in the projection for at least one colonist.
-func (s SpatialAccess) Accepted() bool {
+func (s SpatialAccess) Accepted() bool { return s.Refusal() == "" }
+
+// Refusal names why the audit is not accepted, or "" when it is.
+func (s SpatialAccess) Refusal() string {
 	if len(s.Pawns) == 0 {
-		return false
+		return "no colonists audited"
 	}
 	reached := map[domain.Cell]bool{}
 	for _, p := range s.Pawns {
-		if !p.OriginKnown || p.LosesAccess {
-			return false
+		if !p.OriginKnown {
+			return fmt.Sprintf("pawn %s at %v has no safe exit", p.ID, p.Position)
+		}
+		if p.LosesAccess {
+			return fmt.Sprintf("pawn %s at %v loses access (reachable %d -> %d)", p.ID, p.Position, p.Current, p.After)
 		}
 		for _, t := range p.Targets {
 			if t.NativeReachable && t.ProjectedReachable {
@@ -66,10 +73,10 @@ func (s SpatialAccess) Accepted() bool {
 	}
 	for _, t := range s.Pawns[0].Targets {
 		if !reached[t.Cell] {
-			return false
+			return fmt.Sprintf("target %v unreachable", t.Cell)
 		}
 	}
-	return true
+	return ""
 }
 
 // ReadSpatialAccess audits the map's colonist access (paused or running) with blocked

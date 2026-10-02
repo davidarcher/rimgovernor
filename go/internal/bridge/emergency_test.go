@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -26,7 +25,7 @@ func emergencyRow(id string) *o.PawnState {
 }
 
 // emergencyRef is a census reference into the pawn table (#1343).
-func emergencyRef(id string) *commonpb.Ref { return &commonpb.Ref{Id: proto.String(id)} }
+func emergencyRef(id string) *c.Ref { return &c.Ref{Id: proto.String(id)} }
 
 // emergencyThreat is a faction-hostile threat fact row referencing id.
 func emergencyThreat(id string) *o.ThreatPawn {
