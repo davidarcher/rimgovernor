@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -131,5 +132,25 @@ func TestSpatialAccessUnavailable(t *testing.T) {
 	var native *NativeUnavailable
 	if !errors.As(err, &native) {
 		t.Fatal(err)
+	}
+}
+
+// A wall that strands cells outside the perimeter is accepted while every
+// pawn keeps the targets it reaches now; losing one of those refuses (#1570).
+func TestSpatialAccessRefusesOnTargetsNotCells(t *testing.T) {
+	target := func(native, projected bool) AccessTarget {
+		return AccessTarget{Cell: domain.Cell{X: 9, Z: 0}, NativeReachable: native, ProjectedReachable: projected}
+	}
+	pawn := func(targets ...AccessTarget) PawnAccess {
+		return PawnAccess{ID: "Human1", OriginKnown: true, Current: 400, After: 200, LosesAccess: true, Targets: targets}
+	}
+	if r := (SpatialAccess{Pawns: []PawnAccess{pawn(target(true, true))}}).Refusal(); r != "" {
+		t.Fatalf("stranded cells refused: %s", r)
+	}
+	if r := (SpatialAccess{Pawns: []PawnAccess{pawn(target(true, false)), pawn(target(true, true))}}).Refusal(); !strings.HasPrefix(r, "pawn Human1 at") {
+		t.Fatalf("lost target accepted: %q", r)
+	}
+	if r := (SpatialAccess{Pawns: []PawnAccess{pawn(target(false, false)), pawn(target(true, true))}}).Refusal(); r != "" {
+		t.Fatalf("target unreachable today refused: %s", r)
 	}
 }

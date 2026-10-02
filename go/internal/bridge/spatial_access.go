@@ -28,7 +28,8 @@ type AccessTarget struct {
 
 // PawnAccess is one mobile colonist's audit row. LosesAccess is true when
 // some cell reachable now (other than the blocked cells themselves) is not
-// reachable in the projection. OriginKnown is false when the pawn stands on
+// reachable in the projection; it is informational, since cells stranded
+// outside a perimeter wall do not matter (#1570). OriginKnown is false when the pawn stands on
 // a blocked cell and no safe exit exists.
 type PawnAccess struct {
 	ID              string
@@ -47,9 +48,10 @@ type SpatialAccess struct {
 	Pawns              []PawnAccess
 }
 
-// Accepted ports the legacy tool's accepted flag: no colonist loses a
-// previously reachable cell or its exit, and every target stays reachable
-// both natively and in the projection for at least one colonist.
+// Accepted is true when every colonist keeps a safe exit and every target
+// it reaches now, and every target stays reachable both natively and in
+// the projection for at least one colonist. Losing other cells is allowed:
+// the targets name the access the caller needs (#1570).
 func (s SpatialAccess) Accepted() bool { return s.Refusal() == "" }
 
 // Refusal names why the audit is not accepted, or "" when it is.
@@ -62,10 +64,10 @@ func (s SpatialAccess) Refusal() string {
 		if !p.OriginKnown {
 			return fmt.Sprintf("pawn %s at %v has no safe exit", p.ID, p.Position)
 		}
-		if p.LosesAccess {
-			return fmt.Sprintf("pawn %s at %v loses access (reachable %d -> %d)", p.ID, p.Position, p.Current, p.After)
-		}
 		for _, t := range p.Targets {
+			if t.NativeReachable && !t.ProjectedReachable {
+				return fmt.Sprintf("pawn %s at %v loses target %v", p.ID, p.Position, t.Cell)
+			}
 			if t.NativeReachable && t.ProjectedReachable {
 				reached[t.Cell] = true
 			}
