@@ -22,14 +22,14 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	if sum := plan.Summary(); !strings.Contains(sum, "bedroom:3") || !strings.Contains(sum, "routes=ok") || !strings.Contains(sum, "perimeter_wall:") {
 		t.Fatal(sum)
 	}
-	if _, changed := ReplanLayout(plan, s, 3, 1, BuildTierCamp, nil); changed {
+	if _, changed := ReplanLayout(plan, s, 3, 1, BuildTierCamp, nil, nil); changed {
 		t.Fatal("a sound plan replanned")
 	}
-	tombs, changed := ReplanLayout(plan, s, 3, 2, BuildTierCamp, nil)
+	tombs, changed := ReplanLayout(plan, s, 3, 2, BuildTierCamp, nil, nil)
 	if !changed || tombs.TombRooms() != 2 || plan.TombRooms() != 1 {
 		t.Fatal("a full tomb grew no second one", changed, tombs.TombRooms())
 	}
-	grown, changed := ReplanLayout(plan, s, 5, 1, BuildTierCamp, nil)
+	grown, changed := ReplanLayout(plan, s, 5, 1, BuildTierCamp, nil, nil)
 	if !changed || grown.LayoutOutgrown(5) {
 		t.Fatal(changed)
 	}
@@ -67,10 +67,10 @@ func TestReplanPerimeterOnDriedGround(t *testing.T) {
 		t.Fatal("no wooden stretch", ok)
 	}
 	walls := reservedCells(plan, ReservePerimeter)
-	if _, changed := ReplanLayout(plan, survey(false, walls), 3, 1, BuildTierCamp, nil); changed {
+	if _, changed := ReplanLayout(plan, survey(false, walls), 3, 1, BuildTierCamp, nil, nil); changed {
 		t.Fatal("standing walls replanned the perimeter")
 	}
-	next, changed := ReplanLayout(plan, survey(true, walls), 3, 1, BuildTierCamp, nil)
+	next, changed := ReplanLayout(plan, survey(true, walls), 3, 1, BuildTierCamp, nil, nil)
 	if !changed || len(reserved(next, ReservePerimeterLight)) != 0 || len(reserved(next, ReserveMoisturePump)) != 0 {
 		t.Fatal("dried ground kept its wooden wall", changed)
 	}

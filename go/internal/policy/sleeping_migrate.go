@@ -42,6 +42,42 @@ func retiringBeds(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 	return out
 }
 
+// EmptiedRetiringWings is the Retiring wings no pawn owns a bed in, keyed
+// by their corridor's hallway cell (ReplanLayout's emptied): every room
+// of the wing is unbuilt or holds only unowned beds. None while the census
+// or sleeping read is unknown.
+func EmptiedRetiringWings(plan LayoutPlan, rooms domain.Fact[RoomObservation], sleeping domain.Fact[SleepingObservation]) map[domain.Cell]bool {
+	census, rk := rooms.Value()
+	obs, sk := sleeping.Value()
+	if !rk || !sk {
+		return nil
+	}
+	owned := map[string]bool{}
+	for _, b := range obs.Beds {
+		if len(b.Owners) > 0 {
+			owned[b.ID] = true
+		}
+	}
+	out := map[domain.Cell]bool{}
+	for _, w := range plan.Wings {
+		if w.Purpose != WingBedroomsRetiring {
+			continue
+		}
+		empty := true
+		for _, r := range w.Rooms {
+			if room, ok := PlannedRoomStanding(r, census); ok {
+				for _, b := range room.Beds {
+					empty = empty && !owned[b]
+				}
+			}
+		}
+		if empty {
+			out[w.Corridor.From] = true
+		}
+	}
+	return out
+}
+
 // vacantColonistBed is whether b is an unowned colonist bed: humanlike,
 // not medical, not for prisoners or slaves.
 func vacantColonistBed(b SleepingBed) bool {

@@ -112,7 +112,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
 					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite})
-					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, suites)
+					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites)
 					if err == nil {
 						r.planGrownFor, r.planPawns = grown, int(pawns)
 						r.planInputs, replanned = inputs, true
@@ -230,8 +230,8 @@ func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, suites []float64) error {
-	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs, tier, geysers, suites...)
+func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
+	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs, tier, geysers, emptied, suites...)
 	if next.TombRooms() < tombs {
 		clockSchedulerLog("layout plan holds no room for tomb %d", tombs)
 	}

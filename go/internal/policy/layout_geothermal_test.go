@@ -85,7 +85,7 @@ func TestLayoutRoomsKeepOffGeysers(t *testing.T) {
 				t.Fatalf("fresh plan: %s covers the geyser at %v", room.Role, at)
 			}
 		}
-		next, changed := ReplanLayout(base, s, 5, 1, BuildTierCamp, g)
+		next, changed := ReplanLayout(base, s, 5, 1, BuildTierCamp, g, nil)
 		if !changed {
 			t.Fatalf("replan kept %s over the geyser at %v", r.Role, at)
 		}

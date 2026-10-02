@@ -39,8 +39,11 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 // With the rooms unchanged the perimeter alone is replanned (#954), which
 // changes the plan when the ground on or near the ring did (ground a
 // moisture pump dried, a mined-out ring cell). It reports whether the plan
-// changed.
-func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, suites ...float64) (LayoutPlan, bool) {
+// changed. An emptied Retiring wing (emptied, keyed by its corridor's
+// hallway cell) is dropped only when its ground lets Grow place a room or
+// wing it otherwise could not (dropEmptiedWings); else it stays as spare
+// beds.
+func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
 	zones := Zone(s)
 	vents := geothermalCells(geyserFootprints(geysers))
 	noGo := map[domain.Cell]bool{}
@@ -64,7 +67,8 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier
 	next := plan
 	next.Rooms, next.Wings, next.Zones = kept, wings, coreWithout(zones, vents)
 	dropped := len(next.AllRooms()) != len(plan.AllRooms())
-	next = Grow(next, pawns, tombs, tier, suites...)
+	next, freed := dropEmptiedWings(next, emptied, pawns, tombs, tier, suites...)
+	dropped = dropped || freed
 	next.Zones = zones
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
@@ -74,6 +78,41 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier
 		return plan, false
 	}
 	return withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(next, s), s), s)), true
+}
+
+// dropEmptiedWings grows plan, first dropping each emptied Retiring wing
+// whose ground lets a counterfactual Grow place more core rooms or active
+// wing rooms than the real Grow (#1249); the cleared wing's ground is then
+// clearance's to demolish. Rooms outside a dropped wing never move. It
+// reports whether a wing was dropped.
+func dropEmptiedWings(plan LayoutPlan, emptied map[domain.Cell]bool, pawns, tombs int, tier BuildTier, suites ...float64) (LayoutPlan, bool) {
+	grown := Grow(plan, pawns, tombs, tier, suites...)
+	dropped := false
+	for i := 0; i < len(plan.Wings); i++ {
+		w := plan.Wings[i]
+		if !emptied[w.Corridor.From] || retireWings([]Wing{w}, tier)[0].Purpose != WingBedroomsRetiring {
+			continue
+		}
+		without := plan
+		without.Wings = append(append([]Wing(nil), plan.Wings[:i]...), plan.Wings[i+1:]...)
+		cf := Grow(without, pawns, tombs, tier, suites...)
+		if len(cf.Rooms) > len(grown.Rooms) || activeWingRooms(cf) > activeWingRooms(grown) {
+			plan, grown, dropped = without, cf, true
+			i--
+		}
+	}
+	return grown, dropped
+}
+
+// activeWingRooms is the rooms in p's wings that are not Retiring.
+func activeWingRooms(p LayoutPlan) int {
+	n := 0
+	for _, w := range p.Wings {
+		if w.Purpose != WingBedroomsRetiring {
+			n += len(w.Rooms)
+		}
+	}
+	return n
 }
 
 // sameInteriors reports whether a and b hold the same rooms in order: a
