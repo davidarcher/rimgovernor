@@ -50,6 +50,17 @@ message ClearanceTarget {
   optional bool designated = 10; // A standing Deconstruct designation; the controller adopts it (no ownership ledger).
   reserved 11;
   SalvageEvidence salvage = 12;
+  // Player-faction rows only (planned ground): the building is a wall or door
+  // on the boundary of a room that is not outdoors.
+  optional bool encloses_room = 13;
+}
+// A constructed floor on planned ground: vanilla's foundation-free floor
+// layer (TerrainGrid.CanRemoveTopLayerAt), one row per cell. designated is a
+// standing RemoveFloor designation.
+message ClearanceFloor {
+  rimgovernor.common.v1.Cell cell = 1;
+  optional string def_name = 2;
+  optional bool designated = 3;
 }
 message SalvageYield {
   string def_name = 1;
@@ -77,9 +88,13 @@ message ClearanceChunk {
 // include_salvage asks for salvage evidence on the rows outside Home; a
 // caller that never reads salvage leaves it false and the native read skips
 // the salvage route and storage searches (#984).
+// planned_ground (#1365) widens the census on those cells only: player-faction
+// buildings touching them become targets (with encloses_room) and their
+// constructed floors are reported per cell. Empty keeps the non-player census.
 message ClearanceTargetsRequest {
   ReadScope scope = 1;
   bool include_salvage = 2;
+  repeated Rectangle planned_ground = 3;
 }
 // dump_sites is a bounded connected footprint of free, outdoor, unzoned,
 // hauler-reachable Home cells near the chunks lacking a destination on which
@@ -91,6 +106,7 @@ message ClearanceTargetsSnapshot {
   reserved 3;
   repeated ClearanceChunk chunks = 4;
   repeated rimgovernor.common.v1.Cell dump_sites = 5;
+  repeated ClearanceFloor floors = 6; // Only cells inside the request's planned_ground.
 }
 message ClearanceTargetsReply { oneof outcome {
   ClearanceTargetsSnapshot observed = 1;

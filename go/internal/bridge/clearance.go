@@ -13,10 +13,25 @@ const clearanceTool = "rimgovernor/observations_get_clearance_targets"
 // ReadClearanceTargets is read-only and requires no authority. An unsupported
 // native stub returns ErrUnavailable, never a successful empty census.
 func (client *Client) ReadClearanceTargets(ctx context.Context, identity *c.Identity, includeSalvage bool) (*o.ClearanceTargetsReply, Result, error) {
+	return client.ReadClearanceTargetsOnGround(ctx, identity, includeSalvage, nil)
+}
+
+// ReadClearanceTargetsOnGround widens the census to planned ground (#1365):
+// on those rectangles native also reports the player's own buildings (with
+// encloses_room) and constructed floors, one row per cell.
+func (client *Client) ReadClearanceTargetsOnGround(ctx context.Context, identity *c.Identity, includeSalvage bool, planned []*o.Rectangle) (*o.ClearanceTargetsReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
+	for _, rect := range planned {
+		if validRectangle(rect, 4096) != nil {
+			return nil, Result{}, contract("invalid planned ground rectangle")
+		}
+	}
 	request := &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeSalvage: includeSalvage}
+	for _, rect := range planned {
+		request.PlannedGround = append(request.PlannedGround, proto.Clone(rect).(*o.Rectangle))
+	}
 	reply := &o.ClearanceTargetsReply{}
 	raw, err := client.protoRead(ctx, clearanceTool, request, reply)
 	if err != nil {
@@ -28,6 +43,9 @@ func (client *Client) ReadClearanceTargets(ctx context.Context, identity *c.Iden
 	switch v := reply.Outcome.(type) {
 	case *o.ClearanceTargetsReply_Observed:
 		err = ValidateClearanceTargets(v.Observed, identity)
+		if err == nil {
+			err = validatePlannedFloors(v.Observed, planned)
+		}
 	case *o.ClearanceTargetsReply_Unavailable:
 		err = unavailable(v.Unavailable, raw)
 	case *o.ClearanceTargetsReply_Failure:
@@ -89,10 +107,34 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 		if row.Class < o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR || row.Class > o.ClearanceClass_CLEARANCE_CLASS_OTHER {
 			return contract("unknown clearance class")
 		}
-		rect := row.Occupied
-		if rect == nil || rect.Minimum == nil || rect.Maximum == nil || rect.Minimum.X == nil || rect.Minimum.Z == nil || rect.Maximum.X == nil || rect.Maximum.Z == nil || rect.Minimum.GetX() < 0 || rect.Minimum.GetZ() < 0 || rect.Maximum.GetX() < rect.Minimum.GetX() || rect.Maximum.GetZ() < rect.Minimum.GetZ() || int64(rect.Maximum.GetX())-int64(rect.Minimum.GetX()) >= 4096 || int64(rect.Maximum.GetZ())-int64(rect.Minimum.GetZ()) >= 4096 {
+		if validRectangle(row.Occupied, 4096) != nil {
 			return contract("invalid clearance occupied rectangle")
 		}
+	}
+	return nil
+}
+
+// validatePlannedFloors requires every floor row to be a distinct complete
+// cell inside the requested planned ground; with none requested, no floors.
+func validatePlannedFloors(v *o.ClearanceTargetsSnapshot, planned []*o.Rectangle) error {
+	inside := func(x, z int32) bool {
+		for _, r := range planned {
+			if x >= r.Minimum.GetX() && x <= r.Maximum.GetX() && z >= r.Minimum.GetZ() && z <= r.Maximum.GetZ() {
+				return true
+			}
+		}
+		return false
+	}
+	seen := map[[2]int32]bool{}
+	for _, row := range v.Floors {
+		if row == nil || row.Cell == nil || row.Cell.X == nil || row.Cell.Z == nil || validID(row.GetDefName()) != nil || row.Designated == nil {
+			return contract("invalid clearance floor")
+		}
+		key := [2]int32{row.Cell.GetX(), row.Cell.GetZ()}
+		if seen[key] || !inside(key[0], key[1]) {
+			return contract("clearance floor outside planned ground")
+		}
+		seen[key] = true
 	}
 	return nil
 }

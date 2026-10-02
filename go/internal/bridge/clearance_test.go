@@ -100,3 +100,54 @@ func TestClearanceChunkAndDumpSiteValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestClearancePlannedGroundRequestAndFloors(t *testing.T) {
+	rect := func(x0, z0, x1, z1 int32) *o.Rectangle {
+		return &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(x0), Z: proto.Int32(z0)}, Maximum: &c.Cell{X: proto.Int32(x1), Z: proto.Int32(z1)}}
+	}
+	planned := []*o.Rectangle{rect(10, 10, 12, 12)}
+	floor := func(x, z int32) *o.ClearanceFloor {
+		return &o.ClearanceFloor{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, DefName: proto.String("WoodPlankFloor"), Designated: proto.Bool(false)}
+	}
+	for name, tc := range map[string]struct {
+		floors []*o.ClearanceFloor
+		ok     bool
+	}{
+		"per cell":      {[]*o.ClearanceFloor{floor(10, 10), floor(12, 12)}, true},
+		"outside":       {[]*o.ClearanceFloor{floor(13, 10)}, false},
+		"duplicate":     {[]*o.ClearanceFloor{floor(11, 11), floor(11, 11)}, false},
+		"no def":        {[]*o.ClearanceFloor{{Cell: &c.Cell{X: proto.Int32(11), Z: proto.Int32(11)}, Designated: proto.Bool(true)}}, false},
+		"no designated": {[]*o.ClearanceFloor{{Cell: &c.Cell{X: proto.Int32(11), Z: proto.Int32(11)}, DefName: proto.String("TileSandstone")}}, false},
+	} {
+		snapshot := clearanceSnapshot()
+		snapshot.Targets[0].Faction = proto.String("Faction_Player")
+		snapshot.Targets[0].EnclosesRoom = proto.Bool(true)
+		snapshot.Floors = tc.floors
+		reply := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: snapshot}}
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
+			protoTestRequest(t, arg, &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, PlannedGround: planned})
+			return pbResult(reply), nil
+		}}, time.Second)
+		got, _, err := client.ReadClearanceTargetsOnGround(context.Background(), pbIdentity(), false, planned)
+		if tc.ok != (err == nil) || tc.ok && !proto.Equal(got, reply) {
+			t.Fatal(name, got, err)
+		}
+	}
+	// Without planned ground no floor row is admissible.
+	snapshot := clearanceSnapshot()
+	snapshot.Floors = []*o.ClearanceFloor{floor(10, 10)}
+	if validatePlannedFloors(snapshot, nil) == nil {
+		t.Fatal("floor accepted without planned ground")
+	}
+}
+
+func TestClearanceRejectsInvalidPlannedGround(t *testing.T) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
+		t.Error("invalid request sent")
+		return nil, nil
+	}}, time.Second)
+	bad := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}, Maximum: &c.Cell{X: proto.Int32(4), Z: proto.Int32(5)}}
+	if _, _, err := client.ReadClearanceTargetsOnGround(context.Background(), pbIdentity(), false, []*o.Rectangle{bad}); err == nil {
+		t.Fatal("inverted rectangle accepted")
+	}
+}

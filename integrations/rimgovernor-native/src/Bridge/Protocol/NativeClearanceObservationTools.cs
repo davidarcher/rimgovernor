@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeClearanceObservationTools
     {
         private const string ToolName = "rimgovernor/observations_get_clearance_targets";
-        [Tool(ToolName, Title = "Read clearance targets", Description = "Complete bounded census of visible, deconstructible non-player buildings across the map, plus the rock and slag chunk stacks standing in Home with their storage state and a free outdoor footprint for a dumping stockpile. Includes exact footprints, roof-support blockers, sealed ancient danger and deconstruction ownership. Read-only; does not admit removal.")]
+        [Tool(ToolName, Title = "Read clearance targets", Description = "Complete bounded census of visible, deconstructible non-player buildings across the map, plus, on any requested planned ground, the player's own buildings and constructed floors (one row per cell), plus the rock and slag chunk stacks standing in Home with their storage state and a free outdoor footprint for a dumping stockpile. Includes exact footprints, roof-support blockers, sealed ancient danger and deconstruction ownership. Read-only; does not admit removal.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ClearanceTargetsReply.", Always = true)]
         public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ClearanceTargetsRequest string.")] object? request = null)
@@ -50,9 +50,23 @@ namespace HomeBridge.BridgeTools
                         }
                     foreach (var b in map.listerThings.AllThings.OfType<Building>())
                         if (b.Spawned && b.Faction != player && !b.def.IsNonResourceNaturalRock && !b.def.mineable && b.DeconstructibleBy(player)) buildings[b.thingIDNumber] = b;
+                    // Planned ground (#1365): on those cells only, the player's
+                    // own buildings are targets too and constructed floors are
+                    // reported one cell at a time.
+                    var planned = PlannedCells(map, parsed.PlannedGround);
+                    var floors = new List<Obs.ClearanceFloor>();
+                    foreach (var cell in planned) {
+                        foreach (var thing in cell.GetThingList(map))
+                            if (thing is Building b && b.Spawned && b.Faction == player) buildings[b.thingIDNumber] = b;
+                        if (cell.Fogged(map)) continue;
+                        var top = map.terrainGrid.TopTerrainAt(cell);
+                        if (top == null || top.natural || !map.terrainGrid.CanRemoveTopLayerAt(cell)) continue;
+                        floors.Add(new Obs.ClearanceFloor { Cell = Cell(cell.x, cell.z), DefName = Id(top.defName), Designated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFloor) != null });
+                    }
                     ObservationWork.Captured("clearanceScan", Now() - began, buildings.Count + chunks.Count);
                     began = Now();
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
+                    snapshot.Floors.AddRange(floors);
                     var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
                     var salvage = parsed.IncludeSalvage ? SalvageRead.Begin(map) : null;
                     var undelivered = new List<Thing>();
@@ -89,6 +103,7 @@ namespace HomeBridge.BridgeTools
                         row.AncientDanger = AncientDanger(map, building, player, triggers);
                         dangerTicks += Now() - phase;
                         if (building.Faction != null) row.Faction = Id(building.Faction.GetUniqueLoadID());
+                        if (building.Faction == player) row.EnclosesRoom = EnclosesRoom(map, building);
                         phase = Now();
                         var blocker = RoofSupportSafety.Blocker(building, out _);
                         roofTicks += Now() - phase;
@@ -355,6 +370,33 @@ namespace HomeBridge.BridgeTools
                 }
             }
             return result;
+        }
+
+        // PlannedCells clips the requested rectangles to the map and merges
+        // them, so overlapping rectangles visit each cell once.
+        private static List<IntVec3> PlannedCells(Map map, IEnumerable<Obs.Rectangle> rects)
+        {
+            var cells = new HashSet<IntVec3>();
+            foreach (var r in rects) {
+                if (r?.Minimum == null || r.Maximum == null) throw new InvalidOperationException("Planned ground rectangle incomplete.");
+                var rect = CellRect.FromLimits(r.Minimum.X, r.Minimum.Z, r.Maximum.X, r.Maximum.Z).ClipInsideMap(map);
+                foreach (var c in rect) cells.Add(c);
+            }
+            return cells.OrderBy(c => c.z).ThenBy(c => c.x).ToList();
+        }
+
+        // EnclosesRoom: a door, or an impassable full-fill edifice (a wall),
+        // with an indoor room on a cardinal neighbour of its footprint.
+        private static bool EnclosesRoom(Map map, Building building)
+        {
+            var bounding = building is Building_Door || building.def.passability == Traversability.Impassable && building.def.fillPercent >= 1f && building.def.IsEdifice();
+            if (!bounding) return false;
+            foreach (var cell in building.OccupiedRect())
+                foreach (var offset in GenAdj.CardinalDirections) {
+                    var near = cell + offset;
+                    if (near.InBounds(map) && near.GetRoom(map) is Room room && !room.PsychologicallyOutdoors && !room.TouchesMapEdge) return true;
+                }
+            return false;
         }
 
         private static Obs.ClearanceClass Classify(Building building) =>
