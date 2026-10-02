@@ -26,7 +26,7 @@ func run(args []string) error {
 		return nil
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("usage: remoteaccept aggregate|import|export|soak|index [flags]")
+		return fmt.Errorf("usage: remoteaccept aggregate|import|export|soak|index|casetimes [flags]")
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	root := f.String("root", "", "evidence root for aggregation")
@@ -47,6 +47,12 @@ func run(args []string) error {
 		return fmt.Errorf("unexpected arguments")
 	}
 	switch args[0] {
+	case "casetimes":
+		times, err := remoteaccept.CaseTimes(*root)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join("internal", "remoteaccept", "casetimes.json"), remoteaccept.EncodeCaseTimes(times), 0o644)
 	case "export":
 		b, err := os.ReadFile(*jobsFile)
 		if err != nil {

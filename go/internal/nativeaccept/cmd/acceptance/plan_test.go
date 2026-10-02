@@ -93,13 +93,15 @@ func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 	if !reflect.DeepEqual(p.Files, []string{"a", "b"}) {
 		t.Fatal(p.Files)
 	}
-	if !reflect.DeepEqual(p.Shards[0].Cases, []string{"light/dark", "smoke/identity"}) {
+	// Costs are the committed measured times (remoteaccept.ShardCost), so
+	// light/dark (the slowest) gets a shard to itself.
+	if !reflect.DeepEqual(p.Shards[0].Cases, []string{"light/dark"}) {
 		t.Fatal(p.Shards)
 	}
 	if !reflect.DeepEqual(p.Cases[0].Roles, []string{"bridge", "controller"}) {
 		t.Fatal(p.Cases[0])
 	}
-	// Registry budgets are the only costs; no ambient timing history enters it.
+	// Only committed costs enter the plan; no ambient timing history does.
 	r.Limits.Shards = 32
 	p, err = buildSelection(r, planReference{}, nil, affected.Selection{})
 	if err != nil {

@@ -319,7 +319,7 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 	costs := map[string]int64{}
 	for i, c := range selected {
 		names[i] = c.Name
-		costs[c.Name] = int64(c.Budget)
+		costs[c.Name] = remoteaccept.ShardCost(c.Name, c.Budget)
 	}
 	shards, err := remoteaccept.PlanShards(names, r.Limits.Shards, p.Algorithm, costs)
 	if err != nil {
