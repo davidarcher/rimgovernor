@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"strings"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -67,7 +66,6 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 			return RoutineFoodStorageResult{Reason: BuildingMethodRefused}, nil
 		}
 	}
-	stood := 0
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -76,15 +74,6 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		if store.PlanOpen(plan) {
 			return RoutineFoodStorageResult{Reason: BuildingMethodExistingWork}, nil
 		}
-		if strings.HasPrefix(string(method.Method), "food-storage-") {
-			stood++
-		}
-	}
-	// The census may never read a zone as food storage (the roofed-cell rule),
-	// and every pass would stand another: a few zones is the most it places
-	// per goal epoch (#1581).
-	if stood >= maxFoodStorageZones {
-		return RoutineFoodStorageResult{Reason: BuildingMethodUsed}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
@@ -121,6 +110,12 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	siteCells := map[domain.Cell]policy.SiteCell{}
 	for _, cell := range projection.Cells {
 		siteCells[cell.Cell] = cell
+	}
+	// A food zone this goal stood that still stands on roofed indoor floor
+	// is the placement done, whatever the census reads of it: standing
+	// another every pass is how the map filled with them (#1581).
+	if r.foodZoneStands(call, state.Snapshot, expected.Tick, goal.Goal.ID, siteCells) {
+		return RoutineFoodStorageResult{Reason: BuildingMethodUsed}, nil
 	}
 	claimRows, _ := claims.Value()
 	for _, cell := range shellInteriors(nil, claimRows) {
@@ -313,8 +308,6 @@ func rectangleRing(cells map[domain.Cell]bool, door bool) (policy.Rectangle, boo
 
 const maxFoodStorageSites = 8
 
-// maxFoodStorageZones bounds the zones one goal epoch stands.
-const maxFoodStorageZones = 3
 
 func roofedIndoors(c policy.SiteCell) bool {
 	indoors, ik := c.Indoors.Value()
@@ -530,4 +523,35 @@ func foodStorageSites(room policy.Rectangle, cells map[domain.Cell]policy.SiteCe
 		}
 	}
 	return sites
+}
+
+// foodZoneStands reports whether a food stockpile this goal's methods created
+// still has nine cells, every one roofed indoor floor.
+func (r *RoutineFoodStoragePlanner) foodZoneStands(call context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, goal domain.GoalID, siteCells map[domain.Cell]policy.SiteCell) bool {
+	zones, err := r.reviewer.player.journal.ZoneClaims(call, snapshot, tick)
+	if err != nil {
+		return false
+	}
+	owned, _ := zones.Value()
+	cells := map[string][]domain.Cell{}
+	for _, c := range siteCells {
+		if id, known := c.ZoneID.Value(); known && id != "" {
+			cells[id] = append(cells[id], c.Cell)
+		}
+	}
+	for _, z := range owned {
+		if z.Goal != goal || z.Kind != domain.StockpileZone || z.Filter.Base() != domain.BaseFood || len(cells[z.ID]) < 9 {
+			continue
+		}
+		roofed := 0
+		for _, c := range cells[z.ID] {
+			if roofedIndoors(siteCells[c]) {
+				roofed++
+			}
+		}
+		if roofed >= 9 {
+			return true
+		}
+	}
+	return false
 }
