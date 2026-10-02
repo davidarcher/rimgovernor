@@ -92,8 +92,10 @@ type variant struct {
 //
 // naming answers the faction/settlement dialog that opens mid-run on the
 // baseline save (#1248): unanswered it holds the game paused, so no tick
-// advances and the layout's completion write never runs.
-var perimeterFamilies = []string{"defensive-layout", "defense", "tend", "rescue", "fire", "supply", "naming"}
+// advances and the layout's completion write never runs. work staffs the
+// layout's construction: every building method's builder check needs the
+// work priorities only that family applies (#1248).
+var perimeterFamilies = []string{"defensive-layout", "defense", "tend", "rescue", "fire", "supply", "naming", "work"}
 
 func init() {
 	// The fire family belongs here: a raid can leave a home fire burning
