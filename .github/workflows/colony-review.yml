@@ -120,7 +120,7 @@ jobs:
         if: always() && steps.play.outcome == 'failure'
         continue-on-error: true
         run: |
-          foreach ($result in Get-ChildItem C:\rg\*\job\out -Recurse -File -Filter result.json -ErrorAction SilentlyContinue) {
+          foreach ($result in Get-ChildItem C:\rg\*\job -Recurse -File -Filter result.json -ErrorAction SilentlyContinue) {
             $r = Get-Content -LiteralPath $result.FullName -Raw | ConvertFrom-Json
             "Play failed: $($r.error)" >> $env:GITHUB_STEP_SUMMARY
             "$($result.FullName): $($r.error)"
@@ -134,9 +134,9 @@ jobs:
         with:
           name: colony-review-diagnostics
           path: |
-            C:\rg\*\job\out\**\result.json
-            C:\rg\*\job\out\**\*.log
-            C:\rg\*\job\out\**\review\stats.jsonl
+            C:\rg\*\job\**\result.json
+            C:\rg\*\job\**\*.log
+            C:\rg\*\job\**\review\stats.jsonl
             C:\rg\*\job\**\HeadlessPlayer.log
           if-no-files-found: ignore
           retention-days: 7
@@ -146,7 +146,7 @@ jobs:
           TESTED_COMMIT: ${{ steps.gate.outputs.head }}
           PLAYED: ${{ steps.play.outcome }}
         run: |
-          $stats = Get-ChildItem C:\rg\*\job\out -Recurse -File -Filter stats.jsonl -ErrorAction SilentlyContinue | Select-Object -First 1
+          $stats = Get-ChildItem C:\rg\*\job -Recurse -File -Filter stats.jsonl -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $stats) { throw "The run recorded nothing (play step: $env:PLAYED); see its log" }
           $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
           $name = "$date-$env:GITHUB_RUN_ID"
