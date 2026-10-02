@@ -98,24 +98,34 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // Why a frame might lack terrain: what the map drawer holds for the
-        // section under the map centre (layers, submeshes, shaders).
+        // Why a frame might lack terrain: what the map drawer holds (field
+        // names and the centre section's layers, submesh shaders, vertex
+        // counts) and the camera's mask and clear flags.
         static void LogSections(Map map)
         {
+            const System.Reflection.BindingFlags all = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+            static string Fields(Type t) => t.Name + ": " + string.Join(", ", t.GetFields(all).Select(f => f.FieldType.Name + " " + f.Name));
             try
             {
-                var sections = Traverse.Create(map.mapDrawer).Field("sections").GetValue<Array>();
-                var section = (Section)sections.GetValue(sections.GetLength(0) / 2, sections.GetLength(1) / 2);
-                var lines = new List<string>();
-                foreach (var layer in Traverse.Create(section).Field("layers").GetValue<List<SectionLayer>>())
+                var lines = new List<string> { Fields(map.mapDrawer.GetType()), Fields(typeof(Section)), Fields(typeof(SectionLayer)) };
+                var camera = Find.Camera;
+                lines.Add($"camera mask={camera.cullingMask} clear={camera.clearFlags} far={camera.farClipPlane} y={camera.transform.position.y}");
+                if (map.mapDrawer.GetType().GetFields(all).FirstOrDefault(f => f.FieldType == typeof(Section[,]))?.GetValue(map.mapDrawer) is Section[,] sections)
                 {
-                    var subMeshes = Traverse.Create(layer).Field("subMeshes").GetValue<List<LayerSubMesh>>();
-                    lines.Add($"{layer.GetType().Name} visible={layer.Visible} " + string.Join(",", subMeshes.Select(m =>
-                        $"[{m.material?.shader?.name} supported={m.material?.shader?.isSupported} verts={m.mesh?.vertexCount} finalized={m.finalized} disabled={m.disabled}]")));
+                    var section = sections[sections.GetLength(0) / 2, sections.GetLength(1) / 2];
+                    foreach (var f in typeof(Section).GetFields(all).Where(f => typeof(System.Collections.IEnumerable).IsAssignableFrom(f.FieldType) && f.FieldType != typeof(string)))
+                        foreach (var item in (System.Collections.IEnumerable)f.GetValue(section))
+                        {
+                            if (item is not SectionLayer layer) continue;
+                            var subMeshes = typeof(SectionLayer).GetFields(all).Where(g => g.FieldType == typeof(List<LayerSubMesh>)).Select(g => (List<LayerSubMesh>)g.GetValue(layer)).FirstOrDefault();
+                            lines.Add($"{layer.GetType().Name} visible={layer.Visible} " + string.Join(",", (subMeshes ?? new List<LayerSubMesh>()).Select(m =>
+                                $"[{m.material?.shader?.name} supported={m.material?.shader?.isSupported} verts={m.mesh?.vertexCount} finalized={m.finalized} disabled={m.disabled}]")));
+                        }
                 }
-                Log.Message($"[RimGovernor] colony review sections: camera mask={Find.Camera.cullingMask} clear={Find.Camera.clearFlags} far={Find.Camera.farClipPlane} y={Find.Camera.transform.position.y}\n" + string.Join("\n", lines));
+                else lines.Add("no Section[,] field on MapMeshDrawer");
+                Log.Message("[RimGovernor] colony review sections:\n" + string.Join("\n", lines));
             }
-            catch (Exception e) { Log.Warning("[RimGovernor] colony review section probe failed: " + e.Message); }
+            catch (Exception e) { Log.Warning("[RimGovernor] colony review section probe failed: " + e); }
         }
 
         // The home area plus every colonist and colony building, with a
