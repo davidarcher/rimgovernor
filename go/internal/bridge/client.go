@@ -547,7 +547,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	recording := c.recorder != nil
 	if recording {
 		recordCtx = c.snapshotRecordingContext(ctx)
-		request, _ = c.recorder.Event("native_request", recordCtx, true, map[string]any{"tool": name, "arguments": arguments})
+		request, _ = c.recorder.Event("native_request", recordCtx, false, map[string]any{"tool": name, "arguments": arguments})
 	}
 	timing := callTimingFrom(ctx)
 	if timing != nil {
@@ -589,7 +589,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	}
 	if err != nil {
 		if recording {
-			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": err.Error(), "timing": phases(0, len(raw))})
+			c.recorder.Event("native_error", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": err.Error(), "timing": phases(0, len(raw))})
 		}
 		if errors.Is(err, ErrContract) {
 			return Result{}, err
@@ -609,7 +609,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 			if errors.As(decodeErr, &refusal) {
 				row["refused_text"] = refusal.Result.Text
 			}
-			c.recorder.Event("native_error", recordCtx, true, row)
+			c.recorder.Event("native_error", recordCtx, false, row)
 		} else {
 			timing := phases(decodeElapsed, len(raw))
 			if native, ok := nativeTiming(decoded.Structured); ok {

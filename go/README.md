@@ -838,10 +838,10 @@ sequence and stamps its rows with its own `run` id. A running service serves
 the ring back over `GET /api/telemetry/events` (paged by sequence) and `GET
 /api/telemetry/metrics` (the acceptance metrics block computed live, with
 `tick`, `tps`, `authority` and `last_step_ms`); both answer 404 without a
-recorder. Requests and errors are fsynced
-before the call returns; a response row is written unsynced and becomes
-durable only at the next durable record or segment rotation, so a crash can
-leave an explicit unmatched request but never a silently lost one. The
+recorder. Every row is written to the OS
+before the call returns and is fsynced only at segment rotation and close,
+so a process crash loses nothing and a machine crash can lose the unsynced
+tail (per-request fsync cost seconds per step on the CI disk). The
 timeline is a bounded JSONL file rotated into numbered segments (`<path>.1` is
 the newest) once the active segment reaches its size bound; the oldest segment
 is dropped on rotation. Oversized payloads are replaced with a truncated
