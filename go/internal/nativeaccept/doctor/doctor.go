@@ -94,11 +94,6 @@ type Options struct {
 	Repo string
 }
 
-// ClockJournalBacklog is how many journal rows under a kept process warn:
-// a service starting from cursor 1 pages every one before it sees a live
-// event, and the first review's budget goes with them (#119).
-const ClockJournalBacklog = 2000
-
 // Run performs every check and returns them in report order.
 func Run(ctx context.Context, o Options) []Check {
 	if o.GameID == "" {
@@ -124,12 +119,9 @@ func Run(ctx context.Context, o Options) []Check {
 	}
 	add(baseline(o))
 	add(modsConfig(o))
-	running := 0
 	if gameCopy != "" {
-		var c Check
-		running, c = process(o, gameCopy)
+		_, c := process(o, gameCopy)
 		add(c)
-		add(journal(o, running > 0))
 	}
 	add(orphans(ctx, o))
 	add(gocache())
@@ -452,34 +444,6 @@ func process(o Options, gameCopy string) (int, Check) {
 		c.Fix = "`acceptance stop -root " + o.Root + "` (or Stop-Process -Id <pid>); the next run boots fresh"
 	}
 	return len(pids), c
-}
-
-// journal is the clock journal backlog of the headless profile: a fresh
-// launch clears it, a kept process must keep it (#119), so a large one
-// under a running game is a slow first review.
-func journal(o Options, running bool) Check {
-	c := Check{Name: "clock-journal"}
-	dir, err := na.ClockJournalDir(filepath.Join(o.Root, "config-headless"))
-	if err != nil {
-		c.Detail = "no headless profile yet"
-		return c
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		c.Detail = "empty"
-		return c
-	}
-	n := len(entries)
-	switch {
-	case !running:
-		c.Detail = fmt.Sprintf("%d rows; cleared at the next fresh launch", n)
-	case n > ClockJournalBacklog:
-		c.Status, c.Detail = Warn, fmt.Sprintf("%d rows under the kept process; a service pages every one before its first live event", n)
-		c.Fix = "`acceptance stop -root " + o.Root + "` so the next launch starts empty; never delete the journal under a running game (#119)"
-	default:
-		c.Detail = fmt.Sprintf("%d rows under the kept process", n)
-	}
-	return c
 }
 
 // gocache warns on a private build cache (AGENTS.md: the shared default

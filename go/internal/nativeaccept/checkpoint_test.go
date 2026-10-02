@@ -123,12 +123,6 @@ func ringFixture(t *testing.T, every time.Duration) (*CheckpointRing, string) {
 	if err := os.MkdirAll(filepath.Join(profile, "Saves"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(profile, "RimGovernorClockEvents"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(profile, "RimGovernorClockEvents", "000001.xml"), []byte("<row/>"), 0644); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -186,10 +180,10 @@ func TestCheckpointRingCapturesAndPrunes(t *testing.T) {
 		t.Fatalf("kept %d entries, want 3: %v", len(entries), labels)
 	}
 	last := entries[2]
-	if !last.Store || !last.Journal || last.Tick != 4242 || last.Through != "saver" || last.Save != CheckpointSaveName("a/b") {
+	if !last.Store || last.Tick != 4242 || last.Through != "saver" || last.Save != CheckpointSaveName("a/b") {
 		t.Fatalf("%+v", last)
 	}
-	for _, name := range []string{last.Save + ".rws", CheckpointStoreFile, CheckpointSidecar, filepath.Join(CheckpointJournalDir, "000001.xml")} {
+	for _, name := range []string{last.Save + ".rws", CheckpointStoreFile, CheckpointSidecar} {
 		if _, err := os.Stat(filepath.Join(last.Path, name)); err != nil {
 			t.Errorf("bundle lacks %s: %v", name, err)
 		}
@@ -307,9 +301,8 @@ func TestCheckpointRingRecordsCaptureErrors(t *testing.T) {
 }
 
 // Staging a bundle puts its save in profile/Saves (replacing an older
-// copy) and its store where the service opens it; restoring its journal
-// replaces the profile's.
-func TestStageCheckpointAndRestoreJournal(t *testing.T) {
+// copy) and its store where the service opens it.
+func TestStageCheckpoint(t *testing.T) {
 	ring, root := ringFixture(t, time.Millisecond)
 	ring.Activate()
 	time.Sleep(2 * time.Millisecond)
@@ -340,17 +333,6 @@ func TestStageCheckpointAndRestoreJournal(t *testing.T) {
 	}
 	if _, err := os.Stat(storePath); err != nil {
 		t.Fatal(err)
-	}
-	journal := filepath.Join(root, "headless-profile", "RimGovernorClockEvents")
-	if err := os.WriteFile(filepath.Join(journal, "000002.xml"), []byte("<later/>"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := RestoreClockJournal(ring.Config.Configuration, entry.Path); err != nil {
-		t.Fatal(err)
-	}
-	rows, _ := os.ReadDir(journal)
-	if len(rows) != 1 || rows[0].Name() != "000001.xml" {
-		t.Fatalf("restored journal: %v", rows)
 	}
 }
 

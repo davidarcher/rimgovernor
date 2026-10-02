@@ -344,32 +344,19 @@ namespace HomeBridge.BridgeTools
                 {
                     var journal = EnsureJournal();
                     if (request.AfterCursor > journal.Newest) return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
-                    // #984: the journal window (rows = file decodes, candidates
-                    // = rows served including cache hits) and the per-row
-                    // canonical parse, as sections of the hop.
                     var began = System.Diagnostics.Stopwatch.GetTimestamp();
-                    long hits = journal.CacheHits, disk = journal.DiskReads;
                     var window = journal.ReadWindow(request.AfterCursor, (int)request.Limit);
-                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began,
-                        journal.DiskReads - disk, journal.CacheHits - hits + journal.DiskReads - disk);
+                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began, window.Rows.Count, window.Rows.Count);
                     began = System.Diagnostics.Stopwatch.GetTimestamp();
                     var page = new Clock.EventsPage { Context = context.Clone(), NewestCursor = journal.Newest,
                         NextCursor = window.Next, Gap = window.Lost != 0, LostCount = window.Lost };
                     long previous = request.AfterCursor;
                     foreach (var row in window.Rows)
                     {
-                        // A retained row from a legacy (untyped) epoch, written
-                        // before home/supervised_play was removed, carries no canonical
-                        // ownership or original observation context, and nothing
-                        // may fabricate one for it. It reads as cursor loss,
-                        // exactly like a damaged retained file: the page reports
-                        // the gap and advances past the row, so a controller
-                        // holds once on evidence it cannot see instead of every
-                        // read that crosses the row refusing for the life of the
-                        // process -- which disabled authority on each poll, and
-                        // no first routine review ever persisted (#661). A row
-                        // written under an older contract that no longer
-                        // parses is the same loss.
+                        // A row whose canonical event does not parse reads as
+                        // cursor loss: the page reports the gap and advances
+                        // past it, so a controller holds once instead of every
+                        // read across the row refusing (#661).
                         if (!row.TryGetValue("canonicalClockEvent", out var encoded) || !(encoded is string canonical)
                             || !TryParseStoredEvent(canonical, out var observed))
                         {
@@ -386,9 +373,7 @@ namespace HomeBridge.BridgeTools
                         page.Events.Add(observed); previous = observed.Cursor;
                     }
                     ObservationWork.Captured("clockEventsParse", System.Diagnostics.Stopwatch.GetTimestamp() - began, page.Events.Count, window.Rows.Count);
-                    // Only a read beginning at zero establishes the earliest retained row.
-                    if (request.AfterCursor == 0 && page.Events.Count != 0) page.OldestCursor = page.Events[0].Cursor;
-                    else if (journal.Newest == 0) page.OldestCursor = 0;
+                    page.OldestCursor = journal.Base + 1;
                     return new Clock.EventsReply { Page = page };
                 }
                 catch (Exception) { return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }

@@ -62,14 +62,10 @@ func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*b
 }
 
 // prepareFreshLaunch runs right before a games_start that launches (not
-// attaches): the clock journal starts empty, since a kept process owns its
-// journal and must find it intact (#119), and the prepared ModsConfig.xml
+// attaches): the prepared ModsConfig.xml
 // and the installed package's hashes are snapshotted so a later OpenGame
 // can tell what the process runs with (#166, #209).
 func prepareFreshLaunch(configDir string) error {
-	if err := ClearStaleClockJournal(configDir); err != nil {
-		return err
-	}
 	if err := RecordLaunchedMods(configDir); err != nil {
 		return err
 	}
@@ -209,10 +205,11 @@ type Config struct {
 	// works on one loaded world across several calls. The next OpenGame
 	// without it unloads as usual.
 	KeepLoaded bool
-	// RestoreJournal, when set, is a checkpoint bundle whose clock journal
-	// replaces the profile's before the game launches: OpenGame stops a
-	// kept process, since a running one holds the journal's cursor (#249).
-	RestoreJournal string
+	// Resumed marks a run restored from a checkpoint bundle (#249): its
+	// store holds clock cursors from the process that saved it, so OpenGame
+	// relaunches a kept process, whose cursors could be older, and the new
+	// process's cursors then start past them.
+	Resumed bool
 	// ServiceProfile, when set, is the profile directory every service this
 	// session launches uses instead of <Output>/service-profile: a resumed
 	// run keeps its bundle's, which the restored store is bound to (#249).

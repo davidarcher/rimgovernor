@@ -60,12 +60,19 @@ func clockEventsPage(page *k.EventsPage, request *k.EventsRequest) error {
 	if page.NewestCursor == nil || page.NextCursor == nil || page.Gap == nil || page.LostCount == nil || (page.OldestCursor != nil && page.GetOldestCursor() < 0) || page.GetNewestCursor() < 0 || page.GetNextCursor() < request.GetAfterCursor() || page.GetNextCursor() > page.GetNewestCursor() || page.GetNewestCursor() < request.GetAfterCursor() || len(page.Events) > int(request.GetLimit()) {
 		return contract("clock events cursor presence or bounds")
 	}
-	if page.OldestCursor != nil && (page.GetOldestCursor() > page.GetNewestCursor() || (page.GetOldestCursor() == 0 && page.GetNewestCursor() != 0)) {
+	if page.OldestCursor != nil && (page.GetOldestCursor() > page.GetNewestCursor()+1 || (page.GetOldestCursor() == 0 && page.GetNewestCursor() != 0)) {
 		return contract("clock journal retained range")
 	}
-	// Native scans cursor positions, including missing event files. Subtract
-	// validated nonnegative ordered cursors before converting to avoid overflow.
-	span := uint64(page.GetNextCursor() - request.GetAfterCursor())
+	// oldest_cursor is the native process's first cursor; those below it
+	// predate the process, so a read from below starts just before it with
+	// no loss. From there native scans cursor positions, counting evicted
+	// rows as lost. Subtract validated nonnegative ordered cursors before
+	// converting to avoid overflow.
+	start := max(request.GetAfterCursor(), page.GetOldestCursor()-1)
+	if page.GetNextCursor() < start {
+		return contract("clock events cursor presence or bounds")
+	}
+	span := uint64(page.GetNextCursor() - start)
 	if span > uint64(request.GetLimit()) || uint64(len(page.Events)) > span || page.GetLostCount() != span-uint64(len(page.Events)) {
 		return contract("clock events scanned span/loss mismatch")
 	}

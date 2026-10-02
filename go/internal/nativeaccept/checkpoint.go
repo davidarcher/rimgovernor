@@ -21,10 +21,8 @@ import (
 // A checkpoint bundle (issue #249) is one directory holding everything a
 // later run needs to resume a case where this one was: the game save
 // (CheckpointSaveName + ".rws"), the service's durable state
-// (CheckpointStoreFile, serve-driven cases only), the native clock journal
-// (CheckpointJournalDir) and the CheckpointSidecar describing them. A save
-// alone is not the state: rewinding the world without the store and
-// journal is the mismatch behind #119's authority thrash.
+// (CheckpointStoreFile, serve-driven cases only) and the CheckpointSidecar
+// describing them.
 const (
 	// DefaultCheckpointEvery is the ring's cadence in run phase.
 	DefaultCheckpointEvery = time.Minute
@@ -34,8 +32,6 @@ const (
 	CheckpointSidecar = "checkpoint.json"
 	// CheckpointStoreFile is the bundle's copy of the service's SQLite state.
 	CheckpointStoreFile = "service.sqlite"
-	// CheckpointJournalDir is the bundle's copy of the clock journal.
-	CheckpointJournalDir = "journal"
 	// CheckpointRingFile is the ring's index (Ring), beside its bundles.
 	CheckpointRingFile = "ring.json"
 	// FailedCheckpoint is the label of the bundle taken as a failed run
@@ -56,11 +52,10 @@ type Checkpoint struct {
 	// from the case's original start across resumes (the label's t+...).
 	OffsetMs int64  `json:"offset_ms"`
 	Tick     uint64 `json:"tick"`
-	// Save is the .rws name; Store and Journal say whether the bundle
-	// carries those parts.
+	// Save is the .rws name; Store says whether the bundle carries the
+	// service store.
 	Save     string         `json:"save"`
 	Store    bool           `json:"store"`
-	Journal  bool           `json:"journal"`
 	Identity map[string]any `json:"identity,omitempty"`
 	// Prepared is the fixture op's reply the resumed session reports as
 	// its own, since the op does not run again over the restored world.
@@ -711,15 +706,6 @@ func (r *CheckpointRing) capture(ctx context.Context, label string, force bool) 
 			entry.Store = true
 		}
 	}
-	if journal, jerr := ClockJournalDir(r.Config.Configuration); jerr == nil {
-		if _, statErr := os.Stat(journal); statErr == nil {
-			if err := CopyTree(journal, filepath.Join(dir, CheckpointJournalDir)); err != nil {
-				_ = os.RemoveAll(dir)
-				return Checkpoint{}, fmt.Errorf("journal: %w", err)
-			}
-			entry.Journal = true
-		}
-	}
 	entry.WallMs = time.Since(began).Milliseconds()
 	data, err := json.MarshalIndent(entry, "", "  ")
 	if err != nil {
@@ -971,25 +957,6 @@ func CopyTree(src, dst string) error {
 		}
 		return copyFile(path, target)
 	})
-}
-
-// RestoreClockJournal replaces the clock journal of the game configDir
-// launches with the bundle's copy. Only before a fresh games_start: a
-// running process holds the journal's cursor in static state (#119), so
-// the resumed run relaunches the game.
-func RestoreClockJournal(configDir, bundle string) error {
-	journal, err := ClockJournalDir(configDir)
-	if err != nil {
-		return err
-	}
-	if err := os.RemoveAll(journal); err != nil {
-		return err
-	}
-	src := filepath.Join(bundle, CheckpointJournalDir)
-	if _, err := os.Stat(src); err != nil {
-		return nil
-	}
-	return CopyTree(src, journal)
 }
 
 // StageCheckpoint copies the bundle's save into root/profile/Saves (the

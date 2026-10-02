@@ -72,8 +72,8 @@ type Game struct {
 // mod list than cfg prepared (ModsConfig.xml only applies at launch, so a
 // Core-only process cannot load a DLC save, #166) or with a package other
 // than the one now installed (a rebuilt mod's fixtures are not in the old
-// DLL's catalog, #209), or one a resumed run must relaunch over a restored
-// clock journal (Config.RestoreJournal, #249), is stopped and launched
+// DLL's catalog, #209), or one a resumed run must relaunch (Config.Resumed,
+// #249), is stopped and launched
 // fresh instead; Game.Relaunched and the report's game_reuse.relaunched
 // say so. cfg must have been prepared.
 func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
@@ -94,8 +94,7 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 	// never collides with the harness's own.
 	g := &Game{Client: client, Keep: KeepGame(), output: filepath.Join(cfg.Output, "warm"), cfg: cfg}
 	// A running process (an earlier harness's, "shared-running") is
-	// attached by games_start and keeps its clock journal; only a fresh
-	// launch starts with the journal cleared (#119).
+	// attached by games_start.
 	g.Reused = GameRunning(ctx, client)
 	if g.Reused {
 		reason, err := LaunchedMismatch(cfg.Configuration)
@@ -103,8 +102,7 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 			_ = client.Close()
 			return nil, err
 		}
-		if cfg.RestoreJournal != "" {
-			// A resumed run's journal must be read at launch (#249).
+		if cfg.Resumed {
 			reason = "checkpoint"
 		}
 		if reason != "" {
@@ -119,12 +117,6 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 		if err := prepareFreshLaunch(cfg.Configuration); err != nil {
 			_ = client.Close()
 			return nil, err
-		}
-		if cfg.RestoreJournal != "" {
-			if err := RestoreClockJournal(cfg.Configuration, cfg.RestoreJournal); err != nil {
-				_ = client.Close()
-				return nil, fmt.Errorf("restore clock journal: %w", err)
-			}
 		}
 	}
 	launched, err := client.GamesStart(ctx)

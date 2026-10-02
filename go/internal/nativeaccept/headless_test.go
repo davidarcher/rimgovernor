@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -504,49 +503,6 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 	}
 }
 
-// Prepare runs on every harness start, including one attaching to a kept
-// process whose journal cursor lives in native static state, so it must
-// leave the journal alone; only a fresh launch clears it (#119).
-func TestPrepareKeepsClockJournal(t *testing.T) {
-	source := writeSourceRoot(t)
-	root, err := IsolatedRoot(source, filepath.Join(t.TempDir(), "worker"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	journal := filepath.Join(root, "headless-profile", "RimGovernorClockEvents")
-	row := filepath.Join(journal, "00000000000000000001.xml")
-	if err := os.MkdirAll(journal, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(row, []byte("<row/>"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	configuration, err := prepare(root, nil, nil)
-	if err != nil {
-		t.Fatalf("Prepare failed: %v", err)
-	}
-	if _, err := os.Stat(row); err != nil {
-		t.Fatalf("Prepare touched the live clock journal: %v", err)
-	}
-	if got, err := ClockJournalDir(configuration); err != nil || got != journal {
-		t.Fatalf("ClockJournalDir = %q, %v; want %q", got, err, journal)
-	}
-	if err := ClearStaleClockJournal(configuration); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(journal); !os.IsNotExist(err) {
-		t.Fatalf("stale clock journal survived ClearStaleClockJournal: %v", err)
-	}
-	// Clearing an already-empty journal, or one of a config that names no
-	// save-data folder, is not an error.
-	if err := ClearStaleClockJournal(configuration); err != nil {
-		t.Fatal(err)
-	}
-	if err := ClearStaleClockJournal(filepath.Join(root, "missing")); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestPrepareMirrorsEveryVariantSave(t *testing.T) {
 	source := writeSourceRoot(t)
 	destination := filepath.Join(t.TempDir(), "worker")
@@ -834,25 +790,5 @@ func TestPrepareStagesCommittedBaseline(t *testing.T) {
 	}
 	if after, _ := os.Stat(target); !after.ModTime().Equal(before.ModTime()) {
 		t.Fatal("an up-to-date baseline was rewritten")
-	}
-}
-
-// The smoke run of #388 launched a worker whose profile path was 224
-// characters up to the journal directory: the 24-character row name fit
-// MAX_PATH, the 40-character temporary did not, and every publication
-// failed. Prepare now refuses a profile that cannot hold a row at all.
-func TestRequireProfilePathFitsBoundsWindowsMaxPath(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("only Windows bounds paths at MAX_PATH")
-	}
-	if MaxProfilePathLength != 211 {
-		t.Fatalf("MaxProfilePathLength = %d, want 211 (259 - 48)", MaxProfilePathLength)
-	}
-	fits := `C:\` + strings.Repeat("a", MaxProfilePathLength-3)
-	if err := RequireProfilePathFits(fits); err != nil {
-		t.Fatalf("%d-character profile refused: %v", len(fits), err)
-	}
-	if err := RequireProfilePathFits(fits + "b"); err == nil || !strings.Contains(err.Error(), "MAX_PATH") {
-		t.Fatalf("%d-character profile accepted: %v", len(fits)+1, err)
 	}
 }

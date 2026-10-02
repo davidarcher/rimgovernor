@@ -162,7 +162,12 @@ func TestValidateClockEventsEmptyNativeRange(t *testing.T) {
 	if err := ValidateClockEventsPage(page, clockEventsRequest()); err != nil {
 		t.Fatal(err)
 	}
+	// The first cursor of a process that has published nothing is newest+1.
 	page.OldestCursor = proto.Int64(1)
+	if err := ValidateClockEventsPage(page, clockEventsRequest()); err != nil {
+		t.Fatal(err)
+	}
+	page.OldestCursor = proto.Int64(2)
 	if err := ValidateClockEventsPage(page, clockEventsRequest()); !errors.Is(err, ErrContract) {
 		t.Fatal(err)
 	}
@@ -170,5 +175,31 @@ func TestValidateClockEventsEmptyNativeRange(t *testing.T) {
 	page.OldestCursor = proto.Int64(0)
 	if err := ValidateClockEventsPage(page, clockEventsRequest()); !errors.Is(err, ErrContract) {
 		t.Fatal(err)
+	}
+}
+
+// A restarted game's cursors start past every cursor an older store holds:
+// a read from below the page's oldest cursor starts just before it, with no
+// loss, and only positions from there count against the limit.
+func TestValidateClockEventsPageSkipsCursorsBeforeTheProcess(t *testing.T) {
+	const base = 1_800_000_000_000
+	page, request := clockEventPage(0), clockEventsRequest()
+	request.AfterCursor = proto.Int64(42)
+	page.OldestCursor, page.NewestCursor, page.NextCursor = proto.Int64(base+1), proto.Int64(base+2), proto.Int64(base+2)
+	page.Events = []*k.Event{clockEventRow(base + 1), clockEventRow(base + 2)}
+	for _, event := range page.Events {
+		event.ObservedAtUnixMs = proto.Int64(1000)
+	}
+	if err := ValidateClockEventsPage(page, request); err != nil {
+		t.Fatal(err)
+	}
+	empty := clockEventPage(0)
+	empty.OldestCursor, empty.NewestCursor, empty.NextCursor = proto.Int64(base+1), proto.Int64(base), proto.Int64(base)
+	if err := ValidateClockEventsPage(empty, request); err != nil {
+		t.Fatal(err)
+	}
+	page.LostCount, page.Gap = proto.Uint64(1), proto.Bool(true)
+	if err := ValidateClockEventsPage(page, request); !errors.Is(err, ErrContract) {
+		t.Fatalf("skipped span counted as loss: %v", err)
 	}
 }

@@ -123,26 +123,26 @@ start. The attempt retains its original outcome uncertainty; retirement never
 means refusal or no effect. Its immutable proof prevents late replies from
 creating a new obligation. Same-world authority changes cannot retire that scope.
 
-## Profile-wide event cursors
+## Process event cursors
 
-The native clock journal belongs to the game profile. A page's observation context
-matches the requested current world; each event retains its original world and
-epoch. A load or map change must not reset the profile's cursor or rewrite old
-event contexts.
+The native clock journal is an in-memory buffer of the game process (the
+durable copy is Go's clock inbox). Its cursors start past the process's start
+time in Unix milliseconds, so a relaunched game's cursors exceed every cursor
+an older store holds. A page's observation context matches the requested
+current world; each event retains its original world and epoch. A load or map
+change does not reset the cursor or rewrite old event contexts.
 
-Event reads initialize or recover that journal before any owned start. Status
-reads initialize the tick watchers so the scheduler can inspect readiness before
-requesting a window. Neither operation advances time or acquires authority;
-journal recovery and hook failures remain unavailable evidence.
+Event reads initialize the journal before any owned start. Status reads
+initialize the tick watchers so the scheduler can inspect readiness before
+requesting a window. Neither operation advances time or acquires authority.
 
-`ValidateClockEventsPage` checks the typed request and page together. The native
-reader scans at most the requested limit of cursor positions, including missing
-event files and retained files that no longer decode as their row (both are
-loss; the damaged cursors are also reported by `home/runtime_health`).
-Therefore `next_cursor - after_cursor` equals the number of returned
-events plus `lost_count`; `gap` is true exactly when loss is reported. Missing tail
-files and entirely missing windows can advance `next_cursor` without a final event
-at that cursor. Returned events are strictly ordered within the scanned window.
+`ValidateClockEventsPage` checks the typed request and page together.
+`oldest_cursor` is the process's first cursor: a read from below it starts at
+`oldest_cursor - 1` with no loss. From that start the native reader scans at
+most the requested limit of cursor positions, counting rows evicted from the
+buffer as loss. Therefore `next_cursor - start` equals the number of returned
+events plus `lost_count`; `gap` is true exactly when loss is reported.
+Returned events are strictly ordered within the scanned window.
 
 `EventsRequest.wait_ms` (0–5000) turns a read into a long poll: a page that
 already has rows or loss answers at once; an empty page holds the call until a

@@ -16,7 +16,7 @@ import (
 )
 
 // The checkpoint ring (issue #249): every case's run phase is bundled
-// (save, store, clock journal, sidecar) every Options.CheckpointEvery at a
+// (save, store, sidecar) every Options.CheckpointEvery at a
 // natural pause into <root>/checkpoints/<area>/<case>/<label>/, the last
 // na.CheckpointKeep entries kept, plus a final "failed" bundle when the
 // run fails. The next `acceptance run` of a case whose last run in this
@@ -301,7 +301,7 @@ func closeRing(ring *na.CheckpointRing, resumed resumption, runErr error, report
 	entries := ring.Entries()
 	rows := make([]map[string]any, 0, len(entries))
 	for _, e := range entries {
-		rows = append(rows, map[string]any{"label": e.Label, "offset_ms": e.OffsetMs, "tick": e.Tick, "path": e.Path, "through": e.Through, "wall_ms": e.WallMs, "store": e.Store, "journal": e.Journal})
+		rows = append(rows, map[string]any{"label": e.Label, "offset_ms": e.OffsetMs, "tick": e.Tick, "path": e.Path, "through": e.Through, "wall_ms": e.WallMs, "store": e.Store})
 	}
 	report["checkpoints"] = rows
 	if capped := ring.Capped(); capped != "" {
@@ -447,7 +447,7 @@ func breakRing(ctx context.Context, c Case, opts Options, ring *na.CheckpointRin
 	}
 	rows := make([]map[string]any, 0, len(entries))
 	for _, e := range entries {
-		rows = append(rows, map[string]any{"label": e.Label, "offset_ms": e.OffsetMs, "tick": e.Tick, "path": e.Path, "through": e.Through, "wall_ms": e.WallMs, "store": e.Store, "journal": e.Journal})
+		rows = append(rows, map[string]any{"label": e.Label, "offset_ms": e.OffsetMs, "tick": e.Tick, "path": e.Path, "through": e.Through, "wall_ms": e.WallMs, "store": e.Store})
 	}
 	report["checkpoints"] = rows
 	if errs := ring.Errors(); len(errs) > 0 {

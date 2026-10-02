@@ -3,8 +3,6 @@ package doctor
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -149,30 +147,6 @@ func TestOccupiedCaseOutputFails(t *testing.T) {
 	o.Cases = nil
 	if c := output(o); c.Status != OK || !strings.Contains(c.Detail, "1 earlier") {
 		t.Fatalf("output without cases = %+v", c)
-	}
-}
-
-func TestJournalBacklogOnlyUnderRunningGame(t *testing.T) {
-	o, l := fakeRoot(t)
-	headless := filepath.Join(l.Root, "config-headless")
-	profile := filepath.Join(l.Root, "headless-profile")
-	config, _ := json.Marshal(map[string]any{"games": map[string]any{setup.GameID: map[string]any{
-		"launchMode": "DirectPath", "target": filepath.Join(l.GameCopy, "RimWorldWin64.exe"), "workingDir": l.GameCopy,
-		"args": []string{"-savedatafolder=" + profile, "-batchmode"},
-	}}})
-	write(t, filepath.Join(headless, "config.json"), string(config))
-	dir, err := na.ClockJournalDir(headless)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i <= ClockJournalBacklog; i++ {
-		write(t, filepath.Join(dir, fmt.Sprintf("%020d.xml", i+1)), "<row/>")
-	}
-	if c := journal(o, false); c.Status != OK || !strings.Contains(c.Detail, "cleared") {
-		t.Fatalf("no game: %+v", c)
-	}
-	if c := journal(o, true); c.Status != Warn || !strings.Contains(c.Fix, "acceptance stop") {
-		t.Fatalf("kept game: %+v", c)
 	}
 }
 

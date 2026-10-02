@@ -16,7 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -327,37 +326,6 @@ func gameSection(config map[string]any) (map[string]any, error) {
 	return game, nil
 }
 
-// MaxProfilePathLength bounds a profile's path on Windows so the longest
-// file the game writes under it -- a clock journal row,
-// RimGovernorClockEvents/<20-digit cursor>.xml (ClockEventJournal.cs) --
-// stays under MAX_PATH (260 with the terminator). Unity's Mono does not opt
-// into long paths, and a row that does not fit fails every clock
-// publication with a DirectoryNotFoundException, which a window reports as
-// STOP_REASON_EVENT_JOURNAL_ERROR at its origin tick (#388).
-const MaxProfilePathLength = 259 - len(`\RimGovernorClockEvents\00000000000000000001.xml`)
-
-// RequireProfilePathFits refuses a profile whose clock journal rows would
-// not fit MaxProfilePathLength, before the game launches with it. Only
-// Windows bounds paths this way.
-func RequireProfilePathFits(profile string) error {
-	if runtime.GOOS != "windows" || len(profile) <= MaxProfilePathLength {
-		return nil
-	}
-	return fmt.Errorf("profile path %s is %d characters, over the %d the native clock journal's rows fit under Windows MAX_PATH; use a shorter run root", profile, len(profile), MaxProfilePathLength)
-}
-
-// ClockJournalDir is the native clock journal (ClockEventJournal.cs, one
-// XML row per event under RimGovernorClockEvents in the save-data folder)
-// of the game that configDir's config.json launches, taken from its
-// -savedatafolder argument.
-func ClockJournalDir(configDir string) (string, error) {
-	profile, err := SaveDataFolder(configDir)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(profile, "RimGovernorClockEvents"), nil
-}
-
 // SaveDataFolder is the profile directory (-savedatafolder) the game that
 // configDir's config.json launches reads its Config/ModsConfig.xml and saves
 // from: root/headless-profile for Prepare, root/profile for PrepareRendered.
@@ -380,15 +348,13 @@ func SaveDataFolder(configDir string) (string, error) {
 }
 
 // LaunchedModsFile is the snapshot of the profile's ModsConfig.xml taken
-// right before a fresh games_start, beside the clock journal in the
-// save-data folder. ModsConfig.xml only applies at launch and every Prepare
+// right before a fresh games_start, in the save-data folder. ModsConfig.xml only applies at launch and every Prepare
 // rewrites it, so this copy is the one record of which mods a kept process
 // is actually running with (#166).
 const LaunchedModsFile = "RimGovernorLaunchedMods.xml"
 
 // RecordLaunchedMods snapshots the profile's ModsConfig.xml to
-// LaunchedModsFile. Called only right before a fresh games_start, like
-// ClearStaleClockJournal; a missing config or profile is not an error.
+// LaunchedModsFile. Called only right before a fresh games_start; a missing config or profile is not an error.
 func RecordLaunchedMods(configDir string) error {
 	profile, err := SaveDataFolder(configDir)
 	if err != nil {
@@ -522,25 +488,6 @@ func LaunchedMismatch(configDir string) (string, error) {
 	return "", nil
 }
 
-// ClearStaleClockJournal removes the clock journal configDir's game writes.
-// The journal outlives the game process, and a service starting from cursor
-// 1 pages every stale row before it sees a live event -- thousands of them
-// after a day of runs, enough to eat the first review's budget -- so a
-// fresh launch starts it empty. It is only ever called right before a
-// fresh games_start: the running process holds the journal's cursor in
-// static state (contracts/native-static-state.md), so removing the
-// directory under a kept process leaves every later clock_read_events
-// refused for cursor continuity and a service unable to hold authority
-// (#119). Missing config or arguments are not an error: the game then
-// starts with whatever is there.
-func ClearStaleClockJournal(configDir string) error {
-	journal, err := ClockJournalDir(configDir)
-	if err != nil {
-		return nil
-	}
-	return os.RemoveAll(journal)
-}
-
 // GameRunning reports whether games_status says a RimWorld process for the
 // session's game is already up: the next games_start attaches to it
 // rather than launching one. "shared-running" is a process another
@@ -668,9 +615,6 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 		expansions = installed
 	}
 	profile := filepath.Join(root, "profile")
-	if err := RequireProfilePathFits(profile); err != nil {
-		return "", err
-	}
 	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), installed, expansions...); err != nil {
 		return "", err
 	}
@@ -718,9 +662,6 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 		return "", err
 	}
 	profile := filepath.Join(root, "headless-profile")
-	if err := RequireProfilePathFits(profile); err != nil {
-		return "", err
-	}
 	if err := os.MkdirAll(filepath.Join(profile, "Config"), 0755); err != nil {
 		return "", err
 	}

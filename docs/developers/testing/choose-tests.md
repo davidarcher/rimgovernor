@@ -836,23 +836,14 @@ process-scoped and survives the reuse (`contracts/native-static-state.md`),
 or that must observe a first boot; `NoKeep` is the case's own way to say
 so, and `acceptance suite` forces the keep on for its workers regardless.
 
-The native clock journal (`ClockEventJournal.cs`, one XML row per event
-under the profile's `RimGovernorClockEvents`) belongs to the running
-process: its cursor is static state, so `OpenGame` (and `OpenSessionWith`)
-clear the journal only right before a fresh `games_start`, never under a
-kept process. Rows therefore accumulate for the life of a kept process; a
-service attaching later pages them from cursor 1. Wiping the directory
-under a live process is what #119 was: every `clock_read_events` refused
-cursor continuity, the service's clock inbox died and took its authority
-refresh with it (automate mode lost within 2s of every resume). The
-native journal now re-creates its directory on the next append and reads
-the removed rows as lost, so a wipe costs a gap rather than the process. A
-retained row whose file is present but no longer decodes (truncated or
-overwritten on disk) reads the same way: one lost cursor on the page that
-crosses it, listed under `home/runtime_health` `journal.corruptRows`, and
-the journal keeps appending after it. `lifecycle/runtime-fault` injects
-both faults (`RuntimeFaultFixture`: `test/runtime_fault_unpatch`,
-`test/runtime_fault_corrupt_row`) and asserts the recovery.
+The native clock journal (`ClockEventJournal.cs`) is an in-memory buffer
+of the running process: cursors start at the process's start time in Unix
+milliseconds, so a kept process keeps its rows and a relaunched one starts
+past every cursor an older store holds. A controller reading from such an
+older cursor skips to the new process's first row with no gap; a resumed
+checkpoint relaunches a kept process for that reason. `lifecycle/runtime-fault`
+injects a missing authority hook (`RuntimeFaultFixture`:
+`test/runtime_fault_unpatch`) and asserts the recovery.
 `smoke/dispatch` (#227) is the transport regression: `home/runtime_health`
 reports `extensionDispatch` installed with every discovered companion tool
 rewrapped by `ExtensionDispatchPatch` (RimBridgeServer 2.1.1 registers
@@ -1160,7 +1151,7 @@ on the baseline) declares the stages in order (`Stages: []string{...}`)
 and wraps each staging block in `s.Stage(ctx, name, fn)`. `fn` returns
 with every service it launched stopped (a released slot with no service
 is reattached) and the runner pauses the game and captures the same
-bundle as the ring (save, `service.sqlite`, clock journal, sidecar) into
+bundle as the ring (save, `service.sqlite`, sidecar) into
 `<root>/stages/<area>/<case>/<name>/`, replacing that stage's earlier
 bundle. The next `acceptance run` opens on the newest stage whose native
 package, `Start`, expansions and `stage_key` still match (printed as

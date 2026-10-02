@@ -388,9 +388,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 			return fmt.Errorf("stage checkpoint: %w", err)
 		}
 		start = na.Save{Name: save}
-		if entry.Journal {
-			cfg.RestoreJournal = entry.Path
-		}
+		cfg.Resumed = true
 		if entry.Store && entry.ServiceProfile != "" {
 			cfg.ServiceProfile = entry.ServiceProfile
 		}
@@ -401,16 +399,14 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		report["resumed_from"] = map[string]any{"path": entry.Path, "label": entry.Label, "offset_ms": entry.OffsetMs, "tick": entry.Tick, "source_revision": rev, "save": save}
 	} else if staged.staged() {
 		// A stage bundle opens the way a resume does (#329): its save
-		// replaces the Start, its store and journal are restored.
+		// replaces the Start, its store is restored.
 		entry := staged.entry
 		save, err := na.StageCheckpoint(opts.Root, entry, filepath.Join(output, "service.sqlite"))
 		if err != nil {
 			return fmt.Errorf("stage bundle: %w", err)
 		}
 		start = na.Save{Name: save}
-		if entry.Journal {
-			cfg.RestoreJournal = entry.Path
-		}
+		cfg.Resumed = true
 		if entry.Store && entry.ServiceProfile != "" {
 			cfg.ServiceProfile = entry.ServiceProfile
 		}

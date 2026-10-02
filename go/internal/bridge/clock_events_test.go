@@ -75,7 +75,7 @@ func TestClockEventPagesEmptyBoundedAndLoss(t *testing.T) {
 	p = clockEventPage(2)
 	p.Events[0].Cursor = proto.Int64(8)
 	p.Events[1].Cursor = proto.Int64(10)
-	p.OldestCursor = proto.Int64(8)
+	p.OldestCursor = proto.Int64(1)
 	p.NewestCursor = proto.Int64(10)
 	p.NextCursor = proto.Int64(10)
 	p.Gap = proto.Bool(true)

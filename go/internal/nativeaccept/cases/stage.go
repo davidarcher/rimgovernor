@@ -22,7 +22,7 @@ import (
 // colony into its precondition (a shell sited and roofed, research and a
 // bench built, rooms on the baseline) declares those stages (Case.Stages)
 // and wraps each staging block in Session.Stage. The first run captures a
-// bundle (save, store, clock journal, sidecar) after each block into
+// bundle (save, store, sidecar) after each block into
 // <root>/stages/<area>/<case>/<name>/; the next run opens on the newest
 // stage whose fingerprint and staging code still match and skips the
 // blocks it covers. A stage is deterministic setup, not the failed
