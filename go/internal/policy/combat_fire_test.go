@@ -91,6 +91,8 @@ func TestDecideCombatNoAttackThroughColonist(t *testing.T) {
 	want := []CombatOrder{
 		{Pawn: "a", Kind: OrderAttack, Target: "h4", Reason: ReasonFormation},
 		{Pawn: "c", Kind: OrderAttack, Target: "h5", Reason: ReasonFormation},
+		// b, outmatched with nothing to shoot, takes its combat drug (#1311).
+		{Pawn: "b", Kind: OrderDrug, Reason: ReasonDrug},
 	}
 	if again != nil || !reflect.DeepEqual(orders, want) {
 		t.Fatalf("%+v", orders)
@@ -108,7 +110,7 @@ func TestDecideCombatNoAttackThroughColonist(t *testing.T) {
 	if ask == nil || ask.Propose != "" || len(ask.Cells) != 3 || ask.Hostiles[0] != "h5" {
 		t.Fatalf("line ask %+v", ask)
 	}
-	if orders, _, _ = DecideCombat(view, GeometryReply{Answered: true, Lines: lines}, StopEvent{}, memory); len(orders) != 0 {
+	if orders, _, _ = DecideCombat(view, GeometryReply{Answered: true, Lines: lines}, StopEvent{}, memory); slices.ContainsFunc(orders, func(o CombatOrder) bool { return o.Kind != OrderDrug }) {
 		t.Fatalf("an attack through a colonist: %+v", orders)
 	}
 }

@@ -171,7 +171,8 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	orders := flankHoldFire(view, orderable, &next)
 	for _, role := range next.Roles {
-		if !orderable[role.Pawn] || next.Rescue.carrying(role.Pawn) {
+		// A defender still ingesting its combat drug (#1311) finishes it.
+		if !orderable[role.Pawn] || next.Rescue.carrying(role.Pawn) || state[role.Pawn].Job == "Ingest" {
 			continue
 		}
 		want, ok := role.want(state[role.Pawn])
@@ -207,6 +208,8 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	orders, next.Roles, next.CannotHit = clearLines(view, orders, geometry, next.Roles, next)
 	// One gunner shoots a wild animal near the raiders (#1116).
 	orders = enrageWild(view, orders, next.Roles, orderable, state)
+	// A defender with no other order this stop takes its combat drug (#1311).
+	orders = append(orders, doseOrders(view, &next, orders, orderable, state)...)
 	// The rescue's orders (#867) lead; a door order names no pawn to issue.
 	orders = append(append(rescue, podDoorOrders(&next)...), orders...)
 	// The colony animals' orders (#1058) name no drafted pawn.
@@ -576,6 +579,8 @@ type CombatMemory struct {
 	// NoShells are the shells native refused a mortar order for (#1051):
 	// none in reach, or not a shell the mortar takes.
 	NoShells []string `json:",omitempty"`
+	// Dosed are the defenders given a combat drug order this fight (#1311).
+	Dosed []domain.PawnID `json:",omitempty"`
 	// EMPAdapted are the mechs seen stunned, each until its EMP adaptation
 	// ends (#1050), sorted by pawn.
 	EMPAdapted []EMPAdaptation `json:",omitempty"`
@@ -683,6 +688,7 @@ func (m CombatMemory) clone() CombatMemory {
 	m.Animals = slices.Clone(m.Animals)
 	m.Untrained = slices.Clone(m.Untrained)
 	m.NoShells = slices.Clone(m.NoShells)
+	m.Dosed = slices.Clone(m.Dosed)
 	m.Flank = m.Flank.clone()
 	m.Groups = slices.Clone(m.Groups)
 	for i := range m.Groups {

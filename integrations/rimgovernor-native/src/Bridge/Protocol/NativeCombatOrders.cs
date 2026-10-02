@@ -53,6 +53,7 @@ namespace HomeBridge.BridgeTools
                         if (order.AnimalArea.AreaCase == Operations.CombatAnimalArea.AreaOneofCase.Cell ? !ValidCell(order.AnimalArea.Cell)
                             : order.AnimalArea.AreaCase != Operations.CombatAnimalArea.AreaOneofCase.Clear) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.HoldPosition:
+                    case Operations.CombatOrder.OrderOneofCase.CombatDrug:
                     case Operations.CombatOrder.OrderOneofCase.Stop:
                     case Operations.CombatOrder.OrderOneofCase.Draft: break;
                     default: return false;
@@ -235,6 +236,8 @@ namespace HomeBridge.BridgeTools
                     if (!pawn.CanReserveAndReach(mortar, PathEndMode.InteractionCell, Danger.Deadly)) return "unreachable";
                     return Take(pawn, JobMaker.MakeJob(JobDefOf.ManTurret, mortar), out job);
                 }
+                case Operations.CombatOrder.OrderOneofCase.CombatDrug:
+                    return CombatDrug(pawn, out job);
                 case Operations.CombatOrder.OrderOneofCase.Stop:
                     pawn.jobs.ClearQueuedJobs();
                     pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
@@ -299,6 +302,35 @@ namespace HomeBridge.BridgeTools
 
         // The label of the allowed area an animal_area order owns.
         internal const string CombatAreaPrefix = "Combat ";
+
+        // The combat drugs a soldier carries (#1540), in preference order.
+        private static readonly string[] CombatDrugs = { "GoJuice", "Yayo" };
+
+        // Combat drug (#1311): the carried go-juice, else yayo, by the
+        // vanilla Ingest job from inventory. Never a child, a pawn already
+        // on the drug's high, or one addicted to (or in withdrawal from) or
+        // highly tolerant of its chemical (the Go HighTolerance, 0.5).
+        private static string CombatDrug(Pawn pawn, out string? job)
+        {
+            job = null;
+            if (!pawn.DevelopmentalStage.Adult()) return "child";
+            Thing? drug = null;
+            foreach (var name in CombatDrugs)
+                if ((drug = pawn.inventory?.innerContainer.FirstOrDefault(t => t.def.defName == name)) != null) break;
+            if (drug == null) return "no_drug";
+            var outcomes = drug.def.ingestible?.outcomeDoers;
+            if (outcomes != null && outcomes.OfType<IngestionOutcomeDoer_GiveHediff>().Any(o => o.hediffDef != null && pawn.health.hediffSet.HasHediff(o.hediffDef)))
+                return "already_high";
+            var chemical = drug.def.GetCompProperties<CompProperties_Drug>()?.chemical;
+            if (chemical != null)
+            {
+                var tolerance = chemical.toleranceHediff == null ? null : pawn.health.hediffSet.GetFirstHediffOfDef(chemical.toleranceHediff);
+                if (AddictionUtility.IsAddicted(pawn, chemical) || tolerance != null && tolerance.Severity >= 0.5f) return "drug_risk";
+            }
+            var made = JobMaker.MakeJob(JobDefOf.Ingest, drug);
+            made.count = 1;
+            return Take(pawn, made, out job);
+        }
 
         private static string Take(Pawn pawn, Job made, out string? job)
         {

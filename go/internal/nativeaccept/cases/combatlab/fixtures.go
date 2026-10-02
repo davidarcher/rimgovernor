@@ -47,6 +47,9 @@ type Pawn struct {
 	Trained []string `json:"trained,omitempty"`
 	// Injured stages the pawn with a blunt bruise (#1080).
 	Injured bool `json:"injured,omitempty"`
+	// Inventory are ThingDef names put one each in the pawn's inventory,
+	// e.g. a carried go-juice (#1311).
+	Inventory []string `json:"inventory,omitempty"`
 	// StunTicks stuns the pawn directly for that many ticks (#1118).
 	StunTicks int `json:"stunTicks,omitempty"`
 }

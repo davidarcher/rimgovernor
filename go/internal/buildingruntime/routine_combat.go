@@ -296,6 +296,8 @@ func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state Cont
 				mode = op.CombatFireMode_COMBAT_FIRE_MODE_HOLD
 			}
 			wire.Order = &op.CombatOrder_FireMode{FireMode: mode}
+		case policy.OrderDrug:
+			wire.Order = &op.CombatOrder_CombatDrug{CombatDrug: &op.Clear{}}
 		default:
 			return nil, nil, fmt.Errorf("%w: sendCombatBatch: case policy.OrderFireMode", ErrControl)
 		}

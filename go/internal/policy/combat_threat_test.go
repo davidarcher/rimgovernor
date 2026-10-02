@@ -2,6 +2,7 @@ package policy
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -117,6 +118,8 @@ func TestDecideCombatRetargetsOnlyWhenTargetGone(t *testing.T) {
 		view.Pawns[i].Target, view.Pawns[i].Stance = "h4", StanceIdle
 	}
 	orders, memory := decideStop(t, view, StopEvent{Kind: "entered_range"}, memory)
+	// The settled, outmatched gunners take their combat drugs (#1311).
+	orders = slices.DeleteFunc(orders, func(o CombatOrder) bool { return o.Kind == OrderDrug })
 	if len(orders) != 0 {
 		t.Fatalf("retargeted a live focus: %+v", orders)
 	}
