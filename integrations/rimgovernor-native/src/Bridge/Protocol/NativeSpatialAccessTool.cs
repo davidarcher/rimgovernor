@@ -122,7 +122,7 @@ namespace HomeBridge.BridgeTools
                 var after = origin.IsValid ? Reach(origin, allowed, out distances) : new HashSet<IntVec3>();
                 var losesAccess = before.Any(c => !blocked.Contains(c) && !after.Contains(c));
                 var row = new Obs.PawnAccess {
-                    Pawn = new Obs.EntityRef { Id = pawn.GetUniqueLoadID(), DefName = pawn.def.defName, MapId = map.uniqueID, Position = Cell(pawn.Position) },
+                    Pawn = NativeRef.Thing(pawn), Position = Cell(pawn.Position),
                     CurrentCells = (uint)before.Count, ProjectedCells = (uint)after.Count, LosesAccess = losesAccess, EgressSteps = (uint)egressSteps,
                 };
                 if (origin.IsValid) row.ProjectedOrigin = Cell(origin);

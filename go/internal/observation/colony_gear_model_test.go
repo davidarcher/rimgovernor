@@ -47,7 +47,7 @@ func gearModelCensus() *o.ColonyFactsSnapshot {
 	pawn := func(id string, drafted, female bool) *o.GearLoadout {
 		worn := gearModelOption("tribal-"+id, "Apparel_TribalA", "worn", []string{"OnSkin"}, []string{"Torso", "Legs"}, .04, 0, 0, nil, nil)
 		return &o.GearLoadout{
-			Pawn:            &o.EntityRef{Id: proto.String(id)},
+			Pawn: &c.Ref{Id: proto.String(id)},
 			Snapshot:        &o.SnapshotRef{Token: proto.String("loadout-" + id)},
 			Deficit:         proto.Bool(false),
 			ComfortableMinC: proto.Float64(16),

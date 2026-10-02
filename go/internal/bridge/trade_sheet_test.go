@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -25,8 +26,8 @@ func tradeSheetFixture(lines []*o.TradeLine) *o.TradeSheet {
 	return &o.TradeSheet{
 		Snapshot:   &o.SnapshotRef{Context: pbContext(), Token: proto.String("sheet-token")},
 		SessionId:  proto.String("session-1"),
-		Trader:     &o.EntityRef{Id: proto.String("settlement-1")},
-		Negotiator: &o.EntityRef{Id: proto.String("pawn-1")},
+		Trader:     &c.Ref{Id: proto.String("settlement-1")},
+		Negotiator: &c.Ref{Id: proto.String("pawn-1")},
 		GiftMode:   proto.Bool(false), CanTradeNow: proto.Bool(true),
 		Balance: proto.Float64(-40), ColonyCanAfford: proto.Bool(true), TraderHasEnoughSilver: proto.Bool(true),
 		DealSignature: proto.String("deal-1"),

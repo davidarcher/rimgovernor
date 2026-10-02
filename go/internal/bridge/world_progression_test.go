@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	rp "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -31,7 +32,7 @@ func worldProgressionFixture() *o.WorldProgressionSnapshot {
 		Quests: []*o.QuestState{{
 			Id: proto.String("quest-1"), State: rp.QuestStatus_QUEST_STATUS_NOT_YET_ACCEPTED.Enum(),
 			RequiresAccepter: proto.Bool(true), CanAccept: proto.Bool(true),
-			EligiblePawns: []*o.EntityRef{{Id: proto.String("pawn-1")}},
+			EligiblePawns: []*c.Ref{{Id: proto.String("pawn-1")}},
 			Rewards:       []*o.QuestReward{{ChoiceIndex: proto.Uint32(0)}},
 			TradeRequests: []*o.QuestTradeRequest{{Resource: proto.String("Steel"), Count: proto.Int64(40), Destination: proto.Int32(7)}},
 			Snapshot:      &o.SnapshotRef{Context: pbContext(), EntityId: proto.String("quest-1"), Token: proto.String("quest-cas")},

@@ -23,7 +23,7 @@ var (
 
 func spatialFixture() *o.SpatialAccessSnapshot {
 	row := func(id string, x, z int32) *o.PawnAccess {
-		return &o.PawnAccess{Pawn: &o.EntityRef{Id: proto.String(id), Position: pbCell(x, z)}, CurrentCells: proto.Uint32(400), ProjectedCells: proto.Uint32(398),
+		return &o.PawnAccess{Pawn: &c.Ref{Id: proto.String(id)}, Position: pbCell(x, z), CurrentCells: proto.Uint32(400), ProjectedCells: proto.Uint32(398),
 			LosesAccess: proto.Bool(false), ProjectedOrigin: pbCell(x, z), EgressSteps: proto.Uint32(0),
 			Targets: []*o.AccessTarget{
 				{Cell: pbCell(9, 14), NativeReachable: proto.Bool(true), ProjectedReachable: proto.Bool(true), ProjectedSteps: proto.Uint32(13)},
@@ -57,7 +57,7 @@ func TestSpatialAccessReadsAudit(t *testing.T) {
 }
 func TestSpatialAccessBlockedPawnNeedsEgress(t *testing.T) {
 	fixture := spatialFixture()
-	fixture.Pawns[0].Pawn.Position = pbCell(10, 14)
+	fixture.Pawns[0].Position = pbCell(10, 14)
 	fixture.Pawns[0].ProjectedOrigin = pbCell(9, 14)
 	fixture.Pawns[0].EgressSteps = proto.Uint32(1)
 	blocked := spatialBlocked
@@ -95,7 +95,7 @@ func TestSpatialAccessRejectsMalformed(t *testing.T) {
 			s.Pawns[0].EgressSteps = proto.Uint32(1)
 		},
 		"missing origin":   func(s *o.SpatialAccessSnapshot) { s.Pawns[0].ProjectedOrigin = nil },
-		"position missing": func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Pawn.Position = nil },
+		"position missing": func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Position = nil },
 		"map cells":        func(s *o.SpatialAccessSnapshot) { s.MapCells = nil },
 		"identity":         func(s *o.SpatialAccessSnapshot) { s.Context.Identity.MapId = proto.Int32(9) },
 	}

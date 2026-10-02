@@ -172,7 +172,7 @@ namespace HomeBridge.BridgeTools
             row.HostileReason=manhunter ? "manhunter:"+mental : row.Hostile ? "faction:"+Id(pawn.Faction!.GetUniqueLoadID()) : "none";
             if (pawn.MapHeld!=null) { row.Pawn.MapId=pawn.MapHeld.uniqueID; row.Pawn.Position=Cell(pawn.PositionHeld); }
             var nearest=colonists.Where(p => p!=pawn).OrderBy(p => Distance(p.Position,pawn.PositionHeld)).ThenBy(p => p.GetUniqueLoadID(),StringComparer.Ordinal).FirstOrDefault();
-            if (nearest!=null) { row.NearestColonist=Entity(nearest); row.NearestColonistDistance=Distance(nearest.Position,pawn.PositionHeld); }
+            if (nearest!=null) { row.NearestColonist=NativeRef.Thing(nearest); row.NearestColonistDistance=Distance(nearest.Position,pawn.PositionHeld); }
             else {
                 row.Issues.Add(Issue("nearest_colonist",Common.UnavailableReason.NotApplicable,"No other live colonist on this map."));
                 row.Issues.Add(Issue("nearest_colonist_distance",Common.UnavailableReason.NotApplicable,"No other live colonist on this map."));
@@ -183,7 +183,7 @@ namespace HomeBridge.BridgeTools
             else row.Issues.Add(Issue("owned_bed",Common.UnavailableReason.NotApplicable,"No owned bed."));
             if (row.Job!=null && pawn.CurJob!=null) {
                 var job=pawn.CurJob; var target=job.targetA;
-                if (target.HasThing) row.Job.TargetA=new Obs.TargetRef { Entity=Entity(target.Thing) };
+                if (target.HasThing) { row.Job.TargetA=new Obs.TargetRef { Entity=NativeRef.Thing(target.Thing) }; if (target.Thing.Spawned) row.Job.TargetACell=Cell(target.Thing.Position); }
                 else if (target.IsValid) row.Job.TargetA=new Obs.TargetRef { Cell=Cell(target.Cell) };
                 else row.Job.TargetA=new Obs.TargetRef { Unavailable=Unavailable(Common.UnavailableReason.NotApplicable,"Job has no target A.") };
                 row.Job.Issues.Add(Issue("order_generation",Common.UnavailableReason.Unsupported,"Order generation is not observed by this reader."));

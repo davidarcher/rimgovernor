@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
                 if (result == NativePawnControlResult.Ready && snapshot != null)
                 {
                     var reference = new Obs.SnapshotRef { Context = context.Clone(), EntityId = snapshot.PawnId, Token = snapshot.Token };
-                    row.Pawn.Snapshot = reference;
+                    row.PawnSnapshot = reference;
                     return;
                 }
                 detail += " " + result;

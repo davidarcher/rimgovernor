@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Scan Collect<T>(IReadOnlyList<T> pawns, Func<T, ThreatFacts> facts,
             IReadOnlyList<(int X, int Z)> colonists, double radius,
-            Func<T, RimGovernor.Protocol.Common.Ref> project, Func<T, Obs.EntityRef> prey, Obs.ThreatsSnapshot threats)
+            Func<T, RimGovernor.Protocol.Common.Ref> project, Func<T, RimGovernor.Protocol.Common.Ref> prey, Obs.ThreatsSnapshot threats)
         {
             var scan = new Scan();
             foreach (var pawn in pawns) {

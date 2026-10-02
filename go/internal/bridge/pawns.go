@@ -114,6 +114,11 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if err := pawnsEntity(row.Pawn, v.Context); err != nil {
 			return err
 		}
+		if row.PawnSnapshot != nil {
+			if err := pawnsRef(row.PawnSnapshot, row.Pawn.GetId(), v.Context); err != nil {
+				return err
+			}
+		}
 		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil || row.AnimalState != nil) || !work && !care && !schedule && row.Settings != nil || !social && row.Social != nil || !want.Tend && row.TendDoctor != nil {
 			return contract("unrequested pawn detail")
 		}
@@ -163,10 +168,8 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if row.ManhunterOnDamageChance != nil && row.GetManhunterOnDamageChance() > 1 {
 			return contract("invalid manhunter probability")
 		}
-		if row.NearestColonist != nil {
-			if err := pawnsEntity(row.NearestColonist, v.Context); err != nil {
-				return err
-			}
+		if row.NearestColonist != nil && !validRef(row.NearestColonist) {
+			return contract("invalid nearest colonist")
 		}
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
 			return err
@@ -199,9 +202,6 @@ func pawnsEntity(v *o.EntityRef, ctx *c.ObservationContext) error {
 	}
 	if v.Position != nil && (v.Position.X == nil || v.Position.Z == nil || v.Position.GetX() < 0 || v.Position.GetZ() < 0) {
 		return contract("invalid pawn position")
-	}
-	if v.Snapshot != nil {
-		return pawnsRef(v.Snapshot, v.GetId(), ctx)
 	}
 	return nil
 }
@@ -317,7 +317,9 @@ func pawnsJob(v *o.JobEvidence, ctx *c.ObservationContext) error {
 	if target := v.TargetA; target != nil {
 		switch t := target.Target.(type) {
 		case *o.TargetRef_Entity:
-			return pawnsEntity(t.Entity, ctx)
+			if !validRef(t.Entity) {
+				return contract("invalid pawn job target")
+			}
 		case *o.TargetRef_Cell:
 			if t.Cell == nil || t.Cell.X == nil || t.Cell.Z == nil || t.Cell.GetX() < 0 || t.Cell.GetZ() < 0 {
 				return contract("invalid pawn job cell")

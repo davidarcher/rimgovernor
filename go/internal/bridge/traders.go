@@ -120,7 +120,7 @@ func decodeTraders(snapshot *o.TradersSnapshot, identity *c.Identity) (TradersRe
 			return TradersRead{}, contract("duplicate trader")
 		}
 		seen[row.Trader.GetId()] = true
-		out.Traders = append(out.Traders, TraderRead{ID: row.Trader.GetId(), Token: row.Trader.Snapshot.GetToken(), Kind: row.GetKind(), Faction: row.GetFaction().GetId(), CanTrade: row.GetCanTrade(), Travelling: row.GetTravelling(), Reason: row.GetReason(), GoodsStacks: row.GetGoodsStacks(), X: cell.GetX(), Z: cell.GetZ()})
+		out.Traders = append(out.Traders, TraderRead{ID: row.Trader.GetId(), Token: row.GetTraderSnapshot().GetToken(), Kind: row.GetKind(), Faction: row.GetFaction().GetId(), CanTrade: row.GetCanTrade(), Travelling: row.GetTravelling(), Reason: row.GetReason(), GoodsStacks: row.GetGoodsStacks(), X: cell.GetX(), Z: cell.GetZ()})
 	}
 	for _, row := range snapshot.Negotiators {
 		if row == nil || validID(row.GetId()) != nil {
@@ -130,7 +130,7 @@ func decodeTraders(snapshot *o.TradersSnapshot, identity *c.Identity) (TradersRe
 			return TradersRead{}, contract("duplicate negotiator")
 		}
 		seen[row.GetId()] = true
-		out.Negotiators = append(out.Negotiators, NegotiatorRead{ID: row.GetId(), Token: row.Snapshot.GetToken()})
+		out.Negotiators = append(out.Negotiators, NegotiatorRead{ID: row.GetId(), Token: row.GetId()})
 	}
 	return out, nil
 }

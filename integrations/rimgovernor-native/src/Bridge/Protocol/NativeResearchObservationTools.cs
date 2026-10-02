@@ -244,8 +244,7 @@ namespace HomeBridge.BridgeTools
             if (WorkTypeDefOf.Research == null || SkillDefOf.Intellectual == null) throw new InvalidOperationException();
             foreach (var pawn in pawns)
             {
-                var row = new Obs.Researcher { Pawn = new Obs.EntityRef { Id = Id(pawn.GetUniqueLoadID()), DefName = Id(pawn.def.defName),
-                    MapId = map.uniqueID, Position = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z } } };
+                var row = new Obs.Researcher { Pawn = NativeRef.Thing(pawn) };
                 var settings = pawn.workSettings;
                 row.EverWork = settings != null && settings.EverWork;
                 row.Disabled = pawn.WorkTypeIsDisabled(WorkTypeDefOf.Research);

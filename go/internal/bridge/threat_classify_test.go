@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -14,7 +15,7 @@ import (
 func TestClassifyThreat(t *testing.T) {
 	yes := proto.Bool(true)
 	at := proto.Float64
-	prey := &o.EntityRef{Id: proto.String("prey")}
+	prey := &c.Ref{Id: proto.String("prey")}
 	for name, c := range map[string]struct {
 		row  *o.ThreatPawn
 		want []policy.ThreatKind

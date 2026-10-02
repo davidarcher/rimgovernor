@@ -49,7 +49,7 @@ func TestPawnsFixedReadPreservesUnknown(t *testing.T) {
 	if err != nil || len(raw.Envelope) == 0 || !proto.Equal(reply.GetObserved(), snapshot) {
 		t.Fatal(reply, err)
 	}
-	if reply.GetObserved().Pawns[0].Pawn.Snapshot != nil || reply.GetObserved().Pawns[0].Dead != nil {
+	if reply.GetObserved().Pawns[0].PawnSnapshot != nil || reply.GetObserved().Pawns[0].Dead != nil {
 		t.Fatal("unknown fabricated")
 	}
 }

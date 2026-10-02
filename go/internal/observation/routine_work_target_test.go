@@ -18,14 +18,15 @@ func TestJobTarget(t *testing.T) {
 	cell := domain.Known(domain.Cell{X: 4, Z: 5})
 	for _, c := range []struct {
 		in   *o.TargetRef
+		at   *commonpb.Cell
 		want domain.Fact[policy.JobTarget]
 	}{
-		{nil, domain.Unknown[policy.JobTarget]()},
-		{&o.TargetRef{Target: &o.TargetRef_Entity{Entity: &o.EntityRef{Id: &id, Position: &commonpb.Cell{X: i(4), Z: i(5)}}}}, domain.Known(policy.JobTarget{Thing: id, Cell: cell})},
-		{&o.TargetRef{Target: &o.TargetRef_Cell{Cell: &commonpb.Cell{X: i(4), Z: i(5)}}}, domain.Known(policy.JobTarget{Cell: cell})},
-		{&o.TargetRef{Target: &o.TargetRef_Unavailable{Unavailable: &commonpb.Unavailable{}}}, domain.Known(policy.JobTarget{})},
+		{nil, nil, domain.Unknown[policy.JobTarget]()},
+		{&o.TargetRef{Target: &o.TargetRef_Entity{Entity: &commonpb.Ref{Id: &id}}}, &commonpb.Cell{X: i(4), Z: i(5)}, domain.Known(policy.JobTarget{Thing: id, Cell: cell})},
+		{&o.TargetRef{Target: &o.TargetRef_Cell{Cell: &commonpb.Cell{X: i(4), Z: i(5)}}}, nil, domain.Known(policy.JobTarget{Cell: cell})},
+		{&o.TargetRef{Target: &o.TargetRef_Unavailable{Unavailable: &commonpb.Unavailable{}}}, nil, domain.Known(policy.JobTarget{})},
 	} {
-		if got := jobTarget(c.in); !reflect.DeepEqual(got, c.want) {
+		if got := jobTarget(c.in, c.at); !reflect.DeepEqual(got, c.want) {
 			t.Fatal(c.in, got, c.want)
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
@@ -92,7 +93,7 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 		case hasIssue(j.Issues, "current_job") && j.DefName == nil:
 			w.Job = domain.Known(policy.PawnJob{})
 		case !hasIssue(j.Issues, "current_job") && j.DefName != nil:
-			w.Job = domain.Known(policy.PawnJob{Def: j.GetDefName(), Work: policy.WorkType(j.GetWorkTypeDefName()), Target: jobTarget(j.TargetA)})
+			w.Job = domain.Known(policy.PawnJob{Def: j.GetDefName(), Work: policy.WorkType(j.GetWorkTypeDefName()), Target: jobTarget(j.TargetA, j.TargetACell)})
 		}
 	}
 	if b := row.Biography; b != nil {
@@ -171,15 +172,15 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 
 // jobTarget reads a job's targetA (#643). An absent field is an older
 // producer (unknown); an unavailable target is a job with none.
-func jobTarget(t *o.TargetRef) domain.Fact[policy.JobTarget] {
+func jobTarget(t *o.TargetRef, at *c.Cell) domain.Fact[policy.JobTarget] {
 	switch {
 	case t == nil:
 		return domain.Unknown[policy.JobTarget]()
 	case t.GetEntity() != nil:
 		e := t.GetEntity()
 		target := policy.JobTarget{Thing: e.GetId()}
-		if c := e.GetPosition(); c != nil && c.X != nil && c.Z != nil {
-			target.Cell = domain.Known(domain.Cell{X: c.GetX(), Z: c.GetZ()})
+		if at != nil && at.X != nil && at.Z != nil {
+			target.Cell = domain.Known(domain.Cell{X: at.GetX(), Z: at.GetZ()})
 		}
 		if _, cell := target.Cell.Value(); target.Thing == "" && !cell {
 			return domain.Unknown[policy.JobTarget]()

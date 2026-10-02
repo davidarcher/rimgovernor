@@ -31,14 +31,13 @@ namespace HomeBridge.BridgeTools
             foreach (var group in stored)
                 result.StoredApparel.Rows.Add(new Obs.GearStock { DefName = group.Key.Def, Stuff = group.Key.Stuff,
                     Quality = group.Key.Quality, HpBand = group.Key.Band, Count = group.Sum(a => a.stackCount) });
-            // The census carries the pawn's control snapshot token and each
-            // candidate's supply token the way the pawn and supply censuses
-            // do (issue #233); the WEAR pawn order (#939) checks neither.
-            var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
+            // The census carries each candidate's supply token the way the
+            // supply census does (issue #233); the WEAR pawn order (#939)
+            // does not check it.
             foreach (var pawn in people) {
                 var refusal = GearUpkeepTools.Available(pawn);
                 var row = new Obs.GearLoadout {
-                    Pawn = Entity(pawn), Deficit = GearUpkeepTools.Deficit(pawn),
+                    Pawn = NativeRef.Thing(pawn), Deficit = GearUpkeepTools.Deficit(pawn),
                     Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = Id(pawn.GetUniqueLoadID()), Token = GearUpkeepTools.Identity(pawn) },
                     ComfortableMinC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
@@ -46,8 +45,6 @@ namespace HomeBridge.BridgeTools
                     Equipment = Equipment(pawn)
                 };
                 if (refusal != null) row.Blocker = Text(refusal);
-                if (NativePawnControlState.Observe(identity, pawn, out var control) == NativePawnControlResult.Ready && control != null)
-                    row.Pawn.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = control.PawnId, Token = control.Token };
                 if (refusal == null) {
                     // Every eligible loose item is offered, best gain first
                     // (issue #769: a bound offered every pawn the same few shirts).

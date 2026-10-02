@@ -572,7 +572,7 @@ namespace HomeBridge.BridgeTools
             foreach(var other in colonists) {
                 if(other==pawn) continue;
                 var opinion=PawnSettingsRead.ReconstructedOpinion(pawn,other,out _);
-                var relation=new Obs.Relation {Other=Entity(other),Opinion=opinion,OpinionReconstructed=true};
+                var relation=new Obs.Relation {Other=NativeRef.Thing(other),Opinion=opinion,OpinionReconstructed=true};
                 if(direct.TryGetValue(other,out var defName)) relation.RelationDefName=defName;
                 row.Relations.Add(relation);
             }

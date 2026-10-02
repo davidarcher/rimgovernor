@@ -46,7 +46,7 @@ func FactPresence(v *string, issues []*n.ReadIssue, field string) domain.Fact[bo
 }
 
 func PawnToken(row *n.PawnState, ctx *c.ObservationContext) (string, error) {
-	ref := row.Pawn.GetSnapshot()
+	ref := row.GetPawnSnapshot()
 	if ref == nil || ref.GetEntityId() != row.Pawn.GetId() || !proto.Equal(ref.Context, ctx) || !ValidID(ref.GetToken()) {
 		return "", executor.ErrHeld
 	}

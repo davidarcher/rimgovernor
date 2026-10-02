@@ -6,12 +6,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestColonyGearPreservesMissingDeficitAndExactRoutineCensus(t *testing.T) {
-	row := &o.GearLoadout{Pawn: &o.EntityRef{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Token: proto.String("native-loadout")}, Deficit: proto.Bool(false)}
+	row := &o.GearLoadout{Pawn: &c.Ref{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Token: proto.String("native-loadout")}, Deficit: proto.Bool(false)}
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), Planning: &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: &o.PlanningFacts{Gear: &o.GearSnapshot{Pawns: []*o.GearLoadout{row}}}}}}
 	gear := colonyGear(v, bridge.Tables{})
 	review, err := policy.ReviewGear(gear)

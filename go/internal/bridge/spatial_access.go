@@ -164,7 +164,7 @@ func validateSpatialAccess(v *o.SpatialAccessSnapshot, identity *c.Identity, blo
 			return SpatialAccess{}, contract("invalid spatial access pawn")
 		}
 		seen[row.Pawn.GetId()] = true
-		position, pk := protoCell(row.Pawn.Position)
+		position, pk := protoCell(row.Position)
 		if !pk || row.CurrentCells == nil || row.ProjectedCells == nil || row.LosesAccess == nil || row.EgressSteps == nil || len(row.Targets) != len(targets) {
 			return SpatialAccess{}, contract("incomplete spatial access row")
 		}

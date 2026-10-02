@@ -194,8 +194,10 @@ a depleted drill for removal from the deep drill step's recorded read.
 
 ## Obtainable operation preconditions
 
-Every `EntityRef.snapshot` used for a write is required, context-scoped and bound
-to the exact ID. Lightweight label references may omit it, but then cannot supply
+References are `Ref {id}` (#1342); an `EntityRef` is only a row head (id,
+definition, label, map, position). A write's CAS token is a `SnapshotRef`
+sibling of the reference (`pawn_snapshot`, `source_snapshot`, ...), required,
+context-scoped and bound to the exact ID; a reference without one cannot supply
 an EntityPrecondition. Missing producer support yields unavailable; tokens are
 never fabricated from a label, position, tick alone, or public protobuf bytes.
 Tokens cover the relevant native facts and domain-specific settings, not authority.

@@ -138,7 +138,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var group in grouped) membership.Contents.Add(new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = group.Key }, Units = group.Sum(t => (long)t.stackCount) });
                 row.StockpileMemberships.Add(membership);
             }
-            foreach (var pawn in pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) row.Pawns.Add(Entity(pawn));
+            foreach (var pawn in pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) row.Pawns.Add(NativeRef.Thing(pawn));
             var buildings = things.OfType<Building>().Where(t => request.IncludeBoundary || room.ContainsCell(t.Position)).ToList();
             var beds = buildings.OfType<Building_Bed>().ToList();
             var colonists = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
@@ -147,9 +147,9 @@ namespace HomeBridge.BridgeTools
                 row.Beds.Add(NativeBuildingObservationTools.Ref(bed));
                 var membership = new Obs.RoomBedMembership { Building = NativeBuildingObservationTools.Ref(bed) };
                 var owners = bed.OwnersForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-                membership.Owners.Add(owners.Select(Entity));
-                membership.Users.Add(colonists.Where(p => p.CurrentBed() == bed).Select(Entity));
-                membership.AccessibleTo.Add(colonists.Where(p => !bed.IsForbidden(p) && p.CanReach(bed, Verse.AI.PathEndMode.OnCell, Danger.None)).Select(Entity));
+                membership.Owners.Add(owners.Select(NativeRef.Thing));
+                membership.Users.Add(colonists.Where(p => p.CurrentBed() == bed).Select(NativeRef.Thing));
+                membership.AccessibleTo.Add(colonists.Where(p => !bed.IsForbidden(p) && p.CanReach(bed, Verse.AI.PathEndMode.OnCell, Danger.None)).Select(NativeRef.Thing));
                 row.BedMemberships.Add(membership);
             }
             var contents = buildings.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();

@@ -33,12 +33,14 @@ namespace HomeBridge.BridgeTools
         private static Obs.PriceType SafePrice(Func<RimWorld.PriceType> f) { try { return NativeEnums.Price(f()); } catch { return Obs.PriceType.Unspecified; } }
 
 
-        private static Obs.EntityRef PawnRef(Pawn pawn, Common.ObservationContext context) => new Obs.EntityRef
+        // A trader pawn's row head; its token is the row's trader_snapshot.
+        private static Obs.EntityRef PawnRef(Pawn pawn) => new Obs.EntityRef
         {
             Id = pawn.GetUniqueLoadID(), DefName = pawn.def.defName, Label = SafeText(() => pawn.LabelShort), MapId = pawn.Map?.uniqueID ?? -1,
             Position = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z },
-            Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = pawn.GetUniqueLoadID(), Token = pawn.GetUniqueLoadID() },
         };
+        private static Obs.SnapshotRef PawnToken(Pawn pawn, Common.ObservationContext context) =>
+            new Obs.SnapshotRef { Context = context.Clone(), EntityId = pawn.GetUniqueLoadID(), Token = pawn.GetUniqueLoadID() };
 
         // Mirrors NativeTradeOperations.PrepareOpen's negotiator eligibility
         // exactly, so a negotiator listed here is one an open would accept
@@ -65,7 +67,7 @@ namespace HomeBridge.BridgeTools
                 var travelling = SafeBool(() => pawn.GetLord()?.CurLordToil is LordToil_Travel);
                 var row = new Obs.Trader
                 {
-                    Trader_ = PawnRef(pawn, context),
+                    Trader_ = PawnRef(pawn), TraderSnapshot = PawnToken(pawn, context),
                     Kind = tracker.traderKind.defName, Faction = NativeRef.Of(pawn.Faction),
                     CanTrade = canTrade && !dismissed && !travelling, Travelling = travelling, Orbital = false, GoodsStacks = (uint)SafeInt(() => tracker.Goods.Count()),
                 };
@@ -82,7 +84,7 @@ namespace HomeBridge.BridgeTools
                 var c = TradeStat(y).CompareTo(TradeStat(x));
                 return c != 0 ? c : string.CompareOrdinal(x.GetUniqueLoadID(), y.GetUniqueLoadID());
             });
-            snapshot.Negotiators.Add(negotiators.Select(p => PawnRef(p, context)));
+            snapshot.Negotiators.Add(negotiators.Select(p => NativeRef.Thing(p)));
             return snapshot;
         }
 
@@ -175,8 +177,8 @@ namespace HomeBridge.BridgeTools
             {
                 Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = session.SessionId, Token = session.DealSignature },
                 SessionId = session.SessionId,
-                Trader = PawnRef(session.Trader, context),
-                Negotiator = PawnRef(session.Negotiator, context),
+                Trader = NativeRef.Thing(session.Trader),
+                Negotiator = NativeRef.Thing(session.Negotiator),
                 GiftMode = session.GiftMode,
                 NegotiatorAdjacent = Math.Max(Math.Abs(session.Trader.Position.x - session.Negotiator.Position.x), Math.Abs(session.Trader.Position.z - session.Negotiator.Position.z)) <= 1,
                 CanTradeNow = SafeBool(() => session.Trader.CanTradeNow),

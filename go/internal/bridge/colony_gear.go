@@ -48,11 +48,8 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 		if p == nil || p.Snapshot == nil || !proto.Equal(p.Snapshot.Context, ctx) {
 			return contract("missing or stale gear loadout")
 		}
-		if err := pawnsEntity(p.Pawn, ctx); err != nil {
-			return err
-		}
-		if p.Pawn.Position != nil && !colonyCell(p.Pawn.Position, size) {
-			return contract("gear pawn outside map")
+		if !validRef(p.Pawn) {
+			return contract("invalid gear pawn")
 		}
 		id := p.Pawn.GetId()
 		if people[id] {

@@ -30,9 +30,6 @@ namespace HomeBridge.BridgeTools
         internal const string ToolName = "rimgovernor/observations_read_world_progression";
 
 
-        private static Obs.EntityRef PawnEntity(Pawn pawn, int? mapId) => new Obs.EntityRef
-        { Id = pawn.GetUniqueLoadID(), DefName = pawn.def.defName, Label = pawn.LabelShort, MapId = mapId ?? -1 };
-
         private static Obs.ResourceStock StoredItemRow(IGrouping<ThingDef, Thing> group) => new Obs.ResourceStock
         { Definition = new Obs.DefinitionRef { DefName = group.Key.defName, Label = group.Key.label ?? "" }, Units = group.Sum(t => (long)t.stackCount) };
 
@@ -126,7 +123,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var job = (LordJob_FormAndSendCaravan)l.LordJob;
                     var row = new Obs.CaravanAssembly { Id = l.GetUniqueLoadID(), MapId = m.uniqueID, Status = job.Status.ToString(), GatheringItems = job.GatheringItemsNow };
-                    row.Pawns.Add(l.ownedPawns.Select(p => PawnEntity(p, m.uniqueID)));
+                    row.Pawns.Add(l.ownedPawns.Select(NativeRef.Thing));
                     rows.Add(row);
                 }
             }
@@ -188,7 +185,7 @@ namespace HomeBridge.BridgeTools
                     Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = q.GetUniqueLoadID(), Token = NativeQuestOperations.Token(q) },
                 };
                 row.EligiblePawns.Add(Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)
-                    .Where(p => QuestUtility.CanPawnAcceptQuest(p, q)).Select(p => PawnEntity(p, p.MapHeld?.uniqueID)));
+                    .Where(p => QuestUtility.CanPawnAcceptQuest(p, q)).Select(NativeRef.Thing));
                 row.TradeRequests.Add(TradeRequests(q));
                 row.Rewards.Add(Rewards(q));
                 rows.Add(row);
