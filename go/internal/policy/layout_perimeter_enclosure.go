@@ -102,10 +102,14 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32, rich func(domain
 		cells []domain.Cell
 		clear int32 // taken in when within this of the yard
 		taken bool
+		near  bool // some cell within the chain reach of the core
 		skip  bool // too big to wall in: left outside the ring
 	}
 	var units []*unit
 	reach := pad(core, perimeterFieldReach)
+	// A patch the ring merely touches is taken in only within twice that, so
+	// a chain of neighbouring patches cannot walk the wall across the map.
+	chain := pad(core, 2*perimeterFieldReach)
 	for _, z := range plan.Zones {
 		if z.Kind != ZoneField {
 			continue
@@ -125,6 +129,7 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32, rich func(domain
 			for _, i := range comp {
 				c := domain.Cell{X: i % w, Z: i / w}
 				u.cells = append(u.cells, c)
+				u.near = u.near || contains(chain, c)
 				u.taken = u.taken || contains(reach, c)
 			}
 			units = append(units, u)
@@ -149,7 +154,7 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32, rich func(domain
 		d := chebyshevField(w, h, in, perimeterThick+1)
 		grew := false
 		for _, u := range units {
-			if u.taken || u.skip {
+			if u.taken || u.skip || !u.near {
 				continue
 			}
 			for _, c := range u.cells {
