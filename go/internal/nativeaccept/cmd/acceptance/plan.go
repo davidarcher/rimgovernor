@@ -328,14 +328,17 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 	}
 	// Measured times balance real wall time, but every shard's budgets
 	// must still fit the suite allowance; when they do not, plan on the
-	// budgets themselves.
+	// budgets themselves. The land tier is wall-clock capped instead: its
+	// suite deadline cuts a shard short and unreached cases report
+	// incomplete, so it always balances on measured time.
+	capped := r.Tier == "land"
 	allowance := int64(time.Duration(r.Limits.SuiteMinutes)*time.Minute) / int64(r.Limits.Attempts)
 	for _, shard := range shards {
 		var load int64
 		for _, name := range shard.Cases {
 			load += ceilings[name]
 		}
-		if load > allowance {
+		if load > allowance && !capped {
 			if shards, err = remoteaccept.PlanShards(names, r.Limits.Shards, p.Algorithm, ceilings); err != nil {
 				return p, err
 			}
@@ -386,7 +389,7 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		budgets[assignment[c.Name]] += c.Budget * time.Duration(r.Limits.Attempts)
 	}
 	for i, budget := range budgets {
-		if budget > time.Duration(r.Limits.SuiteMinutes)*time.Minute {
+		if budget > time.Duration(r.Limits.SuiteMinutes)*time.Minute && !capped {
 			return p, fmt.Errorf("%s known case budgets including retries (%s) exceed suite allowance; increase shards within v1 limits", p.Shards[i].ID, budget)
 		}
 	}

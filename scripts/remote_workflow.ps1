@@ -89,7 +89,7 @@ function Resolve-Source($Event) {
         if (-not $base -and $tier -ne 'land') { $base = $head }
     } elseif ($env:GITHUB_EVENT_NAME -eq 'push') {
         # Every push to main runs the land tier against the pushed range (#1375).
-        $tier = 'land'; $shards = 4; $base = [string]$Event.before
+        $tier = 'land'; $shards = 8; $base = [string]$Event.before
         if ($base -cnotmatch '^[0-9a-f]{40}$' -or $base -eq ('0'*40)) { $base = $head }
     }
     # The fixture factory (fixture-factory.yml, #1376) pins its own case list.
@@ -155,13 +155,17 @@ switch ($Phase) {
         if ((File-Reference $manifest.inventory.path).sha256 -cne $manifest.inventory.sha256) { throw 'Inventory digest mismatch' }
         $artifactBytes = [long]$env:REMOTE_ARTIFACT_MAX_BYTES
         if ($artifactBytes -lt 0) { throw 'Artifact byte cap must be nonnegative; zero disables the local cap' }
+        # The push-to-main land run is hard-capped: its suite stops at 30 min
+        # (unreached cases report incomplete) inside a 45 min job.
+        $suiteMinutes = 345; $jobMinutes = 360
+        if ($tier -eq 'land') { $suiteMinutes = 30; $jobMinutes = 45 }
         Write-JSON (Join-Path $Evidence 'run.json') @{
             schema_version=1; run_id="gh:$($env:GITHUB_REPOSITORY):$($env:GITHUB_RUN_ID):$($env:GITHUB_RUN_ATTEMPT)"
             repository=$env:GITHUB_REPOSITORY; workflow_commit=$env:GITHUB_WORKFLOW_SHA; tested_commit=$head; base_commit=$base; tier=$tier
             trigger=@{event=$env:GITHUB_EVENT_NAME; actor=$env:GITHUB_ACTOR; published_ref=$env:GITHUB_REF; actions_run_id=[long]$env:GITHUB_RUN_ID; actions_run_attempt=[int]$env:GITHUB_RUN_ATTEMPT}
             bundle=(File-Reference 'bundle.json')
             cases=$cases
-            limits=@{runner_label='windows-2022';shards=$shards;max_parallel=20;workers_per_shard=1;job_timeout_minutes=360;suite_timeout_minutes=345;max_attempts=1;artifact_retention_days=7;artifact_max_bytes=$artifactBytes;paid_usage_authorized=$false}
+            limits=@{runner_label='windows-2022';shards=$shards;max_parallel=20;workers_per_shard=1;job_timeout_minutes=$jobMinutes;suite_timeout_minutes=$suiteMinutes;max_attempts=1;artifact_retention_days=7;artifact_max_bytes=$artifactBytes;paid_usage_authorized=$false}
         }
         "head=$head" >> $env:GITHUB_OUTPUT
     }
