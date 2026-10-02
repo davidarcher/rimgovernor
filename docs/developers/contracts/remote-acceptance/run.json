@@ -15,7 +15,7 @@
   "tier": "smoke",
   "bundle": {
     "path": "bundle.json",
-    "sha256": "69d36dcc02b5b44d6bf0641ad7d9c96a8b1a30e2412ef2931b85f4601d6614df"
+    "sha256": "2191b1f6c76cccb9daa4ab7af8978e25ef293871eddcf48512eb00f6458c6d20"
   },
   "limits": {
     "runner_label": "windows-2022",
