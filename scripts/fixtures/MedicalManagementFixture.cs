@@ -76,48 +76,6 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // Elective upgrade probe (#1167): the lowest-id colonist a ranged shooter,
-        // the next a Medicine 20 doctor, one bionic eye and industrial medicine
-        // on the ground, and one medical wooden bed.
-        [Tool("test/elective_bionic_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Make one colonist a ranged shooter and another a master doctor, stock one bionic eye and medicine, and place a medical bed. Never installs anything.")]
-        public async Task<object> ElectiveBionic(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null || !Find.TickManager.Paused) return new { success = false, reason = "A paused colony map is required." };
-                var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).Where(p => !p.Dead).Take(2).ToArray();
-                if (people.Length != 2) return new { success = false, reason = "Two colonists required." };
-                var shooter = people[0]; var doctor = people[1];
-                var shooting = shooter.skills.GetSkill(SkillDefOf.Shooting);
-                if (shooting.TotallyDisabled) return new { success = false, reason = "Shooter cannot shoot." };
-                shooting.Level = 15;
-                // Only the shooter is ranged: a start pawn with a gun and more
-                // Shooting would outrank it for the one eye.
-                foreach (var pawn in map.mapPawns.FreeColonistsSpawned) pawn.equipment.DestroyAllEquipment();
-                shooter.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(ThingDef.Named("Gun_Autopistol")));
-                var medicine = doctor.skills.GetSkill(SkillDefOf.Medicine);
-                if (medicine.TotallyDisabled) return new { success = false, reason = "Doctor cannot doctor." };
-                medicine.Level = 20;
-                doctor.workSettings.EnableAndInitialize();
-                doctor.workSettings.SetPriority(WorkTypeDefOf.Doctor, 1);
-                foreach (var (name, count) in new[] { ("BionicEye", 1), ("MedicineIndustrial", 5) }) {
-                    var item = ThingMaker.MakeThing(ThingDef.Named(name)); item.stackCount = count;
-                    if (!GenPlace.TryPlaceThing(item, doctor.Position, map, ThingPlaceMode.Near))
-                        return new { success = false, reason = name + " placement failed." };
-                    item.SetForbidden(false, false);
-                }
-                // Electives cap failure at 5%: an outdoor bed scores ~38% even
-                // for a Medicine 20 doctor, so the bed stands in a sterile room.
-                SurgeryRoom(map, doctor.Position + new IntVec3(4, 0, -2), false);
-                var eye = shooter.health.hediffSet.GetNotMissingParts().FirstOrDefault(p => p.def.defName == "Eye");
-                return new
-                {
-                    success = true, shooterId = shooter.GetUniqueLoadID(), doctorId = doctor.GetUniqueLoadID(),
-                    eye = eye == null ? -1 : shooter.RaceProps.body.AllParts.IndexOf(eye),
-                };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
         [Tool("test/medical_plague_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add Plague to two disposable colonists, one untended and one tended, for native disease readback.")]
         public async Task<object> Plague(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Stage the disease survival case: both untended, five herbal and five industrial medicine, medical sleeping spots.", DefaultValue = false)] bool survival = false)

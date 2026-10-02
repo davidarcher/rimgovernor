@@ -182,6 +182,8 @@ func electiveOp(recipe, part string, index int, chance float64) SurgeryOperation
 	return op
 }
 
+// Replaces the native medical/elective-bionic case (#1565): which pawn an
+// elective upgrade goes to is a planner decision over the care facts.
 func TestElectiveSurgery(t *testing.T) {
 	shooter := PawnProfile{ID: "a", Ranged: true, Skills: map[string]ProfileSkill{"Shooting": {Name: "Shooting", Level: 12}, "Construction": {Name: "Construction", Level: 2}}}
 	builder := PawnProfile{ID: "a", Skills: map[string]ProfileSkill{"Shooting": {Name: "Shooting", Level: 12}, "Construction": {Name: "Construction", Level: 14}}}
