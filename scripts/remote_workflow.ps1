@@ -234,7 +234,8 @@ switch ($Phase) {
                 Push-Location (Join-Path $Repo 'go')
                 try {
                     # The fixture factory keeps its checkpoint ring: without -resume the suite runs each case with checkpointing off.
-                    $ring = if ($env:FACTORY_CASES) { @('-resume') } else { @() }
+                    $ring = @()
+                    if ($env:FACTORY_CASES) { $ring = @('-resume') }
                     & $boot.acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -rimgovernor $boot.controller -no-series @ring
                     if ($LASTEXITCODE) { $bad = $true }
                 } finally { Pop-Location }
