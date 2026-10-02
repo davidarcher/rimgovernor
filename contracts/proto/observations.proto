@@ -575,11 +575,6 @@ message BuildingSettings {
 }
 message MaterialDeficit { optional string def_name = 1; optional int64 need = 2; optional int64 have = 3; optional int64 still_needed = 4; }
 message ConstructionState { optional double total_work = 1; optional double work_left = 2; optional double percent_complete = 3; repeated MaterialDeficit resources = 4; optional bool resources_complete = 5; optional bool completable_ever = 6; repeated ReadIssue issues = 7; }
-message ConstructionLineage {
-  optional string origin_id = 1; optional string current_id = 2; optional string def_name = 3; optional string stuff = 4;
-  optional int32 map_id = 5; rimgovernor.common.v1.Cell anchor = 6; optional rimgovernor.placement.v1.Rotation rotation = 7; optional int64 started_tick = 8;
-  optional BuildingStatus stage = 9; optional bool present = 10; repeated string failures = 11; optional string blocker = 12;
-}
 message ThermalSide { optional string side = 1; rimgovernor.common.v1.Cell position = 2; optional string room_id = 3; optional bool outdoors = 4; optional double temperature_c = 5; optional bool fogged = 6; optional bool impassable = 7; repeated ReadIssue issues = 8; }
 message BuildingServiceState {
   optional bool connected = 1; optional bool power_on = 2; optional double power_output_w = 3; optional bool switched_on = 4;
@@ -1181,18 +1176,12 @@ message ChoiceDialogOption { optional int32 index = 1; optional string label = 2
 message ChoiceDialog { optional int32 window_id = 1; optional string window_type = 2; optional string title = 3; optional string text = 4; repeated ChoiceDialogOption options = 5; optional bool interactive = 6; }
 
 // Independently unavailable helper sections never masquerade as empty arrays.
-message ConstructionFacts { repeated ConstructionLineage records = 1; reserved 2; }
-message ConstructionSection { oneof outcome { ConstructionFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ComfortSection { oneof outcome { ComfortFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message FoodSupplySection { oneof outcome { FoodSupplyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ForecastSection { oneof outcome { ForecastFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message DevelopmentSection { oneof outcome { DevelopmentFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message PlanningSection { oneof outcome { PlanningFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
-message HaulPortion { optional string id = 1; optional int64 count = 2; optional bool resolved = 3; }
-message HaulRecord { optional string id = 1; optional string source_id = 2; optional string pawn_id = 3; optional string def_name = 4; optional int64 original_count = 5; optional int64 required_count = 6; optional int64 started_tick = 7; optional bool accepted = 8; optional bool complete = 9; optional int64 completed_tick = 10; optional string blocker = 11; repeated HaulPortion portions = 12; }
-message HaulingFacts { repeated HaulRecord records = 1; reserved 2; }
-message HaulingSection { oneof outcome { HaulingFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
-message WallRemovalRecord { optional string id = 1; optional string target_id = 2; optional bool complete = 3; optional int64 completed_tick = 4; optional string blocker = 5; reserved 6; optional bool retired = 7; optional bool target_present = 8; optional bool designated = 9; }
+message WallRemovalRecord { optional string id = 1; optional string target_id = 2; optional bool complete = 3; optional int64 completed_tick = 4; optional string blocker = 5; reserved 6, 7; optional bool target_present = 8; optional bool designated = 9; }
 message WallRemovalFacts { repeated WallRemovalRecord records = 1; reserved 2; SnapshotRef snapshot = 3; }
 message WallRemovalSection { oneof outcome { WallRemovalFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Present geometry is complete and independent of the bounded Home write batch.
@@ -1251,12 +1240,12 @@ message TrafficCell { rimgovernor.common.v1.Cell cell = 1; optional uint32 sampl
 message RoutesFacts { repeated RouteFacility facilities = 1; repeated string pawn_ids = 2; repeated TrafficCell traffic = 3; optional uint32 traffic_samples = 4; optional int32 traffic_since_tick = 5; reserved 6; }
 message RoutesSection { oneof outcome { RoutesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message UpkeepFacts {
-  ComfortSection comfort = 1; ConstructionSection construction = 2; repeated UpkeepItem items = 3;
+  ComfortSection comfort = 1; reserved 2; repeated UpkeepItem items = 3;
   repeated UpkeepBed beds = 4; repeated StorageCell storage_cells = 5; repeated ItemStorageCapacity storage_capacity = 6;
   repeated UpkeepStructure structures = 7; repeated FireState fires = 8; repeated FilthState filth = 9;
   repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11; repeated FeedDefinition feed_definitions = 12;
   repeated AnimalFeed animals = 13; reserved 14; repeated ReadIssue issues = 15;
-  HaulingSection hauling = 16; WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
+  reserved 16; WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
   repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; reserved 23; /* rooms: the bundle rooms census */ repeated UpkeepPerson slaves = 24;
   // Find.PlaySettings.autoHomeArea: the game expands the home area around
   // new player buildings while true (AutoHomeAreaIntent, #1322).

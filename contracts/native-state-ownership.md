@@ -73,37 +73,6 @@ and no duplicated construction. Existing entry points include
 `scripts/construction_resume_acceptance.py` and
 `scripts/construction_recovery_acceptance.py`; these do not certify the new journal.
 
-## Hauling and quantity identity
-
-Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistence/HaulTrackingState.cs),
-[quantity hooks](../integrations/rimgovernor-native/src/Bridge/HaulTracking.cs).
-
-| Field/key | Sole target owner | Reconstructible? |
-| --- | --- | --- |
-| `HaulTrackingState.Records/rimgovernorHaulTracking` (deep `HaulRecord`) | SQL | No. |
-| `HaulRecord.Id/id`, `Source/source`, `Pawn/pawn` | SQL | No for admitted association; surviving pawn/source IDs are fresh evidence only. |
-| `Definition/definition`, `MapId/mapId` | SQL | Fresh; original source association is historical. |
-| `OriginalCount/originalCount`, `RequiredCount/requiredCount` | SQL | No after splits/merges, including mixed untracked stock. |
-| `Started/started`, `CompletedTick/completedTick` | SQL | No. |
-| `Accepted/accepted`, `Complete/complete`, `Blocker/blocker` | SQL | No; current roofed stock does not prove original delivery. |
-| `Portions/portions` (deep `HaulPortion`) | SQL | No; tracks lineage of conservatively expanded mixed stacks. |
-| `HaulPortion.Id/id`, `Count/count` | SQL | Fresh current stacks/counts, not the tracked-source association. |
-
-`HaulPortion.Cached` is an unsaved `Thing` cache; reads can resolve it from map,
-inventory and carried things. Current hooks observe merge/split/destruction/spawn;
-reads also check completion. Limits are 512 records and 128 portions per active
-record. Destruction before protection sets a blocker rather than completion.
-
-Migration/removal: replace the saved action/quantity list with SQL evidence plus
-the bounded transition delivery contract. While disconnected, native hooks must
-capture necessary transitions or mark an evidence gap. Current stack counts alone
-must not be used to allocate surviving mixed units to a destroyed original source.
-Acceptance gap: partial merges into tracked and untracked stacks, split during
-disconnect, carried stack save/load, loss before delivery, duplicate events and
-overflow; prove quantity conservation and distinguish protection from loss.
-Existing entry points: `scripts/resumed_haul_acceptance.py` and
-`scripts/supply_recovery_acceptance.py`.
-
 ## Mining and drilling
 
 Sources: [saved types/rebind](../integrations/rimgovernor-native/src/Runtime/Persistence/MiningState.cs),
@@ -156,7 +125,7 @@ Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistenc
 | `Material/material`, `MapId/mapId`, `X/x`, `Z/z`, `Nx/nx`, `Nz/nz` | SQL | Fresh geometry/material; planned orientation and original association are historical. |
 | `Load/load`, `UiRevision/uiRevision` | SQL | No; old authority must never be restored to a new load. |
 | `CompletedTick/completedTick`, `Complete/complete` | SQL | No; missing wall is not proof of safe owned demolition. |
-| `Retired/retired`, `Blocker/blocker` | SQL | No; designation/cancellation history. |
+| `Blocker/blocker` | SQL | No; designation/cancellation history. |
 
 Current guards require supervision, matching load/UI revision and safe enclosure,
 support and resource facts. There is no `PlayerOwned` field any more: a replaced
