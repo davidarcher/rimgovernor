@@ -12,11 +12,11 @@ using HarmonyLib;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable Core-only initial state. Cases add their channel after this
+    // Disposable initial state. Cases add their channel after this
     // reset; nothing here advances time or suppresses ordinary simulation.
     public sealed class FoodChannelFixture
     {
-        [Tool("test/food_channels_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Strip food stocks (including held food), crops, growing zones, animals, corpses and food-producing buildings from a paused disposable Core map. Seed exactly stockUnits of foodDef. Channel cases add only the source they prove afterwards.")]
+        [Tool("test/food_channels_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Strip food stocks (including held food), crops, growing zones, animals, corpses and food-producing buildings from a paused disposable map. Seed exactly stockUnits of foodDef. Channel cases add only the source they prove afterwards.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
             int stockUnits = 0, string foodDef = "MealSurvivalPack")
         {
@@ -25,8 +25,6 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap;
                 if (map == null || Current.Game == null || !Find.TickManager.Paused)
                     throw new InvalidOperationException("Paused disposable map required.");
-                if (ModsConfig.ActiveModsInLoadOrder.Any(m => m.PackageId.StartsWith("ludeon.rimworld.", StringComparison.OrdinalIgnoreCase)))
-                    throw new InvalidOperationException("Food channel fixture requires Core only.");
                 if (stockUnits < 0 || stockUnits > 1000) throw new ArgumentException("stockUnits must be 0..1000.");
                 var def = DefDatabase<ThingDef>.GetNamedSilentFail(foodDef);
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();

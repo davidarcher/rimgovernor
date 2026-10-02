@@ -95,10 +95,11 @@ namespace HomeBridge.BridgeTools
                 var origin = GenRadial.RadialCellsAround(center, 16, true).FirstOrDefault(c =>
                     c.x >= center.x - 20 && c.x + side - 1 <= center.x + 20 && c.z >= center.z - 20 && c.z + side - 1 <= center.z + 20
                     && new CellRect(c.x, c.z, side, side).Cells.All(cell => cell.InBounds(map) && !cell.Fogged(map)
-                        && cell.GetEdifice(map) == null && cell.GetZone(map) == null && cell.Standable(map)
-                        && !cell.GetTerrain(map).IsWater
-                        && !cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Pawn || t.def.category == ThingCategory.Building
-                            || t.def.category == ThingCategory.Item || t is Blueprint || t is Frame))
+                        && cell.GetEdifice(map) == null && cell.GetZone(map) == null
+                        && cell.GetTerrain(map).passability == Traversability.Standable && !cell.GetTerrain(map).IsWater
+                        && cell.GetThingList(map).All(t => IsChunk(t) || (t.def.passability == Traversability.Standable
+                            && t.def.category != ThingCategory.Pawn && t.def.category != ThingCategory.Building
+                            && t.def.category != ThingCategory.Item && !(t is Blueprint) && !(t is Frame))))
                     && walker.CanReach(c, Verse.AI.PathEndMode.Touch, Danger.None));
                 if (origin == default) return Refuse("No open reachable " + side + "x" + side + " area near the colonist centroid for the fixture larder.");
                 var rect = new CellRect(origin.x, origin.z, side, side);
@@ -108,7 +109,7 @@ namespace HomeBridge.BridgeTools
                 zone.settings.filter.SetAllow(def, true);
                 foreach (var cell in rect.Cells)
                 {
-                    foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Filth).ToList()) thing.Destroy();
+                    foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Filth || IsChunk(t)).ToList()) thing.Destroy();
                     zone.AddCell(cell);
                     map.areaManager.Home[cell] = true;
                 }
@@ -132,6 +133,10 @@ namespace HomeBridge.BridgeTools
                 };
             }, cancellationToken).ConfigureAwait(false);
         }
+
+        // Rock and slag chunks litter every generated map; the larder clears
+        // them like plants and filth rather than searching around them.
+        private static bool IsChunk(Thing t) => t.def.thingCategories?.Contains(ThingCategoryDefOf.Chunks) == true;
 
         private static object Refuse(string reason) => new { success = false, reason };
     }

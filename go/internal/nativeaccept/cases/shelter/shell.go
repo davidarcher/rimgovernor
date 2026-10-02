@@ -410,9 +410,9 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 	// repaired ring) can leave that in progress when the bed lands, so give
 	// it the same four in-game hours the roofing budget allows, stepping
 	// the paused game and re-reading the room. Steps stay short: the bridge
-	// gives one step ten seconds, and a loaded box advances well under a
-	// thousand ticks in that time.
-	const roofStep, roofBudget = 500, 10000
+	// gives one step ten seconds, and an all-DLC game on a CI runner
+	// advanced 474 ticks in that time.
+	const roofStep, roofBudget = 200, 10000
 	waited := 0
 	for na.AsNumber(hut["openRoofCount"]) != 0 && waited < roofBudget {
 		if _, err := h.Call(ctx, fmt.Sprintf("roof-step-%d", waited/roofStep), "rimworld/step_game_ticks", map[string]any{"ticks": roofStep}); err != nil {
