@@ -160,10 +160,12 @@ func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePoli
 }
 
 // publishFrame puts the review frame's colony facts and colonist pawn rows
-// into the colony mirror (#795), which recordings and planners serve.
+// into the colony mirror (#795), which recordings and planners serve. A
+// section the frame lacks keeps the table the mirror holds, and its tick
+// (#1347).
 func (r *RoutineReviewer) publishFrame(expected observation.Identity, frame bridge.RoutineFrame) {
-	r.census.rememberColony(nil)
 	if r.mirror == nil {
+		r.census.rememberColony(nil)
 		return
 	}
 	generation, _ := expected.NativeGeneration.Value()
@@ -171,7 +173,9 @@ func (r *RoutineReviewer) publishFrame(expected observation.Identity, frame brid
 	if frame.Pawns != nil {
 		publishPawns(r.mirror, scope, frame.Pawns)
 	}
-	r.census.rememberColony(publishColony(r.mirror, scope, frame.Colony))
+	if frame.Colony != nil {
+		r.census.rememberColony(publishColony(r.mirror, scope, frame.Colony))
+	}
 }
 
 // RoutineCapabilities is the runtime's complete configured method set. Omitting

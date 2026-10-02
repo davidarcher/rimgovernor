@@ -70,6 +70,11 @@ type frameStream struct {
 	number      uint64
 	identity    *c.Identity
 	table       map[readCacheKey][]byte
+	// hold keeps the sections native omits while unchanged (#1347);
+	// keyframe asks native for a frame carrying every section after a
+	// seq gap.
+	hold     sectionHold
+	keyframe bool
 }
 
 // readCacheKey names one reply a frame answers: the read's method and its
@@ -179,6 +184,9 @@ func (caller *Client) frameReadKey(ctx context.Context, name string, key readCac
 			after = frame.Number
 			if frame.Writes >= needs {
 				payload, world, found, carries, decoded := s.lookup(frame, key)
+				if decoded["gap"] == true {
+					caller.frameReader(ctx) // asks for the keyframe now
+				}
 				if decoded != nil && caller.recorder != nil {
 					caller.recorder.Event("native_frame", caller.snapshotRecordingContext(ctx), false, decoded)
 				}
@@ -217,11 +225,18 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload
 	defer s.mu.Unlock()
 	if frame.Number != s.number {
 		started := time.Now()
-		table, identity, err := frameTable(frame.Payload, s.window)
+		table, identity, held, gap, err := s.frameTable(frame.Payload)
 		decoded = map[string]any{"frame": frame.Number, "bytes": len(frame.Payload), "capture_us": frame.CaptureMicros, "encode_us": frame.EncodeMicros,
 			"write_us": frame.WriteMicros, "decode_us": time.Since(started).Microseconds(), "replies": len(table)}
 		if s.number != 0 && frame.Number > s.number {
 			decoded["skipped"] = frame.Number - s.number - 1
+		}
+		if held > 0 {
+			decoded["held"] = held
+		}
+		if gap {
+			decoded["gap"] = true
+			s.keyframe = true
 		}
 		if err != nil {
 			decoded["error"] = err.Error()
@@ -236,24 +251,27 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload
 	return payload, s.identity, ok, carries, decoded
 }
 
-// frameTable decodes one frame into the replies its sections answer.
-func frameTable(payload []byte, window *o.Rectangle) (map[readCacheKey][]byte, *c.Identity, error) {
+// frameTable decodes one frame, its omitted sections filled from the
+// hold, into the replies its sections answer. held and gap are the hold's
+// (sectionHold.fill).
+func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte, world *c.Identity, held int, gap bool, err error) {
 	v := &o.BundleSnapshot{}
 	if err := proto.Unmarshal(payload, v); err != nil {
-		return nil, nil, err
+		return nil, nil, 0, false, err
 	}
 	if err := ValidateContext(v.Context); err != nil {
-		return nil, nil, err
+		return nil, nil, 0, false, err
 	}
+	held, gap = s.hold.fill(v)
 	var emergency EmergencyObservation
 	if v.Emergency != nil {
 		var err error
 		if emergency, err = DecodeEmergencyStatus(v.Emergency, v.Context.Identity); err != nil {
-			return nil, nil, err
+			return nil, nil, held, gap, err
 		}
 	}
-	table := map[readCacheKey][]byte{}
-	frameReplies(v, emergency, window, func(method string, request, reply proto.Message) {
+	table = map[readCacheKey][]byte{}
+	frameReplies(v, emergency, s.window, func(method string, request, reply proto.Message) {
 		var encoded []byte
 		if request != nil {
 			var err error
@@ -266,7 +284,7 @@ func frameTable(payload []byte, window *o.Rectangle) (map[readCacheKey][]byte, *
 			table[readCacheKey{method: method, request: string(encoded)}] = payload
 		}
 	})
-	return table, v.Context.Identity, nil
+	return table, v.Context.Identity, held, gap, nil
 }
 
 // frameReplies hands seed every section of v as the (method, request,
@@ -509,9 +527,13 @@ func (caller *Client) frameReader(ctx context.Context) frameReader {
 	s := caller.frames
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if (s.reader == nil || s.stale) && !s.opening && (s.stale || time.Since(s.attempted) >= frameRetry) {
-		s.opening, s.attempted, s.stale = true, time.Now(), false
+	if (s.reader == nil || s.stale || s.keyframe) && !s.opening && (s.stale || s.keyframe || time.Since(s.attempted) >= frameRetry) {
 		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), PlanningWindow: s.window, Definitions: slices.Clone(s.definitions)}
+		if s.reader != nil && !s.stale {
+			// Only a keyframe (#1347): the subscription stands.
+			request = &o.SnapshotStreamRequest{Keyframe: proto.Bool(true)}
+		}
+		s.opening, s.attempted, s.stale, s.keyframe = true, time.Now(), false, false
 		go caller.openFrames(context.WithoutCancel(ctx), request, s.reader == nil, s.epoch)
 	}
 	return s.reader
@@ -546,8 +568,11 @@ func (caller *Client) openFrames(ctx context.Context, request *o.SnapshotStreamR
 	if next != nil {
 		s.reader = next
 	}
-	// Frames captured before the resubscription lack what it added.
-	s.number, s.table, s.identity = 0, nil, nil
+	// Frames captured before the resubscription lack what it added; a
+	// keyframe request added nothing.
+	if !request.GetKeyframe() {
+		s.number, s.table, s.identity = 0, nil, nil
+	}
 }
 
 func (caller *Client) openSnapshotStream(ctx context.Context, request *o.SnapshotStreamRequest) (*o.SnapshotStreamOpened, error) {
@@ -641,6 +666,7 @@ func (s *frameStream) close() {
 	s.epoch++
 	s.opening, s.attempted, s.stale = false, time.Time{}, false
 	s.needs, s.number, s.table = 0, 0, nil
+	s.hold, s.keyframe = sectionHold{}, false
 }
 
 // combatFrameMethod keys a frame's combat sections in its table: a

@@ -1386,7 +1386,18 @@ message BundleSnapshot {
   // The hottest live hive's cell temperature in degrees Celsius (#1073),
   // with combat_detail: an infestation's heat-stroke hold and entry check.
   optional float combat_hive_temperature_c = 30;
+  // The watermark of every omittable section (#1347), carried or not:
+  // emergency, colony_facts, population, research, traders and
+  // world_progression. Native omits such a section while its content,
+  // nested context ticks aside, matches the last one published, and the
+  // reader keeps that one, current at this frame's tick. A section absent
+  // with a seq other than the one the reader holds was published in a
+  // frame the reader missed: it asks for a keyframe.
+  repeated SectionWatermark watermarks = 31;
 }
+// seq counts a section's changes since the stream opened; captured_tick is
+// the tick of the frame that last carried it.
+message SectionWatermark { optional string section = 1; optional uint64 seq = 2; optional int64 captured_tick = 3; }
 message ObservationBatchSnapshot {
   rimgovernor.common.v1.ObservationContext start_context = 1; rimgovernor.common.v1.ObservationContext end_context = 2;
   StatusReply status_before = 3; ListPawnsReply pawns = 4; ListSuppliesReply supplies = 5;
@@ -1419,6 +1430,10 @@ message SnapshotStreamRequest {
   repeated string resource_sources = 1; // list_resource_sources per named resource, no development
   Rectangle planning_window = 2;        // get_cells band the frame carries, full every frame
   repeated string definitions = 3;      // planning definitions the frame carries in project_definitions
+  // Only makes the next frame a keyframe, carrying every section (#1347);
+  // the subscription and the other fields are left as they are. Every
+  // other open is a keyframe too.
+  optional bool keyframe = 4;
 }
 message SnapshotStreamOpened {
   string name = 1;       // mapping name; the ready event is name + "-ready"

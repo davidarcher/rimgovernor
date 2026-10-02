@@ -25,7 +25,8 @@ namespace HomeBridge.BridgeTools
     /// write waits for observations_flush_snapshot or DeferredSeconds); an encoder worker formats it and
     /// writes it into the next slot under a per-slot seqlock, so the game
     /// thread never waits on a reader. Nothing is captured until the
-    /// controller opens the stream.
+    /// controller opens the stream. The encoder leaves out unchanged
+    /// singleton sections (SnapshotSections, #1347); an open is a keyframe.
     ///
     /// Layout (little-endian):
     ///   header, 64 bytes:
@@ -113,6 +114,7 @@ namespace HomeBridge.BridgeTools
         private static int capturedTick = int.MinValue;
         private static bool capturedPaused;
         private static int pending; // captures handed to the encoder, not yet written
+        private static int keyframeDue = 1; // the next published frame carries every section
 
         /// On the game thread: an applied write the next frame must reflect,
         /// or, deferred, one a flush or the safety net makes it capture.
@@ -153,7 +155,10 @@ namespace HomeBridge.BridgeTools
                 {
                     return new Obs.SnapshotStreamReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot ring could not be created: " + e.Message } };
                 }
-                subscription = request.Clone();
+                // A keyframe request (#1347) keeps the subscription; every
+                // open makes the next frame carry every section.
+                if (!request.Keyframe) subscription = request.Clone();
+                Interlocked.Exchange(ref keyframeDue, 1);
                 capturedWrites = -1; // the new subscription publishes at once
                 return new Obs.SnapshotStreamReply { Opened = new Obs.SnapshotStreamOpened { Name = ring.Name, Slots = Slots, SlotBytes = SlotBytes } };
             }
@@ -206,9 +211,10 @@ namespace HomeBridge.BridgeTools
             if (w == Interlocked.Read(ref writes)) deferredAt = 0;
             capturedAt = Stopwatch.GetTimestamp(); lastCaptureMicros = captureMicros;
             if (frame == null) { Interlocked.Exchange(ref pending, 0); return; }
+            var keyframe = Interlocked.Exchange(ref keyframeDue, 0) == 1;
             Task.Factory.StartNew(() =>
             {
-                try { r.Publish(frame, w, captureMicros); }
+                try { SnapshotSections.Elide(frame, keyframe); r.Publish(frame, w, captureMicros); }
                 catch (Exception e) { Log.WarningOnce("[RimGovernor] snapshot frame publish failed: " + e.Message, 0x5e859); }
                 finally { Interlocked.Exchange(ref pending, 0); }
             }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
