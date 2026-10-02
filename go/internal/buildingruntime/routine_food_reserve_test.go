@@ -82,8 +82,8 @@ func TestReserveAccessCommitsSupplyActions(t *testing.T) {
 		}
 		v := proto.Clone(native.reply.GetObserved()).(*o.ColonyFactsSnapshot)
 		v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: &o.FoodSupplyFacts{Stocks: []*o.FoodStock{
-			{Item: &o.EntityRef{Id: proto.String("hold"), DefName: proto.String("Pemmican"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}}},
-			{Item: &o.EntityRef{Id: proto.String("release"), DefName: proto.String("MealSurvivalPack"), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(4)}}},
+			{Item: &c.Ref{Id: proto.String("hold")}},
+			{Item: &c.Ref{Id: proto.String("release")}},
 		}}}}
 		planner := &RoutineFoodStorageUpkeepPlanner{reviewer: r, native: &reserveSupplyNative{context: v.Context}}
 		call, epoch, done, err := r.player.enter(ctx, "test", false)

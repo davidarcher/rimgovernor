@@ -58,12 +58,12 @@ func (n *routineNative) FrameThings(context.Context, *c.Identity) (bridge.Things
 
 // thing puts row in the frame's things table and returns the reference a
 // food stock carries to it.
-func (n *routineNative) thing(row *o.Thing) *o.EntityRef {
+func (n *routineNative) thing(row *o.Thing) *c.Ref {
 	if n.things == nil {
 		n.things = bridge.Things{}
 	}
 	n.things[row.Thing.GetId()] = row
-	return &o.EntityRef{Id: row.Thing.Id}
+	return &c.Ref{Id: row.Thing.Id}
 }
 
 // building puts row in the frame's building table and returns the

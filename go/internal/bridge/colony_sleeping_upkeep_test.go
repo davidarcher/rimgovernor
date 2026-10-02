@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -14,7 +15,7 @@ func sleepingWire() *o.UpkeepFacts {
 	person.Id = proto.String("pawn")
 	bed := proto.Clone(v.Items[0].Item).(*o.EntityRef)
 	bed.Id = proto.String("bed")
-	v.People = []*o.UpkeepPerson{{Pawn: &o.EntityRef{Id: person.Id}, ComfortableMinC: proto.Float64(-10), ComfortableMaxC: proto.Float64(30)}}
+	v.People = []*o.UpkeepPerson{{Pawn: &commonpb.Ref{Id: person.Id}, ComfortableMinC: proto.Float64(-10), ComfortableMaxC: proto.Float64(30)}}
 	v.Beds = []*o.UpkeepBed{{Bed: bed, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(-5), RestEffectiveness: proto.Float64(.8), Owners: NewRefs([]string{"pawn"}), AccessibleTo: NewRefs([]string{"pawn"})}}
 	return v
 }
@@ -25,7 +26,6 @@ func TestSleepingUpkeepBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, mutate := range []func(*o.UpkeepFacts){
-		func(v *o.UpkeepFacts) { v.People[0].Pawn.MapId = proto.Int32(4) },
 		func(v *o.UpkeepFacts) { v.Beds = append(v.Beds, v.Beds[0]) },
 		func(v *o.UpkeepFacts) { v.People = append(v.People, v.People[0]) },
 		func(v *o.UpkeepFacts) { v.Beds[0].Owners = NewRefs([]string{"pawn", "pawn"}) },

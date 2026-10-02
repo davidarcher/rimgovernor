@@ -57,12 +57,11 @@ func TestNativeTemperatureMethodsReplay(t *testing.T) {
 		if err = protojson.Unmarshal(data, rooms); err != nil {
 			t.Fatal(err)
 		}
-		// A capture holds no frame grid: each room stands on its centre
-		// and beds.
+		// A capture holds no frame grid: each room stands on its centre.
 		cells := map[string][]domain.Cell{}
 		for _, room := range rooms.GetObserved().GetRooms() {
 			seen := map[domain.Cell]bool{}
-			for _, at := range append([]*c.Cell{room.GetCenter()}, bedPositions(room)...) {
+			for _, at := range []*c.Cell{room.GetCenter()} {
 				if cell := (domain.Cell{X: at.GetX(), Z: at.GetZ()}); !seen[cell] {
 					seen[cell] = true
 					cells[room.GetId()] = append(cells[room.GetId()], cell)
@@ -98,12 +97,4 @@ func TestNativeTemperatureMethodsReplay(t *testing.T) {
 			t.Fatal(phase, low, high, lk, hk)
 		}
 	}
-}
-
-func bedPositions(room *o.RoomState) []*c.Cell {
-	var out []*c.Cell
-	for _, bed := range room.GetBeds() {
-		out = append(out, bed.GetPosition())
-	}
-	return out
 }

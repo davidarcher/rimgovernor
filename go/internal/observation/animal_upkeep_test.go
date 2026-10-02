@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestAnimalCensusPreservesUnknownAndKnownFalse(t *testing.T) {
 	pawns := bridge.Pawns{"animal": {Pawn: &o.EntityRef{Id: proto.String("animal"), DefName: proto.String("Muffalo")}, AnimalState: &o.AnimalState{Contained: proto.Bool(false), Release: proto.Bool(false), Slaughter: proto.Bool(false)}}}
-	u := &o.UpkeepFacts{Animals: []*o.AnimalFeed{{Pawn: &o.EntityRef{Id: proto.String("animal")}, RequiresPen: proto.Bool(true)}}}
+	u := &o.UpkeepFacts{Animals: []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("animal")}, RequiresPen: proto.Bool(true)}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	if _, known := colonyAnimals(v, bridge.Pawns{}).Value(); known {
 		t.Fatal("an animal the pawn table lacks left the herd known")
@@ -44,7 +45,7 @@ func TestAnimalCensusPreservesUnknownAndKnownFalse(t *testing.T) {
 
 func TestWildAnimalCensusDecodesTameFactsAndIssues(t *testing.T) {
 	pawns := bridge.Pawns{"wild": {Pawn: &o.EntityRef{Id: proto.String("wild"), DefName: proto.String("Muffalo")}, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false)}}}
-	u := &o.UpkeepFacts{WildAnimals: []*o.AnimalFeed{{Pawn: &o.EntityRef{Id: proto.String("wild")}}}}
+	u := &o.UpkeepFacts{WildAnimals: []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("wild")}}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	rows, known := colonyWildAnimals(v, pawns).Value()
 	if !known || len(rows) != 1 || rows[0].ID != "wild" || rows[0].Definition != "Muffalo" {

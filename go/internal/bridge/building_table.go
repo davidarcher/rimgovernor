@@ -27,7 +27,7 @@ func BuildingTable(v *o.BuildingsSnapshot) Buildings {
 
 // Row is ref's canonical row, false when the table does not hold it or
 // the row's service or settings are malformed.
-func (b Buildings) Row(ref *o.EntityRef) (*o.BuildingState, bool) {
+func (b Buildings) Row(ref Reference) (*o.BuildingState, bool) {
 	row, ok := b[ref.GetId()]
 	if !ok || validBuildingService(row.GetService()) != nil || row.GetSettings() == nil {
 		return nil, false

@@ -53,7 +53,7 @@ func TestPopulationDecodesProspectAndColony(t *testing.T) {
 	prisoner := prisonerPerson("p", "MaintainOnly")
 	prisoner.Will, prisoner.IdeoId, prisoner.WildMan, prisoner.HealthSummary = proto.Float64(3), proto.String("Ideo_2"), proto.Bool(false), proto.Float64(0.9)
 	prisoner.Biography = &o.PawnBiography{BiologicalAgeYears: proto.Float64(30), Skills: []*o.Skill{skill("Cooking", 9)}, Traits: []*o.Trait{{DefName: proto.String("Tough"), Degree: proto.Int32(0)}}, IncapableWorkTypes: []string{"Mining"}}
-	colonist := &o.PopulationPerson{Pawn: &o.EntityRef{Id: proto.String("c")}, Admitted: proto.Bool(true),
+	colonist := &o.PopulationPerson{Pawn: &commonpb.Ref{Id: proto.String("c")}, Admitted: proto.Bool(true),
 		Biography: &o.PawnBiography{BiologicalAgeYears: proto.Float64(40), Skills: []*o.Skill{skill("Cooking", 4), skill("Mining", 11)}}}
 	reply := populationReply(prisoner, colonist)
 	snapshot := reply.GetObserved()

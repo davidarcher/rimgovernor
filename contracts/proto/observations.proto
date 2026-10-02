@@ -616,7 +616,7 @@ message BuildingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1
 message ListBuildingsRequest { ReadScope scope = 1; repeated string ids = 2; repeated string def_names = 3; repeated string statuses = 4; optional string category = 5; optional bool player_only = 6; optional double damaged_below_fraction = 7; Rectangle region = 8; optional bool inspect = 9; optional bool bill_ingredients = 10; reserved 11, 12; }
 message ListBuildingsReply { oneof outcome { BuildingsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RoomStat { optional string def_name = 1; optional double value = 2; optional string display = 3; optional string unit = 4; optional string cost = 5; rimgovernor.common.v1.Unavailable unavailable = 6; }
-message RoomBedMembership { reserved 1; EntityRef building = 5; repeated EntityRef owners = 2; repeated EntityRef users = 3; repeated EntityRef accessible_to = 4; }
+message RoomBedMembership { reserved 1; rimgovernor.common.v1.Ref building = 5; repeated EntityRef owners = 2; repeated EntityRef users = 3; repeated EntityRef accessible_to = 4; }
 message StockpileMembership { rimgovernor.common.v1.Ref zone = 1; repeated ResourceStock contents = 2; reserved 3; }
 message RoomState {
   optional string id = 1; optional string role = 2; optional string label = 3; optional bool proper_room = 4; optional bool doorway = 5;
@@ -624,7 +624,7 @@ message RoomState {
   optional double temperature_c = 10; optional uint32 open_roof_count = 11; optional uint32 cell_count = 12;
   Rectangle extents = 13; rimgovernor.common.v1.Cell center = 14;
   reserved 15, 16; reserved "cells"; repeated RoomStat stats = 17; repeated EntityRef pawns = 18;
-  reserved 19; repeated EntityRef beds = 28; repeated rimgovernor.common.v1.Ref stockpile_zones = 20; repeated Quantity contents = 21;
+  reserved 19; repeated rimgovernor.common.v1.Ref beds = 28; repeated rimgovernor.common.v1.Ref stockpile_zones = 20; repeated Quantity contents = 21;
   reserved 22; repeated ReadIssue issues = 23;
   SnapshotRef snapshot = 24; repeated RoomBedMembership bed_memberships = 25; repeated StockpileMembership stockpile_memberships = 26;
   repeated RoomDoor doors = 27; // Doors in the room's boundary: door cell, the cell it opens onto, and whether that side is outdoors.
@@ -703,7 +703,7 @@ message ResearchProject {
 }
 message Researcher { EntityRef pawn = 1; optional double intellectual = 2; optional int32 priority = 3; optional bool disabled = 4; optional bool ever_work = 5; optional bool active = 6; }
 message ResearchFacility { DefinitionRef definition = 1; optional bool active = 2; }
-message ResearchBench { reserved 1; EntityRef building = 4; repeated ResearchFacility facilities = 2; repeated ReadIssue issues = 3; }
+message ResearchBench { reserved 1; rimgovernor.common.v1.Ref building = 4; repeated ResearchFacility facilities = 2; repeated ReadIssue issues = 3; }
 message ResearchSlot { optional string category = 1; optional string current_project = 2; }
 // finished names every finished project, whatever the request filters.
 message ResearchSnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef snapshot = 2; repeated ResearchSlot slots = 3; repeated ResearchProject projects = 4; repeated ResearchBench benches = 5; repeated Researcher researchers = 6; optional bool anomaly_active = 7; optional string player_tech_level = 8; Completeness completeness = 9; repeated string finished = 10; }
@@ -802,14 +802,16 @@ message PlantCutCensusReply { oneof outcome { PlantCutCensusSnapshot observed = 
 // list for that material.
 message StuffOption { optional string stuff = 1; repeated Quantity costs = 2; }
 message WallUpgradeSite {
-  EntityRef target = 1; optional bool target_present = 2; reserved 3;
+  rimgovernor.common.v1.Ref target = 1; optional bool target_present = 2; reserved 3;
   repeated rimgovernor.common.v1.Cell backup_cells = 4; repeated Quantity costs = 5;
   repeated ResourceStock materials = 6; repeated EntityRef workers = 7; optional string blocker = 8;
   optional bool designated = 9; optional string removal_id = 10; optional int64 completed_tick = 11;
   SnapshotRef snapshot = 12; rimgovernor.common.v1.Cell normal = 13;
   reserved 14 to 18;
-  EntityRef original = 22; EntityRef left_support = 23; EntityRef right_support = 24;
-  repeated EntityRef completed_backups = 25; EntityRef replacement = 26;
+  rimgovernor.common.v1.Ref original = 22; rimgovernor.common.v1.Ref left_support = 23; rimgovernor.common.v1.Ref right_support = 24;
+  repeated rimgovernor.common.v1.Ref completed_backups = 25; rimgovernor.common.v1.Ref replacement = 26;
+  // The target's CAS token for the upgrade's guarded operations (#1342).
+  SnapshotRef target_snapshot = 27;
   repeated StuffOption replacement_materials = 19;
   CellsSnapshot geometry = 20; RoofSupportSnapshot roof_support = 21;
 }
@@ -833,7 +835,7 @@ message ResourceSourcesSnapshot { rimgovernor.common.v1.ObservationContext conte
 message ResourceSourcesRequest { ReadScope scope = 1; optional string resource = 2; optional bool include_development = 3; reserved 4; }
 message ResourceSourcesReply { oneof outcome { ResourceSourcesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message HandlerState { EntityRef pawn = 1; optional int32 skill = 2; optional int32 priority = 3; optional bool eligible = 4; optional string reason = 5; }
-message HusbandryAnimal { reserved 1; EntityRef pawn = 6; AnimalState animal = 3; repeated HandlerState handlers = 4; reserved 2, 5; reserved "settings_snapshot", "census_snapshot"; }
+message HusbandryAnimal { reserved 1; rimgovernor.common.v1.Ref pawn = 6; AnimalState animal = 3; repeated HandlerState handlers = 4; reserved 2, 5; reserved "settings_snapshot", "census_snapshot"; }
 message HusbandrySnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef census = 2; repeated HusbandryAnimal animals = 3; reserved 4; }
 message HusbandryRequest { ReadScope scope = 1; optional bool include_wild = 3; reserved 2; }
 message HusbandryReply { oneof outcome { HusbandrySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -851,7 +853,7 @@ message RecoveryRequest { ReadScope scope = 1; reserved 2; }
 message RecoveryReply { oneof outcome { RecoverySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // pawn refers to the bundle pawn table row (#1343); its snapshot is the
 // prisoner custody and interaction settings token.
-message PopulationPerson { reserved 1; EntityRef pawn = 24; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; reserved 7; EntityRef owned_bed = 23; optional double nutrition_per_day = 8; optional int64 prisoner_ticks = 9;
+message PopulationPerson { reserved 1; rimgovernor.common.v1.Ref pawn = 24; SnapshotRef pawn_snapshot = 25; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; reserved 7; rimgovernor.common.v1.Ref owned_bed = 23; optional double nutrition_per_day = 8; optional int64 prisoner_ticks = 9;
   // Prisoner prospect facts MaintainPopulation judges a prisoner's use by
   // (#1036): Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
   // id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
@@ -1014,7 +1016,7 @@ message FoodConsumer { optional string pawn_id = 1; optional double nutrition_pe
 // (#1343) and adds what is relative to its eaters: holder when only
 // that pawn eats it, the nutrition the stack gives them, who can eat it
 // and whether it is the forbidden reserve.
-message FoodStock { EntityRef item = 1; reserved 2, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21; rimgovernor.common.v1.Ref holder = 3; optional double nutrition = 4; repeated rimgovernor.common.v1.Ref eaters = 5; optional bool reserve = 11; }
+message FoodStock { rimgovernor.common.v1.Ref item = 1; reserved 2, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21; rimgovernor.common.v1.Ref holder = 3; optional double nutrition = 4; repeated rimgovernor.common.v1.Ref eaters = 5; optional bool reserve = 11; }
 message CorpseHandling { string stock_id = 1; rimgovernor.common.v1.Cell cell = 2; optional string hauler_id = 3; bool frozen_destination = 4; }
 message FoodLarderFacts { double raw_meat_nutrition = 1; double cook_demand_nutrition = 2; repeated CorpseHandling corpses = 3; repeated rimgovernor.common.v1.Cell cold_sites = 4; }
 message FoodSupplyFacts { repeated FoodConsumer consumers = 1; repeated FoodStock stocks = 2; reserved 3; FoodLarderFacts larder = 4; }
@@ -1042,7 +1044,7 @@ message ProtectedCell { rimgovernor.common.v1.Cell cell = 1; optional bool home 
 // to share a bed with every listed partner (the SharedBed precepts; with no
 // partner, the plain SharedBed precept), true without Ideology. title: the
 // most senior royal title, absent without one or when Royalty is inactive.
-message UpkeepPerson { reserved 1; EntityRef pawn = 9; rimgovernor.common.v1.Ref owned_bed = 2; optional double comfortable_min_c = 3; optional double comfortable_max_c = 4; optional double temperature_c = 5; repeated rimgovernor.common.v1.Ref partners = 6; optional bool bed_sharing_allowed = 7; RoyalTitleFacts title = 8; }
+message UpkeepPerson { reserved 1; rimgovernor.common.v1.Ref pawn = 9; rimgovernor.common.v1.Ref owned_bed = 2; optional double comfortable_min_c = 3; optional double comfortable_max_c = 4; optional double temperature_c = 5; repeated rimgovernor.common.v1.Ref partners = 6; optional bool bed_sharing_allowed = 7; RoyalTitleFacts title = 8; }
 // Bedroom requirements read from RoyalTitleDef.GetBedroomRequirements for the
 // holder (none for an ascetic), skipping requirements an ideo precept disables.
 // things: each row is one requirement met by count of any listed def.
@@ -1062,7 +1064,7 @@ message FeedDefinition { optional string def_name = 1; optional double nutrition
 message AnimalFeedStorage { rimgovernor.common.v1.Ref zone = 1; repeated string accepts = 2; }
 // pawn refers to the bundle pawn table row (#1343), whose animal_state
 // carries the herd facts.
-message AnimalFeed { reserved 1; EntityRef pawn = 9; optional string diet = 2; optional bool requires_pen = 3; rimgovernor.common.v1.Ref suitable_pen = 4; repeated FoodStock reachable_stored_feed = 5; repeated rimgovernor.common.v1.Ref reachable_benches = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
+message AnimalFeed { reserved 1; rimgovernor.common.v1.Ref pawn = 9; optional string diet = 2; optional bool requires_pen = 3; rimgovernor.common.v1.Ref suitable_pen = 4; repeated FoodStock reachable_stored_feed = 5; repeated rimgovernor.common.v1.Ref reachable_benches = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
 message DevelopmentPower { reserved 1; EntityRef building = 8; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool rain_vulnerable = 5; optional bool roofed = 6;
   // A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
   optional double turret_dps = 7; }
@@ -1399,7 +1401,7 @@ message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rim
 // alone, never held for or attacked. nearest_colonist_distance is
 // Chebyshev cells to the nearest free colonist, absent with none.
 message ThreatPawn { reserved 1, 5, 8; reserved "ignored_reason", "hostile_reason"; EntityRef prey = 2; optional bool prey_is_ours = 3; optional bool ours = 4; optional bool passive = 6;
-  EntityRef pawn = 7; optional double nearest_colonist_distance = 9; optional string mental_state = 10; optional bool faction_hostile = 11; rimgovernor.common.v1.Ref faction = 12;
+  rimgovernor.common.v1.Ref pawn = 7; optional double nearest_colonist_distance = 9; optional string mental_state = 10; optional bool faction_hostile = 11; rimgovernor.common.v1.Ref faction = 12;
   optional bool prison_break = 13; optional bool predator_hunt = 14; optional bool predator = 15; optional bool downed = 16; }
 // A hostile-faction building that is itself a combat target (an insect hive,
 // a crashed ship part, a mech-cluster piece with combat power): its own CAS
@@ -1412,7 +1414,7 @@ message ThreatBuilding { EntityRef building = 1; optional string hostile_reason 
 message ThreatsSnapshot { reserved 1 to 6; reserved "hostiles", "hunting_predators", "ignored_hunters", "wild_predators_near", "downed_near"; repeated ThreatPawn pawns = 8; repeated ThreatBuilding hostile_buildings = 7; }
 // colonists references every spawned free colonist's pawn table row
 // (#1343), complete unless issues name "colonists".
-message StatusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; reserved 2; ThreatsSnapshot threats = 3; repeated ReadIssue issues = 4; repeated EntityRef colonists = 5; }
+message StatusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; reserved 2; ThreatsSnapshot threats = 3; repeated ReadIssue issues = 4; repeated rimgovernor.common.v1.Ref colonists = 5; }
 message StatusRequest { ReadScope scope = 1; optional bool colonists = 2; optional bool threats = 3; reserved 4; reserved "colonist_detail"; optional double predator_radius = 5; reserved 6; }
 message StatusReply { oneof outcome { StatusSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // A snapshot stream frame, and the scheduler's step read the controller

@@ -89,8 +89,4 @@ func TestPopulationUnresolvedPersonIsUnknown(t *testing.T) {
 	if rows, known := census.Prisoners.Value(); err != nil || !known || len(rows) != 1 {
 		t.Fatal(rows, err)
 	}
-	v.Persons[0].Pawn.DefName = proto.String("Human")
-	if _, err := decodePopulation(v, populationPawns(v)); err == nil {
-		t.Fatal("a person carrying more than its reference accepted")
-	}
 }

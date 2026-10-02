@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
                 if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
                 // The prisoner custody and interaction settings token
                 // (NativePrisonerInteractionOperations.Settings).
-                person.Pawn.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = person.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
+                person.PawnSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = person.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
                 snapshot.Persons.Add(person);
             }
             // Owned-pawn names (#1310): the census the unique-name planner reads.

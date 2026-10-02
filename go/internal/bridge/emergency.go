@@ -89,8 +89,8 @@ func emergencyIssues(issues []*o.ReadIssue, present func(string) bool) error {
 
 // emergencyPawn reads one census reference's facts from its table row,
 // returned too; an unresolved reference has only its id known.
-func emergencyPawn(ref *o.EntityRef, pawns Pawns) (policy.EmergencyPawn, *o.PawnState, error) {
-	if !pawnRef(ref, map[string]bool{}) || ref.Snapshot != nil {
+func emergencyPawn(ref *c.Ref, pawns Pawns) (policy.EmergencyPawn, *o.PawnState, error) {
+	if !pawnRef(ref, map[string]bool{}) {
 		return policy.EmergencyPawn{}, nil, contract("emergency pawn reference malformed")
 	}
 	row, ok := pawns.Row(ref)

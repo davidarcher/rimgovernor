@@ -464,6 +464,9 @@ func validID(value string) error {
 	return nil
 }
 
+// Reference is anything a table row is looked up by: a Ref (#1342).
+type Reference interface{ GetId() string }
+
 // validRef reports a reference with a valid id and nothing else (#1342).
 func validRef(ref *c.Ref) bool {
 	return ref != nil && validID(ref.GetId()) == nil && len(ref.ProtoReflect().GetUnknown()) == 0

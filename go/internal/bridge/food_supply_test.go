@@ -52,7 +52,6 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 		},
 		func(v *o.FoodSupplyFacts) { v.Consumers[1].PawnId = v.Consumers[0].PawnId },
 		func(v *o.FoodSupplyFacts) { v.Stocks[1].Item.Id = v.Stocks[0].Item.Id },
-		func(v *o.FoodSupplyFacts) { v.Stocks[0].Item.DefName = proto.String("RawRice") },
 		func(v *o.FoodSupplyFacts) { v.Stocks[0].Eaters = NewRefs([]string{"missing"}) },
 		func(v *o.FoodSupplyFacts) { v.Stocks[0].Eaters = NewRefs([]string{"a", "a"}) },
 		func(v *o.FoodSupplyFacts) { v.Stocks[1].Holder = &commonpb.Ref{Id: proto.String("")} },

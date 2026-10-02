@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -25,7 +26,7 @@ func emergencyRow(id string) *o.PawnState {
 }
 
 // emergencyRef is a census reference into the pawn table (#1343).
-func emergencyRef(id string) *o.EntityRef { return &o.EntityRef{Id: proto.String(id)} }
+func emergencyRef(id string) *commonpb.Ref { return &commonpb.Ref{Id: proto.String(id)} }
 
 // emergencyThreat is a faction-hostile threat fact row referencing id.
 func emergencyThreat(id string) *o.ThreatPawn {
@@ -46,7 +47,7 @@ func emergencyTable(rows ...*o.PawnState) Pawns {
 func TestEmergencyReadExactRequestAndOwnedFacts(t *testing.T) {
 	original := emergencyFixture()
 	original.Context.NativeGeneration = nil
-	original.Colonists = []*o.EntityRef{emergencyRef("c")}
+	original.Colonists = []*c.Ref{emergencyRef("c")}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool == "rimgovernor/observations_list_pawns" {
 			return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: pbContext(), Completeness: &o.Completeness{}, Pawns: []*o.PawnState{emergencyRow("c")}}}}), nil
@@ -87,7 +88,7 @@ func TestEmergencyPartialMedicalAndCategories(t *testing.T) {
 	colonist.Health = nil
 	colonist.Issues = []*o.ReadIssue{{Field: proto.String("health"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING.Enum()}}}
 	pawns := emergencyTable(colonist, emergencyRow("h"), emergencyRow("p"), emergencyRow("i"), emergencyRow("same"))
-	v.Colonists = []*o.EntityRef{emergencyRef("c")}
+	v.Colonists = []*c.Ref{emergencyRef("c")}
 	v.Threats.Pawns = []*o.ThreatPawn{
 		{Pawn: emergencyRef("same"), Downed: proto.Bool(true), Predator: proto.Bool(true), NearestColonistDistance: proto.Float64(5)},
 		{Pawn: emergencyRef("i"), Ours: proto.Bool(true), PredatorHunt: proto.Bool(true)},
@@ -126,7 +127,7 @@ func TestEmergencyPartialMedicalAndCategories(t *testing.T) {
 // facts until a later frame (#1343).
 func TestEmergencyUnresolvedReferenceIsUnknown(t *testing.T) {
 	v := emergencyFixture()
-	v.Colonists = []*o.EntityRef{emergencyRef("gone")}
+	v.Colonists = []*c.Ref{emergencyRef("gone")}
 	hostile := emergencyThreat("raider")
 	hostile.NearestColonistDistance = proto.Float64(12)
 	v.Threats.Pawns = []*o.ThreatPawn{hostile}
@@ -154,11 +155,9 @@ func TestEmergencyUnresolvedReferenceIsUnknown(t *testing.T) {
 func TestEmergencyContradictoryMalformedFacts(t *testing.T) {
 	for name, edit := range map[string]func(*o.StatusSnapshot){
 		"missing": func(v *o.StatusSnapshot) { v.Threats = nil }, "world": func(v *o.StatusSnapshot) { v.Context.Identity.LoadToken = proto.String("other") }, "generation": func(v *o.StatusSnapshot) { v.Context.NativeGeneration = proto.Uint64(0) }, "duplicate": func(v *o.StatusSnapshot) {
-			v.Colonists = []*o.EntityRef{emergencyRef("c"), emergencyRef("c")}
+			v.Colonists = []*c.Ref{emergencyRef("c"), emergencyRef("c")}
 		}, "categoryduplicate": func(v *o.StatusSnapshot) {
 			v.Threats.Pawns = []*o.ThreatPawn{emergencyThreat("x"), emergencyThreat("x")}
-		}, "fullref": func(v *o.StatusSnapshot) {
-			v.Colonists = []*o.EntityRef{{Id: proto.String("c"), DefName: proto.String("Human")}}
 		}, "missingref": func(v *o.StatusSnapshot) {
 			v.Threats.Pawns = []*o.ThreatPawn{{FactionHostile: proto.Bool(true)}}
 		}, "distance": func(v *o.StatusSnapshot) {
@@ -166,7 +165,7 @@ func TestEmergencyContradictoryMalformedFacts(t *testing.T) {
 			threat.NearestColonistDistance = proto.Float64(-1)
 			v.Threats.Pawns = []*o.ThreatPawn{threat}
 		}, "issueContradiction": func(v *o.StatusSnapshot) {
-			v.Colonists = []*o.EntityRef{emergencyRef("c")}
+			v.Colonists = []*c.Ref{emergencyRef("c")}
 			v.Issues = []*o.ReadIssue{{Field: proto.String("colonists"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}
 		}, "threatsIssue": func(v *o.StatusSnapshot) {
 			v.Issues = []*o.ReadIssue{{Field: proto.String("threats"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}

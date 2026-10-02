@@ -166,7 +166,7 @@ namespace HomeBridge.BridgeTools
                 LeftSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.LeftCell(original.Position, normal))!),
                 RightSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.RightCell(original.Position, normal))!) };
             row.Target = NativeBuildingObservationTools.Ref(target);
-            row.Target.Snapshot = NativeBuildingObservationTools.Token(target, context);
+            row.TargetSnapshot = NativeBuildingObservationTools.Token(target, context);
             foreach (var cell in cells) row.BackupCells.Add(new Common.Cell { X = cell.x, Z = cell.z });
             foreach (var backup in backups ?? new List<Building>()) row.CompletedBackups.Add(NativeBuildingObservationTools.Ref(backup));
             var designation = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);

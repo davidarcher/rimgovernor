@@ -75,7 +75,11 @@ func (client *Client) ReadWallUpgradeSites(ctx context.Context, identity *c.Iden
 	case *o.WallUpgradeSitesReply_Unavailable:
 		return WallUpgradeSites{}, raw, unavailable(v.Unavailable, raw)
 	case *o.WallUpgradeSitesReply_Observed:
-		sites, err := validateWallUpgradeSites(v.Observed, identity)
+		buildings, err := client.FrameBuildings(ctx, identity)
+		if err != nil {
+			return WallUpgradeSites{}, raw, err
+		}
+		sites, err := validateWallUpgradeSites(v.Observed, identity, buildings)
 		if err != nil {
 			return WallUpgradeSites{}, raw, err
 		}
@@ -85,7 +89,7 @@ func (client *Client) ReadWallUpgradeSites(ctx context.Context, identity *c.Iden
 	}
 }
 
-func validateWallUpgradeSites(v *o.WallUpgradeSnapshot, identity *c.Identity) ([]WallUpgradeSite, error) {
+func validateWallUpgradeSites(v *o.WallUpgradeSnapshot, identity *c.Identity, buildings Buildings) ([]WallUpgradeSite, error) {
 	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
 		return nil, contract("invalid wall upgrade sites context")
 	}
@@ -95,8 +99,9 @@ func validateWallUpgradeSites(v *o.WallUpgradeSnapshot, identity *c.Identity) ([
 			return nil, contract("invalid wall upgrade site")
 		}
 		site := WallUpgradeSite{Blocker: row.GetBlocker(), NX: row.Normal.GetX(), NZ: row.Normal.GetZ(), LeftSupport: row.LeftSupport != nil, RightSupport: row.RightSupport != nil}
-		if row.Original != nil {
-			if pos := row.Original.Position; pos != nil {
+		// The original wall's cell is its building row's (#1342).
+		if original, ok := buildings.Row(row.Original); ok {
+			if pos := original.GetBuilding().GetPosition(); pos != nil {
 				site.X, site.Z = pos.GetX(), pos.GetZ()
 			}
 		}

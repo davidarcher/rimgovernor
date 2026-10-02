@@ -56,7 +56,6 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 	room.Extents = &o.Rectangle{Minimum: cell(1, 1), Maximum: cell(2, 2)}
 	room.Center = cell(1, 1)
 	room.TemperatureC = proto.Float64(25)
-	n.rooms.GetObserved().Rooms[0].Beds[0].Position = cell(1, 1)
 	v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: &o.FoodSupplyFacts{
 		Consumers: []*o.FoodConsumer{{PawnId: proto.String("builder"), NutritionPerDay: proto.Float64(1.6)}},
 		Stocks: []*o.FoodStock{{Item: n.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String("meat"), DefName: proto.String("Meat_Muffalo")}, StackCount: proto.Int64(400), Perishable: proto.Bool(true), RotTicks: proto.Int64(2 * 60000), TemperatureC: proto.Float64(25), Roofed: proto.Bool(true), Room: &c.Ref{Id: proto.String("42")}}),

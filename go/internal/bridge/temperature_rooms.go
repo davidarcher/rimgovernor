@@ -85,7 +85,7 @@ func ValidateTemperatureRooms(v *o.RoomsSnapshot, roomCells map[string][]domain.
 			return contract("inconsistent room geometry")
 		}
 		for _, bed := range room.Beds {
-			if bed == nil || pawnsEntity(bed, v.Context) != nil || bed.DefName == nil || bed.MapId == nil || !colonyCell(bed.Position, size) || !fogged && !local[domain.Cell{X: bed.Position.GetX(), Z: bed.Position.GetZ()}] || beds[bed.GetId()] {
+			if !validRef(bed) || beds[bed.GetId()] {
 				return contract("invalid room bed")
 			}
 			beds[bed.GetId()] = true

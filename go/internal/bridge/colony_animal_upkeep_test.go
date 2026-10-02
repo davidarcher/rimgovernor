@@ -11,7 +11,7 @@ import (
 
 func animalWire() *o.UpkeepFacts {
 	v := upkeepWire()
-	v.Animals = []*o.AnimalFeed{{Pawn: &o.EntityRef{Id: proto.String("animal")}, RequiresPen: proto.Bool(true), ReachableStoredFeed: []*o.FoodStock{{Item: &o.EntityRef{Id: v.Items[0].Item.Id}, Nutrition: proto.Float64(.5), Eaters: NewRefs([]string{"animal"})}}}}
+	v.Animals = []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("animal")}, RequiresPen: proto.Bool(true), ReachableStoredFeed: []*o.FoodStock{{Item: &commonpb.Ref{Id: v.Items[0].Item.Id}, Nutrition: proto.Float64(.5), Eaters: NewRefs([]string{"animal"})}}}}
 	return v
 }
 
@@ -23,8 +23,6 @@ func TestAnimalUpkeepBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, mutate := range []func(*o.UpkeepFacts){
-		func(v *o.UpkeepFacts) { v.Animals[0].Pawn.MapId = proto.Int32(3) },
-		func(v *o.UpkeepFacts) { v.Animals[0].Pawn.Snapshot = &o.SnapshotRef{} },
 		func(v *o.UpkeepFacts) { v.Animals[0].Pawn = nil },
 		func(v *o.UpkeepFacts) { v.Animals = append(v.Animals, v.Animals[0]) },
 		func(v *o.UpkeepFacts) { v.Issues = []*o.ReadIssue{{Field: proto.String("animals")}} },
@@ -33,7 +31,6 @@ func TestAnimalUpkeepBoundary(t *testing.T) {
 			v.Animals[0].SuitablePen = &commonpb.Ref{Id: proto.String("pen")}
 		},
 		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].Nutrition = proto.Float64(math.NaN()) },
-		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].Item.DefName = proto.String("Hay") },
 		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].Eaters = NewRefs([]string{"other"}) },
 		func(v *o.UpkeepFacts) {
 			v.Animals[0].ReachableStoredFeed[0].Holder = &commonpb.Ref{Id: proto.String("animal")}
@@ -54,7 +51,7 @@ func TestAnimalUpkeepBoundary(t *testing.T) {
 
 func wildWire() *o.UpkeepFacts {
 	v := upkeepWire()
-	v.WildAnimals = []*o.AnimalFeed{{Pawn: &o.EntityRef{Id: proto.String("wild")}, Diet: proto.String("OmnivoreAnimal"), RequiresPen: proto.Bool(false)}}
+	v.WildAnimals = []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("wild")}, Diet: proto.String("OmnivoreAnimal"), RequiresPen: proto.Bool(false)}}
 	return v
 }
 
@@ -65,7 +62,6 @@ func TestWildAnimalUpkeepBoundary(t *testing.T) {
 	}
 	for _, mutate := range []func(*o.UpkeepFacts){
 		func(v *o.UpkeepFacts) { v.WildAnimals = append(v.WildAnimals, v.WildAnimals[0]) },
-		func(v *o.UpkeepFacts) { v.WildAnimals[0].Pawn.DefName = proto.String("Muffalo") },
 		func(v *o.UpkeepFacts) { v.WildAnimals[0].RequiresPen = proto.Bool(true) },
 		func(v *o.UpkeepFacts) { v.WildAnimals[0].SuitablePen = &commonpb.Ref{Id: proto.String("pen")} },
 		func(v *o.UpkeepFacts) {

@@ -144,9 +144,12 @@ namespace HomeBridge.BridgeTools
                 w.Write((int)Status(thing)); w.Write(thing.HitPoints); w.Write(thing.IsBurning());
             });
 
-        // Ref points at a spawned building's row (#1343): the reference every
-        // message other than the building table and the list read carries.
-        internal static Obs.EntityRef Ref(Thing thing) => new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()),
+        // Ref points at a spawned building's row (#1343, #1342): the reference
+        // every message other than the building table and the list read carries.
+        internal static Common.Ref Ref(Thing thing) => new Common.Ref { Id = Id(thing.GetUniqueLoadID()) };
+
+        // Head is a building row's identity: id, definition, label and cell.
+        private static Obs.EntityRef Head(Thing thing) => new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()),
             DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap), MapId = thing.Map.uniqueID,
             Position = Cell(thing.Position) };
 
@@ -156,7 +159,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!thing.Spawned || thing.Map == null) throw new InvalidOperationException("Building is not spawned.");
             var pending = thing is Blueprint || thing is Frame;
-            var row = new Obs.BuildingState { Building = Ref(thing), Status = Status(thing), Rotation = Rotation(thing.Rotation),
+            var row = new Obs.BuildingState { Building = Head(thing), Status = Status(thing), Rotation = Rotation(thing.Rotation),
                 UsesHitPoints = thing.def.useHitPoints, Burning = thing.IsBurning() };
             var stuff = pending && thing is IConstructible constructible ? constructible.EntityToBuildStuff() : thing.Stuff;
             if (stuff != null) row.Stuff = Id(stuff.defName);

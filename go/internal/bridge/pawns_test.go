@@ -146,7 +146,7 @@ func TestPawnsIdleNativeJobAndEmergencyProjection(t *testing.T) {
 	snapshot := pawnsTestSnapshot()
 	snapshot.Pawns[0].Job = job
 	status := emergencyFixture()
-	status.Colonists = []*o.EntityRef{emergencyRef("pawn-1")}
+	status.Colonists = []*c.Ref{emergencyRef("pawn-1")}
 	row := emergencyRow("pawn-1")
 	row.Job = proto.Clone(job).(*o.JobEvidence)
 	table := &o.PawnSnapshot{Context: pbContext(), Completeness: &o.Completeness{}, Pawns: []*o.PawnState{row}}

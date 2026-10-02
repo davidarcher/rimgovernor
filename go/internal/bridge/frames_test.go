@@ -134,7 +134,7 @@ func newBundleFamilyServer(t *testing.T) *bundleFamilyServer {
 	pawns := combatPawnsFixture()
 	pawns.Pawns[0].Settings = &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(false), Work: []*o.WorkSetting{{DefName: proto.String("Construction"), Priority: proto.Int32(3), Disabled: proto.Bool(false)}}}
 	s.pawns = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: pawns}}
-	s.snapshot.Emergency.Colonists = []*o.EntityRef{emergencyRef("pawn-1")}
+	s.snapshot.Emergency.Colonists = []*c.Ref{emergencyRef("pawn-1")}
 	s.snapshot.ColonyFacts = proto.Clone(s.colony.GetObserved()).(*o.ColonyFactsSnapshot)
 	s.snapshot.Population = proto.Clone(s.population.GetObserved()).(*o.PopulationSnapshot)
 	s.snapshot.Research = proto.Clone(s.research.GetObserved()).(*o.ResearchSnapshot)

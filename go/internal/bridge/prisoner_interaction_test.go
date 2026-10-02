@@ -40,7 +40,7 @@ func populationReply(persons ...*o.PopulationPerson) *o.PopulationReply {
 }
 
 func prisonerPerson(id, interaction string) *o.PopulationPerson {
-	person := &o.PopulationPerson{Pawn: &o.EntityRef{Id: proto.String(id), Snapshot: &o.SnapshotRef{Token: proto.String("tok-" + id)}}, Recruitable: proto.Bool(true)}
+	person := &o.PopulationPerson{Pawn: &c.Ref{Id: proto.String(id)}, Recruitable: proto.Bool(true)}
 	if interaction != "" {
 		person.Interaction = proto.String(interaction)
 	}

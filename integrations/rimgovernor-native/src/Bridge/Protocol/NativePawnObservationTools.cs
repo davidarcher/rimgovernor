@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
 
         // A reference to a pawn's table row: every other message names a
         // pawn this way (#1343).
-        internal static Obs.EntityRef Ref(Pawn pawn) => new Obs.EntityRef { Id = Id(pawn.GetUniqueLoadID()) };
+        internal static Common.Ref Ref(Pawn pawn) => new Common.Ref { Id = Id(pawn.GetUniqueLoadID()) };
 
         internal static bool Validate(Obs.ListPawnsRequest request, out Common.Failure failure)
         {

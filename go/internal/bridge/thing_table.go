@@ -13,7 +13,7 @@ import (
 type Things map[string]*o.Thing
 
 // Row is ref's canonical row, false when the table does not hold it.
-func (t Things) Row(ref *o.EntityRef) (*o.Thing, bool) {
+func (t Things) Row(ref Reference) (*o.Thing, bool) {
 	row, ok := t[ref.GetId()]
 	return row, ok && row != nil
 }
@@ -74,10 +74,9 @@ func ValidThing(row *o.Thing, ctx *c.ObservationContext) error {
 	return nil
 }
 
-// thingRef reports a well-formed thing reference not yet in seen: an id,
-// nothing else.
-func thingRef(e *o.EntityRef, seen map[string]bool) bool {
-	if e == nil || validID(e.GetId()) != nil || seen[e.GetId()] || e.DefName != nil || e.Label != nil || e.MapId != nil || e.Position != nil || e.Snapshot != nil {
+// thingRef reports a well-formed thing reference not yet in seen.
+func thingRef(e *c.Ref, seen map[string]bool) bool {
+	if !validRef(e) || seen[e.GetId()] {
 		return false
 	}
 	seen[e.GetId()] = true

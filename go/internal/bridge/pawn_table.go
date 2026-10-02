@@ -16,7 +16,7 @@ import (
 type Pawns map[string]*o.PawnState
 
 // Row is ref's canonical row, false when the table does not hold it.
-func (p Pawns) Row(ref *o.EntityRef) (*o.PawnState, bool) {
+func (p Pawns) Row(ref Reference) (*o.PawnState, bool) {
 	row, ok := p[ref.GetId()]
 	return row, ok && row != nil
 }
@@ -70,10 +70,9 @@ func (p Pawns) Snapshot(context *c.ObservationContext, ids []string) (*o.PawnSna
 	return out, true
 }
 
-// pawnRef reports a well-formed pawn reference not yet in seen: an id and,
-// where the section carries one, its own snapshot token, nothing else.
-func pawnRef(e *o.EntityRef, seen map[string]bool) bool {
-	if e == nil || validID(e.GetId()) != nil || seen[e.GetId()] || !proto.Equal(e, &o.EntityRef{Id: e.Id, Snapshot: e.Snapshot}) {
+// pawnRef reports a well-formed pawn reference not yet in seen.
+func pawnRef(e *c.Ref, seen map[string]bool) bool {
+	if !validRef(e) || seen[e.GetId()] {
 		return false
 	}
 	seen[e.GetId()] = true

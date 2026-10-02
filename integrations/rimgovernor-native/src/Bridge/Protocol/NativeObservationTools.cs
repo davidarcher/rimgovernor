@@ -407,7 +407,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // A reference to a thing's table row (#1343).
-        internal static Obs.EntityRef ThingRef(Thing thing) => new Obs.EntityRef { Id = Identifier(thing.GetUniqueLoadID()) };
+        internal static Common.Ref ThingRef(Thing thing) => new Common.Ref { Id = Identifier(thing.GetUniqueLoadID()) };
         private static Common.Cell Cell(int x,int z)=>new Common.Cell { X=x,Z=z };
         private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
         private static string Diagnostic(string value)=>PlacementPreviewOperation.Diagnostic(value);

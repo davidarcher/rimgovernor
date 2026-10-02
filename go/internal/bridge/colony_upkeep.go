@@ -77,7 +77,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		return true
 	}
 	for _, row := range append(append([]*o.UpkeepPerson{}, v.People...), v.Slaves...) {
-		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || !optionalRef(row.OwnedBed) || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !validRefs(row.Partners) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBed: row.OwnedBed, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, Partners: row.Partners, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
+		if row == nil || !pawnRef(row.Pawn, seen) || !optionalRef(row.OwnedBed) || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !validRefs(row.Partners) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBed: row.OwnedBed, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, Partners: row.Partners, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
 			return contract("invalid sleeping person")
 		}
 	}
@@ -89,7 +89,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Animals {
-		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || row.Diet != nil && validID(row.GetDiet()) != nil || !optionalRef(row.SuitablePen) || !validRefs(row.ReachableBenches) {
+		if row == nil || !pawnRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || !optionalRef(row.SuitablePen) || !validRefs(row.ReachableBenches) {
 			return contract("invalid upkeep animal")
 		}
 		for _, zone := range row.ReachableStorage {
@@ -118,7 +118,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	// feed, pen or ownership facts; the tame facts ride the table row.
 	seen = map[string]bool{}
 	for _, row := range v.WildAnimals {
-		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || row.Diet != nil && validID(row.GetDiet()) != nil || row.RequiresPen != nil && row.GetRequiresPen() || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, Diet: row.Diet, RequiresPen: row.RequiresPen}) {
+		if row == nil || !pawnRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || row.RequiresPen != nil && row.GetRequiresPen() || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, Diet: row.Diet, RequiresPen: row.RequiresPen}) {
 			return contract("invalid wild animal")
 		}
 	}

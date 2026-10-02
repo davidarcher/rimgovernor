@@ -15,7 +15,7 @@ import (
 
 func temperatureTestSnapshot() *o.RoomsSnapshot {
 	cell := &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}
-	return &o.RoomsSnapshot{Context: authorityTestContext(7), Completeness: emergencyCounts(1), Rooms: []*o.RoomState{{Id: proto.String("42"), ProperRoom: proto.Bool(true), Doorway: proto.Bool(false), Outdoors: proto.Bool(false), PsychologicallyOutdoors: proto.Bool(false), TouchesMapEdge: proto.Bool(false), OpenRoofCount: proto.Uint32(0), CellCount: proto.Uint32(1), TemperatureC: proto.Float64(5), Center: cell, Extents: &o.Rectangle{Minimum: cell, Maximum: cell}, GridRoom: proto.String("1403"), Contents: []*o.Quantity{{DefName: proto.String("SleepingSpot"), Units: proto.Int64(1)}}, Beds: []*o.EntityRef{{Id: proto.String("bed"), DefName: proto.String("SleepingSpot"), MapId: proto.Int32(0), Position: cell}}}}}
+	return &o.RoomsSnapshot{Context: authorityTestContext(7), Completeness: emergencyCounts(1), Rooms: []*o.RoomState{{Id: proto.String("42"), ProperRoom: proto.Bool(true), Doorway: proto.Bool(false), Outdoors: proto.Bool(false), PsychologicallyOutdoors: proto.Bool(false), TouchesMapEdge: proto.Bool(false), OpenRoofCount: proto.Uint32(0), CellCount: proto.Uint32(1), TemperatureC: proto.Float64(5), Center: cell, Extents: &o.Rectangle{Minimum: cell, Maximum: cell}, GridRoom: proto.String("1403"), Contents: []*o.Quantity{{DefName: proto.String("SleepingSpot"), Units: proto.Int64(1)}}, Beds: []*c.Ref{{Id: proto.String("bed")}}}}}
 }
 
 func TestTemperatureRoomsRejectMalformedEvidence(t *testing.T) {
@@ -28,13 +28,9 @@ func TestTemperatureRoomsRejectMalformedEvidence(t *testing.T) {
 		"roof":             func(v *o.RoomsSnapshot) { v.Rooms[0].OpenRoofCount = proto.Uint32(2) },
 		"outdoors":         func(v *o.RoomsSnapshot) { v.Rooms[0].PsychologicallyOutdoors = proto.Bool(true) },
 		"extents":          func(v *o.RoomsSnapshot) { v.Rooms[0].Extents.Minimum = &c.Cell{X: proto.Int32(4), Z: proto.Int32(7)} },
-		"bed-outside": func(v *o.RoomsSnapshot) {
-			v.Rooms[0].Beds[0].Position = &c.Cell{X: proto.Int32(8), Z: proto.Int32(7)}
-		},
-		"bed-duplicate": func(v *o.RoomsSnapshot) { v.Rooms[0].Beds = append(v.Rooms[0].Beds, v.Rooms[0].Beds[0]) },
-		"bed-map":       func(v *o.RoomsSnapshot) { v.Rooms[0].Beds[0].MapId = proto.Int32(2) },
-		"unresolved":    func(v *o.RoomsSnapshot) { v.Rooms[0].Id = proto.String("43") },
-		"oversized":     func(v *o.RoomsSnapshot) { v.Rooms[0].CellCount = proto.Uint32(0) },
+		"bed-duplicate":    func(v *o.RoomsSnapshot) { v.Rooms[0].Beds = append(v.Rooms[0].Beds, v.Rooms[0].Beds[0]) },
+		"unresolved":       func(v *o.RoomsSnapshot) { v.Rooms[0].Id = proto.String("43") },
+		"oversized":        func(v *o.RoomsSnapshot) { v.Rooms[0].CellCount = proto.Uint32(0) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := temperatureTestSnapshot()
