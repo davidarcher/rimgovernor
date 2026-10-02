@@ -138,7 +138,7 @@ func recordSection(dir string, p facts.Published) {
 			base = held.grid
 		}
 		if data, next, ok := gridFrame(base, p.Rows, rows); ok {
-			frame.Grid, frame.Key, grid = data, base == nil || base.rect != next.rect, next
+			frame.Grid, frame.Key, grid = data, base == nil || base.grid.Rect != next.grid.Rect, next
 		}
 	}
 	if grid != nil {

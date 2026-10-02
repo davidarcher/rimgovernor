@@ -75,6 +75,10 @@ type frameStream struct {
 	// seq gap.
 	hold     sectionHold
 	keyframe bool
+	// gridHold keeps the grid keyframe deltas apply to (#1345); grid is
+	// the newest decoded frame's grid.
+	gridHold gridHold
+	grid     frameGrid
 }
 
 // readCacheKey names one reply a frame answers: the read's method and its
@@ -225,7 +229,7 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload
 	defer s.mu.Unlock()
 	if frame.Number != s.number {
 		started := time.Now()
-		table, identity, held, gap, err := s.frameTable(frame.Payload)
+		table, identity, held, gap, grid, gridKind, err := s.frameTable(frame.Payload)
 		decoded = map[string]any{"frame": frame.Number, "bytes": len(frame.Payload), "capture_us": frame.CaptureMicros, "encode_us": frame.EncodeMicros,
 			"write_us": frame.WriteMicros, "decode_us": time.Since(started).Microseconds(), "replies": len(table)}
 		if s.number != 0 && frame.Number > s.number {
@@ -233,6 +237,9 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload
 		}
 		if held > 0 {
 			decoded["held"] = held
+		}
+		if gridKind != "" {
+			decoded["grid"] = gridKind
 		}
 		if gap {
 			decoded["gap"] = true
@@ -243,6 +250,9 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload
 			return nil, nil, false, false, decoded
 		}
 		s.number, s.table, s.identity = frame.Number, table, identity
+		if grid.grid != nil {
+			s.grid = grid
+		}
 	}
 	payload, ok = s.table[key]
 	for held := range s.table {
@@ -253,21 +263,27 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload
 
 // frameTable decodes one frame, its omitted sections filled from the
 // hold, into the replies its sections answer. held and gap are the hold's
-// (sectionHold.fill).
-func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte, world *c.Identity, held int, gap bool, err error) {
+// (sectionHold.fill); grid is the frame's map grid and gridKind what it
+// carried (gridHold.apply), a grid gap also setting gap.
+func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte, world *c.Identity, held int, gap bool, grid frameGrid, gridKind string, err error) {
 	v := &o.BundleSnapshot{}
 	if err := proto.Unmarshal(payload, v); err != nil {
-		return nil, nil, 0, false, err
+		return nil, nil, 0, false, frameGrid{}, "", err
 	}
 	if err := ValidateContext(v.Context); err != nil {
-		return nil, nil, 0, false, err
+		return nil, nil, 0, false, frameGrid{}, "", err
 	}
 	held, gap = s.hold.fill(v)
+	decodedGrid, gridKind, gridGap, gridErr := s.gridHold.apply(v)
+	gap = gap || gridGap
+	if gridErr != nil {
+		gridKind += ": " + gridErr.Error()
+	}
 	var emergency EmergencyObservation
 	if v.Emergency != nil {
 		var err error
 		if emergency, err = DecodeEmergencyStatus(v.Emergency, v.Context.Identity); err != nil {
-			return nil, nil, held, gap, err
+			return nil, nil, held, gap, frameGrid{}, gridKind, err
 		}
 	}
 	table = map[readCacheKey][]byte{}
@@ -284,7 +300,13 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte,
 			table[readCacheKey{method: method, request: string(encoded)}] = payload
 		}
 	})
-	return table, v.Context.Identity, held, gap, nil
+	if decodedGrid != nil {
+		grid = frameGrid{context: v.Context, grid: decodedGrid, sky: v.GetSkyGlow()}
+		if payload, err := proto.Marshal(v.Context); err == nil {
+			table[readCacheKey{method: gridFrameMethod}] = payload
+		}
+	}
+	return table, v.Context.Identity, held, gap, grid, gridKind, nil
 }
 
 // frameReplies hands seed every section of v as the (method, request,
@@ -667,6 +689,7 @@ func (s *frameStream) close() {
 	s.opening, s.attempted, s.stale = false, time.Time{}, false
 	s.needs, s.number, s.table = 0, 0, nil
 	s.hold, s.keyframe = sectionHold{}, false
+	s.gridHold, s.grid = gridHold{}, frameGrid{}
 }
 
 // combatFrameMethod keys a frame's combat sections in its table: a

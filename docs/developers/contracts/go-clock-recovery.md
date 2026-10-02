@@ -443,14 +443,15 @@ lists the held sections (`sections`).
 
 `planning_cells` is the first section with its own read (#356). A current
 native's colony facts carry no `planning.cells`; the window (the site
-cells at the colony centre +/- 22, `bridge.PlanningWindowRect`) is read
-through `observations_get_cells` by `bridge.ReadPlanningWindow` (roof,
-visibility, traversal, zone, room, growth; compact pages up to 65536 cells,
-row bands beyond) and decoded by `bridge.PlanningCells`, the decoder an
-older native's reply-carried cells also go through. Compact pages use two-byte
-flag rows, reply-local roof/zone/room and glow tables, and a sparse fertility
-array without quantization. Fogged and unchanged cells carry no other facts.
-Sparse deltas retain ordinary rows when a full flag grid would cost more.
+cells at the colony centre +/- 22, `bridge.PlanningWindowRect`) is cut
+by `bridge.ReadPlanningWindow` from the whole-map cell grid every snapshot
+frame carries (#1345, `bridge/cellgrid`): a keyframe, or a delta Go applies
+to the held keyframe (cumulative, never chained; a delta against a keyframe
+Go skipped asks for a new one). Grid glow is artificial light; the window
+raises an unroofed cell's glow to the frame's `sky_glow`, so `SiteCell.Glow`
+is total light. A client without a stream reads the window through
+`observations_get_cells` (compact row bands) and decodes it with
+`bridge.PlanningCells`. Fogged cells carry no other facts.
 The step attaches a
 refresher to its context (`observation.WithPlanningWindow`); a planning
 colony read whose reply lists no cells asks it, and the refresher reads
@@ -466,7 +467,8 @@ When the planning-window view (#650) cannot serve a held window, it is
 reread whole. The #795 `mirror_poll` cell grid and the #357
 `changed_since_tick` delta on `get_cells` were removed (#858);
 `CellTracking.cs` only feeds the view's change ledger. The CellGrid format
-survives only as the snapshot recorder's planning_cells line encoding.
+is the frame's whole-map grid (#1345) and the snapshot recorder's
+planning_cells line encoding.
 
 The routine review reads every continuous section (`research`,
 `population`, `rooms`, `pawns`) from the frame on every review; none is

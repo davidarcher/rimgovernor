@@ -50,9 +50,10 @@ func planningWindowFields() *o.CellFields {
 	return &o.CellFields{Terrain: proto.Bool(false), Roof: proto.Bool(true), Visibility: proto.Bool(true), Traversal: proto.Bool(true), Zone: proto.Bool(true), Areas: proto.Bool(false), Things: proto.Bool(false), Designations: proto.Bool(false), Room: proto.Bool(true), Growth: proto.Bool(true)}
 }
 
-// ReadPlanningWindow reads the planning window rect through
+// ReadPlanningWindow reads the planning window rect: from the snapshot
+// stream's whole-map grid (#1345) on a client with a stream, else through
 // observations_get_cells, one page per band of at most planningWindowPage
-// cells, and returns every band's rows under one region. A native that
+// cells, every band's rows under one region. A native that
 // does not serve the planning fields refuses the request (ErrRefused);
 // the caller then falls back to whatever window it holds.
 func (client *Client) ReadPlanningWindow(ctx context.Context, identity *c.Identity, rect policy.Rectangle) (PlanningWindow, Result, error) {
@@ -61,6 +62,10 @@ func (client *Client) ReadPlanningWindow(ctx context.Context, identity *c.Identi
 	}
 	if rect.X < 0 || rect.Z < 0 || rect.Width < 1 || rect.Height < 1 {
 		return PlanningWindow{}, Result{}, contract("invalid planning window rect")
+	}
+	if client.frames != nil {
+		window, err := client.frameWindow(ctx, identity, rect)
+		return window, Result{}, err
 	}
 	rows := max(planningWindowPage/int(rect.Width), 1)
 	out := PlanningWindow{Region: rect}

@@ -29,7 +29,7 @@ func (rec *streamWriter) keySections() {
 		s := rec.sections[name]
 		frame := sectionFrame{Name: name, Version: s.version, AsOf: s.asOf, Scope: s.scope, Key: true}
 		if s.grid != nil {
-			if data, next, ok := encodeGrid(&heldGrid{rect: s.grid.rect, cols: s.grid.cols}, true, nil, nil, s.rows); ok {
+			if data, next, ok := encodeGrid(&heldGrid{grid: s.grid.grid}, true, nil, nil, s.rows); ok {
 				frame.Grid, s.grid = data, next
 			} else {
 				s.grid = nil

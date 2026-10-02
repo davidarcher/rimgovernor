@@ -1,4 +1,4 @@
-package snapshot
+package cellgrid
 
 import (
 	"math"
@@ -17,7 +17,7 @@ func empty() *mp.FieldArray { return sparse(nil, nil, nil) }
 
 // keyframeGrid is a 2x1 window: cell (5,7) held, (6,7) fogged.
 func keyframeGrid() *mp.CellGrid {
-	g := &mp.CellGrid{Rect: wireRect(policy.Rectangle{X: 5, Z: 7, Width: 2, Height: 1}), Strings: []string{"RoofConstructed", "", "Wall"}}
+	g := &mp.CellGrid{Rect: WireRect(policy.Rectangle{X: 5, Z: 7, Width: 2, Height: 1}), Strings: []string{"RoofConstructed", "", "Wall"}}
 	g.Cell = codes(1, 0)
 	for _, set := range []**mp.FieldArray{&g.Walkable, &g.Occupied, &g.Zone, &g.Roofed, &g.Indoors, &g.SupportsLight, &g.StorageEmpty, &g.Doorway, &g.Polluted, &g.NaturalRock, &g.Ruin} {
 		*set = codes(1, 0)
@@ -30,11 +30,12 @@ func keyframeGrid() *mp.CellGrid {
 	g.PlayerEdifice = sparse([]uint32{0}, []uint32{2}, nil)
 	g.ClaimableRuin = sparse([]uint32{0}, []uint32{2}, nil)
 	g.RuinHold = empty()
+	g.Room = empty()
 	return g
 }
 
 func TestApplyCellGridKeyframeAndDelta(t *testing.T) {
-	grid, err := applyCellGrid(nil, true, keyframeGrid())
+	grid, err := Apply(nil, true, keyframeGrid())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,8 +52,8 @@ func TestApplyCellGridKeyframeAndDelta(t *testing.T) {
 	}
 
 	// A delta carries only the changed arrays, sparse over the held ones.
-	delta := &mp.CellGrid{Rect: wireRect(grid.Rect), Strings: []string{"Wall", "7"}, Cell: sparse([]uint32{1}, []uint32{1}, nil), PlayerEdifice: sparse([]uint32{0}, []uint32{1}, nil), ZoneId: sparse([]uint32{1}, []uint32{2}, nil)}
-	next, err := applyCellGrid(grid, false, delta)
+	delta := &mp.CellGrid{Rect: WireRect(grid.Rect), Strings: []string{"Wall", "7"}, Cell: sparse([]uint32{1}, []uint32{1}, nil), PlayerEdifice: sparse([]uint32{0}, []uint32{1}, nil), ZoneId: sparse([]uint32{1}, []uint32{2}, nil)}
+	next, err := Apply(grid, false, delta)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,22 +66,22 @@ func TestApplyCellGridKeyframeAndDelta(t *testing.T) {
 func TestApplyCellGridRefusesMalformed(t *testing.T) {
 	missing := keyframeGrid()
 	missing.Glow = nil
-	if _, err := applyCellGrid(nil, true, missing); err == nil {
+	if _, err := Apply(nil, true, missing); err == nil {
 		t.Fatal("keyframe without an array applied")
 	}
 	short := keyframeGrid()
 	short.Walkable = codes(2)
-	if _, err := applyCellGrid(nil, true, short); err == nil {
+	if _, err := Apply(nil, true, short); err == nil {
 		t.Fatal("short array applied")
 	}
 	index := keyframeGrid()
 	index.Roof = sparse([]uint32{0}, []uint32{9}, nil)
-	if _, err := applyCellGrid(nil, true, index); err == nil {
+	if _, err := Apply(nil, true, index); err == nil {
 		t.Fatal("string index past the table applied")
 	}
-	held, _ := applyCellGrid(nil, true, keyframeGrid())
-	moved := &mp.CellGrid{Rect: wireRect(policy.Rectangle{X: 6, Z: 7, Width: 2, Height: 1})}
-	if _, err := applyCellGrid(held, false, moved); err == nil {
+	held, _ := Apply(nil, true, keyframeGrid())
+	moved := &mp.CellGrid{Rect: WireRect(policy.Rectangle{X: 6, Z: 7, Width: 2, Height: 1})}
+	if _, err := Apply(held, false, moved); err == nil {
 		t.Fatal("delta on another rect applied")
 	}
 }
