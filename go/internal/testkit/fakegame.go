@@ -44,7 +44,16 @@ func StartFakeGame(t testing.TB, stateDir, gameID string, server *gabptest.Serve
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = game.Stop(context.Background()) })
+	t.Cleanup(func() {
+		_ = game.Stop(context.Background())
+		// Launch's reaper writes exit.json after the process is gone; wait
+		// for it so TempDir removal does not race the write.
+		for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+			if _, ok := gamehost.LastExit(stateDir, gameID); ok {
+				return
+			}
+		}
+	})
 	endpoint := game.Endpoint()
 	_, port, _ := net.SplitHostPort(server.Addr())
 	endpoint.Port, _ = strconv.Atoi(port)
