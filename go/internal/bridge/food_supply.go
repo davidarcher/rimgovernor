@@ -4,6 +4,8 @@ import o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 
 // Food completeness counts consumer and stock rows together. Repeated eater IDs
 // are explicit native eligibility, never a default of "every consumer".
+// A stock references its things table row (#1343); JoinFoodSupply checks
+// the facts that need the row.
 func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 	if v == nil {
 		return contract("food supply exceeds bound")
@@ -20,30 +22,13 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 	}
 	stocks := map[string]bool{}
 	for _, row := range v.Stocks {
-		if row == nil || row.Item == nil || validID(row.Item.GetId()) != nil || validID(row.Item.GetDefName()) != nil || stocks[row.Item.GetId()] || row.Count != nil && row.GetCount() < 0 || !combatNumber(row.Nutrition, true) || !combatNumber(row.TemperatureC, false) || row.RotTicks != nil && row.GetRotTicks() < 0 {
+		if row == nil || !thingRef(row.Item, stocks) || !combatNumber(row.Nutrition, true) {
 			return contract("invalid food stock")
 		}
-		if row.RawClass != nil && (row.GetRawClass() < 0 || row.GetRawClass() > 3) {
-			return contract("invalid raw class")
+		if row.GetReserve() && row.HolderId != nil {
+			return contract("reserve must be shared")
 		}
-		stocks[row.Item.GetId()] = true
-		if row.GetIsHumanlike() && !row.GetCorpse() {
-			return contract("humanlike flag requires corpse")
-		}
-		if row.GetReserve() && (row.HolderId != nil || row.Item.GetDefName() != "Pemmican" && row.Item.GetDefName() != "MealSurvivalPack") {
-			return contract("reserve must be shared pemmican or survival meals")
-		}
-		if row.GetCorpse() {
-			if row.Forbidden == nil || row.MeatAmount == nil || !combatNumber(row.MeatAmount, true) || row.GetMeatAmount() <= 0 || row.BodySize == nil || !combatNumber(row.BodySize, true) || row.GetBodySize() <= 0 || row.TileFootprint == nil || row.GetTileFootprint() != 1 || row.Count == nil || row.GetCount() != 1 {
-				return contract("invalid corpse stock")
-			}
-		} else if row.MeatAmount != nil || row.BodySize != nil {
-			return contract("corpse yield on ordinary food")
-		}
-		if row.Item.Label != nil || row.Item.MapId != nil || row.Item.Position != nil || row.Item.Snapshot != nil {
-			return contract("food stock references are identity-only")
-		}
-		if len(row.EaterIds) == 0 && !row.GetCorpse() && !row.GetIsHumanMeat() || len(row.EaterIds) > len(consumers) {
+		if len(row.EaterIds) > len(consumers) {
 			return contract("missing food eligibility")
 		}
 		eaters := map[string]bool{}
@@ -56,23 +41,14 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 		if row.HolderId != nil && (!consumers[row.GetHolderId()] || len(row.EaterIds) != 1 || row.EaterIds[0] != row.GetHolderId()) {
 			return contract("private food cannot be shared")
 		}
-		if row.Perishable != nil && !row.GetPerishable() && row.RotTicks != nil {
-			return contract("durable food has a rot deadline")
-		}
 	}
 	if larder := v.Larder; larder != nil {
 		if !combatNumber(&larder.RawMeatNutrition, true) || !combatNumber(&larder.CookDemandNutrition, true) {
 			return contract("invalid food larder")
 		}
 		seen := map[string]bool{}
-		corpseIDs := map[string]bool{}
-		for _, row := range v.Stocks {
-			if row.GetCorpse() {
-				corpseIDs[row.Item.GetId()] = true
-			}
-		}
 		for _, row := range larder.Corpses {
-			if row == nil || !corpseIDs[row.StockId] || seen[row.StockId] || row.Cell == nil || row.Cell.X == nil || row.Cell.Z == nil || row.Cell.GetX() < 0 || row.Cell.GetZ() < 0 || row.HaulerId != nil && validID(row.GetHaulerId()) != nil || row.FrozenDestination && row.GetHaulerId() == "" {
+			if row == nil || !stocks[row.StockId] || seen[row.StockId] || row.Cell == nil || row.Cell.X == nil || row.Cell.Z == nil || row.Cell.GetX() < 0 || row.Cell.GetZ() < 0 || row.HaulerId != nil && validID(row.GetHaulerId()) != nil || row.FrozenDestination && row.GetHaulerId() == "" {
 				return contract("invalid corpse handling")
 			}
 			seen[row.StockId] = true
@@ -84,4 +60,46 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 		}
 	}
 	return nil
+}
+
+// JoinFoodSupply resolves v's stocks against things, a frame's things
+// table, and checks the facts that need a stock's row: eligibility for
+// any food but a corpse or human meat, the reserve's definition, and that
+// a larder corpse is a corpse with meat. It returns false, with nothing
+// checked, when the table misses a stock: the supply waits for a later
+// frame.
+func JoinFoodSupply(v *o.FoodSupplyFacts, things Things) (map[string]*o.Thing, bool, error) {
+	if err := ValidateFoodSupply(v); err != nil {
+		return nil, false, err
+	}
+	rows := make(map[string]*o.Thing, len(v.Stocks))
+	for _, stock := range v.Stocks {
+		row, ok := things.Row(stock.Item)
+		if !ok {
+			return nil, false, nil
+		}
+		rows[stock.Item.GetId()] = row
+	}
+	for _, stock := range v.Stocks {
+		row := rows[stock.Item.GetId()]
+		def := row.GetThing().GetDefName()
+		if validID(def) != nil {
+			return nil, false, contract("food stock row without a definition")
+		}
+		if len(stock.EaterIds) == 0 && !row.GetCorpse() && !row.GetIsHumanMeat() {
+			return nil, false, contract("missing food eligibility")
+		}
+		if stock.GetReserve() && def != "Pemmican" && def != "MealSurvivalPack" {
+			return nil, false, contract("reserve must be shared pemmican or survival meals")
+		}
+		if row.GetCorpse() && row.GetMeatAmount() <= 0 {
+			return nil, false, contract("corpse stock without meat")
+		}
+	}
+	for _, corpse := range v.GetLarder().GetCorpses() {
+		if !rows[corpse.StockId].GetCorpse() {
+			return nil, false, contract("larder corpse is no corpse stock")
+		}
+	}
+	return rows, true, nil
 }

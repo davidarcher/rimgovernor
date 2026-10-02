@@ -92,7 +92,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Con
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	// The new planning read can observe a thaw or a newly occupied site.
-	currentChoice, choiceErr := policy.SelectCorpseLarder(foodStorageObservationFacts(v))
+	currentChoice, choiceErr := policy.SelectCorpseLarder(foodStorageObservationFacts(ctx, r.native, v))
 	if choiceErr != nil {
 		return RoutineFoodStorageUpkeepResult{}, choiceErr
 	}

@@ -42,6 +42,9 @@ type RoutineFoodStorageUpkeepSource interface {
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
+	// FrameThings is the things table the colony census's food stocks
+	// reference (#1343).
+	FrameThings(context.Context, *c.Identity) (bridge.Things, error)
 }
 type RoutineFoodStorageUpkeepPlanner struct {
 	reviewer *RoutineReviewer
@@ -61,14 +64,19 @@ func NewRoutineFoodStorageUpkeepPlanner(reviewer *RoutineReviewer, native Routin
 
 // foodStorageObservationFacts decodes the freshly read colony census with
 // the same observation.DecodeFoodSupply the routine review uses, so the
-// planner and the review agree on every stock's cover and temperature facts.
-func foodStorageObservationFacts(v *o.ColonyFactsSnapshot) policy.FoodStorageObservation {
+// planner and the review agree on every stock's cover and temperature
+// facts; a stock the things table misses leaves them unknown.
+func foodStorageObservationFacts(ctx context.Context, native RoutineFoodStorageUpkeepSource, v *o.ColonyFactsSnapshot) policy.FoodStorageObservation {
 	food := v.GetFoodSupply().GetObserved()
 	if food == nil {
 		return policy.FoodStorageObservation{}
 	}
-	supply, err := observation.DecodeFoodSupply(food)
+	things, err := native.FrameThings(ctx, v.GetContext().GetIdentity())
 	if err != nil {
+		return policy.FoodStorageObservation{}
+	}
+	supply, known, err := observation.DecodeFoodSupply(food, things)
+	if err != nil || !known {
 		return policy.FoodStorageObservation{}
 	}
 	return policy.FoodStorageStocks(supply)
@@ -160,7 +168,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
-	facts := foodStorageObservationFacts(observed)
+	facts := foodStorageObservationFacts(call, r.native, observed)
 	expected := observation.Identity{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map,
 		Tick: domain.Tick(observed.Context.GetTick()), NativeGeneration: domain.Known(state.Snapshot.Native)}
 	reading, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())

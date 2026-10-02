@@ -318,6 +318,9 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 	if v.Research != nil {
 		seed("rimgovernor/observations_read_research", researchRequest(identity), &o.ResearchReply{Outcome: &o.ResearchReply_Observed{Observed: v.Research}})
 	}
+	if v.Things != nil {
+		seed(frameThingsMethod, nil, v.Things)
+	}
 	if v.Pawns != nil {
 		seed(framePawnsMethod, nil, v.Pawns)
 		if colonists, ok := routinePawns(v.Pawns, emergency); ok {
@@ -417,7 +420,11 @@ func DecodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog) (Routin
 	if err != nil {
 		return RoutineFrame{}, err
 	}
-	out.Tables = Tables{Buildings: BuildingTable(v.Buildings), Pawns: pawns}
+	things, err := ThingTable(v.Things, identity)
+	if err != nil {
+		return RoutineFrame{}, err
+	}
+	out.Tables = Tables{Buildings: BuildingTable(v.Buildings), Pawns: pawns, Things: things}
 	if v.Emergency != nil {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, pawns, identity); err != nil {
 			return RoutineFrame{}, err

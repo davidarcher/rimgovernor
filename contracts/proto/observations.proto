@@ -653,11 +653,23 @@ message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; re
 message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optional string name_contains = 3; Rectangle region = 4; optional bool include_cells = 5; optional bool include_contents = 6; optional bool include_filter = 7; reserved 8, 9; }
 message ListZonesReply { oneof outcome { ZonesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message DesignationState { optional string def_name = 1; TargetRef target = 2; }
-message CellThing { EntityRef thing = 1; optional string class_name = 2; optional int64 stack_count = 3; optional string stuff = 4; optional int32 hit_points = 5; optional bool forbidden = 6; repeated string owner_ids = 7; optional bool medical = 8; optional double growth = 9; optional bool harvestable_now = 10; optional string build_def_name = 11; optional bool blueprint = 12; optional bool frame = 13; }
+// A thing's canonical row (#1343), from one native builder: the cells
+// read's things and the bundle's things table. thing.snapshot is the
+// thing's own CAS token. The food facts (14-27) are set for an ingestible
+// item or a corpse: rot_ticks at the current ambient temperature,
+// temperature_c that ambient temperature, roofed and room_id where a
+// spawned thing stands; a corpse adds forbidden, its meat yield
+// (meat_amount), body size, a one-cell footprint and whether it is
+// humanlike.
+message Thing { EntityRef thing = 1; optional string class_name = 2; optional int64 stack_count = 3; optional string stuff = 4; optional int32 hit_points = 5; optional bool forbidden = 6; repeated string owner_ids = 7; optional bool medical = 8; optional double growth = 9; optional bool harvestable_now = 10; optional string build_def_name = 11; optional bool blueprint = 12; optional bool frame = 13;
+  optional bool perishable = 14; optional int64 rot_ticks = 15; optional double temperature_c = 16; optional bool roofed = 17; optional string room_id = 18;
+  optional bool corpse = 19; optional double meat_amount = 20; optional double body_size = 21; optional int64 tile_footprint = 22;
+  optional bool is_human_meat = 23; optional bool is_humanlike = 24; optional bool vegetable = 25; optional bool raw_meat = 26; optional FoodIngredientClass raw_class = 27; }
+message ThingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Thing things = 2; }
 message CellState {
   rimgovernor.common.v1.Cell cell = 1; optional string terrain = 2; optional string roof = 3; optional bool fogged = 4;
   optional bool walkable = 5; optional bool passable = 6; optional string zone_id = 7; repeated string area_ids = 8;
-  repeated CellThing things = 9; repeated DesignationState designations = 10; optional string room_id = 11;
+  repeated Thing things = 9; repeated DesignationState designations = 10; optional string room_id = 11;
   optional double fertility = 12; optional double temperature_c = 13; optional bool indoors = 14;
   optional bool storage_empty = 15; optional bool supports_light = 16; repeated ReadIssue issues = 17;
   optional bool occupied = 18; // Native edifice, blueprint or frame occupies this cell.
@@ -1021,7 +1033,11 @@ message TradeSheetRequest { ReadScope scope = 1; optional string session_id = 2;
 message TradeSheetReply { oneof outcome { TradeSheet observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 message FoodConsumer { optional string pawn_id = 1; optional double nutrition_per_day = 2; optional bool human_meat_acceptable = 3; }
-message FoodStock { EntityRef item = 1; optional int64 count = 2; optional string holder_id = 3; optional double nutrition = 4; repeated string eater_ids = 5; optional bool perishable = 6; optional int64 rot_ticks = 7; optional double temperature_c = 8; optional bool roofed = 9; optional string room_id = 10; optional bool reserve = 11; optional bool corpse = 12; optional bool forbidden = 13; optional double meat_amount = 14; optional double body_size = 15; optional int64 tile_footprint = 16; optional bool is_human_meat = 18; optional bool is_humanlike = 19; optional bool vegetable = 20; optional bool raw_meat = 21; optional FoodIngredientClass raw_class = 17; }
+// A food stock references its thing's row in the bundle's things table
+// (#1343) and adds what is relative to its eaters: holder_id when only
+// that pawn eats it, the nutrition the stack gives them, who can eat it
+// and whether it is the forbidden reserve.
+message FoodStock { EntityRef item = 1; reserved 2, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21; optional string holder_id = 3; optional double nutrition = 4; repeated string eater_ids = 5; optional bool reserve = 11; }
 message CorpseHandling { string stock_id = 1; rimgovernor.common.v1.Cell cell = 2; optional string hauler_id = 3; bool frozen_destination = 4; }
 message FoodLarderFacts { double raw_meat_nutrition = 1; double cook_demand_nutrition = 2; repeated CorpseHandling corpses = 3; repeated rimgovernor.common.v1.Cell cold_sites = 4; }
 message FoodSupplyFacts { repeated FoodConsumer consumers = 1; repeated FoodStock stocks = 2; reserved 3; FoodLarderFacts larder = 4; }
@@ -1490,6 +1506,9 @@ message BundleSnapshot {
   // the emergency census lists the combat detail; another animal its
   // animal state; any other pawn the core row.
   PawnSnapshot pawns = 35;
+  // The things table (#1343): every thing a food stock in colony_facts
+  // references, the rows those references resolve against.
+  ThingsSnapshot things = 36;
   // The whole map as a cell grid (#1345), every frame: a keyframe on an
   // open or keyframe request, on a map change and at least every 30
   // seconds, else a delta against that keyframe. keyframe_seq numbers

@@ -29,6 +29,12 @@ const (
 	benchSectionName = "benches"
 )
 
+// publishThings publishes the review frame's things table (#1343) as the
+// things section keyed by thing id.
+func publishThings(m *facts.Store, scope facts.Scope, things bridge.Things, tick int64) {
+	facts.PutTable(m, scope, bridge.ThingsSection, map[string]*o.Thing(things), facts.At(tick))
+}
+
 // publishPawns publishes the review frame's pawn table (#1343) as the pawn
 // section keyed by pawn id; the recording keeps only the rows that
 // changed.

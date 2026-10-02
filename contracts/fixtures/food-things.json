@@ -1,0 +1,6 @@
+{
+  "things": [
+    {"thing": {"id": "rice", "defName": "RawRice"}, "stackCount": "100", "perishable": true, "rotTicks": "60000", "temperatureC": 21, "roofed": false},
+    {"thing": {"id": "pack", "defName": "Pemmican"}, "stackCount": "10", "perishable": false, "temperatureC": 21}
+  ]
+}

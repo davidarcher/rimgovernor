@@ -40,7 +40,7 @@ func decodeColonySections(sections map[string]*recSection) (*colonyDecoded, uint
 		return nil, 0, false
 	}
 	var at []uint64
-	for _, name := range append(bridge.ColonySections(), string(facts.Buildings), string(facts.Pawns)) {
+	for _, name := range append(bridge.ColonySections(), string(facts.Buildings), string(facts.Pawns), bridge.ThingsSection) {
 		if s := sections[name]; s != nil {
 			at = append(at, s.version)
 		}
@@ -78,7 +78,7 @@ func buildColony(sections map[string]*recSection) *colonyDecoded {
 		return fail(err)
 	}
 	// The keyed tables the facts' references resolve against (#1343).
-	tables := bridge.Tables{Buildings: bridge.Buildings{}, Pawns: bridge.Pawns{}}
+	tables := bridge.Tables{Buildings: bridge.Buildings{}, Pawns: bridge.Pawns{}, Things: bridge.Things{}}
 	if s := sections[string(facts.Buildings)]; s != nil {
 		for _, raw := range s.rows {
 			var row *o.BuildingState
@@ -95,6 +95,15 @@ func buildColony(sections map[string]*recSection) *colonyDecoded {
 				return fail(err)
 			}
 			tables.Pawns[row.GetPawn().GetId()] = row
+		}
+	}
+	if s := sections[bridge.ThingsSection]; s != nil {
+		for _, raw := range s.rows {
+			var row *o.Thing
+			if err := Decode(raw, &row); err != nil {
+				return fail(err)
+			}
+			tables.Things[row.GetThing().GetId()] = row
 		}
 	}
 	at := v.GetContext()

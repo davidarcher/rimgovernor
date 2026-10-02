@@ -139,9 +139,15 @@ namespace HomeBridge.BridgeTools
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
             {
                 var began = Now();
-                var read = NativeColonyObservationTools.TryRead(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context, out var colony);
+                var referenced = new List<Thing>();
+                var read = NativeColonyObservationTools.TryRead(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context, out var colony, referenced);
                 ObservationWork.Captured("colonyFacts", Now() - began, read ? colony!.Resources.Count : 0);
-                if (read) { observed.ColonyFacts = colony; }
+                if (read) {
+                    observed.ColonyFacts = colony;
+                    var thingsBegan = Now();
+                    try { observed.Things = NativeObservationTools.Things(referenced, context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("things", ex)); }
+                    ObservationWork.Captured("things", Now() - thingsBegan, observed.Things != null ? observed.Things.Things.Count : 0);
+                }
             }
             {
                 var began = Now();

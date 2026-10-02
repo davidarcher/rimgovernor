@@ -4,22 +4,46 @@ import (
 	"os"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
+// foodFixture is the committed food supply and the things table rows its
+// stocks reference (#1343).
+func foodFixture(t *testing.T) (*o.FoodSupplyFacts, bridge.Things) {
+	t.Helper()
+	supply, table := &o.FoodSupplyFacts{}, &o.ThingsSnapshot{}
+	for path, message := range map[string]proto.Message{"../../../contracts/fixtures/food-supply.json": supply, "../../../contracts/fixtures/food-things.json": table} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = protojson.Unmarshal(data, message); err != nil {
+			t.Fatal(err)
+		}
+	}
+	things := bridge.Things{}
+	for _, row := range table.Things {
+		things[row.Thing.GetId()] = row
+	}
+	return supply, things
+}
+
+func decodeFood(t *testing.T, wire *o.FoodSupplyFacts, things bridge.Things) (policy.FoodSupply, error) {
+	t.Helper()
+	supply, known, err := DecodeFoodSupply(wire, things)
+	if err == nil && !known {
+		t.Fatal("fixture stock unresolved")
+	}
+	return supply, err
+}
+
 func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
-	data, err := os.ReadFile("../../../contracts/fixtures/food-supply.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	wire := &o.FoodSupplyFacts{}
-	if err = protojson.Unmarshal(data, wire); err != nil {
-		t.Fatal(err)
-	}
-	supply, err := DecodeFoodSupply(wire)
+	wire, things := foodFixture(t)
+	supply, err := decodeFood(t, wire, things)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,39 +51,41 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 	if days, known := forecast.RunwayDays.Value(); err != nil || !known || days != 1 || forecast.InventoryNutrition != 4 || forecast.UsableNutrition != 7 {
 		t.Fatal(forecast, err)
 	}
-	wire.Stocks[0].RotTicks = nil
-	supply, err = DecodeFoodSupply(wire)
+	things["rice"].RotTicks = nil
+	supply, err = decodeFood(t, wire, things)
 	if err != nil {
 		t.Fatal("optional unknown deadline rejected", err)
 	}
 	if _, err = policy.ForecastFood(supply, nil); err == nil {
 		t.Fatal("unknown deadline certified food")
 	}
-	wire.Stocks[0].RotTicks = proto.Int64(60000)
+	things["rice"].RotTicks = proto.Int64(60000)
 	wire.Stocks[1].EaterIds = append(wire.Stocks[1].EaterIds, "b")
-	if _, err = DecodeFoodSupply(wire); err == nil {
+	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
 		t.Fatal("shared private inventory accepted")
 	}
 }
 
+// A food stock the things table misses leaves the supply unknown (#1343).
+func TestFoodSupplyUnresolvedStockIsUnknown(t *testing.T) {
+	wire, things := foodFixture(t)
+	delete(things, "rice")
+	if _, known, err := DecodeFoodSupply(wire, things); err != nil || known {
+		t.Fatal("an unresolved stock was decided", known, err)
+	}
+}
+
 func TestCorpseSupplyProjectionPreservesReserveAndYield(t *testing.T) {
-	data, err := os.ReadFile("../../../contracts/fixtures/food-supply.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	wire := &o.FoodSupplyFacts{}
-	if err = protojson.Unmarshal(data, wire); err != nil {
-		t.Fatal(err)
-	}
-	row := wire.Stocks[0]
+	wire, things := foodFixture(t)
+	row := things["rice"]
 	row.Corpse = proto.Bool(true)
 	row.Forbidden = proto.Bool(true)
-	row.Count = proto.Int64(1)
+	row.StackCount = proto.Int64(1)
 	row.MeatAmount = proto.Float64(300)
 	row.BodySize = proto.Float64(2)
 	row.TileFootprint = proto.Int64(1)
-	row.Nutrition = proto.Float64(15)
-	supply, err := DecodeFoodSupply(wire)
+	wire.Stocks[0].Nutrition = proto.Float64(15)
+	supply, err := decodeFood(t, wire, things)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,27 +104,20 @@ func TestCorpseSupplyProjectionPreservesReserveAndYield(t *testing.T) {
 }
 
 func TestFoodReserveWireProjectionAndValidation(t *testing.T) {
-	data, err := os.ReadFile("../../../contracts/fixtures/food-supply.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	wire := &o.FoodSupplyFacts{}
-	if err = protojson.Unmarshal(data, wire); err != nil {
-		t.Fatal(err)
-	}
-	wire.Stocks[0].Item.DefName = proto.String("Pemmican")
+	wire, things := foodFixture(t)
+	things["rice"].Thing.DefName = proto.String("Pemmican")
 	wire.Stocks[0].Reserve = proto.Bool(true)
-	supply, err := DecodeFoodSupply(wire)
+	supply, err := decodeFood(t, wire, things)
 	if err != nil || !supply.Stocks[0].Reserve {
 		t.Fatal(supply, err)
 	}
-	wire.Stocks[0].Item.DefName = proto.String("Rice")
-	if _, err = DecodeFoodSupply(wire); err == nil {
+	things["rice"].Thing.DefName = proto.String("Rice")
+	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
 		t.Fatal("ordinary food accepted as reserve")
 	}
-	wire.Stocks[0].Item.DefName = proto.String("Pemmican")
+	things["rice"].Thing.DefName = proto.String("Pemmican")
 	wire.Stocks[0].HolderId = proto.String(wire.Stocks[0].EaterIds[0])
-	if _, err = DecodeFoodSupply(wire); err == nil {
+	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
 		t.Fatal("held inventory accepted as reserve")
 	}
 }

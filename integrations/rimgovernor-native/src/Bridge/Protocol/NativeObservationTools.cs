@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
                     }
                     if (fields.Things) {
                         var here = cell.GetThingList(map);
-                        foreach (var thing in here) row.Things.Add(CellThingRow(thing, context));
+                        foreach (var thing in here) row.Things.Add(ThingRow(thing, context));
                     }
                     snapshot.Cells.Add(row);
                 }
@@ -439,20 +439,62 @@ namespace HomeBridge.BridgeTools
             if (thing.Spawned && thing.Map != null) { row.MapId=thing.Map.uniqueID; row.Position=Cell(thing.Position.x,thing.Position.z); }
             return row;
         }
-        // Populates each thing's own CAS token via NativeWasteOperations.Token,
-        // the same self-computed hash NativeWasteOperations.Prepare checks: this
-        // is the real production discovery path bridge.ReadWasteTarget (and
-        // ReadFilthTarget) issue via a Things-scoped observations_get_cells read,
-        // since no dedicated per-item lookup RPC exists for a generic loose thing.
-        private static Obs.CellThing CellThingRow(Thing thing, Common.ObservationContext context)
+        // ThingRow is the one thing row builder (#1343): the cells read's
+        // things and the bundle's things table. Each row carries the thing's
+        // own CAS token via NativeWasteOperations.Token, the same
+        // self-computed hash NativeWasteOperations.Prepare checks: a
+        // Things-scoped observations_get_cells read is how bridge.ReadWasteTarget
+        // (and ReadFilthTarget) discover a generic loose thing.
+        internal static Obs.Thing ThingRow(Thing thing, Common.ObservationContext context)
         {
             var entity = Entity(thing);
             entity.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = NativeWasteOperations.Token(context.Identity, thing) };
-            return new Obs.CellThing {
-                Thing = entity, ClassName = thing.GetType().Name, StackCount = thing.stackCount,
+            var row = new Obs.Thing {
+                Thing_ = entity, ClassName = thing.GetType().Name, StackCount = thing.stackCount,
                 Forbidden = thing.IsForbidden(Faction.OfPlayer),
             };
+            if (thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible)) FoodFacts(thing, row);
+            return row;
         }
+
+        // The food facts of an ingestible item or a corpse.
+        private static void FoodFacts(Thing thing, Obs.Thing row)
+        {
+            var rot = thing.TryGetComp<CompRottable>();
+            var perishable = rot != null && rot.Active;
+            row.Perishable = perishable;
+            if (perishable) row.RotTicks = Math.Max(0, rot!.TicksUntilRotAtCurrentTemp);
+            row.TemperatureC = Finite(thing.AmbientTemperature);
+            if (thing.Spawned) {
+                row.Roofed = thing.Position.Roofed(thing.Map);
+                var room = thing.Position.GetRoom(thing.Map);
+                if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            row.RawClass = (Obs.FoodIngredientClass)(NativeMealRecipeFacts.InCategory(thing.def, "MeatRaw") ? 1 : NativeMealRecipeFacts.InCategory(thing.def, "PlantFoodRaw") ? 2 : NativeMealRecipeFacts.InCategory(thing.def, "AnimalProductRaw") ? 3 : 0);
+            row.IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing);
+            row.RawMeat = thing.def.IsMeat;
+            row.Vegetable = thing.def.ingestible != null && (thing.def.ingestible.foodType & FoodTypeFlags.VegetableOrFruit) != 0;
+            row.Corpse = thing is Corpse;
+            if (thing is Corpse corpse) {
+                row.IsHumanlike = corpse.InnerPawn.RaceProps.Humanlike;
+                row.MeatAmount = Finite(Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount)));
+                row.BodySize = Finite(corpse.InnerPawn.BodySize);
+                row.TileFootprint = 1;
+            }
+        }
+
+        // The bundle's things table (#1343): the rows of things, each once,
+        // in id order.
+        internal static Obs.ThingsSnapshot Things(IEnumerable<Thing> things, Common.ObservationContext context)
+        {
+            var result = new Obs.ThingsSnapshot { Context = context };
+            foreach (var thing in things.GroupBy(t => t.GetUniqueLoadID()).Select(g => g.First()).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
+                result.Things.Add(ThingRow(thing, context));
+            return result;
+        }
+
+        // A reference to a thing's table row (#1343).
+        internal static Obs.EntityRef ThingRef(Thing thing) => new Obs.EntityRef { Id = Identifier(thing.GetUniqueLoadID()) };
         private static Common.Cell Cell(int x,int z)=>new Common.Cell { X=x,Z=z };
         private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
         private static string Diagnostic(string value)=>PlacementPreviewOperation.Diagnostic(value);

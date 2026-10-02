@@ -26,6 +26,7 @@ func (p Pawns) Row(ref *o.EntityRef) (*o.PawnState, bool) {
 type Tables struct {
 	Buildings Buildings
 	Pawns     Pawns
+	Things    Things
 }
 
 // tableDetails is every detail family a pawn table row may carry: the
@@ -90,7 +91,11 @@ func (caller *Client) FrameTables(ctx context.Context, identity *c.Identity) (Ta
 	if err != nil {
 		return Tables{}, err
 	}
-	return Tables{Buildings: buildings, Pawns: pawns}, nil
+	things, err := caller.FrameThings(ctx, identity)
+	if err != nil {
+		return Tables{}, err
+	}
+	return Tables{Buildings: buildings, Pawns: pawns, Things: things}, nil
 }
 
 // framePawnsMethod keys a frame's pawn table in its read table,

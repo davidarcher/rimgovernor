@@ -41,13 +41,28 @@ type routineNative struct {
 	// set, is the frame's finished research.
 	catalog  []*o.PlanningDefinition
 	finished []string
-	// buildings and pawns are the frame's keyed tables (#1343).
+	// buildings, pawns and things are the frame's keyed tables (#1343).
 	buildings bridge.Buildings
 	pawns     bridge.Pawns
+	things    bridge.Things
 }
 
 func (n *routineNative) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
-	return bridge.Tables{Buildings: n.buildings, Pawns: n.pawns}, nil
+	return bridge.Tables{Buildings: n.buildings, Pawns: n.pawns, Things: n.things}, nil
+}
+
+func (n *routineNative) FrameThings(context.Context, *c.Identity) (bridge.Things, error) {
+	return n.things, nil
+}
+
+// thing puts row in the frame's things table and returns the reference a
+// food stock carries to it.
+func (n *routineNative) thing(row *o.Thing) *o.EntityRef {
+	if n.things == nil {
+		n.things = bridge.Things{}
+	}
+	n.things[row.Thing.GetId()] = row
+	return &o.EntityRef{Id: row.Thing.Id}
 }
 
 // building puts row in the frame's building table and returns the

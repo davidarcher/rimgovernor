@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func forecastFixture(t *testing.T) (*o.ColonyFactsReply, Identity) {
+func forecastFixture(t *testing.T) (*o.ColonyFactsReply, Identity, bridge.Tables) {
 	t.Helper()
 	r := &o.ColonyFactsReply{}
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
@@ -21,26 +21,19 @@ func forecastFixture(t *testing.T) (*o.ColonyFactsReply, Identity) {
 	if err = protojson.Unmarshal(data, r); err != nil {
 		t.Fatal(err)
 	}
-	human := &o.FoodSupplyFacts{}
-	data, err = os.ReadFile("../../../contracts/fixtures/food-supply.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = protojson.Unmarshal(data, human); err != nil {
-		t.Fatal(err)
-	}
-	human.Stocks[0].Perishable = proto.Bool(false)
-	human.Stocks[0].RotTicks = nil
+	human, things := foodFixture(t)
+	things["rice"].Perishable = proto.Bool(false)
+	things["rice"].RotTicks = nil
 	combined := proto.Clone(human).(*o.FoodSupplyFacts)
 	combined.Consumers = append(combined.Consumers, &o.FoodConsumer{PawnId: proto.String("animal"), NutritionPerDay: proto.Float64(1)})
 	combined.Stocks[0].EaterIds = append(combined.Stocks[0].EaterIds, "animal")
 	r.GetObserved().FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: human}}
 	r.GetObserved().Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: combined, AnimalIds: []string{"animal"}, Patients: []*o.PatientForecast{{PawnId: proto.String("a")}, {PawnId: proto.String("b")}}}}}
-	return r, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
+	return r, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}, bridge.Tables{Things: things}
 }
 func TestCombinedFoodForecastReachesRoutineFacts(t *testing.T) {
-	r, identity := forecastFixture(t)
-	p, err := DecodeColony(r, identity, bridge.Tables{})
+	r, identity, tables := forecastFixture(t)
+	p, err := DecodeColony(r, identity, tables)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +41,7 @@ func TestCombinedFoodForecastReachesRoutineFacts(t *testing.T) {
 		t.Fatal("animal competition was not counted", p.Facts.FoodDays)
 	}
 	r.GetObserved().Forecast.GetObserved().CombinedFoodSupply.Stocks[0].Nutrition = nil
-	p, err = DecodeColony(r, identity, bridge.Tables{})
+	p, err = DecodeColony(r, identity, tables)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,9 +57,9 @@ func TestCombinedFoodForecastRejectsContradictoryCensus(t *testing.T) {
 		func(v *o.ForecastFacts) { v.Patients[0].PawnId = proto.String("animal") },
 		func(v *o.ForecastFacts) { v.Patients[0].BleedRatePerDay = proto.Float64(-1) },
 	} {
-		r, identity := forecastFixture(t)
+		r, identity, tables := forecastFixture(t)
 		change(r.GetObserved().Forecast.GetObserved())
-		if _, err := DecodeColony(r, identity, bridge.Tables{}); err == nil {
+		if _, err := DecodeColony(r, identity, tables); err == nil {
 			t.Fatal("invalid forecast accepted")
 		}
 	}

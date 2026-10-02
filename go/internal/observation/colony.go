@@ -397,21 +397,27 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 		r.CookingBenches = domain.Known(benches)
 	}
+	// A food supply whose stock the things table misses stays unknown
+	// until a later frame (#1343).
 	if food := v.GetFoodSupply().GetObserved(); food != nil {
-		supply, err := DecodeFoodSupply(food)
+		supply, known, err := DecodeFoodSupply(food, tables.Things)
 		if err != nil {
 			return ColonyProjection{}, err
 		}
-		r.FoodSupply = domain.Known(supply)
-		r.Facts.FoodStorageUpkeep = policy.FoodStorageStocks(supply)
+		if known {
+			r.FoodSupply = domain.Known(supply)
+			r.Facts.FoodStorageUpkeep = policy.FoodStorageStocks(supply)
+		}
 	}
 	if forecast := v.GetForecast().GetObserved(); forecast != nil {
-		combined, err := DecodeFoodSupply(forecast.CombinedFoodSupply)
+		combined, resolved, err := DecodeFoodSupply(forecast.CombinedFoodSupply, tables.Things)
 		if err != nil {
 			return ColonyProjection{}, err
 		}
-		r.CombinedFoodSupply = domain.Known(combined)
-		if human, known := r.FoodSupply.Value(); known && len(human.Consumers) > 0 {
+		if resolved {
+			r.CombinedFoodSupply = domain.Known(combined)
+		}
+		if human, known := r.FoodSupply.Value(); resolved && known && len(human.Consumers) > 0 {
 			selected := make([]policy.PawnID, 0, len(human.Consumers))
 			for _, consumer := range human.Consumers {
 				selected = append(selected, consumer.ID)

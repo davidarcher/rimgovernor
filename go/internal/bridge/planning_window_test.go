@@ -207,7 +207,7 @@ func TestReadPlanningWindowRefusalsAndContractFaults(t *testing.T) {
 		}, ErrContract},
 		"unrequested detail": {func(r *o.GetCellsRequest) *o.GetCellsReply {
 			s := windowSnapshot(r, nil)
-			s.Cells[0].Things = []*o.CellThing{{}}
+			s.Cells[0].Things = []*o.Thing{{}}
 			return &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}
 		}, ErrContract},
 		"other identity": {func(r *o.GetCellsRequest) *o.GetCellsReply {

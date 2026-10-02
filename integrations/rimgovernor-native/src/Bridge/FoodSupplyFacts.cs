@@ -118,11 +118,8 @@ namespace HomeBridge.BridgeTools
             var row = Stock(corpse, eaters, null);
             row.corpse = true;
             row.isHumanlike = corpse.InnerPawn.RaceProps.Humanlike;
-            row.forbidden = corpse.IsForbidden(Faction.OfPlayer);
             row.meatAmount = Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount));
-            row.bodySize = corpse.InnerPawn.BodySize;
-            row.tileFootprint = 1;
-            row.nutrition = row.meatAmount.Value * corpse.InnerPawn.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
+            row.nutrition = row.meatAmount * corpse.InnerPawn.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
             return row;
         }
 
@@ -131,19 +128,12 @@ namespace HomeBridge.BridgeTools
                 && thing.def.IsNutritionGivingIngestible && !thing.def.IsDrug && thing.IngestibleNow
                 && (thing.Faction == null || thing.Faction.IsPlayer));
 
+        // A stock's own facts are its thing's row (#1343); these are the
+        // ones relative to its eaters.
         private static StockFacts Stock(Thing thing, List<Pawn> eaters, string? holder)
-        {
-            var rot = thing.TryGetComp<CompRottable>();
-            var perishable = rot != null && rot.Active;
-            return new StockFacts { id = thing.GetUniqueLoadID(), defName = thing.def.defName, count = thing.stackCount,
-                rawClass = NativeMealRecipeFacts.InCategory(thing.def, "MeatRaw") ? 1 : NativeMealRecipeFacts.InCategory(thing.def, "PlantFoodRaw") ? 2 : NativeMealRecipeFacts.InCategory(thing.def, "AnimalProductRaw") ? 3 : 0,
-                holder = holder, reserve = IsReserve(thing), isHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing), rawMeat = thing.def.IsMeat, vegetable = thing.def.ingestible != null && (thing.def.ingestible.foodType & FoodTypeFlags.VegetableOrFruit) != 0, nutrition = thing is Corpse ? 0 : thing.stackCount * (eaters.Count>0 ? eaters.Min(p => FoodUtility.NutritionForEater(p, thing)) : thing.def.GetStatValueAbstract(StatDefOf.Nutrition)),
-                eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList(),
-                perishable = perishable, rotTicks = rot != null && perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
-                temperature = thing.AmbientTemperature,
-                roofed = thing.Spawned ? (bool?)thing.Position.Roofed(thing.Map) : null,
-                roomId = thing.Spawned ? thing.Position.GetRoom(thing.Map)?.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) : null };
-        }
+            => new StockFacts { id = thing.GetUniqueLoadID(), thing = thing, holder = holder, reserve = IsReserve(thing),
+                nutrition = thing is Corpse ? 0 : thing.stackCount * (eaters.Count>0 ? eaters.Min(p => FoodUtility.NutritionForEater(p, thing)) : thing.def.GetStatValueAbstract(StatDefOf.Nutrition)),
+                eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList() };
 
         // Shared typed source for the compatibility JSON and protobuf projections.
         internal sealed class Snapshot {
@@ -160,27 +150,14 @@ namespace HomeBridge.BridgeTools
         }
         internal sealed class StockFacts {
             public string? id { get; set; }
-            public string? defName { get; set; }
-            public int count { get; set; }
+            internal Thing? thing;
             public string? holder { get; set; }
             public float nutrition { get; set; }
             public List<string>? eaters { get; set; }
-            public int rawClass { get; set; }
             public bool reserve { get; set; }
-            public bool isHumanMeat { get; set; }
-            public bool rawMeat { get; set; }
             public bool isHumanlike { get; set; }
-            public bool vegetable { get; set; }
-            public bool perishable { get; set; }
-            public int? rotTicks { get; set; }
-            public float temperature { get; set; }
-            public bool? roofed { get; set; }
-            public string? roomId { get; set; }
             public bool corpse { get; set; }
-            public bool? forbidden { get; set; }
-            public float? meatAmount { get; set; }
-            public float? bodySize { get; set; }
-            public int? tileFootprint { get; set; }
+            public float meatAmount { get; set; }
         }
     }
 }

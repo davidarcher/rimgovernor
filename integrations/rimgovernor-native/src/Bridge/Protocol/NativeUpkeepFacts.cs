@@ -436,13 +436,11 @@ namespace HomeBridge.BridgeTools
                         && p.CanReach(t, PathEndMode.Touch, Danger.None)
                         && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
                             || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])).OrderBy(t => t.thingIDNumber).ToList();
+                    // Each feed stock references its things table row (#1343).
                     foreach (var item in reachable) {
-                        var rot = item.TryGetComp<CompRottable>();
-                        var stock = new Obs.FoodStock { Item = Ref(item), Count = item.stackCount, HolderId = "",
-                            Nutrition = Number(FoodUtility.NutritionForEater(p, item) * item.stackCount),
-                            Perishable = rot != null && rot.Active, Roofed = item.Position.Roofed(map) };
+                        var stock = new Obs.FoodStock { Item = NativeObservationTools.ThingRef(item),
+                            Nutrition = Number(FoodUtility.NutritionForEater(p, item) * item.stackCount) };
                         stock.EaterIds.Add(Id(p.GetUniqueLoadID()));
-                        if (rot != null && rot.Active) stock.RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp);
                         value.ReachableStoredFeed.Add(stock);
                     }
                     // A bill drops its product at the bench, so only a bench

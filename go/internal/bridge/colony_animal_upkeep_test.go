@@ -10,7 +10,7 @@ import (
 
 func animalWire() *o.UpkeepFacts {
 	v := upkeepWire()
-	v.Animals = []*o.AnimalFeed{{Pawn: &o.EntityRef{Id: proto.String("animal")}, RequiresPen: proto.Bool(true), ReachableStoredFeed: []*o.FoodStock{{Item: proto.Clone(v.Items[0].Item).(*o.EntityRef), Count: proto.Int64(1), HolderId: proto.String(""), Nutrition: proto.Float64(.5), EaterIds: []string{"animal"}, Perishable: proto.Bool(false)}}}}
+	v.Animals = []*o.AnimalFeed{{Pawn: &o.EntityRef{Id: proto.String("animal")}, RequiresPen: proto.Bool(true), ReachableStoredFeed: []*o.FoodStock{{Item: &o.EntityRef{Id: v.Items[0].Item.Id}, Nutrition: proto.Float64(.5), EaterIds: []string{"animal"}}}}}
 	return v
 }
 
@@ -32,7 +32,7 @@ func TestAnimalUpkeepBoundary(t *testing.T) {
 			v.Animals[0].SuitablePenId = proto.String("pen")
 		},
 		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].Nutrition = proto.Float64(math.NaN()) },
-		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].Count = proto.Int64(-1) },
+		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].Item.DefName = proto.String("Hay") },
 		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].EaterIds = []string{"other"} },
 		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].HolderId = proto.String("animal") },
 	} {

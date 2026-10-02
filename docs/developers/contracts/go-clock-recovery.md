@@ -488,7 +488,8 @@ change or an authority generation flip empties both. Tables
 are immutable once published, and each goes to the snapshot recorder.
 The review publishes the frame's colony facts (one section per
 `bridge.ColonySections` name), the frame's pawn table (section `pawns`,
-every spawned pawn keyed by pawn id, #1343) and the bench census (`benches`, each bench's
+every spawned pawn keyed by pawn id, #1343), its things table (section
+`things`, every thing a food stock references, keyed by thing id) and the bench census (`benches`, each bench's
 bills and recipes, keyed by bench thing id), and retains its census for
 the step's planners (`routineCensus`): a planner of the same load, map
 and native generation plans from it at any tick at or after the review,

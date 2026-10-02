@@ -31,6 +31,7 @@ describe current behavior and constraints, not gameplay acceptance.
 
 `fixtures/` holds small sanitized native reply samples (`colony-core.json`,
 `colony-core-cells.json` (its planning window),
-`food-supply.json`) that the Go observation, bridge and routine unit tests
+`food-supply.json` and the things table rows its stocks reference,
+`food-things.json`) that the Go observation, bridge and routine unit tests
 decode. They establish parsing, not native outcomes. `tests/NativeContractProbes`
 compiles the generated C# against the native project as a contract check.

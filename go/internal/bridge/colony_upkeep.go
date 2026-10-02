@@ -107,7 +107,8 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		}
 		stocks := map[string]bool{}
 		for _, stock := range row.ReachableStoredFeed {
-			if stock == nil || !entity(stock.Item, stocks) || !number(stock.Nutrition) || stock.Count != nil && stock.GetCount() < 0 || stock.RotTicks != nil && stock.GetRotTicks() < 0 || stock.HolderId != nil && stock.GetHolderId() != "" || len(stock.EaterIds) != 1 || stock.EaterIds[0] != p.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Count: stock.Count, HolderId: stock.HolderId, Nutrition: stock.Nutrition, EaterIds: stock.EaterIds, Perishable: stock.Perishable, RotTicks: stock.RotTicks, Roofed: stock.Roofed}) {
+			// A feed stock references its things table row (#1343).
+			if stock == nil || !thingRef(stock.Item, stocks) || !number(stock.Nutrition) || len(stock.EaterIds) != 1 || stock.EaterIds[0] != p.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Nutrition: stock.Nutrition, EaterIds: stock.EaterIds}) {
 				return contract("invalid reachable animal feed")
 			}
 		}

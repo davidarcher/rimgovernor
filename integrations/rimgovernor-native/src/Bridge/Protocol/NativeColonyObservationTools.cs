@@ -54,10 +54,12 @@ namespace HomeBridge.BridgeTools
 
         // The colony facts as a bundle section (issue #180): the same facts the
         // tool answers, or false for any read failure the bundle then omits.
-        internal static bool TryRead(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.ColonyFactsSnapshot? snapshot)
+        // referenced collects every thing a food stock references, the
+        // bundle's things table (#1343).
+        internal static bool TryRead(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.ColonyFactsSnapshot? snapshot, List<Thing>? referenced = null)
         {
             snapshot = null;
-            try { snapshot = Read(map, request, context); return true; }
+            try { snapshot = Read(map, request, context, referenced); return true; }
             catch (Exception) { return false; }
         }
 
@@ -67,7 +69,7 @@ namespace HomeBridge.BridgeTools
             return request?.Scope?.ExpectedIdentity != null;
         }
 
-        private static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context)
+        private static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context, List<Thing>? referenced = null)
         {
             // Each span below names where the read's game-thread time went
             // in a slow snapshot capture line (#1273).
@@ -121,9 +123,9 @@ namespace HomeBridge.BridgeTools
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
                 FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp) };
             result.FoodSupply = new Obs.FoodSupplySection { Observed = Food(FoodSupplyFacts.Read(people,
-                    things.Where(FoodSupplyFacts.SharedFood).ToList())) };
+                    things.Where(FoodSupplyFacts.SharedFood).ToList()), referenced) };
             Span("cf.foodSupply");
-            result.Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) };
+            result.Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things), referenced) };
             Span("cf.forecast");
             result.Upkeep = ReadComfort(map, things);
             Span("cf.upkeep");
@@ -566,9 +568,9 @@ namespace HomeBridge.BridgeTools
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
         private static double Nonnegative(double v) => Finite(v) >= 0 ? v : throw new InvalidOperationException("Negative fact.");
-        private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source)
+        private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source, List<Thing>? referenced)
         {
-            var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply),
+            var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply, referenced),
                 };
             result.AnimalIds.Add(source.animalIds);
             foreach (var crop in source.crops) {
@@ -595,7 +597,7 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
-        private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
+        private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source, List<Thing>? referenced)
         {
             var result = new Obs.FoodSupplyFacts { };
             if (source.larder != null) {
@@ -610,20 +612,11 @@ namespace HomeBridge.BridgeTools
             foreach (var consumer in source.consumers)
                 result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable });
             foreach (var stock in source.stocks) {
-                var row = new Obs.FoodStock { Item = new Obs.EntityRef { Id = stock.id, DefName = stock.defName },
-                    Count = stock.count, Nutrition = Finite(stock.nutrition), Perishable = stock.perishable, Reserve = stock.reserve, IsHumanMeat = stock.isHumanMeat, RawMeat = stock.rawMeat,
-                    TemperatureC = Finite(stock.temperature), IsHumanlike=stock.isHumanlike, Vegetable=stock.vegetable };
+                // The stock's thing is a things table row (#1343).
+                var row = new Obs.FoodStock { Item = NativeObservationTools.ThingRef(stock.thing!), Nutrition = Finite(stock.nutrition), Reserve = stock.reserve };
                 row.EaterIds.Add(stock.eaters);
                 if (stock.holder != null) row.HolderId = stock.holder;
-                if (stock.rotTicks.HasValue) row.RotTicks = stock.rotTicks.Value;
-                if (stock.roofed.HasValue) row.Roofed = stock.roofed.Value;
-                if (stock.roomId != null) row.RoomId = stock.roomId;
-                row.Corpse = stock.corpse;
-                row.RawClass = (Obs.FoodIngredientClass)stock.rawClass;
-                if (stock.forbidden.HasValue) row.Forbidden = stock.forbidden.Value;
-                if (stock.meatAmount.HasValue) row.MeatAmount = Finite(stock.meatAmount.Value);
-                if (stock.bodySize.HasValue) row.BodySize = Finite(stock.bodySize.Value);
-                if (stock.tileFootprint.HasValue) row.TileFootprint = stock.tileFootprint.Value;
+                referenced?.Add(stock.thing!);
                 result.Stocks.Add(row);
             }
             return result;
