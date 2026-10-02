@@ -775,7 +775,7 @@ func TestPerimeterInnerRingAndCrossWalls(t *testing.T) {
 			t.Fatal("inner and outer walls share", c)
 		}
 	}
-	secs, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
+	secs, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

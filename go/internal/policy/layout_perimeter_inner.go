@@ -18,16 +18,34 @@ const (
 	// ReserveInnerGate marks a gate through an inner or cross wall.
 	ReserveInnerGate ReservationKind = "inner_gate"
 
-	// innerYard is the free ground between the core's walls and the inner
-	// ring.
-	innerYard int32 = 1
+	// innerYardWanted is the free ground between the core's walls and the
+	// inner ring: ranged combat distance, so a defender holding the ring is
+	// covered by rifles from the buildings. The ring comes in as far as it
+	// must to stand inside the outer one.
+	innerYardWanted int32 = 12
 )
 
 // innerWalls plans the inner ring and the cross walls around core. free
 // says a cell can take a wall: inside the outer ring, open ground, off the
 // killbox and every other reservation, and when strict off the fields. The
 // ring takes field cells it must; a cross wall keeps off them where it can.
-func innerWalls(core Rectangle, inside func(domain.Cell) bool, free func(domain.Cell, bool) bool) (walls map[domain.Cell]bool, gates []Rectangle) {
+func innerWalls(core Rectangle, inside func(domain.Cell) bool, free func(domain.Cell, bool) bool) (map[domain.Cell]bool, []Rectangle) {
+	best, lost := innerYardWanted, -1
+	for yard := innerYardWanted; yard >= 1 && lost != 0; yard-- {
+		n := 0
+		for _, c := range rectCells(pad(core, yard+perimeterThick)) {
+			if !contains(pad(core, yard), c) && !inside(c) {
+				n++
+			}
+		}
+		if lost < 0 || n < lost {
+			best, lost = yard, n
+		}
+	}
+	return innerWallsAt(core, best, inside, free)
+}
+
+func innerWallsAt(core Rectangle, innerYard int32, inside func(domain.Cell) bool, free func(domain.Cell, bool) bool) (walls map[domain.Cell]bool, gates []Rectangle) {
 	walls = map[domain.Cell]bool{}
 	outerEdge := pad(core, innerYard+perimeterThick)
 	hole := pad(core, innerYard)
