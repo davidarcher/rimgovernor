@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
@@ -315,7 +316,14 @@ func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err error, repeats int) {
 	level, message := slog.LevelInfo, "step done"
 	failures := make([]string, 0, len(result.PlannerFailures))
+	var unselected []string
 	for _, failure := range result.PlannerFailures {
+		// A goal the ranking left without a development slot this round is
+		// waiting its turn, not faulting.
+		if errors.Is(failure, store.ErrNotAdmitted) {
+			unselected = append(unselected, failure.Error())
+			continue
+		}
 		failures = append(failures, failure.Error())
 	}
 	// A bare hold (no planner failed, nothing else joined) is the step
@@ -338,7 +346,7 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 		}
 	}
 	slog.Default().Log(ctx, level, message, telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",
-		"err", err, "planner_failures", failures, "proposals", proposals, "cause", string(result.Reason.Cause), "admitted", result.Decision.Admitted, "running", result.Running,
+		"err", err, "planner_failures", failures, "planner_unselected", unselected, "proposals", proposals, "cause", string(result.Reason.Cause), "admitted", result.Decision.Admitted, "running", result.Running,
 		"reconciled", result.Reconciled, "cleaned", result.Cleaned, "deferred", result.Deferred, "retaken", result.Retaken, "combat", result.Combat, "window_ticks", result.Window.Ticks, "repeated", repeats)
 }
 
