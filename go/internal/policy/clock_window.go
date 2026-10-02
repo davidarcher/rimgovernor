@@ -39,6 +39,8 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 	}
 	combatPlan, combatKnown := f.CombatPlan.Value()
 	unanswered, unansweredKnown := f.SquadUnanswered.Value()
+	sheltered, shelteredKnown := f.Sheltered.Value()
+	sheltered = sheltered && shelteredKnown
 	var hostiles []PawnID
 	combat := false
 	buildings := hostileBuildingIDs(f.Emergency)
@@ -69,6 +71,10 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 				// reports again at every stop and a plan it admits later
 				// makes the next window a combat one.
 			case combatPlan && h.Pawn != "":
+				hostiles = append(hostiles, h.Pawn)
+			case sheltered && h.Pawn != "" && !buildings[h.Pawn]:
+				// Every undrafted colonist is in the Safe area (#1560):
+				// the threat is waited out, watched like a fight's.
 				hostiles = append(hostiles, h.Pawn)
 			default:
 				hold(ClockWindowUnsafe)

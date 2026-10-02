@@ -52,6 +52,11 @@ type ClockWindowFacts struct {
 	// hostile pawn still holds, a raid must not auto-advance. Unknown means
 	// the planner has not reported and the building holds.
 	SquadUnanswered domain.Fact[bool]
+	// Sheltered is whether the threat's sheltering response is complete
+	// (ShelterHeld): every undrafted colonist is restricted to the Safe
+	// area. A hostile pawn is then watched in a combat window instead of
+	// refused, so the sheltered colony waits it out (#1560).
+	Sheltered domain.Fact[bool]
 }
 
 // CombatMaxTicks bounds a combat window; zero means the colony budget. A raid

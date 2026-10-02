@@ -217,3 +217,44 @@ func PlanSheltering(f RoutineFacts) []AllowedAreaChange {
 }
 
 func areaKnownFalse(f domain.Fact[bool]) bool { v, k := f.Value(); return k && !v }
+
+// ShelterHeld is whether a threat's sheltering response is complete: a
+// threat triggers sheltering and every living, undowned, undrafted, sane
+// colonist (at least one) is restricted to the Safe area. The clock window
+// then watches the threat instead of refusing it (#1560): sheltered
+// colonists wait it out on game time.
+func ShelterHeld(f RoutineFacts) bool {
+	trigger, tk := ShelterTriggerOf(f)
+	safe, sk := f.ShelterArea.Value()
+	safety, known := f.RecoverySafety.Value()
+	workers, wk := f.RecoveryWorkers.Value()
+	if !tk || trigger != ShelterThreat || !sk || safe == "" || !known || !wk {
+		return false
+	}
+	held := 0
+	for _, worker := range workers {
+		if !areaKnownFalse(worker.Dead) || !areaKnownFalse(worker.Downed) || !areaKnownFalse(worker.Mental) {
+			continue
+		}
+		drafted, known := worker.Drafted.Value()
+		if !known {
+			return false
+		}
+		if drafted {
+			continue
+		}
+		in := false
+		for _, restriction := range safety.Restrictions {
+			if restriction.Pawn == worker.Pawn {
+				area, known := restriction.Area.Value()
+				in = known && area == safe
+				break
+			}
+		}
+		if !in {
+			return false
+		}
+		held++
+	}
+	return held > 0
+}
