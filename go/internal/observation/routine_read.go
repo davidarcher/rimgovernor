@@ -14,11 +14,10 @@ import (
 )
 
 // RoutineSource is the routine census: one decoded frame per reading
-// (bridge.Client.ReadRoutineFrame), carrying the named planning
-// definitions beside its default catalog.
+// (bridge.Client.ReadRoutineFrame) with the load's definition catalog.
 type RoutineSource interface {
 	ColonySource
-	ReadRoutineFrame(context.Context, *c.Identity, []string) (bridge.RoutineFrame, error)
+	ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error)
 }
 
 type RoutineReading struct {
@@ -70,7 +69,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	}
 	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
 	started := clock.Now()
-	frame, err := source.ReadRoutineFrame(ctx, id, definitions)
+	frame, err := source.ReadRoutineFrame(ctx, id)
 	if err != nil {
 		return RoutineReading{}, err
 	}
@@ -83,11 +82,9 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	}
 	p := &reading.Projection
 	colony, emergency := frame.Colony, frame.Emergency.Facts
-	extra, err := frameDefinitions(frame, p.Definitions, definitions)
-	if err != nil {
-		return RoutineReading{}, err
+	if frame.Catalog != nil {
+		p.Definitions = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, definitions)
 	}
-	p.Definitions = append(p.Definitions, extra...)
 	if sleeping, known := p.Facts.Sleeping.Value(); known {
 		sleeping.BedBuildable = p.DefinitionAvailable(policy.SleepingBedDefinitions[0])
 		p.Facts.Sleeping = domain.Known(sleeping)
@@ -183,31 +180,27 @@ func routinePawns(frame bridge.RoutineFrame, id *c.Identity) (*o.PawnSnapshot, e
 	return frame.Pawns, nil
 }
 
-// frameDefinitions are the frame's rows for the definitions absent from
-// its default planning catalog (census), each once. Native serves a row
-// for every subscribed name, so a missing one breaks the contract.
-func frameDefinitions(frame bridge.RoutineFrame, census []PlanningDefinition, definitions []string) ([]PlanningDefinition, error) {
-	held := map[string]bool{}
-	for _, d := range census {
-		held[d.Name] = true
+// frameDefinitionFacts resolves definitions against the frame's catalog,
+// research and crop rows.
+func frameDefinitionFacts(frame bridge.RoutineFrame) definitionFacts {
+	facts := definitionFacts{catalog: frame.Catalog, crops: cropRows(frame.Colony.GetPlanning().GetObserved())}
+	if frame.Research != nil {
+		facts.finished = finishedSet(frame.Research.Finished)
 	}
-	rows := map[string]*o.PlanningDefinition{}
-	for _, row := range frame.Definitions {
-		rows[row.GetDefinition().GetDefName()] = row
+	return facts
+}
+
+// DefinitionCatalog is the frame's catalog, nil for a frame without one.
+func (f frameColony) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
+	return f.frame.Catalog, nil
+}
+
+// ReadResearch is the frame's research section.
+func (f frameColony) ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error) {
+	if f.frame.Research == nil {
+		return bridge.ResearchRead{}, bridge.Result{}, bridge.ErrUnavailable
 	}
-	var out []PlanningDefinition
-	for _, name := range definitions {
-		if held[name] {
-			continue
-		}
-		row, ok := rows[name]
-		if !ok {
-			return nil, ErrContract
-		}
-		held[name] = true
-		out = append(out, planningDefinition(row))
-	}
-	return out, nil
+	return *f.frame.Research, bridge.Result{}, nil
 }
 
 // frameQuests is the visible quest census; unknown when the frame carries

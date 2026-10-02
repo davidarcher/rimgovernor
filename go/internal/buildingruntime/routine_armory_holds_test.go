@@ -23,8 +23,8 @@ func (n *fabricationArmorNative) ReadResearch(context.Context, *c.Identity) (bri
 	return bridge.ResearchRead{Context: n.reply.GetObserved().Context, Finished: []string{"Smithing", "Machining", "Fabrication"}}, bridge.Result{}, nil
 }
 
-func (n *fabricationArmorNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id, definitions)
+func (n *fabricationArmorNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
 }
 
 func (n *fabricationArmorNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {

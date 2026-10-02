@@ -42,7 +42,7 @@ func (f *clockServiceFake) ReadEmergency(context.Context, *c.Identity) (bridge.E
 	return bridge.EmergencyObservation{}, bridge.Result{}, errors.New("emergency read unavailable")
 }
 
-func (f *clockServiceFake) ReadRoutineFrame(context.Context, *c.Identity, []string) (bridge.RoutineFrame, error) {
+func (f *clockServiceFake) ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error) {
 	f.colonyReads.Add(1)
 	return bridge.RoutineFrame{}, errors.New("routine frame unavailable")
 }

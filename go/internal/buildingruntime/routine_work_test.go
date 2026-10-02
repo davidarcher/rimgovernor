@@ -35,13 +35,13 @@ func TestRoutineWorkReadbackRecoversInBothModesAndPreservesUnknown(t *testing.T)
 		want := domain.NeedRecovered
 		switch phase {
 		case "project-skill":
-			v.Planning.GetObserved().Definitions[0].ConstructionSkill = proto.Int32(11)
+			n.catalog[0].ConstructionSkill = proto.Int32(11)
 			want = domain.NeedDeficit
 		case "unknown-project":
-			v.Planning.GetObserved().Definitions[0].ConstructionSkill = nil
+			n.catalog[0].ConstructionSkill = nil
 			want = domain.NeedUnknown
 		case "restored-project":
-			v.Planning.GetObserved().Definitions[0].ConstructionSkill = proto.Int32(0)
+			n.catalog[0].ConstructionSkill = proto.Int32(0)
 		case "mismatch":
 			row.Settings.Work[0].Priority = proto.Int32(3)
 			want = domain.NeedDeficit

@@ -234,6 +234,7 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/observations_list_buildings":          AdmissionObservation,
 	"rimgovernor/observations_list_rooms":              AdmissionObservation,
 	"rimgovernor/observations_read_research":           AdmissionObservation,
+	methodDefinitionCatalog:                            AdmissionObservation,
 	"rimgovernor/observations_list_wall_upgrade_sites": AdmissionObservation,
 	"rimgovernor/observations_list_zones":              AdmissionObservation,
 	"rimgovernor/observations_read_defense_site":       AdmissionObservation,

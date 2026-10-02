@@ -3,8 +3,6 @@ package buildingruntime
 import (
 	"context"
 	"testing"
-
-	"google.golang.org/protobuf/proto"
 )
 
 // With every generator unavailable and the research it requires unfinished,
@@ -13,12 +11,12 @@ import (
 func TestRoutinePowerReportsTheResearchItWaitsOn(t *testing.T) {
 	t.Parallel()
 	p, _, n, _ := powerFixture(t, false)
-	for _, d := range n.reply.GetObserved().Planning.GetObserved().Definitions {
+	for _, d := range n.catalog {
 		if d.Definition.GetDefName() == "WoodFiredGenerator" {
-			d.Available = proto.Bool(false)
 			d.ResearchPrerequisites = []string{"Electricity"}
 		}
 	}
+	n.finished = []string{}
 	result, err := p.Step(context.Background())
 	if err != nil || result.Reason != researchWaitReason("Electricity") {
 		t.Fatal(result, err)

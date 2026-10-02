@@ -17,6 +17,7 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 	n := schedulerRoutine(t, s, f)
 	_, _, _, _, template := sleepingFixture(t)
 	planning := proto.Clone(template.reply.GetObserved().Planning.GetObserved()).(*o.PlanningFacts)
+	n.catalog = template.catalog
 	n.cells = proto.Clone(template.cells).(*o.CellsSnapshot)
 	n.cells.Context = proto.Clone(f.status.Context).(*c.ObservationContext)
 	n.reply.GetObserved().Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: planning}}
@@ -109,7 +110,7 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 		}
 	}
 	v.Issues = issues
-	v.Planning.GetObserved().Definitions[0].Definition.DefName = proto.String("Campfire")
+	n.catalog[0].Definition.DefName = proto.String("Campfire")
 	config := s.config
 	config.Sleeping = nil
 	var err error

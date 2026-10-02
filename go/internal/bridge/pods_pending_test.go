@@ -42,7 +42,7 @@ func TestPendingPodsReachEveryEmergencyCensus(t *testing.T) {
 			var routine RoutineFrame
 			frameReplies(frame, EmergencyObservation{}, func(method string, _, reply proto.Message) {
 				if method == routineFrameMethod {
-					if routine, err = DecodeRoutineFrame(reply.(*o.BundleSnapshot)); err != nil {
+					if routine, err = DecodeRoutineFrame(reply.(*o.BundleSnapshot), nil); err != nil {
 						t.Fatal(err)
 					}
 				}

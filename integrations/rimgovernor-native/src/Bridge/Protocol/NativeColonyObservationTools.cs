@@ -19,14 +19,8 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeColonyObservationTools
     {
         internal const string ToolName = "rimgovernor/observations_read_colony_facts";
-        private static readonly string[] StarterDefinitions = {
-            "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater",
-            "PassiveCooler", "Cooler", "WoodFiredGenerator", "SolarGenerator", "WindTurbine", "ChemfuelPoweredGenerator", "GeothermalGenerator", "Battery", "PowerConduit", "Sandbags", "Barricade",
-            "StandingLamp", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin",
-            "Plant_Rice", "Plant_Potato", "Plant_Corn", "TableStonecutter", "Fence", "FenceGate", "PenMarker"
-        };
 
-        [Tool(ToolName, Title = "Read typed routine colony facts", Description = "Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.")]
+        [Tool(ToolName, Title = "Read typed routine colony facts", Description = "Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional gear, edible crop and growing-environment planning facts; definitions are the definition catalog's. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.")]
         [ToolResponse("payload", "string", "Official ColonyFactsReply ProtoJSON.", Always = true)]
         public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw ColonyFactsRequest ProtoJSON string.")] object? request = null)
@@ -396,128 +390,130 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
-            var names = StarterDefinitions;
             var result = new Obs.PlanningFacts { };
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             try { result.Gear = NativeGearFacts.Read(map, context); }
             catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
             ObservationWork.Detail("cf.gear", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             began = System.Diagnostics.Stopwatch.GetTimestamp();
-            result.Definitions.Add(Definitions(map, names));
-            ObservationWork.Detail("cf.definitions", System.Diagnostics.Stopwatch.GetTimestamp() - began);
+            result.Crops.Add(Crops(map));
+            ObservationWork.Detail("cf.crops", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             // The planning window itself (the site cells around the centre)
             // is no longer carried here: the controller reads it on demand
-            // through observations_get_cells (issue #356), so a routine
-            // colony facts read costs the definitions, gear and environment
-            // census only. The window's rect still bounds the environment
-            // census below.
+            // through observations_get_cells (issue #356), and the
+            // definitions are the definition catalog's (#1340). The window's
+            // rect still bounds the environment census below.
             var min = new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22));
             var max = new IntVec3(Math.Min(map.Size.x - 1, center.x + 22), 0, Math.Min(map.Size.z - 1, center.z + 22));
             try { result.Environment = Environment(map, min, max); }
             catch (Exception) { result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
             return result;
         }
-        // On the main thread: one planning row per name, sorted by name;
-        // a name no ThingDef or TerrainDef carries is an unavailable row.
-        internal static List<Obs.PlanningDefinition> Definitions(Map map, IEnumerable<string> names)
+
+        // The definitions the catalog carries: player-buildable or sowable
+        // ThingDefs and player-buildable TerrainDefs.
+        internal static bool Cataloged(ThingDef def) => def.BuildableByPlayer || def.plant?.Sowable == true;
+
+        // A sowable crop whose product is edible: the per-map facts the
+        // catalog row cannot carry, one row per crop sorted by name.
+        internal static List<Obs.EdibleCrop> Crops(Map map)
         {
-            var result = new List<Obs.PlanningDefinition>();
+            var result = new List<Obs.EdibleCrop>();
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             var demand = people.Sum(p => p.needs?.food == null ? 0f : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                 && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
-            foreach (var name in names.OrderBy(n => n, StringComparer.Ordinal)) {
-                var row = new Obs.PlanningDefinition { Definition = new Obs.DefinitionRef { DefName = name } };
+            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => Cataloged(d) && d.plant != null).OrderBy(d => d.defName, StringComparer.Ordinal)) {
+                var product = def.plant.harvestedThingDef;
+                if (product == null || !Edible(product)) continue;
+                var row = new Obs.EdibleCrop { DefName = def.defName };
+                row.DietAllowed = !product.IsFungus || !ModsConfig.IdeologyActive || !people.Any(p =>
+                    p.Ideo != null && p.Ideo.PreceptsListForReading.Any(precept => precept.def.comps
+                        .OfType<PreceptComp_SelfTookMemoryThought>().Any(comp =>
+                            (comp.eventDef == HistoryEventDefOf.AteFungus || comp.eventDef == HistoryEventDefOf.AteFungusAsIngredient)
+                            && comp.thought.stages.Any(stage => stage.baseMoodEffect < 0))));
+                row.NutritionDemandPerDay = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
+                    && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(product) != false)
+                    .Sum(p => p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f));
                 result.Add(row);
-                var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
-                if (def == null && Terrain(row, DefDatabase<TerrainDef>.GetNamedSilentFail(name))) continue;
-                if (def == null) {
-                    row.Available = false;
-                    row.Issues.Add(Issue("costs", Common.UnavailableReason.NotApplicable, "Native definition does not exist."));
-                    row.Issues.Add(Issue("size", Common.UnavailableReason.NotApplicable, "Native definition does not exist."));
-                    continue;
-                }
-                row.Definition.Label = PlacementPreviewOperation.Diagnostic(def.label);
-                row.Available = def.researchPrerequisites == null || def.researchPrerequisites.All(r => r.IsFinished);
-                row.ResearchPrerequisites.Add((def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName));
-                row.ConstructionSkill = def.constructionSkillPrerequisite;
-                row.NeedsPower = def.GetCompProperties<CompProperties_Power>()?.PowerConsumption > 0;
-                row.Size = new Obs.MapSize { Width = (uint)def.size.x, Height = (uint)def.size.z };
-                // Starter wood where the definition allows it; otherwise the
-                // game's own default material (steel for metallic things such
-                // as turrets), so the costs and the stuff to build with are
-                // still observed rather than left unknown.
-                var wood = DefDatabase<ThingDef>.GetNamedSilentFail("WoodLog");
-                var stuff = def.MadeFromStuff ? (wood != null && GenStuff.AllowedStuffsFor(def).Contains(wood) ? wood : GenStuff.DefaultStuffFor(def)) : null;
-                if (def.MadeFromStuff && (stuff == null || !GenStuff.AllowedStuffsFor(def).Contains(stuff))) {
-                    row.Issues.Add(Issue("costs", Common.UnavailableReason.NotApplicable, "No native allowed material for the definition."));
-                } else {
-                    if (stuff != null) row.Stuff = stuff.defName;
-                    var costs = def.CostListAdjusted(stuff, false); 
-                    foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
-                    row.WorkToBuild = Nonnegative(def.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff));
-                    if (def.building?.bed_humanlike == true) row.RestEffectiveness = Finite(def.GetStatValueAbstract(StatDefOf.BedRestEffectiveness, stuff));
-                }
-                // Every allowed material with its own cost list, so the
-                // planner picks one the colony has in stock.
-                if (def.MadeFromStuff) {
-                    foreach (var option in GenStuff.AllowedStuffsFor(def).OrderBy(s => s.defName, StringComparer.Ordinal)) {
-                        var entry = new Obs.StuffOption { Stuff = option.defName };
-                        foreach (var cost in def.CostListAdjusted(option, false)) entry.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
-                        row.StuffOptions.Add(entry);
-                    }
-                }
-                var powerProps = def.GetCompProperties<CompProperties_Power>();
-                if (powerProps != null) row.PowerW = Finite(powerProps.PowerConsumption);
-                var glowProps = def.GetCompProperties<CompProperties_Glower>();
-                if (glowProps != null) row.GlowRadius = Finite(glowProps.glowRadius);
-                var explosiveProps = def.GetCompProperties<CompProperties_Explosive>();
-                if (explosiveProps != null) row.ExplosiveRadius = Nonnegative(explosiveProps.explosiveRadius);
-                if (def.building?.sowTag != null) { row.SowTag = def.building.sowTag; if (def.fertility >= 0f) row.GrowerFertility = Finite(def.fertility); }
-                if (def.plant != null) {
-                    row.HarvestWork = Finite(def.plant.harvestWork);
-                    row.RequiresPollution = def.plant.RequiresPollution;
-                    row.RequiresCleanSoil = def.plant.RequiresNoPollution;
-                    row.GrowDays = Finite(def.plant.growDays); row.FertilityMin = Finite(def.plant.fertilityMin); row.FertilitySensitivity = Finite(def.plant.fertilitySensitivity);
-                    row.GrowMinGlow = Finite(def.plant.growMinGlow); row.SowTags.Add(def.plant.sowTags ?? new List<string>());
-                    var product = def.plant.harvestedThingDef;
-                    if (product != null) {
-                        row.RawPreferred = product.ingestible != null && product.ingestible.preferability >= FoodPreferability.RawTasty;
-                        row.DietAllowed = !product.IsFungus || !ModsConfig.IdeologyActive || !people.Any(p =>
-                            p.Ideo != null && p.Ideo.PreceptsListForReading.Any(precept => precept.def.comps
-                                .OfType<PreceptComp_SelfTookMemoryThought>().Any(comp =>
-                                    (comp.eventDef == HistoryEventDefOf.AteFungus || comp.eventDef == HistoryEventDefOf.AteFungusAsIngredient)
-                                    && comp.thought.stages.Any(stage => stage.baseMoodEffect < 0))));
-                        row.Edible = product.IsNutritionGivingIngestible && !product.IsDrug;
-                        row.HarvestNutrition = Finite(def.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition));
-                        row.NutritionDemandPerDay = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
-                            && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(product) != false)
-                            .Sum(p => p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f));
-                    }
-                }
             }
             return result;
         }
-        // A floor definition: research availability, its cost list and the
+        private static bool Edible(ThingDef product) => product.IsNutritionGivingIngestible && !product.IsDrug;
+
+        // One definition's static planning row: what holds for the whole
+        // load, whatever the map or the research state.
+        internal static Obs.PlanningDefinition Definition(ThingDef def)
+        {
+            var row = new Obs.PlanningDefinition { Definition = new Obs.DefinitionRef { DefName = def.defName, Label = PlacementPreviewOperation.Diagnostic(def.label ?? def.defName) } };
+            row.ResearchPrerequisites.Add((def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName));
+            row.ConstructionSkill = def.constructionSkillPrerequisite;
+            row.NeedsPower = def.GetCompProperties<CompProperties_Power>()?.PowerConsumption > 0;
+            row.Size = new Obs.MapSize { Width = (uint)def.size.x, Height = (uint)def.size.z };
+            // Starter wood where the definition allows it; otherwise the
+            // game's own default material (steel for metallic things such
+            // as turrets), so the costs and the stuff to build with are
+            // still observed rather than left unknown.
+            var wood = DefDatabase<ThingDef>.GetNamedSilentFail("WoodLog");
+            var stuff = def.MadeFromStuff ? (wood != null && GenStuff.AllowedStuffsFor(def).Contains(wood) ? wood : GenStuff.DefaultStuffFor(def)) : null;
+            if (def.MadeFromStuff && (stuff == null || !GenStuff.AllowedStuffsFor(def).Contains(stuff))) {
+                row.Issues.Add(Issue("costs", Common.UnavailableReason.NotApplicable, "No native allowed material for the definition."));
+            } else {
+                if (stuff != null) row.Stuff = stuff.defName;
+                var costs = def.CostListAdjusted(stuff, false);
+                foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
+                row.WorkToBuild = Nonnegative(def.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff));
+                if (def.building?.bed_humanlike == true) row.RestEffectiveness = Finite(def.GetStatValueAbstract(StatDefOf.BedRestEffectiveness, stuff));
+            }
+            // Every allowed material with its own cost list, so the
+            // planner picks one the colony has in stock.
+            if (def.MadeFromStuff) {
+                foreach (var option in GenStuff.AllowedStuffsFor(def).OrderBy(s => s.defName, StringComparer.Ordinal)) {
+                    var entry = new Obs.StuffOption { Stuff = option.defName };
+                    foreach (var cost in def.CostListAdjusted(option, false)) entry.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
+                    row.StuffOptions.Add(entry);
+                }
+            }
+            var powerProps = def.GetCompProperties<CompProperties_Power>();
+            if (powerProps != null) row.PowerW = Finite(powerProps.PowerConsumption);
+            var glowProps = def.GetCompProperties<CompProperties_Glower>();
+            if (glowProps != null) row.GlowRadius = Finite(glowProps.glowRadius);
+            var explosiveProps = def.GetCompProperties<CompProperties_Explosive>();
+            if (explosiveProps != null) row.ExplosiveRadius = Nonnegative(explosiveProps.explosiveRadius);
+            if (def.building?.sowTag != null) { row.SowTag = def.building.sowTag; if (def.fertility >= 0f) row.GrowerFertility = Finite(def.fertility); }
+            if (def.plant != null) {
+                row.HarvestWork = Finite(def.plant.harvestWork);
+                row.RequiresPollution = def.plant.RequiresPollution;
+                row.RequiresCleanSoil = def.plant.RequiresNoPollution;
+                row.GrowDays = Finite(def.plant.growDays); row.FertilityMin = Finite(def.plant.fertilityMin); row.FertilitySensitivity = Finite(def.plant.fertilitySensitivity);
+                row.GrowMinGlow = Finite(def.plant.growMinGlow); row.SowTags.Add(def.plant.sowTags ?? new List<string>());
+                var product = def.plant.harvestedThingDef;
+                if (product != null) {
+                    row.RawPreferred = product.ingestible != null && product.ingestible.preferability >= FoodPreferability.RawTasty;
+                    row.Edible = Edible(product);
+                    row.HarvestNutrition = Finite(def.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition));
+                }
+            }
+            return row;
+        }
+        // A floor definition: its research prerequisites, cost list and the
         // abstract stats a laid floor carries (MaintainFlooring scores these).
         // TerrainDefs are never made from stuff.
-        private static bool Terrain(Obs.PlanningDefinition row, TerrainDef? def)
+        internal static Obs.PlanningDefinition Terrain(TerrainDef def)
         {
-            if (def == null) return false;
-            row.Definition.Label = PlacementPreviewOperation.Diagnostic(def.label);
+            var row = new Obs.PlanningDefinition { Definition = new Obs.DefinitionRef { DefName = def.defName, Label = PlacementPreviewOperation.Diagnostic(def.label ?? def.defName) } };
             row.Terrain = true;
-            row.Available = def.BuildableByPlayer && (def.researchPrerequisites == null || def.researchPrerequisites.All(r => r.IsFinished));
             row.ResearchPrerequisites.Add((def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName));
             row.ConstructionSkill = def.constructionSkillPrerequisite;
             row.Size = new Obs.MapSize { Width = 1, Height = 1 };
-            var costs = def.CostListAdjusted(null, false); 
+            var costs = def.CostListAdjusted(null, false);
             foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
             row.Cleanliness = Finite(def.GetStatValueAbstract(StatDefOf.Cleanliness));
             row.PathCost = def.pathCost;
             row.WorkToBuild = Nonnegative(def.GetStatValueAbstract(StatDefOf.WorkToBuild));
             row.Beauty = Finite(def.GetStatValueAbstract(StatDefOf.Beauty));
             row.Flammability = Finite(def.GetStatValueAbstract(StatDefOf.Flammability));
-            return true;
+            return row;
         }
         // Sun lamps, plant growers and rooms inside the planning region plus every
         // power network's headroom split by source. Lamp growth cells are the

@@ -20,18 +20,25 @@ import (
 
 type projectSource struct {
 	*colonySource
-	// extra is the catalog the frame serves subscribed definitions from.
-	extra     []*o.PlanningDefinition
-	requested []string
-	onFrame   func()
-	frame     bridge.RoutineFrame
+	// extra is the definition catalog the frame carries, nil for none.
+	extra   []*o.PlanningDefinition
+	onFrame func()
+	frame   bridge.RoutineFrame
+}
+
+// testCatalog is a definition catalog of rows.
+func testCatalog(rows ...*o.PlanningDefinition) *bridge.DefinitionCatalog {
+	catalog := &bridge.DefinitionCatalog{Definitions: map[string]*o.PlanningDefinition{}}
+	for _, row := range rows {
+		catalog.Definitions[row.GetDefinition().GetDefName()] = row
+	}
+	return catalog
 }
 
 // ReadRoutineFrame is the frame over the colony reply, with the sections
-// the test set in frame and the subscribed definitions found in extra;
-// the emergency census is empty by default.
-func (s *projectSource) ReadRoutineFrame(_ context.Context, _ *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	s.requested = append([]string(nil), definitions...)
+// the test set in frame and the catalog of extra; the emergency census is
+// empty by default.
+func (s *projectSource) ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error) {
 	if s.onFrame != nil {
 		s.onFrame()
 	}
@@ -41,19 +48,14 @@ func (s *projectSource) ReadRoutineFrame(_ context.Context, _ *c.Identity, defin
 	if frame.Emergency.Context == nil {
 		frame.Emergency = bridge.EmergencyObservation{Context: observed.Context}
 	}
-	frame.Definitions = nil
-	for _, row := range s.extra {
-		for _, name := range definitions {
-			if row.Definition.GetDefName() == name {
-				frame.Definitions = append(frame.Definitions, row)
-			}
-		}
+	if s.extra != nil {
+		frame.Catalog = testCatalog(s.extra...)
 	}
 	return frame, nil
 }
 
 func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
-	for _, phase := range []string{"supplement", "default-only", "expired", "cancelled", "unrequested"} {
+	for _, phase := range []string{"supplement", "default-only", "expired", "cancelled", "uncataloged"} {
 		t.Run(phase, func(t *testing.T) {
 			data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 			if err != nil {
@@ -66,10 +68,9 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			identity := func() *l.IdentityReply {
 				return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}
 			}
-			row := proto.Clone(base.GetObserved().Planning.GetObserved().Definitions[0]).(*o.PlanningDefinition)
-			row.Definition.DefName = proto.String("HospitalBed")
-			row.ConstructionSkill = proto.Int32(8)
-			s := &projectSource{colonySource: &colonySource{reply: base}, extra: []*o.PlanningDefinition{row}}
+			wall := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Wall")}, Stuff: proto.String("WoodLog"), ConstructionSkill: proto.Int32(0)}
+			row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("HospitalBed")}, ConstructionSkill: proto.Int32(8), ResearchPrerequisites: []string{"Medicine"}}
+			s := &projectSource{colonySource: &colonySource{reply: base}, extra: []*o.PlanningDefinition{wall, row}}
 			expected, err := DecodeIdentity(identity())
 			if err != nil {
 				t.Fatal(err)
@@ -85,11 +86,11 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 				s.onFrame = func() { clock.Advance(2 * time.Second) }
 			case "cancelled":
 				s.onFrame = cancel
-			case "unrequested":
+			case "uncataloged":
 				row.Definition.DefName = proto.String("Door")
 			}
 			out, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, names...)
-			if phase != "supplement" && phase != "default-only" {
+			if phase == "expired" || phase == "cancelled" {
 				if err == nil {
 					t.Fatal("unsafe extra read accepted")
 				}
@@ -98,11 +99,30 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(out.Projection.Definitions) != len(names) || out.Projection.Definitions[0].Name != "Wall" {
-				t.Fatal(out.Projection.Definitions)
+			// The starter definitions resolve first; a frame without
+			// research leaves a definition behind research unknown, and a
+			// name the catalog lacks is unavailable.
+			var wallRow, bedRow PlanningDefinition
+			for _, d := range out.Projection.Definitions {
+				switch d.Name {
+				case "Wall":
+					wallRow = d
+				case "HospitalBed":
+					bedRow = d
+				}
 			}
-			if !reflect.DeepEqual(s.requested, names) {
-				t.Fatal(s.requested)
+			if wallRow.Available != domain.Known(true) || wallRow.Stuff != domain.Known("WoodLog") {
+				t.Fatal(wallRow)
+			}
+			want := domain.Unknown[bool]()
+			if phase == "uncataloged" {
+				want = domain.Known(false)
+			}
+			if len(names) == 2 && (bedRow.Name != "HospitalBed" || bedRow.Available != want) {
+				t.Fatal(bedRow)
+			}
+			if len(names) == 2 && !reflect.DeepEqual(out.Projection.Definitions[len(out.Projection.Definitions)-1].Name, names[len(names)-1]) {
+				t.Fatal(out.Projection.Definitions)
 			}
 		})
 	}

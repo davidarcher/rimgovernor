@@ -26,9 +26,8 @@ import (
 // write, or the subscription is growing to carry it. A read the frame
 // does not answer (a page cursor, an id list, a filter) crosses GABP.
 //
-// The subscription grows itself: a read of a resource's sources, or a
-// routine read's planning definitions, is added to it,
-// and the stream is resubscribed so later frames carry it.
+// The subscription grows itself: a read of a resource's sources is added
+// to it, and the stream is resubscribed so later frames carry it.
 
 const methodOpenSnapshotStream = "rimgovernor/observations_open_snapshot_stream"
 
@@ -60,15 +59,12 @@ type frameStream struct {
 	opening   bool
 	attempted time.Time
 	resources []string
-	// definitions are the planning definitions frames carry in
-	// project_definitions (#944).
-	definitions []string
-	stale       bool   // the subscription grew since the stream was opened
-	needs       int64  // a frame must be captured at or past this write count
-	epoch       uint64 // bumped by close: an open begun before it is discarded
-	number      uint64
-	identity    *c.Identity
-	table       map[readCacheKey][]byte
+	stale     bool   // the subscription grew since the stream was opened
+	needs     int64  // a frame must be captured at or past this write count
+	epoch     uint64 // bumped by close: an open begun before it is discarded
+	number    uint64
+	identity  *c.Identity
+	table     map[readCacheKey][]byte
 	// hold keeps the sections native omits while unchanged (#1347);
 	// keyframe asks native for a frame carrying every section after a
 	// seq gap.
@@ -343,21 +339,10 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 	for _, sources := range v.ResourceSources {
 		seed("rimgovernor/observations_list_resource_sources", resourceSourcesRequest(identity, sources.GetResource()), &o.ResourceSourcesReply{Outcome: &o.ResourceSourcesReply_Observed{Observed: sources}})
 	}
-	for _, row := range v.ProjectDefinitions {
-		seed(frameDefinitionMethod, frameDefinitionRequest(row.GetDefinition().GetDefName()), row)
-	}
 	seed(combatFrameMethod, nil, combatFrame(v))
 	seed(routineFrameMethod, nil, &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
 		ColonistPawns: v.ColonistPawns, Buildings: v.Buildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
-		ProjectDefinitions: v.ProjectDefinitions, Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)})
-}
-
-// frameDefinitionMethod keys one project definition row in a frame's
-// table, by its name; frames-only like routineFrameMethod.
-const frameDefinitionMethod = "rimgovernor/snapshot_frame_definition"
-
-func frameDefinitionRequest(name string) *o.DefinitionRef {
-	return &o.DefinitionRef{DefName: proto.String(name)}
+		Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)})
 }
 
 // routineFrameMethod keys a frame's routine census sections in its table,
@@ -381,54 +366,42 @@ type RoutineFrame struct {
 	// blueprint and frame rows carry their undelivered material.
 	Sites *o.BuildingsSnapshot
 	Zones *ZonesRead
-	// Definitions are the rows of the planning definitions the read
-	// asked for (#944), sorted by name.
-	Definitions []*o.PlanningDefinition
+	// Catalog is the load's definition catalog (#1340), which the
+	// research section and the planning definitions resolve against.
+	Catalog *DefinitionCatalog
 	// Rooms is the indoor room census with cells (#944).
 	Rooms *o.RoomsSnapshot
 }
 
 // ReadRoutineFrame decodes the routine census of the newest frame past
-// this client's last write that carries every one of definitions; without
-// a stream it is ErrUnavailable. Definitions join the subscription, so the
-// first read naming one waits for the resubscribed frame.
-func (caller *Client) ReadRoutineFrame(ctx context.Context, identity *c.Identity, definitions []string) (RoutineFrame, error) {
+// this client's last write against the load's definition catalog; without
+// a stream it is ErrUnavailable.
+func (caller *Client) ReadRoutineFrame(ctx context.Context, identity *c.Identity) (RoutineFrame, error) {
 	if caller.frames == nil {
 		return RoutineFrame{}, fmt.Errorf("%w: the routine census is served only by the snapshot stream", ErrUnavailable)
 	}
 	if err := ValidateIdentity(identity); err != nil {
 		return RoutineFrame{}, err
 	}
-	for _, name := range definitions {
-		if err := validID(name); err != nil {
-			return RoutineFrame{}, err
-		}
-	}
-	caller.frameSubscribeDefinitions(definitions)
-	for _, name := range definitions {
-		encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(frameDefinitionRequest(name))
-		if err != nil {
-			return RoutineFrame{}, contract("request encoding: %v", err)
-		}
-		key := readCacheKey{method: frameDefinitionMethod, request: string(encoded)}
-		if _, err := caller.frameReadKey(ctx, frameDefinitionMethod, key, identity, false, &o.PlanningDefinition{}); err != nil {
-			return RoutineFrame{}, err
-		}
+	catalog, err := caller.DefinitionCatalog(ctx, identity)
+	if err != nil {
+		return RoutineFrame{}, err
 	}
 	reply := &o.BundleSnapshot{}
 	if _, err := caller.frameReadKey(ctx, routineFrameMethod, readCacheKey{method: routineFrameMethod}, identity, true, reply); err != nil {
 		return RoutineFrame{}, err
 	}
-	return DecodeRoutineFrame(reply)
+	return DecodeRoutineFrame(reply, catalog)
 }
 
-// DecodeRoutineFrame validates and decodes a frame's routine sections.
-func DecodeRoutineFrame(v *o.BundleSnapshot) (RoutineFrame, error) {
+// DecodeRoutineFrame validates and decodes a frame's routine sections
+// against the load's definition catalog.
+func DecodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog) (RoutineFrame, error) {
 	if v == nil || ValidateContext(v.Context) != nil {
 		return RoutineFrame{}, contract("routine frame without a context")
 	}
 	identity := v.Context.Identity
-	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Definitions: v.ProjectDefinitions, Rooms: v.Rooms}
+	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Catalog: catalog, Rooms: v.Rooms}
 	var err error
 	if v.Emergency != nil {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, identity); err != nil {
@@ -444,7 +417,7 @@ func DecodeRoutineFrame(v *o.BundleSnapshot) (RoutineFrame, error) {
 		out.Population = &population
 	}
 	if v.Research != nil {
-		research, err := readResearchSnapshot(v.Research, identity)
+		research, err := readResearchSnapshot(v.Research, identity, catalog)
 		if err != nil {
 			return RoutineFrame{}, err
 		}
@@ -532,7 +505,7 @@ func (caller *Client) frameReader(ctx context.Context) frameReader {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if (s.reader == nil || s.stale || s.keyframe) && !s.opening && (s.stale || s.keyframe || time.Since(s.attempted) >= frameRetry) {
-		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), Definitions: slices.Clone(s.definitions)}
+		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources)}
 		if s.reader != nil && !s.stale {
 			// Only a keyframe (#1347): the subscription stands.
 			request = &o.SnapshotStreamRequest{Keyframe: proto.Bool(true)}
@@ -628,20 +601,6 @@ func (caller *Client) frameSubscribe(name string, request proto.Message) {
 	case *o.ResourceSourcesRequest:
 		if validID(r.GetResource()) == nil && !slices.Contains(s.resources, r.GetResource()) {
 			s.resources = append(s.resources, r.GetResource())
-			s.stale = true
-		}
-	}
-}
-
-// frameSubscribeDefinitions grows the subscription with the planning
-// definitions a routine read names.
-func (caller *Client) frameSubscribeDefinitions(names []string) {
-	s := caller.frames
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, name := range names {
-		if !slices.Contains(s.definitions, name) {
-			s.definitions = append(s.definitions, name)
 			s.stale = true
 		}
 	}

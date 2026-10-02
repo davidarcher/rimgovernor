@@ -115,8 +115,8 @@ func TestTemperatureNativeWorkBudgetCountsFromTheApplyReceipt(t *testing.T) {
 	}
 }
 
-func (n *temperatureNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id, definitions)
+func (n *temperatureNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
 }
 
 func (n *temperatureNative) ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error) {
@@ -148,7 +148,7 @@ func temperatureFixture(t *testing.T, hot bool) (*RoutineBuildingPlanner, *store
 	// Safe reachable bed temperature can disappear while the actual room persists.
 	v.SleepingTemperatureMinC, v.SleepingTemperatureMaxC = nil, nil
 	for _, name := range []string{"Campfire", "PassiveCooler"} {
-		v.Planning.GetObserved().Definitions = append(v.Planning.GetObserved().Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
+		n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
 	base.reviewer.native = n
 	base.reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureTemperatureSafety})

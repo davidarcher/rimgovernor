@@ -59,6 +59,6 @@ func TestRoutineDefenseReportsNoSquadForAnUnanswerableBuilding(t *testing.T) {
 	}
 }
 
-func (n *hiveTestNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id, definitions)
+func (n *hiveTestNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
 }

@@ -61,7 +61,7 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 	v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: &o.FoodSupplyFacts{
 		Consumers: []*o.FoodConsumer{{PawnId: proto.String("builder"), NutritionPerDay: proto.Float64(1.6)}},
 		Stocks:    []*o.FoodStock{{Item: &o.EntityRef{Id: proto.String("meat"), DefName: proto.String("Meat_Muffalo")}, Count: proto.Int64(400), Nutrition: proto.Float64(20), EaterIds: []string{"builder"}, Perishable: proto.Bool(true), RotTicks: proto.Int64(2 * 60000), TemperatureC: proto.Float64(25), Roofed: proto.Bool(true), RoomId: proto.String("42")}}}}}
-	v.Planning.GetObserved().Definitions = append(v.Planning.GetObserved().Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Cooler")}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
+	n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Cooler")}, ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	n.buildings = &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(0)}}}
 	if cooler {
 		development := v.Development.GetObserved()
@@ -398,6 +398,6 @@ func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
 	}
 }
 
-func (n *refrigerationNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id, definitions)
+func (n *refrigerationNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
 }

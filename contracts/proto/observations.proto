@@ -711,8 +711,13 @@ message Researcher { EntityRef pawn = 1; optional double intellectual = 2; optio
 message ResearchFacility { DefinitionRef definition = 1; optional bool active = 2; }
 message ResearchBench { BuildingState building = 1; repeated ResearchFacility facilities = 2; repeated ReadIssue issues = 3; }
 message ResearchSlot { optional string category = 1; optional string current_project = 2; }
-message ResearchSnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef snapshot = 2; repeated ResearchSlot slots = 3; repeated ResearchProject projects = 4; repeated ResearchBench benches = 5; repeated Researcher researchers = 6; optional bool anomaly_active = 7; optional string player_tech_level = 8; Completeness completeness = 9; }
-message ResearchRequest { ReadScope scope = 1; optional bool include_locked = 2; optional bool include_finished = 3; optional bool include_unlocks = 4; optional bool include_capability = 5; optional string name_contains = 6; reserved 7; }
+// finished names every finished project, whatever the request filters.
+message ResearchSnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef snapshot = 2; repeated ResearchSlot slots = 3; repeated ResearchProject projects = 4; repeated ResearchBench benches = 5; repeated Researcher researchers = 6; optional bool anomaly_active = 7; optional string player_tech_level = 8; Completeness completeness = 9; repeated string finished = 10; }
+// progress_only (#1340) lists only the current projects, with their lock
+// reasons, and the started unfinished ones, each without the static fields
+// the definition catalog carries (costs, prerequisites, tab, tech level,
+// required bench); the other filters are ignored.
+message ResearchRequest { ReadScope scope = 1; optional bool include_locked = 2; optional bool include_finished = 3; optional bool include_unlocks = 4; optional bool include_capability = 5; optional string name_contains = 6; reserved 7; optional bool progress_only = 8; }
 message ResearchReply { oneof outcome { ResearchSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 message AccessTarget { rimgovernor.common.v1.Cell cell = 1; optional bool native_reachable = 2; optional bool projected_reachable = 3; optional uint32 projected_steps = 4; }
@@ -1079,13 +1084,16 @@ message EnvironmentCondition { optional string id = 1; optional string def_name 
 // day of the 60-day year.
 message FoodClimate { optional double growing_days = 1; optional double growing_days_remaining = 2; repeated ReadIssue issues = 3; optional bool sowing_now = 4; optional double growing_days_until = 5; optional string season = 6; optional int32 day_of_year = 7; optional double non_growing_days = 8; }
 message FarmFacts { optional string zone_id = 1; optional string crop = 2; optional uint32 usable_cells = 3; optional uint32 planted_cells = 4; optional uint32 growing_cells = 5; optional bool edible_crop = 6; optional double harvest_lower_bound_days = 7; optional double nutrition_per_harvest_cell = 8; optional bool sowing_now = 9; }
-message PlanningDefinition { DefinitionRef definition = 1; optional string stuff = 2; optional bool available = 3; repeated string research_prerequisites = 4; optional int32 construction_skill = 5; MapSize size = 6; repeated Quantity costs = 7; optional double rest_effectiveness = 8; optional double grow_days = 9; optional double fertility_min = 10; optional double fertility_sensitivity = 11; optional double harvest_nutrition = 12; optional double nutrition_demand_per_day = 13; optional bool edible = 14; repeated ReadIssue issues = 15; repeated string sow_tags = 16; optional double grow_min_glow = 17; optional double power_w = 18; /* native base draw: positive consumes, negative generates */ optional double grower_fertility = 19; optional string sow_tag = 20; optional double glow_radius = 21; optional bool needs_power = 22;
+// A definition's static planning facts, served by the definition catalog
+// (#1340): availability is the controller's, from the research
+// prerequisites and the finished projects.
+message PlanningDefinition { DefinitionRef definition = 1; optional string stuff = 2; reserved 3; reserved "available"; repeated string research_prerequisites = 4; optional int32 construction_skill = 5; MapSize size = 6; repeated Quantity costs = 7; optional double rest_effectiveness = 8; optional double grow_days = 9; optional double fertility_min = 10; optional double fertility_sensitivity = 11; optional double harvest_nutrition = 12; reserved 13; reserved "nutrition_demand_per_day"; optional bool edible = 14; repeated ReadIssue issues = 15; repeated string sow_tags = 16; optional double grow_min_glow = 17; optional double power_w = 18; /* native base draw: positive consumes, negative generates */ optional double grower_fertility = 19; optional string sow_tag = 20; optional double glow_radius = 21; optional bool needs_power = 22;
   // Floor (TerrainDef) facts: set only when the definition is a terrain. The
   // stats are the native abstract stat values a laid floor would carry.
   optional bool terrain = 23; optional double cleanliness = 24; optional int32 path_cost = 25; optional double beauty = 26; optional double flammability = 27;
   optional double harvest_work = 28;
   optional bool raw_preferred = 29; // Edible raw without the native bad-taste thought.
-  optional bool diet_allowed = 30; // No colonist ideology penalises this crop product.
+  reserved 30; reserved "diet_allowed";
   optional bool requires_pollution = 31; optional bool requires_clean_soil = 32;
   optional double work_to_build = 33; // Native WorkToBuild stat (work ticks) for the row's stuff.
   // Every native allowed stuff of a stuffed definition, ordered by defName,
@@ -1104,7 +1112,14 @@ message PlantGrower { EntityRef building = 1; optional string room_id = 2; optio
 message GrowRoom { optional string room_id = 1; optional double temperature_c = 2; optional uint32 cell_count = 3; optional uint32 open_roof_count = 4; optional bool proper_room = 5; optional bool psychologically_outdoors = 6; optional uint32 lit_cells = 7; }
 message PowerHeadroom { optional string id = 1; optional double generation_w = 2; optional double solar_w = 3; optional double wind_w = 4; optional double consumption_w = 5; optional double stored_watt_days = 6; optional double capacity_watt_days = 7; optional bool has_active_source = 8; }
 message ControlledEnvironment { repeated GrowLight lights = 1; repeated PlantGrower growers = 2; repeated GrowRoom rooms = 3; repeated PowerHeadroom networks = 4; reserved 5; optional bool daylight = 6; reserved 7; repeated ReadIssue issues = 8; }
-message PlanningFacts { repeated PlanningDefinition definitions = 1; reserved 2; reserved "cells"; GearSnapshot gear = 3; reserved 4; repeated ReadIssue issues = 5; reserved 6; reserved "zone_map_snapshot"; ControlledEnvironment environment = 7; }
+// A sowable crop with an edible product: the map's per-day facts beside
+// the catalog's static row (#1340).
+message EdibleCrop { optional string def_name = 1; optional double nutrition_demand_per_day = 2;
+  optional bool diet_allowed = 3; // No colonist ideology penalises this crop product.
+}
+// The definitions themselves are the definition catalog's (#1340); crops
+// lists every edible crop, sorted by name.
+message PlanningFacts { reserved 1; reserved "definitions"; reserved 2; reserved "cells"; GearSnapshot gear = 3; reserved 4; repeated ReadIssue issues = 5; reserved 6; reserved "zone_map_snapshot"; ControlledEnvironment environment = 7; repeated EdibleCrop crops = 8; }
 message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; optional double nutrition = 4; optional double nutrition_demand_per_day = 5; optional double rot_days = 6; optional bool perishable = 7;
   // storable is the product count roofed, reachable storage accepting it can
   // hold: stored stacks plus empty stack slots (#1359). Caps reserve bill targets.
@@ -1431,9 +1446,8 @@ message BundleSnapshot {
   // Every damaged spawned player door (#900), with combat_detail, at most
   // 64: the doors a fight may send a gunner to repair.
   repeated rimgovernor.mirror.v1.CombatDoorRow combat_doors = 25;
-  // The subscription's definitions (#944), one row each sorted by
-  // name, as read_colony_facts with planning reports a requested name.
-  repeated PlanningDefinition project_definitions = 26;
+  // Planning definitions are the definition catalog's (#1340).
+  reserved 26; reserved "project_definitions";
   // list_rooms without outdoor rooms or boundary buildings, with cells:
   // the room census temperature, comfort and hospital planning read (#944).
   RoomsSnapshot rooms = 27;
@@ -1494,17 +1508,25 @@ message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot
 // into a named shared-memory ring and signals a named event; this request
 // opens it (or replaces its subscription) and names the ring. A frame carries
 // every state family whole (no page caps, no field masks) plus the
-// subscription's resource sources and definitions, and the whole map as a
+// subscription's resource sources, and the whole map as a
 // cell grid. Clock status stays a dedicated read.
 message SnapshotStreamRequest {
   repeated string resource_sources = 1; // list_resource_sources per named resource, no development
   reserved 2;                           // the planning window band, replaced by BundleSnapshot.grid (#1345)
-  repeated string definitions = 3;      // planning definitions the frame carries in project_definitions
+  reserved 3; reserved "definitions";   // the definition catalog's (#1340)
   // Only makes the next frame a keyframe, carrying every section (#1347);
   // the subscription and the other fields are left as they are. Every
   // other open is a keyframe too.
   optional bool keyframe = 4;
 }
+// The definition catalog (#1340): every player-buildable or sowable
+// ThingDef and buildable TerrainDef with its static planning facts, sorted
+// by name, and every research project with its static facts (costs,
+// prerequisites, tab, tech level, required bench). It is fixed for a load:
+// the controller reads it once per load token.
+message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1; repeated PlanningDefinition definitions = 2; repeated ResearchProject research = 3; }
+message DefinitionCatalogRequest { ReadScope scope = 1; }
+message DefinitionCatalogReply { oneof outcome { DefinitionCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message SnapshotStreamOpened {
   string name = 1;       // mapping name; the ready event is name + "-ready"
   uint32 slots = 2;
@@ -1532,6 +1554,7 @@ service Observations {
   rpc ListZones(ListZonesRequest) returns (ListZonesReply);
   rpc GetCells(GetCellsRequest) returns (GetCellsReply);
   rpc ReadResearch(ResearchRequest) returns (ResearchReply);
+  rpc ReadDefinitionCatalog(DefinitionCatalogRequest) returns (DefinitionCatalogReply);
   rpc ReadColonyFacts(ColonyFactsRequest) returns (ColonyFactsReply);
   rpc ReadSpatialAccess(SpatialAccessRequest) returns (SpatialAccessReply);
   rpc ReadRoofSupport(RoofSupportRequest) returns (RoofSupportReply);

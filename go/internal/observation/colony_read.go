@@ -70,6 +70,13 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 		if err := fillPlanningWindow(ctx, reply, id, &projection); err != nil {
 			return result, err
 		}
+		facts, ok, err := readDefinitionFacts(ctx, source, id, reply.GetObserved().GetPlanning().GetObserved())
+		if err != nil {
+			return result, err
+		}
+		if ok {
+			projection.Definitions = facts.appendDefinitions(projection.Definitions, StarterDefinitions)
+		}
 	}
 	zoneNative, _ := source.(ZonesNative)
 	if err := FillZones(ctx, zoneNative, id, expected, &projection); err != nil {

@@ -68,24 +68,11 @@
     },
     "planning": {
       "observed": {
-        "definitions": [
+        "crops": [
           {
-            "definition": {
-              "defName": "Wall"
-            },
-            "stuff": "WoodLog",
-            "available": true,
-            "constructionSkill": 0,
-            "size": {
-              "width": 1,
-              "height": 1
-            },
-            "costs": [
-              {
-                "defName": "WoodLog",
-                "units": "5"
-              }
-            ]
+            "defName": "Plant_Rice",
+            "nutritionDemandPerDay": 5,
+            "dietAllowed": true
           }
         ]
       }

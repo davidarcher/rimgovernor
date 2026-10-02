@@ -435,6 +435,6 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	}
 }
 
-func (n *routineShrineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id, definitions)
+func (n *routineShrineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
 }

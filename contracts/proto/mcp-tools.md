@@ -92,6 +92,7 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/observations_read_recipes` | `rimgovernor.observations.v1.Observations/ReadRecipes` | `rimgovernor.observations.v1.RecipesRequest` | `rimgovernor.observations.v1.RecipesReply` |
 | `rimgovernor/observations_read_recovery` | `rimgovernor.observations.v1.Observations/ReadRecovery` | `rimgovernor.observations.v1.RecoveryRequest` | `rimgovernor.observations.v1.RecoveryReply` |
 | `rimgovernor/observations_read_research` | `rimgovernor.observations.v1.Observations/ReadResearch` | `rimgovernor.observations.v1.ResearchRequest` | `rimgovernor.observations.v1.ResearchReply` |
+| `rimgovernor/observations_read_definition_catalog` | `rimgovernor.observations.v1.Observations/ReadDefinitionCatalog` | `rimgovernor.observations.v1.DefinitionCatalogRequest` | `rimgovernor.observations.v1.DefinitionCatalogReply` |
 | `rimgovernor/observations_read_roof_support` | `rimgovernor.observations.v1.Observations/ReadRoofSupport` | `rimgovernor.observations.v1.RoofSupportRequest` | `rimgovernor.observations.v1.RoofSupportReply` |
 | `rimgovernor/observations_read_spatial_access` | `rimgovernor.observations.v1.Observations/ReadSpatialAccess` | `rimgovernor.observations.v1.SpatialAccessRequest` | `rimgovernor.observations.v1.SpatialAccessReply` |
 | `rimgovernor/observations_read_status` | `rimgovernor.observations.v1.Observations/ReadStatus` | `rimgovernor.observations.v1.StatusRequest` | `rimgovernor.observations.v1.StatusReply` |

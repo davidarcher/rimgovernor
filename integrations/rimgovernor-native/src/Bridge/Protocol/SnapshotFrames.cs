@@ -152,7 +152,7 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                var read = NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), IncludeLocked = true, IncludeFinished = true }, context, out var research);
+                var read = NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), ProgressOnly = true }, context, out var research);
                 ObservationWork.Captured("research", Now() - began, read ? research!.Projects.Count : 0);
                 if (read) { observed.Research = research; }
             }
@@ -218,8 +218,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // On the main thread. Adds the subscription's parameterized
-        // families: each named resource's sources and the named planning
-        // definitions.
+        // families: each named resource's sources.
         private static void ReadSubscribed(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
@@ -230,13 +229,6 @@ namespace HomeBridge.BridgeTools
                 var sources = NativeResourceSourcesTool.Read(map, new Obs.ResourceSourcesRequest { Scope = Scope(), Resource = resource, IncludeDevelopment = false }, context).Observed;
                 ObservationWork.Captured("resourceSources", Now() - began, sources != null ? sources.Sources.Count : 0);
                 if (sources != null) { observed.ResourceSources.Add(sources); }
-            }
-            if (request.Definitions.Count > 0)
-            {
-                var began = Now();
-                try { observed.ProjectDefinitions.Add(NativeColonyObservationTools.Definitions(map, request.Definitions)); }
-                catch (System.Exception ex) { observed.ProjectDefinitions.Clear(); Log.Error(ObservationWork.Failed("projectDefinitions", ex)); }
-                ObservationWork.Captured("projectDefinitions", Now() - began, observed.ProjectDefinitions.Count);
             }
         }
     }

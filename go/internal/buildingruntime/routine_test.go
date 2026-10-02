@@ -37,6 +37,50 @@ type routineNative struct {
 	// cells is the planning window the fake serves (ReadPlanningWindow);
 	// nil serves an empty window.
 	cells *o.CellsSnapshot
+	// catalog is the definition catalog's rows (#1340); finished, when
+	// set, is the frame's finished research.
+	catalog  []*o.PlanningDefinition
+	finished []string
+}
+
+func (n *routineNative) finishedResearch() []string { return n.finished }
+
+// DefinitionCatalog serves the fake's catalog rows under the asked load.
+func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*bridge.DefinitionCatalog, error) {
+	return testCatalog(id, n.catalog...), nil
+}
+
+// testCatalog is a definition catalog of rows under id's load.
+func testCatalog(id *c.Identity, rows ...*o.PlanningDefinition) *bridge.DefinitionCatalog {
+	catalog := &bridge.DefinitionCatalog{LoadToken: id.GetLoadToken(), Definitions: map[string]*o.PlanningDefinition{}}
+	for _, row := range rows {
+		catalog.Definitions[row.GetDefinition().GetDefName()] = row
+	}
+	return catalog
+}
+
+// putCatalog replaces or appends catalog rows by name.
+func (n *routineNative) putCatalog(rows ...*o.PlanningDefinition) {
+	for _, row := range rows {
+		n.catalogRow(row.GetDefinition().GetDefName())
+		for i, held := range n.catalog {
+			if held.GetDefinition().GetDefName() == row.GetDefinition().GetDefName() {
+				n.catalog[i] = row
+			}
+		}
+	}
+}
+
+// catalogRow is a catalog row by name, appended when absent.
+func (n *routineNative) catalogRow(name string) *o.PlanningDefinition {
+	for _, row := range n.catalog {
+		if row.GetDefinition().GetDefName() == name {
+			return row
+		}
+	}
+	row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}}
+	n.catalog = append(n.catalog, row)
+	return row
 }
 
 // ReadPlanningWindow serves the fake's planning window whatever region is
@@ -96,42 +140,24 @@ func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity) (bri
 	return out, bridge.Result{}, ctx.Err()
 }
 
-func (n *routineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id, definitions)
+func (n *routineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
 }
 
 // fakeFrame is the frame a test fake serves: the colony reply's context
 // and whichever section reads the fake (source, the outermost type, so its
 // overrides count) offers.
-func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
+func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Identity) (bridge.RoutineFrame, error) {
 	colony, _, err := source.ReadColonyFacts(ctx, id, true)
 	if err != nil {
 		return bridge.RoutineFrame{}, err
 	}
 	frame := bridge.RoutineFrame{Context: colony.GetObserved().GetContext(), Colony: colony.GetObserved()}
-	// Names the default catalog carries need no read of their own.
-	held := map[string]bool{}
-	for _, row := range colony.GetObserved().GetPlanning().GetObserved().GetDefinitions() {
-		held[row.GetDefinition().GetDefName()] = true
-	}
-	var missing []string
-	for _, name := range definitions {
-		if !held[name] {
-			missing = append(missing, name)
-		}
-	}
-	if definitions = missing; len(definitions) > 0 {
-		// The frame's definition wait honours cancellation.
-		if err := ctx.Err(); err != nil {
+	if s, ok := source.(interface {
+		DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error)
+	}); ok {
+		if frame.Catalog, err = s.DefinitionCatalog(ctx, id); err != nil {
 			return bridge.RoutineFrame{}, err
-		}
-		// A fake that serves no subscribed rows of its own offers its
-		// colony reply's catalog.
-		frame.Definitions = colony.GetObserved().GetPlanning().GetObserved().GetDefinitions()
-		if s, ok := source.(interface {
-			subscribedDefinitions([]string) []*o.PlanningDefinition
-		}); ok {
-			frame.Definitions = s.subscribedDefinitions(definitions)
 		}
 	}
 	if s, ok := source.(interface {
@@ -182,6 +208,9 @@ func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Ident
 			return bridge.RoutineFrame{}, err
 		}
 		frame.Research = &research
+	}
+	if s, ok := source.(interface{ finishedResearch() []string }); ok && frame.Research == nil && s.finishedResearch() != nil {
+		frame.Research = &bridge.ResearchRead{Context: frame.Context, Finished: s.finishedResearch()}
 	}
 	if s, ok := source.(interface {
 		ReadWorldProgression(context.Context, *c.Identity, bool) (bridge.WorldProgressionRead, bridge.Result, error)
@@ -255,31 +284,15 @@ func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, plan
 	return n.reply, bridge.Result{}, nil // A late transport may ignore cancellation.
 }
 
-// subscribedDefinitions is the frame's row for each subscribed name: the
-// colony reply's row when it has one, otherwise a bare definition.
-func (n *routineNative) subscribedDefinitions(names []string) []*o.PlanningDefinition {
-	var rows []*o.PlanningDefinition
-	for _, name := range names {
-		row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}}
-		for _, existing := range n.reply.GetObserved().Planning.GetObserved().Definitions {
-			if existing.Definition.GetDefName() == name {
-				row = proto.Clone(existing).(*o.PlanningDefinition)
-			}
-		}
-		rows = append(rows, row)
-	}
-	return rows
-}
-
 func TestRoutineReviewerUsesConfiguredFieldReserve(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := routineFixture(t)
 	v := n.reply.GetObserved()
 	v.Issues = v.Issues[1:] // Complete native farm census replaces its unavailable issue.
 	v.Farms = []*o.FarmFacts{{ZoneId: proto.String("farm"), Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(73), PlantedCells: proto.Uint32(73), UsableCells: proto.Uint32(73)}}
-	d := v.Planning.GetObserved().Definitions[0]
+	d := n.catalog[0]
 	d.Definition.DefName = proto.String("Plant_Rice")
-	d.GrowDays, d.HarvestNutrition, d.NutritionDemandPerDay = proto.Float64(3), proto.Float64(1), proto.Float64(5)
+	d.GrowDays, d.HarvestNutrition = proto.Float64(3), proto.Float64(1)
 	for _, reserve := range []float64{7, 14, 7} {
 		r.policy.FoodTargetDays = reserve
 		out, err := r.Step(context.Background())
@@ -332,6 +345,7 @@ func colonyCoreNative(t *testing.T) *routineNative {
 		t.Fatal(err)
 	}
 	n.cells = fixtureCells(t)
+	n.catalog = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("Wall")}, Stuff: proto.String("WoodLog"), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}, Costs: []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(5)}}}}
 	return n
 }
 
@@ -518,6 +532,6 @@ func TestRoutineFoodAttrsCarryRunwayThresholdsAndCalendar(t *testing.T) {
 	}
 }
 
-func (n *routineMedicalNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id, definitions)
+func (n *routineMedicalNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
 }

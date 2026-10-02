@@ -76,8 +76,7 @@ func sleepingFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *play
 func sleepingFacts(n *routineNative) {
 	v := n.reply.GetObserved()
 	v.Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
-	planning := v.Planning.GetObserved()
-	planning.Definitions = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("SleepingSpot")}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}}}
+	n.catalog = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("SleepingSpot")}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}}}
 	cells := n.cells
 	cells.Region.Maximum = &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}
 	cells.Cells = nil
@@ -137,7 +136,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 			r, db, session, _, n := sleepingFixture(t)
 			switch change {
 			case "prerequisite":
-				n.reply.GetObserved().Planning.GetObserved().Definitions[0].ConstructionSkill = nil
+				n.catalog[0].ConstructionSkill = nil
 			case "unknown-room":
 				for _, cell := range n.cells.Cells {
 					cell.Indoors = nil

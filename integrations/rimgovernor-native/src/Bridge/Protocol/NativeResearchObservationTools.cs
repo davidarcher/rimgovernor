@@ -124,7 +124,22 @@ namespace HomeBridge.BridgeTools
                 var reached = Progress(def, progress, knowledge, anomaly);
                 var cost = def.Cost;
                 var finished = Finished(reached, cost);
+                if (finished) snapshot.Finished.Add(Id(def.defName));
                 var hidden = !finished && anomaly && Find.EntityCodex.Hidden(def);
+                if (request.ProgressOnly)
+                {
+                    // The current projects, with their lock reasons, and the
+                    // started ones; the static fields are the catalog's.
+                    var selectedRow = selected.Contains(def);
+                    if (hidden || finished && !selectedRow || !selectedRow && reached <= 0) { filtered++; continue; }
+                    var slim = Project(def, manager, progress, knowledge, anomaly, player, reached, cost, finished, selectedRow);
+                    var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current, Progress = slim.Progress, ApparentCost = slim.ApparentCost };
+                    if (slim.HasProgressFraction) kept.ProgressFraction = slim.ProgressFraction;
+                    if (selectedRow) { kept.LockReasons.Add(slim.LockReasons); kept.CanStart = slim.CanStart; kept.Available = slim.Available; kept.TechprintsApplied = slim.TechprintsApplied; }
+                    points[def.defName] = reached;
+                    built.Add(kept);
+                    continue;
+                }
                 if (hidden || finished && !request.IncludeFinished || request.HasNameContains && request.NameContains.Length != 0
                     && def.defName.IndexOf(request.NameContains, StringComparison.OrdinalIgnoreCase) < 0
                     && (def.label ?? "").IndexOf(request.NameContains, StringComparison.OrdinalIgnoreCase) < 0) { filtered++; continue; }
@@ -192,6 +207,25 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
+        // A project's static row for the definition catalog (#1340): what
+        // holds for the whole load, no progress or lock state.
+        internal static Obs.ResearchProject Static(ResearchProjectDef def, Faction player)
+        {
+            var row = new Obs.ResearchProject { Project = Definition(def), TechLevel = NativeEnums.Tech(def.techLevel) };
+            var factor = def.CostFactor(player.def.techLevel); Number(factor); Number(def.Cost * factor); Number(def.baseCost);
+            row.BaseCost = def.baseCost; row.ApparentCost = def.Cost * factor; row.CostFactor = factor;
+            if (def.tab != null) row.Tab = Id(def.tab.defName);
+            if (def.knowledgeCategory != null) row.Category = Id(def.knowledgeCategory.defName);
+            foreach (var prerequisite in def.prerequisites ?? new List<ResearchProjectDef>()) row.Prerequisites.Add(Id(prerequisite.defName));
+            foreach (var prerequisite in def.hiddenPrerequisites ?? new List<ResearchProjectDef>()) row.HiddenPrerequisites.Add(Id(prerequisite.defName));
+            var needed = def.TechprintCount;
+            if (needed < 0) throw new InvalidOperationException();
+            row.TechprintsNeeded = (uint)needed;
+            if (def.requiredResearchBuilding != null) row.RequiredBuilding = Id(def.requiredResearchBuilding.defName);
+            foreach (var facility in def.requiredResearchFacilities ?? new List<ThingDef>()) row.RequiredFacilities.Add(Id(facility.defName));
+            return row;
+        }
+
         private static void Capability(Obs.ResearchSnapshot snapshot, Map map)
         {
             var benches = map.listerBuildings.allBuildingsColonist.OfType<Building_ResearchBench>().ToList(); 
@@ -238,6 +272,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.SnapshotRef Token(Common.ObservationContext context, Obs.ResearchSnapshot snapshot, IDictionary<string, double> points)
             => NativeObservationSnapshot.Snapshot("research", context, "research-manager", w => {
                 w.Write(snapshot.AnomalyActive); w.Write(snapshot.PlayerTechLevel ?? "");
+                foreach (var name in snapshot.Finished) w.Write(name);
                 foreach (var slot in snapshot.Slots) { w.Write(slot.Category ?? ""); w.Write(slot.CurrentProject ?? ""); }
                 foreach (var project in snapshot.Projects.OrderBy(p => p.Project.DefName, StringComparer.Ordinal))
                 { w.Write(project.Project.DefName); w.Write(points[project.Project.DefName]); w.Write(project.Finished); w.Write(project.Current); }

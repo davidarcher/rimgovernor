@@ -66,8 +66,6 @@ namespace HomeBridge.BridgeTools
             foreach (var resource in parsed.ResourceSources)
                 if (!ProtoBoundary.IsIdentifier(resource))
                     return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Resource sources must be identifiers.") });
-            if (!parsed.Definitions.All(ProtoBoundary.IsIdentifier) || parsed.Definitions.Distinct().Count() != parsed.Definitions.Count)
-                return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Definitions must be distinct identifiers.") });
             return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(SnapshotStream.Open(parsed)), cancellationToken).ConfigureAwait(false);
         }
 

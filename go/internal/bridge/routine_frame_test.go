@@ -18,7 +18,7 @@ func TestDecodeRoutineFrameKeepsBlueprintSites(t *testing.T) {
 	}
 	frame.Buildings = &o.BuildingsSnapshot{Context: authorityTestContext(7), Buildings: []*o.BuildingState{
 		row("blueprint", o.BuildingStatus_BUILDING_STATUS_BLUEPRINT), row("frame", o.BuildingStatus_BUILDING_STATUS_FRAME), row("wall", o.BuildingStatus_BUILDING_STATUS_BUILT)}}
-	out, err := DecodeRoutineFrame(frame)
+	out, err := DecodeRoutineFrame(frame, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestDecodeRoutineFrameChecksSectionIdentity(t *testing.T) {
 	}
 	frame := bundleTestSnapshot()
 	frame.Zones = zones(authorityTestContext(7))
-	out, err := DecodeRoutineFrame(frame)
+	out, err := DecodeRoutineFrame(frame, nil)
 	if err != nil || out.Zones == nil || out.Emergency.Context == nil {
 		t.Fatal("matching frame refused", out, err)
 	}
@@ -59,7 +59,7 @@ func TestDecodeRoutineFrameChecksSectionIdentity(t *testing.T) {
 			ctx.Identity = identity
 			frame := bundleTestSnapshot()
 			frame.Zones = zones(ctx)
-			if _, err := DecodeRoutineFrame(frame); err == nil {
+			if _, err := DecodeRoutineFrame(frame, nil); err == nil {
 				t.Fatal("foreign zones section accepted")
 			}
 		})
@@ -67,12 +67,12 @@ func TestDecodeRoutineFrameChecksSectionIdentity(t *testing.T) {
 			frame := bundleTestSnapshot()
 			frame.Emergency.Context.Identity = identity
 			frame.Emergency.Colonists.Context.Identity = identity
-			if _, err := DecodeRoutineFrame(frame); err == nil {
+			if _, err := DecodeRoutineFrame(frame, nil); err == nil {
 				t.Fatal("foreign emergency section accepted")
 			}
 		})
 	}
-	if _, err := DecodeRoutineFrame(&o.BundleSnapshot{}); err == nil {
+	if _, err := DecodeRoutineFrame(&o.BundleSnapshot{}, nil); err == nil {
 		t.Fatal("frame without a context accepted")
 	}
 }

@@ -101,9 +101,9 @@ func TestRoutineShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
-	for _, d := range n.reply.GetObserved().Planning.GetObserved().Definitions {
+	for _, d := range n.catalog {
 		if d.Definition.GetDefName() == "Bed" {
-			d.Available = proto.Bool(false)
+			d.ResearchPrerequisites = []string{"Beds"}
 		}
 	}
 	first, err := r.Step(ctx)

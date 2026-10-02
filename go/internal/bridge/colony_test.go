@@ -55,7 +55,7 @@ func TestColonyFixedReadOwnsSelectionAndPreservesOptionalFacts(t *testing.T) {
 	}
 }
 func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
-	for _, change := range []string{"world", "stock", "duplicate", "issue", "unavailable", "numbers", "environment-cell", "environment-room", "floor-cleanliness", "floor-flammability", "floor-path-cost", "calendar-day", "calendar-season", "calendar-until"} {
+	for _, change := range []string{"world", "stock", "duplicate", "issue", "unavailable", "numbers", "environment-cell", "environment-room", "crop-demand", "crop-diet", "crop-duplicate", "calendar-day", "calendar-season", "calendar-until"} {
 		t.Run(change, func(t *testing.T) {
 			r := colonyFixture(t).GetObserved()
 			id := proto.Clone(r.Context.Identity).(*c.Identity)
@@ -74,12 +74,12 @@ func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
 				r.WorkerCount = proto.Uint32(100)
 			case "environment-cell":
 				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Lights: []*o.GrowLight{{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("SunLamp"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, GrowthCells: []*c.Cell{{X: proto.Int32(-1), Z: proto.Int32(0)}}}}}
-			case "floor-cleanliness":
-				r.Planning.GetObserved().Definitions[0].Cleanliness = proto.Float64(math.NaN())
-			case "floor-flammability":
-				r.Planning.GetObserved().Definitions[0].Flammability = proto.Float64(-1)
-			case "floor-path-cost":
-				r.Planning.GetObserved().Definitions[0].PathCost = proto.Int32(-1)
+			case "crop-demand":
+				r.Planning.GetObserved().Crops[0].NutritionDemandPerDay = proto.Float64(math.NaN())
+			case "crop-diet":
+				r.Planning.GetObserved().Crops[0].DietAllowed = nil
+			case "crop-duplicate":
+				r.Planning.GetObserved().Crops = append(r.Planning.GetObserved().Crops, r.Planning.GetObserved().Crops[0])
 			case "calendar-day":
 				r.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(0), SowingNow: proto.Bool(true), DayOfYear: proto.Int32(60), Season: proto.String("Fall")}
 			case "calendar-season":

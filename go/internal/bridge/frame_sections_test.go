@@ -65,7 +65,7 @@ func TestFramesHoldOmittedSections(t *testing.T) {
 		if got := reply.Context.GetTick(); got != tick {
 			t.Fatalf("held research at tick %d, want the frame's %d", got, tick)
 		}
-		frame, err := client.ReadRoutineFrame(context.Background(), pbIdentity(), nil)
+		frame, err := client.ReadRoutineFrame(context.Background(), pbIdentity())
 		if err != nil {
 			t.Fatalf("tick %d routine frame: %v", tick, err)
 		}
@@ -108,7 +108,7 @@ func TestFramesKeyframeOnSeqGap(t *testing.T) {
 	}
 	select {
 	case request := <-server.opens:
-		if !request.GetKeyframe() || len(request.GetResourceSources())+len(request.GetDefinitions()) != 0 {
+		if !request.GetKeyframe() || len(request.GetResourceSources()) != 0 {
 			t.Fatalf("open %v, want a bare keyframe request", request)
 		}
 	case <-time.After(time.Second):

@@ -160,7 +160,7 @@ func (r *RoutineReviewer) sweepDrafts(ctx, epoch context.Context, arbiter *stepA
 		return fmt.Errorf("%w: sweepDrafts: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	started := r.clock.Now()
-	frame, err := r.native.ReadRoutineFrame(ctx, boundary.Identity(state.Snapshot), nil)
+	frame, err := r.native.ReadRoutineFrame(ctx, boundary.Identity(state.Snapshot))
 	if err != nil {
 		return err
 	}

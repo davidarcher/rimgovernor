@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshotshm"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -100,6 +102,20 @@ type bundleFamilyServer struct {
 	population *o.PopulationReply
 	research   *o.ResearchReply
 	pawns      *o.ListPawnsReply
+	catalogs   atomic.Int64
+}
+
+// catalogReply is a definition catalog under context: a wall, a bed behind
+// Beds research, and the research tree Beds <- Smithing.
+func catalogReply(context *c.ObservationContext) *o.DefinitionCatalogReply {
+	definition := func(name string, research ...string) *o.PlanningDefinition {
+		return &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, ResearchPrerequisites: research, Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}}
+	}
+	project := func(name string, prerequisites ...string) *o.ResearchProject {
+		return &o.ResearchProject{Project: &o.DefinitionRef{DefName: proto.String(name)}, Prerequisites: prerequisites}
+	}
+	return &o.DefinitionCatalogReply{Outcome: &o.DefinitionCatalogReply_Observed{Observed: &o.DefinitionCatalog{Context: proto.Clone(context).(*c.ObservationContext),
+		Definitions: []*o.PlanningDefinition{definition("Bed", "Beds"), definition("Wall")}, Research: []*o.ResearchProject{project("Beds", "Smithing"), project("Smithing")}}}}
 }
 
 var bundleFamilyTools = []string{"rimgovernor/observations_read_colony_facts", "rimgovernor/observations_read_population", "rimgovernor/observations_read_research", "rimgovernor/observations_list_pawns"}
@@ -130,6 +146,9 @@ func newBundleFamilyServer(t *testing.T) *bundleFamilyServer {
 
 func (s *bundleFamilyServer) handle(ctx context.Context, arg nativeArgument) (*callResult, error) {
 	switch arg.Tool {
+	case methodDefinitionCatalog:
+		s.catalogs.Add(1)
+		return pbResult(catalogReply(s.snapshot.Context)), nil
 	case "rimgovernor/observations_read_colony_facts":
 		s.calls[arg.Tool].Add(1)
 		return pbResult(s.colony), nil
@@ -412,30 +431,41 @@ func TestFramesServeCombat(t *testing.T) {
 	}
 }
 
-// TestFramesServeSubscribedDefinitions (#944): a routine read naming a
-// planning definition subscribes the stream to it and waits for a frame
-// carrying its row; the frame's rows reach the routine frame.
-func TestFramesServeSubscribedDefinitions(t *testing.T) {
+// TestFramesResolveAgainstTheCatalog (#1340): the routine frame carries
+// the load's definition catalog, read over the bridge once per load token,
+// and its research section joins the catalog's project facts to the
+// frame's progress rows and finished list.
+func TestFramesResolveAgainstTheCatalog(t *testing.T) {
 	client, server, ring := frameClient(t)
-	ring.publish(t, server.snapshot, 0)
-	if _, err := client.ReadRoutineFrame(context.Background(), pbIdentity(), nil); err != nil {
-		t.Fatal(err)
-	}
-	if first := <-server.opens; len(first.GetDefinitions()) != 0 {
-		t.Fatalf("first subscription %v", first.GetDefinitions())
-	}
-	carrying := proto.Clone(server.snapshot).(*o.BundleSnapshot)
-	carrying.ProjectDefinitions = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("Hopper")}, Available: proto.Bool(true)}}
-	go func() {
-		request := <-server.opens
-		if len(request.GetDefinitions()) != 1 || request.GetDefinitions()[0] != "Hopper" {
-			t.Errorf("resubscription %v", request.GetDefinitions())
+	v := proto.Clone(server.snapshot).(*o.BundleSnapshot)
+	v.Research.Finished = []string{"Smithing"}
+	v.Research.Projects = []*o.ResearchProject{{Project: &o.DefinitionRef{DefName: proto.String("Beds")}, Current: proto.Bool(true), LockReasons: []string{"research_building_or_facilities"}}}
+	ring.publish(t, v, 0)
+	for range 3 {
+		frame, err := client.ReadRoutineFrame(context.Background(), pbIdentity())
+		if err != nil {
+			t.Fatal(err)
 		}
-		ring.publish(t, carrying, 0)
-	}()
-	frame, err := client.ReadRoutineFrame(context.Background(), pbIdentity(), []string{"Hopper"})
-	if err != nil || len(frame.Definitions) != 1 || frame.Definitions[0].GetDefinition().GetDefName() != "Hopper" {
-		t.Fatalf("%v %v", frame.Definitions, err)
+		if frame.Catalog.Definition("Bed") == nil || frame.Catalog.Definition("Hopper") != nil {
+			t.Fatalf("catalog %v", frame.Catalog.Definitions)
+		}
+		research := frame.Research
+		if research.CurrentProject != "Beds" || !slices.Equal(research.Finished, []string{"Smithing"}) || len(research.Projects) != 2 {
+			t.Fatalf("research %+v", research)
+		}
+		beds := research.Projects["Beds"]
+		if prerequisites, _ := beds.Prerequisites.Value(); !slices.Equal(prerequisites, []policy.ResearchProjectID{"Smithing"}) || !policy.ResearchBenchNeeded(beds) {
+			t.Fatalf("Beds %+v", beds)
+		}
+	}
+	if n := server.catalogs.Load(); n != 1 {
+		t.Fatalf("%d catalog reads, want one per load", n)
+	}
+	unknown := proto.Clone(v).(*o.BundleSnapshot)
+	unknown.Research.Projects[0].Project.DefName = proto.String("Hopper")
+	ring.publish(t, unknown, 0)
+	if _, err := client.ReadRoutineFrame(context.Background(), pbIdentity()); !errors.Is(err, ErrContract) {
+		t.Fatalf("project outside the catalog: %v", err)
 	}
 	if n := server.familyCalls(); n != 0 {
 		t.Fatalf("%d native family reads, want 0", n)

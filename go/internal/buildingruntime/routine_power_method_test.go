@@ -44,9 +44,9 @@ func powerFixture(t *testing.T, conduit bool) (*RoutineBuildingPlanner, *store.S
 		development.Power = append(development.Power, row("generator", "WoodFiredGenerator", 4, 1000))
 	}
 	v.Development = &o.DevelopmentSection{Outcome: &o.DevelopmentSection_Observed{Observed: development}}
-	v.Planning.GetObserved().Definitions = nil
+	n.catalog = nil
 	for _, name := range []string{"HiddenConduit", "WoodFiredGenerator"} {
-		v.Planning.GetObserved().Definitions = append(v.Planning.GetObserved().Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
+		n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
 	pawn := policy.WorkPawn{ID: "builder", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(true), Ranged: domain.Known(false)}
 	var skills []policy.WorkSkill
@@ -184,6 +184,6 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 	}
 }
 
-func (n *powerNative) ReadRoutineFrame(ctx context.Context, id *c.Identity, definitions []string) (bridge.RoutineFrame, error) {
-	return fakeFrame(ctx, n, id, definitions)
+func (n *powerNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+	return fakeFrame(ctx, n, id)
 }

@@ -21,11 +21,10 @@ import (
 func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleepingNative) {
 	t.Helper()
 	r, db, _, _, n := sleepingFixture(t)
-	planning := n.reply.GetObserved().Planning.GetObserved()
 	for _, name := range []string{"Wall", "Door"} {
-		planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
+		n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
-	planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, Stuff: proto.String("WoodLog"), Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
+	n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, Stuff: proto.String("WoodLog"), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
 	n.cells.Region.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(8)}
 	n.cells.Cells = nil
 	for x := int32(0); x < 9; x++ {
@@ -245,10 +244,9 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 					}
 				}
 			}
-			planning := n.reply.GetObserved().Planning.GetObserved()
 			switch change {
 			case "definition":
-				planning.Definitions[2].Size.Width = proto.Uint32(2)
+				n.catalogRow("Door").Size.Width = proto.Uint32(2)
 			case "room-unknown":
 				n.cells.Cells[40].Indoors = nil
 			case "terrain":

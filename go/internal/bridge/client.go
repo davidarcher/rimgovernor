@@ -188,6 +188,7 @@ type Client struct {
 	writes atomic.Int64
 
 	frames  *frameStream
+	catalog catalogCache
 	replies *replySlots
 
 	recorder         *FlightRecorder

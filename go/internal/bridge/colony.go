@@ -241,56 +241,11 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 		}
 	}
 	seen := map[string]bool{}
-	for _, d := range p.Definitions {
-		if d == nil || d.Definition == nil || validID(d.Definition.GetDefName()) != nil || seen[d.Definition.GetDefName()] {
-			return contract("invalid planning definition")
+	for _, crop := range p.Crops {
+		if crop == nil || validID(crop.GetDefName()) != nil || seen[crop.GetDefName()] || crop.DietAllowed == nil || !combatNumber(crop.NutritionDemandPerDay, true) {
+			return contract("invalid edible crop")
 		}
-		seen[d.Definition.GetDefName()] = true
-		if err := pawnsIssues(d.Issues, d.ProtoReflect()); err != nil {
-			return err
-		}
-		if err := colonyQuantities(d.Costs); err != nil {
-			return err
-		}
-		for _, option := range d.StuffOptions {
-			if option == nil || validID(option.GetStuff()) != nil {
-				return contract("invalid planning definition stuff option")
-			}
-			if err := colonyQuantities(option.Costs); err != nil {
-				return err
-			}
-		}
-		if !presentationText(d.Definition.Label, 4096) || d.Stuff != nil && validID(d.GetStuff()) != nil || d.Size != nil && !colonySize(d.Size) || d.ConstructionSkill != nil && (d.GetConstructionSkill() < 0 || d.GetConstructionSkill() > 20) {
-			return contract("invalid planning definition facts")
-		}
-		for _, name := range d.ResearchPrerequisites {
-			if validID(name) != nil {
-				return contract("invalid research prerequisite")
-			}
-		}
-		for i, number := range []*float64{d.RestEffectiveness, d.GrowDays, d.FertilityMin, d.FertilitySensitivity, d.HarvestNutrition, d.NutritionDemandPerDay, d.GrowMinGlow, d.GrowerFertility, d.GlowRadius, d.HarvestWork, d.ExplosiveRadius} {
-			if !combatNumber(number, true) {
-				return contract("invalid planning definition number %d for %s", i, d.Definition.GetDefName())
-			}
-		}
-		// A generator's native base draw is negative, as are the beauty and
-		// cleanliness of natural ground.
-		for _, number := range []*float64{d.PowerW, d.Cleanliness, d.Beauty} {
-			if !combatNumber(number, false) {
-				return contract("invalid planning definition number")
-			}
-		}
-		if !combatNumber(d.Flammability, true) || d.PathCost != nil && (d.GetPathCost() < 0 || d.GetPathCost() > 10000) {
-			return contract("invalid planning definition floor facts")
-		}
-		if d.SowTag != nil && validID(d.GetSowTag()) != nil {
-			return contract("invalid planning definition sow tags")
-		}
-		for _, tag := range d.SowTags {
-			if validID(tag) != nil {
-				return contract("invalid planning definition sow tags")
-			}
-		}
+		seen[crop.GetDefName()] = true
 	}
 	if p.Environment != nil {
 		if err := validateGrowingEnvironment(p.Environment, size); err != nil {
@@ -435,4 +390,57 @@ func ProjectColonyThreat(v *o.ColonyFactsSnapshot) ColonyThreat {
 // that did not ask for planning, as the native answers it.
 func NotRequestedPlanning() *o.PlanningSection {
 	return &o.PlanningSection{Outcome: &o.PlanningSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum(), Detail: proto.String("Planning was not requested.")}}}
+}
+
+// validatePlanningDefinition checks one catalog definition row (#1340).
+func validatePlanningDefinition(d *o.PlanningDefinition) error {
+	if d == nil || d.Definition == nil || validID(d.Definition.GetDefName()) != nil {
+		return contract("invalid planning definition")
+	}
+	if err := pawnsIssues(d.Issues, d.ProtoReflect()); err != nil {
+		return err
+	}
+	if err := colonyQuantities(d.Costs); err != nil {
+		return err
+	}
+	for _, option := range d.StuffOptions {
+		if option == nil || validID(option.GetStuff()) != nil {
+			return contract("invalid planning definition stuff option")
+		}
+		if err := colonyQuantities(option.Costs); err != nil {
+			return err
+		}
+	}
+	if !presentationText(d.Definition.Label, 4096) || d.Stuff != nil && validID(d.GetStuff()) != nil || d.Size != nil && !colonySize(d.Size) || d.ConstructionSkill != nil && (d.GetConstructionSkill() < 0 || d.GetConstructionSkill() > 20) {
+		return contract("invalid planning definition facts")
+	}
+	for _, name := range d.ResearchPrerequisites {
+		if validID(name) != nil {
+			return contract("invalid research prerequisite")
+		}
+	}
+	for i, number := range []*float64{d.RestEffectiveness, d.GrowDays, d.FertilityMin, d.FertilitySensitivity, d.HarvestNutrition, d.GrowMinGlow, d.GrowerFertility, d.GlowRadius, d.HarvestWork, d.ExplosiveRadius} {
+		if !combatNumber(number, true) {
+			return contract("invalid planning definition number %d for %s", i, d.Definition.GetDefName())
+		}
+	}
+	// A generator's native base draw is negative, as are the beauty and
+	// cleanliness of natural ground.
+	for _, number := range []*float64{d.PowerW, d.Cleanliness, d.Beauty} {
+		if !combatNumber(number, false) {
+			return contract("invalid planning definition number")
+		}
+	}
+	if !combatNumber(d.Flammability, true) || d.PathCost != nil && (d.GetPathCost() < 0 || d.GetPathCost() > 10000) {
+		return contract("invalid planning definition floor facts")
+	}
+	if d.SowTag != nil && validID(d.GetSowTag()) != nil {
+		return contract("invalid planning definition sow tags")
+	}
+	for _, tag := range d.SowTags {
+		if validID(tag) != nil {
+			return contract("invalid planning definition sow tags")
+		}
+	}
+	return nil
 }
