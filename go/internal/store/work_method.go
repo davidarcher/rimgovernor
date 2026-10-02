@@ -20,7 +20,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() || len(plan.Actions()) > 8 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() {
 		return ErrConflict
 	}
 	bound := false
@@ -33,10 +33,17 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if !bound && !areaOnly {
 		return ErrConflict
 	}
+	// The EnsureWorkAssignments plan also carries the pawn settings and
+	// per-pawn policies that ride its goal (#1299, #1306, #1537, #1541);
+	// the eight-pawn cap and one-assignment-per-pawn rule bind only the
+	// work assignments. A disaster area plan carries assignments alone.
 	pawns := map[domain.PawnID]bool{}
 	for _, action := range plan.Actions() {
+		if !areaOnly && routineSettingsKinds[action.Kind()] {
+			continue
+		}
 		w, ok := action.WorkAssignment()
-		if !ok || pawns[w.Pawn()] {
+		if !ok || pawns[w.Pawn()] || len(pawns) == 8 {
 			return ErrConflict
 		}
 		if areaOnly && (!w.HasArea() || w.HasSchedule() || len(w.Settings()) != 0) {
@@ -45,4 +52,11 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 		pawns[w.Pawn()] = true
 	}
 	return nil
+}
+
+var routineSettingsKinds = map[domain.ActionKind]bool{
+	domain.PawnSettingsAction:  true,
+	domain.ReadingPolicyAction: true,
+	domain.DrugPolicyAction:    true,
+	domain.FoodPolicyAction:    true,
 }

@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
                     if (mode == "policy_edit") subject.outfits.CurrentApparelPolicy.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, true);
                     var outfit = subject.outfits.CurrentApparelPolicy;
                     return new { success = true, pawn = subject.GetUniqueLoadID(), shortName = NativeApparelPolicyOperations.ShortName(subject), token = NativeApparelPolicyOperations.Token(subject),
-                        policy = outfit.GetUniqueLoadID(), name = outfit.label, defs = outfit.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).ToArray(),
+                        policy = outfit.id, name = outfit.label, defs = outfit.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).ToArray(),
                         minHP = outfit.filter.AllowedHitPointsPercents.min, maxHP = outfit.filter.AllowedHitPointsPercents.max,
                         minQuality = (int)outfit.filter.AllowedQualityLevels.min, maxQuality = (int)outfit.filter.AllowedQualityLevels.max,
                         tainted = outfit.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel), clean = outfit.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel),
