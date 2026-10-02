@@ -54,7 +54,9 @@ at one review. Reviews are named
 `<tick>-<seq>`, `<seq>` counting from 1 for several at one paused tick;
 a failed write is
 a `[routine] colony snapshot not recorded` service-log line, never a review
-error. The acceptance harness passes its environment to the serves it
+error. Writes run on one background goroutine in order (`snapshot.Later`,
+flushed when the serve exits), so recording never holds the facts store's lock,
+the player gate or a planner step. The acceptance harness passes its environment to the serves it
 launches, so from `go/`:
 
 ```bash

@@ -16,7 +16,8 @@ import (
 // stream when recording is on (#795 step 4).
 func recordTables(store *facts.Store) {
 	if dir := os.Getenv(snap.DirEnv); dir != "" {
-		store.SetRecorder(snap.MirrorRecorder(dir))
+		record := snap.MirrorRecorder(dir)
+		store.SetRecorder(func(p facts.Published) { snap.Later(func() { record(p) }) })
 	}
 }
 
@@ -28,9 +29,11 @@ func recordStepRead(planner string, goal policy.GoalID, current domain.Generatio
 	if dir == "" {
 		return
 	}
-	if err := snap.RecordStep(dir, planner, goal, current, reading); err != nil {
-		clockSchedulerLog("%s: step read snapshot not recorded: %v", goal, err)
-	}
+	snap.Later(func() {
+		if err := snap.RecordStep(dir, planner, goal, current, reading); err != nil {
+			clockSchedulerLog("%s: step read snapshot not recorded: %v", goal, err)
+		}
+	})
 }
 
 // recordPlannerStep starts recording one planner step's policy inputs for

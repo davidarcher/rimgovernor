@@ -261,6 +261,7 @@ func TestCombatReplayHarness(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(snap.DirEnv, dir)
 	crossedHoldFight(t)
+	snap.Flush()
 	streams, _ := filepath.Glob(filepath.Join(dir, "routine-stream-*.jsonl"))
 	if len(streams) != 1 {
 		t.Fatal(streams)

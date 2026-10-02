@@ -616,11 +616,13 @@ func recordRoutineSnapshot(ctx context.Context, current domain.GenerationSnapsho
 	if dir == "" {
 		return
 	}
-	if recorded, ok := snapshot.FromReview(current, tick, result, reading); ok {
-		if err := snapshot.Record(dir, recorded); err != nil {
-			clockEvent(ctx, "routine", "snapshot", "colony snapshot not recorded: "+err.Error(), "tick", int64(tick))
+	snapshot.Later(func() {
+		if recorded, ok := snapshot.FromReview(current, tick, result, reading); ok {
+			if err := snapshot.Record(dir, recorded); err != nil {
+				clockEvent(ctx, "routine", "snapshot", "colony snapshot not recorded: "+err.Error(), "tick", int64(tick))
+			}
 		}
-	}
+	})
 }
 
 // plannedGround is the ground of the recorded plan's rooms not yet standing

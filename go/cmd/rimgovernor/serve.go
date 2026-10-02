@@ -20,6 +20,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
@@ -405,6 +406,7 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		level = slog.LevelDebug
 	}
 	slog.SetDefault(telemetry.New(diagnostics, level, sink))
+	defer snapshot.Flush()
 	if config.playerControl {
 		err = serveBuildingControl(ctx, config, out)
 	} else {
