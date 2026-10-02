@@ -106,11 +106,11 @@ namespace HomeBridge.BridgeTools
                 if (stuff == null || stuff.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) != true
                     || !GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(stuff)
                     || r.Backup.Any(id => Wall(map, id)?.Stuff != stuff)) return "Native stone replacement material changed";
-                var budgets = MaterialBudget.Budgets(map);
+                // Go's material budget admitted the upgrade (#1354); live, only the stone itself is checked.
                 var required = ThingDefOf.Wall.CostListAdjusted(stuff).Where(c => c.thingDef == stuff).Sum(c => c.count);
-                budgets.TryGetValue(stuff.defName, out var available);
+                var available = map.listerThings.ThingsOfDef(stuff).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer)).Sum(t => t.stackCount);
                 if (available < required)
-                    return "Materials no longer cover the permanent wall and existing reservations";
+                    return "Materials no longer cover the permanent wall";
             } else {
                 var permanent = Wall(map, r.Permanent);
                 if (!At(permanent, origin) || !Stone(permanent) || !BackupCells(r).Contains(target.Position)

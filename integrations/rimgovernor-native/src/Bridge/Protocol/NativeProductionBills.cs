@@ -87,8 +87,27 @@ namespace HomeBridge.BridgeTools {
     row.IngredientFilter.AllowedDefNames.Add(bill.ingredientFilter.AllowedThingDefs.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal));
    }
    else {row.IngredientFilter=new Obs.StockpileFilter();row.IngredientFilter.AllowedDefNames.Add(bill.ingredientFilter.AllowedThingDefs.Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal));}
+   Reservations(bill,row);
    if(bill is Bill_Production p){row.RepeatMode=NativeEnums.Repeat(p.repeatMode);row.RepeatCount=p.repeatCount;row.TargetCount=p.targetCount;row.UnpauseBelow=p.unpauseWhenYouHave;row.PauseWhenSatisfied=p.pauseWhenSatisfied;row.Paused=p.paused;row.Finished=BillCommon.IsFinished(p);}
    return row;
+  }
+  // Each spawned pawn whose current job works this bill: the spawned things
+  // it has queued (targetQueueB/countQueue) or placed (#1354).
+  private static void Reservations(Bill bill,Obs.BillState row){
+   if(!(bill.billStack?.billGiver is Thing bench)||!bench.Spawned)return;
+   foreach(var pawn in bench.Map.mapPawns.AllPawnsSpawned){
+    var job=pawn.CurJob;
+    if(job?.bill!=bill)continue;
+    var items=new Dictionary<string,long>();
+    void Add(Thing t,int n){if(t!=null&&t.Spawned&&n>0){items.TryGetValue(t.def.defName,out var c);items[t.def.defName]=c+n;}}
+    if(job.targetQueueB!=null&&job.countQueue!=null)
+     for(var i=0;i<Math.Min(job.targetQueueB.Count,job.countQueue.Count);i++)Add(job.targetQueueB[i].Thing,job.countQueue[i]);
+    if(job.placedThings!=null)foreach(var placed in job.placedThings)Add(placed.thing,placed.Count);
+    if(items.Count==0)continue;
+    var reservation=new Obs.IngredientReservation{PawnId=pawn.GetUniqueLoadID()};
+    foreach(var item in items.OrderBy(i=>i.Key,StringComparer.Ordinal))reservation.Items.Add(new Obs.Quantity{DefName=item.Key,Units=item.Value});
+    row.Reservations.Add(reservation);
+   }
   }
   internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe){var row=new Obs.RecipeState{Recipe=new Obs.DefinitionRef{DefName=recipe.defName},AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};NativeMealRecipeFacts.Fill(row,bench.def,recipe);return row;}
   internal static void ConfigureIngredients(Bill_Production bill,RecipeDef recipe,Operations.BillSettings s,Map map){

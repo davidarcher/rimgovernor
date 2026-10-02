@@ -156,6 +156,16 @@ const stoneShellUnstocked RoutineBuildingReason = "no_replacement_material"
 // unsupported backup geometry); any other outcome, admitted or refused, is
 // this tick's final result: the first candidate whose bundle fully builds
 // wins.
+// stoneShellFunded reports whether budget covers walls walls of material.
+func stoneShellFunded(budget map[policy.Resource]int64, material bridge.WallMaterial, walls int64) bool {
+	for _, c := range material.Costs {
+		if budget[policy.Resource(c.Resource)] < c.Units*walls {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, wall string) (RoutineStoneShellResult, bool, error) {
 	p := r.reviewer.player
 	projection := read.Projection
@@ -181,7 +191,22 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	if backupCount != 0 && backupCount != 3 {
 		return RoutineStoneShellResult{}, false, nil
 	}
-	material := site.ReplacementMaterials[0]
+	// The backups and the permanent wall are funded from free stock, after
+	// construction and live bill jobs (#1354): the first stone the budget
+	// covers. Without a stock census the first stone is proposed.
+	material, funded := site.ReplacementMaterials[0], true
+	if budget, known := policy.MaterialBudget(projection.Facts.Resources, projection.Facts.ConstructionDeficit, projection.Facts.BillReservations, "").Value(); known {
+		funded = false
+		for _, option := range site.ReplacementMaterials {
+			if stoneShellFunded(budget, option, int64(backupCount+1)) {
+				material, funded = option, true
+				break
+			}
+		}
+	}
+	if !funded {
+		return RoutineStoneShellResult{Reason: stoneShellUnstocked}, false, nil
+	}
 	costs := make([]policy.Amount, len(material.Costs))
 	for i, c := range material.Costs {
 		costs[i] = policy.Amount{Resource: policy.Resource(c.Resource), Count: c.Units}

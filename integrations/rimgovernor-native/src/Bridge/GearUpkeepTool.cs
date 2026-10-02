@@ -63,8 +63,6 @@ namespace HomeBridge.BridgeTools
             if (!a.Spawned || a.Map != p.Map || a.Position.Fogged(p.Map) || a.IsForbidden(p) || a.IsBurning())
                 return "Item unavailable or forbidden";
             if (a.Faction != null && !a.Faction.IsPlayer) return "Item belongs to another faction";
-            if (!MaterialBudget.Budgets(p.Map, p).TryGetValue(a.def.defName, out var budget) || budget < 1)
-                return "Apparel stock is committed elsewhere";
             if (!p.outfits.CurrentApparelPolicy.filter.Allows(a)) return "Apparel policy excludes item";
             if (!a.PawnCanWear(p) || !ApparelUtility.HasPartsToWear(p, a.def) ||
                 !a.def.apparel.developmentalStageFilter.Has(p.DevelopmentalStage)) return "Body, age or definition incompatible";
@@ -86,36 +84,6 @@ namespace HomeBridge.BridgeTools
                 return JobGiver_OptimizeApparel.ApparelScoreGain(p, a,
                     p.apparel.WornApparel.Select(w => JobGiver_OptimizeApparel.ApparelScoreRaw(p, w)).ToList());
             } finally { field.SetValue(null, prior); }
-        }
-
-        internal static string? WeaponEligible(Pawn p, ThingWithComps weapon)
-        {
-            if (!weapon.def.IsWeapon || weapon.def.equipmentType != EquipmentType.Primary || weapon.GetComp<CompEquippable>() == null)
-                return "Definition is not a primary weapon";
-            if (p.WorkTagIsDisabled(WorkTags.Violent) || (weapon.def.IsRangedWeapon && p.WorkTagIsDisabled(WorkTags.Shooting)))
-                return "Pawn cannot use this weapon";
-            if (weapon.IsForbidden(p) || weapon.IsBurning() || weapon.Position.Fogged(p.Map)
-                || (weapon.Faction != null && !weapon.Faction.IsPlayer)) return "Weapon unavailable or reserved";
-            if (!p.CanReserveAndReach(weapon, PathEndMode.ClosestTouch, p.NormalMaxDanger())) return "Weapon not safely reachable";
-            if (!EquipmentUtility.CanEquip(weapon, p, out var reason)) return reason ?? "Native weapon eligibility refused";
-            if (!MaterialBudget.Budgets(p.Map, p).TryGetValue(weapon.def.defName, out var budget) || budget < 1)
-                return "Weapon stock is committed elsewhere";
-            var primary = p.equipment?.Primary;
-            if (primary != null) {
-                if (primary.TryGetQuality(out var oldQuality) && (!weapon.TryGetQuality(out var quality) || quality < oldQuality))
-                    return "Replacement would lower weapon quality";
-                if (primary.def == weapon.def && (!primary.def.useHitPoints || primary.HitPoints > primary.MaxHitPoints * .5f))
-                    return "Current weapon does not need replacement";
-            }
-            if (weapon.def.useHitPoints && weapon.HitPoints < weapon.MaxHitPoints * .8f) return "Replacement weapon is too worn";
-            return null;
-        }
-
-        internal static float WeaponGain(Pawn p, ThingWithComps weapon)
-        {
-            var skill = p.skills?.GetSkill(weapon.def.IsRangedWeapon ? SkillDefOf.Shooting : SkillDefOf.Melee)?.Level ?? 0;
-            var quality = weapon.TryGetQuality(out var q) ? (int)q : 0;
-            return (1f + skill) * (1f + quality) * (weapon.def.useHitPoints ? (float)weapon.HitPoints / weapon.MaxHitPoints : 1f);
         }
 
         internal sealed class ProductionNeed
@@ -155,9 +123,8 @@ namespace HomeBridge.BridgeTools
             var hot = p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax);
             var uncovered = Uncovered(p);
             if (!cold && !hot && uncovered.Count == 0) return needs;
-            var budgets = MaterialBudget.Budgets(p.Map, p);
             // Definition-level candidates: allowed, wearable, displacing no forced or locked garment,
-            // one per budgeted stuff, ranked by the insulation stat the deficit names.
+            // one per stocked stuff (Go's material budget funds the bill, #1354), ranked by the insulation stat the deficit names.
             List<Tuple<ThingDef, ThingDef?, float>> Options(StatDef stat, Func<ThingDef, bool> covers)
             {
                 var options = new List<Tuple<ThingDef, ThingDef?, float>>();
@@ -166,7 +133,7 @@ namespace HomeBridge.BridgeTools
                     && ApparelUtility.HasPartsToWear(p, d))) {
                     var displaced = p.apparel.WornApparel.Where(a => !ApparelUtility.CanWearTogether(a.def, def, p.RaceProps.body)).ToList();
                     if (displaced.Any(a => !p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a) || p.apparel.IsLocked(a))) continue;
-                    var stuffs = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).Where(s => budgets.TryGetValue(s.defName, out var n) && n > 0).Cast<ThingDef?>()
+                    var stuffs = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).Where(s => p.Map.resourceCounter.GetCount(s) > 0).Cast<ThingDef?>()
                         : new ThingDef?[] { null };
                     foreach (var stuff in stuffs)
                         options.Add(Tuple.Create(def, stuff, def.GetStatValueAbstract(stat, stuff) - displaced.Sum(a => a.GetStatValue(stat))));

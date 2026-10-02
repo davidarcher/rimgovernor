@@ -253,8 +253,11 @@ type RoutineFacts struct {
 	// ConstructionDeficit is the material standing blueprints and frames
 	// are still owed, per resource.
 	ConstructionDeficit domain.Fact[map[Resource]int64]
-	Sleeping            domain.Fact[SleepingObservation]
-	SleepingRecovered   domain.Fact[bool]
+	// BillReservations are live bill jobs' promised ingredients, per
+	// working pawn (MaterialBudget).
+	BillReservations  domain.Fact[[]IngredientReservation]
+	Sleeping          domain.Fact[SleepingObservation]
+	SleepingRecovered domain.Fact[bool]
 	// BedroomsOwed: a planned individual bedroom step is due (#786); it
 	// keeps MaintainHousing open once everyone owns a barracks bed.
 	BedroomsOwed domain.Fact[bool]

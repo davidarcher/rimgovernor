@@ -130,7 +130,9 @@ and flak helmet, then flak jacket and pants (FlakArmor), and recon or marine
 armor only once their plasteel and advanced components are funded. Soldiers
 refuse armor at or past the `GearArmorSpeedFloor` (-0.5 c/s: plate and
 cataphract, never). `Budget` is `GearMaterialBudget`: the supply census less
-MaintainResource reserves and holds, the floor food bills honour; a bill option
+MaintainResource reserves and holds, the floor food bills honour; the gear
+planner's holds add `policy.MaterialHolds`, what standing blueprints and frames
+still need and live bill jobs have promised (#1354); a bill option
 whose ingredients exceed it is refused (nil is unbudgeted, an unmeasured
 material unfunded). Shield belts go to melee soldiers and the medic (highest
 work priority Doctor); a psychic foil helmet only after a psychic-drone letter;

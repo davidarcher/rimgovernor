@@ -122,6 +122,26 @@ func (s *routineCensusStore) retain(reading observation.RoutineReading, rooms bo
 	s.mu.Unlock()
 }
 
+// materialHolds is policy.MaterialHolds over the retained census of
+// snapshot's colony, load, map and native generation (#1354): what
+// construction and live bill jobs already owe. Without such a census it
+// holds nothing.
+func (s *routineCensusStore) materialHolds(snapshot domain.GenerationSnapshot) []policy.Amount {
+	s.mu.Lock()
+	census, generation := s.latest, s.generation
+	s.mu.Unlock()
+	if census == nil || census.generation != generation {
+		return nil
+	}
+	id := census.reading.Projection.Identity
+	native, known := id.NativeGeneration.Value()
+	if !known || native != snapshot.Native || id.Colony != snapshot.Colony || id.Load != snapshot.Load || id.Map != snapshot.Map {
+		return nil
+	}
+	f := census.reading.Projection.Facts
+	return policy.MaterialHolds(f.ConstructionDeficit, f.BillReservations, "")
+}
+
 // invalidate retires the retained census: committed clock evidence made
 // some of what it observed stale.
 func (s *routineCensusStore) invalidate() {

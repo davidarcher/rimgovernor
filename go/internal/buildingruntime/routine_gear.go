@@ -364,7 +364,8 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		}
 		benchesFact = domain.Known(benches)
 	}
-	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock}
+	// Construction and other pawns' bill jobs hold their material (#1354).
+	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, Holds: r.reviewer.census.materialHolds(state.Snapshot)}
 	snap.NoteGearMethod(call, request)
 	choice, err := policy.SelectGearMethod(request)
 	if err != nil {

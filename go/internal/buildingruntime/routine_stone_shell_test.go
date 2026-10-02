@@ -102,6 +102,8 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 			t.Fatal(err)
 		}
 	}
+	// The colony stock funds the replacement (#1354).
+	v.Resources = append(v.Resources, &o.Quantity{DefName: proto.String("BlocksGranite"), Units: proto.Int64(100)})
 	cell := &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}
 	entity := &o.EntityRef{Id: proto.String("wall-1"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: cell}
 	n.buildings = &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(1), Buildings: []*o.BuildingState{{Building: entity, OccupiedCells: []*c.Cell{cell}, Status: o.BuildingStatus_BUILDING_STATUS_BUILT.Enum(), Rotation: pp.Rotation_ROTATION_NORTH.Enum(), Stuff: proto.String("WoodLog")}}}}}

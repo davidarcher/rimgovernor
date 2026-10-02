@@ -385,6 +385,9 @@ type RoutineFrame struct {
 	Catalog *DefinitionCatalog
 	// Rooms is the indoor room census with cells (#944).
 	Rooms *o.RoomsSnapshot
+	// Bills is the bench bill census, whose rows carry live bill jobs'
+	// ingredient reservations (#1354).
+	Bills *o.BillsSnapshot
 }
 
 // ReadRoutineFrame decodes the routine census of the newest frame past
@@ -415,7 +418,7 @@ func DecodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog) (Routin
 		return RoutineFrame{}, contract("routine frame without a context")
 	}
 	identity := v.Context.Identity
-	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Catalog: catalog, Rooms: v.Rooms}
+	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Catalog: catalog, Rooms: v.Rooms, Bills: v.Bills}
 	pawns, err := PawnTable(v.Pawns, identity)
 	if err != nil {
 		return RoutineFrame{}, err

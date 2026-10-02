@@ -80,3 +80,31 @@ func ConstructionDeficit(v *o.BuildingsSnapshot) domain.Fact[map[policy.Resource
 	}
 	return domain.Known(out)
 }
+
+// BillReservations reads every bill row's live bill-job reservations.
+// Unknown without the bill census or when any row is malformed.
+func BillReservations(v *o.BillsSnapshot) domain.Fact[[]policy.IngredientReservation] {
+	unknown := domain.Unknown[[]policy.IngredientReservation]()
+	if v == nil {
+		return unknown
+	}
+	out := []policy.IngredientReservation{}
+	for _, bench := range v.Benches {
+		for _, bill := range bench.GetBills() {
+			for _, r := range bill.GetReservations() {
+				if r.GetPawnId() == "" {
+					return unknown
+				}
+				row := policy.IngredientReservation{Pawn: policy.PawnID(r.GetPawnId())}
+				for _, item := range r.GetItems() {
+					if item.GetDefName() == "" || item.Units == nil || item.GetUnits() < 0 {
+						return unknown
+					}
+					row.Items = append(row.Items, policy.Amount{Resource: policy.Resource(item.GetDefName()), Count: item.GetUnits()})
+				}
+				out = append(out, row)
+			}
+		}
+	}
+	return domain.Known(out)
+}

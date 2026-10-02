@@ -539,7 +539,12 @@ message BillState {
   optional string worker_id = 13; optional int32 skill_min = 14; optional int32 skill_max = 15; optional double ingredient_radius = 16;
   StockpileFilter ingredient_filter = 17; optional rimgovernor.operations.v1.StoreMode store_mode = 18; optional string store_zone_id = 19;
   optional bool can_run_now = 20; repeated string blockers = 21; repeated IngredientRequirement ingredients = 22; repeated ReadIssue issues = 23;
+  // Live bill jobs' promised ingredients (#1354): one row per spawned pawn
+  // whose current job works this bill, the spawned things it has queued or
+  // placed. Go's material budget subtracts them from free stock.
+  repeated IngredientReservation reservations = 27;
 }
+message IngredientReservation { optional string pawn_id = 1; repeated Quantity items = 2; }
 message BillStack { SnapshotRef snapshot = 1; EntityRef bench = 2; optional bool usable = 3; optional BenchUnusableReason unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; reserved 7; }
 message RecipeState {
   DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3; optional double work_amount = 4; optional string work_skill = 5;
