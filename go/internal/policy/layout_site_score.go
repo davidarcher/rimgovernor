@@ -64,7 +64,7 @@ func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) La
 		p := plan
 		p.Spine = []SpineSegment{{From: seeds[i], To: seeds[i]}}
 		p = Grow(p, pawns, tombs, tier)
-		scores[i] = siteScore{seed: seeds[i], score: g.scoreSite(p), plan: p}
+		scores[i] = siteScore{seed: seeds[i], score: g.scoreSite(p) - siteEdgeCost(p, s.Bounds), plan: p}
 	})
 	rankSites(scores)
 	// The wall terms (#1288) need PlanPerimeter, far dearer than Grow, so
@@ -211,6 +211,30 @@ func (g coreGrid) scoreSite(p LayoutPlan) int {
 		}
 	}
 	return score
+}
+
+// siteEdgeClear is how far from the map edge a room stands before the
+// edge stops costing it: raiders arrive at the edge, so a core pressed
+// against it has no ground to meet them on, and barren ground near a
+// mountain edge otherwise beats central soil on soil cost alone.
+const (
+	siteEdgeClear  = 50
+	siteEdgeWeight = 3
+)
+
+// siteEdgeCost charges every room cell siteEdgeWeight per cell it stands
+// closer to the map edge than siteEdgeClear, or a fifth of the map's
+// short side on a small map.
+func siteEdgeCost(p LayoutPlan, b Bounds) int {
+	clear := min(siteEdgeClear, int(min(b.Width, b.Height))/5)
+	cost := 0
+	for _, r := range p.AllRooms() {
+		for _, c := range rectCells(r.Interior) {
+			d := min(c.X, c.Z, b.Width-1-c.X, b.Height-1-c.Z)
+			cost += siteEdgeWeight * max(0, clear-int(d))
+		}
+	}
+	return cost
 }
 
 func union(a, b Rectangle) Rectangle {

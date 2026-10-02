@@ -128,3 +128,22 @@ func TestSoilCostBaselineFixture(t *testing.T) {
 		t.Fatal("fixture soil cost", rich, rock, whole)
 	}
 }
+
+// TestSiteCoreKeepsOffMapEdge: on the baseline map, almost all plain
+// soil, barren ground beside the southern mountain once drew the core to
+// within ten cells of the edge margin; the edge cost keeps every room
+// clear of it.
+func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
+	s := loadSurvey(t, baselineSurveyPath)
+	p := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
+	if len(p.AllRooms()) == 0 {
+		t.Fatal("no rooms")
+	}
+	for _, r := range p.AllRooms() {
+		for _, c := range rectCells(r.Interior) {
+			if d := min(c.X, c.Z, s.Bounds.Width-1-c.X, s.Bounds.Height-1-c.Z); d < siteEdgeClear {
+				t.Fatal(r.Role, "room cell", c, "is", d, "cells from the map edge")
+			}
+		}
+	}
+}
