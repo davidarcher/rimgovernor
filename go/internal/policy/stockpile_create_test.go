@@ -116,3 +116,31 @@ func TestStockpileCreateSkipsCoveredRolesAndUnknownRooms(t *testing.T) {
 		}
 	}
 }
+
+// The apparel zone goes inside the storage room when one stands, even though
+// the store's own neighbourhood is nearer.
+func TestStockpileGearZoneGoesInItsRoom(t *testing.T) {
+	r := stockpileCreateRequest()
+	r.Needs = map[string]int{domain.ApparelRole: 3}
+	var room []domain.Cell
+	for x := int32(6); x < 10; x++ {
+		for z := int32(12); z < 16; z++ {
+			room = append(room, domain.Cell{X: x, Z: z})
+		}
+	}
+	r.GearRooms = map[string][]domain.Cell{domain.ApparelRole: room}
+	var apparel StockpileEdit
+	for _, e := range PlanStockpileMaintenance(r).Edits {
+		if e.Kind == StockpileCreate && e.Role == domain.ApparelRole {
+			apparel = e
+		}
+	}
+	if len(apparel.Cells) != 4 {
+		t.Fatalf("apparel create = %+v", apparel)
+	}
+	for _, c := range apparel.Cells {
+		if c.Z < 12 {
+			t.Fatalf("apparel zone outside its room: %v", apparel.Cells)
+		}
+	}
+}

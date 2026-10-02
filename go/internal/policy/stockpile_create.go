@@ -61,7 +61,7 @@ func stockpileCreateEdits(r StockpileRequest, open stockpileOpen) []StockpileEdi
 			}
 			sites, err = OutdoorDumpSites(OutdoorDumpRequest{Bounds: r.Bounds, Anchor: anchor, Cells: r.Cells, Rooms: rooms, Protected: r.Protected, Width: 2, Height: 2})
 		} else {
-			sites, err = stockpileGearSites(r, anchor, store)
+			sites, err = stockpileGearSites(r, anchor, store, r.GearRooms[spec.Role])
 		}
 		if err != nil {
 			continue
@@ -237,10 +237,24 @@ func stockpileRoleState(roles StockpileRoles, role string) (StockpileRoleState, 
 
 // stockpileGearSites are the free indoor roofed 2x2 patches nearest anchor,
 // cheapest walking distance to the general store first.
-func stockpileGearSites(r StockpileRequest, anchor domain.Cell, store []domain.Cell) ([]Rectangle, error) {
-	covered, err := CoveredStorageSites(CoveredStorageRequest{Bounds: r.Bounds, Anchor: anchor, Cells: r.Cells, Protected: r.Protected})
+func stockpileGearSites(r StockpileRequest, anchor domain.Cell, store, room []domain.Cell) ([]Rectangle, error) {
+	// The role's own standing room takes the zone before the walk to the
+	// general store decides; no free patch there falls back to anywhere indoors.
+	cells := r.Cells
+	if inRoom := cellSet(room); len(inRoom) > 0 {
+		cells = nil
+		for _, c := range r.Cells {
+			if inRoom[c.Cell] {
+				cells = append(cells, c)
+			}
+		}
+	}
+	covered, err := CoveredStorageSites(CoveredStorageRequest{Bounds: r.Bounds, Anchor: anchor, Cells: cells, Protected: r.Protected})
 	if err != nil {
 		return nil, err
+	}
+	if len(cells) < len(r.Cells) && len(covered) == 0 {
+		return stockpileGearSites(r, anchor, store, nil)
 	}
 	indoors := map[domain.Cell]bool{}
 	for _, c := range r.Cells {

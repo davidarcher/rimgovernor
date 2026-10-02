@@ -103,6 +103,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
 	request.Sited = stockpileSites(projection, request.Protected)
+	request.GearRooms = stockpileGearRooms(projection)
 	if plan, known := projection.LayoutPlan.Value(); known {
 		request.Prisons = policy.PrisonCells(plan)
 	}

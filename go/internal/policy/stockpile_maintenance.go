@@ -145,6 +145,10 @@ type StockpileRequest struct {
 	Shelves []StockpileShelf
 	// Sited are the room-bound roles (#917) created while absent.
 	Sited []StockpileSite
+	// GearRooms are the cells of the standing planned room each gear role
+	// belongs in (apparel: storage; weapons: the barracks, else storage); a
+	// gear zone is sited there before anywhere else.
+	GearRooms map[string][]domain.Cell
 	// Kitchen, when set, is the cooking spot the opening food stockpile
 	// sits beside while no roofed floor is free.
 	Kitchen *domain.Cell
