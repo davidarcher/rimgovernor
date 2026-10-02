@@ -89,3 +89,24 @@ func TestStartingSuppliesOwnsInputsAndRejectsInvalidHistory(t *testing.T) {
 		t.Fatal("duplicate census accepted")
 	}
 }
+
+// The scenario forbids its stacks after the first review: a cohort that never
+// held a stack adopts them until the window closes, and never after.
+func TestStartingSuppliesAdoptLateStacksInsideTheWindow(t *testing.T) {
+	a := StartingSupply{Thing: "a", Definition: "WoodLog", Cell: domain.Cell{X: 1, Z: 1}}
+	s, _, err := ReviewStartingSuppliesAt(domain.Known([]StartingSupply{}), StartingSupplies{}, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	late, need, err := ReviewStartingSuppliesAt(domain.Known([]StartingSupply{a}), s, 30000)
+	if err != nil || len(late.Pending) != 1 || need != domain.Known(true) {
+		t.Fatal(late, need, err)
+	}
+	if closed, _, _ := ReviewStartingSuppliesAt(domain.Known([]StartingSupply{a}), s, StartingSupplyWindow); len(closed.Pending) != 0 {
+		t.Fatal("adopted after the window", closed)
+	}
+	released, _, _ := ReviewStartingSuppliesAt(domain.Known([]StartingSupply{}), late, 31000)
+	if again, _, _ := ReviewStartingSuppliesAt(domain.Known([]StartingSupply{a}), released, 32000); len(again.Pending) != 0 {
+		t.Fatal("revived a released stack", again)
+	}
+}

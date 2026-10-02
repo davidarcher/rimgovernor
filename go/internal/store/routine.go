@@ -448,7 +448,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 		comfort = comfortReview.History
 		request.Facts.ComfortRecovered, request.Facts.ComfortDeficit = comfortReview.Recovered(), comfortReview.Deficit()
-		supplies, request.Facts.ForbiddenSupplies, err = policy.ReviewStartingSupplies(request.Facts.StartingSupplies, supplies)
+		supplies, request.Facts.ForbiddenSupplies, err = policy.ReviewStartingSuppliesAt(request.Facts.StartingSupplies, supplies, request.Tick)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
