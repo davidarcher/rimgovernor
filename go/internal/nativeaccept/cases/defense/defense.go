@@ -685,13 +685,40 @@ func launchService(ctx context.Context, s cases.Session, name string, identity m
 	return svc, nil
 }
 
+// layoutBuildTicks bounds how long one set of placed tier blueprints counts
+// as progress while the clock advances: three game days.
+const layoutBuildTicks = 3 * 60000
+
+// buildProgress is a tier's native construction as wait progress. A plan's
+// stages all read completed once its blueprints are placed, and the
+// colonists then build them over game hours with nothing in the journal
+// changing; the advancing tick is that progress while some tier plan is
+// open, for layoutBuildTicks after the open set last changed.
+type buildProgress struct {
+	open  string
+	since domain.Tick
+}
+
+func (b *buildProgress) signature(open []string, tick domain.Tick) string {
+	key := strings.Join(open, ",")
+	if key != b.open {
+		b.open, b.since = key, tick
+	}
+	if key == "" || tick-b.since > layoutBuildTicks {
+		return ""
+	}
+	return fmt.Sprint(tick)
+}
+
 // waitLayoutComplete polls the journal until the stored layout for world is
 // Complete, recording each tier method's plan and its final stage. The
-// progress signature is the tier methods' plan stages and the stored record.
+// progress signature is the tier methods' plan stages, the stored record
+// and an open tier's construction (buildProgress).
 func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, w na.Wait, report na.Report) (store.DefenseLayoutRecord, error) {
 	var goalID domain.GoalID
 	var record store.DefenseLayoutRecord
 	var stored bool
+	var building buildProgress
 	tiers := map[string]any{}
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
@@ -703,12 +730,16 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 				}
 			}
 		}
+		var open []string
 		if goalID != "" {
 			if goal, err := s.LoadGoal(ctx, goalID); err == nil {
 				for _, m := range goal.Methods {
 					entry := map[string]any{"plan": string(m.Plan), "epoch": m.Epoch}
 					if plan, err := s.LoadPlan(ctx, m.Plan); err == nil {
 						entry["stages"] = stages(plan.Progress)
+						if store.PlanOpen(plan) {
+							open = append(open, string(m.Plan))
+						}
 					}
 					tiers[string(m.Method)] = entry
 				}
@@ -727,7 +758,8 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 				return "", true, nil
 			}
 		}
-		return na.Signature(goalID, tiers, stored, record.Complete), false, nil
+		sort.Strings(open)
+		return na.Signature(goalID, tiers, stored, record.Complete, building.signature(open, review.Tick)), false, nil
 	})
 	if err != nil {
 		return record, fmt.Errorf("layout not complete (goal=%q stored=%v): %w", goalID, stored, err)
