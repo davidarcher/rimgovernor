@@ -89,7 +89,11 @@ type variant struct {
 }
 
 // perimeterFamilies are the families a perimeter campaign serves; see init.
-var perimeterFamilies = []string{"defensive-layout", "defense", "tend", "rescue", "fire", "supply"}
+//
+// naming answers the faction/settlement dialog that opens mid-run on the
+// baseline save (#1248): unanswered it holds the game paused, so no tick
+// advances and the layout's completion write never runs.
+var perimeterFamilies = []string{"defensive-layout", "defense", "tend", "rescue", "fire", "supply", "naming"}
 
 func init() {
 	// The fire family belongs here: a raid can leave a home fire burning
