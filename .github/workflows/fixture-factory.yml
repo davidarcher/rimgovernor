@@ -128,9 +128,9 @@ jobs:
           foreach ($boot in Get-ChildItem C:\rg\*\job\bootstrap.json) {
             $root = (Get-Content -LiteralPath $boot.FullName -Raw | ConvertFrom-Json).root
             foreach ($case in $env:FACTORY_CASES -split ',') {
-              # The suite runs each case in a worker root (<root>\workers\<n>), where its ring stays.
+              # The suite runs each case in a worker root (<job>\out\workers\<n>), where its ring stays.
               $dirs = @(Join-Path $root "checkpoints\$case")
-              foreach ($w in Get-ChildItem (Join-Path $root 'workers') -Directory -ErrorAction SilentlyContinue) { $dirs += Join-Path $w.FullName "checkpoints\$case" }
+              foreach ($w in Get-ChildItem (Join-Path (Split-Path $boot.FullName) 'out\workers') -Directory -ErrorAction SilentlyContinue) { $dirs += Join-Path $w.FullName "checkpoints\$case" }
               $ring = $dirs | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'ring.json') } | Select-Object -First 1
               if ($ring) {
                 New-Item -ItemType Directory -Force (Split-Path (Join-Path $out $case)) | Out-Null
