@@ -87,6 +87,7 @@
     <div class="secondary" id="gamebar" hidden>
       <button id="closeGame">Close game</button>
     </div>
+    <div class="secondary"><button id="tailFlight" title="Open a window following the flight recorder">Flight log</button></div>
     <div class="alert" id="alert" role="alert" hidden></div>
     <ul class="status" id="status" aria-label="Components"></ul>
   </div>
@@ -224,6 +225,7 @@ $('primary').onclick = () => {
 $('restart').onclick = () => act(restart);
 $('stop').onclick = () => act(stopController);
 $('closeGame').onclick = () => act(closeGame);
+$('tailFlight').onclick = () => tailFlight();
 window.addEventListener('focus', () => focused());
 setInterval(refresh, 600);
 refresh().then(() => $('primary').focus());

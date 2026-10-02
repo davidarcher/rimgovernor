@@ -85,6 +85,7 @@ func main() {
 		"restart":        func() { go a.restart() },
 		"closeGame":      func() { go a.closeGame() },
 		"openDashboard":  a.openDashboard,
+		"tailFlight":     a.tailFlight,
 	} {
 		if err := w.Bind(name, f); err != nil {
 			fatal(err.Error())

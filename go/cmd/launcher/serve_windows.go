@@ -281,3 +281,17 @@ func (a *app) activePort() int {
 // firstPort is where Play starts looking; a port held by another
 // checkout's controller moves it up. Players never pick a port.
 const firstPort = 8787
+
+// tailFlight opens a console following the flight recorder's newest file
+// (the controller's native requests, responses, errors and service events).
+func (a *app) tailFlight() error {
+	path := filepath.Join(a.layout.Root, "profile", "flight", "flight.jsonl")
+	script := "$Host.UI.RawUI.WindowTitle='RimGovernor flight recorder'; Get-Content -Wait -Tail 40 -LiteralPath '" + strings.ReplaceAll(path, "'", "''") + "'"
+	cmd := exec.Command("powershell.exe", "-NoLogo", "-NoExit", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NEW_CONSOLE}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go cmd.Wait()
+	return nil
+}
