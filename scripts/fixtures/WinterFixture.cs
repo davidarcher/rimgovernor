@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
                     && new CellRect(c.x, c.z, side, side).Cells.All(cell => cell.InBounds(map) && !cell.Fogged(map)
                         && cell.GetEdifice(map) == null && cell.GetZone(map) == null
                         && cell.GetTerrain(map).passability == Traversability.Standable && !cell.GetTerrain(map).IsWater
-                        && cell.GetThingList(map).All(t => IsChunk(t) || (t.def.passability == Traversability.Standable
+                        && cell.GetThingList(map).All(t => Clearable(t) || (t.def.passability == Traversability.Standable
                             && t.def.category != ThingCategory.Pawn && t.def.category != ThingCategory.Building
                             && t.def.category != ThingCategory.Item && !(t is Blueprint) && !(t is Frame))))
                     && walker.CanReach(c, Verse.AI.PathEndMode.Touch, Danger.None));
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
                 zone.settings.filter.SetAllow(def, true);
                 foreach (var cell in rect.Cells)
                 {
-                    foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Filth || IsChunk(t)).ToList()) thing.Destroy();
+                    foreach (var thing in cell.GetThingList(map).Where(Clearable).ToList()) thing.Destroy();
                     zone.AddCell(cell);
                     map.areaManager.Home[cell] = true;
                 }
@@ -134,10 +134,12 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // Rock and slag chunks litter every generated map; the larder clears
-        // them like plants and filth rather than searching around them. Stone
-        // chunks sit in the StoneChunks child category, so test the subtree.
-        private static bool IsChunk(Thing t) => t.def.IsWithinCategory(ThingCategoryDefOf.Chunks);
+        // What the larder clears rather than searches around: plants (trees
+        // are PassThroughOnly, so they failed the standable test), filth and
+        // rock or slag chunks. Stone chunks sit in the StoneChunks child of
+        // Chunks, so the category test covers the subtree.
+        private static bool Clearable(Thing t) => t is Plant || t.def.category == ThingCategory.Filth
+            || t.def.IsWithinCategory(ThingCategoryDefOf.Chunks);
 
         private static object Refuse(string reason) => new { success = false, reason };
     }
