@@ -99,7 +99,8 @@ func isEvent(msg string) bool {
 
 // Normalize blanks the ids and numbers in msg so repeats compare equal.
 func Normalize(msg string) string {
-	return numberRE.ReplaceAllString(idRE.ReplaceAllString(noiseRE.ReplaceAllString(msg, ""), "#"), "#")
+	blanked := numberRE.ReplaceAllString(idRE.ReplaceAllString(noiseRE.ReplaceAllString(msg, ""), "#"), "#")
+	return strings.Join(strings.Fields(blanked), " ")
 }
 
 // Rows is every row, the one seen most recently first.
