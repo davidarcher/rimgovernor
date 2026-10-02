@@ -44,7 +44,7 @@ func TestStatusRowsActionableFirstHeldCollapsed(t *testing.T) {
 		t.Fatalf("%+v", rows[0])
 	}
 	rows = StatusRows(StatusInput{Progress: []GoalProgress{{Goal: EnsureComfort, Method: "assess", Blocked: HeldStage}}})
-	if rows[0].Text != "goal EnsureComfort - on hold: stage" || rows[0].Severity != StatusInfo {
+	if rows[0].Text != "goal EnsureComfort - waiting on the colony's earlier needs first" || rows[0].Severity != StatusInfo {
 		t.Fatalf("%+v", rows[0])
 	}
 }
