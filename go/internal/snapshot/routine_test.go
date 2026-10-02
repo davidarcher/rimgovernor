@@ -32,8 +32,8 @@ func TestReplayReproducesTheRecordedReview(t *testing.T) {
 		bound[g.Need] = true
 	}
 	for _, a := range needs.All() {
-		// MaintainSurgery (#1164), MaintainShelter (#1325) and MaintainFirebreak (#1536) are newer than the recording.
-		if !bound[a.ID] && a.ID != policy.MaintainSurgery && a.ID != policy.MaintainShelter && a.ID != policy.MaintainFirebreak {
+		// MaintainSurgery (#1164), MaintainShelter (#1325), MaintainFirebreak (#1536) and MaintainButcherSpot are newer than the recording.
+		if !bound[a.ID] && a.ID != policy.MaintainSurgery && a.ID != policy.MaintainShelter && a.ID != policy.MaintainFirebreak && a.ID != policy.MaintainButcherSpot {
 			t.Error("replay assessed unbound", a.ID)
 		}
 		delete(bound, a.ID)

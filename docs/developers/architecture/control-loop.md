@@ -88,7 +88,7 @@ Every GoalID in `go/internal/policy`:
 | Concept | GoalIDs |
 | --- | --- |
 | Response | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
-| Project | `AllowStartingSupplies`, `EnsureCooking`, `EnsureBasicPower`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
+| Project | `AllowStartingSupplies`, `EnsureCooking`, `MaintainButcherSpot`, `EnsureBasicPower`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
 | Standard (chore) | `MaintainWaste`, `RemoveBlight`, `MaintainStockpiles`, `TidyLayout`, `ClearHomeObstructions` |
 | Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `SecureSupplies`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainPopulation`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell`, `MaintainStorage` |
 | Rule | none (see above) |
@@ -106,7 +106,7 @@ or budgets labor.
 
 | Domain | GoalIDs |
 | --- | --- |
-| Food | `EnsureFoodSupply`, `EnsureCooking`, `MaintainFoodStorage`, `MaintainRefrigeration`, `RemoveBlight` |
+| Food | `EnsureFoodSupply`, `EnsureCooking`, `MaintainButcherSpot`, `MaintainFoodStorage`, `MaintainRefrigeration`, `RemoveBlight` |
 | Shelter | `EnsureInitialShelter`, `EnsureBasicComfort`, `EnsureComfort`, `EnsureTemperatureSafety`, `EnsureExpansion`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainLighting`, `MaintainFlooring`, `MaintainHomeCoverage` |
 | Industry | `EnsureBasicPower`, `MaintainResource`, `EnsureResearch` |
 | Military | `ActiveCombat`, `EnsureBasicDefense`, `EnsureDefensiveLayout`, `ClearAncientShrine`, `ClearPests`, `MaintainEquipment` |

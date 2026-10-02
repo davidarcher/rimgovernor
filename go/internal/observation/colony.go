@@ -391,6 +391,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		for _, b := range v.Butchering {
 			benches = append(benches, CookingBench{ID: b.Bench.GetId(), Definition: buildings.Entity(b.Bench).GetDefName(), Usable: optional(b.Usable), Room: optionalRef(b.Room)})
 		}
+		standing := []policy.ButcherBench{}
+		for _, b := range benches {
+			standing = append(standing, policy.ButcherBench{ID: b.ID, Room: b.Room})
+		}
+		r.Facts.ButcherBenches = domain.Known(standing)
 		r.ButcheringBenches = domain.Known(benches)
 	}
 	colonyDisaster(v, &r.Facts, buildings)

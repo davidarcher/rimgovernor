@@ -22,6 +22,7 @@ const (
 var goalDomains = map[GoalID]Domain{
 	EnsureFoodSupply:          DomainFood,
 	EnsureCooking:             DomainFood,
+	MaintainButcherSpot:       DomainFood,
 	MaintainFoodStorage:       DomainFood,
 	MaintainRefrigeration:     DomainFood,
 	MaintainHerd:              DomainPeople,

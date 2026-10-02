@@ -183,10 +183,12 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		// prefers whichever bench stands apart. A forever bill would otherwise
 		// hold the goal open until a corpse arrives.
 		if rows, known := projection.ProductionBenches.Value(); known && policy.AllButchersColocated(rows) {
-			if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, "butcher-spot-separated"); errors.Is(loadErr, store.ErrNotFound) {
+			tried, triedErr := p.butcherSpotSeparated(call, review)
+			if triedErr != nil {
+				return RoutineBillResult{}, triedErr
+			}
+			if !tried {
 				return RoutineBillResult{Reason: BuildingMethodSeparation}, nil
-			} else if loadErr != nil {
-				return RoutineBillResult{}, loadErr
 			}
 		}
 	}
@@ -394,4 +396,25 @@ func (r *RoutineBillPlanner) unclaimedBenches(ctx context.Context, snapshot doma
 		out = append(out, bench)
 	}
 	return domain.Known(out), nil
+}
+
+// butcherSpotSeparated reports whether MaintainButcherSpot has tried its
+// separated-spot method this epoch; a review that binds no such goal has
+// nothing left to try.
+func (p *Player) butcherSpotSeparated(ctx context.Context, review store.RoutineReview) (bool, error) {
+	for _, binding := range review.Goals {
+		if binding.Need != policy.MaintainButcherSpot {
+			continue
+		}
+		goal, err := p.journal.LoadGoal(ctx, binding.Goal)
+		if err != nil {
+			return false, err
+		}
+		_, err = p.journal.LoadGoalMethod(ctx, goal.Goal.ID, goal.Goal.Epoch, "butcher-spot-separated")
+		if errors.Is(err, store.ErrNotFound) {
+			return false, nil
+		}
+		return err == nil, err
+	}
+	return true, nil
 }

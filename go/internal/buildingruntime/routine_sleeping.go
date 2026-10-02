@@ -215,10 +215,8 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
-		if r.goal == policy.EnsureFoodSupply {
-			// Fields, foraging, hunts and bills share the goal and stay
-			// open for days; only a pending spot of this definition is
-			// the butcher planner's own work (#260).
+		if r.goal == policy.MaintainButcherSpot {
+			// Only a pending spot of this definition is the planner's own work (#260).
 			for _, progress := range plan.Progress {
 				if pendingFacility(progress, r.definition) {
 					return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
@@ -340,7 +338,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	var reading observation.ColonyReading
 	_, routineSource := r.native.(observation.RoutineSource)
-	separation := (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking) && routineSource
+	separation := (r.goal == policy.MaintainButcherSpot || r.goal == policy.EnsureCooking) && routineSource
 	if r.goal == policy.EnsureTemperatureSafety || r.facilityLadder() || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || separation {
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's
@@ -645,7 +643,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if !r.shelter && (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.HousingExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes) {
+	if !r.shelter && (r.goal == policy.MaintainButcherSpot || r.goal == policy.EnsureCooking || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.HousingExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes) {
 		pending := func(progress domain.Progress) bool {
 			if r.goal == policy.EnsureTemperatureSafety {
 				if r.temperature.Method == policy.TemperatureHeat {

@@ -897,7 +897,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource, policy.ClearPests)
 	}
 	if sc.routineBillPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking)
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot)
 	}
 	if sc.routineFoodStoragePlans || sc.routineBillPlans || sc.routineFoodStorageUpkeepPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFoodStorage)

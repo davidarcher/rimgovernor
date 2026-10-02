@@ -36,7 +36,7 @@ func NewRoutineButcherPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoutineButcherPlanner: !ok", ErrControl)
 	}
-	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureFoodSupply, definition: "ButcherSpot", environment: policy.PlacementAnywhere}, nil
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainButcherSpot, definition: "ButcherSpot", environment: policy.PlacementAnywhere}, nil
 }
 func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (int64, domain.MethodID, RoutineBuildingReason) {
 	count, known := facts.Facts.Colonists.Value()
@@ -44,7 +44,7 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		return 0, "", BuildingMethodUnknown
 	}
 	switch r.goal {
-	case policy.EnsureFoodSupply:
+	case policy.MaintainButcherSpot:
 		if r.definition != "ButcherSpot" {
 			return 0, "", BuildingMethodUnknown
 		}

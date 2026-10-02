@@ -80,7 +80,7 @@ func TestSnapshotCleanSeparationAdmitsSeparatedSpot(t *testing.T) {
 	r := loadRecorded(t, "clean-separation-colocated")
 	step := loadStep(t, "clean-separation-step-butcher", policy.EnsureFoodSupply)
 	planner := recordedPlanner(r, policy.EnsureFoodSupply)
-	planner.definition = "ButcherSpot"
+	planner.goal, planner.definition = policy.MaintainButcherSpot, "ButcherSpot"
 	benches, known := step.Projection.ButcheringBenches.Value()
 	if !known || len(benches) == 0 || !butchersAllColocated(benches, step.Projection.Rooms) {
 		t.Fatalf("step read: benches %+v, want every butcher bench in the kitchen", benches)

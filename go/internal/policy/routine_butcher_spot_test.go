@@ -1,0 +1,26 @@
+package policy
+
+import (
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
+
+// The butcher spot is its own goal: owed whenever no butcher bench stands
+// apart from the kitchen, whatever the food runway.
+func TestButcherSpotGoalIsOwedUntilABenchStandsApart(t *testing.T) {
+	f := stableRoutine()
+	f.ButcherBenches = domain.Known([]ButcherBench{})
+	r := needs(t, f, RoutineLatches{})
+	if !hasNeed(r, MaintainButcherSpot) {
+		t.Fatal("no butcher bench, goal not raised", r.Goals)
+	}
+	f.ButcherBenches = domain.Known([]ButcherBench{{ID: "spot"}})
+	if r = needs(t, f, RoutineLatches{}); hasNeed(r, MaintainButcherSpot) {
+		t.Fatal("a standing spot left the goal open")
+	}
+	f.ButcherBenches = domain.Unknown[[]ButcherBench]()
+	if got := butcherSpotMet(f); got != domain.Unknown[bool]() {
+		t.Fatal("an unread census became evidence", got)
+	}
+}

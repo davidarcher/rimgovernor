@@ -24,6 +24,7 @@ var goalConcepts = map[GoalID]Concept{
 
 	AllowStartingSupplies: ConceptProject,
 	EnsureCooking:         ConceptProject,
+	MaintainButcherSpot:   ConceptProject,
 	EnsureBasicPower:      ConceptProject,
 	EnsureWorkAssignments: ConceptProject,
 	EnsureResearch:        ConceptProject,

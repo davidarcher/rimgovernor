@@ -21,6 +21,7 @@ const (
 	MaintainHousing         GoalID = "MaintainHousing"
 	EnsureTemperatureSafety GoalID = "EnsureTemperatureSafety"
 	EnsureCooking           GoalID = "EnsureCooking"
+	MaintainButcherSpot     GoalID = "MaintainButcherSpot"
 	EnsureBasicPower        GoalID = "EnsureBasicPower"
 	EnsureBasicDefense      GoalID = "EnsureBasicDefense"
 	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
@@ -483,7 +484,10 @@ type RoutineFacts struct {
 	NamesOwed domain.Fact[bool]
 	// ChoiceDialog is true while the game is force-paused by a choice dialog
 	// it opened by itself (#156); AnswerDialog is the goal that answers it.
-	ChoiceDialog                                                         domain.Fact[bool]
+	ChoiceDialog domain.Fact[bool]
+	// ButcherBenches are the standing butcher benches and the room each stands
+	// in; MaintainButcherSpot is recovered once one stands outside the kitchen.
+	ButcherBenches                                                       domain.Fact[[]ButcherBench]
 	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers domain.Fact[bool]
 	PowerWeatherSafe                                                     domain.Fact[bool]
 	ShortCircuitTick                                                     domain.Fact[domain.Tick]
@@ -856,6 +860,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(cookingMet(f)) {
 		addGoal(EnsureCooking, 2)
 	}
+	if !positive(butcherSpotMet(f)) {
+		addGoal(MaintainButcherSpot, 2)
+	}
 	// A solar flare with a known remaining duration switches every powered
 	// building off for hours: the power deficit it measures is real but
 	// answering it with a generator is not, so the goal stays open with no
@@ -950,6 +957,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainHousing, housing.Priority, housing.Recovered)
 	addAssessment(EnsureTemperatureSafety, 2, allFacts(temperatureMet, latchRecovered(l.Cold, fallback(f.SleepingMin, f.OutdoorTemperature)), latchRecovered(l.Hot, fallback(f.SleepingMax, f.OutdoorTemperature))))
 	addAssessment(EnsureCooking, 2, cookingMet(f))
+	addAssessment(MaintainButcherSpot, 2, butcherSpotMet(f))
 	addAssessment(EnsureBasicPower, 2, powerMet)
 	addAssessment(EnsureBasicDefense, 3, defense)
 	addAssessment(EnsureComfort, comfortPriority, comfortRecovered)
@@ -1602,4 +1610,40 @@ func cookingMet(f RoutineFacts) domain.Fact[bool] {
 		return domain.Known(false)
 	}
 	return f.Cooking
+}
+
+// ButcherBench is a standing butcher bench and the room it stands in
+// (unknown outdoors).
+type ButcherBench struct {
+	ID   string
+	Room domain.Fact[string]
+}
+
+// butcherSpotMet is MaintainButcherSpot's recovery: a butcher bench stands
+// that does not share a room with a cooking bench. A butcher bench inside
+// the kitchen keeps the colony fed but not clean, so the goal stays open for
+// a separate spot; the free, instant spot is always wanted, whatever the
+// food runway, because hunts and hides are processed on it.
+func butcherSpotMet(f RoutineFacts) domain.Fact[bool] {
+	benches, known := f.ButcherBenches.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	if len(benches) == 0 {
+		return domain.Known(false)
+	}
+	shared, known := KitchenSeparation(f.Upkeep.Rooms).Value()
+	if !known {
+		return domain.Known(true)
+	}
+	colocated := map[string]bool{}
+	for _, room := range shared {
+		colocated[room.ID] = true
+	}
+	for _, bench := range benches {
+		if room, known := bench.Room.Value(); !known || !colocated[room] {
+			return domain.Known(true)
+		}
+	}
+	return domain.Known(false)
 }

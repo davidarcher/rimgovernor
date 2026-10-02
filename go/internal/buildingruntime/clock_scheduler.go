@@ -398,7 +398,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 			return nil, fmt.Errorf("%w: NewClockScheduler: planner != nil && (config.Routine == nil || planner.reviewer != config.Routine)", ErrControl)
 		}
 	}
-	if config.Butcher != nil && (config.Routine == nil || config.Butcher.reviewer != config.Routine || config.Butcher.goal != policy.EnsureFoodSupply) {
+	if config.Butcher != nil && (config.Routine == nil || config.Butcher.reviewer != config.Routine || config.Butcher.goal != policy.MaintainButcherSpot) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Butcher != nil && (config.Routine == nil || config.Butcher.reviewer != config.Routine || config.Butc", ErrControl)
 	}
 	if config.Fields != nil && (config.Routine == nil || config.Fields.reviewer != config.Routine) {

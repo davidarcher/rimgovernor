@@ -13,7 +13,7 @@ import (
 // rows follow as soon as the equip family arms someone.
 func TestButcherSpotSelectionIgnoresArmedCount(t *testing.T) {
 	t.Parallel()
-	r := &RoutineBuildingPlanner{reviewer: &RoutineReviewer{policy: policy.DefaultRoutinePolicy()}, goal: policy.EnsureFoodSupply, definition: "ButcherSpot"}
+	r := &RoutineBuildingPlanner{reviewer: &RoutineReviewer{policy: policy.DefaultRoutinePolicy()}, goal: policy.MaintainButcherSpot, definition: "ButcherSpot"}
 	f := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(8)), FoodDays: domain.Known(1.75), Armed: domain.Known(int64(0))}}
 	f.ButcheringBenches = domain.Known([]observation.CookingBench{})
 	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || reason != "" {
@@ -29,7 +29,7 @@ func TestButcherSpotSelectionIgnoresArmedCount(t *testing.T) {
 	}
 }
 
-// An open butcher-spot build under EnsureFoodSupply does not block the next
+// An open butcher-spot build under MaintainButcherSpot does not block the next
 // field batch; open zone work still does.
 func TestFieldBlockingWorkIgnoresButcherSpot(t *testing.T) {
 	t.Parallel()
