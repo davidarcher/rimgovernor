@@ -341,6 +341,7 @@ func RectangleCells(r Rectangle) []domain.Cell {
 type utilityGrid struct {
 	w, h           int32
 	ok, rock       []bool // core candidate; natural rock
+	field          []bool // planned farmland: sites avoid it
 	used           []bool // planned rooms, spine, reservations
 	bandLo, bandHi int32  // the core's cross-section rows
 	cx, cz         int32  // the spine's centre
@@ -354,7 +355,7 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 		}
 	}
 	n := int(u.w * u.h)
-	u.ok, u.rock, u.used = make([]bool, n), make([]bool, n), make([]bool, n)
+	u.ok, u.rock, u.used, u.field = make([]bool, n), make([]bool, n), make([]bool, n), make([]bool, n)
 	for _, z := range plan.Zones {
 		var set []bool
 		switch z.Kind {
@@ -362,6 +363,8 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 			set = u.ok
 		case ZoneMining:
 			set = u.rock
+		case ZoneField:
+			set = u.field
 		default:
 			continue
 		}
@@ -431,7 +434,26 @@ func (u *utilityGrid) free(r Rectangle, rockOK bool) bool {
 	return true
 }
 
-// site is the free w x h rectangle nearest the spine's centre.
+// siteFieldWeight is the squared distance, per planned farmland cell a site
+// covers, that the site is worth moving to avoid: generators and plots are
+// pushed off rich soil unless nothing else is near.
+const siteFieldWeight = 400
+
+// fieldCells counts r's cells planned as farmland.
+func (u *utilityGrid) fieldCells(r Rectangle) int {
+	n := 0
+	for z := max(r.Z, 0); z < min(r.Z+r.Height, u.h); z++ {
+		for x := max(r.X, 0); x < min(r.X+r.Width, u.w); x++ {
+			if u.field[z*u.w+x] {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// site is the free w x h rectangle nearest the spine's centre, with farmland
+// cells counted as extra distance.
 func (u *utilityGrid) site(w, h int32, rockOK bool) (Rectangle, bool) {
 	best, found, bestD := Rectangle{}, false, int64(-1)
 	for z := int32(0); z+h <= u.h; z++ {
@@ -442,6 +464,10 @@ func (u *utilityGrid) site(w, h int32, rockOK bool) (Rectangle, bool) {
 				continue
 			}
 			r := Rectangle{X: x, Z: z, Width: w, Height: h}
+			d += siteFieldWeight * int64(u.fieldCells(r))
+			if found && d >= bestD {
+				continue
+			}
 			if u.free(r, rockOK) {
 				best, found, bestD = r, true, d
 			}
