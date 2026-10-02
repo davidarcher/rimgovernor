@@ -61,7 +61,7 @@ func TestDrugEntriesPerInput(t *testing.T) {
 func TestDrugPolicyChanges(t *testing.T) {
 	adult, child := drugPawn("adult", 30, nil), drugPawn("child", 9, nil)
 	names := []OwnedName{{Pawn: "adult", Short: "Bob"}, {Pawn: "child", Short: "Tim"}}
-	changes := DrugPolicyChanges([]WorkPawn{adult, child}, names, nil)
+	changes := DrugPolicyChanges([]WorkPawn{adult, child}, names, nil, domain.Unknown[[]Amount]())
 	if len(changes) != 2 || changes[0].Write == nil || changes[0].Write.Name() != "Bob" || len(changes[0].Write.Entries()) != 3 || changes[0].Assign == nil {
 		t.Fatal(changes)
 	}
@@ -74,15 +74,62 @@ func TestDrugPolicyChanges(t *testing.T) {
 		{ID: "DrugPolicy_1", Label: "Bob", Entries: []domain.DrugPolicyEntry{joyEntry("SmokeleafJoint"), joyEntry("Beer"), joyEntry("PsychiteTea")}},
 		{ID: "DrugPolicy_2", Label: "Tim"},
 	}
-	if got := DrugPolicyChanges([]WorkPawn{adult}, names, held); len(got) != 0 {
+	if got := DrugPolicyChanges([]WorkPawn{adult}, names, held, domain.Unknown[[]Amount]()); len(got) != 0 {
 		t.Fatal(got)
 	}
 	// The child's policy exists but is not held: assign only.
-	if got := DrugPolicyChanges([]WorkPawn{child}, names, held); len(got) != 1 || got[0].Write != nil || got[0].Assign == nil {
+	if got := DrugPolicyChanges([]WorkPawn{child}, names, held, domain.Unknown[[]Amount]()); len(got) != 1 || got[0].Write != nil || got[0].Assign == nil {
 		t.Fatal(got)
 	}
 	// A shared short name waits for the rename.
-	if got := DrugPolicyChanges([]WorkPawn{adult}, append(names, OwnedName{Pawn: "other", Short: "bob"}), nil); len(got) != 0 {
+	if got := DrugPolicyChanges([]WorkPawn{adult}, append(names, OwnedName{Pawn: "other", Short: "bob"}), nil, domain.Unknown[[]Amount]()); len(got) != 0 {
 		t.Fatal(got)
+	}
+}
+
+func TestAddictionEntries(t *testing.T) {
+	lucy := drugPawn("lucy", 30, nil, ChemicalState{Chemical: "Luciferium", Addiction: domain.Known(0.5)})
+	got := AddictionEntries(lucy, map[string]int64{"Luciferium": 100})
+	if len(got) != 1 || got[0].Drug != "Luciferium" || !got[0].Addiction || !got[0].Scheduled || got[0].DaysFrequency != 4 {
+		t.Fatal("luciferium maintained", got)
+	}
+	beer := drugPawn("beer", 30, nil, ChemicalState{Chemical: "Alcohol", Addiction: domain.Known(0.5)})
+	stock := map[string]int64{"Beer": 10}
+	got = AddictionEntries(beer, stock)
+	if len(got) != 1 || got[0].Drug != "Beer" || got[0].Addiction || !got[0].Scheduled || got[0].DaysFrequency != 4 || stock["Beer"] != 6 {
+		t.Fatal("weaned with supply", got, stock)
+	}
+	// Too little stock to cover the wean: maintained.
+	got = AddictionEntries(beer, map[string]int64{"Beer": 3})
+	if len(got) != 1 || !got[0].Addiction || got[0].DaysFrequency != 2 {
+		t.Fatal("short supply maintained", got)
+	}
+	if got := AddictionEntries(beer, map[string]int64{}); len(got) != 0 {
+		t.Fatal("no drug scheduled", got)
+	}
+	// A child is maintained too; unknown stock maintains.
+	child := drugPawn("child", 9, nil, ChemicalState{Chemical: "Psychite", Addiction: domain.Known(0.9)})
+	if got := AddictionEntries(child, nil); len(got) != 1 || got[0].Drug != "PsychiteTea" || !got[0].Addiction {
+		t.Fatal("child", got)
+	}
+	if got := AddictionEntries(child, map[string]int64{"Yayo": 1}); len(got) != 1 || got[0].Drug != "Yayo" {
+		t.Fatal("stocked alternative", got)
+	}
+	if WeanInterval(AddictionDrugs[0], 0.1) != 8 || WeanInterval(AddictionDrugs[0], 1) != 2 {
+		t.Fatal("widening")
+	}
+}
+
+func TestDrugPolicyChangesAllotsStock(t *testing.T) {
+	a := drugPawn("a", 30, nil, ChemicalState{Chemical: "Alcohol", Addiction: domain.Known(0.5)})
+	b := drugPawn("b", 9, nil, ChemicalState{Chemical: "Alcohol", Addiction: domain.Known(0.5)})
+	names := []OwnedName{{Pawn: "a", Short: "Ann"}, {Pawn: "b", Short: "Ben"}}
+	changes := DrugPolicyChanges([]WorkPawn{a, b}, names, nil, domain.Known([]Amount{{Resource: "Beer", Count: 5}}))
+	if len(changes) != 2 {
+		t.Fatal(changes)
+	}
+	weaned, maintained := changes[0].Write.Entries(), changes[1].Write.Entries()
+	if len(weaned) != 3 || weaned[0].Drug != "Beer" || weaned[0].Addiction || len(maintained) != 1 || !maintained[0].Addiction {
+		t.Fatal(weaned, maintained)
 	}
 }

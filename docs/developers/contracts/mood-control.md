@@ -135,7 +135,11 @@ After Brewing research, ordinary resource production targets twelve Beer and
 twelve SmokeleafJoint, with small hops and smokeleaf plots when climate permits.
 Each colonist holds its own drug policy (#1537, the
 [`drug_policy` action](action-contracts.md)): beer, smokeleaf and psychite tea
-for joy unless addiction risk or a trait rules them out.
+for joy unless addiction risk or a trait rules them out. Every addiction,
+a child's included, gets a scheduled dose and is never left cold turkey (#1538):
+weaned at an interval widening as severity falls when the colony's stock of the
+drug covers the weaning doses, otherwise maintained at the drug's addiction
+interval and allowed for the need; luciferium is always maintained.
 Recreation relief itself still excludes ingestible joy; RimWorld chooses ordinary
 drug use. `policy/drug_policy_test.go` proves the entries.
 

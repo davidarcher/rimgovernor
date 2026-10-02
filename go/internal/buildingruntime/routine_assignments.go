@@ -251,7 +251,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	// Per-pawn drug policies (#1537) the same way.
 	var drugs []domain.DrugPolicy
-	if changes := routineDrugChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns); len(changes) > 0 {
+	if changes := routineDrugChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.Resources); len(changes) > 0 {
 		if len(changes) > 8 {
 			changes = changes[:8]
 		}
@@ -482,9 +482,10 @@ func routineReadingChanges(policies domain.Fact[observation.Policies], names dom
 	return policy.ReadingPolicyChanges(pawns, owned, entries, p.Books)
 }
 
-// routineDrugChanges is the drug policy planner's input lift (#1537); none
+// routineDrugChanges is the drug policy planner's input lift (#1537), with
+// the colony item census as drug stock (#1538); none
 // while the policy databases or the owned-pawn names are unknown.
-func routineDrugChanges(policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn) []policy.DrugPolicyChange {
+func routineDrugChanges(policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn, stock domain.Fact[[]policy.Amount]) []policy.DrugPolicyChange {
 	p, ok := policies.Value()
 	owned, named := names.Value()
 	if !ok || !named {
@@ -494,5 +495,5 @@ func routineDrugChanges(policies domain.Fact[observation.Policies], names domain
 	for _, e := range p.Drug {
 		entries = append(entries, policy.DrugPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Entries: e.Drugs})
 	}
-	return policy.DrugPolicyChanges(pawns, owned, entries)
+	return policy.DrugPolicyChanges(pawns, owned, entries, stock)
 }

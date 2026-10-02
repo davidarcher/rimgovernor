@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"slices"
 	"strings"
 
@@ -81,11 +82,108 @@ func DrugEntries(pawn WorkPawn) ([]domain.DrugPolicyEntry, bool) {
 	return entries, true
 }
 
+// AddictionDrug is a chemical a pawn can be addicted to, the drugs that
+// satisfy it in preference order and the days between maintenance doses.
+type AddictionDrug struct {
+	Chemical       string
+	Drugs          []string
+	MaintainDays   float64
+	AlwaysMaintain bool
+}
+
+// AddictionDrugs are the Core addictive chemicals (#1538). Each maintenance
+// interval sits inside the chemical need's decay, so a scheduled dose lands
+// before withdrawal; luciferium is never weaned.
+var AddictionDrugs = []AddictionDrug{
+	{Chemical: "Alcohol", Drugs: []string{"Beer"}, MaintainDays: 2},
+	{Chemical: "Smokeleaf", Drugs: []string{"SmokeleafJoint"}, MaintainDays: 2},
+	{Chemical: "Psychite", Drugs: []string{"PsychiteTea", "Yayo", "Flake"}, MaintainDays: 2},
+	{Chemical: "GoJuice", Drugs: []string{"GoJuice"}, MaintainDays: 2},
+	{Chemical: "WakeUp", Drugs: []string{"WakeUp"}, MaintainDays: 2},
+	{Chemical: "Luciferium", Drugs: []string{"Luciferium"}, MaintainDays: 4, AlwaysMaintain: true},
+}
+
+// WeanDays is how long a full-severity addiction takes to end without the
+// drug; a weaning plan budgets doses over severity times it.
+const WeanDays = 30
+
+// maxWeanWidening caps how far apart weaning doses spread, as a multiple of
+// the maintenance interval.
+const maxWeanWidening = 4
+
+// WeanInterval is the whole days between weaning doses at addiction
+// severity: the maintenance interval widened as the addiction fades.
+func WeanInterval(a AddictionDrug, severity float64) float64 {
+	widening := math.Min(maxWeanWidening, 1/math.Max(severity, 1.0/maxWeanWidening))
+	return math.Max(1, math.Round(a.MaintainDays*widening))
+}
+
+// WeanDoses bounds the doses a wean from severity takes: the remaining
+// weaning period at the current (narrowest) interval.
+func WeanDoses(a AddictionDrug, severity float64) int64 {
+	return int64(math.Ceil(WeanDays * math.Max(severity, 0) / WeanInterval(a, severity)))
+}
+
+// AddictionEntries are the scheduled doses pawn's addictions owe (#1538),
+// never cold turkey: an addiction is weaned at a widening interval when the
+// colony's remaining stock (nil while unknown) of its first stocked drug
+// covers the weaning doses, which it then consumes; otherwise maintained at
+// its interval and allowed for the need. Luciferium is always maintained.
+// An addiction with none of its drugs in stock schedules nothing.
+func AddictionEntries(pawn WorkPawn, stock map[string]int64) []domain.DrugPolicyEntry {
+	inputs, ok := pawn.PolicyInputs.Value()
+	if !ok {
+		return nil
+	}
+	var out []domain.DrugPolicyEntry
+	for _, a := range AddictionDrugs {
+		severity, addicted := 0.0, false
+		for _, c := range inputs.Chemicals {
+			if v, ok := c.Addiction.Value(); ok && c.Chemical == a.Chemical {
+				severity, addicted = math.Max(severity, v), true
+			}
+		}
+		if !addicted {
+			continue
+		}
+		drug := a.Drugs[0]
+		if stock != nil {
+			drug = ""
+			for _, d := range a.Drugs {
+				if stock[d] > 0 {
+					drug = d
+					break
+				}
+			}
+			if drug == "" {
+				continue
+			}
+		}
+		entry := domain.DrugPolicyEntry{Drug: drug, Scheduled: true, OnlyIfMoodBelow: 1, OnlyIfJoyBelow: 1}
+		if doses := WeanDoses(a, severity); !a.AlwaysMaintain && stock != nil && stock[drug] >= doses {
+			stock[drug] -= doses
+			entry.DaysFrequency = WeanInterval(a, severity)
+		} else {
+			entry.Addiction, entry.DaysFrequency = true, a.MaintainDays
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
 // DrugPolicyChanges are the per-pawn drug policy writes owed (#1537): each
 // owned pawn with a drug tracker holds the policy labelled with its short
-// name, carrying DrugEntries. A pawn whose short name another owned pawn
+// name, carrying DrugEntries and AddictionEntries against the colony's
+// drug stock (#1538), allotted to pawns in order. A pawn whose short name another owned pawn
 // shares (#1310 renames it) or that several policies carry waits.
-func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolicyEntry) []DrugPolicyChange {
+func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount]) []DrugPolicyChange {
+	var remaining map[string]int64
+	if rows, ok := stock.Value(); ok {
+		remaining = map[string]int64{}
+		for _, r := range rows {
+			remaining[string(r.Resource)] += r.Count
+		}
+	}
 	short, count := map[PawnID]string{}, map[string]int{}
 	for _, n := range names {
 		short[n.Pawn] = n.Short
@@ -102,6 +200,7 @@ func DrugPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []DrugPolic
 		if !ok {
 			continue
 		}
+		want = append(want, AddictionEntries(pawn, remaining)...)
 		v, err := domain.NewDrugPolicy(name, want)
 		if err != nil {
 			continue

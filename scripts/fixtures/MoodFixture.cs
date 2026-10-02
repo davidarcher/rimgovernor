@@ -128,6 +128,27 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, adult = adult.GetUniqueLoadID(), child = child.GetUniqueLoadID() };
             }, cancellationToken);
         }
+        [Tool("test/luciferium_addict", Description = "UNSAFE FOR MODEL EXECUTION. Keep one paused disposable colonist, addicted to luciferium at severity 0.5, with ten luciferium beside it (#1538).")]
+        public async Task<object> LuciferiumAddict(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var pawn = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.drugs != null)
+                    .OrderBy(p => p.thingIDNumber).First();
+                foreach (var other in map.mapPawns.FreeColonistsSpawned.Where(p => p != pawn).ToList())
+                    other.Destroy(DestroyMode.Vanish);
+                var addiction = HediffMaker.MakeHediff(HediffDef.Named("LuciferiumAddiction"), pawn);
+                addiction.Severity = 0.5f;
+                pawn.health.AddHediff(addiction);
+                var drug = ThingMaker.MakeThing(ThingDef.Named("Luciferium"));
+                drug.stackCount = 10;
+                if (!GenPlace.TryPlaceThing(drug, pawn.Position, map, ThingPlaceMode.Near))
+                    throw new InvalidOperationException("The luciferium was not placed.");
+                return new { success = true, pawn = pawn.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
         [Tool("test/duplicate_nickname", Description = "UNSAFE FOR MODEL EXECUTION. Give the newest of two paused disposable colonists the oldest one's nickname (#1310).")]
         public async Task<object> DuplicateNickname(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
