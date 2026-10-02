@@ -12,6 +12,23 @@ import (
 // move the colonist's ownership there. The barracks bed left behind stays
 // as a spare for joiners (MaintainHousing keeps one beyond the population).
 
+// ShellBedIDs are the beds standing in the starter shell, the planned
+// storage room (#1177).
+func ShellBedIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
+	shell := map[string]bool{}
+	for _, r := range plan.AllRooms() {
+		if r.Role != ModuleStorage {
+			continue
+		}
+		if room, ok := PlannedRoomStanding(r, rooms); ok {
+			for _, b := range room.Beds {
+				shell[b] = true
+			}
+		}
+	}
+	return shell
+}
+
 // BedroomStepKind is the next bedroom step.
 type BedroomStepKind string
 
@@ -56,17 +73,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	}
 	// The starter shell stands on the planned storage room (#1177): the
 	// last spot left in it reads as a bedroom but is still the shell.
-	shell := map[string]bool{}
-	for _, r := range plan.AllRooms() {
-		if r.Role != ModuleStorage {
-			continue
-		}
-		if room, ok := PlannedRoomStanding(r, rooms); ok {
-			for _, b := range room.Beds {
-				shell[b] = true
-			}
-		}
-	}
+	shell := ShellBedIDs(plan, rooms)
 	bedroomBed := map[string]bool{}
 	for _, room := range rooms.Rooms {
 		if role, known := room.Role.Value(); known && role == RoomRoleBedroom {

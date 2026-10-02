@@ -336,6 +336,11 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		case policy.BedroomMove:
 			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: step.Pawn, Bed: step.Bed, PreviousBed: step.PreviousBed}
 		case policy.BedroomFurnish:
+			// A bed left empty in the starter shell moves to the new room
+			// (packed, then reinstalled) rather than being built again.
+			if result, due, err := r.furnishFromShell(call, epoch, state, goal, reading, step); due || err != nil {
+				return result, err
+			}
 			// The indoor rung alone: a bed the room refuses is no reason to
 			// raise some other shell.
 			indoor := *r.building
