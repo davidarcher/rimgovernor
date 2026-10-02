@@ -8106,12 +8106,6 @@
       },
       "Pawn": "Thing_Human745"
      }
-    ],
-    "RoofHazard": {
-     "v": false
-    },
-    "SafeAreas": [
-     "Area_5_Named_Area 2"
     ]
    }
   },

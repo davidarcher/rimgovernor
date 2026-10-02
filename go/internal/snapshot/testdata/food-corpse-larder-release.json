@@ -16279,10 +16279,7 @@
       },
       "Pawn": "Thing_Human829"
      }
-    ],
-    "RoofHazard": {
-     "v": false
-    }
+    ]
    }
   },
   "RecoveryWorkers": {

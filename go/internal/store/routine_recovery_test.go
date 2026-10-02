@@ -16,7 +16,8 @@ func recoveryRequest() RoutineReviewRequest {
 	r.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "fallout", Definition: "ToxicFallout"}})
 	r.Facts.RecoverySafety = domain.Known(policy.RecoverySafety{Restrictions: []policy.RecoveryRestriction{{Pawn: "pawn", Area: domain.Known("player-area")}}})
 	r.Facts.RecoveryWorkers = domain.Known([]policy.RecoveryWorker{{Pawn: "pawn", Dead: k, Downed: k, Drafted: k, Mental: k, PlayerForced: k}})
-	r.Facts.RecoveryBuildings = domain.Known([]policy.RecoveryBuilding{})
+	known := domain.Known(true)
+	r.Facts.RecoveryBuildings = domain.Known([]policy.RecoveryBuilding{{ID: "wall", UsesHitPoints: known, HitPoints: domain.Known(int64(50)), MaxHitPoints: domain.Known(int64(100)), Broken: k, Forbidden: k, Burning: k, Refuelable: k}})
 	return r
 }
 func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
@@ -30,7 +31,7 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	if first == nil || first.Selection.Reason != policy.RecoveryAdmissionRequired || len(first.Selection.Candidates) != 1 {
 		t.Fatal(first)
 	}
-	if i := routineIncident(t, out, policy.RecoverDisasterServices); routineIncidentNeed(t, out, policy.RecoverDisasterServices) != domain.NeedDeficit || i.Incident.Priority != 3 {
+	if i := routineIncident(t, out, policy.RecoverDisasterServices); routineIncidentNeed(t, out, policy.RecoverDisasterServices) != domain.NeedDeficit || i.Incident.Priority != 2 {
 		t.Fatal(i)
 	}
 	s.Close()

@@ -6070,10 +6070,7 @@
       },
       "Pawn": "Thing_Human9449"
      }
-    ],
-    "RoofHazard": {
-     "v": false
-    }
+    ]
    }
   },
   "RecoveryWorkers": {
