@@ -362,7 +362,7 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 	if !na.MatchesIdentity(identity, expected) {
 		return fmt.Errorf("identity changed during the run: %#v", identity)
 	}
-	scope := map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "includeCells": true}
+	scope := map[string]any{"scope": map[string]any{"expectedIdentity": identity}}
 	inside := map[domain.Cell]bool{}
 	for _, c := range sh.footprint.Interior() {
 		inside[c] = true
@@ -378,10 +378,15 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 		if err != nil {
 			return err
 		}
+		grid, err := h.MapCells(ctx, label+"-cells", identity)
+		if err != nil {
+			return err
+		}
+		gridRooms := na.RoomCells(grid)
 		hut, doorway = nil, nil
 		for _, raw := range na.AsSlice(observed["rooms"]) {
 			row, _ := na.AsMap(raw)
-			cells := roomCells(row)
+			cells := gridRooms[na.AsString(row["gridRoom"])]
 			if len(cells) == 1 && cells[0] == door {
 				doorway = row
 				continue
@@ -556,15 +561,6 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 	}
 	report["native_ring"] = map[string]any{"cells": len(ring), "built": len(standing)}
 	return nil
-}
-
-func roomCells(row map[string]any) []domain.Cell {
-	var cells []domain.Cell
-	for _, rc := range na.AsSlice(row["cells"]) {
-		m, _ := na.AsMap(rc)
-		cells = append(cells, domain.Cell{X: int32(na.AsNumber(m["x"])), Z: int32(na.AsNumber(m["z"]))})
-	}
-	return cells
 }
 
 func stagesOf(ctx context.Context, st *store.Store, id domain.PlanID) map[string]int {

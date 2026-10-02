@@ -405,7 +405,7 @@ func (c roomCensus) key(id string) string {
 // each proper room's role, cells and Cleanliness stat when measured.
 func readRooms(ctx context.Context, h *na.Harness, identity map[string]any, label string) (roomCensus, error) {
 	reply, err := h.Wire(ctx, label, "observations_list_rooms", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "includeOutdoors": false, "includeBoundary": false, "includeCells": true,
+		"scope": map[string]any{"expectedIdentity": identity}, "includeOutdoors": false, "includeBoundary": false,
 	})
 	if err != nil {
 		return nil, err
@@ -414,15 +414,17 @@ func readRooms(ctx context.Context, h *na.Harness, identity map[string]any, labe
 	if err != nil {
 		return nil, err
 	}
+	grid, err := h.MapCells(ctx, label+"-cells", identity)
+	if err != nil {
+		return nil, err
+	}
+	gridRooms := na.RoomCells(grid)
 	rooms := roomCensus{}
 	for _, raw := range na.AsSlice(observed["rooms"]) {
 		row, _ := na.AsMap(raw)
 		r := roomRow{id: na.AsString(row["id"]), role: na.AsString(row["role"])}
 		room := policy.Room{ID: r.id}
-		for _, rawCell := range na.AsSlice(row["cells"]) {
-			cell, _ := na.AsMap(rawCell)
-			room.Cells = append(room.Cells, domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))})
-		}
+		room.Cells = gridRooms[na.AsString(row["gridRoom"])]
 		for _, rawStat := range na.AsSlice(row["stats"]) {
 			stat, _ := na.AsMap(rawStat)
 			if na.AsString(stat["defName"]) != "Cleanliness" {

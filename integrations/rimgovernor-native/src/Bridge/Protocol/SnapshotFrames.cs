@@ -205,7 +205,7 @@ namespace HomeBridge.BridgeTools
                 ObservationWork.Captured("worldProgression", Now() - began);
             }
             {
-                var rooms = new Obs.ListRoomsRequest { Scope = Scope(), IncludeOutdoors = false, IncludeBoundary = false, IncludeCells = true };
+                var rooms = new Obs.ListRoomsRequest { Scope = Scope(), IncludeOutdoors = false, IncludeBoundary = false };
                 var began = Now();
                 var census = NativeRoomObservationTools.Read(map, rooms, context).Observed;
                 ObservationWork.Captured("rooms", Now() - began, census != null ? census.Rooms.Count : 0);

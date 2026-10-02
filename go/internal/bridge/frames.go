@@ -383,8 +383,10 @@ type RoutineFrame struct {
 	// Catalog is the load's definition catalog (#1340), which the
 	// research section and the planning definitions resolve against.
 	Catalog *DefinitionCatalog
-	// Rooms is the indoor room census with cells (#944).
-	Rooms *o.RoomsSnapshot
+	// Rooms is the indoor room census (#944); RoomCells are its rooms'
+	// cells resolved against the newest frame grid (RoomCells, #1346).
+	Rooms     *o.RoomsSnapshot
+	RoomCells map[string][]domain.Cell
 	// Bills is the bench bill census, whose rows carry live bill jobs'
 	// ingredient reservations (#1354).
 	Bills *o.BillsSnapshot
@@ -408,7 +410,18 @@ func (caller *Client) ReadRoutineFrame(ctx context.Context, identity *c.Identity
 	if _, err := caller.frameReadKey(ctx, routineFrameMethod, readCacheKey{method: routineFrameMethod}, identity, true, reply); err != nil {
 		return RoutineFrame{}, err
 	}
-	return DecodeRoutineFrame(reply, catalog)
+	frame, err := DecodeRoutineFrame(reply, catalog)
+	if err != nil {
+		return RoutineFrame{}, err
+	}
+	s := caller.frames
+	s.mu.Lock()
+	held := s.grid
+	s.mu.Unlock()
+	if held.grid != nil && sameIdentity(held.context.GetIdentity(), identity) {
+		frame.RoomCells = RoomCells(frame.Rooms, held.grid)
+	}
+	return frame, nil
 }
 
 // DecodeRoutineFrame validates and decodes a frame's routine sections

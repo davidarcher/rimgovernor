@@ -92,12 +92,6 @@ namespace HomeBridge.BridgeTools
             var phantom = ordered.Count(c => map.zoneManager.ZoneAt(c) != zone);
             row.Consistent = phantom == 0 && gridCells.Length == ordered.Length;
             row.Contiguous = Contiguous(ordered);
-            if (request.IncludeCells)
-            {
-                foreach (var cell in ordered) row.ListedCells.Add(new Common.Cell { X = cell.x, Z = cell.z });
-                foreach (var cell in gridCells) row.GridCells.Add(new Common.Cell { X = cell.x, Z = cell.z });
-            }
-            else row.Issues.Add(Issue("listed_cells", Common.UnavailableReason.NotRequested, "Cell lists are not requested."));
 
             if (zone is Zone_Growing growing)
             {

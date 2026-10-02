@@ -231,6 +231,7 @@ func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Ident
 		}
 		if err == nil {
 			frame.Rooms = rooms.GetObserved()
+			frame.RoomCells = extentCells(frame.Rooms)
 		}
 	}
 	if s, ok := source.(interface {
@@ -596,4 +597,22 @@ func TestRoutineFoodAttrsCarryRunwayThresholdsAndCalendar(t *testing.T) {
 
 func (n *routineMedicalNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
 	return fakeFrame(ctx, n, id)
+}
+
+// extentCells stands in for the frame grid: each test room fills its
+// extents.
+func extentCells(v *o.RoomsSnapshot) map[string][]domain.Cell {
+	out := map[string][]domain.Cell{}
+	for _, room := range v.GetRooms() {
+		lo, hi := room.GetExtents().GetMinimum(), room.GetExtents().GetMaximum()
+		if lo == nil || hi == nil {
+			continue
+		}
+		for z := lo.GetZ(); z <= hi.GetZ(); z++ {
+			for x := lo.GetX(); x <= hi.GetX(); x++ {
+				out[room.GetId()] = append(out[room.GetId()], domain.Cell{X: x, Z: z})
+			}
+		}
+	}
+	return out
 }

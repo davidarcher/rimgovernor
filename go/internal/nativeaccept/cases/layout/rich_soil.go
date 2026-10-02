@@ -161,7 +161,7 @@ func servePlanned(ctx context.Context, s cases.Session, report na.Report) (store
 // cropZones reads every growing zone's cells natively.
 func cropZones(ctx context.Context, s cases.Session, h *na.Harness) ([][]domain.Cell, error) {
 	reply, err := h.Wire(ctx, "zones", "observations_list_zones", map[string]any{
-		"scope": map[string]any{"expectedIdentity": s.Identity()}, "includeCells": true,
+		"scope": map[string]any{"expectedIdentity": s.Identity()},
 	})
 	if err != nil {
 		return nil, err
@@ -170,13 +170,18 @@ func cropZones(ctx context.Context, s cases.Session, h *na.Harness) ([][]domain.
 	if err != nil {
 		return nil, err
 	}
+	grid, err := h.MapCells(ctx, "zone-cells", s.Identity())
+	if err != nil {
+		return nil, err
+	}
+	zones := na.ZoneCells(grid)
 	var out [][]domain.Cell
 	for _, raw := range na.AsSlice(observed["zones"]) {
 		row, _ := na.AsMap(raw)
 		if !strings.EqualFold(na.AsString(row["type"]), "growing") {
 			continue
 		}
-		out = append(out, cellsOf(row["gridCells"]))
+		out = append(out, zones[na.AsString(row["id"])])
 	}
 	return out, nil
 }

@@ -53,7 +53,6 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 	}
 	bridge.SortSiteCells(cells.Cells)
 	room := n.rooms.GetObserved().Rooms[0]
-	room.Cells = []*c.Cell{cell(1, 1), cell(1, 2), cell(2, 1), cell(2, 2)}
 	room.Extents = &o.Rectangle{Minimum: cell(1, 1), Maximum: cell(2, 2)}
 	room.Center = cell(1, 1)
 	room.TemperatureC = proto.Float64(25)

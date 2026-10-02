@@ -6,7 +6,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.SleepingObservation]) domain.Fact[policy.RoomObservation] {
+func temperatureRooms(rooms *o.RoomsSnapshot, cells map[string][]domain.Cell, sleeping domain.Fact[policy.SleepingObservation]) domain.Fact[policy.RoomObservation] {
 	result := policy.RoomObservation{}
 	if known, ok := sleeping.Value(); ok {
 		eligible := []string{}
@@ -38,9 +38,7 @@ func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.Sleepi
 		}
 		row.Contents = domain.Known(contents)
 		row.Cleanliness = roomStat(room, "Cleanliness")
-		for _, cell := range room.Cells {
-			row.Cells = append(row.Cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
-		}
+		row.Cells = append(row.Cells, cells[room.GetId()]...)
 		row.Roofed = domain.Unknown[bool]()
 		if room.OpenRoofCount != nil {
 			row.Roofed = domain.Known(room.GetOpenRoofCount() == 0)

@@ -136,7 +136,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	// The frame's rooms census is the one room table: room quality reads it
 	// on every reading, the room census sections only when asked.
 	if frame.Rooms != nil {
-		if err := bridge.ValidateTemperatureRooms(frame.Rooms, id); err != nil {
+		if err := bridge.ValidateTemperatureRooms(frame.Rooms, frame.RoomCells, id); err != nil {
 			return RoutineReading{}, err
 		}
 		if sleeping, known := p.Facts.Sleeping.Value(); known {
@@ -149,7 +149,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		roomCensus = frame.Rooms
 		temperature := domain.Unknown[policy.RoomObservation]()
 		if roomCensus != nil {
-			temperature = temperatureRooms(roomCensus, colonySleeping(colony))
+			temperature = temperatureRooms(roomCensus, frame.RoomCells, colonySleeping(colony))
 		}
 		p.Rooms = temperature
 		p.Facts.SleepingMin, p.Facts.SleepingMax = policy.TemperatureRange(temperature)

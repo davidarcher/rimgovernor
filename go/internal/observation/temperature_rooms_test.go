@@ -1,17 +1,18 @@
 package observation
 
 import (
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestTemperatureProjectionUsesOnlyEligibleBedsAndPreservesUnknown(t *testing.T) {
 	sleeping := policy.SleepingObservation{Beds: []policy.SleepingBed{{ID: "bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false)}}}
-	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{{Id: proto.String("room"), ProperRoom: proto.Bool(true), TemperatureC: proto.Float64(5), Beds: []*o.EntityRef{{Id: proto.String("bed")}}, Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}, Contents: []*o.Quantity{{DefName: proto.String("Campfire"), Units: proto.Int64(1)}}}}}
+	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{{Id: proto.String("room"), ProperRoom: proto.Bool(true), TemperatureC: proto.Float64(5), Beds: []*o.EntityRef{{Id: proto.String("bed")}}, Contents: []*o.Quantity{{DefName: proto.String("Campfire"), Units: proto.Int64(1)}}}}}
 	for _, mode := range []string{"observed", "medical", "prisoner", "animal", "unknown-census", "unknown-bed", "missing-temperature", "open-roof", "edge"} {
 		t.Run(mode, func(t *testing.T) {
 			s := sleeping
@@ -37,7 +38,7 @@ func TestTemperatureProjectionUsesOnlyEligibleBedsAndPreservesUnknown(t *testing
 			if mode == "unknown-census" {
 				beds = domain.Unknown[policy.SleepingObservation]()
 			}
-			result := temperatureRooms(r, beds)
+			result := temperatureRooms(r, map[string][]domain.Cell{"room": {{X: 1, Z: 2}}}, beds)
 			low, high := policy.TemperatureRange(result)
 			l, lk := low.Value()
 			h, hk := high.Value()
@@ -54,9 +55,9 @@ func TestTemperatureProjectionUsesOnlyEligibleBedsAndPreservesUnknown(t *testing
 
 func TestRoomProjectionCarriesNativeRoleAndComfortHostingNeedsBothCensuses(t *testing.T) {
 	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{
-		{Id: proto.String("dining"), Role: proto.String("DiningRoom"), ProperRoom: proto.Bool(true), Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(1)}}},
+		{Id: proto.String("dining"), Role: proto.String("DiningRoom"), ProperRoom: proto.Bool(true)},
 		{Id: proto.String("unroled"), ProperRoom: proto.Bool(true)}}}
-	census := temperatureRooms(rooms, domain.Unknown[policy.SleepingObservation]())
+	census := temperatureRooms(rooms, map[string][]domain.Cell{"dining": {{X: 1, Z: 1}}}, domain.Unknown[policy.SleepingObservation]())
 	v, known := census.Value()
 	if !known || len(v.Rooms) != 2 || v.Rooms[0].Role != domain.Known(policy.RoomRoleDiningRoom) || v.Rooms[1].Role != domain.Unknown[policy.RoomRole]() {
 		t.Fatal(census)
@@ -81,7 +82,7 @@ func TestTemperatureRoomsDecodesCleanlinessStat(t *testing.T) {
 		{Id: proto.String("unavailable"), ProperRoom: proto.Bool(true), Stats: []*o.RoomStat{{DefName: proto.String("Cleanliness"), Unavailable: &c.Unavailable{}}}},
 		{Id: proto.String("missing"), ProperRoom: proto.Bool(true), Stats: []*o.RoomStat{{DefName: proto.String("Impressiveness"), Value: proto.Float64(1)}}},
 	}}
-	census, known := temperatureRooms(rooms, domain.Unknown[policy.SleepingObservation]()).Value()
+	census, known := temperatureRooms(rooms, nil, domain.Unknown[policy.SleepingObservation]()).Value()
 	if !known || len(census.Rooms) != 3 {
 		t.Fatal(census, known)
 	}
@@ -108,7 +109,7 @@ func TestTemperatureRoomsMapsRoofAndDoors(t *testing.T) {
 		{Id: proto.String("open"), ProperRoom: proto.Bool(true), OpenRoofCount: proto.Uint32(4)},
 		{Id: proto.String("unread"), ProperRoom: proto.Bool(true)},
 	}}
-	census, known := temperatureRooms(rooms, domain.Unknown[policy.SleepingObservation]()).Value()
+	census, known := temperatureRooms(rooms, nil, domain.Unknown[policy.SleepingObservation]()).Value()
 	if !known || len(census.Rooms) != 3 {
 		t.Fatal(census, known)
 	}

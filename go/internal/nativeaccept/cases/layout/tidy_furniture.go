@@ -145,8 +145,13 @@ func tidyFurniture(ctx context.Context, s cases.Session) error {
 				return err
 			}
 			report["bed_after"] = fmt.Sprintf("%+v", after)
+			grid, err := h.MapCells(ctx, "room-cells", s.Identity())
+			if err != nil {
+				return err
+			}
+			gridRooms := na.RoomCells(grid)
 			reply, err := h.Wire(ctx, "rooms", "observations_list_rooms", map[string]any{
-				"scope": map[string]any{"expectedIdentity": s.Identity()}, "includeOutdoors": false, "includeBoundary": false, "includeCells": true,
+				"scope": map[string]any{"expectedIdentity": s.Identity()}, "includeOutdoors": false, "includeBoundary": false,
 			})
 			if err != nil {
 				return err
@@ -157,7 +162,7 @@ func tidyFurniture(ctx context.Context, s cases.Session) error {
 			}
 			for _, raw := range na.AsSlice(observed["rooms"]) {
 				row, _ := na.AsMap(raw)
-				for _, c := range cellsOf(row["cells"]) {
+				for _, c := range gridRooms[na.AsString(row["gridRoom"])] {
 					if len(after.cells) > 0 && c == after.cells[0] {
 						role = na.AsString(row["role"])
 					}

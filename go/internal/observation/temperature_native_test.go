@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -55,13 +57,25 @@ func TestNativeTemperatureMethodsReplay(t *testing.T) {
 		if err = protojson.Unmarshal(data, rooms); err != nil {
 			t.Fatal(err)
 		}
-		if err = bridge.ValidateTemperatureRooms(rooms.GetObserved(), colony.GetObserved().Context.Identity); err != nil {
+		// A capture holds no frame grid: each room stands on its centre
+		// and beds.
+		cells := map[string][]domain.Cell{}
+		for _, room := range rooms.GetObserved().GetRooms() {
+			seen := map[domain.Cell]bool{}
+			for _, at := range append([]*c.Cell{room.GetCenter()}, bedPositions(room)...) {
+				if cell := (domain.Cell{X: at.GetX(), Z: at.GetZ()}); !seen[cell] {
+					seen[cell] = true
+					cells[room.GetId()] = append(cells[room.GetId()], cell)
+				}
+			}
+		}
+		if err = bridge.ValidateTemperatureRooms(rooms.GetObserved(), cells, colony.GetObserved().Context.Identity); err != nil {
 			t.Fatal(err)
 		}
 		if rooms.GetObserved().Context.GetTick() != colony.GetObserved().Context.GetTick() {
 			t.Fatal("room read escaped colony bracket")
 		}
-		planning := temperatureRooms(rooms.GetObserved(), facts.Facts.Sleeping)
+		planning := temperatureRooms(rooms.GetObserved(), cells, facts.Facts.Sleeping)
 		facts.Facts.SleepingMin, facts.Facts.SleepingMax = policy.TemperatureRange(planning)
 		latches := policy.RoutineLatches{Cold: evidence.Mode == "cold", Hot: evidence.Mode == "hot"}
 		proposal, err := policy.SelectTemperatureMethod(planning, policy.TemperatureCooling{}, policy.DefaultRoutinePolicy(), latches)
@@ -84,4 +98,12 @@ func TestNativeTemperatureMethodsReplay(t *testing.T) {
 			t.Fatal(phase, low, high, lk, hk)
 		}
 	}
+}
+
+func bedPositions(room *o.RoomState) []*c.Cell {
+	var out []*c.Cell
+	for _, bed := range room.GetBeds() {
+		out = append(out, bed.GetPosition())
+	}
+	return out
 }

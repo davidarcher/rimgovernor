@@ -39,14 +39,13 @@ func zonesPageReply(rows []*o.ZoneState, complete bool) *o.ListZonesReply {
 	return &o.ListZonesReply{Outcome: &o.ListZonesReply_Observed{Observed: s}}
 }
 
-// A full read keys every row by id; the request asks for no cells,
-// contents or filter.
+// A full read keys every row by id.
 func TestReadZonesKeysAFullRead(t *testing.T) {
 	calls := 0
 	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		request := decodeZonesRequest(t, arg)
 		calls++
-		if request.GetIncludeCells() || !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) {
+		if !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) {
 			t.Fatal("query differs", request)
 		}
 		return pbResult(zonesPageReply([]*o.ZoneState{zoneRow("Zone_1"), zoneRow("Zone_2"), zoneRow("Zone_3")}, true)), nil

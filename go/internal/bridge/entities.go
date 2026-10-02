@@ -111,7 +111,7 @@ func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity) 
 // The entity list requests, shared with the bundle's step families so a
 // section the bundle carries is seeded under the key the read uses (#593).
 func zonesListRequest(identity *c.Identity) *o.ListZonesRequest {
-	return &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeCells: proto.Bool(false), IncludeContents: proto.Bool(false), IncludeFilter: proto.Bool(false)}
+	return &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeContents: proto.Bool(false), IncludeFilter: proto.Bool(false)}
 }
 
 func buildingsListRequest(identity *c.Identity) *o.ListBuildingsRequest {

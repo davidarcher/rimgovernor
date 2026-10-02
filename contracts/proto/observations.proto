@@ -626,22 +626,26 @@ message RoomState {
   optional string id = 1; optional string role = 2; optional string label = 3; optional bool proper_room = 4; optional bool doorway = 5;
   optional bool outdoors = 6; optional bool psychologically_outdoors = 7; optional bool touches_map_edge = 8; optional bool fogged = 9;
   optional double temperature_c = 10; optional uint32 open_roof_count = 11; optional uint32 cell_count = 12;
-  Rectangle extents = 13; rimgovernor.common.v1.Cell center = 14; repeated rimgovernor.common.v1.Cell cells = 15;
-  reserved 16; repeated RoomStat stats = 17; repeated EntityRef pawns = 18;
+  Rectangle extents = 13; rimgovernor.common.v1.Cell center = 14;
+  reserved 15, 16; reserved "cells"; repeated RoomStat stats = 17; repeated EntityRef pawns = 18;
   reserved 19; repeated EntityRef beds = 28; repeated rimgovernor.common.v1.Ref stockpile_zones = 20; repeated Quantity contents = 21;
   reserved 22; repeated ReadIssue issues = 23;
   SnapshotRef snapshot = 24; repeated RoomBedMembership bed_memberships = 25; repeated StockpileMembership stockpile_memberships = 26;
   repeated RoomDoor doors = 27; // Doors in the room's boundary: door cell, the cell it opens onto, and whether that side is outdoors.
+  // The room's key in the whole-map cell grid (CellGrid.room, #1346): the
+  // row-major map index of its first unfogged cell; its cells are the grid
+  // cells carrying it. Absent when every cell is fogged.
+  optional string grid_room = 29;
 }
 message RoomDoor { rimgovernor.common.v1.Cell cell = 1; rimgovernor.common.v1.Cell outside = 2; optional bool outdoors = 3; }
 message RoomsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated RoomState rooms = 2; Completeness completeness = 3; }
-message ListRoomsRequest { ReadScope scope = 1; Rectangle region = 2; optional bool include_outdoors = 3; optional bool include_boundary = 4; optional bool include_cells = 5; repeated string room_ids = 6; reserved 7; }
+message ListRoomsRequest { ReadScope scope = 1; Rectangle region = 2; optional bool include_outdoors = 3; optional bool include_boundary = 4; reserved 5; reserved "include_cells"; repeated string room_ids = 6; reserved 7; }
 message ListRoomsReply { oneof outcome { RoomsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ZoneState {
   reserved 1; reserved "snapshot"; optional string id = 2; optional string label = 3; optional string type = 4; Rectangle bounds = 5;
   optional string priority = 6; optional string crop_def_name = 7; optional bool explicitly_set_crop = 8;
   optional bool allow_sow = 9; optional bool allow_cut = 10; StockpileFilter filter = 11;
-  repeated rimgovernor.common.v1.Cell listed_cells = 12; repeated rimgovernor.common.v1.Cell grid_cells = 13;
+  reserved 12, 13; reserved "listed_cells", "grid_cells";
   optional uint32 slot_group_cells = 14; optional uint32 haul_grid_cells = 15; optional bool consistent = 16;
   optional bool contiguous = 17; reserved 18; repeated Quantity contents = 19;
   optional uint32 free_cells = 20; optional uint32 blocked_cells = 21; optional uint32 impassable_cells = 22;
@@ -650,7 +654,7 @@ message ZoneState {
   FarmFacts farm = 28; optional bool food_storage = 29;
 }
 message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ZoneState zones = 2; Completeness completeness = 3; reserved 4, 5, 6, 7; reserved "map_snapshot"; }
-message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optional string name_contains = 3; Rectangle region = 4; optional bool include_cells = 5; optional bool include_contents = 6; optional bool include_filter = 7; reserved 8, 9; }
+message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optional string name_contains = 3; Rectangle region = 4; reserved 5; reserved "include_cells"; optional bool include_contents = 6; optional bool include_filter = 7; reserved 8, 9; }
 message ListZonesReply { oneof outcome { ZonesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // A thing's canonical row (#1343), from one native builder: the cells
 // read's things and the bundle's things table. thing.snapshot is the

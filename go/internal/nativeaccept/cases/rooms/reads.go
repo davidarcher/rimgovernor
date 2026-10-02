@@ -10,6 +10,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
@@ -60,7 +61,7 @@ func run(ctx context.Context, s cases.Session) error {
 	var candidates []map[string]any
 	for _, raw := range rooms {
 		row, _ := na.AsMap(raw)
-		if err := checkRoom(row, false); err != nil {
+		if err := checkRoom(row, nil); err != nil {
 			return err
 		}
 		properRoom, _ := na.AsBool(row["properRoom"])
@@ -83,7 +84,12 @@ func run(ctx context.Context, s cases.Session) error {
 	target := candidates[0]
 	targetID := na.AsString(target["id"])
 
-	exactRequest := na.Merge(scope, map[string]any{"roomIds": []any{targetID}, "includeCells": true})
+	exactRequest := na.Merge(scope, map[string]any{"roomIds": []any{targetID}})
+	grid, err := h.MapCells(ctx, "map-cells", identity)
+	if err != nil {
+		return err
+	}
+	gridRooms := na.RoomCells(grid)
 	exactReply, err := h.Wire(ctx, "typed-exact-cells", "observations_list_rooms", exactRequest)
 	if err != nil {
 		return err
@@ -97,7 +103,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("exact room selection did not return exactly one room")
 	}
 	selectedRow, _ := na.AsMap(selectedRows[0])
-	if err := checkRoom(selectedRow, true); err != nil {
+	if err := checkRoom(selectedRow, gridRooms); err != nil {
 		return err
 	}
 	repeatReply, err := h.Wire(ctx, "repeat", "observations_list_rooms", exactRequest)
@@ -149,7 +155,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("typed boundary read did not return exactly one room")
 	}
 	boundaryRow, _ := na.AsMap(boundaryRows[0])
-	if err := checkRoom(boundaryRow, true); err != nil {
+	if err := checkRoom(boundaryRow, gridRooms); err != nil {
 		return err
 	}
 	if sumUnits(boundaryRow["contents"]) <= sumUnits(target["contents"]) {
@@ -208,10 +214,10 @@ func sumUnits(v any) float64 {
 	return total
 }
 
-// checkRoom validates one typed room row's CAS snapshot and, when
-// includeCells/includeBoundary was requested, its cell geometry against its
-// own cellCount, center and extents.
-func checkRoom(row map[string]any, cells bool) error {
+// checkRoom validates one typed room row's CAS snapshot and, given the
+// map grid's rooms, its cell geometry (the grid cells carrying its
+// gridRoom key) against its own cellCount, center and extents.
+func checkRoom(row map[string]any, gridRooms map[string][]domain.Cell) error {
 	if err := na.RequireSnapshot(row["snapshot"]); err != nil {
 		return fmt.Errorf("room %v missing a populated CAS snapshot: %w", row["id"], err)
 	}
@@ -220,58 +226,29 @@ func checkRoom(row map[string]any, cells bool) error {
 			return fmt.Errorf("room %v lacks %s", row["id"], field)
 		}
 	}
-	if cells {
-		actual := na.AsSlice(row["cells"])
-		actualCoords := roomCoordinates(actual)
-		if len(actual) != int(na.AsNumber(row["cellCount"])) {
-			return fmt.Errorf("room %v returned cell count does not match cellCount", row["id"])
-		}
-		if len(actualCoords) != len(dedupeCoords(actualCoords)) {
-			return fmt.Errorf("room %v returned cells contain a duplicate coordinate", row["id"])
-		}
-		center, _ := na.AsMap(row["center"])
-		centerCoord := [2]float64{na.AsNumber(center["x"]), na.AsNumber(center["z"])}
-		if !containsCoord(actualCoords, centerCoord) {
-			return fmt.Errorf("room %v center is not among the room's own cells", row["id"])
-		}
-		minX, minZ, maxX, maxZ := roomExtent(actualCoords)
-		extents, _ := na.AsMap(row["extents"])
-		minimum, _ := na.AsMap(extents["minimum"])
-		maximum, _ := na.AsMap(extents["maximum"])
-		if na.AsNumber(minimum["x"]) != minX || na.AsNumber(minimum["z"]) != minZ || na.AsNumber(maximum["x"]) != maxX || na.AsNumber(maximum["z"]) != maxZ {
-			return fmt.Errorf("room %v extents do not match the room's own cells", row["id"])
-		}
-	} else {
-		if len(na.AsSlice(row["cells"])) != 0 {
-			return fmt.Errorf("room %v cells populated without includeCells", row["id"])
-		}
-		if !na.RequireIssueReason(na.AsSlice(row["issues"]), "cells", "UNAVAILABLE_REASON_NOT_REQUESTED") {
-			return fmt.Errorf("room %v missing a NOT_REQUESTED issue for unrequested cells", row["id"])
-		}
+	if gridRooms == nil {
+		return nil
+	}
+	var actualCoords [][2]float64
+	for _, cell := range gridRooms[na.AsString(row["gridRoom"])] {
+		actualCoords = append(actualCoords, [2]float64{float64(cell.X), float64(cell.Z)})
+	}
+	if len(actualCoords) == 0 || len(actualCoords) != int(na.AsNumber(row["cellCount"])) {
+		return fmt.Errorf("room %v grid cells (%d) do not match cellCount", row["id"], len(actualCoords))
+	}
+	center, _ := na.AsMap(row["center"])
+	centerCoord := [2]float64{na.AsNumber(center["x"]), na.AsNumber(center["z"])}
+	if !containsCoord(actualCoords, centerCoord) {
+		return fmt.Errorf("room %v center is not among the room's own cells", row["id"])
+	}
+	minX, minZ, maxX, maxZ := roomExtent(actualCoords)
+	extents, _ := na.AsMap(row["extents"])
+	minimum, _ := na.AsMap(extents["minimum"])
+	maximum, _ := na.AsMap(extents["maximum"])
+	if na.AsNumber(minimum["x"]) != minX || na.AsNumber(minimum["z"]) != minZ || na.AsNumber(maximum["x"]) != maxX || na.AsNumber(maximum["z"]) != maxZ {
+		return fmt.Errorf("room %v extents do not match the room's own cells", row["id"])
 	}
 	return nil
-}
-
-func roomCoordinates(cells []any) [][2]float64 {
-	out := make([][2]float64, 0, len(cells))
-	for _, raw := range cells {
-		cell, _ := na.AsMap(raw)
-		out = append(out, [2]float64{na.AsNumber(cell["x"]), na.AsNumber(cell["z"])})
-	}
-	return out
-}
-
-func dedupeCoords(coords [][2]float64) [][2]float64 {
-	seen := map[[2]float64]bool{}
-	out := make([][2]float64, 0, len(coords))
-	for _, c := range coords {
-		if seen[c] {
-			continue
-		}
-		seen[c] = true
-		out = append(out, c)
-	}
-	return out
 }
 
 func containsCoord(coords [][2]float64, want [2]float64) bool {
