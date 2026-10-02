@@ -11,6 +11,10 @@
 //	go run ./internal/snapshot/cmd/trim -step <step-...> <routine-stream-*.jsonl> <testdata/name.json.gz>
 //	go run ./internal/snapshot/cmd/trim -list <routine-stream-*.jsonl>
 //
+// -case <area/case> (run from go/) also registers the cut in
+// internal/snapshot/recordings.json, so cmd/rerecord can refresh it from a
+// newer recording of that case.
+//
 // -combat <name> promotes one fight of a stream (the first, or -plan's)
 // into the combat replay testdata (#853), trimmed to its stops with the
 // combat sections keyed at its first; run it from go/:
@@ -23,7 +27,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
@@ -37,6 +40,7 @@ func main() {
 	list := flag.Bool("list", false, "list a stream's reviews as <tick>-<seq>, then its step reads")
 	combat := flag.String("combat", "", "promote a stream's fight to "+combatDir+"/<name>.json.gz")
 	plan := flag.String("plan", "", "with -combat, the fight's plan (default the first fight)")
+	caseName := flag.String("case", "", "register the cut in "+snapshot.RecordingsFile+" as recorded from this <area>/<case>, so cmd/rerecord can refresh it")
 	flag.Parse()
 	var err error
 	switch {
@@ -45,9 +49,9 @@ func main() {
 	case *list && flag.NArg() == 1:
 		err = listStream(flag.Arg(0))
 	case !*list && flag.NArg() == 2:
-		err = run(flag.Arg(0), flag.Arg(1), *keep, *tick, *seq, *step)
+		err = run(flag.Arg(0), flag.Arg(1), *keep, *tick, *seq, *step, *caseName)
 	default:
-		fmt.Fprintln(os.Stderr, "usage: trim [-keep-cells] [-tick t [-seq s] | -step name] <recording> <out.json.gz> | trim -list <stream> | trim -combat name [-plan id] <stream>")
+		fmt.Fprintln(os.Stderr, "usage: trim [-keep-cells] [-case area/case] [-tick t [-seq s] | -step name] <recording> <out.json.gz> | trim -list <stream> | trim -combat name [-plan id] <stream>")
 		os.Exit(2)
 	}
 	if err != nil {
@@ -87,43 +91,23 @@ func listStream(path string) error {
 	return err
 }
 
-func run(in, out string, keep bool, tick int64, seq int, step string) error {
-	if step != "" || strings.HasPrefix(filepath.Base(in), "step-") {
-		var s snapshot.Step
-		var err error
-		if step != "" {
-			s, err = snapshot.LoadStreamStep(in, step)
-		} else {
-			s, err = snapshot.LoadStep(in)
-		}
-		if err != nil {
-			return err
-		}
-		data, err := snapshot.CompressStep(s, keep)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(out, data, 0o644)
+func run(in, out string, keep bool, tick int64, seq int, step, caseName string) error {
+	if err := snapshot.TrimTo(in, out, keep, tick, seq, step); err != nil {
+		return err
 	}
-	var r snapshot.Routine
-	var err error
-	if snapshot.IsStream(in) {
-		if tick < 0 {
-			return fmt.Errorf("%s is a stream: name the review with -tick or a step read with -step (trim -list shows them)", in)
-		}
-		r, err = snapshot.LoadReview(in, domain.Tick(tick), seq)
-	} else {
-		r, err = snapshot.Load(in)
+	if caseName == "" {
+		return nil
 	}
+	if !snapshot.IsStream(in) {
+		return fmt.Errorf("-case registers a cut from a stream; %s is not one", in)
+	}
+	rel, err := filepath.Rel(".", out)
 	if err != nil {
 		return err
 	}
-	if !keep {
-		r.TrimCells()
+	rec := snapshot.Recording{Out: rel, Case: caseName, Step: step, KeepCells: keep}
+	if step == "" {
+		rec.Tick, rec.Seq = tick, seq
 	}
-	data, err := snapshot.Compress(r)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(out, data, 0o644)
+	return snapshot.Register(snapshot.RecordingsFile, rec)
 }

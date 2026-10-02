@@ -73,10 +73,25 @@ commit it came from in the test's comment. Trim writes gzipped compact
 JSON without the site cells (tens of KB instead of megabytes);
 `-keep-cells` keeps them for a test that runs a site search.
 
+Add `-case <area/case>` to the trim to register the file in
+`internal/snapshot/recordings.json` (source case plus review tick or step
+read), so it can be refreshed later without a hand trim.
+
 Re-record when a load fails on a renamed or removed field, or when the
-recorded facts no longer describe what the review now reads. Rerun the
-same case and replace the file; keep the assertions, since they state the
-behaviour, not the recording.
+recorded facts no longer describe what the review now reads. Every CI run
+already records each case's stream, so download a shard artifact (or run
+the case locally with the variable set) and refresh from it:
+
+```bash
+go run ./internal/snapshot/cmd/rerecord -from <dir> [testdata files...]
+```
+
+It finds each registered file's case stream under `<dir>`, re-cuts the
+review at the recorded tick (else the first after it; a new run's ticks
+differ, and steps match on planner and goal), and updates the registry's
+tick. `-list` prints the registry. Keep the assertions, since they state
+the behaviour, not the recording; a failure after a refresh means the
+fresh run no longer shows it at that point, so pick another tick by hand.
 
 ## Replaying
 

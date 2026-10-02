@@ -1,0 +1,17 @@
+[
+  {
+    "out": "internal/snapshot/testdata/clean-filthy-kitchen.json.gz",
+    "case": "clean/filthy",
+    "tick": 158107
+  },
+  {
+    "out": "internal/snapshot/testdata/startup-shelter-open.json.gz",
+    "case": "shelter/excavation-round",
+    "tick": 15
+  },
+  {
+    "out": "internal/snapshot/testdata/startup-shelter-recovered.json.gz",
+    "case": "shelter/excavation-round",
+    "tick": 159570
+  }
+]
