@@ -1,7 +1,9 @@
 package buildingruntime
 
 import (
+	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -87,4 +89,30 @@ func plannedRoomInterior(room policy.LayoutRoom) []domain.Cell {
 // plannedRoomMethod names a planned room's shell: once per room per epoch.
 func plannedRoomMethod(room policy.LayoutRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("%s-shell-%d-%d", room.Role, room.Interior.X, room.Interior.Z))
+}
+
+// plannedDiningFurnishing puts the dining table and chairs in the layout
+// plan's dining room while no standing room hosts dining: the ring is
+// admitted and the furniture goes onto the footprint's interior with it, not
+// after the walls, since the room is where they will stand anyway. done is
+// true when the ring's own step produced the result to return.
+func (r *RoutineBuildingPlanner) plannedDiningFurnishing(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, facts observation.ColonyProjection) (planner *RoutineBuildingPlanner, result RoutineBuildingResult, done bool, err error) {
+	if r.goal != policy.EnsureComfort || r.facility == nil || r.facility.Role != policy.RoomRoleDiningRoom || r.definition != "Table1x2c" && r.definition != "DiningChair" {
+		return r, RoutineBuildingResult{}, false, nil
+	}
+	rooms, known := facts.Rooms.Value()
+	if !known || len(policy.HostingCells(*r.facility, rooms)) > 0 {
+		return r, RoutineBuildingResult{}, false, nil
+	}
+	room, owed := plannedRoomOwed(facts, policy.ModuleDining)
+	if !owed {
+		return r, RoutineBuildingResult{}, false, nil
+	}
+	result, err = r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "")
+	if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
+		return nil, result, true, err
+	}
+	furnish := *r
+	furnish.facility, furnish.cells, furnish.environment = nil, plannedRoomInterior(room), policy.PlacementAnywhere
+	return &furnish, RoutineBuildingResult{}, false, nil
 }

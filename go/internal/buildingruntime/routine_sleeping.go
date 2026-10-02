@@ -481,6 +481,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		r = resolved
 		definitions = []string{r.definition}
+		furnish, result, done, err := r.plannedDiningFurnishing(call, epoch, state, review, goal, reading, facts)
+		if done || err != nil {
+			return result, err
+		}
+		r = furnish
 	}
 	if r.temperature != nil && r.temperature.Thing != "" {
 		return r.commitCampfireRefuel(call, goal, func() error {

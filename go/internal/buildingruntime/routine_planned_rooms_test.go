@@ -6,6 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // The initial shelter tries the plan's storage room at Camp (#1177); the
@@ -50,5 +51,29 @@ func TestPlannedRoomInteriorIsTheWholeRoom(t *testing.T) {
 	room := policy.LayoutRoom{Role: policy.ModuleKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}}
 	if cells := plannedRoomInterior(room); len(cells) != 30 || cells[0] != (domain.Cell{X: 10, Z: 10}) || cells[29] != (domain.Cell{X: 15, Z: 14}) {
 		t.Fatal(cells)
+	}
+}
+
+// Dining furniture goes in the planned dining room only while the plan has
+// one and no standing room hosts dining; anything else is left to the usual
+// placement.
+func TestPlannedDiningFurnishingLeavesOtherPlansAlone(t *testing.T) {
+	t.Parallel()
+	dining, err := policy.Facility(policy.RoomRoleDiningRoom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := &RoutineBuildingPlanner{goal: policy.EnsureComfort, facility: &dining, definition: "Table1x2c"}
+	facts := observation.ColonyProjection{}
+	for name, r := range map[string]*RoutineBuildingPlanner{
+		"rooms unread":  table,
+		"not a comfort": {goal: policy.EnsureCooking, facility: &dining, definition: "Table1x2c"},
+		"a recreation":  {goal: policy.EnsureComfort, facility: &dining, definition: "HorseshoesPin"},
+		"no facility":   {goal: policy.EnsureComfort, definition: "Table1x2c"},
+	} {
+		got, _, done, err := r.plannedDiningFurnishing(nil, nil, ControlState{}, store.RoutineReview{}, store.GoalState{}, observation.ColonyReading{}, facts)
+		if err != nil || done || got != r {
+			t.Errorf("%s: planner changed or stepped: done=%v err=%v", name, done, err)
+		}
 	}
 }
