@@ -469,8 +469,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 			stages[string(view.Stage)]++
 			kinds[string(p.Action().Kind())]++
 			if view.Stage == domain.Unsuccessful {
-				reason, _ := view.UnsuccessfulReason.Value()
-				unsuccessful = append(unsuccessful, map[string]any{"action": string(view.Action), "kind": string(p.Action().Kind()), "reason": string(reason)})
+				unsuccessful = append(unsuccessful, map[string]any{"action": string(view.Action), "kind": string(p.Action().Kind()), "reason": string(view.UnsuccessfulCause())})
 			}
 		}
 		described := map[string]any{"plan": string(method.Plan), "method": string(method.Method), "actions": len(plan.Spec.Actions()), "stages": stages, "kinds": kinds}
@@ -534,8 +533,7 @@ func sampleIncident(ctx context.Context, s *store.Store, review store.RoutineRev
 			view := p.View()
 			stages[string(view.Stage)]++
 			if view.Stage == domain.Unsuccessful {
-				reason, _ := view.UnsuccessfulReason.Value()
-				unsuccessful = append(unsuccessful, map[string]any{"action": string(view.Action), "kind": string(p.Action().Kind()), "reason": string(reason)})
+				unsuccessful = append(unsuccessful, map[string]any{"action": string(view.Action), "kind": string(p.Action().Kind()), "reason": string(view.UnsuccessfulCause())})
 			}
 		}
 		described := map[string]any{"plan": string(method.Plan), "method": string(method.Method), "actions": len(plan.Spec.Actions()), "stages": stages}

@@ -62,6 +62,28 @@ const (
 	OutcomeNotAchieved UnsuccessfulReason = "outcome_not_achieved"
 )
 
+// IntentRefused names an intent settled Unsuccessful by a refused receipt
+// (a stale source, a target changed since the census): no observation
+// carries it, and the owning routine replans from live state. Read it
+// through ProgressView.UnsuccessfulCause.
+const IntentRefused UnsuccessfulReason = "refused"
+
+// UnsuccessfulCause is the typed reason an Unsuccessful action ended: the
+// observed reason, or IntentRefused for an intent native refused. Empty
+// for any other stage.
+func (v ProgressView) UnsuccessfulCause() UnsuccessfulReason {
+	if v.Stage != Unsuccessful {
+		return ""
+	}
+	if reason, known := v.UnsuccessfulReason.Value(); known {
+		return reason
+	}
+	if receipt, known := v.Receipt.Value(); known && receipt == ReceiptRefused {
+		return IntentRefused
+	}
+	return ""
+}
+
 func (r UnsuccessfulReason) valid() bool {
 	switch r {
 	case NativeFailure, NativeCancelled, NativeInterrupted, NativeExpired, TargetDead, OutcomeNotAchieved:

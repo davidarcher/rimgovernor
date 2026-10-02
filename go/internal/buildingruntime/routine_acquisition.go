@@ -91,6 +91,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{}, err
 	}
 	projection := read.Projection
+	projection.Acquisition = withoutFieldSources(projection.Acquisition, projection, plans, state.Snapshot)
 	pest := r.need == policy.ClearPests
 	stockGoal := r.need == policy.MaintainResource
 	food := r.need == policy.EnsureFoodSupply

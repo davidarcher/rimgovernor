@@ -62,3 +62,15 @@ func TestKnownUnsuccessfulIsTerminalAndRetainsReason(t *testing.T) {
 		}
 	}
 }
+
+func TestUnsuccessfulCauseNamesRefusedIntent(t *testing.T) {
+	if got := (ProgressView{Stage: Unsuccessful, Receipt: Known(ReceiptRefused)}).UnsuccessfulCause(); got != IntentRefused {
+		t.Fatalf("cause %q", got)
+	}
+	if got := (ProgressView{Stage: Unsuccessful, Receipt: Known(ReceiptAccepted), UnsuccessfulReason: Known(TargetDead)}).UnsuccessfulCause(); got != TargetDead {
+		t.Fatalf("cause %q", got)
+	}
+	if got := (ProgressView{Stage: Pending, Receipt: Known(ReceiptRefused)}).UnsuccessfulCause(); got != "" {
+		t.Fatalf("cause %q", got)
+	}
+}

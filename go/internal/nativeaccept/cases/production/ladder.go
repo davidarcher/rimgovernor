@@ -86,10 +86,11 @@ const benchStage = "bench-built"
 //
 // MaintainResource also keeps other resources (medicine) stocked, and one of
 // those acquisitions falling short (outcome_not_achieved) is retried, not
-// the ladder failing (#1136).
+// the ladder failing (#1136); so is an acquisition native refused on a stale
+// census (#1361).
 var ladderFailFast = sustainedfood.FailFast{
 	MethodUnavailableWaits: true,
-	RetryableUnsuccessful:  []domain.UnsuccessfulReason{domain.OutcomeNotAchieved},
+	RetryableUnsuccessful:  []domain.UnsuccessfulReason{domain.OutcomeNotAchieved, domain.IntentRefused},
 }
 
 func init() {
