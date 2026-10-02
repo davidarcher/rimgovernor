@@ -116,7 +116,7 @@ func TestPrepareNativeModConfig(t *testing.T) {
 		t.Fatal("activeMods missing after rewrite")
 	}
 	got := active.li()
-	want := []string{"ludeon.rimworld", "brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
+	want := []string{"brrainz.harmony", "ludeon.rimworld", "brrainz.rimbridgeserver", NativePackage}
 	if len(got) != len(want) {
 		t.Fatalf("activeMods = %v, want %v", got, want)
 	}
@@ -223,7 +223,7 @@ func TestPrepareNativeModConfigKnowsInstalledExpansions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rewritten ModsConfig.xml did not parse: %v", err)
 	}
-	if got := strings.Join(root.find("activeMods").li(), ","); got != "ludeon.rimworld,brrainz.harmony,brrainz.rimbridgeserver,"+NativePackage {
+	if got := strings.Join(root.find("activeMods").li(), ","); got != "brrainz.harmony,ludeon.rimworld,brrainz.rimbridgeserver,"+NativePackage {
 		t.Fatalf("activeMods = %s", got)
 	}
 	if got := strings.Join(root.find("knownExpansions").li(), ","); got != "ludeon.rimworld.anomaly,ludeon.rimworld.biotech,ludeon.rimworld.royalty" {
@@ -256,7 +256,7 @@ func TestInstalledExpansions(t *testing.T) {
 
 func TestPrepareNativeModConfigDropsExpansionsByDefault(t *testing.T) {
 	got := activeModsAfter(t)
-	want := []string{"ludeon.rimworld", "redeyedev.rimapi", "brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
+	want := []string{"brrainz.harmony", "ludeon.rimworld", "redeyedev.rimapi", "brrainz.rimbridgeserver", NativePackage}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("activeMods = %v, want %v", got, want)
 	}
@@ -267,7 +267,7 @@ func TestPrepareNativeModConfigKeepsRequestedExpansions(t *testing.T) {
 	// expansions load directly after the core game in release order (#1264:
 	// Odyssey inherits Royalty parents) even when the profile had them inactive.
 	got := activeModsAfter(t, "biotech", "ludeon.rimworld.royalty", "Biotech", "anomaly")
-	want := []string{"ludeon.rimworld", "ludeon.rimworld.royalty", "ludeon.rimworld.biotech", "ludeon.rimworld.anomaly", "redeyedev.rimapi", "brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
+	want := []string{"brrainz.harmony", "ludeon.rimworld", "ludeon.rimworld.royalty", "ludeon.rimworld.biotech", "ludeon.rimworld.anomaly", "redeyedev.rimapi", "brrainz.rimbridgeserver", NativePackage}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("activeMods = %v, want %v", got, want)
 	}
@@ -669,7 +669,7 @@ func TestLaunchedMismatchOnExpansions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{CorePackage, "brrainz.harmony", "brrainz.rimbridgeserver", casefold(NativePackage)}; strings.Join(launched, ",") != strings.Join(want, ",") {
+	if want := []string{"brrainz.harmony", CorePackage, "brrainz.rimbridgeserver", casefold(NativePackage)}; strings.Join(launched, ",") != strings.Join(want, ",") {
 		t.Fatalf("Core-only launch recorded %v, want %v", launched, want)
 	}
 	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "" {

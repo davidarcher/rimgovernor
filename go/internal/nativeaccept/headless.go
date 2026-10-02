@@ -207,7 +207,7 @@ func PrepareNativeModConfig(modsConfigXMLPath string, installed []string, expans
 	item := func(id string) xmlItem {
 		return xmlItem{elem: &xmlElem{name: xml.Name{Local: "li"}, kids: []xmlItem{{text: id}}}}
 	}
-	kept := active.kids[:0]
+	kept := make([]xmlItem, 0, len(active.kids)+len(wanted)+len(required))
 	seenCore := false
 	for _, kid := range active.kids {
 		if kid.elem != nil && kid.elem.name.Local == "li" {
@@ -220,7 +220,10 @@ func PrepareNativeModConfig(modsConfigXMLPath string, installed []string, expans
 					continue
 				}
 				seenCore = true
-				kept = append(kept, kid)
+				// Harmony loads before the core game, as every player's
+				// list has it; a save recorded in another order prompts
+				// "the order of your mod list has changed" on load.
+				kept = append(kept, item(required[0]), kid)
 				// Expansions load directly after the core game, as RimWorld's
 				// own mod manager orders them.
 				for _, id := range wanted {
@@ -235,7 +238,7 @@ func PrepareNativeModConfig(modsConfigXMLPath string, installed []string, expans
 		return fmt.Errorf("native profile activeMods is missing %s", CorePackage)
 	}
 	active.kids = kept
-	for _, id := range required {
+	for _, id := range required[1:] {
 		active.kids = append(active.kids, item(id))
 	}
 	known := root.find("knownExpansions")
