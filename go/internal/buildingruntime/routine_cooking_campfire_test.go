@@ -123,3 +123,20 @@ func TestCookingSelectionCountsStandingCampfireBlueprint(t *testing.T) {
 		t.Fatal("standing blueprint:", n, reason)
 	}
 }
+
+// A built campfire the cooking census omits (walled in before its door, so
+// unreachable) is still the camp's campfire: no second one is staged.
+func TestCookingSelectionCountsBuiltCampfireMissingFromCensus(t *testing.T) {
+	t.Parallel()
+	fire := campfireBuilding(t, "fire1", domain.Cell{X: 10, Z: 10})
+	var facts observation.ColonyProjection
+	facts.Facts.FoodPlan = domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: policy.FoodChannel{Kind: policy.FoodCook, ID: "cooking-capacity"}, Decision: policy.FoodPlanOpen}}})
+	facts.Facts.Colonists = domain.Known(int64(3))
+	facts.Facts.Cooking = domain.Known(false)
+	facts.CookingBenches = domain.Known([]observation.CookingBench{})
+	facts.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{fire}})
+	r := &RoutineBuildingPlanner{goal: policy.EnsureCooking, definition: "Campfire"}
+	if n, _, reason := r.selection(facts); n != 0 || reason != BuildingExistingFacility {
+		t.Fatal("built campfire missing from the census:", n, reason)
+	}
+}

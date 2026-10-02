@@ -257,6 +257,15 @@ func campfireIntentStanding(claims domain.Fact[[]policy.ConstructionClaim], obse
 		return false
 	}
 	history, _ := claims.Value()
+	// A built campfire the cooking census does not list (the kitchen ring
+	// closed around it before its door, so the bench is unreachable) still
+	// stands: another would be a second, third campfire in the same room.
+	heat := heatCampfireCells(history)
+	for _, b := range census.Buildings {
+		if b.Building.Definition() == "Campfire" && len(b.Cells) > 0 && !heat[b.Cells[0]] {
+			return true
+		}
+	}
 	for _, claim := range history {
 		if claim.Building.Definition() == "Campfire" && policy.WorkOpen(claim.Building, observed) == policy.BuildingOpen {
 			return true
