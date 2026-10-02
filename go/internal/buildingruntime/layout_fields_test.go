@@ -341,3 +341,24 @@ func TestConnectedPickPrefersACleanRectangle(t *testing.T) {
 		t.Errorf("block spans a %dx%d box for 12 cells: %v", maxX-minX+1, maxZ-minZ+1, got)
 	}
 }
+
+// Rich soil outranks a tidy shape: with rich ground wide enough, the block
+// sits on it even when plain soil is nearer the anchor.
+func TestConnectedPickSitsOnRichSoil(t *testing.T) {
+	t.Parallel()
+	free, rich := map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	for z := int32(0); z < 6; z++ {
+		for x := int32(0); x < 12; x++ {
+			c := domain.Cell{X: x, Z: z}
+			free[c] = true
+			if x >= 6 {
+				rich[c] = true
+			}
+		}
+	}
+	for _, c := range connectedPick(free, nil, rich, domain.Cell{}, 12) {
+		if !rich[c] {
+			t.Fatalf("cell %v is plain soil while rich soil was free", c)
+		}
+	}
+}

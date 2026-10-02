@@ -297,6 +297,17 @@ func connectedPick(free, occupied, rich map[domain.Cell]bool, anchor domain.Cell
 	if len(best) == 0 {
 		return nil
 	}
+	// Rich soil first: the block goes where the soil is rich, in whatever shape
+	// it lies; plain soil only tops up what the rich ground cannot hold.
+	if richOnly := richComponent(best, rich); len(richOnly) > 0 && len(richOnly) < len(best) && 2*len(richOnly) >= want {
+		if len(richOnly) >= want {
+			return connectedPick(richOnly, occupied, rich, anchor, want)
+		}
+		for _, c := range connectedAdds(richOnly, best, want-len(richOnly)) {
+			richOnly[c] = true
+		}
+		return sortedCells(richOnly)
+	}
 	if cells := cleanRectangle(best, occupied, rich, anchor, want); len(cells) > 0 {
 		return cells
 	}
@@ -442,4 +453,30 @@ func cellSet(cells []domain.Cell) map[domain.Cell]bool {
 		out[c] = true
 	}
 	return out
+}
+
+// richComponent is the largest 4-connected run of rich cells within free
+// (ties to the first in row-major order).
+func richComponent(free, rich map[domain.Cell]bool) map[domain.Cell]bool {
+	richFree := map[domain.Cell]bool{}
+	for c := range free {
+		if rich[c] {
+			richFree[c] = true
+		}
+	}
+	var best map[domain.Cell]bool
+	seen := map[domain.Cell]bool{}
+	for _, c := range sortedCells(richFree) {
+		if seen[c] {
+			continue
+		}
+		comp := cellComponent(richFree, c)
+		for m := range comp {
+			seen[m] = true
+		}
+		if len(comp) > len(best) {
+			best = comp
+		}
+	}
+	return best
 }
