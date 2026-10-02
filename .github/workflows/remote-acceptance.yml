@@ -207,6 +207,9 @@ jobs:
         run: |
           go build -o C:\rg\remoteaccept.exe ./cmd/remoteaccept
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Audit process exits so a vanished game leaves its exit status
+        continue-on-error: true
+        run: auditpol /set /subcategory:"Process Termination" /success:enable
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache
         with:
@@ -224,6 +227,12 @@ jobs:
         with:
           path: C:\rg\ciphertext\rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
           key: rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+      - name: Record why governed processes exited (#1358)
+        if: always() && steps.gate.outcome == 'success'
+        continue-on-error: true
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: ./trusted/scripts/collect_crash_remote.ps1 -Out "C:\rg\crash\$env:SHARD"
       - name: Stop this job's processes and remove identity
         if: always() && steps.gate.outcome == 'success'
         run: |
@@ -248,6 +257,7 @@ jobs:
             if ($code) { '{"passed":false,"error":"Shard export incomplete; inspect Actions job logs"}' | Set-Content "C:\rg\evidence\$env:SHARD\incomplete.json" }
             New-Item -ItemType Directory -Force $env:PUBLIC | Out-Null
             Copy-Item -LiteralPath "C:\rg\evidence\$env:SHARD" -Destination "$env:PUBLIC\$env:SHARD" -Recurse
+            if (Test-Path "C:\rg\crash\$env:SHARD") { Copy-Item -LiteralPath "C:\rg\crash\$env:SHARD" -Destination "$env:PUBLIC\$env:SHARD\crash" -Recurse }
           }
           exit $code
       - name: Upload shard diagnostics
