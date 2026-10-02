@@ -273,3 +273,20 @@ func TestDecideCombatHoldFireSteadyBetweenSwings(t *testing.T) {
 		t.Fatalf("gunner flipped mid-aim: %+v", orders)
 	}
 }
+
+// A fighter whose attack is refused with no other line holds its formation
+// cell instead of being left to the game's own solo response.
+func TestClearLinesRefusedFighterHoldsFormation(t *testing.T) {
+	from, post := domain.Cell{X: 5, Z: 5}, domain.Cell{X: 2, Z: 2}
+	view := CombatView{
+		Pawns:   []CombatPawnState{{ID: "b1", Cell: domain.Known(from)}, {ID: "h1"}},
+		Threats: []SquadThreatFacts{{ID: "h1"}},
+	}
+	roles := []CombatRole{{Pawn: "b1", Target: "h1", Cell: &post}}
+	attack := CombatOrder{Pawn: "b1", Kind: OrderAttack, Target: "h1", Reason: ReasonFormation}
+	m := CombatMemory{}.RefuseHit(attack, from)
+	out, _, _ := clearLines(view, []CombatOrder{attack}, GeometryReply{}, roles, m)
+	if len(out) != 1 || out[0].Kind != OrderMove || out[0].Cell != post {
+		t.Fatalf("refused brawler not held on its cell: %+v", out)
+	}
+}

@@ -173,6 +173,7 @@ func clearLines(view CombatView, orders []CombatOrder, geometry GeometryReply, r
 		i := slices.IndexFunc(roles, func(r CombatRole) bool { return r.Pawn == o.Pawn })
 		if o.Target == "" {
 			if !ranged[o.Pawn] || i < 0 {
+				out = keepInFormation(out, roles, i, from)
 				continue
 			}
 			for _, h := range ranked {
@@ -184,6 +185,8 @@ func clearLines(view CombatView, orders []CombatOrder, geometry GeometryReply, r
 				taken[cell] = true
 				roles[i].Cell, roles[i].Target = &cell, h
 				out = append(out, CombatOrder{Pawn: o.Pawn, Kind: OrderMove, Cell: cell, Reason: ReasonFormation})
+			} else {
+				out = keepInFormation(out, roles, i, from)
 			}
 			continue
 		}
@@ -193,6 +196,24 @@ func clearLines(view CombatView, orders []CombatOrder, geometry GeometryReply, r
 		out = append(out, o)
 	}
 	return out, roles, refused
+}
+
+// keepInFormation keeps a fighter with no attack to make in the formation: it moves
+// to its role's cell (else its standby cell) instead of being left with no
+// order, which would hand it to the game's own response and send it at the
+// insects alone while the rest of the line waits.
+func keepInFormation(out []CombatOrder, roles []CombatRole, i int, from domain.Cell) []CombatOrder {
+	if i < 0 {
+		return out
+	}
+	cell := roles[i].Cell
+	if cell == nil {
+		cell = roles[i].Home
+	}
+	if cell == nil || *cell == from {
+		return out
+	}
+	return append(out, CombatOrder{Pawn: roles[i].Pawn, Kind: OrderMove, Cell: *cell, Reason: ReasonFormation})
 }
 
 // firingCell is the proposed firing cell (#967) nearest from, free, with a
