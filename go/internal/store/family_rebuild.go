@@ -16,7 +16,7 @@ import (
 // save. A missing blob leaves its table empty.
 func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) error {
 	blobs := map[string]GovernorFamilyBlob{}
-	for _, key := range []string{GovernorLayoutPlanKey, GovernorTidiesKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey} {
+	for _, key := range []string{GovernorLayoutPlanKey, GovernorTidiesKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey} {
 		raw, ok := saved[key]
 		if !ok {
 			continue
@@ -38,7 +38,7 @@ func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) er
 		return err
 	}
 	defer tx.Rollback()
-	for _, table := range []string{"colony_layout_plans", "layout_tidies", "defense_layout", "production_ladder", "colony_extent_events"} {
+	for _, table := range []string{"colony_layout_plans", "layout_tidies", "defense_layout", "production_ladder", "soldier_squad", "colony_extent_events"} {
 		if _, err = tx.ExecContext(ctx, "DELETE FROM "+table); err != nil {
 			return err
 		}
@@ -76,6 +76,18 @@ func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) er
 		}
 		if err != nil {
 			return fmt.Errorf("%s: %w", GovernorProductionLadderKey, err)
+		}
+	}
+	if b, ok := blobs[GovernorSoldierSquadKey]; ok {
+		var r SoldierSquadRecord
+		if err = json.Unmarshal(b.Record, &r); err == nil {
+			err = r.Validate()
+		}
+		if err == nil {
+			err = putSingleton(ctx, tx, "soldier_squad", r, maxSoldierSquadBytes)
+		}
+		if err != nil {
+			return fmt.Errorf("%s: %w", GovernorSoldierSquadKey, err)
 		}
 	}
 	return tx.Commit()

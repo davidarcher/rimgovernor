@@ -123,7 +123,10 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !known {
 		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
 	}
-	required, known := routineProjectWork(definitions, read.Projection.Definitions).Value()
+	if err = reviewSoldierSquad(call, p.journal, state.Snapshot, pawns); err != nil {
+		return RoutineWorkResult{}, err
+	}
+	required, known :=routineProjectWork(definitions, read.Projection.Definitions).Value()
 	if !known {
 		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
 	}

@@ -46,11 +46,14 @@ func TestRebuildFamiliesRoundTripsEachFamily(t *testing.T) {
 	if err = source.SaveProductionLadder(ctx, ProductionLadderRecord{World: world, Tick: 7, Resource: "MeleeWeapon_Gladius", Bench: "FueledSmithy", Recipe: "Make_MeleeWeapon_Gladius", Research: []string{"Smithing", "Electricity"}}); err != nil {
 		t.Fatal(err)
 	}
+	if err = source.SaveSoldierSquad(ctx, SoldierSquadRecord{World: world, Members: []policy.PawnID{"Thing_Human2", "Thing_Human1"}}); err != nil {
+		t.Fatal(err)
+	}
 	saved, err := source.GovernorStateBlobs(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{GovernorLayoutPlanKey, GovernorTidiesKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey} {
+	for _, key := range []string{GovernorLayoutPlanKey, GovernorTidiesKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey} {
 		if saved[key] == "" {
 			t.Fatal("missing blob", key)
 		}

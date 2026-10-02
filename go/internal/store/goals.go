@@ -46,7 +46,8 @@ CREATE UNIQUE INDEX goal_method_keys ON goal_methods(goal_id,epoch,method_id) WH
 CREATE UNIQUE INDEX incident_method_keys ON goal_methods(incident_id,method_id) WHERE incident_id IS NOT NULL;
 CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
-CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;`)
+CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
+CREATE TABLE soldier_squad(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;`)
 	return err
 }
 

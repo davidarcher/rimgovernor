@@ -26,6 +26,7 @@ import (
 //	                          (latest state per item, sorted by item)
 //	family/defense_layout     GovernorFamilyBlob, Record = DefenseLayoutRecord
 //	family/production_ladder  GovernorFamilyBlob, Record = ProductionLadderRecord
+//	family/soldier_squad      GovernorFamilyBlob, Record = SoldierSquadRecord
 //
 // Layout plan and tidies are world rows: the blob carries the scope
 // (colony, map, tick) of the newest row written. Field names are the
@@ -39,6 +40,7 @@ const (
 	GovernorTidiesKey           = "family/tidies"
 	GovernorDefenseLayoutKey    = "family/defense_layout"
 	GovernorProductionLadderKey = "family/production_ladder"
+	GovernorSoldierSquadKey     = "family/soldier_squad"
 )
 
 // GovernorGoalBlob is one goal: its payload and CAS revision. Methods and
@@ -138,6 +140,13 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 		return nil, err
 	} else if ok {
 		if err = family(GovernorProductionLadderKey, nil, r); err != nil {
+			return nil, err
+		}
+	}
+	if r, ok, err := loadSoldierSquad(ctx, tx); err != nil {
+		return nil, err
+	} else if ok {
+		if err = family(GovernorSoldierSquadKey, nil, r); err != nil {
 			return nil, err
 		}
 	}
