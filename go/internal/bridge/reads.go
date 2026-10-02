@@ -3,9 +3,30 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// BlockingAttentionID is the attention id a games_call_tool Refusal names when
+// the game holds the call (status blocked_by_attention). It never inspects the
+// attention's content, only that the bridge named an id.
+func BlockingAttentionID(err error) (string, bool) {
+	var refusal *Refusal
+	if !errors.As(err, &refusal) {
+		return "", false
+	}
+	var body struct {
+		Status    string `json:"status"`
+		Attention struct {
+			AttentionID string `json:"attentionId"`
+		} `json:"attention"`
+	}
+	if json.Unmarshal(refusal.Result.Structured, &body) != nil || body.Status != "blocked_by_attention" || body.Attention.AttentionID == "" {
+		return "", false
+	}
+	return body.Attention.AttentionID, true
+}
 
 func encode(value any) json.RawMessage {
 	data, err := json.Marshal(value)

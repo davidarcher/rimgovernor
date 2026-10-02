@@ -337,7 +337,15 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 			Class    string `json:"class,omitempty"`
 			Encoding string `json:"encoding"`
 		}{string(inner), telemetry.TraceFrom(ctx).Wire(), string(class), caller.replies.encoding()})
-		result, err := caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
+		call := encode(nativeArgument{caller.gameID, name, args})
+		result, err := caller.core(ctx, live, "games_call_tool", call)
+		if id, ok := BlockingAttentionID(err); ok {
+			// The game logged an error (a load warning, a mod message) and holds
+			// every call until it is acknowledged; acknowledge and retry once.
+			if _, ackErr := caller.core(ctx, live, "games_ack_attention", encode(attentionArgument{caller.gameID, id})); ackErr == nil {
+				result, err = caller.core(ctx, live, "games_call_tool", call)
+			}
+		}
 		if timing := callTimingFrom(ctx); timing != nil {
 			requestRow = timing.request
 		}
