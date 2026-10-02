@@ -74,6 +74,12 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 	first := true
 	round := func(prefix string, args map[string]any) (map[string]any, error) {
 		if !first {
+			// Days into the fill RimWorld opens its colony-naming dialog,
+			// which parks the clock for good; the case's families leave it
+			// to the harness, so answer it before the next round.
+			if _, e := na.ConfirmColonyNames(ctx, h, report); e != nil {
+				return nil, e
+			}
 			if e := s.Release(); e != nil {
 				return nil, e
 			}

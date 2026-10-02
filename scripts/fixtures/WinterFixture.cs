@@ -135,8 +135,9 @@ namespace HomeBridge.BridgeTools
         }
 
         // Rock and slag chunks litter every generated map; the larder clears
-        // them like plants and filth rather than searching around them.
-        private static bool IsChunk(Thing t) => t.def.thingCategories?.Contains(ThingCategoryDefOf.Chunks) == true;
+        // them like plants and filth rather than searching around them. Stone
+        // chunks sit in the StoneChunks child category, so test the subtree.
+        private static bool IsChunk(Thing t) => t.def.IsWithinCategory(ThingCategoryDefOf.Chunks);
 
         private static object Refuse(string reason) => new { success = false, reason };
     }
