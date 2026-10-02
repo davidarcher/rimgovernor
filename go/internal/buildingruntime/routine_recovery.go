@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -101,6 +102,10 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	facts.Hostiles, _ = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
 	facts.KillboxWindow = r.reviewer.safeArea.killboxWindow(stockpileWorld(state.Snapshot), facts.Hostiles, expected.Tick)
 	facts.KillboxHaulers = policy.KillboxHaulers(read.Projection.WorkPawns)
+	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
+	if facts.ShelterCombatants, err = shelterCombatants(call, p.journal, world); err != nil {
+		return RoutineRecoveryResult{}, err
+	}
 	changes := policy.PlanSheltering(facts)
 	workers, _ := read.Projection.WorkPawns.Value()
 	if err = p.current(call, epoch); err != nil {
@@ -207,4 +212,27 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	return RoutineRecoveryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// shelterCombatants is the squad's draft set for sheltering (#1367): the
+// rosters of this world's open combat fights, the pawns ActiveCombat drafted
+// from SelectSquadDefense's assignments. It is known and empty while no fight
+// is open, so a threat the squad does not fight (a manhunter pack waited out)
+// shelters every colonist; a pawn drafted later is skipped as drafted.
+func shelterCombatants(ctx context.Context, journal *store.Store, world store.World) (domain.Fact[[]policy.PawnID], error) {
+	fights, err := journal.OpenCombatFights(ctx)
+	if err != nil {
+		return domain.Unknown[[]policy.PawnID](), err
+	}
+	out := []policy.PawnID{}
+	for _, fight := range fights {
+		if fight.World != world {
+			continue
+		}
+		for pawn := range fight.Roster {
+			out = append(out, policy.PawnID(pawn))
+		}
+	}
+	slices.Sort(out)
+	return domain.Known(out), nil
 }

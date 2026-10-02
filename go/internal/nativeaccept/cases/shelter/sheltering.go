@@ -37,7 +37,7 @@ func init() {
 			"A manhunter pack enters the lab from the west edge: the colonists, none drafted, are moved into the " +
 				"Safe area (the roofed hut) and no one is injured; once the pack has left the map, everyone still " +
 				"restricted to the Safe area is unrestricted again. Native area writes, the native Safe area and a " +
-				"real manhunter pack are the signal, not a planner decision. Needs ShelterCombatants (#1367).", false},
+				"real manhunter pack are the signal, not a planner decision.", false},
 		{"shelter/toxic_fallout", "fallout",
 			"Toxic fallout starts on the lab: every colonist and the tame pen-free dog are moved into the Safe area " +
 				"(the roofed hut) and stand in it; once the fallout ends, all of them are unrestricted again. Native " +
