@@ -209,6 +209,11 @@ func developmentExemptMethod(plan domain.PlanSpec) bool {
 		return false
 	}
 	for _, action := range actions {
+		if building, isBuilding := action.Building(); isBuilding && building.Definition() == "ButcherSpot" {
+			// Free and instant: no pawn labor to fund (the spot is the butcher
+			// bill's precondition).
+			continue
+		}
 		letter, isDialog := action.DialogAnswer()
 		husbandry, isHusbandry := action.Husbandry()
 		if action.Kind() != domain.QuestAcceptAction && action.Kind() != domain.EquipAction && action.Kind() != domain.ZoneDeleteAction && action.Kind() != domain.AutoRefuelAction && action.Kind() != domain.AutoHomeAreaAction && action.Kind() != domain.AreaAction && action.Kind() != domain.PawnSettingsAction && action.Kind() != domain.ReadingPolicyAction && action.Kind() != domain.DrugPolicyAction && action.Kind() != domain.FoodPolicyAction && action.Kind() != domain.ZoneCreateAction && action.Kind() != domain.ZoneCellEditAction && action.Kind() != domain.StockpilePatchAction && action.Kind() != domain.ApparelPolicyAction && !(isDialog && letter.LetterToken() != "") && !(isHusbandry && husbandrySettingsWrite(husbandry.Method())) {
