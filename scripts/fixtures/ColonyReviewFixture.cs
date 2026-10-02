@@ -67,6 +67,7 @@ namespace HomeBridge.BridgeTools
         static void BeforeMapUpdate(Map __instance)
         {
             if (dir == null || __instance != Find.CurrentMap || Find.TickManager.TicksGame < nextTick) return;
+            EnsureTerrain(__instance);
             viewOverride = ColonyRect(__instance);
         }
 
@@ -76,7 +77,6 @@ namespace HomeBridge.BridgeTools
             var tick = Find.TickManager.TicksGame;
             try
             {
-                if (frames == 0) LogSections(__instance);
                 Render(rect, $"colony-{tick:D8}.jpg");
                 if (lastTick < 0 || tick / DayTicks != lastTick / DayTicks)
                 {
@@ -98,34 +98,13 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // Why a frame might lack terrain: what the map drawer holds (field
-        // names and the centre section's layers, submesh shaders, vertex
-        // counts) and the camera's mask and clear flags.
-        static void LogSections(Map map)
+        // A headless game never builds the map's terrain sections (the
+        // drawer's section grid stays null, so frames hold things on black);
+        // build them before the first frame, and the drawer keeps them current.
+        static void EnsureTerrain(Map map)
         {
-            const System.Reflection.BindingFlags all = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
-            static string Fields(Type t) => t.Name + ": " + string.Join(", ", t.GetFields(all).Select(f => f.FieldType.Name + " " + f.Name));
-            try
-            {
-                var lines = new List<string> { Fields(map.mapDrawer.GetType()), Fields(typeof(Section)), Fields(typeof(SectionLayer)) };
-                var camera = Find.Camera;
-                lines.Add($"camera mask={camera.cullingMask} clear={camera.clearFlags} far={camera.farClipPlane} y={camera.transform.position.y}");
-                if (map.mapDrawer.GetType().GetFields(all).FirstOrDefault(f => f.FieldType == typeof(Section[,]))?.GetValue(map.mapDrawer) is Section[,] sections)
-                {
-                    var section = sections[sections.GetLength(0) / 2, sections.GetLength(1) / 2];
-                    foreach (var f in typeof(Section).GetFields(all).Where(f => typeof(System.Collections.IEnumerable).IsAssignableFrom(f.FieldType) && f.FieldType != typeof(string)))
-                        foreach (var item in (System.Collections.IEnumerable)f.GetValue(section))
-                        {
-                            if (item is not SectionLayer layer) continue;
-                            var subMeshes = typeof(SectionLayer).GetFields(all).Where(g => g.FieldType == typeof(List<LayerSubMesh>)).Select(g => (List<LayerSubMesh>)g.GetValue(layer)).FirstOrDefault();
-                            lines.Add($"{layer.GetType().Name} visible={layer.Visible} " + string.Join(",", (subMeshes ?? new List<LayerSubMesh>()).Select(m =>
-                                $"[{m.material?.shader?.name} supported={m.material?.shader?.isSupported} verts={m.mesh?.vertexCount} finalized={m.finalized} disabled={m.disabled}]")));
-                        }
-                }
-                else lines.Add("no Section[,] field on MapMeshDrawer");
-                Log.Message("[RimGovernor] colony review sections:\n" + string.Join("\n", lines));
-            }
-            catch (Exception e) { Log.Warning("[RimGovernor] colony review section probe failed: " + e); }
+            var grid = typeof(MapDrawer).GetField("sections", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            if (grid?.GetValue(map.mapDrawer) == null) map.mapDrawer.RegenerateEverythingNow();
         }
 
         // The home area plus every colonist and colony building, with a
