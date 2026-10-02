@@ -63,6 +63,10 @@ func GoalLabor(id GoalID) LaborProfile {
 		return LaborProfile{WorkCooking, WorkHauling, WorkGrowing}
 	case MaintainFireSafety:
 		return LaborProfile{WorkFirefighter}
+	case MaintainFirebreak:
+		// Plants are cut by plant cutters, wooden ruins taken down by
+		// builders (#1548).
+		return LaborProfile{WorkPlantCutting, WorkConstruction}
 	case TidyLayout:
 		// A re-sited field is sown by growers and a Camp shell taken down
 		// by builders (#611).

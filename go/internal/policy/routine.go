@@ -282,6 +282,10 @@ type RoutineFacts struct {
 	// rooms (PlanSafeArea, #1325); it holds MaintainShelter open. Unknown
 	// unless the MaintainShelter method is composed.
 	SafeAreaOwed domain.Fact[bool]
+	// FirebreakOwed: the firebreak ring has a cut cell with a standing
+	// plant or an undesignated wooden ruin (FirebreakOwed, #1548); it holds
+	// MaintainFirebreak open. Unknown unless the method is composed.
+	FirebreakOwed domain.Fact[bool]
 	// ShelterArea is the Safe allowed area's native load id, "" when the
 	// map has none (PlanSheltering, #1326).
 	ShelterArea domain.Fact[string]
@@ -1287,6 +1291,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainShelter, 3, measured(f.SafeAreaOwed, func(owed bool) bool { return !owed }))
 	if owed, known := f.SafeAreaOwed.Value(); known && owed {
 		addGoal(MaintainShelter, 3)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+	}
+	// MaintainFirebreak (#1548): ring work is owed. Ranked with the upkeep
+	// projects; unknown raises nothing.
+	addAssessment(MaintainFirebreak, 3, measured(f.FirebreakOwed, func(owed bool) bool { return !owed }))
+	if owed, known := f.FirebreakOwed.Value(); known && owed {
+		addGoal(MaintainFirebreak, 3)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	animalContainment := domain.Unknown[bool]()

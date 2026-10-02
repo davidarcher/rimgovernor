@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"sort"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -78,44 +76,36 @@ type FirebreakCell struct {
 }
 
 // FirebreakPlan is the ring work: every non-skipped band cell with its
-// treatment, the wooden ruins to deconstruct, and Floor, the cheapest
-// non-flammable floor the paved cells take (empty when none is paved).
+// treatment and the wooden ruins to deconstruct. MaintainFlooring picks the
+// floor a paved cell takes.
 type FirebreakPlan struct {
 	Cells       []FirebreakCell
 	Deconstruct []domain.Cell
-	Floor       string
 }
 
-// PlanFirebreak derives the firebreak ring: the FirebreakWidth band outside
-// the base footprint (the home base as PlanHomeArea picks it, plus growing
-// zones), less skipped and planned cells. A cell is paved when the colony is
-// in Development, the cell has been in the ring FirebreakSettleTicks, and
-// the stock left after claimed material covers the cheapest non-flammable
-// floor for every such cell; otherwise it is cut. dwell maps each ring cell
-// to its first tick in the ring; the returned map drops cells that left, so
-// a returning cell restarts. An unknown input returns an unknown plan and
+// PlanFirebreak derives the firebreak ring: FirebreakRing's band less
+// skipped, planned and claimed cells. A cell is paved when the colony is in
+// Development, the cell has been in the ring FirebreakSettleTicks, and the
+// stock left after claimed material covers the cheapest non-flammable floor
+// for every such cell; otherwise it is cut. dwell maps each ring cell to its
+// first tick in the ring; the returned map drops cells that left, so a
+// returning cell restarts. An unknown input returns an unknown plan and
 // dwell unchanged.
 func PlanFirebreak(r FirebreakRequest, dwell map[domain.Cell]domain.Tick) (domain.Fact[FirebreakPlan], map[domain.Cell]domain.Tick, error) {
 	unknown := domain.Unknown[FirebreakPlan]()
-	bounds, bk := r.Bounds.Value()
-	zones, zk := r.GrowingZones.Value()
 	planned, pk := r.Planned.Value()
 	claims, ck := r.Claims.Value()
 	stage, sk := r.Stage.Value()
-	if !bk || !zk || !pk || !ck || !sk {
+	if !pk || !ck || !sk {
 		return unknown, dwell, nil
 	}
-	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: r.Bounds, Construction: r.Construction, Claims: r.Claims, Home: r.Home, Margin: HomeAreaMargin})
+	ring, err := FirebreakRing(r)
 	if err != nil {
 		return unknown, dwell, err
 	}
-	value, known := extent.Value()
+	band, known := ring.Value()
 	if !known {
 		return unknown, dwell, nil
-	}
-	footprint := homeBase(value)
-	for _, c := range zones {
-		footprint[c] = true
 	}
 	skip := map[domain.Cell]bool{}
 	for _, c := range planned {
@@ -126,20 +116,12 @@ func PlanFirebreak(r FirebreakRequest, dwell map[domain.Cell]domain.Tick) (domai
 			skip[c] = true
 		}
 	}
-	band := map[domain.Cell]bool{}
-	for c := range footprint {
-		for dx := -FirebreakWidth; dx <= FirebreakWidth; dx++ {
-			for dz := -FirebreakWidth; dz <= FirebreakWidth; dz++ {
-				n := domain.Cell{X: c.X + dx, Z: c.Z + dz}
-				if n.X >= 0 && n.Z >= 0 && n.X < bounds.Width && n.Z < bounds.Height && !footprint[n] && !skip[n] {
-					band[n] = true
-				}
-			}
-		}
-	}
 	plan := FirebreakPlan{Cells: []FirebreakCell{}, Deconstruct: []domain.Cell{}}
 	next := map[domain.Cell]domain.Tick{}
-	for c := range band {
+	for _, c := range band {
+		if skip[c] {
+			continue
+		}
 		fact, ok := r.Ground[c]
 		ground, gk := fact.Value()
 		if !ok || !gk {
@@ -158,8 +140,6 @@ func PlanFirebreak(r FirebreakRequest, dwell map[domain.Cell]domain.Tick) (domai
 		next[c] = first
 		plan.Cells = append(plan.Cells, FirebreakCell{Cell: c, Treatment: FirebreakCut})
 	}
-	sort.Slice(plan.Cells, func(i, j int) bool { return extentCellLess(plan.Cells[i].Cell, plan.Cells[j].Cell) })
-	sort.Slice(plan.Deconstruct, func(i, j int) bool { return extentCellLess(plan.Deconstruct[i], plan.Deconstruct[j]) })
 	var settled []int
 	if stage == StageDevelopment {
 		for i, c := range plan.Cells {
@@ -183,7 +163,6 @@ func PlanFirebreak(r FirebreakRequest, dwell map[domain.Cell]domain.Tick) (domai
 			left[k] = v - claimed[k]
 		}
 		if floor != "" && affordableCells(r.Floors[floor], domain.Known(left), len(settled)) >= len(settled) {
-			plan.Floor = floor
 			for _, i := range settled {
 				plan.Cells[i].Treatment = FirebreakPave
 			}

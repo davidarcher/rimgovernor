@@ -109,6 +109,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_secure_supplies.go":      {"secure-supplies"},
 	"routine_shelter.go":              {"shelter", "expansion"},
 	"routine_maintain_shelter.go":     {"sheltering"},
+	"routine_firebreak.go":            {"firebreak"},
 	"routine_shelter_bunks.go":        {"shelter", "sleeping"},
 	"routine_sleeping_couple.go":      {"sleeping"},
 	"routine_sleeping_upkeep.go":      {"sleeping"},

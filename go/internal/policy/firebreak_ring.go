@@ -7,8 +7,8 @@ import (
 )
 
 // FirebreakRing is the firebreak band's geometry alone: every in-bounds cell
-// within FirebreakWidth of the base footprint (the home base plus
-// GrowingZones) and outside it, whatever its ground or treatment. It reads
+// within FirebreakWidth of the base footprint (the home base of the colony
+// extent with no margin, plus GrowingZones) and outside it, whatever its ground or treatment. It reads
 // only Bounds, Construction, Claims, Home and GrowingZones; field siting
 // protects these cells so new fields never take the ring (#1550).
 func FirebreakRing(r FirebreakRequest) (domain.Fact[[]domain.Cell], error) {
@@ -18,7 +18,7 @@ func FirebreakRing(r FirebreakRequest) (domain.Fact[[]domain.Cell], error) {
 	if !bk || !zk {
 		return unknown, nil
 	}
-	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: r.Bounds, Construction: r.Construction, Claims: r.Claims, Home: r.Home, Margin: HomeAreaMargin})
+	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: r.Bounds, Construction: r.Construction, Claims: r.Claims, Home: r.Home})
 	if err != nil {
 		return unknown, err
 	}

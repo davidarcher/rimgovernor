@@ -616,6 +616,15 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		if sc.routineFirebreakPlans {
+			firebreakNative, ok := reads.(buildingruntime.RoutineFirebreakSource)
+			if !ok {
+				return nil, errors.New("firebreak plans require typed defense site and plant cut census observations")
+			}
+			if config.Firebreak, err = buildingruntime.NewRoutineFirebreakPlanner(reviewer, firebreakNative); err != nil {
+				return nil, err
+			}
+		}
 		if sc.routineShelteringPlans {
 			// MaintainShelter (#1325) plans from the review's rooms; no read of its own.
 			if config.MaintainShelter, err = buildingruntime.NewMaintainShelterPlanner(reviewer); err != nil {
@@ -849,6 +858,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 	}
+	if config.Flooring != nil && config.Firebreak != nil {
+		// MaintainFlooring paves the settled ring cells the firebreak
+		// review found (#1549).
+		config.Flooring.SetFirebreakPave(config.Firebreak.Pave)
+	}
 	scheduler, err := buildingruntime.NewClockScheduler(player, session, reads, config, wallClock{})
 	if err != nil {
 		return nil, err
@@ -962,6 +976,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineShelteringPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainShelter)
+	}
+	if sc.routineFirebreakPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainFirebreak)
 	}
 	if sc.routineStoneShellPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)

@@ -44,6 +44,9 @@ type RoutineReviewer struct {
 	tunnels tunnelMemory
 	// safeArea is MaintainShelter's Safe area memory (#1325).
 	safeArea safeAreaMemory
+	// firebreak is MaintainFirebreak's review memory (#1548), set when its
+	// planner is composed.
+	firebreak *firebreakMemory
 	// stage is the colony stage of the review the last step loaded (#630):
 	// the stage the store holds that step's review to, so the planners'
 	// targets (staged) agree with the review's. Foothold before any
@@ -357,6 +360,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.methodEnabled(policy.MaintainFlooring) {
 		reading.Projection.Facts.Upkeep.Flooring = trafficFlooringFacts(reading.Projection, r.policy.Flooring)
 		reading.Sections.Colony.Value.Facts.Upkeep.Flooring = reading.Projection.Facts.Upkeep.Flooring
+	}
+	if r.firebreak != nil {
+		if reading.Projection.Facts.FirebreakOwed, err = r.firebreak.review(ctx, boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, r.stage, r.policy.Flooring, firebreakBusy(plans, state.Snapshot, playerPlans)); err != nil {
+			clockSchedulerLog("routine.step: firebreak err=%v", err)
+			return store.RoutineReviewResult{}, err
+		}
 	}
 	if plan, known := reading.Projection.Facts.FoodPlan.Value(); known {
 		reading.Projection.Facts.AnimalUpkeep.Forecast = domain.Known(plan.Forecast)

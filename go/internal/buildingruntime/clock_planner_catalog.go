@@ -792,6 +792,16 @@ var plannerCatalog = []plannerEntry{
 			out.MaintainShelter = &method
 			return method.Reason, nil
 		}},
+	{name: "firebreak", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AreaPlantCutAction, domain.CoverClearanceAction}, sections: sectionsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Firebreak != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.Firebreak.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.Firebreak = &method
+			return method.Reason, nil
+		}},
 	{name: "homeCoverage", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.AreaAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.HomeCoverage != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

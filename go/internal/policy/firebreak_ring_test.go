@@ -9,7 +9,7 @@ import (
 // A field next to the base takes ring cells without protection and none
 // once the ring is protected (#1550).
 func TestFieldSitingAvoidsFirebreakRing(t *testing.T) {
-	r := firebreakFixture(t, domain.Cell{X: 20, Z: 20})
+	r := firebreakFixture(t, squarePoints(17, 17, 23, 23)...)
 	r.Bounds = domain.Known(Bounds{Width: 40, Height: 40})
 	ring, err := FirebreakRing(r)
 	cells, known := ring.Value()
@@ -31,7 +31,7 @@ func TestFieldSitingAvoidsFirebreakRing(t *testing.T) {
 		}
 		return n
 	}
-	// The base itself (17..23 around the wall) is taken; the ring is the
+	// The base itself (the 17..23 walls) is taken; the ring is the
 	// two cells around it.
 	var base []domain.Cell
 	for x := int32(17); x <= 23; x++ {
@@ -54,7 +54,7 @@ func TestFieldSitingAvoidsFirebreakRing(t *testing.T) {
 }
 
 func TestFirebreakRingUnknown(t *testing.T) {
-	r := firebreakFixture(t, domain.Cell{X: 20, Z: 20})
+	r := firebreakFixture(t, squarePoints(17, 17, 23, 23)...)
 	r.GrowingZones = domain.Unknown[[]domain.Cell]()
 	if ring, err := FirebreakRing(r); err != nil || func() bool { _, k := ring.Value(); return k }() {
 		t.Fatal(ring, err)

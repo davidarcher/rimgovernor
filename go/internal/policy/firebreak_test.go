@@ -11,7 +11,13 @@ const firebreakDay = domain.Tick(60000)
 
 func firebreakFixture(t *testing.T, points ...domain.Cell) FirebreakRequest {
 	t.Helper()
-	e := extentFixture(t, points...)
+	// One wall building covers every point, so a base of many cells keeps
+	// one valid identity.
+	e := extentFixture(t, points[0])
+	census, _ := e.Construction.Value()
+	home, _ := e.Home.Value()
+	census.Buildings[0].Cells, home.Targets[0].Cells = points, points
+	e.Construction, e.Home = domain.Known(census), domain.Known(home)
 	ground := map[domain.Cell]domain.Fact[FirebreakGround]{}
 	for x := int32(0); x < 60; x++ {
 		for z := int32(0); z < 60; z++ {
@@ -82,6 +88,18 @@ func square(footprint map[domain.Cell]bool, x0, z0, x1, z1 int32) {
 	}
 }
 
+// squarePoints lists every cell of the inclusive rectangle: walls that make
+// the base footprint itself, since the ring hugs the extent (margin 0).
+func squarePoints(x0, z0, x1, z1 int32) []domain.Cell {
+	var out []domain.Cell
+	for x := x0; x <= x1; x++ {
+		for z := z0; z <= z1; z++ {
+			out = append(out, domain.Cell{X: x, Z: z})
+		}
+	}
+	return out
+}
+
 func TestFirebreakBandGeometry(t *testing.T) {
 	rect := map[domain.Cell]bool{}
 	square(rect, 26, 26, 34, 34)
@@ -91,22 +109,16 @@ func TestFirebreakBandGeometry(t *testing.T) {
 	fields := map[domain.Cell]bool{}
 	square(fields, 26, 26, 34, 34)
 	square(fields, 35, 28, 38, 31)
-	var ellPoints []domain.Cell
-	for z := int32(20); z <= 28; z++ {
-		ellPoints = append(ellPoints, domain.Cell{X: 20, Z: z})
-	}
-	for x := int32(21); x <= 30; x++ {
-		ellPoints = append(ellPoints, domain.Cell{X: x, Z: 20})
-	}
+	ellPoints := append(squarePoints(16, 16, 24, 32), squarePoints(25, 16, 34, 24)...)
 	for _, tt := range []struct {
 		name      string
 		points    []domain.Cell
 		zones     []domain.Cell
 		footprint map[domain.Cell]bool
 	}{
-		{"rectangle", []domain.Cell{{X: 30, Z: 30}}, nil, rect},
+		{"rectangle", squarePoints(26, 26, 34, 34), nil, rect},
 		{"l-shape", ellPoints, nil, ell},
-		{"growing zone enclosed", []domain.Cell{{X: 30, Z: 30}}, []domain.Cell{{X: 35, Z: 28}, {X: 38, Z: 31}, {X: 36, Z: 29}, {X: 37, Z: 30}, {X: 35, Z: 29}, {X: 35, Z: 30}, {X: 35, Z: 31}, {X: 36, Z: 28}, {X: 36, Z: 30}, {X: 36, Z: 31}, {X: 37, Z: 28}, {X: 37, Z: 29}, {X: 37, Z: 31}, {X: 38, Z: 28}, {X: 38, Z: 29}, {X: 38, Z: 30}}, fields},
+		{"growing zone enclosed", squarePoints(26, 26, 34, 34), []domain.Cell{{X: 35, Z: 28}, {X: 38, Z: 31}, {X: 36, Z: 29}, {X: 37, Z: 30}, {X: 35, Z: 29}, {X: 35, Z: 30}, {X: 35, Z: 31}, {X: 36, Z: 28}, {X: 36, Z: 30}, {X: 36, Z: 31}, {X: 37, Z: 28}, {X: 37, Z: 29}, {X: 37, Z: 31}, {X: 38, Z: 28}, {X: 38, Z: 29}, {X: 38, Z: 30}}, fields},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			r := firebreakFixture(t, tt.points...)
@@ -146,7 +158,7 @@ func TestFirebreakSkips(t *testing.T) {
 		{"wooden ruin", func(r *FirebreakRequest) { r.Ground[c] = domain.Known(FirebreakWoodenRuin) }, false, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			r := firebreakFixture(t, domain.Cell{X: 30, Z: 30})
+			r := firebreakFixture(t, squarePoints(26, 26, 34, 34)...)
 			tt.edit(&r)
 			plan, next := firebreakRun(t, r, nil)
 			_, ring := ringCells(plan)[c]
@@ -182,15 +194,12 @@ func TestFirebreakCutUntilSettled(t *testing.T) {
 		}, FirebreakCut},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			r := firebreakFixture(t, domain.Cell{X: 30, Z: 30})
+			r := firebreakFixture(t, squarePoints(26, 26, 34, 34)...)
 			dwell := settled(r)
 			tt.edit(&r, dwell)
 			plan, _ := firebreakRun(t, r, dwell)
 			if got := ringCells(plan)[c]; got != tt.want {
-				t.Fatal(got, plan.Floor)
-			}
-			if tt.want == FirebreakPave && plan.Floor != "Concrete" {
-				t.Fatal("floor", plan.Floor)
+				t.Fatal(got)
 			}
 		})
 	}
@@ -198,7 +207,7 @@ func TestFirebreakCutUntilSettled(t *testing.T) {
 
 func TestFirebreakDwellRestartsAfterLeaving(t *testing.T) {
 	c := domain.Cell{X: 25, Z: 30}
-	r := firebreakFixture(t, domain.Cell{X: 30, Z: 30})
+	r := firebreakFixture(t, squarePoints(26, 26, 34, 34)...)
 	r.Now = firebreakDay
 	_, dwell := firebreakRun(t, r, nil)
 	if dwell[c] != firebreakDay {
@@ -231,7 +240,7 @@ func TestFirebreakUnknownInputs(t *testing.T) {
 		{"stock when settled", func(r *FirebreakRequest) { r.Stock = domain.Unknown[map[Resource]int64]() }},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			r := firebreakFixture(t, domain.Cell{X: 30, Z: 30})
+			r := firebreakFixture(t, squarePoints(26, 26, 34, 34)...)
 			dwell := map[domain.Cell]domain.Tick{c: 0}
 			tt.edit(&r)
 			got, next, err := PlanFirebreak(r, dwell)
