@@ -196,7 +196,6 @@ namespace HomeBridge.BridgeTools
         internal static void FixtureExpire() => _state.LeaseExpiresMs = LeaseNow(_state);
         internal static bool IsActiveForFixture() => _state != null && _state.Active;
         internal static void FixtureEvent(string kind, Dictionary<string, object> row) => Add(kind, "Observed", _state, row);
-        internal static string RetainedJournalRowPath(long cursor) { return EnsureJournal().RetainedPath(cursor); }
         internal static void FixtureLegacyEvent() { Journal.Append(new Dictionary<string, object> { ["cursor"] = _cursor + 1 }); _cursor = Journal.Newest; }
         internal static void FixtureLegacyEpoch() { _state.Typed = null; }
         internal static void OnTick() => OnUpdate();

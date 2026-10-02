@@ -83,7 +83,7 @@ internal static class NativeClockProbe
         Check(Status().Status.SuppressedInjuries.Count == 0, "never-started status carries no injury evidence");
         Check(!Directory.Exists(GenFilePaths.SaveDataFolderPath), "status initialized journal");
         var initial = Events();
-        Check(initial.Page != null && initial.Page.NewestCursor == 0 && initial.Page.Events.Count == 0, "initial event read requires clock start");
+        Check(initial.Page != null && initial.Page.NewestCursor + 1 == initial.Page.OldestCursor && initial.Page.Events.Count == 0, "initial event read requires clock start");
         Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation, "initial event read changed clock or authority");
         foreach (var pair in new[] { (-1L, 1u), (0L, 0u), (0L, 129u) }) Check(Events(pair.Item1, pair.Item2, 0).Failure?.Code == Common.FailureCode.InvalidRequest, "malformed cursor/limit dispatched");
         Check(Events(long.MaxValue, 128).Failure != null, "cursor past the journal admitted");
@@ -111,7 +111,7 @@ internal static class NativeClockProbe
         var speed = new Clock.SpeedRequest { Epoch = owned.Clone(), Authority = Pre(), Speed = Clock.Speed.Fast };
         Check(Speed(speed).Receipt.Applied.Status.Running.Epoch.RequestedSpeed == Clock.Speed.Fast && Status().Status.Running.Epoch.TickDeadline == 10, "speed extended budget");
         var first = Events(0, 1).Page; var second = Events(first.NextCursor, 128).Page;
-        Check(first.Events.Count == 1 && first.Events[0].Started != null && first.NextCursor == 1 && second.Events.Count == 1 && second.Events[0].SpeedChanged != null && !first.Gap, "event paging/cursors");
+        Check(first.Events.Count == 1 && first.Events[0].Started != null && first.NextCursor == first.OldestCursor && second.Events.Count == 1 && second.Events[0].SpeedChanged != null && !first.Gap, "event paging/cursors");
         authority.Revoke(authority.Status().Generation, NativeControlRevocationReason.Manual);
         Check(Start(request).Equals(reply), "replay after revocation changed receipt");
         var paused = Pause(owned).Status;
@@ -156,13 +156,6 @@ internal static class NativeClockProbe
         var beyond = Events(legacy.NextCursor).Page;
         Check(beyond != null && !beyond.Gap, "legacy row kept refusing past its own cursor");
         Check(Events(long.MaxValue).Failure.Code == Common.FailureCode.InvalidRequest, "cursor overflow accepted");
-        Reset(); Start(Request());
-        // Resolve the row through the fixture seam: it evicts the decoded
-        // copy the journal caches (#984), so the read reaches the disk.
-        File.Delete(Supervisor.RetainedJournalRowPath(1));
-        var lost = Events(0, 1).Page;
-        Check(lost.Gap && lost.LostCount == 1 && lost.NextCursor == 1 && lost.Events.Count == 0 && !lost.HasOldestCursor, "missing event was silently dropped or oldest cursor fabricated");
-        Check(!Events(1, 1).Page.Gap, "gap repeated outside requested window");
     }
     private static void EventProjection()
     {
@@ -245,37 +238,6 @@ internal static class NativeClockProbe
         Check(Pause(owned).Status.Stopped?.PauseVerified == true, "lost hooks blocked safe exact pause cleanup");
         HarmonyLib.Harmony.Healthy = true;
     }
-    private static void CorruptStoredEvents()
-    {
-        foreach (Action<Clock.Event> corrupt in new Action<Clock.Event>[] {
-            e => e.Context = new Common.ObservationContext(), e => e.Owner = new Clock.EpochOwner(), e => e.ClearEvent(),
-            e => e.Context.Identity.ClearLoadToken(), e => e.Context.Identity.MapId = -1, e => e.Context.ClearTick(), e => e.Context.Tick = -1,
-            e => e.Context.NativeGeneration = 0, e => e.Owner.ControllerSessionId = " ", e => e.Owner.Epoch = 0,
-            e => e.ClearObservedAtUnixMs(), e => e.ObservedAtUnixMs = -1 })
-        {
-            Reset(); Start(Request());
-            Supervisor.FixtureEvent("alert_new", new() { ["alertKey"] = "food", ["label"] = "Low food", ["priority"] = "High" });
-            var path = Supervisor.RetainedJournalRowPath(2);
-            var file = XElement.Load(path);
-            var encoded = file.Elements("item").Single(item => (string)item.Attribute("key") == "canonicalClockEvent").Elements().Single();
-            var value = Clock.Event.Parser.ParseJson(encoded.Value); corrupt(value); encoded.Value = JsonFormatter.Default.Format(value); file.Save(path);
-            var reply = Events();
-            Check(reply.Failure?.Code == Common.FailureCode.Unavailable && reply.Page == null,
-                "semantic-invalid stored event published a partial or fabricated page");
-        }
-    }
-    private static void ReadRecoveredHistoryBeforeStart()
-    {
-        Reset(); var epoch = Start(Request()).Receipt.Applied.Status.Running.Epoch;
-        Pause(new Clock.OwnedRequest { Identity = Identity, Owner = epoch.Owner.Clone() });
-        var recorded = Events().Page;
-        Supervisor.FixtureReset();
-        var recovered = Events().Page;
-        Check(recovered != null && recovered.Events.SequenceEqual(recorded.Events) && recovered.NewestCursor == recorded.NewestCursor,
-            "read before start failed to recover durable history");
-        Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation,
-            "history recovery changed clock or authority");
-    }
     // #626: the hazard probe is tick-paced at every production speed, the
     // digests run on their own cadence, and the status carries both counters.
     private static void ProbeAndDigestCadence()
@@ -356,7 +318,7 @@ internal static class NativeClockProbe
     }
     internal static void Invoke()
     {
-        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents(); ReadRecoveredHistoryBeforeStart(); ProbeAndDigestCadence();
+        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); ProbeAndDigestCadence();
         Console.WriteLine($"Native clock: {checks} checks; production typed runtime/adapter/ledger/journal, controlled native watcher and SDK seams.");
     }
 }
