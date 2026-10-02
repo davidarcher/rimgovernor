@@ -120,14 +120,19 @@ jobs:
         if: always() && steps.play.outcome == 'failure'
         continue-on-error: true
         run: |
-          foreach ($result in Get-ChildItem C:\rg\*\job -Recurse -File -Filter result.json -ErrorAction SilentlyContinue) {
-            $r = Get-Content -LiteralPath $result.FullName -Raw | ConvertFrom-Json
-            "Play failed: $($r.error)" >> $env:GITHUB_STEP_SUMMARY
-            "$($result.FullName): $($r.error)"
-          }
-          foreach ($log in Get-ChildItem C:\rg\*\job -Recurse -File -Filter HeadlessPlayer.log -ErrorAction SilentlyContinue) {
-            "--- tail of $($log.FullName)"
-            Get-Content -LiteralPath $log.FullName -Tail 80
+          $found = Get-ChildItem C:\rg -Recurse -File -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in @('result.json','HeadlessPlayer.log') }
+          "found: $($found.FullName -join ', ')"
+          foreach ($f in $found) {
+            "--- $($f.FullName)"
+            if ($f.Name -eq 'result.json') {
+              $text = Get-Content -LiteralPath $f.FullName -Raw
+              $text.Substring(0, [Math]::Min(6000, $text.Length))
+              $r = $text | ConvertFrom-Json
+              "Play failed: $($r.error)" >> $env:GITHUB_STEP_SUMMARY
+            } else {
+              Get-Content -LiteralPath $f.FullName -Tail 80
+            }
           }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && steps.play.outcome == 'failure'
@@ -146,7 +151,7 @@ jobs:
           TESTED_COMMIT: ${{ steps.gate.outputs.head }}
           PLAYED: ${{ steps.play.outcome }}
         run: |
-          $stats = Get-ChildItem C:\rg\*\job -Recurse -File -Filter stats.jsonl -ErrorAction SilentlyContinue | Select-Object -First 1
+          $stats = Get-ChildItem C:\rg -Recurse -File -Force -Filter stats.jsonl -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $stats) { throw "The run recorded nothing (play step: $env:PLAYED); see its log" }
           $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
           $name = "$date-$env:GITHUB_RUN_ID"
