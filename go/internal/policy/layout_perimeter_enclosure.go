@@ -81,8 +81,10 @@ func chebyshevField(w, h int32, src []bool, limit int32) []int32 {
 }
 
 // planEnclosure traces the enclosure around core for plan's field patches
-// and geothermal sites on a w x h map.
-func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32) enclosure {
+// and geothermal sites on a w x h map. Only a field's rich cells (rich
+// reports them; nil takes every field cell) count: plain soil is
+// everywhere on most maps, so walling it would wall the map.
+func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32, rich func(domain.Cell) bool) enclosure {
 	region := make([]bool, w*h)
 	mark := func(c domain.Cell) {
 		if c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h {
@@ -103,15 +105,25 @@ func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32) enclosure {
 		if z.Kind != ZoneField {
 			continue
 		}
-		u := &unit{clear: perimeterThick + 1}
+		// One unit per 4-connected rich patch of the field.
+		in := make([]bool, w*h)
 		for _, r := range z.Runs {
 			for x := r.X; x < r.X+r.Length; x++ {
 				c := domain.Cell{X: x, Z: r.Z}
+				if c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h && (rich == nil || rich(c)) {
+					in[c.Z*w+c.X] = true
+				}
+			}
+		}
+		for _, comp := range components(w, h, func(i int32) bool { return in[i] }) {
+			u := &unit{clear: perimeterThick + 1}
+			for _, i := range comp {
+				c := domain.Cell{X: i % w, Z: i / w}
 				u.cells = append(u.cells, c)
 				u.taken = u.taken || contains(reach, c)
 			}
+			units = append(units, u)
 		}
-		units = append(units, u)
 	}
 	for _, r := range plan.Reservations {
 		if r.Kind == ReserveGeothermal {

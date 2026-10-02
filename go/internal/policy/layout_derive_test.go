@@ -43,17 +43,11 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 // The perimeter replans when the ground under the ring dries; its own walls
 // standing on the ring change nothing; the opening and rooms stay (#954).
 func TestReplanPerimeterOnDriedGround(t *testing.T) {
-	var ring Rectangle
-	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	first, _ := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
-	for _, r := range reserved(first, ReservePerimeter) {
-		ring = unionRect(ring, r)
-	}
-	z0 := ring.Z + ring.Height - 12
 	survey := func(dried bool, walls map[domain.Cell]bool) MapSurvey {
 		return zoningSurvey(200, func(x, z int32) SurveyCell {
 			c := SurveyCell{Walkable: true, Fertility: 1}
-			if z >= z0 && z < z0+4 && !dried {
+			// Marsh bands closer than the ring is tall: it must cross one.
+			if z%40 < 4 && !dried {
 				c = marsh
 			}
 			if walls[domain.Cell{X: x, Z: z}] {

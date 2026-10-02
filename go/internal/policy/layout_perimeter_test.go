@@ -501,6 +501,14 @@ func patchPerimeter(t *testing.T, dx int32, ground func(x, z int32) SurveyCell) 
 		}
 	}
 	plan.Zones = append(plan.Zones, zone)
+	// The wall takes in rich soil only, so the patch is rich.
+	s = zoningSurvey(200, func(x, z int32) SurveyCell {
+		c := ground(x, z)
+		if patch[domain.Cell{X: x, Z: z}] && c.Walkable && !c.Rock {
+			c.Fertility = 1.4
+		}
+		return c
+	})
 	p = PlanPerimeter(plan, s)
 	checkPerimeter(t, p)
 	if c, leak := perimeterLeak(p, s); leak {
@@ -623,7 +631,7 @@ func TestPerimeterLGatesEveryFaceKillboxOnApproach(t *testing.T) {
 	core, _, p, _ := patchPerimeter(t, 5, nil)
 	plan := p
 	plan.Reservations = nil
-	enc := planEnclosure(plan, core, 200, 200)
+	enc := planEnclosure(plan, core, 200, 200, nil)
 	sides, _ := enc.sides()
 	gates := reservedCells(p, ReserveGate)
 	kb := reservedCells(p, ReserveKillbox)
@@ -700,5 +708,25 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 		if !perimeterKinds[r.Kind] && rectsOverlap(k[0], r.Area) {
 			t.Fatal(r.Kind, r.Area, "inside the killbox", k[0])
 		}
+	}
+}
+
+// Plain soil is not walled in: on a map of 100% soil the ring stays near
+// the core instead of running out to the edge margin.
+func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
+	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
+	if !ok {
+		t.Fatal("no plan")
+	}
+	var rooms, ring Rectangle
+	for _, r := range p.AllRooms() {
+		rooms = unionRect(rooms, r.Interior)
+	}
+	for _, r := range reserved(p, ReservePerimeter) {
+		ring = unionRect(ring, r)
+	}
+	if lim := pad(rooms, 2*perimeterGap+perimeterThick+perimeterStep); ring.Width == 0 || unionRect(lim, ring) != lim {
+		t.Fatal("ring", ring, "runs far past the rooms", rooms)
 	}
 }

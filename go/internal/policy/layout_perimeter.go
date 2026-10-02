@@ -109,7 +109,13 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 	// The enclosure: the core box and whole field patches, the yard
 	// around them; the ring traced outside it (#1286).
-	enc := planEnclosure(plan, core, w, h)
+	rich := map[domain.Cell]bool{}
+	for _, c := range s.Cells {
+		if c.Fertility > zoneRichFertility {
+			rich[c.Cell] = true
+		}
+	}
+	enc := planEnclosure(plan, core, w, h, func(c domain.Cell) bool { return rich[c] })
 	if enc.bbox.Width == 0 {
 		return plan
 	}
