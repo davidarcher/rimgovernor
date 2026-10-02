@@ -107,8 +107,8 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		return row, nil
 	}
-	// zoneState reads one zone's row as a state token (its canonical JSON:
-	// bounds, cell counts, filter, priority), used here only to detect
+	// zoneState reads one zone's row and its grid cells as a state token
+	// (their canonical JSON), used here only to detect
 	// whether a refused or resent intent touched the zone. present=false
 	// with no error means the zone is not listed.
 	zoneState := func(label, zoneID string) (token string, present bool, err error) {
@@ -116,7 +116,11 @@ func run(ctx context.Context, s cases.Session) error {
 		if err != nil || row == nil {
 			return "", false, err
 		}
-		encoded, err := json.Marshal(row)
+		grid, err := h.MapCells(ctx, label+"-cells", identity)
+		if err != nil {
+			return "", false, err
+		}
+		encoded, err := json.Marshal(map[string]any{"row": row, "cells": na.ZoneCells(grid)[zoneID]})
 		if err != nil {
 			return "", false, fmt.Errorf("%s: zone row: %w", label, err)
 		}
