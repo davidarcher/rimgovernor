@@ -316,14 +316,31 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		return p, fmt.Errorf("empty remote selection")
 	}
 	names := make([]string, len(selected))
-	costs := map[string]int64{}
+	costs, ceilings := map[string]int64{}, map[string]int64{}
 	for i, c := range selected {
 		names[i] = c.Name
 		costs[c.Name] = remoteaccept.ShardCost(c.Name, c.Budget)
+		ceilings[c.Name] = int64(c.Budget)
 	}
 	shards, err := remoteaccept.PlanShards(names, r.Limits.Shards, p.Algorithm, costs)
 	if err != nil {
 		return p, err
+	}
+	// Measured times balance real wall time, but every shard's budgets
+	// must still fit the suite allowance; when they do not, plan on the
+	// budgets themselves.
+	allowance := int64(time.Duration(r.Limits.SuiteMinutes)*time.Minute) / int64(r.Limits.Attempts)
+	for _, shard := range shards {
+		var load int64
+		for _, name := range shard.Cases {
+			load += ceilings[name]
+		}
+		if load > allowance {
+			if shards, err = remoteaccept.PlanShards(names, r.Limits.Shards, p.Algorithm, ceilings); err != nil {
+				return p, err
+			}
+			break
+		}
 	}
 	assignment := map[string]int{}
 	for i, shard := range shards {
