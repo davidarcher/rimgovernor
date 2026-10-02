@@ -116,7 +116,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	changes := policy.PlanSheltering(facts)
-	sheltered = len(changes) == 0 && policy.ShelterHeld(facts)
+	sheltered = policy.ShelterHeld(facts)
 	workers, _ := read.Projection.WorkPawns.Value()
 	if err = p.current(call, epoch); err != nil {
 		return RoutineRecoveryResult{}, err

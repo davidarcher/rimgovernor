@@ -1240,10 +1240,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Defense != nil && out.Defense.Reason != "" {
 		squadUnanswered = domain.Known(out.Defense.Reason == BuildingMethodNoSquad)
 	}
-	// A complete sheltering response lets the threat be waited out (#1560).
+	// A complete sheltering response lets the threat be waited out (#1560):
+	// the wait is work of its own, on game time.
 	sheltered := domain.Unknown[bool]()
 	if out.Recovery != nil {
 		sheltered = domain.Known(out.Recovery.Sheltered)
+		work = work || out.Recovery.Sheltered
 	}
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
