@@ -102,13 +102,15 @@ type DefenseGeometry struct {
 	Approach []domain.Cell
 	Toward   domain.Rotation
 	Firing   []domain.Cell
-	// Lanes are the corridor lanes; the safe lane is the civilian corridor
-	// and no turret or conduit ever stands on either.
+	// Lanes are the corridor's cells; no turret or conduit stands on one.
 	Lanes    []domain.Cell
 	Reserved []domain.Cell
 	// Turrets are the turret tier's cells; the mortar tier keeps off and
 	// clear of them (#1206).
 	Turrets []domain.Cell `json:",omitempty"`
+	// Walls are the funnel tier's walls and doorway: no turret stands on
+	// one, but a conduit may run beneath it out of the walled kill zone.
+	Walls []domain.Cell `json:",omitempty"`
 }
 
 type TurretPosition struct {
@@ -145,7 +147,7 @@ func directionOf(r domain.Rotation) domain.Cell {
 
 // Geometry is the turret tier's view of the layout.
 func (l DefenseLayout) Geometry() DefenseGeometry {
-	g := DefenseGeometry{Entry: l.Entry, Approach: append([]domain.Cell{}, l.TrapLane...), Toward: l.Toward, Lanes: append(append([]domain.Cell{}, l.TrapLane...), l.SafeLane...)}
+	g := DefenseGeometry{Entry: l.Entry, Approach: append([]domain.Cell{}, l.TrapLane...), Toward: l.Toward, Lanes: append([]domain.Cell{}, l.TrapLane...)}
 	for _, f := range l.Firing {
 		g.Firing = append(g.Firing, f.Cell)
 	}
@@ -156,14 +158,17 @@ func (l DefenseLayout) Geometry() DefenseGeometry {
 		g.Reserved = append(g.Reserved, t.Reserved...)
 		for _, b := range t.Buildings {
 			g.Reserved = append(g.Reserved, b.Cell())
+			if t.Name == TierFunnel {
+				g.Walls = append(g.Walls, b.Cell())
+			}
 		}
 	}
 	return g
 }
 
 // DefenseTurrets proposes the powered turret tier for a layout: turrets
-// behind the shooters' row in line with the lane, then on the row outside
-// the firing positions, spaced against chain explosions, off the lanes and
+// beside the firing positions on the shooters' row or the row behind it,
+// spaced against chain explosions, off the lanes and
 // every reserved cell, each with a known native line of sight to some cell
 // of the kill zone (the funnel walls hide most of the lane from the
 // flanks), and a conduit chain from each turret
@@ -233,30 +238,26 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 		}
 		return true
 	}
-	// Positions behind the shooters' row in line with the kill zone come
-	// first: the funnel walls hide most of the corridor from the flanks,
-	// while a turret looking straight up the lane past the firing line
-	// covers its whole length. The flanks of the firing span follow.
+	// Slots flank the firing span, kept turretSpacing apart by clear, on
+	// the shooters' row and the row behind it: a mini turret takes the
+	// front row first, a heavier rung (the autocannon's minimum range) the
+	// back row (#1544).
+	// A row's slots end at the kill zone's side wall.
+	rows := []domain.Cell{origin, addCell(origin, d)}
+	if TurretRank(q.Definition) > 0 {
+		rows[0], rows[1] = rows[1], rows[0]
+	}
 	var positions []domain.Cell
-	behind := addCell(origin, scale(d, turretSpacing))
-	seenOffset := map[int32]bool{}
-	for _, a := range g.Approach {
-		o := (a.X-origin.X)*p.X + (a.Z-origin.Z)*p.Z
-		for _, o := range []int32{o, o + turretSpacing, o - turretSpacing} {
-			if !seenOffset[o] {
-				seenOffset[o] = true
-				positions = append(positions, addCell(behind, scale(p, o)))
+	for _, row := range rows {
+		for _, side := range []struct{ edge, dir int32 }{{high, 1}, {low, -1}} {
+			for step := int32(1); step <= defenseMaxWidth; step++ {
+				c := addCell(row, scale(p, side.edge+side.dir*step))
+				if taken[c] || s.blocking(c) {
+					break
+				}
+				positions = append(positions, c)
 			}
 		}
-	}
-	for step := int32(0); step < defenseMaxWidth; step++ {
-		for _, o := range []int32{high + turretSpacing + step*turretSpacing, low - turretSpacing - step*turretSpacing} {
-			positions = append(positions, addCell(origin, scale(p, o)))
-		}
-	}
-	// The layout plan's turret slots replace the searched positions (#789).
-	if len(s.r.Killbox.Turrets) > 0 {
-		positions = s.r.Killbox.Turrets
 	}
 	for _, c := range positions {
 		if len(candidates) >= maxTurretCandidates {
@@ -293,11 +294,15 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 	for _, c := range q.Transmitters {
 		transmitters[c] = true
 	}
-	// Conduits may run under player walls and cover but never on a lane, a
+	// Conduits may run under player walls, standing or planned, and cover but never on a lane, a
 	// trap cell, a protected walkway or unknown ground.
+	underWall := map[domain.Cell]bool{}
+	for _, c := range g.Walls {
+		underWall[c] = true
+	}
 	allowed := map[domain.Cell]bool{}
 	for c, row := range s.cells {
-		if taken[c] || s.protect[c] || positive(row.Door) || positive(row.NaturalRock) {
+		if taken[c] && !underWall[c] || s.protect[c] || positive(row.Door) || positive(row.NaturalRock) {
 			continue
 		}
 		if positive(row.Walkable) || positive(row.PlayerOwned) && row.Edifice != "" {

@@ -261,7 +261,7 @@ const (
 
 // wallBarrier are the perimeter reservations a raider cannot walk
 // through; the flood that finds the enclosure stops at them.
-var wallBarrier = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveGate: true, ReserveKillbox: true, ReserveTurret: true}
+var wallBarrier = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveGate: true, ReserveKillbox: true}
 
 // siteGround is the map's size and its impassable cells, shared by every
 // candidate's wall score.

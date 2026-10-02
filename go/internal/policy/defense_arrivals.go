@@ -256,12 +256,14 @@ func (s defenseSite) defenseApproaches(l DefenseLayout) DefenseApproaches {
 		}
 		for _, b := range t.Buildings {
 			protected[b.Cell()] = true
-			if b.Definition() == s.r.Definitions.Wall {
+			// Raiders cannot open a player door: the service lane and the
+			// back-wall doorway are no route for them.
+			if b.Definition() == s.r.Definitions.Wall || b.Definition() == s.r.Definitions.Door {
 				closed[b.Cell()] = true
 			}
 		}
 	}
-	for _, c := range append(append([]domain.Cell{}, l.TrapLane...), l.SafeLane...) {
+	for _, c := range l.TrapLane {
 		protected[c] = true
 		// Existing rock can be the corridor wall without a placement in any
 		// tier. Removing it would open the flank of the accepted layout.
@@ -274,11 +276,13 @@ func (s defenseSite) defenseApproaches(l DefenseLayout) DefenseApproaches {
 	for _, f := range l.Firing {
 		protected[f.Cell], protected[f.Cover], protected[f.Retreat] = true, true, true
 	}
+	for c, row := range s.cells {
+		if positive(row.Door) && positive(row.PlayerOwned) {
+			closed[c] = true
+		}
+	}
 	prev, distance := s.paths(l.Entry, closed)
 	withoutEntry := map[domain.Cell]bool{l.Entry: true}
-	if len(l.SafeLane) > 0 {
-		withoutEntry[l.SafeLane[0]] = true
-	}
 	for c := range closed {
 		withoutEntry[c] = true
 	}
@@ -426,7 +430,7 @@ func (s defenseSite) baitTier(l DefenseLayout) DefenseTier {
 	for _, c := range sector.Route {
 		taken[c] = true
 	}
-	for _, c := range append(append([]domain.Cell{}, l.TrapLane...), l.SafeLane...) {
+	for _, c := range l.TrapLane {
 		taken[c] = true
 	}
 	for _, t := range l.Tiers {

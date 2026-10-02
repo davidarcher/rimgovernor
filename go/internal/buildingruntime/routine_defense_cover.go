@@ -56,7 +56,7 @@ func defenseCoverAttempts(history []domain.GoalMethod, tick domain.Tick) int {
 // the firing cell on a record that predates it.
 func defenseRecordLayout(record store.DefenseLayoutRecord) (policy.DefenseLayout, error) {
 	l := policy.DefenseLayout{Chokepoint: record.Chokepoint, Toward: record.Toward, Width: record.Width, Entry: record.Entry,
-		TrapLane: append([]domain.Cell{}, record.TrapLane...), SafeLane: append([]domain.Cell{}, record.SafeLane...)}
+		TrapLane: append([]domain.Cell{}, record.TrapLane...)}
 	for i, cell := range record.Firing {
 		retreat := cell
 		if len(record.Retreat) == len(record.Firing) {

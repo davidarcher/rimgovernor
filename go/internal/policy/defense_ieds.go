@@ -41,7 +41,7 @@ func (s defenseSite) iedTier(l DefenseLayout, costs corridorCosts) DefenseTier {
 	if len(s.r.IEDs) == 0 || !known {
 		return tier
 	}
-	keepOff := append(append([]domain.Cell{}, l.SafeLane...), storage...)
+	keepOff := append([]domain.Cell{}, storage...)
 	keepOff = append(keepOff, s.r.Entrances...)
 	for c, row := range s.cells {
 		if positive(row.Door) {

@@ -17,7 +17,8 @@ import (
 // footing, a bridge under the wall on water. Raider approaches from the map
 // edges are traced with the defense planner's flood (defense_arrivals.go),
 // and the dry ring position most of them cross becomes the one opening: a
-// killbox behind it with turret slots, and a bent approach lane outside.
+// killbox behind it (its snake, kill zone and turrets are the defense
+// layout's, #1544), and a bent approach lane outside.
 // Airlock gates (a door on each face, #1060) stand along the dry ring. A
 // cover-clear band runs 30 cells out, and the mortar spot is the firm cell
 // farthest from the wall. Moisture pump sites inside the wall cover the soft
@@ -28,7 +29,6 @@ import (
 
 // Reservation kinds A5 adds beside A1's.
 const (
-	ReserveTurret          ReservationKind = "turret"
 	ReserveKillboxApproach ReservationKind = "killbox_approach"
 	// ReservePerimeterLight marks wall cells on light footing: the wall
 	// there is wood.
@@ -44,13 +44,13 @@ const (
 )
 
 // perimeterKinds are the reservations PlanPerimeter owns.
-var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveTurret: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true}
+var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true}
 
 const (
 	perimeterThick int32 = 3
 	// perimeterGap is the yard between the core and the wall; it holds
-	// the killbox.
-	perimeterGap int32 = 12
+	// the killbox and two cells behind its back wall.
+	perimeterGap = killboxDepth + 2
 	// perimeterFieldReach is how far from the core any cell of a field
 	// patch may lie and still take the whole patch inside the wall.
 	perimeterFieldReach int32 = 15
@@ -60,7 +60,7 @@ const (
 	perimeterStep      int32 = 10
 	perimeterCoverBand int32 = 30
 	killboxHalf        int32 = 7
-	killboxDepth       int32 = 10
+	killboxDepth             = killboxRows
 	approachLeg        int32 = 8
 	// perimeterDetour caps a shoreline detour's wall at this many times
 	// the straight stretch it replaces (#949).
@@ -69,7 +69,7 @@ const (
 	pumpRadiusSq = 47
 )
 
-// PlanPerimeter adds the wall, gates, killbox, turret slots, approach,
+// PlanPerimeter adds the wall, gates, killbox, approach,
 // cover-clear band and mortar spot to plan (which needs its core rooms),
 // replacing any it held. A plan without rooms comes back unchanged.
 func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
@@ -429,9 +429,6 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		var at func(in, al int32) domain.Cell
 		killbox, at = openingAt(open)
 		add(ReserveKillbox, killbox)
-		for _, al := range []int32{-4, 0, 4} {
-			add(ReserveTurret, rectOf(at(perimeterThick+killboxDepth-1, al), at(perimeterThick+killboxDepth-1, al)))
-		}
 		// The approach leaves the opening straight out, then turns along
 		// the wall, so the lane breaks line of sight into the killbox.
 		add(ReserveKillboxApproach, rectOf(at(-1, -1), at(-approachLeg, 1)))

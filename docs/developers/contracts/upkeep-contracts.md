@@ -174,14 +174,22 @@ still repeats the full support check against current native roofs and buildings.
 
 `EnsureDefensiveLayout` (opt-in) commits one stored corridor layout per colony
 and builds it tier by tier; a tier is `Built` only while every one of its
-buildings is observed standing in the defense-site census. The trap corridor
-is priced for the game's own pathfinder (#619): vanilla colonists cross their
-own traps at no cost, so the trap lane carries traps on rows 1 and 3 with
-fences between them (80 each) and the safe lane wooden doors on the same
-rows (38 each for a colonist to open, impassable or 300 to bash for a
-raider), which keeps every cheapest colonist route to the edge off the trap
-cells (`policy.colonistRouteAvoidsTraps`) while raiders take the trap lane;
-the access audit leaves the doors open for colonists. The firing line
+buildings is observed standing in the defense-site census. The killbox
+follows the RimWorld wiki's defense structures (#1544): the plan's 3-wide
+opening narrows to a 1-tile entrance into a snake of zigzag legs, each a
+3-wide hallway across the kill zone with wall teeth jutting in from
+alternating sides, legs joined by U-turns at alternating ends and parted
+by 3-thick walls; no door stands on the route. The kill zone is sized from
+the defenders and turrets (the legs span it) and holds a continuous fence
+bar with a stem toward the exit, then sandbags, shooters, retreat cells
+and a 2-thick back wall with one defenders' doorway. Raider-side shaping
+is walls and fences only: a 1.6 pawn stands on a sandbag or barricade and
+keeps its cover, so sandbags stand only on the defenders' line. The
+layout is priced for the game's own pathfinder (#619): vanilla colonists
+cross their own traps at no cost, so spike traps sit in the turn pockets
+off every cheapest colonist route through the corridor
+(`policy.colonistRouteAvoidsTraps`), and every cheapest raider route walks
+each leg when bashing a planned wall is priced in (wooden wall, 109). The firing line
 floors each shooter cell beside its barricade (#224): a floor is terrain,
 so the census reads it from the cell's terrain rather than its edifice,
 the access audit leaves it walkable, and nothing grows onto the position
@@ -215,14 +223,13 @@ when every gate is observed: the turret planning definition is available
 (its research prerequisites finished in the research census, never an
 assumed `GunTurrets`), a power network with generation reports spare watts
 for every turret's draw, and the stock census covers the turrets and,
-once routed, their conduits. Turrets stand three cells behind the shooters'
-row in line with the trap lane (and three to either side), then on the
-shooters' row outside the firing span, at least three cells from any
-shooter or other turret (a destroyed turret explodes), never on a lane, a
-reserved cell or unknown ground, each with a native line of sight to a
-cell of the trap lane (the funnel walls hide most of the lane from the
-flanks, which is why the row behind comes first); a conduit
-chain is routed to each turret unless a transmitter already lies within
+once routed, their conduits. Turrets stand beside the firing span inside
+the kill zone's walls, the mini turret on the shooters' row first and the
+autocannon and sniper turret on the row behind it, at least three cells
+from any shooter or other turret (a destroyed turret explodes), never on
+the corridor, a reserved cell or unknown ground, each with a native line of
+sight to a corridor cell; a conduit chain, which may run under the planned
+walls, is routed to each turret unless a transmitter already lies within
 native connector reach (six cells), and a turret with no route is dropped.
 A stored layout without turrets re-probes the gates once per game hour. A
 turret tier counts as built by the same census as the others (conduits by

@@ -19,6 +19,10 @@ const (
 	pathMoveDiagonal = 18
 	pathFenceCost    = 80
 	pathWoodDoorCost = 38
+	// pathWallBashCost is the cheapest planned wall to path through by
+	// destroying it: Cost_BlockedWallBase 70 plus 0.2 per hit point of a
+	// wooden wall (195), the weakest stuff the layout may build.
+	pathWallBashCost = 70 + 195/5
 )
 
 // corridorCosts is the layout's effect on colonist pathing: walls close a
@@ -137,6 +141,12 @@ func (s defenseSite) colonistRoute(k corridorCosts, start domain.Cell) (map[doma
 			goals = append(goals, c)
 		}
 	}
+	return s.cheapestRoutes(k, start, goals)
+}
+
+// cheapestRoutes is every cell on some cheapest route from start to any of
+// goals; ok is false when none is reachable.
+func (s defenseSite) cheapestRoutes(k corridorCosts, start domain.Cell, goals []domain.Cell) (map[domain.Cell]bool, bool) {
 	forward := s.distances(k, []domain.Cell{start}, false)
 	best := math.MaxInt
 	for _, g := range goals {
@@ -155,4 +165,42 @@ func (s defenseSite) colonistRoute(k corridorCosts, start domain.Cell) (map[doma
 		}
 	}
 	return route, true
+}
+
+// crossesAny reports whether a route holds any of cells.
+func crossesAny(route, cells map[domain.Cell]bool) bool {
+	for c := range cells {
+		if route[c] {
+			return true
+		}
+	}
+	return false
+}
+
+// raiderWalksCorridor reports whether every cheapest raider route from Entry
+// into the kill zone (goals) stays in the corridor when bashing through any
+// of the layout's planned walls is priced in: a tie with a bash counts as
+// one.
+func (s defenseSite) raiderWalksCorridor(k corridorCosts, l DefenseLayout, walls, goals []domain.Cell) bool {
+	raider := corridorCosts{closed: map[domain.Cell]bool{}, full: map[domain.Cell]bool{}, traps: k.traps, cost: map[domain.Cell]int{}}
+	bashable := map[domain.Cell]bool{}
+	for _, c := range walls {
+		bashable[c] = true
+	}
+	for c := range k.closed {
+		if !bashable[c] {
+			raider.closed[c] = true
+		}
+	}
+	for c := range k.full {
+		raider.full[c] = true
+	}
+	for c, v := range k.cost {
+		raider.cost[c] = v
+	}
+	for c := range bashable {
+		raider.cost[c], raider.full[c] = pathWallBashCost, true
+	}
+	route, ok := s.cheapestRoutes(raider, l.Entry, goals)
+	return ok && !crossesAny(route, bashable)
 }

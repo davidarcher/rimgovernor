@@ -56,8 +56,10 @@ type DefenseLayoutRecord struct {
 	Toward     domain.Rotation
 	Width      int
 	TrapLane   []domain.Cell
-	SafeLane   []domain.Cell
-	Firing     []domain.Cell
+	// SafeLane is the civilian lane of records written before #1544;
+	// layouts since leave it empty.
+	SafeLane []domain.Cell
+	Firing   []domain.Cell
 	// Retreat is the inner line (#860): Retreat[i] is Firing[i]'s fall-back
 	// cell. Empty on a record written before it; combat then has no line
 	// to fall back to.
@@ -107,7 +109,7 @@ func (r DefenseLayoutRecord) Validate() error {
 	if !validIdentity(string(r.World.Colony)) || !validIdentity(string(r.World.Load)) || r.World.Map < 0 || !validIdentity(string(r.Goal)) {
 		return errors.New("defense layout world or goal identity invalid")
 	}
-	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Tiers) > maxDefenseTiers || len(r.Firing) > 64 || len(r.Retreat) != 0 && len(r.Retreat) != len(r.Firing) || len(r.TrapLane) > 64 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
+	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Tiers) > maxDefenseTiers || len(r.Firing) > 64 || len(r.Retreat) != 0 && len(r.Retreat) != len(r.Firing) || len(r.TrapLane) > 512 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
 		return errors.New("defense layout geometry out of bounds")
 	}
 	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || r.MortarsProbedTick < 0 || len(r.VerifiedCombat) > 512 || len(r.PerimeterKey) > 128 || r.PerimeterRevision < 0 {
@@ -199,7 +201,7 @@ func validIdentity(s string) bool { return s != "" && len(s) <= 256 }
 
 // NewDefenseLayoutRecord captures a policy layout for one goal epoch.
 func NewDefenseLayoutRecord(w World, goal domain.GoalID, epoch uint64, l policy.DefenseLayout, entrances []domain.Cell) (DefenseLayoutRecord, error) {
-	r := DefenseLayoutRecord{World: w, Goal: goal, Epoch: epoch, Chokepoint: l.Chokepoint, Entry: l.Entry, Toward: l.Toward, Width: l.Width, TrapLane: append([]domain.Cell{}, l.TrapLane...), SafeLane: append([]domain.Cell{}, l.SafeLane...), Entrances: append([]domain.Cell{}, entrances...)}
+	r := DefenseLayoutRecord{World: w, Goal: goal, Epoch: epoch, Chokepoint: l.Chokepoint, Entry: l.Entry, Toward: l.Toward, Width: l.Width, TrapLane: append([]domain.Cell{}, l.TrapLane...), Entrances: append([]domain.Cell{}, entrances...)}
 	for _, f := range l.Firing {
 		r.Firing = append(r.Firing, f.Cell)
 		r.Retreat = append(r.Retreat, f.Retreat)

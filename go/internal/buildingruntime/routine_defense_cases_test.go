@@ -319,10 +319,21 @@ func TestDefenseReplayTurretsJoinTheLayout(t *testing.T) {
 
 // defense/layout-stocked: a stocked colony's higher raid-point band raises
 // the turret budget; the same site then proposes more turret positions on
-// an unchanged firing line.
+// an unchanged firing line. The recording's lines of fire were probed for
+// the pre-#1544 slots, so every slot proposed now is given a known line.
 func TestDefenseReplayStockedColonyProposesMoreTurrets(t *testing.T) {
 	t.Parallel()
 	l := loadLayout(t, "testdata/defense/layout-turrets.json.gz", snapshot.LayoutTurrets)
+	wide := l.Request
+	wide.Turret.Max = policy.TurretBudget(domain.Known(1e6))
+	_, slots, err := policy.DefenseTurrets(wide, l.Geometry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Request.Lines = append([]policy.DefenseLine{}, l.Request.Lines...)
+	for _, c := range slots {
+		l.Request.Lines = append(l.Request.Lines, policy.DefenseLine{From: c.Cell, To: l.Geometry.Approach[0], LineOfSight: domain.Known(true)})
+	}
 	count := func(r policy.DefenseRequest) int {
 		tier, _, err := policy.DefenseTurrets(r, l.Geometry)
 		if err != nil {

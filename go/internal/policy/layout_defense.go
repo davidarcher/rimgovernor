@@ -43,7 +43,7 @@ type PerimeterSection struct {
 
 // LayoutKillbox reads the plan's killbox opening: the anchor, the census
 // region around it (inside bounds) and the home
-// cell deep in the killbox. ok is false while the plan has no opening.
+// cell behind the killbox's back wall. ok is false while the plan has no opening.
 func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rectangle, home domain.Cell, ok bool) {
 	var killbox Rectangle
 	var approaches []Rectangle
@@ -53,12 +53,6 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 			killbox = r.Area
 		case ReserveKillboxApproach:
 			approaches = append(approaches, r.Area)
-		case ReserveTurret:
-			for x := r.Area.X; x < r.Area.X+r.Area.Width; x++ {
-				for z := r.Area.Z; z < r.Area.Z+r.Area.Height; z++ {
-					k.Turrets = append(k.Turrets, domain.Cell{X: x, Z: z})
-				}
-			}
 		case ReservePerimeter:
 			k.Walled = append(k.Walled, rectCells(r.Area)...)
 		}
@@ -92,14 +86,18 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 			}
 			entry := addCell(end, d)
 			if contains(killbox, addCell(entry, scale(d, perimeterThick))) {
-				k.Entry, k.Toward, k.Width, found = entry, rotationOf(d), 3, true
+				k.Entry, k.Toward, k.Width, k.Depth, found = entry, rotationOf(d), 3, killbox.Height, true
+				if d.X != 0 {
+					k.Depth = killbox.Width
+				}
 			}
 		}
 	}
 	if !found {
 		return DefenseKillbox{}, Rectangle{}, domain.Cell{}, false
 	}
-	home = domain.Cell{X: killbox.X + killbox.Width/2, Z: killbox.Z + killbox.Height/2}
+	// Home is the yard cell behind the killbox's back-wall doorway.
+	home = addCell(k.Entry, scale(directionOf(k.Toward), perimeterThick+k.Depth))
 	cover := killbox
 	for _, a := range append(approaches, rectOf(k.Entry, k.Entry)) {
 		cover = unionRect(cover, a)

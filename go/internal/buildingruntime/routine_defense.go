@@ -167,10 +167,10 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	var held domain.Fact[policy.CombatLayout]
 	if ok && layout.Complete {
 		combatLayout := policy.CombatLayout{Firing: layout.Firing, Retreat: layout.Retreat, Toward: layout.Toward}
-		if n := len(layout.SafeLane); n > 0 {
-			// The civilian lane runs entry to exit; its last cell is the
-			// corridor's mouth on our side, where blockers hold (#864).
-			combatLayout.Choke = domain.Known(layout.SafeLane[n-1])
+		if n := len(layout.TrapLane); n > 0 {
+			// The snake runs entry to exit; its last cell is the mouth
+			// into the kill zone, where blockers hold (#864, #1544).
+			combatLayout.Choke = domain.Known(layout.TrapLane[n-1])
 		}
 		held = domain.Known(combatLayout)
 	}

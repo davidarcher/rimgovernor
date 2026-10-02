@@ -91,13 +91,14 @@ type DefenseRequest struct {
 // DefenseKillbox is the layout plan's killbox opening (#789): Entry is the
 // centre cell of the opening's outer face, Toward points inward through it,
 // Width is the opening's width. Walled cells are the perimeter tier's wall;
-// the funnel leaves them to it. Turrets are the plan's turret slots.
+// the funnel leaves them to it. Depth is the killbox's rows inward of the
+// ring, the space the corridor and kill zone stand in.
 type DefenseKillbox struct {
-	Entry   domain.Cell
-	Toward  domain.Rotation
-	Width   int32
-	Walled  []domain.Cell
-	Turrets []domain.Cell
+	Depth  int32
+	Entry  domain.Cell
+	Toward domain.Rotation
+	Width  int32
+	Walled []domain.Cell
 }
 
 type DefenseTierName string
@@ -130,28 +131,150 @@ type DefenseLayout struct {
 	Toward domain.Rotation
 	// Width is the passable width across the chokepoint before construction.
 	Width int
-	// Entry is the approach cell raiders reach first; TrapLane and SafeLane
-	// are the two corridor lanes in entry-to-exit order. SafeLane is the
-	// civilian corridor and stays trap free and passable end to end.
-	Entry              domain.Cell
-	TrapLane, SafeLane []domain.Cell
-	Firing             []FiringPosition
+	// Entry is the approach cell raiders reach first. TrapLane is the
+	// raiders' snake in entry-to-exit order, its last cell the exit into
+	// the kill zone.
+	Entry    domain.Cell
+	TrapLane []domain.Cell
+	Firing   []FiringPosition
 	// Turrets lists every turret position considered; the turret tier holds
 	// the verified ones the power and stock gates allow.
 	Turrets []TurretPosition
 	Tiers   []DefenseTier
 	// LinesVerified is false until every firing cell carries a known native
-	// line of sight to Entry; Probe lists the pairs to read.
+	// line of sight to the kill zone; Probe lists the pairs to read.
 	LinesVerified bool
 	// Approaches describes local routes and cover demand, not admitted orders.
 	Approaches DefenseApproaches
 }
 
 const (
-	defenseCorridorLength = 6
-	defenseMaxWidth       = 12
-	defenseMaxDefenders   = 8
+	defenseMaxWidth     = 12
+	defenseMaxDefenders = 8
 )
+
+// The killbox (#1544, after the RimWorld wiki's defense structures), in
+// rows inward from the ring's inner face and columns across the opening
+// (column 0 is the 1-tile entrance). The corridor is a snake of zigzag
+// legs: each leg a hallway killboxLegWidth wide across the kill zone's
+// width, wall teeth jutting in from alternating sides every
+// killboxToothPitch columns; legs join by U-turns at alternating ends and
+// are parted by killboxWallThick rows of wall, as is the last leg from the
+// kill zone, its exit gap at the last leg's end. Below the snake: the kill
+// row, the fence bar, sandbags, shooters, retreat cells and the 2-thick
+// back wall with the defenders' doorway at column 0. No door stands on the
+// raiders' route.
+const (
+	killboxLegWidth   int32 = 3
+	killboxWallThick  int32 = 3
+	killboxToothPitch int32 = 3
+	// killboxLegPitch is the rows one leg and the wall after it take.
+	killboxLegPitch = killboxLegWidth + killboxWallThick
+	// killboxZoneRows is the kill zone below the snake: kill row, fence
+	// bar, sandbags, shooters, retreat cells and the 2-thick back wall.
+	killboxZoneRows int32 = 7
+	// killboxMinHalf is the narrowest kill zone: a leg long enough for
+	// two teeth.
+	killboxMinHalf int32 = 4
+	// killboxMaxLegs bounds the legs, and the layout plan reserves depth
+	// for them: across the widest kill zone a third leg's U-turn and walk
+	// back cost raiders more than bashing the wall before it.
+	killboxMaxLegs int32 = 2
+	// killboxRows is the killbox's depth the layout plan reserves.
+	killboxRows = killboxMaxLegs*killboxLegPitch + killboxZoneRows
+)
+
+// hallway is a corridor shape in killbox coordinates (X the column, Z the
+// row): lane is every corridor cell, the ring entrance first and the exit
+// last; walls are what it builds; pockets are the trap sites, the corners
+// beside each tooth and at each U-turn; rows is its depth.
+type hallway struct {
+	lane, walls, pockets []domain.Cell
+	rows                 int32
+}
+
+// snakeCorridor is the snake of zigzag legs between columns -half and half.
+// Leg 0 holds the entrance and runs toward +half; each U-turn opens
+// killboxLegWidth columns of the wall below a leg's end. Within a leg a
+// tooth stands every killboxToothPitch columns, two cells long from the top
+// or bottom row in turn, so the hallway pinches to one cell at alternating
+// sides. The pockets are the tooth-side cells beside each tooth and the
+// outer corners of each U-turn.
+func snakeCorridor(half, legs int32) hallway {
+	var h hallway
+	for k := -perimeterThick; k < 0; k++ {
+		h.lane = append(h.lane, domain.Cell{X: 0, Z: k})
+	}
+	low, high := -half, half
+	h.rows = legs * killboxLegPitch
+	for k := int32(0); k < h.rows; k++ {
+		h.walls = append(h.walls, domain.Cell{X: low - 1, Z: k}, domain.Cell{X: high + 1, Z: k})
+	}
+	pocket := func(c domain.Cell) { h.pockets = append(h.pockets, c) }
+	for leg := int32(0); leg < legs; leg++ {
+		top := leg * killboxLegPitch
+		bottom := top + killboxLegWidth - 1
+		// The leg runs from start toward end in steps of dir.
+		start, end, dir := low, high, int32(1)
+		if leg%2 == 1 {
+			start, end, dir = high, low, -1
+		}
+		tooth := map[domain.Cell]bool{}
+		fromTop := leg%2 == 0
+		// Leg 0's teeth stand past the entrance: the cells behind it are
+		// a dead end.
+		first := start + dir*2
+		if leg == 0 {
+			first = 2
+		}
+		for a := first; dir*(end-a) >= 2; a += dir * killboxToothPitch {
+			rows := []int32{top, top + 1}
+			side := top
+			if !fromTop {
+				rows, side = []int32{bottom - 1, bottom}, bottom
+			}
+			for _, k := range rows {
+				tooth[domain.Cell{X: a, Z: k}] = true
+				h.walls = append(h.walls, domain.Cell{X: a, Z: k})
+			}
+			pocket(domain.Cell{X: a - dir, Z: side})
+			pocket(domain.Cell{X: a + dir, Z: side})
+			fromTop = !fromTop
+		}
+		for i := int32(0); i <= high-low; i++ {
+			for k := top; k <= bottom; k++ {
+				if c := (domain.Cell{X: start + dir*i, Z: k}); !tooth[c] {
+					h.lane = append(h.lane, c)
+				}
+			}
+		}
+		// The wall below the leg, open under its last killboxLegWidth
+		// columns: the U-turn into the next leg, or the exit.
+		var exit domain.Cell
+		for k := bottom + 1; k <= bottom+killboxWallThick; k++ {
+			for i := int32(0); i <= high-low; i++ {
+				c := domain.Cell{X: start + dir*i, Z: k}
+				switch {
+				case i < high-low+1-killboxLegWidth:
+					h.walls = append(h.walls, c)
+				case leg == legs-1 && k == bottom+killboxWallThick && i == high-low-1:
+					exit = c
+				default:
+					h.lane = append(h.lane, c)
+				}
+			}
+		}
+		// The U-turn's outer corners: where the leg meets the far wall,
+		// and where the next leg leaves it.
+		pocket(domain.Cell{X: end, Z: top})
+		if leg == legs-1 {
+			h.lane = append(h.lane, exit)
+		} else {
+			pocket(domain.Cell{X: end, Z: bottom + killboxLegPitch})
+		}
+	}
+	return h
+}
 
 var directions = [4]domain.Cell{{X: 0, Z: 1}, {X: 1, Z: 0}, {X: 0, Z: -1}, {X: -1, Z: 0}}
 
@@ -274,7 +397,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	// corridor runs inward from the opening's outer face, across the
 	// opening's width, and the wall ring beside it is the perimeter tier's.
 	kb := r.Killbox
-	if kb.Width < 2 || kb.Width > defenseMaxWidth || !s.inRegion(kb.Entry) {
+	if kb.Width < 1 || kb.Width > defenseMaxWidth || !s.inRegion(kb.Entry) {
 		return DefenseLayout{}, errors.New("no killbox opening to anchor the corridor on")
 	}
 	walled := map[domain.Cell]bool{}
@@ -283,79 +406,50 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	}
 	d := directionOf(kb.Toward)
 	p := perpendicular(d)
-	width, low := int(kb.Width), addCell(kb.Entry, scale(p, -kb.Width/2))
 	entry := kb.Entry
-	// Lanes: the opening's centre is the trap lane; the safe lane is the
-	// passable neighbour across p, preferring the side nearer the home area.
-	side := p
-	if !s.passable(addCell(entry, p)) || s.passable(addCell(entry, scale(p, -1))) && positive(s.cells[addCell(entry, scale(p, -1))].HomeArea) {
-		side = scale(p, -1)
+	// at is a killbox cell: row k inward from the ring's inner face (the
+	// ring rows are -perimeterThick..-1), column a across the opening.
+	at := func(k, a int32) domain.Cell {
+		return addCell(entry, addCell(scale(d, perimeterThick+k), scale(p, a)))
 	}
-	layout := DefenseLayout{Chokepoint: entry, Toward: rotationOf(d), Width: width, Entry: entry}
-	for k := 0; k < defenseCorridorLength; k++ {
-		trap := addCell(entry, scale(d, int32(k)))
-		safe := addCell(trap, side)
-		if !s.passable(trap) || !s.passable(safe) {
-			return DefenseLayout{}, errors.New("corridor lane is not passable end to end")
+	layout := DefenseLayout{Chokepoint: entry, Toward: rotationOf(d), Width: int(kb.Width), Entry: entry}
+	// The kill zone is sized from the defenders and turrets: the firing
+	// span centred on column 0 with a turret slot every turretSpacing
+	// beyond it, within the plan's killbox. The snake's legs span it, and
+	// as many legs as the killbox's depth holds.
+	half := int32(r.Defenders / 2)
+	if q := r.Turret; q.Definition != "" && q.Max > 0 {
+		size := max(q.Size.Width, q.Size.Height, 1)
+		half += (turretSpacing + size - 1) * int32((q.Max+1)/2)
+	}
+	half = min(max(half, killboxMinHalf), killboxHalf-1)
+	low, high := -half, half
+	legs := min((kb.Depth-killboxZoneRows)/killboxLegPitch, killboxMaxLegs)
+	if legs < 1 {
+		return DefenseLayout{}, errors.New("killbox too shallow for the corridor")
+	}
+	hall := snakeCorridor(half, legs)
+	for _, c := range hall.lane {
+		layout.TrapLane = append(layout.TrapLane, at(c.Z, c.X))
+	}
+	for _, c := range layout.TrapLane {
+		if !s.passable(c) {
+			return DefenseLayout{}, errors.New("corridor is not passable end to end")
 		}
-		layout.TrapLane = append(layout.TrapLane, trap)
-		layout.SafeLane = append(layout.SafeLane, safe)
 	}
+	exit := layout.KillZone()
 	lane := map[domain.Cell]bool{}
-	for i := range layout.TrapLane {
-		lane[layout.TrapLane[i]], lane[layout.SafeLane[i]] = true, true
+	for _, c := range layout.TrapLane {
+		lane[c] = true
 	}
-	// Funnel: wall every free cell across the chokepoint width outside the
-	// two lanes, at the entry row and along both corridor flanks.
-	var funnel []domain.Building
-	var funnelReserved []domain.Cell
-	wall := func(c domain.Cell) error {
-		if lane[c] || walled[c] || s.blocking(c) {
-			return nil
-		}
-		if !s.free(c) {
-			return errors.New("funnel cell is not buildable")
-		}
-		b, err := domain.NewBuilding(r.Definitions.Wall, c, domain.North, r.Definitions.WallStuff)
-		if err != nil {
-			return err
-		}
-		funnel = append(funnel, b)
-		funnelReserved = append(funnelReserved, c)
-		return nil
-	}
-	for at, n := low, 0; n < width; at, n = addCell(at, p), n+1 {
-		if err := wall(at); err != nil {
-			return DefenseLayout{}, err
-		}
-	}
-	for k := 1; k < defenseCorridorLength; k++ {
-		for _, flank := range []domain.Cell{addCell(layout.TrapLane[k], scale(side, -1)), addCell(layout.SafeLane[k], side)} {
-			if err := wall(flank); err != nil {
-				return DefenseLayout{}, err
-			}
-		}
-	}
-	// Trap corridor (#619). Vanilla colonists path over their own traps at
-	// no cost (TrapSpike has no pathCost and the player's pawns get no
-	// avoid grid), so the corridor is priced for the game's own pathfinder
-	// rather than for a pawn that avoids its traps: traps on trap-lane
-	// rows 1 and 3 (PlaceWorker_NeverAdjacentTrap refuses a trap beside
-	// another, including diagonally) with fences on rows 2 and 4, so the
-	// trap lane costs everyone 160; wooden doors on safe-lane rows 1 and
-	// 3, which a colonist opens for 38 each while a raider cannot open a
-	// player door (150 in PassDoors mode, 300 to bash, otherwise
-	// impassable). A door is a full-fill edifice, so the pathfinder also
-	// refuses the diagonal steps around it that would let a pawn hop
-	// between the trap cells and the free safe-lane rows. The entry pair
-	// and the last row stay open. colonistRouteAvoidsTraps proves the
-	// result against the same prices below.
-	var corridor []domain.Building
+
+	var funnel, corridor, line []domain.Building
+	var funnelReserved, firingReserved []domain.Cell
 	costs := newCorridorCosts()
-	for _, c := range funnelReserved {
+	for c := range walled {
 		costs.closed[c] = true
 	}
-	place := func(definition, stuff string, c domain.Cell, what string) error {
+	build := func(into *[]domain.Building, definition, stuff string, c domain.Cell, what string) error {
 		if !s.free(c) {
 			return errors.New(what + " cell is not buildable")
 		}
@@ -363,56 +457,113 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		if err != nil {
 			return err
 		}
-		corridor = append(corridor, b)
+		*into = append(*into, b)
 		return nil
 	}
-	for k := 1; k < defenseCorridorLength-1; k++ {
-		t, f := layout.TrapLane[k], layout.SafeLane[k]
-		if k%2 == 1 {
-			if err := place(r.Definitions.Trap, r.Definitions.TrapStuff, t, "trap"); err != nil {
-				return DefenseLayout{}, err
+	var cellsToWall []domain.Cell
+	// The ring opening narrows to the 1-tile entrance.
+	openLow := -kb.Width / 2
+	for a := openLow; a < openLow+kb.Width; a++ {
+		for k := int32(-perimeterThick); k < 0 && a != 0; k++ {
+			cellsToWall = append(cellsToWall, at(k, a))
+		}
+	}
+	for _, c := range hall.walls {
+		cellsToWall = append(cellsToWall, at(c.Z, c.X))
+	}
+	// The kill zone's sides and its 2-thick back wall.
+	killRow, fenceRow := hall.rows, hall.rows+1
+	backWall := fenceRow + 4
+	for k := killRow; k < backWall; k++ {
+		cellsToWall = append(cellsToWall, at(k, low-1), at(k, high+1))
+	}
+	for k := backWall; k < backWall+2; k++ {
+		for a := low - 1; a <= high+1; a++ {
+			if a != 0 {
+				cellsToWall = append(cellsToWall, at(k, a))
 			}
-			costs.traps[t] = true
-			if err := place(r.Definitions.Door, r.Definitions.DoorStuff, f, "door"); err != nil {
-				return DefenseLayout{}, err
-			}
-			costs.cost[f], costs.full[f] = pathWoodDoorCost, true
+		}
+	}
+	for _, c := range cellsToWall {
+		if lane[c] || costs.closed[c] || s.blocking(c) {
 			continue
 		}
-		if err := place(r.Definitions.Fence, r.Definitions.FenceStuff, t, "fence"); err != nil {
+		if err := build(&funnel, r.Definitions.Wall, r.Definitions.WallStuff, c, "wall"); err != nil {
 			return DefenseLayout{}, err
 		}
-		costs.cost[t] = pathFenceCost
+		funnelReserved = append(funnelReserved, c)
+		costs.closed[c] = true
 	}
-	// Firing line: sandbags two rows past the corridor exit, floored shooter
-	// cells behind them, a free retreat cell behind each shooter, all within
-	// MinRange of the entry. Cells are centred on the corridor and spread
-	// outward.
-	exit := addCell(layout.TrapLane[defenseCorridorLength-1], d)
-	coverRow := addCell(exit, scale(d, 2))
+	// The defenders' doorway through the back wall.
+	for k := backWall; k < backWall+2; k++ {
+		c := at(k, 0)
+		if err := build(&funnel, r.Definitions.Door, r.Definitions.DoorStuff, c, "door"); err != nil {
+			return DefenseLayout{}, err
+		}
+		funnelReserved = append(funnelReserved, c)
+		costs.cost[c], costs.full[c] = pathWoodDoorCost, true
+	}
+	// Spike traps in the pockets off every cheapest colonist line through
+	// the corridor, so colonists rearm them from it and walk through
+	// without stepping on one (#619: vanilla colonists path over their own
+	// traps at no cost), never beside another (PlaceWorker_NeverAdjacentTrap).
+	cheapest, _ := s.cheapestRoutes(costs, exit, []domain.Cell{entry})
+	for _, c := range hall.pockets {
+		t := at(c.Z, c.X)
+		if cheapest[t] || costs.traps[t] {
+			continue
+		}
+		beside := false
+		for _, d := range pathSteps {
+			beside = beside || costs.traps[addCell(t, d)]
+		}
+		if beside {
+			continue
+		}
+		if err := build(&corridor, r.Definitions.Trap, r.Definitions.TrapStuff, t, "trap"); err != nil {
+			return DefenseLayout{}, err
+		}
+		costs.traps[t] = true
+	}
+	// The fence T: a continuous bar across the kill zone and a stem toward
+	// the exit, so raiders climb fences under fire. Raider-side shaping is
+	// walls and fences only: in 1.6 a pawn stands on a sandbag or barricade
+	// cell and still takes its cover, so one there would hand raiders a
+	// firing position. Sandbags stand only on the defenders' line.
+	fences := []domain.Cell{at(killRow, hall.lane[len(hall.lane)-1].X)}
+	for a := low; a <= high; a++ {
+		fences = append(fences, at(fenceRow, a))
+	}
+	for _, c := range fences {
+		if err := build(&corridor, r.Definitions.Fence, r.Definitions.FenceStuff, c, "fence"); err != nil {
+			return DefenseLayout{}, err
+		}
+		costs.cost[c] = pathFenceCost
+	}
+	// Firing line: sandbags behind the fence bar, floored shooter cells
+	// behind them and a free retreat cell before the back wall, centred on
+	// column 0, each within MinRange of the exit.
 	lines := map[[2]domain.Cell]domain.Fact[bool]{}
 	for _, l := range r.Lines {
 		lines[[2]domain.Cell{l.From, l.To}] = l.LineOfSight
 	}
-	var line []domain.Building
-	var firingReserved []domain.Cell
 	minRange, rangeKnown := r.MinRange.Value()
 	if rangeKnown && r.Defenders > 0 {
-		offsets := []int32{0, 1, -1, 2, -2, 3, -3, 4, -4}
-		for _, o := range offsets {
+		for _, o := range []int32{0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6} {
 			if len(layout.Firing) >= r.Defenders {
 				break
 			}
-			cover := addCell(coverRow, scale(p, o))
-			shooter := addCell(cover, d)
-			retreat := addCell(shooter, d)
-			if !s.free(cover) || !s.free(shooter) || !s.free(retreat) || lane[cover] || lane[shooter] {
+			if o < low || o > high {
 				continue
 			}
-			if math.Sqrt(float64(squaredDistance(shooter, entry))) > minRange {
+			cover, shooter, retreat := at(fenceRow+1, o), at(fenceRow+2, o), at(fenceRow+3, o)
+			if !s.free(cover) || !s.free(shooter) || !s.free(retreat) {
 				continue
 			}
-			los, known := lines[[2]domain.Cell{shooter, entry}].Value()
+			if math.Sqrt(float64(squaredDistance(shooter, exit))) > minRange {
+				continue
+			}
+			los, known := lines[[2]domain.Cell{shooter, exit}].Value()
 			if known && !los {
 				continue
 			}
@@ -442,16 +593,34 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	for _, f := range layout.Firing {
 		layout.LinesVerified = layout.LinesVerified && f.Verified
 	}
-	// Every colony entrance, and Home, keeps a route to the map edge once
-	// the layout stands, and no cheapest colonist route crosses a trap.
+	// Every colony entrance and Home keep a route to the map edge once the
+	// layout stands, and no cheapest colonist route crosses a trap, nor
+	// does one through the hallway from the kill zone to the entrance.
 	for _, start := range append([]domain.Cell{s.r.Home}, s.r.Entrances...) {
 		if s.passable(start) && !s.colonistRouteAvoidsTraps(costs, start) {
 			return DefenseLayout{}, errors.New("layout would cut an entrance off from the map edge or route colonists over a trap")
 		}
 	}
-	// Chokepoint tier reuses existing geometry: it places nothing, reserving
-	// the lanes so routine construction never fills the corridor.
-	reservedLanes := append(append([]domain.Cell{}, layout.TrapLane...), layout.SafeLane...)
+	if route, ok := s.cheapestRoutes(costs, exit, []domain.Cell{entry}); !ok || crossesAny(route, costs.traps) {
+		return DefenseLayout{}, errors.New("colonists would cross a trap walking the hallway")
+	}
+	// Raiders walk every leg into the kill zone rather than bash through
+	// a wall.
+	var killCells []domain.Cell
+	for a := low; a <= high; a++ {
+		killCells = append(killCells, at(killRow, a))
+	}
+	if !s.raiderWalksCorridor(costs, layout, funnelReserved, killCells) {
+		return DefenseLayout{}, errors.New("raiders would bash through the corridor")
+	}
+	// The chokepoint tier places nothing: it reserves the corridor and the
+	// kill row so routine construction never fills them.
+	reservedLanes := append([]domain.Cell{}, layout.TrapLane...)
+	for _, c := range killCells {
+		if costs.cost[c] == 0 {
+			reservedLanes = append(reservedLanes, c)
+		}
+	}
 	layout.Tiers = []DefenseTier{
 		{Name: TierChokepoint, Reserved: reservedLanes, Costs: domain.Known([]Amount{})},
 		{Name: TierFiringLine, Buildings: line, Reserved: firingReserved, Costs: tierCosts(r.UnitCosts, line)},
@@ -508,5 +677,14 @@ func (l DefenseLayout) Probe() (firing, approach []domain.Cell) {
 	for _, t := range l.Turrets {
 		firing = append(firing, t.Cell)
 	}
-	return firing, []domain.Cell{l.Entry}
+	return firing, []domain.Cell{l.KillZone()}
+}
+
+// KillZone is the cell raiders reach leaving the snake, the one the firing
+// line and turrets must see; Entry for a layout without a trap lane.
+func (l DefenseLayout) KillZone() domain.Cell {
+	if n := len(l.TrapLane); n > 0 {
+		return l.TrapLane[n-1]
+	}
+	return l.Entry
 }

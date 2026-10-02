@@ -48,19 +48,8 @@ func checkPerimeter(t *testing.T, p LayoutPlan) (killbox Rectangle) {
 		}
 	}
 	kb := reserved(p, ReserveKillbox)
-	turrets := reserved(p, ReserveTurret)
-	if len(kb) != 1 || len(turrets) != 3 || len(reserved(p, ReserveKillboxApproach)) != 2 {
-		t.Fatal("killbox", kb, turrets)
-	}
-	for i, a := range turrets {
-		if !contains(kb[0], domain.Cell{X: a.X, Z: a.Z}) {
-			t.Fatal("turret outside killbox", a)
-		}
-		for _, b := range turrets[i+1:] {
-			if max(a.X-b.X, b.X-a.X, a.Z-b.Z, b.Z-a.Z) < 3 {
-				t.Fatal("turrets too close", a, b)
-			}
-		}
+	if len(kb) != 1 || len(reserved(p, ReserveKillboxApproach)) != 2 {
+		t.Fatal("killbox", kb)
 	}
 	if len(reserved(p, ReserveCoverClear)) == 0 {
 		t.Fatal("no cover band")
@@ -701,7 +690,7 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 		t.Fatal("no plan")
 	}
 	k := reserved(p, ReserveKillbox)
-	if len(k) != 1 || max(k[0].Width, k[0].Height) != 2*killboxHalf+1 {
+	if len(k) != 1 || min(k[0].Width, k[0].Height) != 2*killboxHalf+1 || max(k[0].Width, k[0].Height) != killboxRows {
 		t.Fatal("killbox", k)
 	}
 	for _, r := range p.Reservations {

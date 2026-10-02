@@ -27,18 +27,14 @@ func TestTurretRungsFollowTheArmoryTier(t *testing.T) {
 }
 
 // autocannonFixture asks the turret fixture for the 2x2 autocannon, with a
-// known line to the entry from every cell off the blocked row behind the
-// shooters.
+// known line to the kill zone from every cell behind the fence bar.
 func autocannonFixture() DefenseRequest {
 	r := turretFixture()
 	r.UnitCosts[TurretAutocannon] = []Amount{{Resource: "Steel", Count: 100}, {Resource: "ComponentIndustrial", Count: 4}}
 	r.Turret.Definition, r.Turret.Size = TurretAutocannon, Bounds{Width: 2, Height: 2}
-	entry := domain.Cell{X: 9, Z: 14}
-	for x := int32(0); x < 20; x++ {
-		for z := int32(20); z < 30; z++ {
-			if c := (domain.Cell{X: x, Z: z}); !slices.Contains(behindRow, c) {
-				r.Lines = append(r.Lines, DefenseLine{From: c, To: entry, LineOfSight: domain.Known(true)})
-			}
+	for x := int32(0); x < 31; x++ {
+		for z := int32(22); z < 29; z++ {
+			r.Lines = append(r.Lines, DefenseLine{From: domain.Cell{X: x, Z: z}, To: fixtureExit, LineOfSight: domain.Known(true)})
 		}
 	}
 	return r
@@ -56,9 +52,11 @@ func TestDefenseTurretsSiteTheWholeFootprint(t *testing.T) {
 	if !ok || len(turrets) == 0 {
 		t.Fatal(layout.Tiers)
 	}
-	// The mini turret's west flank (5,23) is too close edge to edge once the
-	// footprint spans x 5..6; the east flank (13,23) keeps three cells.
-	if slices.Contains(turrets, domain.Cell{X: 5, Z: 23}) || !slices.Contains(turrets, domain.Cell{X: 13, Z: 23}) {
+	// The kill zone widens for the 2x2 footprint (columns -5..5): each
+	// slot is the first whose footprint keeps three cells from the
+	// shooters (x 14..16) edge to edge; the back row's footprints would
+	// reach into the back wall.
+	if !reflect.DeepEqual(turrets, cells(10, 23, 19, 23)) {
 		t.Fatal(turrets)
 	}
 	s, _ := newDefenseSite(r)
@@ -99,7 +97,10 @@ func TestDefenseTurretsSiteTheWholeFootprint(t *testing.T) {
 
 func TestTurretReplacementRebuildsOneInPlace(t *testing.T) {
 	t.Parallel()
-	layout, err := DefenseLayouts(turretFixture())
+	// Four mini turrets widen the kill zone to columns -6..6.
+	minis := turretFixture()
+	minis.Turret.Max = 4
+	layout, err := DefenseLayouts(minis)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +111,7 @@ func TestTurretReplacementRebuildsOneInPlace(t *testing.T) {
 		b, _ := domain.NewBuilding(TurretMini, c, domain.North, "")
 		return StandingTurret{Building: b, Cells: []domain.Cell{c}}
 	}
-	west, east := domain.Cell{X: 5, Z: 23}, domain.Cell{X: 13, Z: 23}
+	west, east := domain.Cell{X: 11, Z: 23}, domain.Cell{X: 19, Z: 23}
 	standing := []StandingTurret{mini(west), mini(east)}
 	old, next, ok, err := TurretReplacement(r, g, standing)
 	// The west footprint would crowd the firing line; the east one fits.

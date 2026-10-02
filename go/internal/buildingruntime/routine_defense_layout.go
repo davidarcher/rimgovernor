@@ -960,6 +960,9 @@ func defenseRecordGeometry(record store.DefenseLayoutRecord) policy.DefenseGeome
 		g.Reserved = append(g.Reserved, tier.Reserved...)
 		for _, b := range tier.Buildings {
 			g.Reserved = append(g.Reserved, b.Cell)
+			if tier.Name == policy.TierFunnel {
+				g.Walls = append(g.Walls, b.Cell)
+			}
 		}
 	}
 	return g

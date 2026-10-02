@@ -274,9 +274,9 @@ func storeLayout(ctx context.Context, h *na.Harness, identity map[string]any, l 
 		Complete: true, Anchored: true,
 	}
 	if l.Choke != nil {
-		// Combat's choke is the civilian lane's last cell (#864).
-		record.SafeLane = []domain.Cell{{X: int32(l.Choke.X), Z: int32(l.Choke.Z)}}
-		record.Chokepoint = record.SafeLane[0]
+		// Combat's choke is the trap lane's last cell (#864, #1544).
+		record.TrapLane = []domain.Cell{{X: int32(l.Choke.X), Z: int32(l.Choke.Z)}}
+		record.Chokepoint = record.TrapLane[0]
 	}
 	if err = record.Validate(); err != nil {
 		return record, err

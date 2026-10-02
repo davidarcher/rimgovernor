@@ -27,11 +27,8 @@ func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
 			t.Fatal("opening is walled")
 		}
 	}
-	if len(k.Turrets) != 3 {
-		t.Fatal(k.Turrets)
-	}
-	// An open census over the region: the corridor stands in the opening
-	// and the turrets take the plan's slots.
+	// An open census over the region: the corridor, kill zone and turret
+	// slots stand in the opening's killbox, Home behind its back wall.
 	r := defenseFixture()
 	r.Region, r.Bounds, r.Home, r.Entrances, r.Killbox = region, bounds, home, nil, k
 	r.Cells = nil
@@ -44,7 +41,7 @@ func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if layout.Entry != k.Entry || len(layout.TrapLane) != defenseCorridorLength {
+	if layout.Entry != k.Entry || !contains(kb, layout.KillZone()) || contains(kb, home) {
 		t.Fatalf("%+v", layout)
 	}
 	funnel, _ := layout.Tier(TierFunnel)
@@ -59,16 +56,17 @@ func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
 		}
 	}
 	_, candidates, err := DefenseTurrets(r, layout.Geometry())
-	if err != nil || len(candidates) != 3 {
+	if err != nil || len(candidates) == 0 {
 		t.Fatal(candidates, err)
 	}
-	slot := map[domain.Cell]bool{}
-	for _, c := range k.Turrets {
-		slot[c] = true
-	}
-	for _, c := range candidates {
-		if !slot[c.Cell] {
-			t.Fatal("turret off the plan's slots", c)
+	for i, c := range candidates {
+		if !contains(kb, c.Cell) {
+			t.Fatal("turret slot outside the killbox", c)
+		}
+		for _, o := range candidates[i+1:] {
+			if chebyshev(c.Cell, o.Cell) < turretSpacing {
+				t.Fatal("turret slots too close", c, o)
+			}
 		}
 	}
 }

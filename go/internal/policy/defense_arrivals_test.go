@@ -316,7 +316,7 @@ func TestDefenseApproachesFloodFromEntryWhenHomeIsBlocked(t *testing.T) {
 	}
 }
 
-// TestBaitPlacedOnArrivalSector: a raid that arrived up the south corridor
+// TestBaitPlacedOnArrivalSector: a raid that arrived from the west edge
 // gets two stools beside its route, at least the standoff from the killbox
 // entry and never on the route; no arrival or no bait definition places
 // none (#1063).
@@ -332,7 +332,7 @@ func TestBaitPlacedOnArrivalSector(t *testing.T) {
 		t.Fatal("bait placed without an observed arrival")
 	}
 	r.Tick = 100000
-	r.Arrivals = []DefenseArrival{{ID: "raid-1", Edge: domain.Cell{X: 9, Z: 0}, Tick: r.Tick - 10}}
+	r.Arrivals = []DefenseArrival{{ID: "raid-1", Edge: domain.Cell{X: 0, Z: 1}, Tick: r.Tick - 10}}
 	layout, err = DefenseLayouts(r)
 	if err != nil {
 		t.Fatal(err)
