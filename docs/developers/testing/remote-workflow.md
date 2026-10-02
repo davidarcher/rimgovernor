@@ -46,8 +46,9 @@ revalidation, not automatic use of paid Windows minutes.
 
 Each job uses `windows-2022`, one native worker, up to 32 nonempty shards and at
 most 20 active shard jobs per run. The default smoke dispatch uses two shards.
-Independent manual and scheduled runs can overlap; no workflow concurrency
-group serializes or cancels them. GitHub enforces the account-wide runner capacity.
+Independent manual and scheduled runs can overlap; nothing cancels them.
+Push-to-main runs share one group: one runs at a time, and of the pushes that
+arrive meanwhile only the newest waits (it tests every commit since its base). GitHub enforces the account-wide runner capacity.
 Planner/aggregation jobs have ten-minute limits; shard jobs have
 360 minutes including a shared 345-minute allowance across both role suites.
 Known case budgets must fit before workers start. The production retry classifier
