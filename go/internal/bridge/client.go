@@ -54,6 +54,9 @@ type Result struct {
 	Envelope   json.RawMessage
 	Structured json.RawMessage
 	Text       []string
+	// slotted is the raw reply read from the native reply ring (#1344)
+	// when the wrapper named a slot.
+	slotted []byte
 }
 
 type Refusal struct {
@@ -181,7 +184,8 @@ type Client struct {
 	// writes counts the typed side-effect calls queued or in flight.
 	writes atomic.Int64
 
-	frames *frameStream
+	frames  *frameStream
+	replies *replySlots
 
 	recorder         *FlightRecorder
 	recordingContext func() map[string]any
@@ -211,6 +215,7 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	// The snapshot stream (#858) serves the state families of a game on
 	// this host; test clients built with open read over GABP only.
 	client.frames = newFrameStream()
+	client.replies = newReplySlots()
 	return client, nil
 }
 
@@ -256,6 +261,7 @@ func (c *Client) Close() error {
 	c.lifecycle <- struct{}{}
 	defer func() { <-c.lifecycle }()
 	c.frames.close()
+	c.replies.close()
 	return c.closeLive()
 }
 
@@ -528,6 +534,12 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	if err == nil && len(raw) > maxResponseBytes {
 		raw, err = nil, fmt.Errorf("%w: oversized native result", ErrContract)
 	}
+	// A reply in the native reply ring is read now, before a later reply
+	// can take its slot (#1344).
+	var slotted []byte
+	if err == nil {
+		raw, slotted, err = c.replies.resolveReplySlot(raw, recording || c.transcript != nil)
+	}
 	// phases is attached to the response/error row so a timeline consumer can
 	// split the call without re-deriving it from wall clocks.
 	phases := func(decode time.Duration, bytes int) map[string]any {
@@ -561,6 +573,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	}
 	decodeBegan := time.Now()
 	decoded, decodeErr := decodeReceipt(name, raw)
+	decoded.slotted = slotted
 	decodeElapsed := time.Since(decodeBegan)
 	if recording {
 		if decodeErr != nil {

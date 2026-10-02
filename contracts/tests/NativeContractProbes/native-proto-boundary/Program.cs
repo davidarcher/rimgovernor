@@ -72,9 +72,16 @@ internal static class NativeProtoBoundaryProbe {
         Check(ProtoBoundary.Encode(reply).ContainsKey("payload"),"binary form does not outlive its scope");
         BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.BinaryEncoding};
         Check(Parse("{}",out parsed,out refusal),"encoding argument accepted");
-        Check(ProtoBoundary.BinaryOf(null),"encoding argument read");
+        Check(ProtoBoundary.FormOf(null)==ProtoBoundary.ReplyForm.Gzip,"encoding argument read");
+        BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.ShmEncoding};
+        Check(ProtoBoundary.FormOf(null)==ProtoBoundary.ReplyForm.Shm,"shared-memory encoding read");
+        var small=ProtoBoundary.WithForm(ProtoBoundary.ReplyForm.Shm,()=>ProtoBoundary.Encode(reply));
+        Check(small.Count==1 && small[ProtoBoundary.ProtoField] is string,"small shm reply stays inline");
+        var large=new Common.Failure{Detail=new string('x',ReplyRing.InlineBytes)};
+        var slotted=ProtoBoundary.WithForm(ProtoBoundary.ReplyForm.Shm,()=>ProtoBoundary.Encode(large));
+        Check(slotted.ContainsKey(ProtoBoundary.SlotField)||slotted.ContainsKey(ProtoBoundary.ProtoField),"large shm reply goes to a slot, or inline without a ring");
         BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]="json"};
-        Check(!ProtoBoundary.BinaryOf(null),"other encoding stays ProtoJSON");
+        Check(ProtoBoundary.FormOf(null)==ProtoBoundary.ReplyForm.Payload,"other encoding stays ProtoJSON");
         BridgeCommon.Arguments=null;
         Common.ObservationContext context; Common.Unavailable unavailable;
         Check(!ProtoBoundary.TryReadContext(null,out context,out unavailable) && unavailable.Reason==Common.UnavailableReason.NotLoaded,"unloaded read does not create authority");

@@ -29,7 +29,7 @@ type replyWire struct {
 	wire int
 }
 
-func decodeWrapper(raw []byte, limit int) (replyWire, error) {
+func decodeWrapper(raw []byte, limit int, slotted []byte) (replyWire, error) {
 	if len(raw) == 0 || len(raw) > maxResponseBytes {
 		return replyWire{}, contract("invalid wrapper size")
 	}
@@ -51,7 +51,7 @@ func decodeWrapper(raw []byte, limit int) (replyWire, error) {
 		if _, ok = fields[key]; ok {
 			return replyWire{}, contract("duplicate wrapper key")
 		}
-		if key != "proto" && key != "operation" && key != "timing" {
+		if key != "proto" && key != "proto_raw" && key != "slot" && key != "operation" && key != "timing" {
 			return replyWire{}, contract("unknown wrapper field %s", key)
 		}
 		var value json.RawMessage
@@ -66,11 +66,45 @@ func decodeWrapper(raw []byte, limit int) (replyWire, error) {
 	if _, err = d.Token(); err != io.EOF {
 		return replyWire{}, contract("trailing wrapper data")
 	}
-	packed, ok := fields["proto"]
-	if !ok {
-		return replyWire{}, contract("wrapper carries no proto")
+	_, hasSlot := fields["slot"]
+	rawValue, hasRaw := fields["proto_raw"]
+	packed, hasPacked := fields["proto"]
+	switch {
+	case hasSlot && hasRaw, (hasSlot || hasRaw) && hasPacked:
+		return replyWire{}, contract("wrapper carries more than one reply")
+	case hasSlot:
+		if slotted == nil {
+			return replyWire{}, contract("reply slot was not read")
+		}
+		return replyWire{data: slotted, wire: len(fields["slot"])}, nil
+	case hasRaw:
+		if slotted != nil { // the bytes resolveReplySlot inlined
+			return replyWire{data: slotted, wire: len(rawValue)}, nil
+		}
+		return decodeRaw(rawValue, limit)
+	case hasPacked:
+		return decodePacked(packed, limit)
 	}
-	return decodePacked(packed, limit)
+	return replyWire{}, contract("wrapper carries no proto")
+}
+
+// decodeRaw decodes a "proto_raw" value: base64 of the raw proto.
+func decodeRaw(value json.RawMessage, limit int) (replyWire, error) {
+	var text string
+	if len(value) == 0 || value[0] != '"' || json.Unmarshal(value, &text) != nil {
+		return replyWire{}, contract("proto_raw must be string")
+	}
+	if base64.StdEncoding.DecodedLen(len(text)) > limit+3 {
+		return replyWire{}, contract("oversized payload")
+	}
+	data, err := base64.StdEncoding.DecodeString(text)
+	if err != nil {
+		return replyWire{}, contract("proto_raw is not base64")
+	}
+	if len(data) > limit {
+		return replyWire{}, contract("oversized payload")
+	}
+	return replyWire{data: data, wire: len(value)}, nil
 }
 
 // decodePacked gunzips a "proto" value, refusing more than limit
@@ -149,7 +183,8 @@ func recordedReplyType(ctx context.Context) string {
 
 // RecordedReplyJSON renders a recorded native_response row payload's reply
 // as ProtoJSON text: the binary "proto" decoded by the row's "reply_type",
-// or the ProtoJSON "payload" a call without the encoding argument received.
+// (or "proto_raw", a reply read from the reply ring, #1344), or the
+// ProtoJSON "payload" a call without the encoding argument received.
 func RecordedReplyJSON(row map[string]any) (string, bool) {
 	result, ok := row["result"].(map[string]any)
 	if !ok {
@@ -158,9 +193,16 @@ func RecordedReplyJSON(row map[string]any) (string, bool) {
 	if payload, ok := result["payload"].(string); ok {
 		return payload, true
 	}
-	packed, ok := result["proto"].(string)
 	typeName, _ := row["reply_type"].(string)
-	if !ok || typeName == "" {
+	if typeName == "" {
+		return "", false
+	}
+	field, decode := "proto", decodePacked
+	if _, ok := result["proto_raw"]; ok {
+		field, decode = "proto_raw", decodeRaw
+	}
+	packed, ok := result[field].(string)
+	if !ok {
 		return "", false
 	}
 	kind, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(typeName))
@@ -171,7 +213,7 @@ func RecordedReplyJSON(row map[string]any) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	w, err := decodePacked(quoted, maxReplyProtoBytes)
+	w, err := decode(quoted, maxReplyProtoBytes)
 	if err != nil {
 		return "", false
 	}

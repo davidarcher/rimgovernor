@@ -106,3 +106,29 @@ func TestNewReaderRefusesAForeignRing(t *testing.T) {
 		t.Fatal("foreign magic accepted")
 	}
 }
+
+func TestReplyRingReadsBySequence(t *testing.T) {
+	m := newMem(4, 64)
+	if _, err := newRingReader(m, replyMagic, replyVersion); err == nil {
+		t.Fatal("a snapshot ring opened as a reply ring")
+	}
+	binary.LittleEndian.PutUint32(m.buf[0:], replyMagic)
+	binary.LittleEndian.PutUint32(m.buf[4:], replyVersion)
+	r, err := newRingReader(m, replyMagic, replyVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.publish(5, 0, []byte("five"), false)
+	frame, ok, err := r.Read(5)
+	if err != nil || !ok || string(frame.Payload) != "five" {
+		t.Fatalf("read 5 = %q %v %v", frame.Payload, ok, err)
+	}
+	m.publish(9, 0, []byte("nine"), false) // same slot: 5 is gone
+	if _, ok, err := r.Read(5); ok || err != nil {
+		t.Fatalf("overwritten entry read ok=%v err=%v", ok, err)
+	}
+	m.publish(10, 0, []byte("ten"), true)
+	if _, ok, _ := r.Read(10); ok {
+		t.Fatal("entry mid-write was read")
+	}
+}

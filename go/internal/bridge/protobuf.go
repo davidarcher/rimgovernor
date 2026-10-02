@@ -334,7 +334,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 			Trace    string `json:"trace,omitempty"`
 			Class    string `json:"class,omitempty"`
 			Encoding string `json:"encoding"`
-		}{string(inner), telemetry.TraceFrom(ctx).Wire(), string(class), replyEncodingArgument})
+		}{string(inner), telemetry.TraceFrom(ctx).Wire(), string(class), caller.replies.encoding()})
 		result, err := caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
 		if timing := callTimingFrom(ctx); timing != nil {
 			requestRow = timing.request
@@ -346,7 +346,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		return result, err
 	}
 	decodeBegan := time.Now()
-	wire, err := decodeWrapper(result.Structured, maxReplyProtoBytes)
+	wire, err := decodeWrapper(result.Structured, maxReplyProtoBytes, result.slotted)
 	if err != nil {
 		if callErr != nil {
 			return result, callErr

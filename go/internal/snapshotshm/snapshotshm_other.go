@@ -2,5 +2,5 @@
 
 package snapshotshm
 
-// Open has no shared-memory reader on this platform.
-func Open(string) (*Reader, error) { return nil, ErrUnavailable }
+// openMapping has no shared memory on this platform.
+func openMapping(string, bool) (mapping, error) { return nil, ErrUnavailable }

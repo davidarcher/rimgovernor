@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
             MessageParser<T> parser, [NotNullWhen(true)] out T? value, [NotNullWhen(false)] out Common.Failure? failure) where T : class, IMessage<T>
         {
             value = null;
-            callerBinary.Value = BinaryOf(ctx);
+            callerForm.Value = FormOf(ctx);
             string? unavailable;
             var arguments = BridgeCommon.RawArguments(ctx, out unavailable);
             if (arguments == null)
@@ -116,39 +116,52 @@ namespace HomeBridge.BridgeTools
         //
         // Every reply of a call follows its argument, including refusals
         // encoded before or without a main-thread hop: TryParse records the
-        // form in the call's async flow (callerBinary), and a hop pins it on
+        // form in the call's async flow (callerForm), and a hop pins it on
         // the thread that runs it (RunHop reads the argument, a detached
         // encode inherits it), since the main thread and encoder workers do
         // not share the caller's flow.
+        //
+        // encoding=proto-shm (#1344) is proto-gzip for a controller on this
+        // host: a reply of ReplyRing.InlineBytes or more goes raw into a
+        // ReplyRing slot and field "slot" names it.
         internal const string EncodingArgument = "encoding";
         internal const string BinaryEncoding = "proto-gzip";
+        internal const string ShmEncoding = "proto-shm";
         internal const string PayloadField = "payload";
         internal const string ProtoField = "proto";
-        [ThreadStatic] private static bool? binary;
-        private static readonly AsyncLocal<bool> callerBinary = new AsyncLocal<bool>();
+        internal const string SlotField = "slot";
+        internal enum ReplyForm { Payload, Gzip, Shm }
+        [ThreadStatic] private static ReplyForm? form;
+        private static readonly AsyncLocal<ReplyForm> callerForm = new AsyncLocal<ReplyForm>();
 
         /// <summary>Runs encode with the binary reply form on or off for this thread.</summary>
-        internal static T WithBinary<T>(bool on, Func<T> encode)
+        internal static T WithBinary<T>(bool on, Func<T> encode) => WithForm(on ? ReplyForm.Gzip : ReplyForm.Payload, encode);
+
+        /// <summary>Runs encode with this reply form for this thread.</summary>
+        internal static T WithForm<T>(ReplyForm value, Func<T> encode)
         {
-            var previous = binary;
-            binary = on;
+            var previous = form;
+            form = value;
             try { return encode(); }
-            finally { binary = previous; }
+            finally { form = previous; }
         }
 
-        // True when the caller asked for the binary reply form.
-        internal static bool BinaryOf(IRimBridgeContext ctx)
+        // The reply form the caller asked for.
+        internal static ReplyForm FormOf(IRimBridgeContext ctx)
         {
             var arguments = BridgeCommon.RawArguments(ctx, out _);
-            return arguments != null && arguments.TryGetValue(EncodingArgument, out var raw) && TryString(raw, out var value)
-                && string.Equals(value, BinaryEncoding, StringComparison.Ordinal);
+            if (arguments == null || !arguments.TryGetValue(EncodingArgument, out var raw) || !TryString(raw, out var value)) return ReplyForm.Payload;
+            if (string.Equals(value, BinaryEncoding, StringComparison.Ordinal)) return ReplyForm.Gzip;
+            if (string.Equals(value, ShmEncoding, StringComparison.Ordinal)) return ReplyForm.Shm;
+            return ReplyForm.Payload;
         }
 
         // The reply body in the form this thread's caller asked for, and the
         // envelope field that carries it; charged to the hop like Format.
-        private static string Body(IMessage reply, bool compact, out string field)
+        private static object Body(IMessage reply, bool compact, out string field)
         {
-            if (!(binary ?? callerBinary.Value))
+            var wanted = form ?? callerForm.Value;
+            if (wanted == ReplyForm.Payload)
             {
                 field = PayloadField;
                 return Format(reply, compact);
@@ -157,6 +170,17 @@ namespace HomeBridge.BridgeTools
             var began = Stopwatch.GetTimestamp();
             try
             {
+                if (wanted == ReplyForm.Shm && reply.CalculateSize() >= ReplyRing.InlineBytes)
+                {
+                    var raw = reply.ToByteArray();
+                    var slot = ReplyRing.Write(raw);
+                    if (slot != null)
+                    {
+                        field = SlotField;
+                        ObservationWork.Payload(raw.Length);
+                        return slot;
+                    }
+                }
                 using (var buffer = new MemoryStream())
                 {
                     using (var gzip = new GZipStream(buffer, CompressionLevel.Fastest, true))
@@ -167,14 +191,29 @@ namespace HomeBridge.BridgeTools
             finally { ObservationWork.Formatted(Stopwatch.GetTimestamp() - began); }
         }
 
+        // Inside an OnMainThread body on the game thread, Encode only records
+        // the reply; OnMainThread encodes it on a worker once the hop ends
+        // (#1344), so no reply is formatted on the game thread. The reply
+        // must not be mutated after the body returns it.
+        [ThreadStatic] private static bool deferEncode;
+        private const string PendingField = "\u0000pending";
+
+        private sealed class Pending
+        {
+            internal readonly IMessage Reply;
+            internal readonly bool Compact;
+            internal Pending(IMessage reply, bool compact) { Reply = reply; Compact = compact; }
+        }
+
         internal static Dictionary<string, object?> Encode(IMessage reply, bool compact = false)
         {
+            if (deferEncode) return Envelope(PendingField, new Pending(reply, compact));
             var payload = Body(reply, compact, out var field);
-            Measure(payload);
+            if (payload is string text) Measure(text);
             return Envelope(field, payload);
         }
 
-        private static Dictionary<string, object?> Envelope(string field, string payload)
+        private static Dictionary<string, object?> Envelope(string field, object payload)
             => new Dictionary<string, object?>(StringComparer.Ordinal) { [field] = payload };
 
         // The payload's UTF-8 length, recorded as the bytes the hop returns (#642).
@@ -206,8 +245,18 @@ namespace HomeBridge.BridgeTools
         // Hops are ordered by the caller's class argument (control,
         // observation, mirror) through MainThreadAdmission, so a queued
         // renew or stop runs before the reads queued ahead of it.
-        internal static Task<object> OnMainThread(IRimBridgeContext ctx, Func<object> body, CancellationToken cancellationToken)
-            => RunHop(ctx, body, (reply, hop) => WithTiming(reply, hop.Queued, hop.Started, hop.Finished, hop.Trace, hop.Class, hop.Depth, hop.Work), cancellationToken);
+        //
+        // A reply the body built with Encode is encoded after the hop on an
+        // encoder worker (EncodeDetached without a lease: these replies are
+        // the control and single-read ones, never held back by bulk encodes).
+        internal static async Task<object> OnMainThread(IRimBridgeContext ctx, Func<object> body, CancellationToken cancellationToken)
+        {
+            var captured = (Captured<object>)await RunHop(ctx, body, (value, hop) => new Captured<object>(value, hop), cancellationToken, defer: true).ConfigureAwait(false);
+            var hop = captured.Hop;
+            if (captured.Value is Dictionary<string, object?> envelope && envelope.Count == 1 && envelope.TryGetValue(PendingField, out var value) && value is Pending pending)
+                return await EncodeDetached(new Captured<IMessage>(pending.Reply, hop), null, reply => Encode(reply, pending.Compact), CancellationToken.None).ConfigureAwait(false);
+            return WithTiming(captured.Value, hop.Queued, hop.Started, hop.Finished, hop.Trace, hop.Class, hop.Depth, hop.Work);
+        }
 
         /// <summary>One main-thread hop's timing and account, for its reply's timing block.</summary>
         internal sealed class HopTiming
@@ -217,7 +266,7 @@ namespace HomeBridge.BridgeTools
             internal int Depth;
             internal ObservationWork.Hop? Work;
             internal int GameThread;
-            internal bool Binary;
+            internal ReplyForm Form;
         }
 
         /// <summary>
@@ -252,7 +301,7 @@ namespace HomeBridge.BridgeTools
         /// released when the encode settles, however it settles; a token
         /// cancelled before the worker starts skips the encode.
         /// </summary>
-        internal static Task<object> EncodeDetached<T>(Captured<T> captured, ReplyEncoder.Lease lease, Func<T, Dictionary<string, object?>> encode, CancellationToken cancellationToken)
+        internal static Task<object> EncodeDetached<T>(Captured<T> captured, ReplyEncoder.Lease? lease, Func<T, Dictionary<string, object?>> encode, CancellationToken cancellationToken)
         {
             var queued = Stopwatch.GetTimestamp();
             var hop = captured.Hop;
@@ -267,7 +316,7 @@ namespace HomeBridge.BridgeTools
                     var started = Stopwatch.GetTimestamp();
                     ObservationWork.Resume(work);
                     Dictionary<string, object?> envelope;
-                    try { envelope = WithBinary(hop.Binary, () => encode(captured.Value)); }
+                    try { envelope = WithForm(hop.Form, () => encode(captured.Value)); }
                     catch (Exception) { ObservationWork.Outcome("error"); throw; }
                     finally
                     {
@@ -281,18 +330,18 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception)
             {
-                lease.Dispose();
+                lease?.Dispose();
                 throw;
             }
-            task.ContinueWith(_ => lease.Dispose(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            if (lease != null) task.ContinueWith(_ => lease.Dispose(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             return task;
         }
 
-        private static Task<object> RunHop(IRimBridgeContext ctx, Func<object> body, Func<object, HopTiming, object> complete, CancellationToken cancellationToken)
+        private static Task<object> RunHop(IRimBridgeContext ctx, Func<object> body, Func<object, HopTiming, object> complete, CancellationToken cancellationToken, bool defer = false)
         {
             var queued = Stopwatch.GetTimestamp();
             var trace = TraceOf(ctx);
-            var wantsBinary = BinaryOf(ctx);
+            var wanted = FormOf(ctx);
             var rank = MainThreadAdmission.RankOf(ClassOf(ctx));
             var hop = MainThreadWatchdog.Enqueue(OperationOf(ctx), trace);
             int depth = 0;
@@ -311,11 +360,15 @@ namespace HomeBridge.BridgeTools
                 var work = ObservationWork.Begin();
                 try
                 {
-                    var reply = WithBinary(wantsBinary, body);
+                    object reply;
+                    var deferred = deferEncode;
+                    deferEncode = defer;
+                    try { reply = WithForm(wanted, body); }
+                    finally { deferEncode = deferred; }
                     var finished = Stopwatch.GetTimestamp();
                     FrameAccounting.Observed(finished - started, trace);
                     return complete(reply, new HopTiming { Queued = queued, Started = started, Finished = finished, Trace = trace,
-                        Class = MainThreadAdmission.ClassOf(rank), Depth = depth, Work = ObservationWork.End(), GameThread = Thread.CurrentThread.ManagedThreadId, Binary = wantsBinary });
+                        Class = MainThreadAdmission.ClassOf(rank), Depth = depth, Work = ObservationWork.End(), GameThread = Thread.CurrentThread.ManagedThreadId, Form = wanted });
                 }
                 catch (Exception)
                 {
@@ -363,6 +416,7 @@ namespace HomeBridge.BridgeTools
             return trace.Length > 0 && trace.Length <= 64 ? trace : null;
         }
 
+        /// <summary>A main-thread reply, encoded off the game thread (OnMainThread).</summary>
         internal static Task<object> OnMainThreadEncoded(IRimBridgeContext ctx, Func<IMessage> body, CancellationToken cancellationToken)
             => OnMainThread(ctx, () => Encode(body()), cancellationToken);
 
@@ -370,7 +424,7 @@ namespace HomeBridge.BridgeTools
             ObservationWork.Hop? work = null)
         {
             var envelope = reply as Dictionary<string, object?>;
-            if (envelope == null || !(envelope.ContainsKey(PayloadField) || envelope.ContainsKey(ProtoField)) || envelope.ContainsKey(TimingField)) return reply;
+            if (envelope == null || !(envelope.ContainsKey(PayloadField) || envelope.ContainsKey(ProtoField) || envelope.ContainsKey(SlotField)) || envelope.ContainsKey(TimingField)) return reply;
             var timing = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["queueMs"] = Millis(started - queued),

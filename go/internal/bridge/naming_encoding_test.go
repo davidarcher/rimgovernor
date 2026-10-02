@@ -28,7 +28,7 @@ func TestNamingSuggestionRoundTripsNonASCII(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wire, err := decodeWrapper(wrapper, maxReplyProtoBytes)
+	wire, err := decodeWrapper(wrapper, maxReplyProtoBytes, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -51,7 +51,7 @@ func TestDecodeWrapperBinaryForm(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := encode(map[string]any{"proto": gzipBase64(t, data), "timing": map[string]float64{"queueMs": 1}})
-	wire, err := decodeWrapper(raw, maxReplyProtoBytes)
+	wire, err := decodeWrapper(raw, maxReplyProtoBytes, nil)
 	if err != nil || wire.wire == 0 {
 		t.Fatalf("binary wrapper: %+v %v", wire, err)
 	}
@@ -70,7 +70,7 @@ func TestDecodeWrapperBinaryForm(t *testing.T) {
 		// A gzip bomb: a few KB that inflate far past the limit.
 		"oversized": encode(map[string]string{"proto": gzipBase64(t, make([]byte, 4<<20))}),
 	} {
-		if _, err := decodeWrapper(raw, 1<<20); !errors.Is(err, ErrContract) {
+		if _, err := decodeWrapper(raw, 1<<20, nil); !errors.Is(err, ErrContract) {
 			t.Errorf("%s accepted: %v", name, err)
 		}
 	}

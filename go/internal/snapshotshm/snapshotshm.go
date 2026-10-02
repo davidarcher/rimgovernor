@@ -33,8 +33,12 @@ import (
 )
 
 const (
-	magic           = 0x53534752
-	version         = 2
+	magic   = 0x53534752
+	version = 2
+	// The reply ring (#1344) shares the slot layout under its own magic
+	// "RGRR"; its slots hold raw contract replies and nothing reads its head.
+	replyMagic      = 0x52524752
+	replyVersion    = 1
 	headerBytes     = 64
 	slotHeaderBytes = 40
 	// pollInterval paces Wait where the platform has no ready event, and
@@ -70,13 +74,15 @@ type Reader struct {
 	slots, slotBytes uint64
 }
 
-func newReader(m mapping) (*Reader, error) {
+func newReader(m mapping) (*Reader, error) { return newRingReader(m, magic, version) }
+
+func newRingReader(m mapping, wantMagic, wantVersion uint32) (*Reader, error) {
 	buf := m.bytes()
 	if len(buf) < headerBytes {
 		_ = m.close()
 		return nil, fmt.Errorf("%w: ring below its header", ErrUnavailable)
 	}
-	if binary.LittleEndian.Uint32(buf[0:4]) != magic || binary.LittleEndian.Uint32(buf[4:8]) != version {
+	if binary.LittleEndian.Uint32(buf[0:4]) != wantMagic || binary.LittleEndian.Uint32(buf[4:8]) != wantVersion {
 		_ = m.close()
 		return nil, fmt.Errorf("%w: ring magic or version differs", ErrUnavailable)
 	}
@@ -92,6 +98,32 @@ func newReader(m mapping) (*Reader, error) {
 func (r *Reader) load(offset uint64) uint64 {
 	return atomic.LoadUint64((*uint64)(unsafe.Pointer(&r.m.bytes()[offset])))
 }
+
+// Open maps the named snapshot ring and its ready event.
+func Open(name string) (*Reader, error) {
+	m, err := openMapping(name, true)
+	if err != nil {
+		return nil, err
+	}
+	return newReader(m)
+}
+
+// OpenReplies maps the named native reply ring (#1344): large contract
+// replies the native side wrote into a slot instead of the GABP reply.
+func OpenReplies(name string) (*Reader, error) {
+	m, err := openMapping(name, false)
+	if err != nil {
+		return nil, err
+	}
+	return newRingReader(m, replyMagic, replyVersion)
+}
+
+// Slots is the ring's slot count.
+func (r *Reader) Slots() uint64 { return r.slots }
+
+// Read copies entry n; ok is false when its slot no longer holds n (it was
+// overwritten, or is being written).
+func (r *Reader) Read(n uint64) (Frame, bool, error) { return r.read(n) }
 
 // Head is the last committed frame number, 0 before the first.
 func (r *Reader) Head() uint64 { return r.load(16) }

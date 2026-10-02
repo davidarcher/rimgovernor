@@ -82,6 +82,7 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadWatchdog.cs" Link="Production/MainThreadWatchdog.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadAdmission.cs" Link="Production/MainThreadAdmission.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ReplyEncoder.cs" Link="Production/ReplyEncoder.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ReplyRing.cs" Link="Production/ReplyRing.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockEventJournal.cs" Link="Production/ClockEventJournal.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockPauseAccounting.cs" Link="Production/ClockPauseAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockProbeAccounting.cs" Link="Production/ClockProbeAccounting.cs" />

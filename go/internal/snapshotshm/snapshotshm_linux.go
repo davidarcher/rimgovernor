@@ -13,9 +13,9 @@ type linuxMapping struct {
 	view []byte
 }
 
-// Open maps the /dev/shm file the native stream created. Linux has no
+// openMapping maps the /dev/shm file the native side created. Linux has no
 // ready event; Wait polls the head.
-func Open(name string) (*Reader, error) {
+func openMapping(name string, _ bool) (mapping, error) {
 	file, err := os.OpenFile(name, os.O_RDONLY, 0)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
@@ -30,7 +30,7 @@ func Open(name string) (*Reader, error) {
 		_ = file.Close()
 		return nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
-	return newReader(&linuxMapping{file: file, view: view})
+	return &linuxMapping{file: file, view: view}, nil
 }
 
 func (m *linuxMapping) bytes() []byte           { return m.view }
