@@ -1698,8 +1698,8 @@ func (x *CellRect) GetHeight() int32 {
 // One field's array over a CellGrid's rect, row-major (index
 // (z - rect.z) * rect.width + x - rect.x). Dense forms hold every cell;
 // sparse holds (index, value) pairs over a base: in a keyframe the
-// all-sentinel array, in a delta the array the client holds at the delta's
-// from. The native sends whichever form is smaller.
+// all-sentinel array, in a delta the keyframe's array. The sender picks
+// whichever form is smaller.
 type FieldArray struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Form:
@@ -1964,9 +1964,9 @@ func (x *SparseArray) GetNumber() []float64 {
 	return nil
 }
 
-// The planning window as a grid (#795): one array per policy.SiteCell field
-// over rect. Sentinels mark a cell the window does not hold (fogged, or
-// outside the read) and an unknown fact:
+// A cell grid (#795, #1345): one array per policy.SiteCell field over
+// rect. Sentinels mark a cell the grid does not hold (fogged, or outside
+// the read) and an unknown fact:
 //
 //	cell: 0 not held, 1 held;
 //	Fact[bool] codes: 0 unknown, 1 false, 2 true;
@@ -1975,7 +1975,12 @@ func (x *SparseArray) GetNumber() []float64 {
 //	ruin_hold (a plain string): 0 empty, k for strings[k-1].
 //
 // A keyframe carries every array; a delta, on the same rect, only the
-// arrays that changed. strings is this grid's own table.
+// arrays that differ from its keyframe's (deltas are cumulative against
+// the keyframe, never chained), and never every array: a frame whose grid
+// carries every array is a keyframe. strings is this grid's own table.
+// glow is artificial light only (GroundGlowAt ignoring the sky); the
+// frame's sky_glow is the map's sky light, lighting an unroofed cell to
+// max(glow, sky_glow). room names the native room holding the cell.
 type CellGrid struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rect          *CellRect              `protobuf:"bytes,1,opt,name=rect,proto3" json:"rect,omitempty"`
@@ -1999,6 +2004,7 @@ type CellGrid struct {
 	PlayerEdifice *FieldArray            `protobuf:"bytes,19,opt,name=player_edifice,json=playerEdifice,proto3" json:"player_edifice,omitempty"`
 	ClaimableRuin *FieldArray            `protobuf:"bytes,20,opt,name=claimable_ruin,json=claimableRuin,proto3" json:"claimable_ruin,omitempty"`
 	RuinHold      *FieldArray            `protobuf:"bytes,21,opt,name=ruin_hold,json=ruinHold,proto3" json:"ruin_hold,omitempty"`
+	Room          *FieldArray            `protobuf:"bytes,22,opt,name=room,proto3" json:"room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2176,6 +2182,13 @@ func (x *CellGrid) GetClaimableRuin() *FieldArray {
 func (x *CellGrid) GetRuinHold() *FieldArray {
 	if x != nil {
 		return x.RuinHold
+	}
+	return nil
+}
+
+func (x *CellGrid) GetRoom() *FieldArray {
+	if x != nil {
+		return x.Room
 	}
 	return nil
 }
@@ -2400,7 +2413,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\vSparseArray\x12\x14\n" +
 	"\x05index\x18\x01 \x03(\rR\x05index\x12\x12\n" +
 	"\x04code\x18\x02 \x03(\rR\x04code\x12\x16\n" +
-	"\x06number\x18\x03 \x03(\x01R\x06number\"\x87\n" +
+	"\x06number\x18\x03 \x03(\x01R\x06number\"\xbe\n" +
 	"\n" +
 	"\bCellGrid\x123\n" +
 	"\x04rect\x18\x01 \x01(\v2\x1f.rimgovernor.mirror.v1.CellRectR\x04rect\x12\x18\n" +
@@ -2424,7 +2437,8 @@ const file_mirror_proto_rawDesc = "" +
 	"\x04ruin\x18\x12 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04ruin\x12H\n" +
 	"\x0eplayer_edifice\x18\x13 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\rplayerEdifice\x12H\n" +
 	"\x0eclaimable_ruin\x18\x14 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\rclaimableRuin\x12>\n" +
-	"\truin_hold\x18\x15 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bruinHold*\xb2\x01\n" +
+	"\truin_hold\x18\x15 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bruinHold\x125\n" +
+	"\x04room\x18\x16 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04room*\xb2\x01\n" +
 	"\n" +
 	"CombatSide\x12\x1b\n" +
 	"\x17COMBAT_SIDE_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -2560,11 +2574,12 @@ var file_mirror_proto_depIdxs = []int32{
 	19, // 52: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
 	19, // 53: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
 	19, // 54: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
-	55, // [55:55] is the sub-list for method output_type
-	55, // [55:55] is the sub-list for method input_type
-	55, // [55:55] is the sub-list for extension type_name
-	55, // [55:55] is the sub-list for extension extendee
-	0,  // [0:55] is the sub-list for field type_name
+	19, // 55: rimgovernor.mirror.v1.CellGrid.room:type_name -> rimgovernor.mirror.v1.FieldArray
+	56, // [56:56] is the sub-list for method output_type
+	56, // [56:56] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_mirror_proto_init() }

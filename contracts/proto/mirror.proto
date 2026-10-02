@@ -254,9 +254,9 @@ message Watermark {
   optional uint32 seq = 2;
 }
 
-// The planning window grid format. The native no longer sends it (the
-// mirror_poll long poll was replaced by the snapshot frame stream, #858);
-// the Go snapshot recorder stores planning_cells section lines in it.
+// The whole-map cell grid (#1345): native sends it in every snapshot frame
+// (BundleSnapshot.grid); the Go snapshot recorder stores planning_cells
+// section lines in it too.
 
 message CellRect {
   optional int32 x = 1;
@@ -268,8 +268,8 @@ message CellRect {
 // One field's array over a CellGrid's rect, row-major (index
 // (z - rect.z) * rect.width + x - rect.x). Dense forms hold every cell;
 // sparse holds (index, value) pairs over a base: in a keyframe the
-// all-sentinel array, in a delta the array the client holds at the delta's
-// from. The native sends whichever form is smaller.
+// all-sentinel array, in a delta the keyframe's array. The sender picks
+// whichever form is smaller.
 message FieldArray {
   oneof form {
     bytes codes = 1;           // presence and Fact[bool] fields, one byte per cell
@@ -290,16 +290,21 @@ message SparseArray {
   repeated double number = 3;
 }
 
-// The planning window as a grid (#795): one array per policy.SiteCell field
-// over rect. Sentinels mark a cell the window does not hold (fogged, or
-// outside the read) and an unknown fact:
+// A cell grid (#795, #1345): one array per policy.SiteCell field over
+// rect. Sentinels mark a cell the grid does not hold (fogged, or outside
+// the read) and an unknown fact:
 //   cell: 0 not held, 1 held;
 //   Fact[bool] codes: 0 unknown, 1 false, 2 true;
 //   Fact[float64] numbers: NaN unknown (native values are finite);
 //   Fact[string] indexes: 0 unknown, k for strings[k-1];
 //   ruin_hold (a plain string): 0 empty, k for strings[k-1].
 // A keyframe carries every array; a delta, on the same rect, only the
-// arrays that changed. strings is this grid's own table.
+// arrays that differ from its keyframe's (deltas are cumulative against
+// the keyframe, never chained), and never every array: a frame whose grid
+// carries every array is a keyframe. strings is this grid's own table.
+// glow is artificial light only (GroundGlowAt ignoring the sky); the
+// frame's sky_glow is the map's sky light, lighting an unroofed cell to
+// max(glow, sky_glow). room names the native room holding the cell.
 message CellGrid {
   CellRect rect = 1;
   repeated string strings = 2;
@@ -322,4 +327,5 @@ message CellGrid {
   FieldArray player_edifice = 19;
   FieldArray claimable_ruin = 20;
   FieldArray ruin_hold = 21;
+  FieldArray room = 22;
 }

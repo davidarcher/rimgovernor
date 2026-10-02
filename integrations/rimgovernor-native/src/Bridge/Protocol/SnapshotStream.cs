@@ -193,11 +193,12 @@ namespace HomeBridge.BridgeTools
             // capture instead of queueing stale ones.
             if (Interlocked.CompareExchange(ref pending, 1, 0) != 0) return;
             Obs.BundleSnapshot? frame;
+            CellGridEncoder.GridRead? grid;
             Obs.SnapshotStreamRequest shape;
             lock (Gate) shape = subscription;
             var captureStarted = Stopwatch.GetTimestamp();
             var account = ObservationWork.BeginCapture();
-            try { frame = SnapshotFrames.Capture(map, shape); }
+            try { frame = SnapshotFrames.Capture(map, shape, out grid); }
             catch (Exception e)
             {
                 Interlocked.Exchange(ref pending, 0);
@@ -214,7 +215,7 @@ namespace HomeBridge.BridgeTools
             var keyframe = Interlocked.Exchange(ref keyframeDue, 0) == 1;
             Task.Factory.StartNew(() =>
             {
-                try { SnapshotSections.Elide(frame, keyframe); r.Publish(frame, w, captureMicros); }
+                try { SnapshotSections.Elide(frame, keyframe); CellGridEncoder.Attach(frame, grid, keyframe); r.Publish(frame, w, captureMicros); }
                 catch (Exception e) { Log.WarningOnce("[RimGovernor] snapshot frame publish failed: " + e.Message, 0x5e859); }
                 finally { Interlocked.Exchange(ref pending, 0); }
             }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);

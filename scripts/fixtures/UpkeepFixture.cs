@@ -41,6 +41,37 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
+        // The cell grid delta probe (#1551): reads the whole-map grid, spawns
+        // one player wall at cell, reads it again and encodes the second read
+        // against the first as the stream's delta, replying each carried
+        // array's form and entry count and both grids' encoded sizes.
+        [Tool("test/grid_delta", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#1551): spawn one player wood wall at cell (\"x,z\") between two whole-map grid reads and reply the delta's carried arrays. Test builds only.")]
+        public async Task<object> GridDelta(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var p = (cell ?? "").Split(',');
+                if (map == null || p.Length != 2 || !int.TryParse(p[0], out var x) || !int.TryParse(p[1], out var z) || !new IntVec3(x, 0, z).InBounds(map))
+                    return new { success = false, error = "Expected one in-bounds x,z cell on the current map" };
+                var at = new IntVec3(x, 0, z);
+                var before = CellGridEncoder.Read(map);
+                var wall = (Building)ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.WoodLog);
+                wall.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(wall, at, map);
+                var after = CellGridEncoder.Read(map);
+                var keyframe = CellGridEncoder.Encode(after, null)!;
+                var delta = CellGridEncoder.Encode(after, before);
+                if (delta == null) return new { success = false, error = "Every array changed" };
+                var arrays = new System.Collections.Generic.List<object>();
+                var descriptor = RimGovernor.Protocol.Mirror.CellGrid.Descriptor;
+                for (int i = 0; i < CellGridEncoder.FieldCount; i++) {
+                    var name = CellGridEncoder.FieldName(i);
+                    if (!(descriptor.FindFieldByName(name).Accessor.GetValue(delta) is RimGovernor.Protocol.Mirror.FieldArray array)) continue;
+                    arrays.Add(new { field = name, form = array.FormCase.ToString(), entries = array.FormCase == RimGovernor.Protocol.Mirror.FieldArray.FormOneofCase.Sparse ? array.Sparse.Index.Count : -1,
+                        wallCell = array.FormCase == RimGovernor.Protocol.Mirror.FieldArray.FormOneofCase.Sparse && array.Sparse.Index.Contains((uint)(z * map.Size.x + x)) });
+                }
+                return new { success = true, wall = wall.GetUniqueLoadID(), keyframeBytes = keyframe.CalculateSize(), deltaBytes = delta.CalculateSize(), arrays };
+            }, cancellationToken);
+
         [Tool("test/roof_cells", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#1366): with set, put a constructed roof over exact cells (\"x,z;x,z\"); always reply how many of them are roofed. Test builds only.")]
         public async Task<object> RoofCells(IRimBridgeContext ctx, CancellationToken cancellationToken, string cells, bool set = false)
             => await ctx.MainThread.InvokeAsync<object>(() => {

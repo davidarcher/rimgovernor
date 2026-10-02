@@ -1425,6 +1425,16 @@ message BundleSnapshot {
   // with a seq other than the one the reader holds was published in a
   // frame the reader missed: it asks for a keyframe.
   repeated SectionWatermark watermarks = 31;
+  // The whole map as a cell grid (#1345), every frame: a keyframe on an
+  // open or keyframe request, on a map change and at least every 30
+  // seconds, else a delta against that keyframe. keyframe_seq numbers
+  // keyframes since the stream opened; a delta whose keyframe_seq is not
+  // the keyframe the reader holds follows a keyframe it missed: it asks
+  // for a keyframe. sky_glow is the map's sky light (0..1), which grid
+  // glow leaves out.
+  rimgovernor.mirror.v1.CellGrid grid = 32;
+  optional uint64 keyframe_seq = 33;
+  optional double sky_glow = 34;
 }
 // seq counts a section's changes since the stream opened; captured_tick is
 // the tick of the frame that last carried it.

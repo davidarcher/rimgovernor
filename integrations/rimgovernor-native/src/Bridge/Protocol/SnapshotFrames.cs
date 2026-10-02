@@ -23,8 +23,14 @@ namespace HomeBridge.BridgeTools
         // On the main thread: one snapshot stream frame (#858), every state
         // family plus the subscription's, or null when the map has no
         // readable context.
-        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request)
+        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request) => Capture(map, request, out _);
+
+        // Capture, with the whole-map cell grid read (#1345) that
+        // CellGridEncoder.Attach encodes off the game thread; null when it
+        // failed to read.
+        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request, out CellGridEncoder.GridRead? grid)
         {
+            grid = null;
             if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
             var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
             var status = new Obs.StatusRequest { Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
@@ -37,6 +43,9 @@ namespace HomeBridge.BridgeTools
             ReadFamilies(map, context, observed);
             ReadStepFamilies(map, context, observed);
             ReadSubscribed(map, request, context, observed);
+            var gridBegan = Now();
+            try { grid = CellGridEncoder.Read(map); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("grid", ex)); }
+            ObservationWork.Captured("grid", Now() - gridBegan, grid != null ? grid.Count : 0);
             var combatBegan = Now();
             Supervisor.EnsureHazardHooks(); Supervisor.EnsureCombatHooks();
             CombatMirror.Capture(map, observed);
