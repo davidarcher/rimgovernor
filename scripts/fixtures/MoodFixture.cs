@@ -182,6 +182,22 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, cannibal = cannibal.GetUniqueLoadID(), vegetarian = vegetarian.GetUniqueLoadID() };
             }, cancellationToken);
         }
+        [Tool("test/tame_dog", Description = "UNSAFE FOR MODEL EXECUTION. Spawn a named tame adult Husky beside a paused disposable colony's first colonist (#1543).")]
+        public async Task<object> TameDog(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var colonist = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).FirstOrDefault()
+                    ?? throw new InvalidOperationException("A colonist is required.");
+                var dog = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDef.Named("Husky"), Faction.OfPlayer, fixedBiologicalAge: 4));
+                dog.Name = new NameSingle("Biscuit");
+                GenSpawn.Spawn(dog, CellFinder.StandableCellNear(colonist.Position, map, 5), map);
+                if (dog.foodRestriction == null) throw new InvalidOperationException("The dog has no food policy tracker.");
+                return new { success = true, animal = dog.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
         [Tool("test/duplicate_nickname", Description = "UNSAFE FOR MODEL EXECUTION. Give the newest of two paused disposable colonists the oldest one's nickname (#1310).")]
         public async Task<object> DuplicateNickname(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

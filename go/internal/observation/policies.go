@@ -37,6 +37,8 @@ type Policies struct {
 	BiomeDiseases []string
 	// Foods is every food definition and its kind (#1541).
 	Foods []policy.Food
+	// FoodEaters are the prisoners and tame animals holding food policies (#1543).
+	FoodEaters []policy.FoodEater
 }
 
 var foodKinds = map[o.FoodKind]policy.FoodKind{
@@ -51,6 +53,8 @@ var foodKinds = map[o.FoodKind]policy.FoodKind{
 	o.FoodKind_FOOD_KIND_FUNGUS:         policy.FoodKindFungus,
 	o.FoodKind_FOOD_KIND_ANIMAL_PRODUCT: policy.FoodKindAnimalProduct,
 	o.FoodKind_FOOD_KIND_OTHER:          policy.FoodKindOther,
+	o.FoodKind_FOOD_KIND_KIBBLE:         policy.FoodKindKibble,
+	o.FoodKind_FOOD_KIND_HAY:            policy.FoodKindHay,
 }
 
 var mealIngredients = map[o.MealIngredients]policy.MealIngredients{
@@ -97,6 +101,10 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 	}
 	for _, d := range f.Foods {
 		r.Foods = append(r.Foods, policy.Food{Def: d.GetDefName(), Kind: foodKinds[d.GetKind()], Ingredients: mealIngredients[d.GetIngredients()]})
+	}
+	for _, e := range f.FoodEaters {
+		r.FoodEaters = append(r.FoodEaters, policy.FoodEater{Pawn: policy.PawnID(e.GetPawnId()), Animal: e.GetKind() == o.FoodEaterKind_FOOD_EATER_KIND_ANIMAL,
+			Diet: policy.DietOf(e.Traits, e.Precepts), Edible: e.EdibleDefs})
 	}
 	for _, row := range f.AllowedAreas {
 		r.AllowedAreas = append(r.AllowedAreas, AllowedArea{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds)})

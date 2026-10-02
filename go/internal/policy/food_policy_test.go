@@ -88,7 +88,7 @@ func TestDietPolicyChanges(t *testing.T) {
 	pawns[5].FoodRestriction = domain.Unknown[FoodRestriction]()
 	names := []OwnedName{{"A", "Ann", 1}, {"B", "Bo", 2}, {"C", "Cy", 3}, {"D", "Dup", 4}, {"E", "dup", 5}, {"F", "Fay", 6}}
 	policies := []FoodPolicyEntry{{ID: "FoodPolicy_3", Label: "Cy", Pawns: []PawnID{"C"}, Allowed: without("Meat_Human", "Meat_Megaspider")}}
-	got := DietPolicyChanges(pawns, names, policies, testFoods)
+	got := DietPolicyChanges(pawns, nil, names, policies, testFoods)
 	if len(got) != 2 {
 		t.Fatalf("got %d changes: %+v", len(got), got)
 	}
@@ -104,9 +104,40 @@ func TestDietPolicyChanges(t *testing.T) {
 	}
 	// Held but drifted contents are rewritten without a reassignment.
 	policies[0].Allowed = []string{"MealSimple"}
-	got = DietPolicyChanges(pawns[2:3], names, policies, testFoods)
+	got = DietPolicyChanges(pawns[2:3], nil, names, policies, testFoods)
 	if len(got) != 1 || got[0].Write == nil || got[0].Assign != nil {
 		t.Fatalf("drift: %+v", got)
+	}
+}
+
+// Prisoners and slaves get paste and raw food within their diet; a tame
+// animal kibble, hay and the raw food its race eats, never a meal (#1543).
+func TestDietPolicyChangesNonColonists(t *testing.T) {
+	foods := append(append([]Food(nil), testFoods...), Food{"Kibble", FoodKindKibble, ""}, Food{"Hay", FoodKindHay, ""})
+	slave := eater("S", nil, "MeatEating_Abhorrent")
+	slave.PolicyInputs = domain.Known(PawnPolicyInputs{Precepts: []string{"MeatEating_Abhorrent"}, GuestStatus: "Slave"})
+	eaters := []FoodEater{
+		{Pawn: "P", Diet: DietOf([]string{"Cannibal"}, nil)},
+		{Pawn: "H", Animal: true, Edible: []string{"Kibble", "Hay", "RawPotatoes", "MealSimple", "MealFine", "Milk"}},
+		{Pawn: "W", Animal: true, Edible: []string{"Kibble", "Meat_Cow", "MealLavish"}},
+	}
+	names := []OwnedName{{"S", "Sal", 1}, {"P", "Pip", 2}, {"H", "Hoof", 3}, {"W", "Wolf", 4}}
+	got := map[string][]string{}
+	for _, c := range DietPolicyChanges([]WorkPawn{slave}, eaters, names, nil, foods) {
+		if c.Write == nil || c.Assign == nil {
+			t.Fatalf("change %+v", c)
+		}
+		got[c.Write.Name()] = c.Write.Definitions()
+	}
+	for name, want := range map[string][]string{
+		"Sal":  {"MealNutrientPaste", "Milk", "RawFungus", "RawPotatoes"},
+		"Pip":  {"MealNutrientPaste", "Meat_Cow", "Meat_Human", "Milk", "RawFungus", "RawPotatoes"},
+		"Hoof": {"Hay", "Kibble", "Milk", "RawPotatoes"},
+		"Wolf": {"Kibble", "Meat_Cow"},
+	} {
+		if !slices.Equal(got[name], want) {
+			t.Errorf("%s: got %v, want %v", name, got[name], want)
+		}
 	}
 }
 

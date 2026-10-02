@@ -523,5 +523,5 @@ func routineDietChanges(policies domain.Fact[observation.Policies], names domain
 	for _, e := range p.Food {
 		entries = append(entries, policy.FoodPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Allowed: e.Allowed})
 	}
-	return policy.DietPolicyChanges(pawns, owned, entries, p.Foods)
+	return policy.DietPolicyChanges(pawns, p.FoodEaters, owned, entries, p.Foods)
 }

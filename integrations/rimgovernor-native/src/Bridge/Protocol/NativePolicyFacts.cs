@@ -53,6 +53,20 @@ namespace HomeBridge.BridgeTools
                     row.DefName = Id(food.defName);
                     facts.Foods.Add(row);
                 }
+                foreach (var p in pawns.Where(p => p.MapHeld == map && !p.Dead && p.foodRestriction != null && p.needs?.food != null
+                    && (p.IsPrisonerOfColony || p.RaceProps.Animal))) {
+                    var row = new Obs.FoodEater { PawnId = Id(p.GetUniqueLoadID()) };
+                    if (p.RaceProps.Animal) {
+                        row.Kind = Obs.FoodEaterKind.Animal;
+                        row.EdibleDefs.Add(NativeFoodPolicy.Foods().Where(d => p.RaceProps.CanEverEat(d)).Select(d => Id(d.defName)));
+                    } else {
+                        row.Kind = Obs.FoodEaterKind.Prisoner;
+                        row.Traits.Add((p.story?.traits?.allTraits ?? new List<Trait>()).Select(t => Id(t.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));
+                        if (ModsConfig.IdeologyActive && p.Ideo is Ideo ideo)
+                            row.Precepts.Add(ideo.PreceptsListForReading.Select(x => Id(x.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));
+                    }
+                    facts.FoodEaters.Add(row);
+                }
                 foreach (var book in NativeReadingPolicy.Books())
                     facts.Books.Add(new Obs.BookDefinition { DefName = Id(book.defName), Kind = NativeReadingPolicy.Kind(book) });
                 foreach (var hediff in DefDatabase<IncidentDef>.AllDefsListForReading

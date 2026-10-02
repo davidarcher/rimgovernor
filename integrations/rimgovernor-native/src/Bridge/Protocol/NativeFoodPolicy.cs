@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     // Food policies (#1541): the food catalog PolicyFacts.foods classifies,
     // FoodPolicyIntent on Actions/Apply (the FoodPolicy labelled name, made
     // when missing, allows exactly the given foods; special filters keep
-    // their values) and the pawn's current policy read. PawnSettingsIntent
+    // their values; corpses are always disallowed, #1543) and the pawn's current policy read. PawnSettingsIntent
     // .food_policy assigns it (NativePawnSettings.cs). Native suitability,
     // title, veneration and ingestion rules stay authoritative.
     internal static class NativeFoodPolicy
@@ -32,6 +32,8 @@ namespace HomeBridge.BridgeTools
                 case FoodPreferability.MealFine: return Obs.FoodKind.MealFine;
                 case FoodPreferability.MealLavish: return Obs.FoodKind.MealLavish;
             }
+            if ((d.ingestible.foodType & FoodTypeFlags.Kibble) != 0) return Obs.FoodKind.Kibble;
+            if (d == ThingDefOf.Hay) return Obs.FoodKind.Hay;
             if (d.IsMeat)
                 switch (FoodUtility.GetMeatSourceCategory(d)) {
                     case MeatSourceCategory.Humanlike: return Obs.FoodKind.HumanMeat;
@@ -102,6 +104,11 @@ namespace HomeBridge.BridgeTools
                 if (policy == null) { policy = db.MakeNewFoodRestriction(); policy.label = intent.Name; }
                 foreach (var d in Foods()) policy.filter.SetAllow(d, want.Contains(d.defName));
                 if (!Allowed(policy).SequenceEqual(want)) throw new InvalidOperationException("Native food policy requires readback.");
+                outcome = Receipts.FieldOutcome.Applied;
+            }
+            // No bot policy lets an animal eat a corpse, a colony pet's least of all (#1543).
+            foreach (var corpse in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsCorpse && policy.filter.Allows(d)).ToList()) {
+                policy.filter.SetAllow(corpse, false);
                 outcome = Receipts.FieldOutcome.Applied;
             }
             return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {

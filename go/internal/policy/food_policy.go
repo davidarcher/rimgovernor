@@ -31,6 +31,8 @@ const (
 	FoodKindFungus        FoodKind = "fungus"
 	FoodKindAnimalProduct FoodKind = "animal_product"
 	FoodKindOther         FoodKind = "other"
+	FoodKindKibble        FoodKind = "kibble"
+	FoodKindHay           FoodKind = "hay"
 )
 
 // MealIngredients is what a meal definition is made of: meat only, no
@@ -116,9 +118,20 @@ func PawnDiet(pawn WorkPawn) (Diet, bool) {
 	if !ok || !known {
 		return Diet{}, false
 	}
+	names := make([]string, 0, len(traits))
+	for _, t := range traits {
+		names = append(names, t.Name)
+	}
+	d := DietOf(names, inputs.Precepts)
+	d.FineMeals = fineMeals(pawn)
+	return d, true
+}
+
+// DietOf is the diet of trait and precept defNames.
+func DietOf(traits, precepts []string) Diet {
 	var d Diet
 	for _, t := range traits {
-		switch t.Name {
+		switch t {
 		case "Cannibal":
 			d.Cannibal = true
 		case "Ascetic":
@@ -127,7 +140,7 @@ func PawnDiet(pawn WorkPawn) (Diet, bool) {
 			d.Gourmand = true
 		}
 	}
-	for _, p := range inputs.Precepts {
+	for _, p := range precepts {
 		switch {
 		case slices.Contains(cannibalPrecepts, p):
 			d.Cannibal = true
@@ -143,8 +156,7 @@ func PawnDiet(pawn WorkPawn) (Diet, bool) {
 			d.NoFungus = true
 		}
 	}
-	d.FineMeals = fineMeals(pawn)
-	return d, true
+	return d
 }
 
 // DietFoods is the food definitions a diet allows (#1541). Everyone gets
@@ -191,27 +203,93 @@ func DietFoods(d Diet, foods []Food) []string {
 	return slices.Compact(defs)
 }
 
-// DietPolicyChanges are the per-pawn food policy writes owed (#1541): each
-// colonist with a food policy holds the policy labelled with its short
-// name, allowing DietFoods. A pawn whose short name another owned pawn
-// shares (#1310 renames it) or that several policies carry waits.
-func DietPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []FoodPolicyEntry, foods []Food) []FoodPolicyChange {
-	short, count := map[PawnID]string{}, map[string]int{}
-	for _, n := range names {
-		short[n.Pawn] = n.Short
-		count[strings.ToLower(n.Short)]++
+// FoodEater is a food policy holder outside the work census (#1543): a
+// prisoner with its diet, or a tame animal with the food definitions its
+// race can eat.
+type FoodEater struct {
+	Pawn   PawnID
+	Animal bool
+	Diet   Diet
+	Edible []string
+}
+
+// captiveKinds is what a prisoner or slave eats: nutrient paste and raw food.
+var captiveKinds = []FoodKind{FoodKindMealAwful, FoodKindRawMeat, FoodKindHumanMeat, FoodKindInsectMeat, FoodKindVegetable, FoodKindFungus, FoodKindAnimalProduct}
+
+// animalKinds is what a tame animal eats: kibble, hay and raw food, never a meal.
+var animalKinds = []FoodKind{FoodKindKibble, FoodKindHay, FoodKindRawMeat, FoodKindHumanMeat, FoodKindInsectMeat, FoodKindVegetable, FoodKindFungus, FoodKindAnimalProduct}
+
+// CaptiveFoods is a prisoner's or slave's foods (#1543): its diet's paste
+// and raw food.
+func CaptiveFoods(d Diet, foods []Food) []string {
+	var kept []Food
+	for _, f := range foods {
+		if slices.Contains(captiveKinds, f.Kind) {
+			kept = append(kept, f)
+		}
 	}
-	var out []FoodPolicyChange
+	return DietFoods(d, kept)
+}
+
+// AnimalFoods is a tame animal's foods (#1543): the kibble, hay and raw
+// food its race can eat. Corpses are never foods; native disallows them on
+// every write.
+func AnimalFoods(edible []string, foods []Food) []string {
+	defs := []string{}
+	for _, f := range foods {
+		if slices.Contains(animalKinds, f.Kind) && slices.Contains(edible, f.Def) {
+			defs = append(defs, f.Def)
+		}
+	}
+	slices.Sort(defs)
+	return slices.Compact(defs)
+}
+
+// DietPolicyChanges are the per-pawn food policy writes owed (#1541,
+// #1543): each owned pawn with a food policy holds the policy labelled with
+// its short name, allowing DietFoods for a colonist, CaptiveFoods for a
+// slave or prisoner and AnimalFoods for a tame animal. A pawn whose short
+// name another owned pawn shares (#1310 renames it) or that several
+// policies carry waits.
+func DietPolicyChanges(pawns []WorkPawn, eaters []FoodEater, names []OwnedName, policies []FoodPolicyEntry, foods []Food) []FoodPolicyChange {
+	type owed struct {
+		id   PawnID
+		want []string
+	}
+	var rows []owed
 	for _, pawn := range pawns {
-		name := short[pawn.ID]
-		if _, ok := pawn.FoodRestriction.Value(); !ok || name == "" || count[strings.ToLower(name)] != 1 {
+		if _, ok := pawn.FoodRestriction.Value(); !ok {
 			continue
 		}
 		diet, ok := PawnDiet(pawn)
 		if !ok {
 			continue
 		}
-		want := DietFoods(diet, foods)
+		if in, _ := pawn.PolicyInputs.Value(); in.GuestStatus == "Slave" || in.GuestStatus == "Prisoner" {
+			rows = append(rows, owed{pawn.ID, CaptiveFoods(diet, foods)})
+		} else {
+			rows = append(rows, owed{pawn.ID, DietFoods(diet, foods)})
+		}
+	}
+	for _, e := range eaters {
+		if e.Animal {
+			rows = append(rows, owed{e.Pawn, AnimalFoods(e.Edible, foods)})
+		} else {
+			rows = append(rows, owed{e.Pawn, CaptiveFoods(e.Diet, foods)})
+		}
+	}
+	short, count := map[PawnID]string{}, map[string]int{}
+	for _, n := range names {
+		short[n.Pawn] = n.Short
+		count[strings.ToLower(n.Short)]++
+	}
+	var out []FoodPolicyChange
+	for _, row := range rows {
+		name := short[row.id]
+		if name == "" || count[strings.ToLower(name)] != 1 {
+			continue
+		}
+		want := row.want
 		var own []FoodPolicyEntry
 		for _, p := range policies {
 			if p.Label == name {
@@ -229,8 +307,8 @@ func DietPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []FoodPolic
 			}
 			change.Write = &v
 		}
-		if len(own) == 0 || !slices.Contains(own[0].Pawns, pawn.ID) {
-			s, err := domain.NewFoodPolicySetting(domain.PawnID(pawn.ID), name)
+		if len(own) == 0 || !slices.Contains(own[0].Pawns, row.id) {
+			s, err := domain.NewFoodPolicySetting(domain.PawnID(row.id), name)
 			if err != nil {
 				continue
 			}

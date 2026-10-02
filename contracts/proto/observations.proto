@@ -1340,6 +1340,8 @@ enum FoodKind {
   FOOD_KIND_UNSPECIFIED = 0; FOOD_KIND_MEAL_AWFUL = 1; FOOD_KIND_MEAL_SIMPLE = 2; FOOD_KIND_MEAL_FINE = 3; FOOD_KIND_MEAL_LAVISH = 4;
   FOOD_KIND_RAW_MEAT = 5; FOOD_KIND_HUMAN_MEAT = 6; FOOD_KIND_INSECT_MEAT = 7; FOOD_KIND_VEGETABLE = 8; FOOD_KIND_FUNGUS = 9;
   FOOD_KIND_ANIMAL_PRODUCT = 10; FOOD_KIND_OTHER = 11;
+  // Animal feed (#1543): FoodTypeFlags.Kibble foods and hay (FoodTypeFlags.Plant).
+  FOOD_KIND_KIBBLE = 12; FOOD_KIND_HAY = 13;
 }
 enum MealIngredients { MEAL_INGREDIENTS_UNSPECIFIED = 0; MEAL_INGREDIENTS_ANY = 1; MEAL_INGREDIENTS_MEAT = 2; MEAL_INGREDIENTS_NON_MEAT = 3; }
 // ingredients is set on meals only.
@@ -1355,7 +1357,14 @@ message PolicyFacts {
   // (BiomeDef.diseases; #1539), e.g. Malaria, Plague.
   repeated string biome_diseases = 7;
   repeated FoodDefinition foods = 8;
+  repeated FoodEater food_eaters = 9;
 }
+// A food policy holder outside the work census (#1543): a prisoner of the
+// colony or a tame animal on the colony map with a food policy. A prisoner
+// carries its diet inputs (trait defNames, its ideoligion's precept
+// defNames); an animal the food definitions its race can ever eat.
+enum FoodEaterKind { FOOD_EATER_KIND_UNSPECIFIED = 0; FOOD_EATER_KIND_PRISONER = 1; FOOD_EATER_KIND_ANIMAL = 2; }
+message FoodEater { optional string pawn_id = 1; optional FoodEaterKind kind = 2; repeated string traits = 3; repeated string precepts = 4; repeated string edible_defs = 5; }
 message PolicySection { oneof outcome { PolicyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }
