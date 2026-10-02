@@ -45,3 +45,10 @@ func TestPlannedRoomOwedAtAnyTierUntilTheRoomStands(t *testing.T) {
 		t.Fatal("the stove is not held to the kitchen interior", len(cells))
 	}
 }
+
+func TestPlannedRoomInteriorIsTheWholeRoom(t *testing.T) {
+	room := policy.LayoutRoom{Role: policy.ModuleKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}}
+	if cells := plannedRoomInterior(room); len(cells) != 30 || cells[0] != (domain.Cell{X: 10, Z: 10}) || cells[29] != (domain.Cell{X: 15, Z: 14}) {
+		t.Fatal(cells)
+	}
+}

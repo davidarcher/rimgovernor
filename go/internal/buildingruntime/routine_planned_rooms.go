@@ -72,6 +72,18 @@ func plannedRoomCells(facts observation.ColonyProjection, module policy.ModuleRo
 	return nil
 }
 
+// plannedRoomInterior is the room's interior cells.
+func plannedRoomInterior(room policy.LayoutRoom) []domain.Cell {
+	in := room.Interior
+	cells := make([]domain.Cell, 0, int(in.Width*in.Height))
+	for z := in.Z; z < in.Z+in.Height; z++ {
+		for x := in.X; x < in.X+in.Width; x++ {
+			cells = append(cells, domain.Cell{X: x, Z: z})
+		}
+	}
+	return cells
+}
+
 // plannedRoomMethod names a planned room's shell: once per room per epoch.
 func plannedRoomMethod(room policy.LayoutRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("%s-shell-%d-%d", room.Role, room.Interior.X, room.Interior.Z))

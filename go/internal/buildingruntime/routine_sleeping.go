@@ -516,17 +516,36 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return result, err
 	}
 	missing, method, reason := r.selection(facts)
+	if reason == BuildingExistingFacility {
+		// The ring and the furniture are independent (#835): a campfire
+		// already standing for the kitchen does not excuse the planned
+		// room's ring.
+		if module, ok := r.plannedRoomModule(); ok {
+			if room, owed := plannedRoomOwed(facts, module); owed {
+				result, err := r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "")
+				if err != nil || result.Reason == BuildingMethodUsed {
+					return result, err
+				}
+			}
+		}
+	}
 	if reason != "" {
 		return RoutineBuildingResult{Reason: reason}, nil
 	}
 	if module, ok := r.plannedRoomModule(); ok {
-		// The planned room stands before its stove or cooler (#835); a
-		// shell already tried this epoch, or refused, leaves the usual
-		// placement to go on.
+		// The planned room is raised and furnished together (#835): the
+		// ring is admitted, and the stove or cooler goes onto the room's
+		// interior without waiting for the walls. A shell already tried
+		// this epoch, or refused, leaves the usual placement to go on.
 		if room, owed := plannedRoomOwed(facts, module); owed {
 			result, err := r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "")
 			if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
 				return result, err
+			}
+			if module == policy.ModuleKitchen {
+				kitchen := *r
+				kitchen.cells, kitchen.environment = plannedRoomInterior(room), policy.PlacementAnywhere
+				r = &kitchen
 			}
 		} else if module == policy.ModuleKitchen {
 			if cells := plannedRoomCells(facts, module); cells != nil {
