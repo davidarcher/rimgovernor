@@ -1034,28 +1034,20 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 	projection := read.Projection
 	census := &defenseCensus{edifice: map[domain.Cell]string{}, terrain: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, consumers: map[domain.Cell]policy.PowerSite{},
 		cover: map[domain.Cell]*bridge.DefenseCover{}, unbridging: map[domain.Cell]bool{}}
-	// The killbox's tiers share one census rectangle; each perimeter
-	// section is read on its own, the whole ring being past the native
-	// census bound.
-	regions := []bridge.CellRect{defenseRecordRegion(*record, projection.Bounds, "")}
-	for _, tier := range record.Tiers {
-		if policy.IsPerimeterTier(tier.Name) && len(tier.Buildings) > 0 {
-			regions = append(regions, defenseRecordRegion(*record, projection.Bounds, tier.Name))
-		}
+	// One read covers the killbox and every perimeter section: each native
+	// read costs a frame on a running clock, so a read per section outlasts
+	// the optional planner cutoff and the ring is never admitted (#1360).
+	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), defenseCensusRegion(*record, projection.Bounds))
+	if err != nil {
+		return nil, err
 	}
-	for _, region := range regions {
-		site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), region)
-		if err != nil {
-			return nil, err
-		}
-		if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
-			return nil, err
-		}
-		for _, cell := range site.Cells {
-			if !cell.Fogged {
-				census.edifice[cell.Cell], census.terrain[cell.Cell] = cell.EdificeDefName, cell.Terrain
-				census.cover[cell.Cell], census.unbridging[cell.Cell] = cell.Cover, cell.Unbridging
-			}
+	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
+		return nil, err
+	}
+	for _, cell := range site.Cells {
+		if !cell.Fogged {
+			census.edifice[cell.Cell], census.terrain[cell.Cell] = cell.EdificeDefName, cell.Terrain
+			census.cover[cell.Cell], census.unbridging[cell.Cell] = cell.Cover, cell.Unbridging
 		}
 	}
 	if topology, known := projection.PowerPlanning.Value(); known {
@@ -1493,6 +1485,21 @@ func defenseRecordRegion(record store.DefenseLayoutRecord, bounds policy.Bounds,
 	clamp := func(v, hi int32) int32 { return maxInt32(0, minInt32(v, hi)) }
 	return bridge.CellRect{Min: domain.Cell{X: clamp(min.X-1, bounds.Width-1), Z: clamp(min.Z-1, bounds.Height-1)},
 		Max: domain.Cell{X: clamp(max.X+1, bounds.Width-1), Z: clamp(max.Z+1, bounds.Height-1)}}
+}
+
+// defenseCensusRegion is the one rectangle the tier census reads: the
+// killbox's region joined with every perimeter section's.
+func defenseCensusRegion(record store.DefenseLayoutRecord, bounds policy.Bounds) bridge.CellRect {
+	out := defenseRecordRegion(record, bounds, "")
+	for _, tier := range record.Tiers {
+		if !policy.IsPerimeterTier(tier.Name) || len(tier.Buildings) == 0 {
+			continue
+		}
+		r := defenseRecordRegion(record, bounds, tier.Name)
+		out.Min.X, out.Min.Z = minInt32(out.Min.X, r.Min.X), minInt32(out.Min.Z, r.Min.Z)
+		out.Max.X, out.Max.Z = maxInt32(out.Max.X, r.Max.X), maxInt32(out.Max.Z, r.Max.Z)
+	}
+	return out
 }
 
 // defenseCellFacts leaves every fact of a fogged cell unknown.

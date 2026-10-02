@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -261,6 +262,39 @@ func TestDefenseRecordRegionCoversEveryTier(t *testing.T) {
 	// A perimeter section is read on its own.
 	if got := defenseRecordRegion(record, policy.Bounds{Width: 250, Height: 250}, "perimeter-00"); got != (bridge.CellRect{Min: domain.Cell{X: 9, Z: 9}, Max: domain.Cell{X: 13, Z: 12}}) {
 		t.Fatalf("section region %+v", got)
+	}
+}
+
+// #1360: the tier census is one read; its rectangle holds the killbox and
+// every cell of a ring of many perimeter sections.
+func TestDefenseCensusRegionCoversRingInOneRead(t *testing.T) {
+	bounds := policy.Bounds{Width: 250, Height: 250}
+	record := store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 142, Z: 133}, Tiers: []store.DefenseTierRecord{
+		{Name: "firing_line", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 143, Z: 125}, Definition: "Barricade"}}},
+	}}
+	for i := int32(0); i < 40; i++ {
+		x, z := 100+i*2, 100+(i%7)*9
+		record.Tiers = append(record.Tiers, store.DefenseTierRecord{Name: policy.DefenseTierName(fmt.Sprintf("perimeter-%02d", i)),
+			Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: x, Z: z}, Definition: "Wall"}}})
+	}
+	got := defenseCensusRegion(record, bounds)
+	inside := func(c domain.Cell) bool {
+		return c.X >= got.Min.X && c.X <= got.Max.X && c.Z >= got.Min.Z && c.Z <= got.Max.Z
+	}
+	for _, tier := range record.Tiers {
+		for _, b := range tier.Buildings {
+			for _, c := range []domain.Cell{b.Cell, {X: b.Cell.X - 1, Z: b.Cell.Z - 1}, {X: b.Cell.X + 1, Z: b.Cell.Z + 1}} {
+				if !inside(c) {
+					t.Fatalf("census region %+v misses %v of tier %s", got, c, tier.Name)
+				}
+			}
+		}
+	}
+	if !inside(record.Chokepoint) {
+		t.Fatalf("census region %+v misses the chokepoint", got)
+	}
+	if want := (bridge.CellRect{Min: domain.Cell{X: 99, Z: 99}, Max: domain.Cell{X: 179, Z: 155}}); got != want {
+		t.Fatalf("census region %+v, want %+v", got, want)
 	}
 }
 
