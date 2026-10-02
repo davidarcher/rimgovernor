@@ -60,7 +60,7 @@ func Zone(s MapSurvey) []LayoutZone {
 			zones = append(zones, LayoutZone{Kind: ZoneMining, Runs: runs, Ore: true})
 		}
 	}
-	add(ZoneCore, has(func(c *SurveyCell) bool { return c.Rock || c.Walkable }))
+	add(ZoneCore, has(func(c *SurveyCell) bool { return (c.Rock || c.Walkable) && !c.Prop }))
 	for _, f := range fields {
 		if len(f) < zoneFieldMin {
 			break

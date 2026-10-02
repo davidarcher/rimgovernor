@@ -147,3 +147,42 @@ func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
 		}
 	}
 }
+
+// A prop footprint (an ancient exostrider's remains) over the rooms a
+// plain map sites lands no room or hallway on the prop once re-sited and
+// grown (#1533).
+func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
+	plain := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
+	first := SiteCore(LayoutPlan{Zones: Zone(zoningSurvey(140, plain))}, zoningSurvey(140, plain), 3, 1, BuildTierCamp)
+	prop := map[domain.Cell]bool{}
+	for _, r := range first.AllRooms() {
+		for _, c := range rectCells(r.Interior) {
+			prop[c] = true
+		}
+	}
+	if len(prop) == 0 {
+		t.Fatal("no rooms on the plain map")
+	}
+	s := zoningSurvey(140, func(x, z int32) SurveyCell {
+		c := plain(x, z)
+		c.Prop = prop[domain.Cell{X: x, Z: z}]
+		return c
+	})
+	sited := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
+	grown := Grow(sited, 8, 1, BuildTierCamp)
+	for name, p := range map[string]LayoutPlan{"sited": sited, "grown": grown} {
+		if len(p.AllRooms()) == 0 {
+			t.Fatal(name, "no rooms")
+		}
+		for _, r := range p.AllRooms() {
+			if rectHits(roomWalls(r), prop) {
+				t.Fatal(name, r.Role, "room", r.Interior, "covers a prop")
+			}
+		}
+		for _, h := range spineRects(p.Hallways()) {
+			if rectHits(h, prop) {
+				t.Fatal(name, "hallway", h, "covers a prop")
+			}
+		}
+	}
+}

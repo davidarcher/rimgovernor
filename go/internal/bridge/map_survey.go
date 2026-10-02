@@ -95,6 +95,9 @@ func SurveyCells(v *o.CellsSnapshot) []policy.SurveyCell {
 			Fertility:  row.GetFertility(),
 			Ore:        row.GetResourceRock(),
 			Tree:       row.GetTree(),
+			// Occupied off rock, player edifice and clearable ruin is a
+			// standing prop (#1533).
+			Prop: row.GetOccupied() && !rock && row.GetPlayerEdifice() == "" && !row.GetRuin(),
 		})
 	}
 	return cells

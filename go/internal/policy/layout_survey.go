@@ -29,6 +29,10 @@ type SurveyCell struct {
 	// Ore is rock holding a mineable resource; Tree is a cell under a
 	// tree (#778).
 	Ore, Tree bool
+	// Prop is a structure the colony neither owns nor clears as a ruin (an
+	// ancient exostrider's remains, a blueprint): no core room or hallway is
+	// sited over it (#1533).
+	Prop bool
 }
 
 // Footing is the heaviest structure a cell's terrain holds.
