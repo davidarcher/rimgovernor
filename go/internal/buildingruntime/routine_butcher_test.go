@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The butcher spot is owed on the food runway alone (#260): an unarmed
+// The butcher spot is owed whenever the goal is, whatever the food runway (#260): an unarmed
 // colony short of food still gets the spot, so the bill and then the hunt
 // rows follow as soon as the equip family arms someone.
 func TestButcherSpotSelectionIgnoresArmedCount(t *testing.T) {
@@ -23,9 +23,9 @@ func TestButcherSpotSelectionIgnoresArmedCount(t *testing.T) {
 	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || reason != "" {
 		t.Fatal(n, id, reason)
 	}
-	f.Facts.FoodDays = domain.Known(7.0)
-	if _, _, reason := r.selection(f); reason != BuildingMethodNoDeficit {
-		t.Fatal(reason)
+	f.Facts.FoodDays = domain.Known(10.0)
+	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || reason != "" {
+		t.Fatal("the spot waited on the food runway", n, id, reason)
 	}
 }
 
