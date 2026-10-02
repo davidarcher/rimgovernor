@@ -14,8 +14,8 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The pawn settings snapshot observations publish: work, area, schedule,
-    // food and drug policy under one token.
+    // The pawn settings snapshot observations publish: work, area, schedule
+    // and food under one token.
     internal static class NativeWorkSettings
     {
         internal const int ScheduleHours = 24;
@@ -45,8 +45,7 @@ namespace HomeBridge.BridgeTools
     }
 
     // WorkSettingsIntent (#941): one free colonist's work priorities, allowed
-    // area, timetable and food additions together, or the social-only drug
-    // policy alone. Native checks the pawn and
+    // area, timetable and food additions together. Native checks the pawn and
     // each field live when it applies; settings that already hold apply again.
     internal sealed class WorkSettingsActionHandler : IActionHandler
     {
@@ -61,17 +60,13 @@ namespace HomeBridge.BridgeTools
         private static bool ValidSchedule(Operations.Schedule? schedule) => schedule == null
             || (schedule.AssignmentDefs.Count == NativeWorkSettings.ScheduleHours && schedule.AssignmentDefs.All(ProtoBoundary.IsIdentifier));
 
-        private static bool DrugOnly(Operations.WorkSettingsIntent intent) => intent.HasDrugPolicy
-            && intent.Work.Count == 0 && intent.AllowedArea == null && intent.Schedule == null && intent.FoodAllow == null;
-
         private static bool Valid(Operations.WorkSettingsIntent? intent) => intent != null
             && intent.HasPawnId && ProtoBoundary.IsIdentifier(intent.PawnId)
-            && (intent.HasDrugPolicy ? DrugOnly(intent) && ProtoBoundary.IsIdentifier(intent.DrugPolicy)
-                : (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null || intent.FoodAllow != null)
+            && (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null || intent.FoodAllow != null)
                 && intent.Work.Count <= 256 && NativeFoodPolicy.Valid(intent.FoodAllow)
                 && intent.Work.All(w => w.HasWorkTypeDef && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.HasPriority && w.Priority >= 0 && w.Priority <= 4)
                 && intent.Work.Select(w => w.WorkTypeDef).Distinct(StringComparer.Ordinal).Count() == intent.Work.Count
-                && ValidSchedule(intent.Schedule) && ValidArea(intent.AllowedArea));
+                && ValidSchedule(intent.Schedule) && ValidArea(intent.AllowedArea);
 
         private static bool AreaResolves(Operations.WorkSettingsIntent intent, Pawn pawn, out Area_Allowed? area)
         {
@@ -85,7 +80,6 @@ namespace HomeBridge.BridgeTools
         // Holds says whether every requested field already reads as asked.
         private static bool Holds(Pawn pawn, Operations.WorkSettingsIntent intent)
         {
-            if (intent.HasDrugPolicy) return NativeDrugPolicy.Matches(pawn, intent.DrugPolicy);
             if (!NativeFoodPolicy.Matches(pawn, intent.FoodAllow)) return false;
             if (intent.Work.Count > 0 && pawn.workSettings?.Initialized != true) return false;
             if (!intent.Work.All(row => {
@@ -115,10 +109,7 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn is no longer spawned on this map")
                 .Require(() => Target(found!), "the pawn is not a living free colonist");
-            if (intent!.HasDrugPolicy)
-                rules.Require(() => NativeDrugPolicy.Writable(found!), "the pawn has no drug policy");
-            else
-                rules.Require(() => !found!.Downed, "the pawn is downed")
+            rules.Require(() => !found!.Downed, "the pawn is downed")
                     .Require(() => !found!.Drafted, "the pawn is drafted")
                     .Require(() => !found!.InMentalState, "the pawn is in a mental state")
                     .Require(() => found!.workSettings?.Initialized == true && found.workSettings.EverWork, "the pawn has no work settings")
@@ -144,7 +135,6 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new InvalidOperationException("Work settings prerequisites changed before apply: " + failure.Detail);
             if (!holds)
             {
-                if (intent.HasDrugPolicy) NativeDrugPolicy.Apply(pawn, intent.DrugPolicy);
                 foreach (var row in intent.Work) pawn.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef), row.Priority);
                 if (intent.AllowedArea != null)
                 {
@@ -164,7 +154,6 @@ namespace HomeBridge.BridgeTools
         {
             var effect = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence { EntityId = intent.PawnId } };
             void Add(Receipts.SettingsField field) => effect.Fields.Add(new Receipts.FieldResult { Field = field, Outcome = Receipts.FieldOutcome.Applied });
-            if (intent.HasDrugPolicy) Add(Receipts.SettingsField.DrugPolicy);
             foreach (var row in intent.Work) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Work,
                 WorkTypeDef = row.WorkTypeDef, Outcome = Receipts.FieldOutcome.Applied });
             if (intent.AllowedArea != null) Add(Receipts.SettingsField.AllowedArea);

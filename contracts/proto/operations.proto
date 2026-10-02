@@ -302,6 +302,7 @@ message Action {
     RemoveFloorIntent remove_floor = 52;
     RemoveRoofIntent remove_roof = 53;
     ReadingPolicyIntent reading_policy = 54;
+    DrugPolicyIntent drug_policy = 55;
   }
 }
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
@@ -319,7 +320,10 @@ message Action {
 // positive count when it allows none. reading_policy (#1306) is the label
 // of the ReadingPolicy the pawn should hold (its short name; a
 // ReadingPolicyIntent writes the contents), refused when no policy or
-// several carry it. medical_care (#1301) is
+// several carry it. drug_policy (#1537) is the label of
+// the DrugPolicy the pawn should hold (its short name; a DrugPolicyIntent
+// writes the contents), refused when no policy or several carry it.
+// medical_care (#1301) is
 // the pawn's MedicalCareCategory, any of the five tiers, on a living
 // colonist, slave, prisoner, guest or tame animal of the colony that has
 // medical care settings.
@@ -332,6 +336,7 @@ message PawnSettingsIntent {
     int32 medicine_carry = 5;
     string nickname = 6;
     MedicalCare medical_care = 7;
+    string drug_policy = 8;
   }
 }
 // Queue one medical operation bill on one patient (#1162): the recipe on the
@@ -374,6 +379,20 @@ message PolicyPruneIntent { optional PolicyDatabase database = 1; repeated strin
 // it. Evidence is a SettingsEffect on the policy's load id with the
 // READING_POLICY field.
 message ReadingPolicyIntent { optional string name = 1; repeated string allowed_defs = 2; }
+// Write one drug policy's full contents (#1537): the DrugPolicy labelled
+// name (made when missing) carries exactly entries; every drug the intent
+// does not name is off (no joy, addiction or scheduled use, nothing
+// carried). An entry names a drug ThingDef the policy lists, at most once.
+// Native refuses a name several policies carry. A policy that already
+// matches applies again. PawnSettingsIntent.drug_policy assigns it.
+// Evidence is a SettingsEffect on the policy's load id with the
+// DRUG_POLICY field.
+message DrugPolicyEntry {
+  optional string drug_def = 1; optional bool allowed_for_joy = 2; optional bool allowed_for_addiction = 3;
+  optional bool allow_scheduled = 4; optional float days_frequency = 5; optional float only_if_mood_below = 6;
+  optional float only_if_joy_below = 7; optional int32 take_to_inventory = 8;
+}
+message DrugPolicyIntent { optional string name = 1; repeated DrugPolicyEntry entries = 2; }
 // Set the game's home-area auto-expand (Find.PlaySettings.autoHomeArea, a
 // save-level setting; #1322). Evidence is a SettingsEffect with the
 // AUTO_HOME_AREA field: APPLIED when it changed, UNCHANGED when it already
@@ -519,8 +538,7 @@ message ProductionBillIntent {
 }
 // Write one free colonist's settings: work priorities, allowed area, the
 // 24-hour timetable and food additions together, or the medicine ceiling
-// alone, or the named social-only drug policy alone (created or updated,
-// assigned and made the default; no hard drugs or scheduled use). Native
+// alone. Native
 // checks the pawn and each field live when it applies; settings that
 // already hold apply again.
 message WorkSettingsIntent {
@@ -530,7 +548,7 @@ message WorkSettingsIntent {
   Schedule schedule = 4;
   reserved 5; reserved "medical_care";
   DefinitionList food_allow = 6;
-  optional string drug_policy = 7;
+  reserved 7; reserved "drug_policy";
 }
 // Assign one free colonist to one humanlike bed, replacing the bed it owned
 // when the planner chose (expected_previous_bed: that bed or clear). Native

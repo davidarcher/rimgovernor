@@ -47,10 +47,6 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 		if food := s.FoodRestriction; food != nil && food.PolicyId != nil && !hasIssue(s.Issues, "food_restriction") {
 			w.FoodRestriction = domain.Known(policy.FoodRestriction{PolicyID: food.GetPolicyId(), Allowed: append([]string(nil), food.AllowedDefs...), Eligible: append([]string(nil), food.EligibleDefs...)})
 		}
-		if s.DrugPolicyWritable != nil && s.DrugPolicyName != nil {
-			w.DrugPolicyWritable = domain.Known(s.GetDrugPolicyWritable())
-			w.DrugPolicyName = s.GetDrugPolicyName()
-		}
 		w.PolicyInputs = pawnPolicyInputs(s.PolicyInputs)
 		if s.MedicalCare != nil && !hasIssue(s.Issues, "medical_care") {
 			w.MedicalCare = domain.Known(bridge.MedicalCareName(s.GetMedicalCare()))

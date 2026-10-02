@@ -9,12 +9,14 @@ import (
 // PolicyEntry is one row of a native policy database (#1297): the policy's
 // load id, label, the player pawns currently holding it and whether it is
 // the database default. Allowed is a reading policy's allowed book
-// definitions (#1306).
+// definitions (#1306); Drugs a drug policy's entries that allow anything
+// (#1537).
 type PolicyEntry struct {
 	ID, Label string
 	Pawns     []policy.PawnID
 	Default   bool
 	Allowed   []string
+	Drugs     []domain.DrugPolicyEntry
 }
 
 // AllowedArea is one Area_Allowed on the colony map and the pawns
@@ -56,7 +58,12 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 	entries := func(rows []*o.PolicyEntry) []PolicyEntry {
 		r := make([]PolicyEntry, 0, len(rows))
 		for _, row := range rows {
-			r = append(r, PolicyEntry{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds), Default: row.GetDefault(), Allowed: row.AllowedDefs})
+			e := PolicyEntry{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds), Default: row.GetDefault(), Allowed: row.AllowedDefs}
+			for _, d := range row.DrugEntries {
+				e.Drugs = append(e.Drugs, domain.DrugPolicyEntry{Drug: d.GetDrugDef(), Joy: d.GetAllowedForJoy(), Addiction: d.GetAllowedForAddiction(), Scheduled: d.GetAllowScheduled(),
+					DaysFrequency: float64(d.GetDaysFrequency()), OnlyIfMoodBelow: float64(d.GetOnlyIfMoodBelow()), OnlyIfJoyBelow: float64(d.GetOnlyIfJoyBelow()), TakeToInventory: int(d.GetTakeToInventory())})
+			}
+			r = append(r, e)
 		}
 		return r
 	}

@@ -133,15 +133,11 @@ existing facilities are access blockers rather than reasons to duplicate them.
 
 After Brewing research, ordinary resource production targets twelve Beer and
 twelve SmokeleafJoint, with small hops and smokeleaf plots when climate permits.
-The work planner assigns `RimGovernor social drugs` through Hands and makes it
-the default. Under autonomous control the controller owns drug policies: every
-available colonist is moved to it, and a same-named policy whose contents drifted
-is repaired in place rather than duplicated (#495). This policy permits beer and
-smokeleaf for joy, disables hard-drug joy, addiction use, scheduled use and
-inventory stocking. Native readback exposes the policy name only when its
-contents and default assignment match, so drift replans the assignment.
+Each colonist holds its own drug policy (#1537, the
+[`drug_policy` action](action-contracts.md)): beer, smokeleaf and psychite tea
+for joy unless addiction risk or a trait rules them out.
 Recreation relief itself still excludes ingestible joy; RimWorld chooses ordinary
-drug use. `policy.DrugPolicyChange` unit tests prove the ownership rules.
+drug use. `policy/drug_policy_test.go` proves the entries.
 
 ## Active mental-state observation
 

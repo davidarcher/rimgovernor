@@ -42,6 +42,8 @@ namespace HomeBridge.BridgeTools
                 Add(facts.Drug, game.drugPolicyDatabase.AllPolicies, pawns, p => p.drugs?.CurrentPolicy);
                 Add(facts.Food, game.foodRestrictionDatabase.AllFoodRestrictions, pawns, p => p.foodRestriction?.CurrentFoodPolicy);
                 Add(facts.Reading, game.readingPolicyDatabase.AllReadingPolicies, pawns, p => p.reading?.CurrentPolicy);
+                for (var i = 0; i < facts.Drug.Count; i++)
+                    facts.Drug[i].DrugEntries.Add(NativeDrugPolicy.Entries(game.drugPolicyDatabase.AllPolicies[i]).Select(e => { e.DrugDef = Id(e.DrugDef); return e; }));
                 for (var i = 0; i < facts.Reading.Count; i++)
                     facts.Reading[i].AllowedDefs.Add(NativeReadingPolicy.Allowed(game.readingPolicyDatabase.AllReadingPolicies[i]).Select(d => Id(d)));
                 foreach (var book in NativeReadingPolicy.Books())

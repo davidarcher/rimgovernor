@@ -31,7 +31,6 @@ type WorkAssignment struct {
 	areaID    string
 	schedule  string
 	food      string
-	drug      string
 }
 
 func newWorkAssignment(pawn PawnID, settings []WorkSetting, hasArea, areaClear bool, areaID string, schedule []string, food ...string) (WorkAssignment, error) {
@@ -99,14 +98,6 @@ func newWorkAssignment(pawn PawnID, settings []WorkSetting, hasArea, areaClear b
 	return WorkAssignment{pawn: pawn, settings: string(data), hasArea: hasArea, areaClear: areaClear, areaID: areaID, schedule: encodedSchedule, food: encodedFood}, nil
 }
 
-func NewDrugPolicyAssignment(pawn PawnID, name string) (WorkAssignment, error) {
-	if !validID(string(pawn)) || !validID(name) {
-		return WorkAssignment{}, errors.New("invalid drug policy assignment")
-	}
-	return WorkAssignment{pawn: pawn, drug: name}, nil
-}
-func (w WorkAssignment) DrugPolicy() string { return w.drug }
-
 // NewFoodAssignment carries a bounded diet expansion through the pawn settings CAS.
 func NewFoodAssignment(pawn PawnID, defs []string) (WorkAssignment, error) {
 	return newWorkAssignment(pawn, nil, false, false, "", nil, defs...)
@@ -172,9 +163,6 @@ func (w WorkAssignment) Schedule() []string {
 // bridge, decoding a stored payload) use it to confirm the value is still
 // exactly what NewWorkAssignment/NewAreaAssignment would have produced.
 func (w WorkAssignment) Canonical() (WorkAssignment, error) {
-	if w.drug != "" {
-		return NewDrugPolicyAssignment(w.pawn, w.drug)
-	}
 	return newWorkAssignment(w.pawn, w.Settings(), w.hasArea, w.areaClear, w.areaID, w.Schedule(), w.FoodAllow()...)
 }
 

@@ -9,9 +9,6 @@
   "Available": {
    "v": true
   },
-  "DrugPolicyWritable": {
-   "v": true
-  },
   "FoodRestriction": {
    "v": {
     "Allowed": [
@@ -541,9 +538,6 @@
    "v": true
   },
   "Available": {
-   "v": true
-  },
-  "DrugPolicyWritable": {
    "v": true
   },
   "FoodRestriction": {
@@ -1078,9 +1072,6 @@
    "v": true
   },
   "Available": {
-   "v": true
-  },
-  "DrugPolicyWritable": {
    "v": true
   },
   "FoodRestriction": {

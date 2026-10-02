@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestSocialDrugsRequireResearchAndWritablePawn(t *testing.T) {
+func TestSocialDrugsRequireResearch(t *testing.T) {
 	for _, research := range []domain.Fact[ResearchFacts]{domain.Unknown[ResearchFacts](), domain.Known(ResearchFacts{}), domain.Known(ResearchFacts{Current: "Brewing"})} {
 		if len(SocialDrugTargets(research)) != 0 {
 			t.Fatal("reserve before completed research")
@@ -15,22 +15,6 @@ func TestSocialDrugsRequireResearchAndWritablePawn(t *testing.T) {
 	targets := SocialDrugTargets(domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Brewing"}}))
 	if len(targets) != 2 || targets["Beer"] != 12 || targets["SmokeleafJoint"] != 12 {
 		t.Fatal(targets)
-	}
-	pawn := WorkPawn{Available: domain.Known(true), DrugPolicyWritable: domain.Known(true)}
-	if !DrugPolicyChange(pawn) {
-		t.Fatal("default not assigned")
-	}
-	pawn.DrugPolicyName = SocialDrugPolicyName
-	if DrugPolicyChange(pawn) {
-		t.Fatal("repeated matching assignment")
-	}
-	pawn.DrugPolicyName, pawn.DrugPolicyWritable = "other", domain.Known(false)
-	if DrugPolicyChange(pawn) {
-		t.Fatal("unavailable drug tracker accepted")
-	}
-	pawn.DrugPolicyWritable = domain.Unknown[bool]()
-	if DrugPolicyChange(pawn) {
-		t.Fatal("unknown policy overwritten")
 	}
 }
 

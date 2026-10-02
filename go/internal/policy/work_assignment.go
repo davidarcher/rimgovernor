@@ -35,10 +35,8 @@ type WorkPawn struct {
 	Age       domain.Fact[float64]
 	// Schedule is the current timetable, one TimeAssignmentDef per hour
 	// (hour 0 first); unknown when the read carried no complete timetable.
-	Schedule           domain.Fact[[]string]
-	FoodRestriction    domain.Fact[FoodRestriction]
-	DrugPolicyWritable domain.Fact[bool]
-	DrugPolicyName     string
+	Schedule        domain.Fact[[]string]
+	FoodRestriction domain.Fact[FoodRestriction]
 	// MedicalCare is the MedicalCareCategory name from the settings block
 	// (#1307 carry tier); unknown when the read did not carry it.
 	MedicalCare domain.Fact[string]

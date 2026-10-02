@@ -173,7 +173,7 @@ namespace RimGovernor.Protocol.Operations {
             "cHBseVJlcXVlc3QSMQoIaWRlbnRpdHkYASABKAsyHy5yaW1nb3Zlcm5vci5j",
             "b21tb24udjEuSWRlbnRpdHkSMgoHYWN0aW9ucxgCIAMoCzIhLnJpbWdvdmVy",
             "bm9yLm9wZXJhdGlvbnMudjEuQWN0aW9uEhsKDmRlZmVyX3NuYXBzaG90GAMg",
-            "ASgISACIAQFCEQoPX2RlZmVyX3NuYXBzaG90IuoWCgZBY3Rpb24SEAoDa2V5",
+            "ASgISACIAQFCEQoPX2RlZmVyX3NuYXBzaG90Iq4XCgZBY3Rpb24SEAoDa2V5",
             "GAEgASgJSAGIAQESFAoHcHVycG9zZRgCIAEoCUgCiAEBEjcKBXRyYWRlGAog",
             "ASgLMiYucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5UcmFkZUludGVudEgA",
             "Ej0KCGJ1aWxkaW5nGAsgASgLMikucmltZ292ZXJub3Iub3BlcmF0aW9ucy52",
@@ -237,28 +237,42 @@ namespace RimGovernor.Protocol.Operations {
             "b3JJbnRlbnRIABJCCgtyZW1vdmVfcm9vZhg1IAEoCzIrLnJpbWdvdmVybm9y",
             "Lm9wZXJhdGlvbnMudjEuUmVtb3ZlUm9vZkludGVudEgAEkgKDnJlYWRpbmdf",
             "cG9saWN5GDYgASgLMi4ucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5SZWFk",
-            "aW5nUG9saWN5SW50ZW50SABCCAoGaW50ZW50QgYKBF9rZXlCCgoIX3B1cnBv",
-            "c2VKBAgOEA9KBAgfECBSBW1lbGVlUgRob21lIqoCChJQYXduU2V0dGluZ3NJ",
-            "bnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgBiAEBEkoKEmhvc3RpbGl0eV9yZXNw",
-            "b25zZRgCIAEoDjIsLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuSG9zdGls",
-            "aXR5UmVzcG9uc2VIABITCglzZWxmX3RlbmQYAyABKAhIABIYCg5yZWFkaW5n",
-            "X3BvbGljeRgEIAEoCUgAEhgKDm1lZGljaW5lX2NhcnJ5GAUgASgFSAASEgoI",
-            "bmlja25hbWUYBiABKAlIABI+CgxtZWRpY2FsX2NhcmUYByABKA4yJi5yaW1n",
-            "b3Zlcm5vci5vcGVyYXRpb25zLnYxLk1lZGljYWxDYXJlSABCCQoHc2V0dGlu",
-            "Z0IKCghfcGF3bl9pZCLnAQoNU3VyZ2VyeUludGVudBIUCgdwYXduX2lkGAEg",
-            "ASgJSACIAQESFwoKcmVjaXBlX2RlZhgCIAEoCUgBiAEBEhcKCnBhcnRfaW5k",
-            "ZXgYAyABKAVIAogBARIiChVhY2tub3dsZWRnZV92aW9sYXRpb24YBCABKAhI",
-            "A4gBARIXCgpzdXJnZW9uX2lkGAUgASgJSASIAQFCCgoIX3Bhd25faWRCDQoL",
-            "X3JlY2lwZV9kZWZCDQoLX3BhcnRfaW5kZXhCGAoWX2Fja25vd2xlZGdlX3Zp",
-            "b2xhdGlvbkINCgtfc3VyZ2Vvbl9pZCK+AQoKQXJlYUludGVudBJACglvcGVy",
-            "YXRpb24YASABKA4yKC5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkFyZWFP",
-            "cGVyYXRpb25IAIgBARIQCgNrZXkYAiABKAlIAYgBARIRCgRob21lGAMgASgI",
-            "SAKIAQESKgoFY2VsbHMYBCADKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEu",
-            "Q2VsbEIMCgpfb3BlcmF0aW9uQgYKBF9rZXlCBwoFX2hvbWUidgoRUG9saWN5",
-            "UHJ1bmVJbnRlbnQSQAoIZGF0YWJhc2UYASABKA4yKS5yaW1nb3Zlcm5vci5v",
-            "cGVyYXRpb25zLnYxLlBvbGljeURhdGFiYXNlSACIAQESEgoKZGVsZXRlX2lk",
-            "cxgCIAMoCUILCglfZGF0YWJhc2UiRwoTUmVhZGluZ1BvbGljeUludGVudBIR",
-            "CgRuYW1lGAEgASgJSACIAQESFAoMYWxsb3dlZF9kZWZzGAIgAygJQgcKBV9u",
+            "aW5nUG9saWN5SW50ZW50SAASQgoLZHJ1Z19wb2xpY3kYNyABKAsyKy5yaW1n",
+            "b3Zlcm5vci5vcGVyYXRpb25zLnYxLkRydWdQb2xpY3lJbnRlbnRIAEIICgZp",
+            "bnRlbnRCBgoEX2tleUIKCghfcHVycG9zZUoECA4QD0oECB8QIFIFbWVsZWVS",
+            "BGhvbWUiwQIKElBhd25TZXR0aW5nc0ludGVudBIUCgdwYXduX2lkGAEgASgJ",
+            "SAGIAQESSgoSaG9zdGlsaXR5X3Jlc3BvbnNlGAIgASgOMiwucmltZ292ZXJu",
+            "b3Iub3BlcmF0aW9ucy52MS5Ib3N0aWxpdHlSZXNwb25zZUgAEhMKCXNlbGZf",
+            "dGVuZBgDIAEoCEgAEhgKDnJlYWRpbmdfcG9saWN5GAQgASgJSAASGAoObWVk",
+            "aWNpbmVfY2FycnkYBSABKAVIABISCghuaWNrbmFtZRgGIAEoCUgAEj4KDG1l",
+            "ZGljYWxfY2FyZRgHIAEoDjImLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEu",
+            "TWVkaWNhbENhcmVIABIVCgtkcnVnX3BvbGljeRgIIAEoCUgAQgkKB3NldHRp",
+            "bmdCCgoIX3Bhd25faWQi5wEKDVN1cmdlcnlJbnRlbnQSFAoHcGF3bl9pZBgB",
+            "IAEoCUgAiAEBEhcKCnJlY2lwZV9kZWYYAiABKAlIAYgBARIXCgpwYXJ0X2lu",
+            "ZGV4GAMgASgFSAKIAQESIgoVYWNrbm93bGVkZ2VfdmlvbGF0aW9uGAQgASgI",
+            "SAOIAQESFwoKc3VyZ2Vvbl9pZBgFIAEoCUgEiAEBQgoKCF9wYXduX2lkQg0K",
+            "C19yZWNpcGVfZGVmQg0KC19wYXJ0X2luZGV4QhgKFl9hY2tub3dsZWRnZV92",
+            "aW9sYXRpb25CDQoLX3N1cmdlb25faWQivgEKCkFyZWFJbnRlbnQSQAoJb3Bl",
+            "cmF0aW9uGAEgASgOMigucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5BcmVh",
+            "T3BlcmF0aW9uSACIAQESEAoDa2V5GAIgASgJSAGIAQESEQoEaG9tZRgDIAEo",
+            "CEgCiAEBEioKBWNlbGxzGAQgAygLMhsucmltZ292ZXJub3IuY29tbW9uLnYx",
+            "LkNlbGxCDAoKX29wZXJhdGlvbkIGCgRfa2V5QgcKBV9ob21lInYKEVBvbGlj",
+            "eVBydW5lSW50ZW50EkAKCGRhdGFiYXNlGAEgASgOMikucmltZ292ZXJub3Iu",
+            "b3BlcmF0aW9ucy52MS5Qb2xpY3lEYXRhYmFzZUgAiAEBEhIKCmRlbGV0ZV9p",
+            "ZHMYAiADKAlCCwoJX2RhdGFiYXNlIkcKE1JlYWRpbmdQb2xpY3lJbnRlbnQS",
+            "EQoEbmFtZRgBIAEoCUgAiAEBEhQKDGFsbG93ZWRfZGVmcxgCIAMoCUIHCgVf",
+            "bmFtZSKrAwoPRHJ1Z1BvbGljeUVudHJ5EhUKCGRydWdfZGVmGAEgASgJSACI",
+            "AQESHAoPYWxsb3dlZF9mb3Jfam95GAIgASgISAGIAQESIgoVYWxsb3dlZF9m",
+            "b3JfYWRkaWN0aW9uGAMgASgISAKIAQESHAoPYWxsb3dfc2NoZWR1bGVkGAQg",
+            "ASgISAOIAQESGwoOZGF5c19mcmVxdWVuY3kYBSABKAJIBIgBARIfChJvbmx5",
+            "X2lmX21vb2RfYmVsb3cYBiABKAJIBYgBARIeChFvbmx5X2lmX2pveV9iZWxv",
+            "dxgHIAEoAkgGiAEBEh4KEXRha2VfdG9faW52ZW50b3J5GAggASgFSAeIAQFC",
+            "CwoJX2RydWdfZGVmQhIKEF9hbGxvd2VkX2Zvcl9qb3lCGAoWX2FsbG93ZWRf",
+            "Zm9yX2FkZGljdGlvbkISChBfYWxsb3dfc2NoZWR1bGVkQhEKD19kYXlzX2Zy",
+            "ZXF1ZW5jeUIVChNfb25seV9pZl9tb29kX2JlbG93QhQKEl9vbmx5X2lmX2pv",
+            "eV9iZWxvd0IUChJfdGFrZV90b19pbnZlbnRvcnkiawoQRHJ1Z1BvbGljeUlu",
+            "dGVudBIRCgRuYW1lGAEgASgJSACIAQESOwoHZW50cmllcxgCIAMoCzIqLnJp",
+            "bWdvdmVybm9yLm9wZXJhdGlvbnMudjEuRHJ1Z1BvbGljeUVudHJ5QgcKBV9u",
             "YW1lIjYKEkF1dG9Ib21lQXJlYUludGVudBIUCgdlbmFibGVkGAEgASgISACI",
             "AQFCCgoIX2VuYWJsZWQiugEKDUFjcXVpcmVJbnRlbnQSFgoJc291cmNlX2lk",
             "GAEgASgJSACIAQESHgoRcmVzb3VyY2VfZGVmX25hbWUYAiABKAlIAYgBARIp",
@@ -322,155 +336,154 @@ namespace RimGovernor.Protocol.Operations {
             "AyABKAsyJy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkJpbGxTZXR0aW5n",
             "cxIiChVyZXBsYWNlX293bmVkX2JpbGxfaWQYBCABKAlIAogBAUILCglfYmVu",
             "Y2hfaWRCDQoLX3JlY2lwZV9kZWZCGAoWX3JlcGxhY2Vfb3duZWRfYmlsbF9p",
-            "ZCLeAgoSV29ya1NldHRpbmdzSW50ZW50EhQKB3Bhd25faWQYASABKAlIAIgB",
+            "ZCLHAgoSV29ya1NldHRpbmdzSW50ZW50EhQKB3Bhd25faWQYASABKAlIAIgB",
             "ARI1CgR3b3JrGAIgAygLMicucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5X",
             "b3JrUHJpb3JpdHkSOwoMYWxsb3dlZF9hcmVhGAMgASgLMiUucmltZ292ZXJu",
             "b3Iub3BlcmF0aW9ucy52MS5Bc3NpZ25tZW50EjUKCHNjaGVkdWxlGAQgASgL",
             "MiMucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5TY2hlZHVsZRI9Cgpmb29k",
             "X2FsbG93GAYgASgLMikucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5EZWZp",
-            "bml0aW9uTGlzdBIYCgtkcnVnX3BvbGljeRgHIAEoCUgBiAEBQgoKCF9wYXdu",
-            "X2lkQg4KDF9kcnVnX3BvbGljeUoECAUQBlIMbWVkaWNhbF9jYXJlIrUBCg9C",
-            "ZWRBc3NpZ25JbnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgAiAEBEhMKBmJlZF9p",
-            "ZBgCIAEoCUgBiAEBEkQKFWV4cGVjdGVkX3ByZXZpb3VzX2JlZBgDIAEoCzIl",
-            "LnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuQXNzaWdubWVudBIRCgRzd2Fw",
-            "GAQgASgISAKIAQFCCgoIX3Bhd25faWRCCQoHX2JlZF9pZEIHCgVfc3dhcCKX",
-            "AQoZUHJpc29uZXJJbnRlcmFjdGlvbkludGVudBIUCgdwYXduX2lkGAEgASgJ",
-            "SACIAQESSAoLaW50ZXJhY3Rpb24YAiABKA4yLi5yaW1nb3Zlcm5vci5vcGVy",
-            "YXRpb25zLnYxLlByaXNvbmVySW50ZXJhY3Rpb25IAYgBAUIKCghfcGF3bl9p",
-            "ZEIOCgxfaW50ZXJhY3Rpb24ixgEKDERpYWxvZ0ludGVudBIWCgl3aW5kb3df",
-            "aWQYASABKAVIAIgBARIZCgxvcHRpb25faW5kZXgYAiABKAVIAYgBARIZCgxv",
-            "cHRpb25fbGFiZWwYAyABKAlIAogBARIgChNqb2luZXJfbGV0dGVyX3Rva2Vu",
-            "GAQgASgJSAOIAQFCDAoKX3dpbmRvd19pZEIPCg1fb3B0aW9uX2luZGV4Qg8K",
-            "DV9vcHRpb25fbGFiZWxCFgoUX2pvaW5lcl9sZXR0ZXJfdG9rZW4ikgEKDE5h",
-            "bWluZ0ludGVudBIWCgl3aW5kb3dfaWQYASABKAVIAIgBARIZCgxmYWN0aW9u",
-            "X25hbWUYAiABKAlIAYgBARIcCg9zZXR0bGVtZW50X25hbWUYAyABKAlIAogB",
-            "AUIMCgpfd2luZG93X2lkQg8KDV9mYWN0aW9uX25hbWVCEgoQX3NldHRsZW1l",
-            "bnRfbmFtZSI6Cg5SZXNlYXJjaEludGVudBIYCgtwcm9qZWN0X2RlZhgBIAEo",
-            "CUgAiAEBQg4KDF9wcm9qZWN0X2RlZiKdAgoTQXBwYXJlbFBvbGljeUludGVu",
-            "dBIUCgdwYXduX2lkGAEgASgJSACIAQESEQoEbmFtZRgCIAEoCUgBiAEBEhQK",
-            "DGFsbG93ZWRfZGVmcxgDIAMoCRIbCg5taW5faGl0X3BvaW50cxgEIAEoAkgC",
-            "iAEBEhsKDm1heF9oaXRfcG9pbnRzGAUgASgCSAOIAQESGAoLbWluX3F1YWxp",
-            "dHkYBiABKAVIBIgBARIYCgttYXhfcXVhbGl0eRgHIAEoBUgFiAEBQgoKCF9w",
-            "YXduX2lkQgcKBV9uYW1lQhEKD19taW5faGl0X3BvaW50c0IRCg9fbWF4X2hp",
-            "dF9wb2ludHNCDgoMX21pbl9xdWFsaXR5Qg4KDF9tYXhfcXVhbGl0eSKNAQoR",
-            "Rm9ybUNhcmF2YW5JbnRlbnQSEAoIcGF3bl9pZHMYASADKAkSMgoFY2FyZ28Y",
-            "AiADKAsyIy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkRlZkNvdW50Eh0K",
-            "EGRlc3RpbmF0aW9uX3RpbGUYAyABKAVIAIgBAUITChFfZGVzdGluYXRpb25f",
-            "dGlsZSKZAQoRQWNjZXB0UXVlc3RJbnRlbnQSFQoIcXVlc3RfaWQYASABKAlI",
-            "AIgBARIdChBhY2NlcHRlcl9wYXduX2lkGAIgASgJSAGIAQESGgoNcmV3YXJk",
-            "X2Nob2ljZRgDIAEoBUgCiAEBQgsKCV9xdWVzdF9pZEITChFfYWNjZXB0ZXJf",
-            "cGF3bl9pZEIQCg5fcmV3YXJkX2Nob2ljZSJgCgpNb3ZlSW50ZW50EhQKB3Bh",
-            "d25faWQYASABKAlIAIgBARIwCgtkZXN0aW5hdGlvbhgCIAEoCzIbLnJpbWdv",
-            "dmVybm9yLmNvbW1vbi52MS5DZWxsQgoKCF9wYXduX2lkIlIKCkhhdWxJbnRl",
-            "bnQSFAoHcGF3bl9pZBgBIAEoCUgAiAEBEhUKCHRoaW5nX2lkGAIgASgJSAGI",
-            "AQFCCgoIX3Bhd25faWRCCwoJX3RoaW5nX2lkIlEKDkJ1aWxkaW5nSW50ZW50",
-            "Ej8KCXBsYWNlbWVudBgBIAEoCzIsLnJpbWdvdmVybm9yLnBsYWNlbWVudC52",
-            "MS5QbGFjZW1lbnRDYW5kaWRhdGUizAIKC1RyYWRlSW50ZW50EhYKCXRyYWRl",
-            "cl9pZBgBIAEoCUgBiAEBEhoKDW5lZ290aWF0b3JfaWQYAiABKAlIAogBARI0",
-            "CgRvcGVuGAMgASgLMiQucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5PcGVu",
-            "VHJhZGVIABI9CglzZXRfbGluZXMYBCABKAsyKC5yaW1nb3Zlcm5vci5vcGVy",
-            "YXRpb25zLnYxLlNldFRyYWRlTGluZXNIABI4CgZhY2NlcHQYBSABKAsyJi5y",
-            "aW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkFjY2VwdFRyYWRlSAASMgoDZW5k",
-            "GAYgASgLMiMucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5FbmRUcmFkZUgA",
-            "QgYKBHN0ZXBCDAoKX3RyYWRlcl9pZEIQCg5fbmVnb3RpYXRvcl9pZCJpCgdS",
-            "ZWZ1c2FsEjUKBGNvZGUYASABKA4yIi5yaW1nb3Zlcm5vci5jb21tb24udjEu",
-            "RmFpbHVyZUNvZGVIAIgBARITCgZyZWFzb24YAiABKAlIAYgBAUIHCgVfY29k",
-            "ZUIJCgdfcmVhc29uItEBCgxBY3Rpb25SZXN1bHQSEAoDa2V5GAEgASgJSAGI",
-            "AQESMwoHYXBwbGllZBgCIAEoCzIgLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYx",
-            "LlJlY2VpcHRIABI1CgdyZWZ1c2VkGAMgASgLMiIucmltZ292ZXJub3Iub3Bl",
-            "cmF0aW9ucy52MS5SZWZ1c2FsSAASMAoGZmFpbGVkGAQgASgLMh4ucmltZ292",
-            "ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRjb21lQgYKBF9rZXki",
-            "fQoKQXBwbHlSZXBseRI4CgdyZXN1bHRzGAEgAygLMicucmltZ292ZXJub3Iu",
-            "b3BlcmF0aW9ucy52MS5BY3Rpb25SZXN1bHQSNQoNYmF0Y2hfZmFpbHVyZRgC",
-            "IAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlKmsKDkNvbWJh",
-            "dEZpcmVNb2RlEiAKHENPTUJBVF9GSVJFX01PREVfVU5TUEVDSUZJRUQQABIc",
-            "ChhDT01CQVRfRklSRV9NT0RFX0FUX1dJTEwQARIZChVDT01CQVRfRklSRV9N",
-            "T0RFX0hPTEQQAiqnAQoOQ29tYmF0RG9vck1vZGUSIAocQ09NQkFUX0RPT1Jf",
-            "TU9ERV9VTlNQRUNJRklFRBAAEh4KGkNPTUJBVF9ET09SX01PREVfSE9MRF9P",
-            "UEVOEAESGgoWQ09NQkFUX0RPT1JfTU9ERV9DTE9TRRACEhsKF0NPTUJBVF9E",
-            "T09SX01PREVfRk9SQklEEAMSGgoWQ09NQkFUX0RPT1JfTU9ERV9BTExPVxAE",
-            "KpICChBUaGluZ0Rlc2lnbmF0aW9uEiEKHVRISU5HX0RFU0lHTkFUSU9OX1VO",
-            "U1BFQ0lGSUVEEAASGwoXVEhJTkdfREVTSUdOQVRJT05fQUxMT1cQARIcChhU",
-            "SElOR19ERVNJR05BVElPTl9GT1JCSUQQAhIaChZUSElOR19ERVNJR05BVElP",
-            "Tl9IVU5UEAMSIwofVEhJTkdfREVTSUdOQVRJT05fSEFSVkVTVF9QTEFOVBAE",
-            "EiEKHVRISU5HX0RFU0lHTkFUSU9OX0RFQ09OU1RSVUNUEAUSHwobVEhJTkdf",
-            "REVTSUdOQVRJT05fQ1VUX1BMQU5UEAYSGwoXVEhJTkdfREVTSUdOQVRJT05f",
-            "U1RSSVAQBypaCgxQb3dlclNldHRpbmcSHQoZUE9XRVJfU0VUVElOR19VTlNQ",
-            "RUNJRklFRBAAEhQKEFBPV0VSX1NFVFRJTkdfT04QARIVChFQT1dFUl9TRVRU",
-            "SU5HX09GRhACKpIBChFIb3N0aWxpdHlSZXNwb25zZRIiCh5IT1NUSUxJVFlf",
-            "UkVTUE9OU0VfVU5TUEVDSUZJRUQQABIdChlIT1NUSUxJVFlfUkVTUE9OU0Vf",
-            "SUdOT1JFEAESHQoZSE9TVElMSVRZX1JFU1BPTlNFX0FUVEFDSxACEhsKF0hP",
-            "U1RJTElUWV9SRVNQT05TRV9GTEVFEAMqvgEKC01lZGljYWxDYXJlEhwKGE1F",
-            "RElDQUxfQ0FSRV9VTlNQRUNJRklFRBAAEhgKFE1FRElDQUxfQ0FSRV9OT19D",
-            "QVJFEAESHAoYTUVESUNBTF9DQVJFX05PX01FRElDSU5FEAISIAocTUVESUNB",
-            "TF9DQVJFX0hFUkJBTF9PUl9XT1JTRRADEiAKHE1FRElDQUxfQ0FSRV9OT1JN",
-            "QUxfT1JfV09SU0UQBBIVChFNRURJQ0FMX0NBUkVfQkVTVBAFKnEKClJlcGVh",
-            "dE1vZGUSGwoXUkVQRUFUX01PREVfVU5TUEVDSUZJRUQQABIXChNSRVBFQVRf",
-            "TU9ERV9GT1JFVkVSEAESFQoRUkVQRUFUX01PREVfQ09VTlQQAhIWChJSRVBF",
-            "QVRfTU9ERV9UQVJHRVQQAypkCglTdG9yZU1vZGUSGgoWU1RPUkVfTU9ERV9V",
-            "TlNQRUNJRklFRBAAEh0KGVNUT1JFX01PREVfQkVTVF9TVE9DS1BJTEUQARIc",
-            "ChhTVE9SRV9NT0RFX0RST1BfT05fRkxPT1IQAiqDAQoIWm9uZVR5cGUSGQoV",
-            "Wk9ORV9UWVBFX1VOU1BFQ0lGSUVEEAASFwoTWk9ORV9UWVBFX1NUT0NLUElM",
-            "RRABEhUKEVpPTkVfVFlQRV9EVU1QSU5HEAISFQoRWk9ORV9UWVBFX0dST1dJ",
-            "TkcQAxIVChFaT05FX1RZUEVfRklTSElORxAEKskBCg9TdG9yYWdlUHJpb3Jp",
-            "dHkSIAocU1RPUkFHRV9QUklPUklUWV9VTlNQRUNJRklFRBAAEhgKFFNUT1JB",
-            "R0VfUFJJT1JJVFlfTE9XEAESGwoXU1RPUkFHRV9QUklPUklUWV9OT1JNQUwQ",
-            "AhIeChpTVE9SQUdFX1BSSU9SSVRZX1BSRUZFUlJFRBADEh4KGlNUT1JBR0Vf",
-            "UFJJT1JJVFlfSU1QT1JUQU5UEAQSHQoZU1RPUkFHRV9QUklPUklUWV9DUklU",
-            "SUNBTBAFKt8BCgxGaWx0ZXJQcmVzZXQSHQoZRklMVEVSX1BSRVNFVF9VTlNQ",
-            "RUNJRklFRBAAEhwKGEZJTFRFUl9QUkVTRVRfRVZFUllUSElORxABEhkKFUZJ",
-            "TFRFUl9QUkVTRVRfTk9USElORxACEhYKEkZJTFRFUl9QUkVTRVRfRk9PRBAD",
-            "Eh0KGUZJTFRFUl9QUkVTRVRfUEVSSVNIQUJMRVMQBBIgChxGSUxURVJfUFJF",
-            "U0VUX05PTlBFUklTSEFCTEVTEAUSHgoaRklMVEVSX1BSRVNFVF9PVVRET09S",
-            "X1NBRkUQBipOCghDZWxsRWRpdBIZChVDRUxMX0VESVRfVU5TUEVDSUZJRUQQ",
-            "ABIRCg1DRUxMX0VESVRfQUREEAESFAoQQ0VMTF9FRElUX1JFTU9WRRACKoMB",
-            "Cg1TZXJ2aWNlTWV0aG9kEh4KGlNFUlZJQ0VfTUVUSE9EX1VOU1BFQ0lGSUVE",
-            "EAASGQoVU0VSVklDRV9NRVRIT0RfUkVQQUlSEAESHAoYU0VSVklDRV9NRVRI",
-            "T0RfQlJFQUtET1dOEAISGQoVU0VSVklDRV9NRVRIT0RfUkVGVUVMEAMqSAoE",
-            "TmVlZBIUChBORUVEX1VOU1BFQ0lGSUVEEAASDQoJTkVFRF9GT09EEAESDQoJ",
-            "TkVFRF9SRVNUEAISDAoITkVFRF9KT1kQAyqfAgoTUHJpc29uZXJJbnRlcmFj",
-            "dGlvbhIkCiBQUklTT05FUl9JTlRFUkFDVElPTl9VTlNQRUNJRklFRBAAEigK",
-            "JFBSSVNPTkVSX0lOVEVSQUNUSU9OX0FUVEVNUFRfUkVDUlVJVBABEiYKIlBS",
-            "SVNPTkVSX0lOVEVSQUNUSU9OX01BSU5UQUlOX09OTFkQAhIqCiZQUklTT05F",
-            "Ul9JTlRFUkFDVElPTl9SRURVQ0VfUkVTSVNUQU5DRRADEiAKHFBSSVNPTkVS",
-            "X0lOVEVSQUNUSU9OX1JFTEVBU0UQBBIgChxQUklTT05FUl9JTlRFUkFDVElP",
-            "Tl9FTlNMQVZFEAUSIAocUFJJU09ORVJfSU5URVJBQ1RJT05fQ09OVkVSVBAG",
-            "KowDCg1QYXduT3JkZXJLaW5kEh8KG1BBV05fT1JERVJfS0lORF9VTlNQRUNJ",
-            "RklFRBAAEhkKFVBBV05fT1JERVJfS0lORF9FUVVJUBABEhoKFlBBV05fT1JE",
-            "RVJfS0lORF9SRVNDVUUQAhIbChdQQVdOX09SREVSX0tJTkRfQ0FQVFVSRRAD",
-            "EhgKFFBBV05fT1JERVJfS0lORF9URU5EEAQSGgoWUEFXTl9PUkRFUl9LSU5E",
-            "X1JFUEFJUhAHEhkKFVBBV05fT1JERVJfS0lORF9DTEVBThAIEh8KG1BBV05f",
-            "T1JERVJfS0lORF9PUEVOX0NBU0tFVBAJEhoKFlBBV05fT1JERVJfS0lORF9B",
-            "UlJFU1QQDBIYChRQQVdOX09SREVSX0tJTkRfV0VBUhANEhoKFlBBV05fT1JE",
-            "RVJfS0lORF9TVUJEVUUQDiIECAUQBSIECAYQBiIECAoQCiIECAsQCyoUUEFX",
-            "Tl9PUkRFUl9LSU5EX0hBVUwqFFBBV05fT1JERVJfS0lORF9XT1JLKmoKDEVu",
-            "ZFRyYWRlS2luZBIeChpFTkRfVFJBREVfS0lORF9VTlNQRUNJRklFRBAAEhkK",
-            "FUVORF9UUkFERV9LSU5EX0NBTkNFTBABEh8KG0VORF9UUkFERV9LSU5EX0NM",
-            "T1NFX0RJQUxPRxACKqMBCg1BcmVhT3BlcmF0aW9uEh4KGkFSRUFfT1BFUkFU",
-            "SU9OX1VOU1BFQ0lGSUVEEAASGQoVQVJFQV9PUEVSQVRJT05fQ1JFQVRFEAES",
-            "HAoYQVJFQV9PUEVSQVRJT05fU0VUX0NFTExTEAISHgoaQVJFQV9PUEVSQVRJ",
-            "T05fQ0xFQVJfQ0VMTFMQAxIZChVBUkVBX09QRVJBVElPTl9ERUxFVEUQBCrA",
-            "AQoOUG9saWN5RGF0YWJhc2USHwobUE9MSUNZX0RBVEFCQVNFX1VOU1BFQ0lG",
-            "SUVEEAASGgoWUE9MSUNZX0RBVEFCQVNFX09VVEZJVBABEhgKFFBPTElDWV9E",
-            "QVRBQkFTRV9EUlVHEAISGAoUUE9MSUNZX0RBVEFCQVNFX0ZPT0QQAxIbChdQ",
-            "T0xJQ1lfREFUQUJBU0VfUkVBRElORxAEEiAKHFBPTElDWV9EQVRBQkFTRV9B",
-            "TExPV0VEX0FSRUEQBSr0AgoOSHVzYmFuZHJ5T3JkZXISHwobSFVTQkFORFJZ",
-            "X09SREVSX1VOU1BFQ0lGSUVEEAASGQoVSFVTQkFORFJZX09SREVSX1RSQUlO",
-            "EAESHQoZSFVTQkFORFJZX09SREVSX1NMQVVHSFRFUhACEhgKFEhVU0JBTkRS",
-            "WV9PUkRFUl9UQU1FEAMSGwoXSFVTQkFORFJZX09SREVSX1JFTEVBU0UQBBIg",
-            "ChxIVVNCQU5EUllfT1JERVJfQUxMT1dFRF9BUkVBEAUSGgoWSFVTQkFORFJZ",
-            "X09SREVSX01BU1RFUhAGEiIKHkhVU0JBTkRSWV9PUkRFUl9GT0xMT1dfRFJB",
-            "RlRFRBAHEiQKIEhVU0JBTkRSWV9PUkRFUl9GT0xMT1dfRklFTERXT1JLEAgS",
-            "JAogSFVTQkFORFJZX09SREVSX0NBTkNFTF9TTEFVR0hURVIQCRIiCh5IVVNC",
-            "QU5EUllfT1JERVJfQ0FOQ0VMX1JFTEVBU0UQCjJuCgVab25lcxJlCgdQcmV2",
-            "aWV3Ei0ucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5ab25lUHJldmlld1Jl",
-            "cXVlc3QaKy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLlpvbmVQcmV2aWV3",
-            "UmVwbHkyYgoHQWN0aW9ucxJXCgVBcHBseRInLnJpbWdvdmVybm9yLm9wZXJh",
-            "dGlvbnMudjEuQXBwbHlSZXF1ZXN0GiUucmltZ292ZXJub3Iub3BlcmF0aW9u",
-            "cy52MS5BcHBseVJlcGx5QnFaTWdpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmlt",
-            "R292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9vcGVyYXRpb25zcGI7b3BlcmF0",
-            "aW9uc3BiqgIfUmltR292ZXJub3IuUHJvdG9jb2wuT3BlcmF0aW9uc2IGcHJv",
-            "dG8z"));
+            "bml0aW9uTGlzdEIKCghfcGF3bl9pZEoECAUQBkoECAcQCFIMbWVkaWNhbF9j",
+            "YXJlUgtkcnVnX3BvbGljeSK1AQoPQmVkQXNzaWduSW50ZW50EhQKB3Bhd25f",
+            "aWQYASABKAlIAIgBARITCgZiZWRfaWQYAiABKAlIAYgBARJEChVleHBlY3Rl",
+            "ZF9wcmV2aW91c19iZWQYAyABKAsyJS5yaW1nb3Zlcm5vci5vcGVyYXRpb25z",
+            "LnYxLkFzc2lnbm1lbnQSEQoEc3dhcBgEIAEoCEgCiAEBQgoKCF9wYXduX2lk",
+            "QgkKB19iZWRfaWRCBwoFX3N3YXAilwEKGVByaXNvbmVySW50ZXJhY3Rpb25J",
+            "bnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgAiAEBEkgKC2ludGVyYWN0aW9uGAIg",
+            "ASgOMi4ucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5Qcmlzb25lckludGVy",
+            "YWN0aW9uSAGIAQFCCgoIX3Bhd25faWRCDgoMX2ludGVyYWN0aW9uIsYBCgxE",
+            "aWFsb2dJbnRlbnQSFgoJd2luZG93X2lkGAEgASgFSACIAQESGQoMb3B0aW9u",
+            "X2luZGV4GAIgASgFSAGIAQESGQoMb3B0aW9uX2xhYmVsGAMgASgJSAKIAQES",
+            "IAoTam9pbmVyX2xldHRlcl90b2tlbhgEIAEoCUgDiAEBQgwKCl93aW5kb3df",
+            "aWRCDwoNX29wdGlvbl9pbmRleEIPCg1fb3B0aW9uX2xhYmVsQhYKFF9qb2lu",
+            "ZXJfbGV0dGVyX3Rva2VuIpIBCgxOYW1pbmdJbnRlbnQSFgoJd2luZG93X2lk",
+            "GAEgASgFSACIAQESGQoMZmFjdGlvbl9uYW1lGAIgASgJSAGIAQESHAoPc2V0",
+            "dGxlbWVudF9uYW1lGAMgASgJSAKIAQFCDAoKX3dpbmRvd19pZEIPCg1fZmFj",
+            "dGlvbl9uYW1lQhIKEF9zZXR0bGVtZW50X25hbWUiOgoOUmVzZWFyY2hJbnRl",
+            "bnQSGAoLcHJvamVjdF9kZWYYASABKAlIAIgBAUIOCgxfcHJvamVjdF9kZWYi",
+            "nQIKE0FwcGFyZWxQb2xpY3lJbnRlbnQSFAoHcGF3bl9pZBgBIAEoCUgAiAEB",
+            "EhEKBG5hbWUYAiABKAlIAYgBARIUCgxhbGxvd2VkX2RlZnMYAyADKAkSGwoO",
+            "bWluX2hpdF9wb2ludHMYBCABKAJIAogBARIbCg5tYXhfaGl0X3BvaW50cxgF",
+            "IAEoAkgDiAEBEhgKC21pbl9xdWFsaXR5GAYgASgFSASIAQESGAoLbWF4X3F1",
+            "YWxpdHkYByABKAVIBYgBAUIKCghfcGF3bl9pZEIHCgVfbmFtZUIRCg9fbWlu",
+            "X2hpdF9wb2ludHNCEQoPX21heF9oaXRfcG9pbnRzQg4KDF9taW5fcXVhbGl0",
+            "eUIOCgxfbWF4X3F1YWxpdHkijQEKEUZvcm1DYXJhdmFuSW50ZW50EhAKCHBh",
+            "d25faWRzGAEgAygJEjIKBWNhcmdvGAIgAygLMiMucmltZ292ZXJub3Iub3Bl",
+            "cmF0aW9ucy52MS5EZWZDb3VudBIdChBkZXN0aW5hdGlvbl90aWxlGAMgASgF",
+            "SACIAQFCEwoRX2Rlc3RpbmF0aW9uX3RpbGUimQEKEUFjY2VwdFF1ZXN0SW50",
+            "ZW50EhUKCHF1ZXN0X2lkGAEgASgJSACIAQESHQoQYWNjZXB0ZXJfcGF3bl9p",
+            "ZBgCIAEoCUgBiAEBEhoKDXJld2FyZF9jaG9pY2UYAyABKAVIAogBAUILCglf",
+            "cXVlc3RfaWRCEwoRX2FjY2VwdGVyX3Bhd25faWRCEAoOX3Jld2FyZF9jaG9p",
+            "Y2UiYAoKTW92ZUludGVudBIUCgdwYXduX2lkGAEgASgJSACIAQESMAoLZGVz",
+            "dGluYXRpb24YAiABKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbEIK",
+            "CghfcGF3bl9pZCJSCgpIYXVsSW50ZW50EhQKB3Bhd25faWQYASABKAlIAIgB",
+            "ARIVCgh0aGluZ19pZBgCIAEoCUgBiAEBQgoKCF9wYXduX2lkQgsKCV90aGlu",
+            "Z19pZCJRCg5CdWlsZGluZ0ludGVudBI/CglwbGFjZW1lbnQYASABKAsyLC5y",
+            "aW1nb3Zlcm5vci5wbGFjZW1lbnQudjEuUGxhY2VtZW50Q2FuZGlkYXRlIswC",
+            "CgtUcmFkZUludGVudBIWCgl0cmFkZXJfaWQYASABKAlIAYgBARIaCg1uZWdv",
+            "dGlhdG9yX2lkGAIgASgJSAKIAQESNAoEb3BlbhgDIAEoCzIkLnJpbWdvdmVy",
+            "bm9yLm9wZXJhdGlvbnMudjEuT3BlblRyYWRlSAASPQoJc2V0X2xpbmVzGAQg",
+            "ASgLMigucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5TZXRUcmFkZUxpbmVz",
+            "SAASOAoGYWNjZXB0GAUgASgLMiYucmltZ292ZXJub3Iub3BlcmF0aW9ucy52",
+            "MS5BY2NlcHRUcmFkZUgAEjIKA2VuZBgGIAEoCzIjLnJpbWdvdmVybm9yLm9w",
+            "ZXJhdGlvbnMudjEuRW5kVHJhZGVIAEIGCgRzdGVwQgwKCl90cmFkZXJfaWRC",
+            "EAoOX25lZ290aWF0b3JfaWQiaQoHUmVmdXNhbBI1CgRjb2RlGAEgASgOMiIu",
+            "cmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVDb2RlSACIAQESEwoGcmVh",
+            "c29uGAIgASgJSAGIAQFCBwoFX2NvZGVCCQoHX3JlYXNvbiLRAQoMQWN0aW9u",
+            "UmVzdWx0EhAKA2tleRgBIAEoCUgBiAEBEjMKB2FwcGxpZWQYAiABKAsyIC5y",
+            "aW1nb3Zlcm5vci5yZWNlaXB0cy52MS5SZWNlaXB0SAASNQoHcmVmdXNlZBgD",
+            "IAEoCzIiLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuUmVmdXNhbEgAEjAK",
+            "BmZhaWxlZBgEIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJl",
+            "SABCCQoHb3V0Y29tZUIGCgRfa2V5In0KCkFwcGx5UmVwbHkSOAoHcmVzdWx0",
+            "cxgBIAMoCzInLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuQWN0aW9uUmVz",
+            "dWx0EjUKDWJhdGNoX2ZhaWx1cmUYAiABKAsyHi5yaW1nb3Zlcm5vci5jb21t",
+            "b24udjEuRmFpbHVyZSprCg5Db21iYXRGaXJlTW9kZRIgChxDT01CQVRfRklS",
+            "RV9NT0RFX1VOU1BFQ0lGSUVEEAASHAoYQ09NQkFUX0ZJUkVfTU9ERV9BVF9X",
+            "SUxMEAESGQoVQ09NQkFUX0ZJUkVfTU9ERV9IT0xEEAIqpwEKDkNvbWJhdERv",
+            "b3JNb2RlEiAKHENPTUJBVF9ET09SX01PREVfVU5TUEVDSUZJRUQQABIeChpD",
+            "T01CQVRfRE9PUl9NT0RFX0hPTERfT1BFThABEhoKFkNPTUJBVF9ET09SX01P",
+            "REVfQ0xPU0UQAhIbChdDT01CQVRfRE9PUl9NT0RFX0ZPUkJJRBADEhoKFkNP",
+            "TUJBVF9ET09SX01PREVfQUxMT1cQBCqSAgoQVGhpbmdEZXNpZ25hdGlvbhIh",
+            "Ch1USElOR19ERVNJR05BVElPTl9VTlNQRUNJRklFRBAAEhsKF1RISU5HX0RF",
+            "U0lHTkFUSU9OX0FMTE9XEAESHAoYVEhJTkdfREVTSUdOQVRJT05fRk9SQklE",
+            "EAISGgoWVEhJTkdfREVTSUdOQVRJT05fSFVOVBADEiMKH1RISU5HX0RFU0lH",
+            "TkFUSU9OX0hBUlZFU1RfUExBTlQQBBIhCh1USElOR19ERVNJR05BVElPTl9E",
+            "RUNPTlNUUlVDVBAFEh8KG1RISU5HX0RFU0lHTkFUSU9OX0NVVF9QTEFOVBAG",
+            "EhsKF1RISU5HX0RFU0lHTkFUSU9OX1NUUklQEAcqWgoMUG93ZXJTZXR0aW5n",
+            "Eh0KGVBPV0VSX1NFVFRJTkdfVU5TUEVDSUZJRUQQABIUChBQT1dFUl9TRVRU",
+            "SU5HX09OEAESFQoRUE9XRVJfU0VUVElOR19PRkYQAiqSAQoRSG9zdGlsaXR5",
+            "UmVzcG9uc2USIgoeSE9TVElMSVRZX1JFU1BPTlNFX1VOU1BFQ0lGSUVEEAAS",
+            "HQoZSE9TVElMSVRZX1JFU1BPTlNFX0lHTk9SRRABEh0KGUhPU1RJTElUWV9S",
+            "RVNQT05TRV9BVFRBQ0sQAhIbChdIT1NUSUxJVFlfUkVTUE9OU0VfRkxFRRAD",
+            "Kr4BCgtNZWRpY2FsQ2FyZRIcChhNRURJQ0FMX0NBUkVfVU5TUEVDSUZJRUQQ",
+            "ABIYChRNRURJQ0FMX0NBUkVfTk9fQ0FSRRABEhwKGE1FRElDQUxfQ0FSRV9O",
+            "T19NRURJQ0lORRACEiAKHE1FRElDQUxfQ0FSRV9IRVJCQUxfT1JfV09SU0UQ",
+            "AxIgChxNRURJQ0FMX0NBUkVfTk9STUFMX09SX1dPUlNFEAQSFQoRTUVESUNB",
+            "TF9DQVJFX0JFU1QQBSpxCgpSZXBlYXRNb2RlEhsKF1JFUEVBVF9NT0RFX1VO",
+            "U1BFQ0lGSUVEEAASFwoTUkVQRUFUX01PREVfRk9SRVZFUhABEhUKEVJFUEVB",
+            "VF9NT0RFX0NPVU5UEAISFgoSUkVQRUFUX01PREVfVEFSR0VUEAMqZAoJU3Rv",
+            "cmVNb2RlEhoKFlNUT1JFX01PREVfVU5TUEVDSUZJRUQQABIdChlTVE9SRV9N",
+            "T0RFX0JFU1RfU1RPQ0tQSUxFEAESHAoYU1RPUkVfTU9ERV9EUk9QX09OX0ZM",
+            "T09SEAIqgwEKCFpvbmVUeXBlEhkKFVpPTkVfVFlQRV9VTlNQRUNJRklFRBAA",
+            "EhcKE1pPTkVfVFlQRV9TVE9DS1BJTEUQARIVChFaT05FX1RZUEVfRFVNUElO",
+            "RxACEhUKEVpPTkVfVFlQRV9HUk9XSU5HEAMSFQoRWk9ORV9UWVBFX0ZJU0hJ",
+            "TkcQBCrJAQoPU3RvcmFnZVByaW9yaXR5EiAKHFNUT1JBR0VfUFJJT1JJVFlf",
+            "VU5TUEVDSUZJRUQQABIYChRTVE9SQUdFX1BSSU9SSVRZX0xPVxABEhsKF1NU",
+            "T1JBR0VfUFJJT1JJVFlfTk9STUFMEAISHgoaU1RPUkFHRV9QUklPUklUWV9Q",
+            "UkVGRVJSRUQQAxIeChpTVE9SQUdFX1BSSU9SSVRZX0lNUE9SVEFOVBAEEh0K",
+            "GVNUT1JBR0VfUFJJT1JJVFlfQ1JJVElDQUwQBSrfAQoMRmlsdGVyUHJlc2V0",
+            "Eh0KGUZJTFRFUl9QUkVTRVRfVU5TUEVDSUZJRUQQABIcChhGSUxURVJfUFJF",
+            "U0VUX0VWRVJZVEhJTkcQARIZChVGSUxURVJfUFJFU0VUX05PVEhJTkcQAhIW",
+            "ChJGSUxURVJfUFJFU0VUX0ZPT0QQAxIdChlGSUxURVJfUFJFU0VUX1BFUklT",
+            "SEFCTEVTEAQSIAocRklMVEVSX1BSRVNFVF9OT05QRVJJU0hBQkxFUxAFEh4K",
+            "GkZJTFRFUl9QUkVTRVRfT1VURE9PUl9TQUZFEAYqTgoIQ2VsbEVkaXQSGQoV",
+            "Q0VMTF9FRElUX1VOU1BFQ0lGSUVEEAASEQoNQ0VMTF9FRElUX0FERBABEhQK",
+            "EENFTExfRURJVF9SRU1PVkUQAiqDAQoNU2VydmljZU1ldGhvZBIeChpTRVJW",
+            "SUNFX01FVEhPRF9VTlNQRUNJRklFRBAAEhkKFVNFUlZJQ0VfTUVUSE9EX1JF",
+            "UEFJUhABEhwKGFNFUlZJQ0VfTUVUSE9EX0JSRUFLRE9XThACEhkKFVNFUlZJ",
+            "Q0VfTUVUSE9EX1JFRlVFTBADKkgKBE5lZWQSFAoQTkVFRF9VTlNQRUNJRklF",
+            "RBAAEg0KCU5FRURfRk9PRBABEg0KCU5FRURfUkVTVBACEgwKCE5FRURfSk9Z",
+            "EAMqnwIKE1ByaXNvbmVySW50ZXJhY3Rpb24SJAogUFJJU09ORVJfSU5URVJB",
+            "Q1RJT05fVU5TUEVDSUZJRUQQABIoCiRQUklTT05FUl9JTlRFUkFDVElPTl9B",
+            "VFRFTVBUX1JFQ1JVSVQQARImCiJQUklTT05FUl9JTlRFUkFDVElPTl9NQUlO",
+            "VEFJTl9PTkxZEAISKgomUFJJU09ORVJfSU5URVJBQ1RJT05fUkVEVUNFX1JF",
+            "U0lTVEFOQ0UQAxIgChxQUklTT05FUl9JTlRFUkFDVElPTl9SRUxFQVNFEAQS",
+            "IAocUFJJU09ORVJfSU5URVJBQ1RJT05fRU5TTEFWRRAFEiAKHFBSSVNPTkVS",
+            "X0lOVEVSQUNUSU9OX0NPTlZFUlQQBiqMAwoNUGF3bk9yZGVyS2luZBIfChtQ",
+            "QVdOX09SREVSX0tJTkRfVU5TUEVDSUZJRUQQABIZChVQQVdOX09SREVSX0tJ",
+            "TkRfRVFVSVAQARIaChZQQVdOX09SREVSX0tJTkRfUkVTQ1VFEAISGwoXUEFX",
+            "Tl9PUkRFUl9LSU5EX0NBUFRVUkUQAxIYChRQQVdOX09SREVSX0tJTkRfVEVO",
+            "RBAEEhoKFlBBV05fT1JERVJfS0lORF9SRVBBSVIQBxIZChVQQVdOX09SREVS",
+            "X0tJTkRfQ0xFQU4QCBIfChtQQVdOX09SREVSX0tJTkRfT1BFTl9DQVNLRVQQ",
+            "CRIaChZQQVdOX09SREVSX0tJTkRfQVJSRVNUEAwSGAoUUEFXTl9PUkRFUl9L",
+            "SU5EX1dFQVIQDRIaChZQQVdOX09SREVSX0tJTkRfU1VCRFVFEA4iBAgFEAUi",
+            "BAgGEAYiBAgKEAoiBAgLEAsqFFBBV05fT1JERVJfS0lORF9IQVVMKhRQQVdO",
+            "X09SREVSX0tJTkRfV09SSypqCgxFbmRUcmFkZUtpbmQSHgoaRU5EX1RSQURF",
+            "X0tJTkRfVU5TUEVDSUZJRUQQABIZChVFTkRfVFJBREVfS0lORF9DQU5DRUwQ",
+            "ARIfChtFTkRfVFJBREVfS0lORF9DTE9TRV9ESUFMT0cQAiqjAQoNQXJlYU9w",
+            "ZXJhdGlvbhIeChpBUkVBX09QRVJBVElPTl9VTlNQRUNJRklFRBAAEhkKFUFS",
+            "RUFfT1BFUkFUSU9OX0NSRUFURRABEhwKGEFSRUFfT1BFUkFUSU9OX1NFVF9D",
+            "RUxMUxACEh4KGkFSRUFfT1BFUkFUSU9OX0NMRUFSX0NFTExTEAMSGQoVQVJF",
+            "QV9PUEVSQVRJT05fREVMRVRFEAQqwAEKDlBvbGljeURhdGFiYXNlEh8KG1BP",
+            "TElDWV9EQVRBQkFTRV9VTlNQRUNJRklFRBAAEhoKFlBPTElDWV9EQVRBQkFT",
+            "RV9PVVRGSVQQARIYChRQT0xJQ1lfREFUQUJBU0VfRFJVRxACEhgKFFBPTElD",
+            "WV9EQVRBQkFTRV9GT09EEAMSGwoXUE9MSUNZX0RBVEFCQVNFX1JFQURJTkcQ",
+            "BBIgChxQT0xJQ1lfREFUQUJBU0VfQUxMT1dFRF9BUkVBEAUq9AIKDkh1c2Jh",
+            "bmRyeU9yZGVyEh8KG0hVU0JBTkRSWV9PUkRFUl9VTlNQRUNJRklFRBAAEhkK",
+            "FUhVU0JBTkRSWV9PUkRFUl9UUkFJThABEh0KGUhVU0JBTkRSWV9PUkRFUl9T",
+            "TEFVR0hURVIQAhIYChRIVVNCQU5EUllfT1JERVJfVEFNRRADEhsKF0hVU0JB",
+            "TkRSWV9PUkRFUl9SRUxFQVNFEAQSIAocSFVTQkFORFJZX09SREVSX0FMTE9X",
+            "RURfQVJFQRAFEhoKFkhVU0JBTkRSWV9PUkRFUl9NQVNURVIQBhIiCh5IVVNC",
+            "QU5EUllfT1JERVJfRk9MTE9XX0RSQUZURUQQBxIkCiBIVVNCQU5EUllfT1JE",
+            "RVJfRk9MTE9XX0ZJRUxEV09SSxAIEiQKIEhVU0JBTkRSWV9PUkRFUl9DQU5D",
+            "RUxfU0xBVUdIVEVSEAkSIgoeSFVTQkFORFJZX09SREVSX0NBTkNFTF9SRUxF",
+            "QVNFEAoybgoFWm9uZXMSZQoHUHJldmlldxItLnJpbWdvdmVybm9yLm9wZXJh",
+            "dGlvbnMudjEuWm9uZVByZXZpZXdSZXF1ZXN0GisucmltZ292ZXJub3Iub3Bl",
+            "cmF0aW9ucy52MS5ab25lUHJldmlld1JlcGx5MmIKB0FjdGlvbnMSVwoFQXBw",
+            "bHkSJy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkFwcGx5UmVxdWVzdBol",
+            "LnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuQXBwbHlSZXBseUJxWk1naXRo",
+            "dWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVybm9yL2dvL2ludGVybmFsL3dp",
+            "cmUvb3BlcmF0aW9uc3BiO29wZXJhdGlvbnNwYqoCH1JpbUdvdmVybm9yLlBy",
+            "b3RvY29sLk9wZXJhdGlvbnNiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor, global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Operations.CombatFireMode), typeof(global::RimGovernor.Protocol.Operations.CombatDoorMode), typeof(global::RimGovernor.Protocol.Operations.ThingDesignation), typeof(global::RimGovernor.Protocol.Operations.PowerSetting), typeof(global::RimGovernor.Protocol.Operations.HostilityResponse), typeof(global::RimGovernor.Protocol.Operations.MedicalCare), typeof(global::RimGovernor.Protocol.Operations.RepeatMode), typeof(global::RimGovernor.Protocol.Operations.StoreMode), typeof(global::RimGovernor.Protocol.Operations.ZoneType), typeof(global::RimGovernor.Protocol.Operations.StoragePriority), typeof(global::RimGovernor.Protocol.Operations.FilterPreset), typeof(global::RimGovernor.Protocol.Operations.CellEdit), typeof(global::RimGovernor.Protocol.Operations.ServiceMethod), typeof(global::RimGovernor.Protocol.Operations.Need), typeof(global::RimGovernor.Protocol.Operations.PrisonerInteraction), typeof(global::RimGovernor.Protocol.Operations.PawnOrderKind), typeof(global::RimGovernor.Protocol.Operations.EndTradeKind), typeof(global::RimGovernor.Protocol.Operations.AreaOperation), typeof(global::RimGovernor.Protocol.Operations.PolicyDatabase), typeof(global::RimGovernor.Protocol.Operations.HusbandryOrder), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -514,12 +527,14 @@ namespace RimGovernor.Protocol.Operations {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ZonePreview), global::RimGovernor.Protocol.Operations.ZonePreview.Parser, new[]{ "Context", "Accepted", "Reason" }, new[]{ "Accepted", "Reason" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ZonePreviewReply), global::RimGovernor.Protocol.Operations.ZonePreviewReply.Parser, new[]{ "Evaluated", "Failure" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ApplyRequest), global::RimGovernor.Protocol.Operations.ApplyRequest.Parser, new[]{ "Identity", "Actions", "DeferSnapshot" }, new[]{ "DeferSnapshot" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.Action), global::RimGovernor.Protocol.Operations.Action.Parser, new[]{ "Key", "Purpose", "Trade", "Building", "Move", "Haul", "ApparelPolicy", "Research", "Naming", "Dialog", "Prisoner", "AcceptQuest", "FormCaravan", "BedAssign", "WorkSettings", "ProductionBill", "Husbandry", "CreateZone", "DeleteZone", "ZoneCells", "Stockpile", "RemoveFoundation", "Cover", "Designate", "Deconstruct", "Excavate", "Waste", "Recover", "Relocate", "BuildingPatch", "RemoveWall", "PawnOrder", "NeedRelief", "UseItem", "Draft", "CombatOrders", "Acquire", "Surgery", "Area", "AutoHomeArea", "PawnSettings", "PolicyPrune", "RemoveFloor", "RemoveRoof", "ReadingPolicy" }, new[]{ "Intent", "Key", "Purpose" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PawnSettingsIntent), global::RimGovernor.Protocol.Operations.PawnSettingsIntent.Parser, new[]{ "PawnId", "HostilityResponse", "SelfTend", "ReadingPolicy", "MedicineCarry", "Nickname", "MedicalCare" }, new[]{ "Setting", "PawnId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.Action), global::RimGovernor.Protocol.Operations.Action.Parser, new[]{ "Key", "Purpose", "Trade", "Building", "Move", "Haul", "ApparelPolicy", "Research", "Naming", "Dialog", "Prisoner", "AcceptQuest", "FormCaravan", "BedAssign", "WorkSettings", "ProductionBill", "Husbandry", "CreateZone", "DeleteZone", "ZoneCells", "Stockpile", "RemoveFoundation", "Cover", "Designate", "Deconstruct", "Excavate", "Waste", "Recover", "Relocate", "BuildingPatch", "RemoveWall", "PawnOrder", "NeedRelief", "UseItem", "Draft", "CombatOrders", "Acquire", "Surgery", "Area", "AutoHomeArea", "PawnSettings", "PolicyPrune", "RemoveFloor", "RemoveRoof", "ReadingPolicy", "DrugPolicy" }, new[]{ "Intent", "Key", "Purpose" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PawnSettingsIntent), global::RimGovernor.Protocol.Operations.PawnSettingsIntent.Parser, new[]{ "PawnId", "HostilityResponse", "SelfTend", "ReadingPolicy", "MedicineCarry", "Nickname", "MedicalCare", "DrugPolicy" }, new[]{ "Setting", "PawnId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.SurgeryIntent), global::RimGovernor.Protocol.Operations.SurgeryIntent.Parser, new[]{ "PawnId", "RecipeDef", "PartIndex", "AcknowledgeViolation", "SurgeonId" }, new[]{ "PawnId", "RecipeDef", "PartIndex", "AcknowledgeViolation", "SurgeonId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.AreaIntent), global::RimGovernor.Protocol.Operations.AreaIntent.Parser, new[]{ "Operation", "Key", "Home", "Cells" }, new[]{ "Operation", "Key", "Home" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PolicyPruneIntent), global::RimGovernor.Protocol.Operations.PolicyPruneIntent.Parser, new[]{ "Database", "DeleteIds" }, new[]{ "Database" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ReadingPolicyIntent), global::RimGovernor.Protocol.Operations.ReadingPolicyIntent.Parser, new[]{ "Name", "AllowedDefs" }, new[]{ "Name" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.DrugPolicyEntry), global::RimGovernor.Protocol.Operations.DrugPolicyEntry.Parser, new[]{ "DrugDef", "AllowedForJoy", "AllowedForAddiction", "AllowScheduled", "DaysFrequency", "OnlyIfMoodBelow", "OnlyIfJoyBelow", "TakeToInventory" }, new[]{ "DrugDef", "AllowedForJoy", "AllowedForAddiction", "AllowScheduled", "DaysFrequency", "OnlyIfMoodBelow", "OnlyIfJoyBelow", "TakeToInventory" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.DrugPolicyIntent), global::RimGovernor.Protocol.Operations.DrugPolicyIntent.Parser, new[]{ "Name", "Entries" }, new[]{ "Name" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.AutoHomeAreaIntent), global::RimGovernor.Protocol.Operations.AutoHomeAreaIntent.Parser, new[]{ "Enabled" }, new[]{ "Enabled" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.AcquireIntent), global::RimGovernor.Protocol.Operations.AcquireIntent.Parser, new[]{ "SourceId", "ResourceDefName", "Cell", "Withdraw" }, new[]{ "SourceId", "ResourceDefName", "Withdraw" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.DraftIntent), global::RimGovernor.Protocol.Operations.DraftIntent.Parser, new[]{ "PawnId", "Drafted" }, new[]{ "PawnId", "Drafted" }, null, null, null),
@@ -538,7 +553,7 @@ namespace RimGovernor.Protocol.Operations {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ExcavateIntent), global::RimGovernor.Protocol.Operations.ExcavateIntent.Parser, new[]{ "Cell", "ExpectedMineableDefName" }, new[]{ "ExpectedMineableDefName" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.HusbandryIntent), global::RimGovernor.Protocol.Operations.HusbandryIntent.Parser, new[]{ "AnimalId", "Order", "TrainableDef", "TargetId", "Follow" }, new[]{ "AnimalId", "Order", "TrainableDef", "TargetId", "Follow" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.ProductionBillIntent), global::RimGovernor.Protocol.Operations.ProductionBillIntent.Parser, new[]{ "BenchId", "RecipeDef", "Settings", "ReplaceOwnedBillId" }, new[]{ "BenchId", "RecipeDef", "ReplaceOwnedBillId" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.WorkSettingsIntent), global::RimGovernor.Protocol.Operations.WorkSettingsIntent.Parser, new[]{ "PawnId", "Work", "AllowedArea", "Schedule", "FoodAllow", "DrugPolicy" }, new[]{ "PawnId", "DrugPolicy" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.WorkSettingsIntent), global::RimGovernor.Protocol.Operations.WorkSettingsIntent.Parser, new[]{ "PawnId", "Work", "AllowedArea", "Schedule", "FoodAllow" }, new[]{ "PawnId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.BedAssignIntent), global::RimGovernor.Protocol.Operations.BedAssignIntent.Parser, new[]{ "PawnId", "BedId", "ExpectedPreviousBed", "Swap" }, new[]{ "PawnId", "BedId", "Swap" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PrisonerInteractionIntent), global::RimGovernor.Protocol.Operations.PrisonerInteractionIntent.Parser, new[]{ "PawnId", "Interaction" }, new[]{ "PawnId", "Interaction" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.DialogIntent), global::RimGovernor.Protocol.Operations.DialogIntent.Parser, new[]{ "WindowId", "OptionIndex", "OptionLabel", "JoinerLetterToken" }, new[]{ "WindowId", "OptionIndex", "OptionLabel", "JoinerLetterToken" }, null, null, null),
@@ -13352,6 +13367,9 @@ namespace RimGovernor.Protocol.Operations {
         case IntentOneofCase.ReadingPolicy:
           ReadingPolicy = other.ReadingPolicy.Clone();
           break;
+        case IntentOneofCase.DrugPolicy:
+          DrugPolicy = other.DrugPolicy.Clone();
+          break;
       }
 
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
@@ -13942,6 +13960,18 @@ namespace RimGovernor.Protocol.Operations {
       }
     }
 
+    /// <summary>Field number for the "drug_policy" field.</summary>
+    public const int DrugPolicyFieldNumber = 55;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Operations.DrugPolicyIntent DrugPolicy {
+      get { return intentCase_ == IntentOneofCase.DrugPolicy ? (global::RimGovernor.Protocol.Operations.DrugPolicyIntent) intent_ : null; }
+      set {
+        intent_ = value;
+        intentCase_ = value == null ? IntentOneofCase.None : IntentOneofCase.DrugPolicy;
+      }
+    }
+
     private object intent_;
     /// <summary>Enum of possible cases for the "intent" oneof.</summary>
     public enum IntentOneofCase {
@@ -13989,6 +14019,7 @@ namespace RimGovernor.Protocol.Operations {
       RemoveFloor = 52,
       RemoveRoof = 53,
       ReadingPolicy = 54,
+      DrugPolicy = 55,
     }
     private IntentOneofCase intentCase_ = IntentOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -14064,6 +14095,7 @@ namespace RimGovernor.Protocol.Operations {
       if (!object.Equals(RemoveFloor, other.RemoveFloor)) return false;
       if (!object.Equals(RemoveRoof, other.RemoveRoof)) return false;
       if (!object.Equals(ReadingPolicy, other.ReadingPolicy)) return false;
+      if (!object.Equals(DrugPolicy, other.DrugPolicy)) return false;
       if (IntentCase != other.IntentCase) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -14117,6 +14149,7 @@ namespace RimGovernor.Protocol.Operations {
       if (intentCase_ == IntentOneofCase.RemoveFloor) hash ^= RemoveFloor.GetHashCode();
       if (intentCase_ == IntentOneofCase.RemoveRoof) hash ^= RemoveRoof.GetHashCode();
       if (intentCase_ == IntentOneofCase.ReadingPolicy) hash ^= ReadingPolicy.GetHashCode();
+      if (intentCase_ == IntentOneofCase.DrugPolicy) hash ^= DrugPolicy.GetHashCode();
       hash ^= (int) intentCase_;
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -14316,6 +14349,10 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(178, 3);
         output.WriteMessage(ReadingPolicy);
       }
+      if (intentCase_ == IntentOneofCase.DrugPolicy) {
+        output.WriteRawTag(186, 3);
+        output.WriteMessage(DrugPolicy);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -14506,6 +14543,10 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(178, 3);
         output.WriteMessage(ReadingPolicy);
       }
+      if (intentCase_ == IntentOneofCase.DrugPolicy) {
+        output.WriteRawTag(186, 3);
+        output.WriteMessage(DrugPolicy);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -14650,6 +14691,9 @@ namespace RimGovernor.Protocol.Operations {
       }
       if (intentCase_ == IntentOneofCase.ReadingPolicy) {
         size += 2 + pb::CodedOutputStream.ComputeMessageSize(ReadingPolicy);
+      }
+      if (intentCase_ == IntentOneofCase.DrugPolicy) {
+        size += 2 + pb::CodedOutputStream.ComputeMessageSize(DrugPolicy);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -14928,6 +14972,12 @@ namespace RimGovernor.Protocol.Operations {
           }
           ReadingPolicy.MergeFrom(other.ReadingPolicy);
           break;
+        case IntentOneofCase.DrugPolicy:
+          if (DrugPolicy == null) {
+            DrugPolicy = new global::RimGovernor.Protocol.Operations.DrugPolicyIntent();
+          }
+          DrugPolicy.MergeFrom(other.DrugPolicy);
+          break;
       }
 
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
@@ -15344,6 +15394,15 @@ namespace RimGovernor.Protocol.Operations {
             ReadingPolicy = subBuilder;
             break;
           }
+          case 442: {
+            global::RimGovernor.Protocol.Operations.DrugPolicyIntent subBuilder = new global::RimGovernor.Protocol.Operations.DrugPolicyIntent();
+            if (intentCase_ == IntentOneofCase.DrugPolicy) {
+              subBuilder.MergeFrom(DrugPolicy);
+            }
+            input.ReadMessage(subBuilder);
+            DrugPolicy = subBuilder;
+            break;
+          }
         }
       }
     #endif
@@ -15758,6 +15817,15 @@ namespace RimGovernor.Protocol.Operations {
             ReadingPolicy = subBuilder;
             break;
           }
+          case 442: {
+            global::RimGovernor.Protocol.Operations.DrugPolicyIntent subBuilder = new global::RimGovernor.Protocol.Operations.DrugPolicyIntent();
+            if (intentCase_ == IntentOneofCase.DrugPolicy) {
+              subBuilder.MergeFrom(DrugPolicy);
+            }
+            input.ReadMessage(subBuilder);
+            DrugPolicy = subBuilder;
+            break;
+          }
         }
       }
     }
@@ -15781,7 +15849,10 @@ namespace RimGovernor.Protocol.Operations {
   /// positive count when it allows none. reading_policy (#1306) is the label
   /// of the ReadingPolicy the pawn should hold (its short name; a
   /// ReadingPolicyIntent writes the contents), refused when no policy or
-  /// several carry it. medical_care (#1301) is
+  /// several carry it. drug_policy (#1537) is the label of
+  /// the DrugPolicy the pawn should hold (its short name; a DrugPolicyIntent
+  /// writes the contents), refused when no policy or several carry it.
+  /// medical_care (#1301) is
   /// the pawn's MedicalCareCategory, any of the five tiers, on a living
   /// colonist, slave, prisoner, guest or tame animal of the colony that has
   /// medical care settings.
@@ -15840,6 +15911,9 @@ namespace RimGovernor.Protocol.Operations {
           break;
         case SettingOneofCase.MedicalCare:
           MedicalCare = other.MedicalCare;
+          break;
+        case SettingOneofCase.DrugPolicy:
+          DrugPolicy = other.DrugPolicy;
           break;
       }
 
@@ -16034,6 +16108,32 @@ namespace RimGovernor.Protocol.Operations {
       }
     }
 
+    /// <summary>Field number for the "drug_policy" field.</summary>
+    public const int DrugPolicyFieldNumber = 8;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string DrugPolicy {
+      get { return HasDrugPolicy ? (string) setting_ : ""; }
+      set {
+        setting_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+        settingCase_ = SettingOneofCase.DrugPolicy;
+      }
+    }
+    /// <summary>Gets whether the "drug_policy" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDrugPolicy {
+      get { return settingCase_ == SettingOneofCase.DrugPolicy; }
+    }
+    /// <summary> Clears the value of the oneof if it's currently set to "drug_policy" </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDrugPolicy() {
+      if (HasDrugPolicy) {
+        ClearSetting();
+      }
+    }
+
     private object setting_;
     /// <summary>Enum of possible cases for the "setting" oneof.</summary>
     public enum SettingOneofCase {
@@ -16044,6 +16144,7 @@ namespace RimGovernor.Protocol.Operations {
       MedicineCarry = 5,
       Nickname = 6,
       MedicalCare = 7,
+      DrugPolicy = 8,
     }
     private SettingOneofCase settingCase_ = SettingOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -16081,6 +16182,7 @@ namespace RimGovernor.Protocol.Operations {
       if (MedicineCarry != other.MedicineCarry) return false;
       if (Nickname != other.Nickname) return false;
       if (MedicalCare != other.MedicalCare) return false;
+      if (DrugPolicy != other.DrugPolicy) return false;
       if (SettingCase != other.SettingCase) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -16096,6 +16198,7 @@ namespace RimGovernor.Protocol.Operations {
       if (HasMedicineCarry) hash ^= MedicineCarry.GetHashCode();
       if (HasNickname) hash ^= Nickname.GetHashCode();
       if (HasMedicalCare) hash ^= MedicalCare.GetHashCode();
+      if (HasDrugPolicy) hash ^= DrugPolicy.GetHashCode();
       hash ^= (int) settingCase_;
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -16143,6 +16246,10 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(56);
         output.WriteEnum((int) MedicalCare);
       }
+      if (HasDrugPolicy) {
+        output.WriteRawTag(66);
+        output.WriteString(DrugPolicy);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -16181,6 +16288,10 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(56);
         output.WriteEnum((int) MedicalCare);
       }
+      if (HasDrugPolicy) {
+        output.WriteRawTag(66);
+        output.WriteString(DrugPolicy);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -16211,6 +16322,9 @@ namespace RimGovernor.Protocol.Operations {
       }
       if (HasMedicalCare) {
         size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) MedicalCare);
+      }
+      if (HasDrugPolicy) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(DrugPolicy);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -16245,6 +16359,9 @@ namespace RimGovernor.Protocol.Operations {
           break;
         case SettingOneofCase.MedicalCare:
           MedicalCare = other.MedicalCare;
+          break;
+        case SettingOneofCase.DrugPolicy:
+          DrugPolicy = other.DrugPolicy;
           break;
       }
 
@@ -16297,6 +16414,10 @@ namespace RimGovernor.Protocol.Operations {
             settingCase_ = SettingOneofCase.MedicalCare;
             break;
           }
+          case 66: {
+            DrugPolicy = input.ReadString();
+            break;
+          }
         }
       }
     #endif
@@ -16344,6 +16465,10 @@ namespace RimGovernor.Protocol.Operations {
           case 56: {
             setting_ = input.ReadEnum();
             settingCase_ = SettingOneofCase.MedicalCare;
+            break;
+          }
+          case 66: {
+            DrugPolicy = input.ReadString();
             break;
           }
         }
@@ -17619,6 +17744,832 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
+  /// Write one drug policy's full contents (#1537): the DrugPolicy labelled
+  /// name (made when missing) carries exactly entries; every drug the intent
+  /// does not name is off (no joy, addiction or scheduled use, nothing
+  /// carried). An entry names a drug ThingDef the policy lists, at most once.
+  /// Native refuses a name several policies carry. A policy that already
+  /// matches applies again. PawnSettingsIntent.drug_policy assigns it.
+  /// Evidence is a SettingsEffect on the policy's load id with the
+  /// DRUG_POLICY field.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class DrugPolicyEntry : pb::IMessage<DrugPolicyEntry>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<DrugPolicyEntry> _parser = new pb::MessageParser<DrugPolicyEntry>(() => new DrugPolicyEntry());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<DrugPolicyEntry> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[46]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public DrugPolicyEntry() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public DrugPolicyEntry(DrugPolicyEntry other) : this() {
+      _hasBits0 = other._hasBits0;
+      drugDef_ = other.drugDef_;
+      allowedForJoy_ = other.allowedForJoy_;
+      allowedForAddiction_ = other.allowedForAddiction_;
+      allowScheduled_ = other.allowScheduled_;
+      daysFrequency_ = other.daysFrequency_;
+      onlyIfMoodBelow_ = other.onlyIfMoodBelow_;
+      onlyIfJoyBelow_ = other.onlyIfJoyBelow_;
+      takeToInventory_ = other.takeToInventory_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public DrugPolicyEntry Clone() {
+      return new DrugPolicyEntry(this);
+    }
+
+    /// <summary>Field number for the "drug_def" field.</summary>
+    public const int DrugDefFieldNumber = 1;
+    private readonly static string DrugDefDefaultValue = "";
+
+    private string drugDef_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string DrugDef {
+      get { return drugDef_ ?? DrugDefDefaultValue; }
+      set {
+        drugDef_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "drug_def" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDrugDef {
+      get { return drugDef_ != null; }
+    }
+    /// <summary>Clears the value of the "drug_def" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDrugDef() {
+      drugDef_ = null;
+    }
+
+    /// <summary>Field number for the "allowed_for_joy" field.</summary>
+    public const int AllowedForJoyFieldNumber = 2;
+    private readonly static bool AllowedForJoyDefaultValue = false;
+
+    private bool allowedForJoy_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool AllowedForJoy {
+      get { if ((_hasBits0 & 1) != 0) { return allowedForJoy_; } else { return AllowedForJoyDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        allowedForJoy_ = value;
+      }
+    }
+    /// <summary>Gets whether the "allowed_for_joy" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasAllowedForJoy {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "allowed_for_joy" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearAllowedForJoy() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "allowed_for_addiction" field.</summary>
+    public const int AllowedForAddictionFieldNumber = 3;
+    private readonly static bool AllowedForAddictionDefaultValue = false;
+
+    private bool allowedForAddiction_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool AllowedForAddiction {
+      get { if ((_hasBits0 & 2) != 0) { return allowedForAddiction_; } else { return AllowedForAddictionDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        allowedForAddiction_ = value;
+      }
+    }
+    /// <summary>Gets whether the "allowed_for_addiction" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasAllowedForAddiction {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "allowed_for_addiction" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearAllowedForAddiction() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "allow_scheduled" field.</summary>
+    public const int AllowScheduledFieldNumber = 4;
+    private readonly static bool AllowScheduledDefaultValue = false;
+
+    private bool allowScheduled_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool AllowScheduled {
+      get { if ((_hasBits0 & 4) != 0) { return allowScheduled_; } else { return AllowScheduledDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        allowScheduled_ = value;
+      }
+    }
+    /// <summary>Gets whether the "allow_scheduled" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasAllowScheduled {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "allow_scheduled" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearAllowScheduled() {
+      _hasBits0 &= ~4;
+    }
+
+    /// <summary>Field number for the "days_frequency" field.</summary>
+    public const int DaysFrequencyFieldNumber = 5;
+    private readonly static float DaysFrequencyDefaultValue = 0F;
+
+    private float daysFrequency_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public float DaysFrequency {
+      get { if ((_hasBits0 & 8) != 0) { return daysFrequency_; } else { return DaysFrequencyDefaultValue; } }
+      set {
+        _hasBits0 |= 8;
+        daysFrequency_ = value;
+      }
+    }
+    /// <summary>Gets whether the "days_frequency" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDaysFrequency {
+      get { return (_hasBits0 & 8) != 0; }
+    }
+    /// <summary>Clears the value of the "days_frequency" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDaysFrequency() {
+      _hasBits0 &= ~8;
+    }
+
+    /// <summary>Field number for the "only_if_mood_below" field.</summary>
+    public const int OnlyIfMoodBelowFieldNumber = 6;
+    private readonly static float OnlyIfMoodBelowDefaultValue = 0F;
+
+    private float onlyIfMoodBelow_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public float OnlyIfMoodBelow {
+      get { if ((_hasBits0 & 16) != 0) { return onlyIfMoodBelow_; } else { return OnlyIfMoodBelowDefaultValue; } }
+      set {
+        _hasBits0 |= 16;
+        onlyIfMoodBelow_ = value;
+      }
+    }
+    /// <summary>Gets whether the "only_if_mood_below" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasOnlyIfMoodBelow {
+      get { return (_hasBits0 & 16) != 0; }
+    }
+    /// <summary>Clears the value of the "only_if_mood_below" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearOnlyIfMoodBelow() {
+      _hasBits0 &= ~16;
+    }
+
+    /// <summary>Field number for the "only_if_joy_below" field.</summary>
+    public const int OnlyIfJoyBelowFieldNumber = 7;
+    private readonly static float OnlyIfJoyBelowDefaultValue = 0F;
+
+    private float onlyIfJoyBelow_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public float OnlyIfJoyBelow {
+      get { if ((_hasBits0 & 32) != 0) { return onlyIfJoyBelow_; } else { return OnlyIfJoyBelowDefaultValue; } }
+      set {
+        _hasBits0 |= 32;
+        onlyIfJoyBelow_ = value;
+      }
+    }
+    /// <summary>Gets whether the "only_if_joy_below" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasOnlyIfJoyBelow {
+      get { return (_hasBits0 & 32) != 0; }
+    }
+    /// <summary>Clears the value of the "only_if_joy_below" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearOnlyIfJoyBelow() {
+      _hasBits0 &= ~32;
+    }
+
+    /// <summary>Field number for the "take_to_inventory" field.</summary>
+    public const int TakeToInventoryFieldNumber = 8;
+    private readonly static int TakeToInventoryDefaultValue = 0;
+
+    private int takeToInventory_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int TakeToInventory {
+      get { if ((_hasBits0 & 64) != 0) { return takeToInventory_; } else { return TakeToInventoryDefaultValue; } }
+      set {
+        _hasBits0 |= 64;
+        takeToInventory_ = value;
+      }
+    }
+    /// <summary>Gets whether the "take_to_inventory" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasTakeToInventory {
+      get { return (_hasBits0 & 64) != 0; }
+    }
+    /// <summary>Clears the value of the "take_to_inventory" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearTakeToInventory() {
+      _hasBits0 &= ~64;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as DrugPolicyEntry);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(DrugPolicyEntry other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (DrugDef != other.DrugDef) return false;
+      if (AllowedForJoy != other.AllowedForJoy) return false;
+      if (AllowedForAddiction != other.AllowedForAddiction) return false;
+      if (AllowScheduled != other.AllowScheduled) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(DaysFrequency, other.DaysFrequency)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(OnlyIfMoodBelow, other.OnlyIfMoodBelow)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(OnlyIfJoyBelow, other.OnlyIfJoyBelow)) return false;
+      if (TakeToInventory != other.TakeToInventory) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasDrugDef) hash ^= DrugDef.GetHashCode();
+      if (HasAllowedForJoy) hash ^= AllowedForJoy.GetHashCode();
+      if (HasAllowedForAddiction) hash ^= AllowedForAddiction.GetHashCode();
+      if (HasAllowScheduled) hash ^= AllowScheduled.GetHashCode();
+      if (HasDaysFrequency) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(DaysFrequency);
+      if (HasOnlyIfMoodBelow) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(OnlyIfMoodBelow);
+      if (HasOnlyIfJoyBelow) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(OnlyIfJoyBelow);
+      if (HasTakeToInventory) hash ^= TakeToInventory.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasDrugDef) {
+        output.WriteRawTag(10);
+        output.WriteString(DrugDef);
+      }
+      if (HasAllowedForJoy) {
+        output.WriteRawTag(16);
+        output.WriteBool(AllowedForJoy);
+      }
+      if (HasAllowedForAddiction) {
+        output.WriteRawTag(24);
+        output.WriteBool(AllowedForAddiction);
+      }
+      if (HasAllowScheduled) {
+        output.WriteRawTag(32);
+        output.WriteBool(AllowScheduled);
+      }
+      if (HasDaysFrequency) {
+        output.WriteRawTag(45);
+        output.WriteFloat(DaysFrequency);
+      }
+      if (HasOnlyIfMoodBelow) {
+        output.WriteRawTag(53);
+        output.WriteFloat(OnlyIfMoodBelow);
+      }
+      if (HasOnlyIfJoyBelow) {
+        output.WriteRawTag(61);
+        output.WriteFloat(OnlyIfJoyBelow);
+      }
+      if (HasTakeToInventory) {
+        output.WriteRawTag(64);
+        output.WriteInt32(TakeToInventory);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasDrugDef) {
+        output.WriteRawTag(10);
+        output.WriteString(DrugDef);
+      }
+      if (HasAllowedForJoy) {
+        output.WriteRawTag(16);
+        output.WriteBool(AllowedForJoy);
+      }
+      if (HasAllowedForAddiction) {
+        output.WriteRawTag(24);
+        output.WriteBool(AllowedForAddiction);
+      }
+      if (HasAllowScheduled) {
+        output.WriteRawTag(32);
+        output.WriteBool(AllowScheduled);
+      }
+      if (HasDaysFrequency) {
+        output.WriteRawTag(45);
+        output.WriteFloat(DaysFrequency);
+      }
+      if (HasOnlyIfMoodBelow) {
+        output.WriteRawTag(53);
+        output.WriteFloat(OnlyIfMoodBelow);
+      }
+      if (HasOnlyIfJoyBelow) {
+        output.WriteRawTag(61);
+        output.WriteFloat(OnlyIfJoyBelow);
+      }
+      if (HasTakeToInventory) {
+        output.WriteRawTag(64);
+        output.WriteInt32(TakeToInventory);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasDrugDef) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(DrugDef);
+      }
+      if (HasAllowedForJoy) {
+        size += 1 + 1;
+      }
+      if (HasAllowedForAddiction) {
+        size += 1 + 1;
+      }
+      if (HasAllowScheduled) {
+        size += 1 + 1;
+      }
+      if (HasDaysFrequency) {
+        size += 1 + 4;
+      }
+      if (HasOnlyIfMoodBelow) {
+        size += 1 + 4;
+      }
+      if (HasOnlyIfJoyBelow) {
+        size += 1 + 4;
+      }
+      if (HasTakeToInventory) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(TakeToInventory);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(DrugPolicyEntry other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasDrugDef) {
+        DrugDef = other.DrugDef;
+      }
+      if (other.HasAllowedForJoy) {
+        AllowedForJoy = other.AllowedForJoy;
+      }
+      if (other.HasAllowedForAddiction) {
+        AllowedForAddiction = other.AllowedForAddiction;
+      }
+      if (other.HasAllowScheduled) {
+        AllowScheduled = other.AllowScheduled;
+      }
+      if (other.HasDaysFrequency) {
+        DaysFrequency = other.DaysFrequency;
+      }
+      if (other.HasOnlyIfMoodBelow) {
+        OnlyIfMoodBelow = other.OnlyIfMoodBelow;
+      }
+      if (other.HasOnlyIfJoyBelow) {
+        OnlyIfJoyBelow = other.OnlyIfJoyBelow;
+      }
+      if (other.HasTakeToInventory) {
+        TakeToInventory = other.TakeToInventory;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            DrugDef = input.ReadString();
+            break;
+          }
+          case 16: {
+            AllowedForJoy = input.ReadBool();
+            break;
+          }
+          case 24: {
+            AllowedForAddiction = input.ReadBool();
+            break;
+          }
+          case 32: {
+            AllowScheduled = input.ReadBool();
+            break;
+          }
+          case 45: {
+            DaysFrequency = input.ReadFloat();
+            break;
+          }
+          case 53: {
+            OnlyIfMoodBelow = input.ReadFloat();
+            break;
+          }
+          case 61: {
+            OnlyIfJoyBelow = input.ReadFloat();
+            break;
+          }
+          case 64: {
+            TakeToInventory = input.ReadInt32();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            DrugDef = input.ReadString();
+            break;
+          }
+          case 16: {
+            AllowedForJoy = input.ReadBool();
+            break;
+          }
+          case 24: {
+            AllowedForAddiction = input.ReadBool();
+            break;
+          }
+          case 32: {
+            AllowScheduled = input.ReadBool();
+            break;
+          }
+          case 45: {
+            DaysFrequency = input.ReadFloat();
+            break;
+          }
+          case 53: {
+            OnlyIfMoodBelow = input.ReadFloat();
+            break;
+          }
+          case 61: {
+            OnlyIfJoyBelow = input.ReadFloat();
+            break;
+          }
+          case 64: {
+            TakeToInventory = input.ReadInt32();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class DrugPolicyIntent : pb::IMessage<DrugPolicyIntent>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<DrugPolicyIntent> _parser = new pb::MessageParser<DrugPolicyIntent>(() => new DrugPolicyIntent());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<DrugPolicyIntent> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[47]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public DrugPolicyIntent() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public DrugPolicyIntent(DrugPolicyIntent other) : this() {
+      name_ = other.name_;
+      entries_ = other.entries_.Clone();
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public DrugPolicyIntent Clone() {
+      return new DrugPolicyIntent(this);
+    }
+
+    /// <summary>Field number for the "name" field.</summary>
+    public const int NameFieldNumber = 1;
+    private readonly static string NameDefaultValue = "";
+
+    private string name_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Name {
+      get { return name_ ?? NameDefaultValue; }
+      set {
+        name_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "name" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasName {
+      get { return name_ != null; }
+    }
+    /// <summary>Clears the value of the "name" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearName() {
+      name_ = null;
+    }
+
+    /// <summary>Field number for the "entries" field.</summary>
+    public const int EntriesFieldNumber = 2;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Operations.DrugPolicyEntry> _repeated_entries_codec
+        = pb::FieldCodec.ForMessage(18, global::RimGovernor.Protocol.Operations.DrugPolicyEntry.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Operations.DrugPolicyEntry> entries_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Operations.DrugPolicyEntry>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Operations.DrugPolicyEntry> Entries {
+      get { return entries_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as DrugPolicyIntent);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(DrugPolicyIntent other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Name != other.Name) return false;
+      if(!entries_.Equals(other.entries_)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasName) hash ^= Name.GetHashCode();
+      hash ^= entries_.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasName) {
+        output.WriteRawTag(10);
+        output.WriteString(Name);
+      }
+      entries_.WriteTo(output, _repeated_entries_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasName) {
+        output.WriteRawTag(10);
+        output.WriteString(Name);
+      }
+      entries_.WriteTo(ref output, _repeated_entries_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasName) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
+      }
+      size += entries_.CalculateSize(_repeated_entries_codec);
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(DrugPolicyIntent other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasName) {
+        Name = other.Name;
+      }
+      entries_.Add(other.entries_);
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Name = input.ReadString();
+            break;
+          }
+          case 18: {
+            entries_.AddEntriesFrom(input, _repeated_entries_codec);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            Name = input.ReadString();
+            break;
+          }
+          case 18: {
+            entries_.AddEntriesFrom(ref input, _repeated_entries_codec);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
   /// Set the game's home-area auto-expand (Find.PlaySettings.autoHomeArea, a
   /// save-level setting; #1322). Evidence is a SettingsEffect with the
   /// AUTO_HOME_AREA field: APPLIED when it changed, UNCHANGED when it already
@@ -17640,7 +18591,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[46]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[48]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -17863,7 +18814,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[47]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[49]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -18231,7 +19182,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[48]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[50]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -18508,7 +19459,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[49]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[51]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -18883,7 +19834,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[50]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[52]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19157,7 +20108,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[51]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[53]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19477,7 +20428,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[52]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[54]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19792,7 +20743,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[53]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[55]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -20074,7 +21025,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[54]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[56]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -20388,7 +21339,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[55]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[57]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -20758,7 +21709,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[56]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[58]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -21373,7 +22324,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[57]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[59]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -21690,7 +22641,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[58]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[60]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -22016,7 +22967,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[59]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[61]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -22280,7 +23231,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[60]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[62]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -22467,7 +23418,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[61]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[63]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -22726,7 +23677,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[62]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[64]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -23153,7 +24104,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[63]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[65]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -23501,8 +24452,7 @@ namespace RimGovernor.Protocol.Operations {
   /// <summary>
   /// Write one free colonist's settings: work priorities, allowed area, the
   /// 24-hour timetable and food additions together, or the medicine ceiling
-  /// alone, or the named social-only drug policy alone (created or updated,
-  /// assigned and made the default; no hard drugs or scheduled use). Native
+  /// alone. Native
   /// checks the pawn and each field live when it applies; settings that
   /// already hold apply again.
   /// </summary>
@@ -23521,7 +24471,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[64]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[66]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -23546,7 +24496,6 @@ namespace RimGovernor.Protocol.Operations {
       allowedArea_ = other.allowedArea_ != null ? other.allowedArea_.Clone() : null;
       schedule_ = other.schedule_ != null ? other.schedule_.Clone() : null;
       foodAllow_ = other.foodAllow_ != null ? other.foodAllow_.Clone() : null;
-      drugPolicy_ = other.drugPolicy_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -23629,32 +24578,6 @@ namespace RimGovernor.Protocol.Operations {
       }
     }
 
-    /// <summary>Field number for the "drug_policy" field.</summary>
-    public const int DrugPolicyFieldNumber = 7;
-    private readonly static string DrugPolicyDefaultValue = "";
-
-    private string drugPolicy_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string DrugPolicy {
-      get { return drugPolicy_ ?? DrugPolicyDefaultValue; }
-      set {
-        drugPolicy_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "drug_policy" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasDrugPolicy {
-      get { return drugPolicy_ != null; }
-    }
-    /// <summary>Clears the value of the "drug_policy" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearDrugPolicy() {
-      drugPolicy_ = null;
-    }
-
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -23675,7 +24598,6 @@ namespace RimGovernor.Protocol.Operations {
       if (!object.Equals(AllowedArea, other.AllowedArea)) return false;
       if (!object.Equals(Schedule, other.Schedule)) return false;
       if (!object.Equals(FoodAllow, other.FoodAllow)) return false;
-      if (DrugPolicy != other.DrugPolicy) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -23688,7 +24610,6 @@ namespace RimGovernor.Protocol.Operations {
       if (allowedArea_ != null) hash ^= AllowedArea.GetHashCode();
       if (schedule_ != null) hash ^= Schedule.GetHashCode();
       if (foodAllow_ != null) hash ^= FoodAllow.GetHashCode();
-      if (HasDrugPolicy) hash ^= DrugPolicy.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -23724,10 +24645,6 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(50);
         output.WriteMessage(FoodAllow);
       }
-      if (HasDrugPolicy) {
-        output.WriteRawTag(58);
-        output.WriteString(DrugPolicy);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -23755,10 +24672,6 @@ namespace RimGovernor.Protocol.Operations {
         output.WriteRawTag(50);
         output.WriteMessage(FoodAllow);
       }
-      if (HasDrugPolicy) {
-        output.WriteRawTag(58);
-        output.WriteString(DrugPolicy);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -23781,9 +24694,6 @@ namespace RimGovernor.Protocol.Operations {
       }
       if (foodAllow_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(FoodAllow);
-      }
-      if (HasDrugPolicy) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(DrugPolicy);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -23818,9 +24728,6 @@ namespace RimGovernor.Protocol.Operations {
           FoodAllow = new global::RimGovernor.Protocol.Operations.DefinitionList();
         }
         FoodAllow.MergeFrom(other.FoodAllow);
-      }
-      if (other.HasDrugPolicy) {
-        DrugPolicy = other.DrugPolicy;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -23868,10 +24775,6 @@ namespace RimGovernor.Protocol.Operations {
               FoodAllow = new global::RimGovernor.Protocol.Operations.DefinitionList();
             }
             input.ReadMessage(FoodAllow);
-            break;
-          }
-          case 58: {
-            DrugPolicy = input.ReadString();
             break;
           }
         }
@@ -23922,10 +24825,6 @@ namespace RimGovernor.Protocol.Operations {
             input.ReadMessage(FoodAllow);
             break;
           }
-          case 58: {
-            DrugPolicy = input.ReadString();
-            break;
-          }
         }
       }
     }
@@ -23955,7 +24854,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[65]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[67]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -24323,7 +25222,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[66]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[68]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -24589,7 +25488,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[67]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[69]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -24965,7 +25864,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[68]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[70]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -25286,7 +26185,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[69]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[71]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -25504,7 +26403,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[70]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[72]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -26013,7 +26912,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[71]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[73]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -26286,7 +27185,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[72]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[74]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -26607,7 +27506,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[73]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[75]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -26870,7 +27769,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[74]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[76]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -27141,7 +28040,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[75]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[77]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -27352,7 +28251,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[76]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[78]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -27855,7 +28754,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[77]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[79]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -28120,7 +29019,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[78]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[80]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -28521,7 +29420,7 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[79]; }
+      get { return global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor.MessageTypes[81]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

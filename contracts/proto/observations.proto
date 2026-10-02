@@ -340,9 +340,7 @@ message PawnSettings {
   repeated rimgovernor.operations.v1.MedicalCare medical_care_options = 12; repeated rimgovernor.operations.v1.HostilityResponse hostility_response_options = 13; repeated ReadIssue issues = 14;
   optional bool work_applies = 15; optional bool manual_work_priorities = 16;
   FoodRestriction food_restriction = 17;
-  optional bool drug_policy_writable = 18;
-  // The current DrugPolicy's label; empty when the pawn has no drug policy.
-  optional string drug_policy_name = 19;
+  reserved 18, 19; reserved "drug_policy_writable", "drug_policy_name";
   // Per-pawn policy planner inputs (#1297), read with work detail.
   PawnPolicyInputs policy_inputs = 20;
 }
@@ -1312,8 +1310,11 @@ message ColonyFactsSnapshot {
 // pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
 // transporter) whose current policy it is, and whether it is the
 // database default (index 0). allowed_defs is a reading policy's allowed
-// book ThingDefs (#1306); empty for the other databases.
-message PolicyEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; optional bool default = 4; repeated string allowed_defs = 5; }
+// book ThingDefs (#1306); empty for the other databases. drug_entries is
+// a drug policy's entries that allow anything (joy, addiction, scheduled
+// use or a carried count; #1537); every other drug of it is off.
+message PolicyEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; optional bool default = 4; repeated string allowed_defs = 5;
+  repeated rimgovernor.operations.v1.DrugPolicyEntry drug_entries = 6; }
 // A book ThingDef and what reading it does (#1306), from its
 // CompProperties_Book outcome doers: skill experience (textbook), research
 // (schematic), Anomaly research or a mental break (tome), otherwise a

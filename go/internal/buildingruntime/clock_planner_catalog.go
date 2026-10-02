@@ -64,7 +64,8 @@ var (
 	sectionsMedical  = []facts.Section{facts.Pawns, facts.Colony}
 	sectionsThreat   = []facts.Section{facts.Pawns, facts.Emergency}
 	// sectionsWork adds the population census for the owned-pawn names
-	// (#1310) and the colony facts for the reading policies (#1306).
+	// (#1310) and the colony facts for the reading (#1306) and drug (#1537)
+	// policies.
 	sectionsWork     = []facts.Section{facts.Pawns, facts.Population, facts.Emergency, facts.Colony}
 	sectionsRecovery = []facts.Section{facts.Pawns, facts.Emergency, facts.Colony}
 	sectionsCustody  = []facts.Section{facts.Pawns, facts.Population, facts.Emergency, facts.Colony}
@@ -132,7 +133,7 @@ var plannerCatalog = []plannerEntry{
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			return "", s.config.Routine.sweepDrafts(ctx, epoch, arbiter)
 		}},
-	{name: "work", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction, domain.PawnSettingsAction, domain.ReadingPolicyAction}, sections: sectionsWork,
+	{name: "work", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction, domain.PawnSettingsAction, domain.ReadingPolicyAction, domain.DrugPolicyAction}, sections: sectionsWork,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Work != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Work.step(ctx, epoch, arbiter)

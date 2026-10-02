@@ -2,14 +2,6 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-const SocialDrugPolicyName = "RimGovernor social drugs"
-
-func DrugPolicyChange(pawn WorkPawn) bool {
-	writable, known := pawn.DrugPolicyWritable.Value()
-	available, ready := pawn.Available.Value()
-	return known && writable && ready && available && pawn.DrugPolicyName != SocialDrugPolicyName
-}
-
 func BrewingFinished(research domain.Fact[ResearchFacts]) bool {
 	facts, known := research.Value()
 	if known {

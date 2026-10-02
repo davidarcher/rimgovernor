@@ -9,7 +9,7 @@ import (
 // (#1299, epic #1292): a PawnSettingsIntent on Actions/Apply, one setting
 // per intent: hostility response (#1299), self-tend (#1305), nickname
 // (#1310), medicine carry (#1307), the medical care cap (#1301) and the
-// reading policy (#1306). Native treats a setting that
+// reading policy (#1306) and the drug policy (#1537). Native treats a setting that
 // already holds as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
 
@@ -43,6 +43,9 @@ const (
 	// SettingReadingPolicy assigns the reading policy labelled with the
 	// pawn's short name (#1306).
 	SettingReadingPolicy SettingKind = "reading_policy"
+	// SettingDrugPolicy assigns the drug policy labelled with the pawn's
+	// short name (#1537).
+	SettingDrugPolicy SettingKind = "drug_policy"
 )
 
 // MedicalCare is a vanilla MedicalCareCategory name: the best medicine a
@@ -96,7 +99,19 @@ type PawnSettings struct {
 	leaveName string
 	care      MedicalCare
 	reading   string
+	drug      string
 }
+
+// NewDrugPolicySetting assigns the drug policy labelled name (#1537).
+func NewDrugPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
+	if !validID(string(pawn)) || !validID(name) || len(name) > 80 {
+		return PawnSettings{}, errors.New("a drug policy setting requires a pawn and a policy name")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingDrugPolicy, drug: name}, nil
+}
+
+// DrugPolicy is the policy label, and whether this is the drug arm.
+func (s PawnSettings) DrugPolicy() (string, bool) { return s.drug, s.kind == SettingDrugPolicy }
 
 // NewReadingPolicySetting assigns the reading policy labelled name (#1306).
 func NewReadingPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
@@ -107,7 +122,9 @@ func NewReadingPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
 }
 
 // ReadingPolicy is the policy label, and whether this is the reading arm.
-func (s PawnSettings) ReadingPolicy() (string, bool) { return s.reading, s.kind == SettingReadingPolicy }
+func (s PawnSettings) ReadingPolicy() (string, bool) {
+	return s.reading, s.kind == SettingReadingPolicy
+}
 
 // NewMedicineCarrySetting is the pawn's Medicine inventory-stock count
 // (#1307), 0 to MaxMedicineCarry.
@@ -176,6 +193,8 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewMedicalCareSetting(s.pawn, s.care)
 	case SettingReadingPolicy:
 		return NewReadingPolicySetting(s.pawn, s.reading)
+	case SettingDrugPolicy:
+		return NewDrugPolicySetting(s.pawn, s.drug)
 	}
 	return PawnSettings{}, errors.New("unknown pawn setting")
 }

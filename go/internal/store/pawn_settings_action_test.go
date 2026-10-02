@@ -76,7 +76,34 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, c, carry, write, none, reading})
+	drugValue, err := domain.NewDrugPolicySetting("Human7", "Bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	drug, err := domain.NewPawnSettingsAction("drug", drugValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	drugContents, err := domain.NewDrugPolicy("Bob", []domain.DrugPolicyEntry{
+		{Drug: "SmokeleafJoint", Joy: true, DaysFrequency: 1, OnlyIfMoodBelow: 1, OnlyIfJoyBelow: 1},
+		{Drug: "Beer", Joy: true, Scheduled: true, DaysFrequency: 2.5, OnlyIfMoodBelow: 0.3, OnlyIfJoyBelow: 1, TakeToInventory: 2},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	drugWrite, err := domain.NewDrugPolicyAction("drug-write", drugContents)
+	if err != nil {
+		t.Fatal(err)
+	}
+	drugEmpty, err := domain.NewDrugPolicy("Tim", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	drugNone, err := domain.NewDrugPolicyAction("drug-none", drugEmpty)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, c, carry, write, none, reading, drugWrite, drugNone, drug})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +117,7 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := loaded.Spec.Actions()
-	if len(got) != 8 {
+	if len(got) != 11 {
 		t.Fatal(got)
 	}
 	if v, ok := got[0].PawnSettings(); !ok || v != value {
@@ -116,5 +143,14 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	}
 	if v, ok := got[7].PawnSettings(); !ok || v != readingValue {
 		t.Fatal(v, readingValue)
+	}
+	if v, ok := got[8].DrugPolicy(); !ok || v != drugContents || v.Entries()[0].Drug != "Beer" {
+		t.Fatal(v, drugContents)
+	}
+	if v, ok := got[9].DrugPolicy(); !ok || v != drugEmpty {
+		t.Fatal(v, drugEmpty)
+	}
+	if v, ok := got[10].PawnSettings(); !ok || v != drugValue {
+		t.Fatal(v, drugValue)
 	}
 }

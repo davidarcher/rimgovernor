@@ -32,6 +32,16 @@ func validatePolicies(v *o.ColonyFactsSnapshot) error {
 						return contract("invalid reading policy definition")
 					}
 				}
+				if i != 1 && len(row.DrugEntries) > 0 {
+					return contract("drug entries on a non-drug policy")
+				}
+				drugs := map[string]bool{}
+				for _, e := range row.DrugEntries {
+					if e == nil || validID(e.GetDrugDef()) != nil || drugs[e.GetDrugDef()] || e.AllowedForJoy == nil || e.AllowedForAddiction == nil || e.AllowScheduled == nil || e.DaysFrequency == nil || e.OnlyIfMoodBelow == nil || e.OnlyIfJoyBelow == nil || e.TakeToInventory == nil {
+						return contract("invalid drug policy entry")
+					}
+					drugs[e.GetDrugDef()] = true
+				}
 				if row.GetDefault() {
 					defaults++
 				}

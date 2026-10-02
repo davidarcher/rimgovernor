@@ -103,6 +103,31 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, researcher = researcher.GetUniqueLoadID(), child = child.GetUniqueLoadID() };
             }, cancellationToken);
         }
+        [Tool("test/drinker_and_child", Description = "UNSAFE FOR MODEL EXECUTION. Keep two paused disposable colonists: an adult with no chemical trait, tolerance or addiction, and a child aged eight (#1537).")]
+        public async Task<object> DrinkerAndChild(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.drugs != null)
+                    .OrderBy(p => p.thingIDNumber).ToList();
+                var adult = pawns.First();
+                var child = pawns.First(p => p != adult);
+                foreach (var other in map.mapPawns.FreeColonistsSpawned.Where(p => p != adult && p != child).ToList())
+                    other.Destroy(DestroyMode.Vanish);
+                foreach (var trait in adult.story.traits.allTraits.Where(t => t.def.defName == "DrugDesire").ToList())
+                    adult.story.traits.RemoveTrait(trait);
+                foreach (var hediff in adult.health.hediffSet.hediffs.Where(h => h is Hediff_Addiction || h.def.defName.EndsWith("Tolerance")).ToList())
+                    adult.health.RemoveHediff(hediff);
+                if (adult.ageTracker.AgeBiologicalYearsFloat < 13f)
+                    adult.ageTracker.AgeBiologicalTicks = 30L * GenDate.TicksPerYear;
+                child.ageTracker.AgeBiologicalTicks = 8L * GenDate.TicksPerYear;
+                if (child.ageTracker.AgeBiologicalYearsFloat >= 13f)
+                    throw new InvalidOperationException("The child is not a child.");
+                return new { success = true, adult = adult.GetUniqueLoadID(), child = child.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
         [Tool("test/duplicate_nickname", Description = "UNSAFE FOR MODEL EXECUTION. Give the newest of two paused disposable colonists the oldest one's nickname (#1310).")]
         public async Task<object> DuplicateNickname(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

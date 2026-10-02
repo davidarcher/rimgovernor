@@ -70,6 +70,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.PolicyPrune] = new PolicyPruneActionHandler(),
             [Operations.Action.IntentOneofCase.RemoveRoof] = new RemoveRoofActionHandler(),
             [Operations.Action.IntentOneofCase.ReadingPolicy] = new ReadingPolicyActionHandler(),
+            [Operations.Action.IntentOneofCase.DrugPolicy] = new DrugPolicyActionHandler(),
             [Operations.Action.IntentOneofCase.AutoHomeArea] = new AutoHomeAreaActionHandler(),
             [Operations.Action.IntentOneofCase.PawnSettings] = new PawnSettingsActionHandler(),
         };

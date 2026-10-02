@@ -459,7 +459,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			if err == nil {
 				reading.Projection.Facts.WorkCoverage = work.Matches
 				for _, pawn := range pawns {
-					if len(policy.FoodPolicyChanges(pawn)) > 0 || policy.DrugPolicyChange(pawn) {
+					if len(policy.FoodPolicyChanges(pawn)) > 0 {
 						reading.Projection.Facts.WorkCoverage = domain.Known(false)
 					}
 				}

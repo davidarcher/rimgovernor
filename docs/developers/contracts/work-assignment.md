@@ -182,17 +182,11 @@ hand-edited timetable replanned; two pawns under the Construction floor
 help at 4 beside six walls. `takeover/schedule` still writes a timetable
 through a real `WorkSettingsIntent` and reads it back natively.
 
-## Social drug policy
+## Drug policy
 
-The autonomous work routine assigns `RimGovernor social drugs` through
-a drug-policy-only `WorkSettingsIntent`, using the same durable settings
-actions as work assignment. Native apply creates or updates the named policy,
-assigns the pawn and makes it the colony default; the controller owns drug
-policies under autonomous control, so any other policy or drifted contents are
-replaced. Only Beer and SmokeleafJoint
-are permitted for recreation; addiction use, scheduled consumption and inventory
-carry are disabled for every drug. A changed assignment is replanned from fresh
-facts. The settings snapshot includes the drug configuration and colony default.
+The work routine gives each colonist its own drug policy, labelled with its
+short name, through a `DrugPolicyIntent` and `PawnSettingsIntent.drug_policy`
+(#1537); the [`drug_policy` action](action-contracts.md) states the contents.
 
 After Brewing finishes, MaintainResource requests 12 beer and 12 smokeleaf joints.
 Once food fields are sufficient, the field planner adds at most nine cells each

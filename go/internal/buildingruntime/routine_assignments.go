@@ -192,14 +192,6 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			continue
 		}
 		changed, ok := policy.WorkChanges(pawn, assignment)
-		if policy.DrugPolicyChange(pawn) {
-			w, err := domain.NewDrugPolicyAssignment(domain.PawnID(pawn.ID), policy.SocialDrugPolicyName)
-			if err != nil {
-				return RoutineWorkResult{}, err
-			}
-			work = append(work, w)
-			continue
-		}
 		if !ok {
 			return RoutineWorkResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
@@ -257,6 +249,21 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			}
 		}
 	}
+	// Per-pawn drug policies (#1537) the same way.
+	var drugs []domain.DrugPolicy
+	if changes := routineDrugChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns); len(changes) > 0 {
+		if len(changes) > 8 {
+			changes = changes[:8]
+		}
+		for _, c := range changes {
+			if c.Write != nil {
+				drugs = append(drugs, *c.Write)
+			}
+			if c.Assign != nil {
+				settings = append(settings, *c.Assign)
+			}
+		}
+	}
 	for _, plan := range open {
 		if err := cancelStaleWorkActions(call, p.journal, plan, work, settings); err != nil {
 			return RoutineWorkResult{}, err
@@ -268,7 +275,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineWorkResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	if len(work) == 0 && len(settings) == 0 && len(reading) == 0 {
+	if len(work) == 0 && len(settings) == 0 && len(reading) == 0 && len(drugs) == 0 {
 		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
 	}
 	// Staleness above judged every pawn; the plan itself carries at most eight.
@@ -281,7 +288,6 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	fmt.Fprintf(hash, "epoch:%d\n", goal.Goal.Epoch)
 	for _, w := range work {
 		data, _ := json.Marshal(w.Settings())
-		fmt.Fprintf(hash, "drug:%s\n", w.DrugPolicy())
 		fmt.Fprintf(hash, "%s/%s\n", w.Pawn(), data)
 		if defs := w.FoodAllow(); len(defs) > 0 {
 			// An identical Manual edit after a completed repair needs another
@@ -298,7 +304,12 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	for _, s := range settings {
 		carry, _ := s.MedicineCarry()
 		book, _ := s.ReadingPolicy()
-		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%q/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), book, len(goal.Methods))
+		drug, _ := s.DrugPolicy()
+		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%q/%q/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), book, drug, len(goal.Methods))
+	}
+	for _, d := range drugs {
+		data, _ := json.Marshal(d.Entries())
+		fmt.Fprintf(hash, "drugs/%q/%s/%d\n", d.Name(), data, len(goal.Methods))
 	}
 	for _, r := range reading {
 		fmt.Fprintf(hash, "reading/%q/%q/%d\n", r.Name(), r.Definitions(), len(goal.Methods))
@@ -320,6 +331,13 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	for _, r := range reading {
 		action, err := domain.NewReadingPolicyAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), r)
+		if err != nil {
+			return RoutineWorkResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	for _, d := range drugs {
+		action, err := domain.NewDrugPolicyAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), d)
 		if err != nil {
 			return RoutineWorkResult{}, err
 		}
@@ -398,7 +416,7 @@ func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.Wo
 	if !ok {
 		return true
 	}
-	if !slices.Equal(w.FoodAllow(), now.FoodAllow()) || w.DrugPolicy() != now.DrugPolicy() {
+	if !slices.Equal(w.FoodAllow(), now.FoodAllow()) {
 		return true
 	}
 	values := map[string]int32{}
@@ -462,4 +480,19 @@ func routineReadingChanges(policies domain.Fact[observation.Policies], names dom
 		entries = append(entries, policy.ReadingPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Allowed: e.Allowed})
 	}
 	return policy.ReadingPolicyChanges(pawns, owned, entries, p.Books)
+}
+
+// routineDrugChanges is the drug policy planner's input lift (#1537); none
+// while the policy databases or the owned-pawn names are unknown.
+func routineDrugChanges(policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn) []policy.DrugPolicyChange {
+	p, ok := policies.Value()
+	owned, named := names.Value()
+	if !ok || !named {
+		return nil
+	}
+	entries := make([]policy.DrugPolicyEntry, 0, len(p.Drug))
+	for _, e := range p.Drug {
+		entries = append(entries, policy.DrugPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Entries: e.Drugs})
+	}
+	return policy.DrugPolicyChanges(pawns, owned, entries)
 }
