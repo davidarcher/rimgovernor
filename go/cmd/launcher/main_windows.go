@@ -95,6 +95,7 @@ func main() {
 		placement := filepath.Join(repo, ".rimgovernor", "launcher-window.json")
 		restoreWindow(hwnd, placement)
 		go rememberWindow(hwnd, placement)
+		go watchGameWindow(filepath.Join(repo, ".rimgovernor", "game-window.json"))
 	}
 	w.SetHtml(indexHTML)
 	go a.focus()
