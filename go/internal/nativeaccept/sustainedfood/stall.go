@@ -13,6 +13,9 @@ type tickStall struct {
 	last     uint64
 	seen     bool
 	advanced time.Time
+	// noWork is set when the scheduler refused a clock window for lack of
+	// work since the tick last advanced: the governor has parked the game.
+	noWork bool
 }
 
 func newTickStall(limit time.Duration, now time.Time) *tickStall {
@@ -21,8 +24,19 @@ func newTickStall(limit time.Duration, now time.Time) *tickStall {
 
 func (s *tickStall) observe(tick uint64, now time.Time) {
 	if !s.seen || tick != s.last {
-		s.last, s.seen, s.advanced = tick, true, now
+		s.last, s.seen, s.advanced, s.noWork = tick, true, now, false
 	}
+}
+
+// refusedNoWork records a scheduler admission refusal naming no_work.
+func (s *tickStall) refusedNoWork() { s.noWork = true }
+
+// idle reports a parked game: the scheduler refused to run the clock for
+// lack of work and the tick has not moved for grace. Nothing can change
+// in a paused game the governor will not resume, so the window ends and
+// the case's audit judges the frozen state instead of waiting out Watch.
+func (s *tickStall) idle(now time.Time, grace time.Duration) bool {
+	return s.noWork && s.seen && grace > 0 && now.Sub(s.advanced) >= grace
 }
 
 // reset restarts the clock after a deliberate pause (a checkpoint save).

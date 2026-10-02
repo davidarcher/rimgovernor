@@ -82,6 +82,11 @@ type WatchConfig struct {
 	// by the bridge's reattach sits at the main menu with no map, so
 	// without this the case waits out its whole Watch ceiling.
 	TickStall time.Duration
+	// IdleGrace ends the window (without error) once the scheduler has
+	// refused a clock window for no_work and the tick has not moved for
+	// this long (default DefaultIdleGrace; negative disables): a parked
+	// game cannot change, so waiting out Watch only burns wall time.
+	IdleGrace time.Duration
 }
 
 // Watch is the serve-driven family's observation window on a service
@@ -109,6 +114,9 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	}
 	if cfg.TickStall <= 0 {
 		cfg.TickStall = DefaultTickStall
+	}
+	if cfg.IdleGrace == 0 {
+		cfg.IdleGrace = DefaultIdleGrace
 	}
 	if cfg.Wake == nil {
 		cfg.Wake = na.WorkerOutcome
@@ -239,6 +247,10 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		if window.reached() {
 			break
 		}
+		if stall.idle(time.Now(), cfg.IdleGrace) {
+			report["watch_ended_idle"] = sample["tick"]
+			break
+		}
 		// The failed checkpoint bundle (#249) is still taken: the runner
 		// captures it on the error path like any other watch failure.
 		if err == nil {
@@ -282,7 +294,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 			stall.reset(time.Now())
 		}
 		sampledTick, _ := sample["tick"].(uint64)
-		reason, err := waitNextSample(ctx, apiCall, tail, cfg, sampledTick, watchDeadline)
+		reason, err := waitNextSample(ctx, apiCall, tail, cfg, stall, sampledTick, watchDeadline)
 		if err != nil {
 			return timeline, err
 		}
@@ -301,7 +313,22 @@ const (
 	DefaultPollTicks uint64 = 600
 	DefaultPoll             = 5 * time.Second
 	DefaultTickStall        = 10 * time.Minute
+	DefaultIdleGrace        = 30 * time.Second
 )
+
+// NoWorkRefusal reports a scheduler admission_refused row naming no_work:
+// the governor declined to run the clock because nothing needs game time.
+func NoWorkRefusal(row na.FlightRow) bool {
+	if row.Kind != "admission_refused" {
+		return false
+	}
+	for _, reason := range na.AsSlice(row.Payload["refused"]) {
+		if na.AsString(reason) == "no_work" {
+			return true
+		}
+	}
+	return false
+}
 
 // waitNextSample pauses between two samples until one of the cadence's
 // conditions holds and names it for the report: a journal row satisfying
@@ -309,7 +336,7 @@ const (
 // ("tick_polls"), or the Poll wall-clock ceiling ("wall_polls"). The live
 // tick and the journal are probed every na.RunInterval. The watch
 // deadline ends the pause early so the loop's own check sees it.
-func waitNextSample(ctx context.Context, apiCall func(string, string, map[string]any, string) (map[string]any, int, error), tail *na.FlightTail, cfg WatchConfig, sampledTick uint64, watchDeadline time.Time) (string, error) {
+func waitNextSample(ctx context.Context, apiCall func(string, string, map[string]any, string) (map[string]any, int, error), tail *na.FlightTail, cfg WatchConfig, stall *tickStall, sampledTick uint64, watchDeadline time.Time) (string, error) {
 	started := time.Now()
 	for {
 		wait := na.RunInterval
@@ -326,6 +353,9 @@ func waitNextSample(ctx context.Context, apiCall func(string, string, map[string
 		}
 		if rows, err := tail.Next(); err == nil {
 			for _, row := range rows {
+				if NoWorkRefusal(row) {
+					stall.refusedNoWork()
+				}
 				if cfg.Wake(row) {
 					return "wakes", nil
 				}
