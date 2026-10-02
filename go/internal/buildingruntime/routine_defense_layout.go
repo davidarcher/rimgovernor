@@ -90,7 +90,7 @@ type RoutineDefenseLayoutSource interface {
 	ReadLinesOfFire(context.Context, *c.Identity, []domain.Cell, []domain.Cell) (bridge.LinesOfFire, bridge.Result, error)
 	ReadSpatialAccess(context.Context, *c.Identity, []domain.Cell, []domain.Cell, []string) (bridge.SpatialAccess, bridge.Result, error)
 	ReadCombatPawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
-	PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
+	PreviewBuildings(context.Context, []domain.Action, domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error)
 }
 type RoutineDefenseLayoutPlanner struct {
 	reviewer *RoutineReviewer
@@ -1226,15 +1226,27 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	// the floor affordance, say) is dropped from the tier instead of holding
 	// it: the position keeps its cover and stays a firing cell, unfloored.
 	unfloorable := map[domain.Cell]bool{}
-	for _, building := range buildings {
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), building)
+	// One native call per placement batch previews the whole tier: a
+	// perimeter tier is over a hundred cells, and a preview per cell
+	// outlasted the optional wave's wall on a slow runner every step (#1248).
+	candidates := make([]domain.Action, 0, len(buildings))
+	for i, building := range buildings {
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building)
 		if err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
-		preview, ok, err := r.preview(call, action, snapshot, projection.Identity.Tick, building.Cell())
-		if err != nil {
+		candidates = append(candidates, action)
+	}
+	var evaluated []bridge.BuildingPreview
+	if len(candidates) > 0 {
+		var err error
+		if evaluated, _, err = r.native.PreviewBuildings(call, candidates, snapshot); err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
+	}
+	for i, building := range buildings {
+		action := candidates[i]
+		preview, ok := classifyDefensePreview(evaluated[i], building.Cell())
 		if !ok && preview.NativeWorkPending {
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 		}
@@ -1249,7 +1261,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		}
 		actions = append(actions, action)
 		previews = append(previews, preview.Preview)
-		if err = mergeRoutineStock(&stock, preview.Stock, len(actions) == 1); err != nil {
+		if err := mergeRoutineStock(&stock, preview.Stock, len(actions) == 1); err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
 	}
@@ -1359,24 +1371,32 @@ func (r *RoutineDefenseLayoutPlanner) sameTick(observed *c.ObservationContext, s
 	return nil
 }
 
-func (r *RoutineDefenseLayoutPlanner) preview(ctx context.Context, action domain.Action, snapshot domain.GenerationSnapshot, tick domain.Tick, cell domain.Cell) (bridge.BuildingPreview, bool, error) {
-	preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
+// preview evaluates one building natively (the fight builds are a handful).
+func (r *RoutineDefenseLayoutPlanner) preview(ctx context.Context, action domain.Action, snapshot domain.GenerationSnapshot, _ domain.Tick, cell domain.Cell) (bridge.BuildingPreview, bool, error) {
+	previews, _, err := r.native.PreviewBuildings(ctx, []domain.Action{action}, snapshot)
 	if err != nil {
 		return bridge.BuildingPreview{}, false, err
 	}
+	preview, ok := classifyDefensePreview(previews[0], cell)
+	return preview, ok, nil
+}
+
+// classifyDefensePreview reports whether a native preview places the one
+// building on its own cell. The refused preview is returned so the caller
+// can tell a cell already under native construction from one it cannot
+// place on.
+func classifyDefensePreview(preview bridge.BuildingPreview, cell domain.Cell) (bridge.BuildingPreview, bool) {
 	v := preview.Preview
 	footprint, fk := v.Footprint.Value()
 	legal, lk := v.CanPlace.Value()
 	safe, sk := v.SafeToPlace.Value()
 	if _, mk := v.MadeFromStuff.Value(); !fk || !mk || !lk || !sk {
-		return bridge.BuildingPreview{}, false, nil
+		return bridge.BuildingPreview{}, false
 	}
 	if len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-		// The refused preview is returned so the caller can tell a cell
-		// already under native construction from one it cannot place on.
-		return preview, false, nil
+		return preview, false
 	}
-	return preview, true, nil
+	return preview, true
 }
 
 // defensePerimeterNoStone is a perimeter section waiting on stone blocks
