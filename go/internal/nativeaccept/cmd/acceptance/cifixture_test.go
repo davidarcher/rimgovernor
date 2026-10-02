@@ -16,7 +16,7 @@ func TestProfileBundleLatestCI(t *testing.T) {
 	ghRunner = func(args ...string) ([]byte, error) {
 		switch args[1] {
 		case "list":
-			return []byte(`[{"databaseId":42,"headSha":"abc"}]`), nil
+			return []byte(`[{"databaseId":42,"headSha":"abc","conclusion":"failure"}]`), nil
 		case "download":
 			downloads++
 			dir := args[len(args)-1]

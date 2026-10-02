@@ -1,9 +1,10 @@
 name: Fixture factory
 
 # Runs sustained/colony on the remote-acceptance runner setup and publishes
-# its checkpoint ring as the run artifact colony-checkpoints-<commit>
+# its checkpoint ring as the run artifact colony-checkpoints-<commit>, also
+# when the case fails (the run stays red)
 # (#1376). `acceptance profile-capture -from latest-ci` and `acceptance
-# fetch-fixture` download the newest successful run's artifact. Gate,
+# fetch-fixture` download the newest completed run's artifact. Gate,
 # planning and bootstrap are remote_workflow.ps1's, as in remote-acceptance.
 
 on:
@@ -116,7 +117,10 @@ jobs:
           path: C:\rg\public
           if-no-files-found: error
           retention-days: 7
+      # Published even when the case fails (the run stays red): the bundle is
+      # what a failed colony is troubleshot and profiled from.
       - name: Collect the checkpoint ring
+        if: always() && steps.gate.outcome == 'success'
         env:
           TESTED_COMMIT: ${{ steps.gate.outputs.head }}
         run: |
@@ -141,7 +145,9 @@ jobs:
             ConvertTo-Json | Set-Content C:\rg\factory\factory.json
       # 90 days (the public-repository maximum) outlives the weekly cadence
       # many times over, so the newest bundle never expires before the next.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Upload the checkpoint bundle
+        if: always() && steps.gate.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: colony-checkpoints-${{ steps.gate.outputs.head }}
           path: C:\rg\factory

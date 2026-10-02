@@ -233,7 +233,9 @@ switch ($Phase) {
                 $env:RIMGOVERNOR_SNAPSHOT_DIR = Join-Path $job.output 'snapshots'
                 Push-Location (Join-Path $Repo 'go')
                 try {
-                    & $boot.acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -rimgovernor $boot.controller -no-series
+                    # The fixture factory keeps its checkpoint ring: without -resume the suite runs each case with checkpointing off.
+                    $ring = if ($env:FACTORY_CASES) { @('-resume') } else { @() }
+                    & $boot.acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -rimgovernor $boot.controller -no-series @ring
                     if ($LASTEXITCODE) { $bad = $true }
                 } finally { Pop-Location }
             }

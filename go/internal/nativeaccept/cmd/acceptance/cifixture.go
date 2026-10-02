@@ -4,7 +4,7 @@ package main
 // runs sustained/colony weekly on a Windows runner and uploads its
 // checkpoint ring as the run artifact colony-checkpoints-<commit>.
 // `-from latest-ci` (profile-capture) and `acceptance fetch-fixture`
-// download the newest successful run's ring with `gh run download` into
+// download the newest completed run's ring with `gh run download` into
 // <root>/ci-fixtures/<run id>, so a fresh clone with no local run has a
 // real colony to load.
 
@@ -39,15 +39,18 @@ var ghRunner = func(args ...string) ([]byte, error) {
 	return cmd.Output()
 }
 
-// factoryRun is the newest successful factory run on main.
+// factoryRun is the newest completed factory run on main; a failed case still
+// publishes its bundle (the run stays red), so success is not required.
 type factoryRun struct {
 	ID      int64  `json:"databaseId"`
 	HeadSHA string `json:"headSha"`
+	// Conclusion is success or failure for a run that published a bundle.
+	Conclusion string `json:"conclusion"`
 }
 
 func newestFactoryRun() (factoryRun, error) {
 	out, err := ghRunner("run", "list", "-R", factoryRepo, "--workflow", factoryWorkflow, "--branch", "main",
-		"--status", "success", "--limit", "1", "--json", "databaseId,headSha")
+		"--status", "completed", "--limit", "5", "--json", "databaseId,headSha,conclusion")
 	if err != nil {
 		return factoryRun{}, fmt.Errorf("gh run list %s: %w", factoryWorkflow, err)
 	}
@@ -55,10 +58,12 @@ func newestFactoryRun() (factoryRun, error) {
 	if err := json.Unmarshal(out, &runs); err != nil {
 		return factoryRun{}, fmt.Errorf("gh run list %s: %w", factoryWorkflow, err)
 	}
-	if len(runs) == 0 || runs[0].ID == 0 {
-		return factoryRun{}, fmt.Errorf("no successful %s run on main: dispatch it once", factoryWorkflow)
+	for _, run := range runs {
+		if run.ID != 0 && (run.Conclusion == "success" || run.Conclusion == "failure") {
+			return run, nil
+		}
 	}
-	return runs[0], nil
+	return factoryRun{}, fmt.Errorf("no completed %s run on main: dispatch it once", factoryWorkflow)
 }
 
 // fetchCIRing downloads (once per run id) the newest factory run's
@@ -117,7 +122,7 @@ func ciBundle(root, caseName string) (string, error) {
 
 const fetchFixtureUsage = `
   acceptance fetch-fixture -root <dir> [-case <area/case>]
-    downloads the newest successful fixture-factory run's checkpoint ring (once per run) and prints its newest bundle directory`
+    downloads the newest completed fixture-factory run's checkpoint ring (once per run) and prints its newest bundle directory`
 
 func fetchFixture(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("fetch-fixture", flag.ContinueOnError)

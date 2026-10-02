@@ -121,13 +121,14 @@ failure outside the native suite cannot yield a passing aggregate.
 `.github/workflows/fixture-factory.yml` (weekly, or dispatched) runs `sustained/colony` through the same gate, plan and
 bootstrap phases (`FACTORY_CASES` pins the case list) and uploads its
 checkpoint ring, saves and stores included, plus `factory.json` naming the
-tested commit, as the artifact `colony-checkpoints-<commit>`. Unlike shard
+tested commit, as the artifact `colony-checkpoints-<commit>`; a failed case still
+publishes it (the run stays red) so a failing colony can be troubleshot and profiled. Unlike shard
 diagnostics this deliberately publishes generated saves; they carry def
 references, never licensed file contents. Retention is 90 days, so the newest
 bundle outlives the weekly cadence. A fresh clone consumes it with
 `acceptance profile-capture -root <dir> -from latest-ci`, or `acceptance
 fetch-fixture -root <dir>` to print the newest downloaded bundle directory for snapshot
-tests; both `gh run download` the newest successful run once into
+tests; both `gh run download` the newest completed (success or failure) run once into
 `<root>/ci-fixtures/<run id>`.
 
 Every remote run records [colony snapshot streams](colony-snapshots.md):
