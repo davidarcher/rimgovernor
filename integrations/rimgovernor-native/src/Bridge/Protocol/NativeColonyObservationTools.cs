@@ -84,9 +84,12 @@ namespace HomeBridge.BridgeTools
             // benches, forbidden supplies, loot); each answer is fixed for
             // the read, so it is computed once (#878).
             var reach = new Dictionary<Thing, bool>();
+            // A raid drafts or downs every colonist; reach is then asked of them
+            // all, or every stock, bed and bench would read as gone until it ends.
+            var reachers = workers.Count > 0 ? workers : people;
             Func<Thing, bool> reachable = t => {
                 if (reach.TryGetValue(t, out var known)) return known;
-                return reach[t] = workers.Any(p =>
+                return reach[t] = reachers.Any(p =>
                     (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])
                     && p.CanReach(t, PathEndMode.Touch, Danger.None));
             };
