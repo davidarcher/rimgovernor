@@ -22,9 +22,12 @@ func validateApparelPolicy(v *o.ApparelPolicyState) error {
 		}
 		seen[d.GetDefName()] = true
 	}
+	// The outfit filter may allow apparel this pawn cannot wear (a child's
+	// or another body's), which Definitions leaves out: only ids and
+	// duplicates are checked.
 	allowed := map[string]bool{}
 	for _, d := range v.AllowedDefs {
-		if !seen[d] || allowed[d] {
+		if validID(d) != nil || allowed[d] {
 			return contract("invalid apparel filter")
 		}
 		allowed[d] = true
