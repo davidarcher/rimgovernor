@@ -51,6 +51,10 @@ func (e *exporter) clean(s string) string {
 	return strings.ReplaceAll(s, "\\", "/")
 }
 
+// SnapshotDir is the job-output subdirectory a shard records its colony
+// snapshot streams into (docs/developers/testing/colony-snapshots.md).
+const SnapshotDir = "snapshots"
+
 func publicDiagnostic(p string, b []byte) error {
 	ext := strings.ToLower(filepath.Ext(p))
 	if ext == ".png" {
@@ -334,6 +338,14 @@ func ExportShard(root, shard string, jobs []ExportJob, secrets []string) error {
 		}
 		slices.Sort(paths)
 		for _, p := range paths {
+			// Colony snapshot streams (RIMGOVERNOR_SNAPSHOT_DIR=<output>/snapshots)
+			// are optional recordings: under a raw-byte cap they yield to the
+			// verdict's evidence rather than fail the shard.
+			if strings.HasPrefix(p, SnapshotDir+"/") {
+				if info, err := os.Stat(filepath.Join(source, p)); err == nil && info.Size() > remaining {
+					continue
+				}
+			}
 			if _, err = e.copy(p); err != nil {
 				return err
 			}

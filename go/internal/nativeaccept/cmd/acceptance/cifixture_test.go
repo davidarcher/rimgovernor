@@ -50,3 +50,19 @@ func TestLatestCINoRun(t *testing.T) {
 		t.Fatal("resolved without a factory run")
 	}
 }
+
+func TestCIStreamsBesideRing(t *testing.T) {
+	artifact := filepath.Join(t.TempDir(), "colony-checkpoints-abc")
+	ring := filepath.Join(artifact, "checkpoints", "sustained", "colony")
+	stream := filepath.Join(artifact, "snapshots", "sustained", "colony", "routine-stream-100-7.jsonl")
+	if err := os.MkdirAll(filepath.Dir(stream), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stream, []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := ciStreams(ring, "sustained/colony")
+	if len(got) != 1 || got[0] != stream {
+		t.Fatalf("ciStreams = %v, want [%s]", got, stream)
+	}
+}

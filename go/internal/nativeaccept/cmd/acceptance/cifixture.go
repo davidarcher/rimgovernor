@@ -142,6 +142,26 @@ func fetchFixture(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintf(stderr, "fetch-fixture: run %d at %s, ring %s\n", run.ID, strings.TrimSpace(run.HeadSHA), dir)
+	streams := ciStreams(dir, *caseName)
+	for _, s := range streams {
+		fmt.Fprintf(stderr, "fetch-fixture: stream %s\n", s)
+	}
+	if len(streams) > 0 {
+		fmt.Fprintln(stderr, "fetch-fixture: load a review with snapshot.LoadReview(<stream>, <tick>, 0); list them with `go run ./internal/snapshot/cmd/trim -list <stream>`")
+	}
 	fmt.Fprintln(stdout, newestInRing(ring))
 	return 0
+}
+
+// ciStreams are the colony snapshot streams the factory recorded for
+// caseName beside its ring: <artifact>/snapshots/<case>/routine-stream-*.jsonl
+// for the ring <artifact>/checkpoints/<case>.
+func ciStreams(ring, caseName string) []string {
+	artifact := ring
+	for range strings.Split(caseName, "/") {
+		artifact = filepath.Dir(artifact)
+	}
+	artifact = filepath.Dir(artifact)
+	matches, _ := filepath.Glob(filepath.Join(artifact, "snapshots", filepath.FromSlash(caseName), "routine-stream-*.jsonl"))
+	return matches
 }

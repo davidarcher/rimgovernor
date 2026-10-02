@@ -295,3 +295,38 @@ func TestScheduledFullEvidence(t *testing.T) {
 		t.Fatalf("%+v %v", e.Aggregate, err)
 	}
 }
+
+func TestExportSnapshotStreamsYieldToCap(t *testing.T) {
+	write := func(t *testing.T, dir, rel string, b []byte) {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, rel)), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, rel), b, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f := fixtureRun(t)
+	job := exportFixture(t, f, 0)
+	rel := SnapshotDir + "/" + f.attempts[0].Attempts[0].Case + "/routine-stream-1-2.jsonl"
+	line := []byte("{\"kind\":\"review\",\"tick\":1}\n")
+	write(t, job.Output, rel, line)
+	if err := ExportShard(f.root, "s1", []ExportJob{job}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(filepath.Join(f.root, "s1", "fixture", rel)); err != nil || !bytes.Equal(got, line) {
+		t.Fatalf("stream not exported intact: %q %v", got, err)
+	}
+
+	f = fixtureRun(t)
+	job = exportFixture(t, f, 0)
+	big := append([]byte(`{"message":"`), bytes.Repeat([]byte("x"), 70<<20)...)
+	write(t, job.Output, rel, append(big, []byte("\"}\n")...))
+	f.run.Limits.Bytes = 128 << 20
+	f.save(t)
+	if err := ExportShard(f.root, "s1", []ExportJob{job}, nil); err != nil {
+		t.Fatalf("oversized stream failed the shard: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(f.root, "s1", "fixture", rel)); !os.IsNotExist(err) {
+		t.Fatalf("oversized stream exported: %v", err)
+	}
+}

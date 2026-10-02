@@ -110,6 +110,11 @@ jobs:
             }
           }
           if (-not (Test-Path $out)) { throw 'The run left no checkpoint ring' }
+          # The run's colony snapshot streams (remote_workflow.ps1 sets
+          # RIMGOVERNOR_SNAPSHOT_DIR=<job output>\snapshots): snapshots\<area>\<case>\routine-stream-*.jsonl.
+          foreach ($snap in Get-ChildItem C:\rg\*\job\out\snapshots -Directory -ErrorAction SilentlyContinue) {
+            Copy-Item -LiteralPath $snap.FullName -Destination C:\rg\factory -Recurse -Force
+          }
           @{tested_commit=$env:TESTED_COMMIT; run_id=$env:GITHUB_RUN_ID; cases=$env:FACTORY_CASES} |
             ConvertTo-Json | Set-Content C:\rg\factory\factory.json
       # 90 days (the public-repository maximum) outlives the weekly cadence

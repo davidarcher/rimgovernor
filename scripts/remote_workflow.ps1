@@ -226,6 +226,8 @@ switch ($Phase) {
                 $seconds = [int]($deadline - [DateTime]::UtcNow).TotalSeconds
                 if ($seconds -le 0) { throw 'Shard suite allowance exhausted' }
                 $names = @($rows | Where-Object mod_role -CEQ $job.role | ForEach-Object name) -join ','
+                # Colony snapshot streams ride the public diagnostics (remoteaccept.SnapshotDir).
+                $env:RIMGOVERNOR_SNAPSHOT_DIR = Join-Path $job.output 'snapshots'
                 Push-Location (Join-Path $Repo 'go')
                 try {
                     & $boot.acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -rimgovernor $boot.controller -no-series

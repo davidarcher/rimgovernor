@@ -122,6 +122,17 @@ fetch-fixture -root <dir>` to print the newest downloaded bundle directory for s
 tests; both `gh run download` the newest successful run once into
 `<root>/ci-fixtures/<run id>`.
 
+Every remote run records [colony snapshot streams](colony-snapshots.md):
+`remote_workflow.ps1` sets `RIMGOVERNOR_SNAPSHOT_DIR=<job output>\snapshots`,
+so each shard's public diagnostics carry
+`<shard>/<role>/snapshots/<area>/<case>/routine-stream-*.jsonl` (under a
+`REMOTE_ARTIFACT_MAX_BYTES` cap a stream that no longer fits is left out
+rather than failing the shard), and the factory artifact carries
+`snapshots/sustained/colony/` beside its ring. `fetch-fixture` names the
+downloaded streams on stderr; a snapshot test loads one review with
+`snapshot.LoadReview(<stream>, <tick>, 0)`, or trims it into `testdata/` as
+[Recording](colony-snapshots.md#recording) describes.
+
 `.github/workflows/snapshot-perf.yml` runs nightly: it fetches that bundle,
 bootstraps a fixture-role layout (`remote_workflow.ps1 -Phase profile`) and
 runs `profile-capture -n 50 -json`; a Linux job then runs `acceptance
