@@ -242,9 +242,18 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return "", false, err
 			}
-			for _, m := range goal.Methods {
+			if errors.Is(err, store.ErrNotFound) {
+				return na.Signature(binding.Goal, "unbound"), false, nil
+			}
+			// Retired bindings too: a shell plan completes on its placement
+			// receipts and retires at once, as the bunk rungs do (8221a21).
+			methods, err := st.LoadGoalMethods(ctx, binding.Goal, goal.Goal.Epoch)
+			if err != nil {
+				return "", false, err
+			}
+			for _, m := range methods {
 				plan, err := st.LoadPlan(ctx, m.Plan)
-				if err != nil || plan.Retired || !isShellPlan(plan) {
+				if err != nil || !isShellPlan(plan) {
 					continue
 				}
 				sh, err := classify(plan)
@@ -256,7 +265,7 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 				found = sh
 				return "", true, nil
 			}
-			return na.Signature(binding.Goal, len(goal.Methods)), false, nil
+			return na.Signature(binding.Goal, len(methods)), false, nil
 		}
 		return na.Signature("unbound", len(review.Goals)), false, nil
 	})
