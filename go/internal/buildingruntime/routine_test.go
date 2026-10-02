@@ -34,6 +34,37 @@ type routineNative struct {
 	identityTick *int64
 	// built is the fake construction census (routine_built_census_test.go).
 	built map[domain.ActionID]*o.BuildingState
+	// cells is the planning window the fake serves (ReadPlanningWindow);
+	// nil serves an empty window.
+	cells *o.CellsSnapshot
+}
+
+// ReadPlanningWindow serves the fake's planning window whatever region is
+// asked, as observations_get_cells answers it.
+func (n *routineNative) ReadPlanningWindow(ctx context.Context, _ *c.Identity, rect policy.Rectangle) (bridge.PlanningWindow, bridge.Result, error) {
+	if n.cells == nil {
+		return bridge.PlanningWindow{Context: n.reply.GetObserved().GetContext(), Region: rect}, bridge.Result{}, ctx.Err()
+	}
+	region := rect
+	if r := n.cells.GetRegion(); r.GetMinimum() != nil && r.GetMaximum() != nil {
+		region = policy.Rectangle{X: r.Minimum.GetX(), Z: r.Minimum.GetZ(), Width: r.Maximum.GetX() - r.Minimum.GetX() + 1, Height: r.Maximum.GetZ() - r.Minimum.GetZ() + 1}
+	}
+	cells, filtered := bridge.PlanningCells(n.cells)
+	return bridge.PlanningWindow{Context: n.cells.GetContext(), Region: region, Cells: cells, Filtered: filtered}, bridge.Result{}, ctx.Err()
+}
+
+// fixtureCells is the colony-core fixture's planning window.
+func fixtureCells(t testing.TB) *o.CellsSnapshot {
+	t.Helper()
+	data, err := os.ReadFile("../../../contracts/fixtures/colony-core-cells.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cells := &o.CellsSnapshot{}
+	if err = protojson.Unmarshal(data, cells); err != nil {
+		t.Fatal(err)
+	}
+	return cells
 }
 
 // zonesAvailable drops the fixture's farms issue so the zone census reads.
@@ -300,6 +331,7 @@ func colonyCoreNative(t *testing.T) *routineNative {
 	if err = protojson.Unmarshal(data, n.reply); err != nil {
 		t.Fatal(err)
 	}
+	n.cells = fixtureCells(t)
 	return n
 }
 

@@ -51,7 +51,7 @@ func TestRoutineSleepingPlansUnderAReviewAnchorAheadOfTheIdentityRead(t *testing
 	const opened, reviewed = 7, 507
 	observed := n.reply.GetObserved()
 	observed.Context.Tick = proto.Int64(reviewed)
-	observed.GetPlanning().GetObserved().GetCells().Context = proto.Clone(observed.Context).(*c.ObservationContext)
+	n.cells.Context = proto.Clone(observed.Context).(*c.ObservationContext)
 	review, err := reviewer.Step(context.Background())
 	if err != nil {
 		t.Fatal(err)

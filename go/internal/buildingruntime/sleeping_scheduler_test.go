@@ -17,7 +17,8 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 	n := schedulerRoutine(t, s, f)
 	_, _, _, _, template := sleepingFixture(t)
 	planning := proto.Clone(template.reply.GetObserved().Planning.GetObserved()).(*o.PlanningFacts)
-	planning.Cells.Context = proto.Clone(f.status.Context).(*c.ObservationContext)
+	n.cells = proto.Clone(template.cells).(*o.CellsSnapshot)
+	n.cells.Context = proto.Clone(f.status.Context).(*c.ObservationContext)
 	n.reply.GetObserved().Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: planning}}
 	n.reply.GetObserved().Center = proto.Clone(template.reply.GetObserved().Center).(*c.Cell)
 	source := &sleepingNative{routineNative: n}

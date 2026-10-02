@@ -26,11 +26,11 @@ func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *s
 		planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
 	planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, Stuff: proto.String("WoodLog"), Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
-	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(8)}
-	planning.Cells.Cells = nil
+	n.cells.Region.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(8)}
+	n.cells.Cells = nil
 	for x := int32(0); x < 9; x++ {
 		for z := int32(0); z < 9; z++ {
-			planning.Cells.Cells = append(planning.Cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(true), Issues: []*o.ReadIssue{
+			n.cells.Cells = append(n.cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(true), Issues: []*o.ReadIssue{
 				{Field: proto.String("zone_id"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
 				{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
 			}})
@@ -250,14 +250,14 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 			case "definition":
 				planning.Definitions[2].Size.Width = proto.Uint32(2)
 			case "room-unknown":
-				planning.Cells.Cells[40].Indoors = nil
+				n.cells.Cells[40].Indoors = nil
 			case "terrain":
-				planning.Cells.Cells[40].SupportsLight = nil
+				n.cells.Cells[40].SupportsLight = nil
 			case "zone":
-				planning.Cells.Cells[40].ZoneId = proto.String("player-zone")
-				planning.Cells.Cells[40].Issues = planning.Cells.Cells[40].Issues[1:]
+				n.cells.Cells[40].ZoneId = proto.String("player-zone")
+				n.cells.Cells[40].Issues = n.cells.Cells[40].Issues[1:]
 			case "protected":
-				planning.Cells.Cells[40].Occupied = proto.Bool(true)
+				n.cells.Cells[40].Occupied = proto.Bool(true)
 			}
 			result, err := r.Step(context.Background())
 			if err == nil && result.Reason == BuildingMethodAdmitted {
@@ -454,7 +454,7 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 	}
 	// Some of the room is now roofed and can hold spots; the native capacity
 	// census still refuses to count a room with any open roof cells.
-	for _, c := range n.reply.GetObserved().Planning.GetObserved().Cells.Cells {
+	for _, c := range n.cells.Cells {
 		c.Indoors = proto.Bool(true)
 		if c.Cell.GetX() >= 2 && c.Cell.GetX() <= 5 && c.Cell.GetZ() >= 2 && c.Cell.GetZ() <= 5 {
 			c.Roof = proto.String("RoofConstructed")
@@ -503,12 +503,11 @@ func hutCells(n *sleepingNative, side int32, lit func(x, z int32) bool) {
 			v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(600))}}
 		}
 	}
-	planning := n.reply.GetObserved().Planning.GetObserved()
-	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(side - 1), Z: proto.Int32(side - 1)}
-	planning.Cells.Cells = nil
+	n.cells.Region.Maximum = &c.Cell{X: proto.Int32(side - 1), Z: proto.Int32(side - 1)}
+	n.cells.Cells = nil
 	for x := int32(0); x < side; x++ {
 		for z := int32(0); z < side; z++ {
-			planning.Cells.Cells = append(planning.Cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(lit(x, z)), Issues: []*o.ReadIssue{
+			n.cells.Cells = append(n.cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(lit(x, z)), Issues: []*o.ReadIssue{
 				{Field: proto.String("zone_id"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
 				{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
 			}})

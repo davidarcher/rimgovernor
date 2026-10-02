@@ -73,9 +73,6 @@ func routineSections(frame bridge.RoutineFrame, projection ColonyProjection, roo
 		PlanningCells: projection.Window,
 		Zones:         projection.Zones,
 	}
-	if out.PlanningCells.Source == "" && projection.Cells != nil {
-		out.PlanningCells = facts.Held[PlanningCells]{Value: PlanningCells{Region: projection.Region, Cells: projection.Cells}, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_colony_facts"}
-	}
 	emergency := frame.Emergency.Facts
 	complete, known := emergency.ColonistsComplete.Value()
 	out.Emergency = facts.Held[policy.EmergencyFacts]{Value: emergency, AsOf: tick, Complete: known && complete, Source: "rimgovernor/observations_read_status"}

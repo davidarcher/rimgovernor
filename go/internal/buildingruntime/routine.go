@@ -289,7 +289,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.roomsEnabled() {
 		observe = observation.ObserveRoutineRooms
 	}
-	reading, err := observe(ctx, r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
+	reading, err := observe(standaloneWindow(ctx, r.native), r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
 	if err == nil {
 		r.publishFrame(expected, reading.Frame)
 	}

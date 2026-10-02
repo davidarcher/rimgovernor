@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -26,20 +27,32 @@ func schedulerRoutine(t *testing.T, s *ClockScheduler, f *schedulerNative) *rout
 	if err = protojson.Unmarshal(data, n.reply); err != nil {
 		t.Fatal(err)
 	}
+	n.cells = fixtureCells(t)
 	n.reply.GetObserved().Context = proto.Clone(f.status.Context).(*c.ObservationContext)
-	n.reply.GetObserved().Planning.GetObserved().Cells.Context = proto.Clone(f.status.Context).(*c.ObservationContext)
+	n.cells.Context = proto.Clone(f.status.Context).(*c.ObservationContext)
 	r, err := NewRoutineReviewer(s.player, n, s.clock, policy.DefaultRoutinePolicy(), time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 	config := s.config
 	config.Routine = r
-	replacement, err := NewClockScheduler(s.player, s.session, f, config, s.clock)
+	replacement, err := NewClockScheduler(s.player, s.session, windowedScheduler{f, n}, config, s.clock)
 	if err != nil {
 		t.Fatal(err)
 	}
 	*s = *replacement
 	return n
+}
+
+// windowedScheduler is a scheduler fake whose planning window is the
+// routine fake's, as one native serves both.
+type windowedScheduler struct {
+	*schedulerNative
+	window *routineNative
+}
+
+func (w windowedScheduler) ReadPlanningWindow(ctx context.Context, id *c.Identity, rect policy.Rectangle) (bridge.PlanningWindow, bridge.Result, error) {
+	return w.window.ReadPlanningWindow(ctx, id, rect)
 }
 
 // TestClockSchedulerReviewsRoutineUnderARunningWindow: the routine review
@@ -187,7 +200,7 @@ func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
 	}
 	f.status.Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
 	n.reply.GetObserved().Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
-	n.reply.GetObserved().Planning.GetObserved().Cells.Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
+	n.cells.Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
 	again, err := s.StepWithReason(ctx, StepReason{Cause: StepFull})
 	if err != nil && !errors.Is(err, executor.ErrHeld) || again.Routine == nil || !again.Routine.Review.Enabled || again.Routine.Review.Revision != review.Revision+1 {
 		t.Fatal(again, err)

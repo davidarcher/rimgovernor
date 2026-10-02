@@ -461,13 +461,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		for _, row := range planning.Definitions {
 			r.Definitions = append(r.Definitions, planningDefinition(row))
 		}
-		// An older native lists the planning window here; a current one
-		// serves it through observations_get_cells and the routine bracket
-		// fills Region and Cells from the store (#356).
-		if region := planning.Cells.GetRegion(); region != nil && region.Minimum != nil && region.Maximum != nil {
-			r.Region = policy.Rectangle{X: region.Minimum.GetX(), Z: region.Minimum.GetZ(), Width: region.Maximum.GetX() - region.Minimum.GetX() + 1, Height: region.Maximum.GetZ() - region.Minimum.GetZ() + 1}
-			r.Cells, _ = bridge.PlanningCells(planning.Cells)
-		}
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") {
 		r.Environment = domain.Known(colonyEnvironment(planning.Environment, v.OutdoorTemperatureC))

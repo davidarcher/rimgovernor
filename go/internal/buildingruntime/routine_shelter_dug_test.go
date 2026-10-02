@@ -39,7 +39,7 @@ func TestRoutineShelterDigsADugPlannedStoreroom(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterSiteFixture(t)
 	rock := map[domain.Cell]bool{}
-	for _, cell := range base.reply.GetObserved().Planning.GetObserved().Cells.Cells {
+	for _, cell := range base.cells.Cells {
 		at := domain.Cell{X: cell.Cell.GetX(), Z: cell.Cell.GetZ()}
 		// The storeroom's east half (interior x 1..7, z 1..7) is rock.
 		if at.X >= 5 && at.X <= 7 && at.Z >= 1 && at.Z <= 7 {

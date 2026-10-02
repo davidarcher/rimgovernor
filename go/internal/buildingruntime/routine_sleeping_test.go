@@ -78,7 +78,7 @@ func sleepingFacts(n *routineNative) {
 	v.Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
 	planning := v.Planning.GetObserved()
 	planning.Definitions = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("SleepingSpot")}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}}}
-	cells := planning.Cells
+	cells := n.cells
 	cells.Region.Maximum = &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}
 	cells.Cells = nil
 	for x := int32(0); x < 5; x++ {
@@ -139,7 +139,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 			case "prerequisite":
 				n.reply.GetObserved().Planning.GetObserved().Definitions[0].ConstructionSkill = nil
 			case "unknown-room":
-				for _, cell := range n.reply.GetObserved().Planning.GetObserved().Cells.Cells {
+				for _, cell := range n.cells.Cells {
 					cell.Indoors = nil
 				}
 			default:
@@ -309,7 +309,7 @@ func TestRoutineSleepingKeepsDoorwayAislesClear(t *testing.T) {
 	// the cells beside it are the entrance aisle, never furniture, even when
 	// the colony centre makes the aisle the nearest candidate.
 	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(1)}
-	for _, row := range n.reply.GetObserved().Planning.GetObserved().Cells.Cells {
+	for _, row := range n.cells.Cells {
 		if row.Cell.GetX() == 2 && row.Cell.GetZ() == 0 {
 			row.Doorway, row.Occupied, row.Walkable = proto.Bool(true), proto.Bool(true), proto.Bool(true)
 		}

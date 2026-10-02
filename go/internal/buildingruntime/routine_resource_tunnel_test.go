@@ -83,8 +83,7 @@ func buriedOreFixture(t *testing.T) (*RoutineResourcePlanner, *store.Store, *bur
 		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
 	}
 	sleeping.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{worker("crafter"), worker("builder")}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
-	planning := v.Planning.GetObserved()
-	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(16), Z: proto.Int32(4)}
+	sleeping.cells.Region.Maximum = &c.Cell{X: proto.Int32(16), Z: proto.Int32(4)}
 	for x := int32(5); x <= 16; x++ {
 		for z := int32(0); z <= 4; z++ {
 			def := "Granite"
@@ -92,7 +91,7 @@ func buriedOreFixture(t *testing.T) (*RoutineResourcePlanner, *store.Store, *bur
 				def = "MineableSteel"
 			}
 			native.rock[domain.Cell{X: x, Z: z}] = def
-			planning.Cells.Cells = append(planning.Cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Roof: proto.String("RoofRockThick"), Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(false), Occupied: proto.Bool(true), SupportsLight: proto.Bool(false), Issues: []*o.ReadIssue{missing("zone_id")}})
+			sleeping.cells.Cells = append(sleeping.cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Roof: proto.String("RoofRockThick"), Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(false), Occupied: proto.Bool(true), SupportsLight: proto.Bool(false), Issues: []*o.ReadIssue{missing("zone_id")}})
 		}
 	}
 	base.reviewer.native = native

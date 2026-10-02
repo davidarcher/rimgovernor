@@ -149,3 +149,25 @@ func planningRegionRect(region policy.Rectangle) facts.Rect {
 	}
 	return facts.Rect{MinX: region.X, MinZ: region.Z, MaxX: region.X + region.Width - 1, MaxZ: region.Z + region.Height - 1}
 }
+
+// standaloneWindow gives a planning read outside a scheduler step (a
+// planner stepped on its own) a window read straight from source, when
+// source serves one and ctx carries no step refresher.
+func standaloneWindow(ctx context.Context, source any) context.Context {
+	native, ok := source.(PlanningWindowNative)
+	if !ok || observation.PlanningWindowFrom(ctx) != nil {
+		return ctx
+	}
+	return observation.WithPlanningWindow(ctx, directWindow{native})
+}
+
+// directWindow reads the planning window natively on every ask.
+type directWindow struct{ native PlanningWindowNative }
+
+func (d directWindow) PlanningWindow(ctx context.Context, identity *c.Identity, region policy.Rectangle) (facts.Held[observation.PlanningCells], error) {
+	window, _, err := d.native.ReadPlanningWindow(ctx, identity, region)
+	if err != nil {
+		return facts.Held[observation.PlanningCells]{}, err
+	}
+	return facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: window.Region, Cells: window.Cells}, AsOf: window.Context.GetTick(), Complete: true, Source: "rimgovernor/observations_get_cells", Region: planningRegionRect(window.Region)}, nil
+}

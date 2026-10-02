@@ -41,7 +41,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	v.Issues = issues
 	planning := v.Planning.GetObserved()
 	planning.Definitions = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("Plant_Rice")}, Available: proto.Bool(true), Edible: proto.Bool(true), GrowDays: proto.Float64(3), FertilityMin: proto.Float64(.7), FertilitySensitivity: proto.Float64(1), HarvestNutrition: proto.Float64(1), NutritionDemandPerDay: proto.Float64(5)}}
-	for _, cell := range planning.Cells.Cells {
+	for _, cell := range n.cells.Cells {
 		cell.Roof = nil
 		cell.Fertility = proto.Float64(1)
 		cell.Issues = append(cell.Issues, &o.ReadIssue{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
@@ -51,7 +51,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	}
 	// Every census cell is one plan field block (#1223).
 	var runs []policy.RowRun
-	for _, cell := range planning.Cells.Cells {
+	for _, cell := range n.cells.Cells {
 		runs = append(runs, policy.RowRun{Z: cell.GetCell().GetZ(), X: cell.GetCell().GetX(), Length: 1})
 	}
 	reviewer.census.rememberLayout(reviewer.census.layoutScope, domain.Known(policy.LayoutPlan{Zones: []policy.LayoutZone{{Kind: policy.ZoneField, Runs: runs}}}))

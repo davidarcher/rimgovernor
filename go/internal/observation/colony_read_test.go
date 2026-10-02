@@ -56,7 +56,6 @@ func TestObserveColonyValidatesFactsByTheirContext(t *testing.T) {
 		}, nil},
 		{"facts ahead", func(s *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			s.reply.GetObserved().Context.Tick = proto.Int64(int64(i.Tick + 250))
-			s.reply.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(int64(i.Tick + 250))
 		}, nil},
 		{"load changed", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			s.reply.GetObserved().Context.Identity.LoadToken = proto.String("new")
@@ -66,7 +65,6 @@ func TestObserveColonyValidatesFactsByTheirContext(t *testing.T) {
 		}, ErrChanged},
 		{"generation missing", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			s.reply.GetObserved().Context.NativeGeneration = nil
-			s.reply.GetObserved().Planning.GetObserved().Cells.Context.NativeGeneration = nil
 		}, ErrChanged},
 		{"slow read", func(s *colonySource, _ *Identity, clock *testkit.ManualClock, _ context.CancelFunc) {
 			s.onRead = func() { clock.Advance(2 * time.Second) }

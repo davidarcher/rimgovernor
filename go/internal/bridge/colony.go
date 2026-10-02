@@ -297,12 +297,6 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 			return err
 		}
 	}
-	// A native that serves the planning window through
-	// observations_get_cells (ReadPlanningWindow, #356) carries no cells
-	// here; an older one still lists them.
-	if p.Cells != nil {
-		return validatePlanningCells(p.Cells, ctx, size)
-	}
 	return nil
 }
 

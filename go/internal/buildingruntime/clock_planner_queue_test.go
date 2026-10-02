@@ -30,7 +30,7 @@ func TestClockSchedulerSectionWakeRunsDeclaringPlanners(t *testing.T) {
 	tick := f.status.Context.GetTick() + 60000
 	f.status.Context.Tick = proto.Int64(tick)
 	n.reply.GetObserved().Context.Tick = proto.Int64(tick)
-	n.reply.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(tick)
+	n.cells.Context.Tick = proto.Int64(tick)
 	s.lastTick, s.lastTickKnown = tick, true
 	// The idle-draft restorer would be due on its own cadence by then;
 	// hold it back so the wake alone decides the wave.

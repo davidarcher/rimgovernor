@@ -185,6 +185,7 @@ func sameNativeSource(a, b any) bool {
 // observeOwned is ObserveRoutineOwned served from the review's census when
 // the census covers the request, otherwise a fresh read through source.
 func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.RoutineSource, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (observation.RoutineReading, error) {
+	ctx = standaloneWindow(ctx, source)
 	if reading, ok := r.census.lookup(source, r.native, expected, false, claims, definitions); ok {
 		return reading, nil
 	}
@@ -241,6 +242,7 @@ func (m mirroredBenches) ReadGearBenches(ctx context.Context, id *c.Identity) ([
 // observeRooms is ObserveRoutineRooms served from the census when it read
 // rooms, otherwise a fresh read through source.
 func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.RoutineSource, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (observation.RoutineReading, error) {
+	ctx = standaloneWindow(ctx, source)
 	if reading, ok := r.census.lookup(source, r.native, expected, true, claims, definitions); ok {
 		return reading, nil
 	}
@@ -259,6 +261,7 @@ func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.R
 // otherwise a fresh read through source. Project definitions ride the
 // snapshot frame's subscription, so a read naming any takes the frame.
 func (r *RoutineReviewer) observeColony(ctx context.Context, source observation.ColonySource, expected observation.Identity, definitions []string) (observation.ColonyReading, error) {
+	ctx = standaloneWindow(ctx, source)
 	if len(definitions) > 0 {
 		routine, ok := source.(observation.RoutineSource)
 		if !ok {

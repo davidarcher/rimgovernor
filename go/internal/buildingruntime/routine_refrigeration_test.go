@@ -37,7 +37,7 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
-	cells := v.Planning.GetObserved().Cells
+	cells := n.cells
 	cells.Cells = nil
 	for x := int32(0); x < 5; x++ {
 		for z := int32(0); z < 5; z++ {

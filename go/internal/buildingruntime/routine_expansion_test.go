@@ -140,7 +140,7 @@ func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
 	base, db, n := shelterSiteFixture(t)
 	prepareExpansionReview(t, db, n)
 	ruin := domain.Cell{X: 0, Z: 4}
-	for _, cell := range n.reply.GetObserved().Planning.GetObserved().Cells.Cells {
+	for _, cell := range n.cells.Cells {
 		if cell.Cell.GetX() == ruin.X && cell.Cell.GetZ() == ruin.Z {
 			cell.Walkable, cell.Ruin, cell.ClaimableRuin = proto.Bool(false), proto.Bool(true), proto.String("Wall")
 		}

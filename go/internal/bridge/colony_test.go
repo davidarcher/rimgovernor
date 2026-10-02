@@ -55,7 +55,7 @@ func TestColonyFixedReadOwnsSelectionAndPreservesOptionalFacts(t *testing.T) {
 	}
 }
 func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
-	for _, change := range []string{"world", "stock", "duplicate", "geometry", "cell-duplicate", "issue", "unavailable", "numbers", "environment-cell", "environment-room", "floor-cleanliness", "floor-flammability", "floor-path-cost", "calendar-day", "calendar-season", "calendar-until"} {
+	for _, change := range []string{"world", "stock", "duplicate", "issue", "unavailable", "numbers", "environment-cell", "environment-room", "floor-cleanliness", "floor-flammability", "floor-path-cost", "calendar-day", "calendar-season", "calendar-until"} {
 		t.Run(change, func(t *testing.T) {
 			r := colonyFixture(t).GetObserved()
 			id := proto.Clone(r.Context.Identity).(*c.Identity)
@@ -66,11 +66,6 @@ func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
 				r.Resources[0].Units = proto.Int64(-1)
 			case "duplicate":
 				r.Resources = append(r.Resources, r.Resources[0])
-			case "geometry":
-				r.Planning.GetObserved().Cells.Cells[0].Cell.X = proto.Int32(99)
-			case "cell-duplicate":
-				p := r.Planning.GetObserved().Cells
-				p.Cells = append(p.Cells, p.Cells[0])
 			case "issue":
 				r.Issues = []*o.ReadIssue{{Field: proto.String("bed_capacity"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
 			case "unavailable":

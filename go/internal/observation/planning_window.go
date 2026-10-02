@@ -44,12 +44,11 @@ func PlanningWindowFrom(ctx context.Context) PlanningWindowSource {
 }
 
 // fillPlanningWindow sets the projection's window from ctx's source when a
-// planning reply observed planning facts without listing the cells. A reply
-// that lists them (an older native) is already decoded; a reading with no
-// source keeps an empty window, which plans no site.
+// planning reply observed planning facts; a reading with no source keeps an
+// empty window, which plans no site.
 func fillPlanningWindow(ctx context.Context, reply *o.ColonyFactsReply, identity *c.Identity, projection *ColonyProjection) error {
 	planning := reply.GetObserved().GetPlanning().GetObserved()
-	if planning == nil || planning.Cells != nil {
+	if planning == nil {
 		return nil
 	}
 	source := PlanningWindowFrom(ctx)

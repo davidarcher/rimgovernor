@@ -178,7 +178,7 @@ func checkAdmittedShell(t *testing.T, n *sleepingNative, door domain.Building, r
 // unroofed, walkable, unoccupied, lit and unzoned -- with the census
 // region's maximum cell.
 func offeredSite(n *sleepingNative) (map[domain.Cell]bool, domain.Cell) {
-	cells := n.reply.GetObserved().Planning.GetObserved().Cells
+	cells := n.cells
 	offered := map[domain.Cell]bool{}
 	for _, cell := range cells.Cells {
 		roofed := cell.Roof != nil
@@ -200,7 +200,7 @@ func offeredSite(n *sleepingNative) (map[domain.Cell]bool, domain.Cell) {
 func TestRoutineShelterRefusesAlreadyRoofedGround(t *testing.T) {
 	t.Parallel()
 	planner, _, n := shelterSiteFixture(t)
-	for _, cell := range n.reply.GetObserved().Planning.GetObserved().Cells.Cells {
+	for _, cell := range n.cells.Cells {
 		var issues []*o.ReadIssue
 		for _, issue := range cell.Issues {
 			if issue.GetField() != "roof" {

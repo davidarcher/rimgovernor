@@ -40,31 +40,6 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 	if wood, known := p.Facts.Wood.Value(); !known || wood != 40 {
 		t.Fatal(p)
 	}
-	if roof, known := p.Cells[0].Roofed.Value(); !known || roof {
-		t.Fatal("native no-roof not preserved")
-	}
-	if occupied, known := p.Cells[0].Occupied.Value(); !known || occupied {
-		t.Fatal("known free cell lost")
-	}
-	for _, inside := range []*bool{proto.Bool(true), proto.Bool(false), nil} {
-		r.GetObserved().Planning.GetObserved().Cells.Cells[0].Indoors = inside
-		projected, err := DecodeColony(r, expected)
-		if err != nil {
-			t.Fatal(err)
-		}
-		value, known := projected.Cells[0].Indoors.Value()
-		if known != (inside != nil) || inside != nil && value != *inside {
-			t.Fatal("indoor fact inferred from roof", value, known)
-		}
-	}
-	r.GetObserved().Planning.GetObserved().Cells.Cells[0].Occupied = nil
-	p, err = DecodeColony(r, expected)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, known := p.Cells[0].Occupied.Value(); known {
-		t.Fatal("missing occupancy became empty")
-	}
 	r.GetObserved().Resources[0].Units = nil
 	p, err = DecodeColony(r, expected)
 	if err != nil {
@@ -74,7 +49,6 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 		t.Fatal("missing stock count became zero")
 	}
 	r.GetObserved().Context.Tick = proto.Int64(8)
-	r.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(8)
 	if _, err = DecodeColony(r, expected); err != nil {
 		t.Fatal("facts at an earlier tick refused", err)
 	}

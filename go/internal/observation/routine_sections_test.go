@@ -50,7 +50,8 @@ func TestRoutineReadingSections(t *testing.T) {
 	if sections.Colony.AsOf != tick || sections.Colony.Source != "rimgovernor/observations_read_colony_facts" || !sections.Colony.Complete {
 		t.Fatalf("colony = %+v", sections.Colony)
 	}
-	if sections.PlanningCells.AsOf != tick || !reflect.DeepEqual(sections.PlanningCells.Value.Cells, out.Projection.Cells) || sections.PlanningCells.Value.Region != out.Projection.Region {
+	// Without a window source the planning cells section stays unfiled.
+	if sections.PlanningCells.Source != "" {
 		t.Fatalf("planning cells = %+v", sections.PlanningCells)
 	}
 	if sections.Emergency.AsOf != tick || sections.Emergency.Source != "rimgovernor/observations_read_status" || sections.Emergency.Complete {
@@ -68,12 +69,11 @@ func TestRoutineReadingSections(t *testing.T) {
 	store := facts.NewStore()
 	scope := facts.Scope{Load: "load", Generation: 1}
 	sections.File(store, scope)
-	if store.Len() != 5 {
+	if store.Len() != 4 {
 		t.Fatalf("filed %d sections", store.Len())
 	}
-	held, ok := facts.Get[PlanningCells](store, facts.PlanningCells)
-	if !ok || held.AsOf != tick || len(held.Value.Cells) != len(out.Projection.Cells) {
-		t.Fatalf("stored planning cells = %+v ok=%v", held, ok)
+	if _, ok := facts.Get[PlanningCells](store, facts.PlanningCells); ok {
+		t.Fatal("planning cells filed without a window source")
 	}
 	if _, ok := facts.Get[RoutinePawns](store, facts.Pawns); ok {
 		t.Fatal("pawns filed without a read")
@@ -117,7 +117,6 @@ func TestRoutineReadingFillsPlanningWindowFromSource(t *testing.T) {
 	if err := protojson.Unmarshal(data, base); err != nil {
 		t.Fatal(err)
 	}
-	base.GetObserved().Planning.GetObserved().Cells = nil
 	expected, err := DecodeIdentity(&l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}})
 	if err != nil {
 		t.Fatal(err)
