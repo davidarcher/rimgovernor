@@ -55,6 +55,27 @@ func TestRoomUpgradeFillsTemplateSlotsCheapestFirst(t *testing.T) {
 	}
 }
 
+// layout/ring (run 36991368938, #1560): a 4x3 Masonry bedroom below its
+// Dull floor, its bed off the template's centre line, owes the end table
+// alone; one standing anywhere in the room settles the upgrade, so the
+// expansion fixture's furnished bedrooms leave MaintainHousing's bedroom
+// phase on the first review.
+func TestRoomUpgradeSmallBedroomSettledByAnyEndTable(t *testing.T) {
+	room := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{0, 0, 4, 3}, Doors: []domain.Cell{{X: 4, Z: 1}}}
+	tidy := TidyRoom{ID: "Room_1", Room: room, Pieces: []TidyPiece{{Thing: "Bed_1", Def: "Bed", Size: domain.Cell{X: 1, Z: 2}, Rot: domain.North, Rect: Rectangle{0, 1, 1, 2}}}}
+	obs := SleepingObservation{Rooms: domain.Known([]UpkeepRoom{{ID: "Room_1", Quality: domain.Known(RoomQuality{Wealth: 196, Beauty: -1.35, Space: 15, Cleanliness: -1, Impressiveness: -9.2})}})}
+	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: RoomTargetBaseline(BuildTierMasonry)}}
+	all := func(string) bool { return true }
+	u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all)
+	if !ok || u.Def != "EndTable" {
+		t.Fatalf("bare room upgrade = %+v %v, want the end table", u, ok)
+	}
+	tidy.Pieces = append(tidy.Pieces, TidyPiece{Thing: "EndTable_1", Def: "EndTable", Size: domain.Cell{X: 1, Z: 1}, Rect: Rectangle{1, 2, 1, 1}})
+	if u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all); ok {
+		t.Fatalf("furnished room upgrade = %+v", u)
+	}
+}
+
 func TestRoomUpgradeRespectsTargetsAndSpace(t *testing.T) {
 	all := func(string) bool { return true }
 	cases := map[string]struct {

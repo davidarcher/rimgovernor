@@ -1265,17 +1265,14 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		}
 	}
 	// The audit blocks every placement of the whole layout that colonists
-	// cannot pass (walls, fences and turrets), not the traps, the safe
-	// lane's doors, conduits or floors: a spike trap stays walkable, a
-	// colonist opens the colony's own door, and a conduit or a floor lies
-	// under the pawn. Colonists price their known traps and the hallway
-	// keeps them a trap-free route (#619, #1544); trap cells are kept off their resting positions
-	// separately.
+	// cannot pass (defenseAuditBlocks). Colonists price their known traps
+	// and the hallway keeps them a trap-free route (#619, #1544); trap
+	// cells are kept off their resting positions separately.
 	blocked := map[domain.Cell]bool{}
 	var blockedCells []domain.Cell
 	for _, t := range record.Tiers {
 		for _, b := range t.Buildings {
-			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseDefinitions.Door || b.Definition == defenseDefinitions.Bait || b.Definition == defenseConduitDefinition || defenseTerrain(b.Definition) {
+			if !defenseAuditBlocks(b.Definition) {
 				continue
 			}
 			if !blocked[b.Cell] {
@@ -1413,6 +1410,20 @@ func defenseNeedsStone(buildings []domain.Building) bool {
 
 // defenseTerrain is a definition laid as terrain, not an edifice: the
 // firing-line floor and the perimeter's bridges (#949).
+// defenseAuditBlocks reports whether a layout placement is impassable to
+// colonists in the access audit: walls and turrets are. A spike trap is
+// walked, a fence or a barricade climbed (the killbox's fence bar is on
+// the raiders' route too, priced by pathFenceCost, #1544), a colonist
+// opens the colony's own door, and a conduit or a floor lies under the
+// pawn.
+func defenseAuditBlocks(definition string) bool {
+	switch definition {
+	case defenseDefinitions.Trap, defenseDefinitions.Fence, defenseDefinitions.Sandbag, defenseDefinitions.Door, defenseDefinitions.Bait, defenseConduitDefinition:
+		return false
+	}
+	return !defenseTerrain(definition)
+}
+
 func defenseTerrain(definition string) bool {
 	return definition == defenseDefinitions.Floor || definition == policy.PerimeterBridge || definition == policy.PerimeterHeavyBridge
 }

@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1,
             [ToolParameter(Description = "Bedroom start (#838): enable Construction on every able colonist, lay wooden beds instead of sleeping spots, give each colonist one, drop 120 survival meals and raise every shell blueprint at once.")] bool builders = false,
             [ToolParameter(Description = "Suite start (#1221): the first uncoupled hut colonist turns Greedy (Ascetic removed), reported as greedyPawn.")] bool greedy = false,
-            [ToolParameter(Description = "Expansion start (#1271, with builders): a walled, roofed bedroom per single colonist and per couple (a double bed) on the planned bedroom rooms, each colonist owning and lying in its Bed, the hut beds removed, a campfire with a simple-meal bill and a stockpile in the hut, and two armed colonists.")] bool expansion = false,
+            [ToolParameter(Description = "Expansion start (#1271, with builders): a walled, roofed bedroom per single colonist and per couple (a double bed), each with an end table, on the planned bedroom rooms, each colonist owning and lying in its Bed, the hut beds removed, a campfire with a simple-meal bill and a stockpile in the hut, and two armed colonists.")] bool expansion = false,
             [ToolParameter(Description = "Planned bedroom rooms for expansion: 'x,z,width,height,doorX,doorZ' (interior and door cell) per room, joined by ';'; at least one per single colonist and couple.")] string bedrooms = "")
         {
             var name = string.IsNullOrEmpty(project) ? "Stonecutting" : project;
@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
 
         // Expand (#1271) stages the colony one review short of MaintainHousing's
         // expansion phase: every single colonist in a bedroom of their own and
-        // every couple sharing one with a double bed, on the planned bedroom rooms
+        // every couple sharing one with a double bed, each with an end table, on the planned bedroom rooms
         // (so no bedroom step is owed and the plan's other rooms stay free),
         // each lying in its bed (so the sleeping review records the use),
         // indoor capacity exactly the colonists (the hut beds go), and Foothold's remaining exits met (a cooking bill, a food
@@ -125,6 +125,8 @@ namespace HomeBridge.BridgeTools
             var doorDef = ThingDef.Named("Door");
             var bedDef = ThingDef.Named("Bed");
             var doubleBedDef = ThingDef.Named("DoubleBed");
+            var endTableDef = ThingDef.Named("EndTable");
+            var tables = 0;
             var owned = new List<KeyValuePair<Pawn, Building_Bed>>();
             var doors = new List<IntVec3>();
             var interiors = new List<CellRect>();
@@ -159,6 +161,16 @@ namespace HomeBridge.BridgeTools
                 var bedThing = (Building_Bed)ThingMaker.MakeThing(def, ThingDefOf.WoodLog);
                 bedThing.SetFaction(player); GenSpawn.Spawn(bedThing, sites[0], map, Rot4.North, WipeMode.Vanish);
                 foreach (var p in groups[g]) owned.Add(new KeyValuePair<Pawn, Building_Bed>(p, bedThing));
+                // An end table: the only piece a Camp/Masonry 3x4 bedroom's
+                // template holds besides the bed, so no room quality upgrade
+                // (#814) holds MaintainHousing in its bedroom phase.
+                var bedCells = bedThing.OccupiedRect();
+                var table = interior.Cells.Where(c => !bedCells.Contains(c) && !c.AdjacentToCardinal(door))
+                    .OrderBy(c => bedCells.ClosestCellTo(c).DistanceToSquared(c)).ThenByDescending(c => c.DistanceToSquared(door)).FirstOrDefault();
+                if (!table.IsValid || !interior.Contains(table)) throw new InvalidOperationException($"Planned bedroom {interior} holds no EndTable site.");
+                var endTable = ThingMaker.MakeThing(endTableDef, ThingDefOf.WoodLog);
+                endTable.SetFaction(player); GenSpawn.Spawn(endTable, table, map, Rot4.North, WipeMode.Vanish);
+                tables++;
             }
             map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
             var asleep = 0;
@@ -203,7 +215,7 @@ namespace HomeBridge.BridgeTools
                 armed++;
             }
             var couples = groups.Count(g => g.Count == 2);
-            return new { beds, rooms = groups.Count, asleep, roles,
+            return new { beds, tables, rooms = groups.Count, asleep, roles,
                 doors = doors.Select(d => new { x = d.x, z = d.z }).ToList(), campfire = campfire.Position.ToString(),
                 stockpile = zone.Cells.Count, bedroomFloorZoned = filled, armed, couples };
         }
