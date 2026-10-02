@@ -35,7 +35,8 @@ func RoomCells(v *o.RoomsSnapshot, grid *cellgrid.Grid) map[string][]domain.Cell
 // ValidateTemperatureRooms checks every fact consumed by temperature
 // planning, each room against its grid cells (RoomCells): held cells
 // inside its extents, no more than its count, holding its centre and
-// beds. Other typed room details (beauty, wealth, labels) convey no
+// beds when none is fogged. A wholly fogged room has no grid key and no
+// cells. Other typed room details (beauty, wealth, labels) convey no
 // thermal authority.
 func ValidateTemperatureRooms(v *o.RoomsSnapshot, roomCells map[string][]domain.Cell, identity *c.Identity) error {
 	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
@@ -48,7 +49,7 @@ func ValidateTemperatureRooms(v *o.RoomsSnapshot, roomCells map[string][]domain.
 	rooms, beds := map[string]bool{}, map[string]bool{}
 	for _, room := range v.Rooms {
 		cells := roomCells[room.GetId()]
-		if room == nil || validID(room.GetId()) != nil || rooms[room.GetId()] || room.ProperRoom == nil || room.Doorway == nil || room.PsychologicallyOutdoors == nil || room.Outdoors == nil || room.TouchesMapEdge == nil || room.OpenRoofCount == nil || room.CellCount == nil || room.GetCellCount() == 0 || len(cells) == 0 || uint32(len(cells)) > room.GetCellCount() || room.GetOpenRoofCount() > room.GetCellCount() || room.GetDoorway() || room.GetPsychologicallyOutdoors() {
+		if room == nil || validID(room.GetId()) != nil || rooms[room.GetId()] || room.ProperRoom == nil || room.Doorway == nil || room.PsychologicallyOutdoors == nil || room.Outdoors == nil || room.TouchesMapEdge == nil || room.OpenRoofCount == nil || room.CellCount == nil || room.GetCellCount() == 0 || (len(cells) == 0 && room.GridRoom != nil) || uint32(len(cells)) > room.GetCellCount() || room.GetOpenRoofCount() > room.GetCellCount() || room.GetDoorway() || room.GetPsychologicallyOutdoors() {
 			return contract("invalid indoor room")
 		}
 		rooms[room.GetId()] = true
@@ -77,11 +78,14 @@ func ValidateTemperatureRooms(v *o.RoomsSnapshot, roomCells map[string][]domain.
 			}
 			local[cell] = true
 		}
-		if !local[domain.Cell{X: room.Center.GetX(), Z: room.Center.GetZ()}] {
+		// Fogged cells are absent from the grid, so a partly fogged room
+		// may hide its centre and beds; a wholly fogged one has no key.
+		fogged := uint32(len(cells)) < room.GetCellCount()
+		if !fogged && !local[domain.Cell{X: room.Center.GetX(), Z: room.Center.GetZ()}] {
 			return contract("inconsistent room geometry")
 		}
 		for _, bed := range room.Beds {
-			if bed == nil || pawnsEntity(bed, v.Context) != nil || bed.DefName == nil || bed.MapId == nil || !colonyCell(bed.Position, size) || !local[domain.Cell{X: bed.Position.GetX(), Z: bed.Position.GetZ()}] || beds[bed.GetId()] {
+			if bed == nil || pawnsEntity(bed, v.Context) != nil || bed.DefName == nil || bed.MapId == nil || !colonyCell(bed.Position, size) || !fogged && !local[domain.Cell{X: bed.Position.GetX(), Z: bed.Position.GetZ()}] || beds[bed.GetId()] {
 				return contract("invalid room bed")
 			}
 			beds[bed.GetId()] = true

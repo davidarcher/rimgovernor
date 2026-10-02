@@ -22,6 +22,7 @@ package zone
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -106,20 +107,20 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		return row, nil
 	}
-	// zoneState reads one zone's listed snapshot token, used here only to
-	// detect whether a refused or resent intent touched the zone.
-	// present=false with no error means the zone is not listed.
+	// zoneState reads one zone's row as a state token (its canonical JSON:
+	// bounds, cell counts, filter, priority), used here only to detect
+	// whether a refused or resent intent touched the zone. present=false
+	// with no error means the zone is not listed.
 	zoneState := func(label, zoneID string) (token string, present bool, err error) {
 		row, err := zoneRow(label, zoneID)
 		if err != nil || row == nil {
 			return "", false, err
 		}
-		snapshot, _ := na.AsMap(row["snapshot"])
-		token = na.AsString(snapshot["token"])
-		if token == "" {
-			return "", false, fmt.Errorf("%s: missing zone snapshot token: %#v", label, row)
+		encoded, err := json.Marshal(row)
+		if err != nil {
+			return "", false, fmt.Errorf("%s: zone row: %w", label, err)
 		}
-		return token, true, nil
+		return string(encoded), true, nil
 	}
 	// zoneFilter asserts the exact filter readback: the allowed def set,
 	// the hit-point fractions and the quality names.

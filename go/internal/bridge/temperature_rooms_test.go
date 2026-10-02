@@ -56,6 +56,24 @@ func TestTemperatureRoomsAcceptGridCells(t *testing.T) {
 	}
 }
 
+// TestTemperatureRoomsAcceptFoggedRooms: fogged cells are absent from the
+// grid, so a wholly fogged room (no grid key) has no cells and a partly
+// fogged one may hide its centre and beds.
+func TestTemperatureRoomsAcceptFoggedRooms(t *testing.T) {
+	whole := temperatureTestSnapshot()
+	whole.Rooms[0].GridRoom = nil
+	if err := ValidateTemperatureRooms(whole, nil, pbIdentity()); err != nil {
+		t.Fatalf("wholly fogged: %v", err)
+	}
+	partial := temperatureTestSnapshot()
+	room := partial.Rooms[0]
+	room.CellCount = proto.Uint32(2)
+	room.Extents.Maximum = &c.Cell{X: proto.Int32(4), Z: proto.Int32(7)}
+	if err := ValidateTemperatureRooms(partial, map[string][]domain.Cell{"42": {{X: 4, Z: 7}}}, pbIdentity()); err != nil {
+		t.Fatalf("partly fogged: %v", err)
+	}
+}
+
 // TestRoomCellsResolveTheGridRoomKey: a room's cells are the grid cells
 // carrying its grid_room key; a room the grid does not key is absent.
 func TestRoomCellsResolveTheGridRoomKey(t *testing.T) {
