@@ -56,19 +56,7 @@ func ring(ctx context.Context, s cases.Session) error {
 			if err != nil {
 				return err
 			}
-			doors, walls := 0, 0
-			for _, item := range na.AsSlice(audit["walls"]) {
-				row, _ := na.AsMap(item)
-				if !policy.StoneBlockResource(policy.Resource(na.AsString(row["stuff"]))) {
-					continue
-				}
-				switch na.AsString(row["def"]) {
-				case "Door":
-					doors++
-				case "Wall":
-					walls++
-				}
-			}
+			doors, walls := stoneRing(audit)
 			report["ring"] = map[string]any{"stoneDoors": doors, "stoneWalls": walls}
 			if doors == 0 || walls == 0 {
 				return fmt.Errorf("no stone ring stands: %d stone doors, %d stone-block walls", doors, walls)
@@ -77,4 +65,23 @@ func ring(ctx context.Context, s cases.Session) error {
 		},
 	})
 	return err
+}
+
+// stoneRing counts the audit's stone-block Doors and Walls, standing or
+// planned: the watch ends once the step is planned, so the ring may still
+// be blueprints and frames, whose planned rows carry the stuff each becomes.
+func stoneRing(audit map[string]any) (doors, walls int) {
+	for _, item := range append(na.AsSlice(audit["walls"]), na.AsSlice(audit["planned"])...) {
+		row, _ := na.AsMap(item)
+		if !policy.StoneBlockResource(policy.Resource(na.AsString(row["stuff"]))) {
+			continue
+		}
+		switch na.AsString(row["def"]) {
+		case "Door":
+			doors++
+		case "Wall":
+			walls++
+		}
+	}
+	return doors, walls
 }
