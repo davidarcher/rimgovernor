@@ -304,6 +304,8 @@ func statusReason(b BlockedReason) string {
 		return "confirming the last change"
 	case BlockedCooldown:
 		return "retrying later"
+	case HeldStage:
+		return "waiting on the colony's earlier needs first"
 	}
 	raw := string(b)
 	for prefix, lead := range map[string]string{blockedPlanner: "can't plan yet: ", blockedPrerequisite: "waiting on ", blockedHeld: "on hold: "} {

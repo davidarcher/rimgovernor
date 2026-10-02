@@ -24,6 +24,9 @@ type DevelopmentGoal struct {
 	Deficit                     domain.Fact[float64]
 	Cancelled, Blocked, Comfort bool
 	MethodUnavailable           bool
+	// Staged: the colony stage does not raise the goal yet; it waits, visible,
+	// and takes no slot.
+	Staged bool
 	// Served: the goal has a method on record (an active plan under any of
 	// its epochs).
 	Served bool
@@ -223,8 +226,8 @@ type DevelopmentRequest struct {
 	// (ReviewColonyStage); its Foothold hold refuses the comfort-class
 	// development with DevelopmentStage.
 	Stage ColonyStageRecord
-	// Census is the distinct workers admission matches; the slot bound
-	// is MaxAutoDevelopmentProjects.
+	// Census is the distinct workers admission matches; the
+	// slot count is the worker count.
 	Census domain.Fact[[]DevelopmentWorker]
 	// Dependencies are the live prerequisite edges (#651); a prerequisite
 	// row with an open shortfall ranks ahead of undonated rows
@@ -269,7 +272,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			}
 		}
 	}
-	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(MaxAutoDevelopmentProjects, workers), Census: r.Census, StageHold: r.Stage.HoldsDevelopment()}
+	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: workers, Census: r.Census, StageHold: r.Stage.HoldsDevelopment()}
 	result.Partial = r.Partial
 	if !validLabor(r.Withheld) {
 		return DevelopmentState{}, errors.New("invalid withheld labor")
@@ -402,6 +405,8 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			row.Reason = DevelopmentCommitted
 		case released[g.ID]:
 			row.Reason = DevelopmentLaborIdle
+		case g.Staged:
+			row.Reason = DevelopmentStage
 		case g.MethodUnavailable:
 			row.Reason = DevelopmentMethodUnavailable
 		case riskKnown && risk >= 1:

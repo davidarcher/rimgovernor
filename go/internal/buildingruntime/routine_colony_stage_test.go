@@ -83,7 +83,7 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 	if s := stage(); s.Stage != policy.StageFoothold || !s.Held || s.Blocker != policy.StageBlockerShelter {
 		t.Fatalf("foothold stage %+v", s)
 	}
-	if r, ok := row(); ok {
+	if r, ok := row(); ok && (r.Selected || r.Reason != policy.DevelopmentStage) {
 		t.Fatalf("stone shell raised at Foothold: %+v", r)
 	}
 	v.IndoorSleepingCapacity = indoor

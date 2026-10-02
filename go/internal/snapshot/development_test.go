@@ -53,8 +53,8 @@ func TestDevelopmentRankingBoundedAndExplained(t *testing.T) {
 				t.Errorf("%s: %s waits since %d, after review tick %d", path, row.Goal, row.WaitingSince, d.Tick)
 			}
 		}
-		if d.Workers == nil || admitted > d.Capacity || d.Capacity > policy.MaxAutoDevelopmentProjects || d.Capacity > *d.Workers {
-			t.Errorf("%s: admitted %d, capacity %d, workers %v, limit %d", path, admitted, d.Capacity, d.Workers, policy.MaxAutoDevelopmentProjects)
+		if d.Workers == nil || admitted > d.Capacity || d.Capacity > *d.Workers {
+			t.Errorf("%s: admitted %d, capacity %d, workers %v", path, admitted, d.Capacity, d.Workers)
 		}
 	}
 }
@@ -94,7 +94,7 @@ func TestDevelopmentStageHoldsResearchAtFoothold(t *testing.T) {
 		t.Fatal("stage allows research; the recording no longer shows the hold", r.Policy.ColonyStage)
 	}
 	for _, row := range d.Rows {
-		if row.Goal == policy.EnsureResearch {
+		if row.Goal == policy.EnsureResearch && row.Selected {
 			t.Fatal("research ranked under the stage hold")
 		}
 	}
@@ -103,7 +103,7 @@ func TestDevelopmentStageHoldsResearchAtFoothold(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, g := range needs.Goals {
-		if g.ID == policy.EnsureResearch {
+		if g.ID == policy.EnsureResearch && !g.Staged {
 			t.Fatal("replay raised research at the recorded stage")
 		}
 	}

@@ -1559,16 +1559,17 @@ func criticalMedicinePriority(f RoutineFacts) int {
 	return 1
 }
 
-// raisedAtStage drops the goals the colony stage does not raise yet
-// (StageGoalAllowed), with the stage's exceptions: MaintainResource opens
+// raisedAtStage marks the goals the colony stage does not raise yet
+// (StageGoalAllowed) as Staged: they stay in the ranking with a waiting
+// reason instead of vanishing, and take no slot. The exceptions: the stage's exceptions: MaintainResource opens
 // early for the wood floor or a construction dependency, MaintainRefrigeration
 // for a full spoiling emergency, the stone shell waits for stone blocks
 // (a known unfinished Stonecutting) and the animal goals for a tame animal (a census that knows of none
 // raises none).
 func raisedAtStage(goals []DevelopmentGoal, f RoutineFacts, p RoutinePolicy, l RoutineLatches) []DevelopmentGoal {
 	stage := p.ColonyStage
-	kept := goals[:0]
-	for _, g := range goals {
+	for i := range goals {
+		g := goals[i]
 		allowed := StageGoalAllowed(g.ID, stage)
 		switch g.ID {
 		case MaintainResource:
@@ -1582,11 +1583,9 @@ func raisedAtStage(goals []DevelopmentGoal, f RoutineFacts, p RoutinePolicy, l R
 			animals, known := f.AnimalUpkeep.Animals.Value()
 			allowed = allowed && !(known && len(animals) == 0)
 		}
-		if allowed {
-			kept = append(kept, g)
-		}
+		goals[i].Staged = !allowed
 	}
-	return kept
+	return goals
 }
 
 // stonecuttingUnfinished: the research census is known and has not

@@ -171,18 +171,18 @@ func equipmentSlots(call context.Context, p *Player, review store.RoutineReview)
 	return limit, "", nil
 }
 
-// equipmentRanked: the review ranked MaintainEquipment. The ranking drops
-// the goal before its colony stage (raisedAtStage), so it has no row and no
-// slot, and a wear order or bill admitted for it is refused on every tick.
-// Settings writes hold no slot and go ahead regardless. A review with no
-// rows at all predates the ranking.
+// equipmentRanked: the ranking gave MaintainEquipment a slot (or it already
+// holds one). A goal the colony stage has not raised yet waits with a
+// reason and holds none, and a wear order or bill admitted for it is refused
+// on every tick. Settings writes hold no slot and go ahead regardless. A
+// review with no rows at all predates the ranking.
 func equipmentRanked(review store.RoutineReview) bool {
 	if len(review.Development.Rows) == 0 {
 		return true
 	}
 	for _, row := range review.Development.Rows {
 		if row.Goal == policy.MaintainEquipment {
-			return true
+			return row.Selected || row.Committed
 		}
 	}
 	return false

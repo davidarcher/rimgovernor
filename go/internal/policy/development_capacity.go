@@ -10,10 +10,9 @@ import (
 // Development capacity (#649) is the one accounting the ranking, a
 // planner's yield and method admission share. A development slot is a
 // concurrent optional project (a goal ranked at priority 3-4 or a player
-// project); the limit (MaxAutoDevelopmentProjects) bounds planner cost and
-// queue growth, never worker use. Worker capacity is separate: each held
-// or selected project needs labor for its profile, and developmentFit
-// decides whether the next one still gets it.
+// project); there is no count limit beyond the workers: each held or selected
+// project needs labor for its profile, and developmentFit decides whether
+// the next one still gets it.
 //
 // Admission matches one distinct census worker per project (AllocateWorkers,
 // #647), so a pawn enabled for three work types is one worker, and open
@@ -22,10 +21,6 @@ import (
 // admission floor, not a ratio: an admitted project's designations are
 // open to every enabled pawn natively. An unobserved census falls back to
 // the per-work-type headcount (laborLedger).
-
-// MaxAutoDevelopmentProjects is the slot bound: the
-// ranking's own bound, kept for planner cost, not a worker ratio.
-const MaxAutoDevelopmentProjects = 8
 
 // DevelopmentWorker is one available pawn of the distinct-worker census:
 // the work types it is enabled for (priority above zero, not disabled, not

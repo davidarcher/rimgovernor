@@ -225,7 +225,7 @@ func TestStageRoutinePolicyBudgets(t *testing.T) {
 	}
 }
 
-// A goal before its stage is not raised at all; the stage's exceptions
+// A goal before its stage is not raised (Staged: it waits, visible, with no slot); the stage's exceptions
 // raise it early (the wood floor, a full spoiling emergency) or later (the
 // stone shell without Stonecutting, animal goals with no tame animal).
 func TestRaisedAtStage(t *testing.T) {
@@ -233,7 +233,16 @@ func TestRaisedAtStage(t *testing.T) {
 	ids := func(goals []DevelopmentGoal) map[GoalID]bool {
 		out := map[GoalID]bool{}
 		for _, g := range goals {
-			out[g.ID] = true
+			out[g.ID] = !g.Staged
+		}
+		return out
+	}
+	raised := func(goals []DevelopmentGoal) map[GoalID]bool {
+		out := map[GoalID]bool{}
+		for id, ok := range ids(goals) {
+			if ok {
+				out[id] = true
+			}
 		}
 		return out
 	}
@@ -247,26 +256,26 @@ func TestRaisedAtStage(t *testing.T) {
 	p := DefaultRoutinePolicy()
 	f := RoutineFacts{Research: domain.Known(ResearchFacts{}), AnimalUpkeep: AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{})}}
 	p.ColonyStage = StageFoothold
-	got := ids(raisedAtStage(all(), f, p, RoutineLatches{}))
+	got := raised(raisedAtStage(all(), f, p, RoutineLatches{}))
 	if !got[CriticalMedicine] || !got[EnsureFoodSupply] || len(got) != 2 {
 		t.Fatalf("foothold raised %v", got)
 	}
 	spoiling := all()
 	spoiling[5].Deficit = domain.Known(1.0)
-	if got := ids(raisedAtStage(spoiling, f, p, RoutineLatches{Wood: true})); !got[MaintainResource] || !got[MaintainRefrigeration] {
+	if got := raised(raisedAtStage(spoiling, f, p, RoutineLatches{Wood: true})); !got[MaintainResource] || !got[MaintainRefrigeration] {
 		t.Fatalf("emergencies not raised early: %v", got)
 	}
 	p.ColonyStage = StageReserves
-	if got := ids(raisedAtStage(all(), f, p, RoutineLatches{})); !got[EnsureResearch] || !got[MaintainResource] || got[MaintainRefrigeration] {
+	if got := raised(raisedAtStage(all(), f, p, RoutineLatches{})); !got[EnsureResearch] || !got[MaintainResource] || got[MaintainRefrigeration] {
 		t.Fatalf("reserves raised %v", got)
 	}
 	p.ColonyStage = StageStable
-	if got := ids(raisedAtStage(all(), f, p, RoutineLatches{})); got[MaintainStoneShell] || got[MaintainHerd] || !got[MaintainRefrigeration] || got[MaintainFlooring] {
+	if got := raised(raisedAtStage(all(), f, p, RoutineLatches{})); got[MaintainStoneShell] || got[MaintainHerd] || !got[MaintainRefrigeration] || got[MaintainFlooring] {
 		t.Fatalf("stable raised %v", got)
 	}
 	f.Research = domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Stonecutting"}})
 	p.ColonyStage = StageDevelopment
-	if got := ids(raisedAtStage(all(), f, p, RoutineLatches{})); !got[MaintainStoneShell] || got[MaintainHerd] || !got[MaintainFlooring] || !got[MaintainLighting] {
+	if got := raised(raisedAtStage(all(), f, p, RoutineLatches{})); !got[MaintainStoneShell] || got[MaintainHerd] || !got[MaintainFlooring] || !got[MaintainLighting] {
 		t.Fatalf("development raised %v", got)
 	}
 }
