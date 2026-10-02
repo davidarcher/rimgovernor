@@ -210,6 +210,10 @@ namespace HomeBridge.BridgeTools
             var record = new NativeDeconstructionRecord(target!, ground, context);
             if (record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null)
                 new Designator_Deconstruct().DesignateThing(target);
+            // Vanilla removes a zero-work target (a sleeping spot, a
+            // campfire) or any target in god mode at once instead of
+            // designating it: that is the observed demolition.
+            if (target!.Destroyed) { record.Complete = true; return record.Evidence(context); }
             record.Designation = record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
             if (record.Designation == null) throw new InvalidOperationException("Native designation was not created.");
             records.Add(record);

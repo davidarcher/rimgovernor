@@ -87,13 +87,8 @@ namespace HomeBridge.BridgeTools
                 || !c.HasMinQuality || !c.HasMaxQuality || c.MinQuality < 0 || c.MaxQuality > 6 || c.MinQuality > c.MaxQuality
                 || c.AllowedDefs.Count == 0 || c.AllowedDefs.Distinct().Count() != c.AllowedDefs.Count
                 || c.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d)?.IsApparel != true))
-<<<<<<< HEAD
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a RimGovernor name, apparel definitions and valid bounds.");
-            p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.ById(c.PawnId)!;
-=======
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a name, apparel definitions and valid bounds.");
-            p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.FirstOrDefault(v => v.GetUniqueLoadID() == c.PawnId)!;
->>>>>>> 082b80b (Per-pawn outfits labelled by short name, outfit prune wired (#1302))
+            p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.ById(c.PawnId)!;
             if (p == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The pawn is not a free colonist spawned on this map.");
             var unavailable = GearUpkeepTools.Available(p);
             if (unavailable != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot take an apparel policy: " + unavailable);
